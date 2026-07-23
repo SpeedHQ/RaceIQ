@@ -292,7 +292,19 @@ export function VersionGraph({ sessionId, gameId, tests, headTestId, lapsByTest,
           </div>
 
           <div className="flex-1 min-w-0 pb-2">
-            <button type="button" onClick={() => toggle(t.id)} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left hover:bg-app-surface-alt/40">
+            {/* div (not button): the row contains nested buttons (Checkout/Setup/Notes/…), and <button> cannot nest <button> (hydration error) */}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => toggle(t.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  toggle(t.id);
+                }
+              }}
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left cursor-pointer hover:bg-app-surface-alt/40"
+            >
               <span className="text-app-text-dim text-xs w-3">{isOpen ? "▾" : "▸"}</span>
               <span className="font-mono text-xs text-app-text shrink-0">{t.label}</span>
               <span className="text-[11px] text-app-text-muted truncate min-w-0">
@@ -372,7 +384,7 @@ export function VersionGraph({ sessionId, gameId, tests, headTestId, lapsByTest,
                 <RowStat label="fuel/lap" value={avgFuel != null ? `${avgFuel.toFixed(2)}L` : "—"} width="w-[7ch]" />
                 <RowStat label="worst wear" value={avgWorstWear != null ? `${avgWorstWear.toFixed(0)}%` : "—"} width="w-[10ch]" />
               </span>
-            </button>
+            </div>
             {isOpen && (
               <div className="ml-3 border border-app-border/60 rounded-md overflow-hidden bg-app-surface/40">
                 <AppliedChangesList json={t.appliedChanges} />

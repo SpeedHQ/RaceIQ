@@ -120,11 +120,55 @@ function SectionCard({
   );
 }
 
+// Tab layout: each tab groups one or more schema sections by key.
+const TAB_DEFS: { label: string; keys: string[] }[] = [
+  { label: "Tyres", keys: ["basicSetup.tyres", "basicSetup.alignment"] },
+  { label: "Electronics", keys: ["basicSetup.electronics"] },
+  { label: "Fuel & strategy", keys: ["basicSetup.strategy"] },
+  { label: "Suspension", keys: ["advancedSetup.mechanicalBalance", "advancedSetup.suspension", "advancedSetup.drivetrain"] },
+  { label: "Dampers", keys: ["advancedSetup.dampers"] },
+  { label: "Aero", keys: ["advancedSetup.aeroBalance"] },
+];
+
 export function FillForm({ sections, settings, onChange }: { sections: SectionDef[]; settings: Record<string, unknown>; onChange: (next: Record<string, unknown>) => void }) {
+  // Group sections into tabs; anything the tab map doesn't know about lands
+  // in an "Other" tab so game-specific sections are never silently dropped.
+  const known = new Set(TAB_DEFS.flatMap((t) => t.keys));
+  const tabs = [
+    ...TAB_DEFS.map((t) => ({ label: t.label, sections: sections.filter((s) => t.keys.includes(s.key)) })),
+    { label: "Other", sections: sections.filter((s) => !known.has(s.key)) },
+  ].filter((t) => t.sections.length > 0);
+
+  const [active, setActive] = useState(0);
+  const activeTab = tabs[Math.min(active, tabs.length - 1)];
+
   return (
     <div className="col-span-2 space-y-2">
-      {sections.map((s, i) => (
-        <SectionCard key={s.key} section={s} settings={settings} onChange={onChange} defaultOpen={i === 0} />
+      <div className="flex flex-wrap gap-1 border-b border-app-border pb-2" role="tablist">
+        {tabs.map((t, i) => {
+          const hasData = t.sections.some((s) => {
+            const present = getByPath(settings, s.key);
+            return present != null && typeof present === "object";
+          });
+          return (
+            <button
+              key={t.label}
+              type="button"
+              role="tab"
+              aria-selected={i === active}
+              onClick={() => setActive(i)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                i === active ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text hover:bg-app-bg"
+              }`}
+            >
+              {t.label}
+              {hasData && <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 align-middle" />}
+            </button>
+          );
+        })}
+      </div>
+      {activeTab?.sections.map((s) => (
+        <SectionCard key={s.key} section={s} settings={settings} onChange={onChange} defaultOpen={true} />
       ))}
     </div>
   );

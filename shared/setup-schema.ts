@@ -42,7 +42,6 @@ const ACC_COMMON: SectionDef[] = [
       { path: "basicSetup.alignment.toe", label: "Toe (clicks)", arity: "corners" },
       { path: "basicSetup.alignment.casterLF", label: "Caster LF", arity: "scalar" },
       { path: "basicSetup.alignment.casterRF", label: "Caster RF", arity: "scalar" },
-      { path: "basicSetup.alignment.steerRatio", label: "Steer Ratio", arity: "scalar" },
     ],
   },
   {
@@ -69,17 +68,22 @@ const ACC_COMMON: SectionDef[] = [
   },
   {
     key: "advancedSetup.mechanicalBalance",
-    label: "Mechanical Balance",
+    label: "Suspension",
     fields: [
-      { path: "advancedSetup.mechanicalBalance.aRBFront", label: "ARB Front", arity: "scalar" },
-      { path: "advancedSetup.mechanicalBalance.aRBRear", label: "ARB Rear", arity: "scalar" },
-      { path: "advancedSetup.mechanicalBalance.brakeTorque", label: "Brake Power (%)", arity: "scalar" },
+      { path: "advancedSetup.mechanicalBalance.aRBFront", label: "Front Anti Roll Bar", arity: "scalar" },
       { path: "advancedSetup.mechanicalBalance.brakeBias", label: "Brake Bias (clicks)", arity: "scalar" },
+      { path: "basicSetup.alignment.steerRatio", label: "Steer Ratio", arity: "scalar" },
       { path: "advancedSetup.mechanicalBalance.wheelRate", label: "Wheel Rate", arity: "corners" },
-      { path: "advancedSetup.mechanicalBalance.bumpStopRateUp", label: "Bumpstop Rate Up", arity: "corners" },
-      { path: "advancedSetup.mechanicalBalance.bumpStopRateDn", label: "Bumpstop Rate Down", arity: "corners" },
-      { path: "advancedSetup.mechanicalBalance.bumpStopWindow", label: "Bumpstop Window", arity: "corners" },
-      { path: "advancedSetup.mechanicalBalance.preloadDifferential", label: "Diff Preload", arity: "scalar" },
+      { path: "advancedSetup.mechanicalBalance.bumpStopRateUp", label: "Bumpstop Rate", arity: "corners" },
+      { path: "advancedSetup.mechanicalBalance.bumpStopWindow", label: "Bumpstop Range", arity: "corners" },
+    ],
+  },
+  {
+    key: "advancedSetup.rear",
+    label: "Rear",
+    fields: [
+      { path: "advancedSetup.mechanicalBalance.aRBRear", label: "Anti Roll Bar", arity: "scalar" },
+      { path: "advancedSetup.mechanicalBalance.preloadDifferential", label: "Differential Preload", arity: "scalar" },
     ],
   },
   {

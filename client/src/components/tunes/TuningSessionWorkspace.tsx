@@ -22,7 +22,6 @@ import { BackButton } from "./BackButton";
 import { HistoryPanel } from "./HistoryPanel";
 import { ImportLapsModal } from "./ImportLapsModal";
 import { LiveTestDashboard } from "./LiveTestDashboard";
-import { SetupContentModal } from "./SetupFilePicker";
 import { TuneSetupChat } from "./TuneSetupChat";
 import { VersionGraph } from "./VersionGraph";
 
@@ -47,12 +46,10 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
   const [showAddBase, setShowAddBase] = useState(false);
   const [showImportLaps, setShowImportLaps] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [showSetup, setShowSetup] = useState(false);
   const { data: session, isLoading: loadingSession } = useTuningSession(tuningSessionId);
   const { data: tests = [] } = useTuningSessionTests(tuningSessionId);
   /** Setup file the session is currently on: the head test's version, falling
    *  back to the session's base setup (before any test exists). */
-  const currentSetupPath = tests.find((t) => t.id === session?.headTestId)?.setupPath ?? session?.baseSetupPath ?? null;
   const { data: lapMetrics = [] } = useTuningSessionLapMetrics(tuningSessionId);
   const accCarName = useAccCarName();
   const { data: allLaps = [] } = useLaps();
@@ -176,7 +173,13 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
 
   const rawCarLabel = session.carName ?? (session.carOrdinal != null ? names?.carNames[String(session.carOrdinal)] : undefined) ?? null;
   const carLabel = gameId === "acc" ? accCarName(rawCarLabel) : rawCarLabel;
-  const trackLabel = session.trackName ?? (session.trackOrdinal != null ? names?.trackNames[String(session.trackOrdinal)] : undefined) ?? null;
+  const rawTrackLabel = session.trackName ?? (session.trackOrdinal != null ? names?.trackNames[String(session.trackOrdinal)] : undefined) ?? null;
+  // Session trackName can be a raw folder slug (e.g. "brands_hatch") — turn
+  // slug-looking values into a friendly title-cased label.
+  const trackLabel =
+    rawTrackLabel && /^[a-z0-9_-]+$/.test(rawTrackLabel)
+      ? rawTrackLabel.replace(/[_-]+/g, " ").replace(/\b[a-z]/g, (c) => c.toUpperCase())
+      : rawTrackLabel;
   const subtitle = [carLabel, trackLabel].filter(Boolean).join(" · ");
 
   return (
@@ -184,29 +187,12 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
       {/* Header */}
       <div className="shrink-0">
         <BackButton onClick={clearSession} className="mb-2" />
-        <div className="flex items-baseline justify-between gap-3 flex-wrap">
-          <h1 className="text-lg font-semibold text-app-text">
-            <span className="text-app-text-muted font-mono mr-2">#{session.seq}</span>
-            {session.name}
-          </h1>
-          <div className="flex items-center gap-2">
-            {subtitle && <div className="text-xs text-app-text-muted">{subtitle}</div>}
-            {gameId !== "f1-2025" && currentSetupPath && (
-              <button
-                type="button"
-                onClick={() => setShowSetup(true)}
-                title="View the contents of the current setup file"
-                className="text-[10px] px-2 py-1 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim"
-              >
-                View tune
-              </button>
-            )}
-          </div>
-        </div>
+        <h1 className="text-lg font-semibold text-app-text">
+          <span className="text-app-text-muted font-mono mr-2">#{session.seq}</span>
+          {session.name}
+        </h1>
+        {subtitle && <div className="mt-0.5 text-xs text-app-text-muted">{subtitle}</div>}
       </div>
-      {showSetup && gameId !== "f1-2025" && currentSetupPath && (
-        <SetupContentModal gameId={gameId} path={currentSetupPath} fileName={currentSetupPath.split(/[\\/]/).pop() ?? "Setup"} onClose={() => setShowSetup(false)} />
-      )}
 
       {/* Main row fills the remaining height. Left column scrolls; the right
           panel (Recommend + chat) is permanent and full-height. */}

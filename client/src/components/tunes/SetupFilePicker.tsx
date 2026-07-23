@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useSetupFileContent, useSetupFiles } from "../../hooks/queries";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
 import { SearchSelect } from "../ui/SearchSelect";
@@ -6,30 +6,72 @@ import { SearchSelect } from "../ui/SearchSelect";
 /** Read-only modal showing the picked setup file — human-readable sections
  *  when available, otherwise parsed JSON pretty-printed for ACC or decoded
  *  wire-tree text for AC Evo .carsetup files. */
+/** Which tab a corner-section row belongs to, by its label. */
+function rowTab(label: string): string {
+  const l = label.toLowerCase();
+  if (/(tyre|pressure|camber|toe|caster|compound)/.test(l)) return "Tyres";
+  if (l.includes("bumpstop") || l.includes("packer")) return "Suspension"; // bump stops/packers live with springs in the ACE suspension screen
+  if (/(bump|rebound|damper)/.test(l)) return "Dampers";
+  return "Suspension";
+}
+
+/** Which tab a non-corner section belongs to, by its title. */
+function sectionTab(title: string): string {
+  const t = title.toLowerCase();
+  if (t.startsWith("aero")) return "Aero";
+  if (t.startsWith("electronics")) return "Electronics";
+  if (t.startsWith("fuel")) return "Fuel & strategy";
+  if (t.startsWith("mechanical") || t.startsWith("suspension") || t.startsWith("front") || t.startsWith("rear")) return "Suspension";
+  return title;
+}
+
+const TAB_ORDER = ["Tyres", "Suspension", "Dampers", "Electronics", "Aero", "Fuel & strategy"];
+
 export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId: "acc" | "ac-evo"; path: string; fileName: string; onClose: () => void }) {
   const { data, isLoading, error } = useSetupFileContent(gameId, path);
   const sections = data?.sections?.length ? data.sections : null;
+  const [activeTab, setActiveTab] = useState<string | null>(null);
   const body = data?.formatted ?? (data?.setup ? JSON.stringify(data.setup, null, 2) : null);
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="flex max-h-[85vh] w-[min(94vw,960px)] flex-col sm:max-w-[960px]">
+      <DialogContent className="flex h-[60vh] w-[min(94vw,720px)] flex-col sm:max-w-[720px]">
         <DialogHeader className="min-w-0 pr-8">
           <DialogTitle className="truncate">{data?.fileName ?? fileName}</DialogTitle>
           {data?.presetId && <DialogDescription className="truncate text-[11px]">Preset {data.presetId}</DialogDescription>}
         </DialogHeader>
-        <div className="overflow-auto">
+        <div className="min-h-0 flex-1 overflow-auto">
           {isLoading && <div className="text-sm text-muted-foreground">Loading…</div>}
           {(error || data?.error) && <div className="text-sm text-red-400">{data?.error ?? "Couldn't read the setup file."}</div>}
           {sections && (
             <div className="space-y-4">
-              {/* Same grouped card grid the setup catalogue (CatalogTrackSetups /
-                  F1 setup detail) uses. The four corner sections are pinned into
-                  an aligned 2x2 grid (FL/FR over RL/RR); everything else flows in
-                  masonry columns beside it. */}
+              {/* Tabbed view: corner sections (FL/FR/RL/RR) mix tyre, suspension
+                  and damper rows, so their rows are split per-tab; every other
+                  section maps to a whole tab. Corner cards keep the aligned 2x2
+                  grid (FL/FR over RL/RR); other sections flow in masonry. */}
               {(() => {
                 const CORNER_ORDER = ["Front left", "Front right", "Rear left", "Rear right"];
-                const corners = [...sections].filter((s) => CORNER_ORDER.includes(s.title)).sort((a, b) => CORNER_ORDER.indexOf(a.title) - CORNER_ORDER.indexOf(b.title));
-                const others = sections.filter((s) => !CORNER_ORDER.includes(s.title));
+                const allCorners = [...sections].filter((s) => CORNER_ORDER.includes(s.title)).sort((a, b) => CORNER_ORDER.indexOf(a.title) - CORNER_ORDER.indexOf(b.title));
+                const allOthers = sections.filter((s) => !CORNER_ORDER.includes(s.title));
+                const tabs: string[] = [];
+                const seen = new Set<string>();
+                const push = (t: string) => {
+                  if (!seen.has(t)) {
+                    seen.add(t);
+                    tabs.push(t);
+                  }
+                };
+                for (const s of allCorners) for (const r of s.rows) push(rowTab(r.label));
+                for (const s of allOthers) push(sectionTab(s.title));
+                tabs.sort((a, b) => {
+                  const ia = TAB_ORDER.indexOf(a);
+                  const ib = TAB_ORDER.indexOf(b);
+                  return (ia === -1 ? TAB_ORDER.length : ia) - (ib === -1 ? TAB_ORDER.length : ib);
+                });
+                const tab = activeTab && tabs.includes(activeTab) ? activeTab : tabs[0];
+                const corners = allCorners
+                  .map((s) => ({ ...s, rows: s.rows.filter((r) => rowTab(r.label) === tab) }))
+                  .filter((s) => s.rows.length > 0);
+                const others = allOthers.filter((s) => sectionTab(s.title) === tab);
                 const card = (s: (typeof sections)[number], masonry: boolean) => (
                   <div key={s.title} className={`${masonry ? "mb-3 break-inside-avoid " : ""}rounded-lg bg-app-bg p-3`}>
                     <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-accent">{s.title}</h4>
@@ -60,18 +102,55 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
                   </div>
                 );
                 return (
-                  <div className="flex flex-col gap-3 xl:flex-row xl:items-start">
-                    {corners.length > 0 && <div className="grid shrink-0 grid-cols-1 content-start gap-3 sm:grid-cols-2 xl:w-1/2">{corners.map((s) => card(s, false))}</div>}
-                    <div className="w-full min-w-0 columns-1 gap-3 md:columns-2">{others.map((s) => card(s, true))}</div>
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap gap-1 border-b border-app-border pb-2">
+                      {tabs.map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setActiveTab(t)}
+                          className={`rounded px-2 py-1 text-[11px] ${
+                            t === tab ? "bg-app-bg font-semibold text-app-accent" : "text-app-text-muted hover:text-app-text"
+                          }`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                    {tab === "Aero" && others.length > 0 ? (
+                      // Aero: rear fields on the left, front fields on the right.
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {(() => {
+                          const rows = others.flatMap((s) => s.rows);
+                          const rear = rows.filter((r) => /rear|wing/i.test(r.label));
+                          const front = rows.filter((r) => !/rear|wing/i.test(r.label));
+                          return [card({ title: "Rear", rows: rear }, false), card({ title: "Front", rows: front }, false)];
+                        })()}
+                      </div>
+                    ) : tab === "Suspension" ? (
+                      // Suspension: front card above the FL/FR/RL/RR grid, rear card below.
+                      <div className="flex flex-col gap-3">
+                        {(() => {
+                          const rear = others.filter((s) => /rear/i.test(s.title));
+                          const front = others.filter((s) => !/rear/i.test(s.title));
+                          return (
+                            <>
+                              {front.map((s) => card(s, false))}
+                              {corners.length > 0 && <div className="grid grid-cols-1 content-start gap-3 sm:grid-cols-2">{corners.map((s) => card(s, false))}</div>}
+                              {rear.map((s) => card(s, false))}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-3 xl:flex-row xl:items-start">
+                        {corners.length > 0 && <div className="grid shrink-0 grid-cols-1 content-start gap-3 sm:grid-cols-2 xl:w-1/2">{corners.map((s) => card(s, false))}</div>}
+                        {others.length > 0 && <div className="w-full min-w-0 columns-1 gap-3 md:columns-2">{others.map((s) => card(s, true))}</div>}
+                      </div>
+                    )}
                   </div>
                 );
               })()}
-              {body && (
-                <details>
-                  <summary className="cursor-pointer text-[11px] text-muted-foreground">Raw file contents</summary>
-                  <pre className="mt-2 text-[12px] leading-relaxed whitespace-pre-wrap font-mono">{body}</pre>
-                </details>
-              )}
             </div>
           )}
           {!sections && body && <pre className="text-[12px] leading-relaxed whitespace-pre-wrap font-mono">{body}</pre>}

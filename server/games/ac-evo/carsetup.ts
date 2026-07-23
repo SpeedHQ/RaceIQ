@@ -239,13 +239,16 @@ const ALIGNMENT_GUESSES: Record<string, string> = {
   // #4 is NOT Toe (front-only constant, e.g. -0.0138) — leave raw
   "#5": "Caster", // front ~6.4–6.7°; rear ~3.6–3.8 also moves with caster edits; derived twin at #5/#6 tracks camber/toe live
   // #6 is a computed twin of toe (tiny signed radians) — hidden in summarizeCarSetup, not shown
-  "#7": "Tyre compound", // index; no per-car name list exists in content.kspkg (compound generators are class-level), so the raw number is shown
+  // #7 tyre compound — captured explicitly and shown under Fuel & strategy
 };
 const SPRING_GUESSES: Record<string, GuessEntry> = {
-  "#2.#1": "Bumpstop range", // small signed metres (-0.023); ACE UI calls this bump stop range
-  "#2.#2": { label: "Bumpstop rate", fixed: true }, // 1000; per-car constant, no slider
-  "#3.#1": { label: "Packer range", fixed: true }, // 0.048 m; no in-game slider
-  "#3.#2": { label: "Packer rate", fixed: true }, // 1500; no in-game slider
+  // Verified on the Audi R8 GT3 Evo II: in-game FL bumpstop rate 1500 N / range 5
+  // clicks matches the #3 block (0.048 m, 1500), so #3 is the adjustable bumpstop
+  // and #2 is the fixed packer pair (-0.023, 1000).
+  "#2.#1": { label: "Packer range", fixed: true }, // small signed metres (-0.023); no in-game slider
+  "#2.#2": { label: "Packer rate", fixed: true }, // 1000; per-car constant, no slider
+  "#3.#1": "Bumpstop range", // metres (0.048) behind the in-game clicks slider
+  "#3.#2": "Bumpstop rate", // N (1500); adjustable in-game
 };
 const DAMPER_GUESSES: Record<string, GuessEntry> = {
   "#1": "Slow bump", // clicks (8); matches ACE "Slow bump" slider
@@ -296,20 +299,29 @@ export function summarizeCarSetup(
   //   #1.#4 diff: #1 power (0.2) · #2 coast (0.25) · #3 preload (45 Nm)
   const mech = msgs(1)[0];
   if (mech) {
+    const frontRows: CarSetupRow[] = [];
+    const rearRows: CarSetupRow[] = [];
     const rows: CarSetupRow[] = [];
     const skip = new Set<number>();
+    // In-game the ARB sliders are plain click values (single digits) — show raw.
     const arb = mech.fields.find((f): f is Extract<WireField, { type: "bytes" }> => f.no === 1 && f.type === "bytes");
     if (arb?.floats?.length === 2) {
-      rows.push({ label: "Front ARB stiffness", value: `${fmt(arb.floats[0] / 1000)} kN/m` });
-      rows.push({ label: "Rear ARB stiffness", value: `${fmt(arb.floats[1] / 1000)} kN/m` });
+      frontRows.push({ label: "Anti-roll bar", value: fmt(arb.floats[0]) });
+      rearRows.push({ label: "Anti-roll bar", value: fmt(arb.floats[1]) });
       skip.add(1);
     }
     const brakeMsg = mech.fields.find((f): f is Extract<WireField, { type: "message" }> => f.no === 3 && f.type === "message");
     const bias = brakeMsg ? num(brakeMsg.fields.find((f) => f.no === 1)) : null;
     if (bias != null) {
-      rows.push(withRange({ label: "Brake bias", value: `${fmt(bias)}% front` }, bias, "brakeBias"));
-      if (brakeMsg) rows.push(...genericRows(brakeMsg.fields, "Brakes ", new Set([1]), BRAKE_GUESSES));
+      frontRows.push(withRange({ label: "Brake bias", value: `${fmt(bias)}% front` }, bias, "brakeBias"));
+      // Brake power (#3.#2) is a fixed per-car value, not tunable in-game — hide it.
       skip.add(3);
+    }
+    // #2 — steering ratio (see MECH_GUESSES) belongs on the Front card.
+    const steer = num(mech.fields.find((f) => f.no === 2));
+    if (steer != null) {
+      frontRows.push({ label: "Steer ratio", value: fmt(steer) });
+      skip.add(2);
     }
     const diffMsg = mech.fields.find((f): f is Extract<WireField, { type: "message" }> => f.no === 4 && f.type === "message");
     if (diffMsg) {
@@ -318,17 +330,20 @@ export function summarizeCarSetup(
       const preload = num(diffMsg.fields.find((f) => f.no === 3));
       if (power != null) rows.push({ label: "Diff power", value: fmt(power), fixed: true });
       if (coast != null) rows.push({ label: "Diff coast", value: fmt(coast), fixed: true });
-      if (preload != null) rows.push({ label: "Diff preload", value: `${fmt(preload)} Nm` });
+      if (preload != null) rearRows.push({ label: "Differential preload", value: `${fmt(preload)} Nm` });
       rows.push(...genericRows(diffMsg.fields, "Diff ", new Set([1, 2, 3])));
       skip.add(4);
     }
     rows.push(...genericRows(mech.fields, "", skip, MECH_GUESSES));
+    if (frontRows.length) sections.push({ title: "Front", rows: frontRows });
+    if (rearRows.length) sections.push({ title: "Rear", rows: rearRows });
     if (rows.length) sections.push({ title: "Mechanical & brakes", rows });
   }
 
   const springs = msgs(2);
   const dampers = msgs(3);
   const alignment = msgs(4);
+  let tyreCompound: number | undefined;
   for (let i = 0; i < 4; i++) {
     const rows: CarSetupRow[] = [];
     const align = alignment[i];
@@ -340,18 +355,21 @@ export function summarizeCarSetup(
       const pressure = num(align.fields.find((f) => f.no === 1));
       const camber = num(align.fields.find((f) => f.no === 2));
       if (pressure != null) rows.push(withRange({ label: "Tyre pressure", value: `${fmt(pressure)} psi` }, pressure, pressureKey));
-      if (camber != null) rows.push(withRange({ label: "Camber", value: `${fmt(camber)}°` }, camber, `${axle}Camber`));
       // #3 — toe, raw slider value (verified: FL 0.1→0.06 matched the toe slider edit).
       // proto3 omits zero-valued fields, so an absent #3 means toe 0 — always render.
       const toe = num(align.fields.find((f) => f.no === 3)) ?? 0;
       rows.push(withRange({ label: "Toe", value: fmt(toe) }, toe, `${axle}Toe`));
+      if (camber != null) rows.push(withRange({ label: "Camber", value: `${fmt(camber)}°` }, camber, `${axle}Camber`));
+      // #7 tyre compound is car-wide, not per-corner — capture once, shown under Fuel & strategy.
+      const compound = num(align.fields.find((f) => f.no === 7));
+      if (compound != null) tyreCompound ??= compound;
       // #6 is a computed twin of toe (not the slider input) — hide it to avoid confusion.
-      rows.push(...genericRows(align.fields, "Alignment ", new Set([1, 2, 3, 6]), ALIGNMENT_GUESSES));
+      rows.push(...genericRows(align.fields, "Alignment ", new Set([1, 2, 3, 6, 7]), ALIGNMENT_GUESSES));
     }
     const spring = springs[i];
     if (spring) {
       const rate = num(spring.fields.find((f) => f.no === 1));
-      if (rate != null) rows.push({ label: "Spring rate", value: `${fmt(rate / 1000)} kN/m` });
+      if (rate != null) rows.push({ label: "Wheel rate", value: `${fmt(rate / 1000)} kN/m` });
       rows.push(...genericRows(spring.fields, "Spring ", new Set([1]), SPRING_GUESSES));
     }
     const damper = dampers[i];
@@ -399,11 +417,15 @@ export function summarizeCarSetup(
   // 1–120; F1 slider 14 stored as 14, prior 60). ERS deploy/recharge/heat-charging
   // are NOT persisted in .carsetup (F1 save diff showed no change).
   const fuel = msgs(7)[0];
-  if (fuel) {
+  if (fuel || tyreCompound != null) {
     const rows: CarSetupRow[] = [];
-    const fuelLoad = num(fuel.fields.find((f) => f.no === 1));
-    if (fuelLoad != null) rows.push(withRange({ label: "Fuel load", value: `${fmt(fuelLoad)} L` }, fuelLoad, "fuel"));
-    rows.push(...genericRows(fuel.fields, "", new Set(fuelLoad != null ? [1] : [])));
+    if (fuel) {
+      const fuelLoad = num(fuel.fields.find((f) => f.no === 1));
+      if (fuelLoad != null) rows.push(withRange({ label: "Fuel load", value: `${fmt(fuelLoad)} L` }, fuelLoad, "fuel"));
+      rows.push(...genericRows(fuel.fields, "", new Set(fuelLoad != null ? [1] : [])));
+    }
+    // Compound index; no per-car name list exists in content.kspkg, so raw number.
+    if (tyreCompound != null) rows.push({ label: "Tyre compound", value: fmt(tyreCompound) });
     sections.push({ title: "Fuel & strategy", rows });
   }
 
