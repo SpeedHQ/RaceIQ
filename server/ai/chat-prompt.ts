@@ -11,6 +11,7 @@ import { analyzeLap } from "../../shared/lib/lap-insights";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
 import { aiLanguageInstruction } from "../../shared/locales";
+import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
 
 interface CornerDef {
   index: number;
@@ -24,7 +25,7 @@ function chatSystemPrompt(unit: UnitSystem, temperatureUnit: TemperatureUnit, la
   const units = `${baseUnits}, °${temperatureUnit}`;
   return `You are a racing engineer. Answer the driver's questions about their lap using the telemetry data below.
 
-Be brief. Use bullet points. Cite specific numbers in ${units}. Address them as "you". Temperature unit for this session is °${temperatureUnit}. No JSON output.${aiLanguageInstruction(language)}`;
+Be brief. Use bullet points. Cite specific numbers in ${units}. Address them as "you". Temperature unit for this session is °${temperatureUnit}. No JSON output.${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(language)}`;
 }
 
 export function buildChatSystemPrompt(

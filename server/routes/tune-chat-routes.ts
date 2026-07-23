@@ -12,7 +12,9 @@ import { setLiveIssuesEnabled } from "../pipeline";
 import { loadSettings } from "../settings";
 import { getChatMemory, tuneSessionThreadId, CHAT_RESOURCE_ID } from "../ai/chat-agent";
 import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
-import { streamAgentTurnResponse } from "../ai/agent-stream";
+import { startDetachedAgentTurn } from "../ai/agent-stream";
+import { reserveChatRun, buildReplayStream } from "../ai/chat-run-registry";
+import { createUIMessageStreamResponse } from "ai";
 import { setupEngineerAgent } from "../ai/agents";
 import { buildSetupEngineerSystemPrompt } from "../../mastra/agents/setup-engineer";
 import { RequestContext } from "@mastra/core/request-context";
@@ -221,6 +223,7 @@ export const tuneChatRoutes = new Hono()
       // one (Mastra stamps createdAt at save time, so the new row's createdAt is
       // always >= this) — avoids racing/patching a previous turn's message.
       const turnStartedAt = Date.now();
+      const threadId = tuneSessionThreadId(id);
 
       // System prompt segments, additive: session identity, deterministic
       // prereq-gathered context (setup/symptoms/history), then whatever lap
@@ -230,31 +233,53 @@ export const tuneChatRoutes = new Hono()
       if (gatheredContext) systemSegments.push(gatheredContext);
       if (extendedContext) systemSegments.push(extendedContext);
 
-      const stream = await agent.stream(
-        [{ role: "system", content: systemSegments.join("\n\n") }, ...messages],
-        {
-        memory: { thread: tuneSessionThreadId(id), resource: CHAT_RESOURCE_ID },
-        requestContext: reqCtx,
-        // Ask the model to stream its thought process so the tune chat can show a
-        // live "thinking" block that auto-collapses once the reply text starts
-        // (reasoning.tsx drives the collapse off the streamed reasoning parts).
-        // toAISdkStream forwards reasoning parts into the UI-message stream by
-        // default — the writer loop below relays every part — so enabling
-        // reasoning here is the whole server-side wiring. Scoped to this route:
-        // the main AiPanel keeps includeThoughts:false.
-        providerOptions: {
-          openai: { reasoningEffort: "medium" },
-          google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
-        },
-      });
+      // Reserve (or re-attach to) this thread's detached run BEFORE calling
+      // the agent — the double-start guard lives in the registry: if a turn
+      // is already active for this thread (e.g. a duplicate POST fired while
+      // one is in flight), `isNew` is false and we skip starting a second
+      // agent call entirely, just attaching to the existing run's stream.
+      const { run, isNew } = reserveChatRun(threadId);
+      if (isNew) {
+        const stream = await agent.stream(
+          [{ role: "system", content: systemSegments.join("\n\n") }, ...messages],
+          {
+          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+          requestContext: reqCtx,
+          // Threaded through so a client Cancel (POST .../run/cancel) or an
+          // evicted/aborted run actually stops the underlying model call,
+          // not just this HTTP response.
+          abortSignal: run.abortController.signal,
+          // Ask the model to stream its thought process so the tune chat can show a
+          // live "thinking" block that auto-collapses once the reply text starts
+          // (reasoning.tsx drives the collapse off the streamed reasoning parts).
+          // toAISdkStream forwards reasoning parts into the UI-message stream by
+          // default — the writer loop below relays every part — so enabling
+          // reasoning here is the whole server-side wiring. Scoped to this route:
+          // the main AiPanel keeps includeThoughts:false.
+          providerOptions: {
+            openai: { reasoningEffort: "medium" },
+            google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
+          },
+        });
 
-      return streamAgentTurnResponse({
-        agentStream: stream,
-        originalMessages: messages,
-        memory: getChatMemory(),
-        threadId: tuneSessionThreadId(id),
-        turnStartedAt,
-      });
+        // Detaches immediately: the agent stream keeps running and gets
+        // persisted server-side (onFinish inside agent-stream.ts) regardless
+        // of whether the response below is ever read to completion.
+        startDetachedAgentTurn(run, {
+          agentStream: stream,
+          originalMessages: messages,
+          memory: getChatMemory(),
+          threadId,
+          turnStartedAt,
+        });
+      }
+
+      // Same replay-then-live-tail stream the reconnect endpoint serves —
+      // identical code path, so a fresh POST and a later reconnect are
+      // indistinguishable to the client's transport.
+      const response = createUIMessageStreamResponse({ stream: buildReplayStream(run) });
+      response.headers.set("x-resumable-stream-id", run.runId);
+      return response;
     }
   )
 

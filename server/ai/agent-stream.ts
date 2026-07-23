@@ -1,5 +1,6 @@
-import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
+import { createUIMessageStream, createUIMessageStreamResponse, type UIMessageChunk } from "ai";
 import { toAISdkStream } from "@mastra/ai-sdk";
+import { type ChatRun, pushChunk, finishRun } from "./chat-run-registry";
 
 /**
  * Route-agnostic bridge from a Mastra agent stream to an AI SDK v5 UI-message
@@ -140,10 +141,13 @@ async function persistReasoningToMemory(
 }
 
 /**
- * Build a UI-message-stream Response from a Mastra agent stream, forwarding
- * reasoning, attaching usage metadata, and persisting reasoning to memory.
+ * Build the raw UI-message-chunk stream for an agent turn: reasoning
+ * forwarding, usage metadata, reasoning persistence. Shared by both the
+ * plain HTTP-response path (`streamAgentTurnResponse`) and the detached
+ * registry-backed path (`startDetachedAgentTurn`) — identical behavior
+ * either way, only what consumes the resulting stream differs.
  */
-export function streamAgentTurnResponse(opts: StreamAgentTurnOptions): Response {
+function buildAgentTurnUIStream(opts: StreamAgentTurnOptions): ReadableStream<UIMessageChunk> {
   const {
     agentStream,
     originalMessages,
@@ -165,7 +169,7 @@ export function streamAgentTurnResponse(opts: StreamAgentTurnOptions): Response 
   // survives a refresh.
   let finishUsage: { inputTokens: number; outputTokens: number; totalTokens: number } | undefined;
 
-  const uiStream = createUIMessageStream({
+  return createUIMessageStream({
     originalMessages,
     onFinish: persistReasoning
       ? async ({ responseMessage }) =>
@@ -216,6 +220,51 @@ export function streamAgentTurnResponse(opts: StreamAgentTurnOptions): Response 
       }
     },
   });
+}
 
-  return createUIMessageStreamResponse({ stream: uiStream });
+/**
+ * Build a UI-message-stream Response from a Mastra agent stream, forwarding
+ * reasoning, attaching usage metadata, and persisting reasoning to memory.
+ */
+export function streamAgentTurnResponse(opts: StreamAgentTurnOptions): Response {
+  return createUIMessageStreamResponse({ stream: buildAgentTurnUIStream(opts) });
+}
+
+/**
+ * Start a detached agent turn: the agent stream begins executing immediately
+ * and is pumped into `run`'s registry buffer (chat-run-registry.ts) — chunks
+ * accumulate and fan out to subscribers whether or not a client is attached.
+ * Reasoning/message persistence still happens via `onFinish` inside
+ * `buildAgentTurnUIStream`, entirely server-side.
+ *
+ * Callers must reserve `run` via `reserveChatRun()` BEFORE calling this (the
+ * double-start guard lives there — `run.abortController.signal` needs to
+ * exist before the agent call is even made so it can be threaded into
+ * `agent.stream({ abortSignal })`).
+ */
+export function startDetachedAgentTurn(run: ChatRun, opts: StreamAgentTurnOptions): void {
+  const uiStream = buildAgentTurnUIStream(opts);
+  const reader = uiStream.getReader();
+
+  (async () => {
+    try {
+      while (true) {
+        if (run.abortController.signal.aborted) {
+          await reader.cancel().catch(() => {});
+          break;
+        }
+        const { done, value } = await reader.read();
+        if (done) break;
+        pushChunk(run, value);
+      }
+    } catch (err: any) {
+      console.error("[agent-stream] Detached turn failed:", err?.message ?? err);
+      pushChunk(run, {
+        type: "error",
+        errorText: err?.message ?? "Agent turn failed",
+      } as UIMessageChunk);
+    } finally {
+      finishRun(run);
+    }
+  })();
 }

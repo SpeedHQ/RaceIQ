@@ -13,7 +13,7 @@
 import { Agent } from "@mastra/core/agent";
 
 import { aiLanguageInstruction } from "../../shared/locales";
-import { TRACK_GUIDE_PROMPT } from "../../shared/prompt-snippets";
+import { TRACK_GUIDE_PROMPT, ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
 import { getChatMemory } from "../../server/ai/chat-agent";
 import { getMastraModelId } from "../model";
 import { loadSettings } from "../../server/settings";
@@ -78,7 +78,7 @@ LAP DATA — a focused lap review may already be provided inline in this turn's 
 export const setupEngineerAgent = new Agent({
   id: "setup-engineer",
   name: "Setup Engineer",
-  instructions: () => `${SETUP_ENGINEER_INSTRUCTIONS}${TRACK_GUIDE_PROMPT}${aiLanguageInstruction(loadSettings().language)}`,
+  instructions: () => `${SETUP_ENGINEER_INSTRUCTIONS}${TRACK_GUIDE_PROMPT}${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(loadSettings().language)}`,
   model: () => {
     const s = loadSettings();
     return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);

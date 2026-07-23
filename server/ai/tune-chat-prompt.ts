@@ -17,6 +17,7 @@
  */
 import type { GameId } from "../../shared/types";
 import { aiLanguageInstruction } from "../../shared/locales";
+import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
 import type { TuneSymptoms } from "./tune-symptoms";
 import { formatTireTempSymptoms } from "./tune-tire-symptoms";
 import { formatDamperSymptoms } from "./tune-damper-symptoms";
@@ -199,7 +200,7 @@ HOW TO ANSWER
 HARD RULES
 - A deterministic engine — not you — computes the exact clicks/values. Never state a specific number as "the" setting, and never recite the current setup values back as if they were your prescription. The values below are EVIDENCE for your reasoning only; talk in directions and relative amounts and let the engine do the maths.
 - You have NO lap-comparison feature and NO access to any lap ids, other laps, or telemetry beyond the single symptom report below. NEVER invent lap ids, reference a "lap 36", claim to compare laps, or cite data that is not in this prompt. If something isn't here, say you'd need a driven lap for it — don't fabricate it.
-- When the driver is happy with a direction, tell them to hit "Generate setup" — that applies the changes you've discussed and the engine works out the exact clicks. This works even before they've driven a lap.${aiLanguageInstruction(language)}
+- When the driver is happy with a direction, tell them to hit "Generate setup" — that applies the changes you've discussed and the engine works out the exact clicks. This works even before they've driven a lap.${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(language)}
 
 ${setupBlock}
 

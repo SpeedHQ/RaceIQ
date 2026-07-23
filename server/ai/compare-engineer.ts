@@ -13,6 +13,7 @@
  */
 import type { UnitSystem, TemperatureUnit } from "../export";
 import { aiLanguageInstruction } from "../../shared/locales";
+import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
 
 /**
  * The base persona used for every compare flow. Plain text — no JSON shape.
@@ -44,7 +45,7 @@ Your mindset:
 
 Units: ${units}.
 Temperature unit for this session: °${temperatureUnit}.
-Refer to the laps as "Lap A" and "Lap B".${aiLanguageInstruction(language, { json: opts?.json })}`;
+Refer to the laps as "Lap A" and "Lap B".${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(language, { json: opts?.json })}`;
 }
 
 /**

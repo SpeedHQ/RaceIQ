@@ -1,5 +1,6 @@
 import { getGame } from "@shared/games/registry";
 import type { LapMeta } from "@shared/types";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Check, Copy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -56,15 +57,32 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
   const liveSessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const livePacket = useTelemetryStore((s) => s.packet);
 
-  // Mark this session active on mount so every lap the driver records while the
-  // workspace is open is stamped with this tuning_session_id at insert (server
-  // side). Clear it on unmount. Depends only on the id — the deactivate call is
-  // id-guarded server-side so it can't clobber a session switched to elsewhere.
+  // Mark this session active while the workspace is open so every lap the
+  // driver records is stamped with this tuning_session_id at insert (server
+  // side). The active id lives in server memory (server/tuning-active.ts), so a
+  // dev-server hot reload or restart silently drops it and every lap after that
+  // lands unstamped — modelled as a TanStack query with a refetchInterval so
+  // activation is re-asserted on a heartbeat (plus on window focus/reconnect)
+  // and survives server restarts.
+  useQuery({
+    queryKey: ["tuning-session-activate", tuningSessionId],
+    queryFn: async () => {
+      const api = client.api as any;
+      const res = await api["tuning-sessions"][":id"].activate.$post({ param: { id: String(tuningSessionId) } });
+      return res.json() as Promise<{ active: number | null }>;
+    },
+    refetchInterval: 5000,
+    refetchIntervalInBackground: true,
+    staleTime: 0,
+    gcTime: 0,
+  });
+
+  // Deactivate on unmount — queries have no unmount side effect, so this stays
+  // an effect. The call is id-guarded server-side so a stale unmount can't
+  // clobber a session the driver has since switched to.
   useEffect(() => {
-    const api = client.api as any;
-    api["tuning-sessions"][":id"].activate.$post({ param: { id: String(tuningSessionId) } }).catch(() => {});
     return () => {
-      api["tuning-sessions"][":id"].deactivate.$post({ param: { id: String(tuningSessionId) } }).catch(() => {});
+      (client.api as any)["tuning-sessions"][":id"].deactivate.$post({ param: { id: String(tuningSessionId) } }).catch(() => {});
     };
   }, [tuningSessionId]);
 

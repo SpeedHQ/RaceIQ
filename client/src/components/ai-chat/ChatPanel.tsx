@@ -1,5 +1,10 @@
 import { AssistantRuntimeProvider, useAuiState } from "@assistant-ui/react";
-import { AssistantChatTransport, useChatRuntime, useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
+import {
+  AssistantChatTransport,
+  createResumableSessionStorage,
+  useChatRuntime,
+  useThreadTokenUsage,
+} from "@assistant-ui/react-ai-sdk";
 import { contextWindowFor } from "@shared/ai/context-window";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UIMessage } from "ai";
@@ -25,6 +30,22 @@ import { useUiStore } from "../../stores/ui";
 
 // Rough $/1M tokens for a cost estimate (input, output). Chat models are cheap;
 // this is a ballpark shown as "≈", not billing.
+/** Status shape returned by `GET /api/chats/:threadId/run` (server/routes/chat-run-routes.ts). */
+interface ChatRunStatus {
+  status: "none" | "active" | "finished";
+  runId?: string;
+}
+
+async function fetchChatRunStatus(threadId: string): Promise<ChatRunStatus> {
+  try {
+    const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}/run`);
+    if (!res.ok) return { status: "none" };
+    return (await res.json()) as ChatRunStatus;
+  } catch {
+    return { status: "none" };
+  }
+}
+
 const RATE_PER_MTOK: Record<string, { in: number; out: number }> = {
   gemini: { in: 0.1, out: 0.4 },
   openai: { in: 0.15, out: 0.6 },
@@ -165,6 +186,18 @@ function TokenUsageFooter({
       {hasUsage && (usage!.reasoningTokens ?? 0) > 0 && <span>think {usage!.reasoningTokens}</span>}
       {hasUsage && (usage!.cachedInputTokens ?? 0) > 0 && <span>cached {usage!.cachedInputTokens}</span>}
       {hasUsage && cost > 0 && <span>≈ ${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(3)}</span>}
+      {compactThreadId && isRunning && (
+        <button
+          type="button"
+          onClick={() => {
+            void fetch(`/api/chats/${encodeURIComponent(compactThreadId)}/run/cancel`, { method: "POST" });
+          }}
+          className="px-1.5 py-0.5 rounded border border-app-border/50 hover:bg-app-border/20"
+          title="Stop the agent turn on the server (not just this view)"
+        >
+          Cancel
+        </button>
+      )}
       {compactThreadId && (
         <button
           type="button"
@@ -225,9 +258,32 @@ function ChatPanelThread({
   compactThreadId?: string;
   historyQueryKey: unknown[];
 }) {
+  // Resumable wiring: survives client unmount/refresh by re-attaching to the
+  // server-side detached run (server/ai/chat-run-registry.ts) instead of
+  // aborting it. `resumeApi` ignores the AI SDK's own stream-id argument —
+  // our registry is keyed by threadId, not per-stream id, and the reconnect
+  // endpoint is the same replay-then-live-tail stream regardless — so this is
+  // a no-op (no header ever set, storage never primed) for chat surfaces that
+  // don't yet start detached runs (lap chat, compare chat). Constructed fresh
+  // every render like the plain transport below it (not memoized) — the AI
+  // SDK re-resolves `body` per send, and `useChatRuntime`'s internal
+  // `useDynamicChatTransport` already re-points at whichever transport
+  // instance was passed on the latest render via a ref, so a fresh instance
+  // per render is the existing, working pattern here.
+  const transport = compactThreadId
+    ? new AssistantChatTransport({
+        api,
+        body: extraBody,
+        resumable: {
+          storage: createResumableSessionStorage({ key: `chat-resume-${compactThreadId}` }),
+          resumeApi: () => `/api/chats/${encodeURIComponent(compactThreadId)}/run/stream`,
+        },
+      })
+    : new AssistantChatTransport({ api, body: extraBody });
+
   const runtime = useChatRuntime({
     messages: initialMessages,
-    transport: new AssistantChatTransport({ api, body: extraBody }),
+    transport,
     onFinish,
   });
   const [compacting, setCompacting] = useState(false);
@@ -257,6 +313,28 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
   const aiConfigured = isAiConfigured(displaySettings);
   const { data: history, isSuccess } = useQuery({ queryKey: historyQueryKey, queryFn: fetchHistory });
 
+  // True live resume: on mount, ask the server whether a detached run is
+  // still active for this thread (server/routes/chat-run-routes.ts) — covers
+  // the case where the client's own sessionStorage-primed stream id (set by
+  // AssistantChatTransport's `resumable` wiring on the original POST) never
+  // got set, e.g. a different tab/session, or storage was cleared. When
+  // active, prime the same sessionStorage slot ChatPanelThread's transport
+  // reads on mount so `useChatRuntime`'s built-in resume effect (which only
+  // fires when a stream id is already present) fires and tails the run live.
+  // Must happen synchronously during THIS render, before ChatPanelThread
+  // mounts below — child effects run before parent effects, so priming this
+  // from an effect here would fire too late.
+  const { data: runStatus, isFetched: runStatusFetched } = useQuery({
+    queryKey: ["chat-run-status", compactThreadId],
+    queryFn: () => fetchChatRunStatus(compactThreadId!),
+    enabled: !!compactThreadId,
+    staleTime: 0,
+    gcTime: 0,
+  });
+  if (compactThreadId && runStatus?.status === "active" && runStatus.runId) {
+    createResumableSessionStorage({ key: `chat-resume-${compactThreadId}` }).setStreamId(runStatus.runId);
+  }
+
   if (!aiConfigured) {
     return (
       emptyState ?? (
@@ -273,7 +351,7 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
   // Wait for the persisted-thread fetch before mounting the runtime — useChatRuntime
   // only reads `messages` on first render, so mounting before history resolves would
   // seed an empty thread and silently drop prior turns for the rest of the session.
-  if (!isSuccess) {
+  if (!isSuccess || (!!compactThreadId && !runStatusFetched)) {
     return <div className="h-full min-h-0 flex flex-col pt-2 gap-1.5 text-[11px] text-app-text-dim">Loading…</div>;
   }
 

@@ -9,6 +9,7 @@ import { buildTrackGuideContext, guideCornerLabels } from "./track-guides";
 import { telemetryToTrackConditions, formatTrackConditions } from "./track-conditions";
 import { segmentDisplayName, segmentDisplayNames } from "../../shared/segment-label";
 import { aiLanguageInstruction } from "../../shared/locales";
+import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
 
 interface CornerDef {
   index: number;
@@ -119,7 +120,7 @@ function getSystemPrompt(gameId: GameId, unit: UnitSystem, temperatureUnit: Temp
   const units = `${speedDistanceWeight}, °${temperatureUnit}`;
   const adapter = tryGetServerGame(gameId);
   const base = adapter ? adapter.aiSystemPrompt : FORZA_SYSTEM_PROMPT;
-  return `${base.replace("{{UNITS}}", units)}\n- Temperature unit in this session: °${temperatureUnit}${aiLanguageInstruction(language, { json: true })}`;
+  return `${base.replace("{{UNITS}}", units)}\n- Temperature unit in this session: °${temperatureUnit}${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(language, { json: true })}`;
 }
 
 export function buildAnalystPrompt(
