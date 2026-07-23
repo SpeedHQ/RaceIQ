@@ -172,6 +172,14 @@ export interface CarSetupSection {
 
 const CORNER_NAMES = ["Front left", "Front right", "Rear left", "Rear right"] as const;
 
+/**
+ * Known anti-roll bar click numbers keyed by stiffness in kN/m.
+ * Audi R8 LMS GT3 Evo II (Brands Hatch saves): click 1 = min, 3 = max,
+ * default 3. Verified: click 1 → 16 kN/m, click 3 → 28 kN/m; click 2 → 22
+ * assumed (even 6 kN/m step). Per-car table — extend as more saves are mapped.
+ */
+const ARB_CLICK_BY_KNM: Record<number, number> = { 16: 1, 22: 2, 28: 3 };
+
 function num(f: WireField | undefined): number | null {
   if (!f) return null;
   if (f.type === "float") return +f.value.toFixed(4);
@@ -249,6 +257,12 @@ const ELECTRONICS_GUESSES: Record<string, string> = {
   "#2": "TC2", // 5→7
   "#3": "ABS", // 5→4
   "#5": "Telemetry laps", // 10→20 when telemetry laps set to 20
+  // ERS (F1) — NOT yet mapped; encoding unclear. Observations (SF25, Brands Hatch):
+  //   #8: 3 when UI deploy map 4; absent when UI map 1 (looks 0-indexed) — BUT
+  //       switching heat charging deploy→charge also wiped #8 and set #9 40→0.01,
+  //       and #11 stayed 2 through the heat-mode change, so #11 is not heat mode.
+  //   Heat mode may be encoded implicitly (charge = #8 absent + #9 ≈ 0), or the UI
+  //   resets deploy/recharge on mode switch. Needs in-game verification before labeling.
 };
 const BRAKE_GUESSES: Record<string, string> = {
   "#2": "Brake power", // 100 (%) — matches the ACE "Brake power" slider
@@ -291,8 +305,24 @@ export function summarizeCarSetup(
     const skip = new Set<number>();
     const arb = mech.fields.find((f): f is Extract<WireField, { type: "bytes" }> => f.no === 1 && f.type === "bytes");
     if (arb?.floats?.length === 2) {
-      rows.push({ label: "Front ARB stiffness", value: `${fmt(arb.floats[0] / 1000)} kN/m` });
-      rows.push({ label: "Rear ARB stiffness", value: `${fmt(arb.floats[1] / 1000)} kN/m` });
+      // In-game section is "Suspension"; labels "Front/Rear anti-roll bar".
+      // Verified Audi R8 GT3 Evo II front click→stiffness: 1→16, (2→22 assumed), 3→28 kN/m
+      // (click 1 = min, 3 = max, default 3). Mapping is per-car; show the click
+      // number only when the stiffness matches a known table entry.
+      const arbRow = (pos: string, kNm: number, key: string): CarSetupRow => {
+        const click = ARB_CLICK_BY_KNM[kNm];
+        const row: CarSetupRow = {
+          label: `${pos} anti-roll bar`,
+          value: click != null ? `${click} (${fmt(kNm)} kN/m)` : `${fmt(kNm)} kN/m`,
+        };
+        // Range is in clicks (extractor emits the UI click min/max), so only
+        // attach it when the stiffness resolved to a click number.
+        return click != null ? withRange(row, click, key) : row;
+      };
+      sections.push({
+        title: "Suspension",
+        rows: [arbRow("Front", arb.floats[0] / 1000, "frontARB"), arbRow("Rear", arb.floats[1] / 1000, "rearARB")],
+      });
       skip.add(1);
     }
     const brakeMsg = mech.fields.find((f): f is Extract<WireField, { type: "message" }> => f.no === 3 && f.type === "message");
@@ -307,11 +337,17 @@ export function summarizeCarSetup(
       const power = num(diffMsg.fields.find((f) => f.no === 1));
       const coast = num(diffMsg.fields.find((f) => f.no === 2));
       const preload = num(diffMsg.fields.find((f) => f.no === 3));
-      if (power != null) rows.push({ label: "Diff power", value: fmt(power) });
-      if (coast != null) rows.push({ label: "Diff coast", value: fmt(coast) });
-      if (preload != null) rows.push({ label: "Diff preload", value: `${fmt(preload)} Nm` });
+      if (power != null) rows.push(withRange({ label: "Diff power", value: fmt(power) }, power, "diffPower"));
+      if (coast != null) rows.push(withRange({ label: "Diff coast", value: fmt(coast) }, coast, "diffCoast"));
+      if (preload != null) rows.push(withRange({ label: "Diff preload", value: `${fmt(preload)} Nm` }, preload, "diffPreload"));
       rows.push(...genericRows(diffMsg.fields, "Diff ", new Set([1, 2, 3])));
       skip.add(4);
+    }
+    // #2 — steering ratio (verified: GT3 14→15 alongside a steer-ratio change; F1 default 14).
+    const steer = num(mech.fields.find((f) => f.no === 2));
+    if (steer != null) {
+      rows.push(withRange({ label: "Steering ratio", value: fmt(steer) }, steer, "steerRatio"));
+      skip.add(2);
     }
     rows.push(...genericRows(mech.fields, "", skip, MECH_GUESSES));
     if (rows.length) sections.push({ title: "Mechanical & brakes", rows });

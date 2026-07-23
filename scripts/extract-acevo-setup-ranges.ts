@@ -22,8 +22,9 @@
  *
  * Only components with verified anchors are emitted; keys match the AC Evo
  * snapshot field names used by RULES["ac-evo"] in server/ai/tune-rules.ts.
- * ARBs are deliberately omitted until the #1.#1 block semantics are confirmed
- * against a live telemetry snapshot (values are N/m-scale, RULES uses clicks).
+ * ARB #1.#1 blocks are click-based: {#1 step, #2 min, #3 max} are UI clicks
+ * with a #9 click→N/m LUT (verified against the known Audi GT3 ARB table:
+ * front 1–3 → 16000/28000/40000 N/m, rear 1–3 → 49000/60000/69000 N/m).
  *
  * Usage:
  *   bun run scripts/extract-acevo-setup-ranges.ts [--kspkg <path>] [--dump <carFolder>] [--list]
@@ -136,9 +137,39 @@ function extractSetupRanges(buf: Buffer): Record<string, Range> | null {
 
   const out: Record<string, Range> = {};
   if (g1) {
+    // #1 x2 ARB blocks (front, rear). Each block: {#1 step, #2 min, #3 max,
+    // #4 clickable, #6 LUT curve path, #9 click→N/m LUT}. min/max/step are UI
+    // clicks (verified: Audi GT3 front 1–3 step 1 with LUT 16000/28000/40000
+    // N/m matching the known in-game ARB table) — readRange emits clicks.
+    const arbs = fieldsOf(g1, 1);
+    out.frontARB = arbs.length > 0 ? readRange(arbs[0]) : null;
+    out.rearARB = arbs.length > 1 ? readRange(arbs[1]) : null;
+    out.steerRatio = readRange(field(g1, 2));
     const brakes = nested(field(g1, 3) ?? ({} as ProtoField));
     out.brakeBias = brakes ? readRange(field(brakes, 1)) : null;
     out.brakePressure = brakes ? readRange(field(brakes, 2)) : null;
+    // #4 differential: #1 power ramp, #2 coast ramp, #3 preload (Nm).
+    const diff = nested(field(g1, 4) ?? ({} as ProtoField));
+    out.diffPower = diff ? readRange(field(diff, 1)) : null;
+    out.diffCoast = diff ? readRange(field(diff, 2)) : null;
+    out.diffPreload = diff ? readRange(field(diff, 3)) : null;
+  }
+  // #2 x4 per-corner spring blocks (FL, FR, RL, RR): corner.#1 spring rate
+  // ("N/m" unit string). Emitted per-axle from FL/RL like camber/toe.
+  const springCorners = fieldsOf(top, 2).map((f) => nested(f)).filter((c): c is ProtoField[] => !!c);
+  if (springCorners.length === 4) {
+    out.frontSpringRate = readRange(field(springCorners[0], 1));
+    out.rearSpringRate = readRange(field(springCorners[2], 1));
+  }
+  // #3 x4 per-corner damper blocks: #1 slow bump clicks, #3 slow rebound
+  // clicks (both carry the clickable flag; #2/#4 are the underlying Ns/m
+  // rates, not UI knobs — omitted). Per-axle from FL/RL.
+  const damperCorners = fieldsOf(top, 3).map((f) => nested(f)).filter((c): c is ProtoField[] => !!c);
+  if (damperCorners.length === 4) {
+    out.frontBump = readRange(field(damperCorners[0], 1));
+    out.frontRebound = readRange(field(damperCorners[0], 3));
+    out.rearBump = readRange(field(damperCorners[2], 1));
+    out.rearRebound = readRange(field(damperCorners[2], 3));
   }
   // #4 x4 per-corner alignment/tyre blocks in FL, FR, RL, RR order (verified:
   // SF25 front camber −2.6…−1.5 in corners 0–1, rear −1.6…−0.8 in 2–3, and PSI
@@ -156,6 +187,16 @@ function extractSetupRanges(buf: Buffer): Record<string, Range> | null {
     out.rearCamber = readRange(field(rl, 2));
     out.frontToe = readRange(field(fl, 3));
     out.rearToe = readRange(field(rl, 3));
+  }
+  // #5 electronics: #1 TC, #2 TC2, #3 ABS, #4 engine map (field numbers match
+  // the setup-file electronics block labelled in carsetup.ts
+  // ELECTRONICS_GUESSES; #5 "Telemetry laps" is not a setup knob — omitted).
+  const g5 = nested(field(top, 5) ?? ({} as ProtoField));
+  if (g5) {
+    out.tc = readRange(field(g5, 1));
+    out.tc2 = readRange(field(g5, 2));
+    out.abs = readRange(field(g5, 3));
+    out.engineMap = readRange(field(g5, 4));
   }
   if (g6) {
     out.frontRideHeight = readRange(field(g6, 2));

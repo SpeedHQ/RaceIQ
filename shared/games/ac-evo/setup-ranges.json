@@ -1,11 +1,23 @@
 {
   "abarth_695_biposto": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -38,6 +50,14 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 100,
       "max": 300,
@@ -57,12 +77,28 @@
     }
   },
   "alfa_romeo_75_turbo_evo": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": {
+      "min": 18895,
+      "max": 28895,
+      "step": 5000
+    },
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 22,
       "max": 35,
@@ -91,6 +127,14 @@
       "step": 0.01
     },
     "rearToe": null,
+    "tc": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": null,
     "rearRideHeight": null,
     "frontWing": null,
@@ -102,12 +146,28 @@
     }
   },
   "alfa_romeo_giulia_gta_sprint": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": {
+      "min": -16,
+      "max": 16,
+      "step": 1
+    },
     "brakeBias": {
       "min": 60,
       "max": 90,
       "step": 0.2
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 40,
@@ -140,6 +200,10 @@
       "max": 0.5,
       "step": 0.01
     },
+    "tc": null,
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 80,
       "max": 250,
@@ -159,12 +223,24 @@
     }
   },
   "alfa_romeo_giulia_gtam": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 40,
@@ -197,6 +273,14 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 2,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 90,
       "max": 120,
@@ -216,12 +300,24 @@
     }
   },
   "alfa_romeo_junior": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -254,6 +350,14 @@
       "max": 0.3,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 2,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 100,
       "max": 280,
@@ -273,12 +377,48 @@
     }
   },
   "alpine_a110_s": {
+    "frontARB": {
+      "min": 1000,
+      "max": 50000,
+      "step": 250
+    },
+    "rearARB": {
+      "min": 1000,
+      "max": 50000,
+      "step": 250
+    },
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": {
+      "min": 2500,
+      "max": 8000,
+      "step": 500
+    },
+    "frontRebound": {
+      "min": 4000,
+      "max": 12000,
+      "step": 500
+    },
+    "rearBump": {
+      "min": 2500,
+      "max": 8000,
+      "step": 500
+    },
+    "rearRebound": {
+      "min": 4000,
+      "max": 12000,
+      "step": 500
+    },
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -311,6 +451,14 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 2,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 80,
       "max": 250,
@@ -330,12 +478,48 @@
     }
   },
   "alpine_a290_b": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": {
+      "min": 35000,
+      "max": 75000,
+      "step": 2500
+    },
+    "rearSpringRate": {
+      "min": 35000,
+      "max": 75000,
+      "step": 2500
+    },
+    "frontBump": {
+      "min": 2000,
+      "max": 10000,
+      "step": 250
+    },
+    "frontRebound": {
+      "min": 2000,
+      "max": 10000,
+      "step": 250
+    },
+    "rearBump": {
+      "min": 2000,
+      "max": 10000,
+      "step": 250
+    },
+    "rearRebound": {
+      "min": 2000,
+      "max": 10000,
+      "step": 250
+    },
     "frontLeftTyrePressure": {
       "min": 25,
       "max": 40,
@@ -376,6 +560,14 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 2,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 50,
       "max": 160,
@@ -391,12 +583,72 @@
     "fuel": null
   },
   "audi_r8_lms_gt3_evo_2": {
+    "frontARB": {
+      "min": 1,
+      "max": 3,
+      "step": 1
+    },
+    "rearARB": {
+      "min": 1,
+      "max": 3,
+      "step": 1
+    },
+    "steerRatio": {
+      "min": 12,
+      "max": 16,
+      "step": 1
+    },
     "brakeBias": {
       "min": 50,
       "max": 65,
       "step": 0.2
     },
     "brakePressure": null,
+    "diffPower": {
+      "min": 0.05,
+      "max": 0.8,
+      "step": 0.05
+    },
+    "diffCoast": {
+      "min": 0.05,
+      "max": 0.8,
+      "step": 0.05
+    },
+    "diffPreload": {
+      "min": 50,
+      "max": 300,
+      "step": 10
+    },
+    "frontSpringRate": {
+      "min": 180000,
+      "max": 260000,
+      "step": 20000
+    },
+    "rearSpringRate": {
+      "min": 240000,
+      "max": 320000,
+      "step": 20000
+    },
+    "frontBump": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "frontRebound": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "rearBump": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "rearRebound": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -437,6 +689,22 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 12,
+      "step": 1
+    },
+    "tc2": {
+      "min": 0,
+      "max": 11,
+      "step": 1
+    },
+    "abs": {
+      "min": 0,
+      "max": 10,
+      "step": 1
+    },
+    "engineMap": null,
     "frontRideHeight": {
       "min": 54,
       "max": 70,
@@ -460,12 +728,71 @@
     }
   },
   "audi_r8_lms_gt4_evo": {
+    "frontARB": {
+      "min": 1,
+      "max": 3,
+      "step": 1
+    },
+    "rearARB": {
+      "min": 1000,
+      "max": 100000
+    },
+    "steerRatio": {
+      "min": 16,
+      "max": 18,
+      "step": 1
+    },
     "brakeBias": {
       "min": 50,
       "max": 65,
       "step": 0.2
     },
     "brakePressure": null,
+    "diffPower": {
+      "min": 0.1,
+      "max": 0.5,
+      "step": 0.05
+    },
+    "diffCoast": {
+      "min": 0,
+      "max": 0.5,
+      "step": 0.05
+    },
+    "diffPreload": {
+      "min": 0,
+      "max": 200,
+      "step": 5
+    },
+    "frontSpringRate": {
+      "min": 219000,
+      "max": 246410,
+      "step": 27410
+    },
+    "rearSpringRate": {
+      "min": 222660,
+      "max": 247400,
+      "step": 24740
+    },
+    "frontBump": {
+      "min": 1,
+      "max": 11,
+      "step": 1
+    },
+    "frontRebound": {
+      "min": 1,
+      "max": 11,
+      "step": 1
+    },
+    "rearBump": {
+      "min": 1,
+      "max": 11,
+      "step": 1
+    },
+    "rearRebound": {
+      "min": 1,
+      "max": 11,
+      "step": 1
+    },
     "frontLeftTyrePressure": {
       "min": 17,
       "max": 35,
@@ -506,6 +833,22 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 7,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": {
+      "min": 0,
+      "max": 7,
+      "step": 1
+    },
+    "engineMap": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
     "frontRideHeight": {
       "min": 90,
       "max": 110,
@@ -533,12 +876,24 @@
     }
   },
   "audi_rs_3_sportback": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -571,6 +926,14 @@
       "max": 0.3,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 2,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 80,
       "max": 200,
@@ -590,12 +953,24 @@
     }
   },
   "audi_rs_6_avant": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 23,
       "max": 35,
@@ -628,6 +1003,14 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 2,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 100,
       "max": 150,
@@ -647,12 +1030,32 @@
     }
   },
   "audi_sport_quattro": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 65,
       "max": 85,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
+    "diffCoast": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 40,
@@ -685,6 +1088,10 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": null,
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": null,
     "rearRideHeight": null,
     "frontWing": null,
@@ -696,12 +1103,72 @@
     }
   },
   "bmw_m2_coupe": {
+    "frontARB": {
+      "min": 5000,
+      "max": 50000,
+      "step": 500
+    },
+    "rearARB": {
+      "min": 5000,
+      "max": 50000,
+      "step": 500
+    },
+    "steerRatio": {
+      "min": 9,
+      "max": 16,
+      "step": 0.1
+    },
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 0.1
     },
     "brakePressure": null,
+    "diffPower": {
+      "min": 0,
+      "max": 0.1,
+      "step": 0.01
+    },
+    "diffCoast": {
+      "min": 0,
+      "max": 0.1,
+      "step": 0.001
+    },
+    "diffPreload": {
+      "min": 0,
+      "max": 10,
+      "step": 0.1
+    },
+    "frontSpringRate": {
+      "min": 5000,
+      "max": 80000,
+      "step": 500
+    },
+    "rearSpringRate": {
+      "min": 10000,
+      "max": 100000,
+      "step": 500
+    },
+    "frontBump": {
+      "min": 1000,
+      "max": 10000,
+      "step": 100
+    },
+    "frontRebound": {
+      "min": 1000,
+      "max": 12000,
+      "step": 100
+    },
+    "rearBump": {
+      "min": 0,
+      "max": 10000,
+      "step": 100
+    },
+    "rearRebound": {
+      "min": 0,
+      "max": 10000,
+      "step": 100
+    },
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 40,
@@ -734,6 +1201,14 @@
       "max": 0.2,
       "step": 0.05
     },
+    "tc": {
+      "min": 0,
+      "max": 10,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 0,
       "max": 200,
@@ -753,12 +1228,60 @@
     }
   },
   "bmw_m2_cs_racing": {
+    "frontARB": {
+      "min": 110000,
+      "max": 130000,
+      "step": 20000
+    },
+    "rearARB": {
+      "min": 75000,
+      "max": 85000,
+      "step": 10000
+    },
+    "steerRatio": {
+      "min": 12,
+      "max": 15,
+      "step": 0.5
+    },
     "brakeBias": {
       "min": 60,
       "max": 75,
       "step": 0.2
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": {
+      "min": 146000,
+      "max": 178000,
+      "step": 16000
+    },
+    "rearSpringRate": {
+      "min": 98000,
+      "max": 126750,
+      "step": 5750
+    },
+    "frontBump": {
+      "min": 1,
+      "max": 59,
+      "step": 1
+    },
+    "frontRebound": {
+      "min": 1,
+      "max": 59,
+      "step": 1
+    },
+    "rearBump": {
+      "min": 1,
+      "max": 59,
+      "step": 1
+    },
+    "rearRebound": {
+      "min": 1,
+      "max": 59,
+      "step": 1
+    },
     "frontLeftTyrePressure": {
       "min": 17,
       "max": 35,
@@ -799,6 +1322,18 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 3,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": {
+      "min": 0,
+      "max": 2,
+      "step": 1
+    },
+    "engineMap": null,
     "frontRideHeight": {
       "min": 125,
       "max": 150,
@@ -822,12 +1357,24 @@
     }
   },
   "bmw_m3_e30_evo_iii": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -868,6 +1415,10 @@
       "max": 0.3,
       "step": 0.01
     },
+    "tc": null,
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 50,
       "max": 200,
@@ -891,12 +1442,72 @@
     }
   },
   "bmw_m3_e46_csl": {
+    "frontARB": {
+      "min": 5000,
+      "max": 50000,
+      "step": 500
+    },
+    "rearARB": {
+      "min": 5000,
+      "max": 50000,
+      "step": 500
+    },
+    "steerRatio": {
+      "min": 9,
+      "max": 16,
+      "step": 0.1
+    },
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": {
+      "min": 0,
+      "max": 0.1,
+      "step": 0.01
+    },
+    "diffCoast": {
+      "min": 0,
+      "max": 0.1,
+      "step": 0.001
+    },
+    "diffPreload": {
+      "min": 0,
+      "max": 10,
+      "step": 0.1
+    },
+    "frontSpringRate": {
+      "min": 5000,
+      "max": 80000,
+      "step": 500
+    },
+    "rearSpringRate": {
+      "min": 5000,
+      "max": 80000,
+      "step": 500
+    },
+    "frontBump": {
+      "min": 1000,
+      "max": 10000,
+      "step": 100
+    },
+    "frontRebound": {
+      "min": 1000,
+      "max": 12000,
+      "step": 100
+    },
+    "rearBump": {
+      "min": 0,
+      "max": 10000,
+      "step": 100
+    },
+    "rearRebound": {
+      "min": 0,
+      "max": 10000,
+      "step": 100
+    },
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 40,
@@ -937,6 +1548,14 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 0,
       "max": 200,
@@ -956,12 +1575,24 @@
     }
   },
   "bmw_m4_csl": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -1002,6 +1633,14 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 10,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 50,
       "max": 200,
@@ -1021,12 +1660,64 @@
     }
   },
   "bmw_m4_gt3": {
+    "frontARB": {
+      "min": 20000,
+      "max": 87500,
+      "step": 7500
+    },
+    "rearARB": {
+      "min": 15000,
+      "max": 60000,
+      "step": 5000
+    },
+    "steerRatio": {
+      "min": 12,
+      "max": 18,
+      "step": 1
+    },
     "brakeBias": {
       "min": 50,
       "max": 80,
       "step": 0.2
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": {
+      "min": 40,
+      "max": 120,
+      "step": 5
+    },
+    "frontSpringRate": {
+      "min": 105000,
+      "max": 180000,
+      "step": 15000
+    },
+    "rearSpringRate": {
+      "min": 90000,
+      "max": 165000,
+      "step": 15000
+    },
+    "frontBump": {
+      "min": 1,
+      "max": 59,
+      "step": 1
+    },
+    "frontRebound": {
+      "min": 1,
+      "max": 59,
+      "step": 1
+    },
+    "rearBump": {
+      "min": 1,
+      "max": 59,
+      "step": 1
+    },
+    "rearRebound": {
+      "min": 1,
+      "max": 59,
+      "step": 1
+    },
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -1059,6 +1750,18 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 12,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": {
+      "min": 0,
+      "max": 10,
+      "step": 1
+    },
+    "engineMap": null,
     "frontRideHeight": {
       "min": 50,
       "max": 85,
@@ -1082,12 +1785,40 @@
     }
   },
   "bmw_m8_competition": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": {
+      "min": 1,
+      "max": 20000,
+      "step": 1
+    },
+    "frontRebound": {
+      "min": 1,
+      "max": 20000,
+      "step": 1
+    },
+    "rearBump": {
+      "min": 1,
+      "max": 20000,
+      "step": 1
+    },
+    "rearRebound": {
+      "min": 1,
+      "max": 20000,
+      "step": 1
+    },
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 40,
@@ -1120,6 +1851,14 @@
       "max": 0.3,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 70,
       "max": 160,
@@ -1139,12 +1878,44 @@
     }
   },
   "caterham_485_csr": {
+    "frontARB": {
+      "min": 5000,
+      "max": 20000,
+      "step": 5000
+    },
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 50,
       "max": 75,
       "step": 0.2
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": {
+      "min": 250,
+      "max": 2500,
+      "step": 250
+    },
+    "frontRebound": {
+      "min": 250,
+      "max": 3000,
+      "step": 250
+    },
+    "rearBump": {
+      "min": 250,
+      "max": 2500,
+      "step": 250
+    },
+    "rearRebound": {
+      "min": 250,
+      "max": 3000,
+      "step": 250
+    },
     "frontLeftTyrePressure": {
       "min": 18,
       "max": 35,
@@ -1181,6 +1952,10 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": null,
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 145,
       "max": 165,
@@ -1200,12 +1975,28 @@
     }
   },
   "caterham_academy": {
+    "frontARB": {
+      "min": 10000,
+      "max": 26000,
+      "step": 8000
+    },
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 50,
       "max": 75,
       "step": 0.2
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -1242,6 +2033,10 @@
       "max": 0.25,
       "step": 0.01
     },
+    "tc": null,
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 120,
       "max": 145,
@@ -1261,12 +2056,40 @@
     }
   },
   "chevrolet_camaro_zl1": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": {
+      "min": 1,
+      "max": 2,
+      "step": 1
+    },
+    "frontRebound": {
+      "min": 1,
+      "max": 2,
+      "step": 1
+    },
+    "rearBump": {
+      "min": 1,
+      "max": 2,
+      "step": 1
+    },
+    "rearRebound": {
+      "min": 1,
+      "max": 2,
+      "step": 1
+    },
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -1307,6 +2130,14 @@
       "max": 0.3,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 3,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 650,
       "max": 750,
@@ -1326,12 +2157,52 @@
     }
   },
   "dallara_exp": {
+    "frontARB": {
+      "min": 0,
+      "max": 4,
+      "step": 1
+    },
+    "rearARB": {
+      "min": 0,
+      "max": 4,
+      "step": 1
+    },
+    "steerRatio": null,
     "brakeBias": {
       "min": 50,
       "max": 65,
       "step": 0.2
     },
     "brakePressure": null,
+    "diffPower": {
+      "min": 0,
+      "max": 0.6,
+      "step": 0.05
+    },
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": {
+      "min": 2,
+      "max": 50,
+      "step": 2
+    },
+    "frontRebound": {
+      "min": 2,
+      "max": 50,
+      "step": 2
+    },
+    "rearBump": {
+      "min": 2,
+      "max": 50,
+      "step": 2
+    },
+    "rearRebound": {
+      "min": 2,
+      "max": 50,
+      "step": 2
+    },
     "frontLeftTyrePressure": {
       "min": 22,
       "max": 34,
@@ -1372,6 +2243,22 @@
       "max": 0.25,
       "step": 0.05
     },
+    "tc": {
+      "min": 0,
+      "max": 8,
+      "step": 1
+    },
+    "tc2": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
+    "abs": {
+      "min": 0,
+      "max": 8,
+      "step": 1
+    },
+    "engineMap": null,
     "frontRideHeight": {
       "min": 52,
       "max": 62,
@@ -1399,12 +2286,36 @@
     }
   },
   "dallara_stradale_coupe": {
+    "frontARB": {
+      "min": 16000,
+      "max": 86000,
+      "step": 2000
+    },
+    "rearARB": {
+      "min": 16000,
+      "max": 66000,
+      "step": 2000
+    },
+    "steerRatio": null,
     "brakeBias": {
       "min": 50,
       "max": 75,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": {
+      "min": 0,
+      "max": 0.6,
+      "step": 0.05
+    },
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 22,
       "max": 34,
@@ -1445,6 +2356,18 @@
       "max": 0.25,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
+    "engineMap": null,
     "frontRideHeight": {
       "min": 80,
       "max": 100,
@@ -1472,8 +2395,28 @@
     }
   },
   "datsun_240z_fairlady": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": null,
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": {
+      "min": 10000,
+      "max": 30000,
+      "step": 1000
+    },
+    "rearSpringRate": {
+      "min": 10000,
+      "max": 30000,
+      "step": 1000
+    },
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 22,
       "max": 35,
@@ -1506,6 +2449,10 @@
     },
     "frontToe": null,
     "rearToe": null,
+    "tc": null,
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": null,
     "rearRideHeight": null,
     "frontWing": null,
@@ -1517,6 +2464,21 @@
     }
   },
   "ferrari_288_gto": {
+    "frontARB": {
+      "min": 10000,
+      "max": 25000,
+      "step": 1000
+    },
+    "rearARB": {
+      "min": 5000,
+      "max": 20000,
+      "step": 1000
+    },
+    "steerRatio": {
+      "min": 14,
+      "max": 17,
+      "step": 1
+    },
     "brakeBias": {
       "min": 50,
       "max": 80,
@@ -1526,6 +2488,51 @@
       "min": 75,
       "max": 100,
       "step": 5
+    },
+    "diffPower": {
+      "min": 0.1,
+      "max": 0.5,
+      "step": 0.05
+    },
+    "diffCoast": {
+      "min": 0.1,
+      "max": 0.7,
+      "step": 0.05
+    },
+    "diffPreload": {
+      "min": 10,
+      "max": 100,
+      "step": 5
+    },
+    "frontSpringRate": {
+      "min": 20000,
+      "max": 80000,
+      "step": 2000
+    },
+    "rearSpringRate": {
+      "min": 20000,
+      "max": 80000,
+      "step": 2000
+    },
+    "frontBump": {
+      "min": 1000,
+      "max": 10000,
+      "step": 100
+    },
+    "frontRebound": {
+      "min": 1000,
+      "max": 10000,
+      "step": 100
+    },
+    "rearBump": {
+      "min": 1000,
+      "max": 10000,
+      "step": 100
+    },
+    "rearRebound": {
+      "min": 1000,
+      "max": 10000,
+      "step": 100
     },
     "frontLeftTyrePressure": {
       "min": 20,
@@ -1559,6 +2566,10 @@
       "max": 0.2,
       "step": 0.05
     },
+    "tc": null,
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 130,
       "max": 160,
@@ -1582,12 +2593,72 @@
     }
   },
   "ferrari_296_gt3": {
+    "frontARB": {
+      "min": 1,
+      "max": 7,
+      "step": 1
+    },
+    "rearARB": {
+      "min": 1,
+      "max": 7,
+      "step": 1
+    },
+    "steerRatio": {
+      "min": 11.3,
+      "max": 17.299999,
+      "step": 1
+    },
     "brakeBias": {
       "min": 50,
       "max": 80,
       "step": 0.2
     },
     "brakePressure": null,
+    "diffPower": {
+      "min": 0.05,
+      "max": 0.8,
+      "step": 0.05
+    },
+    "diffCoast": {
+      "min": 0.05,
+      "max": 0.8,
+      "step": 0.05
+    },
+    "diffPreload": {
+      "min": 0,
+      "max": 200,
+      "step": 10
+    },
+    "frontSpringRate": {
+      "min": 260000,
+      "max": 340000,
+      "step": 10000
+    },
+    "rearSpringRate": {
+      "min": 170000,
+      "max": 250000,
+      "step": 10000
+    },
+    "frontBump": {
+      "min": 1,
+      "max": 59,
+      "step": 1
+    },
+    "frontRebound": {
+      "min": 1,
+      "max": 59,
+      "step": 1
+    },
+    "rearBump": {
+      "min": 1,
+      "max": 59,
+      "step": 1
+    },
+    "rearRebound": {
+      "min": 1,
+      "max": 59,
+      "step": 1
+    },
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -1628,6 +2699,22 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 12,
+      "step": 1
+    },
+    "tc2": {
+      "min": 0,
+      "max": 11,
+      "step": 1
+    },
+    "abs": {
+      "min": 0,
+      "max": 10,
+      "step": 1
+    },
+    "engineMap": null,
     "frontRideHeight": {
       "min": 50,
       "max": 85,
@@ -1651,12 +2738,32 @@
     }
   },
   "ferrari_296_gtb": {
+    "frontARB": {
+      "min": 0,
+      "max": 50000,
+      "step": 1
+    },
+    "rearARB": {
+      "min": 0,
+      "max": 50000,
+      "step": 1
+    },
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -1697,6 +2804,18 @@
       "max": 0.25,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 3,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
     "frontRideHeight": {
       "min": 50,
       "max": 200,
@@ -1716,6 +2835,21 @@
     }
   },
   "ferrari_488_challenge_evo": {
+    "frontARB": {
+      "min": 34000,
+      "max": 44000,
+      "step": 10000
+    },
+    "rearARB": {
+      "min": 17000,
+      "max": 27000,
+      "step": 10000
+    },
+    "steerRatio": {
+      "min": 12,
+      "max": 17,
+      "step": 1
+    },
     "brakeBias": {
       "min": 50,
       "max": 75,
@@ -1724,6 +2858,39 @@
     "brakePressure": {
       "min": 80,
       "max": 110,
+      "step": 1
+    },
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": {
+      "min": 70000,
+      "max": 170000,
+      "step": 10000
+    },
+    "rearSpringRate": {
+      "min": 80000,
+      "max": 160000,
+      "step": 10000
+    },
+    "frontBump": {
+      "min": 0,
+      "max": 12,
+      "step": 1
+    },
+    "frontRebound": {
+      "min": 0,
+      "max": 12,
+      "step": 1
+    },
+    "rearBump": {
+      "min": 0,
+      "max": 12,
+      "step": 1
+    },
+    "rearRebound": {
+      "min": 0,
+      "max": 12,
       "step": 1
     },
     "frontLeftTyrePressure": {
@@ -1758,6 +2925,22 @@
       "max": 0.4,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 4,
+      "step": 1
+    },
+    "tc2": {
+      "min": 0,
+      "max": 4,
+      "step": 1
+    },
+    "abs": {
+      "min": 0,
+      "max": 4,
+      "step": 1
+    },
+    "engineMap": null,
     "frontRideHeight": {
       "min": 75,
       "max": 95,
@@ -1785,12 +2968,24 @@
     }
   },
   "ferrari_daytona_sp3": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -1831,6 +3026,14 @@
       "max": 0.25,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 3,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": null,
     "rearRideHeight": null,
     "frontWing": null,
@@ -1842,6 +3045,17 @@
     }
   },
   "ferrari_f2004": {
+    "frontARB": {
+      "min": 30000,
+      "max": 100000,
+      "step": 2000
+    },
+    "rearARB": {
+      "min": 5000,
+      "max": 50000,
+      "step": 5000
+    },
+    "steerRatio": null,
     "brakeBias": {
       "min": 50,
       "max": 65,
@@ -1851,6 +3065,21 @@
       "min": 80,
       "max": 100,
       "step": 1
+    },
+    "diffPower": {
+      "min": 0.1,
+      "max": 0.9,
+      "step": 0.05
+    },
+    "diffCoast": {
+      "min": 0.1,
+      "max": 0.9,
+      "step": 0.05
+    },
+    "diffPreload": {
+      "min": 0,
+      "max": 200,
+      "step": 5
     },
     "frontLeftTyrePressure": {
       "min": 18,
@@ -1888,6 +3117,14 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 9,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 30,
       "max": 70,
@@ -1915,6 +3152,17 @@
     }
   },
   "ferrari_f40_lm": {
+    "frontARB": {
+      "min": 35000,
+      "max": 55000,
+      "step": 5000
+    },
+    "rearARB": {
+      "min": 10000,
+      "max": 40000,
+      "step": 5000
+    },
+    "steerRatio": null,
     "brakeBias": {
       "min": 50,
       "max": 70,
@@ -1924,6 +3172,51 @@
       "min": 75,
       "max": 100,
       "step": 5
+    },
+    "diffPower": {
+      "min": 0.1,
+      "max": 0.5,
+      "step": 0.05
+    },
+    "diffCoast": {
+      "min": 0.1,
+      "max": 0.7,
+      "step": 0.05
+    },
+    "diffPreload": {
+      "min": 10,
+      "max": 100,
+      "step": 5
+    },
+    "frontSpringRate": {
+      "min": 85000,
+      "max": 110000,
+      "step": 2000
+    },
+    "rearSpringRate": {
+      "min": 100000,
+      "max": 120000,
+      "step": 2000
+    },
+    "frontBump": {
+      "min": 5500,
+      "max": 10000,
+      "step": 100
+    },
+    "frontRebound": {
+      "min": 7000,
+      "max": 10000,
+      "step": 100
+    },
+    "rearBump": {
+      "min": 5500,
+      "max": 10000,
+      "step": 100
+    },
+    "rearRebound": {
+      "min": 9000,
+      "max": 15000,
+      "step": 100
     },
     "frontLeftTyrePressure": {
       "min": 20,
@@ -1961,6 +3254,10 @@
       "max": 0.3,
       "step": 0.01
     },
+    "tc": null,
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 80,
       "max": 110,
@@ -1988,12 +3285,60 @@
     }
   },
   "ferrari_sf_25": {
+    "frontARB": {
+      "min": 60000,
+      "max": 90000,
+      "step": 2000
+    },
+    "rearARB": {
+      "min": 14000,
+      "max": 30000,
+      "step": 2000
+    },
+    "steerRatio": null,
     "brakeBias": {
       "min": 50,
       "max": 70,
       "step": 0.1
     },
     "brakePressure": null,
+    "diffPower": {
+      "min": 0,
+      "max": 0.5,
+      "step": 0.01
+    },
+    "diffCoast": {
+      "min": 0,
+      "max": 0.5,
+      "step": 0.01
+    },
+    "diffPreload": {
+      "min": 0,
+      "max": 150,
+      "step": 5
+    },
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "frontRebound": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "rearBump": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "rearRebound": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
     "frontLeftTyrePressure": {
       "min": 13,
       "max": 25,
@@ -2034,6 +3379,14 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": null,
+    "tc2": null,
+    "abs": null,
+    "engineMap": {
+      "min": 0,
+      "max": 11,
+      "step": 1
+    },
     "frontRideHeight": {
       "min": 40,
       "max": 50,
@@ -2061,12 +3414,72 @@
     }
   },
   "ford_escort_rs_cosworth": {
+    "frontARB": {
+      "min": 5000,
+      "max": 30000,
+      "step": 100
+    },
+    "rearARB": {
+      "min": 5000,
+      "max": 30000,
+      "step": 100
+    },
+    "steerRatio": {
+      "min": -16,
+      "max": -8,
+      "step": 0.1
+    },
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": {
+      "min": 0.025,
+      "max": 0.045,
+      "step": 0.001
+    },
+    "diffCoast": {
+      "min": 0.025,
+      "max": 0.045,
+      "step": 0.001
+    },
+    "diffPreload": {
+      "min": 0,
+      "max": 100,
+      "step": 1
+    },
+    "frontSpringRate": {
+      "min": 20000,
+      "max": 60000,
+      "step": 100
+    },
+    "rearSpringRate": {
+      "min": 20000,
+      "max": 60000,
+      "step": 100
+    },
+    "frontBump": {
+      "min": 1000,
+      "max": 8000,
+      "step": 100
+    },
+    "frontRebound": {
+      "min": 1000,
+      "max": 8000,
+      "step": 100
+    },
+    "rearBump": {
+      "min": 1000,
+      "max": 8000,
+      "step": 100
+    },
+    "rearRebound": {
+      "min": 1000,
+      "max": 8000,
+      "step": 100
+    },
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -2099,6 +3512,10 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": null,
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 10,
       "max": 200,
@@ -2118,6 +3535,21 @@
     }
   },
   "ford_mustang_gt3": {
+    "frontARB": {
+      "min": 20000,
+      "max": 60000,
+      "step": 1000
+    },
+    "rearARB": {
+      "min": 10000,
+      "max": 50000,
+      "step": 1000
+    },
+    "steerRatio": {
+      "min": 11.3,
+      "max": 18.299999,
+      "step": 1
+    },
     "brakeBias": {
       "min": 50,
       "max": 80,
@@ -2126,6 +3558,51 @@
     "brakePressure": {
       "min": 80,
       "max": 100,
+      "step": 1
+    },
+    "diffPower": {
+      "min": 0.1,
+      "max": 0.6,
+      "step": 0.05
+    },
+    "diffCoast": {
+      "min": 0.1,
+      "max": 0.6,
+      "step": 0.05
+    },
+    "diffPreload": {
+      "min": 20,
+      "max": 300,
+      "step": 10
+    },
+    "frontSpringRate": {
+      "min": 88000,
+      "max": 210000,
+      "step": 8760
+    },
+    "rearSpringRate": {
+      "min": 88000,
+      "max": 210000,
+      "step": 8760
+    },
+    "frontBump": {
+      "min": 1,
+      "max": 5,
+      "step": 1
+    },
+    "frontRebound": {
+      "min": 1,
+      "max": 5,
+      "step": 1
+    },
+    "rearBump": {
+      "min": 1,
+      "max": 5,
+      "step": 1
+    },
+    "rearRebound": {
+      "min": 1,
+      "max": 5,
       "step": 1
     },
     "frontLeftTyrePressure": {
@@ -2168,6 +3645,22 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 12,
+      "step": 1
+    },
+    "tc2": {
+      "min": 0,
+      "max": 11,
+      "step": 1
+    },
+    "abs": {
+      "min": 0,
+      "max": 11,
+      "step": 1
+    },
+    "engineMap": null,
     "frontRideHeight": {
       "min": 50,
       "max": 85,
@@ -2191,12 +3684,24 @@
     }
   },
   "honda_nsx_r": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 32,
@@ -2229,6 +3734,14 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 20,
       "max": 180,
@@ -2248,12 +3761,24 @@
     }
   },
   "honda_s2000_ap1": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -2290,6 +3815,10 @@
       "max": 0.1,
       "step": 0.01
     },
+    "tc": null,
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 100,
       "max": 250,
@@ -2309,12 +3838,24 @@
     }
   },
   "hyundai_i30_n_hb": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 45,
@@ -2347,6 +3888,14 @@
       "max": 0.3,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 2,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 60,
       "max": 300,
@@ -2366,12 +3915,72 @@
     }
   },
   "ktm_x_bow_gt2": {
+    "frontARB": {
+      "min": 0,
+      "max": 3,
+      "step": 1
+    },
+    "rearARB": {
+      "min": 0,
+      "max": 4,
+      "step": 1
+    },
+    "steerRatio": {
+      "min": 16,
+      "max": 18,
+      "step": 1
+    },
     "brakeBias": {
       "min": 50,
       "max": 65,
       "step": 0.2
     },
     "brakePressure": null,
+    "diffPower": {
+      "min": 0.1,
+      "max": 0.5,
+      "step": 0.05
+    },
+    "diffCoast": {
+      "min": 0,
+      "max": 0.5,
+      "step": 0.05
+    },
+    "diffPreload": {
+      "min": 0,
+      "max": 200,
+      "step": 5
+    },
+    "frontSpringRate": {
+      "min": 100000,
+      "max": 180000,
+      "step": 10000
+    },
+    "rearSpringRate": {
+      "min": 120000,
+      "max": 240000,
+      "step": 10000
+    },
+    "frontBump": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "frontRebound": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "rearBump": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "rearRebound": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
     "frontLeftTyrePressure": {
       "min": 17,
       "max": 35,
@@ -2411,6 +4020,22 @@
       "min": -0.2,
       "max": 0.2,
       "step": 0.01
+    },
+    "tc": {
+      "min": 0,
+      "max": 10,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": {
+      "min": 0,
+      "max": 10,
+      "step": 1
+    },
+    "engineMap": {
+      "min": 0,
+      "max": 1,
+      "step": 1
     },
     "frontRideHeight": {
       "min": 70,
@@ -2439,12 +4064,72 @@
     }
   },
   "ktm_x_bow_gt4": {
+    "frontARB": {
+      "min": 0,
+      "max": 3,
+      "step": 1
+    },
+    "rearARB": {
+      "min": 0,
+      "max": 17500,
+      "step": 17500
+    },
+    "steerRatio": {
+      "min": 12,
+      "max": 16,
+      "step": 1
+    },
     "brakeBias": {
       "min": 50,
       "max": 65,
       "step": 0.2
     },
     "brakePressure": null,
+    "diffPower": {
+      "min": 0.3,
+      "max": 0.4,
+      "step": 0.1
+    },
+    "diffCoast": {
+      "min": 0.2,
+      "max": 0.3,
+      "step": 0.1
+    },
+    "diffPreload": {
+      "min": 0,
+      "max": 200,
+      "step": 5
+    },
+    "frontSpringRate": {
+      "min": 80000,
+      "max": 160000,
+      "step": 40000
+    },
+    "rearSpringRate": {
+      "min": 100000,
+      "max": 140000,
+      "step": 20000
+    },
+    "frontBump": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "frontRebound": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "rearBump": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "rearRebound": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
     "frontLeftTyrePressure": {
       "min": 17,
       "max": 35,
@@ -2485,6 +4170,22 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 11,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": {
+      "min": 0,
+      "max": 11,
+      "step": 1
+    },
+    "engineMap": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
     "frontRideHeight": {
       "min": 70,
       "max": 100,
@@ -2512,12 +4213,40 @@
     }
   },
   "lamborghini_countach": {
+    "frontARB": {
+      "min": 28000,
+      "max": 68000,
+      "step": 4000
+    },
+    "rearARB": {
+      "min": 5000,
+      "max": 50000,
+      "step": 5000
+    },
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": {
+      "min": 50000,
+      "max": 100000,
+      "step": 4000
+    },
+    "rearSpringRate": {
+      "min": 50000,
+      "max": 100000,
+      "step": 4000
+    },
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -2550,6 +4279,14 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 20,
       "max": 180,
@@ -2569,12 +4306,60 @@
     }
   },
   "lamborghini_huracan_st_evo2": {
+    "frontARB": {
+      "min": 30000,
+      "max": 70000,
+      "step": 10000
+    },
+    "rearARB": {
+      "min": 25000,
+      "max": 40000,
+      "step": 15000
+    },
+    "steerRatio": null,
     "brakeBias": {
       "min": 50,
       "max": 80,
       "step": 0.2
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": {
+      "min": 20,
+      "max": 300,
+      "step": 10
+    },
+    "frontSpringRate": {
+      "min": 130000,
+      "max": 270000,
+      "step": 20000
+    },
+    "rearSpringRate": {
+      "min": 130000,
+      "max": 270000,
+      "step": 20000
+    },
+    "frontBump": {
+      "min": 0,
+      "max": 59,
+      "step": 1
+    },
+    "frontRebound": {
+      "min": 0,
+      "max": 59,
+      "step": 1
+    },
+    "rearBump": {
+      "min": 0,
+      "max": 59,
+      "step": 1
+    },
+    "rearRebound": {
+      "min": 0,
+      "max": 59,
+      "step": 1
+    },
     "frontLeftTyrePressure": {
       "min": 19,
       "max": 32,
@@ -2607,6 +4392,18 @@
       "max": 0.4,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 7,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": {
+      "min": 0,
+      "max": 11,
+      "step": 1
+    },
+    "engineMap": null,
     "frontRideHeight": {
       "min": 75,
       "max": 100,
@@ -2630,6 +4427,21 @@
     }
   },
   "lamborghini_huracan_sto": {
+    "frontARB": {
+      "min": 3000,
+      "max": 50000,
+      "step": 500
+    },
+    "rearARB": {
+      "min": 3000,
+      "max": 50000,
+      "step": 500
+    },
+    "steerRatio": {
+      "min": 12,
+      "max": 18,
+      "step": 0.1
+    },
     "brakeBias": {
       "min": 0,
       "max": 100,
@@ -2639,6 +4451,39 @@
       "min": 100,
       "max": 150,
       "step": 2.5
+    },
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": {
+      "min": 55000,
+      "max": 82500,
+      "step": 1375
+    },
+    "rearSpringRate": {
+      "min": 55000,
+      "max": 82500,
+      "step": 1375
+    },
+    "frontBump": {
+      "min": 10600,
+      "max": 15900,
+      "step": 265
+    },
+    "frontRebound": {
+      "min": 8375,
+      "max": 12562.5,
+      "step": 209.375
+    },
+    "rearBump": {
+      "min": 10600,
+      "max": 15900,
+      "step": 265
+    },
+    "rearRebound": {
+      "min": 8375,
+      "max": 12562.5,
+      "step": 209.375
     },
     "frontLeftTyrePressure": {
       "min": 20,
@@ -2680,6 +4525,14 @@
       "max": 0.4,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 2,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 100,
       "max": 150,
@@ -2703,12 +4556,24 @@
     }
   },
   "lancia_delta_hf_integrale_evo_ii": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 40,
@@ -2741,6 +4606,10 @@
       "max": 0.4,
       "step": 0.01
     },
+    "tc": null,
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 140,
       "max": 175,
@@ -2764,12 +4633,24 @@
     }
   },
   "lotus_emira": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -2810,6 +4691,14 @@
       "max": 0.35,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 2,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 100,
       "max": 250,
@@ -2829,12 +4718,68 @@
     }
   },
   "lotus_exige_v6_cup": {
+    "frontARB": {
+      "min": 5000,
+      "max": 60000,
+      "step": 500
+    },
+    "rearARB": {
+      "min": 1000,
+      "max": 20000,
+      "step": 500
+    },
+    "steerRatio": {
+      "min": -25,
+      "max": -5,
+      "step": 0.01
+    },
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": {
+      "min": 0,
+      "max": 0.1,
+      "step": 0.001
+    },
+    "diffCoast": {
+      "min": 0,
+      "max": 0.1,
+      "step": 0.001
+    },
+    "diffPreload": null,
+    "frontSpringRate": {
+      "min": 20000,
+      "max": 100000,
+      "step": 500
+    },
+    "rearSpringRate": {
+      "min": 20000,
+      "max": 200000,
+      "step": 500
+    },
+    "frontBump": {
+      "min": 1000,
+      "max": 15000,
+      "step": 100
+    },
+    "frontRebound": {
+      "min": 1000,
+      "max": 15000,
+      "step": 100
+    },
+    "rearBump": {
+      "min": 1000,
+      "max": 15000,
+      "step": 100
+    },
+    "rearRebound": {
+      "min": 1000,
+      "max": 30000,
+      "step": 100
+    },
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -2875,6 +4820,14 @@
       "max": 0.4,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 0,
       "max": 200,
@@ -2894,12 +4847,68 @@
     }
   },
   "maserati_mc20_gt2": {
+    "frontARB": {
+      "min": 15000,
+      "max": 45000,
+      "step": 5000
+    },
+    "rearARB": {
+      "min": 10000,
+      "max": 40000,
+      "step": 5000
+    },
+    "steerRatio": null,
     "brakeBias": {
       "min": 55,
       "max": 70,
       "step": 0.2
     },
     "brakePressure": null,
+    "diffPower": {
+      "min": 0,
+      "max": 1,
+      "step": 0.05
+    },
+    "diffCoast": {
+      "min": 0,
+      "max": 1,
+      "step": 0.05
+    },
+    "diffPreload": {
+      "min": 20,
+      "max": 200,
+      "step": 10
+    },
+    "frontSpringRate": {
+      "min": 200000,
+      "max": 280000,
+      "step": 10000
+    },
+    "rearSpringRate": {
+      "min": 130000,
+      "max": 210000,
+      "step": 10000
+    },
+    "frontBump": {
+      "min": 1,
+      "max": 59,
+      "step": 1
+    },
+    "frontRebound": {
+      "min": 1,
+      "max": 59,
+      "step": 1
+    },
+    "rearBump": {
+      "min": 1,
+      "max": 59,
+      "step": 1
+    },
+    "rearRebound": {
+      "min": 1,
+      "max": 59,
+      "step": 1
+    },
     "frontLeftTyrePressure": {
       "min": 17,
       "max": 35,
@@ -2939,6 +4948,22 @@
       "min": -0.2,
       "max": 0.2,
       "step": 0.01
+    },
+    "tc": {
+      "min": 0,
+      "max": 12,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": {
+      "min": 0,
+      "max": 10,
+      "step": 1
+    },
+    "engineMap": {
+      "min": 0,
+      "max": 2,
+      "step": 1
     },
     "frontRideHeight": {
       "min": 65,
@@ -2967,12 +4992,24 @@
     }
   },
   "mazda_mx5_na": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -3005,6 +5042,14 @@
       "max": 0.4,
       "step": 0.01
     },
+    "tc": null,
+    "tc2": null,
+    "abs": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
+    "engineMap": null,
     "frontRideHeight": {
       "min": 100,
       "max": 170,
@@ -3024,12 +5069,56 @@
     }
   },
   "mazda_mx5_nd_cup": {
+    "frontARB": {
+      "min": 23000,
+      "max": 47000,
+      "step": 4000
+    },
+    "rearARB": {
+      "min": 4800,
+      "max": 34000,
+      "step": 2000
+    },
+    "steerRatio": null,
     "brakeBias": {
       "min": 50,
       "max": 90,
       "step": 0.2
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": {
+      "min": 40000,
+      "max": 70000,
+      "step": 1000
+    },
+    "rearSpringRate": {
+      "min": 40000,
+      "max": 70000,
+      "step": 1000
+    },
+    "frontBump": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "frontRebound": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "rearBump": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "rearRebound": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
     "frontLeftTyrePressure": {
       "min": 18,
       "max": 30,
@@ -3070,6 +5159,14 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": null,
+    "tc2": null,
+    "abs": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
+    "engineMap": null,
     "frontRideHeight": {
       "min": 111,
       "max": 130,
@@ -3089,12 +5186,24 @@
     }
   },
   "mercedes_190e_evo_ii": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 45,
@@ -3135,6 +5244,10 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": null,
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 125,
       "max": 150,
@@ -3162,12 +5275,68 @@
     }
   },
   "mercedes_amg_gt2": {
+    "frontARB": {
+      "min": 10000,
+      "max": 50000,
+      "step": 5000
+    },
+    "rearARB": {
+      "min": 5000,
+      "max": 30000,
+      "step": 5000
+    },
+    "steerRatio": null,
     "brakeBias": {
       "min": 55,
       "max": 68,
       "step": 0.5
     },
     "brakePressure": null,
+    "diffPower": {
+      "min": 0,
+      "max": 0.6,
+      "step": 0.1
+    },
+    "diffCoast": {
+      "min": 0,
+      "max": 0.6,
+      "step": 0.1
+    },
+    "diffPreload": {
+      "min": 10,
+      "max": 100,
+      "step": 10
+    },
+    "frontSpringRate": {
+      "min": 80000,
+      "max": 150000,
+      "step": 10000
+    },
+    "rearSpringRate": {
+      "min": 70000,
+      "max": 140000,
+      "step": 10000
+    },
+    "frontBump": {
+      "min": 1,
+      "max": 59,
+      "step": 1
+    },
+    "frontRebound": {
+      "min": 1,
+      "max": 59,
+      "step": 1
+    },
+    "rearBump": {
+      "min": 1,
+      "max": 59,
+      "step": 1
+    },
+    "rearRebound": {
+      "min": 1,
+      "max": 59,
+      "step": 1
+    },
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 32,
@@ -3208,6 +5377,18 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 5,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": {
+      "min": 0,
+      "max": 5,
+      "step": 1
+    },
+    "engineMap": null,
     "frontRideHeight": {
       "min": 100,
       "max": 110,
@@ -3231,12 +5412,48 @@
     }
   },
   "mini_jcs_1990": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": {
+      "min": 24500,
+      "max": 20000,
+      "step": 500
+    },
+    "rearSpringRate": {
+      "min": 24500,
+      "max": 20000,
+      "step": 500
+    },
+    "frontBump": {
+      "min": 0,
+      "max": 20000,
+      "step": 100
+    },
+    "frontRebound": {
+      "min": 0,
+      "max": 20000,
+      "step": 100
+    },
+    "rearBump": {
+      "min": 0,
+      "max": 20000,
+      "step": 100
+    },
+    "rearRebound": {
+      "min": 0,
+      "max": 20000,
+      "step": 100
+    },
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 40,
@@ -3269,6 +5486,10 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": null,
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 80,
       "max": 230,
@@ -3288,12 +5509,24 @@
     }
   },
   "peugeot_205_t16": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 40,
@@ -3326,6 +5559,10 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": null,
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": null,
     "rearRideHeight": null,
     "frontWing": null,
@@ -3337,12 +5574,64 @@
     }
   },
   "porsche_718_cayman_gt4_cs_mr": {
+    "frontARB": {
+      "min": 1,
+      "max": 7,
+      "step": 1
+    },
+    "rearARB": {
+      "min": 1,
+      "max": 7,
+      "step": 1
+    },
+    "steerRatio": {
+      "min": 10,
+      "max": 16,
+      "step": 1
+    },
     "brakeBias": {
       "min": 50,
       "max": 80,
       "step": 0.2
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": {
+      "min": 0,
+      "max": 7,
+      "step": 1
+    },
+    "frontSpringRate": {
+      "min": 112000,
+      "max": 144000,
+      "step": 16000
+    },
+    "rearSpringRate": {
+      "min": 130000,
+      "max": 164000,
+      "step": 17000
+    },
+    "frontBump": {
+      "min": 1,
+      "max": 11,
+      "step": 1
+    },
+    "frontRebound": {
+      "min": 1,
+      "max": 11,
+      "step": 1
+    },
+    "rearBump": {
+      "min": 1,
+      "max": 11,
+      "step": 1
+    },
+    "rearRebound": {
+      "min": 1,
+      "max": 11,
+      "step": 1
+    },
     "frontLeftTyrePressure": {
       "min": 17,
       "max": 35,
@@ -3383,6 +5672,18 @@
       "max": 0.4,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 11,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": {
+      "min": 0,
+      "max": 11,
+      "step": 1
+    },
+    "engineMap": null,
     "frontRideHeight": {
       "min": 80,
       "max": 110,
@@ -3410,12 +5711,56 @@
     }
   },
   "porsche_718_cayman_gt4_rs": {
+    "frontARB": {
+      "min": 30000,
+      "max": 70000,
+      "step": 20000
+    },
+    "rearARB": {
+      "min": 18000,
+      "max": 42000,
+      "step": 12000
+    },
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": {
+      "min": 60000,
+      "max": 100000,
+      "step": 5000
+    },
+    "rearSpringRate": {
+      "min": 60000,
+      "max": 100000,
+      "step": 5000
+    },
+    "frontBump": {
+      "min": 3000,
+      "max": 12000,
+      "step": 500
+    },
+    "frontRebound": {
+      "min": 3000,
+      "max": 12000,
+      "step": 500
+    },
+    "rearBump": {
+      "min": 3000,
+      "max": 12000,
+      "step": 500
+    },
+    "rearRebound": {
+      "min": 3000,
+      "max": 12000,
+      "step": 500
+    },
     "frontLeftTyrePressure": {
       "min": 17,
       "max": 35,
@@ -3448,6 +5793,14 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 2,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 50,
       "max": 150,
@@ -3475,6 +5828,21 @@
     }
   },
   "porsche_935": {
+    "frontARB": {
+      "min": 0,
+      "max": 7,
+      "step": 1
+    },
+    "rearARB": {
+      "min": 0,
+      "max": 7,
+      "step": 1
+    },
+    "steerRatio": {
+      "min": 8,
+      "max": 12,
+      "step": 1
+    },
     "brakeBias": {
       "min": 48,
       "max": 70,
@@ -3483,6 +5851,51 @@
     "brakePressure": {
       "min": 80,
       "max": 100,
+      "step": 1
+    },
+    "diffPower": {
+      "min": 0.15,
+      "max": 0.5,
+      "step": 0.05
+    },
+    "diffCoast": {
+      "min": 0.1,
+      "max": 0.8,
+      "step": 0.05
+    },
+    "diffPreload": {
+      "min": 10,
+      "max": 150,
+      "step": 10
+    },
+    "frontSpringRate": {
+      "min": 200000,
+      "max": 320000,
+      "step": 20000
+    },
+    "rearSpringRate": {
+      "min": 280000,
+      "max": 340000,
+      "step": 20000
+    },
+    "frontBump": {
+      "min": 1,
+      "max": 11,
+      "step": 1
+    },
+    "frontRebound": {
+      "min": 1,
+      "max": 11,
+      "step": 1
+    },
+    "rearBump": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "rearRebound": {
+      "min": 1,
+      "max": 12,
       "step": 1
     },
     "frontLeftTyrePressure": {
@@ -3525,6 +5938,18 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 11,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": {
+      "min": 0,
+      "max": 11,
+      "step": 1
+    },
+    "engineMap": null,
     "frontRideHeight": {
       "min": 70,
       "max": 100,
@@ -3552,12 +5977,40 @@
     }
   },
   "porsche_964_turbo_3_6": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": {
+      "min": 0,
+      "max": 100000,
+      "step": 100
+    },
+    "frontRebound": {
+      "min": 0,
+      "max": 100000,
+      "step": 100
+    },
+    "rearBump": {
+      "min": 0,
+      "max": 100000,
+      "step": 100
+    },
+    "rearRebound": {
+      "min": 0,
+      "max": 100000,
+      "step": 100
+    },
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 40,
@@ -3598,6 +6051,10 @@
       "max": 0.3,
       "step": 0.01
     },
+    "tc": null,
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 100,
       "max": 200,
@@ -3617,6 +6074,21 @@
     }
   },
   "porsche_991ii_gt2_rs_clubsport_evo": {
+    "frontARB": {
+      "min": 0,
+      "max": 7,
+      "step": 1
+    },
+    "rearARB": {
+      "min": 0,
+      "max": 7,
+      "step": 1
+    },
+    "steerRatio": {
+      "min": 8,
+      "max": 12,
+      "step": 1
+    },
     "brakeBias": {
       "min": 48,
       "max": 70,
@@ -3625,6 +6097,51 @@
     "brakePressure": {
       "min": 80,
       "max": 100,
+      "step": 1
+    },
+    "diffPower": {
+      "min": 0.15,
+      "max": 0.5,
+      "step": 0.05
+    },
+    "diffCoast": {
+      "min": 0.1,
+      "max": 0.8,
+      "step": 0.05
+    },
+    "diffPreload": {
+      "min": 10,
+      "max": 150,
+      "step": 10
+    },
+    "frontSpringRate": {
+      "min": 200000,
+      "max": 240000,
+      "step": 10000
+    },
+    "rearSpringRate": {
+      "min": 280000,
+      "max": 320000,
+      "step": 20000
+    },
+    "frontBump": {
+      "min": 1,
+      "max": 11,
+      "step": 1
+    },
+    "frontRebound": {
+      "min": 1,
+      "max": 11,
+      "step": 1
+    },
+    "rearBump": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "rearRebound": {
+      "min": 1,
+      "max": 12,
       "step": 1
     },
     "frontLeftTyrePressure": {
@@ -3667,6 +6184,18 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 11,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": {
+      "min": 0,
+      "max": 11,
+      "step": 1
+    },
+    "engineMap": null,
     "frontRideHeight": {
       "min": 70,
       "max": 100,
@@ -3694,12 +6223,72 @@
     }
   },
   "porsche_992_gt3_cup": {
+    "frontARB": {
+      "min": 1,
+      "max": 13,
+      "step": 1
+    },
+    "rearARB": {
+      "min": 1,
+      "max": 13,
+      "step": 1
+    },
+    "steerRatio": {
+      "min": 12,
+      "max": 16,
+      "step": 1
+    },
     "brakeBias": {
       "min": 48,
       "max": 75,
       "step": 0.2
     },
     "brakePressure": null,
+    "diffPower": {
+      "min": 0.2,
+      "max": 0.6,
+      "step": 0.05
+    },
+    "diffCoast": {
+      "min": 0.4,
+      "max": 0.8,
+      "step": 0.05
+    },
+    "diffPreload": {
+      "min": 0,
+      "max": 300,
+      "step": 10
+    },
+    "frontSpringRate": {
+      "min": 200000,
+      "max": 260000,
+      "step": 30000
+    },
+    "rearSpringRate": {
+      "min": 240000,
+      "max": 300000,
+      "step": 30000
+    },
+    "frontBump": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "frontRebound": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "rearBump": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "rearRebound": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -3740,6 +6329,18 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 12,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": {
+      "min": 0,
+      "max": 11,
+      "step": 1
+    },
+    "engineMap": null,
     "frontRideHeight": {
       "min": 72,
       "max": 110,
@@ -3767,12 +6368,72 @@
     }
   },
   "porsche_992_gt3_r_rennsport": {
+    "frontARB": {
+      "min": 1,
+      "max": 7,
+      "step": 1
+    },
+    "rearARB": {
+      "min": 1,
+      "max": 7,
+      "step": 1
+    },
+    "steerRatio": {
+      "min": 11,
+      "max": 18,
+      "step": 1
+    },
     "brakeBias": {
       "min": 48,
       "max": 65,
       "step": 0.2
     },
     "brakePressure": null,
+    "diffPower": {
+      "min": 0,
+      "max": 1,
+      "step": 0.05
+    },
+    "diffCoast": {
+      "min": 0,
+      "max": 1,
+      "step": 0.05
+    },
+    "diffPreload": {
+      "min": 0,
+      "max": 300,
+      "step": 10
+    },
+    "frontSpringRate": {
+      "min": 150000,
+      "max": 400000,
+      "step": 10000
+    },
+    "rearSpringRate": {
+      "min": 150000,
+      "max": 400000,
+      "step": 10000
+    },
+    "frontBump": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "frontRebound": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "rearBump": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
+    "rearRebound": {
+      "min": 1,
+      "max": 12,
+      "step": 1
+    },
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -3813,6 +6474,26 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 12,
+      "step": 1
+    },
+    "tc2": {
+      "min": 0,
+      "max": 11,
+      "step": 1
+    },
+    "abs": {
+      "min": 0,
+      "max": 11,
+      "step": 1
+    },
+    "engineMap": {
+      "min": 0,
+      "max": 2,
+      "step": 1
+    },
     "frontRideHeight": {
       "min": 50,
       "max": 85,
@@ -3836,12 +6517,64 @@
     }
   },
   "porsche_992_gt3_rs": {
+    "frontARB": {
+      "min": 30000,
+      "max": 50000,
+      "step": 10000
+    },
+    "rearARB": {
+      "min": 60000,
+      "max": 80000,
+      "step": 10000
+    },
+    "steerRatio": {
+      "min": 12,
+      "max": 16,
+      "step": 1
+    },
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": {
+      "min": 0.15,
+      "max": 0.55,
+      "step": 0.05
+    },
+    "diffCoast": {
+      "min": 0.15,
+      "max": 0.55,
+      "step": 0.05
+    },
+    "diffPreload": {
+      "min": 10,
+      "max": 70,
+      "step": 1
+    },
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": {
+      "min": 4500,
+      "max": 12500,
+      "step": 1000
+    },
+    "frontRebound": {
+      "min": 3000,
+      "max": 19000,
+      "step": 2000
+    },
+    "rearBump": {
+      "min": 7000,
+      "max": 23000,
+      "step": 2000
+    },
+    "rearRebound": {
+      "min": 10000,
+      "max": 26500,
+      "step": 2000
+    },
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -3882,6 +6615,14 @@
       "max": 0.4,
       "step": 0.1
     },
+    "tc": {
+      "min": 0,
+      "max": 7,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 100,
       "max": 110,
@@ -3909,12 +6650,24 @@
     }
   },
   "renault_5_gt_turbo": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 40,
@@ -3947,6 +6700,10 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": null,
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 100,
       "max": 200,
@@ -3966,12 +6723,32 @@
     }
   },
   "toyota_ae86_sprinter_trueno": {
+    "frontARB": {
+      "min": 8000,
+      "max": 80000,
+      "step": 800
+    },
+    "rearARB": {
+      "min": 6000,
+      "max": 60000,
+      "step": 600
+    },
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 40,
@@ -4004,6 +6781,10 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": null,
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 100,
       "max": 200,
@@ -4023,8 +6804,20 @@
     }
   },
   "toyota_gr86": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": null,
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 45,
@@ -4057,6 +6850,14 @@
       "max": 0.5,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 2,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 60,
       "max": 200,
@@ -4076,12 +6877,36 @@
     }
   },
   "toyota_supra_mkiv": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": {
+      "min": 0,
+      "max": 1,
+      "step": 0.035
+    },
+    "diffCoast": {
+      "min": 0,
+      "max": 1,
+      "step": 0.035
+    },
+    "diffPreload": {
+      "min": 0,
+      "max": 100,
+      "step": 0.5
+    },
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 18,
       "max": 32,
@@ -4122,6 +6947,14 @@
       "max": 0.5,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 1,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 100,
       "max": 160,
@@ -4141,12 +6974,32 @@
     }
   },
   "volkswagen_golf_gti_mk1": {
+    "frontARB": {
+      "min": 10000,
+      "max": 50000,
+      "step": 2000
+    },
+    "rearARB": {
+      "min": 1000,
+      "max": 50000,
+      "step": 400
+    },
+    "steerRatio": null,
     "brakeBias": {
       "min": 50,
       "max": 100,
       "step": 7.8
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 40,
@@ -4179,6 +7032,10 @@
       "max": 0.2,
       "step": 0.01
     },
+    "tc": null,
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": null,
     "rearRideHeight": null,
     "frontWing": null,
@@ -4190,12 +7047,24 @@
     }
   },
   "volkswagen_golf_gti_mk8": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -4228,6 +7097,14 @@
       "max": 0.2,
       "step": 0.05
     },
+    "tc": {
+      "min": 0,
+      "max": 2,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 50,
       "max": 250,
@@ -4247,12 +7124,24 @@
     }
   },
   "volkswagen_golf_r_mk8": {
+    "frontARB": null,
+    "rearARB": null,
+    "steerRatio": null,
     "brakeBias": {
       "min": 0,
       "max": 100,
       "step": 1
     },
     "brakePressure": null,
+    "diffPower": null,
+    "diffCoast": null,
+    "diffPreload": null,
+    "frontSpringRate": null,
+    "rearSpringRate": null,
+    "frontBump": null,
+    "frontRebound": null,
+    "rearBump": null,
+    "rearRebound": null,
     "frontLeftTyrePressure": {
       "min": 20,
       "max": 35,
@@ -4285,6 +7174,14 @@
       "max": 0.3,
       "step": 0.01
     },
+    "tc": {
+      "min": 0,
+      "max": 2,
+      "step": 1
+    },
+    "tc2": null,
+    "abs": null,
+    "engineMap": null,
     "frontRideHeight": {
       "min": 80,
       "max": 200,
