@@ -30,7 +30,7 @@ import { z } from "zod";
 import { describeKnobs } from "../../server/ai/tune-rules";
 import { formatSymptoms } from "../../server/ai/tune-chat-prompt";
 import { formatTrackConditions, loadActiveTuningContext } from "../../server/ai/setup-engineer-context";
-import { loadCleanLapAggregate } from "../../server/ai/clean-lap-aggregate";
+import { loadCleanLapAggregate, baselineFallbackNote } from "../../server/ai/clean-lap-aggregate";
 import { listTuningTests } from "../../server/db/tuning-test-queries";
 
 const InputSchema = z.object({
@@ -55,9 +55,15 @@ const gatherPrereqs = createStep({
     const ctx = await loadActiveTuningContext(sessionId);
     if (ctx.ok) {
       const knobs = describeKnobs(ctx.gameId, ctx.setup);
+      const tunable = knobs.filter((k) => k.current != null);
+      const missing = knobs.filter((k) => k.current == null);
       sections.push(
         `--- CURRENT SETUP (v${ctx.activeTest?.version ?? 0}) — the ONLY knobs you may move ---\n` +
-          knobs.map((k) => `${k.component}: ${k.current ?? "?"} [${k.min}..${k.max}]`).join("\n"),
+          tunable.map((k) => `${k.component}: ${k.current} [${k.min}..${k.max}]`).join("\n") +
+          (missing.length
+            ? `\n--- NOT TUNABLE ON THIS CAR (value: None — never suggest or apply changes to these) ---\n` +
+              missing.map((k) => `${k.component}: None`).join("\n")
+            : ""),
       );
     } else {
       sections.push(`--- CURRENT SETUP ---\n(unavailable: ${ctx.error})`);
@@ -82,6 +88,10 @@ const gatherPrereqs = createStep({
     if (agg.sourceScope === "session-baseline") {
       confidenceLines.push("(session baseline pool — laps may mix setups; confidence capped at medium)");
     }
+    // The current setup version has never been driven: the lap pool below is
+    // earlier versions' laps, and the model must not judge this version by it.
+    const fallbackNote = baselineFallbackNote(agg);
+    if (fallbackNote) confidenceLines.push(fallbackNote);
     if (agg.fallbackSingleLap) {
       confidenceLines.push(
         "(only <2 clean laps — reasoning from the single fastest lap; treat suggestions as low-confidence)",

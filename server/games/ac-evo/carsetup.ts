@@ -183,6 +183,23 @@ const CORNER_NAMES = ["Front left", "Front right", "Rear left", "Rear right"] as
  */
 const ARB_CLICK_BY_KNM: Record<number, number> = { 16: 1, 22: 2, 28: 3 };
 
+/**
+ * Map an ARB stiffness (kN/m) to a click number, tolerating float noise and
+ * small per-car offsets: nearest table key within ±1 kN/m, else null.
+ */
+function arbClickFromKnm(kNm: number): number | null {
+  let best: number | null = null;
+  let bestDiff = Infinity;
+  for (const [key, click] of Object.entries(ARB_CLICK_BY_KNM)) {
+    const diff = Math.abs(Number(key) - kNm);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      best = click;
+    }
+  }
+  return bestDiff <= 1 ? best : null;
+}
+
 function num(f: WireField | undefined): number | null {
   if (!f) return null;
   if (f.type === "float") return +f.value.toFixed(4);
@@ -327,7 +344,7 @@ export function summarizeCarSetup(
       const arbRow = (raw: number, key: string): CarSetupRow => {
         if (raw > 100) {
           const kNm = raw / 1000;
-          const click = ARB_CLICK_BY_KNM[kNm];
+          const click = arbClickFromKnm(kNm);
           const row: CarSetupRow = {
             label: "Anti-roll bar",
             value: click != null ? `${click} (${fmt(kNm)} kN/m)` : `${fmt(kNm)} kN/m`,
@@ -461,4 +478,94 @@ export function summarizeCarSetup(
   }
 
   return sections.filter((s) => s.rows.length > 0);
+}
+
+/**
+ * Flatten a decoded `.carsetup` into a plain object keyed by the knob path
+ * names `server/ai/tune-rules.ts` and `shared/games/ac-evo/setup-ranges.json`
+ * use (`frontARB`, `brakeBias`, `frontLeftTyrePressure`, ...), so
+ * `getKnobState`/`describeKnobs` return real current values instead of "?".
+ *
+ * Only fields whose meaning is verified (see summarizeCarSetup) are emitted.
+ * ARB stiffness values (N/m) are converted to click numbers via
+ * ARB_CLICK_BY_KNM and omitted when the stiffness isn't in the table —
+ * never feed the model a raw N/m value as a click count.
+ */
+export function carSetupToKnobValues(setup: CarSetupFile): Record<string, number> {
+  const out: Record<string, number> = {};
+  const put = (key: string, v: number | null | undefined) => {
+    if (v != null && Number.isFinite(v)) out[key] = v;
+  };
+  const msgs = (no: number) =>
+    setup.raw.filter((f): f is Extract<WireField, { type: "message" }> => f.no === no && f.type === "message");
+  const field = (fields: WireField[] | undefined, no: number) => fields?.find((f) => f.no === no);
+  const msg = (fields: WireField[] | undefined, no: number) => {
+    const f = field(fields, no);
+    return f?.type === "message" ? f.fields : undefined;
+  };
+
+  // #1 — mechanical/brakes/diff
+  const mech = msgs(1)[0];
+  if (mech) {
+    const arb = mech.fields.find((f): f is Extract<WireField, { type: "bytes" }> => f.no === 1 && f.type === "bytes");
+    if (arb?.floats?.length === 2) {
+      const arbClick = (raw: number): number | null =>
+        raw > 100 ? arbClickFromKnm(raw / 1000) : raw;
+      put("frontARB", arbClick(arb.floats[0]!));
+      put("rearARB", arbClick(arb.floats[1]!));
+    }
+    put("brakeBias", num(field(msg(mech.fields, 3), 1)));
+    put("steerRatio", num(field(mech.fields, 2)));
+    const diff = msg(mech.fields, 4);
+    put("diffPower", num(field(diff, 1)));
+    put("diffCoast", num(field(diff, 2)));
+    put("diffPreload", num(field(diff, 3)));
+  }
+
+  // #2/#3/#4 — per-corner springs / dampers / alignment (FL, FR, RL, RR)
+  const springs = msgs(2);
+  const dampers = msgs(3);
+  const alignment = msgs(4);
+  const pressureKeys = ["frontLeftTyrePressure", "frontRightTyrePressure", "rearLeftTyrePressure", "rearRightTyrePressure"];
+  for (let i = 0; i < 4; i++) {
+    const axle = i < 2 ? "front" : "rear";
+    const align = alignment[i];
+    if (align) {
+      put(pressureKeys[i]!, num(field(align.fields, 1)));
+      // proto3 omits zero-valued fields — absent toe means 0. Per-axle keys:
+      // FL/RL fill first; FR/RR would overwrite with the same axle value.
+      if (out[`${axle}Toe`] === undefined) out[`${axle}Toe`] = num(field(align.fields, 3)) ?? 0;
+      if (out[`${axle}Camber`] === undefined) put(`${axle}Camber`, num(field(align.fields, 2)));
+    }
+    if (out[`${axle}SpringRate`] === undefined) put(`${axle}SpringRate`, num(field(springs[i]?.fields, 1)));
+    const damper = dampers[i];
+    if (damper) {
+      if (out[`${axle}Bump`] === undefined) put(`${axle}Bump`, num(field(damper.fields, 1)));
+      if (out[`${axle}Rebound`] === undefined) put(`${axle}Rebound`, num(field(damper.fields, 3)));
+    }
+  }
+
+  // #5 — electronics (engine map is 0-indexed in the file, 1-indexed in the UI)
+  const electronics = msgs(5)[0];
+  if (electronics) {
+    put("tc", num(field(electronics.fields, 1)));
+    put("tc2", num(field(electronics.fields, 2)));
+    put("abs", num(field(electronics.fields, 3)));
+    const map = num(field(electronics.fields, 4));
+    if (map != null) put("engineMap", map + 1);
+  }
+
+  // #6 — aero & ride height
+  const aero = msgs(6)[0];
+  if (aero) {
+    put("frontRideHeight", num(field(aero.fields, 2)));
+    put("rearRideHeight", num(field(aero.fields, 3)));
+    put("frontWing", num(field(aero.fields, 4)));
+    put("rearWing", num(field(aero.fields, 5)));
+  }
+
+  // #7 — fuel load (litres)
+  put("fuel", num(field(msgs(7)[0]?.fields, 1)));
+
+  return out;
 }

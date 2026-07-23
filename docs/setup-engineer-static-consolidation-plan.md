@@ -41,10 +41,10 @@ tool's `inputSchema` cannot vary per game. Relax both to `z.string()`.
 **Safe because** `applyIntents(gameId, setup, intents)` already runtime-validates:
 an unknown component is dropped into `skipped` with a reason, never silently
 applied. The enum was defence-in-depth on the *schema*; the engine is the real
-guard. The system prompt + `get_current_setup` still tell the model the exact
+guard. The system prompt + `get_setup` still tell the model the exact
 knob list, so grounding is unchanged in practice.
 
-`get_symptoms` / `get_version_history` / `get_current_setup` already use `z.string()`
+`get_symptoms` / `get_version_history` / `get_setup` already use `z.string()`
 for `component` — no change there.
 
 ## 4. Edits

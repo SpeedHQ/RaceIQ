@@ -3,6 +3,7 @@ import {
   selectCleanLaps,
   computeConsistency,
   aggregateSymptoms,
+  baselineFallbackNote,
 } from "../server/ai/clean-lap-aggregate";
 import type { LapMeta } from "../server/db/queries";
 import type { TuneSymptoms } from "../server/ai/tune-symptoms";
@@ -199,5 +200,25 @@ describe("aggregateSymptoms", () => {
     const result = aggregateSymptoms(perLap);
 
     expect(result.aggregate.tyrePressure).toBeNull();
+  });
+});
+
+describe("baselineFallbackNote", () => {
+  test("warns when the head test has zero own laps and we fell back to the session baseline", () => {
+    const note = baselineFallbackNote({ sourceScope: "session-baseline", headOwnLapCount: 0 });
+    expect(note).toContain("no laps recorded on this setup version");
+    expect(note).toContain("session baseline");
+  });
+
+  test("silent when the branch pool was used", () => {
+    expect(baselineFallbackNote({ sourceScope: "branch", headOwnLapCount: 5 })).toBeNull();
+  });
+
+  test("silent when there is no active head test", () => {
+    expect(baselineFallbackNote({ sourceScope: "session-baseline", headOwnLapCount: null })).toBeNull();
+  });
+
+  test("silent when the head test has own laps (just not enough clean ones)", () => {
+    expect(baselineFallbackNote({ sourceScope: "session-baseline", headOwnLapCount: 1 })).toBeNull();
   });
 });

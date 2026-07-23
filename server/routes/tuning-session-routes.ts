@@ -777,7 +777,7 @@ export const tuningSessionRoutes = new Hono()
 
   // ─── Setup chat (plan §3, Phase 2) — a tool-using Setup Engineer agent, built
   //     fresh per request and bound to this session via closures (no shared
-  //     mutable state, no runtimeContext). Its 5 tools (get_current_setup,
+  //     mutable state, no runtimeContext). Its 5 tools (get_setup,
   //     get_symptoms, get_version_history, preview_change, apply_changes) are
   //     the ONLY action space: the model can't recommend or apply a knob the
   //     tools don't expose, and preview/apply always return the real

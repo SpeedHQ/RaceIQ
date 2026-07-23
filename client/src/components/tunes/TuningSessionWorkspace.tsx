@@ -83,7 +83,14 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
     for (const l of allLaps) {
       if (l.tuningSessionId === tuningSessionId) byId.set(l.id, l);
     }
-    for (const l of liveSessionLaps) byId.set(l.id, l);
+    for (const l of liveSessionLaps) {
+      // Live lap objects from the telemetry pipeline never carry tuningExcluded
+      // (server/pipeline.ts builds them without it), so keep the persisted
+      // lap's flag when both exist — otherwise the exclude toggle looks dead
+      // for laps of the current stint.
+      const persisted = byId.get(l.id);
+      byId.set(l.id, persisted ? { ...l, tuningExcluded: persisted.tuningExcluded } : l);
+    }
     return [...byId.values()];
   }, [allLaps, liveSessionLaps, tuningSessionId]);
 

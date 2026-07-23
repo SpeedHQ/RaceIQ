@@ -7,7 +7,7 @@
  * side effects via `loadActiveTuningContext`/`writeSetupFile`/`createTuningTest`,
  * none of which are worth mocking here. Instead this exercises the same
  * primitives the tools are built on directly:
- *   - `describeKnobs` — what `get_current_setup` returns.
+ *   - `describeKnobs` — what `get_setup` returns.
  *   - `applyIntents` on a clone — what `preview_change` runs (read-only).
  *   - a zod enum built from `knownComponents` — the grounding mechanism that
  *     makes an unlisted component a schema-validation failure, not just a
@@ -31,7 +31,7 @@ function baseAccSetup() {
   };
 }
 
-describe("describeKnobs — get_current_setup grounding", () => {
+describe("describeKnobs — get_setup grounding", () => {
   test("returns every known component with current value, range, and step", () => {
     const setup = baseAccSetup();
     const knobs = describeKnobs("acc", setup);

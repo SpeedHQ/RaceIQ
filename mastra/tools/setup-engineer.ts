@@ -116,8 +116,8 @@ const MIN_TELEMETRY_FRAMES = 30;
 
 export function buildSetupEngineerTools() {
 
-  const getCurrentSetupTool = createTool({
-    id: "get-current-setup",
+  const getSetupTool = createTool({
+    id: "get-setup",
     description:
       "Get the active setup version's tunable knobs: current value, min/max clamp range, and the " +
       "per-magnitude (small/medium/large) step size. This is the COMPLETE list of knobs you may ever " +
@@ -396,6 +396,20 @@ export function buildSetupEngineerTools() {
         reason: c.reason,
       }));
       const { setup, applied, skipped } = applyIntents(ctx.gameId, baseSetup, intents);
+      // No-op guard: if every requested change was skipped there is nothing to
+      // write — creating a version anyway produces a phantom empty node in the
+      // tree (observed: all changes skipped yet a new version appeared).
+      if (applied.length === 0) {
+        return {
+          ok: false,
+          error:
+            "Not applied — none of the requested changes could be applied; no new version was created. " +
+            "Inspect the `skipped` reasons below, fix the component names/values, and do NOT retry the " +
+            "same changes unchanged.",
+          applied: [],
+          skipped,
+        };
+      }
       const nextVer = Math.max(0, ...ctx.tests.map((t) => t.version)) + 1;
 
       // Branch-relative label off the head/parent. existingChildCount = how many
@@ -932,7 +946,7 @@ export function buildSetupEngineerTools() {
   });
 
   return {
-    getCurrentSetupTool,
+    getSetupTool,
     getSymptomsTool,
     getTrackConditionsTool,
     consultLapAnalystTool,

@@ -63,7 +63,7 @@ that operates via tools (Mastra `createTool`, zod input schemas). The chat-strea
 already emits `tool` events, so the UI shows "proposing… / applying…".
 
 **Read tools**
-- `get_current_setup` → active version's values + **the tunable knobs with current
+- `get_setup` → active version's values + **the tunable knobs with current
   value + range** (from `knownComponents(gameId)`). The agent only sees what it can move.
 - `get_symptoms` → deterministic symptom report if a lap exists, else "no lap yet".
 - `get_version_history` → versions, applied changes, best lap per version, parents.

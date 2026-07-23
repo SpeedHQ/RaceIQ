@@ -12,7 +12,7 @@ import { ChatPanel } from "@/components/ai-chat/ChatPanel";
  *
  * Personalisation: the conversation itself is the feel input. The Setup
  * Engineer is a tool-using agent (docs/setup-engineer-tools-plan.md §3) — it
- * calls `get_current_setup`/`get_symptoms`/`get_version_history` for context,
+ * calls `get_setup`/`get_symptoms`/`get_version_history` for context,
  * `preview_change` while discussing options, and `apply_changes` once the
  * driver confirms. "Generate setup from this chat" just sends a confirmation
  * message into the same conversation; the agent decides to call

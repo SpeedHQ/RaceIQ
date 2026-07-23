@@ -159,10 +159,10 @@ export function LapBreakdown({
                   disabled={setExcluded.isPending}
                   title={excluded ? "Include this lap in the tuning aggregate again" : "Exclude this lap from the tuning aggregate (blunder, off-track, spin)"}
                   className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border disabled:opacity-50 disabled:pointer-events-none ${
-                    excluded ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"
+                    excluded ? "border-app-border text-app-text-dim opacity-60" : "border-app-border text-app-text hover:bg-app-border/30"
                   }`}
                 >
-                  {excluded ? "Include" : "Exclude"}
+                  {excluded ? "Excluded" : "Exclude"}
                 </button>
               </td>
             </tr>

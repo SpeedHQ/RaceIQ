@@ -154,8 +154,9 @@ describe("applyIntents / knownComponents — per-car narrowing (ac-evo)", () => 
     const components = knownComponents("ac-evo", "abarth_695_biposto");
     expect(components).not.toContain("Front Wing");
     expect(components).not.toContain("Rear Wing");
-    // Fields without per-car data keep the global entries
-    expect(components).toContain("Front Anti-Roll Bar");
+    // Abarth street car has no adjustable ARBs either (frontARB/rearARB null in setup-ranges.json)
+    expect(components).not.toContain("Front Anti-Roll Bar");
+    // Fields with real per-car data keep their entries
     expect(components).toContain("Brake Bias");
   });
 

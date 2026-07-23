@@ -365,6 +365,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
       s2Time: laps.s2Time,
       s3Time: laps.s3Time,
       tuningSessionId: laps.tuningSessionId,
+      tuningExcluded: laps.tuningExcluded,
       rawFile: sessions.rawFile,
     })
     .from(laps)
@@ -391,6 +392,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
     s2Time: r.s2Time ?? undefined,
     s3Time: r.s3Time ?? undefined,
     tuningSessionId: r.tuningSessionId ?? null,
+    tuningExcluded: Boolean(r.tuningExcluded),
     isLegacy: rawFile == null,
   }));
 }

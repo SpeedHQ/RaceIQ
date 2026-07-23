@@ -64,7 +64,27 @@ export interface CleanLapAggregate {
   consistency: ConsistencyReport;
   fallbackSingleLap: boolean;
   sourceScope: "branch" | "session-baseline";
+  /** Laps stamped to the active head test (any cleanliness), or null when no
+   *  active head test exists. 0 + "session-baseline" means the current setup
+   *  version has never been driven and the pool below belongs to earlier
+   *  versions. */
+  headOwnLapCount: number | null;
   lapBreakdown: LapBreakdownRow[];
+}
+
+/**
+ * Explicit-fallback note for AI/context consumers: non-null only when we fell
+ * back to the session baseline pool while an active head test exists with zero
+ * laps of its own — i.e. the laps shown are NOT this setup version's laps.
+ */
+export function baselineFallbackNote(
+  agg: Pick<CleanLapAggregate, "sourceScope" | "headOwnLapCount">,
+): string | null {
+  if (agg.sourceScope !== "session-baseline" || agg.headOwnLapCount !== 0) return null;
+  return (
+    "NOTE: no laps recorded on this setup version yet — laps below are the session baseline " +
+    "(earlier versions). Drive laps on this version before judging changes."
+  );
 }
 
 // Cap on how many clean laps feed the symptom aggregate — beyond this the
@@ -291,8 +311,10 @@ export async function loadCleanLapAggregate(
   let pool: LapMeta[] = [];
   let sourceScope: "branch" | "session-baseline" = "session-baseline";
 
+  let headOwnLapCount: number | null = null;
   if (headTestId != null) {
     const branchPool = await getLapMetaForTuningTest(headTestId);
+    headOwnLapCount = branchPool.length;
     const branchClean = selectCleanLaps(branchPool);
     if (branchClean.clean.length >= 2) {
       pool = branchPool;
@@ -318,6 +340,7 @@ export async function loadCleanLapAggregate(
         consistency: emptyConsistency("very-low"),
         fallbackSingleLap: true,
         sourceScope,
+        headOwnLapCount,
         lapBreakdown: breakdown,
       };
     }
@@ -330,6 +353,7 @@ export async function loadCleanLapAggregate(
       consistency: emptyConsistency("very-low"),
       fallbackSingleLap: true,
       sourceScope,
+      headOwnLapCount,
       lapBreakdown: breakdown,
     };
   }
@@ -358,6 +382,7 @@ export async function loadCleanLapAggregate(
         consistency: emptyConsistency("very-low"),
         fallbackSingleLap: true,
         sourceScope,
+        headOwnLapCount,
         lapBreakdown: breakdown,
       };
     }
@@ -370,6 +395,7 @@ export async function loadCleanLapAggregate(
       consistency: emptyConsistency("very-low"),
       fallbackSingleLap: true,
       sourceScope,
+      headOwnLapCount,
       lapBreakdown: breakdown,
     };
   }
@@ -411,6 +437,7 @@ export async function loadCleanLapAggregate(
     consistency,
     fallbackSingleLap: false,
     sourceScope,
+    headOwnLapCount,
     lapBreakdown: breakdown,
   };
 }

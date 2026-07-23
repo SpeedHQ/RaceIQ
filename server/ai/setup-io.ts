@@ -95,6 +95,15 @@ export function writeAppliedSetup(
   if (!params.baseDir || !params.realPath) {
     throw new Error("File-based setup write requires baseDir/realPath");
   }
+  // Binary AC EVO saves can be decoded but not re-encoded — there is no
+  // .carsetup writer, so these sessions are advisory only. Refuse loudly
+  // instead of writing a .json the game would never load as this setup.
+  if (params.realPath.toLowerCase().endsWith(".carsetup")) {
+    throw new Error(
+      "This session's base is a binary .carsetup file, which can't be written back — " +
+        "advisory only. Apply the suggested changes by hand in the AC EVO setup screen.",
+    );
+  }
   const written = writeSetupFile(params.baseDir, params.realPath, params.setup, params.stem, params.overwrite ?? false);
   return { setupPath: written.path, setupSnapshot: null, fileName: written.fileName };
 }

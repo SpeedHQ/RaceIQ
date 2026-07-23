@@ -339,7 +339,7 @@ export interface KnobState {
 
 /**
  * Read a single knob's current value + clamp range out of a live setup object.
- * Used by the setup-engineer agent's `get_current_setup` tool so the model only
+ * Used by the setup-engineer agent's `get_setup` tool so the model only
  * ever sees knobs it can actually move (plan §3). Returns null when the game
  * has no rules table or the component is unknown.
  */
@@ -372,7 +372,7 @@ export interface KnobDescription extends KnobState {
 
 /**
  * `getAllKnobStates` plus each knob's per-magnitude step size — the full
- * grounded knob list the Setup Engineer agent's `get_current_setup` tool
+ * grounded knob list the Setup Engineer agent's `get_setup` tool
  * returns (plan §3): current value + clamp range + how far a click moves it.
  */
 /**

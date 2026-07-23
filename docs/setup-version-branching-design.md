@@ -114,7 +114,7 @@ lap-count aggregation).
 
 - `loadActiveTuningContext`: "active" resolves to the session's `headTestId` when set,
   else the current mainline tip (`tests[last]`) for back-compat. All reads
-  (`get-current-setup`, `preview-change`, `apply-changes`) resolve off head.
+  (`get-setup`, `preview-change`, `apply-changes`) resolve off head.
 - `apply-changes`:
   - parent = head test (`ctx.activeTest`, now head-resolved).
   - `version = nextVersion(sessionId)` (monotonic, unchanged).

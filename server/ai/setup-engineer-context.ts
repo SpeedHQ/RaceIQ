@@ -21,6 +21,7 @@ import { detectCorners } from "../corner-detection";
 import { telemetryToSymptoms, type TuneSymptoms } from "./tune-symptoms";
 import { telemetryToTrackConditions, type TrackConditions } from "./track-conditions";
 import { loadCleanLapAggregate } from "./clean-lap-aggregate";
+import { parseCarSetup, carSetupToKnobValues } from "../games/ac-evo/carsetup";
 
 // Re-exported so existing importers (the get_track_conditions tool) keep a
 // single import site; the implementation lives in track-conditions.ts.
@@ -58,7 +59,15 @@ export async function getSetupsBaseDir(gameId: AccGameId): Promise<string | null
 }
 
 export type GuardedSetup =
-  | { ok: true; baseDir: string; realPath: string; setup: any }
+  | {
+      ok: true;
+      baseDir: string;
+      realPath: string;
+      setup: any;
+      /** True when the source is a binary `.carsetup` — knob values are
+       *  readable (decoded) but the file can never be written back. */
+      readOnly?: true;
+    }
   | { ok: false; status: 400 | 404 | 409 | 500; error: string };
 
 /**
@@ -118,9 +127,19 @@ export async function resolveGuardedSetupFile(
     return { ok: false, status: 500, error: `Couldn't read setup file: ${readErr?.message ?? "unknown error"}` };
   }
 
-  // .carsetup (AC EVO Saved Games\ACE format) is binary — usable as a session
-  // base (path + guard checks above), but not parseable for auto-tune intents.
-  if (isCarsetup) return { ok: true, baseDir, realPath, setup: null };
+  // .carsetup (AC EVO Saved Games\ACE format) is binary protobuf — decode it
+  // so the tuning model sees real knob values (advisory only: there's no
+  // encoder, so these sessions can never write a setup back — readOnly).
+  if (isCarsetup) {
+    let setup: Record<string, number> | null = null;
+    try {
+      const parsed = parseCarSetup(readFileSync(realPath));
+      if (parsed) setup = carSetupToKnobValues(parsed);
+    } catch {
+      // Decode failure must not break session load — fall back to setup: null.
+    }
+    return { ok: true, baseDir, realPath, setup, readOnly: true };
+  }
 
   let setup: any;
   try { setup = JSON.parse(raw); }
@@ -224,7 +243,7 @@ export type ActiveTuningContext =
  * the session row, its version history, the active (checked-out) test, and
  * the active setup JSON — read via the file adapter (ACC/AC-EVO) or the
  * `setup_snapshot` adapter (F1, `server/ai/setup-io.ts`). Single source of
- * truth so `preview_change` / `apply_changes` / `get_current_setup` can't
+ * truth so `preview_change` / `apply_changes` / `get_setup` can't
  * disagree about what "active" means.
  */
 export async function loadActiveTuningContext(sessionId: number): Promise<ActiveTuningContext> {

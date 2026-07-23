@@ -105,7 +105,7 @@ export const tuneChatRoutes = new Hono()
 
   // POST /api/tuning-sessions/:id/chat — send a message (streaming NDJSON).
   // Builds a fresh Setup Engineer Agent bound to this session's tools; the
-  // agent decides for itself when to call get_current_setup / get_symptoms /
+  // agent decides for itself when to call get_setup / get_symptoms /
   // get_version_history / preview_change, and calls apply_changes once the
   // driver confirms (replacing the old separate generate-from-chat POST).
   .post("/api/tuning-sessions/:id/chat",
