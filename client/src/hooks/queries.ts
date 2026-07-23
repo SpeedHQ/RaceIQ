@@ -237,6 +237,35 @@ export function useTrackBoundaries(ord: number | undefined, gameIdOverride?: Gam
   });
 }
 
+export interface TrackCorner {
+  index: number;
+  label: string;
+  distanceStart: number;
+  distanceEnd: number;
+  minSpeedKph?: number;
+  apexDistance?: number;
+}
+
+/** Stored (or auto-detected) corner definitions for a track — used by the
+ *  Track Focus map to draw corner markers/gridlines. Empty array when the
+ *  track has no lap on record to detect corners from. */
+export function useTrackCorners(ord: number | undefined, gameIdOverride?: GameId | null) {
+  const storeGameId = useGameId();
+  const gameId = gameIdOverride ?? storeGameId;
+  return useQuery({
+    queryKey: ["track-corners", ord!, gameId ?? null],
+    queryFn: async () => {
+      const res = await (client.api as any).tracks[":trackOrdinal"].corners.$get({
+        param: { trackOrdinal: String(ord!) },
+        query: { gameId: gameId! },
+      });
+      return rpcJson<TrackCorner[]>(res);
+    },
+    enabled: ord != null && ord > 0 && !!gameId,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+}
+
 export function useResolveNames(trackOrdinals: number[], carOrdinals: number[]) {
   const gameId = useGameId();
   const trackKey = trackOrdinals.slice().sort().join(",");

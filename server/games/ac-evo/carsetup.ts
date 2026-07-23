@@ -348,9 +348,6 @@ const ELECTRONICS_GUESSES: Record<string, string> = {
   //   Heat mode may be encoded implicitly (charge = #8 absent + #9 ≈ 0), or the UI
   //   resets deploy/recharge on mode switch. Needs in-game verification before labeling.
 };
-const BRAKE_GUESSES: Record<string, string> = {
-  "#2": "Brake power", // 100 (%) — matches the ACE "Brake power" slider
-};
 const MECH_GUESSES: Record<string, string> = {
   "#2": "Steering ratio", // GT3: 14→15 alongside a steer-ratio change; F1 default 14
 };

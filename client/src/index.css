@@ -83,6 +83,11 @@
   --dynamics-blue: #3b82f6;
   --dynamics-gray: #94a3b8;
 
+  /* Channel colors (input traces — Track Focus lanes) */
+  --ch-throttle: #059669;
+  --ch-brake: #ef4444;
+  --ch-steer: #0891b2;
+
   /* Glass effects (no-op on default) */
   --app-glass-blur: 0px;
   --app-glass-surface: var(--app-surface);
@@ -224,6 +229,11 @@
   --color-dynamics-red: var(--dynamics-red);
   --color-dynamics-blue: var(--dynamics-blue);
   --color-dynamics-gray: var(--dynamics-gray);
+
+  /* Channel colors */
+  --color-ch-throttle: var(--ch-throttle);
+  --color-ch-brake: var(--ch-brake);
+  --color-ch-steer: var(--ch-steer);
   @keyframes collapsible-down {
   from {
     height: 0;

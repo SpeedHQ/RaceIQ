@@ -9,6 +9,7 @@ import { SectorDetailView } from "./SectorDetailView";
 import { SectorMap } from "./SectorMap";
 import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS, type MetricKey } from "./SectorRangeBreakdown";
 import { NoSetupsHint, SetupEngineerControls, SetupEngineerResult, useSetupEngineer } from "./SetupEngineer";
+import { TrackFocusView } from "./track-focus/TrackFocusView";
 
 interface TuneReviewDashboardProps {
   gameId: "acc" | "ac-evo";
@@ -47,14 +48,16 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, onO
 
   // Focus lap lives in the URL (?lap=<id>) so it's linkable/shareable.
   const navigate = useNavigate();
-  const search = useSearch({ strict: false }) as { lap?: number; view?: "overview" | "s1" | "s2" | "s3" };
+  const search = useSearch({ strict: false }) as { lap?: number; view?: "overview" | "s1" | "s2" | "s3" | "track" };
   const focusLap = validLaps.find((l) => l.id === search.lap) ?? validLaps[0];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const setFocus = (id: number) => navigate({ search: (p: any) => ({ ...p, lap: id }) } as any);
 
   // Point the URL at a real lap when it's missing or stale for this session.
+  // The track view is stint-wide: a missing ?lap= there means "All", so leave it.
   useEffect(() => {
     if (validLaps.length === 0) return;
+    if (search.view === "track" && search.lap == null) return;
     if (validLaps.some((l) => l.id === search.lap)) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     navigate({ replace: true, search: (p: any) => ({ ...p, lap: validLaps[0].id }) } as any);
@@ -102,7 +105,11 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, onO
   const view = search.view ?? "overview";
   const sectorIndex = view === "s1" ? 0 : view === "s2" ? 1 : view === "s3" ? 2 : null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const setView = (v: "overview" | "s1" | "s2" | "s3") => navigate({ search: (p: any) => ({ ...p, view: v === "overview" ? undefined : v }) } as any);
+  const setView = (v: "overview" | "s1" | "s2" | "s3" | "track") =>
+    // Entering the track view defaults the lap picker to "All" (no ?lap=).
+    navigate({ search: (p: any) => ({ ...p, view: v === "overview" ? undefined : v, lap: v === "track" ? undefined : (p.lap ?? focusLap?.id) }) } as any);
+  // In the track view, no ?lap= means "All laps"; a stale id also counts as All.
+  const trackFocusId = view === "track" && validLaps.some((l) => l.id === search.lap) ? (search.lap as number) : null;
   const cursor = useMemo(() => {
     if (!hoverPos) return undefined;
     const f = telemetry[hoverPos.idx];
@@ -221,25 +228,39 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, onO
           </button>
         )}
         <span className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Post-lap</span>
-        <select className="bg-app-panel border border-app-border rounded px-2 py-1 text-sm font-mono" value={focusLap.id} onChange={(e) => setFocus(Number(e.target.value))}>
+        <select
+          className="bg-app-panel border border-app-border rounded px-2 py-1 text-sm font-mono"
+          value={view === "track" ? (trackFocusId ?? "all") : focusLap.id}
+          onChange={(e) => {
+            if (e.target.value === "all") {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              navigate({ search: (p: any) => ({ ...p, lap: undefined }) } as any);
+            } else {
+              setFocus(Number(e.target.value));
+            }
+          }}
+        >
+          {view === "track" && <option value="all">All laps</option>}
           {validLaps.map((l) => (
             <option key={l.id} value={l.id}>
               Lap {l.lapNumber} — {l.lapTime.toFixed(3)}s
             </option>
           ))}
         </select>
-        <span className="text-emerald-400 text-sm" title="valid lap">
-          ✓
-        </span>
+        {!(view === "track" && trackFocusId == null) && (
+          <span className="text-emerald-400 text-sm" title="valid lap">
+            ✓
+          </span>
+        )}
         <div className="flex gap-1">
-          {(["overview", "s1", "s2", "s3"] as const).map((v) => (
+          {(["overview", "s1", "s2", "s3", "track"] as const).map((v) => (
             <button
               key={v}
               type="button"
               onClick={() => setView(v)}
               className={`px-2.5 py-1 text-xs rounded border ${view === v ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
             >
-              {v === "overview" ? "Overview" : `Sector ${v.slice(1)}`}
+              {v === "overview" ? "Overview" : v === "track" ? "Track" : `Sector ${v.slice(1)}`}
             </button>
           ))}
         </div>
@@ -266,7 +287,9 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, onO
         </div>
       )}
 
-      {sectorIndex != null ? (
+      {view === "track" ? (
+        <TrackFocusView gameId={gameId} laps={laps} trackOrdinal={focusLap.trackOrdinal} focusLapId={trackFocusId} onFocusLap={setFocus} />
+      ) : sectorIndex != null ? (
         <SectorDetailView telemetry={telemetry} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusLap.trackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
       ) : (
         <>
@@ -417,9 +440,9 @@ function ReviewOverviewSkeleton({ trackName, onBack }: { trackName?: string; onB
         <span className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Post-lap</span>
         <div className="bg-app-panel border border-app-border rounded px-2 py-1 text-sm font-mono text-app-text-dim">No laps yet</div>
         <div className="flex gap-1">
-          {(["overview", "s1", "s2", "s3"] as const).map((v) => (
+          {(["overview", "s1", "s2", "s3", "track"] as const).map((v) => (
             <span key={v} className={`px-2.5 py-1 text-xs rounded border ${v === "overview" ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-dim"}`}>
-              {v === "overview" ? "Overview" : `Sector ${v.slice(1)}`}
+              {v === "overview" ? "Overview" : v === "track" ? "Track" : `Sector ${v.slice(1)}`}
             </span>
           ))}
         </div>
