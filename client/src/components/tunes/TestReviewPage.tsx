@@ -2,7 +2,6 @@ import { getGame } from "@shared/games/registry";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { type TuningGameId, useLaps, useTuningSession, useTuningSessionTests } from "../../hooks/queries";
-import { BackButton } from "./BackButton";
 import { TuneReviewDashboard } from "./TuneReviewDashboard";
 import { TuneSetupChat } from "./TuneSetupChat";
 
@@ -32,12 +31,15 @@ export function TestReviewPage({ gameId, tuningSessionId, lapIds, testId }: { ga
     navigate({ to: `/${getGame(gameId).routePrefix}/tuning/${tuningSessionId}` } as any);
 
   return (
-    <div className="h-full flex flex-col overflow-hidden p-3 gap-3">
-      <BackButton onClick={backToWorkspace} className="shrink-0" />
+    // Single page scroll: the app shell's outlet wrapper is the only scroll
+    // container. This page just flows — the dashboard grows to its content and
+    // the chat column is sticky so it stays put while the page scrolls.
+    <div className="flex flex-col p-3 gap-3">
       {/* Same two-column shape as the workspace: review dashboard left, the
-          persistent Setup Engineer chat right — the chat is never hidden. */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-3">
-        <div className="min-h-0 overflow-y-auto border border-app-border rounded-lg">
+          persistent Setup Engineer chat right — the chat is never hidden.
+          `items-start` lets the sticky chat column pin instead of stretching. */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-3 items-start">
+        <div className="border border-app-border rounded-lg">
           {/* TuneReviewDashboard's gameId union is ACC/AC-Evo (setup-engineer
               panels); F1 rides the ACC path — it never reaches ACC-specific
               setup data, and the sector/tyre analysis is game-agnostic. */}
@@ -51,7 +53,9 @@ export function TestReviewPage({ gameId, tuningSessionId, lapIds, testId }: { ga
             onOpenLapContextChange={setLapReviewContext}
           />
         </div>
-        <div className="min-h-0 flex flex-col border border-app-border rounded-lg overflow-hidden">
+        {/* Sticky, viewport-tall chat: pins under the app header (top-0 of the
+            scroll container) and scrolls its own message list internally. */}
+        <div className="flex flex-col border border-app-border rounded-lg overflow-hidden h-[70vh] lg:sticky lg:top-0 lg:h-[calc(100vh-5.5rem)]">
           <div className="shrink-0 px-3 py-2 border-b border-app-border flex items-center justify-between">
             <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Setup engineer</span>
             <button type="button" onClick={backToWorkspace} className="px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold">

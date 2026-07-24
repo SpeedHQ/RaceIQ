@@ -8,7 +8,6 @@ import { TireGrid } from "../telemetry/TireGrid";
 import { SectorDetailView } from "./SectorDetailView";
 import { SectorMap } from "./SectorMap";
 import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS, type MetricKey } from "./SectorRangeBreakdown";
-import { NoSetupsHint, SetupEngineerControls, SetupEngineerResult, useSetupEngineer } from "./SetupEngineer";
 import { TrackFocusView } from "./track-focus/TrackFocusView";
 
 interface TuneReviewDashboardProps {
@@ -70,7 +69,6 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, tun
   const { data: lapTel, isLoading: loadingTel } = useLapTelemetry(focusLap?.id ?? null);
   const { data: issues } = useLapIssues(focusLap?.id ?? null);
   const pressureOptimal = useTirePressureOptimal(gameId, focusLap?.carOrdinal);
-  const engineer = useSetupEngineer(gameId, trackName);
 
   const telemetry = lapTel?.telemetry ?? [];
   const sectorTimes = lapTel?.sectorTimes ?? null;
@@ -222,8 +220,14 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, tun
     return <ReviewOverviewSkeleton trackName={trackName} onBack={onBack} />;
   }
 
+  const isOverview = view !== "track" && sectorIndex == null;
+
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div>
+      {/* Sticky header — toolbar, driver/engineer notes, and (in Overview) the
+          sector "track display". Everything above the detail body pins under
+          the app header while the issues / tyres content scrolls underneath. */}
+      <div className="sticky top-0 z-10 bg-app-bg">
       {/* Toolbar: lap picker + view switcher on the left, Setup Engineer on the right */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 border-b border-app-border">
         {onBack && (
@@ -268,10 +272,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, tun
             </button>
           ))}
         </div>
-        <div className="ml-auto flex items-center gap-2">
-          {trackName && <span className="hidden lg:inline text-xs text-app-text-muted">{trackName}</span>}
-          <SetupEngineerControls state={engineer} lapId={focusLap.id} />
-        </div>
+        <div className="ml-auto flex items-center gap-2">{trackName && <span className="hidden lg:inline text-xs text-app-text-muted">{trackName}</span>}</div>
       </div>
 
       {(test?.driverComment || test?.notes) && (
@@ -291,14 +292,10 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, tun
         </div>
       )}
 
-      {view === "track" ? (
-        <TrackFocusView gameId={gameId} laps={laps} trackOrdinal={focusLap.trackOrdinal} focusLapId={trackFocusId} onFocusLap={setFocus} tuningSessionId={tuningSessionId ?? test?.tuningSessionId ?? null} />
-      ) : sectorIndex != null ? (
-        <SectorDetailView telemetry={telemetry} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusLap.trackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
-      ) : (
-        <>
-          {/* Sector spine */}
-          <div className="border-b border-app-border">
+      {/* Sector spine (Overview only) — the "track display" itself, kept inside
+          the sticky header so it and everything above it pin together. */}
+      {isOverview && (
+        <div className="border-b border-app-border">
             <div className="flex items-center justify-between gap-3 px-4 py-2 border-b border-app-border">
               <span className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Sectors</span>
               <div className="flex gap-1 flex-wrap justify-end">
@@ -352,8 +349,17 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, tun
                 {metric.label}: bars span min→max, tick = average · shared scale {Math.round(ranges.domain[0])}–{Math.round(ranges.domain[1])} {metric.unit}
               </div>
             )}
-          </div>
+        </div>
+      )}
+      </div>
 
+      {/* Detail body — flows and scrolls beneath the sticky header. */}
+      {view === "track" ? (
+        <TrackFocusView gameId={gameId} laps={laps} trackOrdinal={focusLap.trackOrdinal} focusLapId={trackFocusId} onFocusLap={setFocus} tuningSessionId={tuningSessionId ?? test?.tuningSessionId ?? null} />
+      ) : sectorIndex != null ? (
+        <SectorDetailView telemetry={telemetry} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusLap.trackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
+      ) : (
+        <>
           {/* Detected issues, laid out per sector */}
           <div className="border-b border-app-border">
             <div className="px-4 pt-3 pb-1 text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Detected from telemetry</div>
@@ -396,30 +402,21 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, tun
             )}
           </div>
 
-          {/* Tyres + recommendation */}
-          <div className="grid grid-cols-1 lg:grid-cols-2">
-            <div className="lg:border-r border-app-border">
-              <div className="px-3 pt-3 text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Tyres · end of lap</div>
-              <div>
-                {corners ? (
-                  <TireGrid
-                    corners={corners}
-                    healthThresholds={game?.tireHealthThresholds ?? { green: 0.85, yellow: 0.7 }}
-                    tempThresholds={{ blue: 70, orange: 100, red: 110 }}
-                    pressureOptimal={pressureOptimal}
-                    brakeTempThresholds={game?.brakeTempThresholds}
-                  />
-                ) : (
-                  <div className="p-3 text-xs text-app-text-dim">{loadingTel ? "Loading tyre state…" : "No stored telemetry for this lap."}</div>
-                )}
-              </div>
-            </div>
+          {/* Tyres */}
+          <div>
+            <div className="px-3 pt-3 text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Tyres · end of lap</div>
             <div>
-              <div className="px-3 pt-3 text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Setup Engineer</div>
-              <div className="px-3 pt-2">
-                <NoSetupsHint state={engineer} />
-              </div>
-              <SetupEngineerResult state={engineer} />
+              {corners ? (
+                <TireGrid
+                  corners={corners}
+                  healthThresholds={game?.tireHealthThresholds ?? { green: 0.85, yellow: 0.7 }}
+                  tempThresholds={{ blue: 70, orange: 100, red: 110 }}
+                  pressureOptimal={pressureOptimal}
+                  brakeTempThresholds={game?.brakeTempThresholds}
+                />
+              ) : (
+                <div className="p-3 text-xs text-app-text-dim">{loadingTel ? "Loading tyre state…" : "No stored telemetry for this lap."}</div>
+              )}
             </div>
           </div>
         </>
@@ -433,7 +430,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, tun
  *  page reads as the review dashboard, not a bare empty message. */
 function ReviewOverviewSkeleton({ trackName, onBack }: { trackName?: string; onBack?: () => void }) {
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div>
       {/* Toolbar — mirrors the real one; controls disabled with no lap loaded. */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 border-b border-app-border">
         {onBack && (

@@ -201,24 +201,28 @@ export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSe
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[460px_1fr] gap-4">
-        {/* Left column: track map + issues list */}
+        {/* Left column: track map + issues list. The map is the "track display"
+            — it sticks (below the dashboard's sticky toolbar) so the issues list
+            and the right-pane lanes scroll underneath it. */}
         <div className="space-y-3">
-          {zoomActive && lineSpread?.lapLines?.length && cursorFrac != null ? (
-            <TrackFocusZoom lapLines={lineSpread.lapLines} bestLapId={bestLapId} cursorFrac={cursorFrac} edges={edges} />
-          ) : (
-            <TrackFocusMap
-              telemetry={focusTelemetry}
-              sectorTimes={focusSectorTimes}
-              edges={edges}
-              corners={effectiveCorners.corners}
-              cornerFracs={effectiveCorners.fracs}
-              issues={issues}
-              cursorFrac={cursorFrac}
-              onCursorFrac={setCursorFrac}
-              overlayPoints={hoverPoints}
-              lineSpread={activeTab === "consistency" ? lineSpread : null}
-            />
-          )}
+          <div className="lg:sticky lg:top-12 z-10 bg-app-bg">
+            {zoomActive && lineSpread?.lapLines?.length && cursorFrac != null ? (
+              <TrackFocusZoom lapLines={lineSpread.lapLines} bestLapId={bestLapId} cursorFrac={cursorFrac} edges={edges} />
+            ) : (
+              <TrackFocusMap
+                telemetry={focusTelemetry}
+                sectorTimes={focusSectorTimes}
+                edges={edges}
+                corners={effectiveCorners.corners}
+                cornerFracs={effectiveCorners.fracs}
+                issues={issues}
+                cursorFrac={cursorFrac}
+                onCursorFrac={setCursorFrac}
+                overlayPoints={hoverPoints}
+                lineSpread={activeTab === "consistency" ? lineSpread : null}
+              />
+            )}
+          </div>
           <div>
             <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Issues</div>
             <IssuesList issues={issues} onIssueClick={setCursorFrac} />
@@ -240,9 +244,8 @@ export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSe
             ))}
           </div>
 
-          {/* Tab bar above stays put; the active tab's content scrolls within
-              this bounded region when it outgrows the viewport. */}
-          <div className="space-y-3 overflow-y-auto max-h-[70vh] pr-1">
+          {/* Lanes flow into the single page scroll — no independent scroll. */}
+          <div className="space-y-3">
             {activeTab === "consistency" && (
               <>
                 <ConsistencyLanes
