@@ -28,7 +28,6 @@ interface LedgerRow {
   brakeOnsets: number[];
   throttleOnsets: number[];
   dtLoss: number | null;
-  spark: { throttle: number; brake: number; steer: number }[];
 }
 
 function zoneIndices(frac: Float32Array, cf: number): number[] {
@@ -142,27 +141,8 @@ function buildRows(traces: LapTrace[], bestLapId: number | null, cornerFracs: nu
     }
     const throttleVarPct = tOnsets.length >= 2 ? (stdDev(tOnsets) ?? 0) * 100 : null;
 
-    const spark = idxs.map((idx) => ({ throttle: bestTrace.throttle[idx], brake: bestTrace.brake[idx], steer: bestTrace.steer[idx] }));
-
-    return { corner, frac: cf, minSpeedBest, topSpeedBest, medianSpeedBest, deltaBest, brakeVarPct, throttleVarPct, brakeOnsets: onsets, throttleOnsets: tOnsets, dtLoss, spark };
+    return { corner, frac: cf, minSpeedBest, topSpeedBest, medianSpeedBest, deltaBest, brakeVarPct, throttleVarPct, brakeOnsets: onsets, throttleOnsets: tOnsets, dtLoss };
   });
-}
-
-function sparkPath(row: LedgerRow) {
-  const w = 170;
-  const h = 24;
-  const n = row.spark.length;
-  if (n < 2) return null;
-  let t = "";
-  let b = "";
-  let st = "";
-  row.spark.forEach((s, i) => {
-    const x = (i / (n - 1)) * w;
-    t += `${i ? "L" : "M"}${x.toFixed(1)} ${(h - s.throttle * h).toFixed(1)} `;
-    b += `${i ? "L" : "M"}${x.toFixed(1)} ${(h - s.brake * h).toFixed(1)} `;
-    st += `${i ? "L" : "M"}${x.toFixed(1)} ${(h / 2 - (s.steer * h) / 2).toFixed(1)} `;
-  });
-  return { w, h, t, b, st };
 }
 
 function deltaColor(dv: number | null): string {
@@ -228,7 +208,7 @@ export function CornerLedger({ traces, bestLapId, cornerFracs, corners, cursorFr
         <table className="w-full text-[13px] border-collapse">
           <thead>
             <tr>
-              {["Corner", "Speed range", "Δ worst", "Brake pt var", "Throttle pt var", "Verdict", "Inputs (zone)"].map((h) => (
+              {["Corner", "Speed range", "Δ worst", "Brake pt var", "Throttle pt var", "Verdict"].map((h) => (
                 <th key={h} className="text-left text-[10.5px] uppercase tracking-wider text-app-text-dim px-2.5 py-1.5 border-b border-app-border whitespace-nowrap">
                   {h}
                 </th>
@@ -237,7 +217,6 @@ export function CornerLedger({ traces, bestLapId, cornerFracs, corners, cursorFr
           </thead>
           <tbody>
             {rows.map((r) => {
-              const sp = sparkPath(r);
               const isActive = cursorFrac != null && Math.abs(cursorFrac - r.frac) < ZONE_HALF_WIDTH;
               return (
                 <tr
@@ -282,17 +261,6 @@ export function CornerLedger({ traces, bestLapId, cornerFracs, corners, cursorFr
                   <td className={`text-left px-2.5 py-1.5 font-mono tabular-nums ${brakeVarColor(r.throttleVarPct)}`}>{r.throttleVarPct != null ? `±${r.throttleVarPct.toFixed(1)}%` : "—"}</td>
                   <td className="text-left px-2.5 py-1.5">
                     <Verdict dtLoss={r.dtLoss} brakeVarPct={r.brakeVarPct} />
-                  </td>
-                  <td className="text-left px-2.5 py-1.5">
-                    {sp ? (
-                      <svg width={sp.w} height={sp.h} className="block">
-                        <path d={sp.st} fill="none" stroke="var(--color-ch-steer, #0891b2)" strokeWidth={1} opacity={0.8} />
-                        <path d={sp.t} fill="none" stroke="var(--color-ch-throttle, #059669)" strokeWidth={1.4} />
-                        <path d={sp.b} fill="none" stroke="var(--color-ch-brake, #ef4444)" strokeWidth={1.4} />
-                      </svg>
-                    ) : (
-                      <span className="text-app-text-dim">—</span>
-                    )}
                   </td>
                 </tr>
               );

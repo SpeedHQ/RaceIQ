@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { LapMeta, TelemetryPacket } from "../shared/types";
-import { consistencyAt, downsampleLap, sampleAt, stintStats, TRACE_SAMPLES } from "../client/src/lib/stint-traces";
+import { consistencyAt, downsampleLap, sampleAt, stintStats } from "../client/src/lib/stint-traces";
 
 function pkt(overrides: Partial<TelemetryPacket>): TelemetryPacket {
   return {
@@ -44,13 +44,13 @@ function makeLap(opts: { count: number; lapDist: number; msPerFrame: number; thr
 }
 
 describe("downsampleLap", () => {
-  test("produces TRACE_SAMPLES-length arrays and normalizes channels", () => {
+  test("keeps one sample per raw frame and normalizes channels", () => {
     const telemetry = makeLap({ count: 1000, lapDist: 4000, msPerFrame: 16, throttle255: 255, brake255: 0, steer: 64, speedMs: 50 });
     const trace = downsampleLap(1, 1, true, telemetry, null);
     expect(trace).not.toBeNull();
-    expect(trace!.n).toBe(TRACE_SAMPLES);
-    expect(trace!.frac.length).toBe(TRACE_SAMPLES);
-    expect(trace!.throttle.length).toBe(TRACE_SAMPLES);
+    expect(trace!.n).toBe(telemetry.length);
+    expect(trace!.frac.length).toBe(telemetry.length);
+    expect(trace!.throttle.length).toBe(telemetry.length);
     // Accel 255 -> normalized to 1
     expect(trace!.throttle[10]).toBeCloseTo(1, 2);
     expect(trace!.brake[10]).toBeCloseTo(0, 2);

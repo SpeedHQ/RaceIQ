@@ -3,8 +3,8 @@ import { useMemo, useState } from "react";
 import { type LineSpreadTrace, type TrackCorner, useLapIssues, useLapTelemetry, useLineSpread, useTrackBoundaries, useTrackCorners, useTrackSectorBoundaries } from "../../../hooks/queries";
 import { useStintTraces } from "../../../hooks/useStintTraces";
 import { type LapTrace, stintStats } from "../../../lib/stint-traces";
-import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
 import { flipPoints, needsTrackFlip } from "../../../lib/track-coords";
+import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
 import { ConsistencyLanes } from "./ConsistencyLanes";
 import { CornerLedger } from "./CornerLedger";
 import { detectCorners } from "./detect-corners";
@@ -232,29 +232,35 @@ export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSe
             ))}
           </div>
 
-          {activeTab === "consistency" && (
-            <>
-              <ConsistencyLanes
-                traces={resolvedTraces}
-                bestLapId={bestLapId}
-                cornerFracs={effectiveCorners.fracs}
-                corners={effectiveCorners.corners}
-                issues={issues}
-                cursorFrac={cursorFrac}
-                onCursorFrac={setCursorFrac}
-                lineSpread={lineSpread}
-              />
-              <SectorLedger
-                traces={resolvedTraces}
-                bestLapId={bestLapId}
-                sectorBoundaryFracs={sectorBoundaryFracs}
-                cursorFrac={cursorFrac}
-                onCursorFrac={setCursorFrac}
-              />
-              <CornerLedger traces={resolvedTraces} bestLapId={bestLapId} cornerFracs={cornerFracs} corners={corners} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} onHoverPoints={setHoverPoints} />
-            </>
-          )}
-          {activeTab === "tires" && <TiresPanel traces={traces} bestLapId={bestLapId} cornerFracs={cornerFracs} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />}
+          {/* Tab bar above stays put; the active tab's content scrolls within
+              this bounded region when it outgrows the viewport. */}
+          <div className="space-y-3 overflow-y-auto max-h-[70vh] pr-1">
+            {activeTab === "consistency" && (
+              <>
+                <ConsistencyLanes
+                  traces={resolvedTraces}
+                  bestLapId={bestLapId}
+                  cornerFracs={effectiveCorners.fracs}
+                  corners={effectiveCorners.corners}
+                  issues={issues}
+                  cursorFrac={cursorFrac}
+                  onCursorFrac={setCursorFrac}
+                  lineSpread={lineSpread}
+                />
+                <SectorLedger traces={resolvedTraces} bestLapId={bestLapId} sectorBoundaryFracs={sectorBoundaryFracs} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />
+                <CornerLedger
+                  traces={resolvedTraces}
+                  bestLapId={bestLapId}
+                  cornerFracs={cornerFracs}
+                  corners={corners}
+                  cursorFrac={cursorFrac}
+                  onCursorFrac={setCursorFrac}
+                  onHoverPoints={setHoverPoints}
+                />
+              </>
+            )}
+            {activeTab === "tires" && <TiresPanel traces={traces} bestLapId={bestLapId} cornerFracs={cornerFracs} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />}
+          </div>
         </div>
       </div>
     </div>

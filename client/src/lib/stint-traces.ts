@@ -1,12 +1,5 @@
 import type { LapMeta, TelemetryPacket } from "@shared/types";
 
-/** Number of distance-fraction samples kept per lap trace. At 1000 bins a
- *  ~90 s lap (~5400 raw frames @ 60 Hz) keeps ~5 frames/bin — high fidelity
- *  without empty bins. Trace stays small (~20 KB) so a whole stint caches
- *  cheaply without re-triggering the raw-telemetry memory guard (see
- *  useLapTelemetry). */
-export const TRACE_SAMPLES = 1000;
-
 /** u32 wraps at 2^32 ms (~49.7 days) — TimestampMS resets mid-session on long
  *  runs. A single lap never spans that long, but consecutive packets can
  *  still straddle the wrap boundary. */
@@ -98,20 +91,14 @@ function tireAverages(pkts: TelemetryPacket[], sel: (p: TelemetryPacket, corner:
 }
 
 /**
- * Downsample a lap's full telemetry into a fixed-length (TRACE_SAMPLES) trace
- * keyed by distance fraction — pure and side-effect free so it's cheap to
- * unit test. Bins telemetry frames by their position within the lap
- * (DistanceTraveled, offset by sectorTimes.firstDist / lapDist when
- * available, else the packet array's own span) and averages within each bin.
+ * Build a lap trace from its full telemetry — one output sample per real
+ * recorded frame, no bucketing, resampling, or interpolation. Pure and
+ * side-effect free so it's cheap to unit test. `frac` holds each frame's true
+ * distance fraction (DistanceTraveled, offset by sectorTimes.firstDist /
+ * lapDist when available, else the packet array's own span), so the rendered
+ * line is exactly the recorded signal.
  */
-export function downsampleLap(
-  lapId: number,
-  lapNumber: number,
-  isValid: boolean,
-  telemetry: TelemetryPacket[],
-  sectorTimes: { firstDist: number; lapDist: number } | null,
-  n: number = TRACE_SAMPLES,
-): LapTrace | null {
+export function downsampleLap(lapId: number, lapNumber: number, isValid: boolean, telemetry: TelemetryPacket[], sectorTimes: { firstDist: number; lapDist: number } | null): LapTrace | null {
   if (telemetry.length === 0) return null;
 
   const firstDist = sectorTimes?.firstDist ?? telemetry[0].DistanceTraveled;
@@ -142,97 +129,59 @@ export function downsampleLap(
     }
   }
 
-  // Bin frames by fraction into n buckets, averaging within each bucket.
-  const sums = {
-    throttle: new Float64Array(n),
-    brake: new Float64Array(n),
-    steer: new Float64Array(n),
-    speed: new Float64Array(n),
-    time: new Float64Array(n),
-    count: new Int32Array(n),
-  };
-  for (let i = 0; i < telemetry.length; i++) {
+  // Keep EVERY recorded frame — no bucketing, no resampling, no interpolation.
+  // Each output sample is one real telemetry frame at its true distance
+  // fraction, so the rendered line is exactly the recorded signal. `frac` is
+  // monotonic but not uniformly spaced (dense in slow corners, sparse on
+  // straights); consumers locate a fraction via `sampleAt`'s frac search.
+  const rawN = telemetry.length;
+  const frac = new Float32Array(rawN);
+  const throttle = new Float32Array(rawN);
+  const brake = new Float32Array(rawN);
+  const steer = new Float32Array(rawN);
+  const speedKmh = new Float32Array(rawN);
+  const timeS = new Float32Array(rawN);
+
+  for (let i = 0; i < rawN; i++) {
     const p = telemetry[i];
-    const f = clamp((p.DistanceTraveled - firstDist) / lapDist, 0, 1);
-    let bin = Math.floor(f * n);
-    if (bin >= n) bin = n - 1;
-    sums.throttle[bin] += normChannel(p.Accel);
-    sums.brake[bin] += normChannel(p.Brake);
-    sums.steer[bin] += normSteer(p.Steer);
-    sums.speed[bin] += p.Speed * 3.6;
-    sums.time[bin] += tsMs[i] / 1000;
-    sums.count[bin]++;
+    frac[i] = clamp((p.DistanceTraveled - firstDist) / lapDist, 0, 1);
+    throttle[i] = normChannel(p.Accel);
+    brake[i] = normChannel(p.Brake);
+    steer[i] = normSteer(p.Steer);
+    speedKmh[i] = p.Speed * 3.6;
+    timeS[i] = tsMs[i] / 1000;
   }
 
-  const frac = new Float32Array(n);
-  const throttle = new Float32Array(n);
-  const brake = new Float32Array(n);
-  const steer = new Float32Array(n);
-  const speedKmh = new Float32Array(n);
-  const timeS = new Float32Array(n);
-
-  // Carry the last-known value forward across empty bins (sparse telemetry
-  // near the start/end of a lap) so lanes don't show spurious zero dips.
-  let lastThrottle = 0;
-  let lastBrake = 0;
-  let lastSteer = 0;
-  let lastSpeed = 0;
-  let lastTime = 0;
-  for (let b = 0; b < n; b++) {
-    frac[b] = (b + 0.5) / n;
-    const c = sums.count[b];
-    if (c > 0) {
-      lastThrottle = sums.throttle[b] / c;
-      lastBrake = sums.brake[b] / c;
-      lastSteer = sums.steer[b] / c;
-      lastSpeed = sums.speed[b] / c;
-      lastTime = sums.time[b] / c;
-    }
-    throttle[b] = lastThrottle;
-    brake[b] = lastBrake;
-    steer[b] = lastSteer;
-    speedKmh[b] = lastSpeed;
-    timeS[b] = lastTime;
-  }
-
-  // Per-corner distance-fraction binned traces (zero/absent frames skipped,
-  // carry-forward across empty bins like the main channels).
+  // Per-corner tire traces — again one value per real frame. Zero readings
+  // (sensor absent that frame) are held from the last non-zero value so a
+  // dropout doesn't spike the line to zero; a corner with no readings at all
+  // drops the whole set to null.
   function tireTraceBins(sel: (p: TelemetryPacket, corner: "FL" | "FR" | "RL" | "RR") => number | undefined): TireTraces | null {
     const corners: ("FL" | "FR" | "RL" | "RR")[] = ["FL", "FR", "RL", "RR"];
     const out: Partial<TireTraces> = {};
     let anyMissing = false;
     for (const c of corners) {
-      const sum = new Float64Array(n);
-      const cnt = new Int32Array(n);
-      for (const p of telemetry) {
-        const v = sel(p, c) ?? 0;
-        if (v === 0) continue;
-        const f = clamp((p.DistanceTraveled - firstDist) / lapDist, 0, 1);
-        let bin = Math.floor(f * n);
-        if (bin >= n) bin = n - 1;
-        sum[bin] += v;
-        cnt[bin]++;
-      }
-      const arr = new Float32Array(n);
+      const arr = new Float32Array(rawN);
       let last = 0;
-      let seeded = false;
-      for (let b = 0; b < n; b++) {
-        if (cnt[b] > 0) {
-          last = sum[b] / cnt[b];
-          seeded = true;
+      let anySeeded = false;
+      for (let i = 0; i < rawN; i++) {
+        const v = sel(telemetry[i], c) ?? 0;
+        if (v !== 0) {
+          last = v;
+          anySeeded = true;
         }
-        arr[b] = last;
+        arr[i] = last;
       }
-      if (!seeded) {
+      if (!anySeeded) {
         anyMissing = true;
         break;
       }
-      // Backfill leading bins (before the first sample) with the first value.
-      let firstIdx = 0;
-      while (firstIdx < n && cnt[firstIdx] === 0) firstIdx++;
-      if (firstIdx > 0 && firstIdx < n) {
-        const firstVal = arr[firstIdx];
-        for (let b = 0; b < firstIdx; b++) arr[b] = firstVal;
+      // Backfill any leading zeros (before the first reading) with the first
+      // real value so the trace doesn't start at zero.
+      if (arr[0] === 0) {
+        let firstIdx = 0;
+        while (firstIdx < rawN && arr[firstIdx] === 0) firstIdx++;
+        if (firstIdx < rawN) for (let i = 0; i < firstIdx; i++) arr[i] = arr[firstIdx];
       }
       out[c] = arr;
     }
@@ -251,20 +200,51 @@ export function downsampleLap(
     return (p as unknown as Record<string, number | undefined>)[key];
   });
 
-  return { lapId, lapNumber, isValid, n, frac, throttle, brake, steer, speedKmh, timeS, tire, pressure, tireTempTrace, pressureTrace };
+  return { lapId, lapNumber, isValid, n: rawN, frac, throttle, brake, steer, speedKmh, timeS, tire, pressure, tireTempTrace, pressureTrace };
 }
 
-/** Linearly interpolate a trace channel at fraction `f` (0..1). */
+/** Linearly interpolate a trace channel at distance fraction `f` (0..1).
+ *  Samples are the raw recorded frames, so `frac` is monotonic but not evenly
+ *  spaced — locate the bracketing samples by binary search on `frac`. */
 export function sampleAt(trace: LapTrace, channel: "throttle" | "brake" | "steer" | "speedKmh" | "timeS", f: number): number {
   const arr = trace[channel];
+  const fr = trace.frac;
   const n = arr.length;
   if (n === 0) return 0;
   if (n === 1) return arr[0];
-  const pos = clamp(f, 0, 1) * (n - 1);
-  const i0 = Math.floor(pos);
-  const i1 = Math.min(n - 1, i0 + 1);
-  const t = pos - i0;
-  return arr[i0] + (arr[i1] - arr[i0]) * t;
+  const target = clamp(f, 0, 1);
+  if (target <= fr[0]) return arr[0];
+  if (target >= fr[n - 1]) return arr[n - 1];
+  let lo = 0;
+  let hi = n - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (fr[mid] <= target) lo = mid;
+    else hi = mid;
+  }
+  const span = fr[hi] - fr[lo];
+  const t = span > 0 ? (target - fr[lo]) / span : 0;
+  return arr[lo] + (arr[hi] - arr[lo]) * t;
+}
+
+/** Index of the trace frame nearest distance fraction `f` (0..1). Use to read
+ *  a frame-aligned side array (e.g. a per-frame delta) at a given fraction,
+ *  since `frac` is monotonic but unevenly spaced. */
+export function indexAtFrac(trace: LapTrace, f: number): number {
+  const fr = trace.frac;
+  const n = fr.length;
+  if (n <= 1) return 0;
+  const target = clamp(f, 0, 1);
+  if (target <= fr[0]) return 0;
+  if (target >= fr[n - 1]) return n - 1;
+  let lo = 0;
+  let hi = n - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (fr[mid] <= target) lo = mid;
+    else hi = mid;
+  }
+  return target - fr[lo] <= fr[hi] - target ? lo : hi;
 }
 
 /** Per-point consistency score across a set of traces (all laps, one

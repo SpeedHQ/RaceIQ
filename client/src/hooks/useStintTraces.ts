@@ -2,7 +2,7 @@ import type { LapMeta, TelemetryPacket } from "@shared/types";
 import { useQueries } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { client } from "../lib/rpc";
-import { downsampleLap, type LapTrace, TRACE_SAMPLES } from "../lib/stint-traces";
+import { downsampleLap, type LapTrace } from "../lib/stint-traces";
 
 interface LapTelemetryResponse {
   telemetry: TelemetryPacket[];
@@ -36,27 +36,32 @@ export interface UseStintTracesResult {
  * enabled) and advances by one every time the query at `unlocked - 1`
  * settles, admitting the next lap on the following render.
  */
-export function useStintTraces(laps: LapMeta[], n: number = TRACE_SAMPLES): UseStintTracesResult {
+/** How many laps may fetch their raw telemetry concurrently. Bounds peak
+ *  memory (one raw lap is a few MB) while overlapping network round-trips so a
+ *  stint isn't loaded strictly one-lap-at-a-time. */
+const FETCH_WINDOW = 4;
+
+export function useStintTraces(laps: LapMeta[]): UseStintTracesResult {
   const eligible = useMemo(() => laps.filter((l) => !l.isLegacy), [laps]);
   const idsKey = eligible.map((l) => l.id).join(",");
-  const [unlocked, setUnlocked] = useState(1);
+  const [unlocked, setUnlocked] = useState(FETCH_WINDOW);
 
   // Reset sequencing whenever the lap set itself changes (new stint, laps
   // added/removed) so a shorter list doesn't get stuck waiting on an index
   // that no longer exists.
   useEffect(() => {
-    setUnlocked(1);
+    setUnlocked(FETCH_WINDOW);
   }, [idsKey]);
 
   const results = useQueries({
     queries: eligible.map((lap, i) => ({
-      queryKey: ["lap-trace", lap.id, n],
+      queryKey: ["lap-trace", lap.id],
       queryFn: async (): Promise<LapTrace | null> => {
         const res = await client.api.laps[":id"].$get({ param: { id: String(lap.id) } });
         if (!res.ok) throw new Error(res.statusText);
         const data = (await res.json()) as LapTelemetryResponse;
         if (data.isLegacy) return null;
-        return downsampleLap(lap.id, lap.lapNumber, lap.isValid, data.telemetry, data.sectorTimes, n);
+        return downsampleLap(lap.id, lap.lapNumber, lap.isValid, data.telemetry, data.sectorTimes);
       },
       enabled: i < unlocked,
       staleTime: Number.POSITIVE_INFINITY,

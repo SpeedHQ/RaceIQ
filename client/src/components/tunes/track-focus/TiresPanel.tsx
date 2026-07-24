@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { LapTrace, TireAverages } from "../../../lib/stint-traces";
+import { indexAtFrac, type LapTrace, type TireAverages } from "../../../lib/stint-traces";
 import { Lane } from "./Lane";
 import { useMeasuredWidth } from "./use-measured-width";
 
@@ -162,9 +162,7 @@ export function TiresPanel({ traces, bestLapId = null, cornerFracs = [], cursorF
                 const best = lapsWithTrace.find((t) => t.lapId === bestLapId);
                 const tt = best ? (mode === "temp" ? best.tireTempTrace : best.pressureTrace) : null;
                 if (!tt) return null;
-                let idx = Math.round(f * (best!.n - 1));
-                if (idx < 0) idx = 0;
-                if (idx >= best!.n) idx = best!.n - 1;
+                const idx = indexAtFrac(best!, f);
                 const v = tt[c.key][idx];
                 return (
                   <span>

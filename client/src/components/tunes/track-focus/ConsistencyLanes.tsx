@@ -118,8 +118,10 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
     const out = new Map<number, Float32Array>();
     for (const t of traces) {
       if (t.lapId === bestTrace.lapId) continue;
+      // Raw-frame traces differ in length/spacing — sample best at each of
+      // this lap's own frame fractions.
       const d = new Float32Array(t.n);
-      for (let i = 0; i < t.n; i++) d[i] = t.timeS[i] - bestTrace.timeS[i];
+      for (let i = 0; i < t.n; i++) d[i] = t.timeS[i] - sampleAt(bestTrace, "timeS", t.frac[i]);
       out.set(t.lapId, d);
     }
     return out;
@@ -144,6 +146,20 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
 
   return (
     <div className="space-y-3">
+      <div className="sticky top-0 z-10 -mx-1 px-1 py-1.5 bg-app-panel/95 backdrop-blur-sm flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-app-text-dim">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-2.5 h-1.5 rounded-sm inline-block" style={{ background: "var(--color-app-text-dim, #7a8ea0)" }} />
+          laps (all)
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-2.5 h-1.5 rounded-sm inline-block" style={{ background: "var(--color-app-accent, #22d3ee)" }} />
+          best lap
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-2.5 h-1.5 rounded-sm inline-block" style={{ background: "var(--color-dynamics-red, #ef4444)" }} />
+          invalid lap
+        </span>
+      </div>
       {CHANNELS.map((ch) => {
         const laneIssues = issues.filter((it) => it.distanceFrac != null && ch.issueKinds.has(it.kind));
         return (
@@ -356,12 +372,19 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
         <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1 flex items-center gap-1.5">
           Race line spread (m)
           {hasLineSpread && (
-            <span className="font-mono tabular-nums normal-case tracking-normal" style={{ color: scoreColor(lineSpread!.consistencyScore) }} title={`Racing-line consistency — 100 = laps trace the same line. Mean spread ${lineSpread!.overallSpreadM.toFixed(2)}m over ${lineSpread!.lapCount} clean laps.`}>
+            <span
+              className="font-mono tabular-nums normal-case tracking-normal"
+              style={{ color: scoreColor(lineSpread!.consistencyScore) }}
+              title={`Racing-line consistency — 100 = laps trace the same line. Mean spread ${lineSpread!.overallSpreadM.toFixed(2)}m over ${lineSpread!.lapCount} clean laps.`}
+            >
               {lineSpread!.consistencyScore}% consistent
             </span>
           )}
           {hasLineSpread && lineSpread!.lowTrust && (
-            <span className="px-1 py-px rounded text-[9px] font-normal normal-case tracking-normal bg-app-surface-alt border border-app-border text-app-text-dim" title={`Average racing-line spread exceeds ${LINE_SPREAD_THRESHOLD_M}m — the line varies notably lap-to-lap.`}>
+            <span
+              className="px-1 py-px rounded text-[9px] font-normal normal-case tracking-normal bg-app-surface-alt border border-app-border text-app-text-dim"
+              title={`Average racing-line spread exceeds ${LINE_SPREAD_THRESHOLD_M}m — the line varies notably lap-to-lap.`}
+            >
               inconsistent line
             </span>
           )}
@@ -391,7 +414,16 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
           >
             {({ x, y }) => (
               <>
-                <line x1={x(0)} x2={x(1)} y1={y(LINE_SPREAD_THRESHOLD_M)} y2={y(LINE_SPREAD_THRESHOLD_M)} stroke="var(--color-dynamics-amber, #f59e0b)" strokeWidth={1} opacity={0.5} strokeDasharray="4 3" />
+                <line
+                  x1={x(0)}
+                  x2={x(1)}
+                  y1={y(LINE_SPREAD_THRESHOLD_M)}
+                  y2={y(LINE_SPREAD_THRESHOLD_M)}
+                  stroke="var(--color-dynamics-amber, #f59e0b)"
+                  strokeWidth={1}
+                  opacity={0.5}
+                  strokeDasharray="4 3"
+                />
                 <polyline points={spreadPolyline(lineSpread!, x, y)} fill="none" stroke="var(--color-app-accent, #22d3ee)" strokeWidth={1.8} opacity={0.9} />
               </>
             )}
@@ -399,20 +431,6 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
         ) : (
           <div className="h-[90px] flex items-center justify-center rounded bg-app-surface border border-app-border text-[11px] text-app-text-dim">Need 3+ valid laps</div>
         )}
-      </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-app-text-dim">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-2.5 h-1.5 rounded-sm inline-block" style={{ background: "var(--color-app-text-dim, #7a8ea0)" }} />
-          laps (all)
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-2.5 h-1.5 rounded-sm inline-block" style={{ background: "var(--color-app-accent, #22d3ee)" }} />
-          best lap
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-2.5 h-1.5 rounded-sm inline-block" style={{ background: "var(--color-dynamics-red, #ef4444)" }} />
-          invalid lap
-        </span>
       </div>
     </div>
   );

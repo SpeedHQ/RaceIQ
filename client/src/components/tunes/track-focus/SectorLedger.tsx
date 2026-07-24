@@ -29,7 +29,6 @@ interface LedgerRow {
   medianSpeedBest: number | null;
   deltaWorst: number | null;
   dtLoss: number | null;
-  spark: { throttle: number; brake: number; steer: number }[];
 }
 
 function sectorDefs(boundaryFracs: number[]): SectorDef[] {
@@ -47,15 +46,6 @@ function sectorDefs(boundaryFracs: number[]): SectorDef[] {
 /** Duration (s) of a trace between two lap-fractions, via interpolated timeS. */
 function sectorDuration(trace: LapTrace, startFrac: number, endFrac: number): number {
   return sampleAt(trace, "timeS", endFrac) - sampleAt(trace, "timeS", startFrac);
-}
-
-function sparkSamples(trace: LapTrace, startFrac: number, endFrac: number): { throttle: number; brake: number; steer: number }[] {
-  const out: { throttle: number; brake: number; steer: number }[] = [];
-  for (let i = 0; i < trace.n; i++) {
-    const f = trace.frac[i];
-    if (f >= startFrac && f <= endFrac) out.push({ throttle: trace.throttle[i], brake: trace.brake[i], steer: trace.steer[i] });
-  }
-  return out;
 }
 
 /** Min + top + median speed for a trace between two lap-fractions. */
@@ -91,28 +81,10 @@ function buildRows(traces: LapTrace[], bestLapId: number | null, sectors: Sector
     const dtLoss = Number.isFinite(worstDt) ? worstDt : null;
     const deltaWorst = dtLoss;
 
-    const spark = sparkSamples(bestTrace, sector.startFrac, sector.endFrac);
     const { min: minSpeedBest, top: topSpeedBest, median: medianSpeedBest } = speedStats(bestTrace, sector.startFrac, sector.endFrac);
 
-    return { sector, bestTimeS, minSpeedBest, topSpeedBest, medianSpeedBest, deltaWorst, dtLoss, spark };
+    return { sector, bestTimeS, minSpeedBest, topSpeedBest, medianSpeedBest, deltaWorst, dtLoss };
   });
-}
-
-function sparkPath(row: LedgerRow) {
-  const w = 170;
-  const h = 24;
-  const n = row.spark.length;
-  if (n < 2) return null;
-  let t = "";
-  let b = "";
-  let st = "";
-  row.spark.forEach((s, i) => {
-    const x = (i / (n - 1)) * w;
-    t += `${i ? "L" : "M"}${x.toFixed(1)} ${(h - s.throttle * h).toFixed(1)} `;
-    b += `${i ? "L" : "M"}${x.toFixed(1)} ${(h - s.brake * h).toFixed(1)} `;
-    st += `${i ? "L" : "M"}${x.toFixed(1)} ${(h / 2 - (s.steer * h) / 2).toFixed(1)} `;
-  });
-  return { w, h, t, b, st };
 }
 
 function deltaColor(dv: number | null): string {
@@ -143,7 +115,7 @@ export function SectorLedger({ traces, bestLapId, sectorBoundaryFracs, cursorFra
         <table className="w-full text-[13px] border-collapse">
           <thead>
             <tr>
-              {["Sector", "Best time", "Speed range", "Δ worst", "Inputs (zone)"].map((h) => (
+              {["Sector", "Best time", "Speed range", "Δ worst"].map((h) => (
                 <th key={h} className="text-left text-[10.5px] uppercase tracking-wider text-app-text-dim px-2.5 py-1.5 border-b border-app-border whitespace-nowrap">
                   {h}
                 </th>
@@ -152,7 +124,6 @@ export function SectorLedger({ traces, bestLapId, sectorBoundaryFracs, cursorFra
           </thead>
           <tbody>
             {rows.map((r) => {
-              const sp = sparkPath(r);
               const isActive = cursorFrac != null && cursorFrac >= r.sector.startFrac && cursorFrac <= r.sector.endFrac;
               return (
                 <tr
@@ -189,17 +160,6 @@ export function SectorLedger({ traces, bestLapId, sectorBoundaryFracs, cursorFra
                   </td>
                   <td className={`text-left px-2.5 py-1.5 font-mono tabular-nums ${deltaColor(r.deltaWorst)}`}>
                     {r.deltaWorst != null ? `${r.deltaWorst >= 0 ? "+" : ""}${r.deltaWorst.toFixed(3)}` : "—"}
-                  </td>
-                  <td className="text-left px-2.5 py-1.5">
-                    {sp ? (
-                      <svg width={sp.w} height={sp.h} className="block">
-                        <path d={sp.st} fill="none" stroke="var(--color-ch-steer, #0891b2)" strokeWidth={1} opacity={0.8} />
-                        <path d={sp.t} fill="none" stroke="var(--color-ch-throttle, #059669)" strokeWidth={1.4} />
-                        <path d={sp.b} fill="none" stroke="var(--color-ch-brake, #ef4444)" strokeWidth={1.4} />
-                      </svg>
-                    ) : (
-                      <span className="text-app-text-dim">—</span>
-                    )}
                   </td>
                 </tr>
               );

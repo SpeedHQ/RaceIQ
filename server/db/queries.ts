@@ -808,6 +808,41 @@ export class LapParseError extends Error {
   }
 }
 
+// Decompressed session-file buffer cache. Every lap fetch used to re-read AND
+// re-gunzip the whole session raw file; a stint of N laps then paid N full
+// reads + N full decompressions of the SAME file (the slow, one-lap-at-a-time
+// load). Caching the decompressed buffer per path — invalidated by size+mtime
+// so a live-growing session file stays correct — makes N laps share one
+// read+decompress. Buffers are only ever read (subarray views), never mutated.
+interface RawFileEntry {
+  size: number;
+  mtimeMs: number;
+  buf: Buffer;
+}
+const rawFileCache = new Map<string, RawFileEntry>();
+const RAW_FILE_CACHE_MAX = 2;
+
+async function loadDecompressedRawFile(rawFile: string): Promise<Buffer> {
+  const file = Bun.file(rawFile);
+  const size = file.size;
+  const mtimeMs = file.lastModified;
+  const hit = rawFileCache.get(rawFile);
+  if (hit && hit.size === size && hit.mtimeMs === mtimeMs) {
+    rawFileCache.delete(rawFile); // refresh LRU order
+    rawFileCache.set(rawFile, hit);
+    return hit.buf;
+  }
+  let buf = Buffer.from(await file.arrayBuffer());
+  if (rawFile.endsWith(".gz")) buf = await gunzipAsync(buf);
+  rawFileCache.set(rawFile, { size, mtimeMs, buf });
+  while (rawFileCache.size > RAW_FILE_CACHE_MAX) {
+    const oldest = rawFileCache.keys().next().value;
+    if (oldest === undefined) break;
+    rawFileCache.delete(oldest);
+  }
+  return buf;
+}
+
 async function parseRawLapFrames(
   rawFile: string,
   rawByteOffset: number,
@@ -817,11 +852,7 @@ async function parseRawLapFrames(
   const serverGame = getServerGame(gameId);
   const state = serverGame.createParserState?.() ?? null;
 
-  let buf = Buffer.from(await Bun.file(rawFile).arrayBuffer());
-  // Decompress if file is gzipped
-  if (rawFile.endsWith(".gz")) {
-    buf = await gunzipAsync(buf);
-  }
+  const buf = await loadDecompressedRawFile(rawFile);
 
   const fileSize = buf.length;
 

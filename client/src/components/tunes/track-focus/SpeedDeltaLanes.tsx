@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { TrackCorner } from "../../../hooks/queries";
-import { sampleAt, type LapTrace } from "../../../lib/stint-traces";
+import { indexAtFrac, type LapTrace, sampleAt } from "../../../lib/stint-traces";
 import { ChartTooltip } from "./ChartTooltip";
 import { nearestCornerLabel } from "./detect-corners";
 import { Lane } from "./Lane";
@@ -39,9 +39,11 @@ export function SpeedDeltaLanes({ bestTrace, focusTrace, cornerFracs, corners = 
 
   const delta = useMemo(() => {
     if (!bestTrace || !focusTrace) return null;
+    // Traces are raw frames, so focus and best have different lengths and
+    // uneven fractions — sample best at each focus frame's own fraction.
     const n = focusTrace.n;
     const out = new Float32Array(n);
-    for (let i = 0; i < n; i++) out[i] = focusTrace.timeS[i] - bestTrace.timeS[i];
+    for (let i = 0; i < n; i++) out[i] = focusTrace.timeS[i] - sampleAt(bestTrace, "timeS", focusTrace.frac[i]);
     return out;
   }, [bestTrace, focusTrace]);
 
@@ -97,7 +99,7 @@ export function SpeedDeltaLanes({ bestTrace, focusTrace, cornerFracs, corners = 
           tooltip={
             delta && focusTrace
               ? (f) => {
-                  const i = Math.round(f * (focusTrace.n - 1));
+                  const i = indexAtFrac(focusTrace, f);
                   const cornerLabel = nearestCornerLabel(corners, cornerFracs, f);
                   const rows = [{ lapNumber: focusTrace.lapNumber, color: "var(--color-dynamics-amber, #f59e0b)", deltaS: delta[i] }];
                   return <ChartTooltip frac={f} cornerLabel={cornerLabel} rows={rows} />;
