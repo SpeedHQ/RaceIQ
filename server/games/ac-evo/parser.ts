@@ -563,7 +563,11 @@ export function parseAcEvoBuffers(
       right: damRight,
       centre: damCentre,
     },
-    isValidLap: isValidLap ? true : null,
+    // AC Evo reports is_valid_lap per-frame. Preserve the false state (previously
+    // collapsed to null) so downstream track-limits detection can see the cut.
+    // Only trust it while actually on track — in the pit lane/box the flag is
+    // cleared for reasons unrelated to track limits.
+    isValidLap: isValidLap ? true : isInPitLane || isInPitBox ? null : false,
     acEvo: acEvoExt,
   };
 

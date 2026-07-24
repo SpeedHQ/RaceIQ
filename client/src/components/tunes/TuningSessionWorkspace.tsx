@@ -156,7 +156,9 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
       if (arr) arr.push(l);
       else map.set(tid, [l]);
     }
-    for (const arr of map.values()) arr.sort((a, b) => a.lapNumber - b.lapNumber);
+    // Laps imported from several driving sessions restart lapNumber at 1, so
+    // order by source session id first, then lap number within that session.
+    for (const arr of map.values()) arr.sort((a, b) => a.sessionId - b.sessionId || a.lapNumber - b.lapNumber);
     return map;
   }, [tuningLapPool, tests]);
 

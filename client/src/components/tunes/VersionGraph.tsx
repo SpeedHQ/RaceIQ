@@ -1,3 +1,4 @@
+import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/review-laps";
 import type { F1CarSetup, LapMeta } from "@shared/types";
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
@@ -267,15 +268,20 @@ export function VersionGraph({ sessionId, gameId, tests, headTestId, lapsByTest,
     const isHead = t.id === headTestId;
     const isOpen = expanded.has(t.id);
     const laps = lapsByTest.get(t.id) ?? [];
-    const validLaps = laps.filter((l) => l.isValid && l.lapTime > 0);
-    const bestT = validLaps.length ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
-    const worstT = validLaps.length ? Math.max(...validLaps.map((l) => l.lapTime)) : null;
-    const avgT = validLaps.length ? validLaps.reduce((s, l) => s + l.lapTime, 0) / validLaps.length : null;
-    const fuelVals = laps.map((l) => metricsById.get(l.id)?.fuelPerLap).filter((v): v is number => v != null);
+    // Row stats describe the laps the *analysis* uses, not every lap stamped
+    // against the version: same selector as the server auto-exclude pass,
+    // /line-spread and the LapBreakdown badges, so the summary can't claim a
+    // best/avg/fuel figure that came from a lap the review threw away
+    // (out lap, pit cycle, manual exclude, slower than the fastest-N cap).
+    const evalLaps = selectEvaluationLaps(laps).chosen;
+    const bestT = evalLaps.length ? Math.min(...evalLaps.map((l) => l.lapTime)) : null;
+    const worstT = evalLaps.length ? Math.max(...evalLaps.map((l) => l.lapTime)) : null;
+    const avgT = evalLaps.length ? evalLaps.reduce((s, l) => s + l.lapTime, 0) / evalLaps.length : null;
+    const fuelVals = evalLaps.map((l) => metricsById.get(l.id)?.fuelPerLap).filter((v): v is number => v != null);
     const avgFuel = fuelVals.length ? fuelVals.reduce((s, v) => s + v, 0) / fuelVals.length : null;
     // Per-lap worst-tyre value (max across corners, computed server-side),
-    // averaged across the test's laps.
-    const tyreVals = laps.map((l) => metricsById.get(l.id)?.tyreWear).filter((v): v is number => v != null);
+    // averaged across the evaluated laps.
+    const tyreVals = evalLaps.map((l) => metricsById.get(l.id)?.tyreWear).filter((v): v is number => v != null);
     const avgWorstWear = tyreVals.length ? tyreVals.reduce((s, v) => s + v, 0) / tyreVals.length : null;
     const children = (childrenOf.get(t.id) ?? []).filter((c) => !rendered.has(c.id));
     const hasChildren = children.length > 0;
@@ -376,8 +382,18 @@ export function VersionGraph({ sessionId, gameId, tests, headTestId, lapsByTest,
               >
                 Delete branch
               </button>
-              <span className="ml-auto flex items-center gap-3 shrink-0 text-[11px] tabular-nums">
-                <RowStat label="laps" value={String(laps.length)} width="w-[3ch]" />
+              <span
+                className="ml-auto flex items-center gap-3 shrink-0 text-[11px] tabular-nums"
+                title={`Averages/best/worst over the ${evalLaps.length} evaluated lap${evalLaps.length === 1 ? "" : "s"} of ${laps.length} recorded — the same laps the review analyses. Excluded: invalid, pit/out laps, manually excluded, and laps slower than the fastest-${REVIEW_LAP_CAP} cap.`}
+              >
+                {/* The whole row is eval-only, not "all laps recorded against
+                    this version" — say so once here rather than qualifying
+                    every stat label. */}
+                <span className="text-[8px] uppercase tracking-wider text-emerald-400/70 whitespace-nowrap self-end leading-tight">eval laps</span>
+                {/* eval/total: every other stat on this row is eval-only, so
+                    show both counts rather than a bare total that doesn't
+                    match the numbers next to it. */}
+                <RowStat label="eval/all" value={`${evalLaps.length}/${laps.length}`} width="w-[7ch]" />
                 <RowStat label="avg" value={avgT != null ? formatLapTime(avgT) : "-:--.---"} />
                 <RowStat label="best" value={bestT != null ? formatLapTime(bestT) : "-:--.---"} />
                 <RowStat label="worst" value={worstT != null ? formatLapTime(worstT) : "-:--.---"} />

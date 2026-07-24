@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { indexAtFrac, type LapTrace, type TireAverages, type TireTraces } from "../../../lib/stint-traces";
 import { Lane } from "./Lane";
 import { useMeasuredWidth } from "./use-measured-width";
@@ -124,6 +124,7 @@ function TireMetricSection({
 }) {
   const { mode } = cfg;
   const { ref: wrapRef, width: bw } = useMeasuredWidth<HTMLDivElement>();
+  const [expanded, setExpanded] = useState(false);
 
   const domain = useMemo<[number, number]>(() => {
     if (cfg.fixedAvgDomain) return cfg.fixedAvgDomain;
@@ -252,8 +253,19 @@ function TireMetricSection({
         })}
       </div>
 
-      {/* Per-corner lanes: every lap's per-distance trace, best lap in accent. */}
-      {lapsWithTrace.length > 0 &&
+      {/* Per-corner lanes: collapsed by default — the averages chart above is the summary. */}
+      {lapsWithTrace.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-app-text-dim hover:text-app-text border border-app-border rounded px-2 py-1"
+        >
+          <span className={`inline-block transition-transform ${expanded ? "rotate-90" : ""}`}>▸</span>
+          {expanded ? "Hide per-wheel detail" : "Show per-wheel detail"}
+        </button>
+      )}
+      {expanded &&
+        lapsWithTrace.length > 0 &&
         CORNERS.map((c) => (
           <div key={c.key} className="space-y-1">
             <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-app-text-dim">

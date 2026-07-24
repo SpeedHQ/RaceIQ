@@ -1,5 +1,5 @@
 import type { LapMeta } from "@shared/types";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/review-laps";
 import { type TuningLapMetric, useSetLapExcluded } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
@@ -111,6 +111,49 @@ function lapStatusLabel(l: LapMeta): string | null {
   return reason[0].toUpperCase() + reason.slice(1);
 }
 
+type SortKey = "lap" | "time" | "fuel" | "wear";
+
+/** Status buckets for the breakdown table. Status is a filter (not a sort):
+ *  the header cycles through these in order, "all" showing every lap. */
+type StatusFilter = "all" | "clean" | "eval" | "outside" | "invalid" | "excluded";
+const STATUS_FILTERS: StatusFilter[] = ["all", "clean", "eval", "outside", "invalid", "excluded"];
+const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
+  all: "Status",
+  clean: "Status: Clean",
+  eval: "Status: Eval",
+  outside: `Status: Outside top ${REVIEW_LAP_CAP}`,
+  invalid: "Status: Invalid",
+  excluded: "Status: Excluded",
+};
+
+/** Does a lap belong in the currently selected status bucket? The eval badges
+ *  live in the Status column too, so they filter from the same header:
+ *  "clean" is every non-pit/invalid/excluded lap, and eval/outside split that
+ *  group by whether the analysis actually reads the lap. */
+function matchesStatusFilter(filter: StatusFilter, l: LapMeta, reason: string | undefined): boolean {
+  if (filter === "all") return true;
+  if (l.tuningExcluded === true) return filter === "excluded";
+  // Pit laps (out/in/pit) are just one flavour of invalid — same bucket.
+  if (lapStatusLabel(l) != null) return filter === "invalid";
+  if (filter === "eval") return reason === "chosen";
+  if (filter === "outside") return reason === "slower-than-cap";
+  return filter === "clean";
+}
+
+/** Sort keys for the breakdown table; null means "no value" and always sinks. */
+function sortValue(key: SortKey, l: LapMeta, metricsById: Map<number, TuningLapMetric>): number | string | null {
+  switch (key) {
+    case "lap":
+      return l.sessionId * 1e6 + l.lapNumber;
+    case "time":
+      return l.lapTime ?? null;
+    case "fuel":
+      return metricsById.get(l.id)?.fuelPerLap ?? null;
+    case "wear":
+      return metricsById.get(l.id)?.tyreWear ?? null;
+  }
+}
+
 /** Per-lap breakdown for an expanded tune test. Fuel/lap and tyre wear are the
  *  real server-derived numbers (or "—" for legacy/unavailable laps, e.g. when the
  *  server omits a channel); the spun flag is omitted (parity Phase 2). */
@@ -132,6 +175,34 @@ export function LapBreakdown({
   // badges here can't drift from the laps actually fed to the analysis.
   // Must run before the early return below (rules of hooks).
   const selection = useMemo(() => selectEvaluationLaps(laps), [laps]);
+  // Only prefix when this table actually spans multiple source sessions —
+  // single-session tables keep the plain lap number.
+  const showSession = useMemo(() => new Set(laps.map((l) => l.sessionId)).size > 1, [laps]);
+  // Sort is view-only — it never changes which laps feed the analysis.
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "lap", dir: 1 });
+  // Status is a filter, not a sort — the header cycles through the buckets.
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const sortedLaps = useMemo(() => {
+    const rows = laps.filter((l) => matchesStatusFilter(statusFilter, l, selection.reasonById.get(l.id)));
+    rows.sort((a, b) => {
+      // Session is always the primary key — laps from different sessions reuse
+      // lap numbers, so rows stay grouped per session no matter what's sorted.
+      if (a.sessionId !== b.sessionId) return a.sessionId - b.sessionId;
+      const av = sortValue(sort.key, a, metricsById);
+      const bv = sortValue(sort.key, b, metricsById);
+      // Missing values (no metric / no time) always sink to the bottom.
+      if (av == null && bv == null) return a.lapNumber - b.lapNumber;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (av === bv) return a.lapNumber - b.lapNumber;
+      return (av < bv ? -1 : 1) * sort.dir;
+    });
+    return rows;
+  }, [laps, metricsById, sort, statusFilter, selection]);
+  const toggleSort = (key: SortKey) =>
+    setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
+  const cycleStatusFilter = () =>
+    setStatusFilter((s) => STATUS_FILTERS[(STATUS_FILTERS.indexOf(s) + 1) % STATUS_FILTERS.length]);
   if (laps.length === 0) {
     return <div className="px-3 py-2 text-xs text-app-text-dim">No laps recorded against this version yet.</div>;
   }
@@ -139,27 +210,67 @@ export function LapBreakdown({
     <table className="w-full text-xs">
       <thead>
         <tr className="text-[10px] uppercase tracking-wider text-app-text-muted">
-          <th className="px-3 py-1 text-left font-medium">Lap</th>
-          <th className="px-3 py-1 text-left font-medium">Status</th>
-          <th className="px-3 py-1 text-right font-medium">Time</th>
-          <th className="px-3 py-1 text-right font-medium">Fuel used (L)</th>
-          <th className="px-3 py-1 text-right font-medium">Tyre wear</th>
+          <th className="px-3 py-1 font-medium text-left">
+            <button
+              type="button"
+              onClick={() => toggleSort("lap")}
+              className={`uppercase tracking-wider hover:text-app-text ${sort.key === "lap" ? "text-app-text" : ""}`}
+              title="Sort by lap"
+            >
+              Lap
+              {sort.key === "lap" && <span className="ml-1">{sort.dir === 1 ? "▲" : "▼"}</span>}
+            </button>
+          </th>
+          <th className="px-3 py-1 font-medium text-left">
+            <button
+              type="button"
+              onClick={cycleStatusFilter}
+              className={`uppercase tracking-wider hover:text-app-text ${statusFilter !== "all" ? "text-app-text" : ""}`}
+              title="Filter by status"
+            >
+              {STATUS_FILTER_LABELS[statusFilter]}
+            </button>
+          </th>
+          {([
+            ["time", "Time", "right"],
+            ["fuel", "Fuel used", "right"],
+            ["wear", "Tyre wear", "right"],
+          ] as [SortKey, string, "left" | "right"][]).map(([key, label, align]) => (
+            <th key={key} className={`px-3 py-1 font-medium ${align === "left" ? "text-left" : "text-right"}`}>
+              <button
+                type="button"
+                onClick={() => toggleSort(key)}
+                className={`uppercase tracking-wider hover:text-app-text ${sort.key === key ? "text-app-text" : ""}`}
+                title={`Sort by ${label.toLowerCase()}`}
+              >
+                {label}
+                {sort.key === key && <span className="ml-1">{sort.dir === 1 ? "▲" : "▼"}</span>}
+              </button>
+            </th>
+          ))}
         </tr>
       </thead>
       <tbody className="divide-y divide-app-border/30">
-        {laps.map((l) => {
+        {sortedLaps.map((l) => {
           const isFastest = bestT != null && l.isValid && l.lapTime === bestT;
           const metric = metricsById.get(l.id);
           const fuel = metric?.fuelPerLap;
           const wear = metric?.tyreWear;
-          const status = lapStatusLabel(l);
-          const isPitStatus = status != null && status.toLowerCase() !== "invalid";
           const excluded = l.tuningExcluded === true;
+          // A user-excluded lap says so in the Status column — that's the reason
+          // it's struck through, and it outranks any detector reason.
+          const status = excluded ? "Excluded by user" : lapStatusLabel(l);
+          const isPitStatus = !excluded && status != null && status.toLowerCase() !== "invalid";
           const reason = selection.reasonById.get(l.id);
           const strike = excluded ? "line-through decoration-app-text-dim/60 opacity-60" : "";
           return (
             <tr key={l.id}>
               <td className={`px-3 py-1 font-mono ${strike} ${l.isValid ? "text-app-text-muted" : "text-red-400"}`} title={!l.isValid ? (l.invalidReason ?? "invalid") : undefined}>
+                {showSession && (
+                  <span className="text-app-text-dim mr-1" title={`Imported from session ${l.sessionId}`}>
+                    S{l.sessionId}·
+                  </span>
+                )}
                 {l.lapNumber}
               </td>
               {/* Fixed-width status slot first, then the exclude toggle and the
@@ -170,8 +281,8 @@ export function LapBreakdown({
                 <span className="w-[130px] shrink-0 flex items-center gap-2">
                 {status && (
                   <span
-                    className={`text-[10px] uppercase tracking-wider truncate ${strike} ${isPitStatus ? "text-amber-400" : "text-red-400"}`}
-                    title={l.invalidReason ?? undefined}
+                    className={`text-[10px] uppercase tracking-wider truncate ${excluded ? "text-app-text-dim" : isPitStatus ? "text-amber-400" : "text-red-400"}`}
+                    title={excluded ? "Excluded from the tuning aggregate by you" : (l.invalidReason ?? undefined)}
                   >
                     {status}
                   </span>
@@ -217,8 +328,8 @@ export function LapBreakdown({
                 )}
                 </div>
               </td>
-              <td className={`px-3 py-1 text-right font-mono tabular-nums text-app-text/90 ${strike}`}>
-                {isFastest && <span className="text-purple-400">★ </span>}
+              {/* Fastest lap is marked by colouring the time itself purple. */}
+              <td className={`px-3 py-1 text-right font-mono tabular-nums ${isFastest ? "text-purple-400" : "text-app-text/90"} ${strike}`}>
                 {formatLapTime(l.lapTime)}
               </td>
               <td className={`px-3 py-1 text-right font-mono tabular-nums text-app-text/90 ${strike}`}>{fuel != null ? `${fuel.toFixed(2)} L` : <span className="text-app-text-dim">—</span>}</td>

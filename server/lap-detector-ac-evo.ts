@@ -7,7 +7,11 @@ import { persistLapMetrics } from "./tuning-lap-metrics";
 import { reconcileAutoExclusionsForLap } from "./tuning-auto-exclude";
 import { assessLapRecording } from "./lap-quality";
 import { computeLapSectors } from "./compute-lap-sectors";
-import { accFirstPacketIsMidLap, classifyAccPitLap } from "./acc-lap-rules";
+import {
+  accFirstPacketIsMidLap,
+  classifyAccPitLap,
+  classifyKunosTrackLimits,
+} from "./acc-lap-rules";
 import { getOrCreateDiscoveredCar } from "./db/discovered-cars";
 
 /**
@@ -24,7 +28,10 @@ async function resolveCarOrdinal(packet: TelemetryPacket): Promise<number> {
   return getOrCreateDiscoveredCar(packet.gameId, packet.carModelName);
 }
 
-export const LAP_DETECTOR_AC_EVO_ID = "ac_evo_lapdetector_v1";
+// v2: added track-limits invalidation from the per-frame is_valid_lap flag.
+// Bumping the id makes every previously-recorded AC Evo session stale so
+// /api/sessions/reprocess-stale backfills the new invalid reasons.
+export const LAP_DETECTOR_AC_EVO_ID = "ac_evo_lapdetector_v2";
 
 export class LapDetectorAcEvo implements ILapDetector {
   readonly detectorId = LAP_DETECTOR_AC_EVO_ID;
@@ -238,6 +245,16 @@ export class LapDetectorAcEvo implements ILapDetector {
       if (pitReason) {
         isValid = false;
         invalidReason = pitReason;
+      }
+    }
+
+    // Track-limits cuts are checked after pit classification so a pit reason
+    // (which explains the whole lap) always wins over a cut inside it.
+    if (isValid) {
+      const cutReason = classifyKunosTrackLimits(packets);
+      if (cutReason) {
+        isValid = false;
+        invalidReason = cutReason;
       }
     }
 

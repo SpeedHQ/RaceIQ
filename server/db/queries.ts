@@ -1554,6 +1554,7 @@ export async function updateLapRawIndex(
   rawFrameCount: number,
   lapTime: number,
   isValid: boolean,
+  invalidReason: string | null,
   sectors: { s1: number; s2: number; s3: number } | null
 ): Promise<void> {
   cacheDelete(lapId);
@@ -1562,6 +1563,7 @@ export async function updateLapRawIndex(
     rawFrameCount,
     lapTime,
     isValid,
+    invalidReason,
     s1Time: sectors?.s1 ?? null,
     s2Time: sectors?.s2 ?? null,
     s3Time: sectors?.s3 ?? null,
