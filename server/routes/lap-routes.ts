@@ -45,7 +45,15 @@ import { buildAnalystPrompt } from "../ai/analyst-prompt";
 import { resolveTrackContext } from "../ai/track-context";
 import { computeLapSectors } from "../compute-lap-sectors";
 import { getAnalystJsonSchema } from "../ai/schemas";
-import { getChatMemory, chatThreadId, compareChatThreadId, CHAT_RESOURCE_ID } from "../ai/chat-agent";
+import {
+  getChatMemory,
+  chatThreadId,
+  compareChatThreadId,
+  CHAT_RESOURCE_ID,
+  resolveActiveThread,
+  generationThreadId,
+  listThreadGenerations,
+} from "../ai/chat-agent";
 import { getSecret } from "../keystore";
 import { deleteAnalysis as deleteAnalysisQuery } from "../db/queries";
 import { tryGetGame } from "../../shared/games/registry";
@@ -548,7 +556,11 @@ export const lapRoutes = new Hono()
     const { id } = c.req.valid("param");
     try {
       const memory = getChatMemory();
-      const threadId = chatThreadId(id);
+      const base = chatThreadId(id);
+      const genParam = Number(c.req.query("gen"));
+      const threadId = Number.isInteger(genParam) && genParam >= 1
+        ? generationThreadId(base, genParam)
+        : await resolveActiveThread(base);
       const thread = await memory.getThreadById({ threadId });
       if (!thread) return c.json({ messages: [] });
       const result = await memory.recall({ threadId });
@@ -639,7 +651,7 @@ export const lapRoutes = new Hono()
           ? "local-model"
           : "gemini-flash-latest");
 
-    const threadId = chatThreadId(id);
+    const threadId = await resolveActiveThread(chatThreadId(id));
     const turnStartedAt = Date.now();
     try {
       const stream = await lapChatAgent.stream(
@@ -671,8 +683,13 @@ export const lapRoutes = new Hono()
     const { id } = c.req.valid("param");
     try {
       const memory = getChatMemory();
-      const threadId = chatThreadId(id);
-      await memory.deleteThread(threadId);
+      const base = chatThreadId(id);
+      const gens = await listThreadGenerations(base);
+      const ids = new Set(gens.map((g) => g.threadId));
+      ids.add(base);
+      for (const threadId of ids) {
+        await memory.deleteThread(threadId);
+      }
     } catch (err: any) {
       console.error("[Chat] Failed to clear thread:", err.message);
     }
@@ -1047,7 +1064,11 @@ export const lapRoutes = new Hono()
     const { id1, id2 } = c.req.valid("param");
     try {
       const memory = getChatMemory();
-      const threadId = compareChatThreadId(id1, id2);
+      const base = compareChatThreadId(id1, id2);
+      const genParam = Number(c.req.query("gen"));
+      const threadId = Number.isInteger(genParam) && genParam >= 1
+        ? generationThreadId(base, genParam)
+        : await resolveActiveThread(base);
       const thread = await memory.getThreadById({ threadId });
       if (!thread) return c.json({ messages: [] });
       const result = await memory.recall({ threadId });
@@ -1150,7 +1171,7 @@ export const lapRoutes = new Hono()
           ? "local-model"
           : "gemini-flash-latest");
 
-    const threadId = compareChatThreadId(id1, id2);
+    const threadId = await resolveActiveThread(compareChatThreadId(id1, id2));
     const turnStartedAt = Date.now();
     try {
       const stream = await compareChatAgent.stream(
@@ -1182,8 +1203,13 @@ export const lapRoutes = new Hono()
     const { id1, id2 } = c.req.valid("param");
     try {
       const memory = getChatMemory();
-      const threadId = compareChatThreadId(id1, id2);
-      await memory.deleteThread(threadId);
+      const base = compareChatThreadId(id1, id2);
+      const gens = await listThreadGenerations(base);
+      const ids = new Set(gens.map((g) => g.threadId));
+      ids.add(base);
+      for (const threadId of ids) {
+        await memory.deleteThread(threadId);
+      }
     } catch (err: any) {
       console.error("[CompareChat] Failed to clear thread:", err.message);
     }

@@ -5,8 +5,13 @@ import { z } from "zod";
 import { getLapById } from "../db/queries";
 import { getTuningSession } from "../db/tuning-session-queries";
 import { getCarName, getTrackName } from "../../shared/car-data";
-import { getChatMemory, CHAT_RESOURCE_ID } from "../ai/chat-agent";
-import { compactThread, NothingToCompactError } from "../ai/compact-thread-runner";
+import {
+  getChatMemory,
+  CHAT_RESOURCE_ID,
+  parseThreadGeneration,
+  listThreadGenerations,
+} from "../ai/chat-agent";
+import { forkThreadWithSummary, NothingToCompactError } from "../ai/compact-thread-runner";
 
 const ChatsQuerySchema = z.object({
   gameId: GameIdSchema,
@@ -71,7 +76,7 @@ export const chatsRoutes = new Hono()
         });
         const rows: ChatRow[] = [];
         for (const t of result.threads) {
-          const id = t.id;
+          const id = parseThreadGeneration(t.id).base;
           if (id.startsWith("lap-")) {
             const lapId = Number(id.slice(4));
             if (!Number.isFinite(lapId)) continue;
@@ -120,8 +125,19 @@ export const chatsRoutes = new Hono()
             });
           }
         }
-        rows.sort((x, y) => y.updatedAt.localeCompare(x.updatedAt));
-        return c.json({ chats: rows });
+        // Multiple generations of the same lineage share a base thread id
+        // after stripping `~gN` above; collapse them to a single row, keeping
+        // whichever generation was updated most recently.
+        const byBase = new Map<string, ChatRow>();
+        for (const row of rows) {
+          const existing = byBase.get(row.threadId);
+          if (!existing || row.updatedAt > existing.updatedAt) {
+            byBase.set(row.threadId, row);
+          }
+        }
+        const deduped = [...byBase.values()];
+        deduped.sort((x, y) => y.updatedAt.localeCompare(x.updatedAt));
+        return c.json({ chats: deduped });
       } catch (err: any) {
         console.error("[Chats] Failed to list:", err.message);
         return c.json({ chats: [], error: err.message }, 500);
@@ -129,14 +145,20 @@ export const chatsRoutes = new Hono()
     }
   )
 
-  // ── Delete a chat session ──────────────────────────────────
+  // ── Delete a chat session (all generations) ────────────────
   .delete(
     "/api/chats/:threadId",
     async (c) => {
       const threadId = c.req.param("threadId");
       try {
         const memory = getChatMemory();
-        await memory.deleteThread(threadId);
+        const { base } = parseThreadGeneration(threadId);
+        const gens = await listThreadGenerations(base);
+        const ids = new Set(gens.map((g) => g.threadId));
+        ids.add(base);
+        for (const id of ids) {
+          await memory.deleteThread(id);
+        }
         return c.json({ ok: true });
       } catch (err: any) {
         console.error("[Chats] Failed to delete:", err.message);
@@ -145,13 +167,39 @@ export const chatsRoutes = new Hono()
     }
   )
 
-  // ── Compact a chat thread (summarize + replace) ────────────
+  // ── List the generations for a chat lineage ────────────────
+  .get(
+    "/api/chats/:threadId/generations",
+    async (c) => {
+      const threadId = c.req.param("threadId");
+      const { base } = parseThreadGeneration(threadId);
+      try {
+        const gens = await listThreadGenerations(base);
+        if (gens.length === 0) {
+          return c.json({
+            activeThreadId: base,
+            generations: [{ threadId: base, generation: 1, active: true }],
+          });
+        }
+        const maxGen = gens[gens.length - 1].generation;
+        return c.json({
+          activeThreadId: gens[gens.length - 1].threadId,
+          generations: gens.map((g) => ({ ...g, active: g.generation === maxGen })),
+        });
+      } catch (err: any) {
+        console.error("[Chats] Failed to list generations:", err.message);
+        return c.json({ error: err.message }, 500);
+      }
+    },
+  )
+
+  // ── Fork a chat thread (summarize + start new generation) ──
   .post(
     "/api/chats/:threadId/compact",
     async (c) => {
       const threadId = c.req.param("threadId");
       try {
-        const result = await compactThread(threadId);
+        const result = await forkThreadWithSummary(threadId);
         return c.json(result);
       } catch (err: any) {
         if (err instanceof NothingToCompactError) {

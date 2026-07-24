@@ -218,8 +218,9 @@ function SectionHeader({ icon, title }: { icon: React.ReactNode; title: string }
   );
 }
 
-async function fetchLapChatHistory(lapId: number): Promise<UIMessage[]> {
-  const res = await fetch(`/api/laps/${lapId}/chat`);
+async function fetchLapChatHistory(lapId: number, gen?: number): Promise<UIMessage[]> {
+  const url = gen && gen > 1 ? `/api/laps/${lapId}/chat?gen=${gen}` : `/api/laps/${lapId}/chat`;
+  const res = await fetch(url);
   if (!res.ok) return [];
   const data = (await res.json()) as { messages?: UIMessage[] };
   return (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant");
@@ -748,7 +749,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           <ChatPanel
             key={chatRemountKey}
             api={`/api/laps/${lapId}/chat`}
-            fetchHistory={() => fetchLapChatHistory(lapId)}
+            fetchHistory={(gen) => fetchLapChatHistory(lapId, gen)}
             historyQueryKey={["lap-chat-history", lapId, chatRemountKey]}
             remountKey={`${lapId}:${chatRemountKey}`}
             compactThreadId={`lap-${lapId}`}

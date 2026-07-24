@@ -13,4 +13,4 @@
  * `err instanceof NothingToCompactError` check sees the same class the helper
  * throws.
  */
-export { compactThread, NothingToCompactError } from "./compact-thread";
+export { forkThreadWithSummary, NothingToCompactError } from "./compact-thread";

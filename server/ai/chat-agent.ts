@@ -86,6 +86,65 @@ export function compareChatThreadId(idA: number, idB: number): string {
 /** The resource ID used for all chat threads. */
 export const CHAT_RESOURCE_ID = "raceiq";
 
+// ─── Chat generations ──────────────────────────────────────────────────────
+//
+// A chat surface (lap / compare / tuning-session) can accumulate multiple
+// "generations" over its lifetime. Generation 1 keeps the plain base id
+// (`lap-42`) so existing single-thread chats stay valid with no migration.
+// Later generations suffix `~g<N>` (`lap-42~g2`). `~g` is deliberately NOT a
+// dash — a dash would break the `-`-split parsing of compare ids elsewhere —
+// and is URL-unreserved so it survives `encodeURIComponent` in route params.
+//
+// The newest generation is the only writable one; older gens are a read-only
+// archive. "Active" is derived by probing (`resolveActiveThread`) rather than
+// stored — the deterministic id scheme makes probing cheap and keeps lineage
+// out of any SQL table (it also rides on Mastra thread metadata at creation).
+
+const GEN_SEP = "~g";
+
+/** Split a (possibly suffixed) thread id into its base id and generation number. */
+export function parseThreadGeneration(threadId: string): { base: string; gen: number } {
+  const idx = threadId.lastIndexOf(GEN_SEP);
+  if (idx === -1) return { base: threadId, gen: 1 };
+  const gen = Number(threadId.slice(idx + GEN_SEP.length));
+  if (!Number.isInteger(gen) || gen < 2) return { base: threadId, gen: 1 };
+  return { base: threadId.slice(0, idx), gen };
+}
+
+/** Build the thread id for a given base + generation. Gen 1 is the bare base. */
+export function generationThreadId(base: string, gen: number): string {
+  return gen <= 1 ? base : `${base}${GEN_SEP}${gen}`;
+}
+
+/**
+ * List the existing generations for a base, ordered oldest→newest. Probes
+ * upward from gen 1 (= base) until the first missing generation. Empty when the
+ * base has never been chatted (no thread exists yet).
+ */
+export async function listThreadGenerations(
+  base: string,
+): Promise<Array<{ threadId: string; generation: number }>> {
+  const mem = getChatMemory();
+  const out: Array<{ threadId: string; generation: number }> = [];
+  for (let gen = 1; ; gen++) {
+    const threadId = generationThreadId(base, gen);
+    const thread = await mem.getThreadById({ threadId });
+    if (!thread) break;
+    out.push({ threadId, generation: gen });
+  }
+  return out;
+}
+
+/**
+ * Resolve the active (newest existing) thread id for a base. Returns the base
+ * (gen 1) when nothing exists yet, so a first POST auto-creates gen 1 exactly
+ * as before.
+ */
+export async function resolveActiveThread(base: string): Promise<string> {
+  const gens = await listThreadGenerations(base);
+  return gens.length ? gens[gens.length - 1].threadId : base;
+}
+
 /**
  * Persist a plain-markdown **assistant** message into a chat thread so it shows
  * up in the thread history the GET chat route reads back. Ensures the thread

@@ -10,7 +10,14 @@ import { telemetryToSymptoms } from "../ai/tune-symptoms";
 import { symptomsToIssues } from "../ai/tune-issues";
 import { setLiveIssuesEnabled } from "../pipeline";
 import { loadSettings } from "../settings";
-import { getChatMemory, tuneSessionThreadId, CHAT_RESOURCE_ID } from "../ai/chat-agent";
+import {
+  getChatMemory,
+  tuneSessionThreadId,
+  CHAT_RESOURCE_ID,
+  resolveActiveThread,
+  generationThreadId,
+  listThreadGenerations,
+} from "../ai/chat-agent";
 import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
 import { startDetachedAgentTurn } from "../ai/agent-stream";
 import { reserveChatRun, buildReplayStream } from "../ai/chat-run-registry";
@@ -85,7 +92,11 @@ export const tuneChatRoutes = new Hono()
       const { id } = c.req.valid("param");
       try {
         const memory = getChatMemory();
-        const threadId = tuneSessionThreadId(id);
+        const base = tuneSessionThreadId(id);
+        const genParam = Number(c.req.query("gen"));
+        const threadId = Number.isInteger(genParam) && genParam >= 1
+          ? generationThreadId(base, genParam)
+          : await resolveActiveThread(base);
         const thread = await memory.getThreadById({ threadId });
         if (!thread) return c.json({ messages: [] });
         const result = await memory.recall({ threadId });
@@ -117,6 +128,12 @@ export const tuneChatRoutes = new Hono()
       const { id } = c.req.valid("param");
       const { messages, extendedContext } = c.req.valid("json");
 
+      // Resolved once, up front, before the early-persist block below creates
+      // the base thread — resolving after it would materialize the base and
+      // defeat the active-generation probe. Reused for early-persist,
+      // reserveChatRun, memory, and the detached agent turn.
+      const threadId = await resolveActiveThread(tuneSessionThreadId(id));
+
       const session = await getTuningSession(id);
       if (!session) return c.json({ error: "Tuning session not found" }, 404);
 
@@ -143,16 +160,15 @@ export const tuneChatRoutes = new Hono()
           .join("");
         if (lastUser && text.trim()) {
           const mem = getChatMemory();
-          const earlyThreadId = tuneSessionThreadId(id);
-          if (!(await mem.getThreadById({ threadId: earlyThreadId }))) {
-            await mem.createThread({ threadId: earlyThreadId, resourceId: CHAT_RESOURCE_ID });
+          if (!(await mem.getThreadById({ threadId }))) {
+            await mem.createThread({ threadId, resourceId: CHAT_RESOURCE_ID });
           }
           await mem.saveMessages({
             messages: [{
               id: lastUser.id ?? crypto.randomUUID(),
               role: "user",
               createdAt: new Date(),
-              threadId: earlyThreadId,
+              threadId,
               resourceId: CHAT_RESOURCE_ID,
               type: "text",
               content: { format: 2, parts: [{ type: "text", text }], content: text },
@@ -223,7 +239,6 @@ export const tuneChatRoutes = new Hono()
       // one (Mastra stamps createdAt at save time, so the new row's createdAt is
       // always >= this) — avoids racing/patching a previous turn's message.
       const turnStartedAt = Date.now();
-      const threadId = tuneSessionThreadId(id);
 
       // System prompt segments, additive: session identity, deterministic
       // prereq-gathered context (setup/symptoms/history), then whatever lap
@@ -290,7 +305,13 @@ export const tuneChatRoutes = new Hono()
       const { id } = c.req.valid("param");
       try {
         const memory = getChatMemory();
-        await memory.deleteThread(tuneSessionThreadId(id));
+        const base = tuneSessionThreadId(id);
+        const gens = await listThreadGenerations(base);
+        const ids = new Set(gens.map((g) => g.threadId));
+        ids.add(base);
+        for (const threadId of ids) {
+          await memory.deleteThread(threadId);
+        }
       } catch (err: any) {
         console.error("[TuneChat] Failed to clear thread:", err.message);
       }

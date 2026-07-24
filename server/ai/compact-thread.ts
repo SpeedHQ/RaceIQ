@@ -1,11 +1,17 @@
 /**
- * Compact a chat thread: summarize the conversation with a bare model call,
- * write one tagged summary message, then delete the originals. In-place — the
- * thread id is unchanged, so the client just refetches history.
+ * Fork a chat thread: summarize the conversation with a bare model call,
+ * create a new generation thread, and write the summary as its first tagged
+ * message. The parent thread is left intact — it becomes read-only history.
  */
 import { Agent } from "@mastra/core/agent";
 import { MessageList } from "@mastra/core/agent";
-import { getChatMemory, CHAT_RESOURCE_ID, getMastraModelId } from "./chat-agent";
+import {
+  getChatMemory,
+  CHAT_RESOURCE_ID,
+  getMastraModelId,
+  parseThreadGeneration,
+  generationThreadId,
+} from "./chat-agent";
 import { loadSettings } from "../settings";
 import { getSecret } from "../keystore";
 
@@ -97,23 +103,22 @@ async function writeSummaryMessage(memory: Memory, threadId: string, markdown: s
       format: 2,
       parts: [{ type: "text", text: markdown }],
       content: markdown,
-      metadata: { compacted: true, deterministic: true },
+      metadata: { compacted: true, carriedOver: true, deterministic: true },
     },
   } as SaveMsg;
   await memory.saveMessages({ messages: [message] });
   return id;
 }
 
-export async function compactThread(
+export async function forkThreadWithSummary(
   threadId: string,
   deps: CompactDeps = {},
-): Promise<{ summary: string; before: number; after: number }> {
+): Promise<{ parentThreadId: string; newThreadId: string; generation: number; summary: string }> {
   const memory = deps.memory ?? getChatMemory();
   const summarize = deps.summarize ?? defaultSummarize;
 
   const recalled = await memory.recall({ threadId });
   const raw = recalled.messages ?? [];
-  const oldIds = raw.map((m: { id: string }) => m.id);
 
   const list = new MessageList({ threadId, resourceId: CHAT_RESOURCE_ID });
   list.add(raw as never, "memory");
@@ -131,19 +136,31 @@ export async function compactThread(
 
   const summary = await summarize(transcript);
 
-  const summaryId = await writeSummaryMessage(memory, threadId, COMPACT_SUMMARY_PREFIX + summary.trim());
-
-  try {
-    await memory.deleteMessages(oldIds);
-  } catch (err) {
-    // Roll back so the thread is left untouched on delete failure.
-    try {
-      await memory.deleteMessages([summaryId]);
-    } catch {
-      /* best effort */
-    }
-    throw err;
+  // Probe generations through the SAME (possibly injected) `memory` used
+  // above, rather than the module-level `listThreadGenerations` helper — that
+  // helper is bound to the process-global `getChatMemory()` singleton, which
+  // would defeat dependency injection for tests. Mirrors its probe-upward
+  // logic exactly; falls back to the passed-in thread's own generation when
+  // nothing exists yet (shouldn't happen in practice — the thread being
+  // forked must already exist to have been recalled above).
+  const { base, gen: currentGen } = parseThreadGeneration(threadId);
+  let maxGen = currentGen;
+  for (let g = currentGen; ; g++) {
+    const candidate = generationThreadId(base, g);
+    const found = await memory.getThreadById({ threadId: candidate });
+    if (!found) break;
+    maxGen = g;
   }
+  const generation = maxGen + 1;
+  const newThreadId = generationThreadId(base, generation);
 
-  return { summary, before: ui.length, after: 1 };
+  await memory.createThread({
+    threadId: newThreadId,
+    resourceId: CHAT_RESOURCE_ID,
+    metadata: { base, generation, parentThreadId: threadId },
+  });
+
+  await writeSummaryMessage(memory, newThreadId, COMPACT_SUMMARY_PREFIX + summary.trim());
+
+  return { parentThreadId: threadId, newThreadId, generation, summary };
 }

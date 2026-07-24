@@ -62,8 +62,9 @@ interface AnalysisSummary {
   raw: ParsedAnalysis;
 }
 
-async function fetchCompareChatHistory(lapAId: number, lapBId: number): Promise<UIMessage[]> {
-  const res = await fetch(`/api/laps/${lapAId}/compare/${lapBId}/chat`);
+async function fetchCompareChatHistory(lapAId: number, lapBId: number, gen?: number): Promise<UIMessage[]> {
+  const url = gen && gen > 1 ? `/api/laps/${lapAId}/compare/${lapBId}/chat?gen=${gen}` : `/api/laps/${lapAId}/compare/${lapBId}/chat`;
+  const res = await fetch(url);
   if (!res.ok) return [];
   const data = (await res.json()) as { messages?: UIMessage[] };
   return (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant");
@@ -204,14 +205,18 @@ function InputsSection({ lapAId, lapBId, panelOpen, onView }: { lapAId: number; 
         <span className="w-2 h-2 rounded-full bg-gradient-to-r from-orange-500 to-blue-500" />
         <span className="text-[11px] font-semibold text-app-text truncate flex-1">{m.compare_inputs_comparison_ab()}</span>
         {analysis && (
-          <button onClick={() => run(true)} disabled={loading} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title={m.label_regenerate()}>
+          <button type="button" onClick={() => run(true)} disabled={loading} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title={m.label_regenerate()}>
             <RefreshCw className="size-3" />
           </button>
         )}
       </div>
 
       {!analysis && !loading && !error && (
-        <button onClick={() => run(false)} className="w-full flex items-center justify-center gap-1.5 text-[11px] px-2 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors">
+        <button
+          type="button"
+          onClick={() => run(false)}
+          className="w-full flex items-center justify-center gap-1.5 text-[11px] px-2 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors"
+        >
           <Sparkles className="size-3" />
           {m.compare_inputs_compare_button()}
         </button>
@@ -235,6 +240,7 @@ function InputsSection({ lapAId, lapBId, panelOpen, onView }: { lapAId: number; 
 
       {analysis && (
         <button
+          type="button"
           onClick={() => onView(analysis)}
           className="w-full flex items-center gap-2 px-2 py-1.5 rounded bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/15 transition-colors text-left"
         >
@@ -279,14 +285,18 @@ function LapSection({
         <span className={`w-2 h-2 rounded-full ${dotClass}`} />
         <span className="text-[11px] font-semibold text-app-text truncate flex-1">{lap.label}</span>
         {summary && (
-          <button onClick={() => run(true)} disabled={loading} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title={m.label_regenerate()}>
+          <button type="button" onClick={() => run(true)} disabled={loading} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title={m.label_regenerate()}>
             <RefreshCw className="size-3" />
           </button>
         )}
       </div>
 
       {!summary && !loading && !error && (
-        <button onClick={() => run(false)} className="w-full flex items-center justify-center gap-1.5 text-[11px] px-2 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors">
+        <button
+          type="button"
+          onClick={() => run(false)}
+          className="w-full flex items-center justify-center gap-1.5 text-[11px] px-2 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors"
+        >
           <Sparkles className="size-3" />
           {m.compare_analyse_lap_button()}
         </button>
@@ -310,6 +320,7 @@ function LapSection({
 
       {summary && (
         <button
+          type="button"
           onClick={() => onView(lap.label, summary)}
           className="w-full flex items-center gap-2 px-2 py-1.5 rounded bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/15 transition-colors text-left"
         >
@@ -347,6 +358,7 @@ function InputsModal({
   onJumpToFrac?: (frac: number) => void;
 }) {
   return createPortal(
+    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       onMouseDown={(e) => {
@@ -359,7 +371,7 @@ function InputsModal({
             <Sparkles className="size-3.5 text-amber-400" />
             <span className="text-[11px] font-semibold text-app-text uppercase tracking-wider">{m.compare_inputs_comparison()}</span>
           </div>
-          <button onClick={onClose} className="text-app-text-muted hover:text-app-text">
+          <button type="button" onClick={onClose} className="text-app-text-muted hover:text-app-text">
             <X className="size-4" />
           </button>
         </div>
@@ -368,7 +380,7 @@ function InputsModal({
 
           {analysis.segments?.length > 0 && (
             <div className="space-y-2">
-              {analysis.segments.map((seg, i) => {
+              {analysis.segments.map((seg) => {
                 // Resolve the AI-named segment to a track position so clicking
                 // the card moves the chart/track cursor to that segment.
                 const match = trackSegments?.find((s) => {
@@ -378,8 +390,9 @@ function InputsModal({
                 });
                 const clickable = !!(match && onJumpToFrac);
                 return (
+                  // biome-ignore lint/a11y/noStaticElementInteractions: optional jump-to-segment affordance, non-essential
                   <div
-                    key={i}
+                    key={`${seg.name}-${seg.type ?? ""}-${seg.deltaSeconds ?? ""}`}
                     onClick={() => match && onJumpToFrac?.((match.startFrac + match.endFrac) / 2)}
                     className={`rounded-lg border border-app-border-input/40 bg-app-surface-alt/40 px-2.5 py-2 ${clickable ? "cursor-pointer hover:border-cyan-400/40 hover:bg-app-surface-alt/60 transition-colors" : ""}`}
                   >
@@ -421,8 +434,8 @@ function InputsModal({
             <div>
               <div className="text-[10px] font-semibold text-app-text uppercase tracking-wider mb-1">{m.label_coaching()}</div>
               <div className="space-y-1.5">
-                {analysis.coaching.map((c, i) => (
-                  <div key={i} className="rounded border border-app-border-input/40 bg-app-surface-alt/30 px-2 py-1.5">
+                {analysis.coaching.map((c) => (
+                  <div key={`${c.targetLap}-${c.tip}`} className="rounded border border-app-border-input/40 bg-app-surface-alt/30 px-2 py-1.5">
                     <div className="flex items-baseline gap-2">
                       <span
                         className={`text-[9px] font-semibold uppercase tracking-wider px-1 py-0.5 rounded ${
@@ -449,6 +462,7 @@ function InputsModal({
 function AnalysisModal({ label, summary, onClose }: { label: string; summary: AnalysisSummary; onClose: () => void }) {
   const a = summary.raw ?? {};
   return createPortal(
+    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       onMouseDown={(e) => {
@@ -462,7 +476,7 @@ function AnalysisModal({ label, summary, onClose }: { label: string; summary: An
             <span className="text-[11px] font-semibold text-app-text uppercase tracking-wider">{m.label_ai_analysis()}</span>
             <span className="text-[11px] text-app-text-secondary truncate max-w-[300px]">{label}</span>
           </div>
-          <button onClick={onClose} className="text-app-text-muted hover:text-app-text">
+          <button type="button" onClick={onClose} className="text-app-text-muted hover:text-app-text">
             <X className="size-4" />
           </button>
         </div>
@@ -509,7 +523,11 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
           <p className="text-[11px] text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
           <p className="text-[10px] text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
         </div>
-        <button onClick={() => openSettings("ai")} className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-black font-medium transition-colors">
+        <button
+          type="button"
+          onClick={() => openSettings("ai")}
+          className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-black font-medium transition-colors"
+        >
           {m.compare_setup_ai_button()}
         </button>
       </div>
@@ -531,14 +549,14 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
       {bothReady && (
         <div className="flex-1 min-h-0 flex flex-col border-t border-app-border">
           <div className="flex justify-end px-2 pt-1">
-            <button onClick={clearChat} className="text-[9px] text-app-text-muted hover:text-red-400">
+            <button type="button" onClick={clearChat} className="text-[9px] text-app-text-muted hover:text-red-400">
               <Trash2 className="size-3" />
             </button>
           </div>
           <ChatPanel
             key={chatRemountKey}
             api={`/api/laps/${lapA.id}/compare/${lapB.id}/chat`}
-            fetchHistory={() => fetchCompareChatHistory(lapA.id, lapB.id)}
+            fetchHistory={(gen) => fetchCompareChatHistory(lapA.id, lapB.id, gen)}
             historyQueryKey={["compare-chat-history", lapA.id, lapB.id, chatRemountKey]}
             remountKey={`${lapA.id}:${lapB.id}:${chatRemountKey}`}
             compactThreadId={`compare-${Math.min(lapA.id, lapB.id)}-${Math.max(lapA.id, lapB.id)}`}

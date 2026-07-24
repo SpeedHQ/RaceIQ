@@ -20,8 +20,9 @@ import { ChatPanel } from "@/components/ai-chat/ChatPanel";
  * into this thread, so no separate generate endpoint or reload plumbing is
  * needed — the streamed reply already contains the outcome.
  */
-async function fetchTuneChatHistory(sessionId: number): Promise<UIMessage[]> {
-  const res = await fetch(`/api/tuning-sessions/${sessionId}/chat`);
+async function fetchTuneChatHistory(sessionId: number, gen?: number): Promise<UIMessage[]> {
+  const url = gen && gen > 1 ? `/api/tuning-sessions/${sessionId}/chat?gen=${gen}` : `/api/tuning-sessions/${sessionId}/chat`;
+  const res = await fetch(url);
   if (!res.ok) return [];
   const data = (await res.json()) as { messages?: UIMessage[] };
   const msgs = (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant");
@@ -67,7 +68,7 @@ export function TuneSetupChat({
   return (
     <ChatPanel
       api={`/api/tuning-sessions/${sessionId}/chat`}
-      fetchHistory={() => fetchTuneChatHistory(sessionId)}
+      fetchHistory={(gen) => fetchTuneChatHistory(sessionId, gen)}
       historyQueryKey={["tuning-session-chat-history", sessionId]}
       remountKey={`${sessionId}:${headTestId ?? "none"}`}
       compactThreadId={`tune-session-${sessionId}`}
