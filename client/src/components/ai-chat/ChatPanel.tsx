@@ -185,7 +185,7 @@ function TokenUsageFooter({
       const res = await client.api.chats[":threadId"].compact.$post({ param: { threadId: compactThreadId } });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}) as { error?: string });
-        setCompactMsg((body as { error?: string }).error ?? "New chat failed");
+        setCompactMsg((body as { error?: string }).error ?? "Compact failed");
       } else {
         const body = (await res.json()) as { generation: number };
         await queryClient.invalidateQueries({ queryKey: ["chat-generations", compactThreadId] });
@@ -193,7 +193,7 @@ function TokenUsageFooter({
         onForked(body.generation);
       }
     } catch {
-      setCompactMsg("New chat failed");
+      setCompactMsg("Compact failed");
     } finally {
       setCompacting(false);
       setTimeout(() => setCompactMsg(null), 4000);
@@ -265,9 +265,9 @@ function TokenUsageFooter({
           onClick={onNewChat}
           disabled={compacting || isRunning}
           className="ml-auto px-1.5 py-0.5 rounded border border-app-border/50 hover:bg-app-border/20 disabled:opacity-40"
-          title="Summarize this chat and start a fresh one (keeps this chat as read-only history)"
+          title="Compact this chat into a summary and continue in a fresh chat (keeps this chat as read-only history)"
         >
-          {compacting ? "Starting…" : "New chat"}
+          {compacting ? "Compacting…" : "Compact & New chat"}
         </button>
       )}
       {compactMsg && <span className="text-app-text-dim">{compactMsg}</span>}
