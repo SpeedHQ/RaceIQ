@@ -651,6 +651,11 @@ export interface LapMeta {
   // User flag (migration v30): true = manually excluded from the tuning
   // aggregate. Undefined/false = included.
   tuningExcluded?: boolean;
+  // Persisted per-lap metrics (migration v32), derived once from telemetry and
+  // cached on the lap row. Null/undefined = not yet computed or no usable
+  // telemetry channel.
+  fuelPerLap?: number | null;
+  tyreWear?: number | null;
   // True for laps recorded before raw telemetry storage — no charts available
   isLegacy?: boolean;
 }

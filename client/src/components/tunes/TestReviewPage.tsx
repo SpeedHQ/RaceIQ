@@ -7,14 +7,16 @@ import { TuneSetupChat } from "./TuneSetupChat";
 
 /**
  * TestReviewPage — the post-test review dashboard as its own route
- * (/​<game>/tuning/<id>/review?laps=1,2,3) rather than a tab inside the tuning
- * workspace. The lap ids recorded during the test travel in the `laps` search
- * param; laps themselves are re-read from the persisted laps query (they are
- * stamped/persisted server-side as they land, so they survive the navigation).
+ * (/​<game>/tuning/<id>/review?testId=5) rather than a tab inside the tuning
+ * workspace. When `testId` is present the reviewed laps are derived from it —
+ * laps are stamped with their tuning_test_id server-side, so the set is fully
+ * recoverable from the id and does NOT need to travel in the URL. `lapIds` is
+ * an optional fallback for the transient live-stint review (no test node yet),
+ * where the explicit list scopes the view to just the current run.
  */
-export function TestReviewPage({ gameId, tuningSessionId, lapIds, testId }: { gameId: TuningGameId; tuningSessionId: number; lapIds: number[]; testId?: number }) {
+export function TestReviewPage({ gameId, tuningSessionId, lapIds, testId }: { gameId: TuningGameId; tuningSessionId: number; lapIds?: number[]; testId?: number }) {
   const navigate = useNavigate();
-  const { data: session } = useTuningSession(tuningSessionId);
+  const { data: session, isLoading: sessionLoading, isError: sessionMissing } = useTuningSession(tuningSessionId);
   const { data: allLaps = [] } = useLaps();
   const tests = useTuningSessionTests(tuningSessionId);
   // Compact summary of whatever lap review is open in the dashboard below,
@@ -22,13 +24,39 @@ export function TestReviewPage({ gameId, tuningSessionId, lapIds, testId }: { ga
   // Setup Engineer chat so it "sees what the user sees".
   const [lapReviewContext, setLapReviewContext] = useState<string | null>(null);
 
-  const laps = useMemo(() => allLaps.filter((l) => lapIds.includes(l.id)).sort((a, b) => a.lapNumber - b.lapNumber), [allLaps, lapIds]);
+  // Prefer deriving the reviewed laps from the test id (URL-clean path). Fall
+  // back to the explicit lapIds list only when no testId is given (live stint).
+  const laps = useMemo(() => {
+    const selected = testId != null ? allLaps.filter((l) => l.tuningTestId === testId) : allLaps.filter((l) => (lapIds ?? []).includes(l.id));
+    return [...selected].sort((a, b) => a.lapNumber - b.lapNumber);
+  }, [allLaps, lapIds, testId]);
 
   const activeTest = tests.data?.find((t) => t.id === testId) ?? tests.data?.find((t) => t.id === session?.headTestId) ?? undefined;
 
   const backToWorkspace = () =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     navigate({ to: `/${getGame(gameId).routePrefix}/tuning/${tuningSessionId}` } as any);
+
+  const backToTuningList = () =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    navigate({ to: `/${getGame(gameId).routePrefix}/tuning` } as any);
+
+  // Session no longer exists (deleted, or its row was lost in a DB reset while
+  // its laps survived — see the orphaned-stamp sweep in server/db/index.ts).
+  // Show a clean dead-end instead of a dashboard wired to a 404'ing session.
+  if (sessionMissing && !sessionLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 p-12 text-center">
+        <div className="text-lg font-semibold text-app-text">Tuning session not found</div>
+        <div className="text-sm text-app-text-muted max-w-md">
+          This tuning session (#{tuningSessionId}) no longer exists — it may have been deleted, or removed when the database was reset. The laps it referenced may still be in your history.
+        </div>
+        <button type="button" onClick={backToTuningList} className="mt-2 px-4 py-2 text-sm rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold">
+          Back to tuning sessions
+        </button>
+      </div>
+    );
+  }
 
   return (
     // Single page scroll: the app shell's outlet wrapper is the only scroll

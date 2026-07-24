@@ -115,6 +115,12 @@ export const laps = sqliteTable(
 		// User flag (migration v30): 1 = manually excluded from the tuning
 		// aggregate (beyond the auto-outlier rule). Nullable; null/0 = included.
 		tuningExcluded: integer("tuning_excluded"),
+		// Persisted per-lap metrics (migration v32), derived once from the lap's
+		// telemetry and cached here so the tuning workspace / lap-metrics endpoint
+		// never re-decode every lap's frames on each read. Null = not yet computed
+		// (lazily filled on first read) or no usable telemetry channel.
+		fuelPerLap: real("fuel_per_lap"),
+		tyreWear: real("tyre_wear"),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(table) => ({

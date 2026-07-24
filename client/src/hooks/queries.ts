@@ -1031,6 +1031,10 @@ export function useImportLaps() {
       qc.invalidateQueries({ queryKey: ["tuning-session-tests", sessionId] });
       qc.invalidateQueries({ queryKey: ["tuning-session-importable-laps", sessionId] });
       qc.invalidateQueries({ queryKey: ["laps"] });
+      // Newly-imported laps carry no cached fuel/tyre metric yet — refresh the
+      // per-lap metrics query so the workspace lap table + Fuel card fill in
+      // without a manual page refresh (the endpoint lazily computes + persists).
+      qc.invalidateQueries({ queryKey: ["tuning-session-lap-metrics", sessionId] });
       qc.invalidateQueries({ queryKey: ["tuning-session-chat-history", sessionId] });
     },
   });

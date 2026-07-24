@@ -118,7 +118,7 @@ export function LapBreakdown({
           <th className="px-3 py-1 text-left font-medium">Lap</th>
           <th className="px-3 py-1 text-left font-medium">Status</th>
           <th className="px-3 py-1 text-right font-medium">Time</th>
-          <th className="px-3 py-1 text-right font-medium">Fuel/lap</th>
+          <th className="px-3 py-1 text-right font-medium">Fuel used (L)</th>
           <th className="px-3 py-1 text-right font-medium">Tyre wear</th>
           <th className="px-3 py-1 text-right font-medium">Tuning</th>
         </tr>

@@ -493,4 +493,19 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
     name: "engineer notes on version nodes",
     sql: [`ALTER TABLE tuning_tests ADD COLUMN notes TEXT`],
   },
+
+  // ── v32: Persisted per-lap fuel/tyre metrics ───────────────────────────────
+  // fuel_per_lap (litres) and tyre_wear (worst-tyre % worn at lap end) were
+  // derived on the fly from each lap's full telemetry on every /lap-metrics
+  // request — decoding every frame of every session lap per call. Cache them on
+  // the lap row instead: computed once (lazily, on first read) and stored here.
+  // Null = not yet computed or no usable telemetry channel.
+  {
+    version: 32,
+    name: "persisted per-lap fuel/tyre metrics",
+    sql: [
+      `ALTER TABLE laps ADD COLUMN fuel_per_lap REAL`,
+      `ALTER TABLE laps ADD COLUMN tyre_wear REAL`,
+    ],
+  },
 ];

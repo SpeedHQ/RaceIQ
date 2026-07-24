@@ -4,7 +4,7 @@ import { z } from "zod";
 import { IdParamSchema } from "../../shared/schemas";
 import { GameIdSchema } from "../../shared/types";
 import type { GameId, LapMeta, TelemetryPacket } from "../../shared/types";
-import { getLapById, getLapsForTuningSession, getImportableLapsForTuningSession, importLapsToTuningSession, getCorners } from "../db/queries";
+import { getLapById, getLapsForTuningSession, getImportableLapsForTuningSession, importLapsToTuningSession, getCorners, setLapMetrics } from "../db/queries";
 import { detectCorners } from "../corner-detection";
 import { computeLineSpreadTrace } from "../lap-consistency";
 import { selectCleanLaps } from "../ai/clean-lap-aggregate";
@@ -766,9 +766,22 @@ export const tuningSessionRoutes = new Hono()
 
       const metrics: LapMetric[] = [];
       for (const lapMeta of sessionLaps) {
+        // Cached path (migration v32): if either metric is already stored on the
+        // lap row, the derivation has run — serve the columns, no frame decode.
+        if (lapMeta.fuelPerLap != null || lapMeta.tyreWear != null) {
+          const cached: LapMetric = { lapId: lapMeta.id };
+          if (lapMeta.fuelPerLap != null) cached.fuelPerLap = lapMeta.fuelPerLap;
+          if (lapMeta.tyreWear != null) cached.tyreWear = lapMeta.tyreWear;
+          metrics.push(cached);
+          continue;
+        }
+
+        // Miss: decode telemetry once, derive, and persist onto the lap so this
+        // is the last time this lap pays the decode cost.
         const lap = await getLapById(lapMeta.id);
         const fuelPerLap = lap ? deriveFuelPerLap(lap.telemetry) : undefined;
         const tyreWear = lap ? deriveTyreWear(lap.telemetry) : undefined;
+        if (lap) await setLapMetrics(lapMeta.id, fuelPerLap ?? null, tyreWear ?? null);
         const entry: LapMetric = { lapId: lapMeta.id };
         if (fuelPerLap != null) entry.fuelPerLap = fuelPerLap;
         if (tyreWear != null) entry.tyreWear = tyreWear;

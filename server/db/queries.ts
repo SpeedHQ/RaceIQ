@@ -274,6 +274,16 @@ async function doInsertLap(
  * memory static data was populated (e.g. first frames of an imported .bin
  * capture where the recorder attached before the game wrote static state).
  */
+/**
+ * Persist the derived per-lap metrics (migration v32) onto the lap row so the
+ * next read is a plain column fetch instead of decoding every telemetry frame.
+ * Null args are stored as-is (a lap with telemetry but no usable fuel/tyre
+ * channel stays null and simply isn't recomputed unless its telemetry changes).
+ */
+export async function setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
+  await db.update(laps).set({ fuelPerLap, tyreWear }).where(eq(laps.id, lapId)).run();
+}
+
 export async function updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
   await db.update(sessions).set({ carOrdinal, trackOrdinal }).where(eq(sessions.id, sessionId)).run();
 }
@@ -365,7 +375,10 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
       s2Time: laps.s2Time,
       s3Time: laps.s3Time,
       tuningSessionId: laps.tuningSessionId,
+      tuningTestId: laps.tuningTestId,
       tuningExcluded: laps.tuningExcluded,
+      fuelPerLap: laps.fuelPerLap,
+      tyreWear: laps.tyreWear,
       rawFile: sessions.rawFile,
     })
     .from(laps)
@@ -392,7 +405,10 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
     s2Time: r.s2Time ?? undefined,
     s3Time: r.s3Time ?? undefined,
     tuningSessionId: r.tuningSessionId ?? null,
+    tuningTestId: r.tuningTestId ?? null,
     tuningExcluded: Boolean(r.tuningExcluded),
+    fuelPerLap: r.fuelPerLap ?? null,
+    tyreWear: r.tyreWear ?? null,
     isLegacy: rawFile == null,
   }));
 }
@@ -432,6 +448,8 @@ export async function getLapsForTuningSession(tuningSessionId: number): Promise<
       tuningSessionId: laps.tuningSessionId,
       tuningTestId: laps.tuningTestId,
       tuningExcluded: laps.tuningExcluded,
+      fuelPerLap: laps.fuelPerLap,
+      tyreWear: laps.tyreWear,
       rawFile: sessions.rawFile,
     })
     .from(laps)
@@ -457,6 +475,8 @@ export async function getLapsForTuningSession(tuningSessionId: number): Promise<
     tuningSessionId: r.tuningSessionId ?? null,
     tuningTestId: r.tuningTestId ?? null,
     tuningExcluded: Boolean(r.tuningExcluded),
+    fuelPerLap: r.fuelPerLap ?? null,
+    tyreWear: r.tyreWear ?? null,
     isLegacy: rawFile == null,
   }));
 }
@@ -491,6 +511,8 @@ export async function getLapMetaForTuningTest(tuningTestId: number): Promise<Lap
       tuningSessionId: laps.tuningSessionId,
       tuningTestId: laps.tuningTestId,
       tuningExcluded: laps.tuningExcluded,
+      fuelPerLap: laps.fuelPerLap,
+      tyreWear: laps.tyreWear,
       rawFile: sessions.rawFile,
     })
     .from(laps)
@@ -516,6 +538,8 @@ export async function getLapMetaForTuningTest(tuningTestId: number): Promise<Lap
     tuningSessionId: r.tuningSessionId ?? null,
     tuningTestId: r.tuningTestId ?? null,
     tuningExcluded: Boolean(r.tuningExcluded),
+    fuelPerLap: r.fuelPerLap ?? null,
+    tyreWear: r.tyreWear ?? null,
     isLegacy: rawFile == null,
   }));
 }
@@ -562,6 +586,8 @@ export async function getImportableLapsForTuningSession(
       tuningSessionId: laps.tuningSessionId,
       tuningTestId: laps.tuningTestId,
       tuningExcluded: laps.tuningExcluded,
+      fuelPerLap: laps.fuelPerLap,
+      tyreWear: laps.tyreWear,
       rawFile: sessions.rawFile,
     })
     .from(laps)
@@ -587,6 +613,8 @@ export async function getImportableLapsForTuningSession(
     tuningSessionId: r.tuningSessionId ?? null,
     tuningTestId: r.tuningTestId ?? null,
     tuningExcluded: Boolean(r.tuningExcluded),
+    fuelPerLap: r.fuelPerLap ?? null,
+    tyreWear: r.tyreWear ?? null,
     isLegacy: rawFile == null,
   }));
 }

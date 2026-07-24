@@ -283,11 +283,13 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
                   lapsByTest={lapsByTest}
                   metricsById={metricsById}
                   onOpenReview={(t) => {
-                    const ids = (lapsByTest.get(t.id) ?? []).map((l) => l.id);
                     setTestPhase("idle");
+                    // Laps are derived from testId in the review page (they're
+                    // stamped with tuning_test_id), so the id alone is enough —
+                    // no need to enumerate lap ids in the URL.
                     navigate({
                       to: `/${routePrefix}/tuning/${tuningSessionId}/review`,
-                      search: { laps: ids.join(","), testId: t.id },
+                      search: { testId: t.id },
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     } as any);
                   }}
