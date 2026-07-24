@@ -3,6 +3,9 @@ import { lapPath } from "../shared/lib/lap-path";
 import type { Corner } from "./corner-detection";
 
 export const LINE_SPREAD_THRESHOLD_M = 1.5;
+/** Mean lateral spread (metres) at which the line-consistency score hits 0.
+ *  ~1.5m reads ~70, ~3m ~40 — a car-width of scatter is already poor. */
+export const LINE_SPREAD_FULL_SCALE_M = 5;
 export const INPUT_VAR_THRESHOLD = 0.02;
 
 export interface CornerConsistency {
@@ -16,6 +19,33 @@ export interface CornerConsistency {
 export interface LapConsistencyDelta {
   perCorner: CornerConsistency[];
   overall: { lateralSpreadM: number; brakeVar: number; throttleVar: number; lowTrust: boolean };
+}
+
+/** Per-corner trimmed (10th-90th percentile) racing-line spread, plus the
+ *  full per-bin trace for charting. */
+export interface CornerLineSpread {
+  corner: string; // Corner.label
+  lateralSpreadM: number; // trimmed (p90-p10) racing-line spread, metres
+  lowTrust: boolean;
+}
+
+export interface LineSpreadTrace {
+  /** Lap-distance fraction (0..1) for each bin, RESAMPLE_BINS entries. */
+  fracs: number[];
+  /** Trimmed (p90-p10) lateral spread in metres at each bin. */
+  spreadM: number[];
+  perCorner: CornerLineSpread[];
+  /** True when the overall trimmed spread (or any corner) exceeds LINE_SPREAD_THRESHOLD_M. */
+  lowTrust: boolean;
+  /** 0-100 racing-line consistency: how repeatable the driven line is across
+   *  the pool. 100 = laps trace the same line; falls linearly with the mean
+   *  lateral spread, reaching 0 at LINE_SPREAD_FULL_SCALE_M. */
+  consistencyScore: number;
+  /** Mean trimmed lateral spread across the lap (metres) — the raw figure the
+   *  score is derived from. */
+  overallSpreadM: number;
+  /** Number of laps that fed the trace (after resampling). */
+  lapCount: number;
 }
 
 const RESAMPLE_BINS = 200;
@@ -97,6 +127,138 @@ function round3(v: number): number {
   return Math.round(v * 1000) / 1000;
 }
 
+/** Shortest distance from point P to segment AB. */
+function pointSegmentDistance(px: number, pz: number, ax: number, az: number, bx: number, bz: number): number {
+  const dx = bx - ax;
+  const dz = bz - az;
+  const l2 = dx * dx + dz * dz;
+  let t = l2 > 0 ? ((px - ax) * dx + (pz - az) * dz) / l2 : 0;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  return Math.hypot(px - (ax + t * dx), pz - (az + t * dz));
+}
+
+/** Half-window (in bins) searched for each lap's nearest point to a mean-line
+ *  point. ~10% of the lap, far wider than any realistic longitudinal desync,
+ *  yet small enough to stay cheap. */
+const NEAREST_WINDOW = RESAMPLE_BINS / 10;
+
+/**
+ * Per-bin across-track distance of each lap from the mean line, measured as the
+ * shortest distance from each mean-line point to that lap's own polyline
+ * (searched within a local window).
+ *
+ * Laps are resampled independently over their own distance span, so equal
+ * fractions do NOT map to the same physical track point — braking zones and
+ * corners desync longitudinally when drivers brake at different points. Reading
+ * the raw point-to-point distance folds that longitudinal shift into the metric
+ * as tens of metres of phantom "spread". Taking the nearest point on the lap's
+ * polyline instead cancels the longitudinal component entirely, leaving the
+ * true lateral (racing-line) deviation — which is what this metric is about.
+ *
+ * Returns `distances[bin]` = one unsigned metre value per lap.
+ */
+function lateralDistancesPerBin(resampled: ResampledLap[]): number[][] {
+  const meanX = new Array<number>(RESAMPLE_BINS);
+  const meanZ = new Array<number>(RESAMPLE_BINS);
+  for (let i = 0; i < RESAMPLE_BINS; i++) {
+    meanX[i] = resampled.reduce((a, r) => a + r.x[i], 0) / resampled.length;
+    meanZ[i] = resampled.reduce((a, r) => a + r.z[i], 0) / resampled.length;
+  }
+
+  const out: number[][] = [];
+  for (let i = 0; i < RESAMPLE_BINS; i++) {
+    const px = meanX[i];
+    const pz = meanZ[i];
+    const lo = Math.max(0, i - NEAREST_WINDOW);
+    const hi = Math.min(RESAMPLE_BINS - 1, i + NEAREST_WINDOW);
+    out.push(
+      resampled.map((r) => {
+        let best = Number.POSITIVE_INFINITY;
+        for (let k = lo; k < hi; k++) {
+          const d = pointSegmentDistance(px, pz, r.x[k], r.z[k], r.x[k + 1], r.z[k + 1]);
+          if (d < best) best = d;
+        }
+        return best;
+      }),
+    );
+  }
+  return out;
+}
+
+/** Linear-interpolation percentile of an already-sorted-ascending array; 0 when empty. */
+function percentile(sortedAsc: number[], p: number): number {
+  const n = sortedAsc.length;
+  if (n === 0) return 0;
+  const idx = (n - 1) * p;
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  if (lo === hi) return sortedAsc[lo];
+  return sortedAsc[lo] + (sortedAsc[hi] - sortedAsc[lo]) * (idx - lo);
+}
+
+const MIN_LINE_SPREAD_LAPS = 3;
+
+/**
+ * Full per-bin racing-line spread trace, trimmed to the 10th-90th percentile
+ * range of each bin's per-lap lateral deviations from the mean line — this
+ * suppresses a single blunder/outlier lap from dominating the metre figure
+ * the way a plain mean or min/max would. Returns null when fewer than 3
+ * valid resampled laps are available (need enough laps for a meaningful
+ * percentile trim).
+ */
+export function computeLineSpreadTrace(laps: TelemetryPacket[][], corners: Corner[]): LineSpreadTrace | null {
+  const resampled = laps.map(resampleLap).filter((r): r is ResampledLap => r !== null);
+  if (resampled.length < MIN_LINE_SPREAD_LAPS) return null;
+
+  const offsets = lateralDistancesPerBin(resampled);
+  const fracs: number[] = [];
+  const spreadM: number[] = [];
+  for (let i = 0; i < RESAMPLE_BINS; i++) {
+    fracs.push(i / (RESAMPLE_BINS - 1));
+    // Trimmed p90-p10 range of the per-lap lateral distances = the width of the
+    // racing-line bundle at this point, with one blunder lap suppressed.
+    const dev = offsets[i].slice().sort((a, b) => a - b);
+    spreadM.push(percentile(dev, 0.9) - percentile(dev, 0.1));
+  }
+
+  // Reference lap length = median of per-lap spans (same approach as
+  // computeLapConsistencyDelta) so corner fractions line up with the bins.
+  const spans = resampled.map((r) => r.span).sort((a, b) => a - b);
+  const mid = Math.floor(spans.length / 2);
+  const referenceSpan = spans.length % 2 === 0 ? (spans[mid - 1] + spans[mid]) / 2 : spans[mid];
+
+  const perCorner: CornerLineSpread[] = corners.map((corner) => {
+    if (!(referenceSpan > 0)) return { corner: corner.label, lateralSpreadM: 0, lowTrust: false };
+    const fracStart = corner.distanceStart / referenceSpan;
+    const fracEnd = corner.distanceEnd / referenceSpan;
+    const loFrac = Math.min(fracStart, fracEnd);
+    const hiFrac = Math.max(fracStart, fracEnd);
+
+    const binIndices: number[] = [];
+    for (let i = 0; i < RESAMPLE_BINS; i++) {
+      if (fracs[i] >= loFrac && fracs[i] <= hiFrac) binIndices.push(i);
+    }
+    if (binIndices.length === 0) return { corner: corner.label, lateralSpreadM: 0, lowTrust: false };
+
+    const lateralSpreadM = binIndices.reduce((sum, i) => sum + spreadM[i], 0) / binIndices.length;
+    return { corner: corner.label, lateralSpreadM: round3(lateralSpreadM), lowTrust: lateralSpreadM > LINE_SPREAD_THRESHOLD_M };
+  });
+
+  const overallSpreadM = spreadM.reduce((a, b) => a + b, 0) / spreadM.length;
+  const lowTrust = overallSpreadM > LINE_SPREAD_THRESHOLD_M || perCorner.some((c) => c.lowTrust);
+  const consistencyScore = Math.max(0, Math.min(100, Math.round(100 - (overallSpreadM / LINE_SPREAD_FULL_SCALE_M) * 100)));
+
+  return {
+    fracs,
+    spreadM: spreadM.map(round3),
+    perCorner,
+    lowTrust,
+    consistencyScore,
+    overallSpreadM: round3(overallSpreadM),
+    lapCount: resampled.length,
+  };
+}
+
 const EMPTY_DELTA: LapConsistencyDelta = {
   perCorner: [],
   overall: { lateralSpreadM: 0, brakeVar: 0, throttleVar: 0, lowTrust: false },
@@ -109,16 +271,14 @@ export function computeLapConsistencyDelta(laps: TelemetryPacket[][], corners: C
   if (resampled.length < 2) return EMPTY_DELTA;
 
   // Per-bin metrics across laps.
+  const offsets = lateralDistancesPerBin(resampled);
   const binLateralSpread: number[] = [];
   const binBrakeVar: number[] = [];
   const binThrottleVar: number[] = [];
   for (let i = 0; i < RESAMPLE_BINS; i++) {
-    const xs = resampled.map((r) => r.x[i]);
-    const zs = resampled.map((r) => r.z[i]);
-    const meanX = xs.reduce((a, b) => a + b, 0) / xs.length;
-    const meanZ = zs.reduce((a, b) => a + b, 0) / zs.length;
-    const spread = xs.reduce((sum, xi, idx) => sum + Math.hypot(xi - meanX, zs[idx] - meanZ), 0) / xs.length;
-    binLateralSpread.push(spread);
+    // Mean across-track distance (longitudinal desync removed via nearest point).
+    const offs = offsets[i];
+    binLateralSpread.push(offs.reduce((sum, v) => sum + v, 0) / offs.length);
 
     const brakes = resampled.map((r) => r.brake[i]);
     const throttles = resampled.map((r) => r.throttle[i]);

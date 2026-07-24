@@ -2,6 +2,7 @@ import type { LapMeta, TuneIssue } from "@shared/types";
 import { useMemo, useState } from "react";
 import { type TuningLapMetric, useLapIssues, useLapTelemetry, useSetLapExcluded } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
+import { isPitCycleLap } from "../../lib/lap-filters";
 import { SectorDetailView } from "./SectorDetailView";
 
 interface TestReviewDashboardProps {
@@ -19,7 +20,9 @@ interface TestReviewDashboardProps {
  * composes it for a single lap (sector map + hover-synced corner bars).
  */
 export function TestReviewDashboard({ gameId: _gameId, laps, metricsById, tuningSessionId }: TestReviewDashboardProps) {
-  const sortedLaps = useMemo(() => [...laps].sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
+  // Outlaps/inlaps/pit laps carry no tuning signal — drop them outright
+  // (no tab, no list row, no aggregate contribution).
+  const sortedLaps = useMemo(() => laps.filter((l) => !isPitCycleLap(l)).sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
   const [tab, setTab] = useState<"overview" | number>("overview");
 
   return (

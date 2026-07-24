@@ -26,6 +26,7 @@ import { readCString } from "../server/games/ac-evo/utils";
 import { getAcEvoTrackByName, getAcEvoTracks } from "../shared/ac-evo-track-data";
 import { Kspkg, findContentKspkg } from "../server/games/ac-evo/kspkg";
 import { parseTracksTable } from "../server/games/ac-evo/kspkg-tables";
+import { extractAcEvoTrackGeometry } from "./extract-ac-evo-tracks-geometry";
 
 const RECORDINGS_DIR = "test/artifacts/sessions";
 const CSV_PATH = "shared/games/ac-evo/tracks.csv";
@@ -120,10 +121,17 @@ function fromGame(explicitPath?: string): void {
   );
 }
 
-function main(): void {
+async function main(): Promise<void> {
   if (!process.argv.includes("--recordings")) {
     const next = process.argv[2];
     fromGame(next && !next.startsWith("--") ? next : undefined);
+    // After reconciling the track roster, extract native track geometry
+    // (centerlines + boundaries + meta) from content.kspkg for every AC Evo
+    // layout that ships one. Skip with --no-geometry (identity diff only).
+    if (!process.argv.includes("--no-geometry")) {
+      console.log("\n── extracting track geometry ──");
+      await extractAcEvoTrackGeometry();
+    }
     return;
   }
   if (!existsSync(RECORDINGS_DIR)) {
@@ -177,4 +185,7 @@ function main(): void {
   }
 }
 
-main();
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

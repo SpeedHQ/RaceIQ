@@ -827,6 +827,40 @@ export function useTuningSessionTests(id: number | null | undefined) {
   });
 }
 
+// ── Line spread (racing-line consistency) ──────────────────────────────────
+export interface CornerLineSpread {
+  corner: string;
+  lateralSpreadM: number;
+  lowTrust: boolean;
+}
+
+export interface LineSpreadTrace {
+  fracs: number[];
+  spreadM: number[];
+  perCorner: CornerLineSpread[];
+  lowTrust: boolean;
+  /** 0-100 racing-line consistency (100 = laps trace the same line). */
+  consistencyScore: number;
+  /** Mean trimmed lateral spread across the lap (metres). */
+  overallSpreadM: number;
+  lapCount: number;
+}
+
+/** Trimmed (p90-p10) racing-line spread trace for the Track Focus Consistency
+ *  tab — the lane chart + track-map heat overlay. `lapCount < 3` means the
+ *  server didn't have enough clean laps to compute a trace (empty arrays). */
+export function useLineSpread(sessionId: number | null | undefined) {
+  return useQuery({
+    queryKey: ["tuning-session-line-spread", sessionId ?? null],
+    queryFn: async () => {
+      const res = await (client.api as any)["tuning-sessions"][":id"]["line-spread"].$get({ param: { id: String(sessionId!) } });
+      return rpcJson<LineSpreadTrace>(res);
+    },
+    enabled: sessionId != null,
+    staleTime: 10_000,
+  });
+}
+
 export function useCreateTuningTest() {
   const qc = useQueryClient();
   return useMutation({

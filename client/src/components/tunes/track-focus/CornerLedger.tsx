@@ -1,6 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { SetupRangeBar } from "@/components/SetupRangeBar";
 import type { TrackCorner } from "../../../hooks/queries";
 import type { LapTrace } from "../../../lib/stint-traces";
+import { detectCorners, ZONE_HALF_WIDTH } from "./detect-corners";
 
 interface CornerLedgerProps {
   traces: LapTrace[];
@@ -9,19 +11,22 @@ interface CornerLedgerProps {
   corners: TrackCorner[];
   cursorFrac: number | null;
   onCursorFrac: (f: number | null) => void;
+  /** Fired on row hover with the per-lap brake/throttle onset fracs for that
+   *  corner (null on leave) — used to overlay the points on the track map. */
+  onHoverPoints?: (pts: { brake: number[]; throttle: number[] } | null) => void;
 }
-
-/** Half-width (in lap-distance fraction) of the window around a corner's apex
- *  fraction used to pull zone samples out of each lap's trace. Matches the
- *  design mockup's `0.045` band (~9% of lap total). */
-const ZONE_HALF_WIDTH = 0.045;
 
 interface LedgerRow {
   corner: TrackCorner;
   frac: number;
   minSpeedBest: number | null;
+  topSpeedBest: number | null;
+  medianSpeedBest: number | null;
   deltaBest: number | null;
   brakeVarPct: number | null;
+  throttleVarPct: number | null;
+  brakeOnsets: number[];
+  throttleOnsets: number[];
   dtLoss: number | null;
   spark: { throttle: number; brake: number; steer: number }[];
 }
@@ -41,11 +46,46 @@ function minOver(arr: Float32Array, idxs: number[]): number | null {
   return Number.isFinite(m) ? m : null;
 }
 
+function maxOver(arr: Float32Array, idxs: number[]): number | null {
+  if (idxs.length === 0) return null;
+  let m = Number.NEGATIVE_INFINITY;
+  for (const i of idxs) if (arr[i] > m) m = arr[i];
+  return Number.isFinite(m) ? m : null;
+}
+
+function medianOver(arr: Float32Array, idxs: number[]): number | null {
+  if (idxs.length === 0) return null;
+  const vals = idxs.map((i) => arr[i]).sort((a, b) => a - b);
+  const mid = Math.floor(vals.length / 2);
+  return vals.length % 2 ? vals[mid] : (vals[mid - 1] + vals[mid]) / 2;
+}
+
 /** First index (within the zone) where brake exceeds a light threshold —
  *  approximates the driver's brake application point for that corner. */
 function brakeOnsetFrac(trace: LapTrace, idxs: number[]): number | null {
   for (const i of idxs) {
     if (trace.brake[i] > 0.3) return trace.frac[i];
+  }
+  return null;
+}
+
+/** First index (within the zone) after the apex (min speed) where throttle is
+ *  reapplied past a light threshold — approximates the driver's throttle
+ *  pickup point for that corner. */
+function throttleOnsetFrac(trace: LapTrace, idxs: number[]): number | null {
+  if (idxs.length === 0) return null;
+  let apexPos = 0;
+  let minV = Number.POSITIVE_INFINITY;
+  for (let k = 0; k < idxs.length; k++) {
+    const v = trace.speedKmh[idxs[k]];
+    if (v < minV) {
+      minV = v;
+      apexPos = k;
+    }
+  }
+  for (let k = apexPos; k < idxs.length; k++) {
+    const i = idxs[k];
+    if (trace.throttle[i] > 0.3) return trace.frac[i];
   }
   return null;
 }
@@ -57,55 +97,6 @@ function stdDev(vals: number[]): number | null {
   return Math.sqrt(variance);
 }
 
-/** Minimum lap-fraction separation between two detected apexes. */
-const DETECT_MIN_GAP = 0.03;
-/** Max corners synthesized when the track has no corner metadata. */
-const DETECT_MAX_CORNERS = 14;
-
-/** Fallback for tracks without corner metadata: detect apex zones as local
- *  minima of the best lap's (lightly smoothed) speed trace, mirroring how the
- *  `4-corner-ledger.html` mockup derived corners purely from telemetry. */
-function detectCorners(trace: LapTrace): { corners: TrackCorner[]; fracs: number[] } {
-  const n = trace.speedKmh.length;
-  if (n < 16) return { corners: [], fracs: [] };
-  // Light box smoothing to suppress sample noise.
-  const smooth = new Float32Array(n);
-  const W = 5;
-  for (let i = 0; i < n; i++) {
-    let sum = 0, cnt = 0;
-    for (let j = Math.max(0, i - W); j <= Math.min(n - 1, i + W); j++) { sum += trace.speedKmh[j]; cnt++; }
-    smooth[i] = sum / cnt;
-  }
-  let vMax = 0;
-  for (let i = 0; i < n; i++) if (smooth[i] > vMax) vMax = smooth[i];
-  if (vMax <= 0) return { corners: [], fracs: [] };
-
-  // Local minima that dip meaningfully below top speed.
-  const cands: { frac: number; v: number }[] = [];
-  for (let i = 1; i < n - 1; i++) {
-    if (smooth[i] <= smooth[i - 1] && smooth[i] < smooth[i + 1] && smooth[i] < vMax * 0.85) {
-      cands.push({ frac: trace.frac[i], v: smooth[i] });
-    }
-  }
-  // Keep the slowest apex within each MIN_GAP window.
-  cands.sort((a, b) => a.v - b.v);
-  const kept: { frac: number; v: number }[] = [];
-  for (const c of cands) {
-    if (kept.length >= DETECT_MAX_CORNERS) break;
-    if (kept.every((k) => Math.abs(k.frac - c.frac) >= DETECT_MIN_GAP)) kept.push(c);
-  }
-  kept.sort((a, b) => a.frac - b.frac);
-
-  const corners = kept.map((k, i) => ({
-    index: i,
-    label: `T${i + 1}`,
-    distanceStart: Math.max(0, k.frac - ZONE_HALF_WIDTH),
-    distanceEnd: Math.min(1, k.frac + ZONE_HALF_WIDTH),
-    apexDistance: k.frac,
-  }));
-  return { corners, fracs: kept.map((k) => k.frac) };
-}
-
 function buildRows(traces: LapTrace[], bestLapId: number | null, cornerFracs: number[], corners: TrackCorner[]): LedgerRow[] {
   if (traces.length === 0 || corners.length === 0) return [];
   const bestTrace = traces.find((t) => t.lapId === bestLapId) ?? traces[0];
@@ -115,6 +106,8 @@ function buildRows(traces: LapTrace[], bestLapId: number | null, cornerFracs: nu
     const cf = cornerFracs[i] ?? 0;
     const idxs = zoneIndices(bestTrace.frac, cf);
     const minSpeedBest = minOver(bestTrace.speedKmh, idxs);
+    const topSpeedBest = maxOver(bestTrace.speedKmh, idxs);
+    const medianSpeedBest = medianOver(bestTrace.speedKmh, idxs);
 
     // Pick the "worst" other lap in this zone (largest cumulative time loss
     // vs the best lap across the zone) to drive the delta/verdict columns.
@@ -142,14 +135,21 @@ function buildRows(traces: LapTrace[], bestLapId: number | null, cornerFracs: nu
     }
     const brakeVarPct = onsets.length >= 2 ? (stdDev(onsets) ?? 0) * 100 : null;
 
+    const tOnsets: number[] = [];
+    for (const t of traces) {
+      const f = throttleOnsetFrac(t, zoneIndices(t.frac, cf));
+      if (f != null) tOnsets.push(f);
+    }
+    const throttleVarPct = tOnsets.length >= 2 ? (stdDev(tOnsets) ?? 0) * 100 : null;
+
     const spark = idxs.map((idx) => ({ throttle: bestTrace.throttle[idx], brake: bestTrace.brake[idx], steer: bestTrace.steer[idx] }));
 
-    return { corner, frac: cf, minSpeedBest, deltaBest, brakeVarPct, dtLoss, spark };
+    return { corner, frac: cf, minSpeedBest, topSpeedBest, medianSpeedBest, deltaBest, brakeVarPct, throttleVarPct, brakeOnsets: onsets, throttleOnsets: tOnsets, dtLoss, spark };
   });
 }
 
 function sparkPath(row: LedgerRow) {
-  const w = 110;
+  const w = 170;
   const h = 24;
   const n = row.spark.length;
   if (n < 2) return null;
@@ -196,7 +196,7 @@ function Verdict({ dtLoss, brakeVarPct }: { dtLoss: number | null; brakeVarPct: 
  * `design-mockups/tune-review/4-corner-ledger.html`, adapted to the traces
  * and corner data already resolved for Track Focus.
  */
-export function CornerLedger({ traces, bestLapId, cornerFracs, corners, cursorFrac, onCursorFrac }: CornerLedgerProps) {
+export function CornerLedger({ traces, bestLapId, cornerFracs, corners, cursorFrac, onCursorFrac, onHoverPoints }: CornerLedgerProps) {
   // When the track has no corner metadata, fall back to detecting apex zones
   // from the best lap's speed trace (as the mockup did from raw telemetry).
   const effective = useMemo(() => {
@@ -206,17 +206,16 @@ export function CornerLedger({ traces, bestLapId, cornerFracs, corners, cursorFr
     return { corners: detected.corners, fracs: detected.fracs };
   }, [traces, bestLapId, cornerFracs, corners]);
 
-  const rows = useMemo(
-    () => buildRows(traces, bestLapId, effective.fracs, effective.corners),
-    [traces, bestLapId, effective],
-  );
+  const rows = useMemo(() => buildRows(traces, bestLapId, effective.fracs, effective.corners), [traces, bestLapId, effective]);
 
-  const waterfall = useMemo(() => {
-    const withLoss = rows.filter((r) => r.dtLoss != null);
-    const sorted = [...withLoss].sort((a, b) => (b.dtLoss ?? 0) - (a.dtLoss ?? 0));
-    const max = Math.max(...sorted.map((r) => r.dtLoss ?? 0), 0.01);
-    return { sorted, max };
-  }, [rows]);
+  // Clicking a row pins its brake/throttle overlay on the track; hovering
+  // another row previews it, and leaving falls back to the pinned corner
+  // (or nothing). Clicking the pinned row again clears it.
+  const [pinnedFrac, setPinnedFrac] = useState<number | null>(null);
+  const pointsFor = (frac: number) => {
+    const row = rows.find((r) => r.frac === frac);
+    return row ? { brake: row.brakeOnsets, throttle: row.throttleOnsets } : null;
+  };
 
   if (effective.corners.length === 0 || traces.length === 0) {
     return <div className="text-app-text-dim text-sm">No corner data available for this track.</div>;
@@ -225,79 +224,81 @@ export function CornerLedger({ traces, bestLapId, cornerFracs, corners, cursorFr
   return (
     <div className="space-y-2">
       <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Corner Ledger</div>
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_260px] gap-3">
-        <div className="rounded border border-app-border overflow-x-auto">
-          <table className="w-full text-[13px] border-collapse">
-            <thead>
-              <tr>
-                {["Corner", "Min speed", "Δ worst", "Brake pt var", "Inputs (zone)", "Δ time", "Verdict"].map((h) => (
-                  <th key={h} className="text-left text-[10.5px] uppercase tracking-wider text-app-text-dim px-2.5 py-1.5 border-b border-app-border whitespace-nowrap">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => {
-                const sp = sparkPath(r);
-                const isActive = cursorFrac != null && Math.abs(cursorFrac - r.frac) < ZONE_HALF_WIDTH;
-                return (
-                  <tr
-                    key={r.corner.index}
-                    onClick={() => onCursorFrac(r.frac)}
-                    className={`cursor-pointer border-b border-app-border last:border-0 hover:bg-app-surface-alt ${isActive ? "bg-app-surface-alt" : ""}`}
+      <div className="rounded border border-app-border overflow-x-auto">
+        <table className="w-full text-[13px] border-collapse">
+          <thead>
+            <tr>
+              {["Corner", "Speed range", "Δ worst", "Brake pt var", "Throttle pt var", "Verdict", "Inputs (zone)"].map((h) => (
+                <th key={h} className="text-left text-[10.5px] uppercase tracking-wider text-app-text-dim px-2.5 py-1.5 border-b border-app-border whitespace-nowrap">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const sp = sparkPath(r);
+              const isActive = cursorFrac != null && Math.abs(cursorFrac - r.frac) < ZONE_HALF_WIDTH;
+              return (
+                <tr
+                  key={r.corner.index}
+                  onClick={() => {
+                    onCursorFrac(r.frac);
+                    const nextPinned = pinnedFrac === r.frac ? null : r.frac;
+                    setPinnedFrac(nextPinned);
+                    onHoverPoints?.(nextPinned == null ? null : { brake: r.brakeOnsets, throttle: r.throttleOnsets });
+                  }}
+                  onMouseEnter={() => onHoverPoints?.({ brake: r.brakeOnsets, throttle: r.throttleOnsets })}
+                  onMouseLeave={() => onHoverPoints?.(pinnedFrac == null ? null : pointsFor(pinnedFrac))}
+                  className={`cursor-pointer border-b border-app-border last:border-0 hover:bg-app-surface-alt ${pinnedFrac === r.frac ? "bg-app-accent/10 ring-1 ring-inset ring-app-accent/40" : isActive ? "bg-app-surface-alt" : ""}`}
+                >
+                  <td className="text-left px-2.5 py-1.5 whitespace-nowrap">
+                    <span className="font-semibold text-app-text">{r.corner.label}</span> <span className="text-[11px] text-app-text-dim">{(r.frac * 100).toFixed(0)}%</span>
+                  </td>
+                  <td
+                    className="text-left px-2.5 py-1.5"
+                    title={
+                      r.minSpeedBest != null && r.medianSpeedBest != null && r.topSpeedBest != null
+                        ? `min ${r.minSpeedBest.toFixed(0)} · median ${r.medianSpeedBest.toFixed(0)} · max ${r.topSpeedBest.toFixed(0)} km/h`
+                        : undefined
+                    }
                   >
-                    <td className="px-2.5 py-1.5 whitespace-nowrap">
-                      <span className="font-semibold text-app-text">{r.corner.label}</span> <span className="text-[11px] text-app-text-dim">{(r.frac * 100).toFixed(0)}%</span>
-                    </td>
-                    <td className="px-2.5 py-1.5 font-mono tabular-nums text-app-text">{r.minSpeedBest != null ? `${r.minSpeedBest.toFixed(0)} km/h` : "—"}</td>
-                    <td className={`px-2.5 py-1.5 font-mono tabular-nums ${deltaColor(r.deltaBest)}`}>{r.deltaBest != null ? `${r.deltaBest >= 0 ? "+" : ""}${r.deltaBest.toFixed(1)}` : "—"}</td>
-                    <td className={`px-2.5 py-1.5 font-mono tabular-nums ${brakeVarColor(r.brakeVarPct)}`}>{r.brakeVarPct != null ? `±${r.brakeVarPct.toFixed(1)}%` : "—"}</td>
-                    <td className="px-2.5 py-1.5">
-                      {sp ? (
-                        <svg width={sp.w} height={sp.h} className="block">
-                          <path d={sp.st} fill="none" stroke="var(--color-ch-steer, #0891b2)" strokeWidth={1} opacity={0.8} />
-                          <path d={sp.t} fill="none" stroke="var(--color-ch-throttle, #059669)" strokeWidth={1.4} />
-                          <path d={sp.b} fill="none" stroke="var(--color-ch-brake, #ef4444)" strokeWidth={1.4} />
-                        </svg>
-                      ) : (
-                        <span className="text-app-text-dim">—</span>
-                      )}
-                    </td>
-                    <td className="px-2.5 py-1.5 font-mono tabular-nums text-app-text">{r.dtLoss != null && r.dtLoss > 0.005 ? `+${r.dtLoss.toFixed(3)}` : "—"}</td>
-                    <td className="px-2.5 py-1.5">
-                      <Verdict dtLoss={r.dtLoss} brakeVarPct={r.brakeVarPct} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="rounded bg-app-surface border border-app-border p-3 space-y-1.5">
-          <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Where time goes</div>
-          {waterfall.sorted.length === 0 ? (
-            <div className="text-app-text-dim text-xs">No time-loss data yet.</div>
-          ) : (
-            <div className="space-y-1">
-              {waterfall.sorted.map((r) => {
-                const dt = r.dtLoss ?? 0;
-                const w = Math.max(2, (dt / waterfall.max) * 100);
-                const barColor = dt > 0.06 ? "var(--color-dynamics-red, #ef4444)" : dt > 0.03 ? "var(--color-dynamics-amber, #f59e0b)" : "var(--color-app-accent, #22d3ee)";
-                return (
-                  <button type="button" key={r.corner.index} onClick={() => onCursorFrac(r.frac)} className="flex items-center gap-2 w-full text-left">
-                    <span className="text-[10.5px] text-app-text-dim w-8 shrink-0 text-right">{r.corner.label}</span>
-                    <span className="flex-1 h-3.5 bg-app-surface-alt rounded-sm overflow-hidden">
-                      <span className="block h-full rounded-sm" style={{ width: `${w}%`, background: barColor }} />
-                    </span>
-                    <span className="text-[10px] font-mono tabular-nums text-app-text-dim w-10 shrink-0">{dt > 0.005 ? `+${dt.toFixed(2)}` : "—"}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                    {r.minSpeedBest != null && r.medianSpeedBest != null && r.topSpeedBest != null ? (
+                      <div className="flex items-center gap-2">
+                        <span className="w-8 text-right font-mono tabular-nums text-[10.5px] text-app-text-dim shrink-0">{r.minSpeedBest.toFixed(0)}</span>
+                        <div className="w-32 shrink-0">
+                          <SetupRangeBar min={r.minSpeedBest} max={r.topSpeedBest} median={r.medianSpeedBest} values={[r.minSpeedBest, r.medianSpeedBest, r.topSpeedBest]} showMedianLabel />
+                        </div>
+                        <span className="w-14 text-left font-mono tabular-nums text-[10.5px] text-app-text-dim shrink-0">{r.topSpeedBest.toFixed(0)} km/h</span>
+                      </div>
+                    ) : (
+                      <span className="font-mono text-app-text">—</span>
+                    )}
+                  </td>
+                  <td className={`text-left px-2.5 py-1.5 font-mono tabular-nums ${deltaColor(r.deltaBest)}`}>
+                    {r.deltaBest != null ? `${r.deltaBest >= 0 ? "+" : ""}${r.deltaBest.toFixed(1)}` : "—"}
+                  </td>
+                  <td className={`text-left px-2.5 py-1.5 font-mono tabular-nums ${brakeVarColor(r.brakeVarPct)}`}>{r.brakeVarPct != null ? `±${r.brakeVarPct.toFixed(1)}%` : "—"}</td>
+                  <td className={`text-left px-2.5 py-1.5 font-mono tabular-nums ${brakeVarColor(r.throttleVarPct)}`}>{r.throttleVarPct != null ? `±${r.throttleVarPct.toFixed(1)}%` : "—"}</td>
+                  <td className="text-left px-2.5 py-1.5">
+                    <Verdict dtLoss={r.dtLoss} brakeVarPct={r.brakeVarPct} />
+                  </td>
+                  <td className="text-left px-2.5 py-1.5">
+                    {sp ? (
+                      <svg width={sp.w} height={sp.h} className="block">
+                        <path d={sp.st} fill="none" stroke="var(--color-ch-steer, #0891b2)" strokeWidth={1} opacity={0.8} />
+                        <path d={sp.t} fill="none" stroke="var(--color-ch-throttle, #059669)" strokeWidth={1.4} />
+                        <path d={sp.b} fill="none" stroke="var(--color-ch-brake, #ef4444)" strokeWidth={1.4} />
+                      </svg>
+                    ) : (
+                      <span className="text-app-text-dim">—</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );

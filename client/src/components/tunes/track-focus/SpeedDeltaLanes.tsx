@@ -1,11 +1,15 @@
 import { useMemo } from "react";
-import type { LapTrace } from "../../../lib/stint-traces";
+import type { TrackCorner } from "../../../hooks/queries";
+import { sampleAt, type LapTrace } from "../../../lib/stint-traces";
+import { ChartTooltip } from "./ChartTooltip";
+import { nearestCornerLabel } from "./detect-corners";
 import { Lane } from "./Lane";
 
 interface SpeedDeltaLanesProps {
   bestTrace: LapTrace | null;
   focusTrace: LapTrace | null;
   cornerFracs: number[];
+  corners?: TrackCorner[];
   cursorFrac: number | null;
   onCursorFrac: (f: number | null) => void;
 }
@@ -22,7 +26,7 @@ function polyline(trace: LapTrace, values: Float32Array | number[], x: (f: numbe
  * Speed overlay (best dim, focus lap accent) + cumulative time-delta lane
  * (focus minus best, from each trace's own time-at-distance series).
  */
-export function SpeedDeltaLanes({ bestTrace, focusTrace, cornerFracs, cursorFrac, onCursorFrac }: SpeedDeltaLanesProps) {
+export function SpeedDeltaLanes({ bestTrace, focusTrace, cornerFracs, corners = [], cursorFrac, onCursorFrac }: SpeedDeltaLanesProps) {
   const speedDomain = useMemo<[number, number]>(() => {
     const all: number[] = [];
     if (bestTrace) all.push(...Array.from(bestTrace.speedKmh));
@@ -62,13 +66,14 @@ export function SpeedDeltaLanes({ bestTrace, focusTrace, cornerFracs, cursorFrac
           tooltip={
             focusTrace
               ? (f) => {
-                  const i = Math.round(f * (focusTrace.n - 1));
-                  return (
-                    <div className="font-mono tabular-nums">
-                      <div>focus: {focusTrace.speedKmh[i]?.toFixed(0)} km/h</div>
-                      {bestTrace && <div className="text-app-text-dim">best: {bestTrace.speedKmh[Math.round(f * (bestTrace.n - 1))]?.toFixed(0)} km/h</div>}
-                    </div>
-                  );
+                  const cornerLabel = nearestCornerLabel(corners, cornerFracs, f);
+                  const rows = [
+                    { lapNumber: focusTrace.lapNumber, color: "var(--color-app-accent, #22d3ee)", isBest: focusTrace.lapId === bestTrace?.lapId, speedKmh: sampleAt(focusTrace, "speedKmh", f) },
+                    ...(bestTrace && bestTrace.lapId !== focusTrace.lapId
+                      ? [{ lapNumber: bestTrace.lapNumber, color: "var(--color-app-text-dim, #7a8ea0)", isBest: true, speedKmh: sampleAt(bestTrace, "speedKmh", f) }]
+                      : []),
+                  ];
+                  return <ChartTooltip frac={f} cornerLabel={cornerLabel} rows={rows} />;
                 }
               : undefined
           }
@@ -93,13 +98,9 @@ export function SpeedDeltaLanes({ bestTrace, focusTrace, cornerFracs, cursorFrac
             delta && focusTrace
               ? (f) => {
                   const i = Math.round(f * (focusTrace.n - 1));
-                  const v = delta[i];
-                  return (
-                    <div className="font-mono tabular-nums">
-                      Δ {v >= 0 ? "+" : ""}
-                      {v.toFixed(3)}s
-                    </div>
-                  );
+                  const cornerLabel = nearestCornerLabel(corners, cornerFracs, f);
+                  const rows = [{ lapNumber: focusTrace.lapNumber, color: "var(--color-dynamics-amber, #f59e0b)", deltaS: delta[i] }];
+                  return <ChartTooltip frac={f} cornerLabel={cornerLabel} rows={rows} />;
                 }
               : undefined
           }

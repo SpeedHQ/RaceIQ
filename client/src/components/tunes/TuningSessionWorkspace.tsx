@@ -16,6 +16,7 @@ import {
   useTuningSessionTests,
 } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
+import { isPitCycleLap } from "../../lib/lap-filters";
 import { client } from "../../lib/rpc";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { AddBaseModal } from "./AddBaseModal";
@@ -123,6 +124,10 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
   // Group the pool by tuning test using the createdAt window (plan §2):
   // a lap belongs to the newest test created at/before it; live laps land on the
   // latest (active) test.
+  // Outlaps/inlaps/pit laps carry no tuning signal — excluded outright from
+  // grouping, counts, and aggregates below.
+  const tuningLapPool = useMemo(() => sessionLapPool.filter((l) => !isPitCycleLap(l)), [sessionLapPool]);
+
   const lapsByTest = useMemo(() => {
     const sorted = [...tests].sort((a, b) => a.version - b.version);
     const testForLap = (lap: LapMeta): number | null => {
@@ -135,7 +140,7 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
       return match;
     };
     const map = new Map<number, LapMeta[]>();
-    for (const l of sessionLapPool) {
+    for (const l of tuningLapPool) {
       const tid = testForLap(l);
       if (tid == null) continue;
       const arr = map.get(tid);
@@ -144,17 +149,17 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
     }
     for (const arr of map.values()) arr.sort((a, b) => a.lapNumber - b.lapNumber);
     return map;
-  }, [sessionLapPool, tests]);
+  }, [tuningLapPool, tests]);
 
   // Session-wide stat rollups (hide a card when its value is unavailable).
-  const validLaps = useMemo(() => sessionLapPool.filter((l) => l.isValid && l.lapTime > 0), [sessionLapPool]);
-  const lapCount = sessionLapPool.length;
+  const validLaps = useMemo(() => tuningLapPool.filter((l) => l.isValid && l.lapTime > 0), [tuningLapPool]);
+  const lapCount = tuningLapPool.length;
   const bestLap = validLaps.length ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
   const avgLap = validLaps.length ? validLaps.reduce((s, l) => s + l.lapTime, 0) / validLaps.length : null;
-  const driveTime = sessionLapPool.reduce((s, l) => s + (l.lapTime > 0 ? l.lapTime : 0), 0);
+  const driveTime = tuningLapPool.reduce((s, l) => s + (l.lapTime > 0 ? l.lapTime : 0), 0);
   // Session Fuel/lap: average over the session's laps that have a real fuel
   // metric. null (card hidden) when none do — never a fabricated 0.
-  const fuelVals = useMemo(() => sessionLapPool.map((l) => metricsById.get(l.id)?.fuelPerLap).filter((v): v is number => v != null), [sessionLapPool, metricsById]);
+  const fuelVals = useMemo(() => tuningLapPool.map((l) => metricsById.get(l.id)?.fuelPerLap).filter((v): v is number => v != null), [tuningLapPool, metricsById]);
   const avgFuel = fuelVals.length ? fuelVals.reduce((s, v) => s + v, 0) / fuelVals.length : null;
   // Best setup = the tune test with the fastest single valid lap.
   const bestTest = useMemo(() => {

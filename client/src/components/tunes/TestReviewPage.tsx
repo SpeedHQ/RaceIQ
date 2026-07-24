@@ -47,6 +47,7 @@ export function TestReviewPage({ gameId, tuningSessionId, lapIds, testId }: { ga
             trackName={session?.trackName ?? undefined}
             onBack={backToWorkspace}
             test={activeTest}
+            tuningSessionId={tuningSessionId}
             onOpenLapContextChange={setLapReviewContext}
           />
         </div>

@@ -10,7 +10,6 @@ import {
   getLapById,
   getCorners,
   saveCorners,
-  getFirstLapIdForTrack,
   getTrackOutline as getDbTrackOutline,
   getLapCountsByTrack,
 } from "../db/queries";
@@ -35,7 +34,8 @@ import {
 } from "../../shared/track-data";
 import { trackMap, getCarName, getTrackName, carSpecsMap } from "../../shared/car-data";
 import { getTrackGuide } from "../ai/track-guides";
-import { detectCorners, type Corner } from "../corner-detection";
+import type { Corner } from "../corner-detection";
+import { resolveTrackContext } from "../ai/track-context";
 import {
   filterLapOutliers,
   normalizeToFixedPoints,
@@ -84,6 +84,19 @@ function requireGameId(c: { req: { query: (key: string) => string | undefined } 
   const result = GameIdSchema.safeParse(raw);
   if (!result.success) throw new Error(`Invalid gameId: ${raw}`);
   return result.data;
+}
+
+/** Sum dx/dz along an outline's points to get its total length in meters.
+ *  Same computation used by GET /api/track-sector-boundaries/:ordinal. */
+function computeOutlineLength(outline: { x: number; z: number }[] | null | undefined): number {
+  if (!outline || outline.length < 2) return 0;
+  let length = 0;
+  for (let i = 1; i < outline.length; i++) {
+    const dx = outline[i].x - outline[i - 1].x;
+    const dz = outline[i].z - outline[i - 1].z;
+    length += Math.sqrt(dx * dx + dz * dz);
+  }
+  return length;
 }
 
 /** Resolve the shared track name for a given ordinal + gameId.
@@ -157,30 +170,58 @@ function smoothBoundary(boundary: { x: number; z: number }[], passes = 3): void 
 
 export const trackRoutes = new Hono()
 
-  // GET /api/tracks/:trackOrdinal/corners — get stored corners or auto-detect
+  // GET /api/tracks/:trackOrdinal/corners — authoritative corner fractions
+  // (0..1 lap fraction, matching the track-focus map/lanes contract).
+  //
+  // Priority:
+  //   a. Curated track-context segments (type === "corner") — already
+  //      lap-fraction, game-specific. This is the ground truth.
+  //   b. Stored/auto-detected DB corners, which are in METERS — converted to
+  //      fractions using the same outline-length calc as
+  //      GET /api/track-sector-boundaries/:ordinal.
+  //   c. Empty array — the client falls back to telemetry-based detection.
+  // No telemetry auto-detection or saveCorners happens here anymore; that
+  // remains the responsibility of the PUT handler and AI/comparison code
+  // paths that read getCorners()/saveCorners() directly in meters.
   .get("/api/tracks/:trackOrdinal/corners",
     zValidator("param", TrackOrdinalParamSchema),
     async (c) => {
       const { trackOrdinal } = c.req.valid("param");
       const cornersGameId = requireGameId(c);
 
-      let corners = await getCorners(trackOrdinal, cornersGameId);
+      // (a) Curated segments — already fractions.
+      const context = resolveTrackContext(cornersGameId, trackOrdinal);
+      const cornerSegments = context.segments?.filter((s) => s.type === "corner") ?? [];
+      if (cornerSegments.length > 0) {
+        const corners: Corner[] = cornerSegments.map((s, index) => ({
+          index,
+          label: s.name || `T${s.numbers?.[0] ?? index + 1}`,
+          distanceStart: s.startFrac,
+          distanceEnd: s.endFrac,
+        }));
+        return c.json(corners);
+      }
 
-      // If no stored corners, try to auto-detect from a lap on this track
-      if (corners.length === 0) {
-        const lapId = await getFirstLapIdForTrack(trackOrdinal);
-        if (lapId !== null) {
-          const lap = await getLapById(lapId);
-          if (lap && lap.telemetry.length > 0) {
-            corners = detectCorners(lap.telemetry);
-            if (corners.length > 0) {
-              await saveCorners(trackOrdinal, corners, cornersGameId, true);
-            }
-          }
+      // (b) Stored DB corners, in meters — convert to fractions.
+      const dbCorners = await getCorners(trackOrdinal, cornersGameId);
+      if (dbCorners.length > 0) {
+        const sharedName = getSharedTrackName(trackOrdinal, cornersGameId);
+        const outline = getTrackOutlineByOrdinal(trackOrdinal, cornersGameId, sharedName);
+        const trackLength = computeOutlineLength(outline);
+        if (trackLength > 0) {
+          const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+          const corners: Corner[] = dbCorners.map((corner) => ({
+            ...corner,
+            distanceStart: clamp01(corner.distanceStart / trackLength),
+            distanceEnd: clamp01(corner.distanceEnd / trackLength),
+            apexDistance: corner.apexDistance != null ? clamp01(corner.apexDistance / trackLength) : undefined,
+          }));
+          return c.json(corners);
         }
       }
 
-      return c.json(corners);
+      // (c) No authoritative source — client falls back to telemetry detection.
+      return c.json([]);
     }
   )
 

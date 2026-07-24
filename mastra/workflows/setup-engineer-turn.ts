@@ -121,6 +121,23 @@ const gatherPrereqs = createStep({
           : "Not enough clean laps to measure line/input consistency."),
     );
 
+    // Compact race-line spread summary (trimmed p90-p10 metres) — worst 3
+    // corners only, never the raw per-bin trace (that's for the chart, not
+    // the model's context window).
+    sections.push(
+      "--- LINE SPREAD (trimmed, p90-p10) ---\n" +
+        (consistency.lineSpread
+          ? (() => {
+              const ls = consistency.lineSpread!;
+              const worst = [...ls.perCorner].sort((a, b) => b.lateralSpreadM - a.lateralSpreadM).slice(0, 3);
+              return (
+                `consistency: ${ls.consistencyScore}/100, overall: ${ls.overallSpreadM.toFixed(2)}m over ${ls.lapCount} laps${ls.lowTrust ? " — LOW TRUST" : ""}\n` +
+                `worst corners: ${worst.map((c) => `${c.corner} ${c.lateralSpreadM.toFixed(2)}m${c.lowTrust ? " (low trust)" : ""}`).join(", ")}`
+              );
+            })()
+          : "Not enough clean laps (need ≥ 3) to measure racing-line spread."),
+    );
+
     sections.push(
       `--- SYMPTOMS (aggregate over ${consistency.cleanLapCount} clean laps) ---\n` +
         (agg.symptoms ? formatSymptoms(agg.symptoms) : "No analysable lap yet — reason from the driver's description."),

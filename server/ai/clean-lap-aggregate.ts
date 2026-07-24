@@ -29,7 +29,7 @@ import { resolveActiveTestId } from "../db/tuning-test-queries";
 import { telemetryToSymptoms, type TuneSymptoms, type TyreDeltas } from "./tune-symptoms";
 import { telemetryToTrackConditions, type TrackConditions } from "./track-conditions";
 import { loadRepresentativeLap } from "./setup-engineer-context";
-import { computeLapConsistencyDelta, type CornerConsistency } from "../lap-consistency";
+import { computeLapConsistencyDelta, computeLineSpreadTrace, type CornerConsistency, type LineSpreadTrace } from "../lap-consistency";
 import { stddevPopulation } from "../lap-stats";
 
 /** Overall confidence in the clean-lap pool backing an aggregate. */
@@ -46,6 +46,9 @@ export interface ConsistencyReport {
   /** Per-corner racing-line/input consistency across the clean laps; null when
    *  fewer than 2 clean laps (computeLapConsistencyDelta needs at least 2). */
   cornerConsistency: CornerConsistency[] | null;
+  /** Trimmed (p90-p10) per-bin racing-line spread trace; null when fewer than
+   *  3 clean laps (computeLineSpreadTrace needs a meaningful percentile trim). */
+  lineSpread: LineSpreadTrace | null;
 }
 
 export interface LapBreakdownRow {
@@ -182,6 +185,7 @@ export function computeConsistency(
   cleanLaps: LapMeta[],
   cornerConsistency: CornerConsistency[] | null,
   droppedOutliers: number,
+  lineSpread: LineSpreadTrace | null = null,
 ): ConsistencyReport {
   const times = cleanLaps.map((l) => l.lapTime);
   const cleanLapCount = times.length;
@@ -210,6 +214,7 @@ export function computeConsistency(
     spreadPct,
     droppedOutliers,
     cornerConsistency,
+    lineSpread,
   };
 }
 
@@ -292,6 +297,7 @@ function emptyConsistency(confidence: Confidence): ConsistencyReport {
     spreadPct: null,
     droppedOutliers: 0,
     cornerConsistency: null,
+    lineSpread: null,
   };
 }
 
@@ -416,11 +422,13 @@ export async function loadCleanLapAggregate(
 
   const cornerConsistencyDelta = computeLapConsistencyDelta(loadedLaps.map((l) => l.telemetry), corners);
   const cornerConsistency = cornerConsistencyDelta.perCorner.length > 0 ? cornerConsistencyDelta.perCorner : null;
+  const lineSpread = computeLineSpreadTrace(loadedLaps.map((l) => l.telemetry), corners);
 
   const consistency = computeConsistency(
     loadedLaps.map((l) => l.meta),
     cornerConsistency,
     droppedOutliers,
+    lineSpread,
   );
   // A session-wide baseline pool spans multiple setup versions, so even a
   // tight lap-time spread doesn't mean "this setup is dialled in" the way it

@@ -1,9 +1,11 @@
 import type { LapMeta, TelemetryPacket } from "@shared/types";
 
-/** Number of distance-fraction samples kept per lap trace. Chosen to keep a
- *  trace small (~8 KB) so a whole stint's worth can be cached without
- *  re-triggering the raw-telemetry memory guard (see useLapTelemetry). */
-export const TRACE_SAMPLES = 400;
+/** Number of distance-fraction samples kept per lap trace. At 1000 bins a
+ *  ~90 s lap (~5400 raw frames @ 60 Hz) keeps ~5 frames/bin — high fidelity
+ *  without empty bins. Trace stays small (~20 KB) so a whole stint caches
+ *  cheaply without re-triggering the raw-telemetry memory guard (see
+ *  useLapTelemetry). */
+export const TRACE_SAMPLES = 1000;
 
 /** u32 wraps at 2^32 ms (~49.7 days) — TimestampMS resets mid-session on long
  *  runs. A single lap never spans that long, but consecutive packets can
@@ -116,18 +118,28 @@ export function downsampleLap(
   const lapDist = sectorTimes?.lapDist ?? telemetry[telemetry.length - 1].DistanceTraveled - firstDist;
   if (!(lapDist > 0)) return null;
 
-  // Unwrap TimestampMS (u32) into a monotonic ms-since-first-sample series by
-  // accumulating frame-to-frame deltas, adding a full wrap whenever a delta
-  // goes negative (the counter rolled over between these two frames).
+  // Elapsed-time source, mirroring the server's sector-time logic
+  // (lap-routes): prefer CurrentLap (in-game current lap time, seconds) when
+  // it actually progresses across the lap — some games (e.g. AC Evo) stamp
+  // TimestampMS with wall-clock Date.now() at parse time, which collapses to
+  // near-zero spans for imported/replayed sessions. Fall back to unwrapping
+  // TimestampMS (u32, wrap-corrected) when CurrentLap is unreliable.
+  const lapProgression = telemetry[telemetry.length - 1].CurrentLap - telemetry[0].CurrentLap;
+  const useCurrentLap = lapProgression >= 1;
   const tsMs: number[] = new Array(telemetry.length);
   tsMs[0] = 0;
-  let prevRaw = telemetry[0].TimestampMS;
-  for (let i = 1; i < telemetry.length; i++) {
-    const curRaw = telemetry[i].TimestampMS;
-    let delta = curRaw - prevRaw;
-    if (delta < 0) delta += U32_MAX;
-    tsMs[i] = tsMs[i - 1] + delta;
-    prevRaw = curRaw;
+  if (useCurrentLap) {
+    const t0 = telemetry[0].CurrentLap;
+    for (let i = 1; i < telemetry.length; i++) tsMs[i] = (telemetry[i].CurrentLap - t0) * 1000;
+  } else {
+    let prevRaw = telemetry[0].TimestampMS;
+    for (let i = 1; i < telemetry.length; i++) {
+      const curRaw = telemetry[i].TimestampMS;
+      let delta = curRaw - prevRaw;
+      if (delta < 0) delta += U32_MAX;
+      tsMs[i] = tsMs[i - 1] + delta;
+      prevRaw = curRaw;
+    }
   }
 
   // Bin frames by fraction into n buckets, averaging within each bucket.

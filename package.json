@@ -31,6 +31,8 @@
     "extract:tracks:forza": "bun scripts/extract-fm2023-tracks.ts",
     "extract:tracks:f1": "bun scripts/extract-f1-25-tracks.ts",
     "extract:tracks:acc": "bun scripts/extract-acc-tracks.ts",
+    "extract:ac-evo": "bun scripts/extract-ac-evo-tracks.ts && bun scripts/extract-ac-evo-cars.ts",
+    "extract:tracks:ac-evo": "bun scripts/extract-ac-evo-tracks.ts",
     "tracks:segments": "bun scripts/generate-track-segments.ts",
     "extract:cars:ac-evo": "bun scripts/extract-ac-evo-cars.ts",
     "scrape:car-images:ac-evo": "bun scripts/scrape-ac-evo-car-images.ts",

@@ -21,6 +21,10 @@ interface TuneReviewDashboardProps {
    *  the session HEAD). Used to display its driver comment / engineer notes
    *  read-only — editing stays in VersionGraph. */
   test?: TuningTest;
+  /** The tuning session being reviewed (from the route param). Drives the
+   *  Track Focus line-spread lane + map heat. Passed straight through rather
+   *  than read off `test` so it survives an orphaned/missing test row. */
+  tuningSessionId?: number | null;
   /** Fires whenever the compact text summary of the currently-open lap review
    *  changes (lap switch, sector telemetry load, metric change, etc.) — lets a
    *  parent pipe "what the user is currently looking at" into the Setup
@@ -43,7 +47,7 @@ const SEVERITY_CLASS: Record<TuneIssue["severity"], string> = {
  * recommendation. Everything is reconstructed from the selected lap's stored
  * telemetry — no live stream.
  */
-export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, onOpenLapContextChange }: TuneReviewDashboardProps) {
+export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, tuningSessionId, onOpenLapContextChange }: TuneReviewDashboardProps) {
   const validLaps = useMemo(() => [...laps].filter((l) => l.isValid && !l.isLegacy).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
 
   // Focus lap lives in the URL (?lap=<id>) so it's linkable/shareable.
@@ -288,7 +292,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, onO
       )}
 
       {view === "track" ? (
-        <TrackFocusView gameId={gameId} laps={laps} trackOrdinal={focusLap.trackOrdinal} focusLapId={trackFocusId} onFocusLap={setFocus} />
+        <TrackFocusView gameId={gameId} laps={laps} trackOrdinal={focusLap.trackOrdinal} focusLapId={trackFocusId} onFocusLap={setFocus} tuningSessionId={tuningSessionId ?? test?.tuningSessionId ?? null} />
       ) : sectorIndex != null ? (
         <SectorDetailView telemetry={telemetry} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusLap.trackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
       ) : (

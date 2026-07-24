@@ -1,12 +1,15 @@
 import type { LapMeta, TelemetryPacket, TuneIssue } from "@shared/types";
 import { useMemo, useState } from "react";
-import { type TrackCorner, useLapIssues, useLapTelemetry, useTrackBoundaries, useTrackCorners } from "../../../hooks/queries";
+import { type LineSpreadTrace, type TrackCorner, useLapIssues, useLapTelemetry, useLineSpread, useTrackBoundaries, useTrackCorners, useTrackSectorBoundaries } from "../../../hooks/queries";
 import { useStintTraces } from "../../../hooks/useStintTraces";
 import { type LapTrace, stintStats } from "../../../lib/stint-traces";
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
+import { flipPoints, needsTrackFlip } from "../../../lib/track-coords";
 import { ConsistencyLanes } from "./ConsistencyLanes";
 import { CornerLedger } from "./CornerLedger";
+import { detectCorners } from "./detect-corners";
 import { IssuesList } from "./IssuesList";
+import { SectorLedger } from "./SectorLedger";
 import { TiresPanel } from "./TiresPanel";
 import { TrackFocusMap } from "./TrackFocusMap";
 
@@ -17,6 +20,10 @@ interface TrackFocusViewProps {
   /** Controlled focus lap (null = "All" — falls back to the best lap for map/telemetry). Omit for internal state. */
   focusLapId?: number | null;
   onFocusLap?: (lapId: number) => void;
+  /** Tuning session id, when this view is hosted inside a tuning session
+   *  review (drives the /line-spread racing-line consistency query). Omit to
+   *  hide the line-spread lane + map overlay (e.g. Storybook, non-tuning contexts). */
+  tuningSessionId?: number | null;
 }
 
 const TABS = ["consistency", "tires"] as const;
@@ -26,9 +33,10 @@ const TAB_LABELS: Record<Tab, string> = { consistency: "Consistency", tires: "Ti
 /** Data-fetching wrapper: resolves the stint's laps into downsampled traces,
  *  the focus lap's raw telemetry, issues, and track corners, then hands
  *  everything to the presentational `TrackFocusViewInner`. */
-export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: controlledFocusId, onFocusLap: controlledOnFocusLap }: TrackFocusViewProps) {
+export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: controlledFocusId, onFocusLap: controlledOnFocusLap, tuningSessionId }: TrackFocusViewProps) {
   const stintLaps = useMemo(() => [...laps].sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
   const { traces } = useStintTraces(stintLaps);
+  const { data: lineSpread } = useLineSpread(tuningSessionId);
 
   const bestLapId = useMemo(() => {
     let best: LapMeta | null = null;
@@ -48,7 +56,25 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
   const { data: issues } = useLapIssues(effectiveFocusId);
   const { data: bounds } = useTrackBoundaries(trackOrdinal, gameId);
   const { data: corners } = useTrackCorners(trackOrdinal, gameId);
-  const edges = useMemo(() => extractEdges(bounds), [bounds]);
+  const { data: sectorBoundaries } = useTrackSectorBoundaries(trackOrdinal, gameId);
+  // Boundary/outline data is stored in raw game coords; standard-xyz games
+  // (ACC, AC Evo) have their telemetry PositionX negated by the pipeline, so
+  // flip the edges to match — same convention AnalyseTrackMap uses. Without
+  // this the driven line (negated telemetry) and the track edges (raw) are
+  // X-mirror images of each other and don't overlay.
+  const edges = useMemo(() => {
+    const e = extractEdges(bounds);
+    if (!e || !needsTrackFlip(gameId)) return e;
+    return { left: flipPoints(e.left), right: flipPoints(e.right) };
+  }, [bounds, gameId]);
+
+  const metaSectors = useMemo(() => {
+    const s1End = sectorBoundaries?.s1End;
+    const s2End = sectorBoundaries?.s2End;
+    if (typeof s1End !== "number" || typeof s2End !== "number") return null;
+    if (!(s1End > 0 && s1End < s2End && s2End < 1)) return null;
+    return { s1End, s2End };
+  }, [sectorBoundaries?.s1End, sectorBoundaries?.s2End]);
 
   const stats = useMemo(() => stintStats(stintLaps), [stintLaps]);
 
@@ -65,6 +91,8 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
       corners={corners ?? []}
       issues={issues ?? []}
       stats={stats}
+      lineSpread={lineSpread ?? null}
+      metaSectors={metaSectors}
     />
   );
 }
@@ -81,24 +109,76 @@ export interface TrackFocusViewInnerProps {
   corners: TrackCorner[];
   issues: TuneIssue[];
   stats: ReturnType<typeof stintStats>;
+  /** Trimmed racing-line spread trace (null while loading, no session, or too
+   *  few clean laps — lane + map overlay render their empty state). */
+  lineSpread: LineSpreadTrace | null;
+  /** Authoritative sector boundary fractions from track meta, when available.
+   *  Falls back to the focus lap's per-lap sector-index split. */
+  metaSectors?: { s1End: number; s2End: number } | null;
 }
 
 /** Presentational Track Focus view — no data fetching, so it can be driven
  *  entirely from Storybook fixtures. Owns the local `cursorFrac` (synced
  *  across the map + all lanes) and `activeTab` state; everything else is
  *  passed in already resolved. */
-export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSectorTimes, edges, corners, issues, stats }: TrackFocusViewInnerProps) {
+export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSectorTimes, edges, corners, issues, stats, lineSpread, metaSectors }: TrackFocusViewInnerProps) {
   const [cursorFrac, setCursorFrac] = useState<number | null>(null);
+  const [hoverPoints, setHoverPoints] = useState<{ brake: number[]; throttle: number[] } | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("consistency");
 
   const resolvedTraces = useMemo(() => traces.filter((t): t is LapTrace => !!t), [traces]);
 
+  // Corners are now returned as lap fractions (0..1) by the server — either
+  // from curated track meta or meters-converted-to-fraction DB corners. No
+  // per-lap odometer rebasing needed. When a corner has no apexDistance
+  // (curated meta doesn't know the apex), find the min-speed point within
+  // its [distanceStart, distanceEnd] span on the best available trace.
   const cornerFracs = useMemo(() => {
-    if (!focusTelemetry || focusTelemetry.length < 2 || corners.length === 0) return [];
-    const total = focusTelemetry[focusTelemetry.length - 1].DistanceTraveled - focusTelemetry[0].DistanceTraveled;
-    if (!(total > 0)) return [];
-    return corners.map((c) => Math.max(0, Math.min(1, (c.distanceStart - focusTelemetry[0].DistanceTraveled) / total)));
-  }, [focusTelemetry, corners]);
+    if (corners.length === 0) return [];
+    const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+    const bestTrace = resolvedTraces.find((t) => t.lapId === bestLapId) ?? resolvedTraces[0];
+
+    return corners.map((c) => {
+      if (c.apexDistance != null) return clamp01(c.apexDistance);
+      const start = c.distanceStart;
+      const end = c.distanceEnd;
+      if (!bestTrace) return clamp01((start + end) / 2);
+
+      const { frac, speedKmh } = bestTrace;
+      let apexFrac: number | null = null;
+      let minSpeed = Infinity;
+      for (let i = 0; i < frac.length; i++) {
+        const f = frac[i];
+        if (f < start || f > end) continue;
+        if (speedKmh[i] < minSpeed) {
+          minSpeed = speedKmh[i];
+          apexFrac = f;
+        }
+      }
+      return clamp01(apexFrac ?? (start + end) / 2);
+    });
+  }, [corners, resolvedTraces, bestLapId]);
+
+  // Sector boundary fractions: prefer authoritative track meta, else fall
+  // back to the focus lap's sector split indices (same source the track map
+  // uses to color its S1/S2/S3 segments) so the sector ledger's rows line up
+  // with what the map shows.
+  const sectorBoundaryFracs = useMemo(() => {
+    if (metaSectors) return [metaSectors.s1End, metaSectors.s2End];
+    if (!focusTelemetry || focusTelemetry.length < 2 || !focusSectorTimes) return [];
+    const last = focusTelemetry.length - 1;
+    return [focusSectorTimes.s1Idx / last, focusSectorTimes.s2Idx / last];
+  }, [metaSectors, focusTelemetry, focusSectorTimes]);
+
+  // Corners + apex fractions shared by the track map and the corner ledger:
+  // real metadata when available, else the same telemetry-based apex
+  // detection the ledger falls back to, so both surfaces agree.
+  const effectiveCorners = useMemo(() => {
+    if (corners.length > 0) return { corners, fracs: cornerFracs };
+    const bestTrace = resolvedTraces.find((t) => t.lapId === bestLapId) ?? resolvedTraces[0];
+    if (!bestTrace) return { corners: [], fracs: [] };
+    return detectCorners(bestTrace);
+  }, [corners, cornerFracs, resolvedTraces, bestLapId]);
 
   return (
     <div className="p-4 space-y-4">
@@ -119,7 +199,18 @@ export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSe
       <div className="grid grid-cols-1 lg:grid-cols-[460px_1fr] gap-4">
         {/* Left column: track map + issues list */}
         <div className="space-y-3">
-          <TrackFocusMap telemetry={focusTelemetry} sectorTimes={focusSectorTimes} edges={edges} corners={corners} issues={issues} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />
+          <TrackFocusMap
+            telemetry={focusTelemetry}
+            sectorTimes={focusSectorTimes}
+            edges={edges}
+            corners={effectiveCorners.corners}
+            cornerFracs={effectiveCorners.fracs}
+            issues={issues}
+            cursorFrac={cursorFrac}
+            onCursorFrac={setCursorFrac}
+            overlayPoints={hoverPoints}
+            lineSpread={activeTab === "consistency" ? lineSpread : null}
+          />
           <div>
             <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Issues</div>
             <IssuesList issues={issues} onIssueClick={setCursorFrac} />
@@ -143,8 +234,24 @@ export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSe
 
           {activeTab === "consistency" && (
             <>
-              <ConsistencyLanes traces={resolvedTraces} bestLapId={bestLapId} cornerFracs={cornerFracs} issues={issues} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />
-              <CornerLedger traces={resolvedTraces} bestLapId={bestLapId} cornerFracs={cornerFracs} corners={corners} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />
+              <ConsistencyLanes
+                traces={resolvedTraces}
+                bestLapId={bestLapId}
+                cornerFracs={effectiveCorners.fracs}
+                corners={effectiveCorners.corners}
+                issues={issues}
+                cursorFrac={cursorFrac}
+                onCursorFrac={setCursorFrac}
+                lineSpread={lineSpread}
+              />
+              <SectorLedger
+                traces={resolvedTraces}
+                bestLapId={bestLapId}
+                sectorBoundaryFracs={sectorBoundaryFracs}
+                cursorFrac={cursorFrac}
+                onCursorFrac={setCursorFrac}
+              />
+              <CornerLedger traces={resolvedTraces} bestLapId={bestLapId} cornerFracs={cornerFracs} corners={corners} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} onHoverPoints={setHoverPoints} />
             </>
           )}
           {activeTab === "tires" && <TiresPanel traces={traces} bestLapId={bestLapId} cornerFracs={cornerFracs} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />}

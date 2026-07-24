@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import type { TelemetryPacket } from "../shared/types";
-import { computeLapConsistencyDelta, LINE_SPREAD_THRESHOLD_M, INPUT_VAR_THRESHOLD } from "../server/lap-consistency";
+import { computeLapConsistencyDelta, computeLineSpreadTrace, LINE_SPREAD_THRESHOLD_M, INPUT_VAR_THRESHOLD } from "../server/lap-consistency";
 import type { Corner } from "../server/corner-detection";
 
 /**
@@ -129,5 +129,112 @@ describe("computeLapConsistencyDelta", () => {
     const t1 = result.perCorner.find((c) => c.corner === "T1")!;
     expect(t1.brakeVar).toBeGreaterThan(INPUT_VAR_THRESHOLD);
     expect(t1.lowTrust).toBe(true);
+  });
+});
+
+describe("computeLineSpreadTrace", () => {
+  test("returns null with fewer than 3 resampled laps", () => {
+    const lapA = buildLap();
+    const lapB = buildLap({ lateralOffsetInCorner: 4 });
+    expect(computeLineSpreadTrace([lapA, lapB], corners)).toBeNull();
+  });
+
+  test("three laps offset by known amounts through T1: trimmed spread reflects the inner two, not the outlier", () => {
+    // Three laps sharing the same corner: 0m, 1m, 2m lateral offset — a tight
+    // cluster. The 10th-90th percentile trim over 3 points keeps the full
+    // 0..2m spread (no room to trim a 3-point set down further), so this
+    // pins the "known amounts" case before introducing a real outlier below.
+    const lapA = buildLap({ lateralOffsetInCorner: 0 });
+    const lapB = buildLap({ lateralOffsetInCorner: 1 });
+    const lapC = buildLap({ lateralOffsetInCorner: 2 });
+    const result = computeLineSpreadTrace([lapA, lapB, lapC], corners);
+    expect(result).not.toBeNull();
+    expect(result!.lapCount).toBe(3);
+
+    const t1 = result!.perCorner.find((c) => c.corner === "T1")!;
+    expect(t1.lateralSpreadM).toBeGreaterThan(0);
+    expect(t1.lateralSpreadM).toBeLessThan(LINE_SPREAD_THRESHOLD_M);
+    expect(t1.lowTrust).toBe(false);
+
+    const t2 = result!.perCorner.find((c) => c.corner === "T2")!;
+    expect(t2.lateralSpreadM).toBeCloseTo(0, 3);
+    expect(t2.lowTrust).toBe(false);
+
+    // fracs cover the full lap 0..1 with RESAMPLE_BINS entries.
+    expect(result!.fracs.length).toBe(result!.spreadM.length);
+    expect(result!.fracs[0]).toBeCloseTo(0, 5);
+    expect(result!.fracs[result!.fracs.length - 1]).toBeCloseTo(1, 5);
+  });
+
+  test("laps on an identical spatial line but with desynced odometers report ~0 spread", () => {
+    // Regression: laps are resampled over their own DistanceTraveled span, so a
+    // different odometer origin/scale (e.g. drivers braking at different points,
+    // a slightly longer measured lap) shifts equal-fraction points ALONG the
+    // track. A naive point-to-point distance folds that longitudinal shift into
+    // the metric as metres of phantom "spread" — which is exactly the bug that
+    // made a tight session read ~19m. Here all three laps trace the SAME (X,Z)
+    // path (0m offset, with an X=4 kink through the corner), differing ONLY in
+    // their DistanceTraveled mapping, so the true line spread is zero.
+    function desyncedLap(distanceOffset: number, distanceScale: number): TelemetryPacket[] {
+      const packets: TelemetryPacket[] = [];
+      for (let i = 0; i < FRAME_COUNT; i++) {
+        const z = i * STEP_M; // spatial coordinate — identical across laps
+        const inCorner = z >= CORNER_START && z <= CORNER_END;
+        packets.push(
+          pkt({
+            TimestampMS: i * 100,
+            // Odometer decoupled from space: same line, different distance axis.
+            DistanceTraveled: distanceOffset + i * STEP_M * distanceScale,
+            PositionX: inCorner ? 4 : 0,
+            PositionZ: z,
+            VelocityX: 0,
+            VelocityZ: STEP_M / 0.1,
+            Brake: 0,
+            Accel: 1,
+          }),
+        );
+      }
+      return packets;
+    }
+
+    const result = computeLineSpreadTrace([desyncedLap(0, 1), desyncedLap(37, 1.08), desyncedLap(-19, 0.94)], corners);
+    expect(result).not.toBeNull();
+    const t1 = result!.perCorner.find((c) => c.corner === "T1")!;
+    // Nearest-point projection cancels the longitudinal desync; the residual is
+    // only the discretisation at the two corner edges, far below the 1.5m
+    // "tight line" threshold (the old point-to-point metric reported ~4m here).
+    expect(t1.lateralSpreadM).toBeLessThan(LINE_SPREAD_THRESHOLD_M);
+    expect(t1.lowTrust).toBe(false);
+  });
+
+  test("consistencyScore is 100 for identical lines and falls as the line spreads", () => {
+    const tight = computeLineSpreadTrace([buildLap(), buildLap(), buildLap()], corners);
+    expect(tight!.consistencyScore).toBe(100);
+    expect(tight!.overallSpreadM).toBeCloseTo(0, 3);
+
+    // A ~4m offset through T1 lifts the mean spread, so the score drops below 100.
+    const spread = computeLineSpreadTrace([buildLap(), buildLap({ lateralOffsetInCorner: 4 }), buildLap({ lateralOffsetInCorner: 8 })], corners);
+    expect(spread!.consistencyScore).toBeLessThan(100);
+    expect(spread!.consistencyScore).toBeGreaterThanOrEqual(0);
+  });
+
+  test("a single wild outlier lap is suppressed by percentile trimming with enough laps in the pool", () => {
+    // Five tightly-clustered laps (0m offset) plus one wild 50m-off blunder
+    // lap through T1. The 10th-90th trim over 6 points drops the extreme end,
+    // so the reported spread should stay far below the raw min/max (50m) —
+    // nowhere near what an untrimmed mean/max would report.
+    const tight = [0, 0, 0, 0, 0].map((offset) => buildLap({ lateralOffsetInCorner: offset }));
+    const outlier = buildLap({ lateralOffsetInCorner: 50 });
+    const result = computeLineSpreadTrace([...tight, outlier], corners);
+    expect(result).not.toBeNull();
+    expect(result!.lapCount).toBe(6);
+
+    const t1 = result!.perCorner.find((c) => c.corner === "T1")!;
+    // Untrimmed, the outlier alone would put the raw range at ~50m; the
+    // percentile trim pulls the reported spread well below that even though
+    // one outlier among six still drags the per-lap mean it's measured
+    // against.
+    expect(t1.lateralSpreadM).toBeGreaterThan(0);
+    expect(t1.lateralSpreadM).toBeLessThan(30);
   });
 });

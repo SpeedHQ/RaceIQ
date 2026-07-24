@@ -3,8 +3,11 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { IdParamSchema } from "../../shared/schemas";
 import { GameIdSchema } from "../../shared/types";
-import type { GameId } from "../../shared/types";
-import { getLapById, getLapsForTuningSession, getImportableLapsForTuningSession, importLapsToTuningSession } from "../db/queries";
+import type { GameId, LapMeta, TelemetryPacket } from "../../shared/types";
+import { getLapById, getLapsForTuningSession, getImportableLapsForTuningSession, importLapsToTuningSession, getCorners } from "../db/queries";
+import { detectCorners } from "../corner-detection";
+import { computeLineSpreadTrace } from "../lap-consistency";
+import { selectCleanLaps } from "../ai/clean-lap-aggregate";
 import { getTrackLengthMeters } from "../../shared/track-data";
 import { suggestLapTarget } from "../../shared/lap-target";
 import { createTuningSession, getTuningSession, listTuningSessions, updateTuningSession, setSessionHead } from "../db/tuning-session-queries";
@@ -772,6 +775,51 @@ export const tuningSessionRoutes = new Hono()
         metrics.push(entry);
       }
       return c.json(metrics);
+    }
+  )
+
+  // GET /api/tuning-sessions/:id/line-spread — trimmed (p90-p10) racing-line
+  // spread trace over the session's clean lap pool, for the Track Focus
+  // Consistency tab's line-spread lane + track-map heat overlay. Same
+  // clean-lap selection as the Setup Engineer's evidence bundle
+  // (selectCleanLaps: valid, not user-excluded, blunder-trimmed), session-wide
+  // (not test/branch-scoped) to match /lap-metrics above.
+  .get("/api/tuning-sessions/:id/line-spread",
+    zValidator("param", IdParamSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      // The review page is driven by the lap ids in its URL and survives a
+      // missing/orphaned session row (the core panels re-read laps directly),
+      // so this lane must too: proceed on the lap pool alone, using the session
+      // row only for corner metadata when present. Never 404 — return the empty
+      // trace so the client shows its "need 3+ laps" state, not an error.
+      const session = await getTuningSession(id);
+
+      const pool = await getLapsForTuningSession(id);
+      const { clean } = selectCleanLaps(pool);
+
+      const loadedLaps: { meta: LapMeta; telemetry: TelemetryPacket[] }[] = [];
+      for (const meta of clean) {
+        const lap = await getLapById(meta.id);
+        if (!lap || lap.telemetry.length < 30) continue;
+        loadedLaps.push({ meta, telemetry: lap.telemetry });
+      }
+
+      if (loadedLaps.length < 3) {
+        return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: loadedLaps.length });
+      }
+
+      const fastest = [...loadedLaps].sort((a, b) => a.meta.lapTime - b.meta.lapTime)[0]!;
+      let corners = session?.trackOrdinal != null && session.gameId
+        ? await getCorners(session.trackOrdinal, session.gameId as GameId)
+        : [];
+      if (corners.length === 0) corners = detectCorners(fastest.telemetry);
+
+      const trace = computeLineSpreadTrace(loadedLaps.map((l) => l.telemetry), corners);
+      if (!trace) {
+        return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: loadedLaps.length });
+      }
+      return c.json(trace);
     }
   )
 

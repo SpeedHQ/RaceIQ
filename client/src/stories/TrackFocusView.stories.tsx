@@ -77,9 +77,9 @@ export const Default: Story = {
     focusSectorTimes: null,
     edges: null,
     corners: [
-      { index: 0, label: "T1", distanceStart: 200, distanceEnd: 320 },
-      { index: 1, label: "T4", distanceStart: 900, distanceEnd: 1020 },
-      { index: 2, label: "T7", distanceStart: 1800, distanceEnd: 1950 },
+      { index: 0, label: "T1", distanceStart: 0.08, distanceEnd: 0.12 },
+      { index: 1, label: "T4", distanceStart: 0.35, distanceEnd: 0.40 },
+      { index: 2, label: "T7", distanceStart: 0.70, distanceEnd: 0.75 },
     ],
     issues,
     stats: stintStats(laps),

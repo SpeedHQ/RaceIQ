@@ -1,15 +1,66 @@
 import type { TuneIssue } from "@shared/types";
 import { useMemo } from "react";
+import type { LineSpreadTrace, TrackCorner } from "../../../hooks/queries";
 import { consistencyAt, type LapTrace, sampleAt } from "../../../lib/stint-traces";
+import { ChartTooltip } from "./ChartTooltip";
+import { nearestCornerLabel } from "./detect-corners";
 import { Lane } from "./Lane";
 
 interface ConsistencyLanesProps {
   traces: LapTrace[];
   bestLapId: number | null;
   cornerFracs: number[];
+  corners?: TrackCorner[];
   issues: TuneIssue[];
   cursorFrac: number | null;
   onCursorFrac: (f: number | null) => void;
+  /** Trimmed racing-line spread trace (null = loading / no session / too few
+   *  clean laps — the lane shows a "need 3+ laps" note instead). */
+  lineSpread?: LineSpreadTrace | null;
+}
+
+// Same threshold as server/lap-consistency.ts LINE_SPREAD_THRESHOLD_M.
+const LINE_SPREAD_THRESHOLD_M = 1.5;
+
+function spreadColor(spreadM: number): string {
+  if (spreadM > LINE_SPREAD_THRESHOLD_M * 2) return "var(--color-dynamics-red, #ef4444)";
+  if (spreadM > LINE_SPREAD_THRESHOLD_M) return "var(--color-dynamics-amber, #f59e0b)";
+  return "var(--color-dynamics-green, #34d399)";
+}
+
+/** Same green/amber/red banding as the lap-time consistency readout. */
+function scoreColor(score: number): string {
+  if (score > 80) return "var(--color-dynamics-green, #34d399)";
+  if (score > 60) return "var(--color-dynamics-amber, #f59e0b)";
+  return "var(--color-dynamics-red, #ef4444)";
+}
+
+function spreadPolyline(trace: LineSpreadTrace, x: (f: number) => number, y: (v: number) => number): string {
+  let s = "";
+  for (let i = 0; i < trace.fracs.length; i++) {
+    s += `${i ? " " : ""}${x(trace.fracs[i]).toFixed(1)},${y(trace.spreadM[i]).toFixed(1)}`;
+  }
+  return s;
+}
+
+/** Linear-interpolate `spreadM` at fraction `f` along the trace's own fracs array. */
+function spreadValueAt(trace: LineSpreadTrace, f: number): number {
+  const { fracs, spreadM } = trace;
+  const n = fracs.length;
+  if (n === 0) return 0;
+  if (n === 1 || f <= fracs[0]) return spreadM[0];
+  if (f >= fracs[n - 1]) return spreadM[n - 1];
+  let lo = 0;
+  let hi = n - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (fracs[mid] <= f) lo = mid;
+    else hi = mid;
+  }
+  const span = fracs[hi] - fracs[lo];
+  if (span <= 0) return spreadM[lo];
+  const t = (f - fracs[lo]) / span;
+  return spreadM[lo] + (spreadM[hi] - spreadM[lo]) * t;
 }
 
 const CHANNELS = [
@@ -43,7 +94,7 @@ function tracePolyline2(trace: LapTrace, values: Float32Array | number[], x: (f:
  * ticks appear along the top edge of the matching channel's lane. Hovering
  * anywhere reports a point consistency score + gap-vs-best for that channel.
  */
-export function ConsistencyLanes({ traces, bestLapId, cornerFracs, issues, cursorFrac, onCursorFrac }: ConsistencyLanesProps) {
+export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [], issues, cursorFrac, onCursorFrac, lineSpread }: ConsistencyLanesProps) {
   const bestTrace = useMemo(() => traces.find((t) => t.lapId === bestLapId) ?? null, [traces, bestLapId]);
 
   // Speed domain across every lap so all traces share one scale.
@@ -84,6 +135,13 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, issues, curso
     return [-max - pad, max + pad];
   }, [deltas]);
 
+  const hasLineSpread = !!lineSpread && lineSpread.spreadM.length > 0;
+  const spreadDomain = useMemo<[number, number]>(() => {
+    if (!hasLineSpread) return [0, LINE_SPREAD_THRESHOLD_M * 2];
+    const max = Math.max(...lineSpread!.spreadM, LINE_SPREAD_THRESHOLD_M);
+    return [0, max * 1.15];
+  }, [hasLineSpread, lineSpread]);
+
   return (
     <div className="space-y-3">
       {CHANNELS.map((ch) => {
@@ -99,8 +157,6 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, issues, curso
               onCursorFrac={onCursorFrac}
               tooltip={(f) => {
                 const score = consistencyAt(traces, f, ch.key);
-                const gap = bestTrace ? (traces.find((t) => t.lapId !== bestLapId) ?? bestTrace) : null;
-                const focusVsBest = bestTrace && gap ? sampleAt(gap, ch.key, f) - sampleAt(bestTrace, ch.key, f) : null;
                 const scoreColor =
                   score == null
                     ? "var(--color-app-text-dim, #7a8ea0)"
@@ -109,20 +165,44 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, issues, curso
                       : score > 60
                         ? "var(--color-dynamics-amber, #f59e0b)"
                         : "var(--color-dynamics-red, #ef4444)";
+                const cornerLabel = nearestCornerLabel(corners, cornerFracs, f);
+                // Overview only — per-lap rows are noise here (the lanes
+                // themselves already show every lap's trace). Aggregate the
+                // valid laps at this fraction instead.
+                const valid = traces.filter((t) => t.isValid);
+                let worstDelta: number | null = null;
+                if (bestTrace) {
+                  for (const t of valid) {
+                    if (t.lapId === bestTrace.lapId) continue;
+                    const d = sampleAt(t, "timeS", f) - sampleAt(bestTrace, "timeS", f);
+                    if (worstDelta == null || d > worstDelta) worstDelta = d;
+                  }
+                }
+                let minSpeed = Number.POSITIVE_INFINITY;
+                let maxSpeed = Number.NEGATIVE_INFINITY;
+                for (const t of valid) {
+                  const v = sampleAt(t, "speedKmh", f);
+                  if (v < minSpeed) minSpeed = v;
+                  if (v > maxSpeed) maxSpeed = v;
+                }
+                const hasSpeed = Number.isFinite(minSpeed) && Number.isFinite(maxSpeed);
                 return (
-                  <div className="font-mono tabular-nums">
-                    <div className="text-app-text-dim">
-                      {ch.label} @ {(f * 100).toFixed(1)}% lap
-                    </div>
-                    <div>
-                      consistency: <span style={{ color: scoreColor }}>{score == null ? "—" : score.toFixed(0)}</span>
-                    </div>
-                    {focusVsBest != null && (
-                      <div className="text-app-text-muted">
-                        gap Δ: {focusVsBest >= 0 ? "+" : ""}
-                        {(focusVsBest * 100).toFixed(1)}%
+                  <div className="space-y-1">
+                    <ChartTooltip frac={f} cornerLabel={cornerLabel} rows={[]} />
+                    <div className="font-mono tabular-nums text-app-text-dim space-y-0.5">
+                      <div>
+                        consistency: <span style={{ color: scoreColor }}>{score == null ? "—" : score.toFixed(0)}</span>
                       </div>
-                    )}
+                      <div>
+                        Δ worst:{" "}
+                        <span className={worstDelta != null && worstDelta > 0 ? "text-amber-400" : "text-emerald-400"}>
+                          {worstDelta != null ? `${worstDelta >= 0 ? "+" : ""}${worstDelta.toFixed(3)}s` : "—"}
+                        </span>
+                      </div>
+                      <div>
+                        speed: <span className="text-app-text-muted">{hasSpeed ? `${minSpeed.toFixed(0)}–${maxSpeed.toFixed(0)}km/h` : "—"}</span>
+                      </div>
+                    </div>
                   </div>
                 );
               }}
@@ -168,13 +248,30 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, issues, curso
           cursorFrac={cursorFrac}
           onCursorFrac={onCursorFrac}
           tooltip={
-            bestTrace
+            traces.length > 0
               ? (f) => {
-                  const i = Math.round(f * (bestTrace.n - 1));
+                  const cornerLabel = nearestCornerLabel(corners, cornerFracs, f);
+                  const valid = traces.filter((t) => t.isValid);
+                  let minSpeed = Number.POSITIVE_INFINITY;
+                  let maxSpeed = Number.NEGATIVE_INFINITY;
+                  for (const t of valid) {
+                    const v = sampleAt(t, "speedKmh", f);
+                    if (v < minSpeed) minSpeed = v;
+                    if (v > maxSpeed) maxSpeed = v;
+                  }
+                  const hasSpeed = Number.isFinite(minSpeed) && Number.isFinite(maxSpeed);
+                  const bestSpeed = bestTrace ? sampleAt(bestTrace, "speedKmh", f) : null;
                   return (
-                    <div className="font-mono tabular-nums">
-                      <div className="text-app-text-dim">Speed @ {(f * 100).toFixed(1)}% lap</div>
-                      <div>best: {bestTrace.speedKmh[i]?.toFixed(0)} km/h</div>
+                    <div className="space-y-1">
+                      <ChartTooltip frac={f} cornerLabel={cornerLabel} rows={[]} />
+                      <div className="font-mono tabular-nums text-app-text-dim space-y-0.5">
+                        <div>
+                          best: <span className="text-app-accent">{bestSpeed != null ? `${bestSpeed.toFixed(0)}km/h` : "—"}</span>
+                        </div>
+                        <div>
+                          spread: <span className="text-app-text-muted">{hasSpeed ? `${minSpeed.toFixed(0)}–${maxSpeed.toFixed(0)}km/h` : "—"}</span>
+                        </div>
+                      </div>
                     </div>
                   );
                 }
@@ -209,22 +306,29 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, issues, curso
           cursorFrac={cursorFrac}
           onCursorFrac={onCursorFrac}
           tooltip={(f) => {
-            const rows = traces
-              .filter((t) => deltas.has(t.lapId))
-              .map((t) => {
-                const d = deltas.get(t.lapId)!;
-                const v = d[Math.round(f * (t.n - 1))];
-                return { lap: t.lapNumber, v };
-              });
-            if (rows.length === 0) return null;
+            const withDelta = traces.filter((t) => deltas.has(t.lapId) && t.isValid);
+            if (withDelta.length === 0 || !bestTrace) return null;
+            const cornerLabel = nearestCornerLabel(corners, cornerFracs, f);
+            const bestT = sampleAt(bestTrace, "timeS", f);
+            let worst: number | null = null;
+            let sum = 0;
+            for (const t of withDelta) {
+              const d = sampleAt(t, "timeS", f) - bestT;
+              if (worst == null || d > worst) worst = d;
+              sum += d;
+            }
+            const avg = sum / withDelta.length;
             return (
-              <div className="font-mono tabular-nums">
-                {rows.map((r) => (
-                  <div key={r.lap}>
-                    L{r.lap}: {r.v >= 0 ? "+" : ""}
-                    {r.v.toFixed(3)}s
+              <div className="space-y-1">
+                <ChartTooltip frac={f} cornerLabel={cornerLabel} rows={[]} />
+                <div className="font-mono tabular-nums text-app-text-dim space-y-0.5">
+                  <div>
+                    Δ worst: <span className={worst != null && worst > 0 ? "text-amber-400" : "text-emerald-400"}>{worst != null ? `${worst >= 0 ? "+" : ""}${worst.toFixed(3)}s` : "—"}</span>
                   </div>
-                ))}
+                  <div>
+                    Δ avg: <span className={avg > 0 ? "text-amber-400" : "text-emerald-400"}>{`${avg >= 0 ? "+" : ""}${avg.toFixed(3)}s`}</span>
+                  </div>
+                </div>
               </div>
             );
           }}
@@ -247,6 +351,54 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, issues, curso
             </>
           )}
         </Lane>
+      </div>
+      <div>
+        <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1 flex items-center gap-1.5">
+          Race line spread (m)
+          {hasLineSpread && (
+            <span className="font-mono tabular-nums normal-case tracking-normal" style={{ color: scoreColor(lineSpread!.consistencyScore) }} title={`Racing-line consistency — 100 = laps trace the same line. Mean spread ${lineSpread!.overallSpreadM.toFixed(2)}m over ${lineSpread!.lapCount} clean laps.`}>
+              {lineSpread!.consistencyScore}% consistent
+            </span>
+          )}
+          {hasLineSpread && lineSpread!.lowTrust && (
+            <span className="px-1 py-px rounded text-[9px] font-normal normal-case tracking-normal bg-app-surface-alt border border-app-border text-app-text-dim" title={`Average racing-line spread exceeds ${LINE_SPREAD_THRESHOLD_M}m — the line varies notably lap-to-lap.`}>
+              inconsistent line
+            </span>
+          )}
+        </div>
+        {hasLineSpread ? (
+          <Lane
+            height={90}
+            domain={spreadDomain}
+            cornerFracs={cornerFracs}
+            cursorFrac={cursorFrac}
+            onCursorFrac={onCursorFrac}
+            tooltip={(f) => {
+              const spreadM = spreadValueAt(lineSpread!, f);
+              const cornerLabel = nearestCornerLabel(corners, cornerFracs, f);
+              return (
+                <div className="space-y-1">
+                  <ChartTooltip frac={f} cornerLabel={cornerLabel} rows={[]} />
+                  <div className="font-mono tabular-nums text-app-text-dim space-y-0.5">
+                    <div>
+                      spread: <span style={{ color: spreadColor(spreadM) }}>{spreadM.toFixed(2)}m</span>
+                    </div>
+                    <div className="text-app-text-dim">over {lineSpread!.lapCount} clean laps</div>
+                  </div>
+                </div>
+              );
+            }}
+          >
+            {({ x, y }) => (
+              <>
+                <line x1={x(0)} x2={x(1)} y1={y(LINE_SPREAD_THRESHOLD_M)} y2={y(LINE_SPREAD_THRESHOLD_M)} stroke="var(--color-dynamics-amber, #f59e0b)" strokeWidth={1} opacity={0.5} strokeDasharray="4 3" />
+                <polyline points={spreadPolyline(lineSpread!, x, y)} fill="none" stroke="var(--color-app-accent, #22d3ee)" strokeWidth={1.8} opacity={0.9} />
+              </>
+            )}
+          </Lane>
+        ) : (
+          <div className="h-[90px] flex items-center justify-center rounded bg-app-surface border border-app-border text-[11px] text-app-text-dim">Need 3+ valid laps</div>
+        )}
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-app-text-dim">
         <span className="inline-flex items-center gap-1.5">
