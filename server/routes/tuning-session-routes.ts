@@ -806,7 +806,7 @@ export const tuningSessionRoutes = new Hono()
       }
 
       if (loadedLaps.length < 3) {
-        return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: loadedLaps.length });
+        return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: loadedLaps.length, lapLines: [] });
       }
 
       const fastest = [...loadedLaps].sort((a, b) => a.meta.lapTime - b.meta.lapTime)[0]!;
@@ -815,9 +815,9 @@ export const tuningSessionRoutes = new Hono()
         : [];
       if (corners.length === 0) corners = detectCorners(fastest.telemetry);
 
-      const trace = computeLineSpreadTrace(loadedLaps.map((l) => l.telemetry), corners);
+      const trace = computeLineSpreadTrace(loadedLaps.map((l) => l.telemetry), loadedLaps.map((l) => l.meta.id), corners);
       if (!trace) {
-        return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: loadedLaps.length });
+        return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: loadedLaps.length, lapLines: [] });
       }
       return c.json(trace);
     }

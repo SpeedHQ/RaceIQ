@@ -422,7 +422,11 @@ export async function loadCleanLapAggregate(
 
   const cornerConsistencyDelta = computeLapConsistencyDelta(loadedLaps.map((l) => l.telemetry), corners);
   const cornerConsistency = cornerConsistencyDelta.perCorner.length > 0 ? cornerConsistencyDelta.perCorner : null;
-  const lineSpread = computeLineSpreadTrace(loadedLaps.map((l) => l.telemetry), corners);
+  const lineSpread = computeLineSpreadTrace(
+    loadedLaps.map((l) => l.telemetry),
+    loadedLaps.map((l) => l.meta.id),
+    corners,
+  );
 
   const consistency = computeConsistency(
     loadedLaps.map((l) => l.meta),

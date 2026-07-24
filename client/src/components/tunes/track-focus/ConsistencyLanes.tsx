@@ -17,6 +17,9 @@ interface ConsistencyLanesProps {
   /** Trimmed racing-line spread trace (null = loading / no session / too few
    *  clean laps — the lane shows a "need 3+ laps" note instead). */
   lineSpread?: LineSpreadTrace | null;
+  /** Fires true when the cursor enters a lane that drives the track zoom (brake,
+   *  throttle, speed, race-line spread), false on leave. Steer and Δ-time do not. */
+  onZoomHover?: (active: boolean) => void;
 }
 
 // Same threshold as server/lap-consistency.ts LINE_SPREAD_THRESHOLD_M.
@@ -95,7 +98,12 @@ function tracePolyline2(trace: LapTrace, values: Float32Array | number[], x: (f:
  * ticks appear along the top edge of the matching channel's lane. Hovering
  * anywhere reports a point consistency score + gap-vs-best for that channel.
  */
-export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [], issues, cursorFrac, onCursorFrac, lineSpread }: ConsistencyLanesProps) {
+export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [], issues, cursorFrac, onCursorFrac, lineSpread, onZoomHover }: ConsistencyLanesProps) {
+  // Wrap onCursorFrac so a lane that drives the zoom also toggles zoomActive.
+  const zoomCursor = (f: number | null) => {
+    onCursorFrac(f);
+    onZoomHover?.(f != null);
+  };
   const bestTrace = useMemo(() => traces.find((t) => t.lapId === bestLapId) ?? null, [traces, bestLapId]);
 
   // Speed domain across every lap so all traces share one scale.
@@ -157,7 +165,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
               domain={ch.domain}
               cornerFracs={cornerFracs}
               cursorFrac={cursorFrac}
-              onCursorFrac={onCursorFrac}
+              onCursorFrac={ch.key === "brake" || ch.key === "throttle" ? zoomCursor : onCursorFrac}
               tooltip={(f) => {
                 const score = consistencyAt(traces, f, ch.key);
                 const scoreColor =
@@ -249,7 +257,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
           domain={speedDomain}
           cornerFracs={cornerFracs}
           cursorFrac={cursorFrac}
-          onCursorFrac={onCursorFrac}
+          onCursorFrac={zoomCursor}
           tooltip={
             traces.length > 0
               ? (f) => {
@@ -382,7 +390,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
             domain={spreadDomain}
             cornerFracs={cornerFracs}
             cursorFrac={cursorFrac}
-            onCursorFrac={onCursorFrac}
+            onCursorFrac={zoomCursor}
             tooltip={(f) => {
               const spreadM = spreadValueAt(lineSpread!, f);
               const cornerLabel = nearestCornerLabel(corners, cornerFracs, f);

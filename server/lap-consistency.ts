@@ -46,11 +46,16 @@ export interface LineSpreadTrace {
   overallSpreadM: number;
   /** Number of laps that fed the trace (after resampling). */
   lapCount: number;
+  /** Per-lap RAW per-frame racing line (full resolution, variable length — for
+   *  the zoom window), one per lap that survived resampling. World-space metres.
+   *  `brake`/`throttle` are 0..1 per frame, used to color the zoom by input state. */
+  lapLines: { lapId: number; x: number[]; z: number[]; brake: number[]; throttle: number[] }[];
 }
 
 const RESAMPLE_BINS = 200;
 
 interface ResampledLap {
+  lapId: number;
   x: number[];
   z: number[];
   brake: number[];
@@ -88,7 +93,7 @@ function lerpAt(dist: number[], vals: number[], d: number): number {
   return vals[lo] + (vals[hi] - vals[lo]) * t;
 }
 
-function resampleLap(packets: TelemetryPacket[]): ResampledLap | null {
+function resampleLap(packets: TelemetryPacket[], lapId: number): ResampledLap | null {
   if (packets.length < 2) return null;
 
   const { x, z } = lapPath(packets);
@@ -113,7 +118,7 @@ function resampleLap(packets: TelemetryPacket[]): ResampledLap | null {
     rThrottle.push(lerpAt(dist, throttle, d));
   }
 
-  return { x: rx, z: rz, brake: rBrake, throttle: rThrottle, span };
+  return { lapId, x: rx, z: rz, brake: rBrake, throttle: rThrottle, span };
 }
 
 function populationVariance(values: number[]): number {
@@ -206,8 +211,8 @@ const MIN_LINE_SPREAD_LAPS = 3;
  * valid resampled laps are available (need enough laps for a meaningful
  * percentile trim).
  */
-export function computeLineSpreadTrace(laps: TelemetryPacket[][], corners: Corner[]): LineSpreadTrace | null {
-  const resampled = laps.map(resampleLap).filter((r): r is ResampledLap => r !== null);
+export function computeLineSpreadTrace(laps: TelemetryPacket[][], lapIds: number[], corners: Corner[]): LineSpreadTrace | null {
+  const resampled = laps.map((packets, i) => resampleLap(packets, lapIds[i])).filter((r): r is ResampledLap => r !== null);
   if (resampled.length < MIN_LINE_SPREAD_LAPS) return null;
 
   const offsets = lateralDistancesPerBin(resampled);
@@ -248,6 +253,26 @@ export function computeLineSpreadTrace(laps: TelemetryPacket[][], corners: Corne
   const lowTrust = overallSpreadM > LINE_SPREAD_THRESHOLD_M || perCorner.some((c) => c.lowTrust);
   const consistencyScore = Math.max(0, Math.min(100, Math.round(100 - (overallSpreadM / LINE_SPREAD_FULL_SCALE_M) * 100)));
 
+  // lapLines are drawn in a small zoomed window, so they use the RAW per-frame
+  // path (not the 200-bin metric resample, which is ~15-25m/point — far too
+  // coarse for a ±30m zoom). Only laps that survived resampling are included,
+  // in the same order.
+  const round2 = (v: number) => Math.round(v * 100) / 100;
+  const survivingIds = new Set(resampled.map((r) => r.lapId));
+  const lapLines: LineSpreadTrace["lapLines"] = [];
+  for (let i = 0; i < laps.length; i++) {
+    if (!survivingIds.has(lapIds[i])) continue;
+    const packets = laps[i];
+    const { x, z } = lapPath(packets);
+    lapLines.push({
+      lapId: lapIds[i],
+      x: x.map(round2),
+      z: z.map(round2),
+      brake: packets.map((p) => round2(normChannel(p.Brake))),
+      throttle: packets.map((p) => round2(normChannel(p.Accel))),
+    });
+  }
+
   return {
     fracs,
     spreadM: spreadM.map(round3),
@@ -256,6 +281,7 @@ export function computeLineSpreadTrace(laps: TelemetryPacket[][], corners: Corne
     consistencyScore,
     overallSpreadM: round3(overallSpreadM),
     lapCount: resampled.length,
+    lapLines,
   };
 }
 
@@ -267,7 +293,7 @@ const EMPTY_DELTA: LapConsistencyDelta = {
 export function computeLapConsistencyDelta(laps: TelemetryPacket[][], corners: Corner[]): LapConsistencyDelta {
   if (laps.length < 2 || corners.length < 1) return EMPTY_DELTA;
 
-  const resampled = laps.map(resampleLap).filter((r): r is ResampledLap => r !== null);
+  const resampled = laps.map((packets, i) => resampleLap(packets, i)).filter((r): r is ResampledLap => r !== null);
   if (resampled.length < 2) return EMPTY_DELTA;
 
   // Per-bin metrics across laps.

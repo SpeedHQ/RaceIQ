@@ -12,6 +12,7 @@ import { IssuesList } from "./IssuesList";
 import { SectorLedger } from "./SectorLedger";
 import { TiresPanel } from "./TiresPanel";
 import { TrackFocusMap } from "./TrackFocusMap";
+import { TrackFocusZoom } from "./TrackFocusZoom";
 
 interface TrackFocusViewProps {
   gameId: "acc" | "ac-evo" | "fm-2023" | "f1-2025";
@@ -127,6 +128,7 @@ export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSe
   const [cursorFrac, setCursorFrac] = useState<number | null>(null);
   const [hoverPoints, setHoverPoints] = useState<{ brake: number[]; throttle: number[] } | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("consistency");
+  const [zoomActive, setZoomActive] = useState(false);
 
   const resolvedTraces = useMemo(() => traces.filter((t): t is LapTrace => !!t), [traces]);
 
@@ -201,18 +203,22 @@ export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSe
       <div className="grid grid-cols-1 lg:grid-cols-[460px_1fr] gap-4">
         {/* Left column: track map + issues list */}
         <div className="space-y-3">
-          <TrackFocusMap
-            telemetry={focusTelemetry}
-            sectorTimes={focusSectorTimes}
-            edges={edges}
-            corners={effectiveCorners.corners}
-            cornerFracs={effectiveCorners.fracs}
-            issues={issues}
-            cursorFrac={cursorFrac}
-            onCursorFrac={setCursorFrac}
-            overlayPoints={hoverPoints}
-            lineSpread={activeTab === "consistency" ? lineSpread : null}
-          />
+          {zoomActive && lineSpread?.lapLines?.length && cursorFrac != null ? (
+            <TrackFocusZoom lapLines={lineSpread.lapLines} bestLapId={bestLapId} cursorFrac={cursorFrac} edges={edges} />
+          ) : (
+            <TrackFocusMap
+              telemetry={focusTelemetry}
+              sectorTimes={focusSectorTimes}
+              edges={edges}
+              corners={effectiveCorners.corners}
+              cornerFracs={effectiveCorners.fracs}
+              issues={issues}
+              cursorFrac={cursorFrac}
+              onCursorFrac={setCursorFrac}
+              overlayPoints={hoverPoints}
+              lineSpread={activeTab === "consistency" ? lineSpread : null}
+            />
+          )}
           <div>
             <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Issues</div>
             <IssuesList issues={issues} onIssueClick={setCursorFrac} />
@@ -248,6 +254,7 @@ export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSe
                   cursorFrac={cursorFrac}
                   onCursorFrac={setCursorFrac}
                   lineSpread={lineSpread}
+                  onZoomHover={setZoomActive}
                 />
                 <SectorLedger traces={resolvedTraces} bestLapId={bestLapId} sectorBoundaryFracs={sectorBoundaryFracs} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />
                 <CornerLedger

@@ -136,7 +136,7 @@ describe("computeLineSpreadTrace", () => {
   test("returns null with fewer than 3 resampled laps", () => {
     const lapA = buildLap();
     const lapB = buildLap({ lateralOffsetInCorner: 4 });
-    expect(computeLineSpreadTrace([lapA, lapB], corners)).toBeNull();
+    expect(computeLineSpreadTrace([lapA, lapB], [1, 2], corners)).toBeNull();
   });
 
   test("three laps offset by known amounts through T1: trimmed spread reflects the inner two, not the outlier", () => {
@@ -147,9 +147,21 @@ describe("computeLineSpreadTrace", () => {
     const lapA = buildLap({ lateralOffsetInCorner: 0 });
     const lapB = buildLap({ lateralOffsetInCorner: 1 });
     const lapC = buildLap({ lateralOffsetInCorner: 2 });
-    const result = computeLineSpreadTrace([lapA, lapB, lapC], corners);
+    const result = computeLineSpreadTrace([lapA, lapB, lapC], [101, 102, 103], corners);
     expect(result).not.toBeNull();
     expect(result!.lapCount).toBe(3);
+
+    // lapLines: one entry per surviving lap, correct lapIds, each 200 bins.
+    expect(result!.lapLines.length).toBe(3);
+    expect(result!.lapLines.map((l) => l.lapId).sort()).toEqual([101, 102, 103]);
+    // Raw per-frame lines (full resolution) — x/z/brake/throttle all share the
+    // lap's own frame count, independent of the 200-bin metric resample.
+    for (const line of result!.lapLines) {
+      expect(line.x.length).toBeGreaterThan(0);
+      expect(line.z.length).toBe(line.x.length);
+      expect(line.brake.length).toBe(line.x.length);
+      expect(line.throttle.length).toBe(line.x.length);
+    }
 
     const t1 = result!.perCorner.find((c) => c.corner === "T1")!;
     expect(t1.lateralSpreadM).toBeGreaterThan(0);
@@ -197,7 +209,7 @@ describe("computeLineSpreadTrace", () => {
       return packets;
     }
 
-    const result = computeLineSpreadTrace([desyncedLap(0, 1), desyncedLap(37, 1.08), desyncedLap(-19, 0.94)], corners);
+    const result = computeLineSpreadTrace([desyncedLap(0, 1), desyncedLap(37, 1.08), desyncedLap(-19, 0.94)], [201, 202, 203], corners);
     expect(result).not.toBeNull();
     const t1 = result!.perCorner.find((c) => c.corner === "T1")!;
     // Nearest-point projection cancels the longitudinal desync; the residual is
@@ -208,12 +220,16 @@ describe("computeLineSpreadTrace", () => {
   });
 
   test("consistencyScore is 100 for identical lines and falls as the line spreads", () => {
-    const tight = computeLineSpreadTrace([buildLap(), buildLap(), buildLap()], corners);
+    const tight = computeLineSpreadTrace([buildLap(), buildLap(), buildLap()], [301, 302, 303], corners);
     expect(tight!.consistencyScore).toBe(100);
     expect(tight!.overallSpreadM).toBeCloseTo(0, 3);
 
     // A ~4m offset through T1 lifts the mean spread, so the score drops below 100.
-    const spread = computeLineSpreadTrace([buildLap(), buildLap({ lateralOffsetInCorner: 4 }), buildLap({ lateralOffsetInCorner: 8 })], corners);
+    const spread = computeLineSpreadTrace(
+      [buildLap(), buildLap({ lateralOffsetInCorner: 4 }), buildLap({ lateralOffsetInCorner: 8 })],
+      [301, 302, 303],
+      corners,
+    );
     expect(spread!.consistencyScore).toBeLessThan(100);
     expect(spread!.consistencyScore).toBeGreaterThanOrEqual(0);
   });
@@ -225,7 +241,7 @@ describe("computeLineSpreadTrace", () => {
     // nowhere near what an untrimmed mean/max would report.
     const tight = [0, 0, 0, 0, 0].map((offset) => buildLap({ lateralOffsetInCorner: offset }));
     const outlier = buildLap({ lateralOffsetInCorner: 50 });
-    const result = computeLineSpreadTrace([...tight, outlier], corners);
+    const result = computeLineSpreadTrace([...tight, outlier], [1, 2, 3, 4, 5, 6], corners);
     expect(result).not.toBeNull();
     expect(result!.lapCount).toBe(6);
 
@@ -236,5 +252,16 @@ describe("computeLineSpreadTrace", () => {
     // against.
     expect(t1.lateralSpreadM).toBeGreaterThan(0);
     expect(t1.lateralSpreadM).toBeLessThan(30);
+  });
+
+  test("a too-short lap is dropped from lapLines along with the trace", () => {
+    const good = [buildLap(), buildLap(), buildLap()];
+    const tooShort = [pkt({ DistanceTraveled: 0, PositionX: 0, PositionZ: 0 })]; // single packet -> resampleLap returns null
+    const lapIds = [401, 402, 403, 404];
+    const result = computeLineSpreadTrace([...good, tooShort], lapIds, corners);
+    expect(result).not.toBeNull();
+    expect(result!.lapCount).toBe(3);
+    expect(result!.lapLines.length).toBe(3);
+    expect(result!.lapLines.map((l) => l.lapId).sort()).toEqual([401, 402, 403]);
   });
 });
