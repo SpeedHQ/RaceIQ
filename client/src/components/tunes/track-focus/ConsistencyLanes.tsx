@@ -90,7 +90,8 @@ function tracePolyline2(trace: LapTrace, values: Float32Array | number[], x: (f:
 
 /**
  * Input-consistency lanes (steer/brake/throttle) — every lap drawn dim, the
- * stint's best (fastest, scored) lap in accent, invalid laps in red. Issue
+ * stint's best (fastest, scored) lap in accent. Invalid laps are excluded
+ * upstream (TrackFocusView filters them out). Issue
  * ticks appear along the top edge of the matching channel's lane. Hovering
  * anywhere reports a point consistency score + gap-vs-best for that channel.
  */
@@ -146,20 +147,6 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
 
   return (
     <div className="space-y-3">
-      <div className="sticky top-0 z-10 -mx-1 px-1 py-1.5 bg-app-panel/95 backdrop-blur-sm flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-app-text-dim">
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-2.5 h-1.5 rounded-sm inline-block" style={{ background: "var(--color-app-text-dim, #7a8ea0)" }} />
-          laps (all)
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-2.5 h-1.5 rounded-sm inline-block" style={{ background: "var(--color-app-accent, #22d3ee)" }} />
-          best lap
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="w-2.5 h-1.5 rounded-sm inline-block" style={{ background: "var(--color-dynamics-red, #ef4444)" }} />
-          invalid lap
-        </span>
-      </div>
       {CHANNELS.map((ch) => {
         const laneIssues = issues.filter((it) => it.distanceFrac != null && ch.issueKinds.has(it.kind));
         return (

@@ -34,7 +34,9 @@ const TAB_LABELS: Record<Tab, string> = { consistency: "Consistency", tires: "Ti
  *  the focus lap's raw telemetry, issues, and track corners, then hands
  *  everything to the presentational `TrackFocusViewInner`. */
 export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: controlledFocusId, onFocusLap: controlledOnFocusLap, tuningSessionId }: TrackFocusViewProps) {
-  const stintLaps = useMemo(() => [...laps].sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
+  // Invalid / legacy laps are excluded from the whole Track Focus view —
+  // traces, stats, best-lap, ledgers and tyres all read `stintLaps`.
+  const stintLaps = useMemo(() => laps.filter((l) => l.isValid && !l.isLegacy).sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
   const { traces } = useStintTraces(stintLaps);
   const { data: lineSpread } = useLineSpread(tuningSessionId);
 
