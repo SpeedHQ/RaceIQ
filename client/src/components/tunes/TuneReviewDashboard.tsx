@@ -223,11 +223,11 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, tun
   const isOverview = view !== "track" && sectorIndex == null;
 
   return (
-    <div>
-      {/* Sticky header — toolbar, driver/engineer notes, and (in Overview) the
-          sector "track display". Everything above the detail body pins under
-          the app header while the issues / tyres content scrolls underneath. */}
-      <div className="sticky top-0 z-10 bg-app-bg">
+    <div className="flex flex-col h-[calc(100vh-5.5rem)]">
+      {/* Static header — toolbar, driver/engineer notes, and (in Overview) the
+          sector "track display". Stays put; it does NOT scroll over the detail
+          body — instead the issues / tyres content owns its own scroll below. */}
+      <div className="flex-none bg-app-bg">
       {/* Toolbar: lap picker + view switcher on the left, Setup Engineer on the right */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 border-b border-app-border">
         {onBack && (
@@ -353,7 +353,8 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, tun
       )}
       </div>
 
-      {/* Detail body — flows and scrolls beneath the sticky header. */}
+      {/* Detail body — owns its own scroll; the header above stays static. */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
       {view === "track" ? (
         <TrackFocusView gameId={gameId} laps={laps} trackOrdinal={focusLap.trackOrdinal} focusLapId={trackFocusId} onFocusLap={setFocus} tuningSessionId={tuningSessionId ?? test?.tuningSessionId ?? null} />
       ) : sectorIndex != null ? (
@@ -421,6 +422,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, tun
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }

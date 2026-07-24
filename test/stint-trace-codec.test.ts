@@ -71,6 +71,24 @@ describe("encodeLapTrace / decodeLapTrace", () => {
         TireTempFR: 82 + (i % 10),
         TireTempRL: 78 + (i % 10),
         TireTempRR: 79 + (i % 10),
+        TireSlipAngleFL: 0.05 + (i % 5) * 0.01,
+        TireSlipAngleFR: 0.05 + (i % 5) * 0.01,
+        TireSlipAngleRL: 0.02,
+        TireSlipAngleRR: 0.02,
+        AccelerationX: Math.sin(i) * 2,
+        AccelerationZ: Math.cos(i) * -3,
+        NormSuspensionTravelFL: 0.3 + (i % 10) * 0.01,
+        NormSuspensionTravelFR: 0.31,
+        NormSuspensionTravelRL: 0.4,
+        NormSuspensionTravelRR: 0.41,
+        TireCombinedSlipFL: 0.05,
+        TireCombinedSlipFR: 0.06,
+        TireCombinedSlipRL: 0.03,
+        TireCombinedSlipRR: 0.04,
+        BrakeTempFrontLeft: 350 + (i % 10),
+        BrakeTempFrontRight: 360,
+        BrakeTempRearLeft: 300,
+        BrakeTempRearRight: 310,
       } as unknown as TelemetryPacket);
     }
     const trace = downsampleLap(1, 2, true, telemetry, null) as LapTrace;
@@ -95,5 +113,49 @@ describe("encodeLapTrace / decodeLapTrace", () => {
       expectF32Equal(decoded.tireTempTrace!.RR, trace.tireTempTrace.RR);
     }
     expect(decoded.pressureTrace).toBe(null); // no pressure channels in fixture
+
+    // New balance/grip/suspension channels round-trip bit-exact too.
+    expect(trace.balance).not.toBeNull();
+    expect(trace.latG).not.toBeNull();
+    expect(trace.longG).not.toBeNull();
+    expect(trace.suspTravel).not.toBeNull();
+    expect(trace.combinedSlip).not.toBeNull();
+    expectF32Equal(decoded.balance, trace.balance);
+    expectF32Equal(decoded.latG, trace.latG);
+    expectF32Equal(decoded.longG, trace.longG);
+    expectF32Equal(decoded.suspTravel!.FL, trace.suspTravel!.FL);
+    expectF32Equal(decoded.suspTravel!.RR, trace.suspTravel!.RR);
+    expectF32Equal(decoded.combinedSlip!.FL, trace.combinedSlip!.FL);
+    expectF32Equal(decoded.combinedSlip!.RR, trace.combinedSlip!.RR);
+
+    expect(trace.brakeTemp).not.toBeNull();
+    expect(decoded.brakeTemp).toEqual(trace.brakeTemp);
+    expect(trace.brakeTempTrace).not.toBeNull();
+    expectF32Equal(decoded.brakeTempTrace!.FL, trace.brakeTempTrace!.FL);
+    expectF32Equal(decoded.brakeTempTrace!.RR, trace.brakeTempTrace!.RR);
+  });
+
+  test("balance/latG/longG/suspTravel/combinedSlip encode/decode to null when absent", () => {
+    const telemetry: TelemetryPacket[] = [];
+    for (let i = 0; i < 20; i++) {
+      telemetry.push({
+        DistanceTraveled: i * 5,
+        CurrentLap: i * 0.05,
+        TimestampMS: i * 16,
+        Accel: 0,
+        Brake: 0,
+        Steer: 0,
+        Speed: 30,
+      } as unknown as TelemetryPacket);
+    }
+    const trace = downsampleLap(1, 2, true, telemetry, null) as LapTrace;
+    const decoded = decodeLapTrace(encodeLapTrace(trace));
+    expect(decoded.balance).toBeNull();
+    expect(decoded.latG).toBeNull();
+    expect(decoded.longG).toBeNull();
+    expect(decoded.suspTravel).toBeNull();
+    expect(decoded.combinedSlip).toBeNull();
+    expect(decoded.brakeTemp).toBeNull();
+    expect(decoded.brakeTempTrace).toBeNull();
   });
 });

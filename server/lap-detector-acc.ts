@@ -5,6 +5,7 @@ import type { LapDetectorCallbacks } from "./lap-detector-interface";
 import type { DbAdapter } from "./pipeline-adapters";
 import { assessLapRecording } from "./lap-quality";
 import { persistLapMetrics } from "./tuning-lap-metrics";
+import { reconcileAutoExclusionsForLap } from "./tuning-auto-exclude";
 import { computeLapSectors } from "./compute-lap-sectors";
 import { accFirstPacketIsMidLap, classifyAccPitLap } from "./acc-lap-rules";
 
@@ -236,6 +237,10 @@ export class LapDetectorAcc implements ILapDetector {
     // Precompute fuel/tyre metrics now (frames already in memory) so
     // /lap-metrics never decodes on first open.
     await persistLapMetrics(this.db, lapId, packets);
+    // Reconcile the fastest-5 auto-exclude curation for this lap's tuning
+    // scope (docs/superpowers/specs/2026-07-24-tuning-auto-exclude-design.md).
+    // No-ops when the lap has no tuning session or tune assigned.
+    await reconcileAutoExclusionsForLap(this.db, lapId);
     if (!opts?.silent) {
       this.onLapSaved?.({
         type: "lap-saved",

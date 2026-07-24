@@ -116,6 +116,11 @@ export const laps = sqliteTable(
 		// User flag (migration v30): 1 = manually excluded from the tuning
 		// aggregate (beyond the auto-outlier rule). Nullable; null/0 = included.
 		tuningExcluded: integer("tuning_excluded"),
+		// Source of the exclusion decision (migration v34): 'auto' | 'manual' | NULL.
+		// 'manual' pins the lap so the auto-exclude reconciliation pass
+		// (server/tuning-auto-exclude.ts) never touches it; 'auto' means the
+		// fastest-5 rule owns the state pair and may flip it on a later lap save.
+		tuningExcludedSource: text("tuning_excluded_source"),
 		// Persisted per-lap metrics (migration v32), derived once from the lap's
 		// telemetry and cached here so the tuning workspace / lap-metrics endpoint
 		// never re-decode every lap's frames on each read. Null = not yet computed

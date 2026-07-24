@@ -528,4 +528,25 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       )`,
     ],
   },
+
+  // ── v34: auto-exclude source tracking for fastest-5 curation ───────────────
+  // (docs/superpowers/specs/2026-07-24-tuning-auto-exclude-design.md)
+  // `laps.tuning_excluded` was a purely manual flag, so the tuning aggregate
+  // disagreed with the fastest-5 curation the review paths (`/line-spread`,
+  // `useStintTraces`) actually analysed. This column tracks WHO set the flag:
+  //  • 'auto'   — server/tuning-auto-exclude.ts's fastest-5 reconciliation pass.
+  //  • 'manual' — user or Setup Engineer; the auto pass never touches these.
+  //  • NULL     — not yet reconciled (pre-existing NULL rows).
+  // Backfill: every existing `tuning_excluded = 1` row was hand-set (the auto
+  // pass didn't exist yet), so it becomes 'manual'. Existing NULL rows stay
+  // (NULL, NULL) and reconcile lazily on their next lap save — no bulk
+  // recompute here, regressing nothing.
+  {
+    version: 34,
+    name: "auto-exclude source tracking for fastest-5 curation",
+    sql: [
+      `ALTER TABLE laps ADD COLUMN tuning_excluded_source TEXT`,
+      `UPDATE laps SET tuning_excluded_source = 'manual' WHERE tuning_excluded = 1`,
+    ],
+  },
 ];

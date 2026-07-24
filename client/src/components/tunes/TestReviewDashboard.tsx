@@ -2,7 +2,7 @@ import type { LapMeta, TuneIssue } from "@shared/types";
 import { useMemo, useState } from "react";
 import { type TuningLapMetric, useLapIssues, useLapTelemetry, useSetLapExcluded } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
-import { isPitCycleLap } from "../../lib/lap-filters";
+import { isPitCycleLap } from "@shared/lap-filters";
 import { SectorDetailView } from "./SectorDetailView";
 
 interface TestReviewDashboardProps {

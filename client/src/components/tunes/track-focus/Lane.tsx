@@ -17,6 +17,9 @@ export interface LaneProps {
   /** Optional tooltip renderer keyed by the hovered fraction. */
   tooltip?: (f: number) => React.ReactNode;
   className?: string;
+  /** Plot-area background fill. Defaults to the slate wash; pass "transparent"
+   *  to let the surrounding panel show through. */
+  bgFill?: string;
 }
 
 /**
@@ -25,7 +28,7 @@ export interface LaneProps {
  * tracking that reports the hovered fraction up to the parent (which owns
  * the single cross-lane `cursorFrac`).
  */
-export function Lane({ height = 100, domain, cornerFracs, cursorFrac, onCursorFrac, children, tooltip, className }: LaneProps) {
+export function Lane({ height = 100, domain, cornerFracs, cursorFrac, onCursorFrac, children, tooltip, className, bgFill = "rgba(30,41,59,0.35)" }: LaneProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const { ref: wrapRef, width: bw } = useMeasuredWidth<HTMLDivElement>();
   const [hoverFrac, setHoverFrac] = useState<number | null>(null);
@@ -66,7 +69,7 @@ export function Lane({ height = 100, domain, cornerFracs, cursorFrac, onCursorFr
         onMouseMove={onMove}
         onMouseLeave={onLeave}
       >
-        <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} fill="rgba(30,41,59,0.35)" rx={4} />
+        <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} fill={bgFill} rx={4} />
         {min < 0 && max > 0 && <line x1={x0} x2={x1} y1={y(0)} y2={y(0)} stroke="var(--color-app-border, #2a2a2a)" strokeWidth={1} />}
         {cornerFracs?.map((f) => (
           <line key={f} x1={x(f)} x2={x(f)} y1={y0} y2={y1} stroke="var(--color-app-border, #2a2a2a)" strokeDasharray="2 4" />

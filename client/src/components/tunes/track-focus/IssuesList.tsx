@@ -21,7 +21,11 @@ export function IssuesList({ issues, onIssueClick }: IssuesListProps) {
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(it);
     }
-    return Array.from(map.entries());
+    return Array.from(map.entries()).sort(([a], [b]) => {
+      if (a === "General") return -1;
+      if (b === "General") return 1;
+      return 0;
+    });
   }, [issues]);
 
   if (issues.length === 0) {

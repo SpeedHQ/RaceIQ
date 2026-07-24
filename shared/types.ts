@@ -651,6 +651,11 @@ export interface LapMeta {
   // User flag (migration v30): true = manually excluded from the tuning
   // aggregate. Undefined/false = included.
   tuningExcluded?: boolean;
+  // Source of the tuningExcluded decision (migration v34): 'auto' = the
+  // fastest-5 curation pass (server/tuning-auto-exclude.ts) owns this lap's
+  // state and may revise it on a later lap save; 'manual' = user/AI decided,
+  // pinned against the auto pass. Undefined/null = not yet reconciled.
+  tuningExcludedSource?: "auto" | "manual" | null;
   // Persisted per-lap metrics (migration v32), derived once from telemetry and
   // cached on the lap row. Null/undefined = not yet computed or no usable
   // telemetry channel.

@@ -16,6 +16,7 @@ import type { ILapDetector, LapDetectorOptions } from "./lap-detector-interface"
 import { extractCurbSegments, recordCurbData } from "../shared/track-data";
 import { assessLapRecording } from "./lap-quality";
 import { persistLapMetrics } from "./tuning-lap-metrics";
+import { reconcileAutoExclusionsForLap } from "./tuning-auto-exclude";
 import { computeLapSectors as computeLapSectorsHelper } from "./compute-lap-sectors";
 import { detectSessionBoundary, detectLapBoundary, detectLapReset } from "./lap-detection";
 
@@ -450,6 +451,7 @@ export class LapDetector implements ILapDetector {
         // Precompute fuel/tyre metrics now (frames in memory) so /lap-metrics
         // never decodes on first open.
         try { await persistLapMetrics(this.db, lapId, lapPackets); } catch (e) { console.error("[Lap] persistLapMetrics failed:", e); }
+        try { await reconcileAutoExclusionsForLap(this.db, lapId); } catch (e) { console.error("[Lap] reconcileAutoExclusionsForLap failed:", e); }
         console.log(
           `[Lap] Saved lap ${lapNum} | Time: ${formatLapTime(lapTime)} | Valid: ${valid}${invalidReason ? ` (${invalidReason})` : ""} | Packets: ${packetCount} | DB ID: ${lapId}`
         );
@@ -510,6 +512,7 @@ export class LapDetector implements ILapDetector {
             null
           ).then(async (lapId) => {
             try { await persistLapMetrics(this.db, lapId, lapPackets); } catch (e) { console.error("[Lap] persistLapMetrics failed:", e); }
+        try { await reconcileAutoExclusionsForLap(this.db, lapId); } catch (e) { console.error("[Lap] reconcileAutoExclusionsForLap failed:", e); }
             console.log(`[Lap] Saved incomplete lap (session ended)`);
           }).catch((err) => {
             console.error("[Lap] Failed to save incomplete lap:", err);
@@ -569,6 +572,7 @@ export class LapDetector implements ILapDetector {
         null
       ).then(async (lapId) => {
         try { await persistLapMetrics(this.db, lapId, lapPackets); } catch (e) { console.error("[Lap] persistLapMetrics failed:", e); }
+        try { await reconcileAutoExclusionsForLap(this.db, lapId); } catch (e) { console.error("[Lap] reconcileAutoExclusionsForLap failed:", e); }
         console.log(
           `[Lap] Flushed stale lap ${lapNum} | Time: ${formatLapTime(lapTime)} | ${isComplete ? "Complete" : "Incomplete"} | Packets: ${packetCount} | DB ID: ${lapId} (${(silenceMs / 1000).toFixed(0)}s silence)`
         );

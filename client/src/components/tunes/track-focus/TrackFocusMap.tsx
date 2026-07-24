@@ -60,15 +60,11 @@ const SEV_COLOR: Record<string, string> = {
   info: "#38bdf8",
 };
 
-function clampSteer(raw: number): number {
-  return Math.max(-1, Math.min(1, raw / 128));
-}
-
 /**
  * Focus-lap track map: driven line (3 sector-colored segments), optional
  * track edges, corner markers, issue dots (severity-colored, critical gets a
- * halo), a cursor dot synced to `cursorFrac`, and a 4-cell Speed/Throttle/
- * Brake/Steer readout below the map that tracks the cursor (or the lap
+ * halo), a cursor dot synced to `cursorFrac`, and a "nearest corner" chip
+ * that tracks the cursor (or the lap
  * average when no cursor is set).
  */
 export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFracs, issues, cursorFrac, onCursorFrac, overlayPoints, lineSpread }: TrackFocusMapProps) {
@@ -300,25 +296,7 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
               </div>
             );
           })()
-        ) : (
-          <div className="absolute top-1 right-1 text-[10px] font-mono tabular-nums bg-app-surface/80 border border-app-border rounded px-1.5 py-0.5 text-app-text-muted">{corners.length} corners</div>
-        )}
-      </div>
-      <div className="grid grid-cols-4 gap-1.5 text-center">
-        {[
-          { label: "Speed", value: readoutFrame ? `${(readoutFrame.Speed * 3.6).toFixed(0)}` : "—", unit: "km/h" },
-          { label: "Throttle", value: readoutFrame ? `${((readoutFrame.Accel / 255) * 100).toFixed(0)}` : "—", unit: "%" },
-          { label: "Brake", value: readoutFrame ? `${((readoutFrame.Brake / 255) * 100).toFixed(0)}` : "—", unit: "%" },
-          { label: "Steer", value: readoutFrame ? `${(clampSteer(readoutFrame.Steer) * 100).toFixed(0)}` : "—", unit: "%" },
-        ].map((cell) => (
-          <div key={cell.label} className="rounded bg-app-surface border border-app-border py-1.5">
-            <div className="text-[9px] uppercase tracking-wider text-app-text-dim">{cell.label}</div>
-            <div className="text-sm font-mono tabular-nums text-app-text">
-              {cell.value}
-              <span className="text-[9px] text-app-text-dim ml-0.5">{cell.unit}</span>
-            </div>
-          </div>
-        ))}
+        ) : null}
       </div>
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-app-text-dim">
         {heatSegments ? (

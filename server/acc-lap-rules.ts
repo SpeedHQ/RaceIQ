@@ -5,6 +5,7 @@
  * All functions are no-ops for non-ACC packets — they check gameId internally.
  */
 import type { TelemetryPacket } from "../shared/types";
+import type { PitCycleReason } from "../shared/lap-filters";
 
 /**
  * Returns true if the very first packet of a Kunos (ACC / AC Evo) recording
@@ -43,7 +44,7 @@ export function accFirstPacketIsMidLap(packet: TelemetryPacket): boolean {
  */
 export function classifyAccPitLap(
   packets: TelemetryPacket[]
-): "outlap" | "inlap" | "pit lap" | null {
+): PitCycleReason | null {
   if (packets.length === 0) return null;
   // AC Evo shares the same `acc` extended-data shape as ACC, so the same
   // pit-status logic applies unchanged.

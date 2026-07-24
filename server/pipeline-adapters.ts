@@ -1,7 +1,8 @@
 import { resolve } from "path";
 import { mkdirSync } from "fs";
 import type { LapMeta, LiveSectorData, LivePitData, GameId, TelemetryPacket, TuneIssue } from "../shared/types";
-import { insertSession, insertLap, setLapMetrics, getLaps, updateSessionRawFile, updateSessionCarTrack } from "./db/queries";
+import { insertSession, insertLap, setLapMetrics, getLaps, updateSessionRawFile, updateSessionCarTrack, getLapsForExclusionScope, setLapAutoExclusion, getLapTuningScope } from "./db/queries";
+import type { ExclusionScopeLap } from "./tuning-auto-exclude";
 import { getTuneAssignment } from "./db/tune-queries";
 import { wsManager } from "./ws";
 import { UdpRecorder } from "./udp-recorder";
@@ -60,6 +61,10 @@ export interface DbAdapter {
     carOrdinal: number,
     trackOrdinal: number
   ): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null>;
+  /** Auto-exclude fastest-5 curation (server/tuning-auto-exclude.ts). */
+  getLapsForExclusionScope(tuningSessionId: number, tuneId: number): Promise<ExclusionScopeLap[]>;
+  setLapAutoExclusion(lapId: number, excluded: boolean): Promise<void>;
+  getLapTuningScope(lapId: number): Promise<{ tuningSessionId: number | null; tuneId: number | null }>;
 }
 
 /**
@@ -117,6 +122,15 @@ export class RealDbAdapter implements DbAdapter {
   }
   getTuneAssignment(gameId: GameId, carOrdinal: number, trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {
     return getTuneAssignment(gameId, carOrdinal, trackOrdinal);
+  }
+  getLapsForExclusionScope(tuningSessionId: number, tuneId: number): Promise<ExclusionScopeLap[]> {
+    return getLapsForExclusionScope(tuningSessionId, tuneId);
+  }
+  setLapAutoExclusion(lapId: number, excluded: boolean): Promise<void> {
+    return setLapAutoExclusion(lapId, excluded);
+  }
+  getLapTuningScope(lapId: number): Promise<{ tuningSessionId: number | null; tuneId: number | null }> {
+    return getLapTuningScope(lapId);
   }
 }
 
@@ -177,6 +191,18 @@ export class CapturingDbAdapter implements DbAdapter {
   getTuneAssignment(_gameId: GameId, _carOrdinal: number, _trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {
     return Promise.resolve(null);
   }
+
+  readonly exclusionWrites: { lapId: number; excluded: boolean }[] = [];
+  getLapsForExclusionScope(_tuningSessionId: number, _tuneId: number): Promise<ExclusionScopeLap[]> {
+    return Promise.resolve([]);
+  }
+  setLapAutoExclusion(lapId: number, excluded: boolean): Promise<void> {
+    this.exclusionWrites.push({ lapId, excluded });
+    return Promise.resolve();
+  }
+  getLapTuningScope(_lapId: number): Promise<{ tuningSessionId: number | null; tuneId: number | null }> {
+    return Promise.resolve({ tuningSessionId: null, tuneId: null });
+  }
 }
 
 /** No-op WebSocket adapter. Used in tests. */
@@ -208,6 +234,15 @@ export class NullDbAdapter implements DbAdapter {
   }
   getTuneAssignment(_gameId: GameId, _carOrdinal: number, _trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {
     return Promise.resolve(null);
+  }
+  getLapsForExclusionScope(_tuningSessionId: number, _tuneId: number): Promise<ExclusionScopeLap[]> {
+    return Promise.resolve([]);
+  }
+  setLapAutoExclusion(_lapId: number, _excluded: boolean): Promise<void> {
+    return Promise.resolve();
+  }
+  getLapTuningScope(_lapId: number): Promise<{ tuningSessionId: number | null; tuneId: number | null }> {
+    return Promise.resolve({ tuningSessionId: null, tuneId: null });
   }
 }
 

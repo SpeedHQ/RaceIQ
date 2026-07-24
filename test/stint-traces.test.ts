@@ -113,6 +113,96 @@ describe("downsampleLap", () => {
   });
 });
 
+describe("downsampleLap — balance/grip/suspension channels", () => {
+  test("populates balance (degrees), latG, longG, suspTravel, combinedSlip when source fields present", () => {
+    const telemetry: TelemetryPacket[] = [];
+    for (let i = 0; i < 50; i++) {
+      telemetry.push(
+        pkt({
+          DistanceTraveled: i * 20,
+          TimestampMS: i * 16,
+          // Front slips more than rear -> positive balance (understeer).
+          TireSlipAngleFL: 0.1,
+          TireSlipAngleFR: 0.1,
+          TireSlipAngleRL: 0.02,
+          TireSlipAngleRR: 0.02,
+          AccelerationX: 4.905, // 0.5g lateral
+          AccelerationZ: -9.81, // -1g longitudinal (braking)
+          NormSuspensionTravelFL: 0.3,
+          NormSuspensionTravelFR: 0.3,
+          NormSuspensionTravelRL: 0.4,
+          NormSuspensionTravelRR: 0.4,
+          TireCombinedSlipFL: 0.05,
+          TireCombinedSlipFR: 0.05,
+          TireCombinedSlipRL: 0.03,
+          TireCombinedSlipRR: 0.03,
+          BrakeTempFrontLeft: 350,
+          BrakeTempFrontRight: 360,
+          BrakeTempRearLeft: 300,
+          BrakeTempRearRight: 310,
+        } as Partial<TelemetryPacket>),
+      );
+    }
+    const trace = downsampleLap(1, 1, true, telemetry, null)!;
+
+    expect(trace.brakeTemp).not.toBeNull();
+    expect(trace.brakeTemp!.FL).toBeCloseTo(350, 5);
+    expect(trace.brakeTempTrace).not.toBeNull();
+    expect(trace.brakeTempTrace!.FR[10]).toBeCloseTo(360, 5);
+
+    expect(trace.balance).not.toBeNull();
+    // (0.1 - 0.02) rad * 180/pi ≈ 4.58 deg, positive = understeer
+    expect(trace.balance![10]).toBeCloseTo(4.58, 1);
+
+    expect(trace.latG).not.toBeNull();
+    expect(trace.latG![10]).toBeCloseTo(0.5, 2);
+
+    expect(trace.longG).not.toBeNull();
+    expect(trace.longG![10]).toBeCloseTo(-1, 2);
+
+    expect(trace.suspTravel).not.toBeNull();
+    expect(trace.suspTravel!.FL[10]).toBeCloseTo(0.3, 5);
+    expect(trace.suspTravel!.RR[10]).toBeCloseTo(0.4, 5);
+
+    expect(trace.combinedSlip).not.toBeNull();
+    expect(trace.combinedSlip!.FL[10]).toBeCloseTo(0.05, 5);
+  });
+
+  test("nulls balance/latG/longG/suspTravel/combinedSlip when source fields are absent (all zero)", () => {
+    const telemetry: TelemetryPacket[] = [];
+    for (let i = 0; i < 20; i++) {
+      telemetry.push(pkt({ DistanceTraveled: i * 20, TimestampMS: i * 16 }));
+    }
+    const trace = downsampleLap(1, 1, true, telemetry, null)!;
+    expect(trace.balance).toBeNull();
+    expect(trace.latG).toBeNull();
+    expect(trace.longG).toBeNull();
+    expect(trace.suspTravel).toBeNull();
+    expect(trace.combinedSlip).toBeNull();
+    expect(trace.brakeTemp).toBeNull();
+    expect(trace.brakeTempTrace).toBeNull();
+  });
+
+  test("oversteer (rear slips more) yields a negative balance", () => {
+    const telemetry: TelemetryPacket[] = [];
+    for (let i = 0; i < 20; i++) {
+      telemetry.push(
+        pkt({
+          DistanceTraveled: i * 20,
+          TimestampMS: i * 16,
+          TireSlipAngleFL: 0.02,
+          TireSlipAngleFR: 0.02,
+          TireSlipAngleRL: 0.15,
+          TireSlipAngleRR: 0.15,
+        } as Partial<TelemetryPacket>),
+      );
+    }
+    const trace = downsampleLap(1, 1, true, telemetry, null)!;
+    expect(trace.balance).not.toBeNull();
+    expect(trace.balance![10]).toBeLessThan(0);
+  });
+});
+
 describe("sampleAt", () => {
   test("interpolates linearly between bins", () => {
     const telemetry = makeLap({ count: 1000, lapDist: 4000, msPerFrame: 16, throttle255: 255, brake255: 0, steer: 0, speedMs: 30 });

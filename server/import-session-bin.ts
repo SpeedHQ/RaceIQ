@@ -89,6 +89,15 @@ export class ImportCaptureAdapter implements DbAdapter {
     this._sessionMeta.set(sessionId, { carOrdinal, trackOrdinal });
     return this._inner.updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal);
   }
+  getLapsForExclusionScope(tuningSessionId: number, tuneId: number) {
+    return this._inner.getLapsForExclusionScope(tuningSessionId, tuneId);
+  }
+  setLapAutoExclusion(lapId: number, excluded: boolean): Promise<void> {
+    return this._inner.setLapAutoExclusion(lapId, excluded);
+  }
+  getLapTuningScope(lapId: number) {
+    return this._inner.getLapTuningScope(lapId);
+  }
 }
 
 /** Detect a gameId from an uploaded filename prefix (`<gameId>-...` / `<gameId>_...`). */

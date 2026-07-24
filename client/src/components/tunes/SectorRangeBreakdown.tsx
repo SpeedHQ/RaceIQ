@@ -142,7 +142,7 @@ export function CornerBars({
         const hasCursor = cv != null && Number.isFinite(cv);
         return (
           <div key={c} className="flex flex-col items-center gap-1 flex-1 min-w-0">
-            <div className="relative w-full max-w-[15px] rounded bg-app-panel border border-app-border" style={{ height }}>
+            <div className="relative w-full max-w-[15px] rounded border border-app-border" style={{ height }}>
               {!empty && (
                 <>
                   <div className="absolute left-0 right-0 rounded opacity-30" style={{ background: color, bottom: `${pct(r.min)}%`, top: `${100 - pct(r.max)}%` }} />

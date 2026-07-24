@@ -46,6 +46,28 @@ export interface LapTrace {
   tireTempTrace: TireTraces | null;
   /** Per-sample tire pressure per corner. Null when absent. */
   pressureTrace: TireTraces | null;
+  /** Signed per-frame axle slip delta in degrees: mean(|slipFL|,|slipFR|) −
+   *  mean(|slipRL|,|slipRR|). Positive = front slips more (understeer),
+   *  negative = rear slips more (oversteer). Null when the game reports no
+   *  slip-angle data (all frames exactly 0). */
+  balance: Float32Array | null;
+  /** Lateral g (AccelerationX / 9.81). Null when the source field is absent. */
+  latG: Float32Array | null;
+  /** Longitudinal g (AccelerationZ / 9.81). Negative under braking. Null
+   *  when the source field is absent. */
+  longG: Float32Array | null;
+  /** Per-corner normalized suspension travel (0..1). ACC: absolute
+   *  compression (0 = full droop). AC Evo: centred at 0.5 (neutral ride
+   *  height). Null when absent (e.g. F1, which hardcodes 0). */
+  suspTravel: TireTraces | null;
+  /** Per-corner combined tire slip magnitude. Null when absent. */
+  combinedSlip: TireTraces | null;
+  /** Per-lap average brake temp per corner (°C, game units), skipping zero
+   *  frames. Null when the lap has no usable brake temp data. */
+  brakeTemp: TireAverages | null;
+  /** Per-sample brake temp per corner (zero frames skipped, carry-forward like
+   *  tire temp). Null when absent. */
+  brakeTempTrace: TireTraces | null;
 }
 
 export function clamp(v: number, lo: number, hi: number): number {
@@ -200,7 +222,100 @@ export function downsampleLap(lapId: number, lapNumber: number, isValid: boolean
     return (p as unknown as Record<string, number | undefined>)[key];
   });
 
-  return { lapId, lapNumber, isValid, n: rawN, frac, throttle, brake, steer, speedKmh, timeS, tire, pressure, tireTempTrace, pressureTrace };
+  // Per-corner traces with no carry-forward: unlike tire temp/pressure, a
+  // frame reading exactly 0 (full droop, zero slip) is a real value, not a
+  // sensor dropout. The whole channel drops to null only when every frame
+  // across every corner is exactly 0 — the same sentinel games without the
+  // field use (e.g. F1 hardcodes NormSuspensionTravel* to 0).
+  function rawTireTraceBins(sel: (p: TelemetryPacket, corner: "FL" | "FR" | "RL" | "RR") => number | undefined): TireTraces | null {
+    const corners: ("FL" | "FR" | "RL" | "RR")[] = ["FL", "FR", "RL", "RR"];
+    const out: Partial<TireTraces> = {};
+    let anyNonZero = false;
+    for (const c of corners) {
+      const arr = new Float32Array(rawN);
+      for (let i = 0; i < rawN; i++) {
+        const v = sel(telemetry[i], c) ?? 0;
+        arr[i] = v;
+        if (v !== 0) anyNonZero = true;
+      }
+      out[c] = arr;
+    }
+    return anyNonZero ? (out as TireTraces) : null;
+  }
+
+  const RAD_TO_DEG = 180 / Math.PI;
+
+  // Balance: signed axle slip delta in degrees. Radians is ACC/AC Evo shared
+  // memory's native unit for TireSlipAngle*; converted here so the chart
+  // reads in a driver-familiar unit. Null when the game reports no slip
+  // angle at all (every frame exactly 0 on every corner).
+  let balanceAnyNonZero = false;
+  const balance = new Float32Array(rawN);
+  for (let i = 0; i < rawN; i++) {
+    const p = telemetry[i] as unknown as Record<string, number>;
+    const sFL = p.TireSlipAngleFL ?? 0;
+    const sFR = p.TireSlipAngleFR ?? 0;
+    const sRL = p.TireSlipAngleRL ?? 0;
+    const sRR = p.TireSlipAngleRR ?? 0;
+    if (sFL !== 0 || sFR !== 0 || sRL !== 0 || sRR !== 0) balanceAnyNonZero = true;
+    const front = (Math.abs(sFL) + Math.abs(sFR)) / 2;
+    const rear = (Math.abs(sRL) + Math.abs(sRR)) / 2;
+    balance[i] = (front - rear) * RAD_TO_DEG;
+  }
+
+  // Lateral/longitudinal g. Axis mapping verified against ACC/AC Evo shared
+  // memory's Y-up, Z-forward local coordinate frame: AccelerationX is the
+  // lateral (right) component, AccelerationZ is the longitudinal (forward)
+  // component — braking produces a negative AccelerationZ, matching the
+  // parsers' own comments on acceleration/velocity/angular-velocity axis
+  // order (server/games/acc/parser.ts, server/games/ac-evo/parser.ts).
+  let latGAnyNonZero = false;
+  let longGAnyNonZero = false;
+  const latG = new Float32Array(rawN);
+  const longG = new Float32Array(rawN);
+  for (let i = 0; i < rawN; i++) {
+    const p = telemetry[i] as unknown as Record<string, number | undefined>;
+    const accX = p.AccelerationX ?? 0;
+    const accZ = p.AccelerationZ ?? 0;
+    if (accX !== 0) latGAnyNonZero = true;
+    if (accZ !== 0) longGAnyNonZero = true;
+    latG[i] = accX / 9.81;
+    longG[i] = accZ / 9.81;
+  }
+
+  const suspTravel = rawTireTraceBins((p, c) => (p as unknown as Record<string, number>)[`NormSuspensionTravel${c}`]);
+  const combinedSlip = rawTireTraceBins((p, c) => (p as unknown as Record<string, number>)[`TireCombinedSlip${c}`]);
+
+  // Brake temp: same corner->field mapping as pressure, and it's a temperature
+  // so a zero reading is a sensor dropout — carry-forward via tireTraceBins.
+  const brakeTempKey = (c: "FL" | "FR" | "RL" | "RR") =>
+    c === "FL" ? "BrakeTempFrontLeft" : c === "FR" ? "BrakeTempFrontRight" : c === "RL" ? "BrakeTempRearLeft" : "BrakeTempRearRight";
+  const brakeTemp = tireAverages(telemetry, (p, c) => (p as unknown as Record<string, number | undefined>)[brakeTempKey(c)]);
+  const brakeTempTrace = tireTraceBins((p, c) => (p as unknown as Record<string, number | undefined>)[brakeTempKey(c)]);
+
+  return {
+    lapId,
+    lapNumber,
+    isValid,
+    n: rawN,
+    frac,
+    throttle,
+    brake,
+    steer,
+    speedKmh,
+    timeS,
+    tire,
+    pressure,
+    tireTempTrace,
+    pressureTrace,
+    balance: balanceAnyNonZero ? balance : null,
+    latG: latGAnyNonZero ? latG : null,
+    longG: longGAnyNonZero ? longG : null,
+    suspTravel,
+    combinedSlip,
+    brakeTemp,
+    brakeTempTrace,
+  };
 }
 
 // ─── Wire encoding: base64 Float32 columns ──────────────────────────────────
@@ -231,6 +346,13 @@ export interface EncodedLapTrace {
   pressure: TireAverages | null;
   tireTempTrace: EncodedTireTraces | null;
   pressureTrace: EncodedTireTraces | null;
+  balance: string | null;
+  latG: string | null;
+  longG: string | null;
+  suspTravel: EncodedTireTraces | null;
+  combinedSlip: EncodedTireTraces | null;
+  brakeTemp: TireAverages | null;
+  brakeTempTrace: EncodedTireTraces | null;
 }
 
 /** Float32Array → base64 of its raw little-endian bytes. Copies the exact
@@ -279,6 +401,13 @@ export function encodeLapTrace(t: LapTrace): EncodedLapTrace {
     pressure: t.pressure,
     tireTempTrace: encodeTireTraces(t.tireTempTrace),
     pressureTrace: encodeTireTraces(t.pressureTrace),
+    balance: t.balance ? f32ToBase64(t.balance) : null,
+    latG: t.latG ? f32ToBase64(t.latG) : null,
+    longG: t.longG ? f32ToBase64(t.longG) : null,
+    suspTravel: encodeTireTraces(t.suspTravel),
+    combinedSlip: encodeTireTraces(t.combinedSlip),
+    brakeTemp: t.brakeTemp,
+    brakeTempTrace: encodeTireTraces(t.brakeTempTrace),
   };
 }
 
@@ -298,5 +427,12 @@ export function decodeLapTrace(e: EncodedLapTrace): LapTrace {
     pressure: e.pressure,
     tireTempTrace: decodeTireTraces(e.tireTempTrace),
     pressureTrace: decodeTireTraces(e.pressureTrace),
+    balance: e.balance ? base64ToF32(e.balance) : null,
+    latG: e.latG ? base64ToF32(e.latG) : null,
+    longG: e.longG ? base64ToF32(e.longG) : null,
+    suspTravel: decodeTireTraces(e.suspTravel),
+    combinedSlip: decodeTireTraces(e.combinedSlip),
+    brakeTemp: e.brakeTemp,
+    brakeTempTrace: decodeTireTraces(e.brakeTempTrace),
   };
 }

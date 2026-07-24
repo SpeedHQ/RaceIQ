@@ -192,6 +192,12 @@ export async function updateLapValidity(id: number, isValid: boolean, invalidRea
  * docs/setup-engineer-flow-design.md §Phase 3, and the `/api/laps/:id/tuning-excluded`
  * REST route, §Phase 7). Returns the PRIOR value plus the lap's `tuningSessionId`
  * so the caller can log an inverse via `recordAction` for undo.
+ *
+ * Stamps `tuningExcludedSource = 'manual'` in BOTH directions (excluding and
+ * un-excluding) — docs/superpowers/specs/2026-07-24-tuning-auto-exclude-design.md.
+ * This pins the lap against the auto-exclude reconciliation pass
+ * (server/tuning-auto-exclude.ts) so a user's un-exclude click sticks instead of
+ * the fastest-5 rule silently re-excluding it on the next lap save.
  */
 export async function setLapTuningExcluded(
   lapId: number,
@@ -204,8 +210,75 @@ export async function setLapTuningExcluded(
     .get();
   if (!row) return { ok: false, prev: false, tuningSessionId: null };
   const prev = Boolean(row.tuningExcluded);
-  await db.update(laps).set({ tuningExcluded: excluded ? 1 : null }).where(eq(laps.id, lapId)).run();
+  await db
+    .update(laps)
+    .set({ tuningExcluded: excluded ? 1 : null, tuningExcludedSource: "manual" })
+    .where(eq(laps.id, lapId))
+    .run();
   return { ok: true, prev, tuningSessionId: row.tuningSessionId };
+}
+
+/**
+ * Read the scope laps `reconcileAutoExclusions` (server/tuning-auto-exclude.ts)
+ * ranks over: every lap sharing `(tuning_session_id, tune_id)`, with just the
+ * columns the fastest-5 rule needs.
+ */
+export async function getLapsForExclusionScope(
+  tuningSessionId: number,
+  tuneId: number,
+): Promise<
+  { id: number; lapTime: number; isValid: boolean; invalidReason: string | null; tuningExcluded: boolean; tuningExcludedSource: "auto" | "manual" | null }[]
+> {
+  const rows = await db
+    .select({
+      id: laps.id,
+      lapTime: laps.lapTime,
+      isValid: laps.isValid,
+      invalidReason: laps.invalidReason,
+      tuningExcluded: laps.tuningExcluded,
+      tuningExcludedSource: laps.tuningExcludedSource,
+    })
+    .from(laps)
+    .where(and(eq(laps.tuningSessionId, tuningSessionId), eq(laps.tuneId, tuneId)))
+    .all();
+  return rows.map((r) => ({
+    id: r.id,
+    lapTime: r.lapTime,
+    isValid: Boolean(r.isValid),
+    invalidReason: r.invalidReason,
+    tuningExcluded: Boolean(r.tuningExcluded),
+    tuningExcludedSource: (r.tuningExcludedSource as "auto" | "manual" | null) ?? null,
+  }));
+}
+
+/**
+ * Write an auto-pass exclusion decision for a lap. Always stamps
+ * `tuningExcludedSource = 'auto'` — manual decisions never go through this
+ * path (see `setLapTuningExcluded`).
+ */
+export async function setLapAutoExclusion(lapId: number, excluded: boolean): Promise<void> {
+  await db
+    .update(laps)
+    .set({ tuningExcluded: excluded ? 1 : null, tuningExcludedSource: "auto" })
+    .where(eq(laps.id, lapId))
+    .run();
+}
+
+/**
+ * Read back the `(tuning_session_id, tune_id)` scope key a just-inserted lap
+ * was stamped with, so the caller can decide whether to run
+ * `reconcileAutoExclusions` (skipped when either is null — see
+ * docs/superpowers/specs/2026-07-24-tuning-auto-exclude-design.md §Trigger).
+ */
+export async function getLapTuningScope(
+  lapId: number,
+): Promise<{ tuningSessionId: number | null; tuneId: number | null }> {
+  const row = await db
+    .select({ tuningSessionId: laps.tuningSessionId, tuneId: laps.tuneId })
+    .from(laps)
+    .where(eq(laps.id, lapId))
+    .get();
+  return { tuningSessionId: row?.tuningSessionId ?? null, tuneId: row?.tuneId ?? null };
 }
 
 /**
@@ -377,6 +450,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
       tuningSessionId: laps.tuningSessionId,
       tuningTestId: laps.tuningTestId,
       tuningExcluded: laps.tuningExcluded,
+      tuningExcludedSource: laps.tuningExcludedSource,
       fuelPerLap: laps.fuelPerLap,
       tyreWear: laps.tyreWear,
       rawFile: sessions.rawFile,
@@ -407,6 +481,10 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
     tuningSessionId: r.tuningSessionId ?? null,
     tuningTestId: r.tuningTestId ?? null,
     tuningExcluded: Boolean(r.tuningExcluded),
+    // Selector (shared/review-laps.ts) only treats a lap as manually excluded
+    // when the source is "manual" — must travel with the flag or the client
+    // re-ranks the excluded lap into the fastest-N.
+    tuningExcludedSource: (r.tuningExcludedSource as "auto" | "manual" | null) ?? null,
     fuelPerLap: r.fuelPerLap ?? null,
     tyreWear: r.tyreWear ?? null,
     isLegacy: rawFile == null,
@@ -448,6 +526,7 @@ export async function getLapsForTuningSession(tuningSessionId: number): Promise<
       tuningSessionId: laps.tuningSessionId,
       tuningTestId: laps.tuningTestId,
       tuningExcluded: laps.tuningExcluded,
+      tuningExcludedSource: laps.tuningExcludedSource,
       fuelPerLap: laps.fuelPerLap,
       tyreWear: laps.tyreWear,
       rawFile: sessions.rawFile,
@@ -475,6 +554,10 @@ export async function getLapsForTuningSession(tuningSessionId: number): Promise<
     tuningSessionId: r.tuningSessionId ?? null,
     tuningTestId: r.tuningTestId ?? null,
     tuningExcluded: Boolean(r.tuningExcluded),
+    // Selector (shared/review-laps.ts) only treats a lap as manually excluded
+    // when the source is "manual" — must travel with the flag or the client
+    // re-ranks the excluded lap into the fastest-N.
+    tuningExcludedSource: (r.tuningExcludedSource as "auto" | "manual" | null) ?? null,
     fuelPerLap: r.fuelPerLap ?? null,
     tyreWear: r.tyreWear ?? null,
     isLegacy: rawFile == null,
@@ -511,6 +594,7 @@ export async function getLapMetaForTuningTest(tuningTestId: number): Promise<Lap
       tuningSessionId: laps.tuningSessionId,
       tuningTestId: laps.tuningTestId,
       tuningExcluded: laps.tuningExcluded,
+      tuningExcludedSource: laps.tuningExcludedSource,
       fuelPerLap: laps.fuelPerLap,
       tyreWear: laps.tyreWear,
       rawFile: sessions.rawFile,
@@ -538,6 +622,10 @@ export async function getLapMetaForTuningTest(tuningTestId: number): Promise<Lap
     tuningSessionId: r.tuningSessionId ?? null,
     tuningTestId: r.tuningTestId ?? null,
     tuningExcluded: Boolean(r.tuningExcluded),
+    // Selector (shared/review-laps.ts) only treats a lap as manually excluded
+    // when the source is "manual" — must travel with the flag or the client
+    // re-ranks the excluded lap into the fastest-N.
+    tuningExcludedSource: (r.tuningExcludedSource as "auto" | "manual" | null) ?? null,
     fuelPerLap: r.fuelPerLap ?? null,
     tyreWear: r.tyreWear ?? null,
     isLegacy: rawFile == null,
@@ -586,6 +674,7 @@ export async function getImportableLapsForTuningSession(
       tuningSessionId: laps.tuningSessionId,
       tuningTestId: laps.tuningTestId,
       tuningExcluded: laps.tuningExcluded,
+      tuningExcludedSource: laps.tuningExcludedSource,
       fuelPerLap: laps.fuelPerLap,
       tyreWear: laps.tyreWear,
       rawFile: sessions.rawFile,
@@ -613,6 +702,10 @@ export async function getImportableLapsForTuningSession(
     tuningSessionId: r.tuningSessionId ?? null,
     tuningTestId: r.tuningTestId ?? null,
     tuningExcluded: Boolean(r.tuningExcluded),
+    // Selector (shared/review-laps.ts) only treats a lap as manually excluded
+    // when the source is "manual" — must travel with the flag or the client
+    // re-ranks the excluded lap into the fastest-N.
+    tuningExcludedSource: (r.tuningExcludedSource as "auto" | "manual" | null) ?? null,
     fuelPerLap: r.fuelPerLap ?? null,
     tyreWear: r.tyreWear ?? null,
     isLegacy: rawFile == null,

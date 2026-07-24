@@ -1,5 +1,10 @@
 import { describe, test, expect } from "bun:test";
-import { fastestLaps, REVIEW_LAP_CAP } from "../shared/review-laps";
+import {
+  fastestLaps,
+  selectEvaluationLaps,
+  evaluationReasonLabel,
+  REVIEW_LAP_CAP,
+} from "../shared/review-laps";
 
 describe("fastestLaps", () => {
   const laps = [
@@ -27,5 +32,86 @@ describe("fastestLaps", () => {
     const snapshot = [...few];
     expect(fastestLaps(few).map((l) => l.id)).toEqual([1, 2]);
     expect(few).toEqual(snapshot);
+  });
+});
+
+describe("selectEvaluationLaps", () => {
+  const lap = (id: number, lapTime: number, over: Partial<Parameters<typeof selectEvaluationLaps>[0][number]> = {}) => ({
+    id,
+    lapTime,
+    isValid: true,
+    invalidReason: null,
+    ...over,
+  });
+
+  test("chooses the fastest N clean laps, rest are slower-than-cap", () => {
+    const laps = [lap(1, 95), lap(2, 91), lap(3, 93), lap(4, 99)];
+    const sel = selectEvaluationLaps(laps, 2);
+    expect(sel.chosen.map((l) => l.id)).toEqual([2, 3]);
+    expect([...sel.chosenIds].sort()).toEqual([2, 3]);
+    expect([...sel.cappedIds].sort()).toEqual([1, 4]);
+    expect(sel.reasonById.get(2)).toBe("chosen");
+    expect(sel.reasonById.get(1)).toBe("slower-than-cap");
+  });
+
+  test("manual exclusion wins over every other reason", () => {
+    const laps = [
+      lap(1, 90, { isValid: false, isLegacy: true, tuningExcluded: true, tuningExcludedSource: "manual" }),
+      lap(2, 92),
+    ];
+    const sel = selectEvaluationLaps(laps);
+    expect(sel.reasonById.get(1)).toBe("manual");
+    expect(sel.chosenIds.has(1)).toBe(false);
+  });
+
+  test("a manual source that is not excluded stays a candidate", () => {
+    const laps = [lap(1, 90, { tuningExcluded: false, tuningExcludedSource: "manual" })];
+    const sel = selectEvaluationLaps(laps);
+    expect(sel.reasonById.get(1)).toBe("chosen");
+  });
+
+  test("legacy, invalid, non-positive time and pit laps are ineligible", () => {
+    const laps = [
+      lap(1, 90, { isLegacy: true }),
+      lap(2, 90, { isValid: false }),
+      lap(3, 0),
+      lap(4, 90, { invalidReason: "inlap" }),
+      lap(5, 94),
+    ];
+    const sel = selectEvaluationLaps(laps);
+    expect(sel.reasonById.get(1)).toBe("legacy");
+    expect(sel.reasonById.get(2)).toBe("invalid");
+    expect(sel.reasonById.get(3)).toBe("invalid");
+    expect(sel.reasonById.get(4)).toBe("pit");
+    expect(sel.chosen.map((l) => l.id)).toEqual([5]);
+    expect(sel.cappedIds.size).toBe(0);
+  });
+
+  test("a capped lap already stamped by the auto pass reports source auto", () => {
+    const laps = [lap(1, 90), lap(2, 95, { tuningExcluded: true, tuningExcludedSource: "auto" })];
+    const sel = selectEvaluationLaps(laps, 1);
+    expect(sel.reasonById.get(2)).toBe("auto");
+    expect(sel.cappedIds.has(2)).toBe(true);
+  });
+
+  test("auto stamping never keeps a lap out of the chosen set", () => {
+    // Stale auto-exclude state must lose to a fresh fastest-N ranking.
+    const laps = [lap(1, 90, { tuningExcluded: true, tuningExcludedSource: "auto" }), lap(2, 99)];
+    const sel = selectEvaluationLaps(laps, 1);
+    expect(sel.chosen.map((l) => l.id)).toEqual([1]);
+    expect(sel.reasonById.get(1)).toBe("chosen");
+  });
+
+  test("every lap gets exactly one reason", () => {
+    const laps = [lap(1, 90), lap(2, 91, { isValid: false }), lap(3, 92)];
+    const sel = selectEvaluationLaps(laps, 1);
+    expect(sel.reasonById.size).toBe(laps.length);
+    for (const l of laps) expect(evaluationReasonLabel(sel.reasonById.get(l.id)!)).toBeTruthy();
+  });
+
+  test("empty input yields an empty selection", () => {
+    const sel = selectEvaluationLaps([]);
+    expect(sel.chosen).toEqual([]);
+    expect(sel.reasonById.size).toBe(0);
   });
 });

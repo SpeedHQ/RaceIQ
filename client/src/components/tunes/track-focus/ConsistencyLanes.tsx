@@ -161,6 +161,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
           <div key={ch.key}>
             <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">{ch.label}</div>
             <Lane
+              bgFill="transparent"
               height={100}
               domain={ch.domain}
               cornerFracs={cornerFracs}
@@ -253,6 +254,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
       <div>
         <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Speed (km/h)</div>
         <Lane
+          bgFill="transparent"
           height={120}
           domain={speedDomain}
           cornerFracs={cornerFracs}
@@ -311,6 +313,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
       <div>
         <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Δ time vs best (s, cumulative)</div>
         <Lane
+          bgFill="transparent"
           height={100}
           domain={deltaDomain}
           cornerFracs={cornerFracs}
@@ -386,6 +389,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
         </div>
         {hasLineSpread ? (
           <Lane
+            bgFill="transparent"
             height={90}
             domain={spreadDomain}
             cornerFracs={cornerFracs}

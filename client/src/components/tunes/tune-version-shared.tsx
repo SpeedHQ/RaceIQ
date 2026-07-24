@@ -1,4 +1,6 @@
 import type { LapMeta } from "@shared/types";
+import { useMemo } from "react";
+import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/review-laps";
 import { type TuningLapMetric, useSetLapExcluded } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 
@@ -81,14 +83,32 @@ export function AppliedChangesList({ json, comment }: { json: string | null; com
  *  classifyAccPitLap (server/acc-lap-rules.ts) for ACC/AC-Evo. */
 const PIT_STATUS_REASONS = new Set(["outlap", "inlap", "pit lap"]);
 
+/** Compact labels for the verbose reasons the detectors write (lap-quality.ts,
+ *  lap-detection.ts) — the column is narrow, so the sentence form goes in the
+ *  tooltip and the short form goes on screen. Unlisted reasons show as-is. */
+const INVALID_REASON_LABELS: Record<string, string> = {
+  "too few telemetry packets": "No telemetry",
+  "telemetry distance too short": "Short distance",
+  "telemetry lap time mismatch": "Time mismatch",
+  "starting lap": "Starting lap",
+  "start/end positions too far apart": "Position jump",
+  rewind: "Rewind",
+  incomplete: "Incomplete",
+};
+
 /** Short label for the Status column. Pit-lane laps get their classification
- *  ("Outlap"/"Inlap"/"Pit lap"); other invalid reasons collapse to "Invalid"
- *  (full reason still in the row title); valid laps show nothing. */
+ *  ("Outlap"/"Inlap"/"Pit lap"); other invalid laps show why they're invalid
+ *  (full reason still in the title); valid laps show nothing. */
 function lapStatusLabel(l: LapMeta): string | null {
   if (l.isValid) return null;
   const reason = l.invalidReason ?? null;
-  if (reason && PIT_STATUS_REASONS.has(reason)) return reason[0].toUpperCase() + reason.slice(1);
-  return "Invalid";
+  if (!reason) return "Invalid";
+  if (PIT_STATUS_REASONS.has(reason)) return reason[0].toUpperCase() + reason.slice(1);
+  const mapped = INVALID_REASON_LABELS[reason];
+  if (mapped) return mapped;
+  // Detectors also emit parameterised reasons, e.g. "lap skip (3 → 5)".
+  if (reason.startsWith("lap skip")) return "Lap skip";
+  return reason[0].toUpperCase() + reason.slice(1);
 }
 
 /** Per-lap breakdown for an expanded tune test. Fuel/lap and tyre wear are the
@@ -108,6 +128,10 @@ export function LapBreakdown({
   tuningSessionId?: number | null;
 }) {
   const setExcluded = useSetLapExcluded();
+  // Same selector the server's auto-exclude pass and /line-spread use, so the
+  // badges here can't drift from the laps actually fed to the analysis.
+  // Must run before the early return below (rules of hooks).
+  const selection = useMemo(() => selectEvaluationLaps(laps), [laps]);
   if (laps.length === 0) {
     return <div className="px-3 py-2 text-xs text-app-text-dim">No laps recorded against this version yet.</div>;
   }
@@ -120,7 +144,6 @@ export function LapBreakdown({
           <th className="px-3 py-1 text-right font-medium">Time</th>
           <th className="px-3 py-1 text-right font-medium">Fuel used (L)</th>
           <th className="px-3 py-1 text-right font-medium">Tyre wear</th>
-          <th className="px-3 py-1 text-right font-medium">Tuning</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-app-border/30">
@@ -132,27 +155,54 @@ export function LapBreakdown({
           const status = lapStatusLabel(l);
           const isPitStatus = status != null && status.toLowerCase() !== "invalid";
           const excluded = l.tuningExcluded === true;
+          const reason = selection.reasonById.get(l.id);
           const strike = excluded ? "line-through decoration-app-text-dim/60 opacity-60" : "";
           return (
             <tr key={l.id}>
               <td className={`px-3 py-1 font-mono ${strike} ${l.isValid ? "text-app-text-muted" : "text-red-400"}`} title={!l.isValid ? (l.invalidReason ?? "invalid") : undefined}>
                 {l.lapNumber}
               </td>
+              {/* Fixed-width status slot first, then the exclude toggle and the
+                  eval badges: status is borderless text, and reserving its width
+                  keeps the controls to its right in one column across rows. */}
               <td className="px-3 py-1 text-left">
+                <div className="flex items-center gap-1">
+                <span className="w-[130px] shrink-0 flex items-center gap-2">
                 {status && (
-                  <span className={`text-[10px] uppercase tracking-wider ${strike} ${isPitStatus ? "text-amber-400" : "text-red-400"}`} title={l.invalidReason ?? undefined}>
+                  <span
+                    className={`text-[10px] uppercase tracking-wider truncate ${strike} ${isPitStatus ? "text-amber-400" : "text-red-400"}`}
+                    title={l.invalidReason ?? undefined}
+                  >
                     {status}
                   </span>
                 )}
-                {excluded && <span className="ml-1 text-[10px] uppercase tracking-wider text-app-text-dim border border-app-border rounded px-1 py-0.5">Excluded</span>}
-              </td>
-              <td className={`px-3 py-1 text-right font-mono tabular-nums text-app-text/90 ${strike}`}>
-                {isFastest && <span className="text-purple-400">★ </span>}
-                {formatLapTime(l.lapTime)}
-              </td>
-              <td className={`px-3 py-1 text-right font-mono tabular-nums text-app-text/90 ${strike}`}>{fuel != null ? `${fuel.toFixed(2)} L` : <span className="text-app-text-dim">—</span>}</td>
-              <td className={`px-3 py-1 text-right font-mono tabular-nums text-app-text/90 ${strike}`}>{wear != null ? `${wear.toFixed(0)}%` : <span className="text-app-text-dim">—</span>}</td>
-              <td className="px-3 py-1 text-right">
+                {/* Which laps the analysis actually reads. "Eval" is the
+                    positive signal users asked for; the capped case is called
+                    out separately so a clean lap that merely lost the
+                    fastest-N ranking doesn't read as a rejected lap. These are
+                    status of the lap too, so they sit with the status text and
+                    not next to the exclude control. */}
+                {reason === "chosen" && (
+                  <span
+                    className="text-[10px] uppercase tracking-wider text-emerald-400"
+                    title={`Used for evaluation — one of the fastest ${REVIEW_LAP_CAP} clean laps this analysis reads`}
+                  >
+                    Eval
+                  </span>
+                )}
+                {reason === "slower-than-cap" && (
+                  <span
+                    className="text-[10px] uppercase tracking-wider text-app-text-dim"
+                    title={`Clean lap, but outside the fastest ${REVIEW_LAP_CAP} — not used for evaluation`}
+                  >
+                    Outside top {REVIEW_LAP_CAP}
+                  </span>
+                )}
+                </span>
+                {/* Invalid laps are already out of the analysis by rule
+                    (selectEvaluationLaps → "invalid"), so a manual exclude
+                    toggle there is a no-op control — hide it. */}
+                {l.isValid && (
                 <button
                   type="button"
                   onClick={() => setExcluded.mutate({ lapId: l.id, excluded: !excluded, tuningSessionId })}
@@ -164,7 +214,15 @@ export function LapBreakdown({
                 >
                   {excluded ? "Excluded" : "Exclude"}
                 </button>
+                )}
+                </div>
               </td>
+              <td className={`px-3 py-1 text-right font-mono tabular-nums text-app-text/90 ${strike}`}>
+                {isFastest && <span className="text-purple-400">★ </span>}
+                {formatLapTime(l.lapTime)}
+              </td>
+              <td className={`px-3 py-1 text-right font-mono tabular-nums text-app-text/90 ${strike}`}>{fuel != null ? `${fuel.toFixed(2)} L` : <span className="text-app-text-dim">—</span>}</td>
+              <td className={`px-3 py-1 text-right font-mono tabular-nums text-app-text/90 ${strike}`}>{wear != null ? `${wear.toFixed(0)}%` : <span className="text-app-text-dim">—</span>}</td>
             </tr>
           );
         })}

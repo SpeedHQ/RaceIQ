@@ -2,15 +2,18 @@ import type { LapMeta, TelemetryPacket, TuneIssue } from "@shared/types";
 import { useMemo, useState } from "react";
 import { type LineSpreadTrace, type TrackCorner, useLapIssues, useLapTelemetry, useLineSpread, useTrackBoundaries, useTrackCorners, useTrackSectorBoundaries } from "../../../hooks/queries";
 import { useStintTraces } from "../../../hooks/useStintTraces";
-import { fastestLaps } from "@shared/review-laps";
+import { selectEvaluationLaps } from "@shared/review-laps";
 import { type LapTrace, stintStats } from "../../../lib/stint-traces";
 import { flipPoints, needsTrackFlip } from "../../../lib/track-coords";
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
+import { BalanceLanes } from "./BalanceLanes";
 import { ConsistencyLanes } from "./ConsistencyLanes";
 import { CornerLedger } from "./CornerLedger";
 import { detectCorners } from "./detect-corners";
+import { GripPanel } from "./GripPanel";
 import { IssuesList } from "./IssuesList";
 import { SectorLedger } from "./SectorLedger";
+import { SuspensionLanes } from "./SuspensionLanes";
 import { TiresPanel } from "./TiresPanel";
 import { TrackFocusMap } from "./TrackFocusMap";
 import { TrackFocusZoom } from "./TrackFocusZoom";
@@ -28,9 +31,9 @@ interface TrackFocusViewProps {
   tuningSessionId?: number | null;
 }
 
-const TABS = ["consistency", "tires"] as const;
+const TABS = ["consistency", "tires", "balance", "suspension"] as const;
 type Tab = (typeof TABS)[number];
-const TAB_LABELS: Record<Tab, string> = { consistency: "Consistency", tires: "Tires" };
+const TAB_LABELS: Record<Tab, string> = { consistency: "Consistency", tires: "Tires & grip", balance: "Balance", suspension: "Suspension" };
 
 /** Data-fetching wrapper: resolves the stint's laps into downsampled traces,
  *  the focus lap's raw telemetry, issues, and track corners, then hands
@@ -43,8 +46,12 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
   // N clean laps — bounds decode + payload on long tracks. Stint-wide stats
   // below still use the full stintLaps. Matches the server /line-spread pool.
   // Fastest valid, non-excluded laps — matches the server /line-spread clean
-  // pool (selectCleanLaps). stintLaps is already valid + non-legacy.
-  const reviewLaps = useMemo(() => fastestLaps(stintLaps.filter((l) => !l.tuningExcluded)), [stintLaps]);
+  // pool. Routed through the shared selector so the traces rendered here are
+  // exactly the laps the UI badges as "Eval" (see shared/review-laps.ts);
+  // the old local fastestLaps() trim could disagree when auto-exclude had
+  // never run for the scope. Filter from `laps`, not `stintLaps`: the selector
+  // applies the valid/legacy/pit rules itself and reports why each lap fell out.
+  const reviewLaps = useMemo(() => selectEvaluationLaps(laps).chosen, [laps]);
   const { traces } = useStintTraces(reviewLaps);
   const { data: lineSpread } = useLineSpread(tuningSessionId);
 
@@ -198,9 +205,9 @@ export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSe
   }, [corners, cornerFracs, resolvedTraces, bestLapId]);
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="flex flex-col h-full min-h-0 p-4 gap-4">
       {/* Stat strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+      <div className="flex-none grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
         <StatCell label="Consistency" value={stats.consistency != null ? stats.consistency.toFixed(0) : "—"} unit={stats.consistency != null ? "%" : undefined} />
         <StatCell label="Std dev" value={stats.sdS != null ? stats.sdS.toFixed(3) : "—"} unit={stats.sdS != null ? "s" : undefined} />
         <StatCell label="Best" value={stats.bestS != null ? stats.bestS.toFixed(3) : "—"} unit={stats.bestS != null ? "s" : undefined} />
@@ -214,17 +221,15 @@ export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSe
       </div>
 
       {shownLapCount != null && totalLapCount != null && totalLapCount > shownLapCount && (
-        <p className="text-xs text-muted-foreground -mt-2">
+        <p className="flex-none text-xs text-muted-foreground -mt-2">
           Line + consistency views show the {shownLapCount} fastest of {totalLapCount} laps. Stats above use all laps.
         </p>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[460px_1fr] gap-4">
-        {/* Left column: track map + issues list. The map is the "track display"
-            — it sticks (below the dashboard's sticky toolbar) so the issues list
-            and the right-pane lanes scroll underneath it. */}
-        <div className="space-y-3">
-          <div className="lg:sticky lg:top-12 z-10 bg-app-bg">
+      <div className="grid grid-cols-1 lg:grid-cols-[460px_1fr] gap-4 flex-1 min-h-0">
+        {/* Left column: track map (static) + issues list (own scroll). */}
+        <div className="flex flex-col gap-3 min-h-0">
+          <div className="flex-none">
             {zoomActive && lineSpread?.lapLines?.length && cursorFrac != null ? (
               <TrackFocusZoom lapLines={lineSpread.lapLines} bestLapId={bestLapId} cursorFrac={cursorFrac} edges={edges} />
             ) : (
@@ -242,15 +247,17 @@ export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSe
               />
             )}
           </div>
-          <div>
-            <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Issues</div>
-            <IssuesList issues={issues} onIssueClick={setCursorFrac} />
+          <div className="flex-1 min-h-0 flex flex-col">
+            <div className="flex-none text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Issues</div>
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <IssuesList issues={issues} onIssueClick={setCursorFrac} />
+            </div>
           </div>
         </div>
 
-        {/* Right pane: tabbed lanes */}
-        <div className="space-y-3">
-          <div className="flex gap-1 flex-wrap">
+        {/* Right pane: tabbed lanes — header static, lane content scrolls. */}
+        <div className="flex flex-col gap-3 min-h-0">
+          <div className="flex-none flex gap-1 flex-wrap">
             {TABS.map((t) => (
               <button
                 key={t}
@@ -263,8 +270,8 @@ export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSe
             ))}
           </div>
 
-          {/* Lanes flow into the single page scroll — no independent scroll. */}
-          <div className="space-y-3">
+          {/* Lane content owns its own scroll. */}
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-3">
             {activeTab === "consistency" && (
               <>
                 <ConsistencyLanes
@@ -290,7 +297,19 @@ export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSe
                 />
               </>
             )}
-            {activeTab === "tires" && <TiresPanel traces={traces} bestLapId={bestLapId} cornerFracs={cornerFracs} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />}
+            {activeTab === "tires" && (
+              <>
+                <TiresPanel traces={traces} bestLapId={bestLapId} cornerFracs={cornerFracs} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />
+                <div className="pt-3 mt-1 border-t border-app-border">
+                  <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-2">Grip</div>
+                  <GripPanel traces={resolvedTraces} bestLapId={bestLapId} cornerFracs={effectiveCorners.fracs} corners={effectiveCorners.corners} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />
+                </div>
+              </>
+            )}
+            {activeTab === "balance" && (
+              <BalanceLanes traces={resolvedTraces} bestLapId={bestLapId} cornerFracs={effectiveCorners.fracs} corners={effectiveCorners.corners} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />
+            )}
+            {activeTab === "suspension" && <SuspensionLanes traces={traces} bestLapId={bestLapId} cornerFracs={cornerFracs} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />}
           </div>
         </div>
       </div>

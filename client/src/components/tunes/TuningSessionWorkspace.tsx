@@ -16,7 +16,7 @@ import {
   useTuningSessionTests,
 } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
-import { isPitCycleLap } from "../../lib/lap-filters";
+import { isPitCycleLap } from "@shared/lap-filters";
 import { client } from "../../lib/rpc";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { AddBaseModal } from "./AddBaseModal";
@@ -103,12 +103,21 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
       if (l.tuningSessionId === tuningSessionId) byId.set(l.id, l);
     }
     for (const l of liveSessionLaps) {
-      // Live lap objects from the telemetry pipeline never carry tuningExcluded
-      // (server/pipeline.ts builds them without it), so keep the persisted
-      // lap's flag when both exist — otherwise the exclude toggle looks dead
-      // for laps of the current stint.
+      // Live lap objects from the telemetry pipeline never carry the exclusion
+      // fields (server/pipeline.ts builds them without them), so keep the
+      // persisted lap's flag AND its source when both exist — otherwise the
+      // exclude toggle looks dead for laps of the current stint.
+      // The source must survive: selectEvaluationLaps only reads a lap as
+      // manually excluded when tuningExcludedSource === "manual", so dropping
+      // it leaves the lap ranked in the fastest-N (stale "Eval" badge, no
+      // replacement lap promoted).
       const persisted = byId.get(l.id);
-      byId.set(l.id, persisted ? { ...l, tuningExcluded: persisted.tuningExcluded } : l);
+      byId.set(
+        l.id,
+        persisted
+          ? { ...l, tuningExcluded: persisted.tuningExcluded, tuningExcludedSource: persisted.tuningExcludedSource }
+          : l,
+      );
     }
     return [...byId.values()];
   }, [allLaps, liveSessionLaps, tuningSessionId]);
