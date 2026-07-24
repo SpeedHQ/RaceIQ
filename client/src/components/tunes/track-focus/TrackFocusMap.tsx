@@ -76,21 +76,62 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
 
   const geometry = useMemo(() => (telemetry ? buildGeometry(telemetry, sectorTimes, edges) : null), [telemetry, sectorTimes, edges]);
 
+  // Per-frame normalized distance fraction (0..1 by DistanceTraveled). The
+  // shared `cursorFrac` and the lineSpread trace are distance fractions, but
+  // telemetry frames are uniform in TIME, not distance (dense in slow corners).
+  // Mapping frac<->frame via array index would misplace the cursor, corner and
+  // issue dots, and smear the heat coloring longitudinally. Use the real
+  // distance instead (fall back to index fraction when DistanceTraveled is flat).
+  const normDist = useMemo(() => {
+    if (!telemetry || telemetry.length === 0) return null;
+    const n = telemetry.length;
+    const first = telemetry[0].DistanceTraveled;
+    const span = telemetry[n - 1].DistanceTraveled - first;
+    const out = new Float32Array(n);
+    if (span > 0) {
+      for (let i = 0; i < n; i++) {
+        const f = (telemetry[i].DistanceTraveled - first) / span;
+        out[i] = f < 0 ? 0 : f > 1 ? 1 : f;
+      }
+    } else {
+      for (let i = 0; i < n; i++) out[i] = n > 1 ? i / (n - 1) : 0;
+    }
+    return out;
+  }, [telemetry]);
+
+  // Nearest frame index for a distance fraction `f` (binary search on the
+  // monotonic normDist array). Replaces the old round(frac*(len-1)) index math.
+  function distFracToIdx(f: number): number {
+    if (!normDist || normDist.length === 0) return 0;
+    const n = normDist.length;
+    if (f <= normDist[0]) return 0;
+    if (f >= normDist[n - 1]) return n - 1;
+    let lo = 0;
+    let hi = n - 1;
+    while (hi - lo > 1) {
+      const mid = (lo + hi) >> 1;
+      if (normDist[mid] <= f) lo = mid;
+      else hi = mid;
+    }
+    return f - normDist[lo] <= normDist[hi] - f ? lo : hi;
+  }
+
   // Heat-colored driven-line segments (Consistency tab, when a trace with at
   // least one bin is available) — one <line> per consecutive point pair,
   // colored by the trimmed lateral spread at that point's lap fraction.
   const heatSegments = useMemo(() => {
-    if (!geometry || !telemetry || telemetry.length < 2 || !lineSpread || lineSpread.spreadM.length === 0) return null;
-    const n = telemetry.length;
+    if (!geometry || !telemetry || telemetry.length < 2 || !normDist || !lineSpread || lineSpread.spreadM.length === 0) return null;
     const segs: { x1: number; y1: number; x2: number; y2: number; color: string }[] = [];
     for (let i = 1; i < geometry.pts.length; i++) {
       const a = geometry.pts[i - 1];
       const b = geometry.pts[i];
-      const frac = b.idx / (n - 1);
+      // Color by the segment point's DISTANCE fraction so the heat aligns with
+      // the distance-fraction spread trace (not the frame-index fraction).
+      const frac = normDist[b.idx];
       segs.push({ x1: a.x, y1: a.y, x2: b.x, y2: b.y, color: spreadColor(spreadAt(lineSpread, frac)) });
     }
     return segs;
-  }, [geometry, telemetry, lineSpread]);
+  }, [geometry, telemetry, normDist, lineSpread]);
 
   // Centroid of the driven line, used to push corner labels outward along
   // the vector from centroid -> apex so they don't sit on top of the track.
@@ -107,7 +148,7 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
 
   function fracToPoint(frac: number): { x: number; y: number } | null {
     if (!telemetry || telemetry.length === 0) return null;
-    const idx = Math.max(0, Math.min(telemetry.length - 1, Math.round(frac * (telemetry.length - 1))));
+    const idx = distFracToIdx(frac);
     const t = telemetry[idx];
     return projectPoint({ x: t.PositionX, z: t.PositionZ }, telemetry, edges);
   }
@@ -117,7 +158,7 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
   function fracToTick(frac: number, half = 4): { x1: number; y1: number; x2: number; y2: number } | null {
     if (!telemetry || telemetry.length < 2) return null;
     const n = telemetry.length;
-    const idx = Math.max(0, Math.min(n - 1, Math.round(frac * (n - 1))));
+    const idx = distFracToIdx(frac);
     const p = fracToPoint(frac);
     const aIdx = Math.max(0, idx - 1);
     const bIdx = Math.min(n - 1, idx + 1);
@@ -147,10 +188,12 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
         best = p;
       }
     }
-    if (best && telemetry) onCursorFrac(best.idx / (telemetry.length - 1));
+    // Emit the nearest frame's DISTANCE fraction so lanes/ledgers (distance-frac)
+    // receive the cursor in the same space they render in.
+    if (best && normDist) onCursorFrac(normDist[best.idx]);
   }
 
-  const cursorIdx = cursorFrac != null && telemetry ? Math.round(cursorFrac * (telemetry.length - 1)) : null;
+  const cursorIdx = cursorFrac != null && telemetry ? distFracToIdx(cursorFrac) : null;
   const cursorPt = cursorFrac != null ? fracToPoint(cursorFrac) : null;
   const readoutFrame = cursorIdx != null && telemetry ? telemetry[cursorIdx] : null;
 

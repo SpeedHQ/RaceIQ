@@ -1,6 +1,6 @@
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, compareAnalyses, profiles, tunes } from "./schema";
+import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, compareAnalyses, profiles, tunes, lineSpreadCache } from "./schema";
 import type { TelemetryPacket, LapMeta, SessionMeta, GameId } from "../../shared/types";
 import type { Corner } from "../corner-detection";
 import { fillNormSuspension } from "../telemetry-utils";
@@ -1001,6 +1001,130 @@ async function parseRawLapFrames(
 /** Test-only export so integration tests can drive parseRawLapFrames directly. */
 export const parseRawLapFramesForTest = parseRawLapFrames;
 
+/** Test-only export so integration tests can drive the batch decoder directly. */
+export const parseSessionLapsBatchedForTest = parseSessionLapsBatched;
+
+/**
+ * Decode several laps of the SAME session in a single forward pass over the raw
+ * file. `parseRawLapFrames` re-warms the parser state from the start of the file
+ * on every call, so cold-loading N laps of a stint costs O(N²) frame parses
+ * (the last lap replays every earlier lap). This walks the file once: one
+ * warm-up, one parser state, each frame parsed exactly once, sliced back into
+ * per-lap packet arrays. Output is byte-identical to N separate
+ * parseRawLapFrames calls because the parser is deterministic given the frame
+ * prefix from file start.
+ *
+ * Returns a Map keyed by lap id for laps it resolved. Laps whose stored offset
+ * can't be located in the frame stream are omitted — the caller falls back to
+ * the per-lap path for those.
+ */
+async function parseSessionLapsBatched(
+  rawFile: string,
+  lapMetas: { id: number; rawByteOffset: number; rawFrameCount: number }[],
+  gameId: GameId
+): Promise<Map<number, TelemetryPacket[]>> {
+  const out = new Map<number, TelemetryPacket[]>();
+  if (lapMetas.length === 0) return out;
+
+  const serverGame = getServerGame(gameId);
+  const state = serverGame.createParserState?.() ?? null;
+  const buf = await loadDecompressedRawFile(rawFile);
+
+  const metas = [...lapMetas].sort((a, b) => a.rawByteOffset - b.rawByteOffset);
+  const firstOffset = metas[0].rawByteOffset;
+  if (firstOffset >= buf.length) return out; // all past EOF — fall back per-lap
+
+  // Warm up the parser state by replaying frames from the start of the file up
+  // to the first requested lap (start at 12 to skip the meta frame). Same
+  // best-effort replay parseRawLapFrames does, done ONCE for the whole batch.
+  let offset = 12;
+  while (offset < firstOffset && offset + 4 <= buf.length) {
+    const wLen = buf.readUInt32LE(offset);
+    if (wLen <= 0 || offset + 4 + wLen > buf.length) break;
+    const wBuf = buf.subarray(offset + 4, offset + 4 + wLen);
+    offset += 4 + wLen;
+    try { serverGame.tryParse(wBuf, state); } catch { /* warmup best-effort */ }
+  }
+
+  // Boundary walk from the first lap to EOF: record each frame's start offset so
+  // stored lap offsets map to frame indices. No parsing here — just length
+  // headers, so this is cheap even for a long session file.
+  const frameStarts: number[] = [];
+  const offsetToIdx = new Map<number, number>();
+  let cursor = firstOffset;
+  while (cursor + 4 <= buf.length) {
+    const len = buf.readUInt32LE(cursor);
+    if (len <= 0 || cursor + 4 + len > buf.length) break;
+    offsetToIdx.set(cursor, frameStarts.length);
+    frameStarts.push(cursor);
+    cursor += 4 + len;
+  }
+
+  // Resolve each lap to a frame index range; the last lap bounds how far we parse.
+  const resolved: { id: number; startIdx: number; frameCount: number }[] = [];
+  let maxIdx = -1;
+  for (const meta of metas) {
+    const startIdx = offsetToIdx.get(meta.rawByteOffset);
+    if (startIdx === undefined) continue; // unaligned — caller falls back
+    resolved.push({ id: meta.id, startIdx, frameCount: meta.rawFrameCount });
+    // +1 for the trailing finish frame (see parseRawLapFrames' readCount).
+    maxIdx = Math.max(maxIdx, startIdx + meta.rawFrameCount);
+  }
+  if (resolved.length === 0) return out;
+
+  // Parse frames [0 .. maxIdx] once each, applying the same normalization as
+  // parseRawLapFrames. `parsed[i]` is null when tryParse returns nothing (e.g. a
+  // stateful accumulator still assembling a packet).
+  const lastFrame = Math.min(maxIdx, frameStarts.length - 1);
+  const parsed: (TelemetryPacket | null)[] = new Array(lastFrame + 1).fill(null);
+  for (let i = 0; i <= lastFrame; i++) {
+    const start = frameStarts[i];
+    const len = buf.readUInt32LE(start);
+    const frameBuf = buf.subarray(start + 4, start + 4 + len);
+    try {
+      const packet = serverGame.tryParse(frameBuf, state);
+      if (!packet) continue;
+      const sharedAdapter = tryGetGame(packet.gameId);
+      if (sharedAdapter?.coordSystem === "standard-xyz") {
+        packet.PositionX = -packet.PositionX;
+        packet.VelocityX = -packet.VelocityX;
+        packet.AccelerationX = -packet.AccelerationX;
+      }
+      fillNormSuspension(packet);
+      parsed[i] = packet;
+    } catch { /* single bad frame — skip, matches per-lap tolerance */ }
+  }
+
+  // Slice per lap: its packets are the non-null parses among its rawFrameCount
+  // frames, plus the synthesized finish packet from the trailing frame.
+  for (const lap of resolved) {
+    const end = lap.startIdx + lap.frameCount; // exclusive; index of trailing frame
+    const packets: TelemetryPacket[] = [];
+    for (let i = lap.startIdx; i < end && i < parsed.length; i++) {
+      const p = parsed[i];
+      if (p) packets.push(p);
+    }
+    // Trailing frame = next-lap trigger; synthesize a finish packet (same logic
+    // as parseRawLapFrames' extra-frame branch).
+    const trailing = parsed[end];
+    const last = packets[packets.length - 1];
+    if (trailing && last) {
+      const finishTime = trailing.LastLap ?? 0;
+      if (finishTime > (last.CurrentLap ?? 0)) {
+        packets.push({
+          ...trailing,
+          CurrentLap: finishTime,
+          LapNumber: last.LapNumber,
+          DistanceTraveled: Math.max(trailing.DistanceTraveled, last.DistanceTraveled),
+        });
+      }
+    }
+    if (packets.length > 0) out.set(lap.id, packets);
+  }
+
+  return out;
+}
+
 /**
  * Get a single lap by ID, re-parsing telemetry from the raw session .bin file.
  * Returns empty telemetry for pre-migration laps (rawByteOffset is null).
@@ -1091,6 +1215,127 @@ function buildLapResult(
   };
 }
 
+
+/**
+ * Load several laps' telemetry at once, decoding each session's laps in a single
+ * forward pass (parseSessionLapsBatched) instead of one re-warming parse per lap.
+ * Serves telemetryCache hits directly and populates the cache for every lap it
+ * decodes — so callers that later re-request a lap individually (e.g. the client
+ * /api/laps/:id fetches) hit warm cache. Returns results in the requested id
+ * order. Laps the batch pass can't resolve fall back to getLapById.
+ */
+export async function getLapsByIds(
+  ids: number[]
+): Promise<(LapMeta & { telemetry: TelemetryPacket[]; parseError?: string })[]> {
+  if (ids.length === 0) return [];
+
+  const rows = await db
+    .select({
+      id: laps.id,
+      sessionId: laps.sessionId,
+      lapNumber: laps.lapNumber,
+      lapTime: laps.lapTime,
+      isValid: laps.isValid,
+      createdAt: laps.createdAt,
+      rawByteOffset: laps.rawByteOffset,
+      rawFrameCount: laps.rawFrameCount,
+      rawFile: sessions.rawFile,
+      carOrdinal: sessions.carOrdinal,
+      trackOrdinal: sessions.trackOrdinal,
+      tuneId: laps.tuneId,
+      tuneName: tunes.name,
+      gameId: sessions.gameId,
+      carSetup: laps.carSetup,
+    })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .where(inArray(laps.id, ids))
+    .all();
+
+  const rowById = new Map(rows.map((r) => [r.id, r]));
+
+  // Group cache-miss laps by session raw file so each session decodes once.
+  type BatchMeta = { id: number; rawByteOffset: number; rawFrameCount: number };
+  const bySession = new Map<string, { gameId: GameId; metas: BatchMeta[] }>();
+  const decoded = new Map<number, TelemetryPacket[]>();
+
+  for (const row of rows) {
+    const cached = cacheGet(row.id);
+    if (cached) {
+      decoded.set(row.id, cached);
+      continue;
+    }
+    if (row.rawByteOffset != null && row.rawFrameCount && row.rawFile) {
+      let group = bySession.get(row.rawFile);
+      if (!group) {
+        group = { gameId: row.gameId as GameId, metas: [] };
+        bySession.set(row.rawFile, group);
+      }
+      group.metas.push({ id: row.id, rawByteOffset: row.rawByteOffset, rawFrameCount: row.rawFrameCount });
+    }
+  }
+
+  for (const [rawFile, group] of bySession) {
+    try {
+      const batch = await parseSessionLapsBatched(rawFile, group.metas, group.gameId);
+      for (const [lapId, telemetry] of batch) {
+        cacheSet(lapId, telemetry);
+        decoded.set(lapId, telemetry);
+      }
+    } catch (err) {
+      console.error(`[DB] Batch decode failed for ${rawFile}, falling back per-lap:`, err);
+    }
+  }
+
+  // Assemble in requested order; fall back to getLapById for anything the batch
+  // pass didn't resolve (unaligned offset, batch error, or a bad lap).
+  const results: (LapMeta & { telemetry: TelemetryPacket[]; parseError?: string })[] = [];
+  for (const id of ids) {
+    const row = rowById.get(id);
+    if (!row) continue;
+    const telemetry = decoded.get(id);
+    if (telemetry) {
+      results.push(buildLapResult(row, telemetry));
+    } else {
+      const lap = await getLapById(id);
+      if (lap) results.push(lap);
+    }
+  }
+  return results;
+}
+
+// Bump when computeLineSpreadTrace's output changes so old cached traces are
+// treated as a miss (the version is baked into the lap-set key).
+const LINE_SPREAD_ALGO_VERSION = 1;
+
+/** Deterministic cache key for a tuning session's clean-lap set. */
+export function lineSpreadLapSetHash(lapIds: number[]): string {
+  const sorted = [...lapIds].sort((a, b) => a - b);
+  return `v${LINE_SPREAD_ALGO_VERSION}:${sorted.join(",")}`;
+}
+
+/** Read a cached line-spread trace JSON, or null on miss. */
+export async function getLineSpreadCache(tuningSessionId: number, lapSetHash: string): Promise<string | null> {
+  const row = await db
+    .select({ trace: lineSpreadCache.trace })
+    .from(lineSpreadCache)
+    .where(and(eq(lineSpreadCache.tuningSessionId, tuningSessionId), eq(lineSpreadCache.lapSetHash, lapSetHash)))
+    .get();
+  return row?.trace ?? null;
+}
+
+/** Store a computed line-spread trace JSON (upsert on the composite key). */
+export async function setLineSpreadCache(tuningSessionId: number, lapSetHash: string, trace: string): Promise<void> {
+  await db
+    .insert(lineSpreadCache)
+    .values({ tuningSessionId, lapSetHash, trace })
+    .onConflictDoUpdate({
+      target: [lineSpreadCache.tuningSessionId, lineSpreadCache.lapSetHash],
+      set: { trace, createdAt: sql`(datetime('now'))` },
+    })
+    .run();
+}
 
 /**
  * Delete a lap by ID. Returns true if a row was deleted.

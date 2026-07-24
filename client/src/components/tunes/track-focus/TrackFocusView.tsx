@@ -2,6 +2,7 @@ import type { LapMeta, TelemetryPacket, TuneIssue } from "@shared/types";
 import { useMemo, useState } from "react";
 import { type LineSpreadTrace, type TrackCorner, useLapIssues, useLapTelemetry, useLineSpread, useTrackBoundaries, useTrackCorners, useTrackSectorBoundaries } from "../../../hooks/queries";
 import { useStintTraces } from "../../../hooks/useStintTraces";
+import { fastestLaps } from "@shared/review-laps";
 import { type LapTrace, stintStats } from "../../../lib/stint-traces";
 import { flipPoints, needsTrackFlip } from "../../../lib/track-coords";
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
@@ -38,7 +39,13 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
   // Invalid / legacy laps are excluded from the whole Track Focus view —
   // traces, stats, best-lap, ledgers and tyres all read `stintLaps`.
   const stintLaps = useMemo(() => laps.filter((l) => l.isValid && !l.isLegacy).sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
-  const { traces } = useStintTraces(stintLaps);
+  // Per-frame telemetry (traces, consistency lanes, tyres) runs on the fastest
+  // N clean laps — bounds decode + payload on long tracks. Stint-wide stats
+  // below still use the full stintLaps. Matches the server /line-spread pool.
+  // Fastest valid, non-excluded laps — matches the server /line-spread clean
+  // pool (selectCleanLaps). stintLaps is already valid + non-legacy.
+  const reviewLaps = useMemo(() => fastestLaps(stintLaps.filter((l) => !l.tuningExcluded)), [stintLaps]);
+  const { traces } = useStintTraces(reviewLaps);
   const { data: lineSpread } = useLineSpread(tuningSessionId);
 
   const bestLapId = useMemo(() => {
@@ -96,6 +103,8 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
       stats={stats}
       lineSpread={lineSpread ?? null}
       metaSectors={metaSectors}
+      shownLapCount={reviewLaps.length}
+      totalLapCount={stintLaps.length}
     />
   );
 }
@@ -118,13 +127,17 @@ export interface TrackFocusViewInnerProps {
   /** Authoritative sector boundary fractions from track meta, when available.
    *  Falls back to the focus lap's per-lap sector-index split. */
   metaSectors?: { s1End: number; s2End: number } | null;
+  /** Laps actually analysed in the per-frame views (fastest N). */
+  shownLapCount?: number;
+  /** Total eligible laps in the stint (for the "showing N of M" caption). */
+  totalLapCount?: number;
 }
 
 /** Presentational Track Focus view — no data fetching, so it can be driven
  *  entirely from Storybook fixtures. Owns the local `cursorFrac` (synced
  *  across the map + all lanes) and `activeTab` state; everything else is
  *  passed in already resolved. */
-export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSectorTimes, edges, corners, issues, stats, lineSpread, metaSectors }: TrackFocusViewInnerProps) {
+export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSectorTimes, edges, corners, issues, stats, lineSpread, metaSectors, shownLapCount, totalLapCount }: TrackFocusViewInnerProps) {
   const [cursorFrac, setCursorFrac] = useState<number | null>(null);
   const [hoverPoints, setHoverPoints] = useState<{ brake: number[]; throttle: number[] } | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("consistency");
@@ -199,6 +212,12 @@ export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSe
         />
         <StatCell label="Issues" value={String(issues.length)} />
       </div>
+
+      {shownLapCount != null && totalLapCount != null && totalLapCount > shownLapCount && (
+        <p className="text-xs text-muted-foreground -mt-2">
+          Line + consistency views show the {shownLapCount} fastest of {totalLapCount} laps. Stats above use all laps.
+        </p>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[460px_1fr] gap-4">
         {/* Left column: track map + issues list. The map is the "track display"

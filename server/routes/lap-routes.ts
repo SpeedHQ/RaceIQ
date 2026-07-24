@@ -8,6 +8,7 @@ import type { Tune } from "../../shared/types";
 import {
   getLaps,
   getLapById,
+  getLapsByIds,
   deleteLap,
   updateLapNotes,
   updateLapValidity,
@@ -25,6 +26,7 @@ import { recordAction } from "../db/tuning-action-queries";
 import { KNOWN_GAME_IDS } from "../../shared/types";
 import { importSessionBin, detectGameIdFromBuffer } from "../import-session-bin";
 import { analyzeLap } from "../../shared/lib/lap-insights";
+import { downsampleLap, encodeLapTrace, type EncodedLapTrace } from "../../shared/stint-trace";
 import { buildCompareInsightsBlock } from "../ai/insight-format";
 import { assessLapRecording } from "../lap-quality";
 
@@ -202,6 +204,28 @@ export const lapRoutes = new Hono()
     const insights = lap.gameId ? analyzeLap(packets, lap.gameId) : [];
 
     return c.json({ ...lap, sectorTimes, insights });
+  })
+
+  // ── Batch lap traces ────────────────────────────────────────
+  // Downsampled stint traces for many laps in one call. Replaces the client
+  // fetching full telemetry per lap (50 laps × ~80 fields) and reducing to a
+  // trace locally: the server batch-decodes each session's laps in a single
+  // pass (getLapsByIds), builds the ~14-channel LapTrace, and ships it as
+  // base64 Float32 columns. downsampleLap only needs firstDist/lapDist, which
+  // equal the packet-span fallback — so no sector computation is required and
+  // the trace is byte-identical to the old client-side path.
+  .post("/api/laps/traces", zValidator("json", z.object({ ids: z.array(z.number().int().positive()).max(200) })), async (c) => {
+    const { ids } = c.req.valid("json");
+    if (ids.length === 0) return c.json({ traces: [] as EncodedLapTrace[] });
+
+    const laps = await getLapsByIds(ids);
+    const traces: EncodedLapTrace[] = [];
+    for (const lap of laps) {
+      if (lap.isLegacy || lap.telemetry.length === 0) continue;
+      const trace = downsampleLap(lap.id, lap.lapNumber, lap.isValid, lap.telemetry, null);
+      if (trace) traces.push(encodeLapTrace(trace));
+    }
+    return c.json({ traces });
   })
 
   // ── Export lap telemetry as text ────────────────────────────

@@ -38,12 +38,59 @@ export interface ZoomLapWindow {
 }
 
 export interface ZoomViewport {
+  /** Mean position of every lap at the cursor — used to FRAME the window so the
+   *  whole bundle stays in view. */
   center: ZoomPoint;
+  /** Point the cursor dot is drawn at: the best (fastest) lap's position at the
+   *  cursor, so the dot sits on a line that is actually drawn (falls back to the
+   *  mean center when the best lap isn't in the pool). */
+  dot: ZoomPoint;
   /** Per-lap points inside the ±radiusM window, plus one neighbor point each
    *  side of a run so polyline segments reach the window edge. */
   inWindow: ZoomLapWindow[];
   /** Track edges clipped to the same window (null when no edges supplied). */
   edges: { left: ZoomPoint[]; right: ZoomPoint[] } | null;
+}
+
+type ZoomLapLine = { lapId: number; x: number[]; z: number[]; brake?: number[]; throttle?: number[]; frac?: number[] };
+
+/** Nearest index in a monotonic-ascending fraction array to `f`. */
+function nearestIdxByFrac(fr: ArrayLike<number>, f: number): number {
+  const n = fr.length;
+  if (n === 0) return 0;
+  if (f <= fr[0]) return 0;
+  if (f >= fr[n - 1]) return n - 1;
+  let lo = 0;
+  let hi = n - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (fr[mid] <= f) lo = mid;
+    else hi = mid;
+  }
+  return f - fr[lo] <= fr[hi] - f ? lo : hi;
+}
+
+/** Normalized cumulative chord length (0..1) — a distance-fraction proxy used
+ *  when a lap line lacks a server-supplied `frac` array (old cache entries). */
+function normCumLen(x: number[], z: number[]): Float32Array {
+  const n = x.length;
+  const out = new Float32Array(n);
+  let acc = 0;
+  for (let i = 1; i < n; i++) {
+    acc += Math.hypot(x[i] - x[i - 1], z[i] - z[i - 1]);
+    out[i] = acc;
+  }
+  if (acc > 0) for (let i = 0; i < n; i++) out[i] /= acc;
+  return out;
+}
+
+/** Frame index of a lap at distance-fraction `cursorFrac` — by DistanceTraveled
+ *  (server `frac`) when present, else cumulative chord length. NOT raw frame
+ *  index: frames are uniform in time, so a frame-index fraction lands at the
+ *  wrong physical point (past slow corners). */
+function idxAtFrac(l: ZoomLapLine, cursorFrac: number): number {
+  const fr = l.frac ?? normCumLen(l.x, l.z);
+  return nearestIdxByFrac(fr, cursorFrac);
 }
 
 /**
@@ -75,21 +122,26 @@ function windowPoints(x: number[], z: number[], center: ZoomPoint, radiusM: numb
  * ±radiusM box around that center. No React, no DOM — safe to unit test.
  */
 export function zoomViewport(
-  lapLines: { lapId: number; x: number[]; z: number[]; brake?: number[]; throttle?: number[] }[],
+  lapLines: ZoomLapLine[],
   cursorFrac: number,
   radiusM: number = DEFAULT_RADIUS_M,
   edges?: { left: Pt[]; right: Pt[] } | null,
+  bestLapId?: number | null,
 ): ZoomViewport {
-  if (lapLines.length === 0 || (lapLines[0]?.x.length ?? 0) === 0) return { center: { x: 0, z: 0 }, inWindow: [], edges: null };
+  if (lapLines.length === 0 || (lapLines[0]?.x.length ?? 0) === 0) return { center: { x: 0, z: 0 }, dot: { x: 0, z: 0 }, inWindow: [], edges: null };
 
-  // Raw laps differ in frame count, so index each by its OWN length at
-  // cursorFrac rather than a shared bin index.
+  // Raw laps differ in frame count AND are uniform in time (not distance), so
+  // index each by its own DISTANCE fraction at cursorFrac (via idxAtFrac), not
+  // a raw frame-index fraction.
   let sx = 0;
   let sz = 0;
+  let dot: ZoomPoint | null = null;
   for (const l of lapLines) {
-    const idx = Math.max(0, Math.min(l.x.length - 1, Math.round(cursorFrac * (l.x.length - 1))));
+    const idx = idxAtFrac(l, cursorFrac);
     sx += l.x[idx];
     sz += l.z[idx];
+    // Anchor the dot to the best lap's point so it lands on the thick, visible line.
+    if (bestLapId != null && l.lapId === bestLapId) dot = { x: l.x[idx], z: l.z[idx] };
   }
   const center = { x: sx / lapLines.length, z: sz / lapLines.length };
 
@@ -102,11 +154,11 @@ export function zoomViewport(
       }
     : null;
 
-  return { center, inWindow, edges: windowedEdges };
+  return { center, dot: dot ?? center, inWindow, edges: windowedEdges };
 }
 
 interface TrackFocusZoomProps {
-  lapLines: { lapId: number; x: number[]; z: number[]; brake: number[]; throttle: number[] }[];
+  lapLines: { lapId: number; x: number[]; z: number[]; brake: number[]; throttle: number[]; frac?: number[] }[];
   bestLapId: number | null;
   /** 0..1, drives the window center point. */
   cursorFrac: number;
@@ -126,7 +178,7 @@ interface TrackFocusZoomProps {
  * drawn thicker. Pure/presentational — no data fetching.
  */
 export function TrackFocusZoom({ lapLines, bestLapId, cursorFrac, radiusM = DEFAULT_RADIUS_M, edges }: TrackFocusZoomProps) {
-  const viewport = useMemo(() => (lapLines.length > 0 ? zoomViewport(lapLines, cursorFrac, radiusM, edges) : null), [lapLines, cursorFrac, radiusM, edges]);
+  const viewport = useMemo(() => (lapLines.length > 0 ? zoomViewport(lapLines, cursorFrac, radiusM, edges, bestLapId) : null), [lapLines, cursorFrac, radiusM, edges, bestLapId]);
 
   const totalPoints = viewport ? viewport.inWindow.reduce((sum, l) => sum + l.points.length, 0) : 0;
 
@@ -136,15 +188,16 @@ export function TrackFocusZoom({ lapLines, bestLapId, cursorFrac, radiusM = DEFA
     );
   }
 
-  const { center, inWindow, edges: windowedEdges } = viewport;
+  const { center, dot, inWindow, edges: windowedEdges } = viewport;
   const scale = VIEW / (radiusM * 2);
   const minX = center.x - radiusM;
   const minZ = center.z - radiusM;
   const px = (x: number) => (x - minX) * scale;
   const py = (z: number) => VIEW - (z - minZ) * scale;
 
-  const centerPx = px(center.x);
-  const centerPy = py(center.z);
+  // Dot sits on the best-lap line; window stays framed on the mean.
+  const dotPx = px(dot.x);
+  const dotPy = py(dot.z);
   const edgePolyline = (pts: ZoomPoint[]) => pts.map((p) => `${px(p.x).toFixed(1)},${py(p.z).toFixed(1)}`).join(" ");
 
   return (
@@ -180,7 +233,7 @@ export function TrackFocusZoom({ lapLines, bestLapId, cursorFrac, radiusM = DEFA
             );
           });
         })}
-        <circle cx={centerPx} cy={centerPy} r={4} fill="var(--color-app-accent, #22d3ee)" stroke="#020617" strokeWidth={1.2} />
+        <circle cx={dotPx} cy={dotPy} r={4} fill="var(--color-app-accent, #22d3ee)" stroke="#020617" strokeWidth={1.2} />
       </svg>
       <div className="absolute top-1 right-1 text-[10px] font-mono tabular-nums bg-app-surface/80 border border-app-border rounded px-1.5 py-0.5 text-app-text-muted">
         ±{radiusM}m

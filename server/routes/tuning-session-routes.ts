@@ -4,10 +4,11 @@ import { z } from "zod";
 import { IdParamSchema } from "../../shared/schemas";
 import { GameIdSchema } from "../../shared/types";
 import type { GameId, LapMeta, TelemetryPacket } from "../../shared/types";
-import { getLapById, getLapsForTuningSession, getImportableLapsForTuningSession, importLapsToTuningSession, getCorners, setLapMetrics } from "../db/queries";
+import { getLapById, getLapsByIds, getLapsForTuningSession, getImportableLapsForTuningSession, importLapsToTuningSession, getCorners, setLapMetrics, lineSpreadLapSetHash, getLineSpreadCache, setLineSpreadCache } from "../db/queries";
 import { detectCorners } from "../corner-detection";
 import { computeLineSpreadTrace } from "../lap-consistency";
 import { selectCleanLaps } from "../ai/clean-lap-aggregate";
+import { fastestLaps } from "../../shared/review-laps";
 import { getTrackLengthMeters } from "../../shared/track-data";
 import { suggestLapTarget } from "../../shared/lap-target";
 import { createTuningSession, getTuningSession, listTuningSessions, updateTuningSession, setSessionHead } from "../db/tuning-session-queries";
@@ -764,6 +765,14 @@ export const tuningSessionRoutes = new Hono()
       // session (migration v25), independent of race sessionId.
       const sessionLaps = await getLapsForTuningSession(id);
 
+      // Batch-decode the cache-miss laps in one pass; the DB-cached fast path
+      // (migration v32) needs no frame decode.
+      const missIds = sessionLaps
+        .filter((l) => l.fuelPerLap == null && l.tyreWear == null)
+        .map((l) => l.id);
+      const missLaps = missIds.length > 0 ? await getLapsByIds(missIds) : [];
+      const missById = new Map(missLaps.map((l) => [l.id, l]));
+
       const metrics: LapMetric[] = [];
       for (const lapMeta of sessionLaps) {
         // Cached path (migration v32): if either metric is already stored on the
@@ -776,9 +785,9 @@ export const tuningSessionRoutes = new Hono()
           continue;
         }
 
-        // Miss: decode telemetry once, derive, and persist onto the lap so this
-        // is the last time this lap pays the decode cost.
-        const lap = await getLapById(lapMeta.id);
+        // Miss: derive from the batch-decoded telemetry and persist onto the lap
+        // so this is the last time this lap pays the decode cost.
+        const lap = missById.get(lapMeta.id);
         const fuelPerLap = lap ? deriveFuelPerLap(lap.telemetry) : undefined;
         const tyreWear = lap ? deriveTyreWear(lap.telemetry) : undefined;
         if (lap) await setLapMetrics(lapMeta.id, fuelPerLap ?? null, tyreWear ?? null);
@@ -809,12 +818,30 @@ export const tuningSessionRoutes = new Hono()
       const session = await getTuningSession(id);
 
       const pool = await getLapsForTuningSession(id);
-      const { clean } = selectCleanLaps(pool);
+      const { clean: allClean } = selectCleanLaps(pool);
+      // Curate to the fastest N clean laps — bounds decode memory + compute on
+      // long tracks (see shared/review-laps). Matches the client's curated
+      // trace set so the consistency lane + map overlay agree.
+      const clean = fastestLaps(allClean);
 
+      // Cache hit: the trace is deterministic per (session, clean-lap set), so a
+      // reopen with the same laps skips the whole decode + compute. The hash is
+      // built from lap metadata alone (no frame decode).
+      const lapSetHash = lineSpreadLapSetHash(clean.map((m) => m.id));
+      const cached = await getLineSpreadCache(id, lapSetHash);
+      if (cached) {
+        c.header("Content-Type", "application/json");
+        return c.body(cached);
+      }
+
+      // Single-pass batch decode of the clean pool (one warm-up + one parser
+      // walk per session file) instead of a per-lap re-warming loop.
+      const byId = new Map(clean.map((m) => [m.id, m]));
+      const loaded = await getLapsByIds(clean.map((m) => m.id));
       const loadedLaps: { meta: LapMeta; telemetry: TelemetryPacket[] }[] = [];
-      for (const meta of clean) {
-        const lap = await getLapById(meta.id);
-        if (!lap || lap.telemetry.length < 30) continue;
+      for (const lap of loaded) {
+        const meta = byId.get(lap.id);
+        if (!meta || lap.telemetry.length < 30) continue;
         loadedLaps.push({ meta, telemetry: lap.telemetry });
       }
 
@@ -832,6 +859,8 @@ export const tuningSessionRoutes = new Hono()
       if (!trace) {
         return c.json({ fracs: [], spreadM: [], perCorner: [], lowTrust: false, consistencyScore: 0, overallSpreadM: 0, lapCount: loadedLaps.length, lapLines: [] });
       }
+      // Store for next open (fire-and-forget correctness: recompute is safe).
+      await setLineSpreadCache(id, lapSetHash, JSON.stringify(trace));
       return c.json(trace);
     }
   )

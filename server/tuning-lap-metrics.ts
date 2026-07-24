@@ -77,3 +77,23 @@ export function deriveTyreWear(packets: TelemetryPacket[]): number | undefined {
   }
   return undefined;
 }
+
+/** Minimal DB surface persistLapMetrics needs (DbAdapter satisfies it). */
+export interface LapMetricsWriter {
+  setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void>;
+}
+
+/**
+ * Derive fuel + tyre metrics from a freshly-recorded lap's frames and persist
+ * them onto the lap row, so /lap-metrics is always a pure column read and never
+ * has to decode telemetry on first open (the old lazy path — see migration v32
+ * — is kept only as a fallback for legacy laps with null columns). Called at
+ * every lap-write site (live detectors + bin import) where the frames are
+ * already in memory, so this adds only two O(n) scans, no decode.
+ */
+export async function persistLapMetrics(db: LapMetricsWriter, lapId: number, packets: TelemetryPacket[]): Promise<void> {
+  const fuelPerLap = deriveFuelPerLap(packets) ?? null;
+  const tyreWear = deriveTyreWear(packets) ?? null;
+  if (fuelPerLap == null && tyreWear == null) return; // nothing usable — leave null
+  await db.setLapMetrics(lapId, fuelPerLap, tyreWear);
+}

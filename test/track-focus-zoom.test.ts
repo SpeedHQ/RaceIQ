@@ -15,8 +15,12 @@ describe("inputState", () => {
   });
 });
 
-function line(lapId: number, xs: number[], zs: number[]) {
-  return { lapId, x: xs, z: zs };
+function line(lapId: number, xs: number[], zs: number[], frac?: number[]) {
+  const n = xs.length;
+  // Default to a uniform distance fraction (equal spacing) so the classic
+  // bin-index expectations still hold; pass an explicit `frac` to model a lap
+  // that is dense/sparse in distance.
+  return { lapId, x: xs, z: zs, frac: frac ?? xs.map((_, i) => (n > 1 ? i / (n - 1) : 0)) };
 }
 
 describe("zoomViewport", () => {
@@ -93,5 +97,33 @@ describe("zoomViewport", () => {
     const { inWindow } = zoomViewport([near, far], 0, 60);
     const farWindow = inWindow.find((w) => w.lapId === 2)!;
     expect(farWindow.points.length).toBe(0);
+  });
+
+  test("indexes by DISTANCE fraction, not frame index (dense-half lap)", () => {
+    // 5 frames evenly spaced in X, but the car is slow early so most FRAMES sit
+    // in the first stretch: distance-fraction is skewed. At cursorFrac 0.5 the
+    // distance-fraction point is x=100 (frac idx 1), whereas a raw frame-index
+    // fraction (round(0.5*4)=2) would wrongly land at x=200.
+    const xs = [0, 100, 200, 300, 400];
+    const zs = xs.map(() => 0);
+    const frac = [0, 0.7, 0.8, 0.9, 1];
+    const { center } = zoomViewport([line(1, xs, zs, frac)], 0.5, 300);
+    expect(center.x).toBeCloseTo(100, 5);
+  });
+
+  test("dot anchors to the best lap's point at the cursor (not the mean)", () => {
+    // Two laps diverge in X at the cursor; the mean sits between them, but the
+    // dot must land exactly on the best lap so it stays on a drawn line.
+    const lapLines = [line(1, [0, 10, 20], [0, 0, 0]), line(2, [0, 40, 20], [0, 0, 0])];
+    const { center, dot } = zoomViewport(lapLines, 0.5, 60, null, 2);
+    expect(center.x).toBeCloseTo(25, 5); // mean of 10 and 40
+    expect(dot.x).toBeCloseTo(40, 5); // best lap (id 2) at frac 0.5
+    expect(dot.z).toBeCloseTo(0, 5);
+  });
+
+  test("dot falls back to the mean center when the best lap isn't in the pool", () => {
+    const lapLines = [line(1, [0, 10, 20], [0, 0, 0]), line(2, [0, 40, 20], [0, 0, 0])];
+    const { center, dot } = zoomViewport(lapLines, 0.5, 60, null, 999);
+    expect(dot.x).toBeCloseTo(center.x, 5);
   });
 });

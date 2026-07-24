@@ -508,4 +508,24 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE laps ADD COLUMN tyre_wear REAL`,
     ],
   },
+
+  // ── v33: Cached racing-line spread trace ───────────────────────────────────
+  // /line-spread decodes every clean lap of a tuning session and runs
+  // computeLineSpreadTrace over all of them — expensive at 50 laps. The result
+  // is deterministic per (session, clean-lap set), so cache the trace JSON keyed
+  // by the tuning session id + a hash of the sorted clean lap ids (+ algo
+  // version baked into the hash). A changed lap set yields a new hash.
+  {
+    version: 33,
+    name: "cached racing-line spread trace",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS line_spread_cache (
+        tuning_session_id INTEGER NOT NULL,
+        lap_set_hash TEXT NOT NULL,
+        trace TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (tuning_session_id, lap_set_hash)
+      )`,
+    ],
+  },
 ];

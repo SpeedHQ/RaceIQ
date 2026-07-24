@@ -161,6 +161,11 @@ describe("computeLineSpreadTrace", () => {
       expect(line.z.length).toBe(line.x.length);
       expect(line.brake.length).toBe(line.x.length);
       expect(line.throttle.length).toBe(line.x.length);
+      // Per-frame normalized distance fraction, monotonic 0..1.
+      expect(line.frac.length).toBe(line.x.length);
+      expect(line.frac[0]).toBeCloseTo(0, 5);
+      expect(line.frac[line.frac.length - 1]).toBeCloseTo(1, 5);
+      expect(line.frac.every((f, i) => i === 0 || f >= line.frac[i - 1])).toBe(true);
     }
 
     const t1 = result!.perCorner.find((c) => c.corner === "T1")!;

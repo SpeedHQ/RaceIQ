@@ -4,6 +4,7 @@ import type { SessionState } from "./lap-detector";
 import type { LapDetectorCallbacks } from "./lap-detector-interface";
 import type { DbAdapter } from "./pipeline-adapters";
 import { assessLapRecording } from "./lap-quality";
+import { persistLapMetrics } from "./tuning-lap-metrics";
 import { computeLapSectors } from "./compute-lap-sectors";
 import { accFirstPacketIsMidLap, classifyAccPitLap } from "./acc-lap-rules";
 
@@ -232,6 +233,9 @@ export class LapDetectorAcc implements ILapDetector {
       invalidReason,
       sectors
     );
+    // Precompute fuel/tyre metrics now (frames already in memory) so
+    // /lap-metrics never decodes on first open.
+    await persistLapMetrics(this.db, lapId, packets);
     if (!opts?.silent) {
       this.onLapSaved?.({
         type: "lap-saved",

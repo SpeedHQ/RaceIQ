@@ -1,90 +1,58 @@
-import type { LapMeta, TelemetryPacket } from "@shared/types";
-import { useQueries } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import type { LapMeta } from "@shared/types";
+import { type EncodedLapTrace, decodeLapTrace, type LapTrace } from "@shared/stint-trace";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { client } from "../lib/rpc";
-import { downsampleLap, type LapTrace } from "../lib/stint-traces";
-
-interface LapTelemetryResponse {
-  telemetry: TelemetryPacket[];
-  isLegacy: boolean;
-  sectorTimes: { times: [number, number, number]; s1Idx: number; s2Idx: number; firstDist: number; lapDist: number } | null;
-}
 
 export interface UseStintTracesResult {
   /** Downsampled traces, in the same order as the input laps (legacy laps
-   *  omitted). Undefined entries mean "not fetched yet" (sequential loading
-   *  hasn't reached them, or the fetch is still in flight). */
+   *  omitted, undefined for any lap the server had no trace for). */
   traces: (LapTrace | undefined)[];
-  /** How many laps have settled (fetched + downsampled, or errored/empty). */
+  /** How many laps have settled. */
   loadedCount: number;
   total: number;
   isLoading: boolean;
 }
 
 /**
- * Fetches each lap's full telemetry SEQUENTIALLY (concurrency 1) and
- * immediately reduces it to a small downsampled trace — never holding more
- * than one lap's raw telemetry (5-50 MB) in memory at a time. Only the
- * downsampled trace (~8 KB) is cached, so unlike `useLapTelemetry` it's safe
- * to keep around for the whole stint (staleTime Infinity, gcTime 30min).
- *
- * Sequencing is driven by a small piece of local state (`unlocked`) rather
- * than each query reading its sibling's live status directly — the array of
- * query results doesn't exist until after this same `useQueries` call
- * returns, so gating `enabled` on "the previous query settled" needs a value
- * that survives across renders. `unlocked` starts at 1 (lap 0 always
- * enabled) and advances by one every time the query at `unlocked - 1`
- * settles, admitting the next lap on the following render.
+ * Fetches every lap's downsampled trace in a SINGLE batch request. The server
+ * decodes each session's laps in one pass and returns ~14-channel LapTraces as
+ * base64 Float32 columns (see /api/laps/traces) — far cheaper than the old path
+ * of fetching full telemetry per lap and reducing it client-side (50 laps ×
+ * ~80 fields over the wire). Traces are cached with staleTime Infinity so a
+ * re-mount with the same lap set resolves instantly.
  */
-/** How many laps may fetch their raw telemetry concurrently. Bounds peak
- *  memory (one raw lap is a few MB) while overlapping network round-trips so a
- *  stint isn't loaded strictly one-lap-at-a-time. */
-const FETCH_WINDOW = 4;
-
 export function useStintTraces(laps: LapMeta[]): UseStintTracesResult {
   const eligible = useMemo(() => laps.filter((l) => !l.isLegacy), [laps]);
-  const idsKey = eligible.map((l) => l.id).join(",");
-  const [unlocked, setUnlocked] = useState(FETCH_WINDOW);
+  const ids = useMemo(() => eligible.map((l) => l.id), [eligible]);
+  const idsKey = ids.join(",");
 
-  // Reset sequencing whenever the lap set itself changes (new stint, laps
-  // added/removed) so a shorter list doesn't get stuck waiting on an index
-  // that no longer exists.
-  useEffect(() => {
-    setUnlocked(FETCH_WINDOW);
-  }, [idsKey]);
-
-  const results = useQueries({
-    queries: eligible.map((lap, i) => ({
-      queryKey: ["lap-trace", lap.id],
-      queryFn: async (): Promise<LapTrace | null> => {
-        const res = await client.api.laps[":id"].$get({ param: { id: String(lap.id) } });
-        if (!res.ok) throw new Error(res.statusText);
-        const data = (await res.json()) as LapTelemetryResponse;
-        if (data.isLegacy) return null;
-        return downsampleLap(lap.id, lap.lapNumber, lap.isValid, data.telemetry, data.sectorTimes);
-      },
-      enabled: i < unlocked,
-      staleTime: Number.POSITIVE_INFINITY,
-      gcTime: 1000 * 60 * 30,
-    })),
+  const query = useQuery({
+    queryKey: ["stint-traces", idsKey],
+    enabled: ids.length > 0,
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: 1000 * 60 * 30,
+    queryFn: async (): Promise<Map<number, LapTrace>> => {
+      const res = await client.api.laps.traces.$post({ json: { ids } });
+      if (!res.ok) throw new Error(res.statusText);
+      const data = (await res.json()) as { traces: EncodedLapTrace[] };
+      const byId = new Map<number, LapTrace>();
+      for (const enc of data.traces) byId.set(enc.lapId, decodeLapTrace(enc));
+      return byId;
+    },
   });
 
-  // Advance the unlock cursor once the current frontier query settles
-  // (success, error, or already-cached). Also fast-forward past any laps
-  // whose trace is already cached (staleTime Infinity means a re-mount with
-  // the same lap set resolves instantly instead of re-serializing one lap
-  // at a time).
-  useEffect(() => {
-    let next = unlocked;
-    while (next < results.length && (results[next - 1]?.isSuccess || results[next - 1]?.isError)) {
-      next++;
-    }
-    if (next !== unlocked) setUnlocked(next);
-  }, [results, unlocked]);
+  const byId = query.data;
+  const traces = useMemo(
+    () => (byId ? eligible.map((l) => byId.get(l.id)) : eligible.map(() => undefined)),
+    [byId, eligible],
+  );
 
-  const traces = results.map((r) => r.data ?? undefined);
-  const loadedCount = results.filter((r) => r.isSuccess || r.isError).length;
-  const isLoading = loadedCount < results.length;
-
-  return { traces, loadedCount, total: results.length, isLoading };
+  const settled = query.isSuccess || query.isError;
+  return {
+    traces,
+    loadedCount: settled ? eligible.length : 0,
+    total: eligible.length,
+    isLoading: ids.length > 0 && !settled,
+  };
 }

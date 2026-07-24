@@ -15,6 +15,7 @@ import type { DbAdapter } from "./pipeline-adapters";
 import type { ILapDetector, LapDetectorOptions } from "./lap-detector-interface";
 import { extractCurbSegments, recordCurbData } from "../shared/track-data";
 import { assessLapRecording } from "./lap-quality";
+import { persistLapMetrics } from "./tuning-lap-metrics";
 import { computeLapSectors as computeLapSectorsHelper } from "./compute-lap-sectors";
 import { detectSessionBoundary, detectLapBoundary, detectLapReset } from "./lap-detection";
 
@@ -431,6 +432,9 @@ export class LapDetector implements ILapDetector {
         });
       }
 
+      // Capture the frame buffer before resetLapState reassigns it — the insert
+      // below is fire-and-forget, so persistLapMetrics runs after the reset.
+      const lapPackets = this.lapBuffer;
       this.db.insertLap(
         this.currentSession.sessionId,
         lapNum,
@@ -442,7 +446,10 @@ export class LapDetector implements ILapDetector {
         tuneId,
         invalidReason,
         sectors
-      ).then((lapId) => {
+      ).then(async (lapId) => {
+        // Precompute fuel/tyre metrics now (frames in memory) so /lap-metrics
+        // never decodes on first open.
+        try { await persistLapMetrics(this.db, lapId, lapPackets); } catch (e) { console.error("[Lap] persistLapMetrics failed:", e); }
         console.log(
           `[Lap] Saved lap ${lapNum} | Time: ${formatLapTime(lapTime)} | Valid: ${valid}${invalidReason ? ` (${invalidReason})` : ""} | Packets: ${packetCount} | DB ID: ${lapId}`
         );
@@ -489,6 +496,7 @@ export class LapDetector implements ILapDetector {
             this.currentSession.carOrdinal,
             this.currentSession.trackOrdinal
           );
+          const lapPackets = this.lapBuffer;
           this.db.insertLap(
             this.currentSession.sessionId,
             this.currentLapNumber,
@@ -500,7 +508,8 @@ export class LapDetector implements ILapDetector {
             tuneAssignment?.tuneId ?? null,
             "incomplete",
             null
-          ).then(() => {
+          ).then(async (lapId) => {
+            try { await persistLapMetrics(this.db, lapId, lapPackets); } catch (e) { console.error("[Lap] persistLapMetrics failed:", e); }
             console.log(`[Lap] Saved incomplete lap (session ended)`);
           }).catch((err) => {
             console.error("[Lap] Failed to save incomplete lap:", err);
@@ -546,6 +555,7 @@ export class LapDetector implements ILapDetector {
       );
       const lapNum = this.currentLapNumber;
       const packetCount = this.lapBuffer.length;
+      const lapPackets = this.lapBuffer;
       this.db.insertLap(
         this.currentSession.sessionId,
         lapNum,
@@ -557,7 +567,8 @@ export class LapDetector implements ILapDetector {
         tuneAssignment?.tuneId ?? null,
         isComplete ? this.invalidReason : "incomplete",
         null
-      ).then((lapId) => {
+      ).then(async (lapId) => {
+        try { await persistLapMetrics(this.db, lapId, lapPackets); } catch (e) { console.error("[Lap] persistLapMetrics failed:", e); }
         console.log(
           `[Lap] Flushed stale lap ${lapNum} | Time: ${formatLapTime(lapTime)} | ${isComplete ? "Complete" : "Incomplete"} | Packets: ${packetCount} | DB ID: ${lapId} (${(silenceMs / 1000).toFixed(0)}s silence)`
         );

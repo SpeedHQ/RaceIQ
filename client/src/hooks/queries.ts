@@ -845,8 +845,9 @@ export interface LineSpreadTrace {
   overallSpreadM: number;
   lapCount: number;
   /** Per-lap RAW per-frame racing line (full resolution, variable length) for
-   *  the zoom window. World-space metres; brake/throttle 0..1 per frame. */
-  lapLines: { lapId: number; x: number[]; z: number[]; brake: number[]; throttle: number[] }[];
+   *  the zoom window. World-space metres; brake/throttle 0..1 per frame; `frac`
+   *  is each frame's normalized distance fraction (0..1). */
+  lapLines: { lapId: number; x: number[]; z: number[]; brake: number[]; throttle: number[]; frac: number[] }[];
 }
 
 /** Trimmed (p90-p10) racing-line spread trace for the Track Focus Consistency
