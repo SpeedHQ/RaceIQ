@@ -13,21 +13,19 @@ const DB_DIR = resolveDataDir();
 const DB_PATH = `${DB_DIR}/forza-telemetry.db`;
 
 /**
- * Tests get an in-memory DB: no fsync/WAL churn, and every run starts from a
- * clean schema instead of inheriting whatever the last run left in .data-test.
+ * Opt-in only: set DB_IN_MEMORY=1. Tests deliberately do NOT default to this.
  *
- * Scope note: this does NOT isolate test files from each other. `bun test`
- * runs them sequentially in one process and this module is a singleton, so all
- * suites still share one DB — same as the file-backed setup. Suites that wipe
- * tables still affect suites that run after them.
+ * `:memory:` in libsql is per-connection, not per-process. Migrations run on
+ * the connection this module opens; any second connection the client opens is
+ * a brand-new empty database, so queries there fail with "no such table: X"
+ * for whichever table they touch. A file: DB is shared across connections and
+ * does not have this failure mode.
  *
- * Set DB_IN_MEMORY=0 to force the file-backed DB when a failure needs
- * post-mortem inspection of .data-test. Anything spawning a real server (e.g.
- * test/e2e/udp-recording.test.ts) runs with NODE_ENV=development and so keeps
- * the file DB it needs for cross-process state.
+ * Measured on an 11-file subset: DB_IN_MEMORY=1 gave 59 pass / 18 fail (all
+ * "no such table"), the same files on the file DB gave 77 pass / 0 fail.
+ * Don't flip this default without re-running that comparison.
  */
-const IS_TEST = process.env.NODE_ENV === "test" || !!process.env.BUN_TEST;
-const IN_MEMORY = process.env.DB_IN_MEMORY === "0" ? false : process.env.DB_IN_MEMORY === "1" || IS_TEST;
+const IN_MEMORY = process.env.DB_IN_MEMORY === "1";
 
 // Ensure data directory exists
 if (!existsSync(DB_DIR)) {

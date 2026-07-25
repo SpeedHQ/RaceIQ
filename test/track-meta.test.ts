@@ -68,12 +68,10 @@ const KNOWN_CORNER_GAPS: Record<string, string[]> = {
   "catalunya/acc": ["t6"],
   "catalunya/f1-2025": ["t14"],
   "catalunya/fm-2023": ["t14"],
-  // ac-evo fuses Piratella (T8) and Rivazza 1 (T13) into their neighbours.
-  "imola/ac-evo": ["t13", "t8"],
-  // Tamburello's entry (T1) was curated from the ac-evo centerline; acc and
-  // f1-2025 still run it into the start/finish straight.
-  "imola/acc": ["t1"],
-  "imola/f1-2025": ["t1"],
+  // Imola's full 19 turns were curated off the ac-evo centerline; acc and
+  // f1-2025 still fold T1, T10 and T16 into their neighbours.
+  "imola/acc": ["t1", "t10", "t16"],
+  "imola/f1-2025": ["t1", "t10", "t16"],
   // fm subdivides the Nordschleife into 69 corners; acc and ac-evo stop at 60.
   "nordschleife/acc": ["t61", "t62", "t63", "t64", "t65", "t66", "t67", "t68", "t69"],
   "nordschleife/ac-evo": ["t61", "t62", "t63", "t64", "t65", "t66", "t67", "t68", "t69"],

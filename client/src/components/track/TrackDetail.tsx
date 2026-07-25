@@ -753,28 +753,14 @@ export function TrackDetail({
     });
   }, []);
 
-  const updateSegName = useCallback((idx: number, name: string) => {
-    setEditSegments((prev) => {
-      const next = prev.map((s) => ({ ...s }));
-      next[idx].name = name;
-      return next;
-    });
-  }, []);
-
-  // Complex membership (Rivazza, Variante Alta): each turn stays its own
-  // segment, the group name is what the map labels the complex with.
-  const updateSegGroup = useCallback((idx: number, group: string) => {
-    setEditSegments((prev) => {
-      const next = prev.map((s) => ({ ...s }));
-      if (group.trim()) next[idx].group = group;
-      else delete next[idx].group;
-      return next;
-    });
-  }, []);
-
+  // Names and groups are shared facts curated in the meta files, not per-game
+  // debug state: this editor only moves boundaries and decides whether a
+  // stretch is a corner or a straight.
+  //
   // A corner is identified by its official turn number, not by `type`: the save
   // path (`splitSegments`) keys on the number, so an unnumbered corner is
-  // written back out as a straight. Flipping the type must move the number too.
+  // written back out as a straight. Flipping the type must move the number too,
+  // and the number is derived from position — never picked by hand.
   const toggleSegType = useCallback((idx: number) => {
     setEditSegments((prev) => {
       const next = prev.map((s) => ({ ...s }));
@@ -783,15 +769,6 @@ export function TrackDetail({
       // Clear name when type changes so display auto-name kicks in
       next[idx].name = "";
       return becomingCorner ? numberCorner(next, idx) : unnumberCorner(next, idx);
-    });
-  }, []);
-
-  const updateSegNumber = useCallback((idx: number, value: number) => {
-    setEditSegments((prev) => {
-      const next = prev.map((s) => ({ ...s }));
-      if (!Number.isFinite(value) || value < 1) return next;
-      next[idx].number = Math.trunc(value);
-      return next;
     });
   }, []);
 
@@ -1095,25 +1072,9 @@ export function TrackDetail({
                           >
                             {isCorner ? "T" : "S"}
                           </button>
-                          {isCorner && (
-                            <input
-                              type="number"
-                              min="1"
-                              step="1"
-                              value={seg.number ?? ""}
-                              onChange={(e) => updateSegNumber(i, Number(e.target.value))}
-                              title="Official turn number — the identity this corner saves under"
-                              className={`shrink-0 w-9 text-app-unit font-mono rounded px-1 py-0.5 text-center border ${
-                                seg.number == null ? "bg-amber-900/40 border-amber-700 text-amber-300" : "bg-app-surface-alt border-app-border-input text-app-text"
-                              }`}
-                            />
-                          )}
-                          <input
-                            value={seg.name}
-                            placeholder={segDisplayNames[i]}
-                            onChange={(e) => updateSegName(i, e.target.value)}
-                            className="flex-1 min-w-0 text-app-label font-mono bg-transparent border-b border-app-border-input text-app-text outline-none px-1 placeholder:text-app-text-dim"
-                          />
+                          <span className={`flex-1 min-w-0 truncate text-app-label font-mono font-bold ${color}`} title={m.trackdetail_segment_name_readonly()}>
+                            {segDisplayNames[i]}
+                          </span>
                           <button
                             onClick={() => addSegment(i)}
                             className="shrink-0 w-5 h-5 flex items-center justify-center text-app-unit rounded bg-app-surface-alt border border-app-border-input text-app-text-muted hover:text-app-text"
@@ -1131,13 +1092,6 @@ export function TrackDetail({
                           </button>
                         </div>
                         <div className="flex items-center gap-2 text-app-label font-mono text-app-text-secondary">
-                          <input
-                            value={seg.group ?? ""}
-                            placeholder="group"
-                            title="Complex this turn belongs to — the map labels the complex once under this name"
-                            onChange={(e) => updateSegGroup(i, e.target.value)}
-                            className="w-16 min-w-0 bg-transparent border-b border-app-border-input text-app-text-secondary outline-none px-1 placeholder:text-app-text-dim"
-                          />
                           <input
                             type="number"
                             step="0.1"

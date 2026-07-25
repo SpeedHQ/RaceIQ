@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { client } from "@/lib/rpc";
+import { segmentDisplayNames } from "@/lib/segment-label";
 import { useGameId } from "@/stores/game";
 import type { Point, TrackBoundaries, TrackCurb, TrackSectors } from "../types";
 import { CurbDebugSection } from "./CurbDebugSection";
@@ -267,7 +268,12 @@ export function TrackDebugPanel({
     // Draw segment or sector overlays — use geoCenter for visual alignment.
     if (overlayMode === "segments" && displaySectors && displaySectors.segments.length > 0) {
       const n = centerPts.length;
-      for (const seg of displaySectors.segments) {
+      // Unnamed segments carry their number, not a bare type marker: "T7"/"S3"
+      // is what the segment list and the track map already call them, and on a
+      // track mid-curation every corner is unnamed — a lap of identical "T"s
+      // labels nothing.
+      const labels = segmentDisplayNames(displaySectors.segments);
+      for (const [segIdx, seg] of displaySectors.segments.entries()) {
         const start = Math.floor(seg.startFrac * n);
         const end = Math.min(Math.ceil(seg.endFrac * n), n - 1);
         if (start >= end) continue;
@@ -289,7 +295,7 @@ export function TrackDebugPanel({
         // Label at midpoint
         const mid = Math.floor((start + end) / 2);
         const [lx, ly] = toCanvas(centerPts[mid].x, centerPts[mid].z);
-        const label = seg.name || (seg.type === "corner" ? "T" : "S");
+        const label = labels[segIdx];
         ctx.font = "bold 10px monospace";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";

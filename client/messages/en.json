@@ -1082,6 +1082,7 @@
   "trackdetail_no_outline_available": "No outline available",
   "trackdetail_split_segment": "Split segment",
   "trackdetail_remove_segment": "Remove segment",
+  "trackdetail_segment_name_readonly": "Names, groups and turn numbers come from the shared track meta — edit them there, not here",
   "trackdetail_debug_tab": "Debug",
   "trackdetail_all_divisions": "All divisions",
   "trackdetail_search_divisions_placeholder": "Search divisions...",

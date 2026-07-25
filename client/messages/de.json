@@ -1082,6 +1082,7 @@
   "trackdetail_no_outline_available": "Keine Streckenkontur verfügbar",
   "trackdetail_split_segment": "Segment teilen",
   "trackdetail_remove_segment": "Segment entfernen",
+  "trackdetail_segment_name_readonly": "Namen, Gruppen und Kurvennummern stammen aus den gemeinsamen Streckendaten — dort bearbeiten, nicht hier",
   "trackdetail_debug_tab": "Debug",
   "trackdetail_all_divisions": "Alle Divisionen",
   "trackdetail_search_divisions_placeholder": "Divisionen durchsuchen...",
