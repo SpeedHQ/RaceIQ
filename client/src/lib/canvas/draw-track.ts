@@ -1,5 +1,5 @@
 import type { Point, TrackSectors } from "@/components/track/types";
-import { segmentDisplayNames } from "@/lib/segment-label";
+import { segmentDisplayNames, segmentGroupLabels } from "@/lib/segment-label";
 
 interface LabelCandidate {
   text: string;
@@ -255,27 +255,23 @@ export function drawTrack(
 
     // Corner names carry their official turn numbers ("Eau Rouge/Raidillon (2-4)");
     // thumbnails stay clean with names only.
-    const displayNames = large
-      ? segmentDisplayNames(sectors.segments)
-      : segmentDisplayNames(sectors.segments.map((s) => ({ ...s, number: undefined, covers: undefined })));
-    // The start/finish straight is two segments but one straight — label the
-    // longer half so its name doesn't appear twice on the map.
-    // Corner complexes (Rivazza, Les Combes) are one section per turn so they
-    // can be edited individually, but the map calls them by the complex name
-    // once — label the longest member with the group name and suppress the
-    // rest. Debug editing wants every turn labelled, so it opts out.
-    const labelledGroups = new Set<string>();
-    const groupLabelAt = new Map<string, string>();
-    for (const g of new Set(sectors.segments.map((s) => s.group).filter(Boolean))) {
-      const halves = sectors.segments.filter((s) => s.group === g);
-      const longest = halves.reduce((a, b) => (b.endFrac - b.startFrac > a.endFrac - a.startFrac ? b : a));
-      for (const h of halves) if (h !== longest) labelledGroups.add(`${g}:${h.startFrac}`);
-      if (!perSegmentLabels) groupLabelAt.set(`${g}:${longest.startFrac}`, g as string);
-    }
+    const forLabels = large
+      ? sectors.segments
+      : sectors.segments.map((s) => ({ ...s, number: undefined, covers: undefined }));
+    // A complex (Rivazza, Les Combes) is one section per turn so each can be
+    // edited on its own, but the map names the piece once. `segmentGroupLabels`
+    // labels the first member and returns "" for the rest, which is the same
+    // helper the prompts and lists use — this used to be reimplemented here,
+    // anchoring on the longest member instead of the first and emitting the bare
+    // group name, so the map disagreed with every other surface. Debug editing
+    // wants every turn labelled, so it opts out.
+    const labelTexts = perSegmentLabels ? segmentDisplayNames(forLabels) : segmentGroupLabels(forLabels);
 
     let segIdx = 0;
     for (const seg of sectors.segments) {
-      const displayName = displayNames[segIdx++];
+      // "" means this segment is a non-anchor member of a group, so the piece
+      // is already labelled once at its first member.
+      const labelText = labelTexts[segIdx++];
       const start = Math.round(seg.startFrac * n);
       const end = Math.min(Math.round(seg.endFrac * n), n - 1);
       const color = seg.type === "corner" ? cornerColors[cornerIdx++ % cornerColors.length] : straightColors[straightIdx++ % straightColors.length];
@@ -307,9 +303,7 @@ export function drawTrack(
 
       // Collect the label; placement happens after every segment is drawn so
       // labels can be tested against each other (see placeLabels below).
-      const suppressed = seg.group && !perSegmentLabels ? labelledGroups.has(`${seg.group}:${seg.startFrac}`) : false;
-      const labelText = (seg.group ? groupLabelAt.get(`${seg.group}:${seg.startFrac}`) : undefined) ?? displayName;
-      if (!suppressed && (large || seg.type === "corner") && labelText) {
+      if ((large || seg.type === "corner") && labelText) {
         const midIdx = Math.round((start + end) / 2);
         const midPt = outline[Math.min(midIdx, n - 1)];
         const [mx, my] = toCanvas(midPt.x, midPt.z);
@@ -329,7 +323,7 @@ export function drawTrack(
           ny: dx / len,
           // A real name is worth more screen space than "T6" or "S3"; among
           // equals, the longer section is the more significant one.
-          priority: (/^[TS]\d/.test(displayName) ? 0 : 2) + (seg.type === "corner" ? 1 : 0),
+          priority: (/^[TS]\d/.test(labelText) ? 0 : 2) + (seg.type === "corner" ? 1 : 0),
           size: seg.endFrac - seg.startFrac,
         });
       }

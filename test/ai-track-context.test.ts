@@ -3,7 +3,7 @@ import type { TelemetryPacket, GameId } from "../shared/types";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { tryGetServerGame } from "../server/games/registry";
-import { resolveTrackContext } from "../server/ai/track-context";
+import { resolveTrack } from "../server/track-info";
 import { buildAnalystPrompt } from "../server/ai/analyst-prompt";
 
 initGameAdapters();
@@ -52,39 +52,55 @@ const lapPackets = (gameId: GameId) =>
     pkt({ gameId, TimestampMS: i * 500, DistanceTraveled: i * 58, CurrentLap: i * 0.5, Speed: 60 }),
   );
 
-describe("resolveTrackContext", () => {
+describe("resolveTrack", () => {
   test("returns the slug, segments with turn numbers, and sectors", () => {
     const ord = ordinalFor("f1-2025", "spa")!;
-    const ctx = resolveTrackContext("f1-2025", ord);
-    expect(ctx.slug).toBe("spa");
-    expect(ctx.sectors?.s1End).toBeGreaterThan(0);
-    expect(ctx.sectors?.s2End).toBeGreaterThan(ctx.sectors!.s1End);
-    const withNumbers = ctx.segments?.filter((s) => s.number !== undefined) ?? [];
-    expect(withNumbers.length).toBeGreaterThan(5);
+    const track = resolveTrack("f1-2025", ord);
+    expect(track.slug).toBe("spa");
+    expect(track.sectors.s1End).toBeGreaterThan(0);
+    expect(track.sectors.s2End).toBeGreaterThan(track.sectors.s1End);
+    expect(track.segments.filter((s) => s.number !== undefined).length).toBeGreaterThan(5);
   });
 
-  test("prefers the game's own segments over the shared set", () => {
-    // Spa is curated for both, and their centerlines differ — so the same
-    // corner must not land on the same lap fraction for both games. This is
-    // the regression that fed ACC laps F1's boundaries.
-    const f1 = resolveTrackContext("f1-2025", ordinalFor("f1-2025", "spa")!);
-    const acc = resolveTrackContext("acc", ordinalFor("acc", "spa")!);
-    const f1First = f1.segments?.find((s) => s.type === "corner");
-    const accFirst = acc.segments?.find((s) => s.type === "corner");
+  test("names come from the shared facts, fractions from the game", () => {
+    // Spa is curated for both, and their centerlines differ. The corner is the
+    // same fact for both games, so it must carry the same name — but it must
+    // not land on the same lap fraction. This is the regression that fed ACC
+    // laps F1's boundaries.
+    const f1 = resolveTrack("f1-2025", ordinalFor("f1-2025", "spa")!);
+    const acc = resolveTrack("acc", ordinalFor("acc", "spa")!);
+    const f1First = f1.segments.find((s) => s.type === "corner");
+    const accFirst = acc.segments.find((s) => s.type === "corner");
     expect(f1First?.name).toBe(accFirst?.name); // same corner...
     expect(f1First?.startFrac).not.toBe(accFirst?.startFrac); // ...different geometry
-    expect(f1.sectors?.s1End).not.toBe(acc.sectors?.s1End);
+    expect(f1.sectors.s1End).not.toBe(acc.sectors.s1End);
   });
 
-  test("no game or no ordinal yields an empty context, not a throw", () => {
-    expect(resolveTrackContext(undefined, 1)).toEqual({});
-    expect(resolveTrackContext("f1-2025", null)).toEqual({});
+  test("both games resolve to one facts file", () => {
+    const f1 = resolveTrack("f1-2025", ordinalFor("f1-2025", "spa")!);
+    const acc = resolveTrack("acc", ordinalFor("acc", "spa")!);
+    expect(f1.facts).toEqual(acc.facts);
+    expect(f1.name).toBe(acc.name);
+  });
+
+  test("no game or no ordinal degrades instead of throwing", () => {
+    const noGame = resolveTrack(undefined, 1);
+    expect(noGame.slug).toBeUndefined();
+    expect(noGame.segments).toEqual([]);
+    expect(noGame.facts).toBeNull();
+    // Sectors always resolve, so callers never need their own default.
+    expect(noGame.sectors.s1End).toBeGreaterThan(0);
+
+    const noOrdinal = resolveTrack("f1-2025", null);
+    expect(noOrdinal.slug).toBeUndefined();
+    expect(noOrdinal.segments).toEqual([]);
+    expect(noOrdinal.outline).toBeNull();
   });
 });
 
 describe("analyst prompt carries the curated track data", () => {
   const ord = ordinalFor("f1-2025", "spa")!;
-  const ctx = resolveTrackContext("f1-2025", ord);
+  const track = resolveTrack("f1-2025", ord);
   const prompt = buildAnalystPrompt(
     { lapNumber: 1, lapTime: 104.5, isValid: true, carOrdinal: 1, trackOrdinal: ord, gameId: "f1-2025" },
     lapPackets("f1-2025"),
@@ -92,10 +108,10 @@ describe("analyst prompt carries the curated track data", () => {
     "metric",
     "C",
     undefined,
-    ctx.segments,
+    track.segments,
     undefined,
     "en",
-    { times: { s1: 30.1, s2: 42.4, s3: 32.0 }, s1End: ctx.sectors!.s1End, s2End: ctx.sectors!.s2End },
+    { times: { s1: 30.1, s2: 42.4, s3: 32.0 }, s1End: track.sectors.s1End, s2End: track.sectors.s2End },
   );
 
   test("segment list labels corners with their turn numbers", () => {
@@ -133,7 +149,7 @@ describe("analyst prompt carries the curated track data", () => {
       "metric",
       "C",
       undefined,
-      ctx.segments,
+      track.segments,
       undefined,
       "en",
     );

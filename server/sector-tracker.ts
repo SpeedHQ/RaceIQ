@@ -7,8 +7,7 @@
  */
 import type { TelemetryPacket, GameId, LiveSectorData, LivePitData, LapMeta } from "../shared/types";
 import { getLaps, getLapById } from "./db/queries";
-import { getTrackSectorsByOrdinal, getTrackOutlineByOrdinal, loadTrackSectorsFor } from "../shared/track-data";
-import { tryGetGame } from "../shared/games/registry";
+import { resolveTrack } from "./track-info";
 
 interface SectorBounds {
   s1End: number;
@@ -64,16 +63,15 @@ export class SectorTracker {
     this.currentCarOrdinal = carOrdinal;
     this.currentGameId = gameId;
 
-    // Load sector boundaries: per-game geometry JSON → bundled fallback
-    const adapter = tryGetGame(gameId);
-    const slug = adapter?.getSharedTrackName?.(trackOrdinal);
-    const sectors = (slug && gameId ? loadTrackSectorsFor(slug, gameId) : undefined) ?? getTrackSectorsByOrdinal(trackOrdinal);
+    // Sector boundaries: this game's curated pair, else bundled, else thirds.
+    const track = resolveTrack(gameId, trackOrdinal);
+    const sectors = track.sectors;
 
     if (!sectors?.s1End || !sectors?.s2End) return;
 
     // Compute track length from outline
     let trackLength = 0;
-    const outline = getTrackOutlineByOrdinal(trackOrdinal, gameId, slug);
+    const outline = track.outline;
     if (outline && outline.length > 1) {
       for (let i = 1; i < outline.length; i++) {
         const dx = outline[i].x - outline[i - 1].x;

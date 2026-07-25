@@ -36,13 +36,12 @@ import { getTuneById as getDbTune } from "../db/tune-queries";
 import { generateExport } from "../export";
 import { compareLaps } from "../comparison";
 import { detectCorners } from "../corner-detection";
-import { getTrackSectorsByOrdinal, loadTrackSectorsFor } from "../../shared/track-data";
 import { getGame } from "../../shared/games/registry";
 
 import type { GameId } from "../../shared/types";
 import { loadSettings } from "../settings";
 import { buildAnalystPrompt } from "../ai/analyst-prompt";
-import { resolveTrackContext } from "../ai/track-context";
+import { resolveTrack } from "../track-info";
 import { computeLapSectors } from "../compute-lap-sectors";
 import { getAnalystJsonSchema } from "../ai/schemas";
 import {
@@ -169,8 +168,7 @@ export const lapRoutes = new Hono()
     const packets = lap.telemetry;
     if (packets.length >= 10 && lap.trackOrdinal != null) {
       const gameId = c.req.header("x-game-id") as GameId | undefined;
-      const slug = gameId ? getGame(gameId)?.getSharedTrackName?.(lap.trackOrdinal) : undefined;
-      const sectors = (slug && gameId ? loadTrackSectorsFor(slug, gameId) : undefined) ?? getTrackSectorsByOrdinal(lap.trackOrdinal);
+      const sectors = resolveTrack(gameId, lap.trackOrdinal).sectors;
       if (sectors?.s1End && sectors?.s2End) {
         const firstDist = packets[0].DistanceTraveled;
         const lastDist = packets[packets.length - 1].DistanceTraveled;
@@ -404,16 +402,16 @@ export const lapRoutes = new Hono()
     // Curated track data (#84): named segments with their official turn
     // numbers, and this game's sector boundaries. Game-specific — each game's
     // centerline has its own lap fractions.
-    const trackCtx = resolveTrackContext(lap.gameId as GameId | undefined, lap.trackOrdinal);
-    const segments = trackCtx.segments;
+    const track = resolveTrack(lap.gameId, lap.trackOrdinal);
+    const segments = track.segments;
 
     // Sector times, split on those boundaries, so the model can attribute a
     // slow sector to the corners it actually covers.
     let sectors: { times: { s1: number; s2: number; s3: number }; s1End: number; s2End: number } | undefined;
-    if (trackCtx.sectors?.s1End && trackCtx.sectors?.s2End && lap.gameId && lap.trackOrdinal != null) {
+    if (track.sectors.s1End && track.sectors.s2End && lap.gameId && lap.trackOrdinal != null) {
       try {
         const times = await computeLapSectors(lap.trackOrdinal, lap.gameId as GameId, lap.telemetry, lap.lapTime);
-        if (times) sectors = { times, s1End: trackCtx.sectors.s1End, s2End: trackCtx.sectors.s2End };
+        if (times) sectors = { times, s1End: track.sectors.s1End, s2End: track.sectors.s2End };
       } catch {
         /* sector times are optional context */
       }
@@ -769,10 +767,7 @@ export const lapRoutes = new Hono()
 
         if (s1 === 0 || s2 === 0) {
           const _gameId = c.req.header("x-game-id") as GameId | undefined;
-          const _slug = _gameId ? getGame(_gameId)?.getSharedTrackName?.(lap.trackOrdinal!) : undefined;
-          const raw = (_slug && _gameId ? loadTrackSectorsFor(_slug, _gameId) : undefined) ?? getTrackSectorsByOrdinal(lap.trackOrdinal!);
-          const s1End = raw?.s1End ?? 1 / 3;
-          const s2End = raw?.s2End ?? 2 / 3;
+          const { s1End, s2End } = resolveTrack(_gameId, lap.trackOrdinal).sectors;
 
           let sector = 0,
             sectorStart = packets[0].CurrentLap;
@@ -929,13 +924,15 @@ export const lapRoutes = new Hono()
     // Game-specific, and carrying the official turn numbers so the breakdown
     // names corners the same way the map and the track guide do.
     const segments: PromptSegment[] | null =
-      resolveTrackContext(lapA.gameId as GameId | undefined, lapA.trackOrdinal)?.segments?.map((s) => ({
+      resolveTrack(lapA.gameId, lapA.trackOrdinal).segments.map((s) => ({
         name: s.name,
         type: s.type === "corner" ? ("corner" as const) : ("straight" as const),
         startFrac: s.startFrac,
         endFrac: s.endFrac,
         number: s.number,
         covers: s.covers,
+        group: s.group,
+        direction: s.direction,
       })) ?? null;
 
     const prompt = buildInputsComparePrompt(

@@ -18,7 +18,7 @@ import { detectCorners } from "../corner-detection";
 import { getSecret } from "../keystore";
 import { loadSettings } from "../settings";
 import { buildAnalystPrompt } from "./analyst-prompt";
-import { resolveTrackContext } from "./track-context";
+import { resolveTrack } from "../track-info";
 // Import the raw Lap Analyst agent directly (not via ./agents) to avoid a module
 // cycle: ./agents → setup-engineer agent → its tools → this file. The raw agent
 // has no such back-edge. We lose the dev-only observability wrapper here, which
@@ -40,7 +40,7 @@ export async function consultLapAnalystForSession(sessionId: number): Promise<La
   if (corners.length === 0) corners = detectCorners(lap.telemetry);
 
   const settings = loadSettings();
-  const segments = resolveTrackContext(lap.gameId as GameId | undefined, lap.trackOrdinal).segments;
+  const segments = resolveTrack(lap.gameId, lap.trackOrdinal).segments;
   const prompt = buildAnalystPrompt(
     lap,
     lap.telemetry,
