@@ -22,6 +22,7 @@ import { CommunityLeaderboard } from "./CommunityLeaderboard";
 import { TrackDebugPanel } from "./debug/TrackDebugPanel";
 import { TrackInfoPanel } from "./TrackInfoPanel";
 import type { Point, TrackInfo, TrackSectors, TrackSegment } from "./types";
+import { numberCorner, unnumberCorner } from "../../../../shared/track-meta";
 
 interface TrackLap {
   lapId: number;
@@ -717,11 +718,23 @@ export function TrackDetail({
     return () => canvas.removeEventListener("wheel", onWheel);
   }, []);
 
+  // Auto-detected segments arrive with a "T<n>" display token but no official
+  // `number`, and the save path keys corners on the number — an unnumbered
+  // corner is written back as a straight. Seed them before editing so a
+  // round-trip through the editor can't silently flatten the corner list.
   const startEditing = useCallback(() => {
-    if (sectors?.segments) {
-      setEditSegments(sectors.segments.map((s) => ({ ...s })));
-      setEditing(true);
+    if (!sectors?.segments) return;
+    let next: TrackSegment[] = sectors.segments.map((s) => ({ ...s }));
+    for (const s of next) {
+      if (s.type !== "corner" || s.number != null) continue;
+      const token = /^T(\d+)$/.exec((s.name ?? "").trim());
+      if (token) s.number = Number(token[1]);
     }
+    for (let i = 0; i < next.length; i++) {
+      if (next[i].type === "corner" && next[i].number == null) next = numberCorner(next, i);
+    }
+    setEditSegments(next);
+    setEditing(true);
   }, [sectors]);
 
   const updateSegFrac = useCallback((idx: number, field: "startFrac" | "endFrac", value: number) => {
@@ -759,12 +772,25 @@ export function TrackDetail({
     });
   }, []);
 
+  // A corner is identified by its official turn number, not by `type`: the save
+  // path (`splitSegments`) keys on the number, so an unnumbered corner is
+  // written back out as a straight. Flipping the type must move the number too.
   const toggleSegType = useCallback((idx: number) => {
     setEditSegments((prev) => {
       const next = prev.map((s) => ({ ...s }));
-      next[idx].type = next[idx].type === "corner" ? "straight" : "corner";
+      const becomingCorner = next[idx].type !== "corner";
+      next[idx].type = becomingCorner ? "corner" : "straight";
       // Clear name when type changes so display auto-name kicks in
       next[idx].name = "";
+      return becomingCorner ? numberCorner(next, idx) : unnumberCorner(next, idx);
+    });
+  }, []);
+
+  const updateSegNumber = useCallback((idx: number, value: number) => {
+    setEditSegments((prev) => {
+      const next = prev.map((s) => ({ ...s }));
+      if (!Number.isFinite(value) || value < 1) return next;
+      next[idx].number = Math.trunc(value);
       return next;
     });
   }, []);
@@ -777,7 +803,7 @@ export function TrackDetail({
       const newType = current.type === "corner" ? "straight" : "corner";
       const newSeg: TrackSegment = {
         type: newType,
-        name: newType === "straight" ? "S?" : "T?",
+        name: "",
         startFrac: midFrac,
         endFrac: current.endFrac,
         startIdx: 0,
@@ -785,7 +811,7 @@ export function TrackDetail({
       };
       next[afterIdx] = { ...current, endFrac: midFrac };
       next.splice(afterIdx + 1, 0, newSeg);
-      return next;
+      return newType === "corner" ? numberCorner(next, afterIdx + 1) : next;
     });
   }, []);
 
@@ -1063,30 +1089,55 @@ export function TrackDetail({
                     return (
                       <div key={i} className={`px-2 py-1.5 rounded ${bg} space-y-1`}>
                         <div className="flex items-center gap-1">
-                          <button onClick={() => toggleSegType(i)} className={`text-app-unit font-bold px-1 rounded ${isCorner ? "bg-red-500/20 text-red-400" : "bg-blue-500/20 text-blue-400"}`}>
+                          <button
+                            onClick={() => toggleSegType(i)}
+                            className={`shrink-0 text-app-unit font-bold px-1 rounded ${isCorner ? "bg-red-500/20 text-red-400" : "bg-blue-500/20 text-blue-400"}`}
+                          >
                             {isCorner ? "T" : "S"}
                           </button>
+                          {isCorner && (
+                            <input
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={seg.number ?? ""}
+                              onChange={(e) => updateSegNumber(i, Number(e.target.value))}
+                              title="Official turn number — the identity this corner saves under"
+                              className={`shrink-0 w-9 text-app-unit font-mono rounded px-1 py-0.5 text-center border ${
+                                seg.number == null ? "bg-amber-900/40 border-amber-700 text-amber-300" : "bg-app-surface-alt border-app-border-input text-app-text"
+                              }`}
+                            />
+                          )}
                           <input
                             value={seg.name}
                             placeholder={segDisplayNames[i]}
                             onChange={(e) => updateSegName(i, e.target.value)}
-                            className="flex-1 text-app-label font-mono bg-transparent border-b border-app-border-input text-app-text outline-none px-1 placeholder:text-app-text-dim"
+                            className="flex-1 min-w-0 text-app-label font-mono bg-transparent border-b border-app-border-input text-app-text outline-none px-1 placeholder:text-app-text-dim"
                           />
+                          <button
+                            onClick={() => addSegment(i)}
+                            className="shrink-0 w-5 h-5 flex items-center justify-center text-app-unit rounded bg-app-surface-alt border border-app-border-input text-app-text-muted hover:text-app-text"
+                            title={m.trackdetail_split_segment()}
+                          >
+                            +
+                          </button>
+                          <button
+                            onClick={() => removeSegment(i)}
+                            disabled={(editing ? editSegments : displaySectors.segments).length <= 1}
+                            className="shrink-0 w-5 h-5 flex items-center justify-center text-app-unit rounded bg-red-900/30 border border-red-800/50 text-red-400 hover:bg-red-900/60 hover:text-red-300 disabled:opacity-30"
+                            title={m.trackdetail_remove_segment()}
+                          >
+                            ×
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2 text-app-label font-mono text-app-text-secondary">
                           <input
                             value={seg.group ?? ""}
                             placeholder="group"
                             title="Complex this turn belongs to — the map labels the complex once under this name"
                             onChange={(e) => updateSegGroup(i, e.target.value)}
-                            className="w-20 text-app-label font-mono bg-transparent border-b border-app-border-input text-app-text-secondary outline-none px-1 placeholder:text-app-text-dim"
+                            className="w-16 min-w-0 bg-transparent border-b border-app-border-input text-app-text-secondary outline-none px-1 placeholder:text-app-text-dim"
                           />
-                          <button onClick={() => addSegment(i)} className="text-app-unit text-app-text-muted hover:text-app-text px-1" title={m.trackdetail_split_segment()}>
-                            +
-                          </button>
-                          <button onClick={() => removeSegment(i)} className="text-app-unit text-app-text-muted hover:text-red-400 px-1" title={m.trackdetail_remove_segment()}>
-                            x
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2 text-app-label font-mono text-app-text-secondary">
                           <input
                             type="number"
                             step="0.1"

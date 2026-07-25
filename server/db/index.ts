@@ -5,15 +5,36 @@ import { migrations } from "./migrations";
 import { mkdirSync, existsSync } from "fs";
 import { resolveDataDir } from "../data-dir";
 
+// Always resolve the data dir, even when the DB itself lives in memory: the
+// call doubles as the safety net that throws if a test run somehow reaches
+// here with DATA_DIR unset (see server/data-dir.ts), and sibling state such as
+// settings.json still lives on disk.
 const DB_DIR = resolveDataDir();
 const DB_PATH = `${DB_DIR}/forza-telemetry.db`;
+
+/**
+ * Tests get an in-memory DB: no fsync/WAL churn, and every run starts from a
+ * clean schema instead of inheriting whatever the last run left in .data-test.
+ *
+ * Scope note: this does NOT isolate test files from each other. `bun test`
+ * runs them sequentially in one process and this module is a singleton, so all
+ * suites still share one DB — same as the file-backed setup. Suites that wipe
+ * tables still affect suites that run after them.
+ *
+ * Set DB_IN_MEMORY=0 to force the file-backed DB when a failure needs
+ * post-mortem inspection of .data-test. Anything spawning a real server (e.g.
+ * test/e2e/udp-recording.test.ts) runs with NODE_ENV=development and so keeps
+ * the file DB it needs for cross-process state.
+ */
+const IS_TEST = process.env.NODE_ENV === "test" || !!process.env.BUN_TEST;
+const IN_MEMORY = process.env.DB_IN_MEMORY === "0" ? false : process.env.DB_IN_MEMORY === "1" || IS_TEST;
 
 // Ensure data directory exists
 if (!existsSync(DB_DIR)) {
   mkdirSync(DB_DIR, { recursive: true });
 }
 
-const client: Client = createClient({ url: `file:${DB_PATH}` });
+const client: Client = createClient({ url: IN_MEMORY ? ":memory:" : `file:${DB_PATH}` });
 
 // Enable WAL mode for better concurrent read/write performance
 await client.execute("PRAGMA journal_mode = WAL");

@@ -188,7 +188,7 @@ export function parseStraightKey(key: string): number | null {
 export function isPlaceholderName(name: string): boolean {
   const n = name.trim();
   if (!n) return true;
-  return /^T\d+(?:[-/]\d+)*$/i.test(n) || /^S\d*\??$/i.test(n);
+  return /^T\d*\??$/i.test(n) || /^T\d+(?:[-/]\d+)*$/i.test(n) || /^S\d*\??$/i.test(n);
 }
 
 /** What one game's labelled segment list decomposes into. */
@@ -250,6 +250,61 @@ export function splitSegments(segments: LegacyNamedSegment[]): SplitSegments {
   });
 
   return { corners, straights, geometry };
+}
+
+/** Minimum shape the editor's numbering helpers touch. */
+export interface NumberedEntry {
+  type: string;
+  number?: number;
+  covers?: number[];
+}
+
+const entryNumbers = (e: NumberedEntry): number[] => (e.number == null ? [] : [e.number, ...(e.covers ?? [])].sort((a, b) => a - b));
+
+/**
+ * Give the corner at `idx` an official turn number, because a corner without
+ * one is not a corner: `splitSegments` keys on the number, so an unnumbered
+ * entry silently saves as a straight.
+ *
+ * The number is positional — it must sit above every corner before it and
+ * below every corner after it. Takes the first free number above the preceding
+ * corner and pushes the corners after it up only far enough to stay ordered,
+ * so a curated lap with a deliberate gap (a turn this game's detector misses)
+ * keeps its existing numbers untouched.
+ */
+export function numberCorner<T extends NumberedEntry>(segments: T[], idx: number): T[] {
+  const out = segments.map((s) => ({ ...s }));
+  let floor = 0;
+  for (let i = 0; i < idx; i++) {
+    const nums = entryNumbers(out[i]);
+    if (nums.length > 0) floor = Math.max(floor, ...nums);
+  }
+  out[idx].number = floor + 1;
+  delete out[idx].covers;
+  floor += 1;
+
+  for (let i = idx + 1; i < out.length; i++) {
+    const entry = out[i];
+    if (entry.type !== "corner") continue;
+    const nums = entryNumbers(entry);
+    if (nums.length === 0) continue;
+    const shift = Math.max(0, floor + 1 - nums[0]);
+    if (shift > 0) {
+      entry.number = nums[0] + shift;
+      if (entry.covers) entry.covers = entry.covers.map((n) => n + shift);
+    }
+    floor = Math.max(...entryNumbers(entry));
+  }
+  return out;
+}
+
+/** Drop a corner's numbering. The gap it leaves is legitimate — another game
+ *  may still place that turn — so the corners after it keep their numbers. */
+export function unnumberCorner<T extends NumberedEntry>(segments: T[], idx: number): T[] {
+  const out = segments.map((s) => ({ ...s }));
+  delete out[idx].number;
+  delete out[idx].covers;
+  return out;
 }
 
 // ── Invariant check (the test gate) ──────────────────────────────────────

@@ -58,3 +58,32 @@ describe("segmentDisplayNames", () => {
     expect(segmentDisplayNames([corner("T1"), corner("T2")])).toEqual(["T1", "T2"]);
   });
 });
+
+describe("segmentDisplayNames — separate corner and straight counters", () => {
+  const blank = (type: "corner" | "straight") => ({ type, name: "" });
+
+  test("counts corners and straights on their own sequences", () => {
+    expect(segmentDisplayNames([blank("straight"), blank("corner"), blank("straight"), blank("corner")])).toEqual(["S1", "T1", "S2", "T2"]);
+  });
+
+  test("names the editor's fresh placeholders instead of echoing them", () => {
+    expect(segmentDisplayNames([{ type: "corner", name: "T?" }, { type: "straight", name: "S?" }])).toEqual(["T1", "S1"]);
+  });
+
+  test("an official turn number always wins over the positional counter", () => {
+    // T6 is the sixth turn of the circuit even if it's the second segment the
+    // detector placed — positional numbering must not overwrite a real number.
+    expect(segmentDisplayNames([blank("corner"), corner("T6", [6])])).toEqual(["T1", "T6"]);
+  });
+
+  test("a bare T<n> token keeps its number rather than being repositioned", () => {
+    expect(segmentDisplayNames([blank("straight"), corner("T4")])).toEqual(["S1", "T4"]);
+  });
+});
+
+describe("numbered corner with no name", () => {
+  test("renders the bare token, not a trailing space", () => {
+    expect(segmentDisplayNames([corner("", [1])])).toEqual(["T1"]);
+    expect(segmentDisplayNames([corner("", [7, 8])])).toEqual(["T7-8"]);
+  });
+});

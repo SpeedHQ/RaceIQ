@@ -6,6 +6,10 @@
   "name": "Autodromo Internazionale Enzo e Dino Ferrari",
   "corners": [
     {
+      "number": 1,
+      "name": ""
+    },
+    {
       "number": 2,
       "name": "",
       "direction": "left",
@@ -42,13 +46,16 @@
     },
     {
       "number": 8,
-      "name": "",
-      "direction": "left"
+      "name": ""
     },
     {
       "number": 9,
       "name": "",
       "direction": "left"
+    },
+    {
+      "number": 10,
+      "name": ""
     },
     {
       "number": 11,
@@ -64,12 +71,11 @@
     },
     {
       "number": 13,
-      "name": "",
-      "direction": "right"
+      "name": ""
     },
     {
       "number": 14,
-      "name": "Variante Alta",
+      "name": "",
       "direction": "right",
       "group": "Variante Alta"
     },
@@ -80,21 +86,21 @@
       "group": "Variante Alta"
     },
     {
+      "number": 16,
+      "name": ""
+    },
+    {
       "number": 17,
-      "name": "Rivazza 1",
-      "direction": "left",
-      "group": "Rivazza"
+      "name": "",
+      "direction": "left"
     },
     {
       "number": 18,
-      "name": "Rivazza 2",
-      "direction": "left",
-      "group": "Rivazza"
+      "name": ""
     },
     {
       "number": 19,
-      "name": "",
-      "direction": "left"
+      "name": ""
     }
   ],
   "straights": []

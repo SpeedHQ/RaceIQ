@@ -40,28 +40,41 @@ export function formatTurnNumbers(numbers: number[]): string {
 
 export const AUTO_TURN_TOKEN = /^T\d+$/;
 const AUTO_STRAIGHT_NAME = /^S[\d?]*$/;
+/** A corner with no name yet: blank, or the editor's "T"/"T?" placeholder.
+ *  "T6" is NOT one — that token carries an official turn number. */
+const UNNAMED_CORNER = /^T\??$/;
 
-export function segmentDisplayName(seg: LabelSegment, straightNum: number): string {
+/**
+ * Corners and straights are numbered on separate sequences: a corner falls back
+ * to `T<cornerNum>` only when it has neither an official number nor a name,
+ * a straight always renumbers to `S<straightNum>` unless it has a real name.
+ */
+export function segmentDisplayName(seg: LabelSegment, straightNum: number, cornerNum = 0): string {
   if (seg.type === "straight") {
     return !seg.name || AUTO_STRAIGHT_NAME.test(seg.name) ? `S${straightNum}` : seg.name;
   }
-  return labelWithNumbers(seg.name, turnNumbers(seg));
+  const numbers = turnNumbers(seg);
+  if (numbers.length === 0 && cornerNum > 0 && (!seg.name || UNNAMED_CORNER.test(seg.name))) return `T${cornerNum}`;
+  return labelWithNumbers(seg.name, numbers);
 }
 
 function labelWithNumbers(name: string, numbers: number[]): string {
   if (numbers.length === 0) return name;
   // "T" is the turn type marker, the range is the official numbering: "T10-11".
   const token = `T${formatTurnNumbers(numbers)}`;
-  // An unnamed corner is already just that token — don't repeat it.
-  return AUTO_TURN_TOKEN.test(name) ? token : `${token} ${name}`;
+  // An unnamed corner is already just that token — don't repeat it, and don't
+  // trail a space where the name would have gone.
+  return !name.trim() || AUTO_TURN_TOKEN.test(name) ? token : `${token} ${name}`;
 }
 
-/** Labels for a whole lap's segments, with straights numbered in order. */
+/** Labels for a whole lap's segments; straights and corners count separately. */
 export function segmentDisplayNames(segments: LabelSegment[]): string[] {
   let sNum = 1;
+  let tNum = 1;
   return segments.map((s) => {
-    const label = segmentDisplayName(s, sNum);
+    const label = segmentDisplayName(s, sNum, tNum);
     if (s.type === "straight") sNum++;
+    else tNum++;
     return label;
   });
 }
@@ -82,7 +95,7 @@ export function segmentDisplayNames(segments: LabelSegment[]): string[] {
 export function cornerPromptLabel(name: string, numbers: number[]): string {
   if (numbers.length === 0) return name;
   const range = formatTurnNumbers(numbers);
-  return AUTO_TURN_TOKEN.test(name) ? `T${range}` : `${name} (${range})`;
+  return !name.trim() || AUTO_TURN_TOKEN.test(name) ? `T${range}` : `${name} (${range})`;
 }
 
 /**

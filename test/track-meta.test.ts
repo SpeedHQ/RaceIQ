@@ -20,6 +20,8 @@ import {
   checkKeys,
   parseCornerKey,
   parseStraightKey,
+  numberCorner,
+  unnumberCorner,
   type TrackFacts,
   type TrackGeometry,
 } from "../shared/track-meta";
@@ -68,6 +70,10 @@ const KNOWN_CORNER_GAPS: Record<string, string[]> = {
   "catalunya/fm-2023": ["t14"],
   // ac-evo fuses Piratella (T8) and Rivazza 1 (T13) into their neighbours.
   "imola/ac-evo": ["t13", "t8"],
+  // Tamburello's entry (T1) was curated from the ac-evo centerline; acc and
+  // f1-2025 still run it into the start/finish straight.
+  "imola/acc": ["t1"],
+  "imola/f1-2025": ["t1"],
   // fm subdivides the Nordschleife into 69 corners; acc and ac-evo stop at 60.
   "nordschleife/acc": ["t61", "t62", "t63", "t64", "t65", "t66", "t67", "t68", "t69"],
   "nordschleife/ac-evo": ["t61", "t62", "t63", "t64", "t65", "t66", "t67", "t68", "t69"],
@@ -435,5 +441,54 @@ describe("committed roster", () => {
       expect(seen.has(pair), `duplicate layout ${pair} at ${slug}`).toBe(false);
       seen.add(pair);
     }
+  });
+});
+
+describe("numberCorner", () => {
+  const seg = (type: "corner" | "straight", number?: number, covers?: number[]) => ({
+    type,
+    ...(number != null ? { number } : {}),
+    ...(covers ? { covers } : {}),
+  });
+
+  test("a straight promoted to a corner takes the number after the corner before it", () => {
+    // The bug this exists for: the editor flipped `type` and left `number`
+    // undefined, so splitSegments keyed the entry as a straight again.
+    const out = numberCorner([seg("corner", 1), seg("corner"), seg("corner", 5)], 1);
+    expect(out[1].number).toBe(2);
+  });
+
+  test("numbers the first corner T1 when nothing precedes it", () => {
+    expect(numberCorner([seg("straight"), seg("corner")], 1)[1].number).toBe(1);
+  });
+
+  test("leaves a deliberate gap in the following corners alone", () => {
+    // T4 is a turn this game's detector skips; inserting T2 must not renumber
+    // the corners that already sit clear of it.
+    const out = numberCorner([seg("corner", 1), seg("corner"), seg("corner", 5), seg("corner", 8)], 1);
+    expect(out.map((s) => s.number)).toEqual([1, 2, 5, 8]);
+  });
+
+  test("pushes a colliding follower up, carrying its covered numbers", () => {
+    const out = numberCorner([seg("corner", 1), seg("corner"), seg("corner", 2, [3])], 1);
+    expect(out.map((s) => [s.number, s.covers])).toEqual([
+      [1, undefined],
+      [2, undefined],
+      [3, [4]],
+    ]);
+  });
+
+  test("demoting a corner drops its numbering and keeps the rest", () => {
+    const out = unnumberCorner([seg("corner", 1), seg("corner", 2, [3]), seg("corner", 4)], 1);
+    expect(out[1].number).toBeUndefined();
+    expect(out[1].covers).toBeUndefined();
+    expect(out.map((s) => s.number)).toEqual([1, undefined, 4]);
+  });
+
+  test("a numbered corner survives the split that used to demote it", () => {
+    const numbered = numberCorner([{ type: "corner", name: "", startFrac: 0, endFrac: 0.2 }], 0);
+    const { corners, geometry } = splitSegments(numbered as never);
+    expect(corners).toHaveLength(1);
+    expect(geometry[0].key).toBe("t1");
   });
 });
