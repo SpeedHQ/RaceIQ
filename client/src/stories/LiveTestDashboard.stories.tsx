@@ -22,7 +22,7 @@ queryClient.setQueryData(["track-boundaries", 7, "acc"], null);
 
 // Full lap trace so the live tyre bars have a real min→max range to render, not a single point.
 const liveTrace = generateFakeLapTelemetry();
-queryClient.setQueryData(["lap-telemetry", 10], { telemetry: liveTrace, isLegacy: false, sectorTimes: fakeSectorTimes });
+queryClient.setQueryData(["lap-telemetry", 10], { telemetry: liveTrace, sectorTimes: fakeSectorTimes });
 
 function StoryDecorator({ children, animate }: { children: React.ReactNode; animate: boolean }) {
   // Seed the store once on mount. Doing this in the render body sets state with

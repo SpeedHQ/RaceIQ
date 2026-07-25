@@ -144,6 +144,33 @@ const guides: TrackGuide[] = [
     priorityCorners: ["S Curves", "Spoon Curve", "130R", "Casio Triangle"],
   },
 
+  // ─── Fuji Speedway (GP) ───
+  // Sources: official Fuji Speedway circuit guide (FIA WEC 6H of Fuji programme,
+  // https://storage.googleapis.com/fiawec-prod/assets/fileuploads/5d/8a/5d8a3c3a63038.pdf)
+  // for the sponsor-named sections (TGR, Coca-Cola, Toyopet 100R, Advan, 300R,
+  // Dunlop, GR Supra, Panasonic) and their character; https://www.racingcircuits.info/asia/japan/fuji-speedway.html
+  // for the 4.563 km / 16-turn layout.
+  //
+  // Entries are deliberately unanchored: shared/tracks/meta/fuji.json is
+  // auto-seeded from AC Evo's racing line and holds 9 unnamed regions, so its
+  // T1..T9 are not the circuit's official 1..16 and there is nothing honest to
+  // anchor to. Registered in test/track-guide-anchor.test.ts.
+  {
+    id: "fuji",
+    character: "4.563km, 16 turns, clockwise at the foot of Mount Fuji. A 1.475km main straight — one of the longest anywhere — feeds the hardest braking zone on the lap, then a fast downhill middle sector, then a tight technical final third. Exit speed from the last corner sets top speed down the entire straight, so the lap is won at the end of it.",
+    corners: [
+      { name: "TGR Corner", type: "sharp right-hander at the end of the 1.475km straight (Turn 1)", technique: "Brake as late as you dare from top speed, straight-line the braking, late apex to open the exit", trap: "Braking judgement from that approach speed is the whole corner — early braking throws away the straight, late braking locks the inside front" },
+      { name: "Coca-Cola Corner", type: "long decreasing-radius right", technique: "Patience — the corner keeps tightening, so hold something in reserve and wait for it to open before full throttle", trap: "Committing to an early apex, then having to lift as the radius closes" },
+      { name: "Toyopet 100R", type: "fast sweeping right, ~100m radius", technique: "Carry speed in on one line — there is effectively only one line through here — and let the car run wide on exit", trap: "Scrubbing the front by asking for more angle mid-corner instead of settling on the entry line" },
+      { name: "Advan Corner", type: "tight left hairpin, the slowest point on the circuit (~60-70 km/h)", technique: "Heavy braking down from 100R, late apex, patient throttle — the exit runs slightly uphill into 300R", trap: "Over-slowing or spinning the rears on exit costs all the way through 300R" },
+      { name: "300R", type: "fast slightly-uphill right sweep, ~300m radius", technique: "Near-flat with a light lift, minimal steering input — this is a momentum corner feeding the downhill run", trap: "Any correction here bleeds the speed you need for the Dunlop braking zone" },
+      { name: "Dunlop Corner", type: "downhill braking zone where lines cross — the circuit's other big overtaking spot", technique: "Brake precisely on the downhill, expect the car to be light on the way in, commit to one line early", trap: "Braking downhill with the car unloaded locks fronts; drifting off line invites a switchback" },
+      { name: "GR Supra Corner", type: "opens the technical final sector", technique: "Careful throttle application — line choice genuinely varies by car and driver here, so settle on one and repeat it", trap: "Chasing a different line every lap; inconsistency through sector 3 costs more than the corner itself" },
+      { name: "Panasonic Corner", type: "uphill final right onto the main straight (Turn 16)", technique: "Prioritise exit over entry: sacrifice apex speed for a clean, early-throttle exit — this corner sets your top speed for 1.475km", trap: "A tidy-looking fast entry that compromises exit is the single most expensive mistake on the lap" },
+    ],
+    priorityCorners: ["Panasonic Corner", "Dunlop Corner", "Toyopet 100R"],
+  },
+
   // ─── Imola ───
   // Sources: https://www.formula1.com/en/racing/2026/emilia-romagna/circuit official F1 circuit guide; Tamburello/Villeneuve/Tosa/Rivazza naming long-established
   {
@@ -1027,6 +1054,9 @@ const TRACK_KEYWORDS: [string[], string][] = [
   [["silverstone"], "silverstone"],
   [["monza"], "monza"],
   [["suzuka"], "suzuka"],
+  // Never bare "fuji": Forza's fantasy "Fujimi Kaido" contains it and has its
+  // own guide below.
+  [["fuji speedway", "fuji international"], "fuji"],
   [["imola", "enzo e dino"], "imola"],
   [["barcelona", "catalunya", "catalonia", "montmeló", "montmelo"], "catalunya"],
   [["zandvoort"], "zandvoort"],

@@ -32,7 +32,6 @@ export type EvaluationReason =
   | "chosen"
   | "invalid"
   | "pit"
-  | "legacy"
   | "manual"
   | "auto"
   | "slower-than-cap";
@@ -54,7 +53,6 @@ export interface EvaluableLap {
   lapTime: number;
   isValid: boolean;
   invalidReason?: string | null;
-  isLegacy?: boolean;
   tuningExcluded?: boolean;
   tuningExcludedSource?: "auto" | "manual" | null;
 }
@@ -64,8 +62,8 @@ export interface EvaluableLap {
  *
  * Previously this decision was re-derived in three places that could disagree:
  * the server auto-exclude pass, the /line-spread route, and TrackFocusView.
- * When auto-exclude had never run for a scope (legacy laps, or a lap with no
- * tuning session / tune stamped) the client's extra `fastestLaps()` trim would
+ * When auto-exclude had never run for a scope (e.g. a lap with no tuning
+ * session / tune stamped) the client's extra `fastestLaps()` trim would
  * silently drop laps that the UI still rendered as included. Everything routes
  * through here now so what's displayed is what's computed.
  *
@@ -84,8 +82,6 @@ export function selectEvaluationLaps<T extends EvaluableLap>(
     // Manual pins win over everything — never read, never overridden.
     if (lap.tuningExcludedSource === "manual" && lap.tuningExcluded) {
       reasonById.set(lap.id, "manual");
-    } else if (lap.isLegacy) {
-      reasonById.set(lap.id, "legacy"); // no raw telemetry — nothing to analyse
     } else if (!lap.isValid || lap.lapTime <= 0) {
       reasonById.set(lap.id, "invalid");
     } else if (isPitCycleLap({ invalidReason: lap.invalidReason ?? undefined })) {
@@ -122,8 +118,6 @@ export function evaluationReasonLabel(reason: EvaluationReason): string {
       return "Invalid";
     case "pit":
       return "Pit lap";
-    case "legacy":
-      return "No telemetry";
     case "manual":
       return "Excluded";
     case "auto":

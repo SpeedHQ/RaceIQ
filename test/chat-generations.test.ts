@@ -6,7 +6,12 @@
 // `getChatMemory()` singleton, so this file mocks just that one export
 // (spreading through every other real export unchanged) to exercise them
 // against a fake in-memory thread store.
-import { describe, test, expect, mock } from "bun:test";
+//
+// `mock.module` is PROCESS-global in Bun and cannot be undone — re-mocking an
+// already-mocked path is a no-op — so the stub is gated on `stubActive` and
+// only this file's tests see the fake store. Without that, every later test
+// file in the run gets a `getChatMemory()` that has no `createThread`.
+import { afterAll, beforeAll, describe, test, expect, mock } from "bun:test";
 import * as RealChatAgent from "../server/ai/chat-agent";
 
 function makeFakeMemory(existingThreadIds: string[]) {
@@ -20,9 +25,17 @@ function makeFakeMemory(existingThreadIds: string[]) {
 
 const fakeMemory = makeFakeMemory(["lap-42", "lap-42~g2"]);
 
+let stubActive = false;
+beforeAll(() => {
+  stubActive = true;
+});
+afterAll(() => {
+  stubActive = false;
+});
+
 mock.module("../server/ai/chat-agent", () => ({
   ...RealChatAgent,
-  getChatMemory: () => fakeMemory,
+  getChatMemory: () => (stubActive ? fakeMemory : RealChatAgent.getChatMemory()),
 }));
 
 const {

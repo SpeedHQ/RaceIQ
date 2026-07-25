@@ -5,8 +5,8 @@ import { useMemo } from "react";
 import { client } from "../lib/rpc";
 
 export interface UseStintTracesResult {
-  /** Downsampled traces, in the same order as the input laps (legacy laps
-   *  omitted, undefined for any lap the server had no trace for). */
+  /** Downsampled traces, in the same order as the input laps (undefined for
+   *  any lap the server had no trace for). */
   traces: (LapTrace | undefined)[];
   /** How many laps have settled. */
   loadedCount: number;
@@ -23,8 +23,7 @@ export interface UseStintTracesResult {
  * re-mount with the same lap set resolves instantly.
  */
 export function useStintTraces(laps: LapMeta[]): UseStintTracesResult {
-  const eligible = useMemo(() => laps.filter((l) => !l.isLegacy), [laps]);
-  const ids = useMemo(() => eligible.map((l) => l.id), [eligible]);
+  const ids = useMemo(() => laps.map((l) => l.id), [laps]);
   const idsKey = ids.join(",");
 
   const query = useQuery({
@@ -43,16 +42,13 @@ export function useStintTraces(laps: LapMeta[]): UseStintTracesResult {
   });
 
   const byId = query.data;
-  const traces = useMemo(
-    () => (byId ? eligible.map((l) => byId.get(l.id)) : eligible.map(() => undefined)),
-    [byId, eligible],
-  );
+  const traces = useMemo(() => (byId ? laps.map((l) => byId.get(l.id)) : laps.map(() => undefined)), [byId, laps]);
 
   const settled = query.isSuccess || query.isError;
   return {
     traces,
-    loadedCount: settled ? eligible.length : 0,
-    total: eligible.length,
+    loadedCount: settled ? laps.length : 0,
+    total: laps.length,
     isLoading: ids.length > 0 && !settled,
   };
 }

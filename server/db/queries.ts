@@ -453,7 +453,6 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
       tuningExcludedSource: laps.tuningExcludedSource,
       fuelPerLap: laps.fuelPerLap,
       tyreWear: laps.tyreWear,
-      rawFile: sessions.rawFile,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -465,7 +464,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
     ? await query.where(eq(sessions.gameId, gameId)).all()
     : await query.all();
 
-  return rows.map(({ rawFile, ...r }) => ({
+  return rows.map((r) => ({
     ...r,
     isValid: Boolean(r.isValid),
     invalidReason: r.invalidReason ?? undefined,
@@ -487,7 +486,6 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
     tuningExcludedSource: (r.tuningExcludedSource as "auto" | "manual" | null) ?? null,
     fuelPerLap: r.fuelPerLap ?? null,
     tyreWear: r.tyreWear ?? null,
-    isLegacy: rawFile == null,
   }));
 }
 
@@ -529,7 +527,6 @@ export async function getLapsForTuningSession(tuningSessionId: number): Promise<
       tuningExcludedSource: laps.tuningExcludedSource,
       fuelPerLap: laps.fuelPerLap,
       tyreWear: laps.tyreWear,
-      rawFile: sessions.rawFile,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -538,7 +535,7 @@ export async function getLapsForTuningSession(tuningSessionId: number): Promise<
     .orderBy(desc(laps.id))
     .all();
 
-  return rows.map(({ rawFile, ...r }) => ({
+  return rows.map((r) => ({
     ...r,
     isValid: Boolean(r.isValid),
     invalidReason: r.invalidReason ?? undefined,
@@ -560,7 +557,6 @@ export async function getLapsForTuningSession(tuningSessionId: number): Promise<
     tuningExcludedSource: (r.tuningExcludedSource as "auto" | "manual" | null) ?? null,
     fuelPerLap: r.fuelPerLap ?? null,
     tyreWear: r.tyreWear ?? null,
-    isLegacy: rawFile == null,
   }));
 }
 
@@ -597,7 +593,6 @@ export async function getLapMetaForTuningTest(tuningTestId: number): Promise<Lap
       tuningExcludedSource: laps.tuningExcludedSource,
       fuelPerLap: laps.fuelPerLap,
       tyreWear: laps.tyreWear,
-      rawFile: sessions.rawFile,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -606,7 +601,7 @@ export async function getLapMetaForTuningTest(tuningTestId: number): Promise<Lap
     .orderBy(desc(laps.id))
     .all();
 
-  return rows.map(({ rawFile, ...r }) => ({
+  return rows.map((r) => ({
     ...r,
     isValid: Boolean(r.isValid),
     invalidReason: r.invalidReason ?? undefined,
@@ -628,7 +623,6 @@ export async function getLapMetaForTuningTest(tuningTestId: number): Promise<Lap
     tuningExcludedSource: (r.tuningExcludedSource as "auto" | "manual" | null) ?? null,
     fuelPerLap: r.fuelPerLap ?? null,
     tyreWear: r.tyreWear ?? null,
-    isLegacy: rawFile == null,
   }));
 }
 
@@ -677,7 +671,6 @@ export async function getImportableLapsForTuningSession(
       tuningExcludedSource: laps.tuningExcludedSource,
       fuelPerLap: laps.fuelPerLap,
       tyreWear: laps.tyreWear,
-      rawFile: sessions.rawFile,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -686,7 +679,7 @@ export async function getImportableLapsForTuningSession(
     .orderBy(desc(laps.id))
     .all();
 
-  return rows.map(({ rawFile, ...r }) => ({
+  return rows.map((r) => ({
     ...r,
     isValid: Boolean(r.isValid),
     invalidReason: r.invalidReason ?? undefined,
@@ -708,7 +701,6 @@ export async function getImportableLapsForTuningSession(
     tuningExcludedSource: (r.tuningExcludedSource as "auto" | "manual" | null) ?? null,
     fuelPerLap: r.fuelPerLap ?? null,
     tyreWear: r.tyreWear ?? null,
-    isLegacy: rawFile == null,
   }));
 }
 
@@ -764,7 +756,6 @@ export type LapSummary = {
   s3Time: number | null;
   isValid: boolean;
   invalidReason: string | null;
-  rawFile: string | null;
   notes: string | null;
 };
 
@@ -784,7 +775,6 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
       s3Time: laps.s3Time,
       isValid: laps.isValid,
       invalidReason: laps.invalidReason,
-      rawFile: sessions.rawFile,
       notes: laps.notes,
     })
     .from(laps)
@@ -813,7 +803,6 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
       s3Time: r.s3Time ?? null,
       isValid: Boolean(r.isValid),
       invalidReason: r.invalidReason ?? null,
-      rawFile: r.rawFile ?? null,
       notes: r.notes ?? null,
     }));
 }
@@ -1303,7 +1292,6 @@ function buildLapResult(
     tuneName: row.tuneName ?? undefined,
     gameId: row.gameId as GameId,
     carSetup: row.carSetup ?? undefined,
-    isLegacy: row.rawFile == null,
     telemetry,
   };
 }

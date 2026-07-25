@@ -99,6 +99,21 @@ const KNOWN_ANCHOR_GAPS: Record<string, string[]> = {
   // meta numbering is self-inconsistent here: New Holland is 16 while T14 is
   // 14, and 13/15 are absent. The post-2023 layout has 14 turns.
   catalunya: ["Turn 12-13", "Turn 14-15"],
+  // shared/tracks/meta/fuji.json is auto-seeded from AC Evo's racing line: 9
+  // unnamed regions for a 16-turn circuit, numbered T1..T9 sequentially, so its
+  // numbering is not the circuit's. Anchoring the guide to it would coach
+  // "TGR Corner" as meta's T1 (a left) instead of the real Turn 1 (a right).
+  // Needs a curated corner-name list before it can be anchored.
+  fuji: [
+    "TGR Corner",
+    "Coca-Cola Corner",
+    "Toyopet 100R",
+    "Advan Corner",
+    "300R",
+    "Dunlop Corner",
+    "GR Supra Corner",
+    "Panasonic Corner",
+  ],
 
   // Region spans several meta segments, so no single segment to anchor to.
   "yas-marina": ["Hotel Corners", "Marina Section"],

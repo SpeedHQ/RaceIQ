@@ -549,4 +549,33 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `UPDATE laps SET tuning_excluded_source = 'manual' WHERE tuning_excluded = 1`,
     ],
   },
+
+  // ── v35: purge pre-v0.8.0 laps (no raw capture) ─────────────────────────────
+  // `sessions.raw_file` arrived in v19 alongside raw binary lap storage. A
+  // session with `raw_file IS NULL` has no .bin behind it, so none of its laps
+  // can ever produce telemetry — they were surfaced read-only as "legacy" laps
+  // with Analyse/Compare disabled. That carve-out is gone: the rows go instead.
+  //
+  // Deletes are explicit and child-first rather than leaning on the declared
+  // ON DELETE CASCADE, because `runMigrations` sets `PRAGMA foreign_keys = OFF`
+  // for the whole batch (SQLite ignores the pragma inside the per-migration
+  // transaction, so a migration cannot re-enable it) — under OFF, deleting a
+  // session leaves its laps and their analyses orphaned. `compare_analyses`
+  // additionally has no foreign key at all, so it would need an explicit
+  // delete under either pragma.
+  //
+  // Nothing on disk to unlink: these sessions never had a raw file.
+  {
+    version: 35,
+    name: "purge pre-v0.8.0 laps with no raw capture",
+    sql: [
+      `DELETE FROM compare_analyses
+         WHERE lap_a_id IN (SELECT id FROM laps WHERE session_id IN (SELECT id FROM sessions WHERE raw_file IS NULL))
+            OR lap_b_id IN (SELECT id FROM laps WHERE session_id IN (SELECT id FROM sessions WHERE raw_file IS NULL))`,
+      `DELETE FROM lap_analyses
+         WHERE lap_id IN (SELECT id FROM laps WHERE session_id IN (SELECT id FROM sessions WHERE raw_file IS NULL))`,
+      `DELETE FROM laps WHERE session_id IN (SELECT id FROM sessions WHERE raw_file IS NULL)`,
+      `DELETE FROM sessions WHERE raw_file IS NULL`,
+    ],
+  },
 ];

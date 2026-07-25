@@ -384,7 +384,7 @@ erDiagram
         text gameId
         text sessionType
         text notes
-        text rawFile "Absolute path to session .bin/.bin.gz — NULL for pre-migration sessions (drives isLegacy)"
+        text rawFile "Absolute path to session .bin/.bin.gz — set by Pipeline.onSessionStart before any lap lands"
         text lapDetectorVersion "Detector version stamp, used by stale-session UI banner"
         text createdAt
     }
@@ -489,7 +489,7 @@ erDiagram
     laps ||--o| lapAnalyses : "analysed"
 ```
 
-**Legacy-lap derivation (`isLegacy`):** a lap is "legacy" (pre-raw-binary-storage, telemetry unavailable) iff `sessions.raw_file IS NULL`. Migration 19 added `raw_file` + `raw_byte_offset` together, and `Pipeline.onSessionStart` populates `raw_file` before any lap lands — so it's the reliable signal. Per-lap `raw_byte_offset` can be null on a post-migration session (e.g. import-dump path feeds the pipeline without a `rawBuf`, so the recorder stays inactive for that call) and must not be used as the legacy gate.
+**Pre-v0.8.0 laps are gone (migration 35):** raw binary lap storage arrived in migration 19 (`sessions.raw_file` + `laps.raw_byte_offset`). Sessions predating it have `raw_file IS NULL` and no .bin behind them, so their laps could never render telemetry; they used to surface read-only with Analyse/Compare disabled (`isLegacy`). Migration 35 deletes those sessions, their laps, and the laps' `lap_analyses` / `compare_analyses` rows instead, and the `isLegacy` flag is gone from the API and client. Deletes are explicit and child-first because `runMigrations` holds `PRAGMA foreign_keys = OFF` for the whole batch, so the declared `ON DELETE CASCADE` does not fire — and `compare_analyses` has no foreign key at all. Per-lap `raw_byte_offset` can still be null on a session that has a `raw_file` (the import-dump path feeds the pipeline without a `rawBuf`), so it is never a telemetry-availability signal; an empty `telemetry` array is.
 
 ## Client Architecture
 

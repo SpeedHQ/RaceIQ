@@ -7,7 +7,7 @@
   "corners": [
     {
       "number": 2,
-      "name": "Tamburello",
+      "name": "",
       "direction": "left",
       "group": "Tamburello"
     },
@@ -25,7 +25,7 @@
     },
     {
       "number": 5,
-      "name": "Villeneuve",
+      "name": "",
       "direction": "left",
       "group": "Villeneuve"
     },
@@ -37,7 +37,7 @@
     },
     {
       "number": 7,
-      "name": "Tosa",
+      "name": "",
       "direction": "left"
     },
     {
@@ -47,12 +47,12 @@
     },
     {
       "number": 9,
-      "name": "Piratella",
+      "name": "",
       "direction": "left"
     },
     {
       "number": 11,
-      "name": "Acque Minerali",
+      "name": "",
       "direction": "right",
       "group": "Acque Minerali"
     },
@@ -96,5 +96,6 @@
       "name": "",
       "direction": "left"
     }
-  ]
+  ],
+  "straights": []
 }

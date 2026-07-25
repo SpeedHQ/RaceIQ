@@ -1,5 +1,4 @@
 import type { LapMeta, SessionMeta } from "@shared/types";
-import { RAW_STORAGE_VERSION } from "@shared/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -13,7 +12,6 @@ import { SessionRecapModal } from "./SessionRecapModal";
 import { AppInput } from "./ui/AppInput";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 import { Button } from "./ui/button";
-import { Tooltip } from "./ui/InfoTooltip";
 import { NoteModal } from "./ui/NoteModal";
 
 const PAGE_SIZE = 25;
@@ -149,26 +147,18 @@ function SessionLapTable({
                         &#10007;
                       </span>
                     )}
-                    {lap.isLegacy ? (
-                      <Tooltip content={`${m.sessions_legacy_tooltip_prefix()} ${RAW_STORAGE_VERSION} ${m.sessions_legacy_tooltip_suffix()}`}>
-                        <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40">
-                          {m.label_analyse()}
-                        </Button>
-                      </Tooltip>
-                    ) : (
-                      <Button
-                        variant="app-outline"
-                        size="app-sm"
-                        className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate({ to: `${gameRoute}/analyse` as any, search: { track: session.trackOrdinal, car: session.carOrdinal, lap: lap.id } as any });
-                        }}
-                      >
-                        {m.label_analyse()}
-                      </Button>
-                    )}
+                    <Button
+                      variant="app-outline"
+                      size="app-sm"
+                      className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
+                      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate({ to: `${gameRoute}/analyse` as any, search: { track: session.trackOrdinal, car: session.carOrdinal, lap: lap.id } as any });
+                      }}
+                    >
+                      {m.label_analyse()}
+                    </Button>
                   </div>
                 </TD>
                 {(["s1", "s2", "s3"] as const).map((s) => {
@@ -465,14 +455,6 @@ export function SessionsPage() {
               const lapA = allLaps.find((l) => l.id === ids[0]);
               const lapB = allLaps.find((l) => l.id === ids[1]);
               if (!lapA || !lapB) return null;
-              if (lapA.isLegacy || lapB.isLegacy)
-                return (
-                  <Tooltip content={`${m.sessions_legacy_tooltip_prefix()} ${RAW_STORAGE_VERSION} ${m.sessions_legacy_tooltip_suffix()}`}>
-                    <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none">
-                      {m.label_compare()}
-                    </Button>
-                  </Tooltip>
-                );
               const sessA = sessions.find((s) => s.id === lapA.sessionId);
               const sessB = sessions.find((s) => s.id === lapB.sessionId);
               if (!sessA || !sessB) return null;

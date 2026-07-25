@@ -1,4 +1,3 @@
-import { RAW_STORAGE_VERSION } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -7,7 +6,7 @@ import { F125Leaderboard } from "@/components/f1/F125Leaderboard";
 import { F125SetupsWithGuide, F125TrackGuide } from "@/components/f1/F125TrackSetups";
 import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
-import { InfoTooltip, Tooltip } from "@/components/ui/InfoTooltip";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { SearchMultiSelect } from "@/components/ui/SearchMultiSelect";
 import { useBulkDeleteLaps } from "@/hooks/queries";
 import { drawTrack } from "@/lib/canvas/draw-track";
@@ -39,7 +38,6 @@ interface TrackLap {
   s3Time?: number | null;
   isValid?: boolean;
   invalidReason?: string | null;
-  isLegacy?: boolean;
   division?: string | null;
   notes?: string | null;
 }
@@ -1634,25 +1632,17 @@ export function TrackDetail({
                                               </div>
                                             </TD>
                                             <TD className="w-px whitespace-nowrap">
-                                              {lap.isLegacy ? (
-                                                <Tooltip content={`${m.trackdetail_recorded_before()} ${RAW_STORAGE_VERSION} — ${m.trackdetail_telemetry_unavailable()}`}>
-                                                  <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40">
-                                                    {m.trackdetail_analyse()}
-                                                  </Button>
-                                                </Tooltip>
-                                              ) : (
-                                                <Button
-                                                  variant="app-outline"
-                                                  size="app-sm"
-                                                  className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
-                                                  onClick={() => {
-                                                    if (!gameId) return;
-                                                    navTo({ to: `${getGameRoute(gameId)}/analyse`, search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } } as never);
-                                                  }}
-                                                >
-                                                  {m.trackdetail_analyse()}
-                                                </Button>
-                                              )}
+                                              <Button
+                                                variant="app-outline"
+                                                size="app-sm"
+                                                className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
+                                                onClick={() => {
+                                                  if (!gameId) return;
+                                                  navTo({ to: `${getGameRoute(gameId)}/analyse`, search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } } as never);
+                                                }}
+                                              >
+                                                {m.trackdetail_analyse()}
+                                              </Button>
                                             </TD>
                                             <TD className="font-mono tabular-nums text-app-text/90">{lap.s1Time != null ? formatLapTime(lap.s1Time) : "—"}</TD>
                                             <TD className="font-mono tabular-nums text-app-text/90">{lap.s2Time != null ? formatLapTime(lap.s2Time) : "—"}</TD>

@@ -225,7 +225,7 @@ export const lapRoutes = new Hono()
     const laps = await getLapsByIds(ids);
     const traces: EncodedLapTrace[] = [];
     for (const lap of laps) {
-      if (lap.isLegacy || lap.telemetry.length === 0) continue;
+      if (lap.telemetry.length === 0) continue;
       const trace = downsampleLap(lap.id, lap.lapNumber, lap.isValid, lap.telemetry, null);
       if (trace) traces.push(encodeLapTrace(trace));
     }
