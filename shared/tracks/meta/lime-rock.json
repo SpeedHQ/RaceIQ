@@ -20,19 +20,25 @@
           "direction": "right",
           "startFrac": 0.0499,
           "endFrac": 0.221,
-          "numbers": [
-            1
-          ]
+          "number": 1
         },
         {
           "type": "corner",
           "name": "The Esses",
+          "direction": "left",
           "startFrac": 0.221,
+          "endFrac": 0.3147,
+          "number": 2,
+          "group": "The Esses"
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "right",
+          "startFrac": 0.3147,
           "endFrac": 0.3836,
-          "numbers": [
-            2,
-            3
-          ]
+          "number": 3,
+          "group": "The Esses"
         },
         {
           "type": "straight",
@@ -46,9 +52,7 @@
           "direction": "right",
           "startFrac": 0.4461,
           "endFrac": 0.6011,
-          "numbers": [
-            4
-          ]
+          "number": 4
         },
         {
           "type": "corner",
@@ -56,9 +60,7 @@
           "direction": "right",
           "startFrac": 0.6011,
           "endFrac": 0.7441,
-          "numbers": [
-            5
-          ]
+          "number": 5
         },
         {
           "type": "corner",
@@ -66,9 +68,7 @@
           "direction": "right",
           "startFrac": 0.7441,
           "endFrac": 0.8724,
-          "numbers": [
-            6
-          ]
+          "number": 6
         },
         {
           "type": "straight",
@@ -99,19 +99,25 @@
       "direction": "right",
       "startFrac": 0.0499,
       "endFrac": 0.221,
-      "numbers": [
-        1
-      ]
+      "number": 1
     },
     {
       "type": "corner",
       "name": "The Esses",
+      "direction": "left",
       "startFrac": 0.221,
+      "endFrac": 0.3147,
+      "number": 2,
+      "group": "The Esses"
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "right",
+      "startFrac": 0.3147,
       "endFrac": 0.3836,
-      "numbers": [
-        2,
-        3
-      ]
+      "number": 3,
+      "group": "The Esses"
     },
     {
       "type": "straight",
@@ -125,9 +131,7 @@
       "direction": "right",
       "startFrac": 0.4461,
       "endFrac": 0.6011,
-      "numbers": [
-        4
-      ]
+      "number": 4
     },
     {
       "type": "corner",
@@ -135,9 +139,7 @@
       "direction": "right",
       "startFrac": 0.6011,
       "endFrac": 0.7441,
-      "numbers": [
-        5
-      ]
+      "number": 5
     },
     {
       "type": "corner",
@@ -145,9 +147,7 @@
       "direction": "right",
       "startFrac": 0.7441,
       "endFrac": 0.8724,
-      "numbers": [
-        6
-      ]
+      "number": 6
     },
     {
       "type": "straight",

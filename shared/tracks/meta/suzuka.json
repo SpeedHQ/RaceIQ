@@ -22,23 +22,54 @@
           "name": "First Curve",
           "direction": "right",
           "startFrac": 0.0889,
+          "endFrac": 0.1365,
+          "number": 1,
+          "group": "First Curve"
+        },
+        {
+          "type": "corner",
+          "name": "T2",
+          "direction": "right",
+          "startFrac": 0.1365,
           "endFrac": 0.1727,
-          "numbers": [
-            1,
-            2
-          ]
+          "number": 2,
+          "group": "First Curve"
         },
         {
           "type": "corner",
           "name": "S Curves",
+          "direction": "left",
           "startFrac": 0.1727,
+          "endFrac": 0.2011,
+          "number": 3,
+          "group": "S Curves"
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "right",
+          "startFrac": 0.2011,
+          "endFrac": 0.2256,
+          "number": 4,
+          "group": "S Curves"
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "left",
+          "startFrac": 0.2256,
+          "endFrac": 0.2532,
+          "number": 5,
+          "group": "S Curves"
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "right",
+          "startFrac": 0.2532,
           "endFrac": 0.2891,
-          "numbers": [
-            3,
-            4,
-            5,
-            6
-          ]
+          "number": 6,
+          "group": "S Curves"
         },
         {
           "type": "corner",
@@ -46,20 +77,25 @@
           "direction": "left",
           "startFrac": 0.2891,
           "endFrac": 0.3804,
-          "numbers": [
-            7
-          ]
+          "number": 7
         },
         {
           "type": "corner",
-          "name": "Degner",
+          "name": "Degner 1",
           "direction": "right",
           "startFrac": 0.3804,
+          "endFrac": 0.4107,
+          "number": 8,
+          "group": "Degner"
+        },
+        {
+          "type": "corner",
+          "name": "Degner 2",
+          "direction": "right",
+          "startFrac": 0.4107,
           "endFrac": 0.451,
-          "numbers": [
-            8,
-            9
-          ]
+          "number": 9,
+          "group": "Degner"
         },
         {
           "type": "corner",
@@ -67,9 +103,7 @@
           "direction": "right",
           "startFrac": 0.451,
           "endFrac": 0.4926,
-          "numbers": [
-            10
-          ]
+          "number": 10
         },
         {
           "type": "corner",
@@ -77,9 +111,7 @@
           "direction": "left",
           "startFrac": 0.4926,
           "endFrac": 0.5241,
-          "numbers": [
-            11
-          ]
+          "number": 11
         },
         {
           "type": "corner",
@@ -87,20 +119,25 @@
           "direction": "right",
           "startFrac": 0.5241,
           "endFrac": 0.6382,
-          "numbers": [
-            12
-          ]
+          "number": 12
         },
         {
           "type": "corner",
           "name": "Spoon",
           "direction": "left",
           "startFrac": 0.6382,
+          "endFrac": 0.6773,
+          "number": 13,
+          "group": "Spoon"
+        },
+        {
+          "type": "corner",
+          "name": "T14",
+          "direction": "left",
+          "startFrac": 0.6773,
           "endFrac": 0.7142,
-          "numbers": [
-            13,
-            14
-          ]
+          "number": 14,
+          "group": "Spoon"
         },
         {
           "type": "straight",
@@ -114,9 +151,7 @@
           "direction": "left",
           "startFrac": 0.8287,
           "endFrac": 0.8766,
-          "numbers": [
-            15
-          ]
+          "number": 15
         },
         {
           "type": "straight",
@@ -127,12 +162,20 @@
         {
           "type": "corner",
           "name": "Casio Triangle",
+          "direction": "right",
           "startFrac": 0.9045,
+          "endFrac": 0.9352,
+          "number": 16,
+          "group": "Casio Triangle"
+        },
+        {
+          "type": "corner",
+          "name": "T17",
+          "direction": "left",
+          "startFrac": 0.9352,
           "endFrac": 0.9459,
-          "numbers": [
-            16,
-            17
-          ]
+          "number": 17,
+          "group": "Casio Triangle"
         },
         {
           "type": "corner",
@@ -140,9 +183,7 @@
           "direction": "right",
           "startFrac": 0.9459,
           "endFrac": 1,
-          "numbers": [
-            18
-          ]
+          "number": 18
         }
       ]
     },
@@ -159,23 +200,54 @@
           "name": "First Curve",
           "direction": "right",
           "startFrac": 0.053,
+          "endFrac": 0.0943,
+          "number": 1,
+          "group": "First Curve"
+        },
+        {
+          "type": "corner",
+          "name": "T2",
+          "direction": "right",
+          "startFrac": 0.0943,
           "endFrac": 0.1208,
-          "numbers": [
-            1,
-            2
-          ]
+          "number": 2,
+          "group": "First Curve"
         },
         {
           "type": "corner",
           "name": "S Curves",
+          "direction": "left",
           "startFrac": 0.1208,
+          "endFrac": 0.1503,
+          "number": 3,
+          "group": "S Curves"
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "right",
+          "startFrac": 0.1503,
+          "endFrac": 0.1734,
+          "number": 4,
+          "group": "S Curves"
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "left",
+          "startFrac": 0.1734,
+          "endFrac": 0.202,
+          "number": 5,
+          "group": "S Curves"
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "right",
+          "startFrac": 0.202,
           "endFrac": 0.2346,
-          "numbers": [
-            3,
-            4,
-            5,
-            6
-          ]
+          "number": 6,
+          "group": "S Curves"
         },
         {
           "type": "corner",
@@ -183,20 +255,25 @@
           "direction": "left",
           "startFrac": 0.2346,
           "endFrac": 0.3157,
-          "numbers": [
-            7
-          ]
+          "number": 7
         },
         {
           "type": "corner",
-          "name": "Degner",
+          "name": "Degner 1",
           "direction": "right",
           "startFrac": 0.3157,
+          "endFrac": 0.3571,
+          "number": 8,
+          "group": "Degner"
+        },
+        {
+          "type": "corner",
+          "name": "Degner 2",
+          "direction": "right",
+          "startFrac": 0.3571,
           "endFrac": 0.3979,
-          "numbers": [
-            8,
-            9
-          ]
+          "number": 9,
+          "group": "Degner"
         },
         {
           "type": "corner",
@@ -204,9 +281,7 @@
           "direction": "right",
           "startFrac": 0.3979,
           "endFrac": 0.4409,
-          "numbers": [
-            10
-          ]
+          "number": 10
         },
         {
           "type": "corner",
@@ -214,9 +289,7 @@
           "direction": "left",
           "startFrac": 0.4409,
           "endFrac": 0.4687,
-          "numbers": [
-            11
-          ]
+          "number": 11
         },
         {
           "type": "corner",
@@ -224,9 +297,7 @@
           "direction": "right",
           "startFrac": 0.4687,
           "endFrac": 0.5291,
-          "numbers": [
-            12
-          ]
+          "number": 12
         },
         {
           "type": "straight",
@@ -239,11 +310,18 @@
           "name": "Spoon",
           "direction": "left",
           "startFrac": 0.576,
+          "endFrac": 0.6299,
+          "number": 13,
+          "group": "Spoon"
+        },
+        {
+          "type": "corner",
+          "name": "T14",
+          "direction": "left",
+          "startFrac": 0.6299,
           "endFrac": 0.6716,
-          "numbers": [
-            13,
-            14
-          ]
+          "number": 14,
+          "group": "Spoon"
         },
         {
           "type": "straight",
@@ -257,9 +335,7 @@
           "direction": "left",
           "startFrac": 0.7741,
           "endFrac": 0.8306,
-          "numbers": [
-            15
-          ]
+          "number": 15
         },
         {
           "type": "straight",
@@ -270,12 +346,20 @@
         {
           "type": "corner",
           "name": "Casio Triangle",
+          "direction": "right",
           "startFrac": 0.8506,
+          "endFrac": 0.8828,
+          "number": 16,
+          "group": "Casio Triangle"
+        },
+        {
+          "type": "corner",
+          "name": "T17",
+          "direction": "left",
+          "startFrac": 0.8828,
           "endFrac": 0.8962,
-          "numbers": [
-            16,
-            17
-          ]
+          "number": 17,
+          "group": "Casio Triangle"
         },
         {
           "type": "corner",
@@ -283,9 +367,7 @@
           "direction": "right",
           "startFrac": 0.8962,
           "endFrac": 0.9296,
-          "numbers": [
-            18
-          ]
+          "number": 18
         },
         {
           "type": "straight",
@@ -297,6 +379,201 @@
       "sectors": {
         "s1End": 0.3157,
         "s2End": 0.7759,
+        "source": "corner-anchored"
+      }
+    },
+    "ac-evo": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.1075
+        },
+        {
+          "type": "corner",
+          "name": "First Curve",
+          "direction": "right",
+          "startFrac": 0.1075,
+          "endFrac": 0.1477,
+          "number": 1,
+          "group": "First Curve"
+        },
+        {
+          "type": "corner",
+          "name": "T2",
+          "direction": "right",
+          "startFrac": 0.1477,
+          "endFrac": 0.1721,
+          "number": 2,
+          "group": "First Curve"
+        },
+        {
+          "type": "corner",
+          "name": "S Curves",
+          "direction": "left",
+          "startFrac": 0.1721,
+          "endFrac": 0.202,
+          "number": 3,
+          "group": "S Curves"
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "right",
+          "startFrac": 0.202,
+          "endFrac": 0.2266,
+          "number": 4,
+          "group": "S Curves"
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "left",
+          "startFrac": 0.2266,
+          "endFrac": 0.2535,
+          "number": 5,
+          "group": "S Curves"
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "right",
+          "startFrac": 0.2535,
+          "endFrac": 0.2882,
+          "number": 6,
+          "group": "S Curves"
+        },
+        {
+          "type": "corner",
+          "name": "Dunlop",
+          "direction": "left",
+          "startFrac": 0.2882,
+          "endFrac": 0.3326,
+          "number": 7
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3326,
+          "endFrac": 0.3624
+        },
+        {
+          "type": "corner",
+          "name": "Degner 1",
+          "direction": "right",
+          "startFrac": 0.3624,
+          "endFrac": 0.4128,
+          "number": 8,
+          "group": "Degner"
+        },
+        {
+          "type": "corner",
+          "name": "Degner 2",
+          "direction": "right",
+          "startFrac": 0.4128,
+          "endFrac": 0.4492,
+          "number": 9,
+          "group": "Degner"
+        },
+        {
+          "type": "corner",
+          "name": "T10",
+          "direction": "right",
+          "startFrac": 0.4492,
+          "endFrac": 0.4926,
+          "number": 10
+        },
+        {
+          "type": "corner",
+          "name": "Hairpin",
+          "direction": "left",
+          "startFrac": 0.4926,
+          "endFrac": 0.5211,
+          "number": 11
+        },
+        {
+          "type": "corner",
+          "name": "T12",
+          "direction": "right",
+          "startFrac": 0.5211,
+          "endFrac": 0.5708,
+          "number": 12
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.5708,
+          "endFrac": 0.6238
+        },
+        {
+          "type": "corner",
+          "name": "Spoon",
+          "direction": "left",
+          "startFrac": 0.6238,
+          "endFrac": 0.6756,
+          "number": 13,
+          "group": "Spoon"
+        },
+        {
+          "type": "corner",
+          "name": "T14",
+          "direction": "left",
+          "startFrac": 0.6756,
+          "endFrac": 0.7152,
+          "number": 14,
+          "group": "Spoon"
+        },
+        {
+          "type": "straight",
+          "name": "Back Straight",
+          "startFrac": 0.7152,
+          "endFrac": 0.8236
+        },
+        {
+          "type": "corner",
+          "name": "130R",
+          "direction": "left",
+          "startFrac": 0.8236,
+          "endFrac": 0.8818,
+          "number": 15
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.8818,
+          "endFrac": 0.9007
+        },
+        {
+          "type": "corner",
+          "name": "Casio Triangle",
+          "direction": "right",
+          "startFrac": 0.9007,
+          "endFrac": 0.9355,
+          "number": 16,
+          "group": "Casio Triangle"
+        },
+        {
+          "type": "corner",
+          "name": "T17",
+          "direction": "left",
+          "startFrac": 0.9355,
+          "endFrac": 0.9473,
+          "number": 17,
+          "group": "Casio Triangle"
+        },
+        {
+          "type": "corner",
+          "name": "T18",
+          "direction": "right",
+          "startFrac": 0.9473,
+          "endFrac": 1,
+          "number": 18
+        }
+      ],
+      "sectors": {
+        "s1End": 0.3326,
+        "s2End": 0.8196,
         "source": "corner-anchored"
       }
     }
@@ -313,23 +590,54 @@
       "name": "First Curve",
       "direction": "right",
       "startFrac": 0.0889,
+      "endFrac": 0.1365,
+      "number": 1,
+      "group": "First Curve"
+    },
+    {
+      "type": "corner",
+      "name": "T2",
+      "direction": "right",
+      "startFrac": 0.1365,
       "endFrac": 0.1727,
-      "numbers": [
-        1,
-        2
-      ]
+      "number": 2,
+      "group": "First Curve"
     },
     {
       "type": "corner",
       "name": "S Curves",
+      "direction": "left",
       "startFrac": 0.1727,
+      "endFrac": 0.2011,
+      "number": 3,
+      "group": "S Curves"
+    },
+    {
+      "type": "corner",
+      "name": "T4",
+      "direction": "right",
+      "startFrac": 0.2011,
+      "endFrac": 0.2256,
+      "number": 4,
+      "group": "S Curves"
+    },
+    {
+      "type": "corner",
+      "name": "T5",
+      "direction": "left",
+      "startFrac": 0.2256,
+      "endFrac": 0.2532,
+      "number": 5,
+      "group": "S Curves"
+    },
+    {
+      "type": "corner",
+      "name": "T6",
+      "direction": "right",
+      "startFrac": 0.2532,
       "endFrac": 0.2891,
-      "numbers": [
-        3,
-        4,
-        5,
-        6
-      ]
+      "number": 6,
+      "group": "S Curves"
     },
     {
       "type": "corner",
@@ -337,20 +645,25 @@
       "direction": "left",
       "startFrac": 0.2891,
       "endFrac": 0.3804,
-      "numbers": [
-        7
-      ]
+      "number": 7
     },
     {
       "type": "corner",
-      "name": "Degner",
+      "name": "Degner 1",
       "direction": "right",
       "startFrac": 0.3804,
+      "endFrac": 0.4107,
+      "number": 8,
+      "group": "Degner"
+    },
+    {
+      "type": "corner",
+      "name": "Degner 2",
+      "direction": "right",
+      "startFrac": 0.4107,
       "endFrac": 0.451,
-      "numbers": [
-        8,
-        9
-      ]
+      "number": 9,
+      "group": "Degner"
     },
     {
       "type": "corner",
@@ -358,9 +671,7 @@
       "direction": "right",
       "startFrac": 0.451,
       "endFrac": 0.4926,
-      "numbers": [
-        10
-      ]
+      "number": 10
     },
     {
       "type": "corner",
@@ -368,9 +679,7 @@
       "direction": "left",
       "startFrac": 0.4926,
       "endFrac": 0.5241,
-      "numbers": [
-        11
-      ]
+      "number": 11
     },
     {
       "type": "corner",
@@ -378,20 +687,25 @@
       "direction": "right",
       "startFrac": 0.5241,
       "endFrac": 0.6382,
-      "numbers": [
-        12
-      ]
+      "number": 12
     },
     {
       "type": "corner",
       "name": "Spoon",
       "direction": "left",
       "startFrac": 0.6382,
+      "endFrac": 0.6773,
+      "number": 13,
+      "group": "Spoon"
+    },
+    {
+      "type": "corner",
+      "name": "T14",
+      "direction": "left",
+      "startFrac": 0.6773,
       "endFrac": 0.7142,
-      "numbers": [
-        13,
-        14
-      ]
+      "number": 14,
+      "group": "Spoon"
     },
     {
       "type": "straight",
@@ -405,9 +719,7 @@
       "direction": "left",
       "startFrac": 0.8287,
       "endFrac": 0.8766,
-      "numbers": [
-        15
-      ]
+      "number": 15
     },
     {
       "type": "straight",
@@ -418,12 +730,20 @@
     {
       "type": "corner",
       "name": "Casio Triangle",
+      "direction": "right",
       "startFrac": 0.9045,
+      "endFrac": 0.9352,
+      "number": 16,
+      "group": "Casio Triangle"
+    },
+    {
+      "type": "corner",
+      "name": "T17",
+      "direction": "left",
+      "startFrac": 0.9352,
       "endFrac": 0.9459,
-      "numbers": [
-        16,
-        17
-      ]
+      "number": 17,
+      "group": "Casio Triangle"
     },
     {
       "type": "corner",
@@ -431,9 +751,7 @@
       "direction": "right",
       "startFrac": 0.9459,
       "endFrac": 1,
-      "numbers": [
-        18
-      ]
+      "number": 18
     }
   ]
 }

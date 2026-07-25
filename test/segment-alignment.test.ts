@@ -157,10 +157,13 @@ describe("alignSegments", () => {
     };
     const res = alignSegments(detected, list, 7000);
     expect(res.ok).toBe(true);
-    const complex = res.corners.find((c) => c.name === "Eau Rouge/Raidillon");
-    expect(complex?.numbers, "the weak region should be part of the complex").toEqual([1, 2]);
-    // The section must reach the weak region's geometry, not stop at the strong one
-    expect(complex!.endFrac).toBeGreaterThan(0.17);
+    const complex = res.corners.filter((c) => c.group === "Eau Rouge/Raidillon");
+    expect(
+      complex.map((c) => c.number),
+      "the weak region should be part of the complex",
+    ).toEqual([1, 2]);
+    // The complex must reach the weak region's geometry, not stop at the strong one
+    expect(complex[complex.length - 1].endFrac).toBeGreaterThan(0.17);
   });
 
   test("an unnamed weak bend stays part of the straight", () => {
@@ -205,7 +208,7 @@ describe("alignSegments", () => {
     expect(alignSegments(detected, list).ok).toBe(false);
   });
 
-  test("grouped chicane collapses into one region and takes the group name", () => {
+  test("grouped chicane keeps per-turn entries tagged with the group name", () => {
     const detected = [region(0.1, 0.16, "right"), region(0.5, 0.55, "left")];
     const list: CornerNameList = {
       circuit: "Test",
@@ -219,9 +222,11 @@ describe("alignSegments", () => {
     const res = alignSegments(detected, list);
     expect(res.ok).toBe(true);
     expect(res.cost).toBeLessThan(1);
-    expect(res.corners[0].name).toBe("Chicane");
-    expect(res.corners[0].numbers).toEqual([1, 2]);
-    expect(res.corners[1].name).toBe("Hairpin");
+    expect(res.corners[0].name).toBe("In");
+    expect(res.corners[0].group).toBe("Chicane");
+    expect(res.corners.filter((c) => c.group === "Chicane").map((c) => c.number)).toEqual([1, 2]);
+    expect(res.corners[res.corners.length - 1].name).toBe("Hairpin");
+    expect(res.corners[res.corners.length - 1].group).toBeUndefined();
   });
 
   test("spans merges a double-apex corner split into two regions into one segment", () => {
@@ -355,8 +360,8 @@ describe("validateNameList", () => {
 
 describe("resolveSectors", () => {
   const corners = [
-    { regionIndex: 0, numbers: [1], name: "A", direction: "right" as const, startFrac: 0.1, endFrac: 0.3 },
-    { regionIndex: 1, numbers: [2], name: "B", direction: "left" as const, startFrac: 0.6, endFrac: 0.7 },
+    { regionIndex: 0, number: 1, name: "A", direction: "right" as const, startFrac: 0.1, endFrac: 0.3 },
+    { regionIndex: 1, number: 2, name: "B", direction: "left" as const, startFrac: 0.6, endFrac: 0.7 },
   ];
 
   test("anchors resolve to corner exit plus offset", () => {

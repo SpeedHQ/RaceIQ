@@ -17,7 +17,7 @@
  */
 
 import { loadSharedTrackMeta } from "../../shared/track-data";
-import { segmentDisplayName } from "../../shared/segment-label";
+import { segmentDisplayName, segmentPromptLabels, turnNumbers } from "../../shared/segment-label";
 import type { ResolvedTrackGuide } from "../../shared/track-guide-types";
 
 interface CornerGuide {
@@ -1116,11 +1116,18 @@ function metaLabelsByTurn(slug: string, gameId?: string): Map<number, string> {
   // Per-game segments win: a game's centerline can name or merge corners
   // differently from the shared set.
   const segments = (gameId ? meta.games?.[gameId]?.segments : undefined) ?? meta.segments ?? [];
-  for (const s of segments) {
-    if (s.type !== "corner" || !s.numbers?.length || !s.name) continue;
-    const label = segmentDisplayName(s, 0);
-    for (const n of s.numbers) out.set(n, label);
-  }
+  // Group-collapsed labels: every turn of a complex maps to the one label for
+  // the whole complex, so a guide entry spanning it resolves (each member
+  // carrying its own label would make `canonicalLabel` see a partial match and
+  // fall back to the guide's own name).
+  const labels = segmentPromptLabels(segments);
+  segments.forEach((s, i) => {
+    if (s.type !== "corner" || !s.name) return;
+    const label = labels[i];
+    if (!label) return;
+    const nums = s.group ? segments.filter((o) => o.group === s.group).flatMap(turnNumbers) : turnNumbers(s);
+    for (const n of nums) out.set(n, label);
+  });
   return out;
 }
 

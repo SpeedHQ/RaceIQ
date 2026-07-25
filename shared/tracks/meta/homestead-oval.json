@@ -15,8 +15,8 @@
           "direction": "left",
           "startFrac": 0.0981,
           "endFrac": 0.3791,
-          "numbers": [
-            1,
+          "number": 1,
+          "covers": [
             2
           ]
         },
@@ -32,8 +32,8 @@
           "direction": "left",
           "startFrac": 0.6177,
           "endFrac": 0.8654,
-          "numbers": [
-            3,
+          "number": 3,
+          "covers": [
             4
           ]
         },
@@ -59,8 +59,8 @@
       "direction": "left",
       "startFrac": 0.0981,
       "endFrac": 0.3791,
-      "numbers": [
-        1,
+      "number": 1,
+      "covers": [
         2
       ]
     },
@@ -76,8 +76,8 @@
       "direction": "left",
       "startFrac": 0.6177,
       "endFrac": 0.8654,
-      "numbers": [
-        3,
+      "number": 3,
+      "covers": [
         4
       ]
     },

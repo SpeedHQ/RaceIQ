@@ -4,7 +4,7 @@ import { z } from "zod";
 import { IS_DEV } from "../env";
 import { OrdinalParamSchema, GameIdQuerySchema } from "../../shared/schemas";
 import { autoTrackSegments } from "../../shared/track-segment-generate";
-import { formatTurnNumbers } from "../../shared/segment-label";
+import { formatTurnNumbers, turnNumbers } from "../../shared/segment-label";
 import type { NamedSegment } from "../../shared/track-named-segments";
 import {
   getLaps,
@@ -229,7 +229,7 @@ export const trackRoutes = new Hono()
           index,
           // Review dashboard shows turn numbers only — drop community/known
           // corner names, keep "T<number>" (range for multi-turn segments).
-          label: s.numbers && s.numbers.length > 0 ? `T${formatTurnNumbers(s.numbers)}` : `T${index + 1}`,
+          label: turnNumbers(s).length > 0 ? `T${formatTurnNumbers(turnNumbers(s))}` : `T${index + 1}`,
           distanceStart: s.startFrac,
           distanceEnd: s.endFrac,
         }));

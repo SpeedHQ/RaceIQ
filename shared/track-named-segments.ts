@@ -13,13 +13,23 @@ export interface NamedSegment {
   direction?: "left" | "right";
   startFrac: number;
   endFrac: number;
-  /** Official turn numbers covered by this section (corners only). */
-  numbers?: number[];
   /**
-   * Sections that are one physical piece of track split into two segments —
-   * the start/finish straight, which the line cuts into the lap's first and
-   * last segment. Both halves share this key so consumers can label the
-   * straight once instead of twice.
+   * Official turn number of this section (corners only). One entry per turn —
+   * a corner that officially spans several numbers (Pouhon is T10-T11) is the
+   * lowest number, with the rest listed in `covers`.
+   */
+  number?: number;
+  /**
+   * Extra official turn numbers this one section subsumes (corners only), for
+   * corners the detector can't split (Pouhon: number 10, covers [11]).
+   */
+  covers?: number[];
+  /**
+   * Sections that belong together as one named piece of track: a complex
+   * (Rivazza, Les Combes) whose apexes are separate entries so the editor can
+   * nudge one at a time, and the start/finish straight, which the line cuts
+   * into the lap's first and last segment. Members share this key so consumers
+   * can label the piece once instead of once per entry.
    */
   group?: string;
 }

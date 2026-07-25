@@ -60,7 +60,7 @@
   <line x1="811.6" y1="273.1" x2="836.8" y2="267.0" stroke="#d1d5db" stroke-width="1" />
   <text x="836.8" y="267.0" text-anchor="start" class="name" fill="#111827">T14</text>
   <line x1="883.6" y1="211.0" x2="907.9" y2="201.7" stroke="#d1d5db" stroke-width="1" />
-  <text x="907.9" y="201.7" text-anchor="end" class="name" fill="#111827">T15–T17 Südkurve</text>
+  <text x="907.9" y="201.7" text-anchor="end" class="name" fill="#111827">T17–T16 Südkurve</text>
   <line x1="889.9" y1="341.9" x2="915.8" y2="342.9" stroke="#d1d5db" stroke-width="1" />
   <text x="915.8" y="342.9" text-anchor="start" class="name" fill="#6b7280">St6 122m</text>
   <circle cx="148.5" cy="187.9" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />

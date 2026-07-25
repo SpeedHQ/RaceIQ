@@ -255,7 +255,9 @@ export function drawTrack(
 
     // Corner names carry their official turn numbers ("Eau Rouge/Raidillon (2-4)");
     // thumbnails stay clean with names only.
-    const displayNames = large ? segmentDisplayNames(sectors.segments) : segmentDisplayNames(sectors.segments.map((s) => ({ ...s, numbers: undefined })));
+    const displayNames = large
+      ? segmentDisplayNames(sectors.segments)
+      : segmentDisplayNames(sectors.segments.map((s) => ({ ...s, number: undefined, covers: undefined })));
     // The start/finish straight is two segments but one straight — label the
     // longer half so its name doesn't appear twice on the map.
     // Corner complexes (Rivazza, Les Combes) are one section per turn so they

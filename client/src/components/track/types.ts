@@ -18,8 +18,10 @@ export interface Point {
 export interface TrackSegment {
   type: "corner" | "straight";
   name: string;
-  /** Official turn numbers this section covers (corners only) — a chicane merges several. */
-  numbers?: number[];
+  /** Official turn number for this corner (corners only). */
+  number?: number;
+  /** Extra official turn numbers this one entry accounts for when the detector can't split them. */
+  covers?: number[];
   /** Shared by the two halves of a straight the start/finish line splits. */
   group?: string;
   direction?: "left" | "right";

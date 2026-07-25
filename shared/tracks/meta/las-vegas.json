@@ -23,8 +23,8 @@
           "direction": "left",
           "startFrac": 0.0234,
           "endFrac": 0.0701,
-          "numbers": [
-            1,
+          "number": 1,
+          "covers": [
             2
           ]
         },
@@ -34,8 +34,8 @@
           "direction": "right",
           "startFrac": 0.0701,
           "endFrac": 0.1302,
-          "numbers": [
-            3,
+          "number": 3,
+          "covers": [
             4
           ]
         },
@@ -51,9 +51,7 @@
           "direction": "right",
           "startFrac": 0.228,
           "endFrac": 0.2713,
-          "numbers": [
-            5
-          ]
+          "number": 5
         },
         {
           "type": "straight",
@@ -67,9 +65,7 @@
           "direction": "left",
           "startFrac": 0.3069,
           "endFrac": 0.3349,
-          "numbers": [
-            6
-          ]
+          "number": 6
         },
         {
           "type": "corner",
@@ -77,9 +73,7 @@
           "direction": "right",
           "startFrac": 0.3349,
           "endFrac": 0.353,
-          "numbers": [
-            7
-          ]
+          "number": 7
         },
         {
           "type": "corner",
@@ -87,9 +81,7 @@
           "direction": "left",
           "startFrac": 0.353,
           "endFrac": 0.3791,
-          "numbers": [
-            8
-          ]
+          "number": 8
         },
         {
           "type": "straight",
@@ -103,9 +95,7 @@
           "direction": "right",
           "startFrac": 0.4124,
           "endFrac": 0.4673,
-          "numbers": [
-            9
-          ]
+          "number": 9
         },
         {
           "type": "corner",
@@ -113,9 +103,7 @@
           "direction": "left",
           "startFrac": 0.4673,
           "endFrac": 0.5154,
-          "numbers": [
-            10
-          ]
+          "number": 10
         },
         {
           "type": "corner",
@@ -123,9 +111,7 @@
           "direction": "left",
           "startFrac": 0.5154,
           "endFrac": 0.5271,
-          "numbers": [
-            12
-          ]
+          "number": 12
         },
         {
           "type": "corner",
@@ -133,9 +119,7 @@
           "direction": "right",
           "startFrac": 0.5271,
           "endFrac": 0.544,
-          "numbers": [
-            13
-          ]
+          "number": 13
         },
         {
           "type": "straight",
@@ -149,9 +133,7 @@
           "direction": "left",
           "startFrac": 0.8139,
           "endFrac": 0.8433,
-          "numbers": [
-            14
-          ]
+          "number": 14
         },
         {
           "type": "corner",
@@ -159,9 +141,7 @@
           "direction": "right",
           "startFrac": 0.8433,
           "endFrac": 0.852,
-          "numbers": [
-            15
-          ]
+          "number": 15
         },
         {
           "type": "corner",
@@ -169,9 +149,7 @@
           "direction": "left",
           "startFrac": 0.852,
           "endFrac": 0.8734,
-          "numbers": [
-            16
-          ]
+          "number": 16
         },
         {
           "type": "straight",
@@ -185,9 +163,7 @@
           "direction": "left",
           "startFrac": 0.9494,
           "endFrac": 1,
-          "numbers": [
-            17
-          ]
+          "number": 17
         }
       ]
     }
@@ -205,8 +181,8 @@
       "direction": "left",
       "startFrac": 0.0234,
       "endFrac": 0.0701,
-      "numbers": [
-        1,
+      "number": 1,
+      "covers": [
         2
       ]
     },
@@ -216,8 +192,8 @@
       "direction": "right",
       "startFrac": 0.0701,
       "endFrac": 0.1302,
-      "numbers": [
-        3,
+      "number": 3,
+      "covers": [
         4
       ]
     },
@@ -233,9 +209,7 @@
       "direction": "right",
       "startFrac": 0.228,
       "endFrac": 0.2713,
-      "numbers": [
-        5
-      ]
+      "number": 5
     },
     {
       "type": "straight",
@@ -249,9 +223,7 @@
       "direction": "left",
       "startFrac": 0.3069,
       "endFrac": 0.3349,
-      "numbers": [
-        6
-      ]
+      "number": 6
     },
     {
       "type": "corner",
@@ -259,9 +231,7 @@
       "direction": "right",
       "startFrac": 0.3349,
       "endFrac": 0.353,
-      "numbers": [
-        7
-      ]
+      "number": 7
     },
     {
       "type": "corner",
@@ -269,9 +239,7 @@
       "direction": "left",
       "startFrac": 0.353,
       "endFrac": 0.3791,
-      "numbers": [
-        8
-      ]
+      "number": 8
     },
     {
       "type": "straight",
@@ -285,9 +253,7 @@
       "direction": "right",
       "startFrac": 0.4124,
       "endFrac": 0.4673,
-      "numbers": [
-        9
-      ]
+      "number": 9
     },
     {
       "type": "corner",
@@ -295,9 +261,7 @@
       "direction": "left",
       "startFrac": 0.4673,
       "endFrac": 0.5154,
-      "numbers": [
-        10
-      ]
+      "number": 10
     },
     {
       "type": "corner",
@@ -305,9 +269,7 @@
       "direction": "left",
       "startFrac": 0.5154,
       "endFrac": 0.5271,
-      "numbers": [
-        12
-      ]
+      "number": 12
     },
     {
       "type": "corner",
@@ -315,9 +277,7 @@
       "direction": "right",
       "startFrac": 0.5271,
       "endFrac": 0.544,
-      "numbers": [
-        13
-      ]
+      "number": 13
     },
     {
       "type": "straight",
@@ -331,9 +291,7 @@
       "direction": "left",
       "startFrac": 0.8139,
       "endFrac": 0.8433,
-      "numbers": [
-        14
-      ]
+      "number": 14
     },
     {
       "type": "corner",
@@ -341,9 +299,7 @@
       "direction": "right",
       "startFrac": 0.8433,
       "endFrac": 0.852,
-      "numbers": [
-        15
-      ]
+      "number": 15
     },
     {
       "type": "corner",
@@ -351,9 +307,7 @@
       "direction": "left",
       "startFrac": 0.852,
       "endFrac": 0.8734,
-      "numbers": [
-        16
-      ]
+      "number": 16
     },
     {
       "type": "straight",
@@ -367,9 +321,7 @@
       "direction": "left",
       "startFrac": 0.9494,
       "endFrac": 1,
-      "numbers": [
-        17
-      ]
+      "number": 17
     }
   ]
 }

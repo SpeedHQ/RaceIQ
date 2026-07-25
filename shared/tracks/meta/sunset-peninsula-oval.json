@@ -15,8 +15,8 @@
           "direction": "left",
           "startFrac": 0.0989,
           "endFrac": 0.1578,
-          "numbers": [
-            1,
+          "number": 1,
+          "covers": [
             2,
             3,
             4
@@ -44,8 +44,8 @@
       "direction": "left",
       "startFrac": 0.0989,
       "endFrac": 0.1578,
-      "numbers": [
-        1,
+      "number": 1,
+      "covers": [
         2,
         3,
         4

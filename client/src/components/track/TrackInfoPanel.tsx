@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { countryName } from "@/lib/country-names";
 import { client } from "@/lib/rpc";
-import { segmentDisplayNames } from "@/lib/segment-label";
+import { segmentDisplayNames, turnNumbers } from "@/lib/segment-label";
 import { m } from "@/paraglide/messages";
 import type { TrackInfo as TrackInfoType, TrackSectors } from "./types";
 
@@ -81,7 +81,7 @@ export function TrackInfoPanel({
   const straights = segments.filter((s) => s.type === "straight");
   // Turn count is the highest official number the curation covers, not the
   // corner-segment count: a chicane is one segment spanning several turns.
-  const turnCount = corners.reduce((max, s) => Math.max(max, ...(s.numbers ?? [0])), 0);
+  const turnCount = corners.reduce((max, s) => Math.max(max, ...turnNumbers(s), 0), 0);
 
   /** Which sector a segment falls in, by its midpoint. */
   const sectorOf = (startFrac: number, endFrac: number): 1 | 2 | 3 => {

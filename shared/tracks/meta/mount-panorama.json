@@ -20,9 +20,7 @@
           "direction": "left",
           "startFrac": 0.0318,
           "endFrac": 0.0796,
-          "numbers": [
-            1
-          ]
+          "number": 1
         },
         {
           "type": "straight",
@@ -36,9 +34,7 @@
           "direction": "right",
           "startFrac": 0.2097,
           "endFrac": 0.2838,
-          "numbers": [
-            2
-          ]
+          "number": 2
         },
         {
           "type": "corner",
@@ -46,9 +42,7 @@
           "direction": "left",
           "startFrac": 0.2838,
           "endFrac": 0.3363,
-          "numbers": [
-            3
-          ]
+          "number": 3
         },
         {
           "type": "corner",
@@ -56,9 +50,7 @@
           "direction": "right",
           "startFrac": 0.3363,
           "endFrac": 0.3966,
-          "numbers": [
-            4
-          ]
+          "number": 4
         },
         {
           "type": "corner",
@@ -66,9 +58,7 @@
           "direction": "left",
           "startFrac": 0.3966,
           "endFrac": 0.4608,
-          "numbers": [
-            5
-          ]
+          "number": 5
         },
         {
           "type": "corner",
@@ -76,21 +66,39 @@
           "direction": "left",
           "startFrac": 0.4608,
           "endFrac": 0.5034,
-          "numbers": [
-            6
-          ]
+          "number": 6
         },
         {
           "type": "corner",
           "name": "The Esses",
           "startFrac": 0.5034,
+          "endFrac": 0.5357,
+          "number": 7,
+          "group": "The Esses"
+        },
+        {
+          "type": "corner",
+          "name": "T8",
+          "startFrac": 0.5357,
+          "endFrac": 0.5512,
+          "number": 8,
+          "group": "The Esses"
+        },
+        {
+          "type": "corner",
+          "name": "The Dipper",
+          "startFrac": 0.5512,
+          "endFrac": 0.5668,
+          "number": 9,
+          "group": "The Esses"
+        },
+        {
+          "type": "corner",
+          "name": "T10",
+          "startFrac": 0.5668,
           "endFrac": 0.5909,
-          "numbers": [
-            7,
-            8,
-            9,
-            10
-          ]
+          "number": 10,
+          "group": "The Esses"
         },
         {
           "type": "corner",
@@ -98,9 +106,7 @@
           "direction": "right",
           "startFrac": 0.5909,
           "endFrac": 0.6171,
-          "numbers": [
-            11
-          ]
+          "number": 11
         },
         {
           "type": "corner",
@@ -108,9 +114,7 @@
           "direction": "left",
           "startFrac": 0.6171,
           "endFrac": 0.6465,
-          "numbers": [
-            12
-          ]
+          "number": 12
         },
         {
           "type": "straight",
@@ -121,12 +125,20 @@
         {
           "type": "corner",
           "name": "The Chase",
+          "direction": "left",
           "startFrac": 0.8568,
+          "endFrac": 0.8998,
+          "number": 13,
+          "group": "The Chase"
+        },
+        {
+          "type": "corner",
+          "name": "T14",
+          "direction": "right",
+          "startFrac": 0.8998,
           "endFrac": 0.9298,
-          "numbers": [
-            13,
-            14
-          ]
+          "number": 14,
+          "group": "The Chase"
         },
         {
           "type": "straight",
@@ -140,9 +152,7 @@
           "direction": "left",
           "startFrac": 0.9494,
           "endFrac": 0.9921,
-          "numbers": [
-            15
-          ]
+          "number": 15
         },
         {
           "type": "straight",
@@ -173,9 +183,7 @@
           "direction": "left",
           "startFrac": 0.0167,
           "endFrac": 0.053,
-          "numbers": [
-            1
-          ]
+          "number": 1
         },
         {
           "type": "straight",
@@ -189,9 +197,7 @@
           "direction": "right",
           "startFrac": 0.1877,
           "endFrac": 0.2464,
-          "numbers": [
-            2
-          ]
+          "number": 2
         },
         {
           "type": "straight",
@@ -205,9 +211,7 @@
           "direction": "left",
           "startFrac": 0.2712,
           "endFrac": 0.3098,
-          "numbers": [
-            3
-          ]
+          "number": 3
         },
         {
           "type": "corner",
@@ -215,9 +219,7 @@
           "direction": "right",
           "startFrac": 0.3098,
           "endFrac": 0.3709,
-          "numbers": [
-            4
-          ]
+          "number": 4
         },
         {
           "type": "corner",
@@ -225,9 +227,7 @@
           "direction": "left",
           "startFrac": 0.3709,
           "endFrac": 0.4362,
-          "numbers": [
-            5
-          ]
+          "number": 5
         },
         {
           "type": "corner",
@@ -235,21 +235,39 @@
           "direction": "left",
           "startFrac": 0.4362,
           "endFrac": 0.4862,
-          "numbers": [
-            6
-          ]
+          "number": 6
         },
         {
           "type": "corner",
           "name": "The Esses",
           "startFrac": 0.4862,
+          "endFrac": 0.5166,
+          "number": 7,
+          "group": "The Esses"
+        },
+        {
+          "type": "corner",
+          "name": "T8",
+          "startFrac": 0.5166,
+          "endFrac": 0.5291,
+          "number": 8,
+          "group": "The Esses"
+        },
+        {
+          "type": "corner",
+          "name": "The Dipper",
+          "startFrac": 0.5291,
+          "endFrac": 0.5417,
+          "number": 9,
+          "group": "The Esses"
+        },
+        {
+          "type": "corner",
+          "name": "T10",
+          "startFrac": 0.5417,
           "endFrac": 0.5676,
-          "numbers": [
-            7,
-            8,
-            9,
-            10
-          ]
+          "number": 10,
+          "group": "The Esses"
         },
         {
           "type": "corner",
@@ -257,9 +275,7 @@
           "direction": "right",
           "startFrac": 0.5676,
           "endFrac": 0.5923,
-          "numbers": [
-            11
-          ]
+          "number": 11
         },
         {
           "type": "corner",
@@ -267,9 +283,7 @@
           "direction": "left",
           "startFrac": 0.5923,
           "endFrac": 0.6217,
-          "numbers": [
-            12
-          ]
+          "number": 12
         },
         {
           "type": "straight",
@@ -280,12 +294,20 @@
         {
           "type": "corner",
           "name": "The Chase",
+          "direction": "left",
           "startFrac": 0.8383,
+          "endFrac": 0.871,
+          "number": 13,
+          "group": "The Chase"
+        },
+        {
+          "type": "corner",
+          "name": "T14",
+          "direction": "right",
+          "startFrac": 0.871,
           "endFrac": 0.8994,
-          "numbers": [
-            13,
-            14
-          ]
+          "number": 14,
+          "group": "The Chase"
         },
         {
           "type": "straight",
@@ -299,9 +321,7 @@
           "direction": "left",
           "startFrac": 0.9288,
           "endFrac": 0.9734,
-          "numbers": [
-            15
-          ]
+          "number": 15
         },
         {
           "type": "straight",
@@ -314,6 +334,185 @@
       "sectors": {
         "s1End": 0.3098,
         "s2End": 0.6217,
+        "source": "corner-anchored"
+      }
+    },
+    "ac-evo": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "Pit Straight",
+          "startFrac": 0,
+          "endFrac": 0.0168,
+          "group": "Pit Straight"
+        },
+        {
+          "type": "corner",
+          "name": "Hell Corner",
+          "direction": "left",
+          "startFrac": 0.0168,
+          "endFrac": 0.0564,
+          "number": 1
+        },
+        {
+          "type": "straight",
+          "name": "Mountain Straight",
+          "startFrac": 0.0564,
+          "endFrac": 0.1888
+        },
+        {
+          "type": "corner",
+          "name": "Griffins Bend",
+          "direction": "right",
+          "startFrac": 0.1888,
+          "endFrac": 0.2481,
+          "number": 2
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.2481,
+          "endFrac": 0.272
+        },
+        {
+          "type": "corner",
+          "name": "The Cutting",
+          "direction": "left",
+          "startFrac": 0.272,
+          "endFrac": 0.3106,
+          "number": 3
+        },
+        {
+          "type": "corner",
+          "name": "Reid Park",
+          "direction": "right",
+          "startFrac": 0.3106,
+          "endFrac": 0.38,
+          "number": 4
+        },
+        {
+          "type": "corner",
+          "name": "Sulman Park",
+          "direction": "left",
+          "startFrac": 0.38,
+          "endFrac": 0.44,
+          "number": 5
+        },
+        {
+          "type": "corner",
+          "name": "McPhillamy Park",
+          "direction": "left",
+          "startFrac": 0.44,
+          "endFrac": 0.4842,
+          "number": 6
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.4842,
+          "endFrac": 0.5074
+        },
+        {
+          "type": "corner",
+          "name": "The Esses",
+          "direction": "right",
+          "startFrac": 0.5074,
+          "endFrac": 0.5424,
+          "number": 7,
+          "group": "The Esses"
+        },
+        {
+          "type": "corner",
+          "name": "T8",
+          "direction": "left",
+          "startFrac": 0.5424,
+          "endFrac": 0.5508,
+          "number": 8,
+          "group": "The Esses"
+        },
+        {
+          "type": "corner",
+          "name": "The Dipper",
+          "direction": "right",
+          "startFrac": 0.5508,
+          "endFrac": 0.5642,
+          "number": 9,
+          "group": "The Esses"
+        },
+        {
+          "type": "corner",
+          "name": "T10",
+          "direction": "left",
+          "startFrac": 0.5642,
+          "endFrac": 0.5775,
+          "number": 10,
+          "group": "The Esses"
+        },
+        {
+          "type": "corner",
+          "name": "T11",
+          "direction": "right",
+          "startFrac": 0.5775,
+          "endFrac": 0.5957,
+          "number": 11
+        },
+        {
+          "type": "corner",
+          "name": "Forrest's Elbow",
+          "direction": "left",
+          "startFrac": 0.5957,
+          "endFrac": 0.6226,
+          "number": 12
+        },
+        {
+          "type": "straight",
+          "name": "Conrod Straight",
+          "startFrac": 0.6226,
+          "endFrac": 0.8379
+        },
+        {
+          "type": "corner",
+          "name": "The Chase",
+          "direction": "left",
+          "startFrac": 0.8379,
+          "endFrac": 0.8744,
+          "number": 13,
+          "group": "The Chase"
+        },
+        {
+          "type": "corner",
+          "name": "T14",
+          "direction": "right",
+          "startFrac": 0.8744,
+          "endFrac": 0.9064,
+          "number": 14,
+          "group": "The Chase"
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.9064,
+          "endFrac": 0.9293
+        },
+        {
+          "type": "corner",
+          "name": "Murray's Corner",
+          "direction": "left",
+          "startFrac": 0.9293,
+          "endFrac": 0.9757,
+          "number": 15
+        },
+        {
+          "type": "straight",
+          "name": "Pit Straight",
+          "startFrac": 0.9757,
+          "endFrac": 1,
+          "group": "Pit Straight"
+        }
+      ],
+      "sectors": {
+        "s1End": 0.3106,
+        "s2End": 0.6226,
         "source": "corner-anchored"
       }
     }
@@ -332,9 +531,7 @@
       "direction": "left",
       "startFrac": 0.0167,
       "endFrac": 0.053,
-      "numbers": [
-        1
-      ]
+      "number": 1
     },
     {
       "type": "straight",
@@ -348,9 +545,7 @@
       "direction": "right",
       "startFrac": 0.1877,
       "endFrac": 0.2464,
-      "numbers": [
-        2
-      ]
+      "number": 2
     },
     {
       "type": "straight",
@@ -364,9 +559,7 @@
       "direction": "left",
       "startFrac": 0.2712,
       "endFrac": 0.3098,
-      "numbers": [
-        3
-      ]
+      "number": 3
     },
     {
       "type": "corner",
@@ -374,9 +567,7 @@
       "direction": "right",
       "startFrac": 0.3098,
       "endFrac": 0.3709,
-      "numbers": [
-        4
-      ]
+      "number": 4
     },
     {
       "type": "corner",
@@ -384,9 +575,7 @@
       "direction": "left",
       "startFrac": 0.3709,
       "endFrac": 0.4362,
-      "numbers": [
-        5
-      ]
+      "number": 5
     },
     {
       "type": "corner",
@@ -394,21 +583,39 @@
       "direction": "left",
       "startFrac": 0.4362,
       "endFrac": 0.4862,
-      "numbers": [
-        6
-      ]
+      "number": 6
     },
     {
       "type": "corner",
       "name": "The Esses",
       "startFrac": 0.4862,
+      "endFrac": 0.5166,
+      "number": 7,
+      "group": "The Esses"
+    },
+    {
+      "type": "corner",
+      "name": "T8",
+      "startFrac": 0.5166,
+      "endFrac": 0.5291,
+      "number": 8,
+      "group": "The Esses"
+    },
+    {
+      "type": "corner",
+      "name": "The Dipper",
+      "startFrac": 0.5291,
+      "endFrac": 0.5417,
+      "number": 9,
+      "group": "The Esses"
+    },
+    {
+      "type": "corner",
+      "name": "T10",
+      "startFrac": 0.5417,
       "endFrac": 0.5676,
-      "numbers": [
-        7,
-        8,
-        9,
-        10
-      ]
+      "number": 10,
+      "group": "The Esses"
     },
     {
       "type": "corner",
@@ -416,9 +623,7 @@
       "direction": "right",
       "startFrac": 0.5676,
       "endFrac": 0.5923,
-      "numbers": [
-        11
-      ]
+      "number": 11
     },
     {
       "type": "corner",
@@ -426,9 +631,7 @@
       "direction": "left",
       "startFrac": 0.5923,
       "endFrac": 0.6217,
-      "numbers": [
-        12
-      ]
+      "number": 12
     },
     {
       "type": "straight",
@@ -439,12 +642,20 @@
     {
       "type": "corner",
       "name": "The Chase",
+      "direction": "left",
       "startFrac": 0.8383,
+      "endFrac": 0.871,
+      "number": 13,
+      "group": "The Chase"
+    },
+    {
+      "type": "corner",
+      "name": "T14",
+      "direction": "right",
+      "startFrac": 0.871,
       "endFrac": 0.8994,
-      "numbers": [
-        13,
-        14
-      ]
+      "number": 14,
+      "group": "The Chase"
     },
     {
       "type": "straight",
@@ -458,9 +669,7 @@
       "direction": "left",
       "startFrac": 0.9288,
       "endFrac": 0.9734,
-      "numbers": [
-        15
-      ]
+      "number": 15
     },
     {
       "type": "straight",

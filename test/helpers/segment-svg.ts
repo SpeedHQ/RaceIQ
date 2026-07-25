@@ -3,6 +3,7 @@ import type { GameId } from "../../shared/types";
 import { tryGetGame } from "../../shared/games/registry";
 import { flipPoints, needsTrackFlip, type Pt } from "../../shared/track-coords";
 import type { NamedSegment } from "../../shared/track-named-segments";
+import { turnNumbers } from "../../shared/segment-label";
 import { makeTrackProjection } from "../../shared/track-projection";
 
 /** Distinct, high-contrast colors cycled across corner segments. */
@@ -168,7 +169,7 @@ ${sectorMarks.join("\n")}
  * generic label; "St" avoids colliding with the S1/S2 sector markers).
  */
 function segmentLabel(seg: NamedSegment, straightIdx: number, lengthM: number): string {
-  const nums = seg.numbers ?? [];
+  const nums = turnNumbers(seg);
   if (nums.length === 0) return seg.name || `St${straightIdx} ${Math.round(lengthM)}m`;
   const prefix = nums.length > 1 ? `T${nums[0]}–T${nums[nums.length - 1]}` : `T${nums[0]}`;
   if (!seg.name || seg.name === prefix) return prefix;

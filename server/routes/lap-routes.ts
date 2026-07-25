@@ -937,7 +937,8 @@ export const lapRoutes = new Hono()
         type: s.type === "corner" ? ("corner" as const) : ("straight" as const),
         startFrac: s.startFrac,
         endFrac: s.endFrac,
-        numbers: s.numbers,
+        number: s.number,
+        covers: s.covers,
       })) ?? null;
 
     const prompt = buildInputsComparePrompt(
