@@ -1,195 +1,59 @@
 {
-  "name": "Hockenheimring — National",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0494
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "right",
-          "startFrac": 0.0494,
-          "endFrac": 0.163,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "right",
-          "startFrac": 0.163,
-          "endFrac": 0.2658,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "left",
-          "startFrac": 0.2658,
-          "endFrac": 0.3661,
-          "number": 3
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "left",
-          "startFrac": 0.3661,
-          "endFrac": 0.4522,
-          "number": 4
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "right",
-          "startFrac": 0.4522,
-          "endFrac": 0.5317,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "right",
-          "startFrac": 0.5317,
-          "endFrac": 0.6381,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "left",
-          "startFrac": 0.6381,
-          "endFrac": 0.738,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "left",
-          "startFrac": 0.738,
-          "endFrac": 0.7781,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "T9",
-          "direction": "right",
-          "startFrac": 0.7781,
-          "endFrac": 0.8091,
-          "number": 9
-        },
-        {
-          "type": "corner",
-          "name": "T10",
-          "direction": "right",
-          "startFrac": 0.8091,
-          "endFrac": 0.9533,
-          "number": 10
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9533,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "hockenheim-s2",
+  "track": "hockenheim",
+  "layout": "short",
+  "layoutName": "Short",
+  "name": "Hockenheimring",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0494
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "right",
-      "startFrac": 0.0494,
-      "endFrac": 0.163,
-      "number": 1
-    },
-    {
-      "type": "corner",
-      "name": "T2",
-      "direction": "right",
-      "startFrac": 0.163,
-      "endFrac": 0.2658,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "left",
-      "startFrac": 0.2658,
-      "endFrac": 0.3661,
-      "number": 3
-    },
-    {
-      "type": "corner",
-      "name": "T4",
-      "direction": "left",
-      "startFrac": 0.3661,
-      "endFrac": 0.4522,
-      "number": 4
-    },
-    {
-      "type": "corner",
-      "name": "T5",
-      "direction": "right",
-      "startFrac": 0.4522,
-      "endFrac": 0.5317,
-      "number": 5
-    },
-    {
-      "type": "corner",
-      "name": "T6",
-      "direction": "right",
-      "startFrac": 0.5317,
-      "endFrac": 0.6381,
-      "number": 6
-    },
-    {
-      "type": "corner",
-      "name": "T7",
-      "direction": "left",
-      "startFrac": 0.6381,
-      "endFrac": 0.738,
-      "number": 7
-    },
-    {
-      "type": "corner",
-      "name": "T8",
-      "direction": "left",
-      "startFrac": 0.738,
-      "endFrac": 0.7781,
-      "number": 8
-    },
-    {
-      "type": "corner",
-      "name": "T9",
-      "direction": "right",
-      "startFrac": 0.7781,
-      "endFrac": 0.8091,
-      "number": 9
-    },
-    {
-      "type": "corner",
-      "name": "T10",
-      "direction": "right",
-      "startFrac": 0.8091,
-      "endFrac": 0.9533,
-      "number": 10
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.9533,
-      "endFrac": 1
+      "direction": "right"
+    },
+    {
+      "number": 3,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 4,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 5,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 9,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 10,
+      "name": "",
+      "direction": "right"
     }
   ]
 }

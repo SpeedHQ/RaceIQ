@@ -1,495 +1,134 @@
 {
-  "name": "VIR — Grand West",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0332
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "right",
-          "startFrac": 0.0332,
-          "endFrac": 0.0796,
-          "number": 1
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.0796,
-          "endFrac": 0.1031
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "left",
-          "startFrac": 0.1031,
-          "endFrac": 0.1446,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "left",
-          "startFrac": 0.1446,
-          "endFrac": 0.1643,
-          "number": 3
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "right",
-          "startFrac": 0.1643,
-          "endFrac": 0.1939,
-          "number": 4
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "left",
-          "startFrac": 0.1939,
-          "endFrac": 0.2153,
-          "number": 5
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2153,
-          "endFrac": 0.2762
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "right",
-          "startFrac": 0.2762,
-          "endFrac": 0.3083,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "left",
-          "startFrac": 0.3083,
-          "endFrac": 0.3229,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "right",
-          "startFrac": 0.3229,
-          "endFrac": 0.3483,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "T9",
-          "direction": "left",
-          "startFrac": 0.3483,
-          "endFrac": 0.3808,
-          "number": 9
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3808,
-          "endFrac": 0.3999
-        },
-        {
-          "type": "corner",
-          "name": "T10",
-          "direction": "right",
-          "startFrac": 0.3999,
-          "endFrac": 0.4383,
-          "number": 10
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4383,
-          "endFrac": 0.5413
-        },
-        {
-          "type": "corner",
-          "name": "T11",
-          "direction": "right",
-          "startFrac": 0.5413,
-          "endFrac": 0.5913,
-          "number": 11
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5913,
-          "endFrac": 0.6118
-        },
-        {
-          "type": "corner",
-          "name": "T12",
-          "direction": "left",
-          "startFrac": 0.6118,
-          "endFrac": 0.6433,
-          "number": 12
-        },
-        {
-          "type": "corner",
-          "name": "T13",
-          "direction": "right",
-          "startFrac": 0.6433,
-          "endFrac": 0.6518,
-          "number": 13
-        },
-        {
-          "type": "corner",
-          "name": "T14",
-          "direction": "left",
-          "startFrac": 0.6518,
-          "endFrac": 0.6827,
-          "number": 14
-        },
-        {
-          "type": "corner",
-          "name": "T15",
-          "direction": "right",
-          "startFrac": 0.6827,
-          "endFrac": 0.706,
-          "number": 15
-        },
-        {
-          "type": "corner",
-          "name": "T16",
-          "direction": "left",
-          "startFrac": 0.706,
-          "endFrac": 0.714,
-          "number": 16
-        },
-        {
-          "type": "corner",
-          "name": "T17",
-          "direction": "right",
-          "startFrac": 0.714,
-          "endFrac": 0.7208,
-          "number": 17
-        },
-        {
-          "type": "corner",
-          "name": "T18",
-          "direction": "left",
-          "startFrac": 0.7208,
-          "endFrac": 0.7481,
-          "number": 18
-        },
-        {
-          "type": "corner",
-          "name": "T19",
-          "direction": "right",
-          "startFrac": 0.7481,
-          "endFrac": 0.7633,
-          "number": 19
-        },
-        {
-          "type": "corner",
-          "name": "T20",
-          "direction": "left",
-          "startFrac": 0.7633,
-          "endFrac": 0.7815,
-          "number": 20
-        },
-        {
-          "type": "corner",
-          "name": "T21",
-          "direction": "right",
-          "startFrac": 0.7815,
-          "endFrac": 0.8164,
-          "number": 21
-        },
-        {
-          "type": "corner",
-          "name": "T22",
-          "direction": "right",
-          "startFrac": 0.8164,
-          "endFrac": 0.8404,
-          "number": 22
-        },
-        {
-          "type": "corner",
-          "name": "T23",
-          "direction": "left",
-          "startFrac": 0.8404,
-          "endFrac": 0.8668,
-          "number": 23
-        },
-        {
-          "type": "corner",
-          "name": "T24",
-          "direction": "left",
-          "startFrac": 0.8668,
-          "endFrac": 0.8836,
-          "number": 24
-        },
-        {
-          "type": "corner",
-          "name": "T25",
-          "direction": "right",
-          "startFrac": 0.8836,
-          "endFrac": 0.925,
-          "number": 25
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.925,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "vir-gw",
+  "track": "vir",
+  "layout": "grand-west",
+  "layoutName": "Grand West",
+  "name": "Virginia International Raceway",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0332
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "right",
-      "startFrac": 0.0332,
-      "endFrac": 0.0796,
-      "number": 1
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.0796,
-      "endFrac": 0.1031
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T2",
-      "direction": "left",
-      "startFrac": 0.1031,
-      "endFrac": 0.1446,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "left",
-      "startFrac": 0.1446,
-      "endFrac": 0.1643,
-      "number": 3
-    },
-    {
-      "type": "corner",
-      "name": "T4",
-      "direction": "right",
-      "startFrac": 0.1643,
-      "endFrac": 0.1939,
-      "number": 4
-    },
-    {
-      "type": "corner",
-      "name": "T5",
-      "direction": "left",
-      "startFrac": 0.1939,
-      "endFrac": 0.2153,
-      "number": 5
-    },
-    {
-      "type": "straight",
+      "number": 3,
       "name": "",
-      "startFrac": 0.2153,
-      "endFrac": 0.2762
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T6",
-      "direction": "right",
-      "startFrac": 0.2762,
-      "endFrac": 0.3083,
-      "number": 6
-    },
-    {
-      "type": "corner",
-      "name": "T7",
-      "direction": "left",
-      "startFrac": 0.3083,
-      "endFrac": 0.3229,
-      "number": 7
-    },
-    {
-      "type": "corner",
-      "name": "T8",
-      "direction": "right",
-      "startFrac": 0.3229,
-      "endFrac": 0.3483,
-      "number": 8
-    },
-    {
-      "type": "corner",
-      "name": "T9",
-      "direction": "left",
-      "startFrac": 0.3483,
-      "endFrac": 0.3808,
-      "number": 9
-    },
-    {
-      "type": "straight",
+      "number": 4,
       "name": "",
-      "startFrac": 0.3808,
-      "endFrac": 0.3999
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T10",
-      "direction": "right",
-      "startFrac": 0.3999,
-      "endFrac": 0.4383,
-      "number": 10
-    },
-    {
-      "type": "straight",
+      "number": 5,
       "name": "",
-      "startFrac": 0.4383,
-      "endFrac": 0.5413
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T11",
-      "direction": "right",
-      "startFrac": 0.5413,
-      "endFrac": 0.5913,
-      "number": 11
-    },
-    {
-      "type": "straight",
+      "number": 6,
       "name": "",
-      "startFrac": 0.5913,
-      "endFrac": 0.6118
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T12",
-      "direction": "left",
-      "startFrac": 0.6118,
-      "endFrac": 0.6433,
-      "number": 12
-    },
-    {
-      "type": "corner",
-      "name": "T13",
-      "direction": "right",
-      "startFrac": 0.6433,
-      "endFrac": 0.6518,
-      "number": 13
-    },
-    {
-      "type": "corner",
-      "name": "T14",
-      "direction": "left",
-      "startFrac": 0.6518,
-      "endFrac": 0.6827,
-      "number": 14
-    },
-    {
-      "type": "corner",
-      "name": "T15",
-      "direction": "right",
-      "startFrac": 0.6827,
-      "endFrac": 0.706,
-      "number": 15
-    },
-    {
-      "type": "corner",
-      "name": "T16",
-      "direction": "left",
-      "startFrac": 0.706,
-      "endFrac": 0.714,
-      "number": 16
-    },
-    {
-      "type": "corner",
-      "name": "T17",
-      "direction": "right",
-      "startFrac": 0.714,
-      "endFrac": 0.7208,
-      "number": 17
-    },
-    {
-      "type": "corner",
-      "name": "T18",
-      "direction": "left",
-      "startFrac": 0.7208,
-      "endFrac": 0.7481,
-      "number": 18
-    },
-    {
-      "type": "corner",
-      "name": "T19",
-      "direction": "right",
-      "startFrac": 0.7481,
-      "endFrac": 0.7633,
-      "number": 19
-    },
-    {
-      "type": "corner",
-      "name": "T20",
-      "direction": "left",
-      "startFrac": 0.7633,
-      "endFrac": 0.7815,
-      "number": 20
-    },
-    {
-      "type": "corner",
-      "name": "T21",
-      "direction": "right",
-      "startFrac": 0.7815,
-      "endFrac": 0.8164,
-      "number": 21
-    },
-    {
-      "type": "corner",
-      "name": "T22",
-      "direction": "right",
-      "startFrac": 0.8164,
-      "endFrac": 0.8404,
-      "number": 22
-    },
-    {
-      "type": "corner",
-      "name": "T23",
-      "direction": "left",
-      "startFrac": 0.8404,
-      "endFrac": 0.8668,
-      "number": 23
-    },
-    {
-      "type": "corner",
-      "name": "T24",
-      "direction": "left",
-      "startFrac": 0.8668,
-      "endFrac": 0.8836,
-      "number": 24
-    },
-    {
-      "type": "corner",
-      "name": "T25",
-      "direction": "right",
-      "startFrac": 0.8836,
-      "endFrac": 0.925,
-      "number": 25
-    },
-    {
-      "type": "straight",
+      "number": 7,
       "name": "",
-      "startFrac": 0.925,
-      "endFrac": 1
+      "direction": "left"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 9,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 10,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 11,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 12,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 13,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 14,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 15,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 16,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 17,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 18,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 19,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 20,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 21,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 22,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 23,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 24,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 25,
+      "name": "",
+      "direction": "right"
     }
   ]
 }

@@ -1,179 +1,54 @@
 {
-  "name": "Sunset Peninsula (Short)",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "right",
-          "startFrac": 0,
-          "endFrac": 0.1092,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "right",
-          "startFrac": 0.1092,
-          "endFrac": 0.2042,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "left",
-          "startFrac": 0.2042,
-          "endFrac": 0.2522,
-          "number": 3
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "right",
-          "startFrac": 0.2522,
-          "endFrac": 0.3104,
-          "number": 4
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "left",
-          "startFrac": 0.3104,
-          "endFrac": 0.3449,
-          "number": 5
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3449,
-          "endFrac": 0.4607
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "left",
-          "startFrac": 0.4607,
-          "endFrac": 0.533,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "right",
-          "startFrac": 0.533,
-          "endFrac": 0.5779,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "right",
-          "startFrac": 0.5779,
-          "endFrac": 0.6738,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "T9",
-          "direction": "right",
-          "startFrac": 0.6738,
-          "endFrac": 0.7151,
-          "number": 9
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.7151,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "sunset-peninsula-s",
+  "track": "sunset-peninsula",
+  "layout": "club",
+  "layoutName": "Club",
+  "name": "Sunset Peninsula",
+  "corners": [
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "right",
-      "startFrac": 0,
-      "endFrac": 0.1092,
-      "number": 1
-    },
-    {
-      "type": "corner",
-      "name": "T2",
-      "direction": "right",
-      "startFrac": 0.1092,
-      "endFrac": 0.2042,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "left",
-      "startFrac": 0.2042,
-      "endFrac": 0.2522,
-      "number": 3
-    },
-    {
-      "type": "corner",
-      "name": "T4",
-      "direction": "right",
-      "startFrac": 0.2522,
-      "endFrac": 0.3104,
-      "number": 4
-    },
-    {
-      "type": "corner",
-      "name": "T5",
-      "direction": "left",
-      "startFrac": 0.3104,
-      "endFrac": 0.3449,
-      "number": 5
-    },
-    {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0.3449,
-      "endFrac": 0.4607
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T6",
-      "direction": "left",
-      "startFrac": 0.4607,
-      "endFrac": 0.533,
-      "number": 6
-    },
-    {
-      "type": "corner",
-      "name": "T7",
-      "direction": "right",
-      "startFrac": 0.533,
-      "endFrac": 0.5779,
-      "number": 7
-    },
-    {
-      "type": "corner",
-      "name": "T8",
-      "direction": "right",
-      "startFrac": 0.5779,
-      "endFrac": 0.6738,
-      "number": 8
-    },
-    {
-      "type": "corner",
-      "name": "T9",
-      "direction": "right",
-      "startFrac": 0.6738,
-      "endFrac": 0.7151,
-      "number": 9
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.7151,
-      "endFrac": 1
+      "direction": "right"
+    },
+    {
+      "number": 3,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 4,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 5,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 9,
+      "name": "",
+      "direction": "right"
     }
   ]
 }

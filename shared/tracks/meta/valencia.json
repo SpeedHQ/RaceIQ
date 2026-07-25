@@ -1,185 +1,49 @@
 {
-  "name": "Circuit Ricardo Tormo (Valencia)",
-  "games": {
-    "acc": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0825
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "left",
-          "startFrac": 0.0825,
-          "endFrac": 0.1854,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "left",
-          "startFrac": 0.1854,
-          "endFrac": 0.2932,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "right",
-          "startFrac": 0.2932,
-          "endFrac": 0.3934,
-          "number": 3
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "left",
-          "startFrac": 0.3934,
-          "endFrac": 0.4581,
-          "number": 4
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4581,
-          "endFrac": 0.519
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "left",
-          "startFrac": 0.519,
-          "endFrac": 0.6453,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "right",
-          "startFrac": 0.6453,
-          "endFrac": 0.7247,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "right",
-          "startFrac": 0.7247,
-          "endFrac": 0.7773,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "left",
-          "startFrac": 0.7773,
-          "endFrac": 0.9251,
-          "number": 8
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9251,
-          "endFrac": 1
-        }
-      ],
-      "sectors": {
-        "s1End": 0.3934,
-        "s2End": 0.6453,
-        "source": "corner-anchored"
-      }
+  "slug": "valencia",
+  "track": "valencia",
+  "layout": "gp",
+  "layoutName": "Grand Prix",
+  "name": "Circuit Ricardo Tormo",
+  "corners": [
+    {
+      "number": 1,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 2,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 3,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 4,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 5,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "left"
     }
-  },
-  "segments": [
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0825
-    },
-    {
-      "type": "corner",
-      "name": "T1",
-      "direction": "left",
-      "startFrac": 0.0825,
-      "endFrac": 0.1854,
-      "number": 1
-    },
-    {
-      "type": "corner",
-      "name": "T2",
-      "direction": "left",
-      "startFrac": 0.1854,
-      "endFrac": 0.2932,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "right",
-      "startFrac": 0.2932,
-      "endFrac": 0.3934,
-      "number": 3
-    },
-    {
-      "type": "corner",
-      "name": "T4",
-      "direction": "left",
-      "startFrac": 0.3934,
-      "endFrac": 0.4581,
-      "number": 4
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.4581,
-      "endFrac": 0.519
-    },
-    {
-      "type": "corner",
-      "name": "T5",
-      "direction": "left",
-      "startFrac": 0.519,
-      "endFrac": 0.6453,
-      "number": 5
-    },
-    {
-      "type": "corner",
-      "name": "T6",
-      "direction": "right",
-      "startFrac": 0.6453,
-      "endFrac": 0.7247,
-      "number": 6
-    },
-    {
-      "type": "corner",
-      "name": "T7",
-      "direction": "right",
-      "startFrac": 0.7247,
-      "endFrac": 0.7773,
-      "number": 7
-    },
-    {
-      "type": "corner",
-      "name": "T8",
-      "direction": "left",
-      "startFrac": 0.7773,
-      "endFrac": 0.9251,
-      "number": 8
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.9251,
-      "endFrac": 1
-    }
-  ],
-  "sectors": {
-    "s1End": 0.3934,
-    "s2End": 0.6453,
-    "source": "corner-anchored"
-  }
+  ]
 }

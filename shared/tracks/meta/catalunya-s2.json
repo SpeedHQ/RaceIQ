@@ -1,175 +1,49 @@
 {
-  "name": "Circuit de Barcelona-Catalunya — Historic",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.1238
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "right",
-          "startFrac": 0.1238,
-          "endFrac": 0.2302,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "left",
-          "startFrac": 0.2302,
-          "endFrac": 0.271,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "right",
-          "startFrac": 0.271,
-          "endFrac": 0.3218,
-          "number": 3
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "right",
-          "startFrac": 0.3218,
-          "endFrac": 0.4241,
-          "number": 4
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4241,
-          "endFrac": 0.511
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "left",
-          "startFrac": 0.511,
-          "endFrac": 0.6114,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "right",
-          "startFrac": 0.6114,
-          "endFrac": 0.7248,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "right",
-          "startFrac": 0.7248,
-          "endFrac": 0.81,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "right",
-          "startFrac": 0.81,
-          "endFrac": 0.911,
-          "number": 8
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.911,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "catalunya-s2",
+  "track": "catalunya",
+  "layout": "national-alt",
+  "layoutName": "National Alt",
+  "name": "Circuit de Barcelona-Catalunya",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.1238
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "right",
-      "startFrac": 0.1238,
-      "endFrac": 0.2302,
-      "number": 1
-    },
-    {
-      "type": "corner",
-      "name": "T2",
-      "direction": "left",
-      "startFrac": 0.2302,
-      "endFrac": 0.271,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "right",
-      "startFrac": 0.271,
-      "endFrac": 0.3218,
-      "number": 3
-    },
-    {
-      "type": "corner",
-      "name": "T4",
-      "direction": "right",
-      "startFrac": 0.3218,
-      "endFrac": 0.4241,
-      "number": 4
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.4241,
-      "endFrac": 0.511
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T5",
-      "direction": "left",
-      "startFrac": 0.511,
-      "endFrac": 0.6114,
-      "number": 5
-    },
-    {
-      "type": "corner",
-      "name": "T6",
-      "direction": "right",
-      "startFrac": 0.6114,
-      "endFrac": 0.7248,
-      "number": 6
-    },
-    {
-      "type": "corner",
-      "name": "T7",
-      "direction": "right",
-      "startFrac": 0.7248,
-      "endFrac": 0.81,
-      "number": 7
-    },
-    {
-      "type": "corner",
-      "name": "T8",
-      "direction": "right",
-      "startFrac": 0.81,
-      "endFrac": 0.911,
-      "number": 8
-    },
-    {
-      "type": "straight",
+      "number": 3,
       "name": "",
-      "startFrac": 0.911,
-      "endFrac": 1
+      "direction": "right"
+    },
+    {
+      "number": 4,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 5,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "right"
     }
   ]
 }

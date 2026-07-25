@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { loadSharedTrackMeta } from "../shared/track-data";
+import { loadTrackSectorsFor } from "../shared/track-data";
 import { computeLapSectors } from "../server/compute-lap-sectors";
 import { initGameAdapters } from "../shared/games/init";
 import type { TelemetryPacket } from "../shared/types";
@@ -71,31 +71,43 @@ function makeLapPackets(
   return packets;
 }
 
-describe("shared track meta — sector resolution", () => {
-  test("silverstone top-level sectors exist", () => {
-    const meta = loadSharedTrackMeta("silverstone");
-    expect(meta).not.toBeNull();
-    expect(meta!.sectors?.s1End).toBeCloseTo(0.331, 2);
-    expect(meta!.sectors?.s2End).toBeCloseTo(0.662, 2);
+describe("per-game track sectors — geometry sidecars", () => {
+  test("silverstone f1-2025 sectors load", () => {
+    const sectors = loadTrackSectorsFor("silverstone", "f1-2025");
+    expect(sectors).toBeDefined();
+    expect(sectors!.s1End).toBeCloseTo(0.314, 3);
+    expect(sectors!.s2End).toBeCloseTo(0.636, 3);
   });
 
-  test("silverstone has f1-2025 game-specific sector override", () => {
-    const meta = loadSharedTrackMeta("silverstone");
-    const f1Sectors = meta?.games?.["f1-2025"]?.sectors;
-    expect(f1Sectors).toBeDefined();
-    expect(f1Sectors!.s1End).toBeCloseTo(0.314, 2);
-    expect(f1Sectors!.s2End).toBeCloseTo(0.636, 2);
+  test("silverstone acc sectors load", () => {
+    const sectors = loadTrackSectorsFor("silverstone", "acc");
+    expect(sectors).toBeDefined();
+    expect(sectors!.s1End).toBeCloseTo(0.331, 3);
+    expect(sectors!.s2End).toBeCloseTo(0.662, 3);
   });
 
-  test("f1-2025 override differs from top-level sectors", () => {
-    const meta = loadSharedTrackMeta("silverstone");
-    expect(meta!.games?.["f1-2025"]?.sectors?.s1End).not.toEqual(meta!.sectors?.s1End);
+  test("silverstone fm-2023 sectors load with source", () => {
+    const sectors = loadTrackSectorsFor("silverstone", "fm-2023");
+    expect(sectors).toBeDefined();
+    expect(sectors!.s1End).toBeCloseTo(0.3287, 4);
+    expect(sectors!.s2End).toBeCloseTo(0.7101, 4);
+    expect(sectors!.source).toBe("corner-anchored");
   });
 
-  test("austin has f1-2025 game-specific sectors", () => {
-    const meta = loadSharedTrackMeta("austin");
-    expect(meta?.games?.["f1-2025"]?.sectors?.s1End).toBeCloseTo(0.294, 2);
-    expect(meta?.games?.["f1-2025"]?.sectors?.s2End).toBeCloseTo(0.646, 2);
+  test("silverstone sectors differ per game", () => {
+    const f1 = loadTrackSectorsFor("silverstone", "f1-2025");
+    const acc = loadTrackSectorsFor("silverstone", "acc");
+    const fm = loadTrackSectorsFor("silverstone", "fm-2023");
+    expect(f1!.s1End).not.toEqual(acc!.s1End);
+    expect(f1!.s2End).not.toEqual(fm!.s2End);
+    expect(acc!.s2End).not.toEqual(fm!.s2End);
+  });
+
+  test("austin has f1-2025 sectors", () => {
+    const sectors = loadTrackSectorsFor("austin", "f1-2025");
+    expect(sectors).toBeDefined();
+    expect(sectors!.s1End).toBeCloseTo(0.294, 3);
+    expect(sectors!.s2End).toBeCloseTo(0.646, 3);
   });
 });
 

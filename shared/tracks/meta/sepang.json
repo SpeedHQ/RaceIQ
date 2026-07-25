@@ -1,7 +1,8 @@
 {
+  "slug": "sepang",
+  "track": "sepang",
+  "layout": "full",
+  "layoutName": "Full",
   "name": "Sepang International Circuit",
-  "sectors": {
-    "s1End": 0.33,
-    "s2End": 0.66
-  }
+  "corners": []
 }

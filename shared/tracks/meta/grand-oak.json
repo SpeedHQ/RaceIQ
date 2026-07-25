@@ -1,195 +1,44 @@
 {
-  "name": "Grand Oak Raceway (Full)",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0475
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "left",
-          "startFrac": 0.0475,
-          "endFrac": 0.1359,
-          "number": 1
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.1359,
-          "endFrac": 0.1659
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "right",
-          "startFrac": 0.1659,
-          "endFrac": 0.234,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "left",
-          "startFrac": 0.234,
-          "endFrac": 0.3302,
-          "number": 3
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3302,
-          "endFrac": 0.4649
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "left",
-          "startFrac": 0.4649,
-          "endFrac": 0.5312,
-          "number": 4
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5312,
-          "endFrac": 0.6494
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "right",
-          "startFrac": 0.6494,
-          "endFrac": 0.7251,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "left",
-          "startFrac": 0.7251,
-          "endFrac": 0.8256,
-          "number": 6
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8256,
-          "endFrac": 0.8561
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "left",
-          "startFrac": 0.8561,
-          "endFrac": 0.9391,
-          "number": 7
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9391,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "grand-oak",
+  "track": "grand-oak",
+  "layout": "national",
+  "layoutName": "National",
+  "name": "Grand Oak Raceway",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0475
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "left",
-      "startFrac": 0.0475,
-      "endFrac": 0.1359,
-      "number": 1
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.1359,
-      "endFrac": 0.1659
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T2",
-      "direction": "right",
-      "startFrac": 0.1659,
-      "endFrac": 0.234,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "left",
-      "startFrac": 0.234,
-      "endFrac": 0.3302,
-      "number": 3
-    },
-    {
-      "type": "straight",
+      "number": 3,
       "name": "",
-      "startFrac": 0.3302,
-      "endFrac": 0.4649
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T4",
-      "direction": "left",
-      "startFrac": 0.4649,
-      "endFrac": 0.5312,
-      "number": 4
-    },
-    {
-      "type": "straight",
+      "number": 4,
       "name": "",
-      "startFrac": 0.5312,
-      "endFrac": 0.6494
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T5",
-      "direction": "right",
-      "startFrac": 0.6494,
-      "endFrac": 0.7251,
-      "number": 5
-    },
-    {
-      "type": "corner",
-      "name": "T6",
-      "direction": "left",
-      "startFrac": 0.7251,
-      "endFrac": 0.8256,
-      "number": 6
-    },
-    {
-      "type": "straight",
+      "number": 5,
       "name": "",
-      "startFrac": 0.8256,
-      "endFrac": 0.8561
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T7",
-      "direction": "left",
-      "startFrac": 0.8561,
-      "endFrac": 0.9391,
-      "number": 7
-    },
-    {
-      "type": "straight",
+      "number": 6,
       "name": "",
-      "startFrac": 0.9391,
-      "endFrac": 1
+      "direction": "left"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "left"
     }
   ]
 }

@@ -1,315 +1,89 @@
 {
-  "name": "Sunset Peninsula (Full Reverse)",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0867
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "left",
-          "startFrac": 0.0867,
-          "endFrac": 0.1384,
-          "number": 1
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.1384,
-          "endFrac": 0.2341
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "left",
-          "startFrac": 0.2341,
-          "endFrac": 0.2938,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "left",
-          "startFrac": 0.2938,
-          "endFrac": 0.3253,
-          "number": 3
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "right",
-          "startFrac": 0.3253,
-          "endFrac": 0.3599,
-          "number": 4
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3599,
-          "endFrac": 0.4403
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "right",
-          "startFrac": 0.4403,
-          "endFrac": 0.4796,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "left",
-          "startFrac": 0.4796,
-          "endFrac": 0.5186,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "left",
-          "startFrac": 0.5186,
-          "endFrac": 0.579,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "right",
-          "startFrac": 0.579,
-          "endFrac": 0.6276,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "T9",
-          "direction": "left",
-          "startFrac": 0.6276,
-          "endFrac": 0.6478,
-          "number": 9
-        },
-        {
-          "type": "corner",
-          "name": "T10",
-          "direction": "right",
-          "startFrac": 0.6478,
-          "endFrac": 0.6718,
-          "number": 10
-        },
-        {
-          "type": "corner",
-          "name": "T11",
-          "direction": "right",
-          "startFrac": 0.6718,
-          "endFrac": 0.7152,
-          "number": 11
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.7152,
-          "endFrac": 0.7399
-        },
-        {
-          "type": "corner",
-          "name": "T12",
-          "direction": "right",
-          "startFrac": 0.7399,
-          "endFrac": 0.7884,
-          "number": 12
-        },
-        {
-          "type": "corner",
-          "name": "T13",
-          "direction": "right",
-          "startFrac": 0.7884,
-          "endFrac": 0.8028,
-          "number": 13
-        },
-        {
-          "type": "corner",
-          "name": "T14",
-          "direction": "left",
-          "startFrac": 0.8028,
-          "endFrac": 0.8313,
-          "number": 14
-        },
-        {
-          "type": "corner",
-          "name": "T15",
-          "direction": "left",
-          "startFrac": 0.8313,
-          "endFrac": 0.9263,
-          "number": 15
-        },
-        {
-          "type": "corner",
-          "name": "T16",
-          "direction": "left",
-          "startFrac": 0.9263,
-          "endFrac": 1,
-          "number": 16
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "sunset-peninsula-r",
+  "track": "sunset-peninsula",
+  "layout": "full-reverse",
+  "layoutName": "Full Reverse",
+  "name": "Sunset Peninsula",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0867
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "left",
-      "startFrac": 0.0867,
-      "endFrac": 0.1384,
-      "number": 1
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.1384,
-      "endFrac": 0.2341
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T2",
-      "direction": "left",
-      "startFrac": 0.2341,
-      "endFrac": 0.2938,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "left",
-      "startFrac": 0.2938,
-      "endFrac": 0.3253,
-      "number": 3
-    },
-    {
-      "type": "corner",
-      "name": "T4",
-      "direction": "right",
-      "startFrac": 0.3253,
-      "endFrac": 0.3599,
-      "number": 4
-    },
-    {
-      "type": "straight",
+      "number": 3,
       "name": "",
-      "startFrac": 0.3599,
-      "endFrac": 0.4403
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T5",
-      "direction": "right",
-      "startFrac": 0.4403,
-      "endFrac": 0.4796,
-      "number": 5
-    },
-    {
-      "type": "corner",
-      "name": "T6",
-      "direction": "left",
-      "startFrac": 0.4796,
-      "endFrac": 0.5186,
-      "number": 6
-    },
-    {
-      "type": "corner",
-      "name": "T7",
-      "direction": "left",
-      "startFrac": 0.5186,
-      "endFrac": 0.579,
-      "number": 7
-    },
-    {
-      "type": "corner",
-      "name": "T8",
-      "direction": "right",
-      "startFrac": 0.579,
-      "endFrac": 0.6276,
-      "number": 8
-    },
-    {
-      "type": "corner",
-      "name": "T9",
-      "direction": "left",
-      "startFrac": 0.6276,
-      "endFrac": 0.6478,
-      "number": 9
-    },
-    {
-      "type": "corner",
-      "name": "T10",
-      "direction": "right",
-      "startFrac": 0.6478,
-      "endFrac": 0.6718,
-      "number": 10
-    },
-    {
-      "type": "corner",
-      "name": "T11",
-      "direction": "right",
-      "startFrac": 0.6718,
-      "endFrac": 0.7152,
-      "number": 11
-    },
-    {
-      "type": "straight",
+      "number": 4,
       "name": "",
-      "startFrac": 0.7152,
-      "endFrac": 0.7399
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T12",
-      "direction": "right",
-      "startFrac": 0.7399,
-      "endFrac": 0.7884,
-      "number": 12
+      "number": 5,
+      "name": "",
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T13",
-      "direction": "right",
-      "startFrac": 0.7884,
-      "endFrac": 0.8028,
-      "number": 13
+      "number": 6,
+      "name": "",
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T14",
-      "direction": "left",
-      "startFrac": 0.8028,
-      "endFrac": 0.8313,
-      "number": 14
+      "number": 7,
+      "name": "",
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T15",
-      "direction": "left",
-      "startFrac": 0.8313,
-      "endFrac": 0.9263,
-      "number": 15
+      "number": 8,
+      "name": "",
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T16",
-      "direction": "left",
-      "startFrac": 0.9263,
-      "endFrac": 1,
-      "number": 16
+      "number": 9,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 10,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 11,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 12,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 13,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 14,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 15,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 16,
+      "name": "",
+      "direction": "left"
     }
   ]
 }

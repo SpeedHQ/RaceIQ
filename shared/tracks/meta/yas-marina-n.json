@@ -1,155 +1,39 @@
 {
-  "name": "Yas Marina — North",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.044
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "left",
-          "startFrac": 0.044,
-          "endFrac": 0.1384,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "left",
-          "startFrac": 0.1384,
-          "endFrac": 0.2034,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "right",
-          "startFrac": 0.2034,
-          "endFrac": 0.3054,
-          "number": 3
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3054,
-          "endFrac": 0.3833
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "left",
-          "startFrac": 0.3833,
-          "endFrac": 0.4867,
-          "number": 4
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4867,
-          "endFrac": 0.796
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "left",
-          "startFrac": 0.796,
-          "endFrac": 0.8924,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "right",
-          "startFrac": 0.8924,
-          "endFrac": 0.952,
-          "number": 6
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.952,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "yas-marina-n",
+  "track": "yas-marina",
+  "layout": "north",
+  "layoutName": "North",
+  "name": "Yas Marina Circuit",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.044
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "left",
-      "startFrac": 0.044,
-      "endFrac": 0.1384,
-      "number": 1
-    },
-    {
-      "type": "corner",
-      "name": "T2",
-      "direction": "left",
-      "startFrac": 0.1384,
-      "endFrac": 0.2034,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "right",
-      "startFrac": 0.2034,
-      "endFrac": 0.3054,
-      "number": 3
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.3054,
-      "endFrac": 0.3833
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T4",
-      "direction": "left",
-      "startFrac": 0.3833,
-      "endFrac": 0.4867,
-      "number": 4
-    },
-    {
-      "type": "straight",
+      "number": 3,
       "name": "",
-      "startFrac": 0.4867,
-      "endFrac": 0.796
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T5",
-      "direction": "left",
-      "startFrac": 0.796,
-      "endFrac": 0.8924,
-      "number": 5
-    },
-    {
-      "type": "corner",
-      "name": "T6",
-      "direction": "right",
-      "startFrac": 0.8924,
-      "endFrac": 0.952,
-      "number": 6
-    },
-    {
-      "type": "straight",
+      "number": 4,
       "name": "",
-      "startFrac": 0.952,
-      "endFrac": 1
+      "direction": "left"
+    },
+    {
+      "number": 5,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "right"
     }
   ]
 }

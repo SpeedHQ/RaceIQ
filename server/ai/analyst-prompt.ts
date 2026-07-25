@@ -243,7 +243,7 @@ export function buildAnalystPrompt(
   // sources we have; if none, force Tn numbering.
   // The guide's own labels must be in the whitelist too — it coaches by name,
   // so a name the whitelist omits is one the model is told to both use and not use.
-  const cornerLabelWhitelist = collectCornerLabels(corners, segments, guideCornerLabels(trackName, { slug: trackSlug, gameId }));
+  const cornerLabelWhitelist = collectCornerLabels(corners, segments, guideCornerLabels(trackName, { slug: trackSlug }));
   const cornerGuardrail =
     cornerLabelWhitelist.length > 0
       ? `\n--- Valid Corner Labels (the ONLY names you may use for corners in this output) ---\n${cornerLabelWhitelist.join(", ")}\n`
@@ -259,7 +259,7 @@ export function buildAnalystPrompt(
     carDetailsText += `\nDimensions: ${specs.weightKg}kg, ${specs.hp}hp, ${specs.drivetrain}`;
   }
 
-  const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName, { slug: trackSlug, gameId });
+  const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName, { slug: trackSlug });
 
   // Weather / surface conditions, so the model can attribute a slow lap to the
   // environment (cold, green, or wet track) rather than the driver or setup.

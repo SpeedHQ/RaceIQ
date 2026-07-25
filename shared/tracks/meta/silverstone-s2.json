@@ -1,187 +1,49 @@
 {
-  "name": "Silverstone — International",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0411
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "right",
-          "startFrac": 0.0411,
-          "endFrac": 0.1341,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "left",
-          "startFrac": 0.1341,
-          "endFrac": 0.2187,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "right",
-          "startFrac": 0.2187,
-          "endFrac": 0.2814,
-          "number": 3
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "left",
-          "startFrac": 0.2814,
-          "endFrac": 0.3286,
-          "number": 4
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "right",
-          "startFrac": 0.3286,
-          "endFrac": 0.3875,
-          "number": 5
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3875,
-          "endFrac": 0.593
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "right",
-          "startFrac": 0.593,
-          "endFrac": 0.74,
-          "number": 6
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.74,
-          "endFrac": 0.7789
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "left",
-          "startFrac": 0.7789,
-          "endFrac": 0.8451,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "right",
-          "startFrac": 0.8451,
-          "endFrac": 0.9508,
-          "number": 8
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9508,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "silverstone-s2",
+  "track": "silverstone",
+  "layout": "international",
+  "layoutName": "International",
+  "name": "Silverstone Racing Circuit",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0411
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "right",
-      "startFrac": 0.0411,
-      "endFrac": 0.1341,
-      "number": 1
-    },
-    {
-      "type": "corner",
-      "name": "T2",
-      "direction": "left",
-      "startFrac": 0.1341,
-      "endFrac": 0.2187,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "right",
-      "startFrac": 0.2187,
-      "endFrac": 0.2814,
-      "number": 3
-    },
-    {
-      "type": "corner",
-      "name": "T4",
-      "direction": "left",
-      "startFrac": 0.2814,
-      "endFrac": 0.3286,
-      "number": 4
-    },
-    {
-      "type": "corner",
-      "name": "T5",
-      "direction": "right",
-      "startFrac": 0.3286,
-      "endFrac": 0.3875,
-      "number": 5
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.3875,
-      "endFrac": 0.593
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T6",
-      "direction": "right",
-      "startFrac": 0.593,
-      "endFrac": 0.74,
-      "number": 6
-    },
-    {
-      "type": "straight",
+      "number": 3,
       "name": "",
-      "startFrac": 0.74,
-      "endFrac": 0.7789
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T7",
-      "direction": "left",
-      "startFrac": 0.7789,
-      "endFrac": 0.8451,
-      "number": 7
-    },
-    {
-      "type": "corner",
-      "name": "T8",
-      "direction": "right",
-      "startFrac": 0.8451,
-      "endFrac": 0.9508,
-      "number": 8
-    },
-    {
-      "type": "straight",
+      "number": 4,
       "name": "",
-      "startFrac": 0.9508,
-      "endFrac": 1
+      "direction": "left"
+    },
+    {
+      "number": 5,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "right"
     }
   ]
 }

@@ -301,7 +301,7 @@ export function buildInputsComparePrompt(
     lapA.trackOrdinal != null && lapA.gameId
       ? (tryGetServerGame(lapA.gameId)?.getSharedTrackName?.(lapA.trackOrdinal) ?? undefined)
       : undefined;
-  const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName, { slug: trackSlug, gameId: lapA.gameId });
+  const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName, { slug: trackSlug });
   const finalDelta = comparison.timeDelta[comparison.timeDelta.length - 1] ?? 0;
 
   const useSegs = segments && segments.length > 0 ? segments : fallbackSegments(8);

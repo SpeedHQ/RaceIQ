@@ -1,261 +1,75 @@
 {
-  "name": "Snetterton Circuit (300)",
-  "games": {
-    "acc": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.038
-        },
-        {
-          "type": "corner",
-          "name": "Riches",
-          "direction": "right",
-          "startFrac": 0.038,
-          "endFrac": 0.1367,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "Montreal",
-          "direction": "right",
-          "startFrac": 0.1367,
-          "endFrac": 0.2004,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "Palmer",
-          "direction": "left",
-          "startFrac": 0.2004,
-          "endFrac": 0.2764,
-          "number": 3
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2764,
-          "endFrac": 0.3176
-        },
-        {
-          "type": "corner",
-          "name": "Agostini",
-          "direction": "left",
-          "startFrac": 0.3176,
-          "endFrac": 0.3882,
-          "number": 4
-        },
-        {
-          "type": "corner",
-          "name": "Hamilton",
-          "direction": "left",
-          "startFrac": 0.3882,
-          "endFrac": 0.4499,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "Oggies",
-          "direction": "right",
-          "startFrac": 0.4499,
-          "endFrac": 0.4947,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "Williams",
-          "direction": "right",
-          "startFrac": 0.4947,
-          "endFrac": 0.5506,
-          "number": 7
-        },
-        {
-          "type": "straight",
-          "name": "Bentley Straight",
-          "startFrac": 0.5506,
-          "endFrac": 0.6741
-        },
-        {
-          "type": "corner",
-          "name": "Brundle",
-          "direction": "left",
-          "startFrac": 0.6741,
-          "endFrac": 0.7189,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "Nelson",
-          "direction": "right",
-          "startFrac": 0.7189,
-          "endFrac": 0.7452,
-          "number": 9
-        },
-        {
-          "type": "corner",
-          "name": "Bomb Hole",
-          "direction": "right",
-          "startFrac": 0.7452,
-          "endFrac": 0.7985,
-          "number": 10
-        },
-        {
-          "type": "corner",
-          "name": "Coram",
-          "direction": "right",
-          "startFrac": 0.7985,
-          "endFrac": 0.8929,
-          "number": 11
-        },
-        {
-          "type": "corner",
-          "name": "Murrays",
-          "direction": "left",
-          "startFrac": 0.8929,
-          "endFrac": 0.922,
-          "number": 12
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.922,
-          "endFrac": 1
-        }
-      ],
-      "sectors": {
-        "s1End": 0.3882,
-        "s2End": 0.7452,
-        "source": "corner-anchored"
-      }
-    }
-  },
-  "segments": [
+  "slug": "snetterton",
+  "track": "snetterton",
+  "layout": "gp",
+  "layoutName": "Grand Prix",
+  "name": "Snetterton Circuit",
+  "corners": [
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0,
-      "endFrac": 0.038
-    },
-    {
-      "type": "corner",
+      "number": 1,
       "name": "Riches",
-      "direction": "right",
-      "startFrac": 0.038,
-      "endFrac": 0.1367,
-      "number": 1
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 2,
       "name": "Montreal",
-      "direction": "right",
-      "startFrac": 0.1367,
-      "endFrac": 0.2004,
-      "number": 2
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 3,
       "name": "Palmer",
-      "direction": "left",
-      "startFrac": 0.2004,
-      "endFrac": 0.2764,
-      "number": 3
+      "direction": "left"
     },
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.2764,
-      "endFrac": 0.3176
-    },
-    {
-      "type": "corner",
+      "number": 4,
       "name": "Agostini",
-      "direction": "left",
-      "startFrac": 0.3176,
-      "endFrac": 0.3882,
-      "number": 4
+      "direction": "left"
     },
     {
-      "type": "corner",
+      "number": 5,
       "name": "Hamilton",
-      "direction": "left",
-      "startFrac": 0.3882,
-      "endFrac": 0.4499,
-      "number": 5
+      "direction": "left"
     },
     {
-      "type": "corner",
+      "number": 6,
       "name": "Oggies",
-      "direction": "right",
-      "startFrac": 0.4499,
-      "endFrac": 0.4947,
-      "number": 6
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 7,
       "name": "Williams",
-      "direction": "right",
-      "startFrac": 0.4947,
-      "endFrac": 0.5506,
-      "number": 7
+      "direction": "right"
     },
     {
-      "type": "straight",
-      "name": "Bentley Straight",
-      "startFrac": 0.5506,
-      "endFrac": 0.6741
-    },
-    {
-      "type": "corner",
+      "number": 8,
       "name": "Brundle",
-      "direction": "left",
-      "startFrac": 0.6741,
-      "endFrac": 0.7189,
-      "number": 8
+      "direction": "left"
     },
     {
-      "type": "corner",
+      "number": 9,
       "name": "Nelson",
-      "direction": "right",
-      "startFrac": 0.7189,
-      "endFrac": 0.7452,
-      "number": 9
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 10,
       "name": "Bomb Hole",
-      "direction": "right",
-      "startFrac": 0.7452,
-      "endFrac": 0.7985,
-      "number": 10
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 11,
       "name": "Coram",
-      "direction": "right",
-      "startFrac": 0.7985,
-      "endFrac": 0.8929,
-      "number": 11
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 12,
       "name": "Murrays",
-      "direction": "left",
-      "startFrac": 0.8929,
-      "endFrac": 0.922,
-      "number": 12
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.922,
-      "endFrac": 1
+      "direction": "left"
     }
   ],
-  "sectors": {
-    "s1End": 0.3882,
-    "s2End": 0.7452,
-    "source": "corner-anchored"
-  }
+  "straights": [
+    {
+      "after": 7,
+      "name": "Bentley Straight"
+    }
+  ]
 }

@@ -1,143 +1,39 @@
 {
-  "name": "Silverstone — National",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "right",
-          "startFrac": 0,
-          "endFrac": 0.1468,
-          "number": 1
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.1468,
-          "endFrac": 0.2221
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "left",
-          "startFrac": 0.2221,
-          "endFrac": 0.3225,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "right",
-          "startFrac": 0.3225,
-          "endFrac": 0.3954,
-          "number": 3
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3954,
-          "endFrac": 0.5955
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "left",
-          "startFrac": 0.5955,
-          "endFrac": 0.7038,
-          "number": 4
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "right",
-          "startFrac": 0.7038,
-          "endFrac": 0.8125,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "right",
-          "startFrac": 0.8125,
-          "endFrac": 0.9445,
-          "number": 6
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9445,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "silverstone-s",
+  "track": "silverstone",
+  "layout": "national",
+  "layoutName": "National",
+  "name": "Silverstone Racing Circuit",
+  "corners": [
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "right",
-      "startFrac": 0,
-      "endFrac": 0.1468,
-      "number": 1
-    },
-    {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0.1468,
-      "endFrac": 0.2221
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T2",
-      "direction": "left",
-      "startFrac": 0.2221,
-      "endFrac": 0.3225,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "right",
-      "startFrac": 0.3225,
-      "endFrac": 0.3954,
-      "number": 3
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.3954,
-      "endFrac": 0.5955
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T4",
-      "direction": "left",
-      "startFrac": 0.5955,
-      "endFrac": 0.7038,
-      "number": 4
-    },
-    {
-      "type": "corner",
-      "name": "T5",
-      "direction": "right",
-      "startFrac": 0.7038,
-      "endFrac": 0.8125,
-      "number": 5
-    },
-    {
-      "type": "corner",
-      "name": "T6",
-      "direction": "right",
-      "startFrac": 0.8125,
-      "endFrac": 0.9445,
-      "number": 6
-    },
-    {
-      "type": "straight",
+      "number": 3,
       "name": "",
-      "startFrac": 0.9445,
-      "endFrac": 1
+      "direction": "right"
+    },
+    {
+      "number": 4,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 5,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "right"
     }
   ]
 }

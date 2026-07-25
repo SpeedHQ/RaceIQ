@@ -1,191 +1,54 @@
 {
-  "name": "Yas Marina — North Corkscrew",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0576
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "left",
-          "startFrac": 0.0576,
-          "endFrac": 0.1811,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "left",
-          "startFrac": 0.1811,
-          "endFrac": 0.2662,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "right",
-          "startFrac": 0.2662,
-          "endFrac": 0.3688,
-          "number": 3
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "left",
-          "startFrac": 0.3688,
-          "endFrac": 0.408,
-          "number": 4
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "right",
-          "startFrac": 0.408,
-          "endFrac": 0.4402,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "left",
-          "startFrac": 0.4402,
-          "endFrac": 0.4794,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "left",
-          "startFrac": 0.4794,
-          "endFrac": 0.5374,
-          "number": 7
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5374,
-          "endFrac": 0.7329
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "left",
-          "startFrac": 0.7329,
-          "endFrac": 0.8591,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "T9",
-          "direction": "right",
-          "startFrac": 0.8591,
-          "endFrac": 0.9371,
-          "number": 9
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9371,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "yas-marina-nc",
+  "track": "yas-marina",
+  "layout": "north-corkscrew",
+  "layoutName": "North Corkscrew",
+  "name": "Yas Marina Circuit",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0576
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "left",
-      "startFrac": 0.0576,
-      "endFrac": 0.1811,
-      "number": 1
-    },
-    {
-      "type": "corner",
-      "name": "T2",
-      "direction": "left",
-      "startFrac": 0.1811,
-      "endFrac": 0.2662,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "right",
-      "startFrac": 0.2662,
-      "endFrac": 0.3688,
-      "number": 3
-    },
-    {
-      "type": "corner",
-      "name": "T4",
-      "direction": "left",
-      "startFrac": 0.3688,
-      "endFrac": 0.408,
-      "number": 4
-    },
-    {
-      "type": "corner",
-      "name": "T5",
-      "direction": "right",
-      "startFrac": 0.408,
-      "endFrac": 0.4402,
-      "number": 5
-    },
-    {
-      "type": "corner",
-      "name": "T6",
-      "direction": "left",
-      "startFrac": 0.4402,
-      "endFrac": 0.4794,
-      "number": 6
-    },
-    {
-      "type": "corner",
-      "name": "T7",
-      "direction": "left",
-      "startFrac": 0.4794,
-      "endFrac": 0.5374,
-      "number": 7
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.5374,
-      "endFrac": 0.7329
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T8",
-      "direction": "left",
-      "startFrac": 0.7329,
-      "endFrac": 0.8591,
-      "number": 8
-    },
-    {
-      "type": "corner",
-      "name": "T9",
-      "direction": "right",
-      "startFrac": 0.8591,
-      "endFrac": 0.9371,
-      "number": 9
-    },
-    {
-      "type": "straight",
+      "number": 3,
       "name": "",
-      "startFrac": 0.9371,
-      "endFrac": 1
+      "direction": "right"
+    },
+    {
+      "number": 4,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 5,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 9,
+      "name": "",
+      "direction": "right"
     }
   ]
 }

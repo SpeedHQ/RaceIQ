@@ -101,7 +101,7 @@ function main(): void {
     }
   }
 
-  if (!args.write) console.log("\n(dry run — pass --write to persist to shared/tracks/meta)");
+  if (!args.write) console.log("\n(dry run — pass --write to persist facts + per-game geometry)");
   process.exit(failures > 0 ? 1 : 0);
 }
 

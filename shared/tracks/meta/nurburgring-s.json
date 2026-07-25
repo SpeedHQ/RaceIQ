@@ -1,247 +1,64 @@
 {
-  "name": "Nürburgring — Sprint",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0638
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "right",
-          "startFrac": 0.0638,
-          "endFrac": 0.143,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "left",
-          "startFrac": 0.143,
-          "endFrac": 0.2009,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "left",
-          "startFrac": 0.2009,
-          "endFrac": 0.2526,
-          "number": 3
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "right",
-          "startFrac": 0.2526,
-          "endFrac": 0.2921,
-          "number": 4
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2921,
-          "endFrac": 0.3246
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "right",
-          "startFrac": 0.3246,
-          "endFrac": 0.4234,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "left",
-          "startFrac": 0.4234,
-          "endFrac": 0.4844,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "right",
-          "startFrac": 0.4844,
-          "endFrac": 0.5535,
-          "number": 7
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5535,
-          "endFrac": 0.5853
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "right",
-          "startFrac": 0.5853,
-          "endFrac": 0.6688,
-          "number": 8
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.6688,
-          "endFrac": 0.7173
-        },
-        {
-          "type": "corner",
-          "name": "T9",
-          "direction": "left",
-          "startFrac": 0.7173,
-          "endFrac": 0.7672,
-          "number": 9
-        },
-        {
-          "type": "corner",
-          "name": "T10",
-          "direction": "right",
-          "startFrac": 0.7672,
-          "endFrac": 0.8066,
-          "number": 10
-        },
-        {
-          "type": "corner",
-          "name": "T11",
-          "direction": "right",
-          "startFrac": 0.8066,
-          "endFrac": 0.893,
-          "number": 11
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.893,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "nurburgring-s",
+  "track": "nurburgring",
+  "layout": "sprint",
+  "layoutName": "Sprint",
+  "name": "Nürburgring",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0638
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "right",
-      "startFrac": 0.0638,
-      "endFrac": 0.143,
-      "number": 1
-    },
-    {
-      "type": "corner",
-      "name": "T2",
-      "direction": "left",
-      "startFrac": 0.143,
-      "endFrac": 0.2009,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "left",
-      "startFrac": 0.2009,
-      "endFrac": 0.2526,
-      "number": 3
-    },
-    {
-      "type": "corner",
-      "name": "T4",
-      "direction": "right",
-      "startFrac": 0.2526,
-      "endFrac": 0.2921,
-      "number": 4
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.2921,
-      "endFrac": 0.3246
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T5",
-      "direction": "right",
-      "startFrac": 0.3246,
-      "endFrac": 0.4234,
-      "number": 5
-    },
-    {
-      "type": "corner",
-      "name": "T6",
-      "direction": "left",
-      "startFrac": 0.4234,
-      "endFrac": 0.4844,
-      "number": 6
-    },
-    {
-      "type": "corner",
-      "name": "T7",
-      "direction": "right",
-      "startFrac": 0.4844,
-      "endFrac": 0.5535,
-      "number": 7
-    },
-    {
-      "type": "straight",
+      "number": 3,
       "name": "",
-      "startFrac": 0.5535,
-      "endFrac": 0.5853
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T8",
-      "direction": "right",
-      "startFrac": 0.5853,
-      "endFrac": 0.6688,
-      "number": 8
-    },
-    {
-      "type": "straight",
+      "number": 4,
       "name": "",
-      "startFrac": 0.6688,
-      "endFrac": 0.7173
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T9",
-      "direction": "left",
-      "startFrac": 0.7173,
-      "endFrac": 0.7672,
-      "number": 9
-    },
-    {
-      "type": "corner",
-      "name": "T10",
-      "direction": "right",
-      "startFrac": 0.7672,
-      "endFrac": 0.8066,
-      "number": 10
-    },
-    {
-      "type": "corner",
-      "name": "T11",
-      "direction": "right",
-      "startFrac": 0.8066,
-      "endFrac": 0.893,
-      "number": 11
-    },
-    {
-      "type": "straight",
+      "number": 5,
       "name": "",
-      "startFrac": 0.893,
-      "endFrac": 1
+      "direction": "right"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 9,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 10,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 11,
+      "name": "",
+      "direction": "right"
     }
   ]
 }

@@ -1,9 +1,9 @@
 /**
  * Core of the track segment generator: turns extracted game centerlines +
- * curated corner-name lists into named segments and sector boundaries for
- * shared/tracks/meta. Used by scripts/generate-track-segments.ts (CLI) and
- * by tests, so the exact code path that produces committed meta is what the
- * test suite exercises.
+ * curated corner-name lists into a track's shared facts plus one geometry file
+ * per game. Used by scripts/generate-track-segments.ts (CLI) and by tests, so
+ * the exact code path that produces committed meta is what the test suite
+ * exercises.
  */
 
 import { readFileSync, readdirSync, existsSync } from "fs";
@@ -17,10 +17,21 @@ import {
   type CornerNameList,
 } from "./track-segment-align";
 import {
-  loadSharedTrackMeta,
-  saveSharedTrackMeta,
-  type SharedTrackMeta,
+  loadTrackFacts,
+  loadTrackGeometry,
+  saveTrackFacts,
+  saveTrackGeometry,
 } from "./track-data";
+import {
+  cornerKey,
+  cornerNumbers,
+  splitSegments,
+  type CornerFact,
+  type StraightFact,
+  type TrackFacts,
+  type TrackGeometry,
+} from "./track-meta";
+import type { NamedSegment } from "./track-named-segments";
 import { SHARED_DIR } from "./resolve-data";
 import type { GameId } from "./types";
 
@@ -31,8 +42,6 @@ const GAME_DIRS: Record<GameId, string> = {
   "fm-2023": resolve(SHARED_DIR, "tracks", "fm-2023"),
   "ac-evo": resolve(SHARED_DIR, "tracks", "ac-evo"),
 };
-/** Preference order for the top-level (global) meta segments. */
-const GLOBAL_PRIORITY = ["fm-2023", "f1-2025", "acc"];
 
 /** List every track slug that has a curated corner-name list. */
 export function listCuratedSlugs(): string[] {
@@ -84,7 +93,7 @@ export function findCenterlines(slug: string, gameFilter?: string): { gameId: Ga
 export interface GameAlignment {
   gameId: GameId;
   file: string;
-  segments: NonNullable<SharedTrackMeta["segments"]>;
+  segments: NamedSegment[];
   /** Named corners with the official turn numbers each one covers. */
   corners: AlignedCorner[];
   sectors: { s1End: number; s2End: number; source: string } | null;
@@ -180,36 +189,105 @@ export function writableAlignments(aligned: GameAlignment[], allowFuzzy = false)
   return aligned.filter((a) => a.cost < 1 || allowFuzzy);
 }
 
+/** The two halves a regeneration produces: shared facts, geometry per game. */
+export interface GeneratedMeta {
+  facts: TrackFacts;
+  geometry: Record<string, TrackGeometry>;
+}
+
 /**
- * Merge generated per-game segments/sectors into a track's meta.
- * Pure — does not touch the input object or disk.
+ * Merge generated per-game segments/sectors into a track's split meta.
+ * Pure — does not touch the inputs or disk.
+ *
+ * Every writable game re-derives the same facts from the same name list, so the
+ * fact halves are folded into one list with the committed file as tie-break.
+ * Corners this run never mentions — a turn one game's detector folded into its
+ * neighbour — are carried through, so the fact set stays the union across games
+ * instead of shrinking to whatever aligned today.
  */
 export function buildUpdatedMeta(
-  existing: SharedTrackMeta | null,
+  slug: string,
+  existingFacts: TrackFacts | null,
+  existingGeometry: Record<string, TrackGeometry>,
   nameList: CornerNameList,
   writable: GameAlignment[],
-): SharedTrackMeta {
-  const meta: SharedTrackMeta = existing
-    ? structuredClone(existing)
-    : { name: nameList.circuit };
-  meta.name = meta.name || nameList.circuit;
+): GeneratedMeta {
+  const corners = new Map<string, CornerFact>();
+  const straights = new Map<number, StraightFact>();
+  for (const c of existingFacts?.corners ?? []) corners.set(cornerKey(cornerNumbers(c)), c);
+  for (const s of existingFacts?.straights ?? []) straights.set(s.after, s);
+
+  const cornerVotes = new Map<string, CornerFact[]>();
+  const straightVotes = new Map<number, StraightFact[]>();
+  const geometry: Record<string, TrackGeometry> = {};
+
   for (const a of writable) {
-    meta.games = meta.games ?? {};
-    meta.games[a.gameId] = meta.games[a.gameId] ?? {};
-    meta.games[a.gameId].segments = a.segments;
-    if (a.sectors && !hasCuratedSectors(meta.games[a.gameId].sectors)) {
-      meta.games[a.gameId].sectors = a.sectors;
+    const split = splitSegments(a.segments);
+    const committedSectors = existingGeometry[a.gameId]?.sectors;
+    const sectors = a.sectors && !hasCuratedSectors(committedSectors) ? a.sectors : committedSectors;
+    geometry[a.gameId] = { ...(sectors ? { sectors } : {}), segments: split.geometry };
+    for (const c of split.corners) {
+      const key = cornerKey(cornerNumbers(c));
+      const seen = cornerVotes.get(key);
+      if (seen) seen.push(c);
+      else cornerVotes.set(key, [c]);
+    }
+    for (const s of split.straights) {
+      const seen = straightVotes.get(s.after);
+      if (seen) seen.push(s);
+      else straightVotes.set(s.after, [s]);
     }
   }
-  // Global segments/sectors from the highest-priority aligned game
-  const globalSrc = GLOBAL_PRIORITY.map((g) => writable.find((a) => a.gameId === g)).find(Boolean);
-  if (globalSrc) {
-    meta.segments = globalSrc.segments;
-    if (globalSrc.sectors && !hasCuratedSectors(meta.sectors)) {
-      meta.sectors = globalSrc.sectors;
-    }
+
+  for (const [key, votes] of cornerVotes) {
+    const committed = corners.get(key);
+    const numbers = cornerNumbers(votes[0]);
+    const direction = agreed(votes.map((v) => v.direction), committed?.direction);
+    const group = agreed(votes.map((v) => v.group), committed?.group);
+    corners.set(key, {
+      number: numbers[0],
+      ...(numbers.length > 1 ? { covers: numbers.slice(1) } : {}),
+      name: agreed(votes.map((v) => v.name), committed?.name) ?? "",
+      ...(direction ? { direction } : {}),
+      ...(group ? { group } : {}),
+    });
   }
-  return meta;
+  for (const [after, votes] of straightVotes) {
+    const committed = straights.get(after);
+    const group = agreed(votes.map((v) => v.group), committed?.group);
+    straights.set(after, {
+      after,
+      name: agreed(votes.map((v) => v.name), committed?.name) ?? "",
+      ...(group ? { group } : {}),
+    });
+  }
+
+  const named = [...straights.values()].sort((a, b) => a.after - b.after);
+  return {
+    facts: {
+      slug: existingFacts?.slug ?? slug,
+      track: existingFacts?.track ?? slug,
+      layout: existingFacts?.layout ?? "full",
+      layoutName: existingFacts?.layoutName ?? "Full",
+      name: existingFacts?.name || nameList.circuit,
+      corners: [...corners.values()].sort((a, b) => a.number - b.number),
+      ...(named.length ? { straights: named } : {}),
+    },
+    geometry,
+  };
+}
+
+/**
+ * The one value the games agree on. An empty string means "this game had
+ * nothing to say", so it never beats a real name; a genuine split falls back to
+ * what is already committed, because a regeneration that flips a curated fact
+ * on a coin toss is worse than one that leaves it alone.
+ */
+function agreed<T extends string>(values: (T | undefined)[], committed: T | undefined): T | undefined {
+  const distinct = [...new Set(values.filter((v): v is T => !!v))];
+  if (distinct.length === 0) return committed;
+  if (distinct.length === 1) return distinct[0];
+  return committed ?? distinct[0];
 }
 
 /**
@@ -232,7 +310,7 @@ function hasCuratedSectors(s: { source?: string } | undefined): boolean {
  * (padding, merging) that curated tracks use.
  */
 export function autoTrackSegments(outline: { x: number; z: number }[]): {
-  segments: NonNullable<SharedTrackMeta["segments"]>;
+  segments: NamedSegment[];
   cornerCount: number;
   totalDist: number;
 } {
@@ -269,7 +347,7 @@ export function listAllCenterlines(): { gameId: GameId; slug: string; file: stri
   return found;
 }
 
-/** Persist writable alignments into the track's meta file. Returns written gameIds. */
+/** Persist writable alignments into the track's facts + geometry. Returns written gameIds. */
 export function writeTrackMeta(
   slug: string,
   nameList: CornerNameList,
@@ -278,7 +356,13 @@ export function writeTrackMeta(
 ): string[] {
   const writable = writableAlignments(aligned, allowFuzzy);
   if (writable.length === 0) return [];
-  const meta = buildUpdatedMeta(loadSharedTrackMeta(slug), nameList, writable);
-  saveSharedTrackMeta(slug, meta);
+  const existingGeometry: Record<string, TrackGeometry> = {};
+  for (const a of writable) {
+    const geom = loadTrackGeometry(slug, a.gameId);
+    if (geom) existingGeometry[a.gameId] = geom;
+  }
+  const { facts, geometry } = buildUpdatedMeta(slug, loadTrackFacts(slug), existingGeometry, nameList, writable);
+  saveTrackFacts(slug, facts);
+  for (const [gameId, geom] of Object.entries(geometry)) saveTrackGeometry(slug, gameId, geom);
   return writable.map((a) => a.gameId);
 }

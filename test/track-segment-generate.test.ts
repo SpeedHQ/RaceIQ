@@ -2,8 +2,9 @@
  * Runs the real segment generator (same code path as `bun run
  * tracks:segments`) over every curated track and asserts:
  *   1. every game centerline aligns cleanly (no unsanctioned fuzz), and
- *   2. the committed meta files exactly match what --write would produce —
- *      i.e. name lists, detector, and shared/tracks/meta cannot drift apart.
+ *   2. the committed meta files exactly match what --write would produce — the
+ *      shared facts and every game's geometry file — i.e. name lists, detector,
+ *      shared/tracks/meta and shared/tracks/<game> cannot drift apart.
  *
  * If this fails after editing a name list or the detector, regenerate with:
  *   bun run tracks:segments --all --write
@@ -16,7 +17,8 @@ import {
   loadCornerNameList,
   writableAlignments,
 } from "../shared/track-segment-generate";
-import { loadSharedTrackMeta } from "../shared/track-data";
+import { loadTrackFacts, loadTrackGeometry } from "../shared/track-data";
+import type { TrackGeometry } from "../shared/track-meta";
 import { validateNameList } from "../shared/track-segment-align";
 
 const slugs = listCuratedSlugs();
@@ -36,6 +38,23 @@ const KNOWN_DETECTOR_GAPS = new Set([
   "road-atlanta/ac-evo",
   "sebring/ac-evo",
 ]);
+
+/**
+ * Pairings that align, but too loosely to persist (cost >= 1), so the committed
+ * geometry stays whatever the migration produced from that game's own data.
+ *
+ * `nordschleife` folded three games onto one slug, but its curated name list was
+ * authored against ACC's centerline: 60 corners, starting at the ACC start line.
+ * Forza's Nordschleife is the same tarmac digitised into 69 corners from a
+ * different lap origin (rotation offset 88) in a mirrored frame, so the list
+ * cannot place itself on it. Forza's committed geometry came from Forza's own
+ * legacy segmentation and is correct; only regeneration can't reproduce it.
+ *
+ * TODO(follow-up PR): reconcile shared/tracks/corner-names/nordschleife.json to
+ * the 69-corner segmentation and delete this. Same shrink-only contract as
+ * KNOWN_DETECTOR_GAPS — a pairing that starts aligning cleanly fails here.
+ */
+const KNOWN_FUZZY_ALIGNMENTS = new Set(["nordschleife/fm-2023"]);
 
 describe("track segment generator", () => {
   test("curated corner-name lists exist", () => {
@@ -61,21 +80,44 @@ describe("track segment generator", () => {
             expect(o.ok, `${slug}/${o.gameId} now aligns — drop it from KNOWN_DETECTOR_GAPS`).toBe(false);
             continue;
           }
+          if (KNOWN_FUZZY_ALIGNMENTS.has(`${slug}/${o.gameId}`)) {
+            // Stays sanctioned only while it really is too fuzzy to persist.
+            expect(o.cost, `${slug}/${o.gameId} now aligns cleanly — drop it from KNOWN_FUZZY_ALIGNMENTS`).toBeGreaterThanOrEqual(1);
+            continue;
+          }
           expect(o.ok, `${slug}/${o.gameId}: ${o.detail}`).toBe(true);
           expect(o.cost, `${slug}/${o.gameId} has unsanctioned fuzz: ${o.detail}`).toBeLessThan(1);
         }
-        expect(writableAlignments(aligned)).toHaveLength(aligned.length);
+        // A failed outcome never reaches `aligned`; a fuzzy one does but is too
+        // loose to persist, so only those are subtracted here.
+        const fuzzy = outcomes.filter((o) => KNOWN_FUZZY_ALIGNMENTS.has(`${slug}/${o.gameId}`)).length;
+        expect(writableAlignments(aligned)).toHaveLength(aligned.length - fuzzy);
       });
 
       test("committed meta matches generator output (run tracks:segments --all --write if stale)", () => {
-        const existing = loadSharedTrackMeta(slug);
-        expect(existing).not.toBeNull();
-        const regenerated = buildUpdatedMeta(existing, nameList, writableAlignments(aligned));
-        expect(existing).toEqual(regenerated);
+        const facts = loadTrackFacts(slug);
+        expect(facts).not.toBeNull();
+        const writable = writableAlignments(aligned);
+        // Feeding the committed geometry back in is what proves curated sectors
+        // survive: a generated pair may only fill a game that has none.
+        const committed: Record<string, TrackGeometry> = {};
+        for (const a of writable) {
+          const geometry = loadTrackGeometry(slug, a.gameId);
+          expect(geometry, `${slug}/${a.gameId} has no committed geometry file`).not.toBeNull();
+          committed[a.gameId] = geometry!;
+        }
+        const regenerated = buildUpdatedMeta(slug, facts, committed, nameList, writable);
+        expect(facts).toEqual(regenerated.facts);
+        for (const [gameId, geometry] of Object.entries(regenerated.geometry)) {
+          expect(committed[gameId], `${slug}/${gameId} geometry is stale`).toEqual(geometry);
+        }
       });
 
-      // Per-track invariants, checked on every game's generated output
-      for (const a of aligned) {
+      // Per-track invariants, checked on every game's generated output. A
+      // sanctioned-fuzzy pairing is excluded: its segmentation is known not to
+      // fit, it is never persisted, and asserting shape on it would just restate
+      // the fuzz the entry above already records.
+      for (const a of aligned.filter((x) => !KNOWN_FUZZY_ALIGNMENTS.has(`${slug}/${x.gameId}`))) {
         describe(a.gameId, () => {
           test("segments cover the whole lap in order without overlap", () => {
             expect(a.segments.length).toBeGreaterThan(0);

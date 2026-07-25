@@ -1,171 +1,44 @@
 {
-  "name": "VIR — South Course",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.1923
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "right",
-          "startFrac": 0.1923,
-          "endFrac": 0.3195,
-          "number": 1
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3195,
-          "endFrac": 0.3723
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "left",
-          "startFrac": 0.3723,
-          "endFrac": 0.4507,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "right",
-          "startFrac": 0.4507,
-          "endFrac": 0.4732,
-          "number": 3
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "left",
-          "startFrac": 0.4732,
-          "endFrac": 0.5441,
-          "number": 4
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "right",
-          "startFrac": 0.5441,
-          "endFrac": 0.7014,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "left",
-          "startFrac": 0.7014,
-          "endFrac": 0.785,
-          "number": 6
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.785,
-          "endFrac": 0.8337
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "right",
-          "startFrac": 0.8337,
-          "endFrac": 0.9311,
-          "number": 7
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9311,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "vir-s",
+  "track": "vir",
+  "layout": "south",
+  "layoutName": "South",
+  "name": "Virginia International Raceway",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.1923
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "right",
-      "startFrac": 0.1923,
-      "endFrac": 0.3195,
-      "number": 1
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.3195,
-      "endFrac": 0.3723
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T2",
-      "direction": "left",
-      "startFrac": 0.3723,
-      "endFrac": 0.4507,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "right",
-      "startFrac": 0.4507,
-      "endFrac": 0.4732,
-      "number": 3
-    },
-    {
-      "type": "corner",
-      "name": "T4",
-      "direction": "left",
-      "startFrac": 0.4732,
-      "endFrac": 0.5441,
-      "number": 4
-    },
-    {
-      "type": "corner",
-      "name": "T5",
-      "direction": "right",
-      "startFrac": 0.5441,
-      "endFrac": 0.7014,
-      "number": 5
-    },
-    {
-      "type": "corner",
-      "name": "T6",
-      "direction": "left",
-      "startFrac": 0.7014,
-      "endFrac": 0.785,
-      "number": 6
-    },
-    {
-      "type": "straight",
+      "number": 3,
       "name": "",
-      "startFrac": 0.785,
-      "endFrac": 0.8337
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T7",
-      "direction": "right",
-      "startFrac": 0.8337,
-      "endFrac": 0.9311,
-      "number": 7
-    },
-    {
-      "type": "straight",
+      "number": 4,
       "name": "",
-      "startFrac": 0.9311,
-      "endFrac": 1
+      "direction": "left"
+    },
+    {
+      "number": 5,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "right"
     }
   ]
 }

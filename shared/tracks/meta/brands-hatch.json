@@ -1,452 +1,69 @@
 {
-  "name": "Brand Hatch",
-  "sectors": {
-    "s1End": 0.32,
-    "s2End": 0.67
-  },
-  "games": {
-    "acc": {
-      "sectors": {
-        "s1End": 0.353,
-        "s2End": 0.67
-      },
-      "segments": [
-        {
-          "type": "corner",
-          "name": "Paddock Hill Bend",
-          "direction": "right",
-          "startFrac": 0,
-          "endFrac": 0.1184,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "Druids",
-          "direction": "right",
-          "startFrac": 0.1184,
-          "endFrac": 0.1858,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "Graham Hill Bend",
-          "direction": "left",
-          "startFrac": 0.1858,
-          "endFrac": 0.2534,
-          "number": 3
-        },
-        {
-          "type": "straight",
-          "name": "Cooper Straight",
-          "startFrac": 0.2534,
-          "endFrac": 0.2717
-        },
-        {
-          "type": "corner",
-          "name": "Surtees",
-          "direction": "left",
-          "startFrac": 0.2717,
-          "endFrac": 0.3591,
-          "number": 4
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3591,
-          "endFrac": 0.461
-        },
-        {
-          "type": "corner",
-          "name": "Hawthorn Bend",
-          "direction": "right",
-          "startFrac": 0.461,
-          "endFrac": 0.568,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "Westfield Bend",
-          "direction": "right",
-          "startFrac": 0.568,
-          "endFrac": 0.6563,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "Sheene Curve",
-          "direction": "right",
-          "startFrac": 0.6563,
-          "endFrac": 0.7382,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "Stirling's Bend",
-          "direction": "left",
-          "startFrac": 0.7382,
-          "endFrac": 0.7962,
-          "number": 9
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.7962,
-          "endFrac": 0.8297
-        },
-        {
-          "type": "corner",
-          "name": "Clark Curve",
-          "direction": "right",
-          "startFrac": 0.8297,
-          "endFrac": 0.9367,
-          "number": 10
-        },
-        {
-          "type": "straight",
-          "name": "Brabham Straight",
-          "startFrac": 0.9367,
-          "endFrac": 1
-        }
-      ]
-    },
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "Brabham Straight",
-          "startFrac": 0,
-          "endFrac": 0.028,
-          "group": "Brabham Straight"
-        },
-        {
-          "type": "corner",
-          "name": "Paddock Hill Bend",
-          "direction": "right",
-          "startFrac": 0.028,
-          "endFrac": 0.1121,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "Druids",
-          "direction": "right",
-          "startFrac": 0.1121,
-          "endFrac": 0.1825,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "Graham Hill Bend",
-          "direction": "left",
-          "startFrac": 0.1825,
-          "endFrac": 0.2483,
-          "number": 3
-        },
-        {
-          "type": "straight",
-          "name": "Cooper Straight",
-          "startFrac": 0.2483,
-          "endFrac": 0.2696
-        },
-        {
-          "type": "corner",
-          "name": "Surtees",
-          "direction": "left",
-          "startFrac": 0.2696,
-          "endFrac": 0.3571,
-          "number": 4
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3571,
-          "endFrac": 0.4628
-        },
-        {
-          "type": "corner",
-          "name": "Hawthorn Bend",
-          "direction": "right",
-          "startFrac": 0.4628,
-          "endFrac": 0.5693,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "Westfield Bend",
-          "direction": "right",
-          "startFrac": 0.5693,
-          "endFrac": 0.6367,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "Dingle Dell",
-          "direction": "right",
-          "startFrac": 0.6367,
-          "endFrac": 0.6936,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "Sheene Curve",
-          "direction": "right",
-          "startFrac": 0.6936,
-          "endFrac": 0.7413,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "Stirling's Bend",
-          "direction": "left",
-          "startFrac": 0.7413,
-          "endFrac": 0.7957,
-          "number": 9
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.7957,
-          "endFrac": 0.8353
-        },
-        {
-          "type": "corner",
-          "name": "Clark Curve",
-          "direction": "right",
-          "startFrac": 0.8353,
-          "endFrac": 0.9625,
-          "number": 10
-        },
-        {
-          "type": "straight",
-          "name": "Brabham Straight",
-          "startFrac": 0.9625,
-          "endFrac": 1,
-          "group": "Brabham Straight"
-        }
-      ],
-      "sectors": {
-        "s1End": 0.3571,
-        "s2End": 0.6701,
-        "source": "corner-anchored"
-      }
-    },
-    "ac-evo": {
-      "segments": [
-        {
-          "type": "corner",
-          "name": "Paddock Hill Bend",
-          "direction": "right",
-          "startFrac": 0,
-          "endFrac": 0.1219,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "Druids",
-          "direction": "right",
-          "startFrac": 0.1219,
-          "endFrac": 0.1872,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "Graham Hill Bend",
-          "direction": "left",
-          "startFrac": 0.1872,
-          "endFrac": 0.2505,
-          "number": 3
-        },
-        {
-          "type": "straight",
-          "name": "Cooper Straight",
-          "startFrac": 0.2505,
-          "endFrac": 0.2703
-        },
-        {
-          "type": "corner",
-          "name": "Surtees",
-          "direction": "left",
-          "startFrac": 0.2703,
-          "endFrac": 0.358,
-          "number": 4
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.358,
-          "endFrac": 0.4628
-        },
-        {
-          "type": "corner",
-          "name": "Hawthorn Bend",
-          "direction": "right",
-          "startFrac": 0.4628,
-          "endFrac": 0.5691,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "Westfield Bend",
-          "direction": "right",
-          "startFrac": 0.5691,
-          "endFrac": 0.6416,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "Sheene Curve",
-          "direction": "right",
-          "startFrac": 0.6416,
-          "endFrac": 0.7413,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "Stirling's Bend",
-          "direction": "left",
-          "startFrac": 0.7413,
-          "endFrac": 0.8004,
-          "number": 9
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8004,
-          "endFrac": 0.8292
-        },
-        {
-          "type": "corner",
-          "name": "Clark Curve",
-          "direction": "right",
-          "startFrac": 0.8292,
-          "endFrac": 0.9424,
-          "number": 10
-        },
-        {
-          "type": "straight",
-          "name": "Brabham Straight",
-          "startFrac": 0.9424,
-          "endFrac": 1
-        }
-      ],
-      "sectors": {
-        "s1End": 0.358,
-        "s2End": 0.6751,
-        "source": "corner-anchored"
-      }
-    }
-  },
-  "segments": [
+  "slug": "brands-hatch",
+  "track": "brands-hatch",
+  "layout": "gp",
+  "layoutName": "Grand Prix",
+  "name": "Brands Hatch",
+  "corners": [
     {
-      "type": "straight",
-      "name": "Brabham Straight",
-      "startFrac": 0,
-      "endFrac": 0.028,
-      "group": "Brabham Straight"
-    },
-    {
-      "type": "corner",
+      "number": 1,
       "name": "Paddock Hill Bend",
-      "direction": "right",
-      "startFrac": 0.028,
-      "endFrac": 0.1121,
-      "number": 1
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 2,
       "name": "Druids",
-      "direction": "right",
-      "startFrac": 0.1121,
-      "endFrac": 0.1825,
-      "number": 2
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 3,
       "name": "Graham Hill Bend",
-      "direction": "left",
-      "startFrac": 0.1825,
-      "endFrac": 0.2483,
-      "number": 3
+      "direction": "left"
     },
     {
-      "type": "straight",
-      "name": "Cooper Straight",
-      "startFrac": 0.2483,
-      "endFrac": 0.2696
-    },
-    {
-      "type": "corner",
+      "number": 4,
       "name": "Surtees",
-      "direction": "left",
-      "startFrac": 0.2696,
-      "endFrac": 0.3571,
-      "number": 4
+      "direction": "left"
     },
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.3571,
-      "endFrac": 0.4628
-    },
-    {
-      "type": "corner",
+      "number": 5,
       "name": "Hawthorn Bend",
-      "direction": "right",
-      "startFrac": 0.4628,
-      "endFrac": 0.5693,
-      "number": 5
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 6,
       "name": "Westfield Bend",
-      "direction": "right",
-      "startFrac": 0.5693,
-      "endFrac": 0.6367,
-      "number": 6
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 7,
       "name": "Dingle Dell",
-      "direction": "right",
-      "startFrac": 0.6367,
-      "endFrac": 0.6936,
-      "number": 7
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 8,
       "name": "Sheene Curve",
-      "direction": "right",
-      "startFrac": 0.6936,
-      "endFrac": 0.7413,
-      "number": 8
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 9,
       "name": "Stirling's Bend",
-      "direction": "left",
-      "startFrac": 0.7413,
-      "endFrac": 0.7957,
-      "number": 9
+      "direction": "left"
     },
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.7957,
-      "endFrac": 0.8353
-    },
-    {
-      "type": "corner",
+      "number": 10,
       "name": "Clark Curve",
-      "direction": "right",
-      "startFrac": 0.8353,
-      "endFrac": 0.9625,
-      "number": 10
+      "direction": "right"
+    }
+  ],
+  "straights": [
+    {
+      "after": 3,
+      "name": "Cooper Straight"
     },
     {
-      "type": "straight",
+      "after": 10,
       "name": "Brabham Straight",
-      "startFrac": 0.9625,
-      "endFrac": 1,
       "group": "Brabham Straight"
     }
   ]

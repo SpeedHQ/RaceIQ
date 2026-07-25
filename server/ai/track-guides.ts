@@ -16,8 +16,9 @@
  * name for those turns. See `CornerGuide.numbers`.
  */
 
-import { loadSharedTrackMeta } from "../../shared/track-data";
-import { segmentPromptLabels, turnNumbers } from "../../shared/segment-label";
+import { loadTrackFacts } from "../../shared/track-data";
+import { cornerNumbers } from "../../shared/track-meta";
+import { cornerPromptLabel } from "../../shared/segment-label";
 import type { ResolvedTrackGuide } from "../../shared/track-guide-types";
 
 interface CornerGuide {
@@ -1099,8 +1100,6 @@ function findGuide(trackNameOrId: string): TrackGuide | null {
 export interface TrackGuideOptions {
   /** Shared track slug (meta filename, e.g. "spa") — enables canonical naming. */
   slug?: string;
-  /** Prefer this game's per-game segment names; falls back to the shared set. */
-  gameId?: string;
 }
 
 /**
@@ -1108,26 +1107,27 @@ export interface TrackGuideOptions {
  * guide entry anchored to [14, 15] at Monaco renders "Piscine (14-15)" — the
  * same string the track map and the prompt's corner whitelist use — rather
  * than the guide's own "Swimming Pool".
+ *
+ * Facts only: a corner's name, numbering and complex are properties of the
+ * circuit, identical in every game, so this takes no gameId.
  */
-function metaLabelsByTurn(slug: string, gameId?: string): Map<number, string> {
+function metaLabelsByTurn(slug: string): Map<number, string> {
   const out = new Map<number, string>();
-  const meta = loadSharedTrackMeta(slug);
-  if (!meta) return out;
-  // Per-game segments win: a game's centerline can name or merge corners
-  // differently from the shared set.
-  const segments = (gameId ? meta.games?.[gameId]?.segments : undefined) ?? meta.segments ?? [];
-  // Group-collapsed labels: every turn of a complex maps to the one label for
-  // the whole complex, so a guide entry spanning it resolves (each member
-  // carrying its own label would make `canonicalLabel` see a partial match and
-  // fall back to the guide's own name).
-  const labels = segmentPromptLabels(segments);
-  segments.forEach((s, i) => {
-    if (s.type !== "corner" || !s.name) return;
-    const label = labels[i];
-    if (!label) return;
-    const nums = s.group ? segments.filter((o) => o.group === s.group).flatMap(turnNumbers) : turnNumbers(s);
+  const facts = loadTrackFacts(slug);
+  if (!facts) return out;
+  for (const corner of facts.corners) {
+    const nums = cornerNumbers(corner);
+    // Group-collapsed labels: every turn of a complex maps to the one label for
+    // the whole complex, so a guide entry spanning it resolves (each member
+    // carrying its own label would make `canonicalLabel` see a partial match and
+    // fall back to the guide's own name).
+    const members = corner.group ? facts.corners.filter((c) => c.group === corner.group) : [corner];
+    const name = corner.group || corner.name;
+    // Facts leave a turn the circuit doesn't name empty; `T3` / `T3-4` is the
+    // token the rest of the app renders for it.
+    const label = name ? cornerPromptLabel(name, members.flatMap(cornerNumbers)) : `T${nums.join("-")}`;
     for (const n of nums) out.set(n, label);
-  });
+  }
   return out;
 }
 
@@ -1153,7 +1153,7 @@ function canonicalLabel(c: CornerGuide, labels: Map<number, string>): string | n
 export function getTrackGuide(trackName: string, opts: TrackGuideOptions = {}): ResolvedTrackGuide | null {
   const guide = findGuide(opts.slug ?? trackName);
   if (!guide) return null;
-  const labels = opts.slug ? metaLabelsByTurn(opts.slug, opts.gameId) : new Map<number, string>();
+  const labels = opts.slug ? metaLabelsByTurn(opts.slug) : new Map<number, string>();
   const labelFor = (c: CornerGuide) => canonicalLabel(c, labels) ?? c.name;
   const isPriority = (c: CornerGuide) => guide.priorityCorners.includes(c.name);
 
@@ -1179,11 +1179,11 @@ export function getTrackGuide(trackName: string, opts: TrackGuideOptions = {}): 
   };
 }
 
-/** The corner labels a guide will actually emit for this track/game. */
+/** The corner labels a guide will actually emit for this track. */
 export function guideCornerLabels(trackName: string, opts: TrackGuideOptions = {}): string[] {
   const guide = findGuide(opts.slug ?? trackName);
   if (!guide) return [];
-  const labels = opts.slug ? metaLabelsByTurn(opts.slug, opts.gameId) : new Map<number, string>();
+  const labels = opts.slug ? metaLabelsByTurn(opts.slug) : new Map<number, string>();
   return [...new Set(guide.corners.map((c) => canonicalLabel(c, labels) ?? c.name))];
 }
 
@@ -1191,7 +1191,7 @@ export function guideCornerLabels(trackName: string, opts: TrackGuideOptions = {
  * Build a formatted track guide context block for AI prompts.
  * Returns empty string if no guide is available for the given track.
  *
- * Pass `slug`/`gameId` wherever they're known: without them the guide falls
+ * Pass `slug` wherever it's known: without it the guide falls
  * back to its own corner names, which may not match the names the prompt
  * elsewhere tells the model are the only legal ones.
  */
@@ -1199,7 +1199,7 @@ export function buildTrackGuideContext(trackName: string, opts: TrackGuideOption
   const guide = findGuide(opts.slug ?? trackName);
   if (!guide) return "";
 
-  const labels = opts.slug ? metaLabelsByTurn(opts.slug, opts.gameId) : new Map<number, string>();
+  const labels = opts.slug ? metaLabelsByTurn(opts.slug) : new Map<number, string>();
   const labelFor = (c: CornerGuide) => canonicalLabel(c, labels) ?? c.name;
 
   let out = "\n--- Expert Track Guide ---\n";

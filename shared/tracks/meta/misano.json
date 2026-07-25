@@ -1,261 +1,66 @@
 {
+  "slug": "misano",
+  "track": "misano",
+  "layout": "gp",
+  "layoutName": "Grand Prix",
   "name": "Misano World Circuit Marco Simoncelli",
-  "games": {
-    "acc": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0301
-        },
-        {
-          "type": "corner",
-          "name": "Variante del Parco",
-          "direction": "right",
-          "startFrac": 0.0301,
-          "endFrac": 0.0799,
-          "number": 1,
-          "group": "Variante del Parco"
-        },
-        {
-          "type": "corner",
-          "name": "Variante del Parco",
-          "direction": "left",
-          "startFrac": 0.0799,
-          "endFrac": 0.1066,
-          "number": 2,
-          "group": "Variante del Parco"
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "right",
-          "startFrac": 0.1066,
-          "endFrac": 0.1647,
-          "number": 3
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "right",
-          "startFrac": 0.1647,
-          "endFrac": 0.2218,
-          "number": 4
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "left",
-          "startFrac": 0.2218,
-          "endFrac": 0.262,
-          "number": 5
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.262,
-          "endFrac": 0.3557
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "left",
-          "startFrac": 0.3557,
-          "endFrac": 0.4302,
-          "number": 6
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4302,
-          "endFrac": 0.4687
-        },
-        {
-          "type": "corner",
-          "name": "Quercia",
-          "direction": "right",
-          "startFrac": 0.4687,
-          "endFrac": 0.5468,
-          "number": 7
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5468,
-          "endFrac": 0.7259
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "right",
-          "startFrac": 0.7259,
-          "endFrac": 0.7975,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "T9",
-          "direction": "right",
-          "startFrac": 0.7975,
-          "endFrac": 0.833,
-          "number": 9
-        },
-        {
-          "type": "corner",
-          "name": "T10",
-          "direction": "left",
-          "startFrac": 0.833,
-          "endFrac": 0.8937,
-          "number": 10
-        },
-        {
-          "type": "corner",
-          "name": "Curvone",
-          "direction": "left",
-          "startFrac": 0.8937,
-          "endFrac": 0.9531,
-          "number": 11
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9531,
-          "endFrac": 1
-        }
-      ],
-      "sectors": {
-        "s1End": 0.2218,
-        "s2End": 0.5468,
-        "source": "corner-anchored"
-      }
-    }
-  },
-  "segments": [
+  "corners": [
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0301
-    },
-    {
-      "type": "corner",
-      "name": "Variante del Parco",
-      "direction": "right",
-      "startFrac": 0.0301,
-      "endFrac": 0.0799,
       "number": 1,
+      "name": "Variante del Parco",
+      "direction": "right",
       "group": "Variante del Parco"
     },
     {
-      "type": "corner",
+      "number": 2,
       "name": "Variante del Parco",
       "direction": "left",
-      "startFrac": 0.0799,
-      "endFrac": 0.1066,
-      "number": 2,
       "group": "Variante del Parco"
     },
     {
-      "type": "corner",
-      "name": "T3",
-      "direction": "right",
-      "startFrac": 0.1066,
-      "endFrac": 0.1647,
-      "number": 3
-    },
-    {
-      "type": "corner",
-      "name": "T4",
-      "direction": "right",
-      "startFrac": 0.1647,
-      "endFrac": 0.2218,
-      "number": 4
-    },
-    {
-      "type": "corner",
-      "name": "T5",
-      "direction": "left",
-      "startFrac": 0.2218,
-      "endFrac": 0.262,
-      "number": 5
-    },
-    {
-      "type": "straight",
+      "number": 3,
       "name": "",
-      "startFrac": 0.262,
-      "endFrac": 0.3557
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T6",
-      "direction": "left",
-      "startFrac": 0.3557,
-      "endFrac": 0.4302,
-      "number": 6
-    },
-    {
-      "type": "straight",
+      "number": 4,
       "name": "",
-      "startFrac": 0.4302,
-      "endFrac": 0.4687
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 5,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 7,
       "name": "Quercia",
-      "direction": "right",
-      "startFrac": 0.4687,
-      "endFrac": 0.5468,
-      "number": 7
+      "direction": "right"
     },
     {
-      "type": "straight",
+      "number": 8,
       "name": "",
-      "startFrac": 0.5468,
-      "endFrac": 0.7259
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T8",
-      "direction": "right",
-      "startFrac": 0.7259,
-      "endFrac": 0.7975,
-      "number": 8
+      "number": 9,
+      "name": "",
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T9",
-      "direction": "right",
-      "startFrac": 0.7975,
-      "endFrac": 0.833,
-      "number": 9
+      "number": 10,
+      "name": "",
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T10",
-      "direction": "left",
-      "startFrac": 0.833,
-      "endFrac": 0.8937,
-      "number": 10
-    },
-    {
-      "type": "corner",
+      "number": 11,
       "name": "Curvone",
-      "direction": "left",
-      "startFrac": 0.8937,
-      "endFrac": 0.9531,
-      "number": 11
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.9531,
-      "endFrac": 1
+      "direction": "left"
     }
-  ],
-  "sectors": {
-    "s1End": 0.2218,
-    "s2End": 0.5468,
-    "source": "corner-anchored"
-  }
+  ]
 }

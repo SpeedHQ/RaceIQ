@@ -1,465 +1,70 @@
 {
+  "slug": "watkins-glen",
+  "track": "watkins-glen",
+  "layout": "full",
+  "layoutName": "Full",
   "name": "Watkins Glen International",
-  "sectors": {
-    "s1End": 0.33,
-    "s2End": 0.67
-  },
-  "games": {
-    "acc": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.028
-        },
-        {
-          "type": "corner",
-          "name": "The 90",
-          "direction": "right",
-          "startFrac": 0.028,
-          "endFrac": 0.0935,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "The Esses",
-          "direction": "right",
-          "startFrac": 0.0935,
-          "endFrac": 0.158,
-          "number": 2,
-          "group": "The Esses"
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "left",
-          "startFrac": 0.158,
-          "endFrac": 0.1957,
-          "number": 3,
-          "covers": [
-            4
-          ],
-          "group": "The Esses"
-        },
-        {
-          "type": "straight",
-          "name": "Back Straight",
-          "startFrac": 0.1957,
-          "endFrac": 0.3236
-        },
-        {
-          "type": "corner",
-          "name": "Inner Loop",
-          "startFrac": 0.3236,
-          "endFrac": 0.4016,
-          "number": 5
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4016,
-          "endFrac": 0.4267
-        },
-        {
-          "type": "corner",
-          "name": "Outer Loop",
-          "direction": "right",
-          "startFrac": 0.4267,
-          "endFrac": 0.4795,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "The Toe",
-          "direction": "left",
-          "startFrac": 0.4795,
-          "endFrac": 0.5644,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "The Boot",
-          "direction": "right",
-          "startFrac": 0.5644,
-          "endFrac": 0.7702,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "T9",
-          "direction": "left",
-          "startFrac": 0.7702,
-          "endFrac": 0.8318,
-          "number": 9
-        },
-        {
-          "type": "corner",
-          "name": "T10",
-          "direction": "left",
-          "startFrac": 0.8318,
-          "endFrac": 0.9053,
-          "number": 10
-        },
-        {
-          "type": "corner",
-          "name": "T11",
-          "direction": "right",
-          "startFrac": 0.9053,
-          "endFrac": 0.9638,
-          "number": 11
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9638,
-          "endFrac": 1
-        }
-      ],
-      "sectors": {
-        "s1End": 0.3251,
-        "s2End": 0.7702,
-        "source": "corner-anchored"
-      }
-    },
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0323
-        },
-        {
-          "type": "corner",
-          "name": "The 90",
-          "direction": "right",
-          "startFrac": 0.0323,
-          "endFrac": 0.0929,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "The Esses",
-          "direction": "right",
-          "startFrac": 0.0929,
-          "endFrac": 0.1582,
-          "number": 2,
-          "group": "The Esses"
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "left",
-          "startFrac": 0.1582,
-          "endFrac": 0.204,
-          "number": 3,
-          "covers": [
-            4
-          ],
-          "group": "The Esses"
-        },
-        {
-          "type": "straight",
-          "name": "Back Straight",
-          "startFrac": 0.204,
-          "endFrac": 0.3222
-        },
-        {
-          "type": "corner",
-          "name": "Inner Loop",
-          "startFrac": 0.3222,
-          "endFrac": 0.3971,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "Outer Loop",
-          "direction": "right",
-          "startFrac": 0.3971,
-          "endFrac": 0.4763,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "The Toe",
-          "direction": "left",
-          "startFrac": 0.4763,
-          "endFrac": 0.5647,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "The Boot",
-          "direction": "right",
-          "startFrac": 0.5647,
-          "endFrac": 0.7628,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "T9",
-          "direction": "left",
-          "startFrac": 0.7628,
-          "endFrac": 0.8355,
-          "number": 9
-        },
-        {
-          "type": "corner",
-          "name": "T10",
-          "direction": "left",
-          "startFrac": 0.8355,
-          "endFrac": 0.8998,
-          "number": 10
-        },
-        {
-          "type": "corner",
-          "name": "T11",
-          "direction": "right",
-          "startFrac": 0.8998,
-          "endFrac": 0.9519,
-          "number": 11
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9519,
-          "endFrac": 1
-        }
-      ],
-      "sectors": {
-        "s1End": 0.3234,
-        "s2End": 0.7628,
-        "source": "corner-anchored"
-      }
-    },
-    "ac-evo": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0287
-        },
-        {
-          "type": "corner",
-          "name": "The 90",
-          "direction": "right",
-          "startFrac": 0.0287,
-          "endFrac": 0.0982,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "The Esses",
-          "direction": "right",
-          "startFrac": 0.0982,
-          "endFrac": 0.1342,
-          "number": 2,
-          "group": "The Esses"
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "right",
-          "startFrac": 0.1342,
-          "endFrac": 0.1548,
-          "number": 3,
-          "covers": [
-            4
-          ],
-          "group": "The Esses"
-        },
-        {
-          "type": "straight",
-          "name": "Back Straight",
-          "startFrac": 0.1548,
-          "endFrac": 0.1607
-        },
-        {
-          "type": "corner",
-          "name": "Inner Loop",
-          "direction": "left",
-          "startFrac": 0.1607,
-          "endFrac": 0.2008,
-          "number": 5
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2008,
-          "endFrac": 0.3721
-        },
-        {
-          "type": "corner",
-          "name": "Outer Loop",
-          "direction": "right",
-          "startFrac": 0.3721,
-          "endFrac": 0.4801,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "The Toe",
-          "direction": "left",
-          "startFrac": 0.4801,
-          "endFrac": 0.5447,
-          "number": 7
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5447,
-          "endFrac": 0.5635
-        },
-        {
-          "type": "corner",
-          "name": "The Boot",
-          "direction": "right",
-          "startFrac": 0.5635,
-          "endFrac": 0.7648,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "T9",
-          "direction": "left",
-          "startFrac": 0.7648,
-          "endFrac": 0.8322,
-          "number": 9
-        },
-        {
-          "type": "corner",
-          "name": "T10",
-          "direction": "left",
-          "startFrac": 0.8322,
-          "endFrac": 0.9016,
-          "number": 10
-        },
-        {
-          "type": "corner",
-          "name": "T11",
-          "direction": "right",
-          "startFrac": 0.9016,
-          "endFrac": 0.9558,
-          "number": 11
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9558,
-          "endFrac": 1
-        }
-      ],
-      "sectors": {
-        "s1End": 0.3009,
-        "s2End": 0.7648,
-        "source": "corner-anchored"
-      }
-    }
-  },
-  "segments": [
+  "corners": [
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0323
-    },
-    {
-      "type": "corner",
+      "number": 1,
       "name": "The 90",
-      "direction": "right",
-      "startFrac": 0.0323,
-      "endFrac": 0.0929,
-      "number": 1
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 2,
       "name": "The Esses",
       "direction": "right",
-      "startFrac": 0.0929,
-      "endFrac": 0.1582,
-      "number": 2,
       "group": "The Esses"
     },
     {
-      "type": "corner",
-      "name": "T3",
-      "direction": "left",
-      "startFrac": 0.1582,
-      "endFrac": 0.204,
       "number": 3,
       "covers": [
         4
       ],
+      "name": "",
+      "direction": "left",
       "group": "The Esses"
     },
     {
-      "type": "straight",
-      "name": "Back Straight",
-      "startFrac": 0.204,
-      "endFrac": 0.3222
-    },
-    {
-      "type": "corner",
+      "number": 5,
       "name": "Inner Loop",
-      "startFrac": 0.3222,
-      "endFrac": 0.3971,
-      "number": 5
+      "direction": "left"
     },
     {
-      "type": "corner",
+      "number": 6,
       "name": "Outer Loop",
-      "direction": "right",
-      "startFrac": 0.3971,
-      "endFrac": 0.4763,
-      "number": 6
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 7,
       "name": "The Toe",
-      "direction": "left",
-      "startFrac": 0.4763,
-      "endFrac": 0.5647,
-      "number": 7
+      "direction": "left"
     },
     {
-      "type": "corner",
+      "number": 8,
       "name": "The Boot",
-      "direction": "right",
-      "startFrac": 0.5647,
-      "endFrac": 0.7628,
-      "number": 8
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T9",
-      "direction": "left",
-      "startFrac": 0.7628,
-      "endFrac": 0.8355,
-      "number": 9
-    },
-    {
-      "type": "corner",
-      "name": "T10",
-      "direction": "left",
-      "startFrac": 0.8355,
-      "endFrac": 0.8998,
-      "number": 10
-    },
-    {
-      "type": "corner",
-      "name": "T11",
-      "direction": "right",
-      "startFrac": 0.8998,
-      "endFrac": 0.9519,
-      "number": 11
-    },
-    {
-      "type": "straight",
+      "number": 9,
       "name": "",
-      "startFrac": 0.9519,
-      "endFrac": 1
+      "direction": "left"
+    },
+    {
+      "number": 10,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 11,
+      "name": "",
+      "direction": "right"
+    }
+  ],
+  "straights": [
+    {
+      "after": 3,
+      "name": "Back Straight"
     }
   ]
 }

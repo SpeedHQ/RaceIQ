@@ -1,203 +1,54 @@
 {
-  "name": "Watkins Glen — Short",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0449
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "right",
-          "startFrac": 0.0449,
-          "endFrac": 0.129,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "right",
-          "startFrac": 0.129,
-          "endFrac": 0.2196,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "left",
-          "startFrac": 0.2196,
-          "endFrac": 0.2832,
-          "number": 3
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2832,
-          "endFrac": 0.4479
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "right",
-          "startFrac": 0.4479,
-          "endFrac": 0.4953,
-          "number": 4
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "left",
-          "startFrac": 0.4953,
-          "endFrac": 0.5259,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "right",
-          "startFrac": 0.5259,
-          "endFrac": 0.5521,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "right",
-          "startFrac": 0.5521,
-          "endFrac": 0.6619,
-          "number": 7
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.6619,
-          "endFrac": 0.7696
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "left",
-          "startFrac": 0.7696,
-          "endFrac": 0.8608,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "T9",
-          "direction": "right",
-          "startFrac": 0.8608,
-          "endFrac": 0.9332,
-          "number": 9
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9332,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "watkins-glen-s",
+  "track": "watkins-glen",
+  "layout": "short",
+  "layoutName": "Short",
+  "name": "Watkins Glen International",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0449
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "right",
-      "startFrac": 0.0449,
-      "endFrac": 0.129,
-      "number": 1
-    },
-    {
-      "type": "corner",
-      "name": "T2",
-      "direction": "right",
-      "startFrac": 0.129,
-      "endFrac": 0.2196,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "left",
-      "startFrac": 0.2196,
-      "endFrac": 0.2832,
-      "number": 3
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.2832,
-      "endFrac": 0.4479
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T4",
-      "direction": "right",
-      "startFrac": 0.4479,
-      "endFrac": 0.4953,
-      "number": 4
-    },
-    {
-      "type": "corner",
-      "name": "T5",
-      "direction": "left",
-      "startFrac": 0.4953,
-      "endFrac": 0.5259,
-      "number": 5
-    },
-    {
-      "type": "corner",
-      "name": "T6",
-      "direction": "right",
-      "startFrac": 0.5259,
-      "endFrac": 0.5521,
-      "number": 6
-    },
-    {
-      "type": "corner",
-      "name": "T7",
-      "direction": "right",
-      "startFrac": 0.5521,
-      "endFrac": 0.6619,
-      "number": 7
-    },
-    {
-      "type": "straight",
+      "number": 3,
       "name": "",
-      "startFrac": 0.6619,
-      "endFrac": 0.7696
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T8",
-      "direction": "left",
-      "startFrac": 0.7696,
-      "endFrac": 0.8608,
-      "number": 8
-    },
-    {
-      "type": "corner",
-      "name": "T9",
-      "direction": "right",
-      "startFrac": 0.8608,
-      "endFrac": 0.9332,
-      "number": 9
-    },
-    {
-      "type": "straight",
+      "number": 4,
       "name": "",
-      "startFrac": 0.9332,
-      "endFrac": 1
+      "direction": "right"
+    },
+    {
+      "number": 5,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 9,
+      "name": "",
+      "direction": "right"
     }
   ]
 }

@@ -1,123 +1,29 @@
 {
-  "name": "Road America — Short",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.134
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "right",
-          "startFrac": 0.134,
-          "endFrac": 0.2297,
-          "number": 1
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2297,
-          "endFrac": 0.276
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "right",
-          "startFrac": 0.276,
-          "endFrac": 0.3677,
-          "number": 2
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3677,
-          "endFrac": 0.6958
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "right",
-          "startFrac": 0.6958,
-          "endFrac": 0.7695,
-          "number": 3
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "right",
-          "startFrac": 0.7695,
-          "endFrac": 0.8361,
-          "number": 4
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8361,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "road-america-s",
+  "track": "road-america",
+  "layout": "east",
+  "layoutName": "East Route",
+  "name": "Road America",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.134
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "right",
-      "startFrac": 0.134,
-      "endFrac": 0.2297,
-      "number": 1
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.2297,
-      "endFrac": 0.276
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T2",
-      "direction": "right",
-      "startFrac": 0.276,
-      "endFrac": 0.3677,
-      "number": 2
-    },
-    {
-      "type": "straight",
+      "number": 3,
       "name": "",
-      "startFrac": 0.3677,
-      "endFrac": 0.6958
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T3",
-      "direction": "right",
-      "startFrac": 0.6958,
-      "endFrac": 0.7695,
-      "number": 3
-    },
-    {
-      "type": "corner",
-      "name": "T4",
-      "direction": "right",
-      "startFrac": 0.7695,
-      "endFrac": 0.8361,
-      "number": 4
-    },
-    {
-      "type": "straight",
+      "number": 4,
       "name": "",
-      "startFrac": 0.8361,
-      "endFrac": 1
+      "direction": "right"
     }
   ]
 }

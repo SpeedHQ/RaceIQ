@@ -1,247 +1,64 @@
 {
-  "name": "Hockenheimring — Short",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0348
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "right",
-          "startFrac": 0.0348,
-          "endFrac": 0.0955,
-          "number": 1
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.0955,
-          "endFrac": 0.1823
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "right",
-          "startFrac": 0.1823,
-          "endFrac": 0.2428,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "left",
-          "startFrac": 0.2428,
-          "endFrac": 0.2918,
-          "number": 3
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2918,
-          "endFrac": 0.405
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "right",
-          "startFrac": 0.405,
-          "endFrac": 0.4984,
-          "number": 4
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "left",
-          "startFrac": 0.4984,
-          "endFrac": 0.5491,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "right",
-          "startFrac": 0.5491,
-          "endFrac": 0.6019,
-          "number": 6
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.6019,
-          "endFrac": 0.6456
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "right",
-          "startFrac": 0.6456,
-          "endFrac": 0.7452,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "left",
-          "startFrac": 0.7452,
-          "endFrac": 0.8153,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "T9",
-          "direction": "left",
-          "startFrac": 0.8153,
-          "endFrac": 0.8436,
-          "number": 9
-        },
-        {
-          "type": "corner",
-          "name": "T10",
-          "direction": "right",
-          "startFrac": 0.8436,
-          "endFrac": 0.8654,
-          "number": 10
-        },
-        {
-          "type": "corner",
-          "name": "T11",
-          "direction": "right",
-          "startFrac": 0.8654,
-          "endFrac": 0.9671,
-          "number": 11
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9671,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "hockenheim-s",
+  "track": "hockenheim",
+  "layout": "national",
+  "layoutName": "National",
+  "name": "Hockenheimring",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0348
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "right",
-      "startFrac": 0.0348,
-      "endFrac": 0.0955,
-      "number": 1
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.0955,
-      "endFrac": 0.1823
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T2",
-      "direction": "right",
-      "startFrac": 0.1823,
-      "endFrac": 0.2428,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "left",
-      "startFrac": 0.2428,
-      "endFrac": 0.2918,
-      "number": 3
-    },
-    {
-      "type": "straight",
+      "number": 3,
       "name": "",
-      "startFrac": 0.2918,
-      "endFrac": 0.405
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T4",
-      "direction": "right",
-      "startFrac": 0.405,
-      "endFrac": 0.4984,
-      "number": 4
-    },
-    {
-      "type": "corner",
-      "name": "T5",
-      "direction": "left",
-      "startFrac": 0.4984,
-      "endFrac": 0.5491,
-      "number": 5
-    },
-    {
-      "type": "corner",
-      "name": "T6",
-      "direction": "right",
-      "startFrac": 0.5491,
-      "endFrac": 0.6019,
-      "number": 6
-    },
-    {
-      "type": "straight",
+      "number": 4,
       "name": "",
-      "startFrac": 0.6019,
-      "endFrac": 0.6456
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T7",
-      "direction": "right",
-      "startFrac": 0.6456,
-      "endFrac": 0.7452,
-      "number": 7
-    },
-    {
-      "type": "corner",
-      "name": "T8",
-      "direction": "left",
-      "startFrac": 0.7452,
-      "endFrac": 0.8153,
-      "number": 8
-    },
-    {
-      "type": "corner",
-      "name": "T9",
-      "direction": "left",
-      "startFrac": 0.8153,
-      "endFrac": 0.8436,
-      "number": 9
-    },
-    {
-      "type": "corner",
-      "name": "T10",
-      "direction": "right",
-      "startFrac": 0.8436,
-      "endFrac": 0.8654,
-      "number": 10
-    },
-    {
-      "type": "corner",
-      "name": "T11",
-      "direction": "right",
-      "startFrac": 0.8654,
-      "endFrac": 0.9671,
-      "number": 11
-    },
-    {
-      "type": "straight",
+      "number": 5,
       "name": "",
-      "startFrac": 0.9671,
-      "endFrac": 1
+      "direction": "left"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 9,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 10,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 11,
+      "name": "",
+      "direction": "right"
     }
   ]
 }

@@ -36,7 +36,7 @@ import { getTuneById as getDbTune } from "../db/tune-queries";
 import { generateExport } from "../export";
 import { compareLaps } from "../comparison";
 import { detectCorners } from "../corner-detection";
-import { getTrackSectorsByOrdinal } from "../../shared/track-data";
+import { getTrackSectorsByOrdinal, loadTrackSectorsFor } from "../../shared/track-data";
 import { getGame } from "../../shared/games/registry";
 
 import type { GameId } from "../../shared/types";
@@ -61,7 +61,6 @@ import { gzip } from "zlib";
 import { promisify } from "util";
 
 const gzipAsync = promisify(gzip);
-import { loadSharedTrackMeta } from "../../shared/track-data";
 import { buildChatSystemPrompt } from "../ai/chat-prompt";
 import { buildCompareChatSystemPrompt } from "../ai/compare-chat-prompt";
 import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
@@ -170,9 +169,8 @@ export const lapRoutes = new Hono()
     const packets = lap.telemetry;
     if (packets.length >= 10 && lap.trackOrdinal != null) {
       const gameId = c.req.header("x-game-id") as GameId | undefined;
-      const sharedName = gameId ? getGame(gameId)?.getSharedTrackName?.(lap.trackOrdinal) : undefined;
-      const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
-      const sectors = (gameId ? sharedMeta?.games?.[gameId]?.sectors : null) ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(lap.trackOrdinal);
+      const slug = gameId ? getGame(gameId)?.getSharedTrackName?.(lap.trackOrdinal) : undefined;
+      const sectors = (slug && gameId ? loadTrackSectorsFor(slug, gameId) : undefined) ?? getTrackSectorsByOrdinal(lap.trackOrdinal);
       if (sectors?.s1End && sectors?.s2End) {
         const firstDist = packets[0].DistanceTraveled;
         const lastDist = packets[packets.length - 1].DistanceTraveled;
@@ -771,9 +769,8 @@ export const lapRoutes = new Hono()
 
         if (s1 === 0 || s2 === 0) {
           const _gameId = c.req.header("x-game-id") as GameId | undefined;
-          const _sharedName = _gameId ? getGame(_gameId)?.getSharedTrackName?.(lap.trackOrdinal!) : undefined;
-          const _sharedMeta = _sharedName ? loadSharedTrackMeta(_sharedName) : null;
-          const raw = (_gameId ? _sharedMeta?.games?.[_gameId]?.sectors : null) ?? _sharedMeta?.sectors ?? getTrackSectorsByOrdinal(lap.trackOrdinal!);
+          const _slug = _gameId ? getGame(_gameId)?.getSharedTrackName?.(lap.trackOrdinal!) : undefined;
+          const raw = (_slug && _gameId ? loadTrackSectorsFor(_slug, _gameId) : undefined) ?? getTrackSectorsByOrdinal(lap.trackOrdinal!);
           const s1End = raw?.s1End ?? 1 / 3;
           const s2End = raw?.s2End ?? 2 / 3;
 

@@ -1,135 +1,29 @@
 {
-  "name": "Indianapolis Motor Speedway (Oval)",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0431
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "left",
-          "startFrac": 0.0431,
-          "endFrac": 0.1465,
-          "number": 1
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.1465,
-          "endFrac": 0.2063
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "left",
-          "startFrac": 0.2063,
-          "endFrac": 0.3345,
-          "number": 2
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3345,
-          "endFrac": 0.5527
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "left",
-          "startFrac": 0.5527,
-          "endFrac": 0.6507,
-          "number": 3
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.6507,
-          "endFrac": 0.6912
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "left",
-          "startFrac": 0.6912,
-          "endFrac": 0.8362,
-          "number": 4
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8362,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "indianapolis-oval",
+  "track": "indianapolis",
+  "layout": "oval",
+  "layoutName": "The Brickyard Speedway",
+  "name": "Indianapolis Motor Speedway",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0431
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "left",
-      "startFrac": 0.0431,
-      "endFrac": 0.1465,
-      "number": 1
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.1465,
-      "endFrac": 0.2063
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T2",
-      "direction": "left",
-      "startFrac": 0.2063,
-      "endFrac": 0.3345,
-      "number": 2
-    },
-    {
-      "type": "straight",
+      "number": 3,
       "name": "",
-      "startFrac": 0.3345,
-      "endFrac": 0.5527
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T3",
-      "direction": "left",
-      "startFrac": 0.5527,
-      "endFrac": 0.6507,
-      "number": 3
-    },
-    {
-      "type": "straight",
+      "number": 4,
       "name": "",
-      "startFrac": 0.6507,
-      "endFrac": 0.6912
-    },
-    {
-      "type": "corner",
-      "name": "T4",
-      "direction": "left",
-      "startFrac": 0.6912,
-      "endFrac": 0.8362,
-      "number": 4
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.8362,
-      "endFrac": 1
+      "direction": "left"
     }
   ]
 }
