@@ -17,7 +17,7 @@
  */
 
 import { loadSharedTrackMeta } from "../../shared/track-data";
-import { segmentDisplayName, segmentPromptLabels, turnNumbers } from "../../shared/segment-label";
+import { segmentPromptLabels, turnNumbers } from "../../shared/segment-label";
 import type { ResolvedTrackGuide } from "../../shared/track-guide-types";
 
 interface CornerGuide {

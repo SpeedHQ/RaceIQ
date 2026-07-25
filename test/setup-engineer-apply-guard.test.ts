@@ -92,7 +92,7 @@ describe("apply_changes — no-op guard when every change is skipped", () => {
     createTuningTest.mockClear();
     setSessionHead.mockClear();
 
-    const result: any = await setupEngineerTools.applyChangesTool.execute(
+    const result: any = await setupEngineerTools.applyChangesTool.execute!(
       {
         changes: [
           { component: "Front Anti-Roll Bar Stiffness Coefficient", direction: "increase", magnitude: "small", reason: "t" },
@@ -121,7 +121,7 @@ describe("record_driver_notes — driver confirmation guard", () => {
   test("refuses to write the driver note without driverConfirmed", async () => {
     setTuningTestNote.mockClear();
 
-    const result: any = await setupEngineerTools.recordDriverNotesTool.execute(
+    const result: any = await setupEngineerTools.recordDriverNotesTool.execute!(
       { note: "understeer on entry into T1", driverConfirmed: false },
       { requestContext } as any,
     );
@@ -134,7 +134,7 @@ describe("record_driver_notes — driver confirmation guard", () => {
   test("writes the note once the driver has confirmed it", async () => {
     setTuningTestNote.mockClear();
 
-    const result: any = await setupEngineerTools.recordDriverNotesTool.execute(
+    const result: any = await setupEngineerTools.recordDriverNotesTool.execute!(
       { note: "understeer on entry into T1", driverConfirmed: true },
       { requestContext } as any,
     );

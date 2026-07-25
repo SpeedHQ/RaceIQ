@@ -60,6 +60,9 @@ describe("buildTuneChatSystemPrompt", () => {
       lockupCorners: [],
       bottomingCorners: [],
       tyrePressure: null,
+      tyreTemp: null,
+      damper: null,
+      weightTransfer: null,
     },
   };
 

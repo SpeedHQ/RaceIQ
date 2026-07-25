@@ -14,6 +14,9 @@ function makeSymptoms(overrides: Partial<TuneSymptoms> = {}): TuneSymptoms {
       lockupCorners: [],
       bottomingCorners: [],
       tyrePressure: null,
+      tyreTemp: null,
+      damper: null,
+      weightTransfer: null,
     },
     ...overrides,
   };
@@ -128,6 +131,9 @@ describe("symptomsToIssues", () => {
         lockupCorners: [],
         bottomingCorners: [],
         tyrePressure: { FL: 2.0, FR: 0, RL: 0, RR: 0 },
+        tyreTemp: null,
+        damper: null,
+        weightTransfer: null,
       },
     });
     const issues = symptomsToIssues(symptoms);
@@ -144,6 +150,9 @@ describe("symptomsToIssues", () => {
         lockupCorners: [],
         bottomingCorners: [],
         tyrePressure: { FL: 4.0, FR: 0, RL: 0, RR: 0 },
+        tyreTemp: null,
+        damper: null,
+        weightTransfer: null,
       },
     });
     const issues = symptomsToIssues(symptoms);

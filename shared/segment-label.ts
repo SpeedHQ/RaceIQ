@@ -25,7 +25,7 @@ type LabelSegment = {
 };
 
 /** Official turn numbers a corner entry accounts for, lowest first. */
-export function turnNumbers(seg: LabelSegment): number[] {
+export function turnNumbers(seg: Pick<LabelSegment, "number" | "covers">): number[] {
   return seg.number === undefined ? [] : [seg.number, ...(seg.covers ?? [])];
 }
 

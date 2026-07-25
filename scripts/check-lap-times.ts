@@ -1,9 +1,9 @@
-import { readAccFrames } from "./server/games/acc/recorder";
-import { parseAccBuffers } from "./server/games/acc/parser";
-import { readWString } from "./server/games/acc/utils";
-import { STATIC } from "./server/games/acc/structs";
-import { getAccCarByModel } from "./shared/acc-car-data";
-import { getAccTrackByName } from "./shared/acc-track-data";
+import { readAccFrames } from "../server/games/acc/recorder";
+import { parseAccBuffers } from "../server/games/acc/parser";
+import { readWString } from "../server/games/acc/utils";
+import { STATIC } from "../server/games/acc/structs";
+import { getAccCarByModel } from "../shared/acc-car-data";
+import { getAccTrackByName } from "../shared/acc-track-data";
 
 const binPath = "test/artifacts/sessions/acc-2026-04-09T18-56-49-633Z.bin";
 const frames = readAccFrames(binPath);

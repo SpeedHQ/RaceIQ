@@ -61,6 +61,9 @@ describe("buildTuneChatIntentPrompt", () => {
         lockupCorners: [],
         bottomingCorners: [],
         tyrePressure: null,
+        tyreTemp: null,
+        damper: null,
+        weightTransfer: null,
       },
     };
     const prompt = buildTuneChatIntentPrompt("acc", {

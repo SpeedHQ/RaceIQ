@@ -7,7 +7,7 @@ import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
 import { buildTrackGuideContext, guideCornerLabels } from "./track-guides";
 import { telemetryToTrackConditions, formatTrackConditions } from "./track-conditions";
-import { cornerPromptLabel, segmentPromptLabels, turnNumbers } from "../../shared/segment-label";
+import { segmentPromptLabels } from "../../shared/segment-label";
 import { aiLanguageInstruction } from "../../shared/locales";
 import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
 

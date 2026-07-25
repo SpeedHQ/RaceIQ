@@ -63,7 +63,7 @@ export async function reconcileAutoExclusions(
 
   for (const lap of scopeLaps) {
     if (lap.tuningExcludedSource === "manual") continue; // never read, never written
-    if (!lap.isValid || isPitCycleLap({ invalidReason: lap.invalidReason })) {
+    if (!lap.isValid || isPitCycleLap({ invalidReason: lap.invalidReason ?? undefined })) {
       ineligible.push(lap);
     } else {
       candidates.push(lap);

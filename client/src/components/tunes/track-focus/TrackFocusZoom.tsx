@@ -121,13 +121,7 @@ function windowPoints(x: number[], z: number[], center: ZoomPoint, radiusM: numb
  * the bin nearest `cursorFrac`, and each lap's points that fall inside a
  * ±radiusM box around that center. No React, no DOM — safe to unit test.
  */
-export function zoomViewport(
-  lapLines: ZoomLapLine[],
-  cursorFrac: number,
-  radiusM: number = DEFAULT_RADIUS_M,
-  edges?: { left: Pt[]; right: Pt[] } | null,
-  bestLapId?: number | null,
-): ZoomViewport {
+export function zoomViewport(lapLines: ZoomLapLine[], cursorFrac: number, radiusM: number = DEFAULT_RADIUS_M, edges?: { left: Pt[]; right: Pt[] } | null, bestLapId?: number | null): ZoomViewport {
   if (lapLines.length === 0 || (lapLines[0]?.x.length ?? 0) === 0) return { center: { x: 0, z: 0 }, dot: { x: 0, z: 0 }, inWindow: [], edges: null };
 
   // Raw laps differ in frame count AND are uniform in time (not distance), so
@@ -149,8 +143,18 @@ export function zoomViewport(
 
   const windowedEdges = edges
     ? {
-        left: windowPoints(edges.left.map((p) => p.x), edges.left.map((p) => p.z), center, radiusM),
-        right: windowPoints(edges.right.map((p) => p.x), edges.right.map((p) => p.z), center, radiusM),
+        left: windowPoints(
+          edges.left.map((p) => p.x),
+          edges.left.map((p) => p.z),
+          center,
+          radiusM,
+        ),
+        right: windowPoints(
+          edges.right.map((p) => p.x),
+          edges.right.map((p) => p.z),
+          center,
+          radiusM,
+        ),
       }
     : null;
 
@@ -183,14 +187,11 @@ export function TrackFocusZoom({ lapLines, bestLapId, cursorFrac, radiusM = DEFA
   const totalPoints = viewport ? viewport.inWindow.reduce((sum, l) => sum + l.points.length, 0) : 0;
 
   if (!viewport || lapLines.length === 0 || totalPoints < 2) {
-    return (
-      <div className="aspect-square rounded bg-app-surface border border-app-border flex items-center justify-center text-[11px] text-app-text-dim">no line data</div>
-    );
+    return <div className="aspect-square rounded bg-app-surface border border-app-border flex items-center justify-center text-[11px] text-app-text-dim">no line data</div>;
   }
 
   const { center, dot, inWindow, edges: windowedEdges } = viewport;
   const scale = VIEW / (radiusM * 2);
-  const minX = center.x - radiusM;
   const minZ = center.z - radiusM;
   // Same orientation as track-map-geometry / TrackDetail: mirror X (inputs are
   // negated-X telemetry space), Z straight down.
@@ -206,41 +207,26 @@ export function TrackFocusZoom({ lapLines, bestLapId, cursorFrac, radiusM = DEFA
   return (
     <div className="relative">
       <svg viewBox={`0 0 ${VIEW} ${VIEW}`} width="100%" height="100%" className="aspect-square">
-        {windowedEdges && windowedEdges.left.length > 1 && (
-          <polyline points={edgePolyline(windowedEdges.left)} fill="none" stroke="var(--color-app-border, #2a2a2a)" strokeWidth={1} />
-        )}
-        {windowedEdges && windowedEdges.right.length > 1 && (
-          <polyline points={edgePolyline(windowedEdges.right)} fill="none" stroke="var(--color-app-border, #2a2a2a)" strokeWidth={1} />
-        )}
+        {windowedEdges && windowedEdges.left.length > 1 && <polyline points={edgePolyline(windowedEdges.left)} fill="none" stroke="var(--color-app-border, #2a2a2a)" strokeWidth={1} />}
+        {windowedEdges && windowedEdges.right.length > 1 && <polyline points={edgePolyline(windowedEdges.right)} fill="none" stroke="var(--color-app-border, #2a2a2a)" strokeWidth={1} />}
         {inWindow.map((l) => {
           const isBest = l.lapId === bestLapId;
           const w = isBest ? 1.6 : 0.8;
           const op = isBest ? 1 : 0.55;
           // One <line> per consecutive pair, colored by the segment's leading
-          // point input state (brake wins ties).
-          return l.points.slice(0, -1).map((p, i) => {
-            const q = l.points[i + 1];
-            const color = stateColor(inputState(p.brake ?? 0, p.throttle ?? 0));
-            return (
-              <line
-                key={`${l.lapId}-${i}`}
-                x1={px(p.x)}
-                y1={py(p.z)}
-                x2={px(q.x)}
-                y2={py(q.z)}
-                stroke={color}
-                strokeWidth={w}
-                strokeLinecap="round"
-                opacity={op}
-              />
-            );
-          });
+          // point input state (brake wins ties). Keys are built here rather
+          // than from the render index so they do not depend on array position.
+          const segments = l.points.slice(0, -1).map((p, i) => ({
+            key: `${l.lapId}-${i}`,
+            p,
+            q: l.points[i + 1],
+            color: stateColor(inputState(p.brake ?? 0, p.throttle ?? 0)),
+          }));
+          return segments.map(({ key, p, q, color }) => <line key={key} x1={px(p.x)} y1={py(p.z)} x2={px(q.x)} y2={py(q.z)} stroke={color} strokeWidth={w} strokeLinecap="round" opacity={op} />);
         })}
         <circle cx={dotPx} cy={dotPy} r={4} fill="var(--color-app-accent, #22d3ee)" stroke="#020617" strokeWidth={1.2} />
       </svg>
-      <div className="absolute top-1 right-1 text-[10px] font-mono tabular-nums bg-app-surface/80 border border-app-border rounded px-1.5 py-0.5 text-app-text-muted">
-        ±{radiusM}m
-      </div>
+      <div className="absolute top-1 right-1 text-[10px] font-mono tabular-nums bg-app-surface/80 border border-app-border rounded px-1.5 py-0.5 text-app-text-muted">±{radiusM}m</div>
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-app-text-dim">
         <span className="inline-flex items-center gap-1.5">
           <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: COLOR_BRAKE }} /> brake

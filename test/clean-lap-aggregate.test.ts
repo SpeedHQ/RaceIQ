@@ -5,7 +5,7 @@ import {
   aggregateSymptoms,
   baselineFallbackNote,
 } from "../server/ai/clean-lap-aggregate";
-import type { LapMeta } from "../server/db/queries";
+import type { LapMeta } from "../shared/types";
 import type { TuneSymptoms } from "../server/ai/tune-symptoms";
 
 function lap(overrides: Partial<LapMeta> & { id: number }): LapMeta {

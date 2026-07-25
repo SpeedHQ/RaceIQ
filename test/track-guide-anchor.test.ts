@@ -24,7 +24,7 @@ const META_DIR = resolve(import.meta.dir, "../shared/tracks/meta");
 type Seg = { type: string; name?: string; number?: number; covers?: number[] };
 
 /** Official turn numbers a meta segment accounts for (name is optional here). */
-const numsOf = (s: Seg) => turnNumbers({ type: s.type, name: s.name ?? "", number: s.number, covers: s.covers });
+const numsOf = (s: Seg) => turnNumbers({ number: s.number, covers: s.covers });
 type Meta = { segments?: Seg[]; games?: Record<string, { segments?: Seg[] }> };
 
 function loadMeta(slug: string): Meta | null {

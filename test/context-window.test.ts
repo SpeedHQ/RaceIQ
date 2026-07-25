@@ -11,10 +11,16 @@ describe("contextWindowFor", () => {
   test("anthropic claude is 200k", () => {
     expect(contextWindowFor("claude-cli", "sonnet")).toBe(200_000);
   });
-  test("unknown provider falls back to 32k", () => {
-    expect(contextWindowFor("whoknows", "x")).toBe(32_000);
+  test("unknown provider is undefined (no meter, not a made-up limit)", () => {
+    expect(contextWindowFor("whoknows", "x")).toBeUndefined();
   });
-  test("local falls back to 32k", () => {
-    expect(contextWindowFor("local", "local-model")).toBe(32_000);
+  test("local without a reported context length is undefined", () => {
+    expect(contextWindowFor("local", "local-model")).toBeUndefined();
+  });
+  test("local uses the context length reported by the local server", () => {
+    expect(contextWindowFor("local", "local-model", 8_192)).toBe(8_192);
+  });
+  test("local ignores a non-positive reported context length", () => {
+    expect(contextWindowFor("local", "local-model", 0)).toBeUndefined();
   });
 });

@@ -22,10 +22,11 @@ describe("resolveDataDir", () => {
     expect(resolveDataDir()).toBe("/custom/path");
   });
 
-  test("returns data dir when not in Program Files and no env var", () => {
+  test("throws instead of returning the real user data dir under test", () => {
     delete process.env.DATA_DIR;
-    // In test/dev, resolves to {project}/data
-    expect(resolveDataDir()).toContain("data");
+    // Safety net: tests wipe tables unconditionally, so handing back the real
+    // USER_DATA_DIR would destroy live data. Must fail loudly, not fall back.
+    expect(() => resolveDataDir()).toThrow(/refusing to return the real user data dir/);
   });
 });
 

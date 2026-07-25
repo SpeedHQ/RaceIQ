@@ -36,6 +36,9 @@ function symptoms(corners: CornerSymptom[], tyrePressure: TyreDeltas | null = nu
       lockupCorners: [],
       bottomingCorners: [],
       tyrePressure,
+      tyreTemp: null,
+      damper: null,
+      weightTransfer: null,
     },
   };
 }
