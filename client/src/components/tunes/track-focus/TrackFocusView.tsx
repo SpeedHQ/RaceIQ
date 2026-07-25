@@ -43,8 +43,8 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
   // traces, stats, best-lap, ledgers and tyres all read `stintLaps`.
   const stintLaps = useMemo(() => laps.filter((l) => l.isValid && !l.isLegacy).sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
   // Per-frame telemetry (traces, consistency lanes, tyres) runs on the fastest
-  // N clean laps — bounds decode + payload on long tracks. Stint-wide stats
-  // below still use the full stintLaps. Matches the server /line-spread pool.
+  // N clean laps — bounds decode + payload on long tracks. Header stats read
+  // the same pool. Matches the server /line-spread pool.
   // Fastest valid, non-excluded laps — matches the server /line-spread clean
   // pool. Routed through the shared selector so the traces rendered here are
   // exactly the laps the UI badges as "Eval" (see shared/review-laps.ts);
@@ -93,7 +93,11 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
     return { s1End, s2End };
   }, [sectorBoundaries?.s1End, sectorBoundaries?.s2End]);
 
-  const stats = useMemo(() => stintStats(stintLaps), [stintLaps]);
+  // Stats read the same eval-lap pool as the traces/lanes/ledgers below. Using
+  // the full stintLaps here made the header disagree with everything under it
+  // (out-laps and scrappy laps dragged the averages/degradation around while
+  // the line + consistency views only ever showed the chosen laps).
+  const stats = useMemo(() => stintStats(reviewLaps, { dropOutLap: false }), [reviewLaps]);
 
   return (
     <TrackFocusViewInner
@@ -222,13 +226,13 @@ export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSe
 
       {shownLapCount != null && totalLapCount != null && totalLapCount > shownLapCount && (
         <p className="flex-none text-xs text-muted-foreground -mt-2">
-          Line + consistency views show the {shownLapCount} fastest of {totalLapCount} laps. Stats above use all laps.
+          Stats, line + consistency views all use the {shownLapCount} fastest of {totalLapCount} laps.
         </p>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[460px_1fr] gap-4 flex-1 min-h-0">
+      <div className="grid grid-cols-1 lg:grid-cols-[460px_minmax(0,1fr)] gap-4 flex-1 min-h-0 min-w-0">
         {/* Left column: track map (static) + issues list (own scroll). */}
-        <div className="flex flex-col gap-3 min-h-0">
+        <div className="flex flex-col gap-3 min-h-0 min-w-0">
           <div className="flex-none">
             {zoomActive && lineSpread?.lapLines?.length && cursorFrac != null ? (
               <TrackFocusZoom lapLines={lineSpread.lapLines} bestLapId={bestLapId} cursorFrac={cursorFrac} edges={edges} />
@@ -256,7 +260,7 @@ export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSe
         </div>
 
         {/* Right pane: tabbed lanes — header static, lane content scrolls. */}
-        <div className="flex flex-col gap-3 min-h-0">
+        <div className="flex flex-col gap-3 min-h-0 min-w-0">
           <div className="flex-none flex gap-1 flex-wrap">
             {TABS.map((t) => (
               <button

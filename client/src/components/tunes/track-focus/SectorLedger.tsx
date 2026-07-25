@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { SetupRangeBar } from "@/components/SetupRangeBar";
 import { type LapTrace, sampleAt } from "../../../lib/stint-traces";
+import { SpeedRangeLegend } from "./SpeedRangeLegend";
 
 interface SectorLedgerProps {
   traces: LapTrace[];
@@ -132,10 +133,7 @@ export function SectorLedger({ traces, bestLapId, sectorBoundaryFracs, cursorFra
                   className={`cursor-pointer border-b border-app-border last:border-0 hover:bg-app-surface-alt ${isActive ? "bg-app-surface-alt" : ""}`}
                 >
                   <td className="text-left px-2.5 py-1.5 whitespace-nowrap">
-                    <span className="font-semibold text-app-text">{r.sector.label}</span>{" "}
-                    <span className="text-[11px] text-app-text-dim">
-                      {(r.sector.startFrac * 100).toFixed(0)}–{(r.sector.endFrac * 100).toFixed(0)}%
-                    </span>
+                    <span className="font-semibold text-app-text">{r.sector.label}</span>
                   </td>
                   <td className="text-left px-2.5 py-1.5 font-mono tabular-nums text-app-text">{r.bestTimeS != null ? `${r.bestTimeS.toFixed(3)}s` : "—"}</td>
                   <td
@@ -166,6 +164,9 @@ export function SectorLedger({ traces, bestLapId, sectorBoundaryFracs, cursorFra
             })}
           </tbody>
         </table>
+      </div>
+      <div className="mt-2">
+        <SpeedRangeLegend />
       </div>
     </div>
   );

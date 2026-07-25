@@ -36,7 +36,7 @@ import {
 import { trackMap, getCarName, getTrackName, carSpecsMap } from "../../shared/car-data";
 import { getTrackGuide } from "../ai/track-guides";
 import type { Corner } from "../corner-detection";
-import { resolveTrackContext } from "../ai/track-context";
+import { resolveTrackContext, resolveMetaField } from "../ai/track-context";
 import {
   filterLapOutliers,
   normalizeToFixedPoints,
@@ -72,11 +72,7 @@ const TrackOrdinalParamSchema = z.object({
  * reused for AC Evo when AC Evo doesn't have its own.
  */
 function gameMetaOverride(sharedMeta: unknown, gameId: string | undefined, field: "sectors" | "segments"): any {
-  const games = (sharedMeta as { games?: Record<string, Record<string, unknown>> } | null)?.games;
-  if (!games) return null;
-  if (gameId && games[gameId]?.[field] != null) return games[gameId][field];
-  if (gameId === "ac-evo" && games.acc?.[field] != null) return games.acc[field];
-  return null;
+  return resolveMetaField(sharedMeta as any, gameId as GameId | undefined, field) ?? null;
 }
 
 /** Extract gameId, throwing if missing. Use for endpoints that require game context. */
@@ -504,9 +500,7 @@ export const trackRoutes = new Hono()
       const sharedName = getSharedTrackName(ordinal, gameId);
 
       const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
-      const metaSegments = (gameId
-        ? gameMetaOverride(sharedMeta, gameId, "segments")
-        : (sharedMeta?.segments as unknown)) ?? null;
+      const metaSegments = gameMetaOverride(sharedMeta, gameId, "segments");
       if (metaSegments && metaSegments.length > 0) {
         return c.json({
           segments: metaSegments.map((s: any) => ({

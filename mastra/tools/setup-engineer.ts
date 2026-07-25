@@ -527,13 +527,12 @@ export function buildSetupEngineerTools() {
   const updateNotesTool = createTool({
     id: "update-notes",
     description:
-      "Write a note on a setup version node. Two fields: `engineer` (default) is YOUR reasoning about the " +
-      "version (why a change was made, what to try next, what the driver reported) — shown back to you in " +
-      "VERSION HISTORY every turn, so use it to persist context that must survive the conversation being " +
-      "summarised (compaction); the driver cannot edit it. `driver` is the driver's feel comment on the " +
-      "version — set `field: \"driver\"` to record what the driver told you about how the car felt. Defaults " +
-      "to the current version; pass `version` to annotate an earlier one. This OVERWRITES the chosen field, " +
-      "so include anything from the existing note you want to keep. Pass an empty note to clear it.",
+      "Write YOUR engineer note on a setup version node: your reasoning about the version (why a change was " +
+      "made, what to try next). Engineer notes are shown back to you in VERSION HISTORY every turn, so use " +
+      "this to persist context that must survive the conversation being summarised (compaction); the driver " +
+      "cannot edit it. To record what the DRIVER said about how the car felt, use `record_driver_notes` " +
+      "instead. Defaults to the current version; pass `version` to annotate an earlier one. This OVERWRITES " +
+      "the note, so include anything from the existing note you want to keep. Pass an empty note to clear it.",
     inputSchema: z.object({
       version: z
         .number()
@@ -541,10 +540,6 @@ export function buildSetupEngineerTools() {
         .positive()
         .optional()
         .describe("Version number to annotate. Omit to note the current (head) version."),
-      field: z
-        .enum(["engineer", "driver"])
-        .optional()
-        .describe("Which note to write: 'engineer' (your reasoning, default) or 'driver' (the driver's feel comment)."),
       note: z.string().max(4000).describe("The note text. Empty string clears the note."),
     }),
     outputSchema: z.object({
@@ -571,25 +566,88 @@ export function buildSetupEngineerTools() {
       }
 
       const note = inputData.note.trim() === "" ? null : inputData.note;
-      const field = inputData.field ?? "engineer";
 
-      // Write the chosen field, capturing the prior value for undo.
-      if (field === "driver") {
-        const prev = await setTuningTestNote(target.id, note);
-        wsManager.broadcastNotification({ type: "tuning-session-updated", sessionId });
-        try {
-          await recordAction(sessionId, "edit-test-note", { testId: target.id, prevDriverComment: prev });
-        } catch (err: any) {
-          console.error("[SetupEngineer] Failed to log edit-test-note action:", err?.message);
-        }
+      // Write the engineer note, capturing the prior value for undo.
+      const prevNotes = await setTuningTestNotes(target.id, note);
+      wsManager.broadcastNotification({ type: "tuning-session-updated", sessionId });
+      try {
+        await recordAction(sessionId, "edit-test-notes", { testId: target.id, prevNotes });
+      } catch (err: any) {
+        console.error("[SetupEngineer] Failed to log edit-test-notes action:", err?.message);
+      }
+
+      return { ok: true, version: target.version };
+    },
+  });
+
+  const recordDriverNotesTool = createTool({
+    id: "record-driver-notes",
+    description:
+      "Record the DRIVER's notes on a setup version node — how the lap felt and any issues they reported " +
+      "(understeer, snap on throttle, locking fronts, kerb strikes, tyre drop-off...). Call this whenever the " +
+      "driver describes the car's behaviour, not just when they ask you to. This OVERWRITES the driver note " +
+      "on the version, so re-summarise the existing note together with the new report and send the combined " +
+      "text; pass an empty note to clear it. CONFIRM FIRST: read your proposed note text back to the driver " +
+      "and only call this with `driverConfirmed: true` after they approve it in a later message. Defaults to " +
+      "the current version; pass `version` to annotate an earlier one.",
+    inputSchema: z.object({
+      version: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe("Version number to annotate. Omit to note the current (head) version."),
+      note: z
+        .string()
+        .max(4000)
+        .describe("The driver's notes, in their terms — feel and issues. Empty string clears the note."),
+      driverConfirmed: z
+        .boolean()
+        .describe(
+          "true ONLY if the driver explicitly approved this exact note text in a message AFTER you read it back to them. false if you have not yet shown them the wording.",
+        ),
+    }),
+    outputSchema: z.object({
+      ok: z.boolean(),
+      error: z.string().optional(),
+      version: z.number().optional(),
+    }),
+    execute: async (inputData, execCtx) => {
+      const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
+
+      if (!inputData.driverConfirmed) {
+        return {
+          ok: false,
+          error:
+            "Driver notes overwrite the existing note, so they must be confirmed first. Show the driver the " +
+            "exact note you want to save, then call record_driver_notes (driverConfirmed: true) once they " +
+            "approve the wording.",
+        };
+      }
+
+      // Resolve the target node — the requested version, or the head when the
+      // model didn't name one.
+      let target: { id: number; version: number } | undefined;
+      if (inputData.version != null) {
+        const t = await getTuningTestByVersion(sessionId, inputData.version);
+        if (!t) return { ok: false, error: `No version ${inputData.version} in this session.` };
+        target = { id: t.id, version: t.version };
       } else {
-        const prevNotes = await setTuningTestNotes(target.id, note);
-        wsManager.broadcastNotification({ type: "tuning-session-updated", sessionId });
-        try {
-          await recordAction(sessionId, "edit-test-notes", { testId: target.id, prevNotes });
-        } catch (err: any) {
-          console.error("[SetupEngineer] Failed to log edit-test-notes action:", err?.message);
-        }
+        const headId = await resolveActiveTestId(sessionId);
+        if (headId == null) return { ok: false, error: "No version exists yet to attach a note to." };
+        const t = await getTuningTest(headId);
+        if (!t) return { ok: false, error: "No version exists yet to attach a note to." };
+        target = { id: t.id, version: t.version };
+      }
+
+      const note = inputData.note.trim() === "" ? null : inputData.note;
+
+      const prev = await setTuningTestNote(target.id, note);
+      wsManager.broadcastNotification({ type: "tuning-session-updated", sessionId });
+      try {
+        await recordAction(sessionId, "edit-test-note", { testId: target.id, prevDriverComment: prev });
+      } catch (err: any) {
+        console.error("[SetupEngineer] Failed to log edit-test-note action:", err?.message);
       }
 
       return { ok: true, version: target.version };
@@ -955,6 +1013,7 @@ export function buildSetupEngineerTools() {
     applyChangesTool,
     setLapExcludedTool,
     updateNotesTool,
+    recordDriverNotesTool,
     compareLapConsistencyTool,
     deleteVersionTool,
     undoLastActionTool,

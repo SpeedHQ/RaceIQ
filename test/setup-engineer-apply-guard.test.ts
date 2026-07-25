@@ -33,6 +33,7 @@ const createTuningTest = mock(async () => 999);
 const setSessionHead = mock(async () => {});
 const recordAction = mock(async () => {});
 const broadcastNotification = mock(() => {});
+const setTuningTestNote = mock(async () => null);
 
 const fakeCtx = {
   ok: true as const,
@@ -49,10 +50,10 @@ mock.module("../server/ai/setup-io", () => ({ readActiveSetup, writeAppliedSetup
 mock.module("../server/db/tuning-test-queries", () => ({
   createTuningTest,
   deleteTestSubtree: mock(async () => {}),
-  getTuningTest: mock(async () => null),
+  getTuningTest: mock(async () => ({ id: 1, version: 1 })),
   getTuningTestByVersion: mock(async () => null),
   resolveActiveTestId: mock(async () => 1),
-  setTuningTestNote: mock(async () => {}),
+  setTuningTestNote,
   setTuningTestNotes: mock(async () => {}),
 }));
 mock.module("../server/db/tuning-session-queries", () => ({ setSessionHead }));
@@ -113,6 +114,33 @@ describe("apply_changes — no-op guard when every change is skipped", () => {
     expect(writeAppliedSetup).not.toHaveBeenCalled();
     expect(createTuningTest).not.toHaveBeenCalled();
     expect(setSessionHead).not.toHaveBeenCalled();
+  });
+});
+
+describe("record_driver_notes — driver confirmation guard", () => {
+  test("refuses to write the driver note without driverConfirmed", async () => {
+    setTuningTestNote.mockClear();
+
+    const result: any = await setupEngineerTools.recordDriverNotesTool.execute(
+      { note: "understeer on entry into T1", driverConfirmed: false },
+      { requestContext } as any,
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/confirm|approve/i);
+    expect(setTuningTestNote).not.toHaveBeenCalled();
+  });
+
+  test("writes the note once the driver has confirmed it", async () => {
+    setTuningTestNote.mockClear();
+
+    const result: any = await setupEngineerTools.recordDriverNotesTool.execute(
+      { note: "understeer on entry into T1", driverConfirmed: true },
+      { requestContext } as any,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(setTuningTestNote).toHaveBeenCalledTimes(1);
   });
 });
 

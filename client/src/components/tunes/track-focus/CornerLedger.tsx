@@ -3,6 +3,7 @@ import { SetupRangeBar } from "@/components/SetupRangeBar";
 import type { TrackCorner } from "../../../hooks/queries";
 import type { LapTrace } from "../../../lib/stint-traces";
 import { detectCorners, ZONE_HALF_WIDTH } from "./detect-corners";
+import { SpeedRangeLegend } from "./SpeedRangeLegend";
 
 interface CornerLedgerProps {
   traces: LapTrace[];
@@ -159,14 +160,35 @@ function brakeVarColor(v: number | null): string {
   return "text-emerald-400";
 }
 
-function Verdict({ dtLoss, brakeVarPct }: { dtLoss: number | null; brakeVarPct: number | null }) {
-  if (dtLoss != null && dtLoss > 0.06) {
-    return <span className="text-[10.5px] px-1.5 py-0.5 rounded-full border border-red-900 bg-red-950/40 text-red-300">losing {dtLoss.toFixed(2)}s</span>;
+/**
+ * Consistency score (0-100) for a corner zone, derived purely from how tightly
+ * the driver repeats their brake and throttle application points across the
+ * stint. Pace/time-loss deliberately plays no part: this column answers "did
+ * you drive it the same way every lap", not "was it fast".
+ *
+ * Each variance figure is a percent-of-lap spread; 2%+ spread scores 0.
+ */
+const VAR_PCT_FOR_ZERO = 2;
+
+function consistencyScore(brakeVarPct: number | null, throttleVarPct: number | null): number | null {
+  const parts = [brakeVarPct, throttleVarPct].filter((v): v is number => v != null);
+  if (parts.length === 0) return null;
+  const mean = parts.reduce((a, b) => a + b, 0) / parts.length;
+  return Math.max(0, Math.min(100, 100 * (1 - mean / VAR_PCT_FOR_ZERO)));
+}
+
+function Verdict({ brakeVarPct, throttleVarPct }: { brakeVarPct: number | null; throttleVarPct: number | null }) {
+  const score = consistencyScore(brakeVarPct, throttleVarPct);
+  if (score == null) {
+    return <span className="text-[10.5px] text-app-text-dim">—</span>;
   }
-  if (brakeVarPct != null && brakeVarPct > 1.2) {
-    return <span className="text-[10.5px] px-1.5 py-0.5 rounded-full border border-amber-900 bg-amber-950/40 text-amber-300">inconsistent</span>;
-  }
-  return <span className="text-[10.5px] px-1.5 py-0.5 rounded-full border border-emerald-900 bg-emerald-950/40 text-emerald-300">on pace</span>;
+  const tone =
+    score >= 80
+      ? "border-emerald-900 bg-emerald-950/40 text-emerald-300"
+      : score >= 55
+        ? "border-amber-900 bg-amber-950/40 text-amber-300"
+        : "border-red-900 bg-red-950/40 text-red-300";
+  return <span className={`text-[10.5px] px-1.5 py-0.5 rounded-full border font-mono tabular-nums ${tone}`}>{score.toFixed(0)}</span>;
 }
 
 /**
@@ -208,7 +230,7 @@ export function CornerLedger({ traces, bestLapId, cornerFracs, corners, cursorFr
         <table className="w-full text-[13px] border-collapse">
           <thead>
             <tr>
-              {["Corner", "Speed range", "Δ worst", "Brake pt var", "Throttle pt var", "Verdict"].map((h) => (
+              {["Corner", "Speed range", "Δ worst", "Brake pt var", "Throttle pt var", "Consistency"].map((h) => (
                 <th key={h} className="text-left text-[10.5px] uppercase tracking-wider text-app-text-dim px-2.5 py-1.5 border-b border-app-border whitespace-nowrap">
                   {h}
                 </th>
@@ -232,7 +254,7 @@ export function CornerLedger({ traces, bestLapId, cornerFracs, corners, cursorFr
                   className={`cursor-pointer border-b border-app-border last:border-0 hover:bg-app-surface-alt ${pinnedFrac === r.frac ? "bg-app-accent/10 ring-1 ring-inset ring-app-accent/40" : isActive ? "bg-app-surface-alt" : ""}`}
                 >
                   <td className="text-left px-2.5 py-1.5 whitespace-nowrap">
-                    <span className="font-semibold text-app-text">{r.corner.label}</span> <span className="text-[11px] text-app-text-dim">{(r.frac * 100).toFixed(0)}%</span>
+                    <span className="font-semibold text-app-text">{r.corner.label}</span>
                   </td>
                   <td
                     className="text-left px-2.5 py-1.5"
@@ -260,13 +282,16 @@ export function CornerLedger({ traces, bestLapId, cornerFracs, corners, cursorFr
                   <td className={`text-left px-2.5 py-1.5 font-mono tabular-nums ${brakeVarColor(r.brakeVarPct)}`}>{r.brakeVarPct != null ? `±${r.brakeVarPct.toFixed(1)}%` : "—"}</td>
                   <td className={`text-left px-2.5 py-1.5 font-mono tabular-nums ${brakeVarColor(r.throttleVarPct)}`}>{r.throttleVarPct != null ? `±${r.throttleVarPct.toFixed(1)}%` : "—"}</td>
                   <td className="text-left px-2.5 py-1.5">
-                    <Verdict dtLoss={r.dtLoss} brakeVarPct={r.brakeVarPct} />
+                    <Verdict brakeVarPct={r.brakeVarPct} throttleVarPct={r.throttleVarPct} />
                   </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
+      </div>
+      <div className="mt-2">
+        <SpeedRangeLegend />
       </div>
     </div>
   );

@@ -79,11 +79,18 @@ export interface StintStats {
  * Stint-level stats computed purely from LapMeta lap times — valid,
  * non-tuning-excluded, non-legacy laps, excluding the stint's first lap
  * (lapNumber === Math.min(...)) which is treated as an out-lap.
+ *
+ * Pass `dropOutLap: false` when `laps` is already a curated pool (e.g. the
+ * evaluation laps from selectEvaluationLaps) — that pool has dropped the
+ * out-lap itself, so dropping the lowest lap number again would silently
+ * throw away one legitimate fast lap and make `n` disagree with the caller's
+ * own lap count.
  */
-export function stintStats(laps: LapMeta[]): StintStats {
+export function stintStats(laps: LapMeta[], opts?: { dropOutLap?: boolean }): StintStats {
+  const dropOutLap = opts?.dropOutLap ?? true;
   const eligible = laps.filter((l) => l.isValid && !l.isLegacy && !l.tuningExcluded);
-  const minLapNumber = eligible.length > 0 ? Math.min(...eligible.map((l) => l.lapNumber)) : null;
-  const scored = eligible.filter((l) => l.lapNumber !== minLapNumber);
+  const minLapNumber = dropOutLap && eligible.length > 0 ? Math.min(...eligible.map((l) => l.lapNumber)) : null;
+  const scored = minLapNumber === null ? eligible : eligible.filter((l) => l.lapNumber !== minLapNumber);
   const n = scored.length;
 
   if (n === 0) {
