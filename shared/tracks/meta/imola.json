@@ -294,6 +294,212 @@
         "s2End": 0.7306,
         "source": "corner-anchored"
       }
+    },
+    "ac-evo": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.028999999999999998,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "T1",
+          "startFrac": 0.028999999999999998,
+          "endFrac": 0.1061,
+          "startIdx": 0,
+          "endIdx": 0
+        },
+        {
+          "type": "corner",
+          "name": "Tamburello",
+          "startFrac": 0.1061,
+          "endFrac": 0.2345,
+          "numbers": [
+            2,
+            3,
+            4
+          ],
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Villeneuve",
+          "startFrac": 0.2345,
+          "endFrac": 0.3261,
+          "numbers": [
+            5,
+            6
+          ],
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Tosa",
+          "direction": "left",
+          "startFrac": 0.3261,
+          "endFrac": 0.3715,
+          "numbers": [
+            7
+          ],
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3715,
+          "endFrac": 0.4341,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "T8",
+          "direction": "left",
+          "startFrac": 0.4341,
+          "endFrac": 0.5117,
+          "numbers": [
+            8
+          ],
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Piratella",
+          "direction": "left",
+          "startFrac": 0.5117,
+          "endFrac": 0.5385,
+          "numbers": [
+            9
+          ],
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Acque Minerali",
+          "direction": "right",
+          "startFrac": 0.5385,
+          "endFrac": 0.5612,
+          "numbers": [
+            11,
+            12
+          ],
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "T13",
+          "direction": "right",
+          "startFrac": 0.5612,
+          "endFrac": 0.6112,
+          "numbers": [
+            13
+          ],
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.6112,
+          "endFrac": 0.6494,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Variante Alta",
+          "direction": "right",
+          "startFrac": 0.6494,
+          "endFrac": 0.6894,
+          "numbers": [
+            14,
+            15
+          ],
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "Rivazza",
+          "direction": "left",
+          "startFrac": 0.6894,
+          "endFrac": 0.7275,
+          "numbers": [
+            17,
+            18
+          ],
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.7275,
+          "endFrac": 0.8034,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "corner",
+          "name": "T19",
+          "direction": "left",
+          "startFrac": 0.8034,
+          "endFrac": 0.8992,
+          "numbers": [
+            19
+          ],
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.8992,
+          "endFrac": 1,
+          "startIdx": 0,
+          "endIdx": 0,
+          "distStart": 0,
+          "distEnd": 0
+        }
+      ]
     }
   },
   "segments": [

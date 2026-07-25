@@ -1,3 +1,4 @@
+import { makeTrackProjection } from "@shared/track-projection";
 import type { TelemetryPacket } from "@shared/types";
 
 export interface Pt {
@@ -29,6 +30,48 @@ export const VIEW = 300;
 export const PAD = 14;
 export const TARGET_POINTS = 600;
 
+export interface StartMarker {
+  x: number;
+  y: number;
+  tipX: number;
+  tipY: number;
+  /** Arrowhead triangle, as an SVG `points` string. */
+  head: string;
+}
+
+/**
+ * Start/finish dot + direction arrow for a projected driven line, matching the
+ * canvas renderer in `lib/canvas/draw-track.ts` (TrackDetail) so every map —
+ * ACC, AC Evo, Forza, F1 — shows the same marker in the same place. The heading
+ * is taken ~0.5% of the lap ahead of the start point, i.e. a few meters, so it
+ * follows the track rather than a long chord.
+ */
+export function buildStartMarker(pts: ProjPt[] | null | undefined, arrowLen = 14, wing = 4): StartMarker | null {
+  if (!pts || pts.length < 4) return null;
+  const s = pts[0];
+  const aheadIdx = Math.min(Math.max(2, Math.floor(pts.length * 0.005)), pts.length - 1);
+  const a = pts[aheadIdx];
+  const dx = a.x - s.x;
+  const dy = a.y - s.y;
+  const len = Math.hypot(dx, dy);
+  if (!(len > 0.5)) return null;
+  const nx = dx / len;
+  const ny = dy / len;
+  const tipX = s.x + nx * arrowLen;
+  const tipY = s.y + ny * arrowLen;
+  return {
+    x: s.x,
+    y: s.y,
+    tipX,
+    tipY,
+    head: [
+      `${tipX},${tipY}`,
+      `${tipX - nx * wing * 2 + ny * wing},${tipY - ny * wing * 2 - nx * wing}`,
+      `${tipX - nx * wing * 2 - ny * wing},${tipY - ny * wing * 2 + nx * wing}`,
+    ].join(" "),
+  };
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function extractEdges(bounds: any): { left: Pt[]; right: Pt[] } | null {
   if (!bounds || bounds.error) return null;
@@ -53,33 +96,18 @@ export function buildGeometry(telemetry: TelemetryPacket[], sectorTimes: SectorT
   const rawS1 = sectorTimes && sectorTimes.s1Idx > 0 ? Math.floor(sectorTimes.s1Idx / step) : Math.floor(line.length / 3);
   const rawS2 = sectorTimes && sectorTimes.s2Idx > 0 ? Math.floor(sectorTimes.s2Idx / step) : Math.floor((2 * line.length) / 3);
 
-  let minX = Number.POSITIVE_INFINITY;
-  let maxX = Number.NEGATIVE_INFINITY;
-  let minZ = Number.POSITIVE_INFINITY;
-  let maxZ = Number.NEGATIVE_INFINITY;
-  const acc = (p: Pt) => {
-    if (p.x < minX) minX = p.x;
-    if (p.x > maxX) maxX = p.x;
-    if (p.z < minZ) minZ = p.z;
-    if (p.z > maxZ) maxZ = p.z;
-  };
-  for (const l of line) acc(l.p);
+  // Orientation lives in @shared/track-projection so the e2e segment renderer
+  // draws the same track the same way up. Do not reintroduce local axis math.
+  const boundsPts: Pt[] = line.map((l) => l.p);
   if (edges) {
-    for (const p of edges.left) acc(p);
-    for (const p of edges.right) acc(p);
+    for (const p of edges.left) boundsPts.push(p);
+    for (const p of edges.right) boundsPts.push(p);
   }
+  const projection = makeTrackProjection(boundsPts, { width: VIEW, height: VIEW, padPx: PAD });
+  if (!projection) return null;
 
-  const spanX = maxX - minX;
-  const spanZ = maxZ - minZ;
-  const span = Math.max(spanX, spanZ);
-  if (!(span > 0)) return null;
-
-  const scale = (VIEW - PAD * 2) / span;
-  const offX = (VIEW - spanX * scale) / 2;
-  const offZ = (VIEW - spanZ * scale) / 2;
-  const px = (p: Pt) => offX + (p.x - minX) * scale;
-  // Flip Z so the map isn't drawn upside-down relative to screen space.
-  const py = (p: Pt) => VIEW - (offZ + (p.z - minZ) * scale);
+  const px = (p: Pt) => projection.project(p).x;
+  const py = (p: Pt) => projection.project(p).y;
   const str = (p: Pt) => `${px(p).toFixed(1)},${py(p).toFixed(1)}`;
   const polyline = (ps: Pt[]) => ps.map(str).join(" ");
 
@@ -105,27 +133,13 @@ export function buildGeometry(telemetry: TelemetryPacket[], sectorTimes: SectorT
  *  arbitrary point not already in the downsampled line. */
 export function projectPoint(p: Pt, telemetry: TelemetryPacket[], edges: { left: Pt[]; right: Pt[] } | null): { x: number; y: number } | null {
   if (telemetry.length === 0) return null;
-  let minX = Number.POSITIVE_INFINITY;
-  let maxX = Number.NEGATIVE_INFINITY;
-  let minZ = Number.POSITIVE_INFINITY;
-  let maxZ = Number.NEGATIVE_INFINITY;
-  const acc = (q: Pt) => {
-    if (q.x < minX) minX = q.x;
-    if (q.x > maxX) maxX = q.x;
-    if (q.z < minZ) minZ = q.z;
-    if (q.z > maxZ) maxZ = q.z;
-  };
-  for (const t of telemetry) acc({ x: t.PositionX, z: t.PositionZ });
+  const boundsPts: Pt[] = telemetry.map((t) => ({ x: t.PositionX, z: t.PositionZ }));
   if (edges) {
-    for (const e of edges.left) acc(e);
-    for (const e of edges.right) acc(e);
+    for (const e of edges.left) boundsPts.push(e);
+    for (const e of edges.right) boundsPts.push(e);
   }
-  const spanX = maxX - minX;
-  const spanZ = maxZ - minZ;
-  const span = Math.max(spanX, spanZ);
-  if (!(span > 0)) return null;
-  const scale = (VIEW - PAD * 2) / span;
-  const offX = (VIEW - spanX * scale) / 2;
-  const offZ = (VIEW - spanZ * scale) / 2;
-  return { x: offX + (p.x - minX) * scale, y: VIEW - (offZ + (p.z - minZ) * scale) };
+  // Same projection as buildGeometry — shared so markers land on the line.
+  const projection = makeTrackProjection(boundsPts, { width: VIEW, height: VIEW, padPx: PAD });
+  if (!projection) return null;
+  return projection.project(p);
 }

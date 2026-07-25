@@ -7,6 +7,7 @@
 import { describe, test, expect } from "bun:test";
 import { mkdirSync, rmSync } from "fs";
 import { resolve } from "path";
+import { initGameAdapters } from "../shared/games/init";
 import {
   autoTrackSegments,
   generateTrackSegments,
@@ -16,6 +17,12 @@ import {
   loadCornerNameList,
 } from "../shared/track-segment-generate";
 import { generateSegmentSvg } from "./helpers/segment-svg";
+
+// Required before rendering: needsTrackFlip() resolves coordSystem through the
+// game registry, which is populated by side-effect registration. Without this
+// every lookup misses, the flip silently no-ops, and standard-xyz tracks render
+// mirrored — the exact bug these artifacts are meant to catch.
+initGameAdapters();
 
 const OUTPUT_DIR = resolve(import.meta.dir, "e2e", "output", "track-segments");
 const AUTO_OUTPUT_DIR = resolve(import.meta.dir, "e2e", "output", "track-segments-auto");
@@ -46,6 +53,7 @@ describe("track segment visualizations", () => {
           a.sectors,
           `${nameList.circuit} — ${a.gameId}`,
           resolve(OUTPUT_DIR, `${slug}-${a.gameId}.svg`),
+          a.gameId,
         );
       });
     }
@@ -79,6 +87,7 @@ describe("auto-detected segment visualizations (uncurated tracks)", () => {
         null,
         `${slug} — ${gameId} (auto, uncurated)`,
         resolve(AUTO_OUTPUT_DIR, `${slug}-${gameId}.svg`),
+        gameId,
       );
     });
   }

@@ -192,8 +192,11 @@ export function TrackFocusZoom({ lapLines, bestLapId, cursorFrac, radiusM = DEFA
   const scale = VIEW / (radiusM * 2);
   const minX = center.x - radiusM;
   const minZ = center.z - radiusM;
-  const px = (x: number) => (x - minX) * scale;
-  const py = (z: number) => VIEW - (z - minZ) * scale;
+  // Same orientation as track-map-geometry / TrackDetail: mirror X (inputs are
+  // negated-X telemetry space), Z straight down.
+  const maxX = center.x + radiusM;
+  const px = (x: number) => (maxX - x) * scale;
+  const py = (z: number) => (z - minZ) * scale;
 
   // Dot sits on the best-lap line; window stays framed on the mean.
   const dotPx = px(dot.x);

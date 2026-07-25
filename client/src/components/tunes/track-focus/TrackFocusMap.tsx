@@ -1,7 +1,7 @@
 import type { TelemetryPacket, TuneIssue } from "@shared/types";
 import { useMemo, useRef } from "react";
 import type { LineSpreadTrace, TrackCorner } from "../../../hooks/queries";
-import { buildGeometry, type Pt, projectPoint, type SectorTimesLite, VIEW } from "../track-map-geometry";
+import { buildGeometry, buildStartMarker, type Pt, projectPoint, type SectorTimesLite, VIEW } from "../track-map-geometry";
 import { nearestCornerLabel } from "./detect-corners";
 
 // Same threshold server-side (server/lap-consistency.ts LINE_SPREAD_THRESHOLD_M).
@@ -193,6 +193,10 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
   const cursorPt = cursorFrac != null ? fracToPoint(cursorFrac) : null;
   const readoutFrame = cursorIdx != null && telemetry ? telemetry[cursorIdx] : null;
 
+  // Start/finish marker + direction arrow, shared with TrackDetail's canvas
+  // renderer so every game's map reads the same way.
+  const startMarker = useMemo(() => buildStartMarker(geometry?.pts), [geometry]);
+
   const cornerApexFracs = useMemo(() => corners.map((c, i) => cornerFracs?.[i] ?? c.distanceStart), [corners, cornerFracs]);
   // Suppress the "nearest corner" chip while the brake/throttle overlay is
   // active (hovering/pinning a ledger row) so no turn label lingers.
@@ -223,6 +227,13 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
             : (["s1", "s2", "s3"] as const).map((segKey, i) => (
                 <polyline key={segKey} points={geometry?.segments[i]} fill="none" stroke={["#f87171", "#60a5fa", "#facc15"][i]} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
               ))}
+          {startMarker && (
+            <g>
+              <line x1={startMarker.x} y1={startMarker.y} x2={startMarker.tipX} y2={startMarker.tipY} stroke="#10b981" strokeWidth={1.5} />
+              <polygon points={startMarker.head} fill="#10b981" />
+              <circle cx={startMarker.x} cy={startMarker.y} r={3} fill="#10b981" />
+            </g>
+          )}
           {!overlayPoints &&
             corners.map((c, i) => {
               const apexFrac = cornerApexFracs[i];

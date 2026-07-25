@@ -28,6 +28,7 @@ const GAME_DIRS: Record<string, string> = {
   "f1-2025": resolve(SHARED_DIR, "tracks", "f1-2025"),
   acc: resolve(SHARED_DIR, "tracks", "acc"),
   "fm-2023": resolve(SHARED_DIR, "tracks", "fm-2023"),
+  "ac-evo": resolve(SHARED_DIR, "tracks", "ac-evo"),
 };
 /** Preference order for the top-level (global) meta segments. */
 const GLOBAL_PRIORITY = ["fm-2023", "f1-2025", "acc"];

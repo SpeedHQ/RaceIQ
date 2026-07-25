@@ -680,8 +680,11 @@ export function TrackDetail({
     const showSectors = editingSectors || mapDisplayMode === "sectors";
     const sectorBoundsForDraw = editingSectors ? { s1End: editS1 / 100, s2End: editS2 / 100 } : (sectorBounds ?? undefined);
     const sectorOverride = showSectors ? sectorBoundsForDraw : undefined;
-    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, flipX);
-  }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab, flipX]);
+    // While editing, every turn of a complex gets its own label so the row
+    // being edited is identifiable on the map; otherwise the complex is
+    // labelled once under its group name.
+    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, flipX, undefined, editing);
+  }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab, flipX, editing]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -743,6 +746,17 @@ export function TrackDetail({
     setEditSegments((prev) => {
       const next = prev.map((s) => ({ ...s }));
       next[idx].name = name;
+      return next;
+    });
+  }, []);
+
+  // Complex membership (Rivazza, Variante Alta): each turn stays its own
+  // segment, the group name is what the map labels the complex with.
+  const updateSegGroup = useCallback((idx: number, group: string) => {
+    setEditSegments((prev) => {
+      const next = prev.map((s) => ({ ...s }));
+      if (group.trim()) next[idx].group = group;
+      else delete next[idx].group;
       return next;
     });
   }, []);
@@ -1059,6 +1073,13 @@ export function TrackDetail({
                             placeholder={segDisplayNames[i]}
                             onChange={(e) => updateSegName(i, e.target.value)}
                             className="flex-1 text-app-label font-mono bg-transparent border-b border-app-border-input text-app-text outline-none px-1 placeholder:text-app-text-dim"
+                          />
+                          <input
+                            value={seg.group ?? ""}
+                            placeholder="group"
+                            title="Complex this turn belongs to — the map labels the complex once under this name"
+                            onChange={(e) => updateSegGroup(i, e.target.value)}
+                            className="w-20 text-app-label font-mono bg-transparent border-b border-app-border-input text-app-text-secondary outline-none px-1 placeholder:text-app-text-dim"
                           />
                           <button onClick={() => addSegment(i)} className="text-app-unit text-app-text-muted hover:text-app-text px-1" title={m.trackdetail_split_segment()}>
                             +

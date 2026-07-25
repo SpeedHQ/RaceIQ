@@ -366,6 +366,12 @@ export interface AlignedCorner {
   direction: "left" | "right" | null;
   startFrac: number;
   endFrac: number;
+  /**
+   * Complex this turn belongs to (Rivazza, Variante Alta, Les Combes). Each
+   * turn is its own section so the debug editor can move a single apex, but
+   * consumers that label the map draw the complex once under this name.
+   */
+  group?: string;
 }
 
 export interface AlignmentResult {
@@ -607,14 +613,40 @@ function alignOnePolarity(
     const baseIdx = cursor;
     cursor += take;
 
-    // One unit = one output section. A grouped complex (chicane, Les Combes)
-    // and a spans-split double-apex both merge into a single named section
-    // spanning entry to exit — matching how coaches and track maps refer to
-    // them. Direction is null when the merged regions disagree (chicanes).
     const regionIdx = baseIdx + take - 1;
     const dirs = new Set(consumed.map((c) => c.direction));
-    const name = u.group ?? displayName(u.members[0]);
     const numbers = u.members.flatMap((m) => [m.number, ...(m.covers ?? [])]).sort((a, b) => a - b);
+
+    // A grouped complex (Rivazza, Les Combes) is one *name* but several turns.
+    // When the detector found exactly one region per member, emit a section per
+    // turn — the debug editor can then nudge a single apex, and consumers that
+    // label the map draw the complex once via `group`. Only when the mapping is
+    // ambiguous (spans-split double-apex, fewer regions than members) does the
+    // unit collapse into a single merged section.
+    if (u.group && take === u.members.length && u.members.length > 1) {
+      for (let k = 0; k < take; k++) {
+        const m = u.members[k];
+        const memberNumbers = [m.number, ...(m.covers ?? [])].sort((a, b) => a - b);
+        corners.push({
+          regionIndex: baseIdx + k,
+          numbers: memberNumbers,
+          name: displayName(m),
+          direction: consumed[k].direction,
+          startFrac: round4(consumed[k].startFrac),
+          endFrac: round4(consumed[k].endFrac),
+          group: u.group,
+        });
+        for (const num of memberNumbers) lastRegionIdxByCorner.set(num, baseIdx + k);
+      }
+      // Straights anchor to the corner they follow — the complex's last region
+      // is what a "straight after Rivazza" anchor means.
+      for (const num of numbers) lastRegionIdxByCorner.set(num, regionIdx);
+      continue;
+    }
+
+    // One unit = one output section: entry to exit, matching how coaches and
+    // track maps refer to it. Direction is null when regions disagree (chicanes).
+    const name = u.group ?? displayName(u.members[0]);
     corners.push({
       regionIndex: regionIdx,
       numbers,
@@ -622,6 +654,7 @@ function alignOnePolarity(
       direction: dirs.size === 1 ? consumed[0].direction : null,
       startFrac: round4(consumed[0].startFrac),
       endFrac: round4(consumed[take - 1].endFrac),
+      ...(u.group ? { group: u.group } : {}),
     });
     for (const num of numbers) lastRegionIdxByCorner.set(num, regionIdx);
   }
@@ -732,6 +765,7 @@ function alignOnePolarity(
       startFrac: Math.max(c.startFrac, prevEnd),
       endFrac: c.endFrac,
       numbers: c.numbers,
+      ...(c.group ? { group: c.group } : {}),
     });
     const nextStart = i + 1 < corners.length ? corners[i + 1].startFrac : 1;
     pushStraight(c.endFrac, nextStart, c.regionIndex);

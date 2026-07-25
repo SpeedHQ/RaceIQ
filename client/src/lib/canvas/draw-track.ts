@@ -107,6 +107,8 @@ export function drawTrack(
   sectorOverride?: { s1End: number; s2End: number },
   flipX?: boolean,
   sectorColors?: [string, string, string],
+  /** Debug editing: label every segment individually instead of once per group. */
+  perSegmentLabels?: boolean,
 ) {
   const ctx = canvas.getContext("2d");
   if (!ctx || outline.length < 2) return;
@@ -256,11 +258,17 @@ export function drawTrack(
     const displayNames = large ? segmentDisplayNames(sectors.segments) : segmentDisplayNames(sectors.segments.map((s) => ({ ...s, numbers: undefined })));
     // The start/finish straight is two segments but one straight — label the
     // longer half so its name doesn't appear twice on the map.
+    // Corner complexes (Rivazza, Les Combes) are one section per turn so they
+    // can be edited individually, but the map calls them by the complex name
+    // once — label the longest member with the group name and suppress the
+    // rest. Debug editing wants every turn labelled, so it opts out.
     const labelledGroups = new Set<string>();
+    const groupLabelAt = new Map<string, string>();
     for (const g of new Set(sectors.segments.map((s) => s.group).filter(Boolean))) {
       const halves = sectors.segments.filter((s) => s.group === g);
       const longest = halves.reduce((a, b) => (b.endFrac - b.startFrac > a.endFrac - a.startFrac ? b : a));
       for (const h of halves) if (h !== longest) labelledGroups.add(`${g}:${h.startFrac}`);
+      if (!perSegmentLabels) groupLabelAt.set(`${g}:${longest.startFrac}`, g as string);
     }
 
     let segIdx = 0;
@@ -297,8 +305,9 @@ export function drawTrack(
 
       // Collect the label; placement happens after every segment is drawn so
       // labels can be tested against each other (see placeLabels below).
-      const suppressed = seg.group ? labelledGroups.has(`${seg.group}:${seg.startFrac}`) : false;
-      if (!suppressed && (large || seg.type === "corner") && displayName) {
+      const suppressed = seg.group && !perSegmentLabels ? labelledGroups.has(`${seg.group}:${seg.startFrac}`) : false;
+      const labelText = (seg.group ? groupLabelAt.get(`${seg.group}:${seg.startFrac}`) : undefined) ?? displayName;
+      if (!suppressed && (large || seg.type === "corner") && labelText) {
         const midIdx = Math.round((start + end) / 2);
         const midPt = outline[Math.min(midIdx, n - 1)];
         const [mx, my] = toCanvas(midPt.x, midPt.z);
@@ -310,7 +319,7 @@ export function drawTrack(
         const dz = outline[nextIdx].z - outline[prevIdx].z;
         const len = Math.sqrt(dx * dx + dz * dz) || 1;
         labels.push({
-          text: displayName,
+          text: labelText,
           color,
           mx,
           my,
