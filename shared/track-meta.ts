@@ -260,24 +260,36 @@ export interface KeyMismatch {
   unknown: string[];
   /** Corner keys the facts file defines that this game's geometry never places. */
   missing: string[];
+  /** Named straights the facts file declares that this game never places. */
+  unplacedStraights: string[];
 }
 
 /**
  * The ongoing invariant: every game's geometry places exactly the corners the
- * facts file declares. Same circuit, same turns — a difference is a detection
- * bug or a curation gap, never something to paper over, so this is asserted as
- * a test failure rather than recorded as data.
+ * facts file declares, and every straight the facts file bothers to name. Same
+ * circuit, same turns — a difference is a detection bug or a curation gap,
+ * never something to paper over, so it is asserted as a test failure rather
+ * than recorded as data.
  *
- * Straight keys are checked for referential sanity only (they must follow a
- * real turn). Their count is free: a game may split one gap into several rows.
+ * How many rows a game uses for its straights is deliberately NOT constrained.
+ * Detectors disagree on whether a gap is one straight or two, and a short gap
+ * may not be resolved at all; neither is a claim about the circuit. Measured
+ * across the roster, straight row counts differ between games on 16 of 23
+ * multi-game layouts, so requiring them to match would encode a falsehood.
+ *
+ * A *named* straight is different. If the facts name it and a game never places
+ * it, that game's players never see the name while everyone else does, so it is
+ * reported.
  */
 export function checkKeys(facts: TrackFacts, geometryByGame: Record<string, TrackGeometry>): KeyMismatch[] {
   const factKeys = new Set(facts.corners.map((c) => cornerKey(cornerNumbers(c))));
   const validTurns = new Set(facts.corners.flatMap(cornerNumbers));
+  const namedStraights = (facts.straights ?? []).filter((s) => s.name).map((s) => straightKey(s.after));
   const out: KeyMismatch[] = [];
 
   for (const [gameId, geom] of Object.entries(geometryByGame)) {
     const placed = new Set<string>();
+    const placedStraights = new Set<string>();
     const unknown: string[] = [];
 
     for (const g of geom.segments) {
@@ -287,12 +299,19 @@ export function checkKeys(facts: TrackFacts, geometryByGame: Record<string, Trac
       } else {
         const after = parseStraightKey(g.key);
         if (after == null || !validTurns.has(after)) unknown.push(g.key);
+        else placedStraights.add(g.key);
       }
     }
 
     const missing = [...factKeys].filter((k) => !placed.has(k));
-    if (unknown.length || missing.length) {
-      out.push({ gameId, unknown: [...new Set(unknown)].sort(), missing: missing.sort() });
+    const unplacedStraights = namedStraights.filter((k) => !placedStraights.has(k));
+    if (unknown.length || missing.length || unplacedStraights.length) {
+      out.push({
+        gameId,
+        unknown: [...new Set(unknown)].sort(),
+        missing: missing.sort(),
+        unplacedStraights: unplacedStraights.sort(),
+      });
     }
   }
   return out;

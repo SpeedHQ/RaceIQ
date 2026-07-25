@@ -79,6 +79,24 @@ const KNOWN_CORNER_GAPS: Record<string, string[]> = {
   "zandvoort/acc": ["t13"],
 };
 
+/**
+ * Named straights a game's detector never resolves, so its players never see
+ * the name while every other game's do.
+ *
+ * Both are the same shape: the layout has the turn, the game places the turn,
+ * and every other game places the gap after it — this one just runs the two
+ * corners together. Fixing means retuning that centerline's gap detection, not
+ * editing the facts.
+ *
+ * Shrink-only, same contract as KNOWN_CORNER_GAPS.
+ */
+const KNOWN_STRAIGHT_GAPS: Record<string, string[]> = {
+  // fm runs T13 into T14; acc and f1-2025 both place Hangar Straight.
+  "silverstone/fm-2023": ["s13"],
+  // fm runs T58 into T59; acc and ac-evo both place Döttinger Höhe.
+  "nordschleife/fm-2023": ["s58"],
+};
+
 describe("join keys", () => {
   test("corner key is the turn numbers, sorted", () => {
     expect(cornerKey([3])).toBe("t3");
@@ -182,6 +200,39 @@ describe("checkKeys", () => {
   test("a game placing every declared corner is clean", () => {
     const clean = checkKeys(facts, {
       acc: { segments: [{ key: "t1", startFrac: 0, endFrac: 0.1 }, { key: "t2", startFrac: 0.5, endFrac: 0.6 }] },
+    });
+    expect(clean).toEqual([]);
+  });
+
+  test("a named straight the game never places is reported", () => {
+    const withNamed: TrackFacts = { ...facts, straights: [{ after: 1, name: "Back Straight" }] };
+    const [mismatch] = checkKeys(withNamed, {
+      acc: { segments: [{ key: "t1", startFrac: 0, endFrac: 0.1 }, { key: "t2", startFrac: 0.5, endFrac: 0.6 }] },
+    });
+    expect(mismatch).toMatchObject({ gameId: "acc", unplacedStraights: ["s1"] });
+  });
+
+  test("an unnamed gap the game never places is not reported", () => {
+    // Only named straights are constrained — an unresolved anonymous gap costs
+    // nobody a label, so it is not a finding.
+    const withUnnamed: TrackFacts = { ...facts, straights: [{ after: 1, name: "" }] };
+    const clean = checkKeys(withUnnamed, {
+      acc: { segments: [{ key: "t1", startFrac: 0, endFrac: 0.1 }, { key: "t2", startFrac: 0.5, endFrac: 0.6 }] },
+    });
+    expect(clean).toEqual([]);
+  });
+
+  test("splitting one named straight across several rows is clean", () => {
+    const withNamed: TrackFacts = { ...facts, straights: [{ after: 1, name: "Back Straight" }] };
+    const clean = checkKeys(withNamed, {
+      acc: {
+        segments: [
+          { key: "t1", startFrac: 0, endFrac: 0.1 },
+          { key: "s1", startFrac: 0.1, endFrac: 0.2 },
+          { key: "s1", startFrac: 0.2, endFrac: 0.3 },
+          { key: "t2", startFrac: 0.5, endFrac: 0.6 },
+        ],
+      },
     });
     expect(clean).toEqual([]);
   });
@@ -328,6 +379,39 @@ describe("committed roster", () => {
     }
     const stale = Object.keys(KNOWN_CORNER_GAPS).filter((k) => !live.has(k));
     expect(stale, "gap is fixed — delete it from KNOWN_CORNER_GAPS").toEqual([]);
+  });
+
+  test("no game silently drops a named straight", () => {
+    // Straight *count* is free — detectors legitimately split one gap into two
+    // rows, and row counts differ on 16 of 23 multi-game layouts. But a straight
+    // the facts bothered to name must actually be placed, or that game's players
+    // never see the name while every other game's do.
+    const gaps: Record<string, string[]> = {};
+    for (const slug of SLUGS) {
+      const geometry = geometryFor(slug);
+      if (Object.keys(geometry).length === 0) continue;
+      for (const m of checkKeys(loadFacts(slug), geometry)) {
+        if (m.unplacedStraights.length) gaps[`${slug}/${m.gameId}`] = m.unplacedStraights;
+      }
+    }
+
+    const unexpected = Object.entries(gaps)
+      .filter(([k, unplaced]) => (KNOWN_STRAIGHT_GAPS[k] ?? []).join() !== unplaced.join())
+      .map(([k, unplaced]) => `${k}: never places ${unplaced.join(",")}`);
+    expect(unexpected, "new unplaced named straight — fix the detector or record it in KNOWN_STRAIGHT_GAPS").toEqual([]);
+  });
+
+  test("KNOWN_STRAIGHT_GAPS has no stale entries", () => {
+    const live = new Set<string>();
+    for (const slug of SLUGS) {
+      const geometry = geometryFor(slug);
+      if (Object.keys(geometry).length === 0) continue;
+      for (const m of checkKeys(loadFacts(slug), geometry)) {
+        if (m.unplacedStraights.length) live.add(`${slug}/${m.gameId}`);
+      }
+    }
+    const stale = Object.keys(KNOWN_STRAIGHT_GAPS).filter((k) => !live.has(k));
+    expect(stale, "straight is now placed — delete it from KNOWN_STRAIGHT_GAPS").toEqual([]);
   });
 
   test("every layout of a venue agrees on the venue name", () => {
