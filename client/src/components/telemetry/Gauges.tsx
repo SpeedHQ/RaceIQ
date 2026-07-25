@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
 import type { TelemetryPacket } from "@shared/types";
+import { useEffect, useRef, useState } from "react";
 import { client } from "@/lib/rpc";
 
 /**
@@ -7,19 +7,7 @@ import { client } from "@/lib/rpc";
  * Used for power, torque, and boost readouts. SVG arc path is computed
  * from polar coordinates converted to Cartesian for the arc endpoints.
  */
-export function ArcGauge({
-  value,
-  max,
-  label,
-  unit,
-  color,
-}: {
-  value: number;
-  max: number;
-  label: string;
-  unit: string;
-  color: string;
-}) {
+export function ArcGauge({ value, max, label, unit, color }: { value: number; max: number; label: string; unit: string; color: string }) {
   const size = 70;
   const cx = size / 2,
     cy = size / 2;

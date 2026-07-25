@@ -64,8 +64,9 @@ export interface PromptSegment {
   type: "corner" | "straight";
   startFrac: number;
   endFrac: number;
-  /** Official turn numbers this section covers (#84). Renders "Name (2-4)". */
-  numbers?: number[];
+  /** Official turn numbering this section accounts for (#84). Renders "T2-4 Name". */
+  number?: number;
+  covers?: number[];
 }
 
 interface InputStats {

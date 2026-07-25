@@ -1,6 +1,6 @@
-import { useMemo, memo } from "react";
-import { m } from "@/paraglide/messages";
 import type { TelemetryPacket } from "@shared/types";
+import { memo, useMemo } from "react";
+import { m } from "@/paraglide/messages";
 
 interface Segment {
   type: string;

@@ -1,5 +1,5 @@
 import type { WheelState } from "@/lib/vehicle-dynamics";
-import { tireTempColor, slipAngleColor, tireState } from "@/lib/vehicle-dynamics";
+import { slipAngleColor, tireState, tireTempColor } from "@/lib/vehicle-dynamics";
 
 /**
  * WheelCard — SVG tire visualization for a single wheel.

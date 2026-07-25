@@ -22,6 +22,7 @@ import { readCString } from "../server/games/ac-evo/utils";
 import { getAllAcEvoCars, getAcEvoCarByDisplayName } from "../shared/ac-evo-car-data";
 import { Kspkg, findContentKspkg } from "../server/games/ac-evo/kspkg";
 import { parseCarsTable } from "../server/games/ac-evo/kspkg-tables";
+import { runSetupRangesExtraction } from "./extract-acevo-setup-ranges";
 
 const RECORDINGS_DIR = "test/artifacts/sessions";
 const CSV_PATH = "shared/games/ac-evo/cars.csv";
@@ -100,22 +101,24 @@ function fromGame(explicitPath: string | undefined): void {
   console.log(`\n== ${missing.length} missing from ${CSV_PATH} ==`);
   if (missing.length === 0) {
     console.log(`  ${CSV_PATH} covers every shipped car`);
-    return;
+  } else {
+    let nextId = Math.max(0, ...csv.map((c) => c.id)) + 1;
+    const newRows: string[] = [];
+    for (const r of missing) {
+      const model = r.slug.replace(/^ks_/, "");
+      // The table's name field is already the full display name (brand included).
+      const display = r.name;
+      const row = `${nextId},${model},${display},Unknown`;
+      console.log(`  ${row}`);
+      newRows.push(row);
+      nextId++;
+    }
+
+    appendRows(newRows);
   }
 
-  let nextId = Math.max(0, ...csv.map((c) => c.id)) + 1;
-  const newRows: string[] = [];
-  for (const r of missing) {
-    const model = r.slug.replace(/^ks_/, "");
-    // The table's name field is already the full display name (brand included).
-    const display = r.name;
-    const row = `${nextId},${model},${display},Unknown`;
-    console.log(`  ${row}`);
-    newRows.push(row);
-    nextId++;
-  }
-
-  appendRows(newRows);
+  console.log("\nrefreshing setup ranges from carsetuplimits…");
+  runSetupRangesExtraction(explicitPath);
 }
 
 function main(): void {

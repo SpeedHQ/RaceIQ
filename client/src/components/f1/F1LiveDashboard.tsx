@@ -1,15 +1,15 @@
+import { tryGetGame } from "@shared/games/registry";
+import type { F1ExtendedData } from "@shared/types";
 import { useState } from "react";
 import { m } from "@/paraglide/messages";
+import { useCarName, useTrackName } from "../../hooks/queries";
 import { useTelemetryStore } from "../../stores/telemetry";
-import type { F1ExtendedData } from "@shared/types";
-import { tryGetGame } from "@shared/games/registry";
-import { TireGrid } from "../telemetry/TireGrid";
 import { LapTimeChart } from "../LapTimeChart";
-import { PitEstimate } from "../telemetry/PitEstimate";
-import { RecordedLaps } from "../RecordedLaps";
 import { NoDataView } from "../NoDataView";
 import { RaceInfo } from "../RaceInfo";
-import { useTrackName, useCarName } from "../../hooks/queries";
+import { RecordedLaps } from "../RecordedLaps";
+import { PitEstimate } from "../telemetry/PitEstimate";
+import { TireGrid } from "../telemetry/TireGrid";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -403,7 +403,9 @@ function GridSection({ f1, playerPosition }: { f1: F1ExtendedData; playerPositio
               return (
                 <tr key={entry.position} className={`border-b border-app-border/50 ${isPlayer ? "bg-app-accent/10" : ""}`}>
                   <td className="px-2 py-1.5 font-bold text-app-text tabular-nums">{entry.position}</td>
-                  <td className={`px-2 py-1.5 truncate max-w-[140px] ${isPlayer ? "text-app-accent font-semibold" : "text-app-text-secondary"}`}>{entry.name || `${m.label_car()} ${entry.position}`}</td>
+                  <td className={`px-2 py-1.5 truncate max-w-[140px] ${isPlayer ? "text-app-accent font-semibold" : "text-app-text-secondary"}`}>
+                    {entry.name || `${m.label_car()} ${entry.position}`}
+                  </td>
                   <td className="px-2 py-1.5 text-right tabular-nums font-mono text-app-text-secondary">{entry.lastS1 > 0 ? entry.lastS1.toFixed(3) : "—"}</td>
                   <td className="px-2 py-1.5 text-right tabular-nums font-mono text-app-text-secondary">{entry.lastS2 > 0 ? entry.lastS2.toFixed(3) : "—"}</td>
                   <td className="px-2 py-1.5 text-right tabular-nums font-mono text-app-text-secondary">{entry.lastS3 > 0 ? entry.lastS3.toFixed(3) : "—"}</td>

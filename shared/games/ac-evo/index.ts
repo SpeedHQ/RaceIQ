@@ -7,7 +7,10 @@ export const acEvoAdapter: GameAdapter = {
   routePrefix: "ac-evo",
   coordSystem: "standard-xyz",
   steeringCenter: 0,
-  steeringRange: 1,
+  // Steer is emitted as steerAngle(-1..1) × 127 by the parser (Forza ±127
+  // convention), so the usable range is 127 — not 1. Corner detection scales
+  // its steering thresholds by this; a value of 1 breaks detection entirely.
+  steeringRange: 127,
   tireHealthThresholds: { green: 0.85, yellow: 0.70 },
   tireTempThresholds: { cold: 70, warm: 100, hot: 120 },
   suspensionThresholds: { values: [25, 65, 85] },

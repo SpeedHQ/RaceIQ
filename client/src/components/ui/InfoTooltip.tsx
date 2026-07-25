@@ -1,15 +1,7 @@
 import { Info } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
-export function Tooltip({
-  children,
-  content,
-  position = "top",
-}: {
-  children: ReactNode;
-  content: ReactNode;
-  position?: "top" | "bottom";
-}) {
+export function Tooltip({ children, content, position = "top" }: { children: ReactNode; content: ReactNode; position?: "top" | "bottom" }) {
   const posClass = position === "top" ? "bottom-full mb-2" : "top-full mt-2";
   return (
     <span className="group/tip relative inline-flex items-center">

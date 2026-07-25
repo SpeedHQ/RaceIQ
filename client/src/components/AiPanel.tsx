@@ -1,16 +1,16 @@
-import { useState, useEffect, useCallback, useRef, useImperativeHandle, forwardRef } from "react";
-import { m } from "@/paraglide/messages";
-import { client } from "../lib/rpc";
-import { useSettings } from "../hooks/queries";
-import { useUiStore } from "../stores/ui";
-import { Button } from "./ui/button";
+import type { UIMessage } from "ai";
 import { toPng } from "html-to-image";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { SetupSection } from "./ai/analysis-display";
-import { readChatStream, type ChatStreamError, type ChatUsage, type ChatStreamStatus } from "../lib/chat-stream";
+import { AlertTriangle, CircleDot, Download, Gauge, Lightbulb, RefreshCw, Sliders, Sparkles, Trash2, Zap } from "lucide-react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { m } from "@/paraglide/messages";
+import { useSettings } from "../hooks/queries";
+import { type ChatStreamError, type ChatStreamStatus, readChatStream } from "../lib/chat-stream";
 import { isAiConfigured } from "../lib/is-ai-configured";
-import { Sparkles, RefreshCw, Gauge, Sliders, AlertTriangle, Lightbulb, Download, Send, Trash2, CircleDot, Zap } from "lucide-react";
+import { client } from "../lib/rpc";
+import { useUiStore } from "../stores/ui";
+import { SetupSection } from "./ai/analysis-display";
+import { ChatPanel } from "./ai-chat/ChatPanel";
+import { Button } from "./ui/button";
 
 interface AnalysisUsage {
   inputTokens: number;
@@ -182,14 +182,27 @@ function TrackCard({
   children: React.ReactNode;
 }) {
   const clickable = !!(seg && onJumpToFrac);
+  const activate = () => {
+    if (!seg) return;
+    onJumpToFrac?.((seg.startFrac + seg.endFrac) / 2);
+    onHighlightsChange?.([{ startFrac: seg.startFrac, endFrac: seg.endFrac, color, label: seg.name }]);
+  };
   return (
     <div
       className={`${className ?? ""} ${clickable ? "cursor-pointer hover:brightness-110 transition" : ""}`}
-      onClick={() => {
-        if (!seg) return;
-        onJumpToFrac?.((seg.startFrac + seg.endFrac) / 2);
-        onHighlightsChange?.([{ startFrac: seg.startFrac, endFrac: seg.endFrac, color, label: seg.name }]);
-      }}
+      {...(clickable
+        ? {
+            role: "button" as const,
+            tabIndex: 0,
+            onClick: activate,
+            onKeyDown: (e: React.KeyboardEvent) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                activate();
+              }
+            },
+          }
+        : {})}
     >
       {children}
     </div>
@@ -205,12 +218,12 @@ function SectionHeader({ icon, title }: { icon: React.ReactNode; title: string }
   );
 }
 
-// ── Chat types ───────────────────────────────────────────────
-
-interface ChatMessage {
-  role: string;
-  content: string;
-  usage?: ChatUsage;
+async function fetchLapChatHistory(lapId: number, gen?: number): Promise<UIMessage[]> {
+  const url = gen && gen > 1 ? `/api/laps/${lapId}/chat?gen=${gen}` : `/api/laps/${lapId}/chat`;
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  const data = (await res.json()) as { messages?: UIMessage[] };
+  return (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant");
 }
 
 export interface AiPanelHandle {
@@ -235,34 +248,21 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
   const [hasTune, setHasTune] = useState(false);
   const analysisRef = useRef<HTMLDivElement>(null);
 
-  // Chat state
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
-  const [streaming, setStreaming] = useState("");
-  const [chatError, setChatError] = useState<string | null>(null);
-  // Live status from the NDJSON stream: "thinking" (waiting for first token),
-  // "generating" (tokens flowing), or null when idle. `chatTool` shows the
-  // currently-executing tool name (e.g. "compare-f1-setup-to-catalog").
-  const [chatStatus, setChatStatus] = useState<ChatStreamStatus | null>(null);
-  const [chatTool, setChatTool] = useState<string | null>(null);
-  const [chatUsage, setChatUsage] = useState<ChatUsage | null>(null);
-  // Same live-status pair for the analyse flow (separate from chat so the
-  // two can run independently — user can chat while an analysis regenerates).
+  // Same live-status pair for the analyse flow (separate from chat — chat now
+  // lives in the shared ChatPanel component and streams via assistant-ui).
   const [analyseStatus, setAnalyseStatus] = useState<ChatStreamStatus | null>(null);
   const [analyseTool, setAnalyseTool] = useState<string | null>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const [chatRemountKey, setChatRemountKey] = useState(0);
 
   useImperativeHandle(
     ref,
     () => ({
       clearChat: () => {
-        setMessages([]);
-        setChatInput("");
-        setStreaming("");
-        setChatError(null);
-        // Clear persisted chat only (keeps analysis)
-        fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" }).catch(() => {});
+        // Clear persisted chat only (keeps analysis), then remount ChatPanel
+        // so it re-seeds from the now-empty thread.
+        fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" })
+          .catch(() => {})
+          .finally(() => setChatRemountKey((k) => k + 1));
       },
       clearAnalysis: () => {
         setAnalysis(null);
@@ -270,18 +270,18 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         setError(null);
         onHighlightsChange?.([]);
         // DELETE clears both chat + analysis on server
-        fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" }).catch(() => {});
+        fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" })
+          .catch(() => {})
+          .finally(() => setChatRemountKey((k) => k + 1));
       },
       clearAll: () => {
         setAnalysis(null);
         setUsage(null);
-        setMessages([]);
-        setChatInput("");
-        setStreaming("");
-        setChatError(null);
         setError(null);
         onHighlightsChange?.([]);
-        fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" }).catch(() => {});
+        fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" })
+          .catch(() => {})
+          .finally(() => setChatRemountKey((k) => k + 1));
       },
     }),
     [lapId, onHighlightsChange],
@@ -394,19 +394,6 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     [lapId, onAnalysisLoaded, segments, onHighlightsChange],
   );
 
-  // Load chat messages
-  const loadChat = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/laps/${lapId}/chat`);
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(data.messages ?? []);
-      }
-    } catch {
-      /* ignore */
-    }
-  }, [lapId]);
-
   // Load cached analysis (no AI call — returns null if not cached)
   const loadCachedAnalysis = useCallback(async () => {
     try {
@@ -442,25 +429,16 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     }
   }, [lapId]);
 
-  // Load chat and cached analysis on open
+  // Load cached analysis on open
   useEffect(() => {
     if (!panelOpen) return;
-    loadChat();
     loadCachedAnalysis();
-  }, [lapId, panelOpen, loadChat, loadCachedAnalysis]);
+  }, [lapId, panelOpen, loadCachedAnalysis]);
 
   // Reset on lap change
   useEffect(() => {
     setAnalysis(null);
-    setMessages([]);
-    setChatInput("");
-    setStreaming("");
   }, [lapId]);
-
-  // Auto-scroll chat
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streaming]);
 
   // Export analysis as image
   const handleExport = useCallback(async () => {
@@ -484,80 +462,10 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     }
   }, [carName, trackName]);
 
-  // Send chat message — consumes the NDJSON stream defined in
-  // server/ai/chat-stream.ts so we can surface thinking / tool-call /
-  // generating states separately from the text body.
-  const sendChat = useCallback(async () => {
-    const msg = chatInput.trim();
-    if (!msg || chatLoading) return;
-    setChatLoading(true);
-    setChatError(null);
-    setStreaming("");
-    setChatStatus("thinking");
-    setChatTool(null);
-    setChatUsage(null);
-    setMessages((prev) => [...prev, { role: "user", content: msg }]);
-    setChatInput("");
-    let fullText = "";
-    let finalUsage: ChatUsage | null = null;
-    try {
-      const res = await fetch(`/api/laps/${lapId}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg }),
-      });
-      if (!res.ok) {
-        const errData = (await res.json().catch(() => ({ error: m.aipanel_request_failed() }))) as { error?: string };
-        throw new Error(errData.error || `HTTP ${res.status}`);
-      }
-      await readChatStream(res, (event) => {
-        switch (event.type) {
-          case "status":
-            setChatStatus((event as unknown as { state: ChatStreamStatus }).state);
-            break;
-          case "tool": {
-            const t = event as unknown as { state: "start" | "end"; name: string };
-            setChatTool(t.state === "start" ? t.name : null);
-            break;
-          }
-          case "text":
-            fullText += (event as unknown as { delta: string }).delta;
-            setStreaming(fullText);
-            break;
-          case "usage": {
-            const u = event as unknown as { inputTokens: number; outputTokens: number; costUsd?: number };
-            finalUsage = { inputTokens: u.inputTokens, outputTokens: u.outputTokens, costUsd: u.costUsd ?? 0 };
-            break;
-          }
-          case "error": {
-            const e = event as unknown as StreamErrorEvent;
-            throw new Error(formatStreamError(e));
-          }
-          case "done":
-            break;
-        }
-      });
-      setStreaming("");
-      setMessages((prev) => [...prev, { role: "assistant", content: fullText, usage: finalUsage ?? undefined }]);
-      setChatUsage(finalUsage);
-    } catch (err: unknown) {
-      setChatError(toErrorMessage(err));
-    } finally {
-      setChatLoading(false);
-      setChatStatus(null);
-      setChatTool(null);
-    }
-  }, [chatInput, chatLoading, lapId]);
-
-  const clearChat = useCallback(async () => {
-    try {
-      await fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" });
-    } catch {
-      /* ignore */
-    }
-    setMessages([]);
-    setStreaming("");
-    setChatError(null);
+  const clearChat = useCallback(() => {
+    fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" })
+      .catch(() => {})
+      .finally(() => setChatRemountKey((k) => k + 1));
   }, [lapId]);
 
   return (
@@ -572,7 +480,11 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               <p className="text-[11px] text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
               <p className="text-[10px] text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
             </div>
-            <button onClick={() => openSettings("ai")} className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-black font-medium transition-colors">
+            <button
+              type="button"
+              onClick={() => openSettings("ai")}
+              className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-black font-medium transition-colors"
+            >
               {m.aipanel_set_up_ai()}
             </button>
           </div>
@@ -588,7 +500,13 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
             </div>
             <div className="text-center">
               <p className="text-[11px] text-app-text-secondary font-medium">
-                {analyseTool ? `${m.aipanel_using_tool()} ${analyseTool}` : analyseStatus === "generating" ? m.aipanel_generating_analysis() : analyseStatus === "thinking" ? m.aipanel_thinking() : m.aipanel_preparing_model()}
+                {analyseTool
+                  ? `${m.aipanel_using_tool()} ${analyseTool}`
+                  : analyseStatus === "generating"
+                    ? m.aipanel_generating_analysis()
+                    : analyseStatus === "thinking"
+                      ? m.aipanel_thinking()
+                      : m.aipanel_preparing_model()}
               </p>
               <p className="text-[10px] text-app-text-dim mt-1">{analyseStatus === "generating" ? m.aipanel_streaming_tokens() : m.aipanel_reviewing_data()}</p>
               {!analyseStatus && <p className="text-[9px] text-app-text-dim mt-0.5">{m.aipanel_may_take()}</p>}
@@ -602,11 +520,11 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         )}
 
         {/* Empty state — after clear */}
-        {aiConfigured && !analysis && !loading && !error && messages.length === 0 && (
+        {aiConfigured && !analysis && !loading && !error && (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
             <Sparkles className="size-5 text-amber-400" />
             <p className="text-[11px] text-app-text-muted">{m.aipanel_no_analysis()}</p>
-            <button onClick={() => fetchAnalysis(false)} className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors">
+            <button type="button" onClick={() => fetchAnalysis(false)} className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors">
               <Sparkles className="size-3" />
               {m.aipanel_analyse_lap()}
             </button>
@@ -637,8 +555,8 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 <div>
                   <SectionHeader icon={<Gauge className="size-3" />} title={m.label_pace()} />
                   <div className="grid grid-cols-1 gap-1.5">
-                    {analysis.pace.map((item, i) => (
-                      <MetricCard key={i} item={item} />
+                    {analysis.pace.map((item) => (
+                      <MetricCard key={item.label} item={item} />
                     ))}
                   </div>
                 </div>
@@ -649,8 +567,8 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 <div>
                   <SectionHeader icon={<Sliders className="size-3" />} title={m.label_handling()} />
                   <div className="grid grid-cols-1 gap-1.5">
-                    {analysis.handling.map((item, i) => (
-                      <MetricCard key={i} item={item} />
+                    {analysis.handling.map((item) => (
+                      <MetricCard key={item.label} item={item} />
                     ))}
                   </div>
                 </div>
@@ -661,9 +579,9 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 <div>
                   <SectionHeader icon={<AlertTriangle className="size-3" />} title={m.label_problem_corners()} />
                   <div className="space-y-1.5">
-                    {analysis.corners.map((corner, i) => (
+                    {analysis.corners.map((corner) => (
                       <TrackCard
-                        key={i}
+                        key={corner.name}
                         seg={findSegment(cornerFracs.length ? cornerFracs : segments, corner.name)}
                         color={corner.severity === "major" ? "critical" : corner.severity === "moderate" ? "warning" : "good"}
                         onJumpToFrac={onJumpToFrac}
@@ -687,9 +605,9 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 <div>
                   <SectionHeader icon={<CircleDot className="size-3" />} title={m.label_braking_points()} />
                   <div className="space-y-1.5">
-                    {analysis.braking.map((item, i) => (
+                    {analysis.braking.map((item) => (
                       <TrackCard
-                        key={i}
+                        key={item.corner}
                         seg={findSegment(cornerFracs.length ? cornerFracs : segments, item.corner)}
                         color={item.assessment}
                         onJumpToFrac={onJumpToFrac}
@@ -712,9 +630,9 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 <div>
                   <SectionHeader icon={<Zap className="size-3" />} title={m.label_throttle_application()} />
                   <div className="space-y-1.5">
-                    {analysis.throttle.map((item, i) => (
+                    {analysis.throttle.map((item) => (
                       <TrackCard
-                        key={i}
+                        key={item.corner}
                         seg={findSegment(cornerFracs.length ? cornerFracs : segments, item.corner)}
                         color={item.assessment}
                         onJumpToFrac={onJumpToFrac}
@@ -739,7 +657,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                   <div className="space-y-1.5">
                     {analysis.coaching.map((item, i) => (
                       <TrackCard
-                        key={i}
+                        key={item.tip}
                         seg={findSegment(cornerFracs.length ? cornerFracs : segments, item.tip, item.detail)}
                         color="warning"
                         onJumpToFrac={onJumpToFrac}
@@ -776,6 +694,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                   </span>
                 )}
                 <button
+                  type="button"
                   onClick={handleExport}
                   className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
                   title={m.label_export_as_image()}
@@ -783,6 +702,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                   <Download className="size-3" /> {m.aipanel_export()}
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     clearChat();
                     fetchAnalysis(true);
@@ -794,6 +714,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                   <RefreshCw className="size-3" /> {m.label_regenerate()}
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     clearChat();
                     setAnalysis(null);
@@ -810,124 +731,29 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           </div>
         )}
 
-        {/* Chat messages continue the conversation */}
-        {!loading && (analysis || messages.length > 0) && (
-          <>
-            {messages.length > 0 && (
-              <div className="flex justify-end">
-                <button onClick={clearChat} className="text-[9px] text-app-text-muted hover:text-red-400 transition-colors">
-                  <Trash2 className="size-3" />
-                </button>
-              </div>
-            )}
-
-            {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className="max-w-[90%]">
-                  <div
-                    className={`rounded-lg px-2.5 py-1.5 text-[11px] leading-relaxed ${
-                      msg.role === "user" ? "bg-cyan-600/20 border border-cyan-500/30 text-app-text" : "bg-app-surface-alt/60 border border-app-border-input/40 text-app-text-secondary"
-                    }`}
-                  >
-                    <div className="prose-chat">
-                      <Markdown remarkPlugins={[remarkGfm]}>{msg.content}</Markdown>
-                    </div>
-                  </div>
-                  {msg.role === "assistant" && msg.usage && (
-                    <div className="pl-1 pt-0.5 text-[9px] text-app-text-muted font-mono">
-                      {msg.usage.inputTokens.toLocaleString()}↓ {msg.usage.outputTokens.toLocaleString()}↑ ${msg.usage.costUsd.toFixed(4)}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-
-            {streaming && (
-              <div className="flex flex-col items-start gap-0.5">
-                <div className="max-w-[90%] rounded-lg px-2.5 py-1.5 text-[11px] leading-relaxed bg-app-surface-alt/60 border border-app-border-input/40 text-app-text-secondary">
-                  <div className="prose-chat">
-                    <Markdown remarkPlugins={[remarkGfm]}>{streaming}</Markdown>
-                  </div>
-                </div>
-                {chatStatus === "generating" && <span className="text-[9px] text-app-text-muted font-mono pl-1">{m.aipanel_generating()}</span>}
-              </div>
-            )}
-            {chatUsage && !streaming && (
-              <div className="flex justify-start pl-1">
-                <span className="text-[9px] text-app-text-muted font-mono">
-                  {chatUsage.inputTokens.toLocaleString()}↓ {chatUsage.outputTokens.toLocaleString()}↑ ${chatUsage.costUsd.toFixed(4)}
-                </span>
-              </div>
-            )}
-
-            {chatLoading && (chatStatus === "thinking" || chatTool) && !streaming && (
-              <div className="flex justify-start">
-                <div className="rounded-lg px-2.5 py-1.5 bg-app-surface-alt/60 border border-app-border-input/40">
-                  <div className="flex items-center gap-1.5">
-                    <div className="size-1.5 rounded-full bg-amber-400 animate-pulse" />
-                    <span className="text-[10px] text-app-text-secondary">{chatTool ? `${m.aipanel_using_tool()} ${chatTool}` : chatStatus === "thinking" ? m.aipanel_thinking() : m.aipanel_waiting_model()}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-            {chatError && (
-              <div className="flex justify-start">
-                <div className="rounded-lg px-2.5 py-2 bg-red-400/10 border border-red-400/20">
-                  <p className="text-[11px] text-red-400">{chatError}</p>
-                  <Button
-                    variant="app-outline"
-                    size="app-sm"
-                    onClick={() => {
-                      const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
-                      if (lastUserMsg) {
-                        setChatInput(lastUserMsg.content);
-                        setMessages((prev) => prev.slice(0, -1));
-                        setChatError(null);
-                      }
-                    }}
-                    className="mt-1"
-                  >
-                    {m.label_retry()}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </>
+        {/* Chat continues the conversation, below the analysis card. Only
+            mounted once analysis exists (or chat has been used before) so
+            the panel doesn't show an empty composer with nothing to discuss
+            yet — matches the old gating behaviour. */}
+        {!loading && analysis && (
+          <div className="flex justify-end -mb-1">
+            <button type="button" onClick={clearChat} className="text-[9px] text-app-text-muted hover:text-red-400 transition-colors">
+              <Trash2 className="size-3" />
+            </button>
+          </div>
         )}
-
-        <div ref={chatEndRef} />
       </div>
 
-      {/* Chat input — pinned at bottom */}
-      {!loading && (analysis || messages.length > 0) && (
-        <div className="shrink-0 border-t border-app-border p-2 flex gap-1.5">
-          <textarea
-            value={chatInput}
-            onChange={(e) => setChatInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendChat();
-              }
-            }}
-            placeholder={m.aipanel_chat_placeholder()}
-            disabled={chatLoading}
-            rows={1}
-            style={{ height: "auto", maxHeight: "9.375rem" }}
-            className="flex-1 bg-app-surface border border-app-border-input rounded px-3 py-2.5 text-[12px] text-app-text placeholder:text-app-text-muted focus:outline-none focus:border-cyan-500/50 disabled:opacity-50 resize-none overflow-y-auto"
-            onInput={(e) => {
-              const target = e.target as HTMLTextAreaElement;
-              target.style.height = "auto";
-              target.style.height = target.scrollHeight + "px";
-            }}
+      {!loading && analysis && (
+        <div className="flex-1 min-h-0 flex flex-col border-t border-app-border">
+          <ChatPanel
+            key={chatRemountKey}
+            api={`/api/laps/${lapId}/chat`}
+            fetchHistory={(gen) => fetchLapChatHistory(lapId, gen)}
+            historyQueryKey={["lap-chat-history", lapId, chatRemountKey]}
+            remountKey={`${lapId}:${chatRemountKey}`}
+            compactThreadId={`lap-${lapId}`}
           />
-          <button
-            onClick={sendChat}
-            disabled={chatLoading || !chatInput.trim()}
-            className="shrink-0 p-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors disabled:opacity-40 self-end"
-          >
-            <Send className="size-3" />
-          </button>
         </div>
       )}
     </div>

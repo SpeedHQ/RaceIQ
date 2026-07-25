@@ -1,20 +1,19 @@
+import { tryGetGame } from "@shared/games/registry";
 import { useEffect, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
-import { tryGetGame } from "@shared/games/registry";
-import type { DisplayPacket } from "../lib/convert-packet";
-import { SteeringWheel } from "./SteeringWheel";
 import { useUnits } from "../hooks/useUnits";
+import type { DisplayPacket } from "../lib/convert-packet";
 import { client } from "../lib/rpc";
 import { useGameId } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
-
+import { SteeringWheel } from "./SteeringWheel";
+import { ArcGauge, FuelGauge, PowerTorque } from "./telemetry/Gauges";
+import { GForceCircle } from "./telemetry/GForceCircle";
 import { GripHistory } from "./telemetry/GripHistory";
 import { PitEstimate } from "./telemetry/PitEstimate";
-import { TireDiagram } from "./telemetry/TireDiagram";
 import { SurfaceConditions } from "./telemetry/SurfaceConditions";
-import { GForceCircle } from "./telemetry/GForceCircle";
-import { ArcGauge, FuelGauge, PowerTorque } from "./telemetry/Gauges";
 import { TelemetryCharts } from "./telemetry/TelemetryCharts";
+import { TireDiagram } from "./telemetry/TireDiagram";
 import { TireGrid } from "./telemetry/TireGrid";
 
 // Re-export for backward compatibility

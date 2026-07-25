@@ -359,13 +359,21 @@ export interface AlignmentIssue {
 export interface AlignedCorner {
   /** Index into the detected corner-region list (last region when merged). */
   regionIndex: number;
-  /** Corner numbers covered by this section. */
-  numbers: number[];
+  /** Official number of the turn this section is. One section per turn. */
+  number: number;
+  /** Extra official numbers this turn subsumes (Pouhon: number 10, covers 11). */
+  covers?: number[];
   name: string;
   /** null for mixed-direction complexes (chicanes). */
   direction: "left" | "right" | null;
   startFrac: number;
   endFrac: number;
+  /**
+   * Complex this turn belongs to (Rivazza, Variante Alta, Les Combes). Each
+   * turn is its own section so the debug editor can move a single apex, but
+   * consumers that label the map draw the complex once under this name.
+   */
+  group?: string;
 }
 
 export interface AlignmentResult {
@@ -607,21 +615,58 @@ function alignOnePolarity(
     const baseIdx = cursor;
     cursor += take;
 
-    // One unit = one output section. A grouped complex (chicane, Les Combes)
-    // and a spans-split double-apex both merge into a single named section
-    // spanning entry to exit — matching how coaches and track maps refer to
-    // them. Direction is null when the merged regions disagree (chicanes).
     const regionIdx = baseIdx + take - 1;
     const dirs = new Set(consumed.map((c) => c.direction));
-    const name = u.group ?? displayName(u.members[0]);
     const numbers = u.members.flatMap((m) => [m.number, ...(m.covers ?? [])]).sort((a, b) => a - b);
+
+    // Every turn is its own section, so the debug editor can nudge a single
+    // apex and each row carries one official number. A grouped complex
+    // (Rivazza, Les Combes) is one *name* over several turns: members keep
+    // `group` so consumers that label the map draw it once.
+    if (u.members.length > 1) {
+      // One detected region per member: each turn takes its own region.
+      // Otherwise the mapping is ambiguous (spans-split double-apex, or fewer
+      // regions than members) — split the complex's whole span evenly instead,
+      // which is the best available guess at where one turn ends and the next
+      // begins, and is what the editor exists to correct.
+      const perMember = take === u.members.length;
+      const spanStart = consumed[0].startFrac;
+      const spanEnd = consumed[take - 1].endFrac;
+      const step = (spanEnd - spanStart) / u.members.length;
+      for (let k = 0; k < u.members.length; k++) {
+        const m = u.members[k];
+        corners.push({
+          regionIndex: perMember ? baseIdx + k : regionIdx,
+          number: m.number,
+          ...(m.covers?.length ? { covers: [...m.covers].sort((a, b) => a - b) } : {}),
+          name: displayName(m),
+          direction: perMember ? consumed[k].direction : dirs.size === 1 ? consumed[0].direction : null,
+          startFrac: round4(perMember ? consumed[k].startFrac : spanStart + k * step),
+          endFrac: round4(perMember ? consumed[k].endFrac : spanStart + (k + 1) * step),
+          group: u.group ?? displayName(u.members[0]),
+        });
+        if (perMember) {
+          for (const num of [m.number, ...(m.covers ?? [])]) lastRegionIdxByCorner.set(num, baseIdx + k);
+        }
+      }
+      // Straights anchor to the corner they follow — the complex's last region
+      // is what a "straight after Rivazza" anchor means.
+      for (const num of numbers) lastRegionIdxByCorner.set(num, regionIdx);
+      continue;
+    }
+
+    // Single turn: the section runs entry to exit, matching how coaches and
+    // track maps refer to it. Direction is null when regions disagree.
+    const m = u.members[0];
     corners.push({
       regionIndex: regionIdx,
-      numbers,
-      name,
+      number: m.number,
+      ...(m.covers?.length ? { covers: [...m.covers].sort((a, b) => a - b) } : {}),
+      name: u.group ?? displayName(m),
       direction: dirs.size === 1 ? consumed[0].direction : null,
       startFrac: round4(consumed[0].startFrac),
       endFrac: round4(consumed[take - 1].endFrac),
+      ...(u.group ? { group: u.group } : {}),
     });
     for (const num of numbers) lastRegionIdxByCorner.set(num, regionIdx);
   }
@@ -731,7 +776,9 @@ function alignOnePolarity(
       ...(c.direction ? { direction: c.direction } : {}),
       startFrac: Math.max(c.startFrac, prevEnd),
       endFrac: c.endFrac,
-      numbers: c.numbers,
+      number: c.number,
+      ...(c.covers?.length ? { covers: c.covers } : {}),
+      ...(c.group ? { group: c.group } : {}),
     });
     const nextStart = i + 1 < corners.length ? corners[i + 1].startFrac : 1;
     pushStraight(c.endFrac, nextStart, c.regionIndex);
@@ -788,7 +835,7 @@ export function resolveSectors(
 
   const anchored = (cornerNum: number | undefined, offsetM: number | undefined, label: string): number | null => {
     if (cornerNum === undefined) return null;
-    const hits = corners.filter((c) => c.numbers.includes(cornerNum));
+    const hits = corners.filter((c) => c.number === cornerNum || c.covers?.includes(cornerNum));
     if (hits.length === 0) {
       // Not fatal: explicit s1End/s2End fractions may still cover this boundary
       issues.push({ severity: "warning", message: `${label} anchor corner ${cornerNum} not present — falling back to explicit fraction if provided` });

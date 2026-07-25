@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createRouter, createMemoryHistory, RouterProvider, createRootRoute } from "@tanstack/react-router";
-import { useTelemetryStore } from "../stores/telemetry";
-import { useGameStore } from "../stores/game";
+import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import { ForzaLiveDashboard } from "../components/ForzaLiveDashboard";
-import { fakeForzaPacket, fakeForzaDisplayPacket, fakeSectors, fakePit, fakeSessionLaps } from "./fakeData";
+import { useGameStore } from "../stores/game";
+import { useTelemetryStore } from "../stores/telemetry";
+import { fakeForzaDisplayPacket, fakeForzaPacket, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },

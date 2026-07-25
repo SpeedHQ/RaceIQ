@@ -1,10 +1,10 @@
-import type { TelemetryPacket, GameId } from "@shared/types";
-import { m } from "../../paraglide/messages";
-import type { DisplayPacket } from "../../lib/convert-packet";
 import { tryGetGame } from "@shared/games/registry";
-import { tireTempColor, tireHealthColor, wearRateColor, brakeTempColor, tirePressureColor, COLORS } from "../../lib/vehicle-dynamics";
-import type { useUnits } from "../../hooks/useUnits";
+import type { GameId, TelemetryPacket } from "@shared/types";
 import { useTirePressureOptimal } from "../../hooks/queries";
+import type { useUnits } from "../../hooks/useUnits";
+import type { DisplayPacket } from "../../lib/convert-packet";
+import { brakeTempColor, COLORS, tireHealthColor, tirePressureColor, tireTempColor, wearRateColor } from "../../lib/vehicle-dynamics";
+import { m } from "../../paraglide/messages";
 import { WheelTable } from "./WheelTable";
 
 interface WearRate {

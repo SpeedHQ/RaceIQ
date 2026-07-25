@@ -16,9 +16,7 @@
           "direction": "right",
           "startFrac": 0.0622,
           "endFrac": 0.137,
-          "numbers": [
-            1
-          ]
+          "number": 1
         },
         {
           "type": "corner",
@@ -26,9 +24,7 @@
           "direction": "right",
           "startFrac": 0.137,
           "endFrac": 0.2231,
-          "numbers": [
-            2
-          ]
+          "number": 2
         },
         {
           "type": "corner",
@@ -36,9 +32,7 @@
           "direction": "left",
           "startFrac": 0.2231,
           "endFrac": 0.263,
-          "numbers": [
-            3
-          ]
+          "number": 3
         },
         {
           "type": "corner",
@@ -46,9 +40,7 @@
           "direction": "right",
           "startFrac": 0.263,
           "endFrac": 0.3269,
-          "numbers": [
-            4
-          ]
+          "number": 4
         },
         {
           "type": "corner",
@@ -56,9 +48,7 @@
           "direction": "left",
           "startFrac": 0.3269,
           "endFrac": 0.4068,
-          "numbers": [
-            5
-          ]
+          "number": 5
         },
         {
           "type": "corner",
@@ -66,9 +56,7 @@
           "direction": "right",
           "startFrac": 0.4068,
           "endFrac": 0.5024,
-          "numbers": [
-            7
-          ]
+          "number": 7
         },
         {
           "type": "corner",
@@ -76,9 +64,7 @@
           "direction": "right",
           "startFrac": 0.5024,
           "endFrac": 0.5829,
-          "numbers": [
-            8
-          ]
+          "number": 8
         },
         {
           "type": "straight",
@@ -89,12 +75,20 @@
         {
           "type": "corner",
           "name": "Fogarty Esses",
+          "direction": "left",
           "startFrac": 0.6806,
+          "endFrac": 0.7326,
+          "number": 9,
+          "group": "Fogarty Esses"
+        },
+        {
+          "type": "corner",
+          "name": "Fogarty Esses",
+          "direction": "right",
+          "startFrac": 0.7326,
           "endFrac": 0.7782,
-          "numbers": [
-            9,
-            10
-          ]
+          "number": 10,
+          "group": "Fogarty Esses"
         },
         {
           "type": "straight",
@@ -108,9 +102,7 @@
           "direction": "right",
           "startFrac": 0.8086,
           "endFrac": 0.8796,
-          "numbers": [
-            11
-          ]
+          "number": 11
         },
         {
           "type": "straight",
@@ -124,9 +116,7 @@
           "direction": "left",
           "startFrac": 0.9075,
           "endFrac": 0.9763,
-          "numbers": [
-            12
-          ]
+          "number": 12
         },
         {
           "type": "straight",
@@ -139,6 +129,137 @@
       "sectors": {
         "s1End": 0.3269,
         "s2End": 0.5829,
+        "source": "corner-anchored"
+      }
+    },
+    "ac-evo": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "Wheatcroft Straight",
+          "startFrac": 0,
+          "endFrac": 0.0465,
+          "group": "Wheatcroft Straight"
+        },
+        {
+          "type": "corner",
+          "name": "Redgate",
+          "direction": "right",
+          "startFrac": 0.0465,
+          "endFrac": 0.1256,
+          "number": 1
+        },
+        {
+          "type": "corner",
+          "name": "Craner Curves",
+          "direction": "right",
+          "startFrac": 0.1256,
+          "endFrac": 0.2083,
+          "number": 2
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "left",
+          "startFrac": 0.2083,
+          "endFrac": 0.2534,
+          "number": 3
+        },
+        {
+          "type": "corner",
+          "name": "Old Hairpin",
+          "direction": "right",
+          "startFrac": 0.2534,
+          "endFrac": 0.3184,
+          "number": 4
+        },
+        {
+          "type": "corner",
+          "name": "Starkey's Bridge",
+          "direction": "left",
+          "startFrac": 0.3184,
+          "endFrac": 0.394,
+          "number": 5
+        },
+        {
+          "type": "corner",
+          "name": "McLeans",
+          "direction": "right",
+          "startFrac": 0.394,
+          "endFrac": 0.4906,
+          "number": 7
+        },
+        {
+          "type": "corner",
+          "name": "Coppice",
+          "direction": "right",
+          "startFrac": 0.4906,
+          "endFrac": 0.573,
+          "number": 8
+        },
+        {
+          "type": "straight",
+          "name": "Starkey's Straight",
+          "startFrac": 0.573,
+          "endFrac": 0.6691
+        },
+        {
+          "type": "corner",
+          "name": "Fogarty Esses",
+          "direction": "left",
+          "startFrac": 0.6691,
+          "endFrac": 0.7203,
+          "number": 9,
+          "group": "Fogarty Esses"
+        },
+        {
+          "type": "corner",
+          "name": "Fogarty Esses",
+          "direction": "right",
+          "startFrac": 0.7203,
+          "endFrac": 0.764,
+          "number": 10,
+          "group": "Fogarty Esses"
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.764,
+          "endFrac": 0.7956
+        },
+        {
+          "type": "corner",
+          "name": "Melbourne Hairpin",
+          "direction": "right",
+          "startFrac": 0.7956,
+          "endFrac": 0.8667,
+          "number": 11
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.8667,
+          "endFrac": 0.8972
+        },
+        {
+          "type": "corner",
+          "name": "Goddards",
+          "direction": "left",
+          "startFrac": 0.8972,
+          "endFrac": 0.9679,
+          "number": 12
+        },
+        {
+          "type": "straight",
+          "name": "Wheatcroft Straight",
+          "startFrac": 0.9679,
+          "endFrac": 1,
+          "group": "Wheatcroft Straight"
+        }
+      ],
+      "sectors": {
+        "s1End": 0.3184,
+        "s2End": 0.573,
         "source": "corner-anchored"
       }
     }
@@ -157,9 +278,7 @@
       "direction": "right",
       "startFrac": 0.0622,
       "endFrac": 0.137,
-      "numbers": [
-        1
-      ]
+      "number": 1
     },
     {
       "type": "corner",
@@ -167,9 +286,7 @@
       "direction": "right",
       "startFrac": 0.137,
       "endFrac": 0.2231,
-      "numbers": [
-        2
-      ]
+      "number": 2
     },
     {
       "type": "corner",
@@ -177,9 +294,7 @@
       "direction": "left",
       "startFrac": 0.2231,
       "endFrac": 0.263,
-      "numbers": [
-        3
-      ]
+      "number": 3
     },
     {
       "type": "corner",
@@ -187,9 +302,7 @@
       "direction": "right",
       "startFrac": 0.263,
       "endFrac": 0.3269,
-      "numbers": [
-        4
-      ]
+      "number": 4
     },
     {
       "type": "corner",
@@ -197,9 +310,7 @@
       "direction": "left",
       "startFrac": 0.3269,
       "endFrac": 0.4068,
-      "numbers": [
-        5
-      ]
+      "number": 5
     },
     {
       "type": "corner",
@@ -207,9 +318,7 @@
       "direction": "right",
       "startFrac": 0.4068,
       "endFrac": 0.5024,
-      "numbers": [
-        7
-      ]
+      "number": 7
     },
     {
       "type": "corner",
@@ -217,9 +326,7 @@
       "direction": "right",
       "startFrac": 0.5024,
       "endFrac": 0.5829,
-      "numbers": [
-        8
-      ]
+      "number": 8
     },
     {
       "type": "straight",
@@ -230,12 +337,20 @@
     {
       "type": "corner",
       "name": "Fogarty Esses",
+      "direction": "left",
       "startFrac": 0.6806,
+      "endFrac": 0.7326,
+      "number": 9,
+      "group": "Fogarty Esses"
+    },
+    {
+      "type": "corner",
+      "name": "Fogarty Esses",
+      "direction": "right",
+      "startFrac": 0.7326,
       "endFrac": 0.7782,
-      "numbers": [
-        9,
-        10
-      ]
+      "number": 10,
+      "group": "Fogarty Esses"
     },
     {
       "type": "straight",
@@ -249,9 +364,7 @@
       "direction": "right",
       "startFrac": 0.8086,
       "endFrac": 0.8796,
-      "numbers": [
-        11
-      ]
+      "number": 11
     },
     {
       "type": "straight",
@@ -265,9 +378,7 @@
       "direction": "left",
       "startFrac": 0.9075,
       "endFrac": 0.9763,
-      "numbers": [
-        12
-      ]
+      "number": 12
     },
     {
       "type": "straight",

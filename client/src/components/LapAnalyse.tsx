@@ -5,8 +5,8 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useCarName,
-  useLapTelemetry,
   useLaps as useLapsQuery,
+  useLapTelemetry,
   useResolveNames,
   useSettings,
   useTrackBoundaries,
@@ -332,6 +332,31 @@ function LapAnalyseInner() {
       return () => clearTimeout(timer);
     }
   }, [cursorIdx, telemetry.length]);
+
+  // Expose deterministic frame control for Playwright recording.
+  // Mirrors Onboarding's hook so the full analyse cockpit (track dot, gauges,
+  // traces) can be stepped frame-by-frame — same index -> identical pixels.
+  useEffect(() => {
+    if (!(window as unknown as Record<string, unknown>).__recording) return;
+    const w = window as unknown as Record<string, unknown>;
+    w.__setFrame = (n: number) => {
+      const idx = Math.max(0, Math.min(telemetry.length - 1, n));
+      setCursorIdx(idx);
+      trackMapRef.current?.updateCursor(idx);
+      chartsPanelRef.current?.updateCursor(idx);
+    };
+    w.__pauseAnimation = () => setPlaying(false);
+    w.__totalFrames = telemetry.length;
+    // Per-frame lap timestamps (seconds) so the recorder can offset the start
+    // by real seconds, not a guessed fraction.
+    w.__frameTimes = telemetry.map((p) => p.CurrentLap);
+    return () => {
+      w.__setFrame = undefined;
+      w.__pauseAnimation = undefined;
+      w.__totalFrames = undefined;
+      w.__frameTimes = undefined;
+    };
+  }, [telemetry.length]);
 
   // Playback animation + keyboard controls
   const { updateOverlays } = useLapPlayback({

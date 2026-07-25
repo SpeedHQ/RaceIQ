@@ -1,12 +1,12 @@
-import { Button } from "@/components/ui/button";
-import { m } from "@/paraglide/messages";
-import { getLocale, isLocale } from "@/paraglide/runtime";
-import { applyLocale } from "@/lib/locale";
 import { getAllGames } from "@shared/games/registry";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { Link, Outlet, createRootRoute, useLocation } from "@tanstack/react-router";
+import { createRootRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { Menu, RefreshCw, Settings2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { applyLocale } from "@/lib/locale";
+import { m } from "@/paraglide/messages";
+import { getLocale, isLocale } from "@/paraglide/runtime";
 import { ConnectionStatus } from "../components/ConnectionStatus";
 import { OnboardingModal } from "../components/Onboarding";
 import { Settings } from "../components/Settings";
@@ -14,20 +14,28 @@ import { UpdateModal } from "../components/UpdateModal";
 import { ThemeProvider } from "../context/theme";
 import { useSettings } from "../hooks/queries";
 import { useWebSocket } from "../hooks/useWebSocket";
+import { queryClient } from "../lib/queryClient";
 import { useTelemetryStore } from "../stores/telemetry";
 import { useUiStore } from "../stores/ui";
 
-import { queryClient } from "../lib/queryClient";
-
 // Canonical (English, path-stable) game sub-tab keys. The URL segment is always
 // the lowercased English key; only the *display* label is localized.
-const GAME_SUB_TABS = ["Live", "Sessions", "Compare", "Analyse", "Chats", "Tracks", "Cars", "Setups", "Raw"] as const;
+const GAME_SUB_TABS = ["Live", "Sessions", "Compare", "Analyse", "Tuning", "Chats", "Tracks", "Cars", "Setups", "Raw"] as const;
+
+// Sub-tabs only exposed for certain games. Tune is acc/ac-evo/f1-2025 — ACC and
+// AC-Evo use the file-based auto-tune pipeline (saved setup → autotune engine);
+// F1 2025 has no setup file, so it uses the telemetry-capture flow instead
+// (base setup captured from a driven lap, see TuningSessionWorkspace).
+const GAME_SUB_TAB_GATE: Partial<Record<(typeof GAME_SUB_TABS)[number], readonly string[]>> = {
+  Tuning: ["/acc", "/ac-evo", "/f125"],
+};
 
 const SUB_TAB_LABELS: Record<(typeof GAME_SUB_TABS)[number], () => string> = {
   Live: m.tab_live,
   Sessions: m.label_sessions,
   Compare: m.label_compare,
   Analyse: m.label_analyse,
+  Tuning: () => "Tuning",
   Chats: m.tab_chats,
   Tracks: m.label_tracks,
   Cars: m.label_cars,
@@ -37,7 +45,10 @@ const SUB_TAB_LABELS: Record<(typeof GAME_SUB_TABS)[number], () => string> = {
 
 let _gamePrefixes: string[] | null = null;
 function getGamePrefixes() {
-  return (_gamePrefixes ??= getAllGames().map((g) => `/${g.routePrefix}`));
+  if (_gamePrefixes === null) {
+    _gamePrefixes = getAllGames().map((g) => `/${g.routePrefix}`);
+  }
+  return _gamePrefixes;
 }
 
 function useUpdateCheck() {
@@ -55,7 +66,7 @@ function ReprocessProgressModal({ total, done, onClose }: { total: number; done:
           <RefreshCw className={`size-5 text-blue-400 ${complete ? "" : "animate-spin"}`} />
           <h2 className="text-sm font-semibold text-white flex-1">{complete ? m.root_reprocessing_complete() : m.root_reprocessing()}</h2>
           {complete && (
-            <button onClick={onClose} className="text-white/40 hover:text-white/70 transition-colors" aria-label="Close">
+            <button type="button" onClick={onClose} className="text-white/40 hover:text-white/70 transition-colors" aria-label="Close">
               <X className="size-4" />
             </button>
           )}
@@ -109,6 +120,7 @@ function StaleLapButton() {
             accuracy.
           </p>
           <button
+            type="button"
             onClick={handleReprocess}
             className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-300 transition-colors"
           >
@@ -183,7 +195,7 @@ export function RotatePrompt() {
   return (
     <div className="fixed inset-x-0 bottom-6 z-40 flex justify-center px-6 pointer-events-none">
       <div className="relative w-full max-w-sm rounded-xl border border-app-border bg-app-surface p-6 shadow-2xl text-center pointer-events-auto">
-        <button onClick={() => setDismissed(true)} className="absolute top-2 right-2 p-1 text-app-text-muted hover:text-app-text" aria-label="Dismiss">
+        <button type="button" onClick={() => setDismissed(true)} className="absolute top-2 right-2 p-1 text-app-text-muted hover:text-app-text" aria-label="Dismiss">
           <X className="size-4" />
         </button>
         <div className="flex flex-col items-center gap-3">
@@ -281,7 +293,10 @@ function AppShell() {
     // Every game exposes a "Setups" tab: fm23/acc/ac-evo show the tune browser
     // (Forza also folds its wheel/FFB catalogue in as a sub-tab), f125 shows a
     // placeholder. No per-game gating needed.
-    return GAME_SUB_TABS.map((key) => ({ to: `${prefix}/${key.toLowerCase()}`, label: SUB_TAB_LABELS[key]() }));
+    return GAME_SUB_TABS.filter((key) => {
+      const gate = GAME_SUB_TAB_GATE[key];
+      return !gate || gate.includes(prefix);
+    }).map((key) => ({ to: `${prefix}/${key.toLowerCase()}`, label: SUB_TAB_LABELS[key]() }));
   }, [location.pathname, uiLocale]);
 
   // Active game sub-tab (for the tablet <select> dropdown)
@@ -409,6 +424,7 @@ function AppShell() {
           <div className="flex items-center gap-2 mr-2 shrink-0">
             {updateState?.updateAvailable && (
               <button
+                type="button"
                 onClick={() => setShowUpdateModal(true)}
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-400/15 text-yellow-400 border border-yellow-400/30 hover:bg-yellow-400/25 transition-colors"
               >
@@ -429,7 +445,7 @@ function AppShell() {
             </Button>
 
             {/* Hamburger (mobile only, right side) */}
-            <button onClick={() => setMobileNavOpen(true)} className="md:hidden p-3 text-app-text-secondary hover:text-app-text" aria-label="Open navigation">
+            <button type="button" onClick={() => setMobileNavOpen(true)} className="md:hidden p-3 text-app-text-secondary hover:text-app-text" aria-label="Open navigation">
               <Menu className="size-6" />
             </button>
           </div>
@@ -442,7 +458,7 @@ function AppShell() {
             <nav className="relative w-64 max-w-[80vw] h-full bg-app-bg border-l border-app-border flex flex-col overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between px-4 py-3 border-b border-app-border">
                 <span className="text-sm font-semibold text-app-text">{m.nav_navigation()}</span>
-                <button onClick={() => setMobileNavOpen(false)} className="p-1 text-app-text-muted hover:text-app-text" aria-label="Close navigation">
+                <button type="button" onClick={() => setMobileNavOpen(false)} className="p-1 text-app-text-muted hover:text-app-text" aria-label="Close navigation">
                   <X className="size-4" />
                 </button>
               </div>
@@ -489,6 +505,7 @@ function AppShell() {
 
                 <div className="mx-4 my-2 border-t border-app-border" />
                 <button
+                  type="button"
                   onClick={() => {
                     setMobileNavOpen(false);
                     openSettings();
@@ -514,6 +531,7 @@ function AppShell() {
               <div className="flex items-center justify-between px-4 py-3 border-b border-app-border bg-app-surface">
                 <h1 className="text-sm font-semibold text-app-text">{m.nav_settings()}</h1>
                 <button
+                  type="button"
                   onClick={() => {
                     closeSettings();
                   }}

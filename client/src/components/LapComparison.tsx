@@ -1,21 +1,21 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useSearch, useNavigate } from "@tanstack/react-router";
+import type { ComparisonData, LapMeta } from "@shared/types";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { Sparkles } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLaps, useTrackOutline, useTrackSectors } from "../hooks/queries";
+import { useUnits } from "../hooks/useUnits";
+import { COLOR_A, COLOR_B, formatLapTime, type Point } from "../lib/comparison-utils";
+import { client } from "../lib/rpc";
 import { m } from "../paraglide/messages";
-import type { LapMeta, ComparisonData } from "@shared/types";
+import { MobileNotSupported } from "../routes/__root";
+import { useGameId } from "../stores/game";
+import type { CompareAiPanelHandle } from "./comparison/CompareAiPanel";
+import { CompareAiSidebar } from "./comparison/CompareAiSidebar";
+import { CompareTrackMap, type SegmentTiming } from "./comparison/CompareTrackMap";
 import { TelemetryChart } from "./TelemetryChart";
 import { TimeDelta } from "./TimeDelta";
-import { useUnits } from "../hooks/useUnits";
-import { useLaps, useTrackOutline, useTrackSectors } from "../hooks/queries";
-import { client } from "../lib/rpc";
-import { useGameId } from "../stores/game";
-import { SearchSelect } from "./ui/SearchSelect";
-import { CompareTrackMap, type SegmentTiming } from "./comparison/CompareTrackMap";
-import { CompareAiSidebar } from "./comparison/CompareAiSidebar";
-import type { CompareAiPanelHandle } from "./comparison/CompareAiPanel";
-import { COLOR_A, COLOR_B, formatLapTime, type Point } from "../lib/comparison-utils";
-import { Sparkles } from "lucide-react";
 import { Button } from "./ui/button";
-import { MobileNotSupported } from "../routes/__root";
+import { SearchSelect } from "./ui/SearchSelect";
 
 const SYNC_KEY = "lap-compare";
 

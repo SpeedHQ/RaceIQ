@@ -1,5 +1,5 @@
-import { useTelemetryStore } from "../stores/telemetry";
 import { useGameStore } from "../stores/game";
+import { useTelemetryStore } from "../stores/telemetry";
 import { useUiStore } from "../stores/ui";
 
 export function DevStateViewer() {
@@ -17,7 +17,7 @@ export function DevStateViewer() {
     <div className="flex flex-col h-full overflow-hidden p-2 gap-2">
       <div className="flex items-center justify-between">
         <span className="text-xs text-app-text-muted uppercase tracking-wider">Dev State</span>
-        <button onClick={toggleDevStatePause} className="text-xs px-2 py-1 rounded border border-app-border text-app-text-secondary hover:text-app-text">
+        <button type="button" onClick={toggleDevStatePause} className="text-xs px-2 py-1 rounded border border-app-border text-app-text-secondary hover:text-app-text">
           {devStatePaused ? "Resume" : "Pause"}
         </button>
       </div>

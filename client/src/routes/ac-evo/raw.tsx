@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
-import React, { useEffect, useRef, useState } from "react";
 import { RawTelemetry } from "../../components/RawTelemetry";
 import { useTelemetryStore } from "../../stores/telemetry";
 

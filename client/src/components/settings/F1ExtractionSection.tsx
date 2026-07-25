@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { m } from "@/paraglide/messages";
 import { Button } from "@/components/ui/button";
 import { client } from "@/lib/rpc";
+import { m } from "@/paraglide/messages";
 
 export function F1ExtractionSection() {
   const [status, setStatus] = useState<{

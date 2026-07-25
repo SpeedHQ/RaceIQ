@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { m } from "@/paraglide/messages";
 import { client } from "@/lib/rpc";
+import { m } from "@/paraglide/messages";
 
 interface WheelOption {
   id: string;

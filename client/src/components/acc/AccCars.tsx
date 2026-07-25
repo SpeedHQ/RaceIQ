@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { m } from "../../paraglide/messages";
+import { useMemo, useState } from "react";
 import { client } from "../../lib/rpc";
+import { m } from "../../paraglide/messages";
 
 interface AccCarSpecs {
   maxRpm: number;
@@ -164,7 +164,9 @@ export function AccCars() {
           <div key={cls}>
             <div className="flex items-center gap-2 mb-3">
               <span className={`text-xs font-bold px-2 py-0.5 rounded ${c.bg} ${c.text}`}>{cls}</span>
-              <span className="text-xs text-app-text-dim">{classCars.length} {m.acccars_car_count_label()}</span>
+              <span className="text-xs text-app-text-dim">
+                {classCars.length} {m.acccars_car_count_label()}
+              </span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {classCars.map((car) => {

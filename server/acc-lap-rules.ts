@@ -5,6 +5,7 @@
  * All functions are no-ops for non-ACC packets — they check gameId internally.
  */
 import type { TelemetryPacket } from "../shared/types";
+import type { PitCycleReason } from "../shared/lap-filters";
 
 /**
  * Returns true if the very first packet of a Kunos (ACC / AC Evo) recording
@@ -25,9 +26,17 @@ export function accFirstPacketIsMidLap(packet: TelemetryPacket): boolean {
  * invalid reason string if the lap should be marked invalid, or `null` if the
  * lap never touched pit (and is thus pit-wise valid).
  *
- * - `outlap`:  first packet in pit, last on track (driver exited pit this lap)
- * - `inlap`:   first on track, last in pit    (driver entered pit this lap)
- * - `pit lap`: both first and last in pit     (entirely within pit lane / box)
+ * - `outlap`:  lap touched pit but did not end in pit (driver exited pit this lap)
+ * - `inlap`:   started on track, ended in pit         (driver entered pit this lap)
+ * - `pit lap`: both started and ended in pit          (entirely within pit lane / box)
+ *
+ * Outlap detection deliberately checks *any* packet in the lap rather than
+ * just the first: AC Evo's graphics page reports `car_location=TRACK` with
+ * both pit flags zero for the first few hundred frames after attach, even
+ * while the car is physically parked in the garage. A first-packet-only check
+ * classifies that garage-start outlap as valid. Any pit contact that does not
+ * extend to the end of the lap can only mean the driver left the pits during
+ * the lap, so scanning the whole lap is safe for real ACC data too.
  *
  * Applies to any lap regardless of lap number — a mid-race pit stop produces
  * inlap → pit lap → outlap on laps N → N+1 → N+2. Non-ACC packets always
@@ -35,20 +44,63 @@ export function accFirstPacketIsMidLap(packet: TelemetryPacket): boolean {
  */
 export function classifyAccPitLap(
   packets: TelemetryPacket[]
-): "outlap" | "inlap" | "pit lap" | null {
+): PitCycleReason | null {
   if (packets.length === 0) return null;
   // AC Evo shares the same `acc` extended-data shape as ACC, so the same
   // pit-status logic applies unchanged.
   const gameId = packets[0].gameId;
   if (gameId !== "acc" && gameId !== "ac-evo") return null;
 
-  const firstPit = packets[0].acc?.pitStatus ?? "out";
-  const lastPit = packets[packets.length - 1].acc?.pitStatus ?? "out";
-  const startInPit = firstPit !== "out";
-  const endInPit = lastPit !== "out";
+  const startInPit = (packets[0].acc?.pitStatus ?? "out") !== "out";
+  const endInPit = (packets[packets.length - 1].acc?.pitStatus ?? "out") !== "out";
+  const anyInPit =
+    startInPit || endInPit || packets.some((p) => (p.acc?.pitStatus ?? "out") !== "out");
 
   if (startInPit && endInPit) return "pit lap";
-  if (startInPit) return "outlap";
   if (endInPit) return "inlap";
+  if (anyInPit) return "outlap";
+  return null;
+}
+
+/** Consecutive invalid frames required before we believe a cut is real. */
+const TRACK_LIMITS_MIN_FRAMES = 2;
+
+/**
+ * Detects a track-limits cut on a Kunos (ACC / AC Evo) lap from the per-frame
+ * `is_valid_lap` graphics flag, returning `"track limits"` if the lap was
+ * invalidated on track or `null` otherwise.
+ *
+ * Both games clear `is_valid_lap` the moment the car puts too many wheels off
+ * the racing surface, and leave it cleared for the remainder of the lap. So a
+ * true → false transition anywhere inside the lap is the cut, and a lap that is
+ * already false at its first frame inherited the state from the previous lap
+ * boundary rather than earning it here.
+ *
+ * A short run of false frames is ignored: the flag can flicker for a frame
+ * across the start/finish line and during pit-lane transitions. Frames where
+ * the flag is `null` (unknown — parser could not trust it, e.g. in the pits)
+ * break a run rather than extending it.
+ *
+ * Returns null for non-Kunos packets, since no other game exposes this flag.
+ */
+export function classifyKunosTrackLimits(
+  packets: TelemetryPacket[]
+): "track limits" | null {
+  if (packets.length === 0) return null;
+  const gameId = packets[0].gameId;
+  if (gameId !== "acc" && gameId !== "ac-evo") return null;
+
+  // A lap that starts already-invalid did not earn the cut on this lap.
+  if (packets[0].acc?.isValidLap === false) return null;
+
+  let run = 0;
+  for (const p of packets) {
+    if (p.acc?.isValidLap === false) {
+      run += 1;
+      if (run >= TRACK_LIMITS_MIN_FRAMES) return "track limits";
+    } else {
+      run = 0;
+    }
+  }
   return null;
 }

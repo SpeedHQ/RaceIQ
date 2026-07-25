@@ -32,6 +32,7 @@ import {
 import {
   analystScorers,
   compareScorers,
+  judgeScorers,
   scoreOutput,
   SCORER_THRESHOLDS,
   type ScoreResult,
@@ -42,6 +43,15 @@ const HAS_API_KEY =
   Boolean(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
 
 const describeIf = HAS_API_KEY ? describe : describe.skip;
+
+/**
+ * Model-graded (LLM-as-judge) scorers only run when a local LM Studio judge
+ * is reachable. Opt in with EVAL_LOCAL_JUDGE=1 (LM Studio serving
+ * google/gemma-4-e2b at http://localhost:1234/v1 — override via
+ * EVAL_JUDGE_BASE_URL / EVAL_JUDGE_MODEL). The same `judgeScorers` array is
+ * reused by the setup-engineer eval below — one faithfulness judge, both agents.
+ */
+const HAS_LOCAL_JUDGE = process.env.EVAL_LOCAL_JUDGE === "1";
 
 beforeAll(() => {
   initGameAdapters();
@@ -75,10 +85,13 @@ describeIf("AI quality — Lap Analyst", () => {
         slowestCorners: fx.expected.slowestCorners,
         trackCorners: fx.expected.trackCorners,
         units: fx.units,
+        // Source the judge grades against: the exact prompt the agent saw.
+        sourceContext: prompt,
       };
 
+      const scorers = HAS_LOCAL_JUDGE ? [...analystScorers, ...judgeScorers] : analystScorers;
       const results = await Promise.all(
-        analystScorers.map((s) => scoreOutput(s, output, groundTruth)),
+        scorers.map((s) => scoreOutput(s, output, groundTruth)),
       );
 
       reportScores(fx.id, results);

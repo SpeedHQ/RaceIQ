@@ -10,19 +10,7 @@ export const GRIP_MAX_SAMPLES = GRIP_HISTORY_SECONDS * GRIP_SAMPLE_RATE;
  * Y-axis is inverted: 0 (top) = perfect grip, 3 (bottom) = total loss.
  * Color zones provide at-a-glance severity bands (green/yellow/orange/red).
  */
-export function GripSparkline({
-  data,
-  label,
-  renderKey,
-  width = 140,
-  height = 40,
-}: {
-  data: number[];
-  label: string;
-  renderKey: number;
-  width?: number;
-  height?: number;
-}) {
+export function GripSparkline({ data, label, renderKey, width = 140, height = 40 }: { data: number[]; label: string; renderKey: number; width?: number; height?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {

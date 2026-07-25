@@ -1,8 +1,8 @@
-import { useEffect, useState, useRef } from "react";
-import { useGameId } from "@/stores/game";
+import { useEffect, useRef, useState } from "react";
 import { client } from "@/lib/rpc";
-import { CurbDebugSection } from "./CurbDebugSection";
+import { useGameId } from "@/stores/game";
 import type { Point, TrackBoundaries, TrackCurb, TrackSectors } from "../types";
+import { CurbDebugSection } from "./CurbDebugSection";
 
 /**
  * TrackDebugPanel — Full-page debug visualization for track boundary data.
@@ -83,7 +83,7 @@ export function TrackDebugPanel({
       e.preventDefault();
       const currentZoom = zoomRef.current;
       const currentPan = panRef.current;
-      const factor = Math.pow(0.999, e.deltaY);
+      const factor = 0.999 ** e.deltaY;
       const newZoom = Math.min(Math.max(currentZoom * factor, 0.5), 8);
       if (Math.abs(newZoom - currentZoom) < 0.001) return;
 

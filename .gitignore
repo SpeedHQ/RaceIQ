@@ -45,6 +45,15 @@ playwright/screenshots/
 # Dev dump recordings — track gzipped fixtures only
 test/artifacts/sessions/*.bin
 .claude/scheduled_tasks.lock
+.claude/worktrees/
 /.crew
 
 *.log
+
+# agent capture output (screenshots / recorder frames)
+scout-*.png
+hero-compare.png
+raceiq-home.png
+playwright/cockpit-frames/
+playwright/cockpit-frames2/
+playwright/cockpit-frames*/

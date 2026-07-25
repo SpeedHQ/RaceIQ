@@ -50,23 +50,29 @@ export async function readChatStream(res: Response, onEvent: (event: ChatStreamE
         idx = buf.indexOf("\n");
         continue;
       }
+      // Parse and dispatch are separated: only JSON.parse is guarded here.
+      // onEvent runs OUTSIDE the try so an error the callback throws (e.g. on a
+      // {type:"error"} stream event) propagates to the caller instead of being
+      // mistaken for a malformed line and swallowed.
+      let event: ChatStreamEvent | undefined;
       try {
-        onEvent(JSON.parse(line) as ChatStreamEvent);
+        event = JSON.parse(line) as ChatStreamEvent;
       } catch {
-        // Skip malformed lines — protocol is best-effort; keep the reader
-        // alive so later well-formed events still arrive.
         console.warn("[ChatStream] malformed NDJSON line", line.slice(0, 200));
       }
+      if (event) onEvent(event);
       idx = buf.indexOf("\n");
     }
   }
   // Flush any trailing line (no \n) — rare, usually the `done` already fired.
   const tail = buf.trim();
   if (tail) {
+    let event: ChatStreamEvent | undefined;
     try {
-      onEvent(JSON.parse(tail) as ChatStreamEvent);
+      event = JSON.parse(tail) as ChatStreamEvent;
     } catch {
       console.warn("[ChatStream] malformed NDJSON tail", tail.slice(0, 200));
     }
+    if (event) onEvent(event);
   }
 }

@@ -1,6 +1,6 @@
-import type { LapMeta, LivePitData, LiveSectorData, TelemetryPacket } from "@shared/types";
+import type { LapMeta, LivePitData, LiveSectorData, TelemetryPacket, TuneIssue } from "@shared/types";
 import { create } from "zustand";
-import { type DisplayPacket, convertPacket } from "../lib/convert-packet";
+import { convertPacket, type DisplayPacket } from "../lib/convert-packet";
 
 export interface DisplaySettings {
   unit: "metric" | "imperial";
@@ -11,6 +11,8 @@ export interface DisplaySettings {
   chatProvider: "gemini" | "openai" | "local";
   chatModel: string;
   chatThinkingBudget: number | null;
+  autoTuneProvider: "gemini" | "openai" | "local";
+  autoTuneModel: string;
   localEndpoint: string;
   wsRefreshRate: string;
   /** Max 3D Canvas render rate for the analyse wireframe (15–120 fps). */
@@ -48,6 +50,8 @@ export const DEFAULT_DISPLAY_SETTINGS: DisplaySettings = {
   chatProvider: "gemini",
   chatModel: "",
   chatThinkingBudget: null,
+  autoTuneProvider: "gemini",
+  autoTuneModel: "",
   localEndpoint: "http://localhost:1234/v1",
   wsRefreshRate: "60",
   renderFpsCap: 60,
@@ -123,10 +127,17 @@ interface TelemetryState {
   staleLapDetection: { sessionCount: number; currentVersion: string } | null;
   /** Active reprocess progress — null when not reprocessing */
   reprocessProgress: { done: number; total: number } | null;
+  /** Live Tuning Dashboard: transient per-packet issues from the latest broadcast
+   *  (only populated while `POST /api/live-analysis {enabled:true}` is active). */
+  liveIssues: TuneIssue[];
+  /** Live Tuning Dashboard: per-lap issue feed, most recent lap first. */
+  lapIssuesFeed: { lapId: number; lapNumber: number; issues: TuneIssue[] }[];
   setConnected: (connected: boolean) => void;
   setPacket: (packet: TelemetryPacket) => void;
   setSectors: (sectors: LiveSectorData) => void;
   setPit: (pit: LivePitData) => void;
+  setLiveIssues: (issues: TuneIssue[]) => void;
+  addLapIssues: (entry: { lapId: number; lapNumber: number; issues: TuneIssue[] }) => void;
   clearPacket: () => void;
   setPacketsPerSec: (pps: number) => void;
   setServerStatus: (status: ServerStatus | null) => void;
@@ -168,6 +179,8 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   sessionLaps: [],
   staleLapDetection: null,
   reprocessProgress: null,
+  liveIssues: [],
+  lapIssuesFeed: [],
   devState: null,
   devStatePaused: false,
   setConnected: (connected) =>
@@ -185,6 +198,12 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   setSectors: (sectors) => set({ sectors }),
   setPit: (pit) => set({ pit }),
   setSessionLaps: (sessionLaps) => set({ sessionLaps }),
+  setLiveIssues: (liveIssues) => set({ liveIssues }),
+  addLapIssues: (entry) =>
+    set((prev) => ({
+      // Most-recent-first, capped so a long practice session doesn't grow unbounded.
+      lapIssuesFeed: [entry, ...prev.lapIssuesFeed.filter((e) => e.lapId !== entry.lapId)].slice(0, 20),
+    })),
   setPacket: (raw) => {
     const { unitSystem, temperatureUnit } = get();
     set({

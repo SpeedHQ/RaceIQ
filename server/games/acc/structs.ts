@@ -33,7 +33,11 @@ export const PHYSICS = {
   wheelSlipFR:    { offset: 60, type: "f32" },
   wheelSlipRL:    { offset: 64, type: "f32" },
   wheelSlipRR:    { offset: 68, type: "f32" },
-  // wheelLoad[4] (72-84) — skipped
+  // wheelLoad[4] (72-84) — vertical load per tyre (N)
+  wheelLoadFL:    { offset: 72, type: "f32" },
+  wheelLoadFR:    { offset: 76, type: "f32" },
+  wheelLoadRL:    { offset: 80, type: "f32" },
+  wheelLoadRR:    { offset: 84, type: "f32" },
   // wheelsPressure[4] — PSI
   tyrePressureFL: { offset: 88, type: "f32" },
   tyrePressureFR: { offset: 92, type: "f32" },
@@ -70,7 +74,7 @@ export const PHYSICS = {
   heading:        { offset: 208, type: "f32" },
   pitch:          { offset: 212, type: "f32" },
   roll:           { offset: 216, type: "f32" },
-  // cgHeight (220) — skipped
+  cgHeight:       { offset: 220, type: "f32" },
   // carDamage[5]
   damFront:       { offset: 224, type: "f32" },
   damRear:        { offset: 228, type: "f32" },
@@ -80,7 +84,10 @@ export const PHYSICS = {
   // numberOfTyresOut (244), pitLimiterOn (248)
   abs:            { offset: 252, type: "f32" },
   // kersCharge (256), kersInput (260), autoShifterOn (264)
-  // rideHeight[2] (268-272), turboBoost (276), ballast (280), airDensity (284)
+  // rideHeight[2] (268-272) — front, rear (m)
+  rideHeightF:    { offset: 268, type: "f32" },
+  rideHeightR:    { offset: 272, type: "f32" },
+  // turboBoost (276), ballast (280), airDensity (284)
   airTemp:        { offset: 288, type: "f32" },
   roadTemp:       { offset: 292, type: "f32" },
   // localAngularVel[3] (296-304) — car-local rates: [0]=pitch (X), [1]=yaw (Y), [2]=roll (Z)

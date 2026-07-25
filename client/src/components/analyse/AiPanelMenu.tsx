@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
 import { Settings2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { Button } from "../ui/button";
 

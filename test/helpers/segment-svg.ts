@@ -1,7 +1,10 @@
 import { writeFileSync } from "fs";
+import type { GameId } from "../../shared/types";
+import { tryGetGame } from "../../shared/games/registry";
+import { flipPoints, needsTrackFlip, type Pt } from "../../shared/track-coords";
 import type { NamedSegment } from "../../shared/track-named-segments";
-
-interface Pt { x: number; z: number }
+import { turnNumbers } from "../../shared/segment-label";
+import { makeTrackProjection } from "../../shared/track-projection";
 
 /** Distinct, high-contrast colors cycled across corner segments. */
 const CORNER_COLORS = [
@@ -17,13 +20,30 @@ const STRAIGHT_COLOR = "#9ca3af";
  * reviewable diffs in test/e2e/output.
  */
 export function generateSegmentSvg(
-  outline: Pt[],
+  rawOutline: Pt[],
   segments: NamedSegment[],
   sectors: { s1End: number; s2End: number } | null,
   title: string,
   outFile: string,
+  gameId: GameId,
 ): void {
-  if (outline.length < 2) return;
+  if (rawOutline.length < 2) return;
+
+  // Centerline CSVs hold RAW game coordinates. The UI never projects those
+  // directly: it projects telemetry, which the pipeline has already X-negated
+  // for standard-xyz games, and flips bundled outline/boundary data to match
+  // (AnalyseTrackMap, CompareTrackMap, TrackFocusView). Skipping this step fed
+  // raw coords into a projection expecting display space — the SVGs came out
+  // mirrored horizontally. Same helpers as the UI, so the two cannot diverge.
+  // needsTrackFlip() returns false for an unregistered game, which would
+  // silently skip the flip and mirror the output. Fail loudly instead.
+  if (!tryGetGame(gameId)) {
+    throw new Error(
+      `game "${gameId}" is not registered (call initGameAdapters() before rendering): ` +
+        `cannot determine coordinate system for "${title}"`,
+    );
+  }
+  const outline = needsTrackFlip(gameId) ? flipPoints(rawOutline) : rawOutline;
 
   // Cumulative distance → fraction per outline point
   const cum: number[] = [0];
@@ -46,20 +66,18 @@ export function generateSegmentSvg(
     return lo;
   };
 
-  let minX = outline[0].x, maxX = outline[0].x, minZ = outline[0].z, maxZ = outline[0].z;
-  for (const p of outline) {
-    minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
-    minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z);
-  }
-  const pad = Math.max(maxX - minX, maxZ - minZ) * 0.12 || 100;
-  const viewMinX = minX - pad, viewMaxX = maxX + pad;
-  const viewMinZ = minZ - pad, viewMaxZ = maxZ + pad;
   const svgWidth = 1000, svgHeight = 800;
-  const scale = Math.min(svgWidth / (viewMaxX - viewMinX), svgHeight / (viewMaxZ - viewMinZ));
-  const toSvg = (p: Pt) => ({
-    x: (p.x - viewMinX) * scale,
-    y: (viewMaxZ - p.z) * scale, // invert Z to match track orientation
+  // Orientation comes from @shared/track-projection, the same projection the
+  // app uses (TrackFocusMap / TrackDetail). This renderer used to invert Z and
+  // leave X unmirrored, which is the exact negation of the app's convention —
+  // generated SVGs came out rotated 180° from what users see. Do not fork it.
+  const projection = makeTrackProjection(outline, {
+    width: svgWidth,
+    height: svgHeight,
+    padFrac: 0.12,
   });
+  if (!projection) throw new Error(`degenerate outline for "${title}" (${outFile}): cannot project`);
+  const toSvg = (p: Pt) => projection.project(p);
 
   // Track centroid for outward label offsets
   const centroid = toSvg({
@@ -151,7 +169,7 @@ ${sectorMarks.join("\n")}
  * generic label; "St" avoids colliding with the S1/S2 sector markers).
  */
 function segmentLabel(seg: NamedSegment, straightIdx: number, lengthM: number): string {
-  const nums = seg.numbers ?? [];
+  const nums = turnNumbers(seg);
   if (nums.length === 0) return seg.name || `St${straightIdx} ${Math.round(lengthM)}m`;
   const prefix = nums.length > 1 ? `T${nums[0]}–T${nums[nums.length - 1]}` : `T${nums[0]}`;
   if (!seg.name || seg.name === prefix) return prefix;

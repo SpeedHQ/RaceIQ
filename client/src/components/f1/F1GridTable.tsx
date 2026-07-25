@@ -1,5 +1,5 @@
-import { m } from "@/paraglide/messages";
 import type { F1ExtendedData } from "@shared/types";
+import { m } from "@/paraglide/messages";
 
 const COMPOUND_DOT: Record<string, string> = {
   soft: "bg-red-500",
@@ -63,7 +63,9 @@ export function F1GridTable({ f1, playerCarIndex }: { f1: F1ExtendedData; player
                     <span className={`inline-block w-2.5 h-2.5 rounded-full ${dotColor}`} />
                   </td>
                   <td className="px-2 py-1 text-right text-zinc-500 tabular-nums">{entry.tyreAge}</td>
-                  <td className="px-2 py-1 text-center text-zinc-500">{entry.pitStatus === 1 ? m.f1grid_pit_in() : entry.pitStatus === 2 ? m.f1grid_pit_pitting() : entry.numPitStops > 0 ? entry.numPitStops : ""}</td>
+                  <td className="px-2 py-1 text-center text-zinc-500">
+                    {entry.pitStatus === 1 ? m.f1grid_pit_in() : entry.pitStatus === 2 ? m.f1grid_pit_pitting() : entry.numPitStops > 0 ? entry.numPitStops : ""}
+                  </td>
                 </tr>
               );
             })}

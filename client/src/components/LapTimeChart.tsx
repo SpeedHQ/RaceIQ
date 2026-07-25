@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, useMemo } from "react";
-import { m } from "../paraglide/messages";
 import type { LapMeta } from "@shared/types";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { m } from "../paraglide/messages";
 import { formatLapTime } from "./LiveTelemetry";
 
 /**

@@ -1,13 +1,13 @@
 import type { TelemetryPacket } from "../../shared/types";
 
-interface CornerDef {
+export interface CornerDef {
   index: number;
   label: string;
   distanceStart: number;
   distanceEnd: number;
 }
 
-interface CornerMetrics {
+export interface CornerMetrics {
   label: string;
   entrySpeed: number;
   minSpeed: number;
@@ -25,15 +25,20 @@ function packetSpeed(p: TelemetryPacket, factor: number): number {
   return Math.sqrt(p.VelocityX ** 2 + p.VelocityY ** 2 + p.VelocityZ ** 2) * factor;
 }
 
-export function buildCornerData(
+/**
+ * Pure per-corner telemetry math. Single source of truth for corner metrics —
+ * `buildCornerData` (prompt string) and `getCornerMetricsTool` (structured tool
+ * output) both consume this. Corners with no packets in range are skipped, so
+ * the returned array may be shorter than `corners`.
+ */
+export function computeCornerMetrics(
   packets: TelemetryPacket[],
   corners: CornerDef[],
   speedUnit: "mph" | "kmh" = "mph"
-): string {
-  if (corners.length === 0 || packets.length === 0) return "";
+): CornerMetrics[] {
+  if (corners.length === 0 || packets.length === 0) return [];
 
   const speedFactor = speedUnit === "kmh" ? 3.6 : 2.237;
-  const speedLabel = speedUnit === "kmh" ? "km/h" : "mph";
   const metrics: CornerMetrics[] = [];
 
   for (const corner of corners) {
@@ -104,6 +109,17 @@ export function buildCornerData(
       brakingDistance, timeInCorner, avgThrottle, avgBrake, throttleOnDist, balance,
     });
   }
+
+  return metrics;
+}
+
+export function buildCornerData(
+  packets: TelemetryPacket[],
+  corners: CornerDef[],
+  speedUnit: "mph" | "kmh" = "mph"
+): string {
+  const speedLabel = speedUnit === "kmh" ? "km/h" : "mph";
+  const metrics = computeCornerMetrics(packets, corners, speedUnit);
 
   if (metrics.length === 0) return "";
 

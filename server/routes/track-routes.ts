@@ -4,13 +4,14 @@ import { z } from "zod";
 import { IS_DEV } from "../env";
 import { OrdinalParamSchema, GameIdQuerySchema } from "../../shared/schemas";
 import { autoTrackSegments } from "../../shared/track-segment-generate";
+import { formatTurnNumbers, turnNumbers } from "../../shared/segment-label";
+import type { NamedSegment } from "../../shared/track-named-segments";
 import {
   getLaps,
   getLapSummariesByTrack,
   getLapById,
   getCorners,
   saveCorners,
-  getFirstLapIdForTrack,
   getTrackOutline as getDbTrackOutline,
   getLapCountsByTrack,
 } from "../db/queries";
@@ -35,7 +36,8 @@ import {
 } from "../../shared/track-data";
 import { trackMap, getCarName, getTrackName, carSpecsMap } from "../../shared/car-data";
 import { getTrackGuide } from "../ai/track-guides";
-import { detectCorners, type Corner } from "../corner-detection";
+import type { Corner } from "../corner-detection";
+import { resolveMetaField } from "../ai/track-context";
 import {
   filterLapOutliers,
   normalizeToFixedPoints,
@@ -71,11 +73,7 @@ const TrackOrdinalParamSchema = z.object({
  * reused for AC Evo when AC Evo doesn't have its own.
  */
 function gameMetaOverride(sharedMeta: unknown, gameId: string | undefined, field: "sectors" | "segments"): any {
-  const games = (sharedMeta as { games?: Record<string, Record<string, unknown>> } | null)?.games;
-  if (!games) return null;
-  if (gameId && games[gameId]?.[field] != null) return games[gameId][field];
-  if (gameId === "ac-evo" && games.acc?.[field] != null) return games.acc[field];
-  return null;
+  return resolveMetaField(sharedMeta as any, gameId as GameId | undefined, field) ?? null;
 }
 
 /** Extract gameId, throwing if missing. Use for endpoints that require game context. */
@@ -84,6 +82,19 @@ function requireGameId(c: { req: { query: (key: string) => string | undefined } 
   const result = GameIdSchema.safeParse(raw);
   if (!result.success) throw new Error(`Invalid gameId: ${raw}`);
   return result.data;
+}
+
+/** Sum dx/dz along an outline's points to get its total length in meters.
+ *  Same computation used by GET /api/track-sector-boundaries/:ordinal. */
+function computeOutlineLength(outline: { x: number; z: number }[] | null | undefined): number {
+  if (!outline || outline.length < 2) return 0;
+  let length = 0;
+  for (let i = 1; i < outline.length; i++) {
+    const dx = outline[i].x - outline[i - 1].x;
+    const dz = outline[i].z - outline[i - 1].z;
+    length += Math.sqrt(dx * dx + dz * dz);
+  }
+  return length;
 }
 
 /** Resolve the shared track name for a given ordinal + gameId.
@@ -153,34 +164,98 @@ function smoothBoundary(boundary: { x: number; z: number }[], passes = 3): void 
   }
 }
 
+// ─── Segment resolution ─────────────────────────────────────────────────────
+
+/**
+ * The one place segment fractions come from. Curated shared-meta segments win;
+ * otherwise the outline is run through the same auto-detector. Both
+ * GET /api/track-sectors/:ordinal (track detail) and
+ * GET /api/tracks/:trackOrdinal/corners (review dashboard / track focus) go
+ * through here, so the two pages can never disagree about where a corner
+ * starts and ends.
+ */
+async function resolveTrackSegments(
+  ordinal: number,
+  gameId: string | undefined
+): Promise<{ segments: NamedSegment[]; totalDist: number; source: "shared" | "auto" | "none" }> {
+  const sharedName = getSharedTrackName(ordinal, gameId);
+  const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
+  const metaSegments = gameMetaOverride(sharedMeta, gameId, "segments");
+  if (metaSegments && metaSegments.length > 0) {
+    return { segments: metaSegments, totalDist: 0, source: "shared" };
+  }
+
+  let outline = gameId ? getTrackOutlineByOrdinal(ordinal, gameId, sharedName) : null;
+  if (!outline) {
+    const recorded = gameId ? await getDbTrackOutline(ordinal, gameId as GameId) : null;
+    if (recorded) outline = recorded.map((p: { x: number; z: number }) => ({ x: p.x, z: p.z }));
+  }
+  if (!outline || outline.length < 20) return { segments: [], totalDist: 0, source: "none" };
+
+  const result = autoTrackSegments(outline);
+  return { segments: result.segments, totalDist: result.totalDist, source: "auto" };
+}
+
 // ─── Routes ─────────────────────────────────────────────────────────────────
 
 export const trackRoutes = new Hono()
 
-  // GET /api/tracks/:trackOrdinal/corners — get stored corners or auto-detect
+  // GET /api/tracks/:trackOrdinal/corners — authoritative corner fractions
+  // (0..1 lap fraction, matching the track-focus map/lanes contract).
+  //
+  // Priority:
+  //   a. Curated track-context segments (type === "corner") — already
+  //      lap-fraction, game-specific. This is the ground truth.
+  //   b. Stored/auto-detected DB corners, which are in METERS — converted to
+  //      fractions using the same outline-length calc as
+  //      GET /api/track-sector-boundaries/:ordinal.
+  //   c. Empty array — the client falls back to telemetry-based detection.
+  // No telemetry auto-detection or saveCorners happens here anymore; that
+  // remains the responsibility of the PUT handler and AI/comparison code
+  // paths that read getCorners()/saveCorners() directly in meters.
   .get("/api/tracks/:trackOrdinal/corners",
     zValidator("param", TrackOrdinalParamSchema),
     async (c) => {
       const { trackOrdinal } = c.req.valid("param");
       const cornersGameId = requireGameId(c);
 
-      let corners = await getCorners(trackOrdinal, cornersGameId);
+      // (a) Segments — already fractions. Same resolver (curated first, then
+      // the auto-detector on the outline) that GET /api/track-sectors/:ordinal
+      // uses, so track detail and the review dashboard agree.
+      const { segments } = await resolveTrackSegments(trackOrdinal, cornersGameId);
+      const cornerSegments = segments.filter((s) => s.type === "corner");
+      if (cornerSegments.length > 0) {
+        const corners: Corner[] = cornerSegments.map((s, index) => ({
+          index,
+          // Review dashboard shows turn numbers only — drop community/known
+          // corner names, keep "T<number>" (range for multi-turn segments).
+          label: turnNumbers(s).length > 0 ? `T${formatTurnNumbers(turnNumbers(s))}` : `T${index + 1}`,
+          distanceStart: s.startFrac,
+          distanceEnd: s.endFrac,
+        }));
+        return c.json(corners);
+      }
 
-      // If no stored corners, try to auto-detect from a lap on this track
-      if (corners.length === 0) {
-        const lapId = await getFirstLapIdForTrack(trackOrdinal);
-        if (lapId !== null) {
-          const lap = await getLapById(lapId);
-          if (lap && lap.telemetry.length > 0) {
-            corners = detectCorners(lap.telemetry);
-            if (corners.length > 0) {
-              await saveCorners(trackOrdinal, corners, cornersGameId, true);
-            }
-          }
+      // (b) Stored DB corners, in meters — convert to fractions.
+      const dbCorners = await getCorners(trackOrdinal, cornersGameId);
+      if (dbCorners.length > 0) {
+        const sharedName = getSharedTrackName(trackOrdinal, cornersGameId);
+        const outline = getTrackOutlineByOrdinal(trackOrdinal, cornersGameId, sharedName);
+        const trackLength = computeOutlineLength(outline);
+        if (trackLength > 0) {
+          const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+          const corners: Corner[] = dbCorners.map((corner) => ({
+            ...corner,
+            distanceStart: clamp01(corner.distanceStart / trackLength),
+            distanceEnd: clamp01(corner.distanceEnd / trackLength),
+            apexDistance: corner.apexDistance != null ? clamp01(corner.apexDistance / trackLength) : undefined,
+          }));
+          return c.json(corners);
         }
       }
 
-      return c.json(corners);
+      // (c) No authoritative source — client falls back to telemetry detection.
+      return c.json([]);
     }
   )
 
@@ -457,42 +532,14 @@ export const trackRoutes = new Hono()
     async (c) => {
       const { ordinal } = c.req.valid("param");
       const gameId = c.req.query("gameId");
-      const sharedName = getSharedTrackName(ordinal, gameId);
 
-      const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
-      const metaSegments = (gameId
-        ? gameMetaOverride(sharedMeta, gameId, "segments")
-        : (sharedMeta?.segments as unknown)) ?? null;
-      if (metaSegments && metaSegments.length > 0) {
-        return c.json({
-          segments: metaSegments.map((s: any) => ({
-            ...s,
-            startIdx: 0,
-            endIdx: 0,
-            distStart: 0,
-            distEnd: 0,
-          })),
-          totalDist: 0,
-          source: "shared",
-        });
-      }
+      const { segments, totalDist, source } = await resolveTrackSegments(ordinal, gameId);
+      if (source === "none") return c.json({ segments: [] });
 
-      let outline = gameId ? getTrackOutlineByOrdinal(ordinal, gameId, sharedName) : null;
-      if (!outline) {
-        const recorded = gameId ? await getDbTrackOutline(ordinal, gameId as GameId) : null;
-        if (recorded) {
-          outline = recorded.map((p: { x: number; z: number }) => ({ x: p.x, z: p.z }));
-        }
-      }
-      if (!outline || outline.length < 20) return c.json({ segments: [] });
-
-      // Same detector as the curated pipeline — an uncurated track just gets
-      // T-number tokens instead of real names.
-      const result = autoTrackSegments(outline);
       return c.json({
-        segments: result.segments.map((s) => ({ ...s, startIdx: 0, endIdx: 0, distStart: 0, distEnd: 0 })),
-        totalDist: result.totalDist,
-        source: "auto",
+        segments: segments.map((s: any) => ({ ...s, startIdx: 0, endIdx: 0, distStart: 0, distEnd: 0 })),
+        totalDist,
+        source,
       });
     }
   )

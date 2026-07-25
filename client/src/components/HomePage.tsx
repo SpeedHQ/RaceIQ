@@ -1,4 +1,3 @@
-import { m } from "@/paraglide/messages";
 import { tryGetGame } from "@shared/games/registry";
 import type { LapMeta } from "@shared/types";
 import { RAW_STORAGE_VERSION } from "@shared/types";
@@ -6,6 +5,7 @@ import { useQueries } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Settings2 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { m } from "@/paraglide/messages";
 import { useLaps, useSessions, useSettings } from "../hooks/queries";
 import { client } from "../lib/rpc";
 import { getGameRoute, useGameId } from "../stores/game";
@@ -13,7 +13,7 @@ import { useUiStore } from "../stores/ui";
 import { ActivityHeatmap } from "./ActivityHeatmap";
 import { formatLapTime } from "./LiveTelemetry";
 import { SessionRecap } from "./SessionRecap";
-import { TBody, TD, TH, THead, TRow, Table } from "./ui/AppTable";
+import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
@@ -25,17 +25,7 @@ function StatCard({ label, value, sub, color }: { label: string; value: string; 
   );
 }
 
-function RecentLapsTable({
-  laps,
-  carNames,
-  trackNames,
-  gameId,
-}: {
-  laps: LapMeta[];
-  carNames: Record<number, string>;
-  trackNames: Record<number, string>;
-  gameId: string | null;
-}) {
+function RecentLapsTable({ laps, carNames, trackNames, gameId }: { laps: LapMeta[]; carNames: Record<number, string>; trackNames: Record<number, string>; gameId: string | null }) {
   const showGame = !gameId; // show game column on global homepage
   if (laps.length === 0) {
     return <div className="p-6 text-center text-app-text/90-dim">{m.home_no_laps()}</div>;

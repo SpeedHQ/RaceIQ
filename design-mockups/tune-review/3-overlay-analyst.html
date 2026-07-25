@@ -1,0 +1,100 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Design 3 — Overlay Analyst</title>
+<link rel="stylesheet" href="shared.css"></head><body><div class="page">
+<div class="topbar"><h1>Design 3 — Overlay Analyst</h1>
+  <span class="sub" id="meta"></span><span class="spacer"></span><a href="index.html">← all designs</a></div>
+
+<div class="card" style="margin-bottom:14px;display:flex;gap:28px;align-items:center;">
+  <div class="stat"><span class="l">Focus lap</span><span class="v mono" style="font-size:20px" id="focust"></span></div>
+  <div class="stat"><span class="l">vs best</span><span class="v mono warn" style="font-size:20px" id="delta"></span></div>
+  <div class="stat"><span class="l">Consistency</span><span class="v" style="font-size:20px" id="cons"></span></div>
+  <div class="stat"><span class="l">Time lost braking</span><span class="v mono" style="font-size:20px">0.412s</span></div>
+  <div class="stat"><span class="l">Time lost exits</span><span class="v mono" style="font-size:20px">0.287s</span></div>
+</div>
+
+<div class="card">
+  <h2>Speed overlay + running delta + inputs — one shared track-fraction axis</h2>
+  <div class="legend" style="margin-bottom:8px;">
+    <span><span class="sw" style="background:var(--app-accent)"></span>Focus lap speed</span>
+    <span><span class="sw" style="background:var(--app-text-dim)"></span>Best lap speed</span>
+    <span><span class="sw" style="background:var(--ch-warn)"></span>Δ time (running)</span>
+    <span><span class="sw" style="background:var(--ch-throttle)"></span>Throttle</span>
+    <span><span class="sw" style="background:var(--ch-brake)"></span>Brake</span>
+    <span><span class="sw" style="background:var(--ch-steer)"></span>Steering</span>
+  </div>
+  <svg id="main" width="100%" height="560"></svg>
+</div>
+</div>
+<script src="data.js"></script>
+<script>
+const S = STINT, C = S.C;
+meta.textContent = `${S.meta.car} · ${S.meta.track} · ${S.meta.tune}`;
+const focusLap = S.laps[9];
+focust.textContent = S.fmt(focusLap.time);
+delta.textContent = "+" + (focusLap.time - S.best).toFixed(3);
+cons.textContent = S.consistency.toFixed(0);
+cons.className = "v " + (S.consistency>85?"good":S.consistency>70?"warn":"bad");
+
+(function(){
+  const svg = document.getElementById("main"), W = svg.clientWidth, H = 560;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const L=50,R=14, pw=W-L-R;
+  const X = f => L + f*pw;
+  // panels: speed 30..250, delta 270..360, inputs 385..545
+  let html = "";
+  S.CORNERS.forEach(c => {
+    html += `<line x1="${X(c.frac)}" y1="22" x2="${X(c.frac)}" y2="548" stroke="${C.grid}" stroke-dasharray="2 4"/>`;
+    html += `<text class="axis" x="${X(c.frac)}" y="14" text-anchor="middle">${c.n}</text>`;
+  });
+  // speed panel
+  const sy0=30, sh=220, slo=50, shi=295;
+  const SY = v => sy0 + sh - (v-slo)/(shi-slo)*sh;
+  [100,150,200,250].forEach(v => html += `<line class="gridline" x1="${L}" y1="${SY(v)}" x2="${W-R}" y2="${SY(v)}"/><text class="axis" x="${L-5}" y="${SY(v)+3}" text-anchor="end">${v}</text>`);
+  const line = (trace, get, Y, col, wd, op=1) => {
+    let d=""; trace.forEach((s,i)=> d += (i?"L":"M")+X(s.f).toFixed(1)+" "+Y(get(s)).toFixed(1));
+    return `<path d="${d}" fill="none" stroke="${col}" stroke-width="${wd}" opacity="${op}" stroke-linejoin="round"/>`;
+  };
+  html += line(S.bestTrace, s=>s.speed, SY, C.dim, 1.4, 0.7);
+  html += line(S.focusTrace, s=>s.speed, SY, C.accent, 2);
+  html += `<text class="axis" x="${L}" y="${sy0-6}">SPEED km/h</text>`;
+  // running delta panel — integrate speed diff (approx)
+  const dy0=270, dh=90;
+  let cum = 0; const deltas = S.focusTrace.map((s,i)=>{
+    const g = S.bestTrace[i];
+    cum += (g.speed - s.speed) * 0.0008; return cum;
+  });
+  const dmax = Math.max(...deltas.map(Math.abs), 0.1);
+  const DY = v => dy0 + dh/2 - (v/dmax)*(dh/2-4);
+  html += `<line x1="${L}" y1="${DY(0)}" x2="${W-R}" y2="${DY(0)}" stroke="${C.grid}"/>`;
+  html += `<text class="axis" x="${L}" y="${dy0-6}">Δ TIME s (+ = losing)</text>`;
+  html += `<text class="axis" x="${L-5}" y="${DY(dmax)+3}" text-anchor="end">+${dmax.toFixed(2)}</text>`;
+  let dd=""; deltas.forEach((v,i)=> dd += (i?"L":"M")+X(S.focusTrace[i].f).toFixed(1)+" "+DY(v).toFixed(1));
+  html += `<path d="${dd}" fill="none" stroke="${C.warn}" stroke-width="2"/>`;
+  // inputs panel: throttle+brake 0..1 shared, steering below
+  const iy0=385, ih=100;
+  const IY = v => iy0 + ih - v*ih;
+  html += `<text class="axis" x="${L}" y="${iy0-6}">INPUTS %</text>`;
+  html += `<line class="gridline" x1="${L}" y1="${IY(0)}" x2="${W-R}" y2="${IY(0)}"/>`;
+  html += line(S.focusTrace, s=>s.throttle, IY, C.throttle, 1.8);
+  html += line(S.focusTrace, s=>s.brake, IY, C.brake, 1.8);
+  const ty0=505, th=40;
+  const TY = v => ty0 + th/2 - v*th/2;
+  html += `<line x1="${L}" y1="${TY(0)}" x2="${W-R}" y2="${TY(0)}" stroke="${C.grid}"/>`;
+  html += `<text class="axis" x="${L}" y="${ty0-8}">STEER</text>`;
+  html += line(S.focusTrace, s=>s.steer, TY, C.steer, 1.5);
+  html += `<line id="xh" x1="-10" y1="22" x2="-10" y2="548" stroke="${C.accent}" opacity="0.7"/>`;
+  svg.innerHTML = html;
+  const xh = svg.querySelector("#xh");
+  attachTip(svg, e => {
+    const box = svg.getBoundingClientRect();
+    const f = (e.clientX-box.left-L)/pw;
+    if (f<0||f>1){ xh.setAttribute("x1",-10); xh.setAttribute("x2",-10); return null; }
+    const px=X(f); xh.setAttribute("x1",px); xh.setAttribute("x2",px);
+    const i = Math.round(f*(S.focusTrace.length-1));
+    const s=S.focusTrace[i], g=S.bestTrace[i];
+    return `<b>${(f*100).toFixed(1)}% lap</b><br>
+      ${s.speed.toFixed(0)} km/h vs ${g.speed.toFixed(0)} <span style="color:${C.muted}">(Δ${(s.speed-g.speed).toFixed(0)})</span><br>
+      Running Δ <b>${deltas[i]>=0?"+":""}${deltas[i].toFixed(3)}s</b><br>
+      Thr ${(s.throttle*100).toFixed(0)}% · Brk ${(s.brake*100).toFixed(0)}%`;
+  });
+})();
+</script></body></html>

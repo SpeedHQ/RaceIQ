@@ -1,5 +1,5 @@
-import React from "react";
 import type { TuneCategory } from "@shared/types";
+import type React from "react";
 
 export const CONDITION_COLORS: Record<string, string> = {
   Dry: "bg-amber-500/20 text-amber-400",

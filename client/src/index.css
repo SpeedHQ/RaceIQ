@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "tw-shimmer";
 @plugin "@tailwindcss/typography";
 
 @keyframes drawLine {
@@ -81,6 +82,11 @@
   --dynamics-red: #ef4444;
   --dynamics-blue: #3b82f6;
   --dynamics-gray: #94a3b8;
+
+  /* Channel colors (input traces — Track Focus lanes) */
+  --ch-throttle: #059669;
+  --ch-brake: #ef4444;
+  --ch-steer: #0891b2;
 
   /* Glass effects (no-op on default) */
   --app-glass-blur: 0px;
@@ -223,6 +229,27 @@
   --color-dynamics-red: var(--dynamics-red);
   --color-dynamics-blue: var(--dynamics-blue);
   --color-dynamics-gray: var(--dynamics-gray);
+
+  /* Channel colors */
+  --color-ch-throttle: var(--ch-throttle);
+  --color-ch-brake: var(--ch-brake);
+  --color-ch-steer: var(--ch-steer);
+  @keyframes collapsible-down {
+  from {
+    height: 0;
+    }
+  to {
+    height: var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto));
+    }
+  }
+  @keyframes collapsible-up {
+  from {
+    height: var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto));
+    }
+  to {
+    height: 0;
+    }
+  }
 }
 
 /* ─── Always-visible scrollbar (must be outside @layer to override browser defaults) ─── */
@@ -348,3 +375,7 @@
 .prose-chat h4 {
   font-size: 11px;
 }
+
+@custom-variant data-open (&:where([data-state="open"], [data-open]:not([data-open="false"])));
+
+@custom-variant data-closed (&:where([data-state="closed"], [data-closed]:not([data-closed="false"])));

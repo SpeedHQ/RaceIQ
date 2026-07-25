@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from "react";
-import { m } from "@/paraglide/messages";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { m } from "@/paraglide/messages";
 import { Button } from "./button";
 
 export function NoteModal({ value, onSave, onClose }: { value?: string; onSave: (v: string) => void; onClose: () => void }) {

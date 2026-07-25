@@ -1,5 +1,5 @@
-import { m } from "../../paraglide/messages";
 import type { TelemetryPacket } from "@shared/types";
+import { m } from "../../paraglide/messages";
 
 const ERS_MODES = ["None", "Low", "Medium", "High", "Overtake"];
 

@@ -20,13 +20,29 @@
         {
           "type": "corner",
           "name": "Tamburello",
+          "direction": "left",
           "startFrac": 0.1546,
+          "endFrac": 0.1936,
+          "number": 2,
+          "group": "Tamburello"
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "right",
+          "startFrac": 0.1936,
+          "endFrac": 0.2139,
+          "number": 3,
+          "group": "Tamburello"
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "left",
+          "startFrac": 0.2139,
           "endFrac": 0.2481,
-          "numbers": [
-            2,
-            3,
-            4
-          ]
+          "number": 4,
+          "group": "Tamburello"
         },
         {
           "type": "straight",
@@ -37,12 +53,20 @@
         {
           "type": "corner",
           "name": "Villeneuve",
+          "direction": "left",
           "startFrac": 0.2845,
+          "endFrac": 0.3259,
+          "number": 5,
+          "group": "Villeneuve"
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "right",
+          "startFrac": 0.3259,
           "endFrac": 0.3634,
-          "numbers": [
-            5,
-            6
-          ]
+          "number": 6,
+          "group": "Villeneuve"
         },
         {
           "type": "corner",
@@ -50,9 +74,7 @@
           "direction": "left",
           "startFrac": 0.3634,
           "endFrac": 0.4197,
-          "numbers": [
-            7
-          ]
+          "number": 7
         },
         {
           "type": "straight",
@@ -66,9 +88,7 @@
           "direction": "left",
           "startFrac": 0.4861,
           "endFrac": 0.5356,
-          "numbers": [
-            8
-          ]
+          "number": 8
         },
         {
           "type": "corner",
@@ -76,20 +96,25 @@
           "direction": "left",
           "startFrac": 0.5356,
           "endFrac": 0.5828,
-          "numbers": [
-            9
-          ]
+          "number": 9
         },
         {
           "type": "corner",
           "name": "Acque Minerali",
           "direction": "right",
           "startFrac": 0.5828,
+          "endFrac": 0.6043,
+          "number": 11,
+          "group": "Acque Minerali"
+        },
+        {
+          "type": "corner",
+          "name": "T12",
+          "direction": "right",
+          "startFrac": 0.6043,
           "endFrac": 0.6163,
-          "numbers": [
-            11,
-            12
-          ]
+          "number": 12,
+          "group": "Acque Minerali"
         },
         {
           "type": "corner",
@@ -97,9 +122,7 @@
           "direction": "right",
           "startFrac": 0.6163,
           "endFrac": 0.6459,
-          "numbers": [
-            13
-          ]
+          "number": 13
         },
         {
           "type": "straight",
@@ -110,12 +133,20 @@
         {
           "type": "corner",
           "name": "Variante Alta",
+          "direction": "right",
           "startFrac": 0.698,
+          "endFrac": 0.7331,
+          "number": 14,
+          "group": "Variante Alta"
+        },
+        {
+          "type": "corner",
+          "name": "T15",
+          "direction": "left",
+          "startFrac": 0.7331,
           "endFrac": 0.7553,
-          "numbers": [
-            14,
-            15
-          ]
+          "number": 15,
+          "group": "Variante Alta"
         },
         {
           "type": "straight",
@@ -125,14 +156,21 @@
         },
         {
           "type": "corner",
-          "name": "Rivazza",
+          "name": "Rivazza 1",
           "direction": "left",
           "startFrac": 0.8564,
+          "endFrac": 0.8903,
+          "number": 17,
+          "group": "Rivazza"
+        },
+        {
+          "type": "corner",
+          "name": "Rivazza 2",
+          "direction": "left",
+          "startFrac": 0.8903,
           "endFrac": 0.9024,
-          "numbers": [
-            17,
-            18
-          ]
+          "number": 18,
+          "group": "Rivazza"
         },
         {
           "type": "corner",
@@ -140,9 +178,7 @@
           "direction": "left",
           "startFrac": 0.9024,
           "endFrac": 0.9379,
-          "numbers": [
-            19
-          ]
+          "number": 19
         },
         {
           "type": "straight",
@@ -163,23 +199,47 @@
         {
           "type": "corner",
           "name": "Tamburello",
+          "direction": "left",
           "startFrac": 0.1061,
+          "endFrac": 0.1513,
+          "number": 2,
+          "group": "Tamburello"
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "right",
+          "startFrac": 0.1513,
+          "endFrac": 0.1702,
+          "number": 3,
+          "group": "Tamburello"
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "left",
+          "startFrac": 0.1702,
           "endFrac": 0.2345,
-          "numbers": [
-            2,
-            3,
-            4
-          ]
+          "number": 4,
+          "group": "Tamburello"
         },
         {
           "type": "corner",
           "name": "Villeneuve",
+          "direction": "left",
           "startFrac": 0.2345,
+          "endFrac": 0.2828,
+          "number": 5,
+          "group": "Villeneuve"
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "right",
+          "startFrac": 0.2828,
           "endFrac": 0.3261,
-          "numbers": [
-            5,
-            6
-          ]
+          "number": 6,
+          "group": "Villeneuve"
         },
         {
           "type": "corner",
@@ -187,9 +247,7 @@
           "direction": "left",
           "startFrac": 0.3261,
           "endFrac": 0.3715,
-          "numbers": [
-            7
-          ]
+          "number": 7
         },
         {
           "type": "straight",
@@ -203,9 +261,7 @@
           "direction": "left",
           "startFrac": 0.4341,
           "endFrac": 0.5117,
-          "numbers": [
-            8
-          ]
+          "number": 8
         },
         {
           "type": "corner",
@@ -213,20 +269,25 @@
           "direction": "left",
           "startFrac": 0.5117,
           "endFrac": 0.5385,
-          "numbers": [
-            9
-          ]
+          "number": 9
         },
         {
           "type": "corner",
           "name": "Acque Minerali",
           "direction": "right",
           "startFrac": 0.5385,
+          "endFrac": 0.5519,
+          "number": 11,
+          "group": "Acque Minerali"
+        },
+        {
+          "type": "corner",
+          "name": "T12",
+          "direction": "right",
+          "startFrac": 0.5519,
           "endFrac": 0.5612,
-          "numbers": [
-            11,
-            12
-          ]
+          "number": 12,
+          "group": "Acque Minerali"
         },
         {
           "type": "corner",
@@ -234,9 +295,7 @@
           "direction": "right",
           "startFrac": 0.5612,
           "endFrac": 0.6112,
-          "numbers": [
-            13
-          ]
+          "number": 13
         },
         {
           "type": "straight",
@@ -249,22 +308,36 @@
           "name": "Variante Alta",
           "direction": "right",
           "startFrac": 0.6494,
-          "endFrac": 0.6894,
-          "numbers": [
-            14,
-            15
-          ]
+          "endFrac": 0.6843,
+          "number": 14,
+          "group": "Variante Alta"
         },
         {
           "type": "corner",
-          "name": "Rivazza",
+          "name": "T15",
+          "direction": "right",
+          "startFrac": 0.6843,
+          "endFrac": 0.6894,
+          "number": 15,
+          "group": "Variante Alta"
+        },
+        {
+          "type": "corner",
+          "name": "Rivazza 1",
           "direction": "left",
           "startFrac": 0.6894,
+          "endFrac": 0.7007,
+          "number": 17,
+          "group": "Rivazza"
+        },
+        {
+          "type": "corner",
+          "name": "Rivazza 2",
+          "direction": "left",
+          "startFrac": 0.7007,
           "endFrac": 0.7275,
-          "numbers": [
-            17,
-            18
-          ]
+          "number": 18,
+          "group": "Rivazza"
         },
         {
           "type": "straight",
@@ -278,9 +351,7 @@
           "direction": "left",
           "startFrac": 0.8034,
           "endFrac": 0.8992,
-          "numbers": [
-            19
-          ]
+          "number": 19
         },
         {
           "type": "straight",
@@ -292,6 +363,180 @@
       "sectors": {
         "s1End": 0.3261,
         "s2End": 0.7306,
+        "source": "corner-anchored"
+      }
+    },
+    "ac-evo": {
+      "segments": [
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0,
+          "endFrac": 0.1072
+        },
+        {
+          "type": "corner",
+          "name": "Tamburello",
+          "direction": "left",
+          "startFrac": 0.1072,
+          "endFrac": 0.152,
+          "number": 2,
+          "group": "Tamburello"
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "right",
+          "startFrac": 0.152,
+          "endFrac": 0.172,
+          "number": 3,
+          "group": "Tamburello"
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "left",
+          "startFrac": 0.172,
+          "endFrac": 0.214,
+          "number": 4,
+          "group": "Tamburello"
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.214,
+          "endFrac": 0.2362
+        },
+        {
+          "type": "corner",
+          "name": "Villeneuve",
+          "direction": "left",
+          "startFrac": 0.2362,
+          "endFrac": 0.2827,
+          "number": 5,
+          "group": "Villeneuve"
+        },
+        {
+          "type": "corner",
+          "name": "T6",
+          "direction": "right",
+          "startFrac": 0.2827,
+          "endFrac": 0.3242,
+          "number": 6,
+          "group": "Villeneuve"
+        },
+        {
+          "type": "corner",
+          "name": "Tosa",
+          "direction": "left",
+          "startFrac": 0.3242,
+          "endFrac": 0.3754,
+          "number": 7
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.3754,
+          "endFrac": 0.4373
+        },
+        {
+          "type": "corner",
+          "name": "Piratella",
+          "direction": "left",
+          "startFrac": 0.4373,
+          "endFrac": 0.5073,
+          "number": 9
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.5073,
+          "endFrac": 0.5469
+        },
+        {
+          "type": "corner",
+          "name": "Acque Minerali",
+          "direction": "right",
+          "startFrac": 0.5469,
+          "endFrac": 0.5841,
+          "number": 11,
+          "group": "Acque Minerali"
+        },
+        {
+          "type": "corner",
+          "name": "T12",
+          "direction": "right",
+          "startFrac": 0.5841,
+          "endFrac": 0.6069,
+          "number": 12,
+          "group": "Acque Minerali"
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.6069,
+          "endFrac": 0.6507
+        },
+        {
+          "type": "corner",
+          "name": "Variante Alta",
+          "direction": "right",
+          "startFrac": 0.6507,
+          "endFrac": 0.685,
+          "number": 14,
+          "group": "Variante Alta"
+        },
+        {
+          "type": "corner",
+          "name": "T15",
+          "direction": "right",
+          "startFrac": 0.685,
+          "endFrac": 0.6896,
+          "number": 15,
+          "group": "Variante Alta"
+        },
+        {
+          "type": "corner",
+          "name": "Rivazza 1",
+          "direction": "left",
+          "startFrac": 0.6896,
+          "endFrac": 0.6946,
+          "number": 17,
+          "group": "Rivazza"
+        },
+        {
+          "type": "corner",
+          "name": "Rivazza 2",
+          "direction": "left",
+          "startFrac": 0.6946,
+          "endFrac": 0.7151,
+          "number": 18,
+          "group": "Rivazza"
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.7151,
+          "endFrac": 0.8091
+        },
+        {
+          "type": "corner",
+          "name": "T19",
+          "direction": "left",
+          "startFrac": 0.8091,
+          "endFrac": 0.896,
+          "number": 19
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.896,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.3242,
+        "s2End": 0.7308,
         "source": "corner-anchored"
       }
     }
@@ -306,13 +551,29 @@
     {
       "type": "corner",
       "name": "Tamburello",
+      "direction": "left",
       "startFrac": 0.1546,
+      "endFrac": 0.1936,
+      "number": 2,
+      "group": "Tamburello"
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "right",
+      "startFrac": 0.1936,
+      "endFrac": 0.2139,
+      "number": 3,
+      "group": "Tamburello"
+    },
+    {
+      "type": "corner",
+      "name": "T4",
+      "direction": "left",
+      "startFrac": 0.2139,
       "endFrac": 0.2481,
-      "numbers": [
-        2,
-        3,
-        4
-      ]
+      "number": 4,
+      "group": "Tamburello"
     },
     {
       "type": "straight",
@@ -323,12 +584,20 @@
     {
       "type": "corner",
       "name": "Villeneuve",
+      "direction": "left",
       "startFrac": 0.2845,
+      "endFrac": 0.3259,
+      "number": 5,
+      "group": "Villeneuve"
+    },
+    {
+      "type": "corner",
+      "name": "T6",
+      "direction": "right",
+      "startFrac": 0.3259,
       "endFrac": 0.3634,
-      "numbers": [
-        5,
-        6
-      ]
+      "number": 6,
+      "group": "Villeneuve"
     },
     {
       "type": "corner",
@@ -336,9 +605,7 @@
       "direction": "left",
       "startFrac": 0.3634,
       "endFrac": 0.4197,
-      "numbers": [
-        7
-      ]
+      "number": 7
     },
     {
       "type": "straight",
@@ -352,9 +619,7 @@
       "direction": "left",
       "startFrac": 0.4861,
       "endFrac": 0.5356,
-      "numbers": [
-        8
-      ]
+      "number": 8
     },
     {
       "type": "corner",
@@ -362,20 +627,25 @@
       "direction": "left",
       "startFrac": 0.5356,
       "endFrac": 0.5828,
-      "numbers": [
-        9
-      ]
+      "number": 9
     },
     {
       "type": "corner",
       "name": "Acque Minerali",
       "direction": "right",
       "startFrac": 0.5828,
+      "endFrac": 0.6043,
+      "number": 11,
+      "group": "Acque Minerali"
+    },
+    {
+      "type": "corner",
+      "name": "T12",
+      "direction": "right",
+      "startFrac": 0.6043,
       "endFrac": 0.6163,
-      "numbers": [
-        11,
-        12
-      ]
+      "number": 12,
+      "group": "Acque Minerali"
     },
     {
       "type": "corner",
@@ -383,9 +653,7 @@
       "direction": "right",
       "startFrac": 0.6163,
       "endFrac": 0.6459,
-      "numbers": [
-        13
-      ]
+      "number": 13
     },
     {
       "type": "straight",
@@ -396,12 +664,20 @@
     {
       "type": "corner",
       "name": "Variante Alta",
+      "direction": "right",
       "startFrac": 0.698,
+      "endFrac": 0.7331,
+      "number": 14,
+      "group": "Variante Alta"
+    },
+    {
+      "type": "corner",
+      "name": "T15",
+      "direction": "left",
+      "startFrac": 0.7331,
       "endFrac": 0.7553,
-      "numbers": [
-        14,
-        15
-      ]
+      "number": 15,
+      "group": "Variante Alta"
     },
     {
       "type": "straight",
@@ -411,14 +687,21 @@
     },
     {
       "type": "corner",
-      "name": "Rivazza",
+      "name": "Rivazza 1",
       "direction": "left",
       "startFrac": 0.8564,
+      "endFrac": 0.8903,
+      "number": 17,
+      "group": "Rivazza"
+    },
+    {
+      "type": "corner",
+      "name": "Rivazza 2",
+      "direction": "left",
+      "startFrac": 0.8903,
       "endFrac": 0.9024,
-      "numbers": [
-        17,
-        18
-      ]
+      "number": 18,
+      "group": "Rivazza"
     },
     {
       "type": "corner",
@@ -426,9 +709,7 @@
       "direction": "left",
       "startFrac": 0.9024,
       "endFrac": 0.9379,
-      "numbers": [
-        19
-      ]
+      "number": 19
     },
     {
       "type": "straight",

@@ -1,8 +1,7 @@
-import type { TelemetryPacket, LapMeta } from "@shared/types";
-import type { GameId } from "@shared/types";
-import { convertTemp } from "./temperature";
-import { formatLapTime } from "./format";
+import type { GameId, LapMeta, TelemetryPacket } from "@shared/types";
 import { getSteeringLock } from "../components/Settings";
+import { formatLapTime } from "./format";
+import { convertTemp } from "./temperature";
 
 /** Build a CSV string from lap telemetry for download. */
 export function buildExportCsv(telemetry: TelemetryPacket[], carName: string, trackName: string, selectedLap: LapMeta | undefined, selectedLapId: number | null, driverName?: string): string {

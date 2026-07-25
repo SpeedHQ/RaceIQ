@@ -1,6 +1,7 @@
 import { expect } from "bun:test";
 import type { CapturedLap } from "../../server/pipeline-adapters";
-import type { TelemetryPacket, LapSavedNotification } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/types";
+import type { LapSavedNotification } from "../../server/lap-detector";
 
 /**
  * Assert that a lap's sector times sum to the total lap time.
@@ -78,7 +79,7 @@ export function assertLapMetadataValid(laps: CapturedLap[]): void {
  */
 export function assertLapsHavePackets(laps: CapturedLap[]): void {
   for (const lap of laps) {
-    expect(lap.packets.length).toBeGreaterThan(0);
+    expect((lap.packets ?? []).length).toBeGreaterThan(0);
   }
 }
 
@@ -89,7 +90,7 @@ export function assertLapsHavePackets(laps: CapturedLap[]): void {
 export function assertValidLapsHaveProperTiming(laps: CapturedLap[]): void {
   for (const lap of laps) {
     if (lap.isValid) {
-      assertLapTimesProper(lap.packets, lap.lapTime);
+      assertLapTimesProper(lap.packets ?? [], lap.lapTime);
     }
   }
 }

@@ -1,7 +1,8 @@
 import { resolve } from "path";
 import { mkdirSync } from "fs";
-import type { LapMeta, LiveSectorData, LivePitData, GameId, TelemetryPacket } from "../shared/types";
-import { insertSession, insertLap, getLaps, updateSessionRawFile, updateSessionCarTrack } from "./db/queries";
+import type { LapMeta, LiveSectorData, LivePitData, GameId, TelemetryPacket, TuneIssue } from "../shared/types";
+import { insertSession, insertLap, setLapMetrics, getLaps, updateSessionRawFile, updateSessionCarTrack, getLapsForExclusionScope, setLapAutoExclusion, getLapTuningScope } from "./db/queries";
+import type { ExclusionScopeLap } from "./tuning-auto-exclude";
 import { getTuneAssignment } from "./db/tune-queries";
 import { wsManager } from "./ws";
 import { UdpRecorder } from "./udp-recorder";
@@ -48,6 +49,10 @@ export interface DbAdapter {
     invalidReason: string | null,
     sectors: { s1: number; s2: number; s3: number } | null
   ): Promise<number>;
+  /** Persist precomputed per-lap fuel/tyre metrics (migration v32 columns).
+   *  Called right after insertLap so /lap-metrics is a pure column read and
+   *  never has to decode telemetry on first open. */
+  setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void>;
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]>;
   updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void>;
   updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void>;
@@ -56,6 +61,10 @@ export interface DbAdapter {
     carOrdinal: number,
     trackOrdinal: number
   ): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null>;
+  /** Auto-exclude fastest-5 curation (server/tuning-auto-exclude.ts). */
+  getLapsForExclusionScope(tuningSessionId: number, tuneId: number): Promise<ExclusionScopeLap[]>;
+  setLapAutoExclusion(lapId: number, excluded: boolean): Promise<void>;
+  getLapTuningScope(lapId: number): Promise<{ tuningSessionId: number | null; tuneId: number | null }>;
 }
 
 /**
@@ -84,7 +93,8 @@ export interface WsAdapter {
   broadcast(
     packet: TelemetryPacket,
     sectors?: LiveSectorData | null,
-    pit?: LivePitData | null
+    pit?: LivePitData | null,
+    liveIssues?: TuneIssue[]
   ): void;
   broadcastNotification(event: Record<string, unknown>): void;
   broadcastDevState(state: Record<string, unknown>): void;
@@ -98,6 +108,9 @@ export class RealDbAdapter implements DbAdapter {
   insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: { s1: number; s2: number; s3: number } | null): Promise<number> {
     return insertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors);
   }
+  setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
+    return setLapMetrics(lapId, fuelPerLap, tyreWear);
+  }
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]> {
     return getLaps(gameId, limit);
   }
@@ -110,12 +123,21 @@ export class RealDbAdapter implements DbAdapter {
   getTuneAssignment(gameId: GameId, carOrdinal: number, trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {
     return getTuneAssignment(gameId, carOrdinal, trackOrdinal);
   }
+  getLapsForExclusionScope(tuningSessionId: number, tuneId: number): Promise<ExclusionScopeLap[]> {
+    return getLapsForExclusionScope(tuningSessionId, tuneId);
+  }
+  setLapAutoExclusion(lapId: number, excluded: boolean): Promise<void> {
+    return setLapAutoExclusion(lapId, excluded);
+  }
+  getLapTuningScope(lapId: number): Promise<{ tuningSessionId: number | null; tuneId: number | null }> {
+    return getLapTuningScope(lapId);
+  }
 }
 
 /** Delegates to wsManager singleton. Used in production. */
 export class RealWsAdapter implements WsAdapter {
-  broadcast(packet: TelemetryPacket, sectors?: LiveSectorData | null, pit?: LivePitData | null): void {
-    wsManager.broadcast(packet, sectors, pit);
+  broadcast(packet: TelemetryPacket, sectors?: LiveSectorData | null, pit?: LivePitData | null, liveIssues?: TuneIssue[]): void {
+    wsManager.broadcast(packet, sectors, pit, liveIssues);
   }
   broadcastNotification(event: Record<string, unknown>): void {
     wsManager.broadcastNotification(event);
@@ -142,6 +164,12 @@ export class CapturingDbAdapter implements DbAdapter {
     return Promise.resolve(++this._lapId);
   }
 
+  readonly lapMetrics: { lapId: number; fuelPerLap: number | null; tyreWear: number | null }[] = [];
+  setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
+    this.lapMetrics.push({ lapId, fuelPerLap, tyreWear });
+    return Promise.resolve();
+  }
+
   getLaps(_gameId: GameId, _limit: number): Promise<LapMeta[]> {
     return Promise.resolve([]);
   }
@@ -163,11 +191,23 @@ export class CapturingDbAdapter implements DbAdapter {
   getTuneAssignment(_gameId: GameId, _carOrdinal: number, _trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {
     return Promise.resolve(null);
   }
+
+  readonly exclusionWrites: { lapId: number; excluded: boolean }[] = [];
+  getLapsForExclusionScope(_tuningSessionId: number, _tuneId: number): Promise<ExclusionScopeLap[]> {
+    return Promise.resolve([]);
+  }
+  setLapAutoExclusion(lapId: number, excluded: boolean): Promise<void> {
+    this.exclusionWrites.push({ lapId, excluded });
+    return Promise.resolve();
+  }
+  getLapTuningScope(_lapId: number): Promise<{ tuningSessionId: number | null; tuneId: number | null }> {
+    return Promise.resolve({ tuningSessionId: null, tuneId: null });
+  }
 }
 
 /** No-op WebSocket adapter. Used in tests. */
 export class NullWsAdapter implements WsAdapter {
-  broadcast(_packet: TelemetryPacket, _sectors?: LiveSectorData | null, _pit?: LivePitData | null): void {}
+  broadcast(_packet: TelemetryPacket, _sectors?: LiveSectorData | null, _pit?: LivePitData | null, _liveIssues?: TuneIssue[]): void {}
   broadcastNotification(_event: Record<string, unknown>): void {}
   broadcastDevState(_state: Record<string, unknown>): void {}
 }
@@ -180,6 +220,9 @@ export class NullDbAdapter implements DbAdapter {
   insertLap(_sessionId: number, _lapNumber: number, _lapTime: number, _isValid: boolean, _rawByteOffset: number | null, _rawFrameCount: number, _profileId: number | null, _tuneId: number | null, _invalidReason: string | null, _sectors: { s1: number; s2: number; s3: number } | null): Promise<number> {
     return Promise.resolve(1);
   }
+  setLapMetrics(_lapId: number, _fuelPerLap: number | null, _tyreWear: number | null): Promise<void> {
+    return Promise.resolve();
+  }
   getLaps(_gameId: GameId, _limit: number): Promise<LapMeta[]> {
     return Promise.resolve([]);
   }
@@ -191,6 +234,15 @@ export class NullDbAdapter implements DbAdapter {
   }
   getTuneAssignment(_gameId: GameId, _carOrdinal: number, _trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {
     return Promise.resolve(null);
+  }
+  getLapsForExclusionScope(_tuningSessionId: number, _tuneId: number): Promise<ExclusionScopeLap[]> {
+    return Promise.resolve([]);
+  }
+  setLapAutoExclusion(_lapId: number, _excluded: boolean): Promise<void> {
+    return Promise.resolve();
+  }
+  getLapTuningScope(_lapId: number): Promise<{ tuningSessionId: number | null; tuneId: number | null }> {
+    return Promise.resolve({ tuningSessionId: null, tuneId: null });
   }
 }
 
@@ -240,12 +292,12 @@ export class NullSessionRecorderAdapter implements SessionRecorderAdapter {
 
 /** Capturing WebSocket adapter that records all events. Used in tests. */
 export class CapturingWsAdapter implements WsAdapter {
-  readonly broadcastedPackets: Array<{ packet: TelemetryPacket; sectors?: LiveSectorData | null; pit?: LivePitData | null }> = [];
+  readonly broadcastedPackets: Array<{ packet: TelemetryPacket; sectors?: LiveSectorData | null; pit?: LivePitData | null; liveIssues?: TuneIssue[] }> = [];
   readonly broadcastedNotifications: Record<string, unknown>[] = [];
   readonly broadcastedDevStates: Record<string, unknown>[] = [];
 
-  broadcast(packet: TelemetryPacket, sectors?: LiveSectorData | null, pit?: LivePitData | null): void {
-    this.broadcastedPackets.push({ packet, sectors, pit });
+  broadcast(packet: TelemetryPacket, sectors?: LiveSectorData | null, pit?: LivePitData | null, liveIssues?: TuneIssue[]): void {
+    this.broadcastedPackets.push({ packet, sectors, pit, liveIssues });
   }
 
   broadcastNotification(event: Record<string, unknown>): void {

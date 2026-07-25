@@ -19,21 +19,39 @@
           "direction": "right",
           "startFrac": 0.0489,
           "endFrac": 0.1613,
-          "numbers": [
-            1
-          ]
+          "number": 1
         },
         {
           "type": "corner",
           "name": "The Esses",
           "startFrac": 0.1613,
+          "endFrac": 0.2175,
+          "number": 2,
+          "group": "The Esses"
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "startFrac": 0.2175,
+          "endFrac": 0.2627,
+          "number": 3,
+          "group": "The Esses"
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "startFrac": 0.2627,
+          "endFrac": 0.3079,
+          "number": 4,
+          "group": "The Esses"
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "startFrac": 0.3079,
           "endFrac": 0.3727,
-          "numbers": [
-            2,
-            3,
-            4,
-            5
-          ]
+          "number": 5,
+          "group": "The Esses"
         },
         {
           "type": "straight",
@@ -47,9 +65,7 @@
           "direction": "right",
           "startFrac": 0.4406,
           "endFrac": 0.5115,
-          "numbers": [
-            6
-          ]
+          "number": 6
         },
         {
           "type": "corner",
@@ -57,9 +73,7 @@
           "direction": "right",
           "startFrac": 0.5115,
           "endFrac": 0.5519,
-          "numbers": [
-            7
-          ]
+          "number": 7
         },
         {
           "type": "straight",
@@ -73,9 +87,7 @@
           "direction": "left",
           "startFrac": 0.8226,
           "endFrac": 0.8685,
-          "numbers": [
-            9
-          ]
+          "number": 9
         },
         {
           "type": "corner",
@@ -83,9 +95,7 @@
           "direction": "right",
           "startFrac": 0.8685,
           "endFrac": 0.9009,
-          "numbers": [
-            10
-          ]
+          "number": 10
         },
         {
           "type": "corner",
@@ -93,9 +103,7 @@
           "direction": "right",
           "startFrac": 0.9009,
           "endFrac": 0.9416,
-          "numbers": [
-            11
-          ]
+          "number": 11
         },
         {
           "type": "corner",
@@ -103,9 +111,7 @@
           "direction": "right",
           "startFrac": 0.9416,
           "endFrac": 1,
-          "numbers": [
-            12
-          ]
+          "number": 12
         }
       ],
       "sectors": {
@@ -128,21 +134,39 @@
       "direction": "right",
       "startFrac": 0.0489,
       "endFrac": 0.1613,
-      "numbers": [
-        1
-      ]
+      "number": 1
     },
     {
       "type": "corner",
       "name": "The Esses",
       "startFrac": 0.1613,
+      "endFrac": 0.2175,
+      "number": 2,
+      "group": "The Esses"
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "startFrac": 0.2175,
+      "endFrac": 0.2627,
+      "number": 3,
+      "group": "The Esses"
+    },
+    {
+      "type": "corner",
+      "name": "T4",
+      "startFrac": 0.2627,
+      "endFrac": 0.3079,
+      "number": 4,
+      "group": "The Esses"
+    },
+    {
+      "type": "corner",
+      "name": "T5",
+      "startFrac": 0.3079,
       "endFrac": 0.3727,
-      "numbers": [
-        2,
-        3,
-        4,
-        5
-      ]
+      "number": 5,
+      "group": "The Esses"
     },
     {
       "type": "straight",
@@ -156,9 +180,7 @@
       "direction": "right",
       "startFrac": 0.4406,
       "endFrac": 0.5115,
-      "numbers": [
-        6
-      ]
+      "number": 6
     },
     {
       "type": "corner",
@@ -166,9 +188,7 @@
       "direction": "right",
       "startFrac": 0.5115,
       "endFrac": 0.5519,
-      "numbers": [
-        7
-      ]
+      "number": 7
     },
     {
       "type": "straight",
@@ -182,9 +202,7 @@
       "direction": "left",
       "startFrac": 0.8226,
       "endFrac": 0.8685,
-      "numbers": [
-        9
-      ]
+      "number": 9
     },
     {
       "type": "corner",
@@ -192,9 +210,7 @@
       "direction": "right",
       "startFrac": 0.8685,
       "endFrac": 0.9009,
-      "numbers": [
-        10
-      ]
+      "number": 10
     },
     {
       "type": "corner",
@@ -202,9 +218,7 @@
       "direction": "right",
       "startFrac": 0.9009,
       "endFrac": 0.9416,
-      "numbers": [
-        11
-      ]
+      "number": 11
     },
     {
       "type": "corner",
@@ -212,9 +226,7 @@
       "direction": "right",
       "startFrac": 0.9416,
       "endFrac": 1,
-      "numbers": [
-        12
-      ]
+      "number": 12
     }
   ]
 }

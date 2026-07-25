@@ -73,6 +73,9 @@ export class ImportCaptureAdapter implements DbAdapter {
     return id;
   }
 
+  setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
+    return this._inner.setLapMetrics(lapId, fuelPerLap, tyreWear);
+  }
   getLaps(gameId: GameId, limit: number): Promise<LapMeta[]> {
     return this._inner.getLaps(gameId, limit);
   }
@@ -85,6 +88,15 @@ export class ImportCaptureAdapter implements DbAdapter {
   updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
     this._sessionMeta.set(sessionId, { carOrdinal, trackOrdinal });
     return this._inner.updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal);
+  }
+  getLapsForExclusionScope(tuningSessionId: number, tuneId: number) {
+    return this._inner.getLapsForExclusionScope(tuningSessionId, tuneId);
+  }
+  setLapAutoExclusion(lapId: number, excluded: boolean): Promise<void> {
+    return this._inner.setLapAutoExclusion(lapId, excluded);
+  }
+  getLapTuningScope(lapId: number) {
+    return this._inner.getLapTuningScope(lapId);
   }
 }
 

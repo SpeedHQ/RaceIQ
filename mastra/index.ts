@@ -1,8 +1,12 @@
 /**
- * Mastra instance for both the Studio playground and the running server.
+ * Mastra instance for both the Studio observability UI and the running server.
  *
- *   Studio:  bun run mastra:dev → http://localhost:4111
+ *   Dev:     mounted in-process onto the RaceIQ Hono app under `/studio-api`
+ *            (see server/dev-studio.ts). `bun run mastra:studio` serves the
+ *            Studio UI on :3000 and reads this API over HTTP — the server is the
+ *            sole DuckDB writer, so there is no second-process file lock.
  *   Runtime: imported by `server/routes/lap-routes.ts` to call agents.
+ *   Prod:    never imported (NODE_ENV-gated) — DuckDB stays out of raceiq.exe.
  *
  * Each agent has its own file under `mastra/agents/` for clarity. Add a new
  * agent by creating a file there and registering it below.
@@ -18,14 +22,18 @@ import { lapAnalystAgent } from "./agents/lap-analyst";
 import { lapChatAgent } from "./agents/lap-chat";
 import { compareEngineerAgent } from "./agents/compare-engineer";
 import { compareChatAgent } from "./agents/compare-chat";
+import { setupEngineerAgent } from "./agents/setup-engineer";
 import { compareAnalyseWorkflow } from "./workflows/compare-analyse";
+import { setupEngineerTurnWorkflow } from "./workflows/setup-engineer-turn";
+import { scorerRegistry } from "./evals";
 
 /**
  * DuckDB observability store — anchored on an absolute path (DATA_DIR or
- * <cwd>/data) so the running RaceIQ server and the `mastra dev` Studio
- * process write to the SAME file. Without this, each process creates its
- * own mastra.duckdb in whatever cwd it happens to have, so Studio never
- * sees the traces from the app's real API calls.
+ * <cwd>/data) so it is stable regardless of the process cwd. Only ONE process
+ * ever opens it read-write: the RaceIQ dev server (DuckDB is single-writer, and
+ * its Metrics tab is OLAP-only so LibSQL can't substitute). `mastra studio`
+ * does NOT open this file — it reads the server's in-process Mastra API over
+ * HTTP (see server/dev-studio.ts), which is what keeps the two from deadlocking.
  */
 const observabilityDuckDbPath =
   `${process.env.DATA_DIR ?? resolve(process.cwd(), "data")}/mastra-observability.duckdb`;
@@ -41,10 +49,13 @@ export const mastra = new Mastra({
     "lap-chat": lapChatAgent,
     "compare-engineer": compareEngineerAgent,
     "compare-chat": compareChatAgent,
+    "setup-engineer": setupEngineerAgent,
   },
   workflows: {
     "compare-analyse": compareAnalyseWorkflow,
+    "setup-engineer-turn": setupEngineerTurnWorkflow,
   },
+  scorers: scorerRegistry,
   storage: new MastraCompositeStore({
     id: "raceiq-composite",
     default: new LibSQLStore({
@@ -75,3 +86,4 @@ export const getLapAnalystAgent = () => mastra.getAgent("lap-analyst");
 export const getLapChatAgent = () => mastra.getAgent("lap-chat");
 export const getCompareEngineerAgent = () => mastra.getAgent("compare-engineer");
 export const getCompareChatAgent = () => mastra.getAgent("compare-chat");
+export const getSetupEngineerAgent = () => mastra.getAgent("setup-engineer");

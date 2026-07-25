@@ -59,7 +59,7 @@ describe("resolveTrackContext", () => {
     expect(ctx.slug).toBe("spa");
     expect(ctx.sectors?.s1End).toBeGreaterThan(0);
     expect(ctx.sectors?.s2End).toBeGreaterThan(ctx.sectors!.s1End);
-    const withNumbers = ctx.segments?.filter((s) => s.numbers?.length) ?? [];
+    const withNumbers = ctx.segments?.filter((s) => s.number !== undefined) ?? [];
     expect(withNumbers.length).toBeGreaterThan(5);
   });
 

@@ -1,21 +1,21 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { applyLocale } from "@/lib/locale";
-import { m } from "@/paraglide/messages";
-import { SearchSelect } from "@/components/ui/SearchSelect";
 import { LOCALES } from "@shared/locales";
 import type { TelemetryPacket } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SiDiscord, SiGithub } from "react-icons/si";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { SearchSelect } from "@/components/ui/SearchSelect";
+import { applyLocale } from "@/lib/locale";
+import { m } from "@/paraglide/messages";
 import { DEMO_CAR } from "../data/car-models";
 import { useSaveSettings, useSettings } from "../hooks/queries";
 import { client } from "../lib/rpc";
 import { useTelemetryStore } from "../stores/telemetry";
 import { CarWireframe } from "./CarWireframe";
 import { playBlip, preloadSound } from "./SectorTimes";
-import { SOUND_PRESETS, getSoundEnabled, getSoundType, getSoundVolume, getWheelStyle, setSoundEnabled, setSoundType, setSoundVolume } from "./Settings";
+import { getSoundEnabled, getSoundType, getSoundVolume, getWheelStyle, SOUND_PRESETS, setSoundEnabled, setSoundType, setSoundVolume } from "./Settings";
 
 const WHEEL_STYLE_KEY = "forza-wheel-style";
 
@@ -500,7 +500,9 @@ export function StepSound() {
           </div>
 
           <div className="mb-4">
-            <Label className="text-app-text-secondary text-xs mb-2 block">{m.label_volume()} — {Math.round(volume * 100)}%</Label>
+            <Label className="text-app-text-secondary text-xs mb-2 block">
+              {m.label_volume()} — {Math.round(volume * 100)}%
+            </Label>
             <input
               type="range"
               min="0"

@@ -1,27 +1,27 @@
-import { AccTrackGuide, AccTrackSetups } from "@/components/acc/AccTrackSetups";
-import { F125Leaderboard } from "@/components/f1/F125Leaderboard";
-import { F125SetupsWithGuide, F125TrackGuide } from "@/components/f1/F125TrackSetups";
-import { TBody, TD, TH, THead, TRow, Table } from "@/components/ui/AppTable";
-import { InfoTooltip, Tooltip } from "@/components/ui/InfoTooltip";
-import { SearchMultiSelect } from "@/components/ui/SearchMultiSelect";
-import { Button } from "@/components/ui/button";
-import { useBulkDeleteLaps } from "@/hooks/queries";
-import { drawTrack } from "@/lib/canvas/draw-track";
-import { segmentDisplayNames } from "@/lib/segment-label";
-import { countryName } from "@/lib/country-names";
-import { isDevelopment } from "@/lib/env";
-import { formatLapTime } from "@/lib/format";
-import { m } from "@/paraglide/messages";
-import { client } from "@/lib/rpc";
-import { getGameRoute, useGameId } from "@/stores/game";
 import { RAW_STORAGE_VERSION } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AccTrackGuide, AccTrackSetups } from "@/components/acc/AccTrackSetups";
+import { F125Leaderboard } from "@/components/f1/F125Leaderboard";
+import { F125SetupsWithGuide, F125TrackGuide } from "@/components/f1/F125TrackSetups";
+import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { Button } from "@/components/ui/button";
+import { InfoTooltip, Tooltip } from "@/components/ui/InfoTooltip";
+import { SearchMultiSelect } from "@/components/ui/SearchMultiSelect";
+import { useBulkDeleteLaps } from "@/hooks/queries";
+import { drawTrack } from "@/lib/canvas/draw-track";
+import { countryName } from "@/lib/country-names";
+import { isDevelopment } from "@/lib/env";
+import { formatLapTime } from "@/lib/format";
+import { client } from "@/lib/rpc";
+import { segmentDisplayNames } from "@/lib/segment-label";
+import { m } from "@/paraglide/messages";
+import { getGameRoute, useGameId } from "@/stores/game";
 import { CatalogTrackSetups } from "./CatalogTrackSetups";
 import { CommunityLeaderboard } from "./CommunityLeaderboard";
-import { TrackInfoPanel } from "./TrackInfoPanel";
 import { TrackDebugPanel } from "./debug/TrackDebugPanel";
+import { TrackInfoPanel } from "./TrackInfoPanel";
 import type { Point, TrackInfo, TrackSectors, TrackSegment } from "./types";
 
 interface TrackLap {
@@ -680,8 +680,11 @@ export function TrackDetail({
     const showSectors = editingSectors || mapDisplayMode === "sectors";
     const sectorBoundsForDraw = editingSectors ? { s1End: editS1 / 100, s2End: editS2 / 100 } : (sectorBounds ?? undefined);
     const sectorOverride = showSectors ? sectorBoundsForDraw : undefined;
-    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, flipX);
-  }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab, flipX]);
+    // While editing, every turn of a complex gets its own label so the row
+    // being edited is identifiable on the map; otherwise the complex is
+    // labelled once under its group name.
+    drawTrack(canvasRef.current, outline, true, showSectors ? null : displaySectors, zoom, pan, sectorOverride, flipX, undefined, editing);
+  }, [outline, displaySectors, zoom, pan, editingSectors, editS1, editS2, mapDisplayMode, sectorBounds, activeTab, flipX, editing]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -690,7 +693,7 @@ export function TrackDetail({
       e.preventDefault();
       const currentZoom = zoomRef.current;
       const currentPan = panRef.current;
-      const factor = Math.pow(0.999, e.deltaY);
+      const factor = 0.999 ** e.deltaY;
       const newZoom = Math.min(Math.max(currentZoom * factor, 0.5), 4);
       if (Math.abs(newZoom - currentZoom) < 0.001) return;
 
@@ -743,6 +746,17 @@ export function TrackDetail({
     setEditSegments((prev) => {
       const next = prev.map((s) => ({ ...s }));
       next[idx].name = name;
+      return next;
+    });
+  }, []);
+
+  // Complex membership (Rivazza, Variante Alta): each turn stays its own
+  // segment, the group name is what the map labels the complex with.
+  const updateSegGroup = useCallback((idx: number, group: string) => {
+    setEditSegments((prev) => {
+      const next = prev.map((s) => ({ ...s }));
+      if (group.trim()) next[idx].group = group;
+      else delete next[idx].group;
       return next;
     });
   }, []);
@@ -829,10 +843,7 @@ export function TrackDetail({
   }, [editS1, editS2, track.ordinal]);
 
   // Corner names carry their official turn numbers; straights are auto-numbered.
-  const segDisplayNames = useMemo(
-    () => segmentDisplayNames(editing ? editSegments : (displaySectors?.segments ?? [])),
-    [editing, editSegments, displaySectors],
-  );
+  const segDisplayNames = useMemo(() => segmentDisplayNames(editing ? editSegments : (displaySectors?.segments ?? [])), [editing, editSegments, displaySectors]);
 
   const corners = displaySectors?.segments.filter((s) => s.type === "corner") ?? [];
   const straights = displaySectors?.segments.filter((s) => s.type === "straight") ?? [];
@@ -1063,6 +1074,13 @@ export function TrackDetail({
                             onChange={(e) => updateSegName(i, e.target.value)}
                             className="flex-1 text-app-label font-mono bg-transparent border-b border-app-border-input text-app-text outline-none px-1 placeholder:text-app-text-dim"
                           />
+                          <input
+                            value={seg.group ?? ""}
+                            placeholder="group"
+                            title="Complex this turn belongs to — the map labels the complex once under this name"
+                            onChange={(e) => updateSegGroup(i, e.target.value)}
+                            className="w-20 text-app-label font-mono bg-transparent border-b border-app-border-input text-app-text-secondary outline-none px-1 placeholder:text-app-text-dim"
+                          />
                           <button onClick={() => addSegment(i)} className="text-app-unit text-app-text-muted hover:text-app-text px-1" title={m.trackdetail_split_segment()}>
                             +
                           </button>
@@ -1205,105 +1223,107 @@ export function TrackDetail({
             {/* Track map — hidden on setups tab so the setups panel can take the full left column */}
             {activeTab !== "setups" && (
               <div className={`shrink-0 flex flex-col md:flex-row gap-3 ${activeTab === "guide" && isF125 ? "md:h-[160px]" : "md:h-[320px]"}`}>
-              {/* Info summary left of map, same shape as the laps leaderboard */}
-              {activeTab === "info" && (
-                <div className="order-2 md:order-1 w-full md:w-[560px] shrink-0 overflow-auto flex flex-col bg-app-surface/50 border border-app-border rounded-lg p-3 min-h-[200px] md:min-h-0">
-                  <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="summary" />
-                </div>
-              )}
-
-              {/* Leaderboard left of map on laps tab */}
-              {activeTab === "laps" && (
-                <div className="order-2 md:order-1 w-full md:w-[560px] shrink-0 overflow-hidden flex flex-col bg-app-surface/50 border border-app-border rounded-lg p-3 min-h-[200px] md:min-h-0">
-                  {isF125 ? <F125Leaderboard trackOrdinal={track.ordinal} /> : <CommunityLeaderboard trackName={track.name} trackVariant={track.variant} />}
-                </div>
-              )}
-              <div className="order-1 md:order-2 bg-app-bg rounded-lg border border-app-border relative flex-1 min-w-0 h-[260px] md:h-auto">
-                {track.hasOutline ? (
-                  <canvas
-                    ref={canvasRef}
-                    className="w-full h-full cursor-grab active:cursor-grabbing"
-                    onMouseDown={(e) => {
-                      dragging.current = { startX: e.clientX, startY: e.clientY, startPanX: pan.x, startPanZ: pan.z };
-                    }}
-                    onMouseMove={(e) => {
-                      if (!dragging.current) return;
-                      const dx = e.clientX - dragging.current.startX;
-                      const dy = e.clientY - dragging.current.startY;
-                      setPan({ x: dragging.current.startPanX + dx, z: dragging.current.startPanZ + dy });
-                    }}
-                    onMouseUp={() => {
-                      dragging.current = null;
-                    }}
-                    onMouseLeave={() => {
-                      dragging.current = null;
-                    }}
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">{m.trackdetail_no_outline_available()}</div>
+                {/* Info summary left of map, same shape as the laps leaderboard */}
+                {activeTab === "info" && (
+                  <div className="order-2 md:order-1 w-full md:w-[560px] shrink-0 overflow-auto flex flex-col bg-app-surface/50 border border-app-border rounded-lg p-3 min-h-[200px] md:min-h-0">
+                    <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="summary" />
+                  </div>
                 )}
-                <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
-                  <button
-                    onClick={() => setZoom((z) => Math.min(z + 0.25, 4))}
-                    className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-                  >
-                    +
-                  </button>
-                  <button
-                    onClick={() => setZoom((z) => Math.max(z - 0.25, 0.5))}
-                    className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-                  >
-                    -
-                  </button>
-                  {zoom !== 1 && (
-                    <button
-                      onClick={() => {
-                        setZoom(1);
-                        setPan({ x: 0, z: 0 });
+
+                {/* Leaderboard left of map on laps tab */}
+                {activeTab === "laps" && (
+                  <div className="order-2 md:order-1 w-full md:w-[560px] shrink-0 overflow-hidden flex flex-col bg-app-surface/50 border border-app-border rounded-lg p-3 min-h-[200px] md:min-h-0">
+                    {isF125 ? <F125Leaderboard trackOrdinal={track.ordinal} /> : <CommunityLeaderboard trackName={track.name} trackVariant={track.variant} />}
+                  </div>
+                )}
+                <div className="order-1 md:order-2 bg-app-bg rounded-lg border border-app-border relative flex-1 min-w-0 h-[260px] md:h-auto">
+                  {track.hasOutline ? (
+                    <canvas
+                      ref={canvasRef}
+                      className="w-full h-full cursor-grab active:cursor-grabbing"
+                      onMouseDown={(e) => {
+                        dragging.current = { startX: e.clientX, startY: e.clientY, startPanX: pan.x, startPanZ: pan.z };
                       }}
-                      className="px-1.5 py-1 text-[9px] font-mono bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded"
+                      onMouseMove={(e) => {
+                        if (!dragging.current) return;
+                        const dx = e.clientX - dragging.current.startX;
+                        const dy = e.clientY - dragging.current.startY;
+                        setPan({ x: dragging.current.startPanX + dx, z: dragging.current.startPanZ + dy });
+                      }}
+                      onMouseUp={() => {
+                        dragging.current = null;
+                      }}
+                      onMouseLeave={() => {
+                        dragging.current = null;
+                      }}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">{m.trackdetail_no_outline_available()}</div>
+                  )}
+                  <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
+                    <button
+                      onClick={() => setZoom((z) => Math.min(z + 0.25, 4))}
+                      className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
                     >
-                      {zoom % 1 === 0 ? `${zoom}x` : `${zoom.toFixed(2)}x`}
+                      +
                     </button>
-                  )}
-                  {(sectorBounds || displaySectors) && (
-                    <>
-                      <div className="h-px" />
+                    <button
+                      onClick={() => setZoom((z) => Math.max(z - 0.25, 0.5))}
+                      className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
+                    >
+                      -
+                    </button>
+                    {zoom !== 1 && (
                       <button
-                        onClick={() => setMapDisplayMode((m) => (m === "segments" ? "sectors" : "segments"))}
-                        className={`px-1.5 py-1 text-[9px] font-mono rounded border transition-colors ${
-                          mapDisplayMode === "sectors" ? "bg-amber-900/50 border-amber-700 text-amber-400" : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
-                        }`}
-                        title={mapDisplayMode === "sectors" ? m.track_detail_show_segments() : m.track_detail_show_sectors()}
+                        onClick={() => {
+                          setZoom(1);
+                          setPan({ x: 0, z: 0 });
+                        }}
+                        className="px-1.5 py-1 text-[9px] font-mono bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded"
                       >
-                        {mapDisplayMode === "sectors" ? m.overlay_sectors() : m.overlay_segments()}
+                        {zoom % 1 === 0 ? `${zoom}x` : `${zoom.toFixed(2)}x`}
                       </button>
-                    </>
-                  )}
+                    )}
+                    {(sectorBounds || displaySectors) && (
+                      <>
+                        <div className="h-px" />
+                        <button
+                          onClick={() => setMapDisplayMode((m) => (m === "segments" ? "sectors" : "segments"))}
+                          className={`px-1.5 py-1 text-[9px] font-mono rounded border transition-colors ${
+                            mapDisplayMode === "sectors"
+                              ? "bg-amber-900/50 border-amber-700 text-amber-400"
+                              : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
+                          }`}
+                          title={mapDisplayMode === "sectors" ? m.track_detail_show_segments() : m.track_detail_show_sectors()}
+                        >
+                          {mapDisplayMode === "sectors" ? m.overlay_sectors() : m.overlay_segments()}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  {/* Track info overlay — bottom left */}
+                  <div className="absolute bottom-2 left-2 flex items-center gap-2.5 text-[10px] font-mono text-app-text-dim bg-app-surface/70 backdrop-blur-sm rounded px-2 py-1 pointer-events-none">
+                    {track.lengthKm > 0 && <span>{track.lengthKm} km</span>}
+                    {corners.length > 0 && (
+                      <>
+                        <span className="text-app-text-dim/40">·</span>
+                        <span>{corners.length} corners</span>
+                      </>
+                    )}
+                    {straights.length > 0 && (
+                      <>
+                        <span className="text-app-text-dim/40">·</span>
+                        <span>{straights.length} straights</span>
+                      </>
+                    )}
+                    {track.createdAt && (
+                      <>
+                        <span className="text-app-text-dim/40">·</span>
+                        <span>{new Date(track.createdAt).toLocaleDateString()}</span>
+                      </>
+                    )}
+                  </div>
                 </div>
-                {/* Track info overlay — bottom left */}
-                <div className="absolute bottom-2 left-2 flex items-center gap-2.5 text-[10px] font-mono text-app-text-dim bg-app-surface/70 backdrop-blur-sm rounded px-2 py-1 pointer-events-none">
-                  {track.lengthKm > 0 && <span>{track.lengthKm} km</span>}
-                  {corners.length > 0 && (
-                    <>
-                      <span className="text-app-text-dim/40">·</span>
-                      <span>{corners.length} corners</span>
-                    </>
-                  )}
-                  {straights.length > 0 && (
-                    <>
-                      <span className="text-app-text-dim/40">·</span>
-                      <span>{straights.length} straights</span>
-                    </>
-                  )}
-                  {track.createdAt && (
-                    <>
-                      <span className="text-app-text-dim/40">·</span>
-                      <span>{new Date(track.createdAt).toLocaleDateString()}</span>
-                    </>
-                  )}
-                </div>
-              </div>
               </div>
             )}
 
@@ -1341,334 +1361,329 @@ export function TrackDetail({
                     {/* Own laps */}
                     <div className="flex flex-col gap-3 lg:h-full lg:overflow-hidden">
                       {(() => {
-                          const filterRow = (
-                            <div className="flex items-center gap-3 flex-wrap">
-                              <div className="text-app-label text-app-text-muted uppercase tracking-wider">
-                                {m.label_laps()} ({filteredLaps.length})
-                              </div>
-                              {/* Division filter — Forza only */}
-                              {hasForzaTunes && uniqueDivisions.length > 1 && (
-                                <SearchMultiSelect<string>
-                                  mode="single"
-                                  buttonLabel={selectedDivision ?? m.trackdetail_all_divisions()}
-                                  options={uniqueDivisions.map((d) => ({ key: d, label: d }))}
-                                  isSelected={(k) => selectedDivision === k}
-                                  onSelect={(k) => setSelectedDivision(k)}
-                                  onClear={selectedDivision ? () => setSelectedDivision(null) : undefined}
-                                  searchPlaceholder={m.trackdetail_search_divisions_placeholder()}
-                                  menuWidthClass="w-56"
-                                />
-                              )}
-                              <SearchMultiSelect<number>
-                                buttonLabel={selectedCars.size === 0 ? m.track_detail_all_cars() : `${selectedCars.size} ${selectedCars.size > 1 ? m.label_cars() : m.label_car()}`}
-                                options={uniqueCars.map((c) => ({ key: c.carOrdinal, label: c.carName, search: c.carName }))}
-                                isSelected={(k) => selectedCars.has(k)}
-                                onSelect={(k) => toggleCar(k)}
-                                onClear={
-                                  selectedCars.size > 0
-                                    ? () => {
-                                        setSelectedCars(new Set());
-                                        setSelectedLaps(new Set());
-                                      }
-                                    : undefined
-                                }
-                                searchPlaceholder={m.trackdetail_search_cars_placeholder()}
-                                menuAlign="right"
-                                renderItem={(opt) => {
-                                  const car = uniqueCars.find((c) => c.carOrdinal === opt.key);
-                                  return (
-                                    <>
-                                      {!hideClassCol && car && (
-                                        <span className={`font-bold font-mono text-[10px] flex-shrink-0 ${classTextColors[car.carClass] ?? "text-app-text-secondary"}`}>{car.carClass}</span>
-                                      )}
-                                      <span className="truncate">{opt.label}</span>
-                                    </>
-                                  );
-                                }}
-                              />
-                              {/* Selection actions — inline in header row */}
-                              {selectedLaps.size > 0 && (
-                                <div className="flex items-center gap-2 ml-auto">
-                                  <span className="text-app-unit text-app-text-dim">
-                                    {selectedLaps.size} {m.trackdetail_selected()}
-                                  </span>
-                                  {selectedLaps.size === 2 &&
-                                    (() => {
-                                      const [lapA, lapB] = Array.from(selectedLaps);
-                                      return (
-                                        <button
-                                          onClick={() =>
-                                            navTo({
-                                              to: "/fm23/compare",
-                                              search: {
-                                                track: track.ordinal,
-                                                lapA,
-                                                lapB,
-                                                carA: trackLaps.find((l) => l.lapId === lapA)?.carOrdinal,
-                                                carB: trackLaps.find((l) => l.lapId === lapB)?.carOrdinal,
-                                              },
-                                            })
-                                          }
-                                          className="text-app-unit px-2 py-0.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-medium"
-                                        >
-                                          {m.trackdetail_compare()}
-                                        </button>
-                                      );
-                                    })()}
-                                  {!confirmDelete ? (
-                                    <button onClick={() => setConfirmDelete(true)} className="text-app-unit px-2 py-0.5 rounded bg-red-600/80 hover:bg-red-600 text-white font-medium">
-                                      {m.trackdetail_delete()} ({selectedLaps.size})
-                                    </button>
-                                  ) : (
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-app-unit text-red-400">{m.trackdetail_confirm()}</span>
-                                      <button
-                                        onClick={handleBulkDelete}
-                                        disabled={deleting}
-                                        className="text-app-unit px-2 py-0.5 rounded bg-red-600 hover:bg-red-500 text-white font-medium disabled:opacity-50"
-                                      >
-                                        {deleting ? "..." : m.trackdetail_yes()}
-                                      </button>
-                                      <button onClick={() => setConfirmDelete(false)} className="text-app-unit px-2 py-0.5 rounded bg-app-surface-alt text-app-text-secondary hover:text-app-text">
-                                        {m.common_cancel()}
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
+                        const filterRow = (
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <div className="text-app-label text-app-text-muted uppercase tracking-wider">
+                              {m.label_laps()} ({filteredLaps.length})
                             </div>
-                          );
-                          return (
-                            <>
-                              {/* Desktop filter row */}
-                              <div className="hidden md:block">{filterRow}</div>
-
-                              {/* Mobile: filter + 2-page carousel (stats / laps) */}
-                              <div className="md:hidden flex flex-col gap-2">
-                                {filterRow}
-                                <div className="flex items-center gap-1 border-b border-app-border">
-                                  {[m.trackdetail_stats_page(), m.label_laps()].map((label, i) => (
+                            {/* Division filter — Forza only */}
+                            {hasForzaTunes && uniqueDivisions.length > 1 && (
+                              <SearchMultiSelect<string>
+                                mode="single"
+                                buttonLabel={selectedDivision ?? m.trackdetail_all_divisions()}
+                                options={uniqueDivisions.map((d) => ({ key: d, label: d }))}
+                                isSelected={(k) => selectedDivision === k}
+                                onSelect={(k) => setSelectedDivision(k)}
+                                onClear={selectedDivision ? () => setSelectedDivision(null) : undefined}
+                                searchPlaceholder={m.trackdetail_search_divisions_placeholder()}
+                                menuWidthClass="w-56"
+                              />
+                            )}
+                            <SearchMultiSelect<number>
+                              buttonLabel={selectedCars.size === 0 ? m.track_detail_all_cars() : `${selectedCars.size} ${selectedCars.size > 1 ? m.label_cars() : m.label_car()}`}
+                              options={uniqueCars.map((c) => ({ key: c.carOrdinal, label: c.carName, search: c.carName }))}
+                              isSelected={(k) => selectedCars.has(k)}
+                              onSelect={(k) => toggleCar(k)}
+                              onClear={
+                                selectedCars.size > 0
+                                  ? () => {
+                                      setSelectedCars(new Set());
+                                      setSelectedLaps(new Set());
+                                    }
+                                  : undefined
+                              }
+                              searchPlaceholder={m.trackdetail_search_cars_placeholder()}
+                              menuAlign="right"
+                              renderItem={(opt) => {
+                                const car = uniqueCars.find((c) => c.carOrdinal === opt.key);
+                                return (
+                                  <>
+                                    {!hideClassCol && car && (
+                                      <span className={`font-bold font-mono text-[10px] flex-shrink-0 ${classTextColors[car.carClass] ?? "text-app-text-secondary"}`}>{car.carClass}</span>
+                                    )}
+                                    <span className="truncate">{opt.label}</span>
+                                  </>
+                                );
+                              }}
+                            />
+                            {/* Selection actions — inline in header row */}
+                            {selectedLaps.size > 0 && (
+                              <div className="flex items-center gap-2 ml-auto">
+                                <span className="text-app-unit text-app-text-dim">
+                                  {selectedLaps.size} {m.trackdetail_selected()}
+                                </span>
+                                {selectedLaps.size === 2 &&
+                                  (() => {
+                                    const [lapA, lapB] = Array.from(selectedLaps);
+                                    return (
+                                      <button
+                                        onClick={() =>
+                                          navTo({
+                                            to: "/fm23/compare",
+                                            search: {
+                                              track: track.ordinal,
+                                              lapA,
+                                              lapB,
+                                              carA: trackLaps.find((l) => l.lapId === lapA)?.carOrdinal,
+                                              carB: trackLaps.find((l) => l.lapId === lapB)?.carOrdinal,
+                                            },
+                                          })
+                                        }
+                                        className="text-app-unit px-2 py-0.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-medium"
+                                      >
+                                        {m.trackdetail_compare()}
+                                      </button>
+                                    );
+                                  })()}
+                                {!confirmDelete ? (
+                                  <button onClick={() => setConfirmDelete(true)} className="text-app-unit px-2 py-0.5 rounded bg-red-600/80 hover:bg-red-600 text-white font-medium">
+                                    {m.trackdetail_delete()} ({selectedLaps.size})
+                                  </button>
+                                ) : (
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-app-unit text-red-400">{m.trackdetail_confirm()}</span>
                                     <button
-                                      key={label}
-                                      onClick={() => gotoCarouselPage(i)}
-                                      className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 -mb-px transition-colors ${carouselPage === i ? "border-app-accent text-app-accent" : "border-transparent text-app-text-muted"}`}
+                                      onClick={handleBulkDelete}
+                                      disabled={deleting}
+                                      className="text-app-unit px-2 py-0.5 rounded bg-red-600 hover:bg-red-500 text-white font-medium disabled:opacity-50"
                                     >
-                                      {label}
+                                      {deleting ? "..." : m.trackdetail_yes()}
                                     </button>
-                                  ))}
-                                </div>
-                                <div
-                                  ref={setCarouselEl}
-                                  className="overflow-x-auto overflow-y-hidden snap-x snap-mandatory flex scroll-smooth items-start"
-                                  style={carouselHeight ? { height: carouselHeight } : undefined}
-                                >
-                                  <div className="snap-center shrink-0 w-full">
-                                    <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} showSessionFilter={isF125} />
+                                    <button onClick={() => setConfirmDelete(false)} className="text-app-unit px-2 py-0.5 rounded bg-app-surface-alt text-app-text-secondary hover:text-app-text">
+                                      {m.common_cancel()}
+                                    </button>
                                   </div>
-                                  <div className="snap-center shrink-0 w-full flex flex-col gap-2">
-                                    {(() => {
-                                      const validLaps = filteredLaps.filter((l) => l.isValid !== false);
-                                      const fastestTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
-                                      if (filteredLaps.length === 0) {
-                                        return <div className="px-3 py-6 text-center text-sm text-app-text-dim">{m.track_detail_no_laps_match_filters()}</div>;
-                                      }
-                                      return filteredLaps.map((lap) => {
-                                        const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false;
-                                        const selected = selectedLaps.has(lap.lapId);
-                                        return (
-                                          <div key={lap.lapId} className={`rounded-lg border border-app-border p-3 ${selected ? "bg-cyan-500/5 border-cyan-500/30" : ""}`}>
-                                            <div className="flex items-start gap-3">
-                                              <input type="checkbox" checked={selected} onChange={() => toggleLapSelect(lap.lapId)} className="accent-cyan-400 w-5 h-5 mt-0.5 shrink-0" />
-                                              <div className="flex-1 min-w-0">
-                                                <div className="flex items-start justify-between gap-3">
-                                                  <div className="min-w-0 flex-1">
-                                                    <div className="text-sm font-semibold text-app-text break-words">{lap.carName}</div>
-                                                    <div className="mt-0.5 flex items-center gap-2 text-xs text-app-text-muted">
-                                                      {!hideClassCol && (
-                                                        <span>
-                                                          <span className={`font-bold font-mono ${classTextColors[lap.carClass] ?? "text-app-text-secondary"}`}>{lap.carClass}</span>
-                                                          <span className="ml-1">PI {lap.pi}</span>
-                                                        </span>
-                                                      )}
-                                                      <span className="font-mono">Lap {lap.lapNumber}</span>
-                                                      {hasSessionTypes &&
-                                                        lap.sessionId != null &&
-                                                        ((sessionLapCounts.get(lap.sessionId) ?? 0) > 1 ? (
-                                                          <span className="text-[10px] text-emerald-400 font-medium">{m.track_detail_race()}</span>
-                                                        ) : (
-                                                          <span className="text-[10px] text-amber-400 font-medium">{m.track_detail_quali()}</span>
-                                                        ))}
-                                                    </div>
-                                                    {lap.createdAt && (
-                                                      <div className="mt-1 text-[11px] text-app-text-dim font-mono">
-                                                        {new Date(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}{" "}
-                                                        {new Date(lap.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                                      </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                        return (
+                          <>
+                            {/* Desktop filter row */}
+                            <div className="hidden md:block">{filterRow}</div>
+
+                            {/* Mobile: filter + 2-page carousel (stats / laps) */}
+                            <div className="md:hidden flex flex-col gap-2">
+                              {filterRow}
+                              <div className="flex items-center gap-1 border-b border-app-border">
+                                {[m.trackdetail_stats_page(), m.label_laps()].map((label, i) => (
+                                  <button
+                                    key={label}
+                                    onClick={() => gotoCarouselPage(i)}
+                                    className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 -mb-px transition-colors ${carouselPage === i ? "border-app-accent text-app-accent" : "border-transparent text-app-text-muted"}`}
+                                  >
+                                    {label}
+                                  </button>
+                                ))}
+                              </div>
+                              <div
+                                ref={setCarouselEl}
+                                className="overflow-x-auto overflow-y-hidden snap-x snap-mandatory flex scroll-smooth items-start"
+                                style={carouselHeight ? { height: carouselHeight } : undefined}
+                              >
+                                <div className="snap-center shrink-0 w-full">
+                                  <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} showSessionFilter={isF125} />
+                                </div>
+                                <div className="snap-center shrink-0 w-full flex flex-col gap-2">
+                                  {(() => {
+                                    const validLaps = filteredLaps.filter((l) => l.isValid !== false);
+                                    const fastestTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
+                                    if (filteredLaps.length === 0) {
+                                      return <div className="px-3 py-6 text-center text-sm text-app-text-dim">{m.track_detail_no_laps_match_filters()}</div>;
+                                    }
+                                    return filteredLaps.map((lap) => {
+                                      const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false;
+                                      const selected = selectedLaps.has(lap.lapId);
+                                      return (
+                                        <div key={lap.lapId} className={`rounded-lg border border-app-border p-3 ${selected ? "bg-cyan-500/5 border-cyan-500/30" : ""}`}>
+                                          <div className="flex items-start gap-3">
+                                            <input type="checkbox" checked={selected} onChange={() => toggleLapSelect(lap.lapId)} className="accent-cyan-400 w-5 h-5 mt-0.5 shrink-0" />
+                                            <div className="flex-1 min-w-0">
+                                              <div className="flex items-start justify-between gap-3">
+                                                <div className="min-w-0 flex-1">
+                                                  <div className="text-sm font-semibold text-app-text break-words">{lap.carName}</div>
+                                                  <div className="mt-0.5 flex items-center gap-2 text-xs text-app-text-muted">
+                                                    {!hideClassCol && (
+                                                      <span>
+                                                        <span className={`font-bold font-mono ${classTextColors[lap.carClass] ?? "text-app-text-secondary"}`}>{lap.carClass}</span>
+                                                        <span className="ml-1">PI {lap.pi}</span>
+                                                      </span>
                                                     )}
-                                                    {lap.notes && <div className="mt-1 text-xs text-app-text-secondary truncate">{lap.notes}</div>}
-                                                  </div>
-                                                  <div className="shrink-0 flex flex-col items-end gap-1 font-mono tabular-nums text-sm leading-tight">
-                                                    <div className="flex items-center gap-1">
-                                                      <span className={isFastest ? "text-purple-400 font-bold" : "text-app-text"}>{formatLapTime(lap.lapTime)}</span>
-                                                      {lap.isValid === false ? (
-                                                        <span className="text-red-400 w-6 text-center" title={lap.invalidReason ?? m.trackdetail_invalid_lap()}>
-                                                          ✕
-                                                        </span>
+                                                    <span className="font-mono">Lap {lap.lapNumber}</span>
+                                                    {hasSessionTypes &&
+                                                      lap.sessionId != null &&
+                                                      ((sessionLapCounts.get(lap.sessionId) ?? 0) > 1 ? (
+                                                        <span className="text-[10px] text-emerald-400 font-medium">{m.track_detail_race()}</span>
                                                       ) : (
-                                                        <span className="text-emerald-400 w-6 text-center">✓</span>
-                                                      )}
+                                                        <span className="text-[10px] text-amber-400 font-medium">{m.track_detail_quali()}</span>
+                                                      ))}
+                                                  </div>
+                                                  {lap.createdAt && (
+                                                    <div className="mt-1 text-[11px] text-app-text-dim font-mono">
+                                                      {new Date(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}{" "}
+                                                      {new Date(lap.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                                                     </div>
-                                                    <div className="flex items-center gap-1">
-                                                      <span>{lap.s1Time != null ? formatLapTime(lap.s1Time) : "—"}</span>
-                                                      <span className="text-red-400 w-6 text-center">S1</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                      <span>{lap.s2Time != null ? formatLapTime(lap.s2Time) : "—"}</span>
-                                                      <span className="text-blue-400 w-6 text-center">S2</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                      <span>{lap.s3Time != null ? formatLapTime(lap.s3Time) : "—"}</span>
-                                                      <span className="text-yellow-400 w-6 text-center">S3</span>
-                                                    </div>
+                                                  )}
+                                                  {lap.notes && <div className="mt-1 text-xs text-app-text-secondary truncate">{lap.notes}</div>}
+                                                </div>
+                                                <div className="shrink-0 flex flex-col items-end gap-1 font-mono tabular-nums text-sm leading-tight">
+                                                  <div className="flex items-center gap-1">
+                                                    <span className={isFastest ? "text-purple-400 font-bold" : "text-app-text"}>{formatLapTime(lap.lapTime)}</span>
+                                                    {lap.isValid === false ? (
+                                                      <span className="text-red-400 w-6 text-center" title={lap.invalidReason ?? m.trackdetail_invalid_lap()}>
+                                                        ✕
+                                                      </span>
+                                                    ) : (
+                                                      <span className="text-emerald-400 w-6 text-center">✓</span>
+                                                    )}
+                                                  </div>
+                                                  <div className="flex items-center gap-1">
+                                                    <span>{lap.s1Time != null ? formatLapTime(lap.s1Time) : "—"}</span>
+                                                    <span className="text-red-400 w-6 text-center">S1</span>
+                                                  </div>
+                                                  <div className="flex items-center gap-1">
+                                                    <span>{lap.s2Time != null ? formatLapTime(lap.s2Time) : "—"}</span>
+                                                    <span className="text-blue-400 w-6 text-center">S2</span>
+                                                  </div>
+                                                  <div className="flex items-center gap-1">
+                                                    <span>{lap.s3Time != null ? formatLapTime(lap.s3Time) : "—"}</span>
+                                                    <span className="text-yellow-400 w-6 text-center">S3</span>
                                                   </div>
                                                 </div>
                                               </div>
                                             </div>
                                           </div>
+                                        </div>
+                                      );
+                                    });
+                                  })()}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Desktop: stats + table side-by-side */}
+                            <div className="hidden md:flex gap-3 flex-1 min-h-0 overflow-hidden">
+                              <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} showSessionFilter={isF125} />
+                              {/* Lap table (md+) */}
+                              <div className="flex-1 min-w-0 overflow-y-auto bg-app-surface/50 border border-app-border rounded-lg">
+                                <Table>
+                                  <THead>
+                                    <TH className="w-8 px-3">
+                                      <input type="checkbox" checked={selectedLaps.size === filteredLaps.length && filteredLaps.length > 0} onChange={toggleAllLaps} className="accent-cyan-400" />
+                                    </TH>
+                                    <TH>{m.label_car()}</TH>
+                                    {!hideClassCol && <TH>{m.track_detail_class()}</TH>}
+                                    {hasSessionTypes && <TH>{m.label_type()}</TH>}
+                                    <TH className="cursor-pointer hover:text-app-text select-none w-px whitespace-nowrap" onClick={() => handleSort("lap")}>
+                                      {m.track_detail_lap_num()} {sortBy === "lap" ? (sortAsc ? "▲" : "▼") : ""}
+                                    </TH>
+                                    <TH className="cursor-pointer hover:text-app-text select-none text-right w-px whitespace-nowrap" onClick={() => handleSort("time")}>
+                                      {m.label_time()} {sortBy === "time" ? (sortAsc ? "▲" : "▼") : ""}
+                                    </TH>
+                                    <TH className="w-px" />
+                                    <TH className="text-red-400">S1</TH>
+                                    <TH className="text-blue-400">S2</TH>
+                                    <TH className="text-yellow-400">S3</TH>
+                                    <TH className="cursor-pointer hover:text-app-text select-none" onClick={() => handleSort("date")}>
+                                      {m.sessions_col_date()} {sortBy === "date" ? (sortAsc ? "▲" : "▼") : ""}
+                                    </TH>
+                                    <TH>{m.sessions_col_notes()}</TH>
+                                  </THead>
+                                  <TBody>
+                                    {(() => {
+                                      const validLaps = filteredLaps.filter((l) => l.isValid !== false);
+                                      const fastestTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
+                                      return filteredLaps.map((lap) => {
+                                        const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false;
+                                        return (
+                                          <TRow key={lap.lapId} className={selectedLaps.has(lap.lapId) ? "bg-cyan-500/5" : ""}>
+                                            <TD className="px-3">
+                                              <input type="checkbox" checked={selectedLaps.has(lap.lapId)} onChange={() => toggleLapSelect(lap.lapId)} className="accent-cyan-400" />
+                                            </TD>
+                                            <TD className="truncate max-w-[200px]">{lap.carName}</TD>
+                                            {!hideClassCol && (
+                                              <TD>
+                                                <span className={`font-bold font-mono ${classTextColors[lap.carClass] ?? "text-app-text-secondary"}`}>{lap.carClass}</span>
+                                                <span className="text-app-text-secondary ml-1">PI {lap.pi}</span>
+                                              </TD>
+                                            )}
+                                            {hasSessionTypes && (
+                                              <TD>
+                                                {lap.sessionId != null && (sessionLapCounts.get(lap.sessionId) ?? 0) > 1 ? (
+                                                  <span className="text-[10px] text-emerald-400 font-medium">{m.track_detail_race()}</span>
+                                                ) : (
+                                                  <span className="text-[10px] text-amber-400 font-medium">{m.track_detail_quali()}</span>
+                                                )}
+                                              </TD>
+                                            )}
+                                            <TD className="font-mono text-app-text-secondary whitespace-nowrap">{lap.lapNumber}</TD>
+                                            <TD className="text-right whitespace-nowrap">
+                                              <div className="flex items-center justify-end gap-1">
+                                                <span className={`font-mono tabular-nums ${isFastest ? "text-purple-400 font-bold" : ""}`}>{formatLapTime(lap.lapTime)}</span>
+                                                {lap.isValid === false ? (
+                                                  <span className="group/inv relative text-sm text-red-400 cursor-default">
+                                                    ✕
+                                                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/inv:block w-max max-w-[200px] bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary z-50 pointer-events-none leading-relaxed">
+                                                      {lap.invalidReason ?? m.trackdetail_invalid_lap()}
+                                                    </span>
+                                                  </span>
+                                                ) : (
+                                                  <span className="text-sm text-emerald-400">✓</span>
+                                                )}
+                                              </div>
+                                            </TD>
+                                            <TD className="w-px whitespace-nowrap">
+                                              {lap.isLegacy ? (
+                                                <Tooltip content={`${m.trackdetail_recorded_before()} ${RAW_STORAGE_VERSION} — ${m.trackdetail_telemetry_unavailable()}`}>
+                                                  <Button variant="app-outline" size="app-sm" disabled className="opacity-40 pointer-events-none bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40">
+                                                    {m.trackdetail_analyse()}
+                                                  </Button>
+                                                </Tooltip>
+                                              ) : (
+                                                <Button
+                                                  variant="app-outline"
+                                                  size="app-sm"
+                                                  className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
+                                                  onClick={() => {
+                                                    if (!gameId) return;
+                                                    navTo({ to: `${getGameRoute(gameId)}/analyse`, search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } } as never);
+                                                  }}
+                                                >
+                                                  {m.trackdetail_analyse()}
+                                                </Button>
+                                              )}
+                                            </TD>
+                                            <TD className="font-mono tabular-nums text-app-text/90">{lap.s1Time != null ? formatLapTime(lap.s1Time) : "—"}</TD>
+                                            <TD className="font-mono tabular-nums text-app-text/90">{lap.s2Time != null ? formatLapTime(lap.s2Time) : "—"}</TD>
+                                            <TD className="font-mono tabular-nums text-app-text/90">{lap.s3Time != null ? formatLapTime(lap.s3Time) : "—"}</TD>
+                                            <TD className="text-app-text-secondary whitespace-nowrap font-mono">
+                                              {lap.createdAt
+                                                ? `${new Date(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })} ${new Date(lap.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                                                : "—"}
+                                            </TD>
+                                            <TD className="text-app-text-secondary max-w-[200px] truncate" title={lap.notes ?? undefined}>
+                                              {lap.notes ?? ""}
+                                            </TD>
+                                          </TRow>
                                         );
                                       });
                                     })()}
-                                  </div>
-                                </div>
+                                    {filteredLaps.length === 0 && (
+                                      <tr>
+                                        <td colSpan={6} className="px-3 py-4 text-center text-sm text-app-text-dim">
+                                          {m.track_detail_no_laps_match_filters()}
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </TBody>
+                                </Table>
                               </div>
-
-                              {/* Desktop: stats + table side-by-side */}
-                              <div className="hidden md:flex gap-3 flex-1 min-h-0 overflow-hidden">
-                                <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} showSessionFilter={isF125} />
-                                {/* Lap table (md+) */}
-                                <div className="flex-1 min-w-0 overflow-y-auto bg-app-surface/50 border border-app-border rounded-lg">
-                                  <Table>
-                                    <THead>
-                                      <TH className="w-8 px-3">
-                                        <input type="checkbox" checked={selectedLaps.size === filteredLaps.length && filteredLaps.length > 0} onChange={toggleAllLaps} className="accent-cyan-400" />
-                                      </TH>
-                                      <TH>{m.label_car()}</TH>
-                                      {!hideClassCol && <TH>{m.track_detail_class()}</TH>}
-                                      {hasSessionTypes && <TH>{m.label_type()}</TH>}
-                                      <TH className="cursor-pointer hover:text-app-text select-none w-px whitespace-nowrap" onClick={() => handleSort("lap")}>
-                                        {m.track_detail_lap_num()} {sortBy === "lap" ? (sortAsc ? "▲" : "▼") : ""}
-                                      </TH>
-                                      <TH className="cursor-pointer hover:text-app-text select-none text-right w-px whitespace-nowrap" onClick={() => handleSort("time")}>
-                                        {m.label_time()} {sortBy === "time" ? (sortAsc ? "▲" : "▼") : ""}
-                                      </TH>
-                                      <TH className="w-px" />
-                                      <TH className="text-red-400">S1</TH>
-                                      <TH className="text-blue-400">S2</TH>
-                                      <TH className="text-yellow-400">S3</TH>
-                                      <TH className="cursor-pointer hover:text-app-text select-none" onClick={() => handleSort("date")}>
-                                        {m.sessions_col_date()} {sortBy === "date" ? (sortAsc ? "▲" : "▼") : ""}
-                                      </TH>
-                                      <TH>{m.sessions_col_notes()}</TH>
-                                    </THead>
-                                    <TBody>
-                                      {(() => {
-                                        const validLaps = filteredLaps.filter((l) => l.isValid !== false);
-                                        const fastestTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
-                                        return filteredLaps.map((lap) => {
-                                          const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false;
-                                          return (
-                                            <TRow key={lap.lapId} className={selectedLaps.has(lap.lapId) ? "bg-cyan-500/5" : ""}>
-                                              <TD className="px-3">
-                                                <input type="checkbox" checked={selectedLaps.has(lap.lapId)} onChange={() => toggleLapSelect(lap.lapId)} className="accent-cyan-400" />
-                                              </TD>
-                                              <TD className="truncate max-w-[200px]">{lap.carName}</TD>
-                                              {!hideClassCol && (
-                                                <TD>
-                                                  <span className={`font-bold font-mono ${classTextColors[lap.carClass] ?? "text-app-text-secondary"}`}>{lap.carClass}</span>
-                                                  <span className="text-app-text-secondary ml-1">PI {lap.pi}</span>
-                                                </TD>
-                                              )}
-                                              {hasSessionTypes && (
-                                                <TD>
-                                                  {lap.sessionId != null && (sessionLapCounts.get(lap.sessionId) ?? 0) > 1 ? (
-                                                    <span className="text-[10px] text-emerald-400 font-medium">{m.track_detail_race()}</span>
-                                                  ) : (
-                                                    <span className="text-[10px] text-amber-400 font-medium">{m.track_detail_quali()}</span>
-                                                  )}
-                                                </TD>
-                                              )}
-                                              <TD className="font-mono text-app-text-secondary whitespace-nowrap">{lap.lapNumber}</TD>
-                                              <TD className="text-right whitespace-nowrap">
-                                                <div className="flex items-center justify-end gap-1">
-                                                  <span className={`font-mono tabular-nums ${isFastest ? "text-purple-400 font-bold" : ""}`}>{formatLapTime(lap.lapTime)}</span>
-                                                  {lap.isValid === false ? (
-                                                    <span className="group/inv relative text-sm text-red-400 cursor-default">
-                                                      ✕
-                                                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/inv:block w-max max-w-[200px] bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary z-50 pointer-events-none leading-relaxed">
-                                                        {lap.invalidReason ?? m.trackdetail_invalid_lap()}
-                                                      </span>
-                                                    </span>
-                                                  ) : (
-                                                    <span className="text-sm text-emerald-400">✓</span>
-                                                  )}
-                                                </div>
-                                              </TD>
-                                              <TD className="w-px whitespace-nowrap">
-                                                {lap.isLegacy ? (
-                                                  <Tooltip content={`${m.trackdetail_recorded_before()} ${RAW_STORAGE_VERSION} — ${m.trackdetail_telemetry_unavailable()}`}>
-                                                    <Button
-                                                      variant="app-outline"
-                                                      size="app-sm"
-                                                      disabled
-                                                      className="opacity-40 pointer-events-none bg-cyan-900/20 !border-cyan-700/40 text-app-accent/40"
-                                                    >
-                                                      {m.trackdetail_analyse()}
-                                                    </Button>
-                                                  </Tooltip>
-                                                ) : (
-                                                  <Button
-                                                    variant="app-outline"
-                                                    size="app-sm"
-                                                    className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
-                                                    onClick={() => {
-                                                      if (!gameId) return;
-                                                      navTo({ to: `${getGameRoute(gameId)}/analyse`, search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } } as never);
-                                                    }}
-                                                  >
-                                                    {m.trackdetail_analyse()}
-                                                  </Button>
-                                                )}
-                                              </TD>
-                                              <TD className="font-mono tabular-nums text-app-text/90">{lap.s1Time != null ? formatLapTime(lap.s1Time) : "—"}</TD>
-                                              <TD className="font-mono tabular-nums text-app-text/90">{lap.s2Time != null ? formatLapTime(lap.s2Time) : "—"}</TD>
-                                              <TD className="font-mono tabular-nums text-app-text/90">{lap.s3Time != null ? formatLapTime(lap.s3Time) : "—"}</TD>
-                                              <TD className="text-app-text-secondary whitespace-nowrap font-mono">
-                                                {lap.createdAt
-                                                  ? `${new Date(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })} ${new Date(lap.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                                                  : "—"}
-                                              </TD>
-                                              <TD className="text-app-text-secondary max-w-[200px] truncate" title={lap.notes ?? undefined}>
-                                                {lap.notes ?? ""}
-                                              </TD>
-                                            </TRow>
-                                          );
-                                        });
-                                      })()}
-                                      {filteredLaps.length === 0 && (
-                                        <tr>
-                                          <td colSpan={6} className="px-3 py-4 text-center text-sm text-app-text-dim">
-                                            {m.track_detail_no_laps_match_filters()}
-                                          </td>
-                                        </tr>
-                                      )}
-                                    </TBody>
-                                  </Table>
-                                </div>
-                              </div>
-                              {/* end stats+table flex */}
-                            </>
-                          );
-                        })()}
+                            </div>
+                            {/* end stats+table flex */}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                 )}

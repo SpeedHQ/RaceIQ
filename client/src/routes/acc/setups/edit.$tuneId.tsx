@@ -1,10 +1,10 @@
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { m } from "@/paraglide/messages";
-import { useQuery } from "@tanstack/react-query";
-import { client } from "../../../lib/rpc";
 import { SetupTuneForm } from "../../../components/setup-tune/SetupTuneForm";
 import { useAccCars } from "../../../components/setup-tune/use-game-cars";
 import { useUpdateTune } from "../../../hooks/queries";
+import { client } from "../../../lib/rpc";
 
 interface TuneRow {
   name: string;
@@ -23,8 +23,7 @@ function EditAccTunePage() {
 
   const { data: tune, isLoading } = useQuery<TuneRow>({
     queryKey: ["tune", tuneId],
-    queryFn: async () =>
-      (await client.api.tunes[":id"].$get({ param: { id: String(tuneId) } })).json() as Promise<TuneRow>,
+    queryFn: async () => (await client.api.tunes[":id"].$get({ param: { id: String(tuneId) } })).json() as Promise<TuneRow>,
   });
 
   if (isLoading) return <div className="p-4 text-app-text-muted text-sm">{m.tuneedit_loading()}</div>;
@@ -46,12 +45,7 @@ function EditAccTunePage() {
             settings: tune.settings,
           }}
           onCancel={() => navigate({ to: "/acc/setups" })}
-          onSubmit={(data) =>
-            updateTune.mutate(
-              { id: parseInt(tuneId), ...data },
-              { onSuccess: () => navigate({ to: "/acc/setups" }) },
-            )
-          }
+          onSubmit={(data) => updateTune.mutate({ id: parseInt(tuneId), ...data }, { onSuccess: () => navigate({ to: "/acc/setups" }) })}
           isSubmitting={updateTune.isPending}
         />
       </div>

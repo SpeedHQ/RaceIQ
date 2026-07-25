@@ -7,7 +7,10 @@ export const f1Adapter: GameAdapter = {
   routePrefix: "f125",
   coordSystem: "f1-2025",
   steeringCenter: 0,
-  steeringRange: 1,
+  // Steer is emitted as steer(-1..1) × 127 by the parser (Forza ±127
+  // convention), so the usable range is 127 — not 1. Corner detection scales
+  // its steering thresholds by this; a value of 1 breaks detection entirely.
+  steeringRange: 127,
   tireHealthThresholds: { green: 0.70, yellow: 0.50 },
   tireTempThresholds: { cold: 80, warm: 110, hot: 135 },
   suspensionThresholds: { values: [25, 65, 85] },

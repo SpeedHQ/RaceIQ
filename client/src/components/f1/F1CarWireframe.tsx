@@ -1,9 +1,9 @@
-import { useMemo, useRef, Suspense } from "react";
-import { m } from "@/paraglide/messages";
-import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, useGLTF } from "@react-three/drei";
-import * as THREE from "three";
+import { Canvas, useFrame } from "@react-three/fiber";
 import type { TelemetryPacket } from "@shared/types";
+import { Suspense, useMemo, useRef } from "react";
+import * as THREE from "three";
+import { m } from "@/paraglide/messages";
 
 const MODEL_PATH = "/models/f1_2025_mclaren_mcl39.glb";
 

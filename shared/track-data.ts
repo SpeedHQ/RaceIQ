@@ -137,12 +137,16 @@ function userGameDir(gameId: string): string {
 
 /** Bundled extracted track data per game (boundaries, centerlines). */
 function bundledGameDir(gameId: string): string {
-  // AC Evo ships no bundled track outline data of its own. Its tracks are
-  // the same Kunos circuits ACC ships, so reuse ACC's centerline/boundary
-  // files rather than duplicating them. `shared/games/ac-evo/tracks.csv`
-  // is a strict subset of ACC's commonTrackName set, so every AC Evo track
-  // resolves to an existing ACC file.
-  if (gameId === "ac-evo") return resolve(SHARED_DIR, "tracks", "acc");
+  // AC Evo has its own extracted geometry (shared/tracks/ac-evo, from
+  // scripts/extract-ac-evo-tracks-geometry.ts, sourced from content.kspkg's
+  // native .ideal_line.aisplinedata files) for most of its tracks. A few
+  // AC Evo tracks (Misano, Silverstone, Barcelona, Hungaroring, Zandvoort)
+  // have no ideal-line geometry in the kspkg, so those still fall back to
+  // ACC's bundled files — see the ac-evo-only fallback in
+  // loadBundledPointCsv(). NOTE: this is no longer a strict subset relation
+  // in the other direction — AC Evo also ships 3 tracks ACC never did
+  // (Brands Hatch Indy, Fuji, COTA), which only resolve via the ac-evo dir.
+  if (gameId === "ac-evo") return resolve(SHARED_DIR, "tracks", "ac-evo");
   return resolve(SHARED_DIR, "tracks", gameId);
 }
 
@@ -960,7 +964,13 @@ function loadBundledPointCsv(ordinal: number, gameId: string, suffix: "centerlin
   const name = getBundledTrackName(gameId, ordinal);
   if (!name) { bundledCenterlineCache.set(key, null); return null; }
   const filePath = resolve(bundledGameDir(gameId), `${name}-${suffix}.csv`);
-  const content = readDataFile(filePath);
+  let content = readDataFile(filePath);
+  // AC Evo-only fallback: a handful of AC Evo tracks have no native kspkg
+  // ideal-line geometry (Misano, Silverstone, Barcelona, Hungaroring,
+  // Zandvoort) — reuse ACC's file for those rather than showing nothing.
+  if (!content && gameId === "ac-evo") {
+    content = readDataFile(resolve(SHARED_DIR, "tracks", "acc", `${name}-${suffix}.csv`));
+  }
   if (!content) { bundledCenterlineCache.set(key, null); return null; }
   try {
     const lines = content.split("\n").filter(Boolean);

@@ -1,37 +1,37 @@
-id,name,variant,commonTrackName
-0,Monza,GP,monza
-1,Zolder,GP,zolder
-2,Brands Hatch,GP,brands-hatch
-3,Silverstone,GP,silverstone
-4,Paul Ricard,GP,paul-ricard
-5,Misano,GP,misano
-6,Spa-Francorchamps,GP,spa
-7,Nurburgring,GP,nurburgring
-8,Barcelona,GP,catalunya
-9,Hungaroring,GP,budapest
-10,Zandvoort,GP,zandvoort
-11,Monza 2019,GP,monza
-12,Zolder 2019,GP,zolder
-13,Brands Hatch 2019,GP,brands-hatch
-14,Silverstone 2019,GP,silverstone
-15,Paul Ricard 2019,GP,paul-ricard
-16,Misano 2019,GP,misano
-17,Spa 2019,GP,spa
-18,Nurburgring 2019,GP,nurburgring
-19,Barcelona 2019,GP,catalunya
-20,Hungaroring 2019,GP,budapest
-21,Zandvoort 2019,GP,zandvoort
-22,Kyalami,GP,kyalami
-23,Mount Panorama,GP,mount-panorama
-24,Suzuka,GP,suzuka
-25,Laguna Seca,GP,laguna-seca
-26,Oulton Park,GP,oulton-park
-27,Donington Park,GP,donington
-28,Snetterton,GP,snetterton
-29,Imola,GP,imola
-30,Watkins Glen,GP,watkins-glen
-31,COTA,GP,austin
-32,Indianapolis,GP,indianapolis
-33,Valencia,GP,valencia
-34,Red Bull Ring,GP,spielberg
-35,Nurburgring 24h,24h,nordschleife
+id,name,variant,commonTrackName,setupFolder
+0,Monza,GP,monza,monza
+1,Zolder,GP,zolder,zolder
+2,Brands Hatch,GP,brands-hatch,brands_hatch
+3,Silverstone,GP,silverstone,silverstone
+4,Paul Ricard,GP,paul-ricard,paul_ricard
+5,Misano,GP,misano,misano
+6,Spa-Francorchamps,GP,spa,spa
+7,Nurburgring,GP,nurburgring,nurburgring
+8,Barcelona,GP,catalunya,barcelona
+9,Hungaroring,GP,budapest,hungaroring
+10,Zandvoort,GP,zandvoort,zandvoort
+11,Monza 2019,GP,monza,monza
+12,Zolder 2019,GP,zolder,zolder
+13,Brands Hatch 2019,GP,brands-hatch,brands_hatch
+14,Silverstone 2019,GP,silverstone,silverstone
+15,Paul Ricard 2019,GP,paul-ricard,paul_ricard
+16,Misano 2019,GP,misano,misano
+17,Spa 2019,GP,spa,spa
+18,Nurburgring 2019,GP,nurburgring,nurburgring
+19,Barcelona 2019,GP,catalunya,barcelona
+20,Hungaroring 2019,GP,budapest,hungaroring
+21,Zandvoort 2019,GP,zandvoort,zandvoort
+22,Kyalami,GP,kyalami,kyalami
+23,Mount Panorama,GP,mount-panorama,mount_panorama
+24,Suzuka,GP,suzuka,suzuka
+25,Laguna Seca,GP,laguna-seca,laguna_seca
+26,Oulton Park,GP,oulton-park,oulton_park
+27,Donington Park,GP,donington,donington
+28,Snetterton,GP,snetterton,snetterton
+29,Imola,GP,imola,imola
+30,Watkins Glen,GP,watkins-glen,watkins_glen
+31,COTA,GP,austin,cota
+32,Indianapolis,GP,indianapolis,indianapolis
+33,Valencia,GP,valencia,valencia
+34,Red Bull Ring,GP,spielberg,red_bull_ring
+35,Nurburgring 24h,24h,nordschleife,nurburgring_24h

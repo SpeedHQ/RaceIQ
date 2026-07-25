@@ -1,13 +1,13 @@
-import { withDefaults } from "@/components/TuneForm";
-import { TuneSettingsPanel } from "@/components/tune/TuneSettingsPanel";
-import type { ComboOption } from "@/components/tune/browser/ComboBox";
-import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
-import { type RawUserTune, buildRows } from "@/components/tune/browser/buildRows";
-import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
-import type { CatalogTune, TuneSettings } from "@/data/tune-catalog";
-import { useCatalogTunes, useCloneCatalogTune, useCreateTune, useDeleteTune, useDuplicateTune, useRefreshCommunityTunes, useResolveNames, useUserTunes } from "@/hooks/queries";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
+import { withDefaults } from "@/components/TuneForm";
+import { buildRows, type RawUserTune } from "@/components/tune/browser/buildRows";
+import type { ComboOption } from "@/components/tune/browser/ComboBox";
+import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
+import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
+import { TuneSettingsPanel } from "@/components/tune/TuneSettingsPanel";
+import type { CatalogTune, TuneSettings } from "@/data/tune-catalog";
+import { useCatalogTunes, useCloneCatalogTune, useCreateTune, useDeleteTune, useDuplicateTune, useRefreshCommunityTunes, useResolveNames, useUserTunes } from "@/hooks/queries";
 import { m } from "@/paraglide/messages";
 
 const REQUIRED_SECTIONS = ["tires", "gearing", "alignment", "antiRollBars", "springs", "damping", "aero", "differential", "brakes"] as const;

@@ -27,7 +27,7 @@ export function getProviders() {
 }
 
 export type ModelListResult = {
-  models: { id: string; name: string }[];
+  models: { id: string; name: string; contextLength?: number }[];
   error: string | null;
 };
 
@@ -372,6 +372,26 @@ export function getOpenAiModels() {
   return OPENAI_MODELS;
 }
 
+/** Fetch per-model context lengths from LM Studio's native REST API (`/api/v0/models`).
+ * Non-fatal: plain OpenAI-compatible servers (Ollama, llama.cpp) won't have this endpoint —
+ * returns an empty map on any failure. */
+async function getLmStudioContextLengths(endpoint: string): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  try {
+    const base = endpoint.replace(/\/+$/, "").replace(/\/v1$/, "");
+    const res = await fetch(`${base}/api/v0/models`, { signal: AbortSignal.timeout(3000) });
+    if (!res.ok) return map;
+    const data = await res.json() as any;
+    for (const m of data.data ?? []) {
+      const ctx = m.loaded_context_length ?? m.max_context_length;
+      if (m.id && typeof ctx === "number" && ctx > 0) map.set(m.id, ctx);
+    }
+  } catch {
+    // LM Studio native API unavailable — context lengths simply omitted.
+  }
+  return map;
+}
+
 /** Fetch available models from an OpenAI-compatible local endpoint (LM Studio, Ollama, etc.). */
 export async function getLocalModelsDetailed(endpoint: string): Promise<ModelListResult> {
   try {
@@ -386,10 +406,12 @@ export async function getLocalModelsDetailed(endpoint: string): Promise<ModelLis
       return { models: [], error: message };
     }
     const data = await res.json() as any;
+    const contextByModel = await getLmStudioContextLengths(endpoint);
     return {
       models: (data.data ?? []).map((m: any) => ({
         id: m.id,
         name: m.id,
+        contextLength: contextByModel.get(m.id),
       })),
       error: null,
     };

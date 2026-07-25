@@ -11,6 +11,7 @@
  * `optional` (shallow kinks some games' centerlines don't model at all).
  */
 import { describe, test, expect } from "bun:test";
+import { turnNumbers } from "../shared/segment-label";
 import { validateNameList } from "../shared/track-segment-align";
 import { findCenterlines, generateTrackSegments, listCuratedSlugs, loadCornerNameList } from "../shared/track-segment-generate";
 
@@ -80,8 +81,8 @@ describe("turn counts match real-world circuit data", () => {
       if (aligned.length < 2) continue; // nothing to compare against
 
       for (const opt of optional) {
-        const misses = aligned.filter((a) => !a.corners.some((c) => c.numbers.includes(opt.number)));
-        const hits = aligned.filter((a) => a.corners.some((c) => c.numbers.includes(opt.number)));
+        const misses = aligned.filter((a) => !a.corners.some((c) => turnNumbers(c).includes(opt.number)));
+        const hits = aligned.filter((a) => a.corners.some((c) => turnNumbers(c).includes(opt.number)));
         if (hits.length === 0 || misses.length === 0) continue; // all or nothing is consistent
         for (const m of misses) found.push(`${slug} T${opt.number} ${m.gameId}`);
       }
@@ -124,7 +125,7 @@ describe("turn counts match real-world circuit data", () => {
 
     for (const a of aligned) {
       test(`${a.gameId}/${slug}: detects ${nameList.turnCount} official turns`, () => {
-        const matched = new Set(a.corners.flatMap((c) => c.numbers));
+        const matched = new Set(a.corners.flatMap(turnNumbers));
         const missing: number[] = [];
         for (let n = 1; n <= nameList.turnCount; n++) {
           if (!matched.has(n) && !optional.has(n)) missing.push(n);

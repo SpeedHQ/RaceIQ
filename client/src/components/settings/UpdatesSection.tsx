@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { ReleaseNotes } from "@/components/ReleaseNotes";
-import { useTelemetryStore } from "@/stores/telemetry";
+import { Button } from "@/components/ui/button";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
+import { useTelemetryStore } from "@/stores/telemetry";
 
 export function UpdatesSection() {
   const updateAvailable = useTelemetryStore((s) => s.updateAvailable);
@@ -56,7 +56,11 @@ export function UpdatesSection() {
             {m.updates_current_version()} <span className="text-app-text font-mono">{currentVersion}</span>
           </p>
         )}
-        {versionInfo?.lastChecked && <p>{m.updates_last_checked()} {new Date(versionInfo.lastChecked).toLocaleString()}</p>}
+        {versionInfo?.lastChecked && (
+          <p>
+            {m.updates_last_checked()} {new Date(versionInfo.lastChecked).toLocaleString()}
+          </p>
+        )}
       </div>
 
       {/* Update progress */}
@@ -64,7 +68,9 @@ export function UpdatesSection() {
         <div className="rounded-lg border border-app-accent/30 bg-app-accent/5 p-4 space-y-3 mb-4">
           {stage === "downloading" && (
             <>
-              <p className="text-sm font-medium text-app-accent">{m.updates_downloading()} {percent}%</p>
+              <p className="text-sm font-medium text-app-accent">
+                {m.updates_downloading()} {percent}%
+              </p>
               <div className="h-2 rounded-full bg-app-surface-2 overflow-hidden">
                 <div className="h-full rounded-full bg-app-accent transition-all duration-300" style={{ width: `${percent}%` }} />
               </div>
@@ -79,7 +85,9 @@ export function UpdatesSection() {
       {/* Update available (not currently updating) */}
       {!stage && showUpdate && latestVersion && (
         <div className="rounded-lg border border-app-accent/30 bg-app-accent/5 p-4 space-y-3 mb-4">
-          <p className="text-sm font-medium text-app-accent">{m.updates_available()} v{latestVersion}</p>
+          <p className="text-sm font-medium text-app-accent">
+            {m.updates_available()} v{latestVersion}
+          </p>
           <Button onClick={handleInstall} className="bg-app-accent text-black hover:bg-app-accent/90">
             {m.label_install_update()}
           </Button>
@@ -96,7 +104,11 @@ export function UpdatesSection() {
             <div key={r.version}>
               <div className="flex items-baseline justify-between mb-2">
                 <h3 className="text-sm font-medium text-app-text">v{r.version}</h3>
-                {r.date && <span className="text-xs text-app-text-muted">{m.updates_released()} {new Date(r.date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}</span>}
+                {r.date && (
+                  <span className="text-xs text-app-text-muted">
+                    {m.updates_released()} {new Date(r.date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                  </span>
+                )}
               </div>
               <ReleaseNotes notes={r.notes} />
             </div>
@@ -108,7 +120,9 @@ export function UpdatesSection() {
       {!stage && versionInfo?.currentReleaseNotes && (
         <div className="mb-4">
           <div className="flex items-baseline justify-between mb-2">
-            <h3 className="text-sm font-medium text-app-text">{m.updates_current_release()} (v{versionInfo.current})</h3>
+            <h3 className="text-sm font-medium text-app-text">
+              {m.updates_current_release()} (v{versionInfo.current})
+            </h3>
             {versionInfo.currentReleaseDate && (
               <span className="text-xs text-app-text-muted">
                 {m.updates_released()} {new Date(versionInfo.currentReleaseDate).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}

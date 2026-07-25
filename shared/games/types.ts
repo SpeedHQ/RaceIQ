@@ -49,6 +49,9 @@ export interface GameAdapter {
   /** Resolve track ordinal to shared outline file name, if available */
   getSharedTrackName?(ordinal: number): string | undefined;
 
+  /** Resolve a game-native track name (e.g. saved on a session/lap) back to its ordinal, if available */
+  getTrackOrdinalByName?(name: string): number | undefined;
+
   /** Tire health thresholds — health is 0 (dead) to 1 (fresh) */
   tireHealthThresholds: { green: number; yellow: number };
 

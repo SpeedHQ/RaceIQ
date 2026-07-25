@@ -1,6 +1,6 @@
+import { m } from "@/paraglide/messages";
 import type { TuneSettings } from "../../data/tune-catalog";
 import { GearRatioChart } from "./GearRatioChart";
-import { m } from "@/paraglide/messages";
 
 function storedHeightUnit(settings: TuneSettings): "cm" | "in" {
   return settings.springs?.unit === "lb/in" ? "in" : "cm";

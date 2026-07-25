@@ -107,6 +107,16 @@ function killPort(port: number): void {
 killPort(HTTP_PORT);
 console.log("[Boot] Port cleared");
 
+// Dev-only: mount the Mastra API in-process so `mastra studio` can read the
+// running app's real Metrics/Logs/Traces without a second DuckDB writer (which
+// would file-lock the single-writer observability store). Isolated in
+// ./dev-studio and dynamically imported here so @mastra/hono + the DuckDB-backed
+// mastra instance never enter the prod bundle — same boundary as ai/agents.ts.
+if (process.env.NODE_ENV !== "production") {
+  const { mountStudioServer } = await import("./dev-studio");
+  await mountStudioServer(app);
+}
+
 // Start the HTTP/WebSocket server
 Bun.serve<WSData>({
   port: HTTP_PORT,
@@ -123,9 +133,26 @@ Bun.serve<WSData>({
       return new Response("WebSocket upgrade failed", { status: 400 });
     }
 
-    // API routes always go to Hono
-    if (url.pathname.startsWith("/api")) {
+    // API routes always go to Hono. `/studio-api` is the dev-only Mastra API
+    // (see dev-studio.ts); the prefix check is a cheap no-op in prod where it's
+    // never mounted.
+    if (url.pathname.startsWith("/api") || url.pathname.startsWith("/studio-api")) {
       return app.fetch(req);
+    }
+
+    // Dev-only: Mastra Studio's connection check does a bare `GET /` (no prefix)
+    // against the Mastra server and treats a non-2xx as "server down". The dev
+    // server's root isn't otherwise used (the client is served via portless), so
+    // answer it 2xx with reflected CORS so Studio proceeds to the dashboard.
+    if (process.env.NODE_ENV !== "production" && url.pathname === "/") {
+      const origin = req.headers.get("origin") ?? "*";
+      return new Response("ok", {
+        status: 200,
+        headers: {
+          "access-control-allow-origin": origin,
+          "access-control-allow-credentials": "true",
+        },
+      });
     }
 
     // In production, serve static assets from disk

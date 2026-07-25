@@ -19,9 +19,7 @@
           "direction": "right",
           "startFrac": 0.0419,
           "endFrac": 0.1005,
-          "numbers": [
-            1
-          ]
+          "number": 1
         },
         {
           "type": "straight",
@@ -35,9 +33,7 @@
           "direction": "left",
           "startFrac": 0.1302,
           "endFrac": 0.1827,
-          "numbers": [
-            3
-          ]
+          "number": 3
         },
         {
           "type": "corner",
@@ -45,9 +41,7 @@
           "direction": "left",
           "startFrac": 0.1827,
           "endFrac": 0.2076,
-          "numbers": [
-            4
-          ]
+          "number": 4
         },
         {
           "type": "corner",
@@ -55,9 +49,7 @@
           "direction": "right",
           "startFrac": 0.2076,
           "endFrac": 0.2449,
-          "numbers": [
-            5
-          ]
+          "number": 5
         },
         {
           "type": "corner",
@@ -65,9 +57,7 @@
           "direction": "left",
           "startFrac": 0.2449,
           "endFrac": 0.2715,
-          "numbers": [
-            6
-          ]
+          "number": 6
         },
         {
           "type": "straight",
@@ -78,13 +68,29 @@
         {
           "type": "corner",
           "name": "Climbing Esses",
+          "direction": "right",
           "startFrac": 0.3488,
+          "endFrac": 0.3894,
+          "number": 7,
+          "group": "Climbing Esses"
+        },
+        {
+          "type": "corner",
+          "name": "T8",
+          "direction": "left",
+          "startFrac": 0.3894,
+          "endFrac": 0.4079,
+          "number": 8,
+          "group": "Climbing Esses"
+        },
+        {
+          "type": "corner",
+          "name": "T9",
+          "direction": "right",
+          "startFrac": 0.4079,
           "endFrac": 0.4391,
-          "numbers": [
-            7,
-            8,
-            9
-          ]
+          "number": 9,
+          "group": "Climbing Esses"
         },
         {
           "type": "corner",
@@ -92,9 +98,7 @@
           "direction": "left",
           "startFrac": 0.4391,
           "endFrac": 0.4809,
-          "numbers": [
-            10
-          ]
+          "number": 10
         },
         {
           "type": "straight",
@@ -108,8 +112,8 @@
           "direction": "right",
           "startFrac": 0.5052,
           "endFrac": 0.5532,
-          "numbers": [
-            11,
+          "number": 11,
+          "covers": [
             12
           ]
         },
@@ -125,9 +129,7 @@
           "direction": "left",
           "startFrac": 0.7366,
           "endFrac": 0.7803,
-          "numbers": [
-            13
-          ]
+          "number": 13
         },
         {
           "type": "corner",
@@ -135,9 +137,7 @@
           "direction": "right",
           "startFrac": 0.7803,
           "endFrac": 0.7984,
-          "numbers": [
-            14
-          ]
+          "number": 14
         },
         {
           "type": "corner",
@@ -145,9 +145,7 @@
           "direction": "left",
           "startFrac": 0.7984,
           "endFrac": 0.8316,
-          "numbers": [
-            15
-          ]
+          "number": 15
         },
         {
           "type": "corner",
@@ -155,9 +153,7 @@
           "direction": "left",
           "startFrac": 0.8316,
           "endFrac": 0.8529,
-          "numbers": [
-            16
-          ]
+          "number": 16
         },
         {
           "type": "corner",
@@ -165,9 +161,7 @@
           "direction": "right",
           "startFrac": 0.8529,
           "endFrac": 0.9051,
-          "numbers": [
-            17
-          ]
+          "number": 17
         },
         {
           "type": "straight",
@@ -196,9 +190,7 @@
       "direction": "right",
       "startFrac": 0.0419,
       "endFrac": 0.1005,
-      "numbers": [
-        1
-      ]
+      "number": 1
     },
     {
       "type": "straight",
@@ -212,9 +204,7 @@
       "direction": "left",
       "startFrac": 0.1302,
       "endFrac": 0.1827,
-      "numbers": [
-        3
-      ]
+      "number": 3
     },
     {
       "type": "corner",
@@ -222,9 +212,7 @@
       "direction": "left",
       "startFrac": 0.1827,
       "endFrac": 0.2076,
-      "numbers": [
-        4
-      ]
+      "number": 4
     },
     {
       "type": "corner",
@@ -232,9 +220,7 @@
       "direction": "right",
       "startFrac": 0.2076,
       "endFrac": 0.2449,
-      "numbers": [
-        5
-      ]
+      "number": 5
     },
     {
       "type": "corner",
@@ -242,9 +228,7 @@
       "direction": "left",
       "startFrac": 0.2449,
       "endFrac": 0.2715,
-      "numbers": [
-        6
-      ]
+      "number": 6
     },
     {
       "type": "straight",
@@ -255,13 +239,29 @@
     {
       "type": "corner",
       "name": "Climbing Esses",
+      "direction": "right",
       "startFrac": 0.3488,
+      "endFrac": 0.3894,
+      "number": 7,
+      "group": "Climbing Esses"
+    },
+    {
+      "type": "corner",
+      "name": "T8",
+      "direction": "left",
+      "startFrac": 0.3894,
+      "endFrac": 0.4079,
+      "number": 8,
+      "group": "Climbing Esses"
+    },
+    {
+      "type": "corner",
+      "name": "T9",
+      "direction": "right",
+      "startFrac": 0.4079,
       "endFrac": 0.4391,
-      "numbers": [
-        7,
-        8,
-        9
-      ]
+      "number": 9,
+      "group": "Climbing Esses"
     },
     {
       "type": "corner",
@@ -269,9 +269,7 @@
       "direction": "left",
       "startFrac": 0.4391,
       "endFrac": 0.4809,
-      "numbers": [
-        10
-      ]
+      "number": 10
     },
     {
       "type": "straight",
@@ -285,8 +283,8 @@
       "direction": "right",
       "startFrac": 0.5052,
       "endFrac": 0.5532,
-      "numbers": [
-        11,
+      "number": 11,
+      "covers": [
         12
       ]
     },
@@ -302,9 +300,7 @@
       "direction": "left",
       "startFrac": 0.7366,
       "endFrac": 0.7803,
-      "numbers": [
-        13
-      ]
+      "number": 13
     },
     {
       "type": "corner",
@@ -312,9 +308,7 @@
       "direction": "right",
       "startFrac": 0.7803,
       "endFrac": 0.7984,
-      "numbers": [
-        14
-      ]
+      "number": 14
     },
     {
       "type": "corner",
@@ -322,9 +316,7 @@
       "direction": "left",
       "startFrac": 0.7984,
       "endFrac": 0.8316,
-      "numbers": [
-        15
-      ]
+      "number": 15
     },
     {
       "type": "corner",
@@ -332,9 +324,7 @@
       "direction": "left",
       "startFrac": 0.8316,
       "endFrac": 0.8529,
-      "numbers": [
-        16
-      ]
+      "number": 16
     },
     {
       "type": "corner",
@@ -342,9 +332,7 @@
       "direction": "right",
       "startFrac": 0.8529,
       "endFrac": 0.9051,
-      "numbers": [
-        17
-      ]
+      "number": 17
     },
     {
       "type": "straight",

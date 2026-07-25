@@ -1,11 +1,11 @@
-import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useMemo, useEffect, Fragment } from "react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
-import { useUnits } from "../hooks/useUnits";
 import { getCarModel, loadCarModelConfigs } from "../data/car-models";
-import { piClass, PI_COLORS, PiBadge } from "./forza/PiBadge";
+import { useUnits } from "../hooks/useUnits";
 import { client } from "../lib/rpc";
+import { PI_COLORS, PiBadge, piClass } from "./forza/PiBadge";
 import { AppInput } from "./ui/AppInput";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 
@@ -497,7 +497,11 @@ export function CarsPage() {
 
                     {/* Image */}
                     <div className="h-32 flex items-center justify-center bg-app-bg rounded-t-xl overflow-hidden px-3 pt-3 relative">
-                      {s.imageUrl ? <img src={s.imageUrl} alt={car.name} loading="lazy" className="h-full w-full object-contain" /> : <div className="text-xs text-app-text/90-muted">{m.cars_no_image()}</div>}
+                      {s.imageUrl ? (
+                        <img src={s.imageUrl} alt={car.name} loading="lazy" className="h-full w-full object-contain" />
+                      ) : (
+                        <div className="text-xs text-app-text/90-muted">{m.cars_no_image()}</div>
+                      )}
                       {configsReady && getCarModel(car.ordinal).hasModel && (
                         <button
                           onClick={(e) => {

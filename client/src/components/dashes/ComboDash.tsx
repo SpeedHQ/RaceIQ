@@ -1,7 +1,7 @@
-import type { TelemetryPacket, LiveSectorData, LivePitData } from "@shared/types";
+import type { LivePitData, LiveSectorData, TelemetryPacket } from "@shared/types";
 import type { DisplayPacket } from "../../lib/convert-packet";
-import { LapTimes } from "../telemetry/LapTimes";
 import { SectorTimes } from "../SectorTimes";
+import { LapTimes } from "../telemetry/LapTimes";
 import { TireGrid } from "../telemetry/TireGrid";
 import { DashShell } from "./dash-shell";
 import { FitToViewport } from "./FitToViewport";
@@ -161,17 +161,7 @@ export function ComboDash({ rawPacket, packet, sectors, pit, unitSystem, tireHea
   );
 }
 
-function PitRow({
-  label,
-  value,
-  suffix,
-  color,
-}: {
-  label: string;
-  value: string;
-  suffix: string;
-  color: string;
-}) {
+function PitRow({ label, value, suffix, color }: { label: string; value: string; suffix: string; color: string }) {
   return (
     <div>
       <div className="text-white/40 text-xs tracking-widest uppercase">{label}</div>

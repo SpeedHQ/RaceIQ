@@ -126,3 +126,67 @@ export function parseAnalystOutput(raw: unknown): ReturnType<typeof AnalystOutpu
     return AnalystOutputSchema.safeParse(raw);
   }
 }
+
+// ─── Auto-tune pipeline ─────────────────────────────────────────────────────
+//
+// telemetryToSymptoms (deterministic) → buildTunePrompt → requestTuneIntents
+// (LLM, grammar-constrained) → applyIntents (deterministic rules) →
+// writeSetupFile. The LLM only picks *intents* (which knob, which way, how
+// much) — never raw numbers — so the concrete setup math stays testable.
+
+/** Which way to move a setup value. Fresh 2-value enum (no "adjust"). */
+const TuneDirectionEnum = z.enum(["increase", "decrease"]);
+const TuneMagnitudeEnum = z.enum(["small", "medium", "large"]);
+
+/**
+ * One high-level change the tuner wants. `component` must be one of the
+ * keys the rules table (`server/ai/tune-rules.ts`) knows how to apply; the
+ * rules layer clamps unknown/out-of-range components to a no-op.
+ */
+const TuneIntentSchema = z.object({
+  component: z.string(),
+  direction: TuneDirectionEnum,
+  magnitude: TuneMagnitudeEnum,
+  reason: z.string(),
+});
+
+export const TuneIntentsSchema = z.object({
+  summary: z.string(),
+  intents: z.array(TuneIntentSchema),
+});
+
+export type TuneDirection = z.infer<typeof TuneDirectionEnum>;
+export type TuneMagnitude = z.infer<typeof TuneMagnitudeEnum>;
+export type TuneIntent = z.infer<typeof TuneIntentSchema>;
+export type TuneIntents = z.infer<typeof TuneIntentsSchema>;
+
+/** JSON Schema form of `TuneIntentsSchema` for structured-output providers. */
+export function getTuneIntentJsonSchema(): Record<string, unknown> {
+  return z.toJSONSchema(TuneIntentsSchema) as Record<string, unknown>;
+}
+
+/**
+ * Parse a raw model response (string or object) into the tune-intents schema.
+ * Mirrors `parseAnalystOutput` — strips markdown fences / leading prose.
+ */
+export function parseTuneIntents(raw: unknown): ReturnType<typeof TuneIntentsSchema.safeParse> {
+  if (typeof raw !== "string") return TuneIntentsSchema.safeParse(raw);
+
+  const trimmed = raw.trim();
+  const fenceStripped = trimmed
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/i, "");
+
+  const firstBrace = fenceStripped.indexOf("{");
+  const lastBrace = fenceStripped.lastIndexOf("}");
+  const jsonSlice =
+    firstBrace >= 0 && lastBrace > firstBrace
+      ? fenceStripped.slice(firstBrace, lastBrace + 1)
+      : fenceStripped;
+
+  try {
+    return TuneIntentsSchema.safeParse(JSON.parse(jsonSlice));
+  } catch {
+    return TuneIntentsSchema.safeParse(raw);
+  }
+}

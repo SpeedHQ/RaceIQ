@@ -1,6 +1,6 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
-import * as THREE from "three";
 import { useGLTF } from "@react-three/drei";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import * as THREE from "three";
 import type { CarModelEnrichment } from "../../data/car-models";
 import { classifyMesh, DEFAULT_HIDDEN_MESHES } from "./classify-mesh";
 
@@ -12,7 +12,12 @@ export function CarBody({
   carModel,
   modelOffsetX,
   hideModelWheels,
-}: { solid: "wire" | "solid" | "hidden"; carModel: CarModelEnrichment & { hasModel: boolean }; modelOffsetX: number; hideModelWheels?: boolean }) {
+}: {
+  solid: "wire" | "solid" | "hidden";
+  carModel: CarModelEnrichment & { hasModel: boolean };
+  modelOffsetX: number;
+  hideModelWheels?: boolean;
+}) {
   const { scene } = useGLTF(carModel.modelPath);
 
   const model = useMemo(() => {

@@ -1,8 +1,8 @@
+import type { LapMeta } from "@shared/types";
 import { useNavigate } from "@tanstack/react-router";
 import { m } from "@/paraglide/messages";
 import { useDeleteLap } from "../hooks/queries";
 import { useGameRoute } from "../stores/game";
-import type { LapMeta } from "@shared/types";
 
 function formatLapTime(seconds: number): string {
   if (seconds <= 0) return "-:--.---";

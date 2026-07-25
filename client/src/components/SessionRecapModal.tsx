@@ -2,15 +2,7 @@ import type { GameId } from "@shared/types";
 import { createPortal } from "react-dom";
 import { SessionRecap } from "./SessionRecap";
 
-export function SessionRecapModal({
-  sessionId,
-  gameId,
-  onClose,
-}: {
-  sessionId: number;
-  gameId?: GameId | null;
-  onClose: () => void;
-}) {
+export function SessionRecapModal({ sessionId, gameId, onClose }: { sessionId: number; gameId?: GameId | null; onClose: () => void }) {
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"

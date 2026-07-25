@@ -45,7 +45,7 @@ bun run dev:dump:f1            # dump F1 2025 packets
 bun run dev:dump:acc           # dump ACC packets
 
 # AI development (Mastra agent playground)
-bun run mastra:dev             # starts Mastra dev UI at localhost:4111
+bun run mastra:studio          # Studio UI (localhost:3000) reading the running dev server's in-process Mastra API (:3117)
 
 # Utility scripts
 bun run extract:tracks         # extract track data from game files
@@ -111,7 +111,7 @@ The AI system uses Mastra agents backed by Codex API with streaming and prompt c
 
 **Prompt files** (`server/ai/`): `analyst-prompt.ts`, `chat-prompt.ts`, `compare-engineer.ts`, `compare-chat-prompt.ts`, `inputs-compare-prompt.ts`, `corner-data.ts`, `format-tune.ts`
 
-**Mastra directory** (`mastra/`): Agent definitions for the Mastra dev playground (`bun run mastra:dev`). Mirrors `server/ai/agents.ts` for local testing.
+**Mastra directory** (`mastra/`): Agent definitions + the `mastra` instance (LibSQL default store + DuckDB observability). In dev it is mounted **in-process** onto the RaceIQ Hono app under `/studio-api` (see `server/dev-studio.ts`), so the server is the sole DuckDB writer and `bun run mastra:studio` reads its real traces over HTTP — no second `mastra dev` process, no DuckDB file lock. Excluded from the prod binary via `NODE_ENV` gating.
 
 **Caching**: Analysis results cached in DB (`lapAnalyses` for single laps, `compareAnalyses` for lap pairs with a `kind` discriminator).
 

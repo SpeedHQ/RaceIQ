@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { turnNumbers } from "../shared/segment-label";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { buildTrackGuideContext, guideCornerLabels, getAvailableTrackGuides } from "../server/ai/track-guides";
@@ -20,7 +21,10 @@ initServerGameAdapters();
 
 const META_DIR = resolve(import.meta.dir, "../shared/tracks/meta");
 
-type Seg = { type: string; name?: string; numbers?: number[] };
+type Seg = { type: string; name?: string; number?: number; covers?: number[] };
+
+/** Official turn numbers a meta segment accounts for (name is optional here). */
+const numsOf = (s: Seg) => turnNumbers({ number: s.number, covers: s.covers });
 type Meta = { segments?: Seg[]; games?: Record<string, { segments?: Seg[] }> };
 
 function loadMeta(slug: string): Meta | null {
@@ -32,7 +36,7 @@ function loadMeta(slug: string): Meta | null {
 /** Every turn number meta knows about for a slug, across shared + per-game sets. */
 function knownTurns(meta: Meta): Set<number> {
   const out = new Set<number>();
-  const add = (segs?: Seg[]) => (segs ?? []).forEach((s) => (s.numbers ?? []).forEach((n) => out.add(n)));
+  const add = (segs?: Seg[]) => (segs ?? []).forEach((s) => numsOf(s).forEach((n) => out.add(n)));
   add(meta.segments);
   for (const g of Object.values(meta.games ?? {})) add(g.segments);
   return out;
@@ -234,8 +238,9 @@ describe("guide entries sharing a meta segment are a known set", () => {
       const segs = (games.length ? meta.games![games[0]].segments : meta.segments) ?? [];
       const labelOf = new Map<number, string>();
       for (const s of segs) {
-        if (s.type !== "corner" || !s.numbers?.length || !s.name) continue;
-        for (const n of s.numbers) labelOf.set(n, `${s.name}|${s.numbers.join(",")}`);
+        const nums = numsOf(s);
+        if (s.type !== "corner" || nums.length === 0 || !s.name) continue;
+        for (const n of nums) labelOf.set(n, `${s.name}|${nums.join(",")}`);
       }
       const grouped = new Map<string, string[]>();
       for (const e of entries) {

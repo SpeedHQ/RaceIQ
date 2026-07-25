@@ -1,11 +1,12 @@
-import { m } from "@/paraglide/messages";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { m } from "@/paraglide/messages";
 
 interface SearchSelectOption {
   value: string;
   label: string;
   group?: string; // optional group header label
+  disabled?: boolean; // shown but not selectable
 }
 
 interface SearchSelectProps {
@@ -87,7 +88,7 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setHighlightIdx((i) => Math.max(i - 1, 0));
-    } else if (e.key === "Enter" && highlightIdx >= 0 && filtered[highlightIdx]) {
+    } else if (e.key === "Enter" && highlightIdx >= 0 && filtered[highlightIdx] && !filtered[highlightIdx].disabled) {
       e.preventDefault();
       handleSelect(filtered[highlightIdx].value);
     } else if (e.key === "Escape") {
@@ -145,10 +146,19 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
                   {showGroup && <div className="px-3 py-1 text-xs font-medium text-app-text-muted bg-app-surface border-t border-app-border-input first:border-t-0">{o.group}</div>}
                   <button
                     type="button"
+                    disabled={o.disabled}
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => handleSelect(o.value)}
+                    onClick={() => {
+                      if (!o.disabled) handleSelect(o.value);
+                    }}
                     className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${
-                      i === highlightIdx ? "bg-app-accent/20 text-app-text" : o.value === value ? "text-app-accent" : "text-app-text hover:bg-app-accent/10"
+                      o.disabled
+                        ? "text-app-text-dim opacity-50 cursor-not-allowed"
+                        : i === highlightIdx
+                          ? "bg-app-accent/20 text-app-text"
+                          : o.value === value
+                            ? "text-app-accent"
+                            : "text-app-text hover:bg-app-accent/10"
                     }`}
                   >
                     {o.label}

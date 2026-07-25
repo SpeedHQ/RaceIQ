@@ -1,12 +1,21 @@
+import type { TelemetryPacket, TuneIssue } from "@shared/types";
 import { useEffect, useRef, useState } from "react";
-import type { TelemetryPacket } from "@shared/types";
 import { m } from "@/paraglide/messages";
 import { client } from "../lib/rpc";
 import { useGameId } from "../stores/game";
 
 interface Props {
   packet: TelemetryPacket | null;
+  /** Live Tuning Dashboard: transient issues to plot as markers along the track,
+   *  positioned by their distanceFrac. Omitted/undefined elsewhere. */
+  issues?: TuneIssue[];
 }
+
+const ISSUE_COLORS: Record<TuneIssue["severity"], string> = {
+  info: "#38bdf8",
+  warn: "#f59e0b",
+  critical: "#ef4444",
+};
 
 interface Point {
   x: number;
@@ -28,7 +37,7 @@ interface TrackBoundaryData {
   coordSystem: string;
 }
 
-export function LiveTrackMap({ packet }: Props) {
+export function LiveTrackMap({ packet, issues }: Props) {
   const gameId = useGameId();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [outline, setOutline] = useState<Point[] | null>(null);
@@ -232,10 +241,10 @@ export function LiveTrackMap({ packet }: Props) {
 
     // Fit-to-canvas: compute bounding box, then uniform scale to preserve aspect ratio
     // Include boundary edges in bounding box so they don't clip
-    let minX = Infinity,
-      maxX = -Infinity,
-      minZ = Infinity,
-      maxZ = -Infinity;
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let minZ = Number.POSITIVE_INFINITY;
+    let maxZ = Number.NEGATIVE_INFINITY;
     const allPoints = [displayOutline];
     if (boundaries) {
       if (boundaries.leftEdge) allPoints.push(boundaries.leftEdge);
@@ -282,7 +291,7 @@ export function LiveTrackMap({ packet }: Props) {
     }
 
     // Draw track boundary surface (filled polygon behind center-line)
-    if (boundaries && boundaries.leftEdge && boundaries.leftEdge.length > 2 && boundaries.rightEdge && boundaries.rightEdge.length > 2) {
+    if (boundaries?.leftEdge && boundaries.leftEdge.length > 2 && boundaries.rightEdge && boundaries.rightEdge.length > 2) {
       ctx.beginPath();
       // Left edge forward
       const [lx0, ly0] = toCanvas(boundaries.leftEdge[0].x, boundaries.leftEdge[0].z);
@@ -437,8 +446,8 @@ export function LiveTrackMap({ packet }: Props) {
       ctx.stroke();
 
       // Direction arrow: use Yaw from telemetry if available, else fallback to outline geometry
-      let nx: number = 0,
-        ny: number = 0;
+      let nx = 0;
+      let ny = 0;
       let hasDirection = false;
 
       if (startYaw != null) {
@@ -535,6 +544,26 @@ export function LiveTrackMap({ packet }: Props) {
       }
     }
 
+    // Live Tuning Dashboard: transient issue markers, placed by distanceFrac
+    if (!isLiveTrace && issues && issues.length > 0 && displayOutline.length > 10) {
+      for (const issue of issues) {
+        if (issue.distanceFrac == null) continue;
+        const idx = Math.round(issue.distanceFrac * (displayOutline.length - 1));
+        const pt = displayOutline[Math.min(Math.max(idx, 0), displayOutline.length - 1)];
+        if (!pt) continue;
+        const [ix, iy] = toCanvas(pt.x, pt.z);
+        ctx.beginPath();
+        ctx.arc(ix, iy, 6, 0, Math.PI * 2);
+        ctx.fillStyle = ISSUE_COLORS[issue.severity];
+        ctx.globalAlpha = 0.85;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = "#0f172a";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    }
+
     // "Building map..." label for live trace
     if (isLiveTrace) {
       ctx.fillStyle = "#475569";
@@ -545,7 +574,8 @@ export function LiveTrackMap({ packet }: Props) {
 
     // Live car position
     if (packet) {
-      let cx: number, cy: number;
+      let cx: number;
+      let cy: number;
       let hasPos = false;
 
       if (isLiveTrace || isRecorded || boundaryCenter) {
@@ -617,6 +647,7 @@ export function LiveTrackMap({ packet }: Props) {
       <canvas ref={canvasRef} className="w-full" style={{ height: 250 }} />
       {isRecorded && (
         <button
+          type="button"
           onClick={handleDeleteMap}
           className="absolute top-2 right-2 px-2 py-1 text-xs hover:bg-red-900/80 text-app-text-secondary hover:text-red-300 rounded border border-app-border-input hover:border-red-700 transition-colors"
           title="Delete recorded track map and re-record from driving"

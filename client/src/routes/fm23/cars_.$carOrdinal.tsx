@@ -1,10 +1,10 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { m } from "@/paraglide/messages";
-import { useMemo, useEffect, useState } from "react";
+import type { TelemetryPacket } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { m } from "@/paraglide/messages";
 import { CarWireframe } from "../../components/CarWireframe";
 import { getCarModel, loadCarModelConfigs } from "../../data/car-models";
-import type { TelemetryPacket } from "@shared/types";
 import { client } from "../../lib/rpc";
 
 function makeStaticPacket(carOrdinal: number): TelemetryPacket {

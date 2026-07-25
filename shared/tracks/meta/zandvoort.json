@@ -23,9 +23,7 @@
           "direction": "right",
           "startFrac": 0.0391,
           "endFrac": 0.1319,
-          "numbers": [
-            1
-          ]
+          "number": 1
         },
         {
           "type": "corner",
@@ -33,9 +31,7 @@
           "direction": "right",
           "startFrac": 0.1319,
           "endFrac": 0.1799,
-          "numbers": [
-            2
-          ]
+          "number": 2
         },
         {
           "type": "corner",
@@ -43,9 +39,7 @@
           "direction": "left",
           "startFrac": 0.1799,
           "endFrac": 0.2517,
-          "numbers": [
-            3
-          ]
+          "number": 3
         },
         {
           "type": "corner",
@@ -53,20 +47,25 @@
           "direction": "left",
           "startFrac": 0.2517,
           "endFrac": 0.3185,
-          "numbers": [
-            4
-          ]
+          "number": 4
         },
         {
           "type": "corner",
-          "name": "Slotemaker/Scheivlak",
+          "name": "Slotemakerbocht",
           "direction": "right",
           "startFrac": 0.3185,
+          "endFrac": 0.3595,
+          "number": 5,
+          "group": "Slotemaker/Scheivlak"
+        },
+        {
+          "type": "corner",
+          "name": "Scheivlak",
+          "direction": "right",
+          "startFrac": 0.3595,
           "endFrac": 0.4495,
-          "numbers": [
-            5,
-            6
-          ]
+          "number": 6,
+          "group": "Slotemaker/Scheivlak"
         },
         {
           "type": "corner",
@@ -74,9 +73,7 @@
           "direction": "right",
           "startFrac": 0.4495,
           "endFrac": 0.5572,
-          "numbers": [
-            7
-          ]
+          "number": 7
         },
         {
           "type": "corner",
@@ -84,8 +81,8 @@
           "direction": "left",
           "startFrac": 0.5572,
           "endFrac": 0.6246,
-          "numbers": [
-            8,
+          "number": 8,
+          "covers": [
             9
           ]
         },
@@ -101,9 +98,7 @@
           "direction": "right",
           "startFrac": 0.6906,
           "endFrac": 0.7336,
-          "numbers": [
-            10
-          ]
+          "number": 10
         },
         {
           "type": "corner",
@@ -111,8 +106,8 @@
           "direction": "left",
           "startFrac": 0.7336,
           "endFrac": 0.7867,
-          "numbers": [
-            11,
+          "number": 11,
+          "covers": [
             12
           ]
         },
@@ -122,9 +117,7 @@
           "direction": "right",
           "startFrac": 0.7867,
           "endFrac": 0.8459,
-          "numbers": [
-            13
-          ]
+          "number": 13
         },
         {
           "type": "corner",
@@ -132,9 +125,7 @@
           "direction": "right",
           "startFrac": 0.8459,
           "endFrac": 0.9349,
-          "numbers": [
-            14
-          ]
+          "number": 14
         },
         {
           "type": "straight",
@@ -158,9 +149,7 @@
           "direction": "right",
           "startFrac": 0.0419,
           "endFrac": 0.1286,
-          "numbers": [
-            1
-          ]
+          "number": 1
         },
         {
           "type": "corner",
@@ -168,9 +157,7 @@
           "direction": "right",
           "startFrac": 0.1286,
           "endFrac": 0.1836,
-          "numbers": [
-            2
-          ]
+          "number": 2
         },
         {
           "type": "corner",
@@ -178,9 +165,7 @@
           "direction": "left",
           "startFrac": 0.1836,
           "endFrac": 0.2535,
-          "numbers": [
-            3
-          ]
+          "number": 3
         },
         {
           "type": "corner",
@@ -188,20 +173,25 @@
           "direction": "left",
           "startFrac": 0.2535,
           "endFrac": 0.3248,
-          "numbers": [
-            4
-          ]
+          "number": 4
         },
         {
           "type": "corner",
-          "name": "Slotemaker/Scheivlak",
+          "name": "Slotemakerbocht",
           "direction": "right",
           "startFrac": 0.3248,
+          "endFrac": 0.3618,
+          "number": 5,
+          "group": "Slotemaker/Scheivlak"
+        },
+        {
+          "type": "corner",
+          "name": "Scheivlak",
+          "direction": "right",
+          "startFrac": 0.3618,
           "endFrac": 0.4545,
-          "numbers": [
-            5,
-            6
-          ]
+          "number": 6,
+          "group": "Slotemaker/Scheivlak"
         },
         {
           "type": "corner",
@@ -209,9 +199,7 @@
           "direction": "right",
           "startFrac": 0.4545,
           "endFrac": 0.567,
-          "numbers": [
-            7
-          ]
+          "number": 7
         },
         {
           "type": "corner",
@@ -219,8 +207,8 @@
           "direction": "left",
           "startFrac": 0.567,
           "endFrac": 0.6291,
-          "numbers": [
-            8,
+          "number": 8,
+          "covers": [
             9
           ]
         },
@@ -236,9 +224,7 @@
           "direction": "right",
           "startFrac": 0.6925,
           "endFrac": 0.7416,
-          "numbers": [
-            10
-          ]
+          "number": 10
         },
         {
           "type": "corner",
@@ -246,8 +232,8 @@
           "direction": "left",
           "startFrac": 0.7416,
           "endFrac": 0.7894,
-          "numbers": [
-            11,
+          "number": 11,
+          "covers": [
             12
           ]
         },
@@ -257,9 +243,7 @@
           "direction": "right",
           "startFrac": 0.7894,
           "endFrac": 0.9353,
-          "numbers": [
-            14
-          ]
+          "number": 14
         },
         {
           "type": "straight",
@@ -269,7 +253,7 @@
         }
       ],
       "sectors": {
-        "s1End": 0.4545,
+        "s1End": 0.3618,
         "s2End": 0.677,
         "source": "corner-anchored"
       }
@@ -288,9 +272,7 @@
       "direction": "right",
       "startFrac": 0.0391,
       "endFrac": 0.1319,
-      "numbers": [
-        1
-      ]
+      "number": 1
     },
     {
       "type": "corner",
@@ -298,9 +280,7 @@
       "direction": "right",
       "startFrac": 0.1319,
       "endFrac": 0.1799,
-      "numbers": [
-        2
-      ]
+      "number": 2
     },
     {
       "type": "corner",
@@ -308,9 +288,7 @@
       "direction": "left",
       "startFrac": 0.1799,
       "endFrac": 0.2517,
-      "numbers": [
-        3
-      ]
+      "number": 3
     },
     {
       "type": "corner",
@@ -318,20 +296,25 @@
       "direction": "left",
       "startFrac": 0.2517,
       "endFrac": 0.3185,
-      "numbers": [
-        4
-      ]
+      "number": 4
     },
     {
       "type": "corner",
-      "name": "Slotemaker/Scheivlak",
+      "name": "Slotemakerbocht",
       "direction": "right",
       "startFrac": 0.3185,
+      "endFrac": 0.3595,
+      "number": 5,
+      "group": "Slotemaker/Scheivlak"
+    },
+    {
+      "type": "corner",
+      "name": "Scheivlak",
+      "direction": "right",
+      "startFrac": 0.3595,
       "endFrac": 0.4495,
-      "numbers": [
-        5,
-        6
-      ]
+      "number": 6,
+      "group": "Slotemaker/Scheivlak"
     },
     {
       "type": "corner",
@@ -339,9 +322,7 @@
       "direction": "right",
       "startFrac": 0.4495,
       "endFrac": 0.5572,
-      "numbers": [
-        7
-      ]
+      "number": 7
     },
     {
       "type": "corner",
@@ -349,8 +330,8 @@
       "direction": "left",
       "startFrac": 0.5572,
       "endFrac": 0.6246,
-      "numbers": [
-        8,
+      "number": 8,
+      "covers": [
         9
       ]
     },
@@ -366,9 +347,7 @@
       "direction": "right",
       "startFrac": 0.6906,
       "endFrac": 0.7336,
-      "numbers": [
-        10
-      ]
+      "number": 10
     },
     {
       "type": "corner",
@@ -376,8 +355,8 @@
       "direction": "left",
       "startFrac": 0.7336,
       "endFrac": 0.7867,
-      "numbers": [
-        11,
+      "number": 11,
+      "covers": [
         12
       ]
     },
@@ -387,9 +366,7 @@
       "direction": "right",
       "startFrac": 0.7867,
       "endFrac": 0.8459,
-      "numbers": [
-        13
-      ]
+      "number": 13
     },
     {
       "type": "corner",
@@ -397,9 +374,7 @@
       "direction": "right",
       "startFrac": 0.8459,
       "endFrac": 0.9349,
-      "numbers": [
-        14
-      ]
+      "number": 14
     },
     {
       "type": "straight",

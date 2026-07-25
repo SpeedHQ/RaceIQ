@@ -1,11 +1,11 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { HardDrive, Loader2, Database } from "lucide-react";
-import { useState, useEffect } from "react";
-import { useSettings, useSaveSettings } from "../../hooks/queries";
-import { Input } from "@/components/ui/input";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Database, HardDrive, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { m } from "@/paraglide/messages";
+import { useSaveSettings, useSettings } from "../../hooks/queries";
 
 interface CacheStatus {
   bytesUsed: number;

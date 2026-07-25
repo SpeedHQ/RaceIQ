@@ -1,0 +1,76 @@
+/* RaceIQ tune-review mockups — shared tokens (mirrors client/src/index.css) */
+:root {
+  --app-bg: #020617;
+  --app-surface: #0f172a;
+  --app-surface-alt: #1e293b;
+  --app-border: #1e293b;
+  --app-border-input: #334155;
+  --app-text: #f1f5f9;
+  --app-text-secondary: #b8c5d4;
+  --app-text-muted: #a0b0c0;
+  --app-text-dim: #7a8ea0;
+  --app-accent: #22d3ee;
+  --app-accent-hover: #67e8f9;
+  --app-highlight: #06b6d4;
+  --dynamics-green: #34d399;
+  --dynamics-yellow: #fbbf24;
+  --dynamics-amber: #f59e0b;
+  --dynamics-orange: #fb923c;
+  --dynamics-red: #ef4444;
+  --dynamics-blue: #3b82f6;
+  --dynamics-gray: #94a3b8;
+  /* validated chart palette (dark surface) */
+  --ch-throttle: #059669;
+  --ch-brake: #ef4444;
+  --ch-steer: #0891b2;
+  --ch-clutch: #3b82f6;
+  --ch-warn: #d97706;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--app-bg);
+  color: var(--app-text);
+  font: 14px/1.45 "Segoe UI", system-ui, sans-serif;
+}
+a { color: var(--app-accent); text-decoration: none; }
+.page { max-width: 1240px; margin: 0 auto; padding: 20px 24px 60px; }
+.topbar {
+  display: flex; align-items: baseline; gap: 14px;
+  padding-bottom: 14px; border-bottom: 1px solid var(--app-border); margin-bottom: 18px;
+}
+.topbar h1 { font-size: 17px; margin: 0; font-weight: 600; }
+.topbar .sub { color: var(--app-text-dim); font-size: 12px; }
+.topbar .spacer { flex: 1; }
+.card {
+  background: var(--app-surface); border: 1px solid var(--app-border);
+  border-radius: 10px; padding: 14px 16px;
+}
+.card h2 {
+  margin: 0 0 10px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--app-text-dim);
+}
+.badge {
+  display: inline-block; padding: 1px 8px; border-radius: 999px;
+  font-size: 11px; border: 1px solid var(--app-border-input); color: var(--app-text-secondary);
+}
+.legend { display: flex; gap: 14px; font-size: 11px; color: var(--app-text-secondary); flex-wrap: wrap; }
+.legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.tip {
+  position: fixed; pointer-events: none; z-index: 10; display: none;
+  background: var(--app-surface-alt); border: 1px solid var(--app-border-input);
+  border-radius: 6px; padding: 6px 9px; font-size: 11.5px; color: var(--app-text);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+.mono { font-variant-numeric: tabular-nums; font-family: Consolas, monospace; }
+.grid { display: grid; gap: 14px; }
+.stat { display: flex; flex-direction: column; gap: 2px; }
+.stat .v { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat .l { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--app-text-dim); }
+.stat .d { font-size: 12px; color: var(--app-text-muted); }
+.good { color: var(--dynamics-green); }
+.warn { color: var(--dynamics-amber); }
+.bad  { color: var(--dynamics-red); }
+svg text { font-family: "Segoe UI", system-ui, sans-serif; }
+.axis { fill: var(--app-text-dim); font-size: 10px; }
+.gridline { stroke: #1e293b; stroke-width: 1; }

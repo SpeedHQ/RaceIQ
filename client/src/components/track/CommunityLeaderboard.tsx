@@ -1,8 +1,8 @@
-import { m } from "@/paraglide/messages";
-import { TBody, TD, TH, THead, TRow, Table } from "@/components/ui/AppTable";
+import { useMemo } from "react";
+import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { useLaptimes } from "@/hooks/queries";
 import { tracksMatch } from "@/lib/track-match";
-import { useMemo } from "react";
+import { m } from "@/paraglide/messages";
 
 // Parse a "M:SS.mmm" / "MM:SS.mmm" lap time into seconds for sorting.
 // Returns Infinity for unparseable strings so they sink to the bottom.
@@ -36,7 +36,9 @@ export function CommunityLeaderboard({ trackName, trackVariant }: { trackName: s
   return (
     <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
       <div className="mb-2 shrink-0">
-        <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.leaderboard_community()} ({rows.length})</div>
+        <div className="text-app-label text-app-text-muted uppercase tracking-wider">
+          {m.leaderboard_community()} ({rows.length})
+        </div>
         <div className="text-xs text-app-text-dim">{m.leaderboard_unverified()}</div>
       </div>
       <div className="overflow-y-auto flex-1">

@@ -1,5 +1,6 @@
 import type { RaceStrategy, TuneSettings } from "@shared/types";
-export type { TuneSettings, RaceStrategy } from "@shared/types";
+
+export type { RaceStrategy, TuneSettings } from "@shared/types";
 
 export interface CatalogTune {
   id: string;

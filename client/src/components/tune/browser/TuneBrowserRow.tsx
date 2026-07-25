@@ -1,7 +1,7 @@
+import { type ReactNode, useState } from "react";
 import { CATEGORY_COLORS, CATEGORY_LABELS } from "@/components/tune/tune-constants";
-import { useState, type ReactNode } from "react";
-import type { TuneRow } from "./types";
 import { m } from "@/paraglide/messages";
+import type { TuneRow } from "./types";
 
 // Resolve at render time — calling m.*() at module scope would freeze the locale.
 const SOURCE_LABEL: Record<TuneRow["source"], () => string> = {
@@ -64,48 +64,44 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
           {row.description && <p className="text-xs text-app-text-muted leading-relaxed whitespace-pre-line mb-3.5 max-w-[70ch]">{row.description}</p>}
           {renderSettings(row)}
           {!readOnly && (
-          <div className="flex gap-2 mt-3.5">
-            {isUser ? (
-              <>
-                <button type="button" className="text-[11px] uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-bg font-bold" onClick={() => onEdit?.(row)}>
-                  {m.common_edit()}
+            <div className="flex gap-2 mt-3.5">
+              {isUser ? (
+                <>
+                  <button type="button" className="text-[11px] uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-bg font-bold" onClick={() => onEdit?.(row)}>
+                    {m.common_edit()}
+                  </button>
+                  {onDuplicate && (
+                    <button
+                      type="button"
+                      className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-purple-400 disabled:opacity-50"
+                      onClick={() => onDuplicate(row)}
+                      disabled={isDuplicating}
+                    >
+                      {isDuplicating ? "…" : m.tune_duplicate()}
+                    </button>
+                  )}
+                  {!confirmDelete ? (
+                    <button type="button" className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-pink-400" onClick={() => setConfirmDelete(true)}>
+                      {m.common_delete()}
+                    </button>
+                  ) : (
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-[11px] text-pink-400 uppercase">{m.browser_confirm_delete()}</span>
+                      <button type="button" className="text-[11px] uppercase tracking-wide px-3 py-2 rounded bg-pink-500/20 text-pink-300" onClick={() => onDelete?.(row)}>
+                        {m.tune_yes()}
+                      </button>
+                      <button type="button" className="text-[11px] uppercase tracking-wide px-3 py-2 rounded text-app-text-muted hover:text-app-text" onClick={() => setConfirmDelete(false)}>
+                        {m.browser_no()}
+                      </button>
+                    </span>
+                  )}
+                </>
+              ) : (
+                <button type="button" className="text-[11px] uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-bg font-bold" onClick={() => onClone?.(row)}>
+                  {m.browser_clone_garage()}
                 </button>
-                {onDuplicate && (
-                  <button
-                    type="button"
-                    className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-purple-400 disabled:opacity-50"
-                    onClick={() => onDuplicate(row)}
-                    disabled={isDuplicating}
-                  >
-                    {isDuplicating ? "…" : m.tune_duplicate()}
-                  </button>
-                )}
-                {!confirmDelete ? (
-                  <button
-                    type="button"
-                    className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-pink-400"
-                    onClick={() => setConfirmDelete(true)}
-                  >
-                    {m.common_delete()}
-                  </button>
-                ) : (
-                  <span className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-pink-400 uppercase">{m.browser_confirm_delete()}</span>
-                    <button type="button" className="text-[11px] uppercase tracking-wide px-3 py-2 rounded bg-pink-500/20 text-pink-300" onClick={() => onDelete?.(row)}>
-                      {m.tune_yes()}
-                    </button>
-                    <button type="button" className="text-[11px] uppercase tracking-wide px-3 py-2 rounded text-app-text-muted hover:text-app-text" onClick={() => setConfirmDelete(false)}>
-                      {m.browser_no()}
-                    </button>
-                  </span>
-                )}
-              </>
-            ) : (
-              <button type="button" className="text-[11px] uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-bg font-bold" onClick={() => onClone?.(row)}>
-                {m.browser_clone_garage()}
-              </button>
-            )}
-          </div>
+              )}
+            </div>
           )}
         </div>
       )}

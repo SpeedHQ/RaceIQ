@@ -1,24 +1,24 @@
-import React, { useRef, useMemo, useState, useCallback, useEffect } from "react";
-import { m } from "@/paraglide/messages";
-import { client } from "../lib/rpc";
-import { Canvas } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
-import type { GameId, TelemetryPacket } from "@shared/types";
-import { getCarModel, loadCarModelConfigs, F1_CAR, DEMO_CAR, type CarModelEnrichment } from "../data/car-models";
-import { tireTempColorHex } from "../lib/vehicle-dynamics";
-import { useUnits } from "../hooks/useUnits";
-import { useSettings } from "../hooks/queries";
-import { useGameId } from "../stores/game";
+import { Canvas } from "@react-three/fiber";
 import { tryGetGame } from "@shared/games/registry";
-import { needsTrackFlip, flipBoundaries } from "../lib/track-coords";
+import type { GameId, TelemetryPacket } from "@shared/types";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { m } from "@/paraglide/messages";
+import { type CarModelEnrichment, DEMO_CAR, F1_CAR, getCarModel, loadCarModelConfigs } from "../data/car-models";
+import { useSettings } from "../hooks/queries";
 import { useLocalStorage } from "../hooks/useLocalStorage";
+import { useUnits } from "../hooks/useUnits";
 import { recordGpuSnapshot } from "../lib/crash-diagnostics";
-import { type ViewPreset, VIEW_PRESETS, type ViewToggles, DEFAULT_TOGGLES } from "../lib/wireframe-data";
+import { client } from "../lib/rpc";
+import { flipBoundaries, needsTrackFlip } from "../lib/track-coords";
+import { tireTempColorHex } from "../lib/vehicle-dynamics";
+import { DEFAULT_TOGGLES, VIEW_PRESETS, type ViewPreset, type ViewToggles } from "../lib/wireframe-data";
+import { useGameId } from "../stores/game";
 import { CarScene } from "./wireframe/CarScene";
 import { ToggleButton } from "./wireframe/ToggleButton";
 
 // Re-export symbols used by other modules
-export { DEFAULT_HIDDEN_MESHES, classifyMesh } from "./wireframe/CarBody";
+export { classifyMesh, DEFAULT_HIDDEN_MESHES } from "./wireframe/CarBody";
 
 useGLTF.preload("/models/aston_martin_vantage_gt3.glb");
 useGLTF.preload("/models/f1_2025_mclaren_mcl39.glb");

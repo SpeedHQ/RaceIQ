@@ -26,8 +26,17 @@ export function ensureInit(): void {
   _initialized = true;
 }
 
+/**
+ * A {@link CapturedLap} after `parseDump` has attached its per-lap packets.
+ * `parseDump` assigns `packets` to every lap it returns, so test code can rely
+ * on it being present even though it is optional on the production type.
+ */
+export interface CapturedLapWithPackets extends CapturedLap {
+  packets: TelemetryPacket[];
+}
+
 export interface DumpResult {
-  laps: CapturedLap[];
+  laps: CapturedLapWithPackets[];
   sessions: CapturedSession[];
   carModel: string | null;
   trackName: string | null;

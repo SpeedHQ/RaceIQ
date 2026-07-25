@@ -57,9 +57,7 @@ const SECTION_KEYS: Record<string, { titleKey: string; items: Array<{ labelKey: 
   },
   fuel: {
     titleKey: "f1setupmodal_section_fuel",
-    items: [
-      { labelKey: "f1setupmodal_label_fuel_load", value: (s) => `${s.fuelLoad.toFixed(1)} kg` },
-    ],
+    items: [{ labelKey: "f1setupmodal_label_fuel_load", value: (s) => `${s.fuelLoad.toFixed(1)} kg` }],
   },
 };
 

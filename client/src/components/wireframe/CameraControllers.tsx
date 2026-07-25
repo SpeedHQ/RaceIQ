@@ -1,9 +1,9 @@
-import { useRef } from "react";
-import { useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
+import type { TelemetryPacket } from "@shared/types";
+import { useRef } from "react";
 // @ts-expect-error — three-stdlib types not always resolved
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import type { TelemetryPacket } from "@shared/types";
 import { VIEW_PRESETS, type ViewPreset } from "../../lib/wireframe-data";
 
 export function AutoChaseCamera({ packet }: { packet: TelemetryPacket }) {

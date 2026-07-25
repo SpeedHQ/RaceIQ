@@ -22,12 +22,14 @@ import {
   type SharedTrackMeta,
 } from "./track-data";
 import { SHARED_DIR } from "./resolve-data";
+import type { GameId } from "./types";
 
 export const CORNER_NAMES_DIR = resolve(SHARED_DIR, "tracks", "corner-names");
-const GAME_DIRS: Record<string, string> = {
+const GAME_DIRS: Record<GameId, string> = {
   "f1-2025": resolve(SHARED_DIR, "tracks", "f1-2025"),
   acc: resolve(SHARED_DIR, "tracks", "acc"),
   "fm-2023": resolve(SHARED_DIR, "tracks", "fm-2023"),
+  "ac-evo": resolve(SHARED_DIR, "tracks", "ac-evo"),
 };
 /** Preference order for the top-level (global) meta segments. */
 const GLOBAL_PRIORITY = ["fm-2023", "f1-2025", "acc"];
@@ -61,9 +63,9 @@ export function loadCenterline(filePath: string): { x: number; z: number }[] | n
 }
 
 /** Find centerline files for a slug per game. FM files embed the ordinal. */
-export function findCenterlines(slug: string, gameFilter?: string): { gameId: string; file: string }[] {
-  const found: { gameId: string; file: string }[] = [];
-  for (const [gameId, dir] of Object.entries(GAME_DIRS)) {
+export function findCenterlines(slug: string, gameFilter?: string): { gameId: GameId; file: string }[] {
+  const found: { gameId: GameId; file: string }[] = [];
+  for (const [gameId, dir] of Object.entries(GAME_DIRS) as [GameId, string][]) {
     if (gameFilter && gameId !== gameFilter) continue;
     if (!existsSync(dir)) continue;
     if (gameId === "fm-2023") {
@@ -80,7 +82,7 @@ export function findCenterlines(slug: string, gameFilter?: string): { gameId: st
 }
 
 export interface GameAlignment {
-  gameId: string;
+  gameId: GameId;
   file: string;
   segments: NonNullable<SharedTrackMeta["segments"]>;
   /** Named corners with the official turn numbers each one covers. */
@@ -255,9 +257,9 @@ export function autoTrackSegments(outline: { x: number; z: number }[]): {
 }
 
 /** Every centerline file per game (basename without -centerline.csv suffix). */
-export function listAllCenterlines(): { gameId: string; slug: string; file: string }[] {
-  const found: { gameId: string; slug: string; file: string }[] = [];
-  for (const [gameId, dir] of Object.entries(GAME_DIRS)) {
+export function listAllCenterlines(): { gameId: GameId; slug: string; file: string }[] {
+  const found: { gameId: GameId; slug: string; file: string }[] = [];
+  for (const [gameId, dir] of Object.entries(GAME_DIRS) as [GameId, string][]) {
     if (!existsSync(dir)) continue;
     for (const f of readdirSync(dir)) {
       if (!f.endsWith("-centerline.csv")) continue;

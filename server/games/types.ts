@@ -28,4 +28,12 @@ export interface ServerGameAdapter extends GameAdapter {
 
   /** Factory that creates the lap detector implementation for this game. */
   createLapDetector: LapDetectorFactory;
+
+  /**
+   * Candidate directories (in preference order) where this game stores user
+   * setup files, given the user's home dir. First existing one wins; the
+   * first entry is created if none exist. Omit for games with no setup files
+   * (e.g. f1-2025, whose setups only exist as telemetry snapshots).
+   */
+  getSetupsDirCandidates?(home: string): string[];
 }

@@ -1,26 +1,26 @@
-id,name,variant,commonTrackName
-0,Monza,GP,monza
-1,Nurburgring,GP,nurburgring
-2,Brands Hatch,GP,brands-hatch
-3,Mount Panorama,GP,mount-panorama
-4,Misano,GP,misano
-5,Spa-Francorchamps,GP,spa
-6,Silverstone,GP,silverstone
-7,Imola,GP,imola
-8,Paul Ricard,GP,paul-ricard
-9,Laguna Seca,GP,laguna-seca
-10,Nurburgring Nordschleife,24h,nordschleife
-11,Suzuka,GP,suzuka
-12,Kyalami,GP,kyalami
-13,Red Bull Ring,GP,spielberg
-14,Barcelona,GP,catalunya
-15,Hungaroring,GP,budapest
-16,Zandvoort,GP,zandvoort
-17,Brands Hatch,Indy,brands-hatch-indy
-18,Fuji Speedway,GP,fuji
-19,Oulton Park,GP,oulton-park
-20,Road Atlanta,GP,road-atlanta
-21,Sebring,GP,sebring
-22,Watkins Glen,GP,watkins-glen
-23,Circuit Of The Americas,GP,cota
-24,Donington Park,GP,donington
+id,name,variant,commonTrackName,setupFolder
+0,Monza,GP,monza,monza
+1,Nurburgring,GP,nurburgring,nurburgring
+2,Brands Hatch,GP,brands-hatch,brands_hatch
+3,Mount Panorama,GP,mount-panorama,mount_panorama
+4,Misano,GP,misano,misano
+5,Spa-Francorchamps,GP,spa,spa
+6,Silverstone,GP,silverstone,silverstone
+7,Imola,GP,imola,imola
+8,Paul Ricard,GP,paul-ricard,paul_ricard
+9,Laguna Seca,GP,laguna-seca,laguna_seca
+10,Nurburgring Nordschleife,24h,nordschleife,nordschleife
+11,Suzuka,GP,suzuka,suzuka
+12,Kyalami,GP,kyalami,kyalami
+13,Red Bull Ring,GP,spielberg,red_bull_ring
+14,Barcelona,GP,catalunya,barcelona
+15,Hungaroring,GP,budapest,hungaroring
+16,Zandvoort,GP,zandvoort,zandvoort
+17,Brands Hatch,Indy,brands-hatch-indy,brands_hatch_indy
+18,Fuji Speedway,GP,fuji,fuji
+19,Oulton Park,GP,oulton-park,oulton_park
+20,Road Atlanta,GP,road-atlanta,road_atlanta
+21,Sebring,GP,sebring,sebring
+22,Watkins Glen,GP,watkins-glen,watkins_glen
+23,Circuit Of The Americas,GP,cota,cota
+24,Donington Park,GP,donington,donington

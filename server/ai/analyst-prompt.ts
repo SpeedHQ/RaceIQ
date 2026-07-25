@@ -6,8 +6,10 @@ import { analyzeLap } from "../../shared/lib/lap-insights";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
 import { buildTrackGuideContext, guideCornerLabels } from "./track-guides";
-import { segmentDisplayName, segmentDisplayNames } from "../../shared/segment-label";
+import { telemetryToTrackConditions, formatTrackConditions } from "./track-conditions";
+import { segmentPromptLabels } from "../../shared/segment-label";
 import { aiLanguageInstruction } from "../../shared/locales";
+import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
 
 interface CornerDef {
   index: number;
@@ -17,16 +19,17 @@ interface CornerDef {
 }
 
 /**
- * A curated track segment (#84) as the prompt consumes it. `numbers` are the
- * official turn numbers the section covers — they're what makes "Eau
- * Rouge/Raidillon (2-4)" rather than a bare name, so pass them through.
+ * A curated track segment (#84) as the prompt consumes it. `number`/`covers`
+ * are the official turn numbers the section accounts for — they're what makes
+ * "T2-4 Eau Rouge/Raidillon" rather than a bare name, so pass them through.
  */
 export interface PromptSegment {
   type: string;
   name: string;
   startFrac: number;
   endFrac: number;
-  numbers?: number[];
+  number?: number;
+  covers?: number[];
 }
 
 /** A lap's sector times, seconds. */
@@ -52,12 +55,14 @@ function collectCornerLabels(corners: CornerDef[], segments?: PromptSegment[], g
   };
   for (const c of corners) push(c.label);
   if (segments) {
-    // segmentDisplayName, not s.name: the track map and the expert guide both
-    // label this corner "Eau Rouge/Raidillon (2-4)". Whitelisting the bare name
-    // would leave the model told to use a label that isn't on the list.
-    for (const s of segments) {
-      if (s.type === "corner") push(segmentDisplayName(s, 0));
-    }
+    // segmentPromptLabels, not s.name: the track map and the expert guide both
+    // label this corner "Eau Rouge/Raidillon (2-4)" — one entry per piece, with
+    // a group collapsed onto its first member. Whitelisting the bare name would
+    // leave the model told to use a label that isn't on the list.
+    const labels = segmentPromptLabels(segments);
+    segments.forEach((s, i) => {
+      if (s.type === "corner") push(labels[i]);
+    });
   }
   if (guideLabels) for (const l of guideLabels) push(l);
   return out;
@@ -118,7 +123,7 @@ function getSystemPrompt(gameId: GameId, unit: UnitSystem, temperatureUnit: Temp
   const units = `${speedDistanceWeight}, °${temperatureUnit}`;
   const adapter = tryGetServerGame(gameId);
   const base = adapter ? adapter.aiSystemPrompt : FORZA_SYSTEM_PROMPT;
-  return `${base.replace("{{UNITS}}", units)}\n- Temperature unit in this session: °${temperatureUnit}${aiLanguageInstruction(language, { json: true })}`;
+  return `${base.replace("{{UNITS}}", units)}\n- Temperature unit in this session: °${temperatureUnit}${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(language, { json: true })}`;
 }
 
 export function buildAnalystPrompt(
@@ -188,9 +193,12 @@ export function buildAnalystPrompt(
     segmentsList = "\n--- Track Segments (use these EXACT names in braking/throttle/corners) ---\n";
     // Straights are numbered in lap order, so render the whole list at once
     // rather than per-segment — and label corners exactly as the map does.
-    const labels = segmentDisplayNames(segments);
+    // A group collapses onto its first member ("" for the rest), so skip the
+    // blanks — the grouped piece is already listed once, spanning its members.
+    const labels = segmentPromptLabels(segments);
     segmentsList += segments
-      .map((s, i) => `${s.type === "corner" ? "🔶" : "🔷"} ${labels[i]} (${(s.startFrac * 100).toFixed(1)}%-${(s.endFrac * 100).toFixed(1)}%)`)
+      .map((s, i) => (labels[i] ? `${s.type === "corner" ? "🔶" : "🔷"} ${labels[i]} (${(s.startFrac * 100).toFixed(1)}%-${(s.endFrac * 100).toFixed(1)}%)` : ""))
+      .filter((line) => line !== "")
       .join("\n");
     segmentsList += "\n";
   }
@@ -200,14 +208,17 @@ export function buildAnalystPrompt(
   let sectorsText = "";
   if (sectors) {
     const { times, s1End, s2End } = sectors;
+    const all = segments ?? [];
+    const sectorLabels = segmentPromptLabels(all);
     const inSector = (n: 1 | 2 | 3) =>
-      (segments ?? [])
-        .filter((s) => {
+      all
+        .map((s, i) => ({ s, label: sectorLabels[i] }))
+        .filter(({ s, label }) => {
+          if (s.type !== "corner" || !label) return false;
           const mid = (s.startFrac + s.endFrac) / 2;
           return n === 1 ? mid < s1End : n === 2 ? mid >= s1End && mid < s2End : mid >= s2End;
         })
-        .filter((s) => s.type === "corner")
-        .map((s) => segmentDisplayName(s, 0))
+        .map(({ label }) => label)
         .join(", ");
     sectorsText = "\n--- Sector Times ---\n";
     for (const n of [1, 2, 3] as const) {
@@ -250,9 +261,16 @@ export function buildAnalystPrompt(
 
   const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName, { slug: trackSlug, gameId });
 
+  // Weather / surface conditions, so the model can attribute a slow lap to the
+  // environment (cold, green, or wet track) rather than the driver or setup.
+  const conditions = telemetryToTrackConditions(packets);
+  const conditionsText = conditions
+    ? `\n--- Track Conditions ---\n${formatTrackConditions(conditions)}\nWeigh these before blaming pace on the driver or setup — a cold, green, or wet surface costs grip everywhere.\n`
+    : "";
+
   const context = `${carDetailsText}
 Track: ${trackName}
-${tuneText}${segmentsList}${sectorsText}${cornerGuardrail}${trackGuide}
+${conditionsText}${tuneText}${segmentsList}${sectorsText}${cornerGuardrail}${trackGuide}
 ${exportText}
 ${cornerData}
 ${insightsText}`;

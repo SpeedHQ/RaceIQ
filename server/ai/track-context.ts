@@ -22,16 +22,45 @@ export interface TrackContext {
   sectors?: TrackSectors;
 }
 
+/** Games that share another game's curated geometry when they have no block of
+ *  their own. AC Evo and ACC ship the same Kunos track meshes, so an ACC
+ *  override is correct for AC Evo — and closer than the shared/base set, which
+ *  is curated against whichever centerline was digitised first. */
+const GEOMETRY_ALIAS: Partial<Record<GameId, GameId>> = { "ac-evo": "acc" };
+
+/**
+ * Single resolution chain for curated per-track meta fields.
+ *
+ * Priority: `games[gameId]` → aliased game (`ac-evo` → `acc`) → shared/base.
+ *
+ * Every consumer must go through this. When the review dashboard resolved
+ * segments without the alias while the track detail page resolved them with it,
+ * the two views drew different corner fractions and turn numbers for the same
+ * lap (AC Evo Imola: base 0.1546 vs ACC 0.1061 for Tamburello).
+ */
+export function resolveMetaField<K extends "segments" | "sectors">(
+  meta: { games?: Record<string, { segments?: NamedSegment[]; sectors?: TrackSectors } | undefined>; segments?: NamedSegment[]; sectors?: TrackSectors } | null | undefined,
+  gameId: GameId | undefined,
+  field: K,
+): (K extends "segments" ? NamedSegment[] : TrackSectors) | undefined {
+  if (!meta) return undefined;
+  const direct = gameId ? meta.games?.[gameId]?.[field] : undefined;
+  if (direct != null) return direct as never;
+  const alias = gameId ? GEOMETRY_ALIAS[gameId] : undefined;
+  const aliased = alias ? meta.games?.[alias]?.[field] : undefined;
+  if (aliased != null) return aliased as never;
+  return meta[field] as never;
+}
+
 export function resolveTrackContext(gameId: GameId | undefined, trackOrdinal: number | null | undefined): TrackContext {
   if (!gameId || trackOrdinal == null) return {};
   const slug = tryGetServerGame(gameId)?.getSharedTrackName?.(trackOrdinal);
   if (!slug) return {};
   const meta = loadSharedTrackMeta(slug);
   if (!meta) return { slug };
-  const perGame = meta.games?.[gameId];
   return {
     slug,
-    segments: perGame?.segments ?? meta.segments,
-    sectors: perGame?.sectors ?? meta.sectors,
+    segments: resolveMetaField(meta, gameId, "segments"),
+    sectors: resolveMetaField(meta, gameId, "sectors"),
   };
 }

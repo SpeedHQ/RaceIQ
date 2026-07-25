@@ -58,6 +58,12 @@ export default defineConfig({
         target: process.env.PROXY_TARGET ?? "http://localhost:3117",
         changeOrigin: true,
       },
+      // Dev-only Mastra Studio API (server/dev-studio.ts) — Studio reads it
+      // through the portless hostname, so Vite must forward it to the server.
+      "/studio-api": {
+        target: process.env.PROXY_TARGET ?? "http://localhost:3117",
+        changeOrigin: true,
+      },
       "/ws": {
         target: (process.env.PROXY_TARGET ?? "http://localhost:3117").replace(/^http/, "ws"),
         ws: true,

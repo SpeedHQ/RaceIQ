@@ -115,6 +115,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
         detected.rawFrameCount,
         detected.lapTime,
         detected.isValid,
+        detected.invalidReason,
         sectors
       );
       lapsUpdated++;

@@ -3,7 +3,8 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "types": ["bun-types"],
+    "jsx": "react-jsx",
+    "types": ["bun"],
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -14,7 +15,8 @@
     "sourceMap": true,
     "outDir": "./dist",
     "paths": {
-      "@shared/*": ["./shared/*"]
+      "@shared/*": ["./shared/*"],
+      "@/*": ["./client/src/*"]
     }
   },
   "include": ["server/**/*.ts", "shared/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"]

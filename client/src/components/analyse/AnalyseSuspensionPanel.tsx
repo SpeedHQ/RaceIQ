@@ -1,6 +1,6 @@
 import type { TelemetryPacket } from "@shared/types";
-import { m } from "../../paraglide/messages";
 import { Info } from "lucide-react";
+import { m } from "../../paraglide/messages";
 import { WheelTable } from "./WheelTable";
 
 interface Props {

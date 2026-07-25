@@ -9,7 +9,7 @@
  *    (every 6th packet) keeps memory bounded at 600 samples per channel.
  */
 import type { ServerWebSocket } from "bun";
-import type { TelemetryPacket, LiveSectorData, LivePitData, LapMeta } from "../shared/types";
+import type { TelemetryPacket, LiveSectorData, LivePitData, LapMeta, TuneIssue } from "../shared/types";
 
 export interface WSData {
   createdAt: number;
@@ -169,17 +169,27 @@ class WebSocketManager {
   private _latestPacket: TelemetryPacket | null = null;
   private _latestSectors: LiveSectorData | null = null;
   private _latestPit: LivePitData | null = null;
+  /** Live Tuning Dashboard transient issues — undefined when live analysis is
+   *  off (pipeline doesn't pass the arg at all); an array (possibly empty)
+   *  each packet while on, so stale alerts get cleared client-side. */
+  private _latestLiveIssues: TuneIssue[] | undefined = undefined;
   private _broadcastTimer: ReturnType<typeof setInterval> | null = null;
 
   /**
    * Store the latest telemetry packet and sample history.
    * Does NOT send to clients — the broadcast timer handles that.
    */
-  broadcast(packet: TelemetryPacket, sectors?: LiveSectorData | null, pit?: LivePitData | null): void {
+  broadcast(
+    packet: TelemetryPacket,
+    sectors?: LiveSectorData | null,
+    pit?: LivePitData | null,
+    liveIssues?: TuneIssue[],
+  ): void {
     this._packetCount++;
     this._latestPacket = packet;
     if (sectors) this._latestSectors = sectors;
     if (pit) this._latestPit = pit;
+    this._latestLiveIssues = liveIssues;
 
     // Sample telemetry history at ~10Hz
     this.gripSampleCounter++;
@@ -241,6 +251,7 @@ class WebSocketManager {
     const extra: Record<string, unknown> = {};
     if (this._latestSectors) extra._sectors = this._latestSectors;
     if (this._latestPit) extra._pit = this._latestPit;
+    if (this._latestLiveIssues !== undefined) extra._liveIssues = this._latestLiveIssues;
     const json = JSON.stringify(Object.keys(extra).length > 0 ? Object.assign({}, broadcastPacket, extra) : broadcastPacket);
     this.lastBroadcastJson = json;
     const deadClients: ServerWebSocket<WSData>[] = [];

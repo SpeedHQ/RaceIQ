@@ -1,5 +1,5 @@
-import { m } from "@/paraglide/messages";
 import type { TelemetryPacket } from "@shared/types";
+import { m } from "@/paraglide/messages";
 
 interface Props {
   packet: TelemetryPacket | null;
@@ -33,7 +33,9 @@ export function RawTelemetry({ packet }: Props) {
 
   return (
     <div className="p-4 overflow-auto h-full">
-      <div className="text-xs text-app-text-muted uppercase tracking-wider mb-3">{m.rawtel_title()} ({entries.length} fields)</div>
+      <div className="text-xs text-app-text-muted uppercase tracking-wider mb-3">
+        {m.rawtel_title()} ({entries.length} fields)
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-0.5">
         {entries.map(([key, value]) => (
           <div key={key} className="flex justify-between items-center py-0.5 border-b border-app-border/50">

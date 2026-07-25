@@ -1,10 +1,12 @@
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, compareAnalyses, profiles, tunes } from "./schema";
+import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, compareAnalyses, profiles, tunes, lineSpreadCache } from "./schema";
 import type { TelemetryPacket, LapMeta, SessionMeta, GameId } from "../../shared/types";
 import type { Corner } from "../corner-detection";
 import { fillNormSuspension } from "../telemetry-utils";
 import { getServerGame } from "../games/registry";
+import { getActiveTuningSession } from "../tuning-active";
+import { resolveActiveTestId } from "./tuning-test-queries";
 import { tryGetGame } from "../../shared/games/registry";
 import { gunzip } from "zlib";
 import { promisify } from "util";
@@ -186,6 +188,100 @@ export async function updateLapValidity(id: number, isValid: boolean, invalidRea
 }
 
 /**
+ * Flip a lap's `tuningExcluded` flag (Setup Engineer `set_lap_excluded` tool,
+ * docs/setup-engineer-flow-design.md §Phase 3, and the `/api/laps/:id/tuning-excluded`
+ * REST route, §Phase 7). Returns the PRIOR value plus the lap's `tuningSessionId`
+ * so the caller can log an inverse via `recordAction` for undo.
+ *
+ * Stamps `tuningExcludedSource = 'manual'` in BOTH directions (excluding and
+ * un-excluding) — docs/superpowers/specs/2026-07-24-tuning-auto-exclude-design.md.
+ * This pins the lap against the auto-exclude reconciliation pass
+ * (server/tuning-auto-exclude.ts) so a user's un-exclude click sticks instead of
+ * the fastest-5 rule silently re-excluding it on the next lap save.
+ */
+export async function setLapTuningExcluded(
+  lapId: number,
+  excluded: boolean,
+): Promise<{ ok: boolean; prev: boolean; tuningSessionId: number | null }> {
+  const row = await db
+    .select({ tuningExcluded: laps.tuningExcluded, tuningSessionId: laps.tuningSessionId })
+    .from(laps)
+    .where(eq(laps.id, lapId))
+    .get();
+  if (!row) return { ok: false, prev: false, tuningSessionId: null };
+  const prev = Boolean(row.tuningExcluded);
+  await db
+    .update(laps)
+    .set({ tuningExcluded: excluded ? 1 : null, tuningExcludedSource: "manual" })
+    .where(eq(laps.id, lapId))
+    .run();
+  return { ok: true, prev, tuningSessionId: row.tuningSessionId };
+}
+
+/**
+ * Read the scope laps `reconcileAutoExclusions` (server/tuning-auto-exclude.ts)
+ * ranks over: every lap sharing `(tuning_session_id, tune_id)`, with just the
+ * columns the fastest-5 rule needs.
+ */
+export async function getLapsForExclusionScope(
+  tuningSessionId: number,
+  tuneId: number,
+): Promise<
+  { id: number; lapTime: number; isValid: boolean; invalidReason: string | null; tuningExcluded: boolean; tuningExcludedSource: "auto" | "manual" | null }[]
+> {
+  const rows = await db
+    .select({
+      id: laps.id,
+      lapTime: laps.lapTime,
+      isValid: laps.isValid,
+      invalidReason: laps.invalidReason,
+      tuningExcluded: laps.tuningExcluded,
+      tuningExcludedSource: laps.tuningExcludedSource,
+    })
+    .from(laps)
+    .where(and(eq(laps.tuningSessionId, tuningSessionId), eq(laps.tuneId, tuneId)))
+    .all();
+  return rows.map((r) => ({
+    id: r.id,
+    lapTime: r.lapTime,
+    isValid: Boolean(r.isValid),
+    invalidReason: r.invalidReason,
+    tuningExcluded: Boolean(r.tuningExcluded),
+    tuningExcludedSource: (r.tuningExcludedSource as "auto" | "manual" | null) ?? null,
+  }));
+}
+
+/**
+ * Write an auto-pass exclusion decision for a lap. Always stamps
+ * `tuningExcludedSource = 'auto'` — manual decisions never go through this
+ * path (see `setLapTuningExcluded`).
+ */
+export async function setLapAutoExclusion(lapId: number, excluded: boolean): Promise<void> {
+  await db
+    .update(laps)
+    .set({ tuningExcluded: excluded ? 1 : null, tuningExcludedSource: "auto" })
+    .where(eq(laps.id, lapId))
+    .run();
+}
+
+/**
+ * Read back the `(tuning_session_id, tune_id)` scope key a just-inserted lap
+ * was stamped with, so the caller can decide whether to run
+ * `reconcileAutoExclusions` (skipped when either is null — see
+ * docs/superpowers/specs/2026-07-24-tuning-auto-exclude-design.md §Trigger).
+ */
+export async function getLapTuningScope(
+  lapId: number,
+): Promise<{ tuningSessionId: number | null; tuneId: number | null }> {
+  const row = await db
+    .select({ tuningSessionId: laps.tuningSessionId, tuneId: laps.tuneId })
+    .from(laps)
+    .where(eq(laps.id, lapId))
+    .get();
+  return { tuningSessionId: row?.tuningSessionId ?? null, tuneId: row?.tuneId ?? null };
+}
+
+/**
  * Insert a completed lap with compressed telemetry.
  */
 export function insertLap(
@@ -215,6 +311,14 @@ async function doInsertLap(
   invalidReason: string | null,
   sectors: { s1: number; s2: number; s3: number } | null = null
 ): Promise<number> {
+  // Stamp the lap with the active tuning session (if any). This is the single
+  // choke point every live lap-detector funnels through (via the DbAdapter), so
+  // reading the in-memory active id here links laps to a tuning session
+  // independent of race sessionId — a tuning session can span many race
+  // sessions. Cheap, unconditional on game; null when no session is active.
+  const activeTuningSessionId = getActiveTuningSession();
+  const activeTuningTestId =
+    activeTuningSessionId != null ? await resolveActiveTestId(activeTuningSessionId) : null;
   const result = await db
     .insert(laps)
     .values({
@@ -230,6 +334,8 @@ async function doInsertLap(
       profileId,
       tuneId,
       invalidReason,
+      tuningSessionId: activeTuningSessionId,
+      tuningTestId: activeTuningTestId,
     })
     .returning({ id: laps.id })
     .get();
@@ -241,6 +347,16 @@ async function doInsertLap(
  * memory static data was populated (e.g. first frames of an imported .bin
  * capture where the recorder attached before the game wrote static state).
  */
+/**
+ * Persist the derived per-lap metrics (migration v32) onto the lap row so the
+ * next read is a plain column fetch instead of decoding every telemetry frame.
+ * Null args are stored as-is (a lap with telemetry but no usable fuel/tyre
+ * channel stays null and simply isn't recomputed unless its telemetry changes).
+ */
+export async function setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
+  await db.update(laps).set({ fuelPerLap, tyreWear }).where(eq(laps.id, lapId)).run();
+}
+
 export async function updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
   await db.update(sessions).set({ carOrdinal, trackOrdinal }).where(eq(sessions.id, sessionId)).run();
 }
@@ -331,6 +447,12 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
       s1Time: laps.s1Time,
       s2Time: laps.s2Time,
       s3Time: laps.s3Time,
+      tuningSessionId: laps.tuningSessionId,
+      tuningTestId: laps.tuningTestId,
+      tuningExcluded: laps.tuningExcluded,
+      tuningExcludedSource: laps.tuningExcludedSource,
+      fuelPerLap: laps.fuelPerLap,
+      tyreWear: laps.tyreWear,
       rawFile: sessions.rawFile,
     })
     .from(laps)
@@ -356,8 +478,276 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
     s1Time: r.s1Time ?? undefined,
     s2Time: r.s2Time ?? undefined,
     s3Time: r.s3Time ?? undefined,
+    tuningSessionId: r.tuningSessionId ?? null,
+    tuningTestId: r.tuningTestId ?? null,
+    tuningExcluded: Boolean(r.tuningExcluded),
+    // Selector (shared/review-laps.ts) only treats a lap as manually excluded
+    // when the source is "manual" — must travel with the flag or the client
+    // re-ranks the excluded lap into the fastest-N.
+    tuningExcludedSource: (r.tuningExcludedSource as "auto" | "manual" | null) ?? null,
+    fuelPerLap: r.fuelPerLap ?? null,
+    tyreWear: r.tyreWear ?? null,
     isLegacy: rawFile == null,
   }));
+}
+
+/**
+ * Laps explicitly linked to a tuning session (migration v25), newest-first.
+ * Joined to sessions for car/track/game exactly like getLaps. This is the
+ * authoritative membership query — it replaces the old created-at time-window
+ * heuristic, so a tuning session correctly gathers its laps across ANY number
+ * of race sessions (multiple stints) and never over-includes unrelated laps.
+ *
+ * Laps recorded before v25 (or while no tuning session was active) have
+ * tuning_session_id = NULL and are therefore excluded — the link is opt-in
+ * going forward.
+ */
+export async function getLapsForTuningSession(tuningSessionId: number): Promise<LapMeta[]> {
+  const rows = await db
+    .select({
+      id: laps.id,
+      sessionId: laps.sessionId,
+      lapNumber: laps.lapNumber,
+      lapTime: laps.lapTime,
+      isValid: laps.isValid,
+      invalidReason: laps.invalidReason,
+      notes: laps.notes,
+      pi: laps.pi,
+      carSetup: laps.carSetup,
+      createdAt: laps.createdAt,
+      carOrdinal: sessions.carOrdinal,
+      trackOrdinal: sessions.trackOrdinal,
+      tuneId: laps.tuneId,
+      tuneName: tunes.name,
+      gameId: sessions.gameId,
+      s1Time: laps.s1Time,
+      s2Time: laps.s2Time,
+      s3Time: laps.s3Time,
+      tuningSessionId: laps.tuningSessionId,
+      tuningTestId: laps.tuningTestId,
+      tuningExcluded: laps.tuningExcluded,
+      tuningExcludedSource: laps.tuningExcludedSource,
+      fuelPerLap: laps.fuelPerLap,
+      tyreWear: laps.tyreWear,
+      rawFile: sessions.rawFile,
+    })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .where(eq(laps.tuningSessionId, tuningSessionId))
+    .orderBy(desc(laps.id))
+    .all();
+
+  return rows.map(({ rawFile, ...r }) => ({
+    ...r,
+    isValid: Boolean(r.isValid),
+    invalidReason: r.invalidReason ?? undefined,
+    pi: r.pi ?? 0,
+    carSetup: r.carSetup ?? undefined,
+    tuneId: r.tuneId ?? undefined,
+    tuneName: r.tuneName ?? undefined,
+    notes: r.notes ?? undefined,
+    gameId: r.gameId as GameId,
+    s1Time: r.s1Time ?? undefined,
+    s2Time: r.s2Time ?? undefined,
+    s3Time: r.s3Time ?? undefined,
+    tuningSessionId: r.tuningSessionId ?? null,
+    tuningTestId: r.tuningTestId ?? null,
+    tuningExcluded: Boolean(r.tuningExcluded),
+    // Selector (shared/review-laps.ts) only treats a lap as manually excluded
+    // when the source is "manual" — must travel with the flag or the client
+    // re-ranks the excluded lap into the fastest-N.
+    tuningExcludedSource: (r.tuningExcludedSource as "auto" | "manual" | null) ?? null,
+    fuelPerLap: r.fuelPerLap ?? null,
+    tyreWear: r.tyreWear ?? null,
+    isLegacy: rawFile == null,
+  }));
+}
+
+/**
+ * Laps explicitly stamped to one tuning TEST (setup version) — the current
+ * run's pool (migration v29). Same shape as getLapsForTuningSession but scoped
+ * to a single branch node so the clean-lap aggregate reflects exactly the laps
+ * driven on that setup. Newest-first.
+ */
+export async function getLapMetaForTuningTest(tuningTestId: number): Promise<LapMeta[]> {
+  const rows = await db
+    .select({
+      id: laps.id,
+      sessionId: laps.sessionId,
+      lapNumber: laps.lapNumber,
+      lapTime: laps.lapTime,
+      isValid: laps.isValid,
+      invalidReason: laps.invalidReason,
+      notes: laps.notes,
+      pi: laps.pi,
+      carSetup: laps.carSetup,
+      createdAt: laps.createdAt,
+      carOrdinal: sessions.carOrdinal,
+      trackOrdinal: sessions.trackOrdinal,
+      tuneId: laps.tuneId,
+      tuneName: tunes.name,
+      gameId: sessions.gameId,
+      s1Time: laps.s1Time,
+      s2Time: laps.s2Time,
+      s3Time: laps.s3Time,
+      tuningSessionId: laps.tuningSessionId,
+      tuningTestId: laps.tuningTestId,
+      tuningExcluded: laps.tuningExcluded,
+      tuningExcludedSource: laps.tuningExcludedSource,
+      fuelPerLap: laps.fuelPerLap,
+      tyreWear: laps.tyreWear,
+      rawFile: sessions.rawFile,
+    })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .where(eq(laps.tuningTestId, tuningTestId))
+    .orderBy(desc(laps.id))
+    .all();
+
+  return rows.map(({ rawFile, ...r }) => ({
+    ...r,
+    isValid: Boolean(r.isValid),
+    invalidReason: r.invalidReason ?? undefined,
+    pi: r.pi ?? 0,
+    carSetup: r.carSetup ?? undefined,
+    tuneId: r.tuneId ?? undefined,
+    tuneName: r.tuneName ?? undefined,
+    notes: r.notes ?? undefined,
+    gameId: r.gameId as GameId,
+    s1Time: r.s1Time ?? undefined,
+    s2Time: r.s2Time ?? undefined,
+    s3Time: r.s3Time ?? undefined,
+    tuningSessionId: r.tuningSessionId ?? null,
+    tuningTestId: r.tuningTestId ?? null,
+    tuningExcluded: Boolean(r.tuningExcluded),
+    // Selector (shared/review-laps.ts) only treats a lap as manually excluded
+    // when the source is "manual" — must travel with the flag or the client
+    // re-ranks the excluded lap into the fastest-N.
+    tuningExcludedSource: (r.tuningExcludedSource as "auto" | "manual" | null) ?? null,
+    fuelPerLap: r.fuelPerLap ?? null,
+    tyreWear: r.tyreWear ?? null,
+    isLegacy: rawFile == null,
+  }));
+}
+
+/**
+ * Candidate laps for "Add laps from history" (Phase 6, docs/setup-engineer-flow-design.md
+ * §Phase 6): laps matching this tuning session's game + car + track that aren't
+ * already stamped to ANY tuning session. Ordinal-only match — a name-seeded
+ * session already resolves `trackOrdinal` from `trackName` at creation
+ * (createTuningSession), so by the time this query runs that fallback is
+ * already baked into the ordinal; `carOrdinal`/`trackOrdinal` left null on the
+ * session (never resolved) are treated as "match any" for that dimension
+ * rather than excluding everything. Newest-first, same shape as getLapsForTuningSession.
+ */
+export async function getImportableLapsForTuningSession(
+  gameId: GameId,
+  carOrdinal: number | null,
+  trackOrdinal: number | null,
+): Promise<LapMeta[]> {
+  const conds = [eq(sessions.gameId, gameId), isNull(laps.tuningSessionId)];
+  if (carOrdinal != null) conds.push(eq(sessions.carOrdinal, carOrdinal));
+  if (trackOrdinal != null) conds.push(eq(sessions.trackOrdinal, trackOrdinal));
+
+  const rows = await db
+    .select({
+      id: laps.id,
+      sessionId: laps.sessionId,
+      lapNumber: laps.lapNumber,
+      lapTime: laps.lapTime,
+      isValid: laps.isValid,
+      invalidReason: laps.invalidReason,
+      notes: laps.notes,
+      pi: laps.pi,
+      carSetup: laps.carSetup,
+      createdAt: laps.createdAt,
+      carOrdinal: sessions.carOrdinal,
+      trackOrdinal: sessions.trackOrdinal,
+      tuneId: laps.tuneId,
+      tuneName: tunes.name,
+      gameId: sessions.gameId,
+      s1Time: laps.s1Time,
+      s2Time: laps.s2Time,
+      s3Time: laps.s3Time,
+      tuningSessionId: laps.tuningSessionId,
+      tuningTestId: laps.tuningTestId,
+      tuningExcluded: laps.tuningExcluded,
+      tuningExcludedSource: laps.tuningExcludedSource,
+      fuelPerLap: laps.fuelPerLap,
+      tyreWear: laps.tyreWear,
+      rawFile: sessions.rawFile,
+    })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .where(and(...conds))
+    .orderBy(desc(laps.id))
+    .all();
+
+  return rows.map(({ rawFile, ...r }) => ({
+    ...r,
+    isValid: Boolean(r.isValid),
+    invalidReason: r.invalidReason ?? undefined,
+    pi: r.pi ?? 0,
+    carSetup: r.carSetup ?? undefined,
+    tuneId: r.tuneId ?? undefined,
+    tuneName: r.tuneName ?? undefined,
+    notes: r.notes ?? undefined,
+    gameId: r.gameId as GameId,
+    s1Time: r.s1Time ?? undefined,
+    s2Time: r.s2Time ?? undefined,
+    s3Time: r.s3Time ?? undefined,
+    tuningSessionId: r.tuningSessionId ?? null,
+    tuningTestId: r.tuningTestId ?? null,
+    tuningExcluded: Boolean(r.tuningExcluded),
+    // Selector (shared/review-laps.ts) only treats a lap as manually excluded
+    // when the source is "manual" — must travel with the flag or the client
+    // re-ranks the excluded lap into the fastest-N.
+    tuningExcludedSource: (r.tuningExcludedSource as "auto" | "manual" | null) ?? null,
+    fuelPerLap: r.fuelPerLap ?? null,
+    tyreWear: r.tyreWear ?? null,
+    isLegacy: rawFile == null,
+  }));
+}
+
+/**
+ * Stamp a batch of laps onto a tuning session (and optional test/branch) —
+ * "Add laps from history" attach step. Only laps that are currently unstamped
+ * (`tuningSessionId IS NULL`) are touched, so a lapIds list stale from a
+ * concurrent import can't steal laps from another session. Returns the ids
+ * actually updated.
+ */
+export async function importLapsToTuningSession(
+  tuningSessionId: number,
+  lapIds: number[],
+  tuningTestId: number | null,
+): Promise<number[]> {
+  if (lapIds.length === 0) return [];
+  const result = await db
+    .update(laps)
+    .set({ tuningSessionId, tuningTestId })
+    .where(and(inArray(laps.id, lapIds), isNull(laps.tuningSessionId)))
+    .returning({ id: laps.id })
+    .all();
+  return result.map((r) => r.id);
+}
+
+/**
+ * Undo inverse for `importLapsToTuningSession` (Phase 9): clear
+ * `tuningSessionId`/`tuningTestId` on exactly the lap ids the import stamped,
+ * returning them to the unstamped/importable pool. No existence guard needed
+ * beyond the id list itself — these are always ids `recordAction` captured
+ * from the import's own return value.
+ */
+export async function unstampLapsFromTuningSession(lapIds: number[]): Promise<void> {
+  if (lapIds.length === 0) return;
+  await db
+    .update(laps)
+    .set({ tuningSessionId: null, tuningTestId: null })
+    .where(inArray(laps.id, lapIds))
+    .run();
 }
 
 export type LapSummary = {
@@ -539,6 +929,41 @@ export class LapParseError extends Error {
   }
 }
 
+// Decompressed session-file buffer cache. Every lap fetch used to re-read AND
+// re-gunzip the whole session raw file; a stint of N laps then paid N full
+// reads + N full decompressions of the SAME file (the slow, one-lap-at-a-time
+// load). Caching the decompressed buffer per path — invalidated by size+mtime
+// so a live-growing session file stays correct — makes N laps share one
+// read+decompress. Buffers are only ever read (subarray views), never mutated.
+interface RawFileEntry {
+  size: number;
+  mtimeMs: number;
+  buf: Buffer;
+}
+const rawFileCache = new Map<string, RawFileEntry>();
+const RAW_FILE_CACHE_MAX = 2;
+
+async function loadDecompressedRawFile(rawFile: string): Promise<Buffer> {
+  const file = Bun.file(rawFile);
+  const size = file.size;
+  const mtimeMs = file.lastModified;
+  const hit = rawFileCache.get(rawFile);
+  if (hit && hit.size === size && hit.mtimeMs === mtimeMs) {
+    rawFileCache.delete(rawFile); // refresh LRU order
+    rawFileCache.set(rawFile, hit);
+    return hit.buf;
+  }
+  let buf = Buffer.from(await file.arrayBuffer());
+  if (rawFile.endsWith(".gz")) buf = await gunzipAsync(buf);
+  rawFileCache.set(rawFile, { size, mtimeMs, buf });
+  while (rawFileCache.size > RAW_FILE_CACHE_MAX) {
+    const oldest = rawFileCache.keys().next().value;
+    if (oldest === undefined) break;
+    rawFileCache.delete(oldest);
+  }
+  return buf;
+}
+
 async function parseRawLapFrames(
   rawFile: string,
   rawByteOffset: number,
@@ -548,11 +973,7 @@ async function parseRawLapFrames(
   const serverGame = getServerGame(gameId);
   const state = serverGame.createParserState?.() ?? null;
 
-  let buf = Buffer.from(await Bun.file(rawFile).arrayBuffer());
-  // Decompress if file is gzipped
-  if (rawFile.endsWith(".gz")) {
-    buf = await gunzipAsync(buf);
-  }
+  const buf = await loadDecompressedRawFile(rawFile);
 
   const fileSize = buf.length;
 
@@ -673,6 +1094,130 @@ async function parseRawLapFrames(
 /** Test-only export so integration tests can drive parseRawLapFrames directly. */
 export const parseRawLapFramesForTest = parseRawLapFrames;
 
+/** Test-only export so integration tests can drive the batch decoder directly. */
+export const parseSessionLapsBatchedForTest = parseSessionLapsBatched;
+
+/**
+ * Decode several laps of the SAME session in a single forward pass over the raw
+ * file. `parseRawLapFrames` re-warms the parser state from the start of the file
+ * on every call, so cold-loading N laps of a stint costs O(N²) frame parses
+ * (the last lap replays every earlier lap). This walks the file once: one
+ * warm-up, one parser state, each frame parsed exactly once, sliced back into
+ * per-lap packet arrays. Output is byte-identical to N separate
+ * parseRawLapFrames calls because the parser is deterministic given the frame
+ * prefix from file start.
+ *
+ * Returns a Map keyed by lap id for laps it resolved. Laps whose stored offset
+ * can't be located in the frame stream are omitted — the caller falls back to
+ * the per-lap path for those.
+ */
+async function parseSessionLapsBatched(
+  rawFile: string,
+  lapMetas: { id: number; rawByteOffset: number; rawFrameCount: number }[],
+  gameId: GameId
+): Promise<Map<number, TelemetryPacket[]>> {
+  const out = new Map<number, TelemetryPacket[]>();
+  if (lapMetas.length === 0) return out;
+
+  const serverGame = getServerGame(gameId);
+  const state = serverGame.createParserState?.() ?? null;
+  const buf = await loadDecompressedRawFile(rawFile);
+
+  const metas = [...lapMetas].sort((a, b) => a.rawByteOffset - b.rawByteOffset);
+  const firstOffset = metas[0].rawByteOffset;
+  if (firstOffset >= buf.length) return out; // all past EOF — fall back per-lap
+
+  // Warm up the parser state by replaying frames from the start of the file up
+  // to the first requested lap (start at 12 to skip the meta frame). Same
+  // best-effort replay parseRawLapFrames does, done ONCE for the whole batch.
+  let offset = 12;
+  while (offset < firstOffset && offset + 4 <= buf.length) {
+    const wLen = buf.readUInt32LE(offset);
+    if (wLen <= 0 || offset + 4 + wLen > buf.length) break;
+    const wBuf = buf.subarray(offset + 4, offset + 4 + wLen);
+    offset += 4 + wLen;
+    try { serverGame.tryParse(wBuf, state); } catch { /* warmup best-effort */ }
+  }
+
+  // Boundary walk from the first lap to EOF: record each frame's start offset so
+  // stored lap offsets map to frame indices. No parsing here — just length
+  // headers, so this is cheap even for a long session file.
+  const frameStarts: number[] = [];
+  const offsetToIdx = new Map<number, number>();
+  let cursor = firstOffset;
+  while (cursor + 4 <= buf.length) {
+    const len = buf.readUInt32LE(cursor);
+    if (len <= 0 || cursor + 4 + len > buf.length) break;
+    offsetToIdx.set(cursor, frameStarts.length);
+    frameStarts.push(cursor);
+    cursor += 4 + len;
+  }
+
+  // Resolve each lap to a frame index range; the last lap bounds how far we parse.
+  const resolved: { id: number; startIdx: number; frameCount: number }[] = [];
+  let maxIdx = -1;
+  for (const meta of metas) {
+    const startIdx = offsetToIdx.get(meta.rawByteOffset);
+    if (startIdx === undefined) continue; // unaligned — caller falls back
+    resolved.push({ id: meta.id, startIdx, frameCount: meta.rawFrameCount });
+    // +1 for the trailing finish frame (see parseRawLapFrames' readCount).
+    maxIdx = Math.max(maxIdx, startIdx + meta.rawFrameCount);
+  }
+  if (resolved.length === 0) return out;
+
+  // Parse frames [0 .. maxIdx] once each, applying the same normalization as
+  // parseRawLapFrames. `parsed[i]` is null when tryParse returns nothing (e.g. a
+  // stateful accumulator still assembling a packet).
+  const lastFrame = Math.min(maxIdx, frameStarts.length - 1);
+  const parsed: (TelemetryPacket | null)[] = new Array(lastFrame + 1).fill(null);
+  for (let i = 0; i <= lastFrame; i++) {
+    const start = frameStarts[i];
+    const len = buf.readUInt32LE(start);
+    const frameBuf = buf.subarray(start + 4, start + 4 + len);
+    try {
+      const packet = serverGame.tryParse(frameBuf, state);
+      if (!packet) continue;
+      const sharedAdapter = tryGetGame(packet.gameId);
+      if (sharedAdapter?.coordSystem === "standard-xyz") {
+        packet.PositionX = -packet.PositionX;
+        packet.VelocityX = -packet.VelocityX;
+        packet.AccelerationX = -packet.AccelerationX;
+      }
+      fillNormSuspension(packet);
+      parsed[i] = packet;
+    } catch { /* single bad frame — skip, matches per-lap tolerance */ }
+  }
+
+  // Slice per lap: its packets are the non-null parses among its rawFrameCount
+  // frames, plus the synthesized finish packet from the trailing frame.
+  for (const lap of resolved) {
+    const end = lap.startIdx + lap.frameCount; // exclusive; index of trailing frame
+    const packets: TelemetryPacket[] = [];
+    for (let i = lap.startIdx; i < end && i < parsed.length; i++) {
+      const p = parsed[i];
+      if (p) packets.push(p);
+    }
+    // Trailing frame = next-lap trigger; synthesize a finish packet (same logic
+    // as parseRawLapFrames' extra-frame branch).
+    const trailing = parsed[end];
+    const last = packets[packets.length - 1];
+    if (trailing && last) {
+      const finishTime = trailing.LastLap ?? 0;
+      if (finishTime > (last.CurrentLap ?? 0)) {
+        packets.push({
+          ...trailing,
+          CurrentLap: finishTime,
+          LapNumber: last.LapNumber,
+          DistanceTraveled: Math.max(trailing.DistanceTraveled, last.DistanceTraveled),
+        });
+      }
+    }
+    if (packets.length > 0) out.set(lap.id, packets);
+  }
+
+  return out;
+}
+
 /**
  * Get a single lap by ID, re-parsing telemetry from the raw session .bin file.
  * Returns empty telemetry for pre-migration laps (rawByteOffset is null).
@@ -763,6 +1308,127 @@ function buildLapResult(
   };
 }
 
+
+/**
+ * Load several laps' telemetry at once, decoding each session's laps in a single
+ * forward pass (parseSessionLapsBatched) instead of one re-warming parse per lap.
+ * Serves telemetryCache hits directly and populates the cache for every lap it
+ * decodes — so callers that later re-request a lap individually (e.g. the client
+ * /api/laps/:id fetches) hit warm cache. Returns results in the requested id
+ * order. Laps the batch pass can't resolve fall back to getLapById.
+ */
+export async function getLapsByIds(
+  ids: number[]
+): Promise<(LapMeta & { telemetry: TelemetryPacket[]; parseError?: string })[]> {
+  if (ids.length === 0) return [];
+
+  const rows = await db
+    .select({
+      id: laps.id,
+      sessionId: laps.sessionId,
+      lapNumber: laps.lapNumber,
+      lapTime: laps.lapTime,
+      isValid: laps.isValid,
+      createdAt: laps.createdAt,
+      rawByteOffset: laps.rawByteOffset,
+      rawFrameCount: laps.rawFrameCount,
+      rawFile: sessions.rawFile,
+      carOrdinal: sessions.carOrdinal,
+      trackOrdinal: sessions.trackOrdinal,
+      tuneId: laps.tuneId,
+      tuneName: tunes.name,
+      gameId: sessions.gameId,
+      carSetup: laps.carSetup,
+    })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .where(inArray(laps.id, ids))
+    .all();
+
+  const rowById = new Map(rows.map((r) => [r.id, r]));
+
+  // Group cache-miss laps by session raw file so each session decodes once.
+  type BatchMeta = { id: number; rawByteOffset: number; rawFrameCount: number };
+  const bySession = new Map<string, { gameId: GameId; metas: BatchMeta[] }>();
+  const decoded = new Map<number, TelemetryPacket[]>();
+
+  for (const row of rows) {
+    const cached = cacheGet(row.id);
+    if (cached) {
+      decoded.set(row.id, cached);
+      continue;
+    }
+    if (row.rawByteOffset != null && row.rawFrameCount && row.rawFile) {
+      let group = bySession.get(row.rawFile);
+      if (!group) {
+        group = { gameId: row.gameId as GameId, metas: [] };
+        bySession.set(row.rawFile, group);
+      }
+      group.metas.push({ id: row.id, rawByteOffset: row.rawByteOffset, rawFrameCount: row.rawFrameCount });
+    }
+  }
+
+  for (const [rawFile, group] of bySession) {
+    try {
+      const batch = await parseSessionLapsBatched(rawFile, group.metas, group.gameId);
+      for (const [lapId, telemetry] of batch) {
+        cacheSet(lapId, telemetry);
+        decoded.set(lapId, telemetry);
+      }
+    } catch (err) {
+      console.error(`[DB] Batch decode failed for ${rawFile}, falling back per-lap:`, err);
+    }
+  }
+
+  // Assemble in requested order; fall back to getLapById for anything the batch
+  // pass didn't resolve (unaligned offset, batch error, or a bad lap).
+  const results: (LapMeta & { telemetry: TelemetryPacket[]; parseError?: string })[] = [];
+  for (const id of ids) {
+    const row = rowById.get(id);
+    if (!row) continue;
+    const telemetry = decoded.get(id);
+    if (telemetry) {
+      results.push(buildLapResult(row, telemetry));
+    } else {
+      const lap = await getLapById(id);
+      if (lap) results.push(lap);
+    }
+  }
+  return results;
+}
+
+// Bump when computeLineSpreadTrace's output changes so old cached traces are
+// treated as a miss (the version is baked into the lap-set key).
+const LINE_SPREAD_ALGO_VERSION = 1;
+
+/** Deterministic cache key for a tuning session's clean-lap set. */
+export function lineSpreadLapSetHash(lapIds: number[]): string {
+  const sorted = [...lapIds].sort((a, b) => a - b);
+  return `v${LINE_SPREAD_ALGO_VERSION}:${sorted.join(",")}`;
+}
+
+/** Read a cached line-spread trace JSON, or null on miss. */
+export async function getLineSpreadCache(tuningSessionId: number, lapSetHash: string): Promise<string | null> {
+  const row = await db
+    .select({ trace: lineSpreadCache.trace })
+    .from(lineSpreadCache)
+    .where(and(eq(lineSpreadCache.tuningSessionId, tuningSessionId), eq(lineSpreadCache.lapSetHash, lapSetHash)))
+    .get();
+  return row?.trace ?? null;
+}
+
+/** Store a computed line-spread trace JSON (upsert on the composite key). */
+export async function setLineSpreadCache(tuningSessionId: number, lapSetHash: string, trace: string): Promise<void> {
+  await db
+    .insert(lineSpreadCache)
+    .values({ tuningSessionId, lapSetHash, trace })
+    .onConflictDoUpdate({
+      target: [lineSpreadCache.tuningSessionId, lineSpreadCache.lapSetHash],
+      set: { trace, createdAt: sql`(datetime('now'))` },
+    })
+    .run();
+}
 
 /**
  * Delete a lap by ID. Returns true if a row was deleted.
@@ -888,6 +1554,7 @@ export async function updateLapRawIndex(
   rawFrameCount: number,
   lapTime: number,
   isValid: boolean,
+  invalidReason: string | null,
   sectors: { s1: number; s2: number; s3: number } | null
 ): Promise<void> {
   cacheDelete(lapId);
@@ -896,6 +1563,7 @@ export async function updateLapRawIndex(
     rawFrameCount,
     lapTime,
     isValid,
+    invalidReason,
     s1Time: sectors?.s1 ?? null,
     s2Time: sectors?.s2 ?? null,
     s3Time: sectors?.s3 ?? null,

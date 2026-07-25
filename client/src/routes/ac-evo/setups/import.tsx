@@ -6,12 +6,7 @@ function ImportAcEvoSetupPage() {
   const { data: cars = [] } = useAcEvoCars();
   return (
     <div className="flex-1 overflow-auto">
-      <ImportSetupFile
-        gameId="ac-evo"
-        routePrefix="/ac-evo"
-        gameLabel="AC EVO"
-        cars={cars}
-      />
+      <ImportSetupFile gameId="ac-evo" routePrefix="/ac-evo" gameLabel="AC EVO" cars={cars} />
     </div>
   );
 }

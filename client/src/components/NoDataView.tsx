@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { m } from "@/paraglide/messages";
-import { useGameId } from "../stores/game";
 import { useSettings } from "../hooks/queries";
+import { useGameId } from "../stores/game";
 
 function ForzaSetupGuide({ port }: { port: string }) {
   return (
@@ -11,9 +11,7 @@ function ForzaSetupGuide({ port }: { port: string }) {
         <li>{m.setupguide_forza_step1()}</li>
         <li>{m.setupguide_forza_step2()}</li>
         <li>{m.setupguide_forza_step3()}</li>
-        <li>
-          {m.setupguide_data_out_on()}
-        </li>
+        <li>{m.setupguide_data_out_on()}</li>
         <li>
           {m.setupguide_data_out_ip()} <code className="text-app-accent bg-app-surface rounded px-1 py-0.5 text-xs font-mono">192.168.1.x</code>
           ).

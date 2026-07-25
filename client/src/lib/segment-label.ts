@@ -8,4 +8,10 @@
  */
 // Relative, not "@shared/*": bun test resolves this file against the root
 // tsconfig, whose `include` covers server/shared/test but not client/.
-export { formatTurnNumbers, segmentDisplayName, segmentDisplayNames } from "../../../shared/segment-label";
+export {
+  formatTurnNumbers,
+  segmentDisplayName,
+  segmentDisplayNames,
+  segmentGroupLabels,
+  turnNumbers,
+} from "../../../shared/segment-label";

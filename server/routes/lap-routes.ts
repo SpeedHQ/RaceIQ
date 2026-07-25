@@ -8,6 +8,7 @@ import type { Tune } from "../../shared/types";
 import {
   getLaps,
   getLapById,
+  getLapsByIds,
   deleteLap,
   updateLapNotes,
   updateLapValidity,
@@ -19,10 +20,13 @@ import {
   saveCompareAnalysis,
   deleteCompareAnalysis,
   getLapsRaw,
+  setLapTuningExcluded,
 } from "../db/queries";
+import { recordAction } from "../db/tuning-action-queries";
 import { KNOWN_GAME_IDS } from "../../shared/types";
 import { importSessionBin, detectGameIdFromBuffer } from "../import-session-bin";
 import { analyzeLap } from "../../shared/lib/lap-insights";
+import { downsampleLap, encodeLapTrace, type EncodedLapTrace } from "../../shared/stint-trace";
 import { buildCompareInsightsBlock } from "../ai/insight-format";
 import { assessLapRecording } from "../lap-quality";
 
@@ -41,7 +45,15 @@ import { buildAnalystPrompt } from "../ai/analyst-prompt";
 import { resolveTrackContext } from "../ai/track-context";
 import { computeLapSectors } from "../compute-lap-sectors";
 import { getAnalystJsonSchema } from "../ai/schemas";
-import { getChatMemory, chatThreadId, compareChatThreadId, CHAT_RESOURCE_ID } from "../ai/chat-agent";
+import {
+  getChatMemory,
+  chatThreadId,
+  compareChatThreadId,
+  CHAT_RESOURCE_ID,
+  resolveActiveThread,
+  generationThreadId,
+  listThreadGenerations,
+} from "../ai/chat-agent";
 import { getSecret } from "../keystore";
 import { deleteAnalysis as deleteAnalysisQuery } from "../db/queries";
 import { tryGetGame } from "../../shared/games/registry";
@@ -52,7 +64,9 @@ const gzipAsync = promisify(gzip);
 import { loadSharedTrackMeta } from "../../shared/track-data";
 import { buildChatSystemPrompt } from "../ai/chat-prompt";
 import { buildCompareChatSystemPrompt } from "../ai/compare-chat-prompt";
-import { chatStreamResponse } from "../ai/chat-stream";
+import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
+import { streamAgentTurnResponse } from "../ai/agent-stream";
+import { MessageList } from "@mastra/core/agent";
 import { topCatalogReferences, normalizePacketSetup, getCatalogDisplayName } from "../ai/f1-setup-catalog";
 import type { TelemetryPacket } from "../../shared/types";
 import { buildInputsComparePrompt, InputsCompareSchema, type PromptSegment } from "../ai/inputs-compare-prompt";
@@ -62,25 +76,7 @@ import { lapAnalystAgent, lapChatAgent, compareEngineerAgent, compareChatAgent }
 import { buildGoogleProviderOptions, buildGoogleThinkingProviderOptions } from "../ai/google-provider-options";
 import { toClientAiError } from "../ai/provider-error";
 import { extractJson } from "../ai/extract-json";
-
-/** Parse a stored carSetup JSON blob, returning null on any error. */
-function safeParseJson(raw: string): Record<string, unknown> | null {
-  try {
-    const v = JSON.parse(raw);
-    return typeof v === "object" && v !== null ? (v as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
-}
-
-/** Scan telemetry packets for the first `f1.setup` object. */
-function firstPacketF1Setup(packets: TelemetryPacket[]): Record<string, unknown> | null {
-  for (const p of packets) {
-    const s = p.f1?.setup;
-    if (s && typeof s === "object") return s as unknown as Record<string, unknown>;
-  }
-  return null;
-}
+import { resolveLapF1Setup } from "../ai/f1-setup-identity";
 
 /**
  * Build the "F1 CURRENT SETUP + TOP-5 REFERENCE SETUPS" block appended to
@@ -89,9 +85,9 @@ function firstPacketF1Setup(packets: TelemetryPacket[]): Record<string, unknown>
  * (Gemma 4) can answer in one shot instead of looping tool calls.
  */
 function buildF1SetupReferenceBlock(carSetupJson: string | undefined, telemetry: TelemetryPacket[], trackOrdinal: number): string {
-  const setup = carSetupJson ? safeParseJson(carSetupJson) : firstPacketF1Setup(telemetry);
+  const setup = resolveLapF1Setup({ carSetup: carSetupJson, telemetry });
   if (!setup || trackOrdinal < 0) return "";
-  const current = normalizePacketSetup(setup);
+  const current = normalizePacketSetup(setup as unknown as Record<string, unknown>);
   const refs = topCatalogReferences(trackOrdinal, 5, current);
   if (refs.length === 0) return "";
 
@@ -142,7 +138,7 @@ const BulkDeleteSchema = z.object({
 });
 
 const ChatBodySchema = z.object({
-  message: z.string().min(1).max(2000),
+  messages: z.array(z.any()),
 });
 
 export const lapRoutes = new Hono()
@@ -216,6 +212,28 @@ export const lapRoutes = new Hono()
     const insights = lap.gameId ? analyzeLap(packets, lap.gameId) : [];
 
     return c.json({ ...lap, sectorTimes, insights });
+  })
+
+  // ── Batch lap traces ────────────────────────────────────────
+  // Downsampled stint traces for many laps in one call. Replaces the client
+  // fetching full telemetry per lap (50 laps × ~80 fields) and reducing to a
+  // trace locally: the server batch-decodes each session's laps in a single
+  // pass (getLapsByIds), builds the ~14-channel LapTrace, and ships it as
+  // base64 Float32 columns. downsampleLap only needs firstDist/lapDist, which
+  // equal the packet-span fallback — so no sector computation is required and
+  // the trace is byte-identical to the old client-side path.
+  .post("/api/laps/traces", zValidator("json", z.object({ ids: z.array(z.number().int().positive()).max(200) })), async (c) => {
+    const { ids } = c.req.valid("json");
+    if (ids.length === 0) return c.json({ traces: [] as EncodedLapTrace[] });
+
+    const laps = await getLapsByIds(ids);
+    const traces: EncodedLapTrace[] = [];
+    for (const lap of laps) {
+      if (lap.isLegacy || lap.telemetry.length === 0) continue;
+      const trace = downsampleLap(lap.id, lap.lapNumber, lap.isValid, lap.telemetry, null);
+      if (trace) traces.push(encodeLapTrace(trace));
+    }
+    return c.json({ traces });
   })
 
   // ── Export lap telemetry as text ────────────────────────────
@@ -411,6 +429,9 @@ export const lapRoutes = new Hono()
     // Bridge keystore secret → env var so Mastra / AI SDK providers can resolve it.
     // The Mastra lap-analyst agent reads the provider from settings via `getMastraModelId`.
     const analystProvider = settings.aiProvider;
+    if (!analystProvider) {
+      return c.json({ error: "No AI provider selected. Choose one in Settings → AI Analysis." }, 400);
+    }
     if (analystProvider === "openai") {
       const key = await getSecret("openai-api-key");
       if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Analysis." }, 400);
@@ -457,7 +478,7 @@ export const lapRoutes = new Hono()
             modelSettings: { maxOutputTokens: 8192, temperature: 0 },
             providerOptions: {
               openai: {
-                reasoningEffort: analystProvider === "local" ? "none" : "low",
+                reasoningEffort: "medium",
                 responseFormat: {
                   type: "json_schema",
                   jsonSchema: {
@@ -535,25 +556,23 @@ export const lapRoutes = new Hono()
     const { id } = c.req.valid("param");
     try {
       const memory = getChatMemory();
-      const threadId = chatThreadId(id);
+      const base = chatThreadId(id);
+      const genParam = Number(c.req.query("gen"));
+      const threadId = Number.isInteger(genParam) && genParam >= 1
+        ? generationThreadId(base, genParam)
+        : await resolveActiveThread(base);
       const thread = await memory.getThreadById({ threadId });
       if (!thread) return c.json({ messages: [] });
       const result = await memory.recall({ threadId });
       const raw = result.messages ?? [];
-      const messages = raw
-        .filter((m) => m.role === "user" || m.role === "assistant")
-        .map((m) => {
-          const c = m.content as any;
-          let content = "";
-          if (typeof c === "string") {
-            content = c;
-          } else if (c && typeof c === "object") {
-            // Mastra format: { format, parts: [{type, text}], content: "plain text" }
-            content = c.content ?? c.parts?.map((p: any) => p.text ?? "").join("") ?? "";
-          }
-          return { role: m.role, content, createdAt: m.createdAt ?? "" };
-        });
-      return c.json({ messages });
+
+      const list = new MessageList({ threadId, resourceId: CHAT_RESOURCE_ID });
+      list.add(raw, "memory");
+      const uiMessages = list.get.all.aiV5
+        .ui()
+        .filter((m) => m.role === "user" || m.role === "assistant");
+
+      return c.json({ messages: uiMessages });
     } catch (err: any) {
       console.error("[Chat] Failed to load messages:", err.message);
       return c.json({ messages: [] });
@@ -563,7 +582,7 @@ export const lapRoutes = new Hono()
   // ── Chat: send message (streaming) ─────────────────────────
   .post("/api/laps/:id/chat", zValidator("param", IdParamSchema), zValidator("json", ChatBodySchema), async (c) => {
     const { id } = c.req.valid("param");
-    const { message } = c.req.valid("json");
+    const { messages } = c.req.valid("json");
 
     const lap = await getLapById(id);
     if (!lap) return c.json({ error: "Lap not found" }, 404);
@@ -602,16 +621,24 @@ export const lapRoutes = new Hono()
     // Build chat prompt
     const systemPrompt = buildChatSystemPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, analysisJson, settings.language);
 
-    // Set up API key env vars for Mastra/AI SDK (uses chatProvider setting)
+    // Provider/key/model plumbing — inlined from the old startChatStream
+    // helper (removed, was the NDJSON transport's shared provider setup)
+    // since this route now speaks the AI SDK v5 UI-message-stream
+    // protocol instead).
     const chatProvider = settings.chatProvider;
+    if (!chatProvider) {
+      return c.json({ error: "No AI provider selected. Choose one in Settings → AI Chat." }, 400);
+    }
     if (chatProvider === "gemini") {
       const key = await getSecret("gemini-api-key");
       if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
       process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
+      delete process.env.OPENAI_BASE_URL;
     } else if (chatProvider === "openai") {
       const key = await getSecret("openai-api-key");
       if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Chat." }, 400);
       process.env.OPENAI_API_KEY = key;
+      delete process.env.OPENAI_BASE_URL;
     } else if (chatProvider === "local") {
       process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
       process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
@@ -623,20 +650,28 @@ export const lapRoutes = new Hono()
         : chatProvider === "local"
           ? "local-model"
           : "gemini-flash-latest");
+
+    const threadId = await resolveActiveThread(chatThreadId(id));
+    const turnStartedAt = Date.now();
     try {
-      const threadId = chatThreadId(id);
-      return chatStreamResponse(
-        () => lapChatAgent.stream(message, {
-          instructions: systemPrompt,
+      const stream = await lapChatAgent.stream(
+        [{ role: "system", content: systemPrompt }, ...messages],
+        {
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-          modelSettings: { maxOutputTokens: 4096, temperature: 0.2 },
           providerOptions: {
-            openai: { reasoningEffort: chatProvider === "local" ? "none" : "low" },
-            google: buildGoogleThinkingProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
+            openai: { reasoningEffort: "medium" },
+            google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
           },
-        }),
-        { provider: chatProvider, modelId: chatModelLabel },
+        },
       );
+
+      return streamAgentTurnResponse({
+        agentStream: stream,
+        originalMessages: messages,
+        memory: getChatMemory(),
+        threadId,
+        turnStartedAt,
+      });
     } catch (err: any) {
       console.error("[Chat] Stream failed:", err.message);
       return c.json({ error: err.message }, 500);
@@ -648,8 +683,13 @@ export const lapRoutes = new Hono()
     const { id } = c.req.valid("param");
     try {
       const memory = getChatMemory();
-      const threadId = chatThreadId(id);
-      await memory.deleteThread(threadId);
+      const base = chatThreadId(id);
+      const gens = await listThreadGenerations(base);
+      const ids = new Set(gens.map((g) => g.threadId));
+      ids.add(base);
+      for (const threadId of ids) {
+        await memory.deleteThread(threadId);
+      }
     } catch (err: any) {
       console.error("[Chat] Failed to clear thread:", err.message);
     }
@@ -668,6 +708,32 @@ export const lapRoutes = new Hono()
     await updateLapNotes(id, c.req.valid("json").notes);
     return c.json({ ok: true });
   })
+
+  // ── Manual lap exclusion from tuning aggregate (setup-engineer-flow §Phase 7) ──
+  .post(
+    "/api/laps/:id/tuning-excluded",
+    zValidator("param", IdParamSchema),
+    zValidator("json", z.object({ excluded: z.boolean() })),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const { excluded } = c.req.valid("json");
+      const { ok, prev, tuningSessionId } = await setLapTuningExcluded(id, excluded);
+      if (!ok) return c.json({ error: "Lap not found" }, 404);
+
+      // Best-effort: an action-log write failure must not fail the request —
+      // the lap flag is already committed. Only log when the lap is linked
+      // to a tuning session (laps outside a tuning session have nothing to undo into).
+      if (tuningSessionId != null) {
+        try {
+          await recordAction(tuningSessionId, "set-lap-excluded", { lapId: id, prevExcluded: prev });
+        } catch (err: any) {
+          console.error("[LapRoutes] Failed to log set-lap-excluded action:", err?.message);
+        }
+      }
+
+      return c.json({ ok: true, lapId: id, excluded });
+    },
+  )
 
   // ── Recheck lap validity (dev tool) ─────────────────────────
   .post("/api/laps/:id/recheck", zValidator("param", IdParamSchema), async (c) => {
@@ -871,7 +937,8 @@ export const lapRoutes = new Hono()
         type: s.type === "corner" ? ("corner" as const) : ("straight" as const),
         startFrac: s.startFrac,
         endFrac: s.endFrac,
-        numbers: s.numbers,
+        number: s.number,
+        covers: s.covers,
       })) ?? null;
 
     const prompt = buildInputsComparePrompt(
@@ -900,6 +967,9 @@ export const lapRoutes = new Hono()
 
     // Set provider env vars before calling Mastra (the dynamic model resolver
     // reads settings at request time but env-based API keys must be in scope).
+    if (!settings.aiProvider) {
+      return c.json({ error: "No AI provider selected. Choose one in Settings → AI Analysis." }, 400);
+    }
     if (settings.aiProvider === "openai") {
       const key = await getSecret("openai-api-key");
       if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Analysis." }, 400);
@@ -934,7 +1004,7 @@ export const lapRoutes = new Hono()
         // a bare "socket hang up" from the Vite proxy.
         modelSettings: { maxOutputTokens: 8192, temperature: 0 },
         providerOptions: {
-          openai: { reasoningEffort: settings.aiProvider === "local" ? "none" : "low" },
+          openai: { reasoningEffort: "medium" },
           google: buildGoogleThinkingProviderOptions(
             settings.aiModel || "gemini-flash-latest",
             settings.aiThinkingBudget,
@@ -995,24 +1065,23 @@ export const lapRoutes = new Hono()
     const { id1, id2 } = c.req.valid("param");
     try {
       const memory = getChatMemory();
-      const threadId = compareChatThreadId(id1, id2);
+      const base = compareChatThreadId(id1, id2);
+      const genParam = Number(c.req.query("gen"));
+      const threadId = Number.isInteger(genParam) && genParam >= 1
+        ? generationThreadId(base, genParam)
+        : await resolveActiveThread(base);
       const thread = await memory.getThreadById({ threadId });
       if (!thread) return c.json({ messages: [] });
       const result = await memory.recall({ threadId });
       const raw = result.messages ?? [];
-      const messages = raw
-        .filter((m) => m.role === "user" || m.role === "assistant")
-        .map((m) => {
-          const c = m.content as any;
-          let content = "";
-          if (typeof c === "string") {
-            content = c;
-          } else if (c && typeof c === "object") {
-            content = c.content ?? c.parts?.map((p: any) => p.text ?? "").join("") ?? "";
-          }
-          return { role: m.role, content, createdAt: m.createdAt ?? "" };
-        });
-      return c.json({ messages });
+
+      const list = new MessageList({ threadId, resourceId: CHAT_RESOURCE_ID });
+      list.add(raw, "memory");
+      const uiMessages = list.get.all.aiV5
+        .ui()
+        .filter((m) => m.role === "user" || m.role === "assistant");
+
+      return c.json({ messages: uiMessages });
     } catch (err: any) {
       console.error("[CompareChat] Failed to load messages:", err.message);
       return c.json({ messages: [] });
@@ -1022,7 +1091,7 @@ export const lapRoutes = new Hono()
   // ── Compare chat: send message (streaming) ────────────────
   .post("/api/laps/:id1/compare/:id2/chat", zValidator("param", CompareParamsSchema), zValidator("json", ChatBodySchema), async (c) => {
     const { id1, id2 } = c.req.valid("param");
-    const { message } = c.req.valid("json");
+    const { messages } = c.req.valid("json");
     if (id1 === id2) return c.json({ error: "Cannot compare a lap with itself" }, 400);
 
     const lapA = await getLapById(id1);
@@ -1078,14 +1147,19 @@ export const lapRoutes = new Hono()
     );
 
     const chatProvider = settings.chatProvider;
+    if (!chatProvider) {
+      return c.json({ error: "No AI provider selected. Choose one in Settings → AI Chat." }, 400);
+    }
     if (chatProvider === "gemini") {
       const key = await getSecret("gemini-api-key");
       if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
       process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
+      delete process.env.OPENAI_BASE_URL;
     } else if (chatProvider === "openai") {
       const key = await getSecret("openai-api-key");
       if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Chat." }, 400);
       process.env.OPENAI_API_KEY = key;
+      delete process.env.OPENAI_BASE_URL;
     } else if (chatProvider === "local") {
       process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
       process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
@@ -1097,21 +1171,28 @@ export const lapRoutes = new Hono()
         : chatProvider === "local"
           ? "local-model"
           : "gemini-flash-latest");
-    try {
-      const threadId = compareChatThreadId(id1, id2);
 
-      return chatStreamResponse(
-        () => compareChatAgent.stream(message, {
-          instructions: systemPrompt,
+    const threadId = await resolveActiveThread(compareChatThreadId(id1, id2));
+    const turnStartedAt = Date.now();
+    try {
+      const stream = await compareChatAgent.stream(
+        [{ role: "system", content: systemPrompt }, ...messages],
+        {
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-          modelSettings: { maxOutputTokens: 4096, temperature: 0.2 },
           providerOptions: {
-            openai: { reasoningEffort: chatProvider === "local" ? "none" : "low" },
-            google: buildGoogleThinkingProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
+            openai: { reasoningEffort: "medium" },
+            google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
           },
-        }),
-        { provider: chatProvider, modelId: chatModelLabel },
+        },
       );
+
+      return streamAgentTurnResponse({
+        agentStream: stream,
+        originalMessages: messages,
+        memory: getChatMemory(),
+        threadId,
+        turnStartedAt,
+      });
     } catch (err: any) {
       console.error("[CompareChat] Stream failed:", err.message);
       return c.json({ error: err.message }, 500);
@@ -1123,8 +1204,13 @@ export const lapRoutes = new Hono()
     const { id1, id2 } = c.req.valid("param");
     try {
       const memory = getChatMemory();
-      const threadId = compareChatThreadId(id1, id2);
-      await memory.deleteThread(threadId);
+      const base = compareChatThreadId(id1, id2);
+      const gens = await listThreadGenerations(base);
+      const ids = new Set(gens.map((g) => g.threadId));
+      ids.add(base);
+      for (const threadId of ids) {
+        await memory.deleteThread(threadId);
+      }
     } catch (err: any) {
       console.error("[CompareChat] Failed to clear thread:", err.message);
     }

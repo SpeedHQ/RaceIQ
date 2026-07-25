@@ -1,8 +1,8 @@
-import type { TelemetryPacket, GameId } from "@shared/types";
-import { m } from "../../paraglide/messages";
+import type { GameId, TelemetryPacket } from "@shared/types";
 import { Info } from "lucide-react";
-import { allWheelStates, allFrictionCircle, steerBalance, tireState, slipRatioColor, frictionUtilColor, balanceColor, tireTempLabel } from "../../lib/vehicle-dynamics";
 import type { useUnits } from "../../hooks/useUnits";
+import { allFrictionCircle, allWheelStates, balanceColor, frictionUtilColor, slipRatioColor, steerBalance, tireState, tireTempLabel } from "../../lib/vehicle-dynamics";
+import { m } from "../../paraglide/messages";
 import { WheelTable } from "./WheelTable";
 
 interface Props {
@@ -200,7 +200,13 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
             rl: C(`${(fc.rl * 100).toFixed(0)}%`, frictionUtilColor(fc.rl)),
             rr: C(`${(fc.rr * 100).toFixed(0)}%`, frictionUtilColor(fc.rr)),
           },
-          { label: m.analyse_dynamics_traction(), fl: C(states[0].label, states[0].color), fr: C(states[1].label, states[1].color), rl: C(states[2].label, states[2].color), rr: C(states[3].label, states[3].color) },
+          {
+            label: m.analyse_dynamics_traction(),
+            fl: C(states[0].label, states[0].color),
+            fr: C(states[1].label, states[1].color),
+            rl: C(states[2].label, states[2].color),
+            rr: C(states[3].label, states[3].color),
+          },
           {
             label: m.analyse_dynamics_temp(),
             fl: C(states[0].temp.label, states[0].temp.color),

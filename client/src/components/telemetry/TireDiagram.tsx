@@ -1,12 +1,12 @@
-import type { TelemetryPacket } from "@shared/types";
-import type { DisplayPacket } from "@/lib/convert-packet";
-import { useUnits } from "@/hooks/useUnits";
-import { convertTemp } from "@/lib/temperature";
-import { WeightShiftRadar } from "@/components/WeightShiftRadar";
-import { allWheelStates } from "@/lib/vehicle-dynamics";
 import { tryGetGame } from "@shared/games/registry";
-import { WheelCard } from "./WheelCard";
+import type { TelemetryPacket } from "@shared/types";
+import { WeightShiftRadar } from "@/components/WeightShiftRadar";
+import { useUnits } from "@/hooks/useUnits";
+import type { DisplayPacket } from "@/lib/convert-packet";
+import { convertTemp } from "@/lib/temperature";
+import { allWheelStates } from "@/lib/vehicle-dynamics";
 import { SuspBar } from "./SuspBar";
+import { WheelCard } from "./WheelCard";
 
 /**
  * TireDiagram — Arranges 4 WheelCards in a front/rear axle layout with suspension bars.

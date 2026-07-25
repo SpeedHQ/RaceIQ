@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 
 export interface SearchMultiSelectOption<K extends string | number = string | number> {

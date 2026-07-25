@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
-import { m } from "@/paraglide/messages";
 import { X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
 import { ReleaseNotes } from "@/components/ReleaseNotes";
-import { useTelemetryStore } from "@/stores/telemetry";
+import { Button } from "@/components/ui/button";
 import { client } from "@/lib/rpc";
+import { m } from "@/paraglide/messages";
+import { useTelemetryStore } from "@/stores/telemetry";
 
 const STEPS = ["downloading", "installing", "reconnecting", "complete"] as const;
 

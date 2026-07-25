@@ -24,9 +24,7 @@
           "direction": "right",
           "startFrac": 0.0429,
           "endFrac": 0.0883,
-          "numbers": [
-            1
-          ]
+          "number": 1
         },
         {
           "type": "corner",
@@ -34,9 +32,7 @@
           "direction": "left",
           "startFrac": 0.0883,
           "endFrac": 0.1352,
-          "numbers": [
-            2
-          ]
+          "number": 2
         },
         {
           "type": "corner",
@@ -44,9 +40,7 @@
           "direction": "right",
           "startFrac": 0.1352,
           "endFrac": 0.1677,
-          "numbers": [
-            3
-          ]
+          "number": 3
         },
         {
           "type": "corner",
@@ -54,9 +48,7 @@
           "direction": "left",
           "startFrac": 0.1677,
           "endFrac": 0.1959,
-          "numbers": [
-            4
-          ]
+          "number": 4
         },
         {
           "type": "straight",
@@ -70,9 +62,7 @@
           "direction": "left",
           "startFrac": 0.2015,
           "endFrac": 0.2315,
-          "numbers": [
-            5
-          ]
+          "number": 5
         },
         {
           "type": "straight",
@@ -86,9 +76,7 @@
           "direction": "left",
           "startFrac": 0.3085,
           "endFrac": 0.3539,
-          "numbers": [
-            6
-          ]
+          "number": 6
         },
         {
           "type": "corner",
@@ -96,9 +84,7 @@
           "direction": "right",
           "startFrac": 0.3539,
           "endFrac": 0.4131,
-          "numbers": [
-            7
-          ]
+          "number": 7
         },
         {
           "type": "corner",
@@ -106,9 +92,7 @@
           "direction": "right",
           "startFrac": 0.4131,
           "endFrac": 0.4616,
-          "numbers": [
-            8
-          ]
+          "number": 8
         },
         {
           "type": "straight",
@@ -122,9 +106,7 @@
           "direction": "right",
           "startFrac": 0.494,
           "endFrac": 0.551,
-          "numbers": [
-            9
-          ]
+          "number": 9
         },
         {
           "type": "straight",
@@ -134,15 +116,39 @@
         },
         {
           "type": "corner",
-          "name": "Maggotts/Becketts",
+          "name": "Maggotts",
+          "direction": "left",
           "startFrac": 0.5879,
+          "endFrac": 0.6283,
+          "number": 10,
+          "group": "Maggotts/Becketts"
+        },
+        {
+          "type": "corner",
+          "name": "Becketts",
+          "direction": "right",
+          "startFrac": 0.6283,
+          "endFrac": 0.6483,
+          "number": 11,
+          "group": "Maggotts/Becketts"
+        },
+        {
+          "type": "corner",
+          "name": "T12",
+          "direction": "left",
+          "startFrac": 0.6483,
+          "endFrac": 0.6736,
+          "number": 12,
+          "group": "Maggotts/Becketts"
+        },
+        {
+          "type": "corner",
+          "name": "T13",
+          "direction": "right",
+          "startFrac": 0.6736,
           "endFrac": 0.7005,
-          "numbers": [
-            10,
-            11,
-            12,
-            13
-          ]
+          "number": 13,
+          "group": "Maggotts/Becketts"
         },
         {
           "type": "straight",
@@ -156,9 +162,7 @@
           "direction": "left",
           "startFrac": 0.7061,
           "endFrac": 0.734,
-          "numbers": [
-            14
-          ]
+          "number": 14
         },
         {
           "type": "straight",
@@ -172,9 +176,7 @@
           "direction": "right",
           "startFrac": 0.8229,
           "endFrac": 0.8933,
-          "numbers": [
-            15
-          ]
+          "number": 15
         },
         {
           "type": "straight",
@@ -188,9 +190,7 @@
           "direction": "left",
           "startFrac": 0.9138,
           "endFrac": 0.9474,
-          "numbers": [
-            16
-          ]
+          "number": 16
         },
         {
           "type": "corner",
@@ -198,8 +198,8 @@
           "direction": "right",
           "startFrac": 0.9474,
           "endFrac": 0.9905,
-          "numbers": [
-            17,
+          "number": 17,
+          "covers": [
             18
           ]
         },
@@ -220,9 +220,7 @@
           "direction": "right",
           "startFrac": 0,
           "endFrac": 0.0749,
-          "numbers": [
-            9
-          ]
+          "number": 9
         },
         {
           "type": "straight",
@@ -232,15 +230,39 @@
         },
         {
           "type": "corner",
-          "name": "Maggotts/Becketts",
+          "name": "Maggotts",
+          "direction": "left",
           "startFrac": 0.0947,
+          "endFrac": 0.1372,
+          "number": 10,
+          "group": "Maggotts/Becketts"
+        },
+        {
+          "type": "corner",
+          "name": "Becketts",
+          "direction": "right",
+          "startFrac": 0.1372,
+          "endFrac": 0.1627,
+          "number": 11,
+          "group": "Maggotts/Becketts"
+        },
+        {
+          "type": "corner",
+          "name": "T12",
+          "direction": "left",
+          "startFrac": 0.1627,
+          "endFrac": 0.1889,
+          "number": 12,
+          "group": "Maggotts/Becketts"
+        },
+        {
+          "type": "corner",
+          "name": "T13",
+          "direction": "right",
+          "startFrac": 0.1889,
           "endFrac": 0.2154,
-          "numbers": [
-            10,
-            11,
-            12,
-            13
-          ]
+          "number": 13,
+          "group": "Maggotts/Becketts"
         },
         {
           "type": "straight",
@@ -254,9 +276,7 @@
           "direction": "left",
           "startFrac": 0.221,
           "endFrac": 0.2496,
-          "numbers": [
-            14
-          ]
+          "number": 14
         },
         {
           "type": "straight",
@@ -270,9 +290,7 @@
           "direction": "right",
           "startFrac": 0.3357,
           "endFrac": 0.4252,
-          "numbers": [
-            15
-          ]
+          "number": 15
         },
         {
           "type": "corner",
@@ -280,9 +298,7 @@
           "direction": "left",
           "startFrac": 0.4252,
           "endFrac": 0.4622,
-          "numbers": [
-            16
-          ]
+          "number": 16
         },
         {
           "type": "corner",
@@ -290,8 +306,8 @@
           "direction": "right",
           "startFrac": 0.4622,
           "endFrac": 0.4845,
-          "numbers": [
-            17,
+          "number": 17,
+          "covers": [
             18
           ]
         },
@@ -307,9 +323,7 @@
           "direction": "right",
           "startFrac": 0.5491,
           "endFrac": 0.6089,
-          "numbers": [
-            1
-          ]
+          "number": 1
         },
         {
           "type": "corner",
@@ -317,9 +331,7 @@
           "direction": "left",
           "startFrac": 0.6089,
           "endFrac": 0.6519,
-          "numbers": [
-            2
-          ]
+          "number": 2
         },
         {
           "type": "corner",
@@ -327,9 +339,7 @@
           "direction": "right",
           "startFrac": 0.6519,
           "endFrac": 0.6829,
-          "numbers": [
-            3
-          ]
+          "number": 3
         },
         {
           "type": "corner",
@@ -337,9 +347,7 @@
           "direction": "left",
           "startFrac": 0.6829,
           "endFrac": 0.716,
-          "numbers": [
-            4
-          ]
+          "number": 4
         },
         {
           "type": "straight",
@@ -353,9 +361,7 @@
           "direction": "left",
           "startFrac": 0.8262,
           "endFrac": 0.8684,
-          "numbers": [
-            6
-          ]
+          "number": 6
         },
         {
           "type": "corner",
@@ -363,9 +369,7 @@
           "direction": "right",
           "startFrac": 0.8684,
           "endFrac": 0.9282,
-          "numbers": [
-            7
-          ]
+          "number": 7
         },
         {
           "type": "corner",
@@ -373,9 +377,7 @@
           "direction": "right",
           "startFrac": 0.9282,
           "endFrac": 0.9518,
-          "numbers": [
-            8
-          ]
+          "number": 8
         },
         {
           "type": "straight",
@@ -400,9 +402,7 @@
           "direction": "right",
           "startFrac": 0.0201,
           "endFrac": 0.0648,
-          "numbers": [
-            1
-          ]
+          "number": 1
         },
         {
           "type": "corner",
@@ -410,9 +410,7 @@
           "direction": "left",
           "startFrac": 0.0648,
           "endFrac": 0.113,
-          "numbers": [
-            2
-          ]
+          "number": 2
         },
         {
           "type": "corner",
@@ -420,9 +418,7 @@
           "direction": "right",
           "startFrac": 0.113,
           "endFrac": 0.1482,
-          "numbers": [
-            3
-          ]
+          "number": 3
         },
         {
           "type": "corner",
@@ -430,9 +426,7 @@
           "direction": "left",
           "startFrac": 0.1482,
           "endFrac": 0.1708,
-          "numbers": [
-            4
-          ]
+          "number": 4
         },
         {
           "type": "straight",
@@ -446,9 +440,7 @@
           "direction": "left",
           "startFrac": 0.1763,
           "endFrac": 0.2065,
-          "numbers": [
-            5
-          ]
+          "number": 5
         },
         {
           "type": "straight",
@@ -462,9 +454,7 @@
           "direction": "left",
           "startFrac": 0.2794,
           "endFrac": 0.3287,
-          "numbers": [
-            6
-          ]
+          "number": 6
         },
         {
           "type": "corner",
@@ -472,9 +462,7 @@
           "direction": "right",
           "startFrac": 0.3287,
           "endFrac": 0.379,
-          "numbers": [
-            7
-          ]
+          "number": 7
         },
         {
           "type": "corner",
@@ -482,9 +470,7 @@
           "direction": "right",
           "startFrac": 0.379,
           "endFrac": 0.4365,
-          "numbers": [
-            8
-          ]
+          "number": 8
         },
         {
           "type": "straight",
@@ -498,9 +484,7 @@
           "direction": "right",
           "startFrac": 0.4682,
           "endFrac": 0.5274,
-          "numbers": [
-            9
-          ]
+          "number": 9
         },
         {
           "type": "straight",
@@ -510,15 +494,39 @@
         },
         {
           "type": "corner",
-          "name": "Maggotts/Becketts",
+          "name": "Maggotts",
+          "direction": "left",
           "startFrac": 0.5614,
+          "endFrac": 0.6036,
+          "number": 10,
+          "group": "Maggotts/Becketts"
+        },
+        {
+          "type": "corner",
+          "name": "Becketts",
+          "direction": "right",
+          "startFrac": 0.6036,
+          "endFrac": 0.6222,
+          "number": 11,
+          "group": "Maggotts/Becketts"
+        },
+        {
+          "type": "corner",
+          "name": "T12",
+          "direction": "left",
+          "startFrac": 0.6222,
+          "endFrac": 0.6494,
+          "number": 12,
+          "group": "Maggotts/Becketts"
+        },
+        {
+          "type": "corner",
+          "name": "T13",
+          "direction": "right",
+          "startFrac": 0.6494,
           "endFrac": 0.6846,
-          "numbers": [
-            10,
-            11,
-            12,
-            13
-          ]
+          "number": 13,
+          "group": "Maggotts/Becketts"
         },
         {
           "type": "corner",
@@ -526,9 +534,7 @@
           "direction": "left",
           "startFrac": 0.6846,
           "endFrac": 0.7098,
-          "numbers": [
-            14
-          ]
+          "number": 14
         },
         {
           "type": "straight",
@@ -542,9 +548,7 @@
           "direction": "right",
           "startFrac": 0.7993,
           "endFrac": 0.8687,
-          "numbers": [
-            15
-          ]
+          "number": 15
         },
         {
           "type": "straight",
@@ -558,9 +562,7 @@
           "direction": "left",
           "startFrac": 0.8888,
           "endFrac": 0.9219,
-          "numbers": [
-            16
-          ]
+          "number": 16
         },
         {
           "type": "corner",
@@ -568,8 +570,8 @@
           "direction": "right",
           "startFrac": 0.9219,
           "endFrac": 0.9758,
-          "numbers": [
-            17,
+          "number": 17,
+          "covers": [
             18
           ]
         },
@@ -602,9 +604,7 @@
       "direction": "right",
       "startFrac": 0.0201,
       "endFrac": 0.0648,
-      "numbers": [
-        1
-      ]
+      "number": 1
     },
     {
       "type": "corner",
@@ -612,9 +612,7 @@
       "direction": "left",
       "startFrac": 0.0648,
       "endFrac": 0.113,
-      "numbers": [
-        2
-      ]
+      "number": 2
     },
     {
       "type": "corner",
@@ -622,9 +620,7 @@
       "direction": "right",
       "startFrac": 0.113,
       "endFrac": 0.1482,
-      "numbers": [
-        3
-      ]
+      "number": 3
     },
     {
       "type": "corner",
@@ -632,9 +628,7 @@
       "direction": "left",
       "startFrac": 0.1482,
       "endFrac": 0.1708,
-      "numbers": [
-        4
-      ]
+      "number": 4
     },
     {
       "type": "straight",
@@ -648,9 +642,7 @@
       "direction": "left",
       "startFrac": 0.1763,
       "endFrac": 0.2065,
-      "numbers": [
-        5
-      ]
+      "number": 5
     },
     {
       "type": "straight",
@@ -664,9 +656,7 @@
       "direction": "left",
       "startFrac": 0.2794,
       "endFrac": 0.3287,
-      "numbers": [
-        6
-      ]
+      "number": 6
     },
     {
       "type": "corner",
@@ -674,9 +664,7 @@
       "direction": "right",
       "startFrac": 0.3287,
       "endFrac": 0.379,
-      "numbers": [
-        7
-      ]
+      "number": 7
     },
     {
       "type": "corner",
@@ -684,9 +672,7 @@
       "direction": "right",
       "startFrac": 0.379,
       "endFrac": 0.4365,
-      "numbers": [
-        8
-      ]
+      "number": 8
     },
     {
       "type": "straight",
@@ -700,9 +686,7 @@
       "direction": "right",
       "startFrac": 0.4682,
       "endFrac": 0.5274,
-      "numbers": [
-        9
-      ]
+      "number": 9
     },
     {
       "type": "straight",
@@ -712,15 +696,39 @@
     },
     {
       "type": "corner",
-      "name": "Maggotts/Becketts",
+      "name": "Maggotts",
+      "direction": "left",
       "startFrac": 0.5614,
+      "endFrac": 0.6036,
+      "number": 10,
+      "group": "Maggotts/Becketts"
+    },
+    {
+      "type": "corner",
+      "name": "Becketts",
+      "direction": "right",
+      "startFrac": 0.6036,
+      "endFrac": 0.6222,
+      "number": 11,
+      "group": "Maggotts/Becketts"
+    },
+    {
+      "type": "corner",
+      "name": "T12",
+      "direction": "left",
+      "startFrac": 0.6222,
+      "endFrac": 0.6494,
+      "number": 12,
+      "group": "Maggotts/Becketts"
+    },
+    {
+      "type": "corner",
+      "name": "T13",
+      "direction": "right",
+      "startFrac": 0.6494,
       "endFrac": 0.6846,
-      "numbers": [
-        10,
-        11,
-        12,
-        13
-      ]
+      "number": 13,
+      "group": "Maggotts/Becketts"
     },
     {
       "type": "corner",
@@ -728,9 +736,7 @@
       "direction": "left",
       "startFrac": 0.6846,
       "endFrac": 0.7098,
-      "numbers": [
-        14
-      ]
+      "number": 14
     },
     {
       "type": "straight",
@@ -744,9 +750,7 @@
       "direction": "right",
       "startFrac": 0.7993,
       "endFrac": 0.8687,
-      "numbers": [
-        15
-      ]
+      "number": 15
     },
     {
       "type": "straight",
@@ -760,9 +764,7 @@
       "direction": "left",
       "startFrac": 0.8888,
       "endFrac": 0.9219,
-      "numbers": [
-        16
-      ]
+      "number": 16
     },
     {
       "type": "corner",
@@ -770,8 +772,8 @@
       "direction": "right",
       "startFrac": 0.9219,
       "endFrac": 0.9758,
-      "numbers": [
-        17,
+      "number": 17,
+      "covers": [
         18
       ]
     },

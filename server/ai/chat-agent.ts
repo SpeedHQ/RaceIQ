@@ -68,6 +68,11 @@ export function chatThreadId(lapId: number): string {
   return `lap-${lapId}`;
 }
 
+/** Build the threadId for a tuning-session's setup chat (plan Phase D). */
+export function tuneSessionThreadId(sessionId: number): string {
+  return `tune-session-${sessionId}`;
+}
+
 /**
  * Build the threadId for a compare chat between two laps.
  * Uses canonical ordering (min,max) so order of selection doesn't matter.
@@ -80,3 +85,139 @@ export function compareChatThreadId(idA: number, idB: number): string {
 
 /** The resource ID used for all chat threads. */
 export const CHAT_RESOURCE_ID = "raceiq";
+
+// ─── Chat generations ──────────────────────────────────────────────────────
+//
+// A chat surface (lap / compare / tuning-session) can accumulate multiple
+// "generations" over its lifetime. Generation 1 keeps the plain base id
+// (`lap-42`) so existing single-thread chats stay valid with no migration.
+// Later generations suffix `~g<N>` (`lap-42~g2`). `~g` is deliberately NOT a
+// dash — a dash would break the `-`-split parsing of compare ids elsewhere —
+// and is URL-unreserved so it survives `encodeURIComponent` in route params.
+//
+// The newest generation is the only writable one; older gens are a read-only
+// archive. "Active" is derived by probing (`resolveActiveThread`) rather than
+// stored — the deterministic id scheme makes probing cheap and keeps lineage
+// out of any SQL table (it also rides on Mastra thread metadata at creation).
+
+const GEN_SEP = "~g";
+
+/** Split a (possibly suffixed) thread id into its base id and generation number. */
+export function parseThreadGeneration(threadId: string): { base: string; gen: number } {
+  const idx = threadId.lastIndexOf(GEN_SEP);
+  if (idx === -1) return { base: threadId, gen: 1 };
+  const gen = Number(threadId.slice(idx + GEN_SEP.length));
+  if (!Number.isInteger(gen) || gen < 2) return { base: threadId, gen: 1 };
+  return { base: threadId.slice(0, idx), gen };
+}
+
+/** Build the thread id for a given base + generation. Gen 1 is the bare base. */
+export function generationThreadId(base: string, gen: number): string {
+  return gen <= 1 ? base : `${base}${GEN_SEP}${gen}`;
+}
+
+/**
+ * List the existing generations for a base, ordered oldest→newest. Probes
+ * upward from gen 1 (= base) until the first missing generation. Empty when the
+ * base has never been chatted (no thread exists yet).
+ */
+export async function listThreadGenerations(
+  base: string,
+): Promise<Array<{ threadId: string; generation: number }>> {
+  const mem = getChatMemory();
+  const out: Array<{ threadId: string; generation: number }> = [];
+  for (let gen = 1; ; gen++) {
+    const threadId = generationThreadId(base, gen);
+    const thread = await mem.getThreadById({ threadId });
+    if (!thread) break;
+    out.push({ threadId, generation: gen });
+  }
+  return out;
+}
+
+/**
+ * Resolve the active (newest existing) thread id for a base. Returns the base
+ * (gen 1) when nothing exists yet, so a first POST auto-creates gen 1 exactly
+ * as before.
+ */
+export async function resolveActiveThread(base: string): Promise<string> {
+  const gens = await listThreadGenerations(base);
+  return gens.length ? gens[gens.length - 1].threadId : base;
+}
+
+/**
+ * Persist a plain-markdown **assistant** message into a chat thread so it shows
+ * up in the thread history the GET chat route reads back. Ensures the thread
+ * exists first (mirrors how the streaming chat route auto-creates it via the
+ * agent), then writes one message shaped as MastraMessageContentV2 — both a flat
+ * `content` string and a `parts: [{type:"text"}]` array — so the GET route's
+ * `mc.content ?? mc.parts.map(p => p.text).join("")` extractor reads it back
+ * verbatim. Returns the saved message id.
+ *
+ * Used by the generate-from-chat route to post the applied-tweaks summary inline
+ * in the setup conversation instead of a transient client-only card.
+ */
+export async function saveAssistantChatMessage(
+  threadId: string,
+  markdown: string,
+): Promise<string> {
+  const [id] = await saveChatMessages(threadId, [{ role: "assistant", markdown }]);
+  return id;
+}
+
+/** Persist a plain-markdown **user** message into a chat thread. Same shape as
+ * {@link saveAssistantChatMessage}; used to record deterministic user actions
+ * (e.g. "Switch head to X" on checkout) as their own distinct entry. */
+export async function saveUserChatMessage(
+  threadId: string,
+  markdown: string,
+): Promise<string> {
+  const [id] = await saveChatMessages(threadId, [{ role: "user", markdown }]);
+  return id;
+}
+
+/** Persist an ordered batch of plain-markdown messages into a chat thread in a
+ * single write. Batching keeps the requested order deterministic (each message
+ * gets a strictly increasing createdAt) — a separate write per message can land
+ * on the same millisecond and reorder on read. Distinct roles also stop the
+ * MessageList reader collapsing consecutive same-role messages into one entry,
+ * so a user+assistant pair renders as two separate turns. */
+export async function saveChatMessages(
+  threadId: string,
+  entries: Array<{ role: "user" | "assistant"; markdown: string }>,
+): Promise<string[]> {
+  const mem = getChatMemory();
+  const existing = await mem.getThreadById({ threadId });
+  if (!existing) {
+    await mem.createThread({ threadId, resourceId: CHAT_RESOURCE_ID });
+  }
+  // Derive the exact message shape saveMessages wants without importing the
+  // (non-re-exported) MastraDBMessage type by name.
+  type SaveMsg = Parameters<typeof mem.saveMessages>[0]["messages"][number];
+  const base = Date.now();
+  const messages = entries.map((entry, i) => {
+    const id = crypto.randomUUID();
+    return {
+      id,
+      role: entry.role,
+      createdAt: new Date(base + i),
+      threadId,
+      resourceId: CHAT_RESOURCE_ID,
+      type: "text",
+      content: {
+        format: 2,
+        parts: [{ type: "text", text: entry.markdown }],
+        content: entry.markdown,
+        // Mark as a deterministic, tool/route-emitted note. These land in the
+        // thread *during* an agent turn (e.g. a tool posting a note
+        // per fork), so their createdAt can be newer than Mastra's trailing save
+        // of the model's own assistant row. The reasoning-persistence poll must
+        // not mistake one of these for the model's response and stamp a phantom
+        // thinking block onto it — it skips any row carrying this flag.
+        metadata: { deterministic: true },
+      },
+    } as SaveMsg;
+  });
+  await mem.saveMessages({ messages });
+  return messages.map((m) => m.id);
+}

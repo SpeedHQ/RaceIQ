@@ -1,9 +1,10 @@
-import React, { useState, useCallback } from "react";
-import { m } from "@/paraglide/messages";
-import { client } from "../../lib/rpc";
-import { useQuery } from "@tanstack/react-query";
-import { type TuneSettings } from "../../data/tune-catalog";
 import type { TuneCategory } from "@shared/types";
+import { useQuery } from "@tanstack/react-query";
+import type React from "react";
+import { useCallback, useState } from "react";
+import { m } from "@/paraglide/messages";
+import type { TuneSettings } from "../../data/tune-catalog";
+import { client } from "../../lib/rpc";
 import { ALL_CATEGORIES, CATEGORY_LABELS } from "./tune-constants.tsx";
 
 // ── Default settings for new tune ───────────────────────────────────────────
@@ -42,17 +43,7 @@ export interface TuneFormData {
 
 // ── NumberField ──────────────────────────────────────────────────────────────
 
-function NumberField({
-  label,
-  value,
-  onChange,
-  step,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  step?: number;
-}) {
+function NumberField({ label, value, onChange, step }: { label: string; value: number; onChange: (v: number) => void; step?: number }) {
   return (
     <label className="flex items-center justify-between gap-2 text-xs">
       <span className="text-app-text-muted whitespace-nowrap">{label}</span>
@@ -69,17 +60,7 @@ function NumberField({
 
 // ── SettingsSection ──────────────────────────────────────────────────────────
 
-function SettingsSection({
-  title,
-  isOpen,
-  onToggle,
-  children,
-}: {
-  title: string;
-  isOpen: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}) {
+function SettingsSection({ title, isOpen, onToggle, children }: { title: string; isOpen: boolean; onToggle: () => void; children: React.ReactNode }) {
   return (
     <div className="rounded-lg ring-1 ring-app-border overflow-hidden">
       <button type="button" onClick={onToggle} className="w-full text-left px-3 py-2 flex items-center justify-between bg-app-surface/85 hover:bg-app-surface transition-colors">

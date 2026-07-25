@@ -1,5 +1,5 @@
-import { useMemo } from "react";
 import type { TelemetryPacket } from "@shared/types";
+import { useMemo } from "react";
 import { convertPackets, type DisplayPacket } from "../lib/convert-packet";
 import { useSettings } from "./queries";
 

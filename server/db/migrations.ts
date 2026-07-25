@@ -331,4 +331,222 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
        )`,
     ],
   },
+
+  // ── v24: tuning sessions (Setup Engineer front door, plan §6a) ─────────────
+  //
+  // Parent container for the Setup IQ loop. Car/track stored as both ordinals
+  // (live/recorded-session seed) and names (ACC/AC-Evo setup-file seed); all
+  // nullable so either origin works. setupVersions.tuning_session_id will FK
+  // into this in a later phase.
+  {
+    version: 24,
+    name: "tuning sessions",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS tuning_sessions (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        game_id         TEXT NOT NULL,
+        name            TEXT NOT NULL,
+        car_ordinal     INTEGER,
+        track_ordinal   INTEGER,
+        car_name        TEXT,
+        track_name      TEXT,
+        base_setup_path TEXT,
+        status          TEXT NOT NULL DEFAULT 'active',
+        notes           TEXT,
+        created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_tuning_sessions_game ON tuning_sessions(game_id)`,
+    ],
+  },
+
+  // ── v25: tuning tests (setup versions under evaluation, plan §2) ───────────
+  //
+  // One row per setup being tested inside a tuning session. v1 "base" is seeded
+  // on session create from the session's base_setup_path; each Save & recommend
+  // appends v(N+1) with the applied diff (applied_changes JSON) and the written
+  // setup file. FK cascades from tuning_sessions so archiving/deleting a session
+  // takes its tests with it. parent_test_id is self-referential but intentionally
+  // not a hard FK — a parent version can be archived independently of its child.
+  {
+    version: 25,
+    name: "tuning tests",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS tuning_tests (
+        id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+        tuning_session_id  INTEGER NOT NULL REFERENCES tuning_sessions(id) ON DELETE CASCADE,
+        version            INTEGER NOT NULL,
+        label              TEXT NOT NULL,
+        setup_path         TEXT,
+        parent_test_id     INTEGER,
+        applied_changes    TEXT,
+        driver_comment     TEXT,
+        engine             TEXT,
+        status             TEXT NOT NULL DEFAULT 'active',
+        created_at         TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_tuning_tests_session ON tuning_tests(tuning_session_id)`,
+    ],
+  },
+
+  // ── v26: explicit lap ↔ tuning-session link ────────────────────────────────
+  //
+  // Decouples tuning-session membership from race (telemetry) sessionId. A
+  // tuning session can span MANY race sessions on the same car+track (multiple
+  // stints while iterating setups), so membership can't be derived from
+  // sessionId or a fragile created-at time window. Instead every lap recorded
+  // while a tuning session is active is stamped with its id at insert time
+  // (see server/tuning-active.ts + queries.ts::insertLap).
+  //
+  // NOTE: SQLite cannot add a column WITH an inline REFERENCES clause via
+  // ALTER TABLE, so the FK is omitted here — the column is a plain nullable
+  // INTEGER. schema.ts still declares the intended `.references(tuning_sessions)`
+  // as type-level documentation; there is no runtime FK enforcement or
+  // ON DELETE SET NULL cascade on this column. Laps recorded before this
+  // migration keep tuning_session_id = NULL and simply won't appear in any
+  // tuning session (acceptable — the feature is opt-in going forward).
+  {
+    version: 26,
+    name: "explicit lap to tuning-session link",
+    sql: [
+      `ALTER TABLE laps ADD COLUMN tuning_session_id INTEGER`,
+      `CREATE INDEX IF NOT EXISTS idx_laps_tuning_session ON laps(tuning_session_id)`,
+    ],
+  },
+
+  // ── v27: per-game tuning-session display number ───────────────────────────
+  //
+  // A stable 1..N number per game, independent of the churned autoincrement id
+  // and of race sessions. Assigned on create as max(seq)+1 per game; existing
+  // rows are backfilled in id order within each game.
+  {
+    version: 27,
+    name: "tuning-session display seq",
+    sql: [
+      `ALTER TABLE tuning_sessions ADD COLUMN seq INTEGER NOT NULL DEFAULT 1`,
+      `UPDATE tuning_sessions
+         SET seq = (
+           SELECT COUNT(*) FROM tuning_sessions t2
+           WHERE t2.game_id = tuning_sessions.game_id AND t2.id <= tuning_sessions.id
+         )`,
+    ],
+  },
+
+  // ── v28: persisted checked-out version (head) per tuning session ──────────
+  {
+    version: 28,
+    name: "tuning-session head test id",
+    sql: [
+      `ALTER TABLE tuning_sessions ADD COLUMN head_test_id INTEGER`,
+    ],
+  },
+
+  // ── v29: explicit lap → tuning-test link ──────────────────────────────────
+  // Correct lap→version attribution under branching. Laps recorded before this
+  // (or with no head) keep tuning_test_id = NULL and fall back to the
+  // createdAt time-window grouping in the UI.
+  {
+    version: 29,
+    name: "explicit lap to tuning-test link",
+    sql: [
+      `ALTER TABLE laps ADD COLUMN tuning_test_id INTEGER`,
+      `CREATE INDEX IF NOT EXISTS idx_laps_tuning_test ON laps(tuning_test_id)`,
+    ],
+  },
+
+  // ── v30: Setup Engineer flow — exclusions, F1 snapshot, action log ─────────
+  // Three additive changes for the solidified tuning-session flow
+  // (docs/setup-engineer-flow-design.md §Phase 0):
+  //  • laps.tuning_excluded    — user flag dropping a lap from the tuning aggregate.
+  //  • tuning_tests.setup_snapshot — F1's captured/target F1CarSetup JSON (null for
+  //    file-based ACC/AC-Evo nodes, which keep using setup_path).
+  //  • tuning_actions          — append-only action log backing session undo. Stores
+  //    only small refs (JSON inverse payloads), no blobs. Soft ref to the session,
+  //    no FK (SQLite can't ALTER-ADD an inline REFERENCES; matches the tuning_session_id
+  //    precedent). tuning_tests.status gains a 'deleted' value — no DDL, text column.
+  {
+    version: 30,
+    name: "setup engineer flow: exclusions, F1 snapshot, action log",
+    sql: [
+      `ALTER TABLE laps ADD COLUMN tuning_excluded INTEGER`,
+      `ALTER TABLE tuning_tests ADD COLUMN setup_snapshot TEXT`,
+      `CREATE TABLE IF NOT EXISTS tuning_actions (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        tuning_session_id INTEGER NOT NULL,
+        kind              TEXT NOT NULL,
+        inverse_payload   TEXT,
+        undone            INTEGER NOT NULL DEFAULT 0,
+        created_at        TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_tuning_actions_session ON tuning_actions(tuning_session_id)`,
+    ],
+  },
+
+  // ── v31: Engineer notes on version nodes ───────────────────────────────────
+  // Per-node free-text engineer/AI annotation, distinct from driver_comment
+  // (the driver's subjective feel note). The setup-engineer agent writes here
+  // to persist per-version reasoning across chat compaction, and it's surfaced
+  // in the injected VERSION HISTORY context every turn so the note is readable
+  // back after the conversation is summarised.
+  {
+    version: 31,
+    name: "engineer notes on version nodes",
+    sql: [`ALTER TABLE tuning_tests ADD COLUMN notes TEXT`],
+  },
+
+  // ── v32: Persisted per-lap fuel/tyre metrics ───────────────────────────────
+  // fuel_per_lap (litres) and tyre_wear (worst-tyre % worn at lap end) were
+  // derived on the fly from each lap's full telemetry on every /lap-metrics
+  // request — decoding every frame of every session lap per call. Cache them on
+  // the lap row instead: computed once (lazily, on first read) and stored here.
+  // Null = not yet computed or no usable telemetry channel.
+  {
+    version: 32,
+    name: "persisted per-lap fuel/tyre metrics",
+    sql: [
+      `ALTER TABLE laps ADD COLUMN fuel_per_lap REAL`,
+      `ALTER TABLE laps ADD COLUMN tyre_wear REAL`,
+    ],
+  },
+
+  // ── v33: Cached racing-line spread trace ───────────────────────────────────
+  // /line-spread decodes every clean lap of a tuning session and runs
+  // computeLineSpreadTrace over all of them — expensive at 50 laps. The result
+  // is deterministic per (session, clean-lap set), so cache the trace JSON keyed
+  // by the tuning session id + a hash of the sorted clean lap ids (+ algo
+  // version baked into the hash). A changed lap set yields a new hash.
+  {
+    version: 33,
+    name: "cached racing-line spread trace",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS line_spread_cache (
+        tuning_session_id INTEGER NOT NULL,
+        lap_set_hash TEXT NOT NULL,
+        trace TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (tuning_session_id, lap_set_hash)
+      )`,
+    ],
+  },
+
+  // ── v34: auto-exclude source tracking for fastest-5 curation ───────────────
+  // (docs/superpowers/specs/2026-07-24-tuning-auto-exclude-design.md)
+  // `laps.tuning_excluded` was a purely manual flag, so the tuning aggregate
+  // disagreed with the fastest-5 curation the review paths (`/line-spread`,
+  // `useStintTraces`) actually analysed. This column tracks WHO set the flag:
+  //  • 'auto'   — server/tuning-auto-exclude.ts's fastest-5 reconciliation pass.
+  //  • 'manual' — user or Setup Engineer; the auto pass never touches these.
+  //  • NULL     — not yet reconciled (pre-existing NULL rows).
+  // Backfill: every existing `tuning_excluded = 1` row was hand-set (the auto
+  // pass didn't exist yet), so it becomes 'manual'. Existing NULL rows stay
+  // (NULL, NULL) and reconcile lazily on their next lap save — no bulk
+  // recompute here, regressing nothing.
+  {
+    version: 34,
+    name: "auto-exclude source tracking for fastest-5 curation",
+    sql: [
+      `ALTER TABLE laps ADD COLUMN tuning_excluded_source TEXT`,
+      `UPDATE laps SET tuning_excluded_source = 'manual' WHERE tuning_excluded = 1`,
+    ],
+  },
 ];

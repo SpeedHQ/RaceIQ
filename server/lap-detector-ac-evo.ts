@@ -3,9 +3,15 @@ import type { ILapDetector, LapDetectorOptions } from "./lap-detector-interface"
 import type { SessionState } from "./lap-detector";
 import type { LapDetectorCallbacks } from "./lap-detector-interface";
 import type { DbAdapter } from "./pipeline-adapters";
+import { persistLapMetrics } from "./tuning-lap-metrics";
+import { reconcileAutoExclusionsForLap } from "./tuning-auto-exclude";
 import { assessLapRecording } from "./lap-quality";
 import { computeLapSectors } from "./compute-lap-sectors";
-import { accFirstPacketIsMidLap, classifyAccPitLap } from "./acc-lap-rules";
+import {
+  accFirstPacketIsMidLap,
+  classifyAccPitLap,
+  classifyKunosTrackLimits,
+} from "./acc-lap-rules";
 import { getOrCreateDiscoveredCar } from "./db/discovered-cars";
 
 /**
@@ -22,7 +28,10 @@ async function resolveCarOrdinal(packet: TelemetryPacket): Promise<number> {
   return getOrCreateDiscoveredCar(packet.gameId, packet.carModelName);
 }
 
-export const LAP_DETECTOR_AC_EVO_ID = "ac_evo_lapdetector_v1";
+// v2: added track-limits invalidation from the per-frame is_valid_lap flag.
+// Bumping the id makes every previously-recorded AC Evo session stale so
+// /api/sessions/reprocess-stale backfills the new invalid reasons.
+export const LAP_DETECTOR_AC_EVO_ID = "ac_evo_lapdetector_v2";
 
 export class LapDetectorAcEvo implements ILapDetector {
   readonly detectorId = LAP_DETECTOR_AC_EVO_ID;
@@ -239,6 +248,16 @@ export class LapDetectorAcEvo implements ILapDetector {
       }
     }
 
+    // Track-limits cuts are checked after pit classification so a pit reason
+    // (which explains the whole lap) always wins over a cut inside it.
+    if (isValid) {
+      const cutReason = classifyKunosTrackLimits(packets);
+      if (cutReason) {
+        isValid = false;
+        invalidReason = cutReason;
+      }
+    }
+
     const sectors = await computeLapSectors(
       this.currentSession!.trackOrdinal,
       this.currentSession!.gameId,
@@ -263,6 +282,13 @@ export class LapDetectorAcEvo implements ILapDetector {
       invalidReason,
       sectors
     );
+    // Precompute fuel/tyre metrics now (frames already in memory) so
+    // /lap-metrics never decodes on first open.
+    await persistLapMetrics(this.db, lapId, packets);
+    // Reconcile the fastest-5 auto-exclude curation for this lap's tuning
+    // scope (docs/superpowers/specs/2026-07-24-tuning-auto-exclude-design.md).
+    // No-ops when the lap has no tuning session or tune assigned.
+    await reconcileAutoExclusionsForLap(this.db, lapId);
     if (!opts?.silent) {
       this.onLapSaved?.({
         type: "lap-saved",

@@ -7,6 +7,8 @@ interface AcEvoTrack {
   name: string;
   variant: string;
   commonTrackName: string;
+  /** AC-Evo's Setups-folder key (Setups/<car>/<setupFolder>/). */
+  setupFolder: string;
 }
 
 let trackMap: Map<number, AcEvoTrack> | null = null;
@@ -26,8 +28,9 @@ function ensureLoaded(): Map<number, AcEvoTrack> {
     const name = parts[1];
     const variant = parts[2];
     const commonTrackName = parts[3]?.trim() ?? "";
+    const setupFolder = parts[4]?.trim() ?? "";
     if (!isNaN(id) && name) {
-      trackMap.set(id, { id, name: name.trim(), variant: variant.trim(), commonTrackName });
+      trackMap.set(id, { id, name: name.trim(), variant: variant.trim(), commonTrackName, setupFolder });
     }
   }
   return trackMap;
@@ -48,6 +51,37 @@ export function getAcEvoSharedTrackName(ordinal: number): string | undefined {
 /** Get all AC Evo tracks as a Map of id → info */
 export function getAcEvoTracks(): Map<number, AcEvoTrack> {
   return ensureLoaded();
+}
+
+/** Distinct AC-Evo Setups-folder track keys, sorted — the canonical track roster
+ *  for the "place a dropped setup" picker (data-driven from tracks.csv). */
+export function getAcEvoSetupFolderKeys(): string[] {
+  const keys = new Set<string>();
+  for (const t of ensureLoaded().values()) if (t.setupFolder) keys.add(t.setupFolder);
+  return [...keys].sort();
+}
+
+/** Setup-folder keys that share one on-disk Setups folder with `key`.
+ *
+ *  AC Evo saves setups per circuit, not per layout: every variant of a track
+ *  (Brands Hatch GP and Indy, …) writes to the same Setups/<car>/<folder>/
+ *  directory, keyed by the base track name. The CSV keeps one setupFolder key
+ *  per variant (needed as distinct picker/session keys), so this derives the
+ *  alias group generically: all setupFolder keys of variants with the same
+ *  base `name`. Always includes `key` itself; returns [key] for unknown keys. */
+export function getAcEvoSetupFolderAliases(key: string): string[] {
+  ensureLoaded();
+  const needle = norm(key);
+  let baseName: string | undefined;
+  for (const t of trackMap!.values()) {
+    if (t.setupFolder && norm(t.setupFolder) === needle) { baseName = norm(t.name); break; }
+  }
+  if (!baseName) return [key];
+  const aliases = new Set<string>([key]);
+  for (const t of trackMap!.values()) {
+    if (t.setupFolder && norm(t.name) === baseName) aliases.add(t.setupFolder);
+  }
+  return [...aliases].sort();
 }
 
 function norm(s: string): string {
@@ -116,4 +150,17 @@ export function getAcEvoTrackByName(trackStr: string, config?: string): AcEvoTra
   }
 
   return findExact(needle) ?? findFuzzy(needle);
+}
+
+/** Resolve an AC-Evo Setups-folder key to its track by matching the setupFolder
+ *  column. On collisions returns the lowest id. */
+export function getAcEvoTrackBySetupFolder(key: string): AcEvoTrack | undefined {
+  ensureLoaded();
+  const needle = norm(key);
+  let best: AcEvoTrack | undefined;
+  for (const t of trackMap!.values()) {
+    if (!t.setupFolder) continue;
+    if (norm(t.setupFolder) === needle && (!best || t.id < best.id)) best = t;
+  }
+  return best;
 }

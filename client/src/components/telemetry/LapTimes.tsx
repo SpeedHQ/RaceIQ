@@ -1,6 +1,6 @@
-import { m } from "@/paraglide/messages";
-import type { TelemetryPacket, LiveSectorData } from "@shared/types";
+import type { LiveSectorData, TelemetryPacket } from "@shared/types";
 import { formatLapTime } from "@/lib/format";
+import { m } from "@/paraglide/messages";
 
 interface LapTimesProps {
   packet: TelemetryPacket;

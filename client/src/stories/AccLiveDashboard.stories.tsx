@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useTelemetryStore } from "../stores/telemetry";
-import { useGameStore } from "../stores/game";
 import { AccLiveDashboard } from "../components/acc/AccLiveDashboard";
-import { fakeAccPacket, fakeAccDisplayPacket, fakeSectors, fakePit, fakeSessionLaps } from "./fakeData";
+import { useGameStore } from "../stores/game";
+import { useTelemetryStore } from "../stores/telemetry";
+import { fakeAccDisplayPacket, fakeAccPacket, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },

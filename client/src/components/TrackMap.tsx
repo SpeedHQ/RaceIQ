@@ -1,6 +1,7 @@
-import { useRef, useEffect, useCallback, useState } from "react";
-import { m } from "@/paraglide/messages";
+import { hasWorldPositions, lapPath } from "@shared/lib/lap-path";
 import type { TelemetryPacket } from "@shared/types";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { m } from "@/paraglide/messages";
 import { client } from "../lib/rpc";
 import { useGameId } from "../stores/game";
 
@@ -41,37 +42,6 @@ function speedToColor(speed: number, minSpeed: number, maxSpeed: number): string
 
 function channelToColor(value: number, min: number, max: number): string {
   return speedToColor(value, min, max);
-}
-
-/**
- * Check if telemetry has valid Forza world positions (not all zeros).
- */
-function hasWorldPositions(telemetry: TelemetryPacket[]): boolean {
-  // Check a sample of packets for non-zero positions
-  for (let i = 0; i < Math.min(telemetry.length, 20); i++) {
-    const idx = Math.floor((i * telemetry.length) / 20);
-    if (telemetry[idx].PositionX !== 0 || telemetry[idx].PositionZ !== 0) return true;
-  }
-  return false;
-}
-
-/**
- * Integrate positions from velocity when world positions aren't available.
- */
-function integratePositions(packets: TelemetryPacket[]): { x: number[]; z: number[] } {
-  const x: number[] = [0];
-  const z: number[] = [0];
-  for (let i = 1; i < packets.length; i++) {
-    const dt = (packets[i].TimestampMS - packets[i - 1].TimestampMS) / 1000;
-    if (dt <= 0 || dt > 1) {
-      x.push(x[x.length - 1]);
-      z.push(z[z.length - 1]);
-      continue;
-    }
-    x.push(x[x.length - 1] + packets[i].VelocityX * dt);
-    z.push(z[z.length - 1] + packets[i].VelocityZ * dt);
-  }
-  return { x, z };
 }
 
 export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, lineColor, className, trackOrdinal }: Props) {
@@ -116,15 +86,7 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
 
     // Use Forza world positions when available, otherwise integrate from velocity
     const useWorld = hasWorldPositions(telemetry);
-    let x: number[], z: number[];
-    if (useWorld) {
-      x = telemetry.map((p) => p.PositionX);
-      z = telemetry.map((p) => p.PositionZ);
-    } else {
-      const integrated = integratePositions(telemetry);
-      x = integrated.x;
-      z = integrated.z;
-    }
+    const { x, z } = lapPath(telemetry);
 
     // Compute bounds — include boundary edges if in same coord system
     const hasBounds = boundaries && (boundaries.coordSystem === "forza" || boundaries.coordSystem === "f1-2025" || boundaries.coordSystem === "acc") && useWorld;

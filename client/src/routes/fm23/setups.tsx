@@ -17,9 +17,7 @@ function Fm23SetupsLayout() {
               key={tab.to}
               to={tab.to}
               className={`text-app-label font-semibold uppercase px-3 py-1.5 rounded-lg transition-colors ${
-                active
-                  ? "bg-app-accent/20 text-app-accent ring-1 ring-app-accent/30"
-                  : "bg-app-surface/40 text-app-text-muted hover:text-app-text-secondary ring-1 ring-app-border"
+                active ? "bg-app-accent/20 text-app-accent ring-1 ring-app-accent/30" : "bg-app-surface/40 text-app-text-muted hover:text-app-text-secondary ring-1 ring-app-border"
               }`}
             >
               {tab.label}

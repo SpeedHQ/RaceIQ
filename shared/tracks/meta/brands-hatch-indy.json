@@ -1,0 +1,111 @@
+{
+  "name": "Brands Hatch Indy",
+  "sectors": {
+    "s1End": 0.3333333333333333,
+    "s2End": 0.6666666666666666
+  },
+  "segments": [
+    {
+      "type": "corner",
+      "name": "T1",
+      "direction": "left",
+      "startFrac": 0,
+      "endFrac": 0.2424,
+      "number": 1
+    },
+    {
+      "type": "corner",
+      "name": "T2",
+      "direction": "left",
+      "startFrac": 0.2424,
+      "endFrac": 0.3812,
+      "number": 2
+    },
+    {
+      "type": "corner",
+      "name": "T3",
+      "direction": "right",
+      "startFrac": 0.3812,
+      "endFrac": 0.5345,
+      "number": 3
+    },
+    {
+      "type": "corner",
+      "name": "T4",
+      "direction": "right",
+      "startFrac": 0.5345,
+      "endFrac": 0.6795,
+      "number": 4
+    },
+    {
+      "type": "corner",
+      "name": "T5",
+      "direction": "left",
+      "startFrac": 0.6795,
+      "endFrac": 0.8396,
+      "number": 5
+    },
+    {
+      "type": "straight",
+      "name": "",
+      "startFrac": 0.8396,
+      "endFrac": 1
+    }
+  ],
+  "games": {
+    "ac-evo": {
+      "segments": [
+        {
+          "type": "corner",
+          "name": "T1",
+          "direction": "left",
+          "startFrac": 0,
+          "endFrac": 0.2424,
+          "number": 1
+        },
+        {
+          "type": "corner",
+          "name": "T2",
+          "direction": "left",
+          "startFrac": 0.2424,
+          "endFrac": 0.3812,
+          "number": 2
+        },
+        {
+          "type": "corner",
+          "name": "T3",
+          "direction": "right",
+          "startFrac": 0.3812,
+          "endFrac": 0.5345,
+          "number": 3
+        },
+        {
+          "type": "corner",
+          "name": "T4",
+          "direction": "right",
+          "startFrac": 0.5345,
+          "endFrac": 0.6795,
+          "number": 4
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "left",
+          "startFrac": 0.6795,
+          "endFrac": 0.8396,
+          "number": 5
+        },
+        {
+          "type": "straight",
+          "name": "",
+          "startFrac": 0.8396,
+          "endFrac": 1
+        }
+      ],
+      "sectors": {
+        "s1End": 0.3333333333333333,
+        "s2End": 0.6666666666666666
+      }
+    }
+  }
+}

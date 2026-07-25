@@ -1,5 +1,5 @@
-import { F125SetupBrowser } from "@/components/f1/F125SetupBrowser";
 import { createFileRoute } from "@tanstack/react-router";
+import { F125SetupBrowser } from "@/components/f1/F125SetupBrowser";
 
 function F125SetupsPage() {
   return (

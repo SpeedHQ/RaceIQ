@@ -35,3 +35,16 @@ export function buildGoogleThinkingProviderOptions(modelId: string, thinkingBudg
     thinkingConfig: { thinkingBudget, includeThoughts: DEFAULT_THINKING_CONFIG.includeThoughts },
   };
 }
+
+// Setup Engineer tune chat variant: always ask Gemini for thought summaries
+// (includeThoughts) so the chat can stream a live "thinking" block. Budget stays
+// user-controlled (null → Gemini's own dynamic default). Kept separate from
+// buildGoogleThinkingProviderOptions on purpose — flipping thoughts on here must
+// not light up reasoning in the main chat panel / lap analysis, which share the
+// includeThoughts:false DEFAULT_THINKING_CONFIG.
+export function buildGoogleReasoningProviderOptions(modelId: string, thinkingBudget: number | null = null) {
+  if (!supportsGoogleThinkingBudget(modelId)) return {};
+  const thinkingConfig: { includeThoughts: true; thinkingBudget?: number } = { includeThoughts: true };
+  if (thinkingBudget != null && thinkingBudget > 0) thinkingConfig.thinkingBudget = thinkingBudget;
+  return { thinkingConfig };
+}

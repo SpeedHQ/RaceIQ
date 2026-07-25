@@ -1,8 +1,8 @@
-import { useEffect, useRef } from "react";
-import { m } from "@/paraglide/messages";
-import { formatLapTime } from "@/lib/format";
-import { getSoundEnabled, getSoundVolume, getSoundType, getSoundUrl } from "./Settings";
 import type { LiveSectorData } from "@shared/types";
+import { useEffect, useRef } from "react";
+import { formatLapTime } from "@/lib/format";
+import { m } from "@/paraglide/messages";
+import { getSoundEnabled, getSoundType, getSoundUrl, getSoundVolume } from "./Settings";
 
 /** Shared AudioContext — reused across all blips to avoid browser throttling. */
 let sharedAudioCtx: AudioContext | null = null;

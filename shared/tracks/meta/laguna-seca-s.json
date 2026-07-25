@@ -15,9 +15,7 @@
           "direction": "left",
           "startFrac": 0.0973,
           "endFrac": 0.1908,
-          "numbers": [
-            1
-          ]
+          "number": 1
         },
         {
           "type": "straight",
@@ -31,9 +29,7 @@
           "direction": "left",
           "startFrac": 0.2439,
           "endFrac": 0.3754,
-          "numbers": [
-            2
-          ]
+          "number": 2
         },
         {
           "type": "corner",
@@ -41,9 +37,7 @@
           "direction": "left",
           "startFrac": 0.3754,
           "endFrac": 0.4614,
-          "numbers": [
-            3
-          ]
+          "number": 3
         },
         {
           "type": "straight",
@@ -54,12 +48,20 @@
         {
           "type": "corner",
           "name": "Corkscrew",
+          "direction": "left",
           "startFrac": 0.5508,
+          "endFrac": 0.6139,
+          "number": 4,
+          "group": "Corkscrew"
+        },
+        {
+          "type": "corner",
+          "name": "T5",
+          "direction": "right",
+          "startFrac": 0.6139,
           "endFrac": 0.6659,
-          "numbers": [
-            4,
-            5
-          ]
+          "number": 5,
+          "group": "Corkscrew"
         },
         {
           "type": "corner",
@@ -67,9 +69,7 @@
           "direction": "left",
           "startFrac": 0.6659,
           "endFrac": 0.7451,
-          "numbers": [
-            6
-          ]
+          "number": 6
         },
         {
           "type": "corner",
@@ -77,9 +77,7 @@
           "direction": "right",
           "startFrac": 0.7451,
           "endFrac": 0.8395,
-          "numbers": [
-            7
-          ]
+          "number": 7
         },
         {
           "type": "corner",
@@ -87,9 +85,7 @@
           "direction": "left",
           "startFrac": 0.8395,
           "endFrac": 0.9189,
-          "numbers": [
-            8
-          ]
+          "number": 8
         },
         {
           "type": "straight",
@@ -113,9 +109,7 @@
       "direction": "left",
       "startFrac": 0.0973,
       "endFrac": 0.1908,
-      "numbers": [
-        1
-      ]
+      "number": 1
     },
     {
       "type": "straight",
@@ -129,9 +123,7 @@
       "direction": "left",
       "startFrac": 0.2439,
       "endFrac": 0.3754,
-      "numbers": [
-        2
-      ]
+      "number": 2
     },
     {
       "type": "corner",
@@ -139,9 +131,7 @@
       "direction": "left",
       "startFrac": 0.3754,
       "endFrac": 0.4614,
-      "numbers": [
-        3
-      ]
+      "number": 3
     },
     {
       "type": "straight",
@@ -152,12 +142,20 @@
     {
       "type": "corner",
       "name": "Corkscrew",
+      "direction": "left",
       "startFrac": 0.5508,
+      "endFrac": 0.6139,
+      "number": 4,
+      "group": "Corkscrew"
+    },
+    {
+      "type": "corner",
+      "name": "T5",
+      "direction": "right",
+      "startFrac": 0.6139,
       "endFrac": 0.6659,
-      "numbers": [
-        4,
-        5
-      ]
+      "number": 5,
+      "group": "Corkscrew"
     },
     {
       "type": "corner",
@@ -165,9 +163,7 @@
       "direction": "left",
       "startFrac": 0.6659,
       "endFrac": 0.7451,
-      "numbers": [
-        6
-      ]
+      "number": 6
     },
     {
       "type": "corner",
@@ -175,9 +171,7 @@
       "direction": "right",
       "startFrac": 0.7451,
       "endFrac": 0.8395,
-      "numbers": [
-        7
-      ]
+      "number": 7
     },
     {
       "type": "corner",
@@ -185,9 +179,7 @@
       "direction": "left",
       "startFrac": 0.8395,
       "endFrac": 0.9189,
-      "numbers": [
-        8
-      ]
+      "number": 8
     },
     {
       "type": "straight",

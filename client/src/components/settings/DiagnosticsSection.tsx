@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { client } from "@/lib/rpc";
-import { detectBrowser } from "@/lib/browser-detect";
 import { Button } from "@/components/ui/button";
+import { detectBrowser } from "@/lib/browser-detect";
+import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 
 export function DiagnosticsSection() {
@@ -49,9 +49,7 @@ export function DiagnosticsSection() {
     <section className="space-y-6">
       <div>
         <h2 className="text-sm font-semibold text-app-text mb-1">{m.label_diagnostics()}</h2>
-        <p className="text-xs text-app-text-muted mb-4">
-          {m.diag_desc()}
-        </p>
+        <p className="text-xs text-app-text-muted mb-4">{m.diag_desc()}</p>
       </div>
 
       <div className="space-y-3">

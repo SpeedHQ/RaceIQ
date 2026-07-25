@@ -1,4 +1,4 @@
-import { parseDumpV2 } from "../test/helpers/parse-dump-v2";
+import { parseDump as parseDumpV2 } from "../test/helpers/parse-dump";
 import { assessLapRecording } from "../server/lap-quality";
 
 const { laps } = await parseDumpV2("fm-2023", "test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin");

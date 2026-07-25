@@ -1,14 +1,12 @@
-import type { RefObject } from "react";
-import { m } from "../../paraglide/messages";
 import type { TelemetryPacket } from "@shared/types";
+import type { RefObject } from "react";
 import type { DisplayPacket } from "../../lib/convert-packet";
-import { Compass } from "../Compass";
-import { WeatherWidget } from "./WeatherWidget";
-import { AnalyseTrackMap, type TrackMapHandle, type Point } from "./AnalyseTrackMap";
-import { AnalyseSegmentList } from "./AnalyseSegmentList";
-import { AnalyseSteeringOverlay } from "./AnalyseSteeringOverlay";
-import { AnalyseVizPanel } from "./AnalyseVizPanel";
+import { m } from "../../paraglide/messages";
 import type { AnalysisHighlight } from "../AiPanel";
+import { AnalyseSegmentList } from "./AnalyseSegmentList";
+import type { Point, TrackMapHandle } from "./AnalyseTrackMap";
+import { AnalyseTrackPanel } from "./AnalyseTrackPanel";
+import { AnalyseVizPanel } from "./AnalyseVizPanel";
 
 interface AnalyseTopSectionProps {
   // Layout
@@ -125,75 +123,26 @@ export function AnalyseTopSection({
       />
 
       {/* Track map */}
-      <div
-        className="border-r border-app-border bg-app-bg p-2 relative flex-1 min-w-0"
-        style={{ height: "100%" }}
-        onWheel={(e) => {
-          if (!rotateWithCar) return;
-          e.preventDefault();
-          onMapZoomChange((z) => Math.max(0.5, Math.min(4, z - e.deltaY * 0.001)));
-        }}
-      >
-        <AnalyseTrackMap
-          ref={trackMapRef}
+      <div className="border-r border-app-border flex-1 min-w-0" style={{ height: "100%" }}>
+        <AnalyseTrackPanel
           telemetry={telemetry}
           cursorIdx={cursorIdx}
           outline={outline}
           boundaries={boundaries}
-          sectors={trackOverlay === "sectors" ? sectors : null}
-          segments={trackOverlay === "segments" ? segments : null}
-          highlights={aiPanelOpen ? aiHighlights : null}
-          showInputs={trackOverlay === "inputs"}
-          rotateWithCar={rotateWithCar}
-          zoom={mapZoom}
+          sectors={sectors}
+          segments={segments}
+          currentPacket={currentPacket}
           containerHeight={topHeight}
+          aiPanelOpen={aiPanelOpen}
+          aiHighlights={aiHighlights}
+          rotateWithCar={rotateWithCar}
+          trackOverlay={trackOverlay}
+          mapZoom={mapZoom}
+          onRotateWithCarToggle={onRotateWithCarToggle}
+          onTrackOverlayCycle={onTrackOverlayCycle}
+          onMapZoomChange={onMapZoomChange}
+          trackMapRef={trackMapRef}
         />
-        {/* Weather widget — bottom left (updates at cursor position) */}
-        {telemetry[cursorIdx]?.f1 && <WeatherWidget f1={telemetry[cursorIdx].f1!} />}
-
-        {/* View toggles — top left */}
-        <div className="absolute top-2 left-2 flex flex-wrap gap-1">
-          <button
-            onClick={onRotateWithCarToggle}
-            className={`px-2 py-1 text-[9px] uppercase tracking-wider font-semibold rounded border transition-colors ${
-              rotateWithCar ? "bg-cyan-900/50 border-cyan-700 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
-            }`}
-          >
-            {rotateWithCar ? m.overlay_follow() : m.overlay_fixed()}
-          </button>
-          <button
-            onClick={onTrackOverlayCycle}
-            className={`px-2 py-1 text-[9px] uppercase tracking-wider font-semibold rounded border transition-colors ${
-              trackOverlay !== "none" ? "bg-cyan-900/50 border-cyan-700 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
-            }`}
-          >
-            {trackOverlay === "none" ? m.overlay_overlay() : trackOverlay === "inputs" ? m.overlay_inputs() : trackOverlay === "segments" ? m.overlay_segments() : m.overlay_sectors()}
-          </button>
-        </div>
-
-        {/* Right side controls */}
-        <div className="absolute top-2 right-2 flex items-start gap-2">
-          {rotateWithCar && (
-            <div className="flex flex-col gap-1">
-              <button
-                onClick={() => onMapZoomChange((z) => Math.min(z + 0.25, 4))}
-                className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-              >
-                +
-              </button>
-              <button
-                onClick={() => onMapZoomChange((z) => Math.max(z - 0.25, 0.5))}
-                className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-              >
-                -
-              </button>
-            </div>
-          )}
-          {currentPacket && <Compass yaw={currentPacket.Yaw} />}
-        </div>
-
-        {/* Steering wheel + pedal bars — bottom right */}
-        {currentPacket && <AnalyseSteeringOverlay packet={currentPacket} />}
       </div>
 
       {/* Right resize handle */}

@@ -11,18 +11,21 @@ import { getChatMemory } from "../../server/ai/chat-agent";
 import { getMastraModelId } from "../model";
 import { loadSettings } from "../../server/settings";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
+import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
+import { getCornerMetricsTool } from "../tools/corner-metrics";
+import { TRACK_GUIDE_PROMPT } from "../../shared/prompt-snippets";
 
 export const compareChatAgent = new Agent({
   id: "compare-chat",
   name: "Compare Chat",
   instructions: () => {
     const s = loadSettings();
-    return compareEngineerPersona(s.unit, s.temperatureUnit, s.language);
+    return compareEngineerPersona(s.unit, s.temperatureUnit, s.language) + TRACK_GUIDE_PROMPT;
   },
   model: () => {
     const s = loadSettings();
     return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
   },
-  tools: { getTrackGuideTool, listTrackGuidesTool },
+  tools: { getTrackGuideTool, listTrackGuidesTool, compareF1SetupToCatalogTool, getCornerMetricsTool },
   memory: getChatMemory(),
 });

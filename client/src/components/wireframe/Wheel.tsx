@@ -1,8 +1,8 @@
-import { useRef, useMemo } from "react";
-import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import { makeWheelGeometries } from "../../lib/wireframe-utils";
+import { useMemo, useRef } from "react";
+import * as THREE from "three";
 import { brakeTempColor, COLORS_HEX } from "../../lib/vehicle-dynamics";
+import { makeWheelGeometries } from "../../lib/wireframe-utils";
 import { WheelInfoCard } from "./WheelLabels";
 
 const useWheelGeometries = (radius = 0.34, width = 0.3) => useMemo(() => makeWheelGeometries(radius, width), [radius, width]);

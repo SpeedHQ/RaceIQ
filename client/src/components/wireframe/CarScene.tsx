@@ -1,22 +1,21 @@
-import { useRef, useState, useEffect, useMemo, Suspense } from "react";
+import { Grid, Line } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { Grid } from "@react-three/drei";
-import { Line } from "@react-three/drei";
-import * as THREE from "three";
 import type { GameId, TelemetryPacket } from "@shared/types";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import type * as THREE from "three";
 import type { CarModelEnrichment } from "../../data/car-models";
-import type { ViewToggles, ViewPreset } from "../../lib/wireframe-data";
-import { allWheelStates, tireState } from "../../lib/vehicle-dynamics";
 import { useTirePressureOptimal } from "../../hooks/queries";
+import { allWheelStates, tireState } from "../../lib/vehicle-dynamics";
+import type { ViewPreset, ViewToggles } from "../../lib/wireframe-data";
+import { AutoChaseCamera, CameraController } from "./CameraControllers";
 import { CarBody } from "./CarBody";
-import { Wheel } from "./Wheel";
+import { CurbMarkers } from "./CurbMarkers";
+import { DimensionLines } from "./DimensionLines";
+import { InputOverlay } from "./InputOverlay";
 import { SuspensionSpring } from "./SuspensionSpring";
 import { TireTrails } from "./TireTrails";
-import { InputOverlay } from "./InputOverlay";
-import { CurbMarkers } from "./CurbMarkers";
-import { TrackOutline, TrackBoundaryEdges } from "./TrackElements";
-import { DimensionLines } from "./DimensionLines";
-import { AutoChaseCamera, CameraController } from "./CameraControllers";
+import { TrackBoundaryEdges, TrackOutline } from "./TrackElements";
+import { Wheel } from "./Wheel";
 
 // Load-dot geometry: direction comes from the baseline-subtracted weighted
 // centroid (which corner is dominant), magnitude comes from the *max*
