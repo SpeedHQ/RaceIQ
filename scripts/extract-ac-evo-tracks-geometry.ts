@@ -20,6 +20,8 @@ import { resolve } from "path";
 import { findContentKspkg, Kspkg, type KspkgEntry } from "../server/games/ac-evo/kspkg";
 import { parseAiSpline, type AiSplinePoint } from "../server/games/ac-evo/aispline";
 import { autoTrackSegments } from "../shared/track-segment-generate";
+import { splitSegments } from "../shared/track-meta";
+import { loadTrackFacts, loadTrackGeometry, saveTrackFacts, saveTrackGeometry } from "../shared/track-data";
 import { SHARED_DIR } from "../shared/resolve-data";
 
 interface TrackRow {
@@ -72,7 +74,6 @@ const CRITICAL_EXPECTED_M: Record<string, number> = {
 
 const OUT_DIR = resolve(SHARED_DIR, "tracks", "ac-evo");
 const ACC_DIR = resolve(SHARED_DIR, "tracks", "acc");
-const META_DIR = resolve(SHARED_DIR, "tracks", "meta");
 
 function readTracksCsv(): TrackRow[] {
   const raw = readFileSync(resolve(SHARED_DIR, "games", "ac-evo", "tracks.csv"), "utf-8");
@@ -174,26 +175,47 @@ function writeBoundariesJson(slug: string, centerline: { x: number; z: number }[
   writeFileSync(resolve(OUT_DIR, `${slug}-boundaries.json`), JSON.stringify(data, null, 2));
 }
 
-/** Write shared/tracks/meta/<slug>.json only if it doesn't already exist. */
-function maybeWriteMeta(slug: string, name: string, centerline: { x: number; z: number }[]): "written" | "skipped-existing" | "skipped-no-corners" {
-  const metaPath = resolve(META_DIR, `${slug}.json`);
-  if (existsSync(metaPath)) return "skipped-existing";
+/**
+ * Seed a newly extracted layout's facts and this game's geometry, never
+ * clobbering either if it is already there.
+ *
+ * The two halves are seeded independently on purpose: a circuit ACC already
+ * curated has facts but no AC Evo geometry until AC Evo ships it, and that case
+ * should still get its fractions written rather than being skipped wholesale.
+ *
+ * `autoTrackSegments` emits `T<n>` tokens for corners it has no name for.
+ * `splitSegments` drops those — a generated token is a display convention, not
+ * a fact — so a seeded layout starts with unnamed corners waiting on curation.
+ */
+function maybeWriteMeta(
+  slug: string,
+  name: string,
+  centerline: { x: number; z: number }[],
+): "written" | "geometry-only" | "skipped-existing" | "skipped-no-corners" {
+  const existingFacts = loadTrackFacts(slug);
+  const existingGeometry = loadTrackGeometry(slug, "ac-evo");
+  if (existingFacts && existingGeometry) return "skipped-existing";
 
   const result = autoTrackSegments(centerline);
   if (result.segments.length === 0) return "skipped-no-corners";
+  const { corners, straights, geometry } = splitSegments(result.segments);
 
-  const meta = {
+  if (!existingGeometry) {
+    saveTrackGeometry(slug, "ac-evo", { sectors: { s1End: 1 / 3, s2End: 2 / 3 }, segments: geometry });
+  }
+  if (existingFacts) return "geometry-only";
+
+  // New content lands in tracks.csv as variant GP (the game's table carries no
+  // layout list), so the identity matches until an alt layout is added by hand.
+  saveTrackFacts(slug, {
+    slug,
+    track: slug,
+    layout: "gp",
+    layoutName: "Grand Prix",
     name,
-    sectors: { s1End: 1 / 3, s2End: 2 / 3 },
-    segments: result.segments,
-    games: {
-      "ac-evo": {
-        segments: result.segments,
-        sectors: { s1End: 1 / 3, s2End: 2 / 3 },
-      },
-    },
-  };
-  writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+    corners,
+    ...(straights.length ? { straights } : {}),
+  });
   return "written";
 }
 
