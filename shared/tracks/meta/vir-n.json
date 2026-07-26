@@ -4,6 +4,7 @@
   "layout": "north",
   "layoutName": "North",
   "name": "Virginia International Raceway",
+  "source": "derived from track geometry (layout variant, sequential numbering)",
   "corners": [
     {
       "number": 1,

@@ -4,6 +4,7 @@
   "layout": "full",
   "layoutName": "Full",
   "name": "Lime Rock Park",
+  "source": "Official circuit map corner names",
   "corners": [
     {
       "number": 1,

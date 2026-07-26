@@ -30,12 +30,9 @@
   <text x="88.2" y="291.7" text-anchor="start" class="name" fill="#111827">T5 Clearways</text>
   <line x1="487.5" y1="169.6" x2="478.3" y2="145.3" stroke="#d1d5db" stroke-width="1" />
   <text x="478.3" y="145.3" text-anchor="end" class="name" fill="#6b7280">Brabham Straight</text>
-  <circle cx="717.0" cy="513.2" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="728.0" y="505.2" class="sector">S1 0.370</text>
-  <circle cx="280.7" cy="350.5" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="291.7" y="342.5" class="sector">S2 0.660</text>
+
   <rect x="576.9" y="170.6" width="10" height="10" fill="#111827" />
   <text x="593.9" y="179.6" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Brands Hatch — Indy Circuit — fm-2023</text>
+  <text class="title" x="12" y="22">Brands Hatch — fm-2023</text>
   <text class="sub" x="12" y="40">5 corners, 2 straights, 7 segments, 1.925 km</text>
 </svg>

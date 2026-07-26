@@ -4,11 +4,16 @@
   "layout": "full",
   "layoutName": "Full",
   "name": "Virginia International Raceway",
+  "source": "Official circuit map (17 turns)",
   "corners": [
     {
       "number": 1,
       "name": "Horseshoe",
       "direction": "right"
+    },
+    {
+      "number": 2,
+      "name": ""
     },
     {
       "number": 3,

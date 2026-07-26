@@ -66,30 +66,50 @@ const KNOWN_CORNER_GAPS: Record<string, string[]> = {
   // acc and ac-evo fold Sheene (T7) into the Stirling's approach.
   "brands-hatch/acc": ["t7"],
   "brands-hatch/ac-evo": ["t7"],
-  // acc misses T6; f1 and fm miss T14. Both are real Catalunya turns.
-  "catalunya/acc": ["t6"],
-  "catalunya/f1-2025": ["t14"],
-  "catalunya/fm-2023": ["t14"],
+  // Every game folds part of the stadium complex (T13-T15); acc also misses T6.
+  "catalunya/acc": ["t13", "t15", "t6"],
+  "catalunya/f1-2025": ["t13", "t14", "t15"],
+  "catalunya/fm-2023": ["t13", "t14", "t15"],
   // Imola's full 19 turns were curated off the ac-evo centerline, but ac-evo's
   // own geometry still folds T1, T8, T10, T13 and T16 into their neighbours;
   // acc and f1-2025 fold T1, T10 and T16.
-  "imola/acc": ["t1", "t10", "t16"],
+  "imola/acc": ["t1", "t16", "t8"],
   "imola/ac-evo": ["t1", "t10", "t13", "t16", "t8"],
-  "imola/f1-2025": ["t1", "t10", "t16"],
+  "imola/f1-2025": ["t1", "t8"],
   // laguna-seca T1 and sebring T6/T12/T18 are real corners on ACC/FM that
   // ac-evo's centerline doesn't register at all (not merged into a
   // neighbour — genuinely absent).
   "laguna-seca/ac-evo": ["t1"],
   "sebring/ac-evo": ["t12", "t18", "t6"],
-  // fm subdivides the Nordschleife into 69 corners; acc and ac-evo stop at 60.
-  "nordschleife/acc": ["t61", "t62", "t63", "t64", "t65", "t66", "t67", "t68", "t69"],
-  "nordschleife/ac-evo": ["t61", "t62", "t63", "t64", "t65", "t66", "t67", "t68", "t69"],
   // acc folds Aintree (T5) into the Wellington Straight exit.
   "silverstone/acc": ["t5"],
   // ac-evo folds Blanchimont (T16) into the Bus Stop approach.
   "spa/ac-evo": ["t16"],
   // acc folds Hans Ernst Bocht (T13) into T12.
   "zandvoort/acc": ["t13"],
+  // Committed-geometry gaps inherited from the pre-meta migration: one game's
+  // detector fused a corner pair its layout names separately. Same class as the
+  // above (a hole in that game's own segmentation, not a layout disagreement) —
+  // they were simply never enumerated, because the unknown-key assertion above
+  // aborted this test on nordschleife before it reached the tail of the roster.
+  "baku/f1-2025": ["t13", "t14"],
+  "donington/acc": ["t6"],
+  "donington/ac-evo": ["t6"],
+  "hockenheim/fm-2023": ["t11", "t4", "t5"],
+  "jeddah/f1-2025": ["t19", "t25"],
+  "las-vegas/f1-2025": ["t11"],
+  "lusail/f1-2025": ["t11"],
+  "mid-ohio/fm-2023": ["t3"],
+  "monaco/f1-2025": ["t17"],
+  "montreal/f1-2025": ["t11"],
+  "road-america/fm-2023": ["t2", "t4"],
+  "road-atlanta/ac-evo": ["t8"],
+  "sakhir/f1-2025": ["t15"],
+  "shanghai/f1-2025": ["t15"],
+  "spielberg/acc": ["t2", "t8"],
+  "spielberg/ac-evo": ["t2", "t8"],
+  "spielberg/f1-2025": ["t2", "t8"],
+  "vir/fm-2023": ["t2"],
 };
 
 /**
@@ -103,12 +123,7 @@ const KNOWN_CORNER_GAPS: Record<string, string[]> = {
  *
  * Shrink-only, same contract as KNOWN_CORNER_GAPS.
  */
-const KNOWN_STRAIGHT_GAPS: Record<string, string[]> = {
-  // fm runs T13 into T14; acc and f1-2025 both place Hangar Straight.
-  "silverstone/fm-2023": ["s13"],
-  // fm runs T58 into T59; acc and ac-evo both place Döttinger Höhe.
-  "nordschleife/fm-2023": ["s58"],
-};
+const KNOWN_STRAIGHT_GAPS: Record<string, string[]> = {};
 
 describe("join keys", () => {
   test("corner key is the turn numbers, sorted", () => {

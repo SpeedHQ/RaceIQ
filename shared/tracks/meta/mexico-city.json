@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Autodromo Hermanos Rodriguez",
+  "source": "Official F1 track map (17 turns); Foro Sol stadium section",
   "corners": [
     {
       "number": 1,

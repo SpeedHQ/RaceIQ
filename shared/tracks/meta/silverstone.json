@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Silverstone Racing Circuit",
+  "source": "Official Silverstone GP circuit map (Arena layout, 18 turns)",
   "corners": [
     {
       "number": 1,
@@ -102,10 +103,6 @@
     {
       "after": 4,
       "name": "Wellington Straight"
-    },
-    {
-      "after": 13,
-      "name": "Hangar Straight"
     },
     {
       "after": 14,

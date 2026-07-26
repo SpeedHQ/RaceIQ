@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Jeddah Corniche Circuit",
+  "source": "Official F1 track map (6.174 km street circuit, turns unnamed); directions verified against F1 2025 centerline geometry",
   "corners": [
     {
       "number": 1,
@@ -92,6 +93,11 @@
       "direction": "left"
     },
     {
+      "number": 19,
+      "name": "",
+      "direction": "left"
+    },
+    {
       "number": 20,
       "name": "",
       "direction": "right"
@@ -113,6 +119,11 @@
     },
     {
       "number": 24,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 25,
       "name": "",
       "direction": "right"
     },

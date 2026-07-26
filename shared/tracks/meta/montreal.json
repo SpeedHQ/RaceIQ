@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Circuit Gilles Villeneuve",
+  "source": "Official F1 track map (4.361 km); directions verified against F1 2025 centerline geometry",
   "corners": [
     {
       "number": 1,
@@ -54,6 +55,10 @@
       "number": 10,
       "name": "L'Épingle",
       "direction": "right"
+    },
+    {
+      "number": 11,
+      "name": ""
     },
     {
       "number": 12,

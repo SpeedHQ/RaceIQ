@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Snetterton Circuit",
+  "source": "Official circuit map (12 turns)",
   "corners": [
     {
       "number": 1,

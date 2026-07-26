@@ -54,10 +54,7 @@
   <text x="355.6" y="336.1" text-anchor="end" class="name" fill="#111827">T11</text>
   <line x1="375.1" y1="254.6" x2="360.6" y2="233.1" stroke="#d1d5db" stroke-width="1" />
   <text x="360.6" y="233.1" text-anchor="end" class="name" fill="#6b7280">St5 239m</text>
-  <circle cx="628.8" cy="416.2" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="639.8" y="408.2" class="sector">S1 0.301</text>
-  <circle cx="450.6" cy="500.3" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="461.6" y="492.3" class="sector">S2 0.765</text>
+
   <rect x="374.0" y="205.2" width="10" height="10" fill="#111827" />
   <text x="391.0" y="214.2" class="sub">S/F</text>
   <text class="title" x="12" y="22">Watkins Glen International — ac-evo</text>

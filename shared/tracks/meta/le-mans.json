@@ -4,6 +4,7 @@
   "layout": "full",
   "layoutName": "Full",
   "name": "Circuit de la Sarthe",
+  "source": "Official landmark names, sequential numbering of detected corners",
   "corners": [
     {
       "number": 1,

@@ -4,6 +4,7 @@
   "layout": "full",
   "layoutName": "Full",
   "name": "Mugello Circuit",
+  "source": "Official circuit map (15 turns)",
   "corners": [
     {
       "number": 1,

@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Circuit Zandvoort",
+  "source": "Official Circuit Zandvoort map (14-turn GP layout)",
   "corners": [
     {
       "number": 1,

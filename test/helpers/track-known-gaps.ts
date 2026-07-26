@@ -14,13 +14,19 @@
  * align cleanly on ACC/F1/FM, so the defect is ac-evo centerline quality —
  * regrouping the names to suit ac-evo would break the other games.
  *
- * Empty for now — laguna-seca/road-atlanta/sebring were fixed by declaring
- * their genuine per-corner ac-evo gaps in KNOWN_TURN_GAPS below (T1, T6/T12/T18)
- * and grouping the corners ac-evo's centerline fuses that the others split
- * (see shared/tracks/corner-names/road-atlanta.json, sebring.json). Kept as an
- * exported Set so a track that genuinely can't align at all has somewhere to go.
+ * laguna-seca/road-atlanta/sebring were fixed by declaring their genuine
+ * per-corner ac-evo gaps in KNOWN_TURN_GAPS below (T1, T6/T12/T18) and grouping
+ * the corners ac-evo's centerline fuses that the others split (see the `group`
+ * fields in shared/tracks/meta/road-atlanta.json, sebring.json).
+ *
+ * watkins-glen/fm-2023 is the inverse: Forza's centerline over-detects (14
+ * regions for 10 named corners, 9 units) because the Esses complex is digitised
+ * as separate kinks there. Segment generation is a *fallback* for tracks with no
+ * curated geometry, so a mis-detect on a track that already ships curated
+ * geometry costs nothing — not worth re-curating the shared name list around one
+ * game's centerline.
  */
-export const KNOWN_ALIGNMENT_GAPS = new Set<string>([]);
+export const KNOWN_ALIGNMENT_GAPS = new Set<string>(["watkins-glen/fm-2023"]);
 
 /**
  * `slug/gameId` pairs that align, but too loosely to persist (cost >= 1), so the
@@ -34,10 +40,19 @@ export const KNOWN_ALIGNMENT_GAPS = new Set<string>([]);
  * cannot place itself on it. Forza's committed geometry came from Forza's own
  * legacy segmentation and is correct; only regeneration can't reproduce it.
  *
- * TODO(follow-up PR): reconcile shared/tracks/corner-names/nordschleife.json to
- * the 69-corner segmentation and delete this.
+ * TODO(follow-up PR): reconcile shared/tracks/meta/nordschleife.json to the
+ * 69-corner segmentation and delete this.
+ *
+ * `watkins-glen/acc` is the issue #98 class: ACC's centerline is still the
+ * racing line, which segments the Esses into 16 regions against the shared
+ * list's 10 corners. Committed geometry came from the migration and is correct;
+ * regeneration only aligns loosely. Drops out when the true-centre migration
+ * reaches this track.
  */
-export const KNOWN_FUZZY_ALIGNMENTS = new Set(["nordschleife/fm-2023"]);
+export const KNOWN_FUZZY_ALIGNMENTS = new Set([
+  "nordschleife/fm-2023",
+  "watkins-glen/acc",
+]);
 
 /**
  * `<slug> T<number> <gameId>` — an *optional* corner that some games' centerlines
@@ -68,9 +83,16 @@ export const KNOWN_TURN_GAPS = new Set([
   "catalunya T6 acc",
   "catalunya T14 f1-2025",
   "catalunya T14 fm-2023",
-  "imola T8 ac-evo",
+  // Imola's unnamed kinks (T10/T13/T16) are the same detector class: each
+  // game's centerline finds some and fuses others, so which of them lands unmatched
+  // shifts with the matcher, not with the track. All are declared rather than
+  // chased — the fallback generator gains nothing from picking a winner here.
+  "imola T10 ac-evo",
   "imola T13 ac-evo",
+  "imola T16 acc",
+  "imola T16 ac-evo",
   "laguna-seca T1 ac-evo",
+  "road-atlanta T8 ac-evo",
   "sebring T6 ac-evo",
   "sebring T12 ac-evo",
   "sebring T18 ac-evo",

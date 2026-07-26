@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Circuit de Monaco",
+  "source": "Official F1 track map / ACM circuit guide (3.337 km); directions verified against F1 2025 centerline geometry",
   "corners": [
     {
       "number": 1,
@@ -90,6 +91,11 @@
       "number": 16,
       "name": "",
       "direction": "left"
+    },
+    {
+      "number": 17,
+      "name": "",
+      "direction": "right"
     },
     {
       "number": 18,

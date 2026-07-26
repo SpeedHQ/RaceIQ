@@ -4,6 +4,7 @@
   "layout": "full",
   "layoutName": "Full",
   "name": "Circuit de Spa-Francorchamps",
+  "source": "Official circuit map / FIA F1 track guide (7.004 km GP layout)",
   "corners": [
     {
       "number": 1,

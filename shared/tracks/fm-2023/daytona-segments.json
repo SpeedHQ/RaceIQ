@@ -58,26 +58,26 @@
     {
       "key": "t8",
       "startFrac": 0.6386,
-      "endFrac": 0.6745
+      "endFrac": 0.6751
     },
     {
       "key": "t9",
-      "startFrac": 0.6745,
-      "endFrac": 0.6841
-    },
-    {
-      "key": "t10",
-      "startFrac": 0.6841,
+      "startFrac": 0.6751,
       "endFrac": 0.6953
     },
     {
-      "key": "t11",
+      "key": "t10",
       "startFrac": 0.6953,
-      "endFrac": 0.7175
+      "endFrac": 0.7272
+    },
+    {
+      "key": "t11",
+      "startFrac": 0.7272,
+      "endFrac": 0.8818
     },
     {
       "key": "s11",
-      "startFrac": 0.7175,
+      "startFrac": 0.8818,
       "endFrac": 1
     }
   ]

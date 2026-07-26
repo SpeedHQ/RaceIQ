@@ -4,6 +4,7 @@
   "layout": "full",
   "layoutName": "Full",
   "name": "Mid-Ohio Sports Car Course",
+  "source": "Official circuit map (13 turns); Keyhole T2",
   "corners": [
     {
       "number": 1,
@@ -14,6 +15,10 @@
       "number": 2,
       "name": "The Keyhole",
       "direction": "right"
+    },
+    {
+      "number": 3,
+      "name": ""
     },
     {
       "number": 4,

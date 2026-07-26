@@ -1,6 +1,6 @@
 /**
  * Core of the track segment generator: turns extracted game centerlines +
- * curated corner-name lists into a track's shared facts plus one geometry file
+ * curated track facts into a track's shared facts plus one geometry file
  * per game. Used by scripts/generate-track-segments.ts (CLI) and by tests, so
  * the exact code path that produces committed meta is what the test suite
  * exercises.
@@ -11,10 +11,8 @@ import { resolve, basename } from "path";
 import {
   alignSegments,
   detectCornerRegions,
-  resolveSectors,
-  validateNameList,
+  validateFacts,
   type AlignedCorner,
-  type CornerNameList,
 } from "./track-segment-align";
 import {
   loadTrackFacts,
@@ -31,11 +29,12 @@ import {
   type TrackFacts,
   type TrackGeometry,
 } from "./track-meta";
+import { loadDetectHints } from "./track-detect-hints";
 import type { NamedSegment } from "./track-named-segments";
 import { SHARED_DIR } from "./resolve-data";
 import type { GameId } from "./types";
 
-export const CORNER_NAMES_DIR = resolve(SHARED_DIR, "tracks", "corner-names");
+export const TRACK_META_DIR = resolve(SHARED_DIR, "tracks", "meta");
 const GAME_DIRS: Record<GameId, string> = {
   "f1-2025": resolve(SHARED_DIR, "tracks", "f1-2025"),
   acc: resolve(SHARED_DIR, "tracks", "acc"),
@@ -43,19 +42,28 @@ const GAME_DIRS: Record<GameId, string> = {
   "ac-evo": resolve(SHARED_DIR, "tracks", "ac-evo"),
 };
 
-/** List every track slug that has a curated corner-name list. */
-export function listCuratedSlugs(): string[] {
-  if (!existsSync(CORNER_NAMES_DIR)) return [];
-  return readdirSync(CORNER_NAMES_DIR)
+/** List every track slug that has a meta file, curated or not. */
+export function listMetaSlugs(): string[] {
+  if (!existsSync(TRACK_META_DIR)) return [];
+  return readdirSync(TRACK_META_DIR)
     .filter((f) => f.endsWith(".json"))
     .map((f) => f.replace(/\.json$/, ""))
     .sort();
 }
 
-export function loadCornerNameList(slug: string): CornerNameList | null {
-  const p = resolve(CORNER_NAMES_DIR, `${slug}.json`);
-  if (!existsSync(p)) return null;
-  return JSON.parse(readFileSync(p, "utf-8"));
+/**
+ * List every track slug carrying a hand-authored corner roster.
+ *
+ * The marker is a non-empty `corners` array. `source` — the circuit map / FIA
+ * track guide the roster was transcribed from — is asserted separately, so it
+ * must NOT gate this list: an uncited roster is a citation bug to surface, not a
+ * track to quietly stop testing.
+ */
+export function listCuratedSlugs(): string[] {
+  // A slug is curated because it HAS a hand-authored corner roster — not because
+  // that roster is cited. Gating on `source` silently drops uncited rosters out of
+  // every per-slug test and leaves the citation test asserting about itself.
+  return listMetaSlugs().filter((slug) => (loadTrackFacts(slug)?.corners.length ?? 0) > 0);
 }
 
 export function loadCenterline(filePath: string): { x: number; z: number }[] | null {
@@ -96,7 +104,6 @@ export interface GameAlignment {
   segments: NamedSegment[];
   /** Named corners with the official turn numbers each one covers. */
   corners: AlignedCorner[];
-  sectors: { s1End: number; s2End: number; source: string } | null;
   cost: number;
 }
 
@@ -120,18 +127,21 @@ export interface GenerationResult {
  */
 export function generateTrackSegments(
   slug: string,
-  nameList: CornerNameList,
+  facts: TrackFacts,
   gameFilter?: string,
 ): GenerationResult {
   const outcomes: TrackOutcome[] = [];
   const aligned: GameAlignment[] = [];
 
-  // The name list itself must account for every official turn number
-  const listIssues = validateNameList(nameList);
+  // Detector tolerances for this layout — not facts, so they load separately.
+  const hints = loadDetectHints(slug);
+
+  // The facts file itself must account for every official turn number
+  const listIssues = validateFacts(facts, hints);
   if (listIssues.length > 0) {
     outcomes.push({
       slug, gameId: "-", ok: false, cost: Infinity, wrote: false,
-      detail: `invalid name list: ${listIssues.map((i) => i.message).join("; ")}`,
+      detail: `invalid facts: ${listIssues.map((i) => i.message).join("; ")}`,
     });
     return { outcomes, aligned };
   }
@@ -153,7 +163,7 @@ export function generateTrackSegments(
       continue;
     }
     const detection = detectCornerRegions(outline);
-    const result = alignSegments(detection.corners, nameList, detection.totalDist);
+    const result = alignSegments(detection.corners, facts, detection.totalDist, hints);
 
     if (!result.ok) {
       outcomes.push({
@@ -163,20 +173,12 @@ export function generateTrackSegments(
       continue;
     }
 
-    let sectors: GameAlignment["sectors"] = null;
-    if (nameList.sectors) {
-      const resolved = resolveSectors(nameList.sectors, result.corners, detection.totalDist);
-      result.issues.push(...resolved.issues);
-      sectors = resolved.sectors;
-    }
-
     seenGames.add(gameId);
-    aligned.push({ gameId, file, segments: result.segments, corners: result.corners, sectors, cost: result.cost });
+    aligned.push({ gameId, file, segments: result.segments, corners: result.corners, cost: result.cost });
     const warnings = result.issues.filter((i) => i.severity === "warning").map((i) => i.message);
     outcomes.push({
       slug, gameId, ok: true, cost: result.cost, wrote: false,
       detail: `${result.segments.length} segments, ${result.corners.length} corners`
-        + (sectors ? `, sectors ${sectors.s1End}/${sectors.s2End} (${sectors.source})` : "")
         + (warnings.length ? ` — ${warnings.join("; ")}` : ""),
     });
   }
@@ -209,7 +211,6 @@ export function buildUpdatedMeta(
   slug: string,
   existingFacts: TrackFacts | null,
   existingGeometry: Record<string, TrackGeometry>,
-  nameList: CornerNameList,
   writable: GameAlignment[],
 ): GeneratedMeta {
   const corners = new Map<string, CornerFact>();
@@ -223,8 +224,9 @@ export function buildUpdatedMeta(
 
   for (const a of writable) {
     const split = splitSegments(a.segments);
-    const committedSectors = existingGeometry[a.gameId]?.sectors;
-    const sectors = a.sectors && !hasCuratedSectors(committedSectors) ? a.sectors : committedSectors;
+    // Sectors are curated per game and live only in geometry — regeneration
+    // rewrites segments and must carry them through untouched.
+    const sectors = existingGeometry[a.gameId]?.sectors;
     geometry[a.gameId] = { ...(sectors ? { sectors } : {}), segments: split.geometry };
     for (const c of split.corners) {
       const key = cornerKey(cornerNumbers(c));
@@ -269,7 +271,10 @@ export function buildUpdatedMeta(
       track: existingFacts?.track ?? slug,
       layout: existingFacts?.layout ?? "full",
       layoutName: existingFacts?.layoutName ?? "Full",
-      name: existingFacts?.name || nameList.circuit,
+      name: existingFacts?.name ?? slug,
+      // Citation for the names below. Regeneration must never silently drop it —
+      // an uncited name is indistinguishable from an invented one.
+      ...(existingFacts?.source ? { source: existingFacts.source } : {}),
       corners: [...corners.values()].sort((a, b) => a.number - b.number),
       ...(named.length ? { straights: named } : {}),
     },
@@ -305,7 +310,7 @@ function hasCuratedSectors(s: { source?: string } | undefined): boolean {
 }
 
 /**
- * Auto-generate segments for a track with no curated name list: detected
+ * Auto-generate segments for a track with no curated facts: detected
  * corners become sequential T-number tokens through the same alignment path
  * (padding, merging) that curated tracks use.
  */
@@ -314,19 +319,18 @@ export function autoTrackSegments(outline: { x: number; z: number }[]): {
   cornerCount: number;
   totalDist: number;
 } {
-  // With no name list to say otherwise, a weak region is just a kink — only a
+  // With no curated facts to say otherwise, a weak region is just a kink — only a
   // curated corner name can promote one into a section.
   const raw = detectCornerRegions(outline);
   const detection = { corners: raw.corners.filter((c) => !c.weak), totalDist: raw.totalDist };
   if (detection.corners.length === 0) {
     return { segments: [], cornerCount: 0, totalDist: detection.totalDist };
   }
-  const syntheticList: CornerNameList = {
-    circuit: "auto",
-    turnCount: detection.corners.length,
+  const synthetic: TrackFacts = {
+    slug: "auto", track: "auto", layout: "full", layoutName: "Full", name: "auto",
     corners: detection.corners.map((c, i) => ({ number: i + 1, name: "", direction: c.direction })),
   };
-  const result = alignSegments(detection.corners, syntheticList, detection.totalDist);
+  const result = alignSegments(detection.corners, synthetic, detection.totalDist);
   return {
     segments: result.ok ? result.segments : [],
     cornerCount: detection.corners.length,
@@ -350,7 +354,7 @@ export function listAllCenterlines(): { gameId: GameId; slug: string; file: stri
 /** Persist writable alignments into the track's facts + geometry. Returns written gameIds. */
 export function writeTrackMeta(
   slug: string,
-  nameList: CornerNameList,
+  facts: TrackFacts,
   aligned: GameAlignment[],
   allowFuzzy = false,
 ): string[] {
@@ -361,8 +365,8 @@ export function writeTrackMeta(
     const geom = loadTrackGeometry(slug, a.gameId);
     if (geom) existingGeometry[a.gameId] = geom;
   }
-  const { facts, geometry } = buildUpdatedMeta(slug, loadTrackFacts(slug), existingGeometry, nameList, writable);
-  saveTrackFacts(slug, facts);
+  const { facts: updatedFacts, geometry } = buildUpdatedMeta(slug, facts, existingGeometry, writable);
+  saveTrackFacts(slug, updatedFacts);
   for (const [gameId, geom] of Object.entries(geometry)) saveTrackGeometry(slug, gameId, geom);
   return writable.map((a) => a.gameId);
 }

@@ -4,11 +4,17 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Red Bull Ring",
+  "source": "Official Red Bull Ring circuit map (post-2021 corner names)",
   "corners": [
     {
       "number": 1,
       "name": "Niki Lauda Kurve",
       "direction": "right"
+    },
+    {
+      "number": 2,
+      "name": "",
+      "direction": "left"
     },
     {
       "number": 3,
@@ -34,6 +40,11 @@
       "number": 7,
       "name": "",
       "direction": "right"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "left"
     },
     {
       "number": 9,

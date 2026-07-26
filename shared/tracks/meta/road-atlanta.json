@@ -4,6 +4,7 @@
   "layout": "full",
   "layoutName": "Full",
   "name": "Road Atlanta",
+  "source": "Official circuit map (12 turns); 10a/10b chicane",
   "corners": [
     {
       "number": 1,
@@ -13,21 +14,25 @@
     {
       "number": 2,
       "name": "The Esses",
+      "direction": "right",
       "group": "The Esses"
     },
     {
       "number": 3,
       "name": "",
+      "direction": "left",
       "group": "The Esses"
     },
     {
       "number": 4,
       "name": "",
+      "direction": "right",
       "group": "The Esses"
     },
     {
       "number": 5,
       "name": "",
+      "direction": "left",
       "group": "The Esses"
     },
     {

@@ -60,10 +60,7 @@
   <text x="372.3" y="739.5" text-anchor="end" class="name" fill="#111827">T11 Parabolica</text>
   <line x1="313.5" y1="644.0" x2="303.0" y2="667.8" stroke="#d1d5db" stroke-width="1" />
   <text x="303.0" y="667.8" text-anchor="end" class="name" fill="#6b7280">Start/Finish</text>
-  <circle cx="451.2" cy="124.6" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="462.2" y="116.6" class="sector">S1 0.306</text>
-  <circle cx="409.2" cy="449.0" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="420.2" y="441.0" class="sector">S2 0.736</text>
+
   <rect x="309.9" y="573.7" width="10" height="10" fill="#111827" />
   <text x="326.9" y="582.7" class="sub">S/F</text>
   <text class="title" x="12" y="22">Autodromo Nazionale Monza — f1-2025</text>

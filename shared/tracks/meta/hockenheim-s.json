@@ -4,6 +4,7 @@
   "layout": "national",
   "layoutName": "National",
   "name": "Hockenheimring",
+  "source": "derived from track geometry (layout variant, sequential numbering)",
   "corners": [
     {
       "number": 1,

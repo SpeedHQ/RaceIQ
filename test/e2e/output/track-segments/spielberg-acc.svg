@@ -48,10 +48,7 @@
   <text x="911.8" y="525.9" text-anchor="end" class="name" fill="#111827">T10 Red Bull Mobile</text>
   <line x1="765.2" y1="564.8" x2="786.8" y2="579.3" stroke="#d1d5db" stroke-width="1" />
   <text x="786.8" y="579.3" text-anchor="start" class="name" fill="#6b7280">St5 150m</text>
-  <circle cx="142.7" cy="227.5" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="153.7" y="219.5" class="sector">S1 0.294</text>
-  <circle cx="513.5" cy="389.7" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="524.5" y="381.7" class="sector">S2 0.749</text>
+
   <rect x="712.8" y="573.4" width="10" height="10" fill="#111827" />
   <text x="729.8" y="582.4" class="sub">S/F</text>
   <text class="title" x="12" y="22">Red Bull Ring — acc</text>

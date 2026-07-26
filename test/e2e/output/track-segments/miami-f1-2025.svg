@@ -72,10 +72,7 @@
   <text x="226.9" y="282.3" text-anchor="end" class="name" fill="#111827">T18</text>
   <line x1="358.6" y1="261.4" x2="340.4" y2="242.8" stroke="#d1d5db" stroke-width="1" />
   <text x="340.4" y="242.8" text-anchor="end" class="name" fill="#111827">T19</text>
-  <circle cx="124.5" cy="507.3" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="135.5" y="499.3" class="sector">S1 0.316</text>
-  <circle cx="853.0" cy="263.7" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="864.0" y="255.7" class="sector">S2 0.681</text>
+
   <rect x="418.4" y="280.8" width="10" height="10" fill="#111827" />
   <text x="435.4" y="289.8" class="sub">S/F</text>
   <text class="title" x="12" y="22">Miami International Autodrome — f1-2025</text>

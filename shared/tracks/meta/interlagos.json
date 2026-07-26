@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Autodromo Jose Carlos Pace",
+  "source": "Official F1 track map / FIA circuit guide (4.309 km GP layout); directions verified against F1 2025 centerline geometry",
   "corners": [
     {
       "number": 1,

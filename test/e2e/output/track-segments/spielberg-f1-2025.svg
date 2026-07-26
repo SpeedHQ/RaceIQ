@@ -48,10 +48,7 @@
   <text x="926.8" y="502.7" text-anchor="end" class="name" fill="#111827">T10 Red Bull Mobile</text>
   <line x1="790.4" y1="548.7" x2="813.0" y2="561.7" stroke="#d1d5db" stroke-width="1" />
   <text x="813.0" y="561.7" text-anchor="start" class="name" fill="#6b7280">St5 217m</text>
-  <circle cx="162.0" cy="232.3" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="173.0" y="224.3" class="sector">S1 0.290</text>
-  <circle cx="462.2" cy="425.5" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="473.2" y="417.5" class="sector">S2 0.729</text>
+
   <rect x="716.3" y="563.8" width="10" height="10" fill="#111827" />
   <text x="733.3" y="572.8" class="sub">S/F</text>
   <text class="title" x="12" y="22">Red Bull Ring — f1-2025</text>

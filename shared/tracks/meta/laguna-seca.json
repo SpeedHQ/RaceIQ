@@ -4,6 +4,7 @@
   "layout": "full",
   "layoutName": "Full",
   "name": "WeatherTech Raceway Laguna Seca",
+  "source": "Official circuit map (11 turns); Corkscrew T8",
   "corners": [
     {
       "number": 1,

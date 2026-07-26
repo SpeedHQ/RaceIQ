@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Miami International Autodrome",
+  "source": "Official F1 track guides (5.412 km, turns unnamed); directions verified against F1 2025 centerline geometry",
   "corners": [
     {
       "number": 1,

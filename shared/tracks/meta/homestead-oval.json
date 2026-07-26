@@ -4,6 +4,7 @@
   "layout": "speedway",
   "layoutName": "Speedway",
   "name": "Homestead-Miami Speedway",
+  "source": "derived from track geometry (no official corner names)",
   "corners": [
     {
       "number": 1,

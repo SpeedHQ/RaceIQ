@@ -66,12 +66,9 @@
   <text x="72.5" y="161.3" text-anchor="start" class="name" fill="#111827">T15–T17 Peraltada</text>
   <line x1="159.4" y1="112.5" x2="136.6" y2="100.1" stroke="#d1d5db" stroke-width="1" />
   <text x="136.6" y="100.1" text-anchor="end" class="name" fill="#6b7280">Start/Finish</text>
-  <circle cx="819.3" cy="457.0" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="830.3" y="449.0" class="sector">S1 0.401</text>
-  <circle cx="310.3" cy="290.1" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="321.3" y="282.1" class="sector">S2 0.808</text>
+
   <rect x="205.5" y="113.4" width="10" height="10" fill="#111827" />
   <text x="222.5" y="122.4" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Autódromo Hermanos Rodríguez — f1-2025</text>
+  <text class="title" x="12" y="22">Autodromo Hermanos Rodriguez — f1-2025</text>
   <text class="sub" x="12" y="40">15 corners, 4 straights, 19 segments, 4.520 km</text>
 </svg>

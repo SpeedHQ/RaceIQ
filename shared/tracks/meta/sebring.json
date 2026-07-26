@@ -4,6 +4,7 @@
   "layout": "full",
   "layoutName": "Full",
   "name": "Sebring International Raceway",
+  "source": "Sequential detected corners (official 17-turn numbering not reliably mapped); Sunset Bend named",
   "corners": [
     {
       "number": 1,

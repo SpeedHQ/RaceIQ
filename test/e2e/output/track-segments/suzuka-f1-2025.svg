@@ -72,12 +72,9 @@
   <text x="621.5" y="293.6" text-anchor="start" class="name" fill="#111827">T17</text>
   <line x1="670.0" y1="293.4" x2="693.4" y2="282.0" stroke="#d1d5db" stroke-width="1" />
   <text x="693.4" y="282.0" text-anchor="start" class="name" fill="#111827">T18</text>
-  <circle cx="521.1" cy="390.4" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="532.1" y="382.4" class="sector">S1 0.380</text>
-  <circle cx="351.9" cy="363.3" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="362.9" y="355.3" class="sector">S2 0.818</text>
+
   <rect x="715.1" y="330.7" width="10" height="10" fill="#111827" />
   <text x="732.1" y="339.7" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Suzuka International Racing Course — f1-2025</text>
+  <text class="title" x="12" y="22">Suzuka Circuit — f1-2025</text>
   <text class="sub" x="12" y="40">18 corners, 3 straights, 21 segments, 5.799 km</text>
 </svg>

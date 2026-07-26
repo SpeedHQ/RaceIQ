@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Hakone",
+  "source": "derived from track geometry (no official corner names)",
   "corners": [
     {
       "number": 1,

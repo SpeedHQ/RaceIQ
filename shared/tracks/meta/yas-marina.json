@@ -4,6 +4,7 @@
   "layout": "full",
   "layoutName": "Full",
   "name": "Yas Marina Circuit",
+  "source": "Official F1 track map (2021 layout, 16 turns)",
   "corners": [
     {
       "number": 1,

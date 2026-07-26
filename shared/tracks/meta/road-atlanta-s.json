@@ -4,6 +4,7 @@
   "layout": "club",
   "layoutName": "Club",
   "name": "Road Atlanta",
+  "source": "derived from track geometry (layout variant, sequential numbering)",
   "corners": [
     {
       "number": 1,

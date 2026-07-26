@@ -72,10 +72,7 @@
   <text x="176.0" y="373.7" text-anchor="end" class="name" fill="#111827">T19</text>
   <line x1="97.1" y1="431.4" x2="71.4" y2="435.6" stroke="#d1d5db" stroke-width="1" />
   <text x="71.4" y="435.6" text-anchor="end" class="name" fill="#111827">T20</text>
-  <circle cx="778.3" cy="313.6" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="789.3" y="305.6" class="sector">S1 0.387</text>
-  <circle cx="466.9" cy="261.1" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="477.9" y="253.1" class="sector">S2 0.654</text>
+
   <rect x="139.7" y="469.5" width="10" height="10" fill="#111827" />
   <text x="156.7" y="478.5" class="sub">S/F</text>
   <text class="title" x="12" y="22">Circuit of the Americas — ac-evo</text>

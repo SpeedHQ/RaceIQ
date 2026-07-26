@@ -28,17 +28,17 @@
   <line x1="881.1" y1="248.2" x2="906.1" y2="241.0" stroke="#d1d5db" stroke-width="1" />
   <text x="906.1" y="241.0" text-anchor="start" class="name" fill="#111827">T1</text>
   <line x1="786.4" y1="316.2" x2="812.0" y2="311.9" stroke="#d1d5db" stroke-width="1" />
-  <text x="812.0" y="311.9" text-anchor="start" class="name" fill="#111827">T2</text>
+  <text x="812.0" y="311.9" text-anchor="start" class="name" fill="#111827">T2 Würth</text>
   <line x1="750.2" y1="416.9" x2="776.0" y2="420.6" stroke="#d1d5db" stroke-width="1" />
   <text x="776.0" y="420.6" text-anchor="start" class="name" fill="#111827">T3</text>
   <line x1="647.7" y1="547.6" x2="667.3" y2="564.6" stroke="#d1d5db" stroke-width="1" />
-  <text x="667.3" y="564.6" text-anchor="start" class="name" fill="#111827">T4</text>
+  <text x="667.3" y="564.6" text-anchor="start" class="name" fill="#111827">T4 Campsa</text>
   <line x1="483.5" y1="527.4" x2="489.5" y2="552.7" stroke="#d1d5db" stroke-width="1" />
   <text x="489.5" y="552.7" text-anchor="start" class="name" fill="#111827">T5</text>
   <line x1="393.8" y1="433.7" x2="376.6" y2="453.2" stroke="#d1d5db" stroke-width="1" />
   <text x="376.6" y="453.2" text-anchor="end" class="name" fill="#111827">T6</text>
   <line x1="230.8" y1="338.3" x2="205.1" y2="334.1" stroke="#d1d5db" stroke-width="1" />
-  <text x="205.1" y="334.1" text-anchor="end" class="name" fill="#111827">T7</text>
+  <text x="205.1" y="334.1" text-anchor="end" class="name" fill="#111827">T7 La Caixa</text>
   <line x1="310.8" y1="512.9" x2="292.7" y2="531.5" stroke="#d1d5db" stroke-width="1" />
   <text x="292.7" y="531.5" text-anchor="end" class="name" fill="#111827">T8</text>
   <line x1="135.2" y1="506.5" x2="111.2" y2="516.7" stroke="#d1d5db" stroke-width="1" />
@@ -48,12 +48,12 @@
   <line x1="97.0" y1="371.3" x2="71.0" y2="371.2" stroke="#d1d5db" stroke-width="1" />
   <text x="71.0" y="371.2" text-anchor="end" class="name" fill="#111827">T11</text>
   <line x1="136.2" y1="255.0" x2="112.0" y2="245.7" stroke="#d1d5db" stroke-width="1" />
-  <text x="112.0" y="245.7" text-anchor="end" class="name" fill="#111827">T12</text>
+  <text x="112.0" y="245.7" text-anchor="start" class="name" fill="#111827">T12 New Holland</text>
   <line x1="344.9" y1="246.5" x2="328.6" y2="226.2" stroke="#d1d5db" stroke-width="1" />
   <text x="328.6" y="226.2" text-anchor="end" class="name" fill="#6b7280">St2 266m</text>
 
   <rect x="448.2" y="241.5" width="10" height="10" fill="#111827" />
   <text x="465.2" y="250.5" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Circuit de Barcelona-Catalunya — National — fm-2023</text>
+  <text class="title" x="12" y="22">Circuit de Barcelona-Catalunya — fm-2023</text>
   <text class="sub" x="12" y="40">12 corners, 2 straights, 14 segments, 3.019 km</text>
 </svg>

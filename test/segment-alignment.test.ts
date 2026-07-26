@@ -4,11 +4,13 @@ import { resolve } from "path";
 import {
   alignSegments,
   detectCornerRegions,
-  resolveSectors,
-  validateNameList,
+  validateFacts,
   type CornerRegion,
-  type CornerNameList,
 } from "../shared/track-segment-align";
+import type { TrackFacts } from "../shared/track-meta";
+
+/** Identity fields alignment never reads — every fixture shares them. */
+const FACTS = { slug: "test", track: "test", layout: "full", layoutName: "Full", name: "Test" };
 
 function region(startFrac: number, endFrac: number, direction: "left" | "right"): CornerRegion {
   return {
@@ -25,9 +27,8 @@ function region(startFrac: number, endFrac: number, direction: "left" | "right")
 describe("alignSegments", () => {
   test("exact 1:1 alignment names every corner", () => {
     const detected = [region(0.1, 0.15, "right"), region(0.4, 0.45, "left"), region(0.8, 0.85, "right")];
-    const list: CornerNameList = {
-      circuit: "Test",
-      turnCount: 99,
+    const list: TrackFacts = {
+      ...FACTS,
       corners: [
         { number: 1, name: "First", direction: "right" },
         { number: 2, name: "Second", direction: "left" },
@@ -46,9 +47,8 @@ describe("alignSegments", () => {
   test("a short unnamed gap joins the corners instead of becoming a straight", () => {
     // 7 km lap, corners ~60 m apart: a chute, not a straight.
     const detected = [region(0.1, 0.12, "right"), region(0.1286, 0.15, "left")];
-    const list: CornerNameList = {
-      circuit: "Test",
-      turnCount: 2,
+    const list: TrackFacts = {
+      ...FACTS,
       corners: [
         { number: 1, name: "First", direction: "right" },
         { number: 2, name: "Second", direction: "left" },
@@ -67,9 +67,8 @@ describe("alignSegments", () => {
     // Brands Hatch's Cooper Straight: a ~280 m gap, less than entry+exit padding
     // wants. Padding must reserve enough for the straight to survive rounding.
     const detected = [region(0.3964, 0.4597, "right"), region(0.6062, 0.6457, "right")];
-    const list: CornerNameList = {
-      circuit: "Test",
-      turnCount: 2,
+    const list: TrackFacts = {
+      ...FACTS,
       corners: [
         { number: 1, name: "Graham Hill Bend", direction: "right" },
         { number: 2, name: "Surtees", direction: "right" },
@@ -84,9 +83,8 @@ describe("alignSegments", () => {
   test("a curated straight survives even when short", () => {
     // Brands Hatch's Cooper Straight is real at ~55 m — a name outranks the length cutoff.
     const detected = [region(0.1, 0.12, "right"), region(0.1286, 0.15, "left")];
-    const list: CornerNameList = {
-      circuit: "Test",
-      turnCount: 2,
+    const list: TrackFacts = {
+      ...FACTS,
       corners: [
         { number: 1, name: "First", direction: "right" },
         { number: 2, name: "Second", direction: "left" },
@@ -102,9 +100,8 @@ describe("alignSegments", () => {
     // The line sits mid-straight, so the straight anchored after the last corner
     // continues past 0 as the lap's leading segment — same tarmac, same name.
     const detected = [region(0.1, 0.15, "right"), region(0.6, 0.65, "left")];
-    const list: CornerNameList = {
-      circuit: "Test",
-      turnCount: 2,
+    const list: TrackFacts = {
+      ...FACTS,
       corners: [
         { number: 1, name: "First", direction: "right" },
         { number: 2, name: "Last", direction: "left" },
@@ -130,9 +127,8 @@ describe("alignSegments", () => {
 
   test("an unnamed leading straight stays unnamed", () => {
     const detected = [region(0.1, 0.15, "right"), region(0.6, 0.65, "left")];
-    const list: CornerNameList = {
-      circuit: "Test",
-      turnCount: 2,
+    const list: TrackFacts = {
+      ...FACTS,
       corners: [
         { number: 1, name: "First", direction: "right" },
         { number: 2, name: "Last", direction: "left" },
@@ -147,9 +143,8 @@ describe("alignSegments", () => {
     // detector marks it weak. The name list says it's a corner, so it counts.
     const weak = { ...region(0.16, 0.17, "right"), turnRad: 0.15, weak: true };
     const detected = [region(0.1, 0.15, "left"), weak];
-    const list: CornerNameList = {
-      circuit: "Test",
-      turnCount: 2,
+    const list: TrackFacts = {
+      ...FACTS,
       corners: [
         { number: 1, name: "Eau Rouge", direction: "left", group: "Eau Rouge/Raidillon" },
         { number: 2, name: "Raidillon", direction: "right", group: "Eau Rouge/Raidillon" },
@@ -169,9 +164,8 @@ describe("alignSegments", () => {
   test("an unnamed weak bend stays part of the straight", () => {
     const weak = { ...region(0.4, 0.41, "right"), turnRad: 0.15, weak: true };
     const detected = [region(0.1, 0.15, "left"), weak, region(0.7, 0.75, "right")];
-    const list: CornerNameList = {
-      circuit: "Test",
-      turnCount: 2,
+    const list: TrackFacts = {
+      ...FACTS,
       corners: [
         { number: 1, name: "First", direction: "left" },
         { number: 2, name: "Second", direction: "right" },
@@ -186,9 +180,8 @@ describe("alignSegments", () => {
 
   test("direction mismatch is a hard failure", () => {
     const detected = [region(0.1, 0.15, "left"), region(0.4, 0.45, "left")];
-    const list: CornerNameList = {
-      circuit: "Test",
-      turnCount: 99,
+    const list: TrackFacts = {
+      ...FACTS,
       corners: [
         { number: 1, name: "First", direction: "right" },
         { number: 2, name: "Second", direction: "left" },
@@ -200,9 +193,8 @@ describe("alignSegments", () => {
 
   test("count mismatch without annotations is a hard failure", () => {
     const detected = [region(0.1, 0.15, "right"), region(0.2, 0.25, "left"), region(0.4, 0.45, "left")];
-    const list: CornerNameList = {
-      circuit: "Test",
-      turnCount: 99,
+    const list: TrackFacts = {
+      ...FACTS,
       corners: [{ number: 1, name: "Only", direction: "right" }],
     };
     expect(alignSegments(detected, list).ok).toBe(false);
@@ -210,9 +202,8 @@ describe("alignSegments", () => {
 
   test("grouped chicane keeps per-turn entries tagged with the group name", () => {
     const detected = [region(0.1, 0.16, "right"), region(0.5, 0.55, "left")];
-    const list: CornerNameList = {
-      circuit: "Test",
-      turnCount: 99,
+    const list: TrackFacts = {
+      ...FACTS,
       corners: [
         { number: 1, name: "In", direction: "right", group: "Chicane" },
         { number: 2, name: "Out", direction: "left", group: "Chicane" },
@@ -229,46 +220,10 @@ describe("alignSegments", () => {
     expect(res.corners[res.corners.length - 1].group).toBeUndefined();
   });
 
-  test("spans merges a double-apex corner split into two regions into one segment", () => {
-    const detected = [region(0.1, 0.14, "left"), region(0.15, 0.19, "left"), region(0.6, 0.65, "right")];
-    const list: CornerNameList = {
-      circuit: "Test",
-      turnCount: 99,
-      corners: [
-        { number: 1, name: "Double", direction: "left", spans: 2 },
-        { number: 2, name: "Simple", direction: "right" },
-      ],
-    };
-    const res = alignSegments(detected, list);
-    expect(res.ok).toBe(true);
-    expect(res.cost).toBeLessThan(1);
-    const doubles = res.corners.filter((c) => c.name === "Double");
-    expect(doubles).toHaveLength(1);
-    expect(doubles[0]).toMatchObject({ startFrac: 0.1, endFrac: 0.19 });
-  });
-
-  test("optional corner may be absent", () => {
-    const detected = [region(0.1, 0.15, "right"), region(0.6, 0.65, "left")];
-    const list: CornerNameList = {
-      circuit: "Test",
-      turnCount: 99,
-      corners: [
-        { number: 1, name: "First", direction: "right" },
-        { number: 2, name: "Shallow", direction: "right", optional: true },
-        { number: 3, name: "Last", direction: "left" },
-      ],
-    };
-    const res = alignSegments(detected, list);
-    expect(res.ok).toBe(true);
-    expect(res.corners.map((c) => c.name)).toEqual(["First", "Last"]);
-    expect(res.issues.some((i) => i.message.includes("Shallow"))).toBe(true);
-  });
-
   test("mirrored coordinate system is auto-detected and directions corrected", () => {
     const detected = [region(0.1, 0.15, "left"), region(0.4, 0.45, "right"), region(0.8, 0.85, "left")];
-    const list: CornerNameList = {
-      circuit: "Test",
-      turnCount: 99,
+    const list: TrackFacts = {
+      ...FACTS,
       corners: [
         { number: 1, name: "A", direction: "right" },
         { number: 2, name: "B", direction: "left" },
@@ -283,9 +238,8 @@ describe("alignSegments", () => {
 
   test("straight names anchor after their corner", () => {
     const detected = [region(0.1, 0.15, "right"), region(0.5, 0.55, "left")];
-    const list: CornerNameList = {
-      circuit: "Test",
-      turnCount: 99,
+    const list: TrackFacts = {
+      ...FACTS,
       corners: [
         { number: 1, name: "First", direction: "right" },
         { number: 2, name: "Second", direction: "left" },
@@ -298,11 +252,11 @@ describe("alignSegments", () => {
   });
 });
 
-describe("validateNameList", () => {
-  const base = { circuit: "Test", turnCount: 4 };
+describe("validateFacts", () => {
+  const base = FACTS;
 
   test("complete list passes", () => {
-    const issues = validateNameList({
+    const issues = validateFacts({
       ...base,
       corners: [
         { number: 1, name: "A" },
@@ -314,7 +268,7 @@ describe("validateNameList", () => {
   });
 
   test("missing turn number fails", () => {
-    const issues = validateNameList({
+    const issues = validateFacts({
       ...base,
       corners: [{ number: 1, name: "A" }, { number: 2, name: "B" }, { number: 4, name: "C" }],
     });
@@ -322,7 +276,7 @@ describe("validateNameList", () => {
   });
 
   test("duplicate turn number fails", () => {
-    const issues = validateNameList({
+    const issues = validateFacts({
       ...base,
       corners: [
         { number: 1, name: "A" },
@@ -334,7 +288,7 @@ describe("validateNameList", () => {
   });
 
   test("out-of-order numbering fails", () => {
-    const issues = validateNameList({
+    const issues = validateFacts({
       ...base,
       corners: [
         { number: 2, name: "B" },
@@ -344,49 +298,6 @@ describe("validateNameList", () => {
     });
     expect(issues.some((i) => i.message.includes("out of racing order"))).toBe(true);
   });
-
-  test("number beyond turnCount fails", () => {
-    const issues = validateNameList({
-      ...base,
-      corners: [
-        { number: 1, name: "A", covers: [2, 3] },
-        { number: 4, name: "B" },
-        { number: 5, name: "C" },
-      ],
-    });
-    expect(issues.some((i) => i.message.includes("outside 1..4"))).toBe(true);
-  });
-});
-
-describe("resolveSectors", () => {
-  const corners = [
-    { regionIndex: 0, number: 1, name: "A", direction: "right" as const, startFrac: 0.1, endFrac: 0.3 },
-    { regionIndex: 1, number: 2, name: "B", direction: "left" as const, startFrac: 0.6, endFrac: 0.7 },
-  ];
-
-  test("anchors resolve to corner exit plus offset", () => {
-    const { sectors } = resolveSectors(
-      { s1EndAfterCorner: 1, s1OffsetM: 500, s2EndAfterCorner: 2 },
-      corners,
-      5000,
-    );
-    expect(sectors).toEqual({ s1End: 0.4, s2End: 0.7, source: "corner-anchored" });
-  });
-
-  test("missing anchor falls back to explicit fraction", () => {
-    const { sectors, issues } = resolveSectors(
-      { s1EndAfterCorner: 99, s1End: 0.33, s2EndAfterCorner: 2 },
-      corners,
-      5000,
-    );
-    expect(sectors).toMatchObject({ s1End: 0.33, s2End: 0.7, source: "hand-researched" });
-    expect(issues.some((i) => i.severity === "warning")).toBe(true);
-  });
-
-  test("invalid ordering yields no sectors", () => {
-    const { sectors } = resolveSectors({ s1End: 0.8, s2End: 0.4 }, corners, 5000);
-    expect(sectors).toBeNull();
-  });
 });
 
 describe("real geometry: Spa (ACC centerline)", () => {
@@ -395,8 +306,8 @@ describe("real geometry: Spa (ACC centerline)", () => {
     const [x, z] = l.split(",").map(Number);
     return { x, z };
   });
-  const nameList: CornerNameList = JSON.parse(
-    readFileSync(resolve(import.meta.dir, "../shared/tracks/corner-names/spa.json"), "utf-8"),
+  const facts: TrackFacts = JSON.parse(
+    readFileSync(resolve(import.meta.dir, "../shared/tracks/meta/spa.json"), "utf-8"),
   );
 
   test("detects and names the full corner sequence", () => {
@@ -404,7 +315,7 @@ describe("real geometry: Spa (ACC centerline)", () => {
     expect(totalDist).toBeGreaterThan(6800);
     expect(totalDist).toBeLessThan(7100);
 
-    const res = alignSegments(corners, nameList);
+    const res = alignSegments(corners, facts);
     expect(res.ok).toBe(true);
     expect(res.cost).toBeLessThan(1);
 
@@ -422,15 +333,5 @@ describe("real geometry: Spa (ACC centerline)", () => {
     const kemmel = res.segments.find((s) => s.name === "Kemmel");
     expect(kemmel).toBeDefined();
     expect(kemmel!.type).toBe("straight");
-
-    // Sector anchors land near the known Spa boundaries
-    const { sectors } = resolveSectors(nameList.sectors!, res.corners, totalDist);
-    expect(sectors!.s1End).toBeGreaterThan(0.29);
-    expect(sectors!.s1End).toBeLessThan(0.36);
-    // S2/S3 splits at Stavelot's (T15) exit — ~0.785 on the true centre, where
-    // that corner now sits correctly (issue #98). The old ~0.77 was the racing
-    // line pulling Stavelot early.
-    expect(sectors!.s2End).toBeGreaterThan(0.69);
-    expect(sectors!.s2End).toBeLessThan(0.80);
   });
 });

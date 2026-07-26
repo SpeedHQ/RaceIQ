@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "GP",
   "name": "Nürburgring",
+  "source": "Landmark corner names, sequential numbering of detected corners",
   "corners": [
     {
       "number": 1,

@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Circuit Ricardo Tormo",
+  "source": "Sequential detected corners (flowing layout; official 14-turn numbering not reliably mapped)",
   "corners": [
     {
       "number": 1,

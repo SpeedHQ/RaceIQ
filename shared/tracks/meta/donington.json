@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Donington Park",
+  "source": "Official Donington Park GP circuit map — Wheatcroft Straight is the start/finish straight (the grid); Coppice leads onto Starkey's Straight, the circuit's fastest",
   "corners": [
     {
       "number": 1,
@@ -29,6 +30,11 @@
       "number": 5,
       "name": "Starkey's Bridge",
       "direction": "left"
+    },
+    {
+      "number": 6,
+      "name": "Schwantz Curve",
+      "direction": "right"
     },
     {
       "number": 7,

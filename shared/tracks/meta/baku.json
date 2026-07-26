@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Baku City Circuit",
+  "source": "Official F1 track map (6.003 km street circuit, turns mostly unnamed); directions verified against F1 2025 centerline geometry",
   "corners": [
     {
       "number": 1,
@@ -60,6 +61,16 @@
     },
     {
       "number": 12,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 13,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 14,
       "name": "",
       "direction": "left"
     },

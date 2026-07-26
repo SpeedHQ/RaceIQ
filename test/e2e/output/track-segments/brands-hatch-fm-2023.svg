@@ -54,10 +54,7 @@
   <text x="282.3" y="122.9" text-anchor="end" class="name" fill="#111827">T10 Clark Curve</text>
   <line x1="493.4" y1="79.0" x2="491.1" y2="53.1" stroke="#d1d5db" stroke-width="1" />
   <text x="491.1" y="53.1" text-anchor="end" class="name" fill="#6b7280">Brabham Straight</text>
-  <circle cx="441.9" cy="233.9" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="452.9" y="225.9" class="sector">S1 0.357</text>
-  <circle cx="400.6" cy="626.0" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="411.6" y="618.0" class="sector">S2 0.670</text>
+
   <rect x="537.3" y="77.1" width="10" height="10" fill="#111827" />
   <text x="554.3" y="86.1" class="sub">S/F</text>
   <text class="title" x="12" y="22">Brands Hatch — fm-2023</text>

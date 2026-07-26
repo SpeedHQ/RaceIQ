@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Oulton Park",
+  "source": "Official Oulton Park circuit map",
   "corners": [
     {
       "number": 1,

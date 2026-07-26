@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Kyalami Grand Prix Circuit",
+  "source": "Sequential detected corners (official 16-turn numbering not reliably mapped to geometry)",
   "corners": [
     {
       "number": 1,

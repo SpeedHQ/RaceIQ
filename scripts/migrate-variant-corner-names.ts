@@ -39,7 +39,7 @@ type Point = [number, number];
 /** Games that ship their own per-layout geometry, in preference order. */
 function candidateGames(): string[] {
   return readdirSync(TRACKS_DIR, { withFileTypes: true })
-    .filter((d) => d.isDirectory() && !["meta", "corner-names", "tumftm"].includes(d.name))
+    .filter((d) => d.isDirectory() && !["meta", "tumftm"].includes(d.name))
     .map((d) => d.name);
 }
 

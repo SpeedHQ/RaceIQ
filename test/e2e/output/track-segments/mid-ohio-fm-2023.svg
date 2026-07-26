@@ -54,10 +54,7 @@
   <text x="477.2" y="649.9" text-anchor="end" class="name" fill="#111827">T12</text>
   <line x1="514.5" y1="511.7" x2="510.3" y2="537.4" stroke="#d1d5db" stroke-width="1" />
   <text x="510.3" y="537.4" text-anchor="end" class="name" fill="#111827">T13</text>
-  <circle cx="731.2" cy="336.8" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="742.2" y="328.8" class="sector">S1 0.566</text>
-  <circle cx="812.5" cy="646.9" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="823.5" y="638.9" class="sector">S2 0.771</text>
+
   <rect x="514.5" y="443.4" width="10" height="10" fill="#111827" />
   <text x="531.5" y="452.4" class="sub">S/F</text>
   <text class="title" x="12" y="22">Mid-Ohio Sports Car Course — fm-2023</text>

@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Misano World Circuit Marco Simoncelli",
+  "source": "Official Misano circuit map",
   "corners": [
     {
       "number": 1,

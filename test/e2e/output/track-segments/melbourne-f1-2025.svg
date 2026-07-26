@@ -69,12 +69,9 @@
   <text x="584.1" y="705.7" text-anchor="start" class="name" fill="#111827">T14</text>
   <line x1="500.4" y1="610.7" x2="501.3" y2="636.7" stroke="#d1d5db" stroke-width="1" />
   <text x="501.3" y="636.7" text-anchor="start" class="name" fill="#6b7280">St6 338m</text>
-  <circle cx="395.9" cy="83.2" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="406.9" y="75.2" class="sector">S1 0.350</text>
-  <circle cx="755.0" cy="627.5" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="766.0" y="619.5" class="sector">S2 0.750</text>
+
   <rect x="452.3" y="564.2" width="10" height="10" fill="#111827" />
   <text x="469.3" y="573.2" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Albert Park Circuit — f1-2025</text>
+  <text class="title" x="12" y="22">Melbourne Grand Prix Circuit — f1-2025</text>
   <text class="sub" x="12" y="40">14 corners, 6 straights, 20 segments, 5.270 km</text>
 </svg>

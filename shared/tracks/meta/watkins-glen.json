@@ -4,6 +4,7 @@
   "layout": "full",
   "layoutName": "Full",
   "name": "Watkins Glen International",
+  "source": "Official circuit map (long course with Boot, 11 turns)",
   "corners": [
     {
       "number": 1,
@@ -22,7 +23,7 @@
         4
       ],
       "name": "",
-      "direction": "left",
+      "direction": "right",
       "group": "The Esses"
     },
     {

@@ -28,7 +28,7 @@
   <line x1="868.8" y1="412.8" x2="894.0" y2="419.2" stroke="#d1d5db" stroke-width="1" />
   <text x="894.0" y="419.2" text-anchor="start" class="name" fill="#6b7280">St1 129m</text>
   <line x1="850.6" y1="552.6" x2="871.5" y2="568.2" stroke="#d1d5db" stroke-width="1" />
-  <text x="871.5" y="568.2" text-anchor="start" class="name" fill="#111827">T1</text>
+  <text x="871.5" y="568.2" text-anchor="start" class="name" fill="#111827">T1 Nordkurve</text>
   <line x1="665.1" y1="651.0" x2="673.4" y2="675.6" stroke="#d1d5db" stroke-width="1" />
   <text x="673.4" y="675.6" text-anchor="start" class="name" fill="#6b7280">St2 322m</text>
   <line x1="450.0" y1="695.3" x2="442.6" y2="720.3" stroke="#d1d5db" stroke-width="1" />
@@ -48,18 +48,18 @@
   <line x1="669.7" y1="117.9" x2="681.7" y2="94.8" stroke="#d1d5db" stroke-width="1" />
   <text x="681.7" y="94.8" text-anchor="start" class="name" fill="#111827">T7</text>
   <line x1="722.2" y1="357.6" x2="747.9" y2="361.3" stroke="#d1d5db" stroke-width="1" />
-  <text x="747.9" y="361.3" text-anchor="start" class="name" fill="#111827">T8</text>
+  <text x="747.9" y="361.3" text-anchor="start" class="name" fill="#111827">T8 Sachskurve</text>
   <line x1="800.0" y1="281.4" x2="825.4" y2="275.8" stroke="#d1d5db" stroke-width="1" />
   <text x="825.4" y="275.8" text-anchor="start" class="name" fill="#111827">T9</text>
   <line x1="771.7" y1="212.7" x2="794.3" y2="199.9" stroke="#d1d5db" stroke-width="1" />
   <text x="794.3" y="199.9" text-anchor="start" class="name" fill="#111827">T10</text>
   <line x1="875.0" y1="123.7" x2="896.7" y2="109.3" stroke="#d1d5db" stroke-width="1" />
-  <text x="896.7" y="109.3" text-anchor="start" class="name" fill="#111827">T11</text>
+  <text x="896.7" y="109.3" text-anchor="start" class="name" fill="#111827">T11 Südkurve</text>
   <line x1="884.0" y1="311.4" x2="910.0" y2="309.6" stroke="#d1d5db" stroke-width="1" />
   <text x="910.0" y="309.6" text-anchor="start" class="name" fill="#6b7280">St5 122m</text>
 
   <rect x="871.6" y="355.5" width="10" height="10" fill="#111827" />
   <text x="888.6" y="364.5" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Hockenheimring — Short — fm-2023</text>
+  <text class="title" x="12" y="22">Hockenheimring — fm-2023</text>
   <text class="sub" x="12" y="40">11 corners, 5 straights, 16 segments, 3.708 km</text>
 </svg>

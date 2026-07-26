@@ -4,6 +4,7 @@
   "layout": "full",
   "layoutName": "Full (GP + Nordschleife)",
   "name": "Nürburgring",
+  "source": "Nordschleife section names placed by distance; sequential numbering of detected corners",
   "corners": [
     {
       "number": 1,
@@ -326,51 +327,6 @@
     {
       "number": 60,
       "name": "Hohenrain",
-      "direction": "left"
-    },
-    {
-      "number": 61,
-      "name": "",
-      "direction": "left"
-    },
-    {
-      "number": 62,
-      "name": "",
-      "direction": "right"
-    },
-    {
-      "number": 63,
-      "name": "",
-      "direction": "right"
-    },
-    {
-      "number": 64,
-      "name": "",
-      "direction": "left"
-    },
-    {
-      "number": 65,
-      "name": "",
-      "direction": "left"
-    },
-    {
-      "number": 66,
-      "name": "",
-      "direction": "right"
-    },
-    {
-      "number": 67,
-      "name": "",
-      "direction": "left"
-    },
-    {
-      "number": 68,
-      "name": "",
-      "direction": "right"
-    },
-    {
-      "number": 69,
-      "name": "",
       "direction": "left"
     }
   ],

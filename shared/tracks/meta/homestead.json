@@ -4,6 +4,7 @@
   "layout": "road",
   "layoutName": "Road",
   "name": "Homestead-Miami Speedway",
+  "source": "derived from track geometry (roval; no official corner names)",
   "corners": [
     {
       "number": 1,

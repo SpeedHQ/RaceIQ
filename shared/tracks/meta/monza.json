@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Autodromo Nazionale Monza",
+  "source": "Official circuit map / FIA F1 track guide (5.793 km GP layout)",
   "corners": [
     {
       "number": 1,

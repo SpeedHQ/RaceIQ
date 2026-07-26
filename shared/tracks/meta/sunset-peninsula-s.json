@@ -4,6 +4,7 @@
   "layout": "club",
   "layoutName": "Club",
   "name": "Sunset Peninsula",
+  "source": "derived from track geometry (no official corner names)",
   "corners": [
     {
       "number": 1,

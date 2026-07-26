@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Shanghai International Circuit",
+  "source": "Official F1 track map (16 turns); Snail T1-2",
   "corners": [
     {
       "number": 1,
@@ -80,6 +81,10 @@
       "number": 14,
       "name": "",
       "direction": "right"
+    },
+    {
+      "number": 15,
+      "name": ""
     },
     {
       "number": 16,

@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Bahrain International Circuit",
+  "source": "Official F1 track map (15 turns); numbered corners",
   "corners": [
     {
       "number": 1,
@@ -74,6 +75,10 @@
       ],
       "name": "",
       "direction": "right"
+    },
+    {
+      "number": 15,
+      "name": ""
     }
   ]
 }

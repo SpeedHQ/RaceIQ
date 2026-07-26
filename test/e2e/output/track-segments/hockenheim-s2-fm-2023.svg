@@ -36,18 +36,18 @@
   <line x1="468.1" y1="124.1" x2="463.7" y2="98.4" stroke="#d1d5db" stroke-width="1" />
   <text x="463.7" y="98.4" text-anchor="end" class="name" fill="#111827">T6</text>
   <line x1="502.1" y1="371.8" x2="494.9" y2="396.8" stroke="#d1d5db" stroke-width="1" />
-  <text x="494.9" y="396.8" text-anchor="end" class="name" fill="#111827">T7</text>
+  <text x="494.9" y="396.8" text-anchor="end" class="name" fill="#111827">T7 Sachskurve</text>
   <line x1="592.4" y1="283.4" x2="612.5" y2="266.9" stroke="#d1d5db" stroke-width="1" />
   <text x="612.5" y="266.9" text-anchor="start" class="name" fill="#111827">T8</text>
   <line x1="559.6" y1="203.7" x2="568.1" y2="179.2" stroke="#d1d5db" stroke-width="1" />
   <text x="568.1" y="179.2" text-anchor="start" class="name" fill="#111827">T9</text>
   <line x1="679.5" y1="100.3" x2="694.1" y2="78.8" stroke="#d1d5db" stroke-width="1" />
-  <text x="694.1" y="78.8" text-anchor="start" class="name" fill="#111827">T10</text>
+  <text x="694.1" y="78.8" text-anchor="start" class="name" fill="#111827">T10 Südkurve</text>
   <line x1="690.0" y1="318.2" x2="715.5" y2="313.3" stroke="#d1d5db" stroke-width="1" />
   <text x="715.5" y="313.3" text-anchor="start" class="name" fill="#6b7280">St2 122m</text>
 
   <rect x="676.4" y="370.3" width="10" height="10" fill="#111827" />
   <text x="693.4" y="379.3" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Hockenheimring — National — fm-2023</text>
+  <text class="title" x="12" y="22">Hockenheimring — fm-2023</text>
   <text class="sub" x="12" y="40">10 corners, 2 straights, 12 segments, 2.615 km</text>
 </svg>

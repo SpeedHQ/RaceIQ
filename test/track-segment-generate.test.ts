@@ -14,12 +14,12 @@ import {
   buildUpdatedMeta,
   generateTrackSegments,
   listCuratedSlugs,
-  loadCornerNameList,
   writableAlignments,
 } from "../shared/track-segment-generate";
 import { loadTrackFacts, loadTrackGeometry } from "../shared/track-data";
 import type { TrackGeometry } from "../shared/track-meta";
-import { validateNameList } from "../shared/track-segment-align";
+import { officialTurnCount, validateFacts } from "../shared/track-segment-align";
+import { loadDetectHints } from "../shared/track-detect-hints";
 import { KNOWN_ALIGNMENT_GAPS, KNOWN_FUZZY_ALIGNMENTS } from "./helpers/track-known-gaps";
 
 const slugs = listCuratedSlugs();
@@ -32,12 +32,13 @@ describe("track segment generator", () => {
 
   for (const slug of slugs) {
     describe(slug, () => {
-      const nameList = loadCornerNameList(slug)!;
-      const { outcomes, aligned } = generateTrackSegments(slug, nameList);
+      const facts = loadTrackFacts(slug)!;
+      const hints = loadDetectHints(slug);
+      const { outcomes, aligned } = generateTrackSegments(slug, facts);
 
-      test("accounts for every official turn (turnCount)", () => {
-        expect(nameList.turnCount).toBeGreaterThan(0);
-        expect(validateNameList(nameList)).toEqual([]);
+      test("accounts for every official turn", () => {
+        expect(officialTurnCount(facts)).toBeGreaterThan(0);
+        expect(validateFacts(facts, hints)).toEqual([]);
       });
 
       test("aligns on every available game centerline", () => {
@@ -64,7 +65,6 @@ describe("track segment generator", () => {
       });
 
       test("committed meta matches generator output (run tracks:segments --all --write if stale)", () => {
-        const facts = loadTrackFacts(slug);
         expect(facts).not.toBeNull();
         const writable = writableAlignments(aligned);
         // Feeding the committed geometry back in is what proves curated sectors
@@ -75,7 +75,7 @@ describe("track segment generator", () => {
           expect(geometry, `${slug}/${a.gameId} has no committed geometry file`).not.toBeNull();
           committed[a.gameId] = geometry!;
         }
-        const regenerated = buildUpdatedMeta(slug, facts, committed, nameList, writable);
+        const regenerated = buildUpdatedMeta(slug, facts, committed, writable);
         expect(facts).toEqual(regenerated.facts);
         for (const [gameId, geometry] of Object.entries(regenerated.geometry)) {
           expect(committed[gameId], `${slug}/${gameId} geometry is stale`).toEqual(geometry);
@@ -114,13 +114,16 @@ describe("track segment generator", () => {
             const expectedNames = new Set<string>();
             const optionalNames = new Set<string>();
             const expectedGroups = new Set<string>();
-            for (const c of nameList.corners) {
-              if (c.group && !c.optional) expectedGroups.add(c.group);
+            for (const c of facts.corners) {
+              // A hinted-optional corner may be folded into the straight by a
+              // game's centerline, so its name is allowed but never required.
+              const optional = hints.get(c.number)?.optional === true;
+              if (c.group && !optional) expectedGroups.add(c.group);
               if (!c.name) continue;
-              if (c.optional) optionalNames.add(c.name);
+              if (optional) optionalNames.add(c.name);
               else expectedNames.add(c.name);
             }
-            for (const s of nameList.straights ?? []) {
+            for (const s of facts.straights ?? []) {
               if (s.name) expectedNames.add(s.name);
             }
             for (const name of expectedNames) {
@@ -142,10 +145,10 @@ describe("track segment generator", () => {
                 ? first.name
                 : null;
             const curatedCounts = new Map<string, number>();
-            for (const c of nameList.corners) {
+            for (const c of facts.corners) {
               if (c.name) curatedCounts.set(c.name, (curatedCounts.get(c.name) ?? 0) + 1);
             }
-            for (const s of nameList.straights ?? []) {
+            for (const s of facts.straights ?? []) {
               if (s.name) curatedCounts.set(s.name, (curatedCounts.get(s.name) ?? 0) + 1);
             }
             const counts = new Map<string, number>();
@@ -158,32 +161,15 @@ describe("track segment generator", () => {
             }
           });
 
-          if (nameList.sectors) {
-            test("anchored sector boundaries coincide with a corner section end", () => {
-              // Rotated centerlines can wrap official sector anchors out of
-              // order — the generator then drops sectors (with a warning)
-              // rather than writing an invalid pair.
-              if (a.sectors === null) return;
-              const cornerEnds = new Set(
-                a.segments.filter((s) => s.type === "corner").map((s) => s.endFrac),
-              );
-              const anchorChecks: [number | undefined, number][] = [
-                [nameList.sectors!.s1EndAfterCorner, a.sectors!.s1End],
-                [nameList.sectors!.s2EndAfterCorner, a.sectors!.s2End],
-              ];
-              for (const [anchor, frac] of anchorChecks) {
-                if (anchor === undefined) continue;
-                // Only exact when no meter offset is configured
-                const offset = anchor === nameList.sectors!.s1EndAfterCorner
-                  ? nameList.sectors!.s1OffsetM
-                  : nameList.sectors!.s2OffsetM;
-                if (!offset && a.sectors!.source === "corner-anchored") {
-                  expect(cornerEnds.has(frac), `${slug}/${a.gameId} sector ${frac} not at a section end`).toBe(true);
-                }
-              }
-              expect(a.sectors!.s1End).toBeGreaterThan(0);
-              expect(a.sectors!.s1End).toBeLessThan(a.sectors!.s2End);
-              expect(a.sectors!.s2End).toBeLessThan(1);
+          // Sectors are per-game curation living in geometry, not something a
+          // regeneration derives, so the invariant is checked on what is
+          // committed for this game rather than on the alignment.
+          const sectors = loadTrackGeometry(slug, a.gameId)?.sectors;
+          if (sectors) {
+            test("committed sector boundaries split the lap in order", () => {
+              expect(sectors.s1End).toBeGreaterThan(0);
+              expect(sectors.s1End).toBeLessThan(sectors.s2End);
+              expect(sectors.s2End).toBeLessThan(1);
             });
           }
         });

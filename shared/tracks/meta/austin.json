@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Circuit of the Americas",
+  "source": "Official COTA circuit map (all corners officially numbered, unnamed)",
   "corners": [
     {
       "number": 1,

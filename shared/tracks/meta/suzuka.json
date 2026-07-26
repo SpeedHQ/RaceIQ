@@ -4,6 +4,7 @@
   "layout": "full",
   "layoutName": "Full",
   "name": "Suzuka Circuit",
+  "source": "Official Suzuka circuit map (18-turn numbering)",
   "corners": [
     {
       "number": 1,

@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Melbourne Grand Prix Circuit",
+  "source": "Official F1 track map (5.278 km, post-2022 layout, 14 turns, unnamed); directions derived from F1 2025 centerline geometry (mirror-corrected)",
   "corners": [
     {
       "number": 1,

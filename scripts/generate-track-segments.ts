@@ -18,9 +18,9 @@ import {
   generateTrackSegments,
   listCuratedSlugs,
   loadCenterline,
-  loadCornerNameList,
   writeTrackMeta,
 } from "../shared/track-segment-generate";
+import { loadTrackFacts } from "../shared/track-data";
 
 interface Args {
   track?: string;
@@ -71,13 +71,13 @@ function main(): void {
 
   let failures = 0;
   for (const slug of slugs) {
-    const nameList = loadCornerNameList(slug);
-    if (!nameList) {
-      console.error(`[${slug}] no corner-name list in shared/tracks/corner-names`);
+    const facts = loadTrackFacts(slug);
+    if (!facts) {
+      console.error(`[${slug}] no facts file in shared/tracks/meta`);
       failures++;
       continue;
     }
-    const { outcomes, aligned } = generateTrackSegments(slug, nameList, args.game);
+    const { outcomes, aligned } = generateTrackSegments(slug, facts, args.game);
 
     if (args.verbose) {
       for (const o of outcomes) {
@@ -92,7 +92,7 @@ function main(): void {
       }
     }
 
-    const wroteGames = args.write ? writeTrackMeta(slug, nameList, aligned, args.allowFuzzy) : [];
+    const wroteGames = args.write ? writeTrackMeta(slug, facts, aligned, args.allowFuzzy) : [];
     for (const o of outcomes) {
       const wrote = wroteGames.includes(o.gameId);
       const status = o.ok ? (wrote ? "WROTE" : o.cost < 1 ? "OK   " : "FUZZY") : "FAIL ";

@@ -4,6 +4,7 @@
   "layout": "national",
   "layoutName": "National",
   "name": "Grand Oak Raceway",
+  "source": "derived from track geometry (no official corner names)",
   "corners": [
     {
       "number": 1,

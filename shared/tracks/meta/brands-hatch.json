@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Brands Hatch",
+  "source": "Official circuit map (3.916 km Grand Prix layout)",
   "corners": [
     {
       "number": 1,

@@ -78,12 +78,9 @@
   <text x="577.4" y="303.6" text-anchor="start" class="name" fill="#111827">T17</text>
   <line x1="620.0" y1="293.5" x2="639.0" y2="275.8" stroke="#d1d5db" stroke-width="1" />
   <text x="639.0" y="275.8" text-anchor="start" class="name" fill="#111827">T18</text>
-  <circle cx="580.8" cy="346.8" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="591.8" y="338.8" class="sector">S1 0.333</text>
-  <circle cx="363.7" cy="448.6" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="374.7" y="440.6" class="sector">S2 0.820</text>
+
   <rect x="668.7" y="309.6" width="10" height="10" fill="#111827" />
   <text x="685.7" y="318.6" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Suzuka International Racing Course — ac-evo</text>
+  <text class="title" x="12" y="22">Suzuka Circuit — ac-evo</text>
   <text class="sub" x="12" y="40">18 corners, 5 straights, 23 segments, 5.747 km</text>
 </svg>

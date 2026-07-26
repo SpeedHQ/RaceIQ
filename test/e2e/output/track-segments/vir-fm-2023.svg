@@ -72,12 +72,9 @@
   <text x="643.7" y="732.2" text-anchor="start" class="name" fill="#111827">T17 Hog Pen</text>
   <line x1="497.1" y1="718.8" x2="491.1" y2="744.1" stroke="#d1d5db" stroke-width="1" />
   <text x="491.1" y="744.1" text-anchor="end" class="name" fill="#6b7280">St6 498m</text>
-  <circle cx="452.9" cy="491.1" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="463.9" y="483.1" class="sector">S1 0.272</text>
-  <circle cx="711.4" cy="113.6" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="722.4" y="105.6" class="sector">S2 0.553</text>
+
   <rect x="402.7" y="696.4" width="10" height="10" fill="#111827" />
   <text x="419.7" y="705.4" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Virginia International Raceway — Full Course — fm-2023</text>
+  <text class="title" x="12" y="22">Virginia International Raceway — fm-2023</text>
   <text class="sub" x="12" y="40">15 corners, 6 straights, 21 segments, 5.251 km</text>
 </svg>

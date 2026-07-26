@@ -4,6 +4,7 @@
   "layout": "full",
   "layoutName": "Full",
   "name": "Hockenheimring",
+  "source": "Official GP circuit map (17 turns)",
   "corners": [
     {
       "number": 1,
@@ -19,6 +20,14 @@
       "number": 3,
       "name": "",
       "direction": "left"
+    },
+    {
+      "number": 4,
+      "name": ""
+    },
+    {
+      "number": 5,
+      "name": ""
     },
     {
       "number": 6,
@@ -44,6 +53,10 @@
       "number": 10,
       "name": "",
       "direction": "right"
+    },
+    {
+      "number": 11,
+      "name": ""
     },
     {
       "number": 12,

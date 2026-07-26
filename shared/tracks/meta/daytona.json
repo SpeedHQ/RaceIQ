@@ -4,6 +4,7 @@
   "layout": "sports-car",
   "layoutName": "Sports Car",
   "name": "Daytona International Speedway",
+  "source": "IMSA road course landmarks, sequential numbering of detected corners",
   "corners": [
     {
       "number": 1,
@@ -43,16 +44,19 @@
     {
       "number": 8,
       "name": "Bus Stop",
+      "direction": "left",
       "group": "Bus Stop"
     },
     {
       "number": 9,
       "name": "",
+      "direction": "right",
       "group": "Bus Stop"
     },
     {
       "number": 10,
       "name": "",
+      "direction": "left",
       "group": "Bus Stop"
     },
     {

@@ -4,6 +4,7 @@
   "layout": "full-reverse",
   "layoutName": "Full Reverse",
   "name": "Sunset Peninsula",
+  "source": "derived from track geometry (no official corner names)",
   "corners": [
     {
       "number": 1,

@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Circuit Zolder",
+  "source": "Official corner names, sequential numbering of detected corners",
   "corners": [
     {
       "number": 1,

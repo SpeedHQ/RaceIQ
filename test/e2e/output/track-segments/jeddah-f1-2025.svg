@@ -93,10 +93,7 @@
   <text x="563.5" y="747.7" text-anchor="start" class="name" fill="#111827">T27</text>
   <line x1="554.0" y1="640.5" x2="561.1" y2="665.5" stroke="#d1d5db" stroke-width="1" />
   <text x="561.1" y="665.5" text-anchor="start" class="name" fill="#6b7280">St5 448m</text>
-  <circle cx="485.8" cy="184.1" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="496.8" y="176.1" class="sector">S1 0.320</text>
-  <circle cx="479.2" cy="448.0" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="490.2" y="440.0" class="sector">S2 0.680</text>
+
   <rect x="534.4" y="584.8" width="10" height="10" fill="#111827" />
   <text x="551.4" y="593.8" class="sub">S/F</text>
   <text class="title" x="12" y="22">Jeddah Corniche Circuit — f1-2025</text>

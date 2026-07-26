@@ -60,10 +60,7 @@
   <text x="786.3" y="146.6" text-anchor="start" class="name" fill="#111827">T16 New Holland</text>
   <line x1="714.6" y1="272.2" x2="736.0" y2="257.3" stroke="#d1d5db" stroke-width="1" />
   <text x="736.0" y="257.3" text-anchor="start" class="name" fill="#6b7280">St4 152m</text>
-  <circle cx="357.0" cy="566.6" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="368.0" y="558.6" class="sector">S1 0.421</text>
-  <circle cx="475.6" cy="307.0" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="486.6" y="299.0" class="sector">S2 0.655</text>
+
   <rect x="685.6" y="304.4" width="10" height="10" fill="#111827" />
   <text x="702.6" y="313.4" class="sub">S/F</text>
   <text class="title" x="12" y="22">Circuit de Barcelona-Catalunya — f1-2025</text>

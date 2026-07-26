@@ -92,16 +92,11 @@
     {
       "key": "t13",
       "startFrac": 0.6736,
-      "endFrac": 0.7005
-    },
-    {
-      "key": "s13",
-      "startFrac": 0.7005,
-      "endFrac": 0.7061
+      "endFrac": 0.7033
     },
     {
       "key": "t14",
-      "startFrac": 0.7061,
+      "startFrac": 0.7033,
       "endFrac": 0.734
     },
     {

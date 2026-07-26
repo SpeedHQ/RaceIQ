@@ -60,10 +60,7 @@
   <text x="366.8" y="744.0" text-anchor="end" class="name" fill="#111827">T11 Parabolica</text>
   <line x1="312.6" y1="639.2" x2="301.7" y2="662.8" stroke="#d1d5db" stroke-width="1" />
   <text x="301.7" y="662.8" text-anchor="end" class="name" fill="#6b7280">Start/Finish</text>
-  <circle cx="504.3" cy="120.9" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="515.3" y="112.9" class="sector">S1 0.337</text>
-  <circle cx="407.3" cy="455.5" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="418.3" y="447.5" class="sector">S2 0.739</text>
+
   <rect x="310.6" y="575.0" width="10" height="10" fill="#111827" />
   <text x="327.6" y="584.0" class="sub">S/F</text>
   <text class="title" x="12" y="22">Autodromo Nazionale Monza — acc</text>

@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Circuit de Barcelona-Catalunya",
+  "source": "Official circuit map (GP layout, chicane-era numbering, 16 turns)",
   "corners": [
     {
       "number": 1,
@@ -66,9 +67,19 @@
       "direction": "right"
     },
     {
+      "number": 13,
+      "name": "",
+      "direction": "right"
+    },
+    {
       "number": 14,
       "name": "",
       "direction": "left"
+    },
+    {
+      "number": 15,
+      "name": "",
+      "direction": "right"
     },
     {
       "number": 16,

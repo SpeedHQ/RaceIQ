@@ -1,27 +1,57 @@
 /**
- * Turn-count accuracy against real-world data: the `turnCount` in each
- * shared/tracks/corner-names/<slug>.json is the official turn count from the
+ * Turn-count accuracy against real-world data: the corner roster in each
+ * shared/tracks/meta/<slug>.json is the official turn count from the
  * circuit's own map / FIA track guide (see the `source` field). Every game's
- * centerline must align onto that list such that every official turn 1..turnCount
- * is accounted for.
+ * centerline must align onto that roster such that every official turn
+ * 1..officialTurnCount is accounted for.
  *
  * This is deliberately NOT a snapshot of what the detector currently finds — a
  * detector regression that drops Blanchimont must fail, not be re-baselined.
- * The only turns allowed to go unmatched are ones the name list explicitly marks
- * `optional` (shallow kinks some games' centerlines don't model at all).
+ * The only turns allowed to go unmatched are ones marked `optional` in
+ * shared/tracks/detect-hints.json (shallow kinks some games' centerlines don't
+ * model at all) — a detector allowance, not a fact about the circuit.
  */
 import { describe, test, expect } from "bun:test";
 import { turnNumbers } from "../shared/segment-label";
-import { validateNameList } from "../shared/track-segment-align";
-import { findCenterlines, generateTrackSegments, listCuratedSlugs, loadCornerNameList } from "../shared/track-segment-generate";
+import { officialTurnCount, validateFacts } from "../shared/track-segment-align";
+import { loadTrackFacts } from "../shared/track-data";
+import { loadDetectHints } from "../shared/track-detect-hints";
+import {
+  findCenterlines,
+  generateTrackSegments,
+  listCuratedSlugs,
+  listMetaSlugs,
+} from "../shared/track-segment-generate";
 import { KNOWN_ALIGNMENT_GAPS, KNOWN_TURN_GAPS } from "./helpers/track-known-gaps";
 
 const slugs = listCuratedSlugs();
+
+/**
+ * Rosters that predate the meta migration and were never traced to a circuit
+ * map. They are excluded from the curated assertions below; cite them and they
+ * join the suite.
+ */
+const UNCITED_ROSTERS = ["fuji"];
 
 
 describe("turn counts match real-world circuit data", () => {
   test("curated tracks exist", () => {
     expect(slugs.length).toBeGreaterThan(0);
+  });
+
+  // `source` is what makes a roster checkable against the real circuit, and it
+  // is also what promotes a meta into the curated set asserted below. A roster
+  // that appears without one is invisible to every assertion in this file, so
+  // name the known offenders here — a new one is a migration that forgot to
+  // carry the citation across.
+  test("no roster outside the curated set carries a source", () => {
+    // listCuratedSlugs() keys off `corners`, not `source`. If a meta ever grows a
+    // citation without a roster the per-slug tests below would never see it.
+    const orphaned = listMetaSlugs().filter((slug) => {
+      const f = loadTrackFacts(slug);
+      return !!f?.source?.trim() && (f?.corners.length ?? 0) === 0;
+    });
+    expect(orphaned, "source with no corner roster — transcribe it or drop the citation").toEqual([]);
   });
 
   // An optional corner is only honest if EVERY game misses it. Where one game
@@ -30,10 +60,11 @@ describe("turn counts match real-world circuit data", () => {
   test("no undeclared detector gaps (optional corner one game sees and another misses)", () => {
     const found: string[] = [];
     for (const slug of slugs) {
-      const nameList = loadCornerNameList(slug)!;
-      const optional = nameList.corners.filter((c) => c.optional);
+      const facts = loadTrackFacts(slug)!;
+      const hints = loadDetectHints(slug);
+      const optional = facts.corners.filter((c) => hints.get(c.number)?.optional);
       if (optional.length === 0) continue;
-      const { aligned } = generateTrackSegments(slug, nameList);
+      const { aligned } = generateTrackSegments(slug, facts);
       if (aligned.length < 2) continue; // nothing to compare against
 
       for (const opt of optional) {
@@ -53,20 +84,32 @@ describe("turn counts match real-world circuit data", () => {
   });
 
   for (const slug of slugs) {
-    const nameList = loadCornerNameList(slug)!;
+    const facts = loadTrackFacts(slug)!;
+    const turnCount = officialTurnCount(facts);
 
-    test(`${slug}: name list accounts for all ${nameList.turnCount} official turns`, () => {
-      const errors = validateNameList(nameList).filter((i) => i.severity === "error");
-      expect(errors.map((e) => e.message), `${slug} (${nameList.circuit})`).toEqual([]);
+    test(`${slug}: roster accounts for all ${turnCount} official turns`, () => {
+      const errors = validateFacts(facts, loadDetectHints(slug)).filter((i) => i.severity === "error");
+      expect(errors.map((e) => e.message), `${slug} (${facts.name})`).toEqual([]);
     });
 
+    // Without a citation the turn numbers are unverifiable, so every assertion
+    // below is asserting against nothing. Known offenders are listed in
+    // UNCITED_ROSTERS; a new one is a migration that forgot to carry it across.
     test(`${slug}: cites its real-world source`, () => {
-      expect(nameList.source?.trim(), `${slug}: add a "source" naming the circuit map / track guide`).toBeTruthy();
+      const cited = !!facts.source?.trim();
+      if (UNCITED_ROSTERS.includes(slug)) {
+        expect(cited, `${slug} now cites a source — remove it from UNCITED_ROSTERS`).toBe(false);
+      } else {
+        expect(cited, `${slug} (${facts.name}) has a roster with no source — add one`).toBe(true);
+      }
     });
 
-    const { aligned, outcomes } = generateTrackSegments(slug, nameList);
+    const { aligned, outcomes } = generateTrackSegments(slug, facts);
     // Turns a game's centerline is permitted to miss entirely.
-    const optional = new Set(nameList.corners.filter((c) => c.optional).flatMap((c) => [c.number, ...(c.covers ?? [])]));
+    const hints = loadDetectHints(slug);
+    const optional = new Set(
+      facts.corners.filter((c) => hints.get(c.number)?.optional).flatMap((c) => [c.number, ...(c.covers ?? [])]),
+    );
 
     // A failed alignment produces no GameAlignment, so without this every
     // per-game assertion below would silently vanish instead of failing.
@@ -80,26 +123,26 @@ describe("turn counts match real-world circuit data", () => {
       }
       const failed = games.filter((g) => !alignedGames.has(g) && !KNOWN_ALIGNMENT_GAPS.has(`${slug}/${g}`));
       const why = outcomes.filter((o) => !o.ok).map((o) => `${o.gameId}: ${o.detail}`);
-      expect(failed, `${slug} (${nameList.circuit}) failed to align — ${why.join(" | ")}`).toEqual([]);
+      expect(failed, `${slug} (${facts.name}) failed to align — ${why.join(" | ")}`).toEqual([]);
       expect(games.length, `${slug}: no centerline found for any game`).toBeGreaterThan(0);
     });
 
     for (const a of aligned) {
-      test(`${a.gameId}/${slug}: detects ${nameList.turnCount} official turns`, () => {
+      test(`${a.gameId}/${slug}: detects ${turnCount} official turns`, () => {
         const matched = new Set(a.corners.flatMap(turnNumbers));
         const missing: number[] = [];
-        for (let n = 1; n <= nameList.turnCount; n++) {
+        for (let n = 1; n <= turnCount; n++) {
           if (!matched.has(n) && !optional.has(n)) missing.push(n);
         }
-        const extra = [...matched].filter((n) => n < 1 || n > nameList.turnCount);
+        const extra = [...matched].filter((n) => n < 1 || n > turnCount);
 
         expect(
           missing,
-          `${a.gameId}/${slug} (${nameList.circuit}): official turns ${missing.join(", ")} not detected — ` +
-            `real turn count is ${nameList.turnCount} per ${nameList.source}. Check the SVG in ` +
-            `test/e2e/output/track-segments; fix the detector or mark the turn optional if the game's centerline genuinely omits it.`,
+          `${a.gameId}/${slug} (${facts.name}): official turns ${missing.join(", ")} not detected — ` +
+            `real turn count is ${turnCount} per ${facts.source}. Check the SVG in ` +
+            `test/e2e/output/track-segments; fix the detector or mark the turn optional in detect-hints.json if the game's centerline genuinely omits it.`,
         ).toEqual([]);
-        expect(extra, `${a.gameId}/${slug}: aligned turn numbers outside 1..${nameList.turnCount}`).toEqual([]);
+        expect(extra, `${a.gameId}/${slug}: aligned turn numbers outside 1..${turnCount}`).toEqual([]);
       });
     }
   }

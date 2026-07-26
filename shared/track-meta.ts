@@ -57,6 +57,9 @@ export interface CornerFact {
    * the key so consumers can label the piece once instead of once per apex.
    */
   group?: string;
+  // No detector allowances here — how many arcs a centerline resolves this
+  // corner into, or whether a game draws it at all, is not a property of the
+  // circuit. Those live in shared/tracks/detect-hints.json.
 }
 
 /** A named gap between corners. Unnamed gaps get no entry — they're derived. */
@@ -78,6 +81,13 @@ export interface TrackFacts {
   layoutName: string;
   /** Venue name, identical across layouts of the same venue. */
   name: string;
+  /**
+   * Where these corner names came from — official circuit map, FIA track guide,
+   * or an explicit admission that the numbering was detected rather than sourced
+   * ("Sequential detected corners"). Names in this file are real-world claims;
+   * this is the citation that makes them auditable. Never invent one.
+   */
+  source?: string;
   corners: CornerFact[];
   /** Only gaps that carry a real name. */
   straights?: StraightFact[];

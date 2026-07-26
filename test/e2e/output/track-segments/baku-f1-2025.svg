@@ -78,10 +78,7 @@
   <text x="330.3" y="513.9" text-anchor="end" class="name" fill="#111827">T20</text>
   <line x1="576.2" y1="368.5" x2="601.8" y2="363.8" stroke="#d1d5db" stroke-width="1" />
   <text x="601.8" y="363.8" text-anchor="start" class="name" fill="#6b7280">Neftchiler Avenue</text>
-  <circle cx="556.3" cy="329.4" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="567.3" y="321.4" class="sector">S1 0.300</text>
-  <circle cx="258.3" cy="624.0" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="269.3" y="616.0" class="sector">S2 0.720</text>
+
   <rect x="784.3" y="278.9" width="10" height="10" fill="#111827" />
   <text x="801.3" y="287.9" class="sub">S/F</text>
   <text class="title" x="12" y="22">Baku City Circuit — f1-2025</text>

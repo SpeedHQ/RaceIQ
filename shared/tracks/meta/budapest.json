@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Hungaroring",
+  "source": "Official Hungaroring circuit map / FIA F1 track guide (4.381 km)",
   "corners": [
     {
       "number": 1,

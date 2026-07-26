@@ -4,6 +4,7 @@
   "layout": "full",
   "layoutName": "Circuit",
   "name": "Mount Panorama Circuit",
+  "source": "Official corner names, sequential numbering of detected corners",
   "corners": [
     {
       "number": 1,

@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Marina Bay Street Circuit",
+  "source": "Official F1 track map (2023+ 19-turn layout, 4.940 km); directions verified against F1 2025 centerline geometry",
   "corners": [
     {
       "number": 1,

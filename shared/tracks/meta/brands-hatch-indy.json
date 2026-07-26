@@ -4,6 +4,7 @@
   "layout": "indy",
   "layoutName": "Indy",
   "name": "Brands Hatch",
+  "source": "Official circuit map (Indy layout)",
   "corners": [
     {
       "number": 1,

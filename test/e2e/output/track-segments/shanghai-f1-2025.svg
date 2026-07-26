@@ -72,10 +72,7 @@
   <text x="750.5" y="584.2" text-anchor="start" class="name" fill="#111827">T16</text>
   <line x1="610.6" y1="580.0" x2="629.5" y2="598.0" stroke="#d1d5db" stroke-width="1" />
   <text x="629.5" y="598.0" text-anchor="start" class="name" fill="#6b7280">St6 182m</text>
-  <circle cx="229.2" cy="486.4" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="240.2" y="478.4" class="sector">S1 0.225</text>
-  <circle cx="583.1" cy="287.0" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="594.1" y="279.0" class="sector">S2 0.722</text>
+
   <rect x="554.5" y="587.1" width="10" height="10" fill="#111827" />
   <text x="571.5" y="596.1" class="sub">S/F</text>
   <text class="title" x="12" y="22">Shanghai International Circuit — f1-2025</text>

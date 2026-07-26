@@ -75,12 +75,9 @@
   <text x="718.0" y="97.1" text-anchor="start" class="name" fill="#111827">T15 Murray's Corner</text>
   <line x1="652.1" y1="93.1" x2="661.7" y2="68.9" stroke="#d1d5db" stroke-width="1" />
   <text x="661.7" y="68.9" text-anchor="start" class="name" fill="#6b7280">Pit Straight</text>
-  <circle cx="357.5" cy="391.9" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="368.5" y="383.9" class="sector">S1 0.311</text>
-  <circle cx="586.6" cy="701.9" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="597.6" y="693.9" class="sector">S2 0.623</text>
+
   <rect x="624.2" y="83.7" width="10" height="10" fill="#111827" />
   <text x="641.2" y="92.7" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Mount Panorama Circuit (Bathurst) — ac-evo</text>
+  <text class="title" x="12" y="22">Mount Panorama Circuit — ac-evo</text>
   <text class="sub" x="12" y="40">15 corners, 7 straights, 22 segments, 6.145 km</text>
 </svg>

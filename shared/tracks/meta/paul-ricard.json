@@ -4,6 +4,7 @@
   "layout": "gp",
   "layoutName": "Grand Prix",
   "name": "Circuit Paul Ricard",
+  "source": "Official Circuit Paul Ricard circuit map",
   "corners": [
     {
       "number": 1,

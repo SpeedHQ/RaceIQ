@@ -4,6 +4,7 @@
   "layout": "full",
   "layoutName": "Full",
   "name": "Road America",
+  "source": "Official circuit map (14 turns)",
   "corners": [
     {
       "number": 1,
@@ -11,9 +12,17 @@
       "direction": "right"
     },
     {
+      "number": 2,
+      "name": ""
+    },
+    {
       "number": 3,
       "name": "",
       "direction": "right"
+    },
+    {
+      "number": 4,
+      "name": ""
     },
     {
       "number": 5,

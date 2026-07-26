@@ -4,6 +4,7 @@
   "layout": "nordschleife",
   "layoutName": "Nordschleife",
   "name": "Nürburgring",
+  "source": "derived from track geometry (sequential numbering; section names TODO)",
   "corners": [
     {
       "number": 1,

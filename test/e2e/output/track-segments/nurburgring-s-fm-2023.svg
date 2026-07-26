@@ -42,7 +42,7 @@
   <line x1="723.1" y1="248.2" x2="740.9" y2="229.2" stroke="#d1d5db" stroke-width="1" />
   <text x="740.9" y="229.2" text-anchor="start" class="name" fill="#111827">T6</text>
   <line x1="840.7" y1="345.6" x2="865.7" y2="338.4" stroke="#d1d5db" stroke-width="1" />
-  <text x="865.7" y="338.4" text-anchor="start" class="name" fill="#111827">T7</text>
+  <text x="865.7" y="338.4" text-anchor="start" class="name" fill="#111827">T7 NGK-Schikane</text>
   <line x1="768.3" y1="445.4" x2="794.2" y2="447.7" stroke="#d1d5db" stroke-width="1" />
   <text x="794.2" y="447.7" text-anchor="start" class="name" fill="#6b7280">St3 114m</text>
   <line x1="673.7" y1="553.7" x2="691.3" y2="572.8" stroke="#d1d5db" stroke-width="1" />
@@ -60,6 +60,6 @@
 
   <rect x="394.9" y="432.9" width="10" height="10" fill="#111827" />
   <text x="411.9" y="441.9" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Nürburgring — Sprint — fm-2023</text>
+  <text class="title" x="12" y="22">Nürburgring — fm-2023</text>
   <text class="sub" x="12" y="40">11 corners, 5 straights, 16 segments, 3.571 km</text>
 </svg>

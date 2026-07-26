@@ -36,10 +36,7 @@
   <text x="173.4" y="161.2" text-anchor="end" class="name" fill="#111827">T6 Downhill</text>
   <line x1="473.4" y1="146.6" x2="471.3" y2="120.6" stroke="#d1d5db" stroke-width="1" />
   <text x="471.3" y="120.6" text-anchor="end" class="name" fill="#6b7280">Sam Posey Straight</text>
-  <circle cx="639.8" cy="523.0" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="650.8" y="515.0" class="sector">S1 0.384</text>
-  <circle cx="132.8" cy="302.4" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="143.8" y="294.4" class="sector">S2 0.744</text>
+
   <rect x="611.4" y="141.4" width="10" height="10" fill="#111827" />
   <text x="628.4" y="150.4" class="sub">S/F</text>
   <text class="title" x="12" y="22">Lime Rock Park — fm-2023</text>

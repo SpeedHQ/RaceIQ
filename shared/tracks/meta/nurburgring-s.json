@@ -4,6 +4,7 @@
   "layout": "sprint",
   "layoutName": "Sprint",
   "name": "Nürburgring",
+  "source": "derived from track geometry (layout variant, sequential numbering)",
   "corners": [
     {
       "number": 1,
