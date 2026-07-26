@@ -34,6 +34,28 @@ if (!existsSync(DB_DIR)) {
 
 const client: Client = createClient({ url: IN_MEMORY ? ":memory:" : `file:${DB_PATH}` });
 
+// Bindings are created synchronously so importing this module can never block
+// and `db` can never be observed in its temporal dead zone. All async setup
+// (PRAGMAs, migrations, backfills) moved into initDb() below.
+export const db = drizzle(client, { schema });
+export { client };
+
+let initPromise: Promise<void> | null = null;
+
+/**
+ * Idempotent async DB setup. Must be awaited once by every entry point before
+ * queries run: the server (server/index.ts), the test preload
+ * (test/setup-data-dir.ts), and standalone scripts.
+ *
+ * Previously this ran as top-level await in module scope. That made every
+ * importer of `db` wait on the module graph, so a SQLite/WAL lock here wedged
+ * the whole process before any test started — the per-test timeout could never
+ * fire — and any access to `db` while this was suspended threw
+ * "Cannot access 'db' before initialization".
+ */
+export function initDb(): Promise<void> {
+  if (!initPromise) initPromise = (async () => {
+
 // Enable WAL mode for better concurrent read/write performance
 await client.execute("PRAGMA journal_mode = WAL");
 await client.execute("PRAGMA foreign_keys = ON");
@@ -122,6 +144,6 @@ const orphanCleared = Number(orphanSession.rowsAffected ?? 0) + Number(orphanTes
 if (orphanCleared > 0) {
   console.log(`[DB] Cleared ${orphanCleared} orphaned tuning stamp(s) on laps (parent session/test gone)`);
 }
-
-export const db = drizzle(client, { schema });
-export { client };
+  })();
+  return initPromise;
+}

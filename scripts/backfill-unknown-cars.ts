@@ -15,7 +15,7 @@ initServerGameAdapters();
 
 import { gunzipSync } from "zlib";
 import { eq, and } from "drizzle-orm";
-import { db } from "../server/db/index";
+import { db, initDb } from "../server/db/index";
 import { sessions } from "../server/db/schema";
 import { getServerGame } from "../server/games/registry";
 import { getOrCreateDiscoveredCar } from "../server/db/discovered-cars";
@@ -112,4 +112,6 @@ async function main() {
   console.log(`[Backfill] Done. Fixed ${fixed}, skipped ${skipped}, total ${unresolved.length}.`);
 }
 
+// DB setup is no longer implicit in the import — it must be awaited explicitly.
+await initDb();
 await main();

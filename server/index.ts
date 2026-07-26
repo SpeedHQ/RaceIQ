@@ -64,9 +64,14 @@ if (recordingGameId) {
   console.log(`[Server] Recording mode enabled for game: ${recordingGameId}`);
 }
 
-// Import DB to ensure schema is created on startup
-import "./db/index";
+// Prepare the DB (PRAGMAs, migrations, backfills) before anything queries it.
+// This used to be implicit in the import — `import "./db/index"` blocked on
+// top-level await inside that module. It is now an explicit awaited call so a
+// stuck DB fails here, at startup, instead of silently wedging the module graph.
+import { initDb } from "./db/index";
 import { deleteEmptySessions, setCacheMaxBytes } from "./db/queries";
+
+await initDb();
 
 // Detect first run (settings file doesn't exist yet) before loadSettings creates it
 import { isFirstRun } from "./settings";

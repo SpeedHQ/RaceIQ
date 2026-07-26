@@ -117,14 +117,28 @@ export function generationThreadId(base: string, gen: number): string {
 }
 
 /**
+ * Minimal structural view of the memory these thread-probing helpers need.
+ * Satisfied by the real Mastra `Memory` and by a plain fake in tests, so tests
+ * can inject a store instead of reaching for `mock.module` — which is
+ * PROCESS-global in Bun and would hand a stubbed `getChatMemory()` to every
+ * later test file in the run.
+ */
+export type ThreadProbeMemory = {
+  getThreadById(args: { threadId: string }): Promise<{ id: string } | null>;
+};
+
+/**
  * List the existing generations for a base, ordered oldest→newest. Probes
  * upward from gen 1 (= base) until the first missing generation. Empty when the
  * base has never been chatted (no thread exists yet).
+ *
+ * `mem` defaults to the shared `getChatMemory()` singleton; pass a fake to
+ * probe an alternate store (tests).
  */
 export async function listThreadGenerations(
   base: string,
+  mem: ThreadProbeMemory = getChatMemory(),
 ): Promise<Array<{ threadId: string; generation: number }>> {
-  const mem = getChatMemory();
   const out: Array<{ threadId: string; generation: number }> = [];
   for (let gen = 1; ; gen++) {
     const threadId = generationThreadId(base, gen);
@@ -140,8 +154,11 @@ export async function listThreadGenerations(
  * (gen 1) when nothing exists yet, so a first POST auto-creates gen 1 exactly
  * as before.
  */
-export async function resolveActiveThread(base: string): Promise<string> {
-  const gens = await listThreadGenerations(base);
+export async function resolveActiveThread(
+  base: string,
+  mem: ThreadProbeMemory = getChatMemory(),
+): Promise<string> {
+  const gens = await listThreadGenerations(base, mem);
   return gens.length ? gens[gens.length - 1].threadId : base;
 }
 

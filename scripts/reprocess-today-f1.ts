@@ -3,9 +3,12 @@
  * running server's /api/sessions/:id/reprocess endpoint. Fixes stale
  * rawByteOffset/rawFrameCount rows written before the session-reset fix.
  */
-import { db } from "../server/db/index";
+import { db, initDb } from "../server/db/index";
 import { sessions } from "../server/db/schema";
 import { eq, and, gte, sql } from "drizzle-orm";
+
+// DB setup is no longer implicit in the import — it must be awaited explicitly.
+await initDb();
 
 const SERVER = process.env.SERVER ?? "http://localhost:3117";
 const since = new Date();

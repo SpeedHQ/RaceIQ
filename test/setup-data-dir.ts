@@ -18,6 +18,19 @@ if (!process.env.DATA_DIR) {
 }
 
 /**
+ * Run DB setup (PRAGMAs, migrations, backfills) exactly once, before any suite
+ * loads. This import MUST stay dynamic and MUST stay below the DATA_DIR
+ * assignment above — server/db/index.ts resolves its data directory at import
+ * time, so hoisting it to a static import would bind the real user DB path.
+ *
+ * Bun awaits the preload module, so suites only start once the DB is ready.
+ * This is the one place a top-level await on DB setup is safe: it is a single
+ * controlled entry point, not something every importer of `db` pays for.
+ */
+const { initDb } = await import("../server/db/index");
+await initDb();
+
+/**
  * Global teardown. `bun test` runs every suite in ONE process, and the libsql
  * client / pipeline maintenance interval are module-level singletons shared by
  * all of them. Closing either from a per-suite `afterAll` yanks the DB out from
