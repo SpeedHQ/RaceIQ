@@ -87,14 +87,17 @@ const KNOWN_CORNER_GAPS: Record<string, string[]> = {
   "spa/ac-evo": ["t16"],
   // acc folds Hans Ernst Bocht (T13) into T12.
   "zandvoort/acc": ["t13"],
-  // Committed-geometry gaps inherited from the pre-meta migration: one game's
-  // detector fused a corner pair its layout names separately. Same class as the
-  // above (a hole in that game's own segmentation, not a layout disagreement) —
-  // they were simply never enumerated, because the unknown-key assertion above
-  // aborted this test on nordschleife before it reached the tail of the roster.
+  // The tail of the roster, enumerated for the first time once the unknown-key
+  // assertion above stopped aborting on nordschleife. Every entry below is a
+  // corner the official numbering counts but no centerline curves enough to
+  // register — each one is already declared `optional` in detect-hints, which is
+  // why alignment still passes and the geometry simply has no row. Retuning the
+  // detector thresholds to catch them would re-segment every track, so they stay
+  // recorded here rather than chased.
+  //
+  // Single-game tracks: the corner is an unnamed kink and there is no second
+  // centerline to cross-check it against.
   "baku/f1-2025": ["t13", "t14"],
-  "donington/acc": ["t6"],
-  "donington/ac-evo": ["t6"],
   "hockenheim/fm-2023": ["t11", "t4", "t5"],
   "jeddah/f1-2025": ["t19", "t25"],
   "las-vegas/f1-2025": ["t11"],
@@ -103,13 +106,20 @@ const KNOWN_CORNER_GAPS: Record<string, string[]> = {
   "monaco/f1-2025": ["t17"],
   "montreal/f1-2025": ["t11"],
   "road-america/fm-2023": ["t2", "t4"],
-  "road-atlanta/ac-evo": ["t8"],
   "sakhir/f1-2025": ["t15"],
   "shanghai/f1-2025": ["t15"],
+  "vir/fm-2023": ["t2"],
+  // Missed by every game that ships the track, so the miss is about the corner's
+  // curvature, not one game's segmentation: Schwantz Curve is a named but very
+  // open right, and Spielberg's T2/T8 are unnamed lefts in the official count.
+  "donington/acc": ["t6"],
+  "donington/ac-evo": ["t6"],
   "spielberg/acc": ["t2", "t8"],
   "spielberg/ac-evo": ["t2", "t8"],
   "spielberg/f1-2025": ["t2", "t8"],
-  "vir/fm-2023": ["t2"],
+  // The one genuine per-game hole here: fm-2023 places T8, ac-evo's centerline
+  // does not. Same shrink-wrapped ac-evo centerline recorded in KNOWN_TURN_GAPS.
+  "road-atlanta/ac-evo": ["t8"],
 };
 
 /**
