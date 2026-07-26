@@ -104,7 +104,7 @@ async function runCompression(userTriggered = false): Promise<void> {
 
   const total = candidates.length + orphanPaths.length;
   if (total === 0) {
-    console.log("[Compressor] No sessions to compress");
+    console.debug("[Compressor] No sessions to compress");
     return;
   }
 
@@ -138,7 +138,7 @@ async function runMaintenance(): Promise<void> {
   // is a no-op during an active session, so it's safe to run here.
   const { cleanupOrphanSessionFiles } = await import("./session-cleanup");
   const removed = await cleanupOrphanSessionFiles();
-  console.log(
+  console.debug(
     removed > 0
       ? `[Cleanup] Removed ${removed} orphan session file(s)`
       : "[Cleanup] No orphan session files found"
