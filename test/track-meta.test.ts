@@ -17,6 +17,7 @@ import {
   joinSegments,
   splitSegments,
   isPlaceholderName,
+  stripTurnToken,
   checkKeys,
   parseCornerKey,
   parseStraightKey,
@@ -26,6 +27,7 @@ import {
   type TrackGeometry,
 } from "../shared/track-meta";
 import { SHARED_DIR } from "../shared/resolve-data";
+import { segmentDisplayNames } from "../shared/segment-label";
 
 const META_DIR = resolve(SHARED_DIR, "tracks", "meta");
 const GAME_IDS = ["fm-2023", "acc", "ac-evo", "f1-2025"] as const;
@@ -192,6 +194,51 @@ describe("join", () => {
       { type: "corner", name: "T4", number: 4, startFrac: 0, endFrac: 0.1 },
     ]);
     expect(corners[0].name).toBe("");
+  });
+
+  test("a rendered map label handed back as a name stores the name alone", () => {
+    // The map renders "T2-3 Esses"; if that string is ever saved as the name,
+    // the next join prefixes a second token — "T2-3 T2-3 Esses".
+    const { corners } = splitSegments([
+      { type: "corner", name: "T2-3 Esses", number: 2, covers: [3], startFrac: 0, endFrac: 0.1 },
+    ]);
+    expect(corners[0].name).toBe("Esses");
+  });
+
+  test("a name that merely starts with T keeps every word", () => {
+    const { corners } = splitSegments([
+      { type: "corner", name: "Turn Two", number: 2, startFrac: 0, endFrac: 0.1 },
+    ]);
+    expect(corners[0].name).toBe("Turn Two");
+  });
+
+  test("labelling a joined lap is idempotent across a save round-trip", () => {
+    const labelled = joinSegments(facts, geometry).map((s, i) => ({ ...s, name: segmentDisplayNames(joinSegments(facts, geometry))[i] }));
+    const again = splitSegments(labelled);
+    expect(again.corners).toEqual(facts.corners);
+    expect(segmentDisplayNames(joinSegments({ ...facts, corners: again.corners }, geometry))).toEqual(
+      segmentDisplayNames(joinSegments(facts, geometry)),
+    );
+  });
+
+  test("several rows sharing a straight key collapse to one fact", () => {
+    // Kemmel split in two by the detector: both gaps follow turn 1, both key
+    // `s1`, and two facts for one key make the join pick an arbitrary winner.
+    const { straights } = splitSegments([
+      { type: "corner", name: "", number: 1, startFrac: 0, endFrac: 0.1 },
+      { type: "straight", name: "S2", startFrac: 0.1, endFrac: 0.3 },
+      { type: "straight", name: "Kemmel", startFrac: 0.3, endFrac: 0.6 },
+    ]);
+    expect(straights).toEqual([{ after: 1, name: "Kemmel" }]);
+  });
+
+  test("a group on a later row of a shared key is kept", () => {
+    const { straights } = splitSegments([
+      { type: "corner", name: "", number: 1, startFrac: 0, endFrac: 0.1 },
+      { type: "straight", name: "Kemmel", startFrac: 0.1, endFrac: 0.3 },
+      { type: "straight", name: "", group: "Kemmel", startFrac: 0.3, endFrac: 0.6 },
+    ]);
+    expect(straights).toEqual([{ after: 1, name: "Kemmel", group: "Kemmel" }]);
   });
 });
 
@@ -495,5 +542,25 @@ describe("numberCorner", () => {
     const { corners, geometry } = splitSegments(numbered as never);
     expect(corners).toHaveLength(1);
     expect(geometry[0].key).toBe("t1");
+  });
+});
+
+describe("stripTurnToken", () => {
+  test("removes a leading turn token", () => {
+    expect(stripTurnToken("T2-4 Eau Rouge/Raidillon")).toBe("Eau Rouge/Raidillon");
+    expect(stripTurnToken("T6 Fairmont Hairpin")).toBe("Fairmont Hairpin");
+  });
+  test("leaves a name that merely starts with T", () => {
+    expect(stripTurnToken("Turn Two")).toBe("Turn Two");
+    expect(stripTurnToken("Tosa")).toBe("Tosa");
+  });
+  test("a bare token is left for isPlaceholderName to reject", () => {
+    // The regex only strips a token that prefixes a name; "T7-8" alone is not
+    // a name with a token on it, and split drops it as a placeholder instead.
+    expect(stripTurnToken("T7-8")).toBe("T7-8");
+    expect(isPlaceholderName("T7-8")).toBe(true);
+  });
+  test("trims without otherwise touching the name", () => {
+    expect(stripTurnToken("  Piscine  ")).toBe("Piscine");
   });
 });

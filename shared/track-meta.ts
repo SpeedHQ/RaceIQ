@@ -191,6 +191,27 @@ export function isPlaceholderName(name: string): boolean {
   return /^T\d*\??$/i.test(n) || /^T\d+(?:[-/]\d+)*$/i.test(n) || /^S\d*\??$/i.test(n);
 }
 
+/** The display token a label leads with: "T2-4 Eau Rouge/Raidillon" -> "T2-4 ". */
+const LEADING_TURN_TOKEN = /^T\d+(?:[-,/]\d+)*\s+/i;
+
+/**
+ * Strip the leading turn token off a corner name.
+ *
+ * `segmentDisplayName` renders a corner as "<token> <name>" — "T2-4 Eau
+ * Rouge/Raidillon" — and the numbering in that token is regenerated from
+ * `number`/`covers` on every render. Anything that hands a rendered label back
+ * as a name (a curator pasting from the map, a generator seeded from joined
+ * segments) would store the token as part of the name, and the next join would
+ * prefix a second one: "T2-4 T2-4 Eau Rouge/Raidillon". Names are stored bare;
+ * this enforces that on the way in so join -> label -> split is idempotent.
+ *
+ * "Turn Two" and other names that merely start with T are untouched — the token
+ * form requires digits immediately after the T.
+ */
+export function stripTurnToken(name: string): string {
+  return name.trim().replace(LEADING_TURN_TOKEN, "").trim();
+}
+
 /** What one game's labelled segment list decomposes into. */
 export interface SplitSegments {
   corners: CornerFact[];
@@ -227,8 +248,15 @@ export function splitSegments(segments: LegacyNamedSegment[]): SplitSegments {
   const straights: StraightFact[] = [];
   const geometry: GeometrySegment[] = [];
 
+  // One fact per straight key. A layout can split the gap after a turn across
+  // several geometry rows (Kemmel in two pieces, an unnamed run-off after a
+  // named one); they all key `s<after>`, so the facts file must carry a single
+  // entry for that key or the join picks an arbitrary winner. First real name
+  // wins, and a group is filled in from whichever row carries one.
+  const straightByAfter = new Map<number, StraightFact>();
+
   ordered.forEach((s, i) => {
-    const name = (s.name ?? "").trim();
+    const name = stripTurnToken(s.name ?? "");
     if (s.type === "corner" && s.number != null) {
       const nums = [s.number, ...(s.covers ?? [])].sort((a, b) => a - b);
       geometry.push({ key: cornerKey(nums), startFrac: s.startFrac, endFrac: s.endFrac });
@@ -244,9 +272,17 @@ export function splitSegments(segments: LegacyNamedSegment[]): SplitSegments {
     const after = precedingTurn[i];
     if (after == null) return; // no numbered corner anywhere — nothing to key against
     geometry.push({ key: straightKey(after), startFrac: s.startFrac, endFrac: s.endFrac });
-    if (!isPlaceholderName(name) || s.group) {
-      straights.push({ after, name: isPlaceholderName(name) ? "" : name, ...(s.group ? { group: s.group } : {}) });
+    if (isPlaceholderName(name) && !s.group) return;
+    const real = isPlaceholderName(name) ? "" : name;
+    const existing = straightByAfter.get(after);
+    if (!existing) {
+      const fact: StraightFact = { after, name: real, ...(s.group ? { group: s.group } : {}) };
+      straightByAfter.set(after, fact);
+      straights.push(fact);
+      return;
     }
+    if (!existing.name) existing.name = real;
+    if (!existing.group && s.group) existing.group = s.group;
   });
 
   return { corners, straights, geometry };
