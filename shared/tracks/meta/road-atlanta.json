@@ -33,10 +33,17 @@
     {
       "number": 6,
       "name": "",
-      "direction": "right"
+      "direction": "right",
+      "group": "T6/T7"
     },
     {
       "number": 7,
+      "name": "",
+      "direction": "right",
+      "group": "T6/T7"
+    },
+    {
+      "number": 8,
       "name": "",
       "direction": "right"
     },
@@ -53,12 +60,14 @@
     {
       "number": 11,
       "name": "",
-      "direction": "right"
+      "direction": "right",
+      "group": "T11/T12"
     },
     {
       "number": 12,
       "name": "",
-      "direction": "right"
+      "direction": "right",
+      "group": "T11/T12"
     }
   ],
   "straights": [

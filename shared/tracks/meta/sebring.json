@@ -38,12 +38,14 @@
     {
       "number": 7,
       "name": "",
-      "direction": "right"
+      "direction": "right",
+      "group": "T7/T8"
     },
     {
       "number": 8,
       "name": "",
-      "direction": "right"
+      "direction": "right",
+      "group": "T7/T8"
     },
     {
       "number": 9,

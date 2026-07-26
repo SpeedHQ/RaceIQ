@@ -20,41 +20,10 @@ import {
 import { loadTrackFacts, loadTrackGeometry } from "../shared/track-data";
 import type { TrackGeometry } from "../shared/track-meta";
 import { validateNameList } from "../shared/track-segment-align";
+import { KNOWN_ALIGNMENT_GAPS, KNOWN_FUZZY_ALIGNMENTS } from "./helpers/track-known-gaps";
 
 const slugs = listCuratedSlugs();
 
-/**
- * ac-evo centerlines that under-detect corner regions, so the curated name list
- * cannot align against them. The corner-name lists are shared across games and
- * align cleanly on ACC/F1/FM, so the gap is ac-evo centerline/detector quality —
- * regrouping the names to suit ac-evo would break the other games.
- *
- * TODO(follow-up PR): retune the ac-evo centerlines for these tracks and delete
- * this list. Deliberately keyed by `slug/gameId` so a newly broken track fails
- * loudly instead of being silently absorbed.
- */
-const KNOWN_DETECTOR_GAPS = new Set([
-  "laguna-seca/ac-evo",
-  "road-atlanta/ac-evo",
-  "sebring/ac-evo",
-]);
-
-/**
- * Pairings that align, but too loosely to persist (cost >= 1), so the committed
- * geometry stays whatever the migration produced from that game's own data.
- *
- * `nordschleife` folded three games onto one slug, but its curated name list was
- * authored against ACC's centerline: 60 corners, starting at the ACC start line.
- * Forza's Nordschleife is the same tarmac digitised into 69 corners from a
- * different lap origin (rotation offset 88) in a mirrored frame, so the list
- * cannot place itself on it. Forza's committed geometry came from Forza's own
- * legacy segmentation and is correct; only regeneration can't reproduce it.
- *
- * TODO(follow-up PR): reconcile shared/tracks/corner-names/nordschleife.json to
- * the 69-corner segmentation and delete this. Same shrink-only contract as
- * KNOWN_DETECTOR_GAPS — a pairing that starts aligning cleanly fails here.
- */
-const KNOWN_FUZZY_ALIGNMENTS = new Set(["nordschleife/fm-2023"]);
 
 describe("track segment generator", () => {
   test("curated corner-name lists exist", () => {
@@ -74,10 +43,10 @@ describe("track segment generator", () => {
       test("aligns on every available game centerline", () => {
         expect(outcomes.length).toBeGreaterThan(0);
         for (const o of outcomes) {
-          if (KNOWN_DETECTOR_GAPS.has(`${slug}/${o.gameId}`)) {
+          if (KNOWN_ALIGNMENT_GAPS.has(`${slug}/${o.gameId}`)) {
             // Still assert it stays broken: if the centerline gets fixed, this
-            // fails and the entry must be removed from KNOWN_DETECTOR_GAPS.
-            expect(o.ok, `${slug}/${o.gameId} now aligns — drop it from KNOWN_DETECTOR_GAPS`).toBe(false);
+            // fails and the entry must be removed from KNOWN_ALIGNMENT_GAPS.
+            expect(o.ok, `${slug}/${o.gameId} now aligns — drop it from KNOWN_ALIGNMENT_GAPS`).toBe(false);
             continue;
           }
           if (KNOWN_FUZZY_ALIGNMENTS.has(`${slug}/${o.gameId}`)) {

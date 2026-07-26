@@ -68,10 +68,17 @@ const KNOWN_CORNER_GAPS: Record<string, string[]> = {
   "catalunya/acc": ["t6"],
   "catalunya/f1-2025": ["t14"],
   "catalunya/fm-2023": ["t14"],
-  // Imola's full 19 turns were curated off the ac-evo centerline; acc and
-  // f1-2025 still fold T1, T10 and T16 into their neighbours.
+  // Imola's full 19 turns were curated off the ac-evo centerline, but ac-evo's
+  // own geometry still folds T1, T8, T10, T13 and T16 into their neighbours;
+  // acc and f1-2025 fold T1, T10 and T16.
   "imola/acc": ["t1", "t10", "t16"],
+  "imola/ac-evo": ["t1", "t10", "t13", "t16", "t8"],
   "imola/f1-2025": ["t1", "t10", "t16"],
+  // laguna-seca T1 and sebring T6/T12/T18 are real corners on ACC/FM that
+  // ac-evo's centerline doesn't register at all (not merged into a
+  // neighbour — genuinely absent).
+  "laguna-seca/ac-evo": ["t1"],
+  "sebring/ac-evo": ["t12", "t18", "t6"],
   // fm subdivides the Nordschleife into 69 corners; acc and ac-evo stop at 60.
   "nordschleife/acc": ["t61", "t62", "t63", "t64", "t65", "t66", "t67", "t68", "t69"],
   "nordschleife/ac-evo": ["t61", "t62", "t63", "t64", "t65", "t66", "t67", "t68", "t69"],

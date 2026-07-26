@@ -11,7 +11,7 @@
     },
     {
       "number": 2,
-      "name": "",
+      "name": "Tamburello",
       "direction": "left",
       "group": "Tamburello"
     },
@@ -29,7 +29,7 @@
     },
     {
       "number": 5,
-      "name": "",
+      "name": "Villeneuve",
       "direction": "left",
       "group": "Villeneuve"
     },
@@ -41,16 +41,17 @@
     },
     {
       "number": 7,
-      "name": "",
+      "name": "Tosa",
       "direction": "left"
     },
     {
       "number": 8,
-      "name": ""
+      "name": "",
+      "direction": "left"
     },
     {
       "number": 9,
-      "name": "",
+      "name": "Piratella",
       "direction": "left"
     },
     {
@@ -59,7 +60,7 @@
     },
     {
       "number": 11,
-      "name": "",
+      "name": "Acque Minerali",
       "direction": "right",
       "group": "Acque Minerali"
     },
@@ -71,11 +72,12 @@
     },
     {
       "number": 13,
-      "name": ""
+      "name": "",
+      "direction": "right"
     },
     {
       "number": 14,
-      "name": "",
+      "name": "Variante Alta",
       "direction": "right",
       "group": "Variante Alta"
     },
@@ -91,17 +93,20 @@
     },
     {
       "number": 17,
-      "name": "",
-      "direction": "left"
+      "name": "Rivazza 1",
+      "direction": "left",
+      "group": "Rivazza"
     },
     {
       "number": 18,
-      "name": ""
+      "name": "Rivazza 2",
+      "direction": "left",
+      "group": "Rivazza"
     },
     {
       "number": 19,
-      "name": ""
+      "name": "",
+      "direction": "left"
     }
-  ],
-  "straights": []
+  ]
 }

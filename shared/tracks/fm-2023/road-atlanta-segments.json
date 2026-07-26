@@ -1,7 +1,7 @@
 {
   "sectors": {
     "s1End": 0.3727,
-    "s2End": 0.6989,
+    "s2End": 0.6546,
     "source": "corner-anchored"
   },
   "segments": [
@@ -43,15 +43,25 @@
     {
       "key": "t6",
       "startFrac": 0.4406,
-      "endFrac": 0.5115
+      "endFrac": 0.4882
     },
     {
       "key": "t7",
-      "startFrac": 0.5115,
-      "endFrac": 0.5519
+      "startFrac": 0.4882,
+      "endFrac": 0.5076
     },
     {
       "key": "s7",
+      "startFrac": 0.5076,
+      "endFrac": 0.5154
+    },
+    {
+      "key": "t8",
+      "startFrac": 0.5154,
+      "endFrac": 0.5519
+    },
+    {
+      "key": "s8",
       "startFrac": 0.5519,
       "endFrac": 0.8226
     },

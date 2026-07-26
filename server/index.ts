@@ -19,12 +19,6 @@ import { injectDiscoveredAcEvoCars } from "../shared/ac-evo-car-data";
 initGameAdapters();
 initServerGameAdapters();
 
-// Promote any discovered_cars rows whose name has since landed in cars.csv,
-// then load whatever's left into the in-memory name-resolution map so
-// getAcEvoCarName()/getCarName() resolve runtime-discovered cars immediately.
-await reconcileDiscoveredCars();
-injectDiscoveredAcEvoCars(await listDiscoveredCars("ac-evo"));
-
 import { existsSync } from "fs";
 import { resolve } from "path";
 import { PUBLIC_DIR, IS_COMPILED } from "./paths";
@@ -72,6 +66,12 @@ import { initDb } from "./db/index";
 import { deleteEmptySessions, setCacheMaxBytes } from "./db/queries";
 
 await initDb();
+
+// Promote any discovered_cars rows whose name has since landed in cars.csv,
+// then load whatever's left into the in-memory name-resolution map so
+// getAcEvoCarName()/getCarName() resolve runtime-discovered cars immediately.
+await reconcileDiscoveredCars();
+injectDiscoveredAcEvoCars(await listDiscoveredCars("ac-evo"));
 
 // Detect first run (settings file doesn't exist yet) before loadSettings creates it
 import { isFirstRun } from "./settings";
