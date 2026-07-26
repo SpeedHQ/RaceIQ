@@ -12,7 +12,7 @@
     },
     {
       "number": 2,
-      "name": "",
+      "name": "Würth",
       "direction": "left"
     },
     {
@@ -22,12 +22,12 @@
     },
     {
       "number": 4,
-      "name": "",
+      "name": "Campsa",
       "direction": "right"
     },
     {
       "number": 5,
-      "name": "",
+      "name": "La Caixa",
       "direction": "left"
     },
     {
@@ -37,12 +37,12 @@
     },
     {
       "number": 7,
-      "name": "",
+      "name": "Banc Sabadell",
       "direction": "right"
     },
     {
       "number": 8,
-      "name": "",
+      "name": "New Holland",
       "direction": "right"
     }
   ]

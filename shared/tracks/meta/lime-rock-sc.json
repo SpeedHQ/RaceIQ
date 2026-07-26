@@ -7,12 +7,12 @@
   "corners": [
     {
       "number": 1,
-      "name": "",
+      "name": "Big Bend",
       "direction": "right"
     },
     {
       "number": 2,
-      "name": "",
+      "name": "The Esses",
       "direction": "left"
     },
     {
@@ -37,12 +37,12 @@
     },
     {
       "number": 7,
-      "name": "",
+      "name": "West Bend",
       "direction": "right"
     },
     {
       "number": 8,
-      "name": "",
+      "name": "Downhill",
       "direction": "right"
     }
   ]

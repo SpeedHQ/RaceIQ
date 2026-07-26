@@ -7,32 +7,32 @@
   "corners": [
     {
       "number": 1,
-      "name": "",
+      "name": "San Donato",
       "direction": "right"
     },
     {
       "number": 2,
-      "name": "",
+      "name": "Luco",
       "direction": "left"
     },
     {
       "number": 3,
-      "name": "",
+      "name": "Poggio Secco",
       "direction": "right"
     },
     {
       "number": 4,
-      "name": "",
+      "name": "Materassi",
       "direction": "left"
     },
     {
       "number": 5,
-      "name": "",
+      "name": "Borgo San Lorenzo",
       "direction": "right"
     },
     {
       "number": 6,
-      "name": "",
+      "name": "Casanova",
       "direction": "right"
     },
     {

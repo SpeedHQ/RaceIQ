@@ -7,7 +7,7 @@
   "corners": [
     {
       "number": 1,
-      "name": "",
+      "name": "Nordkurve",
       "direction": "right"
     },
     {
@@ -42,7 +42,7 @@
     },
     {
       "number": 8,
-      "name": "",
+      "name": "Sachskurve",
       "direction": "left"
     },
     {
@@ -57,7 +57,7 @@
     },
     {
       "number": 11,
-      "name": "",
+      "name": "Südkurve",
       "direction": "right"
     }
   ]

@@ -37,7 +37,7 @@
     },
     {
       "number": 7,
-      "name": "",
+      "name": "Sachskurve",
       "direction": "left"
     },
     {
@@ -52,7 +52,7 @@
     },
     {
       "number": 10,
-      "name": "",
+      "name": "Südkurve",
       "direction": "right"
     }
   ]

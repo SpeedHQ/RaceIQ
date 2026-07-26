@@ -7,17 +7,17 @@
   "corners": [
     {
       "number": 1,
-      "name": "",
+      "name": "Horseshoe",
       "direction": "right"
     },
     {
       "number": 2,
-      "name": "",
+      "name": "NASCAR Bend",
       "direction": "left"
     },
     {
       "number": 3,
-      "name": "",
+      "name": "Left Hook",
       "direction": "left"
     },
     {
@@ -32,7 +32,7 @@
     },
     {
       "number": 6,
-      "name": "",
+      "name": "Climbing Esses",
       "direction": "right"
     },
     {
@@ -47,12 +47,12 @@
     },
     {
       "number": 9,
-      "name": "",
+      "name": "South Bend",
       "direction": "left"
     },
     {
       "number": 10,
-      "name": "",
+      "name": "Oak Tree",
       "direction": "right"
     },
     {
@@ -127,7 +127,7 @@
     },
     {
       "number": 25,
-      "name": "",
+      "name": "Hog Pen",
       "direction": "right"
     }
   ]

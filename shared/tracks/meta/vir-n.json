@@ -7,17 +7,17 @@
   "corners": [
     {
       "number": 1,
-      "name": "",
+      "name": "Horseshoe",
       "direction": "right"
     },
     {
       "number": 2,
-      "name": "",
+      "name": "NASCAR Bend",
       "direction": "left"
     },
     {
       "number": 3,
-      "name": "",
+      "name": "Left Hook",
       "direction": "left"
     },
     {
@@ -62,7 +62,7 @@
     },
     {
       "number": 12,
-      "name": "",
+      "name": "Roller Coaster",
       "direction": "right"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "number": 15,
-      "name": "",
+      "name": "Hog Pen",
       "direction": "right"
     }
   ]

@@ -7,12 +7,12 @@
   "corners": [
     {
       "number": 1,
-      "name": "",
+      "name": "Abbey",
       "direction": "right"
     },
     {
       "number": 2,
-      "name": "",
+      "name": "Farm Curve",
       "direction": "left"
     },
     {
@@ -32,17 +32,17 @@
     },
     {
       "number": 6,
-      "name": "",
+      "name": "Stowe",
       "direction": "right"
     },
     {
       "number": 7,
-      "name": "",
+      "name": "Vale",
       "direction": "left"
     },
     {
       "number": 8,
-      "name": "",
+      "name": "Club",
       "direction": "right"
     }
   ]

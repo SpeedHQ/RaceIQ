@@ -7,7 +7,7 @@
   "corners": [
     {
       "number": 1,
-      "name": "",
+      "name": "Hatzenbach",
       "direction": "left"
     },
     {
@@ -37,17 +37,17 @@
     },
     {
       "number": 7,
-      "name": "",
+      "name": "Flugplatz",
       "direction": "right"
     },
     {
       "number": 8,
-      "name": "",
+      "name": "Aremberg",
       "direction": "left"
     },
     {
       "number": 9,
-      "name": "",
+      "name": "Adenauer Forst",
       "direction": "right"
     },
     {
@@ -62,7 +62,7 @@
     },
     {
       "number": 12,
-      "name": "",
+      "name": "Metzgesfeld",
       "direction": "right"
     },
     {
@@ -77,7 +77,7 @@
     },
     {
       "number": 15,
-      "name": "",
+      "name": "Kallenhard",
       "direction": "left"
     },
     {
@@ -97,12 +97,12 @@
     },
     {
       "number": 19,
-      "name": "",
+      "name": "Wehrseifen",
       "direction": "right"
     },
     {
       "number": 20,
-      "name": "",
+      "name": "Breidscheid",
       "direction": "right"
     },
     {
@@ -112,27 +112,27 @@
     },
     {
       "number": 22,
-      "name": "",
+      "name": "Ex-Mühle",
       "direction": "right"
     },
     {
       "number": 23,
-      "name": "",
+      "name": "Bergwerk",
       "direction": "right"
     },
     {
       "number": 24,
-      "name": "",
+      "name": "Kesselchen",
       "direction": "left"
     },
     {
       "number": 25,
-      "name": "",
+      "name": "Klostertal",
       "direction": "right"
     },
     {
       "number": 26,
-      "name": "",
+      "name": "Karussell",
       "direction": "left"
     },
     {
@@ -147,7 +147,7 @@
     },
     {
       "number": 29,
-      "name": "",
+      "name": "Hohe Acht",
       "direction": "left"
     },
     {
@@ -157,7 +157,7 @@
     },
     {
       "number": 31,
-      "name": "",
+      "name": "Wippermann",
       "direction": "right"
     },
     {
@@ -172,7 +172,7 @@
     },
     {
       "number": 34,
-      "name": "",
+      "name": "Eschbach",
       "direction": "left"
     },
     {
@@ -182,7 +182,7 @@
     },
     {
       "number": 36,
-      "name": "",
+      "name": "Brünnchen",
       "direction": "right"
     },
     {
@@ -197,7 +197,7 @@
     },
     {
       "number": 39,
-      "name": "",
+      "name": "Pflanzgarten",
       "direction": "left"
     },
     {
@@ -212,7 +212,7 @@
     },
     {
       "number": 42,
-      "name": "",
+      "name": "Schwalbenschwanz",
       "direction": "left"
     },
     {
@@ -222,22 +222,22 @@
     },
     {
       "number": 44,
-      "name": "",
+      "name": "Kleines Karussell",
       "direction": "right"
     },
     {
       "number": 45,
-      "name": "",
+      "name": "Galgenkopf",
       "direction": "left"
     },
     {
       "number": 46,
-      "name": "",
+      "name": "Tiergarten",
       "direction": "left"
     },
     {
       "number": 47,
-      "name": "",
+      "name": "Hohenrain",
       "direction": "right"
     },
     {
