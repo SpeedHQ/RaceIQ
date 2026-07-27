@@ -41,7 +41,10 @@ import {
 import { trackMap, getCarName, getTrackName, carSpecsMap } from "../../shared/car-data";
 import { getTrackGuide } from "../ai/track-guides";
 import type { Corner } from "../corner-detection";
-import { carryVerified, cornerKey, cornerNumbers, splitSegments } from "../../shared/track-meta";
+import { cornerNumbers } from "../../shared/track-facts";
+import { splitSegments } from "../../shared/track-join";
+import { cornerKey } from "../../shared/track-keys";
+import { carryVerified } from "../../shared/track-verification";
 import {
   filterLapOutliers,
   normalizeToFixedPoints,

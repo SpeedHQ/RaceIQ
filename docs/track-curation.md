@@ -70,7 +70,7 @@ omitted when the file's own `source` already says.
 
 The block is **content-bound**. Every writer — the generator, the segment editor,
 the sector editor — routes its save through `carryVerified()` in
-`shared/track-meta.ts`, which keeps the block only when the rest of the file is
+`shared/track-verification.ts`, which keeps the block only when the rest of the file is
 byte-for-byte unchanged and drops it otherwise. So a regeneration that shifts one
 corner silently voids the sign-off; a re-run that changes nothing keeps it. Nothing
 in the pipeline can *add* a block — only a human editing the file can.

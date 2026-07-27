@@ -10,22 +10,18 @@
 import { describe, test, expect } from "bun:test";
 import { readdirSync, readFileSync, existsSync } from "fs";
 import { resolve } from "path";
+import { cornerNumbers, type TrackFacts } from "../shared/track-facts";
+import type { TrackGeometry } from "../shared/track-geometry";
 import {
-  cornerKey,
-  cornerNumbers,
-  straightKey,
   joinSegments,
   splitSegments,
   isPlaceholderName,
   stripTurnToken,
   checkKeys,
-  parseCornerKey,
-  parseStraightKey,
   numberCorner,
   unnumberCorner,
-  type TrackFacts,
-  type TrackGeometry,
-} from "../shared/track-meta";
+} from "../shared/track-join";
+import { cornerKey, straightKey, parseCornerKey, parseStraightKey } from "../shared/track-keys";
 import { SHARED_DIR } from "../shared/resolve-data";
 import { segmentDisplayNames } from "../shared/segment-label";
 

@@ -17,7 +17,7 @@
  */
 
 import { loadTrackFacts } from "../../shared/track-data";
-import { cornerNumbers } from "../../shared/track-meta";
+import { cornerNumbers } from "../../shared/track-facts";
 import { cornerPromptLabel } from "../../shared/segment-label";
 import type { ResolvedTrackGuide } from "../../shared/track-guide-types";
 

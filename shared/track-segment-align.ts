@@ -17,7 +17,7 @@
  * get "" — the client localizes those generically via Paraglide.
  */
 
-import type { CornerFact, TrackFacts } from "./track-meta";
+import type { CornerFact, TrackFacts } from "./track-facts";
 // Type-only: the hints loader reads from disk, and this module stays pure so the
 // client can bundle it. Callers load the file and pass the map in.
 import { NO_DETECT_HINTS, type DetectHints } from "./track-detect-hints";

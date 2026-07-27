@@ -26,7 +26,8 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { SHARED_DIR } from "../shared/resolve-data";
-import type { CornerFact, TrackFacts, TrackGeometry } from "../shared/track-meta";
+import type { CornerFact, TrackFacts } from "../shared/track-facts";
+import type { TrackGeometry } from "../shared/track-geometry";
 
 const META_DIR = resolve(SHARED_DIR, "tracks", "meta");
 const TRACKS_DIR = resolve(SHARED_DIR, "tracks");

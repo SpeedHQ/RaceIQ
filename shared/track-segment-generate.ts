@@ -20,16 +20,11 @@ import {
   saveTrackFacts,
   saveTrackGeometry,
 } from "./track-data";
-import {
-  carryVerified,
-  cornerKey,
-  cornerNumbers,
-  splitSegments,
-  type CornerFact,
-  type StraightFact,
-  type TrackFacts,
-  type TrackGeometry,
-} from "./track-meta";
+import { cornerNumbers, type CornerFact, type StraightFact, type TrackFacts } from "./track-facts";
+import type { TrackGeometry } from "./track-geometry";
+import { splitSegments } from "./track-join";
+import { cornerKey } from "./track-keys";
+import { carryVerified } from "./track-verification";
 import { loadDetectHints } from "./track-detect-hints";
 import type { NamedSegment } from "./track-named-segments";
 import { SHARED_DIR } from "./resolve-data";

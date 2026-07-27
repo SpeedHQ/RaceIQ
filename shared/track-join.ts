@@ -1,203 +1,14 @@
 /**
- * Track meta model: physical facts once, per-game geometry separately.
+ * Joining facts to geometry, and splitting a labelled list back apart.
  *
- * Two files describe a track layout.
- *
- *   shared/tracks/meta/<slug>.json         facts  — what the circuit IS
- *   shared/tracks/<gameId>/<slug>-segments.json   geometry — where it is, per game
- *
- * The facts file carries turn numbers, turn names, named straights, groups and
- * layout identity. It is game-agnostic and holds no fractions. Every game that
- * ships this layout is modelling the same real-world circuit, so the set of
- * turns is identical across games — only where each turn sits along the lap
- * differs, because each game digitises its own centerline.
- *
- * That is the whole invariant: classification is a property of the track,
- * geometry is a property of the (track, game) pair. A name never appears in a
- * geometry file, and a fraction never appears in a facts file.
- *
- * ── Keys ────────────────────────────────────────────────────────────────
- *
- * Corners key on turn number: `t3`, or `t10-11` for one corner that officially
- * spans several numbers (Pouhon). Turn numbering is the one identifier every
- * game agrees on — verified across the roster: 1793 corners, all numbered,
- * and 16 of 22 multi-game layouts already agree exactly.
- *
- * Straights key on the corner they follow: the gap after turn 3 is `s3`. On a
- * closed lap with n corners there are exactly n gaps, so straights are derived
- * from the corner list rather than enumerated as independent facts. Only the
- * gaps with real names (Kemmel, Hangar Straight — 31 across the whole roster)
- * get a facts entry; the rest are unnamed connective tissue.
- *
- * Keying straights this way is deliberate. The earlier scheme keyed them by
- * sector + ordinal, which made identity depend on sector boundaries and on the
- * straight count matching between games. Neither holds: detectors disagree on
- * whether a gap is one straight or two (98 such splits in the roster), and that
- * shifts every ordinal behind the split. "The gap after turn 3" is stable under
- * both. It also lets several geometry rows share one key — a game that splits
- * Cooper Straight in two emits two `s3` rows, both correctly named Cooper
- * Straight, with no uniqueness constraint to violate.
+ * The only module that legitimately sees both halves at once. Everything here
+ * consumes `track-facts.ts` + `track-geometry.ts` through the keys in
+ * `track-keys.ts`; nothing here is part of either model.
  */
-import type { TrackSectors } from "./track-sectors";
 import type { NamedSegment as LegacyNamedSegment } from "./track-named-segments";
-
-// ── Verification ─────────────────────────────────────────────────────────
-
-/**
- * A human looked at this file and agreed with it.
- *
- * The ledger lives in the files themselves, one `verified` block per file, so
- * a sign-off travels in the same diff as the thing it signs off and can never
- * drift from it. Nothing derives it: no script may write this block, and no
- * agent may add one on a human's behalf. It says a person checked the content
- * against something real — the facts file against a published circuit map, a
- * geometry file against that game's rendered lap — which is exactly the claim
- * no amount of re-running the detector can make.
- *
- * Absence means unverified, which is the honest default for a file the
- * generator produced. `carryVerified` drops the block the moment the content
- * changes, so a stale sign-off cannot survive a regeneration.
- */
-export interface Verification {
-  /** Who checked it. A person, not a tool. */
-  by: string;
-  /** ISO date (YYYY-MM-DD) of the check. */
-  date: string;
-  /** What they checked it against, when the file's own `source` doesn't say. */
-  note?: string;
-}
-
-// ── Facts: shared/tracks/meta/<slug>.json ────────────────────────────────
-
-/** One officially numbered corner. `number` plus `covers` is its identity. */
-export interface CornerFact {
-  /** Official turn number. Lowest number when the corner spans several. */
-  number: number;
-  /** Further official numbers this one corner subsumes (Pouhon: 10, covers [11]). */
-  covers?: number[];
-  /** Canonical name, untranslated. Empty when the circuit doesn't name this turn. */
-  name: string;
-  direction?: "left" | "right";
-  /**
-   * Complex this corner belongs to (Rivazza, Senna S, Bus Stop). Members share
-   * the key so consumers can label the piece once instead of once per apex.
-   */
-  group?: string;
-  // No detector allowances here — how many arcs a centerline resolves this
-  // corner into, or whether a game draws it at all, is not a property of the
-  // circuit. Those live in shared/tracks/detect-hints.json.
-}
-
-/** A named gap between corners. Unnamed gaps get no entry — they're derived. */
-export interface StraightFact {
-  /** Turn number this straight follows. The pre-T1 straight follows the last corner. */
-  after: number;
-  name: string;
-  group?: string;
-}
-
-/** The facts file. No fractions, no per-game anything. */
-export interface TrackFacts {
-  slug: string;
-  /** Physical venue, groups layouts: brands-hatch-indy and brands-hatch-gp share "brands-hatch". */
-  track: string;
-  /** Layout id within the venue: "gp", "indy", "national". */
-  layout: string;
-  /** Display layout name, rendered as "<name> — <layoutName>". */
-  layoutName: string;
-  /** Venue name, identical across layouts of the same venue. */
-  name: string;
-  /**
-   * Where these corner names came from — official circuit map, FIA track guide,
-   * or an explicit admission that the numbering was detected rather than sourced
-   * ("Sequential detected corners"). Names in this file are real-world claims;
-   * this is the citation that makes them auditable. Never invent one.
-   */
-  source?: string;
-  /** Human sign-off on the names, numbers and directions below. Never written by a script. */
-  verified?: Verification;
-  corners: CornerFact[];
-  /** Only gaps that carry a real name. */
-  straights?: StraightFact[];
-}
-
-// ── Geometry: shared/tracks/<gameId>/<slug>-segments.json ────────────────
-
-/** Where one segment sits along this game's lap. Classification-free. */
-export interface GeometrySegment {
-  /** `t3` / `t10-11` for corners, `s3` for the gap after turn 3. */
-  key: string;
-  startFrac: number;
-  endFrac: number;
-}
-
-export interface TrackGeometry {
-  sectors?: TrackSectors & { source?: string };
-  /**
-   * Human sign-off on where these segments sit in *this game's* lap. Separate
-   * from the facts sign-off because they are separate claims: the turn list can
-   * be right while the fractions are half a lap out, and each game digitises
-   * its own centerline, so checking one game's geometry says nothing about
-   * another's.
-   */
-  verified?: Verification;
-  segments: GeometrySegment[];
-}
-
-/**
- * Carry a sign-off onto a rewritten file, but only if the content is unchanged.
- *
- * Every writer runs its output through this. Regeneration that lands on exactly
- * the same corners and fractions has not invalidated anything, so the block
- * survives and a curated track doesn't lose its ledger entry to a no-op run.
- * The moment a single name or fraction moves, the block is dropped: what the
- * human agreed with no longer exists, and silently re-signing the replacement
- * would make the whole ledger worthless.
- */
-export function carryVerified<T extends { verified?: Verification }>(previous: T | null | undefined, next: T): T {
-  if (!previous?.verified) return next;
-  if (!sameContent(previous, next)) return next;
-  return { ...next, verified: previous.verified };
-}
-
-/** Deep equality ignoring `verified` and key order. */
-function sameContent<T extends { verified?: Verification }>(a: T, b: T): boolean {
-  return canonical(strip(a)) === canonical(strip(b));
-}
-
-function strip<T extends { verified?: Verification }>(v: T): Omit<T, "verified"> {
-  const { verified: _drop, ...rest } = v;
-  return rest;
-}
-
-/** JSON with object keys sorted, so field order in a hand-edited file doesn't read as a change. */
-function canonical(value: unknown): string {
-  return JSON.stringify(value, (_key, v: unknown) => {
-    if (!v || typeof v !== "object" || Array.isArray(v)) return v;
-    const entries = Object.entries(v as Record<string, unknown>).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0));
-    return Object.fromEntries(entries);
-  });
-}
-
-// ── Keys ─────────────────────────────────────────────────────────────────
-
-/** Corner key from turn numbers: [3] -> "t3", [10,11] -> "t10-11". */
-export function cornerKey(numbers: number[]): string {
-  return `t${[...numbers].sort((a, b) => a - b).join("-")}`;
-}
-
-/** Straight key from the turn it follows: 3 -> "s3". */
-export function straightKey(afterCorner: number): string {
-  return `s${afterCorner}`;
-}
-
-/** Turn numbers a corner fact occupies, sorted. */
-export function cornerNumbers(c: CornerFact): number[] {
-  return [c.number, ...(c.covers ?? [])].sort((a, b) => a - b);
-}
-
-
-// ── Join ─────────────────────────────────────────────────────────────────
+import { type CornerFact, type StraightFact, type TrackFacts, cornerNumbers } from "./track-facts";
+import type { GeometrySegment, TrackGeometry } from "./track-geometry";
+import { cornerKey, parseCornerKey, parseStraightKey, straightKey } from "./track-keys";
 
 /**
  * Facts + one game's geometry -> the labelled segment list consumers expect.
@@ -241,23 +52,6 @@ export function joinSegments(facts: TrackFacts, geometry: TrackGeometry): Legacy
         ...(s?.group ? { group: s.group } : {}),
       };
     });
-}
-
-/** "t10-11" -> [10, 11]. Returns [] for a malformed key. */
-export function parseCornerKey(key: string): number[] {
-  if (!key.startsWith("t")) return [];
-  const nums = key
-    .slice(1)
-    .split("-")
-    .map((p) => Number.parseInt(p, 10));
-  return nums.every((n) => Number.isFinite(n)) ? nums : [];
-}
-
-/** "s3" -> 3. Returns null for a malformed key. */
-export function parseStraightKey(key: string): number | null {
-  if (!key.startsWith("s")) return null;
-  const n = Number.parseInt(key.slice(1), 10);
-  return Number.isFinite(n) ? n : null;
 }
 
 /**
@@ -488,3 +282,4 @@ export function checkKeys(facts: TrackFacts, geometryByGame: Record<string, Trac
   }
   return out;
 }
+

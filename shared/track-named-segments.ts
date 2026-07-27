@@ -4,7 +4,7 @@
  *
  * Nothing is stored in this shape. Facts live in `shared/tracks/meta/<slug>.json`
  * and fractions in `shared/tracks/<gameId>/<slug>-segments.json`; `joinSegments`
- * in `shared/track-meta.ts` combines them into this on the way out, and
+ * in `shared/track-join.ts` combines them into this on the way out, and
  * `splitSegments` takes it apart again on the way back in.
  */
 

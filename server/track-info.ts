@@ -1,5 +1,6 @@
 import type { NamedSegment } from "../shared/track-named-segments";
-import type { TrackFacts, TrackGeometry } from "../shared/track-meta";
+import type { TrackFacts } from "../shared/track-facts";
+import type { TrackGeometry } from "../shared/track-geometry";
 import type { TrackSectors } from "../shared/track-sectors";
 import {
   getTrackSectorsByOrdinal,
