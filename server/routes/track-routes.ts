@@ -41,7 +41,9 @@ import {
 import { trackMap, getCarName, getTrackName, carSpecsMap } from "../../shared/car-data";
 import { getTrackGuide } from "../ai/track-guides";
 import type { Corner } from "../corner-detection";
-import { cornerKey, cornerNumbers, splitSegments } from "../../shared/track-meta";
+import { cornerNumbers } from "../../shared/track-facts";
+import { splitSegments } from "../../shared/track-join";
+import { cornerKey } from "../../shared/track-keys";
 import {
   filterLapOutliers,
   normalizeToFixedPoints,
@@ -369,7 +371,10 @@ export const trackRoutes = new Hono()
       // game's geometry rather than in the shared facts.
       if (slug && gameId) {
         const geometry = loadTrackGeometry(slug, gameId);
-        saveTrackGeometry(slug, gameId, { sectors: { s1End, s2End }, segments: geometry?.segments ?? [] });
+        saveTrackGeometry(slug, gameId, {
+          sectors: { s1End, s2End },
+          segments: geometry?.segments ?? [],
+        });
       }
 
       return c.json({ success: true, s1End, s2End });
@@ -512,17 +517,23 @@ export const trackRoutes = new Hono()
       const byAfter = new Map((existing?.straights ?? []).map((s) => [s.after, s]));
       for (const s of straights) byAfter.set(s.after, s);
 
+      // An editor save is an edit, not a sign-off — any signature in
+      // `shared/tracks/verified.json` goes stale on the next hash check. The
+      // citation is carried outright: an uncited name is indistinguishable
+      // from an invented one.
       saveTrackFacts(slug, {
         slug,
         track: existing?.track ?? slug,
         layout: existing?.layout ?? "full",
         layoutName: existing?.layoutName ?? "Full",
         name: existing?.name ?? slug,
+        ...(existing?.source ? { source: existing.source } : {}),
         corners: [...byKey.values()].sort((a, b) => a.number - b.number),
         straights: [...byAfter.values()].sort((a, b) => a.after - b.after),
       });
+      const existingGeometry = loadTrackGeometry(slug, gameId);
       saveTrackGeometry(slug, gameId, {
-        ...(loadTrackGeometry(slug, gameId)?.sectors ? { sectors: loadTrackGeometry(slug, gameId)!.sectors } : {}),
+        ...(existingGeometry?.sectors ? { sectors: existingGeometry.sectors } : {}),
         segments: geometry,
       });
       console.log(`[Track] Saved ${geometry.length} segments for ${slug} (${gameId})`);

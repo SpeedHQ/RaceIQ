@@ -17,12 +17,12 @@ import { client } from "@/lib/rpc";
 import { segmentDisplayNames } from "@/lib/segment-label";
 import { m } from "@/paraglide/messages";
 import { getGameRoute, useGameId } from "@/stores/game";
+import { numberCorner, unnumberCorner } from "../../../../shared/track-join";
 import { CatalogTrackSetups } from "./CatalogTrackSetups";
 import { CommunityLeaderboard } from "./CommunityLeaderboard";
 import { TrackDebugPanel } from "./debug/TrackDebugPanel";
 import { TrackInfoPanel } from "./TrackInfoPanel";
 import type { Point, TrackInfo, TrackSectors, TrackSegment } from "./types";
-import { numberCorner, unnumberCorner } from "../../../../shared/track-meta";
 
 interface TrackLap {
   lapId: number;

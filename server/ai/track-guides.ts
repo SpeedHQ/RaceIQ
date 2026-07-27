@@ -17,7 +17,7 @@
  */
 
 import { loadTrackFacts } from "../../shared/track-data";
-import { cornerNumbers } from "../../shared/track-meta";
+import { cornerNumbers } from "../../shared/track-facts";
 import { cornerPromptLabel } from "../../shared/segment-label";
 import type { ResolvedTrackGuide } from "../../shared/track-guide-types";
 
@@ -856,7 +856,7 @@ const guides: TrackGuide[] = [
     corners: [
       { name: "Turn 1", numbers: [1], type: "heavy-braking corner off the front straight", technique: "Brake hard over the bumpy surface, late apex", trap: "The bumps under braking make lockups common" },
       { name: "Hairpin", numbers: [7], type: "tight, slow-speed corner (Turn 7) with a notoriously bumpy braking zone", technique: "Precision braking over the bumps, smooth throttle application", trap: "The bumpy surface unsettles the car right at the braking point" },
-      { name: "Sunset Bend", numbers: [19], type: "fast, bumpy right-hander onto the front straight (Turn 17)", technique: "Commit through the bumps — tight on exit if taken correctly", trap: "Heavy braking zone with varying racing lines makes this the corner Sebring is best known for" },
+      { name: "Sunset Bend", numbers: [17], type: "fast, bumpy right-hander onto the front straight (Turn 17)", technique: "Commit through the bumps — tight on exit if taken correctly", trap: "Heavy braking zone with varying racing lines makes this the corner Sebring is best known for" },
     ],
     priorityCorners: ["Hairpin", "Sunset Bend"],
   },

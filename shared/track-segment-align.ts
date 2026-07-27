@@ -17,7 +17,7 @@
  * get "" — the client localizes those generically via Paraglide.
  */
 
-import type { CornerFact, TrackFacts } from "./track-meta";
+import type { CornerFact, TrackFacts } from "./track-facts";
 // Type-only: the hints loader reads from disk, and this module stays pure so the
 // client can bundle it. Callers load the file and pass the map in.
 import { NO_DETECT_HINTS, type DetectHints } from "./track-detect-hints";
@@ -43,6 +43,12 @@ export interface CornerRegion {
 }
 
 interface Pt { x: number; z: number }
+
+/**
+ * ~11.5° of heading change required for a region to stand alone as a corner.
+ * Shared with the aligner, which prices weak-region skips against it.
+ */
+const MIN_TURN_RAD = 0.20;
 
 /**
  * Fine-grained corner detection from a centerline (unlike detectSegments,
@@ -100,8 +106,8 @@ function detectPass(outline: Pt[], K_IN: number, K_OUT: number): { corners: Pass
 
   const CURV_WINDOW_M = 12;
   const MIN_CORNER_M = 15;
-  const MIN_TURN_RAD = 0.20;   // ~11.5° of heading change required to stand alone
   const WEAK_TURN_RAD = 0.10;  // below ~5.7° it's noise, not a corner anyone names
+  const WEAK_LENGTH_M = 25;    // shorter than this can't stand alone as a corner
   const MERGE_GAP_M = 50;      // same-direction regions closer than this merge
   const SIGN_RUN_M = 25;       // sustained opposite sign for this long = split
   // K_OUT is deliberately loose so a corner's declining curvature tail bridges
@@ -252,8 +258,14 @@ function detectPass(outline: Pt[], K_IN: number, K_OUT: number): { corners: Pass
     // regions rather than dropped. Geometry alone can't tell Spa's Raidillon
     // (~0.19 rad, just under the cutoff) from a meaningless kink — but the
     // track facts file can, so alignment claims a weak region when a name
-    // says a corner is there and skips it for free otherwise.
-    .map(({ untrimmedLengthM, ...c }) => (c.turnRad < MIN_TURN_RAD ? { ...c, weak: true } : c));
+    // says a corner is there and skips it for free otherwise. A very short run
+    // is weak on the same grounds regardless of how hard it bends: a 20 m blip
+    // is as often a centerline wobble on a hairpin exit as it is a real kink,
+    // and only the roster knows which. Weak is not "ignorable" though — the
+    // skip price scales with turn angle (see WEAK_SKIP), so a short-but-sharp
+    // bend like Melbourne T1 (17 m, 1.9 rad) is still expensive to leave out.
+    .map(({ untrimmedLengthM, ...c }) =>
+      c.turnRad < MIN_TURN_RAD || c.lengthM < WEAK_LENGTH_M ? { ...c, weak: true } : c);
 
   return { corners, totalDist };
 }
@@ -459,6 +471,12 @@ function matchUnits(units: Unit[], detected: CornerRegion[]):
   // weak region 1:1 does, while an unnamed kink is left alone. Non-zero so it
   // never ties with claiming it.
   const WEAK_SKIP = 0.005;
+  // Weak regions are not equally droppable. One below MIN_TURN_RAD really is a
+  // wobble and costs the base price; one that is weak only because it is short
+  // (Melbourne T1: 17 m, 1.9 rad) is plainly a corner, and leaving it unnamed
+  // has to cost more than the mis-numbering the DP would otherwise buy with it.
+  const skipCost = (r: CornerRegion) =>
+    WEAK_SKIP + 0.2 * Math.max(0, r.turnRad - MIN_TURN_RAD);
   const dp: number[][] = Array.from({ length: nU + 1 }, () => new Array(nD + 1).fill(HARD_FAIL));
   // How each state was reached, so the walk back knows unit takes from skips.
   const from: ({ pi: number; pj: number; take: number } | null)[][] =
@@ -469,7 +487,7 @@ function matchUnits(units: Unit[], detected: CornerRegion[]):
       if (dp[i][j] === HARD_FAIL) continue;
       // Leave a weak region out of every section — it stays part of the straight
       if (j < nD && detected[j].weak) {
-        const total = dp[i][j] + WEAK_SKIP;
+        const total = dp[i][j] + skipCost(detected[j]);
         if (total < dp[i][j + 1]) {
           dp[i][j + 1] = total;
           from[i][j + 1] = { pi: i, pj: j, take: -1 };

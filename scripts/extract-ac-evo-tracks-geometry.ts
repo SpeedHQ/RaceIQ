@@ -20,7 +20,7 @@ import { resolve } from "path";
 import { findContentKspkg, Kspkg, type KspkgEntry } from "../server/games/ac-evo/kspkg";
 import { parseAiSpline, type AiSplinePoint } from "../server/games/ac-evo/aispline";
 import { autoTrackSegments } from "../shared/track-segment-generate";
-import { splitSegments } from "../shared/track-meta";
+import { splitSegments } from "../shared/track-join";
 import { loadTrackFacts, loadTrackGeometry, saveTrackFacts, saveTrackGeometry } from "../shared/track-data";
 import { SHARED_DIR } from "../shared/resolve-data";
 

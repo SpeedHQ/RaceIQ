@@ -7,7 +7,7 @@ import {
   validateFacts,
   type CornerRegion,
 } from "../shared/track-segment-align";
-import type { TrackFacts } from "../shared/track-meta";
+import type { TrackFacts } from "../shared/track-facts";
 
 /** Identity fields alignment never reads — every fixture shares them. */
 const FACTS = { slug: "test", track: "test", layout: "full", layoutName: "Full", name: "Test" };

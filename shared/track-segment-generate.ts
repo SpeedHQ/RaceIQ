@@ -20,15 +20,10 @@ import {
   saveTrackFacts,
   saveTrackGeometry,
 } from "./track-data";
-import {
-  cornerKey,
-  cornerNumbers,
-  splitSegments,
-  type CornerFact,
-  type StraightFact,
-  type TrackFacts,
-  type TrackGeometry,
-} from "./track-meta";
+import { cornerNumbers, type CornerFact, type StraightFact, type TrackFacts } from "./track-facts";
+import type { TrackGeometry } from "./track-geometry";
+import { splitSegments } from "./track-join";
+import { cornerKey } from "./track-keys";
 import { loadDetectHints } from "./track-detect-hints";
 import type { NamedSegment } from "./track-named-segments";
 import { SHARED_DIR } from "./resolve-data";
@@ -227,7 +222,10 @@ export function buildUpdatedMeta(
     // Sectors are curated per game and live only in geometry — regeneration
     // rewrites segments and must carry them through untouched.
     const sectors = existingGeometry[a.gameId]?.sectors;
-    geometry[a.gameId] = { ...(sectors ? { sectors } : {}), segments: split.geometry };
+    geometry[a.gameId] = {
+      ...(sectors ? { sectors } : {}),
+      segments: split.geometry,
+    };
     for (const c of split.corners) {
       const key = cornerKey(cornerNumbers(c));
       const seen = cornerVotes.get(key);
@@ -244,7 +242,14 @@ export function buildUpdatedMeta(
   for (const [key, votes] of cornerVotes) {
     const committed = corners.get(key);
     const numbers = cornerNumbers(votes[0]);
-    const direction = agreed(votes.map((v) => v.direction), committed?.direction);
+    // Direction is curated, not detected. A corner already in the facts file keeps
+    // exactly what the roster says — including a deliberate *absence*, which is how
+    // a multi-apex/ambiguous turn (Sebring T15) is recorded. Detection only gets a
+    // say for corners the roster has never seen, or on a track with no facts at all.
+    const known = existingFacts !== null && committed !== undefined;
+    const direction = known
+      ? committed.direction
+      : agreed(votes.map((v) => v.direction), committed?.direction);
     const group = agreed(votes.map((v) => v.group), committed?.group);
     corners.set(key, {
       number: numbers[0],

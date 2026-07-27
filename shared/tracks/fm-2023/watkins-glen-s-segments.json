@@ -18,21 +18,21 @@
     {
       "key": "t3",
       "startFrac": 0.2196,
-      "endFrac": 0.2832
-    },
-    {
-      "key": "s3",
-      "startFrac": 0.2832,
-      "endFrac": 0.4479
+      "endFrac": 0.2738
     },
     {
       "key": "t4",
-      "startFrac": 0.4479,
-      "endFrac": 0.4953
+      "startFrac": 0.2738,
+      "endFrac": 0.3673
+    },
+    {
+      "key": "s4",
+      "startFrac": 0.3673,
+      "endFrac": 0.4622
     },
     {
       "key": "t5",
-      "startFrac": 0.4953,
+      "startFrac": 0.4622,
       "endFrac": 0.5259
     },
     {

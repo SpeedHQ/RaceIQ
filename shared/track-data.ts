@@ -2,7 +2,9 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { resolve } from "path";
 import { getTrackSectorsByName, DEFAULT_SECTORS, type TrackSectors } from "./track-sectors";
 import type { NamedSegment } from "./track-named-segments";
-import { joinSegments, type TrackFacts, type TrackGeometry } from "./track-meta";
+import type { TrackFacts } from "./track-facts";
+import type { TrackGeometry } from "./track-geometry";
+import { joinSegments } from "./track-join";
 import { GameIdSchema } from "./types";
 import { getF1TrackInfo } from "./f1-track-data";
 

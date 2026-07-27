@@ -338,7 +338,6 @@ const KNOWN_NUMBERING_CONFLICTS = [
   "brands-hatch :: Clark Curve", // prose T9, meta T10
   "nurburgring :: Dunlop Kehre", // prose T7, meta T6
   "nurburgring :: NGK Chicane", // prose T15, meta T12-13
-  "sebring :: Sunset Bend", // prose T17, meta T19
   "suzuka :: Degner 2", // prose T10, meta's Degner covers 8-9
   "suzuka :: Dunlop Curve", // prose T8, meta T7
 ];

@@ -230,6 +230,57 @@ To add support for a new racing game (e.g. Gran Turismo):
 
 See existing adapters (`fm-2023`, `f1-2025`, `acc`) for reference. Everything else (navigation tabs, car/track name resolution, corner detection, AI prompts, parser dispatch) is handled automatically by the registry.
 
+### Track Segments: curated geometry is the source of truth
+
+⚠️ **`shared/track-segment-generate.ts` (`bun run tracks:segments`) is a FALLBACK detector, not a ground truth.** It infers corner regions from a centerline polyline so that a track with *no* curated geometry still gets usable segments. It will never be 100% accurate, and that is by design.
+
+The hierarchy:
+
+1. **Curated geometry** (`shared/tracks/<gameId>/<slug>-segments.json` — per-game `segments` + `sectors`) — authoritative. What the app actually ships and renders.
+2. **Curated facts / roster** (`shared/tracks/meta/<slug>.json` — corner numbers, names, `direction`, `group`) — authoritative. Hand-curated against real-world turn-by-turn guides.
+3. **Detection** (`detectCornerRegions`) — best-effort. Only fills gaps; must never overwrite 1 or 2. `buildUpdatedMeta` deliberately keeps a committed corner's `direction` verbatim, including a *deliberate absence* (e.g. Sebring T15, a multi-apex turn with no single direction).
+
+**Therefore: a detector miss on a track that already ships curated geometry costs nothing.** Do NOT loosen detection thresholds, re-curate a shared name list around one game's bad centerline, or reshape the roster to make the generator happy. Those changes trade a real, correct, curated fact for a cosmetically green fallback — and they break the *other* games sharing that slug.
+
+**Where effort belongs:** getting curated geometry and rosters *accurate* (against real turn-by-turn guides, per track), not endlessly tuning `track-segment-generate.ts`. If a track looks wrong in the app, fix the curated data for that track. Touch the generator only when it is wrong in a *general* way (a bug affecting every track), never to chase one slug's alignment.
+
+The sanctioned-gap ledgers in `test/helpers/track-known-gaps.ts` (`KNOWN_ALIGNMENT_GAPS`, `KNOWN_FUZZY_ALIGNMENTS`, `KNOWN_TURN_GAPS`) exist to record these accepted misses. They are **shrink-only**: each entry is asserted to still be broken, so a fix forces its deletion. Adding an entry is legitimate when the miss is genuinely a centerline-quality problem (each entry needs a reason comment); it is not a way to silence a real regression in curated data.
+
+Known centerline-quality classes, already understood — don't re-litigate them: ACC tracks whose "centerline" is still the fastlane racing line (issue #98, fixed per-track by `scripts/acc-centerline-from-boundaries.ts`), ac-evo centerlines that under-detect individual corners, and Forza's Nordschleife/Watkins Glen digitised at a different corner granularity than the shared name list.
+
+#### Curation coverage
+
+Three separate claims, weakest to strongest — **curated is not the same as correct**:
+
+| Column | Means |
+|--------|-------|
+| **Curated roster** | `shared/tracks/meta/<slug>.json` has a hand-authored non-empty `corners` array. Counting *geometry* files instead would always read ~100% — the fallback detector writes one for nearly every centerline. |
+| **Meta human-verified** | A person checked that roster against a real turn-by-turn guide and signed it off. |
+| **Segments human-verified** | A person checked that game's rendered geometry (`shared/tracks/<gameId>/<slug>-segments.json`, easiest via the committed `test/e2e/output/track-segments/<slug>-<gameId>.svg`) and signed it off. Kept separate from meta because a correct roster says nothing about whether the corners landed in the right *place* — f1-2025 segments in particular are known to be inaccurate. |
+
+**Counts live in `docs/track-curation.md`, not here.** That doc owns the generated per-game summary and the per-track breakdown of who signed off what. No coverage numbers in CLAUDE.md — they go stale and nobody notices.
+
+⚠️ **When you curate a track (or add a game's centerlines), refresh the stats:**
+
+```bash
+bun run tracks:coverage            # print the table
+bun run tracks:coverage --write    # rewrite the generated blocks in docs/track-curation.md
+```
+
+**Signing off verification** — only after actually comparing against a real source, never as a side effect of generating or regenerating anything:
+
+```bash
+bun run tracks:coverage --verify meta:suzuka --by "official circuit map"
+bun run tracks:coverage --verify segments:f1-2025/spa --by "svg render vs circuit map"
+bun run tracks:coverage --write    # then refresh the table
+```
+
+Signatures live in `shared/tracks/verified.json` and pin a hash of the file signed. **Edit the file and the signature goes stale** — it drops out of the verified count and shows as `+N stale`, so a human has to look again. Claude must not stamp the ledger on its own: propose it, let the user confirm what they checked. Low verified numbers are honest, not a metric to farm.
+
+`test/track-coverage.test.ts` fails if the committed table drifts from the repo, so this cannot silently rot. Source of truth: `shared/track-coverage.ts` + `shared/track-verified.ts`.
+
+📖 Full write-up — layer hierarchy, why the detector is a fallback, sanctioned gaps, verification rules: **[docs/track-curation.md](docs/track-curation.md)**.
+
 ### Pre-commit Hooks (Lefthook)
 
 Installed via `postinstall` script. Runs in parallel on staged client files:

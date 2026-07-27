@@ -10,22 +10,18 @@
 import { describe, test, expect } from "bun:test";
 import { readdirSync, readFileSync, existsSync } from "fs";
 import { resolve } from "path";
+import { cornerNumbers, type TrackFacts } from "../shared/track-facts";
+import type { TrackGeometry } from "../shared/track-geometry";
 import {
-  cornerKey,
-  cornerNumbers,
-  straightKey,
   joinSegments,
   splitSegments,
   isPlaceholderName,
   stripTurnToken,
   checkKeys,
-  parseCornerKey,
-  parseStraightKey,
   numberCorner,
   unnumberCorner,
-  type TrackFacts,
-  type TrackGeometry,
-} from "../shared/track-meta";
+} from "../shared/track-join";
+import { cornerKey, straightKey, parseCornerKey, parseStraightKey } from "../shared/track-keys";
 import { SHARED_DIR } from "../shared/resolve-data";
 import { segmentDisplayNames } from "../shared/segment-label";
 
@@ -76,11 +72,17 @@ const KNOWN_CORNER_GAPS: Record<string, string[]> = {
   "imola/acc": ["t1", "t16", "t8"],
   "imola/ac-evo": ["t1", "t10", "t13", "t16", "t8"],
   "imola/f1-2025": ["t1", "t8"],
-  // laguna-seca T1 and sebring T6/T12/T18 are real corners on ACC/FM that
-  // ac-evo's centerline doesn't register at all (not merged into a
-  // neighbour — genuinely absent).
+  // laguna-seca T1 and sebring T12 are real corners on ACC/FM that ac-evo's
+  // centerline doesn't register at all (not merged into a neighbour —
+  // genuinely absent).
+  //
+  // sebring T2 is the other shape: an unnamed, very open left in the official
+  // 17-turn count that neither Forza's nor ac-evo's centerline curves enough to
+  // register. Declared `optional` in detect-hints; the curated geometry carries
+  // the corner regardless.
   "laguna-seca/ac-evo": ["t1"],
-  "sebring/ac-evo": ["t12", "t18", "t6"],
+  "sebring/ac-evo": ["t12", "t2"],
+  "sebring/fm-2023": ["t2"],
   // acc folds Aintree (T5) into the Wellington Straight exit.
   "silverstone/acc": ["t5"],
   // ac-evo folds Blanchimont (T16) into the Bus Stop approach.
@@ -103,7 +105,6 @@ const KNOWN_CORNER_GAPS: Record<string, string[]> = {
   "las-vegas/f1-2025": ["t11"],
   "lusail/f1-2025": ["t11"],
   "mid-ohio/fm-2023": ["t3"],
-  "monaco/f1-2025": ["t17"],
   "montreal/f1-2025": ["t11"],
   "road-america/fm-2023": ["t2", "t4"],
   "sakhir/f1-2025": ["t15"],
