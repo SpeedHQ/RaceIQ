@@ -49,6 +49,28 @@ const DIST_LAP_RESET_M = 50; // current_km drop beyond this (m) ⇒ new lap
 const DIST_CALIB_MIN_M = 5; // require ≥5 m true travel before trusting a k sample
 const DIST_PACKETID_MAX_JUMP = 10000; // ΔpacketId above this ⇒ discontinuity, skip
 
+// --- Suspension rest calibration (calibrateSuspRest) ---
+// PHYSICS.suspTravel* is signed, but its zero point is an arbitrary per-car /
+// per-setup reference, NOT the static ride height. Measured idle values across
+// recordings: the Porsche 992 GT3 R Rennsport sits at ~-36 mm front / ~-17 mm
+// rear in one session and ~-11 mm front / ~+2 mm rear in another. Encoding the
+// bar as a fixed `0.5 + travel/0.1` therefore parked a *stationary* car
+// anywhere between "fully extended" (blue) and "bottoming out" (red).
+// So learn the rest position from the car's own idle height at the start of the
+// session, the same way DistanceTraveled self-calibrates its clock. State lives
+// in the parser cache and is derived only from raw buffers in frame order, so a
+// replay that warms up from the top of the session file (parseRawLapFrames)
+// reproduces the identical baseline live gave us.
+const SUSP_IDLE_SPEED_MPS = 0.3; // below this the car counts as stationary
+const SUSP_IDLE_FRAMES = 30; // ~0.3 s stationary (≈100Hz) before we trust idle
+const SUSP_MOVING_FRAMES = 600; // ~6 s of driving ⇒ fallback baseline (never idled)
+// ±25 mm around rest spans the full 0–1 bar. Measured over a full AC Evo
+// session (test/artifacts/sessions/ac-evo-unknown-track-session17), deflection
+// from rest while driving covers -16 mm to +22 mm including kerb strikes, so
+// this uses ~30-95% of the bar without clipping. The old ±50 mm equivalent left
+// the bar visually inert.
+const SUSP_RANGE_M = 0.025;
+
 export interface AcEvoParserCache {
   carOrdinal: number;
   trackOrdinal: number;
@@ -72,6 +94,13 @@ export interface AcEvoParserCache {
   _distCalibTrueM: number; // Σ true metres (current_km deltas) over that window
   _distK: number; // seconds per physics step (calibrated); 0 = uncalibrated
   _distOut: number; // last emitted DistanceTraveled (m), monotonic clamp
+
+  // Suspension rest calibration state (see calibrateSuspRest).
+  _suspRest: Float32Array; // learned rest travel (m) per corner [FL,FR,RL,RR]
+  _suspRestFinal: boolean; // true once an idle baseline is locked in
+  _suspAccSum: Float64Array; // Σ travel per corner over the current window
+  _suspAccN: number; // frames in the current window
+  _suspAccIdle: boolean; // is the current window an idle window?
 }
 
 export function createAcEvoParserCache(): AcEvoParserCache {
@@ -97,7 +126,78 @@ export function createAcEvoParserCache(): AcEvoParserCache {
     _distCalibTrueM: 0,
     _distK: 0,
     _distOut: 0,
+    _suspRest: new Float32Array(4),
+    _suspRestFinal: false,
+    _suspAccSum: new Float64Array(4),
+    _suspAccN: 0,
+    _suspAccIdle: false,
   };
+}
+
+/**
+ * Learn each corner's rest (static ride height) suspension travel so the UI can
+ * show deflection *relative to how this car actually sits*, instead of assuming
+ * the channel is zero-centred. See the SUSP_* constants above for why.
+ *
+ * Strategy, cheapest trustworthy signal first:
+ *  - Stationary (< SUSP_IDLE_SPEED_MPS) for SUSP_IDLE_FRAMES ⇒ that mean is the
+ *    rest height. Locked as final the moment the car pulls away, so mid-lap
+ *    kerb strikes and pit-stop jacks can never move the baseline afterwards.
+ *  - Never stationary (session joined mid-lap, replay starting on a flying lap)
+ *    ⇒ after SUSP_MOVING_FRAMES fall back to the running mean while moving,
+ *    which averages compression and extension out to roughly ride height. This
+ *    stays refinable, so a later return to the pits upgrades it to a real idle
+ *    baseline.
+ *
+ * Returns the cache's rest array (do not retain — it is mutated in place).
+ */
+function calibrateSuspRest(
+  cache: AcEvoParserCache,
+  speedMps: number,
+  fl: number,
+  fr: number,
+  rl: number,
+  rr: number,
+): Float32Array {
+  if (cache._suspRestFinal) return cache._suspRest;
+
+  const idle = speedMps < SUSP_IDLE_SPEED_MPS;
+  if (idle !== cache._suspAccIdle) {
+    // Leaving a complete idle window: that baseline is the best we will ever
+    // get, so freeze it rather than letting driving frames dilute it.
+    if (cache._suspAccIdle && cache._suspAccN >= SUSP_IDLE_FRAMES) {
+      cache._suspRestFinal = true;
+      return cache._suspRest;
+    }
+    cache._suspAccSum.fill(0);
+    cache._suspAccN = 0;
+    cache._suspAccIdle = idle;
+  }
+
+  cache._suspAccSum[0]! += fl;
+  cache._suspAccSum[1]! += fr;
+  cache._suspAccSum[2]! += rl;
+  cache._suspAccSum[3]! += rr;
+  cache._suspAccN++;
+
+  if (cache._suspAccN >= (idle ? SUSP_IDLE_FRAMES : SUSP_MOVING_FRAMES)) {
+    for (let i = 0; i < 4; i++) cache._suspRest[i] = cache._suspAccSum[i]! / cache._suspAccN;
+  }
+  return cache._suspRest;
+}
+
+/** Reset rest calibration — a different car sits at a different height. */
+function resetSuspRest(cache: AcEvoParserCache): void {
+  cache._suspRest.fill(0);
+  cache._suspRestFinal = false;
+  cache._suspAccSum.fill(0);
+  cache._suspAccN = 0;
+  cache._suspAccIdle = false;
+}
+
+/** Map absolute travel (m) to a 0–1 bar centred on the learned rest height. */
+function normSuspTravel(travelM: number, restM: number): number {
+  return Math.max(0, Math.min(1, 0.5 + (travelM - restM) / (2 * SUSP_RANGE_M)));
 }
 
 /**
@@ -186,6 +286,7 @@ export function parseAcEvoBuffers(
   if (carModelStr && carModelStr !== cache.lastCarModel) {
     cache.lastCarModel = carModelStr;
     const car = getAcEvoCarByDisplayName(carModelStr);
+    resetSuspRest(cache);
     if (car) {
       cache.carOrdinal = car.id;
       console.log(`[AC Evo Parser] Resolved car: "${carModelStr}" → ordinal ${car.id}`);
@@ -488,6 +589,8 @@ export function parseAcEvoBuffers(
   const brakeVal = Math.round(brake * 255);
   const steer = Math.round(steerAngle * 127);
   const speed = speedKmh / 3.6;
+  // Learn/refresh this car's static ride height before normalising the bars.
+  const suspRest = calibrateSuspRest(cache, speed, suspFL, suspFR, suspRL, suspRR);
 
   const INV = 0x7fffffff;
   const currentLap = iCurrentTime > 0 && iCurrentTime !== INV ? iCurrentTime / 1000 : 0;
@@ -603,10 +706,11 @@ export function parseAcEvoBuffers(
     // Encode as centered 0–1 so the bar fills correctly: 0.5 = rest,
     // >0.5 = compressed, <0.5 = extended. ±50 mm assumed full range.
     // SuspensionTravelMFL carries the raw metres for the mm display label.
-    NormSuspensionTravelFL: Math.max(0, Math.min(1, 0.5 + suspFL / 0.1)),
-    NormSuspensionTravelFR: Math.max(0, Math.min(1, 0.5 + suspFR / 0.1)),
-    NormSuspensionTravelRL: Math.max(0, Math.min(1, 0.5 + suspRL / 0.1)),
-    NormSuspensionTravelRR: Math.max(0, Math.min(1, 0.5 + suspRR / 0.1)),
+    // 0.5 = the car's learned rest height, not a hardcoded channel zero.
+    NormSuspensionTravelFL: normSuspTravel(suspFL, suspRest[0]!),
+    NormSuspensionTravelFR: normSuspTravel(suspFR, suspRest[1]!),
+    NormSuspensionTravelRL: normSuspTravel(suspRL, suspRest[2]!),
+    NormSuspensionTravelRR: normSuspTravel(suspRR, suspRest[3]!),
 
     TireSlipRatioFL: slipRatioFL,
     TireSlipRatioFR: slipRatioFR,

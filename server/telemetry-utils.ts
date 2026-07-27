@@ -14,7 +14,16 @@ const SUSPENSION_RANGE_MM: Record<string, { min: number; max: number }> = {
 };
 const DEFAULT_SUSPENSION_RANGE_MM = { min: 20, max: 80 };
 
+/**
+ * Games whose parser already normalises suspension itself and must never be
+ * second-guessed with a fixed range. AC Evo learns each car's rest height at
+ * idle (calibrateSuspRest), so a legitimate 0.0 there means "fully extended",
+ * not "unset" — the `!== 0` guard below would silently overwrite it.
+ */
+const PARSER_OWNS_NORM_SUSPENSION = new Set(["ac-evo"]);
+
 export function fillNormSuspension(p: TelemetryPacket): void {
+  if (PARSER_OWNS_NORM_SUSPENSION.has(p.gameId ?? "")) return;
   if (p.NormSuspensionTravelFL !== 0 || p.SuspensionTravelMFL <= 0) return;
   const { min, max } = SUSPENSION_RANGE_MM[p.gameId ?? ""] ?? DEFAULT_SUSPENSION_RANGE_MM;
   const span = max - min;
