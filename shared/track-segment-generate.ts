@@ -296,20 +296,6 @@ function agreed<T extends string>(values: (T | undefined)[], committed: T | unde
 }
 
 /**
- * Sectors that came from somewhere better than geometry — F1 2025's official
- * per-game fractions (#48), or values researched by hand. Corner-anchored
- * sectors are derived from the centerline, which is a good way to give a game
- * its OWN boundaries but a bad way to overrule a timing line someone looked up:
- * regenerating used to silently push Silverstone's official F1 s1 from 0.314 to
- * 0.354. Geometry fills gaps; it does not overwrite.
- *
- * `source` is stamped only on generated sectors, so its absence marks curation.
- */
-function hasCuratedSectors(s: { source?: string } | undefined): boolean {
-  return !!s && !s.source;
-}
-
-/**
  * Auto-generate segments for a track with no curated facts: detected
  * corners become sequential T-number tokens through the same alignment path
  * (padding, merging) that curated tracks use.
