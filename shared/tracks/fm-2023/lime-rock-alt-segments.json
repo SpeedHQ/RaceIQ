@@ -23,26 +23,31 @@
     {
       "key": "s3",
       "startFrac": 0.3798,
-      "endFrac": 0.465
+      "endFrac": 0.4383
     },
     {
       "key": "t4",
-      "startFrac": 0.465,
-      "endFrac": 0.5465
+      "startFrac": 0.4383,
+      "endFrac": 0.5098
     },
     {
       "key": "t5",
-      "startFrac": 0.5465,
-      "endFrac": 0.5774
+      "startFrac": 0.5098,
+      "endFrac": 0.5245
     },
     {
       "key": "t6",
-      "startFrac": 0.5774,
-      "endFrac": 0.6372
+      "startFrac": 0.5245,
+      "endFrac": 0.5713
+    },
+    {
+      "key": "s6",
+      "startFrac": 0.5713,
+      "endFrac": 0.6145
     },
     {
       "key": "t7",
-      "startFrac": 0.6372,
+      "startFrac": 0.6145,
       "endFrac": 0.705
     },
     {

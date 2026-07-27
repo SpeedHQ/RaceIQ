@@ -3,16 +3,16 @@
     {
       "key": "s10",
       "startFrac": 0,
-      "endFrac": 0.088
+      "endFrac": 0.0494
     },
     {
       "key": "t1",
-      "startFrac": 0.088,
-      "endFrac": 0.1971
+      "startFrac": 0.0494,
+      "endFrac": 0.163
     },
     {
       "key": "t2",
-      "startFrac": 0.1971,
+      "startFrac": 0.163,
       "endFrac": 0.2658
     },
     {

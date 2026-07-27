@@ -27,16 +27,16 @@
     {
       "key": "t3",
       "startFrac": 0.1343,
-      "endFrac": 0.1936
+      "endFrac": 0.1762
     },
     {
       "key": "t4",
-      "startFrac": 0.1936,
-      "endFrac": 0.2202
+      "startFrac": 0.1762,
+      "endFrac": 0.2038
     },
     {
       "key": "t5",
-      "startFrac": 0.2202,
+      "startFrac": 0.2038,
       "endFrac": 0.2677
     },
     {

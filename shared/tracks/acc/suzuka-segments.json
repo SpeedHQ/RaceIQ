@@ -68,16 +68,11 @@
     {
       "key": "t12",
       "startFrac": 0.4687,
-      "endFrac": 0.5291
-    },
-    {
-      "key": "s12",
-      "startFrac": 0.5291,
-      "endFrac": 0.576
+      "endFrac": 0.5882
     },
     {
       "key": "t13",
-      "startFrac": 0.576,
+      "startFrac": 0.5882,
       "endFrac": 0.6299
     },
     {

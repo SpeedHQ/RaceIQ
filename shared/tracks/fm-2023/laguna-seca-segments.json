@@ -38,16 +38,16 @@
     {
       "key": "s5",
       "startFrac": 0.455,
-      "endFrac": 0.5176
+      "endFrac": 0.491
     },
     {
       "key": "t6",
-      "startFrac": 0.5176,
-      "endFrac": 0.591
+      "startFrac": 0.491,
+      "endFrac": 0.561
     },
     {
       "key": "s6",
-      "startFrac": 0.591,
+      "startFrac": 0.561,
       "endFrac": 0.6339
     },
     {
