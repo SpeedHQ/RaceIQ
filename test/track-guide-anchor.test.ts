@@ -5,6 +5,7 @@ import { turnNumbers } from "../shared/segment-label";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { buildTrackGuideContext, guideCornerLabels, getAvailableTrackGuides } from "../server/ai/track-guides";
+import { listTrackGuideSlugs, loadTrackGuide } from "../shared/track-guide-data";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -43,25 +44,16 @@ function knownTurns(facts: Facts): Set<number> {
   return out;
 }
 
-// Parsed from source: the guides array isn't exported, and the anchors are the
-// thing under test, so read them the way a reviewer would.
+// Read straight off the guide files — the anchors are the thing under test, so
+// take them from the data a reviewer would open, in file order (the JSON keeps
+// the guide's authored corner order, which the ascent check below relies on).
 function guideAnchors(): { slug: string; name: string; numbers: number[] }[] {
-  const src = readFileSync(resolve(import.meta.dir, "../server/ai/track-guides.ts"), "utf8");
   const out: { slug: string; name: string; numbers: number[] }[] = [];
-  let slug = "";
-  for (const line of src.split("\n")) {
-    const id = line.match(/^\s*id: "([a-z0-9-]+)"/);
-    if (id) {
-      slug = id[1];
-      continue;
-    }
-    const c = line.match(/^\s*\{ name: "([^"]+)", numbers: \[([0-9, ]*)\]/);
-    if (c && slug) {
-      out.push({
-        slug,
-        name: c[1],
-        numbers: c[2].split(",").map((x) => Number(x.trim())).filter((n) => Number.isFinite(n)),
-      });
+  for (const slug of listTrackGuideSlugs()) {
+    const guide = loadTrackGuide(slug);
+    if (!guide) continue;
+    for (const c of guide.corners) {
+      if (c.numbers?.length) out.push({ slug, name: c.name, numbers: c.numbers });
     }
   }
   return out;
@@ -153,17 +145,14 @@ const FANTASY_SLUGS = new Set([
 
 /** Guide entries with no `numbers`, i.e. still rendering under their own name. */
 function unanchoredEntries(): Record<string, string[]> {
-  const src = readFileSync(resolve(import.meta.dir, "../server/ai/track-guides.ts"), "utf8");
   const out: Record<string, string[]> = {};
-  let slug = "";
-  for (const line of src.split("\n")) {
-    const id = line.match(/^\s*id: "([a-z0-9-]+)"/);
-    if (id) {
-      slug = id[1];
-      continue;
+  for (const slug of listTrackGuideSlugs()) {
+    if (FANTASY_SLUGS.has(slug)) continue;
+    const guide = loadTrackGuide(slug);
+    if (!guide) continue;
+    for (const c of guide.corners) {
+      if (!c.numbers?.length) (out[slug] ??= []).push(c.name);
     }
-    const c = line.match(/^\s*\{ name: "([^"]+)", type: /);
-    if (c && slug && !FANTASY_SLUGS.has(slug)) (out[slug] ??= []).push(c[1]);
   }
   return out;
 }
@@ -300,23 +289,12 @@ function proseTurns(type: string): number[] | null {
 }
 
 function guideEntries(): { slug: string; name: string; numbers: number[]; type: string }[] {
-  const src = readFileSync(resolve(import.meta.dir, "../server/ai/track-guides.ts"), "utf8");
   const out: { slug: string; name: string; numbers: number[]; type: string }[] = [];
-  let slug = "";
-  for (const line of src.split("\n")) {
-    const id = line.match(/^\s*id: "([a-z0-9-]+)"/);
-    if (id) {
-      slug = id[1];
-      continue;
-    }
-    const c = line.match(/^\s*\{ name: "([^"]+)", numbers: \[([0-9, ]*)\], type: "([^"]+)"/);
-    if (c && slug) {
-      out.push({
-        slug,
-        name: c[1],
-        numbers: c[2].split(",").map((x) => Number(x.trim())).filter(Number.isFinite),
-        type: c[3],
-      });
+  for (const slug of listTrackGuideSlugs()) {
+    const guide = loadTrackGuide(slug);
+    if (!guide) continue;
+    for (const c of guide.corners) {
+      if (c.numbers?.length) out.push({ slug, name: c.name, numbers: c.numbers, type: c.type });
     }
   }
   return out;

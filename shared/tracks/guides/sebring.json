@@ -1,0 +1,33 @@
+{
+  "id": "sebring",
+  "locale": "en",
+  "character": "Bumpy, abrasive former WWII airfield circuit in Florida — one of the roughest surfaces in racing, mixing concrete runway sections with tarmac. Precision over the bumps and a strong exit from the final corner define the lap.",
+  "sources": "https://thetracksource.com/sebring-international-raceway-turn-by-turn-guide/ ; https://blayze.io/blog/car-racing/dominating-turn17-at-sebring-international-raceway",
+  "corners": [
+    {
+      "key": "turn-1",
+      "name": "Turn 1",
+      "numbers": [1],
+      "type": "heavy-braking corner off the front straight",
+      "technique": "Brake hard over the bumpy surface, late apex",
+      "trap": "The bumps under braking make lockups common"
+    },
+    {
+      "key": "hairpin",
+      "name": "Hairpin",
+      "numbers": [7],
+      "type": "tight, slow-speed corner (Turn 7) with a notoriously bumpy braking zone",
+      "technique": "Precision braking over the bumps, smooth throttle application",
+      "trap": "The bumpy surface unsettles the car right at the braking point"
+    },
+    {
+      "key": "sunset-bend",
+      "name": "Sunset Bend",
+      "numbers": [17],
+      "type": "fast, bumpy right-hander onto the front straight (Turn 17)",
+      "technique": "Commit through the bumps — tight on exit if taken correctly",
+      "trap": "Heavy braking zone with varying racing lines makes this the corner Sebring is best known for"
+    }
+  ],
+  "priorityCorners": ["hairpin","sunset-bend"]
+}

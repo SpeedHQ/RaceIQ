@@ -1,0 +1,48 @@
+{
+  "id": "interlagos",
+  "locale": "en",
+  "character": "Anti-clockwise circuit with dramatic elevation changes packed into a short lap. Bumpy surface and unpredictable weather make it a driver favourite. Flows well but punishes hesitation.",
+  "sources": "https://www.formula1.com/en/racing/2026/brazil/circuit official F1 circuit guide; Senna S/Ferradura/Junção/Subida dos Boxes naming long-established",
+  "corners": [
+    {
+      "key": "senna-s",
+      "name": "Senna S",
+      "numbers": [1, 2],
+      "type": "steep downhill left-right (T1-T2)",
+      "technique": "Brake on the downhill approach, commit through the direction change without over-slowing",
+      "trap": "Braking too late on the downhill and running wide at the second part"
+    },
+    {
+      "key": "descida-do-lago",
+      "name": "Descida do Lago",
+      "numbers": [4],
+      "type": "fast downhill sweeping left",
+      "technique": "Carry speed downhill with smooth steering, trust the grip",
+      "trap": "Lifting unnecessarily on the downhill kills momentum"
+    },
+    {
+      "key": "ferradura",
+      "name": "Ferradura",
+      "numbers": [6],
+      "type": "long, tightening left-hander",
+      "technique": "Patient, progressive line as the corner tightens, don't apex too early",
+      "trap": "Early apex leaves nowhere to go as the corner keeps tightening"
+    },
+    {
+      "key": "juncao",
+      "name": "Junção",
+      "numbers": [11],
+      "type": "tight, technical right-hander",
+      "technique": "Firm braking, late apex, prioritise a strong exit onto the following straight",
+      "trap": "Poor exit here costs significant time on the run back to the start/finish"
+    },
+    {
+      "key": "subida-dos-boxes",
+      "name": "Subida dos Boxes",
+      "type": "final uphill corner onto the pit straight",
+      "technique": "Late apex, progressive throttle up the hill",
+      "trap": "Early throttle on the uphill exit causes wheelspin"
+    }
+  ],
+  "priorityCorners": ["senna-s","ferradura","juncao","subida-dos-boxes"]
+}
