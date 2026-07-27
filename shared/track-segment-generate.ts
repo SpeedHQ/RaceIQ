@@ -21,6 +21,7 @@ import {
   saveTrackGeometry,
 } from "./track-data";
 import {
+  carryVerified,
   cornerKey,
   cornerNumbers,
   splitSegments,
@@ -227,7 +228,11 @@ export function buildUpdatedMeta(
     // Sectors are curated per game and live only in geometry — regeneration
     // rewrites segments and must carry them through untouched.
     const sectors = existingGeometry[a.gameId]?.sectors;
-    geometry[a.gameId] = { ...(sectors ? { sectors } : {}), segments: split.geometry };
+    // A sign-off survives only a run that changed nothing — see `carryVerified`.
+    geometry[a.gameId] = carryVerified(existingGeometry[a.gameId], {
+      ...(sectors ? { sectors } : {}),
+      segments: split.geometry,
+    });
     for (const c of split.corners) {
       const key = cornerKey(cornerNumbers(c));
       const seen = cornerVotes.get(key);
@@ -273,7 +278,7 @@ export function buildUpdatedMeta(
 
   const named = [...straights.values()].sort((a, b) => a.after - b.after);
   return {
-    facts: {
+    facts: carryVerified(existingFacts, {
       slug: existingFacts?.slug ?? slug,
       track: existingFacts?.track ?? slug,
       layout: existingFacts?.layout ?? "full",
@@ -284,7 +289,7 @@ export function buildUpdatedMeta(
       ...(existingFacts?.source ? { source: existingFacts.source } : {}),
       corners: [...corners.values()].sort((a, b) => a.number - b.number),
       ...(named.length ? { straights: named } : {}),
-    },
+    }),
     geometry,
   };
 }

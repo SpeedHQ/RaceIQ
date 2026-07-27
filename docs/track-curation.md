@@ -50,8 +50,30 @@ Three claims, weakest to strongest. They are tracked separately because each say
 | Claim | Means | Proof |
 |-------|-------|-------|
 | **Curated roster** | someone hand-authored a non-empty `corners` array | `shared/tracks/meta/<slug>.json` exists with corners |
-| **Meta human-verified** | someone checked that roster against a real turn-by-turn guide | listed in the table below, by a human, in the PR that did the checking |
-| **Segments human-verified** | someone checked that game's rendered geometry | same |
+| **Meta human-verified** | someone checked that roster against a real turn-by-turn guide | a `verified` block in that `meta/<slug>.json` |
+| **Segments human-verified** | someone checked that game's rendered geometry | a `verified` block in that `<slug>-segments.json` |
+
+### The `verified` block
+
+The sign-off lives in the file it describes, not in a side ledger that can drift from it:
+
+```json
+{
+  "slug": "suzuka",
+  "verified": { "by": "aaronc", "date": "2026-07-27", "note": "official Suzuka circuit map" },
+  "corners": [ … ]
+}
+```
+
+`by` is a person, never a tool. `note` is what they checked it against, and can be
+omitted when the file's own `source` already says.
+
+The block is **content-bound**. Every writer — the generator, the segment editor,
+the sector editor — routes its save through `carryVerified()` in
+`shared/track-meta.ts`, which keeps the block only when the rest of the file is
+byte-for-byte unchanged and drops it otherwise. So a regeneration that shifts one
+corner silently voids the sign-off; a re-run that changes nothing keeps it. Nothing
+in the pipeline can *add* a block — only a human editing the file can.
 
 The gap between column 1 and column 3 is the whole point. F1 25 is 24/24 curated and its segments are still known-inaccurate — a correct roster says nothing about whether the corners landed in the right *place*.
 
@@ -61,11 +83,16 @@ The gap between column 1 and column 3 is the whole point. F1 25 is 24/24 curated
 
 | Game | Tracks | Curated roster | Meta human-verified | Segments human-verified | Not yet curated |
 |------|--------|----------------|---------------------|-------------------------|-----------------|
-| Forza Motorsport (fm-2023) | 71 | 68 | 1 (sebring) | 0 | daytona-oval, fujimi-kaido, fujimi-kaido-r |
-| F1 25 (f1-2025) | 24 | 24 | 1 (suzuka) | 0 | — |
-| ACC (acc) | 25 | 25 | 1 (suzuka) | 0 | — |
-| AC Evo (ac-evo) | 20 | 20 | 2 (sebring, suzuka) | 0 | — |
-| **Total** | **140** | **137** | **5** | **0** | |
+| Forza Motorsport (fm-2023) | 71 | 68 | 0 | 0 | daytona-oval, fujimi-kaido, fujimi-kaido-r |
+| F1 25 (f1-2025) | 24 | 24 | 0 | 0 | — |
+| ACC (acc) | 25 | 25 | 0 | 0 | — |
+| AC Evo (ac-evo) | 20 | 20 | 0 | 0 | — |
+| **Total** | **140** | **137** | **0** | **0** | |
+
+Both verified columns read 0 on purpose. Sebring and Suzuka were curated carefully
+against real guides, but curation was done *with* Claude, and nobody has since sat
+down and independently checked either one. Until someone does and signs the file,
+the honest number is zero.
 
 Last updated: 2026-07-27.
 
@@ -100,13 +127,14 @@ Expect the verified columns to climb slowly. That is the design.
 Verification is a human act. Look at the thing, then record it.
 
 1. Check the roster against a real turn-by-turn guide, or check the committed render at `test/e2e/output/track-segments/<slug>-<gameId>.svg` against a circuit map.
-2. Bump the relevant cell in the table above, name the slug, bump *Last updated*.
-3. Say in the PR what you checked it against ("official Suzuka circuit map", "IMSA 17-turn numbering") — that sentence is the evidence.
+2. Add a `verified` block to that file by hand, with your name, today's date, and what you checked it against.
+3. Bump the relevant cell in the table above, name the slug, bump *Last updated*.
+4. Say the same thing in the PR ("official Suzuka circuit map", "IMSA 17-turn numbering") — that sentence is the evidence.
 
 Rules:
 
 - **Only a human verifies.** Nothing in the generation pipeline may touch these numbers. Claude proposes; the user confirms what they actually looked at.
-- **Re-curating voids the sign-off.** Materially change a verified `meta/<slug>.json` or `<slug>-segments.json` and you drop the count back until someone re-checks it.
+- **Re-curating voids the sign-off**, and this is enforced, not remembered: change a verified file's content and `carryVerified()` strips the block on the next write. Drop the table cell to match.
 - **You cannot verify what was never curated.** Verified never exceeds curated.
 - **Low numbers are honest.** Not a metric to farm.
 
