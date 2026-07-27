@@ -1,0 +1,15 @@
+{
+  "meta": {
+    "sebring": {
+      "hash": "9187e59c982e",
+      "date": "2026-07-27",
+      "by": "official Sebring 17-turn GP numbering + IMSA/Le Mans Ultimate guides"
+    },
+    "suzuka": {
+      "hash": "95778f6106d2",
+      "date": "2026-07-27",
+      "by": "official Suzuka circuit map + Racing Circuits turn-by-turn"
+    }
+  },
+  "segments": {}
+}

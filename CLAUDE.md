@@ -248,6 +248,45 @@ The sanctioned-gap ledgers in `test/helpers/track-known-gaps.ts` (`KNOWN_ALIGNME
 
 Known centerline-quality classes, already understood — don't re-litigate them: ACC tracks whose "centerline" is still the fastlane racing line (issue #98, fixed per-track by `scripts/acc-centerline-from-boundaries.ts`), ac-evo centerlines that under-detect individual corners, and Forza's Nordschleife/Watkins Glen digitised at a different corner granularity than the shared name list.
 
+#### Curation coverage
+
+Three separate claims, weakest to strongest — **curated is not the same as correct**:
+
+| Column | Means |
+|--------|-------|
+| **Curated roster** | `shared/tracks/meta/<slug>.json` has a hand-authored non-empty `corners` array. Counting *geometry* files instead would always read ~100% — the fallback detector writes one for nearly every centerline. |
+| **Meta human-verified** | A person checked that roster against a real turn-by-turn guide and signed it off. |
+| **Segments human-verified** | A person checked that game's rendered geometry (`shared/tracks/<gameId>/<slug>-segments.json`, easiest via the committed `test/e2e/output/track-segments/<slug>-<gameId>.svg`) and signed it off. Kept separate from meta because a correct roster says nothing about whether the corners landed in the right *place* — f1-2025 segments in particular are known to be inaccurate. |
+
+<!-- track-coverage:start -->
+| Game | Tracks | Curated roster | Meta human-verified | Segments human-verified | Not yet curated |
+|------|--------|----------------|---------------------|-------------------------|-----------------|
+| Forza Motorsport (fm-2023) | 71 | 68/71 (96%) | 1/71 (1%) | 0/71 (0%) | daytona-oval, fujimi-kaido, fujimi-kaido-r |
+| F1 25 (f1-2025) | 24 | 24/24 (100%) | 1/24 (4%) | 0/24 (0%) | — |
+| ACC (acc) | 25 | 25/25 (100%) | 1/25 (4%) | 0/25 (0%) | — |
+| AC Evo (ac-evo) | 20 | 20/20 (100%) | 2/20 (10%) | 0/20 (0%) | — |
+| **Total** | **140** | **137/140 (98%)** | **5/140 (4%)** | **0/140 (0%)** | |
+<!-- track-coverage:end -->
+
+⚠️ **When you curate a track (or add a game's centerlines), refresh this statistic:**
+
+```bash
+bun run tracks:coverage            # print the table
+bun run tracks:coverage --write    # rewrite the block above in place
+```
+
+**Signing off verification** — only after actually comparing against a real source, never as a side effect of generating or regenerating anything:
+
+```bash
+bun run tracks:coverage --verify meta:suzuka --by "official circuit map"
+bun run tracks:coverage --verify segments:f1-2025/spa --by "svg render vs circuit map"
+bun run tracks:coverage --write    # then refresh the table
+```
+
+Signatures live in `shared/tracks/verified.json` and pin a hash of the file signed. **Edit the file and the signature goes stale** — it drops out of the verified count and shows as `+N stale`, so a human has to look again. Claude must not stamp the ledger on its own: propose it, let the user confirm what they checked. Low verified numbers are honest, not a metric to farm.
+
+`test/track-coverage.test.ts` fails if the committed table drifts from the repo, so this cannot silently rot. Source of truth: `shared/track-coverage.ts` + `shared/track-verified.ts`.
+
 ### Pre-commit Hooks (Lefthook)
 
 Installed via `postinstall` script. Runs in parallel on staged client files:
