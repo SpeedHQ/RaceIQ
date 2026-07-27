@@ -1,31 +1,60 @@
 /**
- * The curation-coverage table in CLAUDE.md is a committed statistic. Curating a
- * track (or adding a game's centerlines) changes it, so this test fails until
- * `bun run tracks:coverage --write` is run.
+ * The curation-coverage tables in docs/track-curation.md are a committed
+ * statistic. Curating a track (or adding a game's centerlines) changes them, so
+ * this test fails until `bun run tracks:coverage --write` is run.
  */
 
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "fs";
-import { curatedCoverage, renderCoverageTable } from "../shared/track-coverage";
+import { resolve } from "path";
+import { curatedCoverage, renderCoverageTable, renderDetailTables } from "../shared/track-coverage";
 import { fileHash, loadVerified, verifiableFile, verifyState } from "../shared/track-verified";
 import {
-  CLAUDE_MD,
   COVERAGE_END,
   COVERAGE_START,
+  CURATION_DOC,
+  DETAIL_END,
+  DETAIL_START,
   parseVerifyTarget,
   spliceCoverage,
+  spliceDetail,
 } from "../scripts/track-coverage";
 
 describe("track curation coverage", () => {
-  const md = readFileSync(CLAUDE_MD, "utf8");
+  const doc = readFileSync(CURATION_DOC, "utf8");
 
-  test("CLAUDE.md has the coverage markers", () => {
-    expect(md).toContain(COVERAGE_START);
-    expect(md).toContain(COVERAGE_END);
+  test("docs/track-curation.md has the generated-block markers", () => {
+    expect(doc).toContain(COVERAGE_START);
+    expect(doc).toContain(COVERAGE_END);
+    expect(doc).toContain(DETAIL_START);
+    expect(doc).toContain(DETAIL_END);
   });
 
-  test("committed table matches the repo — run `bun run tracks:coverage --write`", () => {
-    expect(spliceCoverage(md, renderCoverageTable())).toBe(md);
+  test("committed summary matches the repo — run `bun run tracks:coverage --write`", () => {
+    expect(spliceCoverage(doc, renderCoverageTable())).toBe(doc);
+  });
+
+  test("committed detail tables match the repo — run `bun run tracks:coverage --write`", () => {
+    expect(spliceDetail(doc, renderDetailTables())).toBe(doc);
+  });
+
+  test("CLAUDE.md keeps no coverage numbers of its own", () => {
+    const claudeMd = readFileSync(resolve(import.meta.dir, "..", "CLAUDE.md"), "utf8");
+    expect(claudeMd).not.toContain(COVERAGE_START);
+    expect(claudeMd).toContain("docs/track-curation.md");
+  });
+
+  test("detail rows account for every track the summary counts", () => {
+    for (const r of curatedCoverage()) {
+      expect(r.tracks.length, `${r.gameId} detail rows`).toBe(r.total);
+      expect(r.tracks.filter((t) => t.curated).length).toBe(r.curated);
+      expect(r.tracks.filter((t) => t.meta === "verified").length).toBe(r.metaVerified);
+      expect(r.tracks.filter((t) => t.segments === "verified").length).toBe(r.segmentsVerified);
+      // a slug can never be verified without a roster to verify
+      for (const t of r.tracks) {
+        if (t.meta !== "unverified") expect(t.curated, `${t.slug} signed off but uncurated`).toBe(true);
+      }
+    }
   });
 
   test("every game reports a non-empty roster count", () => {

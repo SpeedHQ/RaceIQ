@@ -3,20 +3,20 @@
  *
  * Usage:
  *   bun run tracks:coverage           # print the table
- *   bun run tracks:coverage --write   # refresh the table committed in CLAUDE.md
+ *   bun run tracks:coverage --write   # refresh the tables committed in docs/track-curation.md
  *
  *   # sign off data you have actually checked against a real turn-by-turn guide
  *   bun run tracks:coverage --verify meta:spa --by "racingcircuits.info"
  *   bun run tracks:coverage --verify segments:f1-2025/spa --by "svg render"
  *
  * Run with --write after curating a track; test/track-coverage.test.ts fails if
- * CLAUDE.md drifts from the repo. --verify only ever records a human's word for
- * it: nothing in the pipeline may stamp the ledger on its own.
+ * docs/track-curation.md drifts from the repo. --verify only ever records a
+ * human's word for it: nothing in the pipeline may stamp the ledger on its own.
  */
 
 import { readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
-import { curatedCoverage, renderCoverageTable } from "../shared/track-coverage";
+import { curatedCoverage, renderCoverageTable, renderDetailTables } from "../shared/track-coverage";
 import { stampVerified } from "../shared/track-verified";
 import type { GameId } from "../shared/types";
 
@@ -32,18 +32,30 @@ export function parseVerifyTarget(spec: string): { kind: "meta" | "segments"; sl
   return { kind, slug, gameId: gameId as GameId };
 }
 
-export const CLAUDE_MD = resolve(import.meta.dir, "..", "CLAUDE.md");
+export const CURATION_DOC = resolve(import.meta.dir, "..", "docs", "track-curation.md");
 export const COVERAGE_START = "<!-- track-coverage:start -->";
 export const COVERAGE_END = "<!-- track-coverage:end -->";
+export const DETAIL_START = "<!-- track-detail:start -->";
+export const DETAIL_END = "<!-- track-detail:end -->";
 
-/** Replace the block between the coverage markers. Throws if they're missing. */
-export function spliceCoverage(md: string, table: string): string {
-  const start = md.indexOf(COVERAGE_START);
-  const end = md.indexOf(COVERAGE_END);
+/** Replace the block between a pair of markers. Throws if they're missing. */
+export function spliceBlock(md: string, table: string, startMark: string, endMark: string): string {
+  const start = md.indexOf(startMark);
+  const end = md.indexOf(endMark);
   if (start === -1 || end === -1 || end < start) {
-    throw new Error(`CLAUDE.md is missing the ${COVERAGE_START} / ${COVERAGE_END} markers`);
+    throw new Error(`markdown is missing the ${startMark} / ${endMark} markers`);
   }
-  return `${md.slice(0, start)}${COVERAGE_START}\n${table}\n${md.slice(end)}`;
+  return `${md.slice(0, start)}${startMark}\n${table}\n${md.slice(end)}`;
+}
+
+/** Summary table block in docs/track-curation.md. */
+export function spliceCoverage(md: string, table: string): string {
+  return spliceBlock(md, table, COVERAGE_START, COVERAGE_END);
+}
+
+/** Per-game detail tables in docs/track-curation.md. */
+export function spliceDetail(md: string, tables: string): string {
+  return spliceBlock(md, tables, DETAIL_START, DETAIL_END);
 }
 
 if (import.meta.main) {
@@ -67,12 +79,17 @@ if (import.meta.main) {
     if (r.uncurated.length > 0) console.log(`\n${r.gameId} uncurated: ${r.uncurated.join(", ")}`);
   }
   if (write) {
-    const md = readFileSync(CLAUDE_MD, "utf8");
-    const next = spliceCoverage(md, table);
-    if (next === md) console.log("\nCLAUDE.md already up to date.");
-    else {
-      writeFileSync(CLAUDE_MD, next);
-      console.log("\nCLAUDE.md coverage table updated.");
-    }
+    const refresh = (path: string, label: string, splice: (md: string) => string) => {
+      const md = readFileSync(path, "utf8");
+      const next = splice(md);
+      if (next === md) console.log(`\n${label} already up to date.`);
+      else {
+        writeFileSync(path, next);
+        console.log(`\n${label} updated.`);
+      }
+    };
+    refresh(CURATION_DOC, "docs/track-curation.md", (md) =>
+      spliceDetail(spliceCoverage(md, table), renderDetailTables(rows)),
+    );
   }
 }

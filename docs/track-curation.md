@@ -55,12 +55,230 @@ Three claims, weakest to strongest. They are tracked separately because each say
 
 The gap between column 1 and column 3 is the whole point. F1 25 is 24/24 curated and its segments are still known-inaccurate — a correct roster says nothing about whether the corners landed in the right *place*.
 
-The live table lives in `CLAUDE.md` between the `<!-- track-coverage:start -->` markers. Refresh it after curating anything:
+### Summary
+
+Generated — do not hand-edit. This doc is the only place the numbers live; CLAUDE.md carries the rules and points here.
+
+<!-- track-coverage:start -->
+| Game | Tracks | Curated roster | Meta human-verified | Segments human-verified | Not yet curated |
+|------|--------|----------------|---------------------|-------------------------|-----------------|
+| Forza Motorsport (fm-2023) | 71 | 68/71 (96%) | 1/71 (1%) | 0/71 (0%) | daytona-oval, fujimi-kaido, fujimi-kaido-r |
+| F1 25 (f1-2025) | 24 | 24/24 (100%) | 1/24 (4%) | 0/24 (0%) | — |
+| ACC (acc) | 25 | 25/25 (100%) | 1/25 (4%) | 0/25 (0%) | — |
+| AC Evo (ac-evo) | 20 | 20/20 (100%) | 2/20 (10%) | 0/20 (0%) | — |
+| **Total** | **140** | **137/140 (98%)** | **5/140 (4%)** | **0/140 (0%)** | |
+<!-- track-coverage:end -->
+
+### Reading the table
+
+Every cell is `n/total (pct%)`, optionally `+N stale`.
+
+| Column | Counts | Computed from |
+|--------|--------|---------------|
+| **Tracks** | the denominator — distinct slugs this game ships a centerline for | `listAllCenterlines()` |
+| **Curated roster** | slugs with a hand-authored `meta/<slug>.json` carrying a non-empty `corners` array | `listCuratedSlugs()` |
+| **Meta human-verified** | rosters signed off **and unchanged since** | ledger hash vs file |
+| **Segments human-verified** | that game's `<slug>-segments.json` signed off and unchanged since | ledger hash vs file |
+| **Not yet curated** | the exact uncurated slugs, so the remainder is actionable rather than a number | |
+| **`+N stale`** | signed off, then the file changed — signature void, needs a re-look | |
+
+Denominator notes:
+
+- **Tracks is per game, not global.** Same circuit in four games = four rows' worth of work. Totals are a sum of rows, not a count of distinct circuits.
+- **Forza slugs are de-ordinalised.** `brands-hatch-860-centerline.csv` → `brands-hatch`, since the roster is keyed by slug, not by in-game ordinal (`canonicalSlug()`).
+- **Curated roster is the honest metric.** Counting `<slug>-segments.json` files would read ~100% and measure nothing, because the fallback detector writes one for essentially every centerline.
+- Both verified columns use **Tracks** as the denominator, not Curated — so they never flatter themselves by shrinking the base.
+
+Adding a game to `GameId` breaks `GAME_LABELS` on purpose; there is no default row.
+
+### What the numbers mean
+
+Read the summary as: rosters are nearly everywhere, almost nothing has been checked against a real guide, and **rendered geometry has barely been checked by a human at all**. A high curated percentage is not a quality claim. F1 25 sits at 24/24 curated with segments known to be misplaced — exactly the gap the third column exists to expose.
+
+The uncurated remainder is three Forza fantasy tracks (`daytona-oval`, `fujimi-kaido`, `fujimi-kaido-r`) — no real-world turn-by-turn guide exists for them, so they stay uncurated by choice, not by neglect. They are the reason curated will never read 100%, and that is correct.
+
+Expect the verified columns to climb slowly. That is the design.
+
+Refresh after curating anything:
 
 ```bash
 bun run tracks:coverage            # print
-bun run tracks:coverage --write    # rewrite the block in CLAUDE.md
+bun run tracks:coverage --write    # rewrite the summary above + the detail tables below
 ```
+
+### Per-track detail
+
+Generated — do not hand-edit. `✅` = signed off and unchanged since; `⚠️ stale` = signed off then the file changed; `—` = never checked. **Curated roster** is shared across games (one `meta/<slug>.json`), so that column repeats per game by design; **Segments verified** is per game because each title digitises its own centerline.
+
+<!-- track-detail:start -->
+#### Forza Motorsport (fm-2023)
+
+68/71 (96%) curated · 1/71 (1%) meta-verified · 0/71 (0%) segments-verified
+
+| Track | Curated roster | Meta verified | Segments verified |
+|-------|----------------|---------------|-------------------|
+| brands-hatch | ✅ | — | — |
+| brands-hatch-indy | ✅ | — | — |
+| catalunya | ✅ | — | — |
+| catalunya-s | ✅ | — | — |
+| catalunya-s2 | ✅ | — | — |
+| daytona | ✅ | — | — |
+| daytona-oval | — | — | — |
+| eaglerock | ✅ | — | — |
+| eaglerock-oval | ✅ | — | — |
+| eaglerock-r | ✅ | — | — |
+| fujimi-kaido | — | — | — |
+| fujimi-kaido-r | — | — | — |
+| grand-oak | ✅ | — | — |
+| grand-oak-r | ✅ | — | — |
+| grand-oak-s | ✅ | — | — |
+| hakone | ✅ | — | — |
+| hakone-s | ✅ | — | — |
+| hakone-sr | ✅ | — | — |
+| hockenheim | ✅ | — | — |
+| hockenheim-s | ✅ | — | — |
+| hockenheim-s2 | ✅ | — | — |
+| homestead | ✅ | — | — |
+| homestead-oval | ✅ | — | — |
+| indianapolis | ✅ | — | — |
+| indianapolis-oval | ✅ | — | — |
+| kyalami | ✅ | — | — |
+| laguna-seca | ✅ | — | — |
+| laguna-seca-s | ✅ | — | — |
+| le-mans | ✅ | — | — |
+| le-mans-old | ✅ | — | — |
+| lime-rock | ✅ | — | — |
+| lime-rock-alt | ✅ | — | — |
+| lime-rock-sc | ✅ | — | — |
+| maple-valley | ✅ | — | — |
+| maple-valley-s | ✅ | — | — |
+| maple-valley-sr | ✅ | — | — |
+| mid-ohio | ✅ | — | — |
+| mid-ohio-s | ✅ | — | — |
+| mount-panorama | ✅ | — | — |
+| mugello | ✅ | — | — |
+| mugello-s | ✅ | — | — |
+| nordschleife | ✅ | — | — |
+| nurburgring | ✅ | — | — |
+| nurburgring-nord | ✅ | — | — |
+| nurburgring-s | ✅ | — | — |
+| road-america | ✅ | — | — |
+| road-america-s | ✅ | — | — |
+| road-atlanta | ✅ | — | — |
+| road-atlanta-s | ✅ | — | — |
+| sebring | ✅ | ✅ | — |
+| sebring-s | ✅ | — | — |
+| silverstone | ✅ | — | — |
+| silverstone-s | ✅ | — | — |
+| silverstone-s2 | ✅ | — | — |
+| spa | ✅ | — | — |
+| sunset-peninsula | ✅ | — | — |
+| sunset-peninsula-oval | ✅ | — | — |
+| sunset-peninsula-r | ✅ | — | — |
+| sunset-peninsula-s | ✅ | — | — |
+| sunset-peninsula-sr | ✅ | — | — |
+| vir | ✅ | — | — |
+| vir-ge | ✅ | — | — |
+| vir-gw | ✅ | — | — |
+| vir-n | ✅ | — | — |
+| vir-s | ✅ | — | — |
+| watkins-glen | ✅ | — | — |
+| watkins-glen-s | ✅ | — | — |
+| yas-marina | ✅ | — | — |
+| yas-marina-n | ✅ | — | — |
+| yas-marina-nc | ✅ | — | — |
+| yas-marina-s | ✅ | — | — |
+
+#### F1 25 (f1-2025)
+
+24/24 (100%) curated · 1/24 (4%) meta-verified · 0/24 (0%) segments-verified
+
+| Track | Curated roster | Meta verified | Segments verified |
+|-------|----------------|---------------|-------------------|
+| austin | ✅ | — | — |
+| baku | ✅ | — | — |
+| budapest | ✅ | — | — |
+| catalunya | ✅ | — | — |
+| imola | ✅ | — | — |
+| interlagos | ✅ | — | — |
+| jeddah | ✅ | — | — |
+| las-vegas | ✅ | — | — |
+| lusail | ✅ | — | — |
+| melbourne | ✅ | — | — |
+| mexico-city | ✅ | — | — |
+| miami | ✅ | — | — |
+| monaco | ✅ | — | — |
+| montreal | ✅ | — | — |
+| monza | ✅ | — | — |
+| sakhir | ✅ | — | — |
+| shanghai | ✅ | — | — |
+| silverstone | ✅ | — | — |
+| singapore | ✅ | — | — |
+| spa | ✅ | — | — |
+| spielberg | ✅ | — | — |
+| suzuka | ✅ | ✅ | — |
+| yas-marina | ✅ | — | — |
+| zandvoort | ✅ | — | — |
+
+#### ACC (acc)
+
+25/25 (100%) curated · 1/25 (4%) meta-verified · 0/25 (0%) segments-verified
+
+| Track | Curated roster | Meta verified | Segments verified |
+|-------|----------------|---------------|-------------------|
+| austin | ✅ | — | — |
+| brands-hatch | ✅ | — | — |
+| budapest | ✅ | — | — |
+| catalunya | ✅ | — | — |
+| donington | ✅ | — | — |
+| imola | ✅ | — | — |
+| indianapolis | ✅ | — | — |
+| kyalami | ✅ | — | — |
+| laguna-seca | ✅ | — | — |
+| misano | ✅ | — | — |
+| monza | ✅ | — | — |
+| mount-panorama | ✅ | — | — |
+| nordschleife | ✅ | — | — |
+| nurburgring | ✅ | — | — |
+| oulton-park | ✅ | — | — |
+| paul-ricard | ✅ | — | — |
+| silverstone | ✅ | — | — |
+| snetterton | ✅ | — | — |
+| spa | ✅ | — | — |
+| spielberg | ✅ | — | — |
+| suzuka | ✅ | ✅ | — |
+| valencia | ✅ | — | — |
+| watkins-glen | ✅ | — | — |
+| zandvoort | ✅ | — | — |
+| zolder | ✅ | — | — |
+
+#### AC Evo (ac-evo)
+
+20/20 (100%) curated · 2/20 (10%) meta-verified · 0/20 (0%) segments-verified
+
+| Track | Curated roster | Meta verified | Segments verified |
+|-------|----------------|---------------|-------------------|
+| austin | ✅ | — | — |
+| brands-hatch | ✅ | — | — |
+| brands-hatch-indy | ✅ | — | — |
+| donington | ✅ | — | — |
+| fuji | ✅ | — | — |
+| imola | ✅ | — | — |
+| kyalami | ✅ | — | — |
+| laguna-seca | ✅ | — | — |
+| monza | ✅ | — | — |
+| mount-panorama | ✅ | — | — |
+| nordschleife | ✅ | — | — |
+| nurburgring | ✅ | — | — |
+| oulton-park | ✅ | — | — |
+| paul-ricard | ✅ | — | — |
+| road-atlanta | ✅ | — | — |
+| sebring | ✅ | ✅ | — |
+| spa | ✅ | — | — |
+| spielberg | ✅ | — | — |
+| suzuka | ✅ | ✅ | — |
+| watkins-glen | ✅ | — | — |
+<!-- track-detail:end -->
 
 ### Signing off
 
