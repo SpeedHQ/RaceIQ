@@ -58,6 +58,16 @@ bun run extract:tracks:f1     # F1 2025 only
 
 Extracted data is written to `shared/track-outlines/` and `shared/tracks.csv`.
 
+Corner names, numbering and segment geometry are a separate, hand-curated layer on top
+of that. Before editing corner data — or before "fixing" the segment detector — read
+[docs/track-curation.md](docs/track-curation.md). Curated geometry is the source of
+truth; the detector is a fallback and is not expected to be 100% accurate.
+
+```bash
+bun run tracks:coverage            # curated / verified coverage per game
+bun run tracks:coverage --write    # refresh the table in CLAUDE.md
+```
+
 ## Database
 
 ```bash

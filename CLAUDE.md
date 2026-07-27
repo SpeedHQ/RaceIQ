@@ -287,6 +287,8 @@ Signatures live in `shared/tracks/verified.json` and pin a hash of the file sign
 
 `test/track-coverage.test.ts` fails if the committed table drifts from the repo, so this cannot silently rot. Source of truth: `shared/track-coverage.ts` + `shared/track-verified.ts`.
 
+📖 Full write-up — layer hierarchy, why the detector is a fallback, sanctioned gaps, verification rules: **[docs/track-curation.md](docs/track-curation.md)**.
+
 ### Pre-commit Hooks (Lefthook)
 
 Installed via `postinstall` script. Runs in parallel on staged client files:
