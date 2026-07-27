@@ -8,16 +8,16 @@
     {
       "key": "s15",
       "startFrac": 0,
-      "endFrac": 0.0282
+      "endFrac": 0.0502
     },
     {
       "key": "t1",
-      "startFrac": 0.0282,
-      "endFrac": 0.0773
+      "startFrac": 0.0502,
+      "endFrac": 0.1165
     },
     {
       "key": "s1",
-      "startFrac": 0.0773,
+      "startFrac": 0.1165,
       "endFrac": 0.1475
     },
     {

@@ -162,14 +162,14 @@
     }
   },
   "sebring": {
-    "6": {
+    "2": {
       "optional": true
     },
     "12": {
       "optional": true
     },
-    "18": {
-      "optional": true
+    "15": {
+      "spans": 2
     }
   },
   "shanghai": {

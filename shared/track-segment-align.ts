@@ -102,6 +102,7 @@ function detectPass(outline: Pt[], K_IN: number, K_OUT: number): { corners: Pass
   const MIN_CORNER_M = 15;
   const MIN_TURN_RAD = 0.20;   // ~11.5° of heading change required to stand alone
   const WEAK_TURN_RAD = 0.10;  // below ~5.7° it's noise, not a corner anyone names
+  const WEAK_LENGTH_M = 25;    // shorter than this can't stand alone as a corner
   const MERGE_GAP_M = 50;      // same-direction regions closer than this merge
   const SIGN_RUN_M = 25;       // sustained opposite sign for this long = split
   // K_OUT is deliberately loose so a corner's declining curvature tail bridges
@@ -252,8 +253,12 @@ function detectPass(outline: Pt[], K_IN: number, K_OUT: number): { corners: Pass
     // regions rather than dropped. Geometry alone can't tell Spa's Raidillon
     // (~0.19 rad, just under the cutoff) from a meaningless kink — but the
     // track facts file can, so alignment claims a weak region when a name
-    // says a corner is there and skips it for free otherwise.
-    .map(({ untrimmedLengthM, ...c }) => (c.turnRad < MIN_TURN_RAD ? { ...c, weak: true } : c));
+    // says a corner is there and skips it for free otherwise. A very short run
+    // is weak on the same grounds regardless of how hard it bends: a 20 m blip
+    // is as often a centerline wobble on a hairpin exit as it is a real kink,
+    // and only the roster knows which.
+    .map(({ untrimmedLengthM, ...c }) =>
+      c.turnRad < MIN_TURN_RAD || c.lengthM < WEAK_LENGTH_M ? { ...c, weak: true } : c);
 
   return { corners, totalDist };
 }

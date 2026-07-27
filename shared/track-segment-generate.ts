@@ -244,7 +244,14 @@ export function buildUpdatedMeta(
   for (const [key, votes] of cornerVotes) {
     const committed = corners.get(key);
     const numbers = cornerNumbers(votes[0]);
-    const direction = agreed(votes.map((v) => v.direction), committed?.direction);
+    // Direction is curated, not detected. A corner already in the facts file keeps
+    // exactly what the roster says — including a deliberate *absence*, which is how
+    // a multi-apex/ambiguous turn (Sebring T15) is recorded. Detection only gets a
+    // say for corners the roster has never seen, or on a track with no facts at all.
+    const known = existingFacts !== null && committed !== undefined;
+    const direction = known
+      ? committed.direction
+      : agreed(votes.map((v) => v.direction), committed?.direction);
     const group = agreed(votes.map((v) => v.group), committed?.group);
     corners.set(key, {
       number: numbers[0],

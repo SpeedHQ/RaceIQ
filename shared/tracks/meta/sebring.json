@@ -4,7 +4,7 @@
   "layout": "full",
   "layoutName": "Full",
   "name": "Sebring International Raceway",
-  "source": "Sequential detected corners (official 17-turn numbering not reliably mapped); Sunset Bend named",
+  "source": "Official Sebring 17-turn Grand Prix numbering; names per 24h-lemans.com and IMSA corner-name guides; directions cross-checked against the Le Mans Ultimate and The Track Source turn-by-turn guides",
   "corners": [
     {
       "number": 1,
@@ -14,53 +14,53 @@
     {
       "number": 2,
       "name": "",
-      "direction": "left"
+      "direction": "right"
     },
     {
       "number": 3,
       "name": "",
-      "direction": "right"
+      "direction": "left"
     },
     {
       "number": 4,
       "name": "",
-      "direction": "left"
+      "direction": "right"
     },
     {
       "number": 5,
       "name": "",
-      "direction": "right"
-    },
-    {
-      "number": 6,
-      "name": "",
       "direction": "left"
     },
     {
+      "number": 6,
+      "name": "Big Bend",
+      "direction": "right"
+    },
+    {
       "number": 7,
-      "name": "",
-      "direction": "right",
-      "group": "T7/T8"
+      "name": "Hairpin",
+      "direction": "right"
     },
     {
       "number": 8,
-      "name": "",
+      "name": "Fangio",
       "direction": "right",
-      "group": "T7/T8"
+      "group": "Fangio Chicane"
     },
     {
       "number": 9,
       "name": "",
-      "direction": "left"
+      "direction": "left",
+      "group": "Fangio Chicane"
     },
     {
       "number": 10,
-      "name": "",
+      "name": "Cunningham Corner",
       "direction": "right"
     },
     {
       "number": 11,
-      "name": "",
+      "name": "Collier Curve",
       "direction": "left"
     },
     {
@@ -70,38 +70,33 @@
     },
     {
       "number": 13,
-      "name": "",
+      "name": "Tower Turn",
       "direction": "right"
     },
     {
       "number": 14,
-      "name": "",
+      "name": "Bishop Bend",
       "direction": "left"
     },
     {
       "number": 15,
-      "name": "",
-      "direction": "right"
+      "name": "The S"
     },
     {
       "number": 16,
-      "name": "",
-      "direction": "left"
+      "name": "Le Mans",
+      "direction": "right"
     },
     {
       "number": 17,
-      "name": "",
-      "direction": "right"
-    },
-    {
-      "number": 18,
-      "name": "",
-      "direction": "right"
-    },
-    {
-      "number": 19,
       "name": "Sunset Bend",
       "direction": "right"
+    }
+  ],
+  "straights": [
+    {
+      "after": 16,
+      "name": "Ulmann Straight"
     }
   ]
 }
