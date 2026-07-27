@@ -20,8 +20,10 @@ import {
   saveCompareAnalysis,
   deleteCompareAnalysis,
   getLapsRaw,
+  getLapsForSession,
   setLapTuningExcluded,
 } from "../db/queries";
+import { buildLapsZip, lapsZipFilename, importLapsZip } from "../zip";
 import { recordAction } from "../db/tuning-action-queries";
 import { KNOWN_GAME_IDS } from "../../shared/types";
 import { importSessionBin, detectGameIdFromBuffer } from "../import-session-bin";
@@ -135,6 +137,22 @@ const BulkDeleteSchema = z.object({
   ids: z.array(z.number().int()),
 });
 
+/** Comma-separated id list in a query string → number[] (ignores junk/empties). */
+const IdListSchema = z
+  .string()
+  .optional()
+  .transform((v) =>
+    (v ?? "")
+      .split(",")
+      .map((s) => Number(s.trim()))
+      .filter((n) => Number.isInteger(n) && n > 0)
+  );
+
+const ExportZipQuerySchema = z.object({
+  ids: IdListSchema,
+  sessionIds: IdListSchema,
+});
+
 const ChatBodySchema = z.object({
   messages: z.array(z.any()),
 });
@@ -155,6 +173,49 @@ export const lapRoutes = new Hono()
       if (await deleteLap(id)) count++;
     }
     return c.json({ deleted: count });
+  })
+
+  // ── Export laps as a .zip (must precede :id routes) ─────────
+  // Accepts any mix of explicit lap ids and whole sessions:
+  //   /api/laps/export-zip?ids=1,2,3&sessionIds=7
+  // Re-importable via POST /api/laps/import-zip.
+  .get("/api/laps/export-zip", zValidator("query", ExportZipQuerySchema), async (c) => {
+    const { ids, sessionIds } = c.req.valid("query");
+
+    const lapIds = new Set<number>(ids ?? []);
+    for (const sessionId of sessionIds ?? []) {
+      for (const lap of await getLapsForSession(sessionId)) lapIds.add(lap.id);
+    }
+    if (lapIds.size === 0) return c.json({ error: "No laps matched the requested ids" }, 404);
+
+    let built: Awaited<ReturnType<typeof buildLapsZip>>;
+    try {
+      built = await buildLapsZip([...lapIds]);
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : String(err) }, 409);
+    }
+    const { bytes, manifest } = built;
+    c.header("Content-Type", "application/zip");
+    c.header("Content-Disposition", `attachment; filename="${lapsZipFilename(manifest)}"`);
+    c.header("Content-Length", String(bytes.byteLength));
+    return c.body(bytes.slice().buffer as ArrayBuffer);
+  })
+
+  // ── Import laps from a .zip produced by export-zip ───────────
+  .post("/api/laps/import-zip", async (c) => {
+    const form = await c.req.formData().catch(() => null);
+    const file = form?.get("file");
+    if (!(file instanceof File)) return c.json({ error: "Missing 'file' in multipart body" }, 400);
+    if (!(file.name || "").toLowerCase().endsWith(".zip")) {
+      return c.json({ error: "Expected a .zip file" }, 400);
+    }
+
+    try {
+      const result = await importLapsZip(new Uint8Array(await file.arrayBuffer()));
+      return c.json(result);
+    } catch (err) {
+      return c.json({ error: `Failed to import zip: ${err instanceof Error ? err.message : String(err)}` }, 400);
+    }
   })
 
   // ── Get single lap ──────────────────────────────────────────

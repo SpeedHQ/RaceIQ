@@ -1,145 +1,282 @@
 /**
- * Lap data ZIP export/import using fflate.
+ * Lap / session ZIP export + import.
+ *
+ * Telemetry is NOT stored as a per-lap blob any more — the canonical source is
+ * the per-session raw capture on disk (`sessions.rawFile`: optional 12-byte
+ * meta frame, then repeated `[uint32 LE len][frame bytes]`), with each lap row
+ * pointing at a `rawByteOffset` / `rawFrameCount` window inside it.
+ *
+ * So an export is just a slice of that frame stream, and an import replays the
+ * slice through the normal pipeline (`importSessionBin`) — the exact same code
+ * path as the single-file `.bin` import. Nothing here re-implements parsing or
+ * lap detection, which is what the old CSV-blob format did (and why it rotted).
+ *
+ * Zip layout:
+ *   manifest.json                              — describes every entry
+ *   <gameId>-<track>-session<id>.bin.gz        — one gzip'd frame slice per session
  */
+import { gzipSync, gunzipSync } from "zlib";
 import { zipSync, unzipSync } from "fflate";
-import { getLapsRaw, getLaps, insertSession, insertLapSync, decompressTelemetry, compressTelemetry } from "./db/queries";
+import { getLapsRaw } from "./db/queries";
 import { getCarName, getTrackName } from "../shared/car-data";
+import {
+  detectGameIdFromBuffer,
+  detectGameIdFromFilename,
+  importSessionBin,
+  type ImportedLap,
+} from "./import-session-bin";
+import { META_FRAME_MAGIC } from "./udp-recorder";
 import type { GameId } from "../shared/types";
 
-interface LapManifestEntry {
-  id: number;
+/** Bumped when the zip layout changes in a way older readers can't handle. */
+export const LAPS_ZIP_VERSION = 2;
+
+export interface ManifestLap {
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
-  pi: number | null;
-  carOrdinal: number;
-  carName: string;
-  trackOrdinal: number;
-  trackName: string;
-  gameId: string;
-  createdAt: string;
-  file: string;
 }
 
-interface Manifest {
-  version: 1;
+export interface ManifestEntry {
+  /** Zip entry name holding this session's gzip'd frame slice. */
+  file: string;
+  gameId: GameId;
+  /** Session id in the *source* database (informational — import always creates a new session). */
+  sessionId: number;
+  carOrdinal: number;
+  trackOrdinal: number;
+  carName: string;
+  trackName: string;
+  createdAt: string;
+  laps: ManifestLap[];
+}
+
+export interface LapsZipManifest {
+  version: number;
   exportedAt: string;
-  lapCount: number;
-  laps: LapManifestEntry[];
+  entries: ManifestEntry[];
+}
+
+type RawLapRow = Awaited<ReturnType<typeof getLapsRaw>>[number];
+
+/** 12-byte meta frame the recorder writes at offset 0 of every capture. */
+function metaFrame(): Buffer {
+  const header = Buffer.allocUnsafe(12);
+  header.writeUInt32LE(META_FRAME_MAGIC, 0);
+  header.writeUInt32LE(4, 4);
+  header.writeUInt32LE(0, 8);
+  return header;
+}
+
+async function readCapture(rawFile: string): Promise<Buffer> {
+  const file = Bun.file(rawFile);
+  if (!(await file.exists())) throw new Error(`Raw capture file is missing: ${rawFile}`);
+  const buf = Buffer.from(await file.arrayBuffer());
+  return rawFile.endsWith(".gz") ? Buffer.from(gunzipSync(buf)) : buf;
 }
 
 /**
- * Build a zip containing lap telemetry blobs + manifest.
- * Telemetry is stored as-is (already gzip'd CSV), so we use STORE (level 0).
+ * Walk `count` length-prefixed frames forward from `offset`, returning the byte
+ * offset just past the last one (clamped to EOF).
  */
-export async function exportLapsZip(ids?: number[]): Promise<Uint8Array> {
-  const rows = await getLapsRaw(ids);
-  if (rows.length === 0) throw new Error("No laps to export");
+function advanceFrames(buf: Buffer, offset: number, count: number): number {
+  let at = offset;
+  for (let i = 0; i < count; i++) {
+    if (at + 4 > buf.length) break;
+    const len = buf.readUInt32LE(at);
+    if (len <= 0 || at + 4 + len > buf.length) break;
+    at += 4 + len;
+  }
+  return at;
+}
+
+function slugify(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
+
+/**
+ * Build a zip containing the raw frames for the given laps, grouped by session.
+ *
+ * Per session the slice spans from the first selected lap's frames through the
+ * last selected lap's frames *plus one trigger frame*, so the importing lap
+ * detector sees the crossing that completes the final lap. Cherry-picking
+ * non-adjacent laps therefore also carries the laps in between — a contiguous
+ * frame stream is what makes the capture replayable, and the manifest lists
+ * exactly what will come back.
+ *
+ * Laps with no raw capture (pre-migration rows, or a capture deleted off disk)
+ * are skipped.
+ */
+export async function buildLapsZip(
+  lapIds: number[]
+): Promise<{ bytes: Uint8Array; manifest: LapsZipManifest }> {
+  const wanted = new Set(lapIds);
+  const allRows = await getLapsRaw();
+  const selected = allRows.filter((r) => wanted.has(r.id));
+  if (selected.length === 0) throw new Error("No laps matched the requested ids");
+
+  const bySession = new Map<number, RawLapRow[]>();
+  for (const row of selected) {
+    const list = bySession.get(row.sessionId);
+    if (list) list.push(row);
+    else bySession.set(row.sessionId, [row]);
+  }
 
   const files: Record<string, Uint8Array> = {};
-  const manifestLaps: LapManifestEntry[] = [];
-  const seen = new Set<string>();
+  const entries: ManifestEntry[] = [];
 
-  for (const row of rows) {
-    // Deduplicate by car + track + game + lapNumber + lapTime
-    const key = `${row.carOrdinal}:${row.trackOrdinal}:${row.gameId}:${row.lapNumber}:${row.lapTime}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
+  for (const [sessionId, rows] of bySession) {
+    const usable = rows.filter(
+      (r) => r.rawFile && r.rawByteOffset != null && (r.rawFrameCount ?? 0) > 0
+    );
+    if (usable.length === 0) continue;
 
-    const fileName = `lap_${row.id}.csv.gz`;
-    // Telemetry blob is already gzip'd — store without re-compressing
-    files[fileName] = new Uint8Array(row.telemetry as Buffer);
-    manifestLaps.push({
-      id: row.id,
-      lapNumber: row.lapNumber,
-      lapTime: row.lapTime,
-      isValid: Boolean(row.isValid),
-      pi: row.pi,
-      carOrdinal: row.carOrdinal,
-      carName: getCarName(row.carOrdinal) ?? `Car ${row.carOrdinal}`,
-      trackOrdinal: row.trackOrdinal,
-      trackName: getTrackName(row.trackOrdinal) ?? `Track ${row.trackOrdinal}`,
-      gameId: row.gameId,
-      createdAt: row.createdAt,
+    const rawFile = usable[0].rawFile as string;
+    let buf: Buffer;
+    try {
+      buf = await readCapture(rawFile);
+    } catch {
+      continue; // capture gone from disk — nothing to export for this session
+    }
+
+    const startByte = Math.min(...usable.map((r) => r.rawByteOffset as number));
+    const last = usable.reduce((a, b) =>
+      (b.rawByteOffset as number) > (a.rawByteOffset as number) ? b : a
+    );
+    if (startByte >= buf.length) continue;
+    // +1 frame: the next-lap trigger that completes the final lap on replay.
+    const endByte = advanceFrames(
+      buf,
+      last.rawByteOffset as number,
+      (last.rawFrameCount as number) + 1
+    );
+
+    const slice = Buffer.concat([metaFrame(), buf.subarray(startByte, endByte)]);
+
+    const first = usable[0];
+    const gameId = first.gameId as GameId;
+    const trackName = getTrackName(first.trackOrdinal ?? -1, gameId);
+    const carName = getCarName(first.carOrdinal ?? -1, gameId);
+    // Filename MUST start with `<gameId>-` so import can fall back to
+    // filename-based game detection.
+    const fileName = `${gameId}-${slugify(trackName) || `track${first.trackOrdinal ?? 0}`}-session${sessionId}.bin.gz`;
+
+    files[fileName] = new Uint8Array(gzipSync(slice));
+
+    // Everything inside the exported span comes back on import — list it all.
+    const covered = allRows
+      .filter(
+        (r) =>
+          r.sessionId === sessionId &&
+          r.rawByteOffset != null &&
+          r.rawByteOffset >= startByte &&
+          r.rawByteOffset < endByte
+      )
+      .sort((a, b) => a.lapNumber - b.lapNumber);
+
+    entries.push({
       file: fileName,
+      gameId,
+      sessionId,
+      carOrdinal: first.carOrdinal ?? 0,
+      trackOrdinal: first.trackOrdinal ?? 0,
+      carName,
+      trackName,
+      createdAt: first.createdAt,
+      laps: covered.map((r) => ({
+        lapNumber: r.lapNumber,
+        lapTime: r.lapTime,
+        isValid: r.isValid,
+      })),
     });
   }
 
-  const manifest: Manifest = {
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    lapCount: manifestLaps.length,
-    laps: manifestLaps,
-  };
-
-  files["manifest.json"] = new TextEncoder().encode(JSON.stringify(manifest, null, 2));
-
-  // Use level 0 (STORE) for .csv.gz files since they're already compressed
-  const zipOptions: Record<string, [Uint8Array, { level: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 }]> = {};
-  for (const [name, data] of Object.entries(files)) {
-    const level = name.endsWith(".gz") ? 0 : 6;
-    zipOptions[name] = [data, { level: level as any }];
+  if (entries.length === 0) {
+    throw new Error("None of the selected laps have a raw capture available to export");
   }
 
-  return zipSync(zipOptions);
+  const manifest: LapsZipManifest = {
+    version: LAPS_ZIP_VERSION,
+    exportedAt: new Date().toISOString(),
+    entries,
+  };
+  files["manifest.json"] = new TextEncoder().encode(JSON.stringify(manifest, null, 2));
+
+  // level 0 for the .bin.gz members (already gzip'd), default for the manifest.
+  const bytes = zipSync(files, { level: 6 });
+  return { bytes, manifest };
+}
+
+/** `raceiq-<track>-<n>laps-<date>.zip`, or a generic name for a mixed export. */
+export function lapsZipFilename(manifest: LapsZipManifest): string {
+  const date = manifest.exportedAt.slice(0, 10);
+  const lapCount = manifest.entries.reduce((sum, e) => sum + e.laps.length, 0);
+  const tracks = new Set(manifest.entries.map((e) => e.trackName));
+  const trackPart = tracks.size === 1 ? `${slugify([...tracks][0])}-` : "";
+  return `raceiq-${trackPart}${lapCount}lap${lapCount === 1 ? "" : "s"}-${date}.zip`;
+}
+
+export interface ImportZipResult {
+  imported: number;
+  skipped: number;
+  laps: ImportedLap[];
+  errors: string[];
 }
 
 /**
- * Import laps from a zip file. Creates new sessions as needed.
- * Returns the number of laps imported.
+ * Import a zip produced by {@link buildLapsZip}: every `.bin`/`.bin.gz` member is
+ * replayed through the pipeline, landing as a fresh session with its laps
+ * re-detected. Duplicates are not merged — importing the same zip twice gives
+ * you the laps twice, same as the single-file `.bin` import.
  */
-export async function importLapsZip(zipData: Uint8Array): Promise<{ imported: number; skipped: number }> {
-  const extracted = unzipSync(zipData);
+export async function importLapsZip(zipData: Uint8Array): Promise<ImportZipResult> {
+  const files = unzipSync(zipData);
 
-  const manifestBytes = extracted["manifest.json"];
-  if (!manifestBytes) throw new Error("Invalid zip: missing manifest.json");
+  let manifest: LapsZipManifest | null = null;
+  const manifestBytes = files["manifest.json"];
+  if (manifestBytes) {
+    try {
+      manifest = JSON.parse(new TextDecoder().decode(manifestBytes)) as LapsZipManifest;
+    } catch {
+      manifest = null;
+    }
+  }
+  const manifestGame = new Map<string, GameId>();
+  for (const entry of manifest?.entries ?? []) manifestGame.set(entry.file, entry.gameId);
 
-  const manifest: Manifest = JSON.parse(new TextDecoder().decode(manifestBytes));
-  if (manifest.version !== 1) throw new Error(`Unsupported manifest version: ${manifest.version}`);
-
-  // Build set of existing laps for dedup
-  const existingLaps = await getLaps();
-  const existingKeys = new Set(
-    existingLaps.map((l) => `${l.carOrdinal}:${l.trackOrdinal}:${l.gameId}:${l.lapNumber}:${l.lapTime}`)
-  );
-
-  const sessionMap = new Map<string, number>();
-  let imported = 0;
+  const laps: ImportedLap[] = [];
+  const errors: string[] = [];
   let skipped = 0;
 
-  for (const entry of manifest.laps) {
-    // Skip if this lap already exists
-    const dedupKey = `${entry.carOrdinal}:${entry.trackOrdinal}:${entry.gameId}:${entry.lapNumber}:${entry.lapTime}`;
-    if (existingKeys.has(dedupKey)) {
-      skipped++;
-      continue;
-    }
+  const names = Object.keys(files)
+    .filter((n) => n.endsWith(".bin") || n.endsWith(".bin.gz"))
+    .sort();
 
-    const blobData = extracted[entry.file];
-    if (!blobData) {
-      skipped++;
-      continue;
-    }
-
-    // Get or create session for this car/track/game combo
-    const sessionKey = `${entry.carOrdinal}:${entry.trackOrdinal}:${entry.gameId}`;
-    let sessionId = sessionMap.get(sessionKey);
-    if (sessionId === undefined) {
-      sessionId = await insertSession(
-        entry.carOrdinal,
-        entry.trackOrdinal,
-        entry.gameId as GameId
-      );
-      sessionMap.set(sessionKey, sessionId);
-    }
-
-    // The blob is already gzip'd CSV — decompress to get packets, then re-compress
-    // (roundtrip ensures compatibility with current storage format)
-    const packets = decompressTelemetry(Buffer.from(blobData));
-    await insertLapSync(sessionId, entry.lapNumber, entry.lapTime, entry.isValid, packets);
-    existingKeys.add(dedupKey);
-    imported++;
+  if (names.length === 0) {
+    throw new Error(
+      "Zip contains no session captures (.bin/.bin.gz). Exports from an older RaceIQ version can't be imported."
+    );
   }
 
-  return { imported, skipped };
+  for (const name of names) {
+    const bytes = Buffer.from(files[name]);
+    const gameId =
+      detectGameIdFromBuffer(bytes) ??
+      manifestGame.get(name) ??
+      detectGameIdFromFilename(name.split("/").pop() ?? name);
+    if (!gameId) {
+      skipped++;
+      errors.push(`${name}: could not determine which game this capture came from`);
+      continue;
+    }
+    try {
+      const result = await importSessionBin(bytes, gameId);
+      laps.push(...result.laps);
+    } catch (err) {
+      skipped++;
+      errors.push(`${name}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  return { imported: laps.length, skipped, laps, errors };
 }
