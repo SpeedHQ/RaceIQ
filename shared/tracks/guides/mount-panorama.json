@@ -1,0 +1,103 @@
+{
+  "id": "mount-panorama",
+  "locale": "en",
+  "character": "Legendary 6.2km Australian circuit with 174m elevation change. Part public road, part purpose-built. The Mountain section is narrow and unforgiving with concrete walls. Conrod Straight allows 300+ km/h before heavy braking. Demands bravery on the Mountain and precision everywhere.",
+  "sources": "https://www.racingcircuits.info/oceania/australia/mount-panorama.html Bathurst corner naming (Hell Corner, Griffins Bend, Skyline, The Dipper, Forrest's Elbow, The Chase, Murray's Corner) long-established",
+  "corners": [
+    {
+      "key": "hell-corner",
+      "name": "Hell Corner",
+      "numbers": [1],
+      "type": "tight right at circuit start",
+      "technique": "Hard braking, late apex. Exit speed starts the Mountain climb",
+      "trap": "Over-cooking entry and running wide — narrow exit"
+    },
+    {
+      "key": "mountain-straight",
+      "name": "Mountain Straight",
+      "type": "steep uphill straight",
+      "technique": "Full throttle up the steep climb, prepare for Griffins Bend",
+      "trap": "Not anticipating the crest and gradient changes"
+    },
+    {
+      "key": "griffins-bend",
+      "name": "Griffins Bend",
+      "numbers": [2],
+      "type": "fast left over crest",
+      "technique": "Commitment over the blind crest, trust the racing line",
+      "trap": "Lifting over the crest kills momentum"
+    },
+    {
+      "key": "the-cutting",
+      "name": "The Cutting",
+      "numbers": [3],
+      "type": "fast section through narrow walls",
+      "technique": "Precision is critical — concrete walls on both sides. Smooth, committed driving",
+      "trap": "Any correction near the walls risks contact"
+    },
+    {
+      "key": "reid-park",
+      "name": "Reid Park",
+      "numbers": [4],
+      "type": "tight left-right complex",
+      "technique": "Hard braking, precise through the direction changes. Walls are very close",
+      "trap": "Over-driving into the first part with walls millimeters away"
+    },
+    {
+      "key": "skyline",
+      "name": "Skyline",
+      "numbers": [7],
+      "type": "crest at the top of the Mountain",
+      "technique": "Car goes light over the top — smooth inputs, let it settle",
+      "trap": "Aggressive steering when the car is light = instant snap"
+    },
+    {
+      "key": "the-esses",
+      "name": "The Esses",
+      "numbers": [7, 8, 9, 10],
+      "type": "fast downhill left-right-left sequence",
+      "technique": "Descending quickly with walls close. Rhythm and commitment, carry speed",
+      "trap": "Over-driving while descending — the gradient increases speed rapidly"
+    },
+    {
+      "key": "the-dipper",
+      "name": "The Dipper",
+      "numbers": [8, 9],
+      "type": "fast compression into left",
+      "technique": "Car loads up in the dip — use the grip from compression",
+      "trap": "Not using the compression advantage"
+    },
+    {
+      "key": "forrest-elbow",
+      "name": "Forrest Elbow",
+      "numbers": [12],
+      "type": "tight left leading to Conrod",
+      "technique": "Late apex is critical — feeds the enormously fast Conrod Straight",
+      "trap": "Early apex = slow Conrod Straight = massive time loss"
+    },
+    {
+      "key": "conrod-straight",
+      "name": "Conrod Straight",
+      "type": "very fast downhill straight",
+      "technique": "Full throttle, 300+ km/h. Prepare braking for The Chase",
+      "trap": "Not preparing early enough for the braking zone at The Chase"
+    },
+    {
+      "key": "the-chase",
+      "name": "The Chase",
+      "numbers": [13, 14],
+      "type": "left-right chicane after Conrod",
+      "technique": "Enormous braking zone from 300+ km/h. Hard, straight-line braking, precise through chicane",
+      "trap": "Braking too late from the extremely high speeds; ABS fade"
+    },
+    {
+      "key": "murray-s-corner",
+      "name": "Murray's Corner",
+      "numbers": [15],
+      "type": "final right-hander",
+      "technique": "Late apex, progressive throttle. Exit speed feeds start/finish straight",
+      "trap": "Over-committing on entry and losing exit drive"
+    }
+  ],
+  "priorityCorners": ["forrest-elbow","the-chase","murray-s-corner","the-esses"]
+}

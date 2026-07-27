@@ -1,0 +1,39 @@
+{
+  "id": "hakone",
+  "locale": "en",
+  "character": "Fictional circuit set in and around the mountain town of Hakone, Japan, winding up and down serpentine mountain roads for over 10 miles at full length. Elevation change and blind, technical corners dominate; no individual corners have established community names.",
+  "notes": "Community knowledge (no formal corner-name guide available). Character based on official Forza track-list description; no individual corners have established community names.",
+  "corners": [
+    {
+      "key": "turn-1",
+      "name": "Turn 1",
+      "numbers": [1],
+      "type": "medium-speed corner off the front straight",
+      "technique": "Firm braking, late apex",
+      "trap": "Running wide compromises the run into the following section"
+    },
+    {
+      "key": "turn-6",
+      "name": "Turn 6",
+      "numbers": [6],
+      "type": "fast, blind corner on a mountain climb",
+      "technique": "Commit through the blind section, trust the line",
+      "trap": "Lifting unnecessarily on the blind entry costs significant time"
+    },
+    {
+      "key": "turn-12",
+      "name": "Turn 12",
+      "type": "tight, technical hairpin on a descent",
+      "technique": "Patient braking on the downhill approach, low-speed precision",
+      "trap": "Misjudging braking distance on the steep descent"
+    },
+    {
+      "key": "final-corner",
+      "name": "Final Corner",
+      "type": "corner onto the front straight",
+      "technique": "Late apex, clean exit is critical — feeds the front straight",
+      "trap": "Compromised exit costs time down the entire straight"
+    }
+  ],
+  "priorityCorners": ["turn-6","final-corner"]
+}

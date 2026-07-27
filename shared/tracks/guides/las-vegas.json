@@ -1,0 +1,42 @@
+{
+  "id": "las-vegas",
+  "locale": "en",
+  "character": "High-speed street circuit down the Las Vegas Strip, run at night in cold desert-winter track temperatures. Very long straights favour low drag; low ambient and track temperature make tyre warm-up and braking stability a persistent challenge.",
+  "sources": "https://www.formula1.com/en/racing/2026/las-vegas/circuit — deliberately generic Turn-N labels (see comment above)",
+  "notes": "Corner numbers kept generic — this is a newer addition to the calendar with limited independently-verified corner-name sourcing; only the well-documented circuit character (long Strip straight, very high top speed, cold-track grip) is asserted with confidence.",
+  "corners": [
+    {
+      "key": "turn-1",
+      "name": "Turn 1",
+      "numbers": [1],
+      "type": "heavy-braking corner off the main straight",
+      "technique": "Brake early to account for cold-track grip levels, late apex",
+      "trap": "Locking a cold front tyre under braking"
+    },
+    {
+      "key": "turn-5",
+      "name": "Turn 5",
+      "numbers": [5],
+      "type": "fast street corner",
+      "technique": "Commit smoothly, respect the reduced grip from low track temperature",
+      "trap": "Overdriving the entry on a cold tyre and sliding wide"
+    },
+    {
+      "key": "turn-12-14",
+      "name": "Turn 12-14",
+      "numbers": [12, 13, 14],
+      "type": "technical street section",
+      "technique": "Patient, precise inputs through the tighter sequence",
+      "trap": "Wall contact from an overly ambitious line in the tight section"
+    },
+    {
+      "key": "final-corner",
+      "name": "Final Corner",
+      "numbers": [17],
+      "type": "corner onto the long Strip straight",
+      "technique": "Clean exit is critical — feeds the longest straight on the lap",
+      "trap": "Compromised exit costs significant time down the following straight"
+    }
+  ],
+  "priorityCorners": ["turn-1","final-corner"]
+}
