@@ -51,10 +51,7 @@
   <text x="215.7" y="733.9" text-anchor="end" class="name" fill="#111827">T14 Arie Luyendykbocht</text>
   <line x1="193.0" y1="433.8" x2="167.1" y2="435.6" stroke="#d1d5db" stroke-width="1" />
   <text x="167.1" y="435.6" text-anchor="end" class="name" fill="#6b7280">St3 270m</text>
-  <circle cx="718.8" cy="302.0" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="729.8" y="294.0" class="sector">S1 0.362</text>
-  <circle cx="528.2" cy="405.2" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="539.2" y="397.2" class="sector">S2 0.677</text>
+
   <rect x="223.5" y="329.5" width="10" height="10" fill="#111827" />
   <text x="240.5" y="338.5" class="sub">S/F</text>
   <text class="title" x="12" y="22">Circuit Zandvoort — acc</text>

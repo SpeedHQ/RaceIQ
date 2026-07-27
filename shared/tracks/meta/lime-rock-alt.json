@@ -1,203 +1,55 @@
 {
-  "name": "Lime Rock Park — Alt",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0494
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "right",
-          "startFrac": 0.0494,
-          "endFrac": 0.2188,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "left",
-          "startFrac": 0.2188,
-          "endFrac": 0.3112,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "right",
-          "startFrac": 0.3112,
-          "endFrac": 0.3798,
-          "number": 3
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3798,
-          "endFrac": 0.4383
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "right",
-          "startFrac": 0.4383,
-          "endFrac": 0.5098,
-          "number": 4
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "left",
-          "startFrac": 0.5098,
-          "endFrac": 0.5245,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "right",
-          "startFrac": 0.5245,
-          "endFrac": 0.5713,
-          "number": 6
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5713,
-          "endFrac": 0.6145
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "right",
-          "startFrac": 0.6145,
-          "endFrac": 0.705,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "left",
-          "startFrac": 0.705,
-          "endFrac": 0.7555,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "T9",
-          "direction": "right",
-          "startFrac": 0.7555,
-          "endFrac": 0.8737,
-          "number": 9
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8737,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "lime-rock-alt",
+  "track": "lime-rock",
+  "layout": "full-alt",
+  "layoutName": "Full Alt",
+  "name": "Lime Rock Park",
+  "source": "derived from track geometry (layout variant, sequential numbering)",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
+      "name": "Big Bend",
+      "direction": "right"
+    },
+    {
+      "number": 2,
+      "name": "The Esses",
+      "direction": "left"
+    },
+    {
+      "number": 3,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0494
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "right",
-      "startFrac": 0.0494,
-      "endFrac": 0.2188,
-      "number": 1
-    },
-    {
-      "type": "corner",
-      "name": "T2",
-      "direction": "left",
-      "startFrac": 0.2188,
-      "endFrac": 0.3112,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "right",
-      "startFrac": 0.3112,
-      "endFrac": 0.3798,
-      "number": 3
-    },
-    {
-      "type": "straight",
+      "number": 4,
       "name": "",
-      "startFrac": 0.3798,
-      "endFrac": 0.4383
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T4",
-      "direction": "right",
-      "startFrac": 0.4383,
-      "endFrac": 0.5098,
-      "number": 4
-    },
-    {
-      "type": "corner",
-      "name": "T5",
-      "direction": "left",
-      "startFrac": 0.5098,
-      "endFrac": 0.5245,
-      "number": 5
-    },
-    {
-      "type": "corner",
-      "name": "T6",
-      "direction": "right",
-      "startFrac": 0.5245,
-      "endFrac": 0.5713,
-      "number": 6
-    },
-    {
-      "type": "straight",
+      "number": 5,
       "name": "",
-      "startFrac": 0.5713,
-      "endFrac": 0.6145
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T7",
-      "direction": "right",
-      "startFrac": 0.6145,
-      "endFrac": 0.705,
-      "number": 7
-    },
-    {
-      "type": "corner",
-      "name": "T8",
-      "direction": "left",
-      "startFrac": 0.705,
-      "endFrac": 0.7555,
-      "number": 8
-    },
-    {
-      "type": "corner",
-      "name": "T9",
-      "direction": "right",
-      "startFrac": 0.7555,
-      "endFrac": 0.8737,
-      "number": 9
-    },
-    {
-      "type": "straight",
+      "number": 6,
       "name": "",
-      "startFrac": 0.8737,
-      "endFrac": 1
+      "direction": "right"
+    },
+    {
+      "number": 7,
+      "name": "West Bend",
+      "direction": "right"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 9,
+      "name": "Downhill",
+      "direction": "right"
     }
   ]
 }

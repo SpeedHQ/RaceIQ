@@ -57,10 +57,7 @@
   <text x="431.2" y="53.5" text-anchor="end" class="name" fill="#111827">T11</text>
   <line x1="345.6" y1="181.1" x2="331.4" y2="159.3" stroke="#d1d5db" stroke-width="1" />
   <text x="331.4" y="159.3" text-anchor="end" class="name" fill="#6b7280">St5 210m</text>
-  <circle cx="486.4" cy="484.6" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="497.4" y="476.6" class="sector">S1 0.332</text>
-  <circle cx="723.0" cy="283.0" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="734.0" y="275.0" class="sector">S2 0.721</text>
+
   <rect x="301.3" y="234.8" width="10" height="10" fill="#111827" />
   <text x="318.3" y="243.8" class="sub">S/F</text>
   <text class="title" x="12" y="22">WeatherTech Raceway Laguna Seca — acc</text>

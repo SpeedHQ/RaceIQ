@@ -43,7 +43,6 @@ const laps: LapMeta[] = LAP_TIMES.map((t, i) => ({
   s1Time: t * 0.32,
   s2Time: t * 0.4,
   s3Time: t * 0.28,
-  isLegacy: false,
 }));
 
 const telemetryByLap = new Map(laps.map((l, i) => [l.id, makeLapTelemetry(l.lapTime, i === 3 ? 40 : 6)]));

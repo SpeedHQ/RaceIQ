@@ -56,7 +56,7 @@ describe("selectEvaluationLaps", () => {
 
   test("manual exclusion wins over every other reason", () => {
     const laps = [
-      lap(1, 90, { isValid: false, isLegacy: true, tuningExcluded: true, tuningExcludedSource: "manual" }),
+      lap(1, 90, { isValid: false, tuningExcluded: true, tuningExcludedSource: "manual" }),
       lap(2, 92),
     ];
     const sel = selectEvaluationLaps(laps);
@@ -70,16 +70,14 @@ describe("selectEvaluationLaps", () => {
     expect(sel.reasonById.get(1)).toBe("chosen");
   });
 
-  test("legacy, invalid, non-positive time and pit laps are ineligible", () => {
+  test("invalid, non-positive time and pit laps are ineligible", () => {
     const laps = [
-      lap(1, 90, { isLegacy: true }),
       lap(2, 90, { isValid: false }),
       lap(3, 0),
       lap(4, 90, { invalidReason: "inlap" }),
       lap(5, 94),
     ];
     const sel = selectEvaluationLaps(laps);
-    expect(sel.reasonById.get(1)).toBe("legacy");
     expect(sel.reasonById.get(2)).toBe("invalid");
     expect(sel.reasonById.get(3)).toBe("invalid");
     expect(sel.reasonById.get(4)).toBe("pit");

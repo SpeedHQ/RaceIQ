@@ -57,12 +57,9 @@
   <text x="409.8" y="528.0" text-anchor="end" class="name" fill="#111827">T12 Goddards</text>
   <line x1="372.5" y1="457.0" x2="348.0" y2="465.4" stroke="#d1d5db" stroke-width="1" />
   <text x="348.0" y="465.4" text-anchor="end" class="name" fill="#6b7280">Wheatcroft Straight</text>
-  <circle cx="516.4" cy="285.4" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="527.4" y="277.4" class="sector">S1 0.327</text>
-  <circle cx="837.8" cy="525.8" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="848.8" y="517.8" class="sector">S2 0.583</text>
+
   <rect x="340.5" y="448.9" width="10" height="10" fill="#111827" />
   <text x="357.5" y="457.9" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Donington Park (GP circuit) — acc</text>
+  <text class="title" x="12" y="22">Donington Park — acc</text>
   <text class="sub" x="12" y="40">11 corners, 5 straights, 16 segments, 3.943 km</text>
 </svg>

@@ -25,9 +25,9 @@
   <line x1="679.9" y1="158.6" x2="698.0" y2="140.0" stroke="#d1d5db" stroke-width="1" />
   <text x="698.0" y="140.0" text-anchor="start" class="name" fill="#6b7280">St1 118m</text>
   <line x1="898.6" y1="207.2" x2="923.1" y2="198.6" stroke="#d1d5db" stroke-width="1" />
-  <text x="923.1" y="198.6" text-anchor="start" class="name" fill="#111827">T1</text>
+  <text x="923.1" y="198.6" text-anchor="end" class="name" fill="#111827">T1 Big Bend</text>
   <line x1="693.6" y1="308.0" x2="719.1" y2="302.9" stroke="#d1d5db" stroke-width="1" />
-  <text x="719.1" y="302.9" text-anchor="start" class="name" fill="#111827">T2</text>
+  <text x="719.1" y="302.9" text-anchor="start" class="name" fill="#111827">T2 The Esses</text>
   <line x1="696.7" y1="470.3" x2="718.8" y2="483.9" stroke="#d1d5db" stroke-width="1" />
   <text x="718.8" y="483.9" text-anchor="start" class="name" fill="#111827">T3</text>
   <line x1="592.6" y1="559.1" x2="603.3" y2="582.8" stroke="#d1d5db" stroke-width="1" />
@@ -41,16 +41,16 @@
   <line x1="235.0" y1="557.0" x2="214.7" y2="573.3" stroke="#d1d5db" stroke-width="1" />
   <text x="214.7" y="573.3" text-anchor="end" class="name" fill="#6b7280">St3 103m</text>
   <line x1="125.1" y1="464.1" x2="100.3" y2="471.9" stroke="#d1d5db" stroke-width="1" />
-  <text x="100.3" y="471.9" text-anchor="end" class="name" fill="#111827">T7</text>
+  <text x="100.3" y="471.9" text-anchor="end" class="name" fill="#111827">T7 West Bend</text>
   <line x1="146.0" y1="343.1" x2="120.0" y2="342.8" stroke="#d1d5db" stroke-width="1" />
   <text x="120.0" y="342.8" text-anchor="end" class="name" fill="#111827">T8</text>
   <line x1="224.7" y1="180.3" x2="202.5" y2="166.7" stroke="#d1d5db" stroke-width="1" />
-  <text x="202.5" y="166.7" text-anchor="end" class="name" fill="#111827">T9</text>
+  <text x="202.5" y="166.7" text-anchor="end" class="name" fill="#111827">T9 Downhill</text>
   <line x1="486.5" y1="158.9" x2="485.0" y2="133.0" stroke="#d1d5db" stroke-width="1" />
   <text x="485.0" y="133.0" text-anchor="end" class="name" fill="#6b7280">St4 302m</text>
 
   <rect x="620.1" y="153.8" width="10" height="10" fill="#111827" />
   <text x="637.1" y="162.8" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Lime Rock Park — Alt — fm-2023</text>
+  <text class="title" x="12" y="22">Lime Rock Park — fm-2023</text>
   <text class="sub" x="12" y="40">9 corners, 4 straights, 13 segments, 2.390 km</text>
 </svg>

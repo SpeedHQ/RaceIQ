@@ -1,379 +1,107 @@
 {
+  "slug": "sebring",
+  "track": "sebring",
+  "layout": "full",
+  "layoutName": "Full",
   "name": "Sebring International Raceway",
-  "sectors": {
-    "s1End": 0.33,
-    "s2End": 0.66
-  },
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0518
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "left",
-          "startFrac": 0.0518,
-          "endFrac": 0.1354,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "left",
-          "startFrac": 0.1354,
-          "endFrac": 0.1702,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "right",
-          "startFrac": 0.1702,
-          "endFrac": 0.183,
-          "number": 3
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "left",
-          "startFrac": 0.183,
-          "endFrac": 0.2155,
-          "number": 4
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2155,
-          "endFrac": 0.3134
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "right",
-          "startFrac": 0.3134,
-          "endFrac": 0.3488,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "left",
-          "startFrac": 0.3488,
-          "endFrac": 0.3556,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "right",
-          "startFrac": 0.3556,
-          "endFrac": 0.3722,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "right",
-          "startFrac": 0.3722,
-          "endFrac": 0.4034,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "T9",
-          "direction": "left",
-          "startFrac": 0.4034,
-          "endFrac": 0.4516,
-          "number": 9
-        },
-        {
-          "type": "corner",
-          "name": "T10",
-          "direction": "right",
-          "startFrac": 0.4516,
-          "endFrac": 0.4867,
-          "number": 10
-        },
-        {
-          "type": "corner",
-          "name": "T11",
-          "direction": "left",
-          "startFrac": 0.4867,
-          "endFrac": 0.5224,
-          "number": 11
-        },
-        {
-          "type": "corner",
-          "name": "T12",
-          "direction": "right",
-          "startFrac": 0.5224,
-          "endFrac": 0.5478,
-          "number": 12
-        },
-        {
-          "type": "corner",
-          "name": "T13",
-          "direction": "right",
-          "startFrac": 0.5478,
-          "endFrac": 0.5791,
-          "number": 13
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5791,
-          "endFrac": 0.6064
-        },
-        {
-          "type": "corner",
-          "name": "T14",
-          "direction": "left",
-          "startFrac": 0.6064,
-          "endFrac": 0.6613,
-          "number": 14
-        },
-        {
-          "type": "corner",
-          "name": "T15",
-          "direction": "right",
-          "startFrac": 0.6613,
-          "endFrac": 0.7041,
-          "number": 15
-        },
-        {
-          "type": "corner",
-          "name": "T16",
-          "direction": "left",
-          "startFrac": 0.7041,
-          "endFrac": 0.722,
-          "number": 16
-        },
-        {
-          "type": "corner",
-          "name": "T17",
-          "direction": "right",
-          "startFrac": 0.722,
-          "endFrac": 0.754,
-          "number": 17
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.754,
-          "endFrac": 0.8694
-        },
-        {
-          "type": "corner",
-          "name": "T18",
-          "direction": "right",
-          "startFrac": 0.8694,
-          "endFrac": 0.9115,
-          "number": 18
-        },
-        {
-          "type": "corner",
-          "name": "Sunset Bend",
-          "direction": "right",
-          "startFrac": 0.9115,
-          "endFrac": 0.957,
-          "number": 19
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.957,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "source": "Sequential detected corners (official 17-turn numbering not reliably mapped); Sunset Bend named",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0518
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "left",
-      "startFrac": 0.0518,
-      "endFrac": 0.1354,
-      "number": 1
-    },
-    {
-      "type": "corner",
-      "name": "T2",
-      "direction": "left",
-      "startFrac": 0.1354,
-      "endFrac": 0.1702,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "right",
-      "startFrac": 0.1702,
-      "endFrac": 0.183,
-      "number": 3
-    },
-    {
-      "type": "corner",
-      "name": "T4",
-      "direction": "left",
-      "startFrac": 0.183,
-      "endFrac": 0.2155,
-      "number": 4
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.2155,
-      "endFrac": 0.3134
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T5",
-      "direction": "right",
-      "startFrac": 0.3134,
-      "endFrac": 0.3488,
-      "number": 5
-    },
-    {
-      "type": "corner",
-      "name": "T6",
-      "direction": "left",
-      "startFrac": 0.3488,
-      "endFrac": 0.3556,
-      "number": 6
-    },
-    {
-      "type": "corner",
-      "name": "T7",
-      "direction": "right",
-      "startFrac": 0.3556,
-      "endFrac": 0.3722,
-      "number": 7
-    },
-    {
-      "type": "corner",
-      "name": "T8",
-      "direction": "right",
-      "startFrac": 0.3722,
-      "endFrac": 0.4034,
-      "number": 8
-    },
-    {
-      "type": "corner",
-      "name": "T9",
-      "direction": "left",
-      "startFrac": 0.4034,
-      "endFrac": 0.4516,
-      "number": 9
-    },
-    {
-      "type": "corner",
-      "name": "T10",
-      "direction": "right",
-      "startFrac": 0.4516,
-      "endFrac": 0.4867,
-      "number": 10
-    },
-    {
-      "type": "corner",
-      "name": "T11",
-      "direction": "left",
-      "startFrac": 0.4867,
-      "endFrac": 0.5224,
-      "number": 11
-    },
-    {
-      "type": "corner",
-      "name": "T12",
-      "direction": "right",
-      "startFrac": 0.5224,
-      "endFrac": 0.5478,
-      "number": 12
-    },
-    {
-      "type": "corner",
-      "name": "T13",
-      "direction": "right",
-      "startFrac": 0.5478,
-      "endFrac": 0.5791,
-      "number": 13
-    },
-    {
-      "type": "straight",
+      "number": 3,
       "name": "",
-      "startFrac": 0.5791,
-      "endFrac": 0.6064
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T14",
-      "direction": "left",
-      "startFrac": 0.6064,
-      "endFrac": 0.6613,
-      "number": 14
-    },
-    {
-      "type": "corner",
-      "name": "T15",
-      "direction": "right",
-      "startFrac": 0.6613,
-      "endFrac": 0.7041,
-      "number": 15
-    },
-    {
-      "type": "corner",
-      "name": "T16",
-      "direction": "left",
-      "startFrac": 0.7041,
-      "endFrac": 0.722,
-      "number": 16
-    },
-    {
-      "type": "corner",
-      "name": "T17",
-      "direction": "right",
-      "startFrac": 0.722,
-      "endFrac": 0.754,
-      "number": 17
-    },
-    {
-      "type": "straight",
+      "number": 4,
       "name": "",
-      "startFrac": 0.754,
-      "endFrac": 0.8694
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T18",
+      "number": 5,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 7,
+      "name": "",
       "direction": "right",
-      "startFrac": 0.8694,
-      "endFrac": 0.9115,
-      "number": 18
+      "group": "T7/T8"
     },
     {
-      "type": "corner",
+      "number": 8,
+      "name": "",
+      "direction": "right",
+      "group": "T7/T8"
+    },
+    {
+      "number": 9,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 10,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 11,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 12,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 13,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 14,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 15,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 16,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 17,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 18,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 19,
       "name": "Sunset Bend",
-      "direction": "right",
-      "startFrac": 0.9115,
-      "endFrac": 0.957,
-      "number": 19
-    },
-    {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.957,
-      "endFrac": 1
+      "direction": "right"
     }
   ]
 }

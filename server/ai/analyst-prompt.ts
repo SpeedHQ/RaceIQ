@@ -5,6 +5,7 @@ import { buildCornerData } from "./corner-data";
 import { analyzeLap } from "../../shared/lib/lap-insights";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
+import { resolveTrack } from "../track-info";
 import { buildTrackGuideContext, guideCornerLabels } from "./track-guides";
 import { telemetryToTrackConditions, formatTrackConditions } from "./track-conditions";
 import { segmentPromptLabels } from "../../shared/segment-label";
@@ -22,6 +23,11 @@ interface CornerDef {
  * A curated track segment (#84) as the prompt consumes it. `number`/`covers`
  * are the official turn numbers the section accounts for — they're what makes
  * "T2-4 Eau Rouge/Raidillon" rather than a bare name, so pass them through.
+ *
+ * `group` matters for the same reason: `segmentPromptLabels` collapses a
+ * complex to one label, and dropping the field here silently turned that
+ * collapse into a no-op on this path while it still fired in `track-guides.ts`,
+ * so the model was handed two different label sets for the same corners.
  */
 export interface PromptSegment {
   type: string;
@@ -30,6 +36,8 @@ export interface PromptSegment {
   endFrac: number;
   number?: number;
   covers?: number[];
+  group?: string;
+  direction?: "left" | "right";
 }
 
 /** A lap's sector times, seconds. */
@@ -231,19 +239,14 @@ export function buildAnalystPrompt(
 
   const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
 
-  // Resolve the shared meta slug so the track guide can name corners the way
-  // meta (and therefore the whitelist below) names them.
-  const trackSlug =
-    lap.trackOrdinal != null && gameId
-      ? (tryGetServerGame(gameId)?.getSharedTrackName?.(lap.trackOrdinal) ?? undefined)
-      : undefined;
+  const { slug } = resolveTrack(gameId, lap.trackOrdinal);
 
   // Track grounding: the model invents corner names (e.g. "Bit-Kurve" at Lusail)
   // when nothing else constrains it. Build a whitelist from whatever named
   // sources we have; if none, force Tn numbering.
   // The guide's own labels must be in the whitelist too — it coaches by name,
   // so a name the whitelist omits is one the model is told to both use and not use.
-  const cornerLabelWhitelist = collectCornerLabels(corners, segments, guideCornerLabels(trackName, { slug: trackSlug, gameId }));
+  const cornerLabelWhitelist = collectCornerLabels(corners, segments, guideCornerLabels(trackName, { slug }));
   const cornerGuardrail =
     cornerLabelWhitelist.length > 0
       ? `\n--- Valid Corner Labels (the ONLY names you may use for corners in this output) ---\n${cornerLabelWhitelist.join(", ")}\n`
@@ -259,7 +262,7 @@ export function buildAnalystPrompt(
     carDetailsText += `\nDimensions: ${specs.weightKg}kg, ${specs.hp}hp, ${specs.drivetrain}`;
   }
 
-  const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName, { slug: trackSlug, gameId });
+  const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName, { slug });
 
   // Weather / surface conditions, so the model can attribute a slow lap to the
   // environment (cold, green, or wet track) rather than the driver or setup.

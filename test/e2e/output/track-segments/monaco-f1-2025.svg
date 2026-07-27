@@ -69,10 +69,7 @@
   <text x="279.6" y="701.7" text-anchor="end" class="name" fill="#111827">T19 Antony Noghès</text>
   <line x1="260.1" y1="590.8" x2="242.2" y2="609.6" stroke="#d1d5db" stroke-width="1" />
   <text x="242.2" y="609.6" text-anchor="end" class="name" fill="#6b7280">St2 184m</text>
-  <circle cx="651.4" cy="91.3" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="662.4" y="83.3" class="sector">S1 0.330</text>
-  <circle cx="384.5" cy="382.3" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="395.5" y="374.3" class="sector">S2 0.680</text>
+
   <rect x="245.8" y="521.0" width="10" height="10" fill="#111827" />
   <text x="262.8" y="530.0" class="sub">S/F</text>
   <text class="title" x="12" y="22">Circuit de Monaco — f1-2025</text>

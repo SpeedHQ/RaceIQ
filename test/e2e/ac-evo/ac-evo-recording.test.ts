@@ -117,7 +117,13 @@ describe("AC Evo v0.6 recording", () => {
 		expect(liveCount / packets.length).toBeGreaterThan(0.5);
 	});
 
-	test("lap detection: outlap invalid, at least one valid flying lap, final lap invalid", () => {
+	// This recording holds three laps and no clean one: a garage-start outlap, a
+	// flying lap the driver threw away (speed collapses 46 → 8 km/h at 25.6s and
+	// AC Evo clears `is_valid_lap` for the remaining 4825 frames), then a lap cut
+	// short when the recorder stopped. So the assertion is the full classification
+	// of those three, including the provenance of the track-limits cut — an
+	// `is_valid_lap` flag misread would flunk the "clean at the line" half.
+	test("lap detection: outlap, a thrown-away flying lap, incomplete final lap", () => {
 		if (!recording) return;
 		// Log what we got for debugging
 		for (const l of laps) {
@@ -130,31 +136,38 @@ describe("AC Evo v0.6 recording", () => {
 			);
 		}
 
-		// Must have at least outlap + 1 flying lap
-		expect(laps.length).toBeGreaterThanOrEqual(2);
+		expect(laps.length).toBe(3);
 
-		// Lap 0: outlap — driver exits pit, not a valid timed lap
+		// Lap 1: outlap — driver exits pit, not a valid timed lap
 		expect(laps[0].invalidReason).toBe("outlap");
 		expect(laps[0].isValid).toBe(false);
 
-		// At least one flying lap between outlap and final — valid with no invalidReason
-		const validLaps = laps.filter((l) => l.isValid);
-		expect(validLaps.length).toBeGreaterThanOrEqual(1);
-		for (const l of validLaps) {
-			expect(l.invalidReason).toBeNull();
+		// Lap 2: a real flying lap, invalidated on track rather than by pit contact.
+		const flying = laps[1];
+		expect(flying.invalidReason).toBe("track limits");
+		expect(flying.isValid).toBe(false);
+		// Provenance of the cut: the lap started clean, went invalid mid-lap, and
+		// stayed invalid — not a flag inherited across the start/finish line.
+		const flyingPackets = flying.packets ?? [];
+		expect(flyingPackets[0].acc?.isValidLap).toBe(true);
+		const cutIdx = flyingPackets.findIndex((p) => p.acc?.isValidLap === false);
+		expect(cutIdx).toBeGreaterThan(0);
+		expect(flyingPackets.slice(cutIdx).every((p) => p.acc?.isValidLap === false)).toBe(true);
+		// The car really did leave the track: speed collapses across the cut.
+		expect(flyingPackets[cutIdx].Speed).toBeLessThan(flyingPackets[cutIdx - 600].Speed / 2);
+
+		// Both complete laps must still be timed and sectored like real laps.
+		for (const l of [laps[0], flying]) {
 			// GT3 lap at any real circuit: 60-180s
 			expect(l.lapTime).toBeGreaterThan(60);
 			expect(l.lapTime).toBeLessThan(180);
-			// Sector times must be populated and sum to the lap time
 			assertValidLapHasSectors(l);
 		}
 
-		// Final lap: driver entered pit (inlap) or recording stopped mid-lap (incomplete)
+		// Final lap: recording stopped mid-lap
 		const last = laps[laps.length - 1];
 		expect(last.isValid).toBe(false);
-		expect(
-			last.invalidReason === "inlap" || last.invalidReason === "incomplete",
-		).toBe(true);
+		expect(last.invalidReason).toBe("incomplete");
 	});
 
 	test("stored lap time matches game's last_laptime_ms at lap transition", () => {
@@ -190,12 +203,15 @@ describe("AC Evo v0.6 recording", () => {
 		}
 	});
 
+	// Sector splitting is driven by distance fractions and packet timestamps, so
+	// it is orthogonal to lap validity — assert it on every lap the driver
+	// actually completed. (This recording has no clean lap; see above.)
 	test("sector times align with track's s1/s2 fractions and sum exactly", () => {
 		if (!recording) return;
-		const validLaps = laps.filter((l) => l.isValid && l.sectors);
-		expect(validLaps.length).toBeGreaterThanOrEqual(1);
+		const completeLaps = laps.filter((l) => l.sectors && l.invalidReason !== "incomplete");
+		expect(completeLaps.length).toBeGreaterThanOrEqual(1);
 
-		for (const l of validLaps) {
+		for (const l of completeLaps) {
 			const s = l.sectors!;
 
 			// Strict sum: stored lap time and sector sum both derive from the same
@@ -217,11 +233,11 @@ describe("AC Evo v0.6 recording", () => {
 			expect(Math.abs(s12Frac - meta.s2End)).toBeLessThan(0.12);
 		}
 
-		// Consistency across valid laps: same sector should not vary by more than
+		// Consistency across laps: same sector should not vary by more than
 		// 10s (catches a bad boundary/reset on one lap).
-		if (validLaps.length >= 2) {
+		if (completeLaps.length >= 2) {
 			for (const key of ["s1", "s2", "s3"] as const) {
-				const values = validLaps.map((l) => l.sectors![key]);
+				const values = completeLaps.map((l) => l.sectors![key]);
 				const spread = Math.max(...values) - Math.min(...values);
 				expect(spread).toBeLessThan(10);
 			}

@@ -1,159 +1,52 @@
 {
+  "slug": "lime-rock",
+  "track": "lime-rock",
+  "layout": "full",
+  "layoutName": "Full",
   "name": "Lime Rock Park",
-  "sectors": {
-    "s1End": 0.33,
-    "s2End": 0.66
-  },
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "Sam Posey Straight",
-          "startFrac": 0,
-          "endFrac": 0.0499,
-          "group": "Sam Posey Straight"
-        },
-        {
-          "type": "corner",
-          "name": "Big Bend",
-          "direction": "right",
-          "startFrac": 0.0499,
-          "endFrac": 0.221,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "The Esses",
-          "direction": "left",
-          "startFrac": 0.221,
-          "endFrac": 0.3147,
-          "number": 2,
-          "group": "The Esses"
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "right",
-          "startFrac": 0.3147,
-          "endFrac": 0.3836,
-          "number": 3,
-          "group": "The Esses"
-        },
-        {
-          "type": "straight",
-          "name": "No Name Straight",
-          "startFrac": 0.3836,
-          "endFrac": 0.4461
-        },
-        {
-          "type": "corner",
-          "name": "Uphill",
-          "direction": "right",
-          "startFrac": 0.4461,
-          "endFrac": 0.6011,
-          "number": 4
-        },
-        {
-          "type": "corner",
-          "name": "West Bend",
-          "direction": "right",
-          "startFrac": 0.6011,
-          "endFrac": 0.7441,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "Downhill",
-          "direction": "right",
-          "startFrac": 0.7441,
-          "endFrac": 0.8724,
-          "number": 6
-        },
-        {
-          "type": "straight",
-          "name": "Sam Posey Straight",
-          "startFrac": 0.8724,
-          "endFrac": 1,
-          "group": "Sam Posey Straight"
-        }
-      ],
-      "sectors": {
-        "s1End": 0.3836,
-        "s2End": 0.7441,
-        "source": "corner-anchored"
-      }
-    }
-  },
-  "segments": [
+  "source": "Official circuit map corner names",
+  "corners": [
     {
-      "type": "straight",
-      "name": "Sam Posey Straight",
-      "startFrac": 0,
-      "endFrac": 0.0499,
-      "group": "Sam Posey Straight"
-    },
-    {
-      "type": "corner",
+      "number": 1,
       "name": "Big Bend",
-      "direction": "right",
-      "startFrac": 0.0499,
-      "endFrac": 0.221,
-      "number": 1
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 2,
       "name": "The Esses",
       "direction": "left",
-      "startFrac": 0.221,
-      "endFrac": 0.3147,
-      "number": 2,
       "group": "The Esses"
     },
     {
-      "type": "corner",
-      "name": "T3",
-      "direction": "right",
-      "startFrac": 0.3147,
-      "endFrac": 0.3836,
       "number": 3,
+      "name": "",
+      "direction": "right",
       "group": "The Esses"
     },
     {
-      "type": "straight",
-      "name": "No Name Straight",
-      "startFrac": 0.3836,
-      "endFrac": 0.4461
-    },
-    {
-      "type": "corner",
+      "number": 4,
       "name": "Uphill",
-      "direction": "right",
-      "startFrac": 0.4461,
-      "endFrac": 0.6011,
-      "number": 4
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 5,
       "name": "West Bend",
-      "direction": "right",
-      "startFrac": 0.6011,
-      "endFrac": 0.7441,
-      "number": 5
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 6,
       "name": "Downhill",
-      "direction": "right",
-      "startFrac": 0.7441,
-      "endFrac": 0.8724,
-      "number": 6
+      "direction": "right"
+    }
+  ],
+  "straights": [
+    {
+      "after": 3,
+      "name": "No Name Straight"
     },
     {
-      "type": "straight",
+      "after": 6,
       "name": "Sam Posey Straight",
-      "startFrac": 0.8724,
-      "endFrac": 1,
       "group": "Sam Posey Straight"
     }
   ]

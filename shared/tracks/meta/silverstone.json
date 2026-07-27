@@ -1,787 +1,116 @@
 {
+  "slug": "silverstone",
+  "track": "silverstone",
+  "layout": "gp",
+  "layoutName": "Grand Prix",
   "name": "Silverstone Racing Circuit",
-  "sectors": {
-    "s1End": 0.331,
-    "s2End": 0.662
-  },
-  "games": {
-    "f1-2025": {
-      "sectors": {
-        "s1End": 0.314,
-        "s2End": 0.636
-      },
-      "segments": [
-        {
-          "type": "straight",
-          "name": "Hamilton Straight",
-          "startFrac": 0,
-          "endFrac": 0.0429,
-          "group": "Hamilton Straight"
-        },
-        {
-          "type": "corner",
-          "name": "Abbey",
-          "direction": "right",
-          "startFrac": 0.0429,
-          "endFrac": 0.0883,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "Farm Curve",
-          "direction": "left",
-          "startFrac": 0.0883,
-          "endFrac": 0.1352,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "Village",
-          "direction": "right",
-          "startFrac": 0.1352,
-          "endFrac": 0.1677,
-          "number": 3
-        },
-        {
-          "type": "corner",
-          "name": "The Loop",
-          "direction": "left",
-          "startFrac": 0.1677,
-          "endFrac": 0.1959,
-          "number": 4
-        },
-        {
-          "type": "straight",
-          "name": "Wellington Straight",
-          "startFrac": 0.1959,
-          "endFrac": 0.2015
-        },
-        {
-          "type": "corner",
-          "name": "Aintree",
-          "direction": "left",
-          "startFrac": 0.2015,
-          "endFrac": 0.2315,
-          "number": 5
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2315,
-          "endFrac": 0.3085
-        },
-        {
-          "type": "corner",
-          "name": "Brooklands",
-          "direction": "left",
-          "startFrac": 0.3085,
-          "endFrac": 0.3539,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "Luffield",
-          "direction": "right",
-          "startFrac": 0.3539,
-          "endFrac": 0.4131,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "Woodcote",
-          "direction": "right",
-          "startFrac": 0.4131,
-          "endFrac": 0.4616,
-          "number": 8
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4616,
-          "endFrac": 0.494
-        },
-        {
-          "type": "corner",
-          "name": "Copse",
-          "direction": "right",
-          "startFrac": 0.494,
-          "endFrac": 0.551,
-          "number": 9
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.551,
-          "endFrac": 0.5879
-        },
-        {
-          "type": "corner",
-          "name": "Maggotts",
-          "direction": "left",
-          "startFrac": 0.5879,
-          "endFrac": 0.6283,
-          "number": 10,
-          "group": "Maggotts/Becketts"
-        },
-        {
-          "type": "corner",
-          "name": "Becketts",
-          "direction": "right",
-          "startFrac": 0.6283,
-          "endFrac": 0.6483,
-          "number": 11,
-          "group": "Maggotts/Becketts"
-        },
-        {
-          "type": "corner",
-          "name": "T12",
-          "direction": "left",
-          "startFrac": 0.6483,
-          "endFrac": 0.6736,
-          "number": 12,
-          "group": "Maggotts/Becketts"
-        },
-        {
-          "type": "corner",
-          "name": "T13",
-          "direction": "right",
-          "startFrac": 0.6736,
-          "endFrac": 0.7005,
-          "number": 13,
-          "group": "Maggotts/Becketts"
-        },
-        {
-          "type": "straight",
-          "name": "Hangar Straight",
-          "startFrac": 0.7005,
-          "endFrac": 0.7061
-        },
-        {
-          "type": "corner",
-          "name": "Chapel",
-          "direction": "left",
-          "startFrac": 0.7061,
-          "endFrac": 0.734,
-          "number": 14
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.734,
-          "endFrac": 0.8229
-        },
-        {
-          "type": "corner",
-          "name": "Stowe",
-          "direction": "right",
-          "startFrac": 0.8229,
-          "endFrac": 0.8933,
-          "number": 15
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8933,
-          "endFrac": 0.9138
-        },
-        {
-          "type": "corner",
-          "name": "Vale",
-          "direction": "left",
-          "startFrac": 0.9138,
-          "endFrac": 0.9474,
-          "number": 16
-        },
-        {
-          "type": "corner",
-          "name": "Club",
-          "direction": "right",
-          "startFrac": 0.9474,
-          "endFrac": 0.9905,
-          "number": 17,
-          "covers": [
-            18
-          ]
-        },
-        {
-          "type": "straight",
-          "name": "Hamilton Straight",
-          "startFrac": 0.9905,
-          "endFrac": 1,
-          "group": "Hamilton Straight"
-        }
-      ]
-    },
-    "acc": {
-      "segments": [
-        {
-          "type": "corner",
-          "name": "Copse",
-          "direction": "right",
-          "startFrac": 0,
-          "endFrac": 0.0749,
-          "number": 9
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.0749,
-          "endFrac": 0.0947
-        },
-        {
-          "type": "corner",
-          "name": "Maggotts",
-          "direction": "left",
-          "startFrac": 0.0947,
-          "endFrac": 0.1372,
-          "number": 10,
-          "group": "Maggotts/Becketts"
-        },
-        {
-          "type": "corner",
-          "name": "Becketts",
-          "direction": "right",
-          "startFrac": 0.1372,
-          "endFrac": 0.1627,
-          "number": 11,
-          "group": "Maggotts/Becketts"
-        },
-        {
-          "type": "corner",
-          "name": "T12",
-          "direction": "left",
-          "startFrac": 0.1627,
-          "endFrac": 0.1889,
-          "number": 12,
-          "group": "Maggotts/Becketts"
-        },
-        {
-          "type": "corner",
-          "name": "T13",
-          "direction": "right",
-          "startFrac": 0.1889,
-          "endFrac": 0.2154,
-          "number": 13,
-          "group": "Maggotts/Becketts"
-        },
-        {
-          "type": "straight",
-          "name": "Hangar Straight",
-          "startFrac": 0.2154,
-          "endFrac": 0.221
-        },
-        {
-          "type": "corner",
-          "name": "Chapel",
-          "direction": "left",
-          "startFrac": 0.221,
-          "endFrac": 0.2496,
-          "number": 14
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2496,
-          "endFrac": 0.3357
-        },
-        {
-          "type": "corner",
-          "name": "Stowe",
-          "direction": "right",
-          "startFrac": 0.3357,
-          "endFrac": 0.4252,
-          "number": 15
-        },
-        {
-          "type": "corner",
-          "name": "Vale",
-          "direction": "left",
-          "startFrac": 0.4252,
-          "endFrac": 0.4622,
-          "number": 16
-        },
-        {
-          "type": "corner",
-          "name": "Club",
-          "direction": "right",
-          "startFrac": 0.4622,
-          "endFrac": 0.4845,
-          "number": 17,
-          "covers": [
-            18
-          ]
-        },
-        {
-          "type": "straight",
-          "name": "Hamilton Straight",
-          "startFrac": 0.4845,
-          "endFrac": 0.5491
-        },
-        {
-          "type": "corner",
-          "name": "Abbey",
-          "direction": "right",
-          "startFrac": 0.5491,
-          "endFrac": 0.6089,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "Farm Curve",
-          "direction": "left",
-          "startFrac": 0.6089,
-          "endFrac": 0.6519,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "Village",
-          "direction": "right",
-          "startFrac": 0.6519,
-          "endFrac": 0.6829,
-          "number": 3
-        },
-        {
-          "type": "corner",
-          "name": "The Loop",
-          "direction": "left",
-          "startFrac": 0.6829,
-          "endFrac": 0.716,
-          "number": 4
-        },
-        {
-          "type": "straight",
-          "name": "Wellington Straight",
-          "startFrac": 0.716,
-          "endFrac": 0.8262
-        },
-        {
-          "type": "corner",
-          "name": "Brooklands",
-          "direction": "left",
-          "startFrac": 0.8262,
-          "endFrac": 0.8684,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "Luffield",
-          "direction": "right",
-          "startFrac": 0.8684,
-          "endFrac": 0.9282,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "Woodcote",
-          "direction": "right",
-          "startFrac": 0.9282,
-          "endFrac": 0.9518,
-          "number": 8
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9518,
-          "endFrac": 1
-        }
-      ]
-    },
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "Hamilton Straight",
-          "startFrac": 0,
-          "endFrac": 0.0201,
-          "group": "Hamilton Straight"
-        },
-        {
-          "type": "corner",
-          "name": "Abbey",
-          "direction": "right",
-          "startFrac": 0.0201,
-          "endFrac": 0.0648,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "Farm Curve",
-          "direction": "left",
-          "startFrac": 0.0648,
-          "endFrac": 0.113,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "Village",
-          "direction": "right",
-          "startFrac": 0.113,
-          "endFrac": 0.1482,
-          "number": 3
-        },
-        {
-          "type": "corner",
-          "name": "The Loop",
-          "direction": "left",
-          "startFrac": 0.1482,
-          "endFrac": 0.1708,
-          "number": 4
-        },
-        {
-          "type": "straight",
-          "name": "Wellington Straight",
-          "startFrac": 0.1708,
-          "endFrac": 0.1763
-        },
-        {
-          "type": "corner",
-          "name": "Aintree",
-          "direction": "left",
-          "startFrac": 0.1763,
-          "endFrac": 0.2065,
-          "number": 5
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2065,
-          "endFrac": 0.2794
-        },
-        {
-          "type": "corner",
-          "name": "Brooklands",
-          "direction": "left",
-          "startFrac": 0.2794,
-          "endFrac": 0.3287,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "Luffield",
-          "direction": "right",
-          "startFrac": 0.3287,
-          "endFrac": 0.379,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "Woodcote",
-          "direction": "right",
-          "startFrac": 0.379,
-          "endFrac": 0.4365,
-          "number": 8
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4365,
-          "endFrac": 0.4682
-        },
-        {
-          "type": "corner",
-          "name": "Copse",
-          "direction": "right",
-          "startFrac": 0.4682,
-          "endFrac": 0.5274,
-          "number": 9
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5274,
-          "endFrac": 0.5614
-        },
-        {
-          "type": "corner",
-          "name": "Maggotts",
-          "direction": "left",
-          "startFrac": 0.5614,
-          "endFrac": 0.6036,
-          "number": 10,
-          "group": "Maggotts/Becketts"
-        },
-        {
-          "type": "corner",
-          "name": "Becketts",
-          "direction": "right",
-          "startFrac": 0.6036,
-          "endFrac": 0.6222,
-          "number": 11,
-          "group": "Maggotts/Becketts"
-        },
-        {
-          "type": "corner",
-          "name": "T12",
-          "direction": "left",
-          "startFrac": 0.6222,
-          "endFrac": 0.6494,
-          "number": 12,
-          "group": "Maggotts/Becketts"
-        },
-        {
-          "type": "corner",
-          "name": "T13",
-          "direction": "right",
-          "startFrac": 0.6494,
-          "endFrac": 0.6846,
-          "number": 13,
-          "group": "Maggotts/Becketts"
-        },
-        {
-          "type": "corner",
-          "name": "Chapel",
-          "direction": "left",
-          "startFrac": 0.6846,
-          "endFrac": 0.7098,
-          "number": 14
-        },
-        {
-          "type": "straight",
-          "name": "Hangar Straight",
-          "startFrac": 0.7098,
-          "endFrac": 0.7993
-        },
-        {
-          "type": "corner",
-          "name": "Stowe",
-          "direction": "right",
-          "startFrac": 0.7993,
-          "endFrac": 0.8687,
-          "number": 15
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8687,
-          "endFrac": 0.8888
-        },
-        {
-          "type": "corner",
-          "name": "Vale",
-          "direction": "left",
-          "startFrac": 0.8888,
-          "endFrac": 0.9219,
-          "number": 16
-        },
-        {
-          "type": "corner",
-          "name": "Club",
-          "direction": "right",
-          "startFrac": 0.9219,
-          "endFrac": 0.9758,
-          "number": 17,
-          "covers": [
-            18
-          ]
-        },
-        {
-          "type": "straight",
-          "name": "Hamilton Straight",
-          "startFrac": 0.9758,
-          "endFrac": 1,
-          "group": "Hamilton Straight"
-        }
-      ],
-      "sectors": {
-        "s1End": 0.3287,
-        "s2End": 0.7101,
-        "source": "corner-anchored"
-      }
-    }
-  },
-  "segments": [
+  "source": "Official Silverstone GP circuit map (Arena layout, 18 turns)",
+  "corners": [
     {
-      "type": "straight",
-      "name": "Hamilton Straight",
-      "startFrac": 0,
-      "endFrac": 0.0201,
-      "group": "Hamilton Straight"
-    },
-    {
-      "type": "corner",
+      "number": 1,
       "name": "Abbey",
-      "direction": "right",
-      "startFrac": 0.0201,
-      "endFrac": 0.0648,
-      "number": 1
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 2,
       "name": "Farm Curve",
-      "direction": "left",
-      "startFrac": 0.0648,
-      "endFrac": 0.113,
-      "number": 2
+      "direction": "left"
     },
     {
-      "type": "corner",
+      "number": 3,
       "name": "Village",
-      "direction": "right",
-      "startFrac": 0.113,
-      "endFrac": 0.1482,
-      "number": 3
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 4,
       "name": "The Loop",
-      "direction": "left",
-      "startFrac": 0.1482,
-      "endFrac": 0.1708,
-      "number": 4
+      "direction": "left"
     },
     {
-      "type": "straight",
-      "name": "Wellington Straight",
-      "startFrac": 0.1708,
-      "endFrac": 0.1763
-    },
-    {
-      "type": "corner",
+      "number": 5,
       "name": "Aintree",
-      "direction": "left",
-      "startFrac": 0.1763,
-      "endFrac": 0.2065,
-      "number": 5
+      "direction": "left"
     },
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.2065,
-      "endFrac": 0.2794
-    },
-    {
-      "type": "corner",
+      "number": 6,
       "name": "Brooklands",
-      "direction": "left",
-      "startFrac": 0.2794,
-      "endFrac": 0.3287,
-      "number": 6
+      "direction": "left"
     },
     {
-      "type": "corner",
+      "number": 7,
       "name": "Luffield",
-      "direction": "right",
-      "startFrac": 0.3287,
-      "endFrac": 0.379,
-      "number": 7
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 8,
       "name": "Woodcote",
-      "direction": "right",
-      "startFrac": 0.379,
-      "endFrac": 0.4365,
-      "number": 8
+      "direction": "right"
     },
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.4365,
-      "endFrac": 0.4682
-    },
-    {
-      "type": "corner",
+      "number": 9,
       "name": "Copse",
-      "direction": "right",
-      "startFrac": 0.4682,
-      "endFrac": 0.5274,
-      "number": 9
+      "direction": "right"
     },
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.5274,
-      "endFrac": 0.5614
-    },
-    {
-      "type": "corner",
+      "number": 10,
       "name": "Maggotts",
       "direction": "left",
-      "startFrac": 0.5614,
-      "endFrac": 0.6036,
-      "number": 10,
       "group": "Maggotts/Becketts"
     },
     {
-      "type": "corner",
+      "number": 11,
       "name": "Becketts",
       "direction": "right",
-      "startFrac": 0.6036,
-      "endFrac": 0.6222,
-      "number": 11,
       "group": "Maggotts/Becketts"
     },
     {
-      "type": "corner",
-      "name": "T12",
-      "direction": "left",
-      "startFrac": 0.6222,
-      "endFrac": 0.6494,
       "number": 12,
-      "group": "Maggotts/Becketts"
-    },
-    {
-      "type": "corner",
-      "name": "T13",
-      "direction": "right",
-      "startFrac": 0.6494,
-      "endFrac": 0.6846,
-      "number": 13,
-      "group": "Maggotts/Becketts"
-    },
-    {
-      "type": "corner",
-      "name": "Chapel",
-      "direction": "left",
-      "startFrac": 0.6846,
-      "endFrac": 0.7098,
-      "number": 14
-    },
-    {
-      "type": "straight",
-      "name": "Hangar Straight",
-      "startFrac": 0.7098,
-      "endFrac": 0.7993
-    },
-    {
-      "type": "corner",
-      "name": "Stowe",
-      "direction": "right",
-      "startFrac": 0.7993,
-      "endFrac": 0.8687,
-      "number": 15
-    },
-    {
-      "type": "straight",
       "name": "",
-      "startFrac": 0.8687,
-      "endFrac": 0.8888
-    },
-    {
-      "type": "corner",
-      "name": "Vale",
       "direction": "left",
-      "startFrac": 0.8888,
-      "endFrac": 0.9219,
-      "number": 16
+      "group": "Maggotts/Becketts"
     },
     {
-      "type": "corner",
-      "name": "Club",
+      "number": 13,
+      "name": "",
       "direction": "right",
-      "startFrac": 0.9219,
-      "endFrac": 0.9758,
+      "group": "Maggotts/Becketts"
+    },
+    {
+      "number": 14,
+      "name": "Chapel",
+      "direction": "left"
+    },
+    {
+      "number": 15,
+      "name": "Stowe",
+      "direction": "right"
+    },
+    {
+      "number": 16,
+      "name": "Vale",
+      "direction": "left"
+    },
+    {
       "number": 17,
       "covers": [
         18
-      ]
+      ],
+      "name": "Club",
+      "direction": "right"
+    }
+  ],
+  "straights": [
+    {
+      "after": 4,
+      "name": "Wellington Straight"
     },
     {
-      "type": "straight",
+      "after": 14,
+      "name": "Hangar Straight"
+    },
+    {
+      "after": 17,
       "name": "Hamilton Straight",
-      "startFrac": 0.9758,
-      "endFrac": 1,
       "group": "Hamilton Straight"
     }
   ]

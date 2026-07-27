@@ -57,12 +57,9 @@
   <text x="674.4" y="552.0" text-anchor="start" class="name" fill="#111827">T12 Bendor</text>
   <line x1="601.2" y1="491.6" x2="615.6" y2="513.3" stroke="#d1d5db" stroke-width="1" />
   <text x="615.6" y="513.3" text-anchor="start" class="name" fill="#6b7280">St4 219m</text>
-  <circle cx="131.2" cy="167.2" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="142.2" y="159.2" class="sector">S1 0.291</text>
-  <circle cx="830.7" cy="509.0" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="841.7" y="501.0" class="sector">S2 0.847</text>
+
   <rect x="561.6" y="461.5" width="10" height="10" fill="#111827" />
   <text x="578.6" y="470.5" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Circuit Paul Ricard (GP layout) — ac-evo</text>
+  <text class="title" x="12" y="22">Circuit Paul Ricard — ac-evo</text>
   <text class="sub" x="12" y="40">12 corners, 4 straights, 16 segments, 5.698 km</text>
 </svg>

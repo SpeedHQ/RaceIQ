@@ -9,6 +9,7 @@ import { udpListener } from "../udp";
 import { wsManager } from "../ws";
 import { lapDetector } from "../pipeline";
 import { loadSettings, saveSettings, PartialSettingsSchema } from "../settings";
+import { getSecret, setSecret } from "../keystore";
 import { enableLaunchOnLogin, disableLaunchOnLogin, getLaunchOnLoginExeDir } from "../launch-on-login";
 import { getLapStats, setCacheMaxBytes } from "../db/queries";
 import { getRunningGame } from "../games/registry";
@@ -47,7 +48,6 @@ export const settingsRoutes = new Hono()
   // GET /api/settings
   .get("/api/settings", async (c) => {
     const settings = loadSettings();
-    const { getSecret } = await import("../keystore");
     const hasGeminiKey = !!(await getSecret("gemini-api-key"));
     const hasOpenaiKey = !!(await getSecret("openai-api-key"));
     const hasAnthropicKey = !!(await getSecret("anthropic-api-key"));
@@ -70,7 +70,6 @@ export const settingsRoutes = new Hono()
   // GET /api/ai-models — available models per provider
   .get("/api/ai-models", async (c) => {
     const { getGeminiModelsDetailed, getOpenAiModels, getLocalModelsDetailed } = await import("../ai/providers");
-    const { getSecret } = await import("../keystore");
     const forceRefresh = c.req.query("refresh") === "1";
     console.info(`[AI] ai-models request refresh=${forceRefresh ? "1" : "0"} providers=${c.req.query("providers") ?? "<settings>"}`);
 
@@ -167,7 +166,6 @@ export const settingsRoutes = new Hono()
   // PUT /api/ai-key — store or clear an AI provider API key
   .put("/api/ai-key", async (c) => {
     const body = await c.req.json() as { provider: string; apiKey: string };
-    const { setSecret } = await import("../keystore");
     try {
       await setSecret(`${body.provider}-api-key`, body.apiKey ?? "");
       return c.json({ ok: true });

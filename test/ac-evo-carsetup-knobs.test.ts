@@ -1,8 +1,20 @@
-import { afterAll, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
 import { copyFileSync, mkdirSync, rmSync, writeFileSync } from "fs";
+import * as os from "os";
 import { tmpdir } from "os";
 import { join } from "path";
 import { readCarSetupFile, carSetupToKnobValues } from "../server/games/ac-evo/carsetup";
+
+// `getSetupsBaseDir` derives the Setups folder from `os.homedir()`. Bun's
+// homedir() reads the OS password database on POSIX, so setting HOME/USERPROFILE
+// does NOT redirect it (works on Windows, silently no-ops on the Linux CI box —
+// the guard then rejects every temp-dir path, and the real home gets a stray
+// "Saved Games/ACE/Car Setups" created in it). Patch the module instead.
+let homeOverride: string | null = null;
+mock.module("os", () => ({
+  ...os,
+  homedir: () => homeOverride ?? os.homedir(),
+}));
 
 const FIXTURE = join(import.meta.dir, "artifacts", "carsetup", "Default-12312.carsetup");
 const AUDI_D3 = join(import.meta.dir, "artifacts", "carsetup", "audi-default-3.carsetup");
@@ -63,22 +75,17 @@ describe("carSetupToKnobValues", () => {
 describe("resolveGuardedSetupFile with .carsetup", () => {
   const fakeHome = join(tmpdir(), `raceiq-carsetup-test-${process.pid}`);
   const setupsDir = join(fakeHome, "Saved Games", "ACE", "Car Setups");
-  const savedProfile = process.env.USERPROFILE;
-  const savedHome = process.env.HOME;
-
   beforeAll(async () => {
     const { initServerGameAdapters } = await import("../server/games/init");
     initServerGameAdapters();
     mkdirSync(setupsDir, { recursive: true });
     copyFileSync(FIXTURE, join(setupsDir, "Default-12312.carsetup"));
     writeFileSync(join(setupsDir, "corrupt.carsetup"), "not a protobuf file at all");
-    process.env.USERPROFILE = fakeHome;
-    process.env.HOME = fakeHome;
+    homeOverride = fakeHome;
   });
 
   afterAll(() => {
-    if (savedProfile !== undefined) process.env.USERPROFILE = savedProfile;
-    if (savedHome !== undefined) process.env.HOME = savedHome;
+    homeOverride = null;
     rmSync(fakeHome, { recursive: true, force: true });
   });
 
@@ -106,21 +113,16 @@ describe("resolveGuardedSetupFile with .carsetup", () => {
 describe("writeAppliedSetup .carsetup", () => {
   const fakeHome = join(tmpdir(), `raceiq-carsetup-write-test-${process.pid}`);
   const setupsDir = join(fakeHome, "Saved Games", "ACE", "Car Setups");
-  const savedProfile = process.env.USERPROFILE;
-  const savedHome = process.env.HOME;
-
   beforeAll(async () => {
     const { initServerGameAdapters } = await import("../server/games/init");
     initServerGameAdapters();
     mkdirSync(setupsDir, { recursive: true });
     copyFileSync(FIXTURE, join(setupsDir, "Default-12312.carsetup"));
-    process.env.USERPROFILE = fakeHome;
-    process.env.HOME = fakeHome;
+    homeOverride = fakeHome;
   });
 
   afterAll(() => {
-    if (savedProfile !== undefined) process.env.USERPROFILE = savedProfile;
-    if (savedHome !== undefined) process.env.HOME = savedHome;
+    homeOverride = null;
     rmSync(fakeHome, { recursive: true, force: true });
   });
 

@@ -9,7 +9,7 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
 });
 const lapId = fakeSessionLaps[fakeSessionLaps.length - 1].id;
-queryClient.setQueryData(["lap-telemetry", lapId], { telemetry: generateFakeLapTelemetry(), isLegacy: false, sectorTimes: fakeSectorTimes });
+queryClient.setQueryData(["lap-telemetry", lapId], { telemetry: generateFakeLapTelemetry(), sectorTimes: fakeSectorTimes });
 queryClient.setQueryData(["lap-issues", lapId], fakeTuneIssues);
 queryClient.setQueryData(["setup-files", "acc"], { baseDir: "C:/setups", files: [{ carModel: "Huracan GT3", trackName: "Spa", fileName: "race_dry.json", absolutePath: "C:/setups/race_dry.json" }] });
 

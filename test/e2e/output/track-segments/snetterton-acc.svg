@@ -57,12 +57,9 @@
   <text x="688.3" y="486.9" text-anchor="start" class="name" fill="#111827">T12 Murrays</text>
   <line x1="500.8" y1="502.4" x2="516.5" y2="523.2" stroke="#d1d5db" stroke-width="1" />
   <text x="516.5" y="523.2" text-anchor="start" class="name" fill="#6b7280">St4 370m</text>
-  <circle cx="394.8" cy="322.2" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="405.8" y="314.2" class="sector">S1 0.388</text>
-  <circle cx="833.5" cy="318.9" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="844.5" y="310.9" class="sector">S2 0.745</text>
+
   <rect x="378.9" y="498.7" width="10" height="10" fill="#111827" />
   <text x="395.9" y="507.7" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Snetterton Circuit (300) — acc</text>
+  <text class="title" x="12" y="22">Snetterton Circuit — acc</text>
   <text class="sub" x="12" y="40">12 corners, 4 straights, 16 segments, 4.739 km</text>
 </svg>

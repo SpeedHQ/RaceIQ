@@ -39,9 +39,9 @@ const TAB_LABELS: Record<Tab, string> = { consistency: "Consistency", tires: "Ti
  *  the focus lap's raw telemetry, issues, and track corners, then hands
  *  everything to the presentational `TrackFocusViewInner`. */
 export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: controlledFocusId, onFocusLap: controlledOnFocusLap, tuningSessionId }: TrackFocusViewProps) {
-  // Invalid / legacy laps are excluded from the whole Track Focus view —
+  // Invalid laps are excluded from the whole Track Focus view —
   // traces, stats, best-lap, ledgers and tyres all read `stintLaps`.
-  const stintLaps = useMemo(() => laps.filter((l) => l.isValid && !l.isLegacy).sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
+  const stintLaps = useMemo(() => laps.filter((l) => l.isValid).sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
   // Per-frame telemetry (traces, consistency lanes, tyres) runs on the fastest
   // N clean laps — bounds decode + payload on long tracks. Header stats read
   // the same pool. Matches the server /line-spread pool.
@@ -58,7 +58,7 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
   const bestLapId = useMemo(() => {
     let best: LapMeta | null = null;
     for (const l of stintLaps) {
-      if (!l.isValid || l.tuningExcluded || l.isLegacy) continue;
+      if (!l.isValid || l.tuningExcluded) continue;
       if (best == null || l.lapTime < best.lapTime) best = l;
     }
     return best?.id ?? null;

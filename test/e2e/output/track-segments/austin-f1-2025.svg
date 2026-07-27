@@ -72,10 +72,7 @@
   <text x="181.1" y="372.7" text-anchor="end" class="name" fill="#111827">T19</text>
   <line x1="97.1" y1="425.1" x2="71.4" y2="428.9" stroke="#d1d5db" stroke-width="1" />
   <text x="71.4" y="428.9" text-anchor="end" class="name" fill="#111827">T20</text>
-  <circle cx="760.0" cy="317.1" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="771.0" y="309.1" class="sector">S1 0.381</text>
-  <circle cx="472.7" cy="264.6" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="483.7" y="256.6" class="sector">S2 0.652</text>
+
   <rect x="142.1" y="464.6" width="10" height="10" fill="#111827" />
   <text x="159.1" y="473.6" class="sub">S/F</text>
   <text class="title" x="12" y="22">Circuit of the Americas — f1-2025</text>

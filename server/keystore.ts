@@ -4,7 +4,7 @@
  *   Windows: Credential Manager via PowerShell
  */
 import { execFileSync, execSync } from "child_process";
-import { readFileSync, unlinkSync } from "fs";
+import { existsSync, readFileSync, unlinkSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { tmpdir } from "os";
@@ -20,6 +20,23 @@ const SERVICE = "RaceIQ";
 const SCRIPT_PATH = IS_COMPILED
   ? resolve(dirname(process.execPath), "credstore.ps1")
   : resolve(dirname(fileURLToPath(import.meta.url)), "credstore.ps1");
+
+/**
+ * True when the Windows credential store is usable. On non-Windows (and in
+ * stripped-down dist layouts where credstore.ps1 wasn't packaged) there is no
+ * point shelling out to PowerShell — bail out instead of retrying and spamming
+ * warnings on every settings read.
+ */
+const WIN_STORE_AVAILABLE = process.platform === "win32" && existsSync(SCRIPT_PATH);
+
+let warnedUnavailable = false;
+function warnUnavailableOnce(): void {
+  if (warnedUnavailable) return;
+  warnedUnavailable = true;
+  console.warn(
+    `[Keystore] Credential store unavailable (platform=${process.platform}, script=${SCRIPT_PATH} ${existsSync(SCRIPT_PATH) ? "present" : "missing"}). Secrets will not be persisted.`,
+  );
+}
 
 function ps(args: string[]): string {
   return execFileSync(
@@ -60,6 +77,7 @@ export async function getSecret(key: string): Promise<string> {
   if (IS_MAC) {
     try { return macGet(key); } catch { return ""; }
   }
+  if (!WIN_STORE_AVAILABLE) { warnUnavailableOnce(); return ""; }
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const tmpFile = join(tmpdir(), `raceiq-cred-${process.pid}-${key}-${randomUUID()}`);
@@ -87,6 +105,7 @@ export async function setSecret(key: string, value: string): Promise<void> {
     }
     return;
   }
+  if (!WIN_STORE_AVAILABLE) { warnUnavailableOnce(); return; }
   if (!value) {
     ps(["delete", `${SERVICE}:${key}`]);
   } else {
@@ -96,5 +115,6 @@ export async function setSecret(key: string, value: string): Promise<void> {
 
 export async function deleteSecret(key: string): Promise<void> {
   if (IS_MAC) { macDelete(key); return; }
+  if (!WIN_STORE_AVAILABLE) { warnUnavailableOnce(); return; }
   ps(["delete", `${SERVICE}:${key}`]);
 }

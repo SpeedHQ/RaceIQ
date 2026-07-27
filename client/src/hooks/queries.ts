@@ -87,7 +87,6 @@ export function useLapTelemetry(lapId: number | null) {
       if (!res.ok) throw new Error(res.statusText);
       return res.json() as Promise<{
         telemetry: TelemetryPacket[];
-        isLegacy: boolean;
         sectorTimes: { times: [number, number, number]; s1Idx: number; s2Idx: number; firstDist: number; lapDist: number } | null;
         [key: string]: any;
       }>;

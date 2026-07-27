@@ -78,12 +78,9 @@
   <text x="620.0" y="274.7" text-anchor="start" class="name" fill="#111827">T18</text>
   <line x1="705.8" y1="332.5" x2="730.3" y2="323.8" stroke="#d1d5db" stroke-width="1" />
   <text x="730.3" y="323.8" text-anchor="start" class="name" fill="#6b7280">St5 405m</text>
-  <circle cx="525.9" cy="396.2" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="536.9" y="388.2" class="sector">S1 0.316</text>
-  <circle cx="384.9" cy="448.0" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="395.9" y="440.0" class="sector">S2 0.776</text>
+
   <rect x="766.1" y="366.8" width="10" height="10" fill="#111827" />
   <text x="783.1" y="375.8" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Suzuka International Racing Course — acc</text>
+  <text class="title" x="12" y="22">Suzuka Circuit — acc</text>
   <text class="sub" x="12" y="40">18 corners, 5 straights, 23 segments, 5.752 km</text>
 </svg>

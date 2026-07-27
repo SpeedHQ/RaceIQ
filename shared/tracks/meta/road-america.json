@@ -1,286 +1,86 @@
 {
+  "slug": "road-america",
+  "track": "road-america",
+  "layout": "full",
+  "layoutName": "Full",
   "name": "Road America",
-  "sectors": {
-    "s1End": 0.34,
-    "s2End": 0.66
-  },
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0716
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "right",
-          "startFrac": 0.0716,
-          "endFrac": 0.1227,
-          "number": 1
-        },
-        {
-          "type": "straight",
-          "name": "Moraine Sweep",
-          "startFrac": 0.1227,
-          "endFrac": 0.1475
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "right",
-          "startFrac": 0.1475,
-          "endFrac": 0.1964,
-          "number": 3
-        },
-        {
-          "type": "straight",
-          "name": "Hurry Downs",
-          "startFrac": 0.1964,
-          "endFrac": 0.3354
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "left",
-          "startFrac": 0.3354,
-          "endFrac": 0.3838,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "left",
-          "startFrac": 0.3838,
-          "endFrac": 0.4248,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "right",
-          "startFrac": 0.4248,
-          "endFrac": 0.4595,
-          "number": 7
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4595,
-          "endFrac": 0.4827
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "left",
-          "startFrac": 0.4827,
-          "endFrac": 0.5216,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "The Carousel",
-          "direction": "right",
-          "startFrac": 0.5216,
-          "endFrac": 0.614,
-          "number": 9,
-          "covers": [
-            10
-          ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.614,
-          "endFrac": 0.6333
-        },
-        {
-          "type": "corner",
-          "name": "The Kink",
-          "direction": "right",
-          "startFrac": 0.6333,
-          "endFrac": 0.6783,
-          "number": 11
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.6783,
-          "endFrac": 0.7667
-        },
-        {
-          "type": "corner",
-          "name": "Canada Corner",
-          "direction": "right",
-          "startFrac": 0.7667,
-          "endFrac": 0.8162,
-          "number": 12
-        },
-        {
-          "type": "corner",
-          "name": "T13",
-          "direction": "left",
-          "startFrac": 0.8162,
-          "endFrac": 0.8687,
-          "number": 13
-        },
-        {
-          "type": "corner",
-          "name": "T14",
-          "direction": "right",
-          "startFrac": 0.8687,
-          "endFrac": 0.9127,
-          "number": 14
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9127,
-          "endFrac": 1
-        }
-      ],
-      "sectors": {
-        "s1End": 0.3838,
-        "s2End": 0.614,
-        "source": "corner-anchored"
-      }
-    }
-  },
-  "segments": [
+  "source": "Official circuit map (14 turns)",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0716
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "right",
-      "startFrac": 0.0716,
-      "endFrac": 0.1227,
-      "number": 1
+      "number": 2,
+      "name": ""
     },
     {
-      "type": "straight",
-      "name": "Moraine Sweep",
-      "startFrac": 0.1227,
-      "endFrac": 0.1475
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "right",
-      "startFrac": 0.1475,
-      "endFrac": 0.1964,
-      "number": 3
-    },
-    {
-      "type": "straight",
-      "name": "Hurry Downs",
-      "startFrac": 0.1964,
-      "endFrac": 0.3354
-    },
-    {
-      "type": "corner",
-      "name": "T5",
-      "direction": "left",
-      "startFrac": 0.3354,
-      "endFrac": 0.3838,
-      "number": 5
-    },
-    {
-      "type": "corner",
-      "name": "T6",
-      "direction": "left",
-      "startFrac": 0.3838,
-      "endFrac": 0.4248,
-      "number": 6
-    },
-    {
-      "type": "corner",
-      "name": "T7",
-      "direction": "right",
-      "startFrac": 0.4248,
-      "endFrac": 0.4595,
-      "number": 7
-    },
-    {
-      "type": "straight",
+      "number": 3,
       "name": "",
-      "startFrac": 0.4595,
-      "endFrac": 0.4827
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T8",
-      "direction": "left",
-      "startFrac": 0.4827,
-      "endFrac": 0.5216,
-      "number": 8
+      "number": 4,
+      "name": ""
     },
     {
-      "type": "corner",
-      "name": "The Carousel",
-      "direction": "right",
-      "startFrac": 0.5216,
-      "endFrac": 0.614,
+      "number": 5,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "left"
+    },
+    {
       "number": 9,
       "covers": [
         10
-      ]
+      ],
+      "name": "The Carousel",
+      "direction": "right"
     },
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.614,
-      "endFrac": 0.6333
-    },
-    {
-      "type": "corner",
+      "number": 11,
       "name": "The Kink",
-      "direction": "right",
-      "startFrac": 0.6333,
-      "endFrac": 0.6783,
-      "number": 11
+      "direction": "right"
     },
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.6783,
-      "endFrac": 0.7667
-    },
-    {
-      "type": "corner",
+      "number": 12,
       "name": "Canada Corner",
-      "direction": "right",
-      "startFrac": 0.7667,
-      "endFrac": 0.8162,
-      "number": 12
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T13",
-      "direction": "left",
-      "startFrac": 0.8162,
-      "endFrac": 0.8687,
-      "number": 13
-    },
-    {
-      "type": "corner",
-      "name": "T14",
-      "direction": "right",
-      "startFrac": 0.8687,
-      "endFrac": 0.9127,
-      "number": 14
-    },
-    {
-      "type": "straight",
+      "number": 13,
       "name": "",
-      "startFrac": 0.9127,
-      "endFrac": 1
+      "direction": "left"
+    },
+    {
+      "number": 14,
+      "name": "",
+      "direction": "right"
+    }
+  ],
+  "straights": [
+    {
+      "after": 1,
+      "name": "Moraine Sweep"
+    },
+    {
+      "after": 3,
+      "name": "Hurry Downs"
     }
   ]
 }

@@ -14,8 +14,8 @@ import {
   listAllCenterlines,
   listCuratedSlugs,
   loadCenterline,
-  loadCornerNameList,
 } from "../shared/track-segment-generate";
+import { loadTrackFacts } from "../shared/track-data";
 import { generateSegmentSvg } from "./helpers/segment-svg";
 
 // Required before rendering: needsTrackFlip() resolves coordSystem through the
@@ -37,8 +37,8 @@ mkdirSync(AUTO_OUTPUT_DIR, { recursive: true });
 
 describe("track segment visualizations", () => {
   for (const slug of slugs) {
-    const nameList = loadCornerNameList(slug)!;
-    const { aligned } = generateTrackSegments(slug, nameList);
+    const facts = loadTrackFacts(slug)!;
+    const { aligned } = generateTrackSegments(slug, facts);
 
     test(`${slug} aligns on at least one centerline`, () => {
       expect(aligned.length).toBeGreaterThan(0);
@@ -51,7 +51,7 @@ describe("track segment visualizations", () => {
           outline,
           a.segments,
           a.sectors,
-          `${nameList.circuit} — ${a.gameId}`,
+          `${facts.name} — ${a.gameId}`,
           resolve(OUTPUT_DIR, `${slug}-${a.gameId}.svg`),
           a.gameId,
         );

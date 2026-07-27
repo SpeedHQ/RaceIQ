@@ -10,7 +10,43 @@
  * NOT create a phantom version (no writeAppliedSetup / createTuningTest /
  * setSessionHead calls).
  */
-import { describe, expect, mock, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
+
+// `mock.module` is PROCESS-global in Bun and cannot be undone: re-mocking an
+// already-mocked path is a no-op, so an `afterAll` "restore" achieves nothing
+// and every later test file in the run would import these stubs (which is how
+// the tuning/chat suites started seeing `createTuningTest() === 999`).
+//
+// So the stubs are *gated dispatchers*: each one delegates to the real export
+// unless `stubsActive` is set, and only this file's tests set it. Real
+// namespaces are captured by static import, which evaluates before any
+// `mock.module` call below.
+import * as RealSetupIo from "../server/ai/setup-io";
+import * as RealTestQueries from "../server/db/tuning-test-queries";
+import * as RealSessionQueries from "../server/db/tuning-session-queries";
+import * as RealChatAgent from "../server/ai/chat-agent";
+import * as RealEngineerContext from "../server/ai/setup-engineer-context";
+import * as RealQueries from "../server/db/queries";
+import * as RealActionQueries from "../server/db/tuning-action-queries";
+import * as RealUndo from "../server/tuning-undo";
+import * as RealConsult from "../server/ai/consult-lap-analyst";
+import * as RealCleanLap from "../server/ai/clean-lap-aggregate";
+import * as RealComparison from "../server/comparison";
+import * as RealSettings from "../server/settings";
+import * as RealMastraModel from "../mastra/model";
+
+let stubsActive = false;
+beforeAll(() => {
+  stubsActive = true;
+});
+afterAll(() => {
+  stubsActive = false;
+});
+
+/** Route calls through `fake` while this file's tests run, else through `real`. */
+function gate<F extends (...args: any[]) => any>(real: F, fake: (...args: any[]) => any): F {
+  return ((...args: any[]) => (stubsActive ? fake(...args) : real(...args))) as F;
+}
 
 function baseAccSetup() {
   return {
@@ -32,7 +68,6 @@ const readActiveSetup = mock(async () => ({ ok: true, setup: baseAccSetup(), rea
 const createTuningTest = mock(async () => 999);
 const setSessionHead = mock(async () => {});
 const recordAction = mock(async () => {});
-const broadcastNotification = mock(() => {});
 const setTuningTestNote = mock(async () => null);
 
 const fakeCtx = {
@@ -46,41 +81,72 @@ const fakeCtx = {
   setup: baseAccSetup(),
 };
 
-mock.module("../server/ai/setup-io", () => ({ readActiveSetup, writeAppliedSetup }));
+mock.module("../server/ai/setup-io", () => ({
+  ...RealSetupIo,
+  readActiveSetup: gate(RealSetupIo.readActiveSetup, readActiveSetup),
+  writeAppliedSetup: gate(RealSetupIo.writeAppliedSetup, writeAppliedSetup),
+}));
 mock.module("../server/db/tuning-test-queries", () => ({
-  createTuningTest,
-  deleteTestSubtree: mock(async () => {}),
-  getTuningTest: mock(async () => ({ id: 1, version: 1 })),
-  getTuningTestByVersion: mock(async () => null),
-  resolveActiveTestId: mock(async () => 1),
-  setTuningTestNote,
-  setTuningTestNotes: mock(async () => {}),
+  ...RealTestQueries,
+  createTuningTest: gate(RealTestQueries.createTuningTest, createTuningTest),
+  deleteTestSubtree: gate(RealTestQueries.deleteTestSubtree, mock(async () => {})),
+  getTuningTest: gate(RealTestQueries.getTuningTest, mock(async () => ({ id: 1, version: 1 }))),
+  getTuningTestByVersion: gate(RealTestQueries.getTuningTestByVersion, mock(async () => null)),
+  resolveActiveTestId: gate(RealTestQueries.resolveActiveTestId, mock(async () => 1)),
+  setTuningTestNote: gate(RealTestQueries.setTuningTestNote, setTuningTestNote),
+  setTuningTestNotes: gate(RealTestQueries.setTuningTestNotes, mock(async () => {})),
 }));
-mock.module("../server/db/tuning-session-queries", () => ({ setSessionHead }));
+mock.module("../server/db/tuning-session-queries", () => ({
+  ...RealSessionQueries,
+  setSessionHead: gate(RealSessionQueries.setSessionHead, setSessionHead),
+}));
 mock.module("../server/ai/chat-agent", () => ({
-  saveAssistantChatMessage: mock(async () => {}),
-  tuneSessionThreadId: (id: number) => `tune-${id}`,
-  getChatMemory: mock(() => null),
+  ...RealChatAgent,
+  saveAssistantChatMessage: gate(RealChatAgent.saveAssistantChatMessage, mock(async () => {})),
+  getChatMemory: gate(RealChatAgent.getChatMemory, mock(() => null)),
 }));
-mock.module("../server/ws", () => ({ wsManager: { broadcastNotification } }));
 mock.module("../server/ai/setup-engineer-context", () => ({
-  buildAppliedChangesMarkdown: mock(() => ""),
-  computeSessionSymptoms: mock(async () => []),
-  computeSessionTrackConditions: mock(async () => null),
-  formatTrackConditions: mock(() => ""),
-  gameHasSetupFile: (gameId: string) => gameId !== "f1-2025",
-  loadActiveTuningContext: mock(async () => fakeCtx),
+  ...RealEngineerContext,
+  buildAppliedChangesMarkdown: gate(RealEngineerContext.buildAppliedChangesMarkdown, mock(() => "")),
+  computeSessionSymptoms: gate(RealEngineerContext.computeSessionSymptoms, mock(async () => [])),
+  computeSessionTrackConditions: gate(RealEngineerContext.computeSessionTrackConditions, mock(async () => null)),
+  formatTrackConditions: gate(RealEngineerContext.formatTrackConditions, mock(() => "")),
+  loadActiveTuningContext: gate(RealEngineerContext.loadActiveTuningContext, mock(async () => fakeCtx)),
 }));
 mock.module("../server/db/queries", () => ({
-  setLapTuningExcluded: mock(async () => {}),
-  getLapById: mock(async () => null),
-  getLapsForTuningSession: mock(async () => []),
+  ...RealQueries,
+  setLapTuningExcluded: gate(RealQueries.setLapTuningExcluded, mock(async () => {})),
+  getLapById: gate(RealQueries.getLapById, mock(async () => null)),
+  getLapsForTuningSession: gate(RealQueries.getLapsForTuningSession, mock(async () => [])),
 }));
-mock.module("../server/db/tuning-action-queries", () => ({ recordAction }));
-mock.module("../server/tuning-undo", () => ({ undoLastAction: mock(async () => ({ ok: true })) }));
-mock.module("../server/ai/consult-lap-analyst", () => ({ consultLapAnalystForSession: mock(async () => ({ ok: true, text: "" })) }));
-mock.module("../server/ai/clean-lap-aggregate", () => ({ loadCleanLapAggregate: mock(async () => null) }));
-mock.module("../server/comparison", () => ({ compareLaps: mock(() => ({})) }));
+mock.module("../server/db/tuning-action-queries", () => ({
+  ...RealActionQueries,
+  recordAction: gate(RealActionQueries.recordAction, recordAction),
+}));
+mock.module("../server/tuning-undo", () => ({
+  ...RealUndo,
+  undoLastAction: gate(RealUndo.undoLastAction, mock(async () => ({ ok: true }))),
+}));
+mock.module("../server/ai/consult-lap-analyst", () => ({
+  ...RealConsult,
+  consultLapAnalystForSession: gate(RealConsult.consultLapAnalystForSession, mock(async () => ({ ok: true, text: "" }))),
+}));
+mock.module("../server/ai/clean-lap-aggregate", () => ({
+  ...RealCleanLap,
+  loadCleanLapAggregate: gate(RealCleanLap.loadCleanLapAggregate, mock(async () => null)),
+}));
+mock.module("../server/comparison", () => ({
+  ...RealComparison,
+  compareLaps: gate(RealComparison.compareLaps, mock(() => ({}))),
+}));
+mock.module("../server/settings", () => ({
+  ...RealSettings,
+  loadSettings: gate(RealSettings.loadSettings, mock(() => ({ ai: {} }))),
+}));
+mock.module("../mastra/model", () => ({
+  ...RealMastraModel,
+  getMastraModelId: gate(RealMastraModel.getMastraModelId, mock(() => "fake/model")),
+}));
 
 const { setupEngineerTools } = await import("../mastra/tools/setup-engineer");
 
@@ -146,8 +212,6 @@ describe("record_driver_notes — driver confirmation guard", () => {
 
 describe("SETUP_ENGINEER_INSTRUCTIONS — prompt mandates", () => {
   test("mandates consult_lap_analyst before the first recommendation and refuses on unknown setup values", async () => {
-    mock.module("../server/settings", () => ({ loadSettings: mock(() => ({ ai: {} })) }));
-    mock.module("../mastra/model", () => ({ getMastraModelId: mock(() => "fake/model") }));
     const { SETUP_ENGINEER_INSTRUCTIONS } = await import("../mastra/agents/setup-engineer");
 
     // 1. First-recommendation gate on the lap analyst.

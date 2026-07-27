@@ -1,327 +1,97 @@
 {
+  "slug": "las-vegas",
+  "track": "las-vegas",
+  "layout": "gp",
+  "layoutName": "Grand Prix",
   "name": "Las Vegas Street Circuit",
-  "sectors": {
-    "s1End": 0.319,
-    "s2End": 0.679
-  },
-  "games": {
-    "f1-2025": {
-      "sectors": {
-        "s1End": 0.318,
-        "s2End": 0.664
-      },
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0234
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "left",
-          "startFrac": 0.0234,
-          "endFrac": 0.0701,
-          "number": 1,
-          "covers": [
-            2
-          ]
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "right",
-          "startFrac": 0.0701,
-          "endFrac": 0.1302,
-          "number": 3,
-          "covers": [
-            4
-          ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.1302,
-          "endFrac": 0.228
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "right",
-          "startFrac": 0.228,
-          "endFrac": 0.2713,
-          "number": 5
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2713,
-          "endFrac": 0.3069
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "left",
-          "startFrac": 0.3069,
-          "endFrac": 0.3349,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "right",
-          "startFrac": 0.3349,
-          "endFrac": 0.353,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "left",
-          "startFrac": 0.353,
-          "endFrac": 0.3791,
-          "number": 8
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3791,
-          "endFrac": 0.4124
-        },
-        {
-          "type": "corner",
-          "name": "T9",
-          "direction": "right",
-          "startFrac": 0.4124,
-          "endFrac": 0.4673,
-          "number": 9
-        },
-        {
-          "type": "corner",
-          "name": "T10",
-          "direction": "left",
-          "startFrac": 0.4673,
-          "endFrac": 0.5154,
-          "number": 10
-        },
-        {
-          "type": "corner",
-          "name": "T12",
-          "direction": "left",
-          "startFrac": 0.5154,
-          "endFrac": 0.5271,
-          "number": 12
-        },
-        {
-          "type": "corner",
-          "name": "T13",
-          "direction": "right",
-          "startFrac": 0.5271,
-          "endFrac": 0.544,
-          "number": 13
-        },
-        {
-          "type": "straight",
-          "name": "Las Vegas Strip",
-          "startFrac": 0.544,
-          "endFrac": 0.8139
-        },
-        {
-          "type": "corner",
-          "name": "T14",
-          "direction": "left",
-          "startFrac": 0.8139,
-          "endFrac": 0.8433,
-          "number": 14
-        },
-        {
-          "type": "corner",
-          "name": "T15",
-          "direction": "right",
-          "startFrac": 0.8433,
-          "endFrac": 0.852,
-          "number": 15
-        },
-        {
-          "type": "corner",
-          "name": "T16",
-          "direction": "left",
-          "startFrac": 0.852,
-          "endFrac": 0.8734,
-          "number": 16
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8734,
-          "endFrac": 0.9494
-        },
-        {
-          "type": "corner",
-          "name": "T17",
-          "direction": "left",
-          "startFrac": 0.9494,
-          "endFrac": 1,
-          "number": 17
-        }
-      ]
-    }
-  },
-  "segments": [
+  "source": "Official F1 track map (6.201 km street circuit, turns unnamed); directions verified against F1 2025 centerline geometry",
+  "corners": [
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0234
-    },
-    {
-      "type": "corner",
-      "name": "T1",
-      "direction": "left",
-      "startFrac": 0.0234,
-      "endFrac": 0.0701,
       "number": 1,
       "covers": [
         2
-      ]
+      ],
+      "name": "",
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T3",
-      "direction": "right",
-      "startFrac": 0.0701,
-      "endFrac": 0.1302,
       "number": 3,
       "covers": [
         4
-      ]
-    },
-    {
-      "type": "straight",
+      ],
       "name": "",
-      "startFrac": 0.1302,
-      "endFrac": 0.228
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T5",
-      "direction": "right",
-      "startFrac": 0.228,
-      "endFrac": 0.2713,
-      "number": 5
-    },
-    {
-      "type": "straight",
+      "number": 5,
       "name": "",
-      "startFrac": 0.2713,
-      "endFrac": 0.3069
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T6",
-      "direction": "left",
-      "startFrac": 0.3069,
-      "endFrac": 0.3349,
-      "number": 6
-    },
-    {
-      "type": "corner",
-      "name": "T7",
-      "direction": "right",
-      "startFrac": 0.3349,
-      "endFrac": 0.353,
-      "number": 7
-    },
-    {
-      "type": "corner",
-      "name": "T8",
-      "direction": "left",
-      "startFrac": 0.353,
-      "endFrac": 0.3791,
-      "number": 8
-    },
-    {
-      "type": "straight",
+      "number": 6,
       "name": "",
-      "startFrac": 0.3791,
-      "endFrac": 0.4124
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T9",
-      "direction": "right",
-      "startFrac": 0.4124,
-      "endFrac": 0.4673,
-      "number": 9
-    },
-    {
-      "type": "corner",
-      "name": "T10",
-      "direction": "left",
-      "startFrac": 0.4673,
-      "endFrac": 0.5154,
-      "number": 10
-    },
-    {
-      "type": "corner",
-      "name": "T12",
-      "direction": "left",
-      "startFrac": 0.5154,
-      "endFrac": 0.5271,
-      "number": 12
-    },
-    {
-      "type": "corner",
-      "name": "T13",
-      "direction": "right",
-      "startFrac": 0.5271,
-      "endFrac": 0.544,
-      "number": 13
-    },
-    {
-      "type": "straight",
-      "name": "Las Vegas Strip",
-      "startFrac": 0.544,
-      "endFrac": 0.8139
-    },
-    {
-      "type": "corner",
-      "name": "T14",
-      "direction": "left",
-      "startFrac": 0.8139,
-      "endFrac": 0.8433,
-      "number": 14
-    },
-    {
-      "type": "corner",
-      "name": "T15",
-      "direction": "right",
-      "startFrac": 0.8433,
-      "endFrac": 0.852,
-      "number": 15
-    },
-    {
-      "type": "corner",
-      "name": "T16",
-      "direction": "left",
-      "startFrac": 0.852,
-      "endFrac": 0.8734,
-      "number": 16
-    },
-    {
-      "type": "straight",
+      "number": 7,
       "name": "",
-      "startFrac": 0.8734,
-      "endFrac": 0.9494
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T17",
-      "direction": "left",
-      "startFrac": 0.9494,
-      "endFrac": 1,
-      "number": 17
+      "number": 8,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 9,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 10,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 11,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 12,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 13,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 14,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 15,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 16,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 17,
+      "name": "",
+      "direction": "left"
+    }
+  ],
+  "straights": [
+    {
+      "after": 13,
+      "name": "Las Vegas Strip"
     }
   ]
 }

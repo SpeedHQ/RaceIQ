@@ -1,6 +1,5 @@
 import type { TelemetryPacket, GameId } from "../shared/types";
-import { tryGetGame } from "../shared/games/registry";
-import { getTrackSectorsByOrdinal, loadSharedTrackMeta } from "../shared/track-data";
+import { resolveTrack } from "./track-info";
 
 /**
  * Pure function that computes s1/s2/s3 sector times from a lap's telemetry buffer.
@@ -22,14 +21,8 @@ export async function computeLapSectors(
 ): Promise<{ s1: number; s2: number; s3: number } | null> {
   if (packets.length < 50) return null;
 
-  // Resolve sector boundaries: game-specific JSON -> shared JSON -> bundled code
-  const adapter = tryGetGame(gameId);
-  const sharedName = adapter?.getSharedTrackName?.(trackOrdinal);
-  const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
-  const gameSectors = (sharedMeta as any)?.games?.[gameId]?.sectors;
-  const raw = gameSectors ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(trackOrdinal);
-  const s1End = raw?.s1End ?? 1 / 3;
-  const s2End = raw?.s2End ?? 2 / 3;
+  // Sector boundaries: this game's curated pair, else bundled, else thirds.
+  const { s1End, s2End } = resolveTrack(gameId, trackOrdinal).sectors;
 
   // F1: sector times must come from the game's own packets (SessionHistory or
   // LapData). We never fall back to distance-fraction for F1 — the game is

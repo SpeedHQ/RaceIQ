@@ -1,61 +1,20 @@
 {
-  "name": "Sunset Peninsula (Oval)",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0989
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "left",
-          "startFrac": 0.0989,
-          "endFrac": 0.1578,
-          "number": 1,
-          "covers": [
-            2,
-            3,
-            4
-          ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.1578,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "sunset-peninsula-oval",
+  "track": "sunset-peninsula",
+  "layout": "speedway",
+  "layoutName": "Speedway",
+  "name": "Sunset Peninsula",
+  "source": "derived from track geometry (no official corner names)",
+  "corners": [
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0989
-    },
-    {
-      "type": "corner",
-      "name": "T1",
-      "direction": "left",
-      "startFrac": 0.0989,
-      "endFrac": 0.1578,
       "number": 1,
       "covers": [
         2,
         3,
         4
-      ]
-    },
-    {
-      "type": "straight",
+      ],
       "name": "",
-      "startFrac": 0.1578,
-      "endFrac": 1
+      "direction": "left"
     }
   ]
 }

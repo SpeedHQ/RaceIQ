@@ -89,7 +89,6 @@ function LapAnalyseInner() {
   const { data: lapData, isLoading: lapLoading } = useLapTelemetry(selectedLapId);
   const parseError = (lapData as { parseError?: string } | undefined)?.parseError;
   const telemetry = lapData?.telemetry ?? emptyTelemetry;
-  const isLegacyLap = lapData?.isLegacy === true;
   const displayTelemetry = useConvertedTelemetry(telemetry);
 
   // Backfill track/car selection from the loaded lap's own row when the URL omitted them
@@ -619,8 +618,6 @@ function LapAnalyseInner() {
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-app-text-muted text-sm">
           {loading ? (
             <span>{m.analyse_loading_telemetry()}</span>
-          ) : isLegacyLap ? (
-            <span>{m.lapanalyse_legacy_notice()}</span>
           ) : parseError ? (
             <div className="flex flex-col items-center gap-2 max-w-xl text-center">
               <span className="text-app-danger font-medium">{m.analyse_parse_error()}</span>

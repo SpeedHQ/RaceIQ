@@ -47,7 +47,7 @@ const SEVERITY_CLASS: Record<TuneIssue["severity"], string> = {
  * telemetry — no live stream.
  */
 export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, tuningSessionId, onOpenLapContextChange }: TuneReviewDashboardProps) {
-  const validLaps = useMemo(() => [...laps].filter((l) => l.isValid && !l.isLegacy).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
+  const validLaps = useMemo(() => [...laps].filter((l) => l.isValid).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
 
   // Focus lap lives in the URL (?lap=<id>) so it's linkable/shareable.
   const navigate = useNavigate();

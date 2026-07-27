@@ -1,267 +1,75 @@
 {
-  "name": "Maple Valley (Full)",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0244
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "right",
-          "startFrac": 0.0244,
-          "endFrac": 0.1663,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "left",
-          "startFrac": 0.1663,
-          "endFrac": 0.2063,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "left",
-          "startFrac": 0.2063,
-          "endFrac": 0.2671,
-          "number": 3
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2671,
-          "endFrac": 0.3135
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "left",
-          "startFrac": 0.3135,
-          "endFrac": 0.3878,
-          "number": 4
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "left",
-          "startFrac": 0.3878,
-          "endFrac": 0.4668,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "left",
-          "startFrac": 0.4668,
-          "endFrac": 0.5398,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "right",
-          "startFrac": 0.5398,
-          "endFrac": 0.5733,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "left",
-          "startFrac": 0.5733,
-          "endFrac": 0.6295,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "T9",
-          "direction": "right",
-          "startFrac": 0.6295,
-          "endFrac": 0.7446,
-          "number": 9
-        },
-        {
-          "type": "corner",
-          "name": "T10",
-          "direction": "left",
-          "startFrac": 0.7446,
-          "endFrac": 0.7761,
-          "number": 10
-        },
-        {
-          "type": "corner",
-          "name": "T11",
-          "direction": "right",
-          "startFrac": 0.7761,
-          "endFrac": 0.8119,
-          "number": 11
-        },
-        {
-          "type": "corner",
-          "name": "T12",
-          "direction": "right",
-          "startFrac": 0.8119,
-          "endFrac": 0.8731,
-          "number": 12
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8731,
-          "endFrac": 0.8993
-        },
-        {
-          "type": "corner",
-          "name": "T13",
-          "direction": "right",
-          "startFrac": 0.8993,
-          "endFrac": 0.9568,
-          "number": 13
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9568,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "maple-valley",
+  "track": "maple-valley",
+  "layout": "full",
+  "layoutName": "Full",
+  "name": "Maple Valley",
+  "source": "derived from track geometry (no official corner names)",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0244
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "right",
-      "startFrac": 0.0244,
-      "endFrac": 0.1663,
-      "number": 1
-    },
-    {
-      "type": "corner",
-      "name": "T2",
-      "direction": "left",
-      "startFrac": 0.1663,
-      "endFrac": 0.2063,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "left",
-      "startFrac": 0.2063,
-      "endFrac": 0.2671,
-      "number": 3
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.2671,
-      "endFrac": 0.3135
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T4",
-      "direction": "left",
-      "startFrac": 0.3135,
-      "endFrac": 0.3878,
-      "number": 4
-    },
-    {
-      "type": "corner",
-      "name": "T5",
-      "direction": "left",
-      "startFrac": 0.3878,
-      "endFrac": 0.4668,
-      "number": 5
-    },
-    {
-      "type": "corner",
-      "name": "T6",
-      "direction": "left",
-      "startFrac": 0.4668,
-      "endFrac": 0.5398,
-      "number": 6
-    },
-    {
-      "type": "corner",
-      "name": "T7",
-      "direction": "right",
-      "startFrac": 0.5398,
-      "endFrac": 0.5733,
-      "number": 7
-    },
-    {
-      "type": "corner",
-      "name": "T8",
-      "direction": "left",
-      "startFrac": 0.5733,
-      "endFrac": 0.6295,
-      "number": 8
-    },
-    {
-      "type": "corner",
-      "name": "T9",
-      "direction": "right",
-      "startFrac": 0.6295,
-      "endFrac": 0.7446,
-      "number": 9
-    },
-    {
-      "type": "corner",
-      "name": "T10",
-      "direction": "left",
-      "startFrac": 0.7446,
-      "endFrac": 0.7761,
-      "number": 10
-    },
-    {
-      "type": "corner",
-      "name": "T11",
-      "direction": "right",
-      "startFrac": 0.7761,
-      "endFrac": 0.8119,
-      "number": 11
-    },
-    {
-      "type": "corner",
-      "name": "T12",
-      "direction": "right",
-      "startFrac": 0.8119,
-      "endFrac": 0.8731,
-      "number": 12
-    },
-    {
-      "type": "straight",
+      "number": 3,
       "name": "",
-      "startFrac": 0.8731,
-      "endFrac": 0.8993
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T13",
-      "direction": "right",
-      "startFrac": 0.8993,
-      "endFrac": 0.9568,
-      "number": 13
-    },
-    {
-      "type": "straight",
+      "number": 4,
       "name": "",
-      "startFrac": 0.9568,
-      "endFrac": 1
+      "direction": "left"
+    },
+    {
+      "number": 5,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 9,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 10,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 11,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 12,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 13,
+      "name": "",
+      "direction": "right"
     }
   ]
 }

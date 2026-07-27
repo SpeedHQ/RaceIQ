@@ -16,8 +16,9 @@
  * name for those turns. See `CornerGuide.numbers`.
  */
 
-import { loadSharedTrackMeta } from "../../shared/track-data";
-import { segmentPromptLabels, turnNumbers } from "../../shared/segment-label";
+import { loadTrackFacts } from "../../shared/track-data";
+import { cornerNumbers } from "../../shared/track-meta";
+import { cornerPromptLabel } from "../../shared/segment-label";
 import type { ResolvedTrackGuide } from "../../shared/track-guide-types";
 
 interface CornerGuide {
@@ -141,6 +142,33 @@ const guides: TrackGuide[] = [
       { name: "Casio Triangle", numbers: [16, 17], type: "tight chicane (T16-T18)", technique: "Hard braking from 130R speed, precise through the chicane, clean exit onto start/finish straight", trap: "Braking too late after 130R commitment; losing exit speed onto the main straight" },
     ],
     priorityCorners: ["S Curves", "Spoon Curve", "130R", "Casio Triangle"],
+  },
+
+  // ─── Fuji Speedway (GP) ───
+  // Sources: official Fuji Speedway circuit guide (FIA WEC 6H of Fuji programme,
+  // https://storage.googleapis.com/fiawec-prod/assets/fileuploads/5d/8a/5d8a3c3a63038.pdf)
+  // for the sponsor-named sections (TGR, Coca-Cola, Toyopet 100R, Advan, 300R,
+  // Dunlop, GR Supra, Panasonic) and their character; https://www.racingcircuits.info/asia/japan/fuji-speedway.html
+  // for the 4.563 km / 16-turn layout.
+  //
+  // Entries are deliberately unanchored: shared/tracks/meta/fuji.json is
+  // auto-seeded from AC Evo's racing line and holds 9 unnamed regions, so its
+  // T1..T9 are not the circuit's official 1..16 and there is nothing honest to
+  // anchor to. Registered in test/track-guide-anchor.test.ts.
+  {
+    id: "fuji",
+    character: "4.563km, 16 turns, clockwise at the foot of Mount Fuji. A 1.475km main straight — one of the longest anywhere — feeds the hardest braking zone on the lap, then a fast downhill middle sector, then a tight technical final third. Exit speed from the last corner sets top speed down the entire straight, so the lap is won at the end of it.",
+    corners: [
+      { name: "TGR Corner", type: "sharp right-hander at the end of the 1.475km straight (Turn 1)", technique: "Brake as late as you dare from top speed, straight-line the braking, late apex to open the exit", trap: "Braking judgement from that approach speed is the whole corner — early braking throws away the straight, late braking locks the inside front" },
+      { name: "Coca-Cola Corner", type: "long decreasing-radius right", technique: "Patience — the corner keeps tightening, so hold something in reserve and wait for it to open before full throttle", trap: "Committing to an early apex, then having to lift as the radius closes" },
+      { name: "Toyopet 100R", type: "fast sweeping right, ~100m radius", technique: "Carry speed in on one line — there is effectively only one line through here — and let the car run wide on exit", trap: "Scrubbing the front by asking for more angle mid-corner instead of settling on the entry line" },
+      { name: "Advan Corner", type: "tight left hairpin, the slowest point on the circuit (~60-70 km/h)", technique: "Heavy braking down from 100R, late apex, patient throttle — the exit runs slightly uphill into 300R", trap: "Over-slowing or spinning the rears on exit costs all the way through 300R" },
+      { name: "300R", type: "fast slightly-uphill right sweep, ~300m radius", technique: "Near-flat with a light lift, minimal steering input — this is a momentum corner feeding the downhill run", trap: "Any correction here bleeds the speed you need for the Dunlop braking zone" },
+      { name: "Dunlop Corner", type: "downhill braking zone where lines cross — the circuit's other big overtaking spot", technique: "Brake precisely on the downhill, expect the car to be light on the way in, commit to one line early", trap: "Braking downhill with the car unloaded locks fronts; drifting off line invites a switchback" },
+      { name: "GR Supra Corner", type: "opens the technical final sector", technique: "Careful throttle application — line choice genuinely varies by car and driver here, so settle on one and repeat it", trap: "Chasing a different line every lap; inconsistency through sector 3 costs more than the corner itself" },
+      { name: "Panasonic Corner", type: "uphill final right onto the main straight (Turn 16)", technique: "Prioritise exit over entry: sacrifice apex speed for a clean, early-throttle exit — this corner sets your top speed for 1.475km", trap: "A tidy-looking fast entry that compromises exit is the single most expensive mistake on the lap" },
+    ],
+    priorityCorners: ["Panasonic Corner", "Dunlop Corner", "Toyopet 100R"],
   },
 
   // ─── Imola ───
@@ -1026,6 +1054,9 @@ const TRACK_KEYWORDS: [string[], string][] = [
   [["silverstone"], "silverstone"],
   [["monza"], "monza"],
   [["suzuka"], "suzuka"],
+  // Never bare "fuji": Forza's fantasy "Fujimi Kaido" contains it and has its
+  // own guide below.
+  [["fuji speedway", "fuji international"], "fuji"],
   [["imola", "enzo e dino"], "imola"],
   [["barcelona", "catalunya", "catalonia", "montmeló", "montmelo"], "catalunya"],
   [["zandvoort"], "zandvoort"],
@@ -1099,8 +1130,6 @@ function findGuide(trackNameOrId: string): TrackGuide | null {
 export interface TrackGuideOptions {
   /** Shared track slug (meta filename, e.g. "spa") — enables canonical naming. */
   slug?: string;
-  /** Prefer this game's per-game segment names; falls back to the shared set. */
-  gameId?: string;
 }
 
 /**
@@ -1108,26 +1137,27 @@ export interface TrackGuideOptions {
  * guide entry anchored to [14, 15] at Monaco renders "Piscine (14-15)" — the
  * same string the track map and the prompt's corner whitelist use — rather
  * than the guide's own "Swimming Pool".
+ *
+ * Facts only: a corner's name, numbering and complex are properties of the
+ * circuit, identical in every game, so this takes no gameId.
  */
-function metaLabelsByTurn(slug: string, gameId?: string): Map<number, string> {
+function metaLabelsByTurn(slug: string): Map<number, string> {
   const out = new Map<number, string>();
-  const meta = loadSharedTrackMeta(slug);
-  if (!meta) return out;
-  // Per-game segments win: a game's centerline can name or merge corners
-  // differently from the shared set.
-  const segments = (gameId ? meta.games?.[gameId]?.segments : undefined) ?? meta.segments ?? [];
-  // Group-collapsed labels: every turn of a complex maps to the one label for
-  // the whole complex, so a guide entry spanning it resolves (each member
-  // carrying its own label would make `canonicalLabel` see a partial match and
-  // fall back to the guide's own name).
-  const labels = segmentPromptLabels(segments);
-  segments.forEach((s, i) => {
-    if (s.type !== "corner" || !s.name) return;
-    const label = labels[i];
-    if (!label) return;
-    const nums = s.group ? segments.filter((o) => o.group === s.group).flatMap(turnNumbers) : turnNumbers(s);
+  const facts = loadTrackFacts(slug);
+  if (!facts) return out;
+  for (const corner of facts.corners) {
+    const nums = cornerNumbers(corner);
+    // Group-collapsed labels: every turn of a complex maps to the one label for
+    // the whole complex, so a guide entry spanning it resolves (each member
+    // carrying its own label would make `canonicalLabel` see a partial match and
+    // fall back to the guide's own name).
+    const members = corner.group ? facts.corners.filter((c) => c.group === corner.group) : [corner];
+    const name = corner.group || corner.name;
+    // Facts leave a turn the circuit doesn't name empty; `T3` / `T3-4` is the
+    // token the rest of the app renders for it.
+    const label = name ? cornerPromptLabel(name, members.flatMap(cornerNumbers)) : `T${nums.join("-")}`;
     for (const n of nums) out.set(n, label);
-  });
+  }
   return out;
 }
 
@@ -1153,7 +1183,7 @@ function canonicalLabel(c: CornerGuide, labels: Map<number, string>): string | n
 export function getTrackGuide(trackName: string, opts: TrackGuideOptions = {}): ResolvedTrackGuide | null {
   const guide = findGuide(opts.slug ?? trackName);
   if (!guide) return null;
-  const labels = opts.slug ? metaLabelsByTurn(opts.slug, opts.gameId) : new Map<number, string>();
+  const labels = opts.slug ? metaLabelsByTurn(opts.slug) : new Map<number, string>();
   const labelFor = (c: CornerGuide) => canonicalLabel(c, labels) ?? c.name;
   const isPriority = (c: CornerGuide) => guide.priorityCorners.includes(c.name);
 
@@ -1179,11 +1209,11 @@ export function getTrackGuide(trackName: string, opts: TrackGuideOptions = {}): 
   };
 }
 
-/** The corner labels a guide will actually emit for this track/game. */
+/** The corner labels a guide will actually emit for this track. */
 export function guideCornerLabels(trackName: string, opts: TrackGuideOptions = {}): string[] {
   const guide = findGuide(opts.slug ?? trackName);
   if (!guide) return [];
-  const labels = opts.slug ? metaLabelsByTurn(opts.slug, opts.gameId) : new Map<number, string>();
+  const labels = opts.slug ? metaLabelsByTurn(opts.slug) : new Map<number, string>();
   return [...new Set(guide.corners.map((c) => canonicalLabel(c, labels) ?? c.name))];
 }
 
@@ -1191,7 +1221,7 @@ export function guideCornerLabels(trackName: string, opts: TrackGuideOptions = {
  * Build a formatted track guide context block for AI prompts.
  * Returns empty string if no guide is available for the given track.
  *
- * Pass `slug`/`gameId` wherever they're known: without them the guide falls
+ * Pass `slug` wherever it's known: without it the guide falls
  * back to its own corner names, which may not match the names the prompt
  * elsewhere tells the model are the only legal ones.
  */
@@ -1199,7 +1229,7 @@ export function buildTrackGuideContext(trackName: string, opts: TrackGuideOption
   const guide = findGuide(opts.slug ?? trackName);
   if (!guide) return "";
 
-  const labels = opts.slug ? metaLabelsByTurn(opts.slug, opts.gameId) : new Map<number, string>();
+  const labels = opts.slug ? metaLabelsByTurn(opts.slug) : new Map<number, string>();
   const labelFor = (c: CornerGuide) => canonicalLabel(c, labels) ?? c.name;
 
   let out = "\n--- Expert Track Guide ---\n";

@@ -1,6 +1,5 @@
 import { tryGetGame } from "@shared/games/registry";
 import type { LapMeta } from "@shared/types";
-import { RAW_STORAGE_VERSION } from "@shared/types";
 import { useQueries } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Settings2 } from "lucide-react";
@@ -46,19 +45,13 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: { laps: LapMeta
           const track = lap.trackOrdinal != null ? (trackNames[lap.trackOrdinal] ?? "") : "";
           const car = lap.carOrdinal != null ? (carNames[lap.carOrdinal] ?? "") : "";
           const ago = formatTimeAgo(new Date(lap.createdAt));
-          const isLegacy = lap.isLegacy === true;
           return (
             <TRow
               key={lap.id}
-              tooltip={isLegacy ? `Recorded before ${RAW_STORAGE_VERSION} — telemetry unavailable` : undefined}
-              onClick={
-                isLegacy
-                  ? undefined
-                  : () => {
-                      if (!lap.gameId) return;
-                      window.location.href = `${getGameRoute(lap.gameId)}/analyse?track=${lap.trackOrdinal ?? ""}&car=${lap.carOrdinal ?? ""}&lap=${lap.id}`;
-                    }
-              }
+              onClick={() => {
+                if (!lap.gameId) return;
+                window.location.href = `${getGameRoute(lap.gameId)}/analyse?track=${lap.trackOrdinal ?? ""}&car=${lap.carOrdinal ?? ""}&lap=${lap.id}`;
+              }}
             >
               {showGame && (
                 <TD>

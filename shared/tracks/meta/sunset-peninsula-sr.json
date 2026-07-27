@@ -1,163 +1,50 @@
 {
-  "name": "Sunset Peninsula (Short Reverse)",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.294
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "left",
-          "startFrac": 0.294,
-          "endFrac": 0.4228,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "left",
-          "startFrac": 0.4228,
-          "endFrac": 0.4677,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "right",
-          "startFrac": 0.4677,
-          "endFrac": 0.5174,
-          "number": 3
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5174,
-          "endFrac": 0.6331
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "right",
-          "startFrac": 0.6331,
-          "endFrac": 0.6902,
-          "number": 4
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "left",
-          "startFrac": 0.6902,
-          "endFrac": 0.7484,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "right",
-          "startFrac": 0.7484,
-          "endFrac": 0.7965,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "left",
-          "startFrac": 0.7965,
-          "endFrac": 0.8941,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "left",
-          "startFrac": 0.8941,
-          "endFrac": 1,
-          "number": 8
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "sunset-peninsula-sr",
+  "track": "sunset-peninsula",
+  "layout": "club-reverse",
+  "layoutName": "Club Reverse",
+  "name": "Sunset Peninsula",
+  "source": "derived from track geometry (no official corner names)",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.294
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "left",
-      "startFrac": 0.294,
-      "endFrac": 0.4228,
-      "number": 1
-    },
-    {
-      "type": "corner",
-      "name": "T2",
-      "direction": "left",
-      "startFrac": 0.4228,
-      "endFrac": 0.4677,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "right",
-      "startFrac": 0.4677,
-      "endFrac": 0.5174,
-      "number": 3
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.5174,
-      "endFrac": 0.6331
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T4",
-      "direction": "right",
-      "startFrac": 0.6331,
-      "endFrac": 0.6902,
-      "number": 4
+      "number": 3,
+      "name": "",
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T5",
-      "direction": "left",
-      "startFrac": 0.6902,
-      "endFrac": 0.7484,
-      "number": 5
+      "number": 4,
+      "name": "",
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T6",
-      "direction": "right",
-      "startFrac": 0.7484,
-      "endFrac": 0.7965,
-      "number": 6
+      "number": 5,
+      "name": "",
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T7",
-      "direction": "left",
-      "startFrac": 0.7965,
-      "endFrac": 0.8941,
-      "number": 7
+      "number": 6,
+      "name": "",
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T8",
-      "direction": "left",
-      "startFrac": 0.8941,
-      "endFrac": 1,
-      "number": 8
+      "number": 7,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "left"
     }
   ]
 }

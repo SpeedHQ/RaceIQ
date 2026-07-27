@@ -63,10 +63,7 @@
   <text x="294.5" y="710.6" text-anchor="end" class="name" fill="#111827">T14</text>
   <line x1="284.4" y1="513.9" x2="261.7" y2="526.6" stroke="#d1d5db" stroke-width="1" />
   <text x="261.7" y="526.6" text-anchor="end" class="name" fill="#6b7280">St7 570m</text>
-  <circle cx="445.5" cy="577.1" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="456.5" y="569.1" class="sector">S1 0.384</text>
-  <circle cx="706.6" cy="281.6" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="717.6" y="273.6" class="sector">S2 0.614</text>
+
   <rect x="273.9" y="388.5" width="10" height="10" fill="#111827" />
   <text x="290.9" y="397.5" class="sub">S/F</text>
   <text class="title" x="12" y="22">Road America — fm-2023</text>

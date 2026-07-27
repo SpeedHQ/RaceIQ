@@ -54,10 +54,7 @@
   <text x="550.9" y="739.9" text-anchor="start" class="name" fill="#111827">T11</text>
   <line x1="647.2" y1="614.6" x2="660.8" y2="636.8" stroke="#d1d5db" stroke-width="1" />
   <text x="660.8" y="636.8" text-anchor="start" class="name" fill="#6b7280">St4 238m</text>
-  <circle cx="521.5" cy="334.0" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="532.5" y="326.0" class="sector">S1 0.319</text>
-  <circle cx="272.7" cy="529.8" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="283.7" y="521.8" class="sector">S2 0.728</text>
+
   <rect x="690.9" y="547.3" width="10" height="10" fill="#111827" />
   <text x="707.9" y="556.3" class="sub">S/F</text>
   <text class="title" x="12" y="22">WeatherTech Raceway Laguna Seca — fm-2023</text>

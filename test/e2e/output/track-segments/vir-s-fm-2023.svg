@@ -35,16 +35,16 @@
   <line x1="381.0" y1="449.9" x2="356.0" y2="457.2" stroke="#d1d5db" stroke-width="1" />
   <text x="356.0" y="457.2" text-anchor="end" class="name" fill="#111827">T5</text>
   <line x1="512.2" y1="292.7" x2="504.9" y2="267.7" stroke="#d1d5db" stroke-width="1" />
-  <text x="504.9" y="267.7" text-anchor="end" class="name" fill="#111827">T6</text>
+  <text x="504.9" y="267.7" text-anchor="end" class="name" fill="#111827">T6 South Bend</text>
   <line x1="530.4" y1="178.9" x2="528.8" y2="153.0" stroke="#d1d5db" stroke-width="1" />
   <text x="528.8" y="153.0" text-anchor="end" class="name" fill="#6b7280">St3 127m</text>
   <line x1="592.0" y1="77.7" x2="595.8" y2="52.0" stroke="#d1d5db" stroke-width="1" />
-  <text x="595.8" y="52.0" text-anchor="start" class="name" fill="#111827">T7</text>
+  <text x="595.8" y="52.0" text-anchor="start" class="name" fill="#111827">T7 Oak Tree</text>
   <line x1="617.8" y1="205.0" x2="626.8" y2="180.6" stroke="#d1d5db" stroke-width="1" />
   <text x="626.8" y="180.6" text-anchor="start" class="name" fill="#6b7280">St4 180m</text>
 
   <rect x="613.5" y="260.5" width="10" height="10" fill="#111827" />
   <text x="630.5" y="269.5" class="sub">S/F</text>
-  <text class="title" x="12" y="22">VIR — South Course — fm-2023</text>
+  <text class="title" x="12" y="22">Virginia International Raceway — fm-2023</text>
   <text class="sub" x="12" y="40">7 corners, 4 straights, 11 segments, 2.609 km</text>
 </svg>

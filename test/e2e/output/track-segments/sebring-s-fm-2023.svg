@@ -36,12 +36,12 @@
   <line x1="788.6" y1="199.5" x2="812.9" y2="190.4" stroke="#d1d5db" stroke-width="1" />
   <text x="812.9" y="190.4" text-anchor="start" class="name" fill="#111827">T6</text>
   <line x1="892.6" y1="308.1" x2="918.6" y2="307.0" stroke="#d1d5db" stroke-width="1" />
-  <text x="918.6" y="307.0" text-anchor="start" class="name" fill="#111827">T7</text>
+  <text x="918.6" y="307.0" text-anchor="end" class="name" fill="#111827">T7 Sunset Bend</text>
   <line x1="724.5" y1="351.3" x2="750.4" y2="353.6" stroke="#d1d5db" stroke-width="1" />
   <text x="750.4" y="353.6" text-anchor="start" class="name" fill="#6b7280">St3 252m</text>
 
   <rect x="629.1" y="346.7" width="10" height="10" fill="#111827" />
   <text x="646.1" y="355.7" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Sebring — Short — fm-2023</text>
+  <text class="title" x="12" y="22">Sebring International Raceway — fm-2023</text>
   <text class="sub" x="12" y="40">7 corners, 3 straights, 10 segments, 3.078 km</text>
 </svg>

@@ -72,10 +72,7 @@
   <text x="927.2" y="203.6" text-anchor="start" class="name" fill="#111827">T19</text>
   <line x1="725.9" y1="227.6" x2="748.3" y2="214.4" stroke="#d1d5db" stroke-width="1" />
   <text x="748.3" y="214.4" text-anchor="start" class="name" fill="#6b7280">St7 505m</text>
-  <circle cx="131.7" cy="566.8" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="142.7" y="558.8" class="sector">S1 0.324</text>
-  <circle cx="706.2" cy="377.6" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="717.2" y="369.6" class="sector">S2 0.731</text>
+
   <rect x="606.9" y="227.7" width="10" height="10" fill="#111827" />
   <text x="623.9" y="236.7" class="sub">S/F</text>
   <text class="title" x="12" y="22">Autodromo Internazionale Enzo e Dino Ferrari — ac-evo</text>

@@ -1,302 +1,85 @@
 {
+  "slug": "montreal",
+  "track": "montreal",
+  "layout": "gp",
+  "layoutName": "Grand Prix",
   "name": "Circuit Gilles Villeneuve",
-  "sectors": {
-    "s1End": 0.287,
-    "s2End": 0.677
-  },
-  "games": {
-    "f1-2025": {
-      "sectors": {
-        "s1End": 0.287,
-        "s2End": 0.679
-      },
-      "segments": [
-        {
-          "type": "straight",
-          "name": "Wall of Champions",
-          "startFrac": 0,
-          "endFrac": 0.0284,
-          "group": "Wall of Champions"
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "left",
-          "startFrac": 0.0284,
-          "endFrac": 0.067,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "right",
-          "startFrac": 0.067,
-          "endFrac": 0.107,
-          "number": 2
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.107,
-          "endFrac": 0.1343
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "right",
-          "startFrac": 0.1343,
-          "endFrac": 0.1762,
-          "number": 3
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "left",
-          "startFrac": 0.1762,
-          "endFrac": 0.2038,
-          "number": 4
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "right",
-          "startFrac": 0.2038,
-          "endFrac": 0.2677,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "left",
-          "startFrac": 0.2677,
-          "endFrac": 0.2996,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "right",
-          "startFrac": 0.2996,
-          "endFrac": 0.3323,
-          "number": 7
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3323,
-          "endFrac": 0.429
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "right",
-          "startFrac": 0.429,
-          "endFrac": 0.4691,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "T9",
-          "direction": "left",
-          "startFrac": 0.4691,
-          "endFrac": 0.5023,
-          "number": 9
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.5023,
-          "endFrac": 0.5831
-        },
-        {
-          "type": "corner",
-          "name": "L'Épingle",
-          "direction": "right",
-          "startFrac": 0.5831,
-          "endFrac": 0.6438,
-          "number": 10
-        },
-        {
-          "type": "corner",
-          "name": "T12",
-          "direction": "left",
-          "startFrac": 0.6438,
-          "endFrac": 0.6735,
-          "number": 12
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.6735,
-          "endFrac": 0.8628
-        },
-        {
-          "type": "corner",
-          "name": "T13",
-          "direction": "right",
-          "startFrac": 0.8628,
-          "endFrac": 0.9028,
-          "number": 13
-        },
-        {
-          "type": "corner",
-          "name": "T14",
-          "direction": "left",
-          "startFrac": 0.9028,
-          "endFrac": 0.9268,
-          "number": 14
-        },
-        {
-          "type": "straight",
-          "name": "Wall of Champions",
-          "startFrac": 0.9268,
-          "endFrac": 1,
-          "group": "Wall of Champions"
-        }
-      ]
-    }
-  },
-  "segments": [
+  "source": "Official F1 track map (4.361 km); directions verified against F1 2025 centerline geometry",
+  "corners": [
     {
-      "type": "straight",
-      "name": "Wall of Champions",
-      "startFrac": 0,
-      "endFrac": 0.0284,
-      "group": "Wall of Champions"
-    },
-    {
-      "type": "corner",
-      "name": "T1",
-      "direction": "left",
-      "startFrac": 0.0284,
-      "endFrac": 0.067,
-      "number": 1
-    },
-    {
-      "type": "corner",
-      "name": "T2",
-      "direction": "right",
-      "startFrac": 0.067,
-      "endFrac": 0.107,
-      "number": 2
-    },
-    {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0.107,
-      "endFrac": 0.1343
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T3",
-      "direction": "right",
-      "startFrac": 0.1343,
-      "endFrac": 0.1762,
-      "number": 3
-    },
-    {
-      "type": "corner",
-      "name": "T4",
-      "direction": "left",
-      "startFrac": 0.1762,
-      "endFrac": 0.2038,
-      "number": 4
-    },
-    {
-      "type": "corner",
-      "name": "T5",
-      "direction": "right",
-      "startFrac": 0.2038,
-      "endFrac": 0.2677,
-      "number": 5
-    },
-    {
-      "type": "corner",
-      "name": "T6",
-      "direction": "left",
-      "startFrac": 0.2677,
-      "endFrac": 0.2996,
-      "number": 6
-    },
-    {
-      "type": "corner",
-      "name": "T7",
-      "direction": "right",
-      "startFrac": 0.2996,
-      "endFrac": 0.3323,
-      "number": 7
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.3323,
-      "endFrac": 0.429
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T8",
-      "direction": "right",
-      "startFrac": 0.429,
-      "endFrac": 0.4691,
-      "number": 8
-    },
-    {
-      "type": "corner",
-      "name": "T9",
-      "direction": "left",
-      "startFrac": 0.4691,
-      "endFrac": 0.5023,
-      "number": 9
-    },
-    {
-      "type": "straight",
+      "number": 3,
       "name": "",
-      "startFrac": 0.5023,
-      "endFrac": 0.5831
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 4,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 5,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 9,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 10,
       "name": "L'Épingle",
-      "direction": "right",
-      "startFrac": 0.5831,
-      "endFrac": 0.6438,
-      "number": 10
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T12",
-      "direction": "left",
-      "startFrac": 0.6438,
-      "endFrac": 0.6735,
-      "number": 12
+      "number": 11,
+      "name": ""
     },
     {
-      "type": "straight",
+      "number": 12,
       "name": "",
-      "startFrac": 0.6735,
-      "endFrac": 0.8628
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T13",
-      "direction": "right",
-      "startFrac": 0.8628,
-      "endFrac": 0.9028,
-      "number": 13
+      "number": 13,
+      "name": "",
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T14",
-      "direction": "left",
-      "startFrac": 0.9028,
-      "endFrac": 0.9268,
-      "number": 14
-    },
+      "number": 14,
+      "name": "",
+      "direction": "left"
+    }
+  ],
+  "straights": [
     {
-      "type": "straight",
+      "after": 14,
       "name": "Wall of Champions",
-      "startFrac": 0.9268,
-      "endFrac": 1,
       "group": "Wall of Champions"
     }
   ]

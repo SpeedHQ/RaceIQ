@@ -46,7 +46,7 @@
   <line x1="699.0" y1="505.7" x2="721.4" y2="518.9" stroke="#d1d5db" stroke-width="1" />
   <text x="721.4" y="518.9" text-anchor="start" class="name" fill="#111827">T9</text>
   <line x1="716.6" y1="593.5" x2="734.8" y2="612.0" stroke="#d1d5db" stroke-width="1" />
-  <text x="734.8" y="612.0" text-anchor="start" class="name" fill="#111827">T10</text>
+  <text x="734.8" y="612.0" text-anchor="start" class="name" fill="#111827">T10 10a/10b Chicane</text>
   <line x1="667.4" y1="674.3" x2="678.9" y2="697.6" stroke="#d1d5db" stroke-width="1" />
   <text x="678.9" y="697.6" text-anchor="start" class="name" fill="#111827">T11</text>
   <line x1="549.6" y1="722.5" x2="550.6" y2="748.5" stroke="#d1d5db" stroke-width="1" />
@@ -54,6 +54,6 @@
 
   <rect x="475.7" y="687.4" width="10" height="10" fill="#111827" />
   <text x="492.7" y="696.4" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Road Atlanta — Short — fm-2023</text>
+  <text class="title" x="12" y="22">Road Atlanta — fm-2023</text>
   <text class="sub" x="12" y="40">12 corners, 2 straights, 14 segments, 2.851 km</text>
 </svg>

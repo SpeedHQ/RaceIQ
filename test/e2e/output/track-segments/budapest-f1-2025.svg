@@ -63,10 +63,7 @@
   <text x="590.6" y="741.5" text-anchor="start" class="name" fill="#111827">T14</text>
   <line x1="485.9" y1="667.0" x2="480.6" y2="692.5" stroke="#d1d5db" stroke-width="1" />
   <text x="480.6" y="692.5" text-anchor="end" class="name" fill="#6b7280">St4 120m</text>
-  <circle cx="627.1" cy="121.0" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="638.1" y="113.0" class="sector">S1 0.512</text>
-  <circle cx="747.4" cy="550.9" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="758.4" y="542.9" class="sector">S2 0.739</text>
+
   <rect x="457.2" y="642.5" width="10" height="10" fill="#111827" />
   <text x="474.2" y="651.5" class="sub">S/F</text>
   <text class="title" x="12" y="22">Hungaroring — f1-2025</text>

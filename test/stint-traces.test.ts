@@ -259,13 +259,12 @@ describe("stintStats", () => {
     expect(stats.degSlopeSPerLap).toBeUndefined();
   });
 
-  test("excludes the first (out) lap and invalid/legacy/excluded laps", () => {
+  test("excludes the first (out) lap and invalid/excluded laps", () => {
     const laps = [
       lapMeta({ id: 1, lapNumber: 1, lapTime: 100 }), // out-lap, excluded from scoring
       lapMeta({ id: 2, lapNumber: 2, lapTime: 90 }),
       lapMeta({ id: 3, lapNumber: 3, lapTime: 91 }),
       lapMeta({ id: 4, lapNumber: 4, lapTime: 200, isValid: false }), // invalid
-      lapMeta({ id: 5, lapNumber: 5, lapTime: 300, isLegacy: true }), // legacy
       lapMeta({ id: 6, lapNumber: 6, lapTime: 400, tuningExcluded: true }), // excluded
     ];
     const stats = stintStats(laps);

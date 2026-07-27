@@ -5,15 +5,56 @@ import { migrations } from "./migrations";
 import { mkdirSync, existsSync } from "fs";
 import { resolveDataDir } from "../data-dir";
 
+// Always resolve the data dir, even when the DB itself lives in memory: the
+// call doubles as the safety net that throws if a test run somehow reaches
+// here with DATA_DIR unset (see server/data-dir.ts), and sibling state such as
+// settings.json still lives on disk.
 const DB_DIR = resolveDataDir();
 const DB_PATH = `${DB_DIR}/forza-telemetry.db`;
+
+/**
+ * Opt-in only: set DB_IN_MEMORY=1. Tests deliberately do NOT default to this.
+ *
+ * `:memory:` in libsql is per-connection, not per-process. Migrations run on
+ * the connection this module opens; any second connection the client opens is
+ * a brand-new empty database, so queries there fail with "no such table: X"
+ * for whichever table they touch. A file: DB is shared across connections and
+ * does not have this failure mode.
+ *
+ * Measured on an 11-file subset: DB_IN_MEMORY=1 gave 59 pass / 18 fail (all
+ * "no such table"), the same files on the file DB gave 77 pass / 0 fail.
+ * Don't flip this default without re-running that comparison.
+ */
+const IN_MEMORY = process.env.DB_IN_MEMORY === "1";
 
 // Ensure data directory exists
 if (!existsSync(DB_DIR)) {
   mkdirSync(DB_DIR, { recursive: true });
 }
 
-const client: Client = createClient({ url: `file:${DB_PATH}` });
+const client: Client = createClient({ url: IN_MEMORY ? ":memory:" : `file:${DB_PATH}` });
+
+// Bindings are created synchronously so importing this module can never block
+// and `db` can never be observed in its temporal dead zone. All async setup
+// (PRAGMAs, migrations, backfills) moved into initDb() below.
+export const db = drizzle(client, { schema });
+export { client };
+
+let initPromise: Promise<void> | null = null;
+
+/**
+ * Idempotent async DB setup. Must be awaited once by every entry point before
+ * queries run: the server (server/index.ts), the test preload
+ * (test/setup-data-dir.ts), and standalone scripts.
+ *
+ * Previously this ran as top-level await in module scope. That made every
+ * importer of `db` wait on the module graph, so a SQLite/WAL lock here wedged
+ * the whole process before any test started — the per-test timeout could never
+ * fire — and any access to `db` while this was suspended threw
+ * "Cannot access 'db' before initialization".
+ */
+export function initDb(): Promise<void> {
+  if (!initPromise) initPromise = (async () => {
 
 // Enable WAL mode for better concurrent read/write performance
 await client.execute("PRAGMA journal_mode = WAL");
@@ -103,6 +144,6 @@ const orphanCleared = Number(orphanSession.rowsAffected ?? 0) + Number(orphanTes
 if (orphanCleared > 0) {
   console.log(`[DB] Cleared ${orphanCleared} orphaned tuning stamp(s) on laps (parent session/test gone)`);
 }
-
-export const db = drizzle(client, { schema });
-export { client };
+  })();
+  return initPromise;
+}

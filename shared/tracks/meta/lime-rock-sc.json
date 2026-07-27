@@ -1,175 +1,50 @@
 {
-  "name": "Lime Rock Park — South Chicane",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0501
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "right",
-          "startFrac": 0.0501,
-          "endFrac": 0.2221,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "left",
-          "startFrac": 0.2221,
-          "endFrac": 0.316,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "right",
-          "startFrac": 0.316,
-          "endFrac": 0.3847,
-          "number": 3
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3847,
-          "endFrac": 0.4442
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "right",
-          "startFrac": 0.4442,
-          "endFrac": 0.5172,
-          "number": 4
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "left",
-          "startFrac": 0.5172,
-          "endFrac": 0.5316,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "right",
-          "startFrac": 0.5316,
-          "endFrac": 0.6016,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "right",
-          "startFrac": 0.6016,
-          "endFrac": 0.7428,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "right",
-          "startFrac": 0.7428,
-          "endFrac": 0.8718,
-          "number": 8
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8718,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "lime-rock-sc",
+  "track": "lime-rock",
+  "layout": "south-chicane",
+  "layoutName": "South Chicane",
+  "name": "Lime Rock Park",
+  "source": "derived from track geometry (layout variant, sequential numbering)",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
+      "name": "Big Bend",
+      "direction": "right"
+    },
+    {
+      "number": 2,
+      "name": "The Esses",
+      "direction": "left"
+    },
+    {
+      "number": 3,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0501
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "right",
-      "startFrac": 0.0501,
-      "endFrac": 0.2221,
-      "number": 1
-    },
-    {
-      "type": "corner",
-      "name": "T2",
-      "direction": "left",
-      "startFrac": 0.2221,
-      "endFrac": 0.316,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "right",
-      "startFrac": 0.316,
-      "endFrac": 0.3847,
-      "number": 3
-    },
-    {
-      "type": "straight",
+      "number": 4,
       "name": "",
-      "startFrac": 0.3847,
-      "endFrac": 0.4442
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T4",
-      "direction": "right",
-      "startFrac": 0.4442,
-      "endFrac": 0.5172,
-      "number": 4
-    },
-    {
-      "type": "corner",
-      "name": "T5",
-      "direction": "left",
-      "startFrac": 0.5172,
-      "endFrac": 0.5316,
-      "number": 5
-    },
-    {
-      "type": "corner",
-      "name": "T6",
-      "direction": "right",
-      "startFrac": 0.5316,
-      "endFrac": 0.6016,
-      "number": 6
-    },
-    {
-      "type": "corner",
-      "name": "T7",
-      "direction": "right",
-      "startFrac": 0.6016,
-      "endFrac": 0.7428,
-      "number": 7
-    },
-    {
-      "type": "corner",
-      "name": "T8",
-      "direction": "right",
-      "startFrac": 0.7428,
-      "endFrac": 0.8718,
-      "number": 8
-    },
-    {
-      "type": "straight",
+      "number": 5,
       "name": "",
-      "startFrac": 0.8718,
-      "endFrac": 1
+      "direction": "left"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 7,
+      "name": "West Bend",
+      "direction": "right"
+    },
+    {
+      "number": 8,
+      "name": "Downhill",
+      "direction": "right"
     }
   ]
 }

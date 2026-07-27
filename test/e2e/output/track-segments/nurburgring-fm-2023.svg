@@ -72,12 +72,9 @@
   <text x="236.3" y="734.6" text-anchor="end" class="name" fill="#111827">T14</text>
   <line x1="338.9" y1="605.2" x2="318.8" y2="621.7" stroke="#d1d5db" stroke-width="1" />
   <text x="318.8" y="621.7" text-anchor="end" class="name" fill="#6b7280">St7 380m</text>
-  <circle cx="592.6" cy="207.6" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="603.6" y="199.6" class="sector">S1 0.339</text>
-  <circle cx="635.3" cy="456.4" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="646.3" y="448.4" class="sector">S2 0.636</text>
+
   <rect x="393.5" y="542.7" width="10" height="10" fill="#111827" />
   <text x="410.5" y="551.7" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Nürburgring Grand Prix Circuit — fm-2023</text>
+  <text class="title" x="12" y="22">Nürburgring — fm-2023</text>
   <text class="sub" x="12" y="40">14 corners, 7 straights, 21 segments, 5.064 km</text>
 </svg>

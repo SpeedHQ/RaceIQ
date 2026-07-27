@@ -66,10 +66,7 @@
   <text x="614.9" y="736.2" text-anchor="start" class="name" fill="#111827">T14</text>
   <line x1="506.5" y1="682.7" x2="503.8" y2="708.5" stroke="#d1d5db" stroke-width="1" />
   <text x="503.8" y="708.5" text-anchor="end" class="name" fill="#6b7280">St5 105m</text>
-  <circle cx="599.8" cy="113.2" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="610.8" y="105.2" class="sector">S1 0.517</text>
-  <circle cx="752.2" cy="544.6" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="763.2" y="536.6" class="sector">S2 0.748</text>
+
   <rect x="479.5" y="661.7" width="10" height="10" fill="#111827" />
   <text x="496.5" y="670.7" class="sub">S/F</text>
   <text class="title" x="12" y="22">Hungaroring — acc</text>

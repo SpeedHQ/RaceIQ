@@ -2,12 +2,26 @@
 //
 // Unit tests for the chat-generation helpers in server/ai/chat-agent.ts:
 // parseThreadGeneration, generationThreadId, listThreadGenerations, and
-// resolveActiveThread. The latter two are bound to the module's
-// `getChatMemory()` singleton, so this file mocks just that one export
-// (spreading through every other real export unchanged) to exercise them
-// against a fake in-memory thread store.
-import { describe, test, expect, mock } from "bun:test";
-import * as RealChatAgent from "../server/ai/chat-agent";
+// resolveActiveThread. The latter two probe a memory store, which they take as
+// an optional second argument, so this file just passes a fake in-memory thread
+// store — no module mocking involved.
+//
+// Do NOT reach for `mock.module` here. It is PROCESS-global in Bun and cannot
+// be undone, so a stubbed `getChatMemory()` leaks into every later test file in
+// the run. A previous version gated the stub on a `stubActive` flag that fell
+// back to the REAL `getChatMemory()` after this file's afterAll — which meant
+// the module-scope `memory: getChatMemory()` calls in mastra/agents/*.ts
+// (lap-chat, compare-chat, setup-engineer) ran through the stub and stood up
+// the real LibSQL-backed Mastra memory, whose open handles hung the test
+// process forever whenever this file ran before another file that loads those
+// agents (e.g. laps-issues-route.test.ts).
+import { describe, test, expect } from "bun:test";
+import {
+  parseThreadGeneration,
+  generationThreadId,
+  listThreadGenerations,
+  resolveActiveThread,
+} from "../server/ai/chat-agent";
 
 function makeFakeMemory(existingThreadIds: string[]) {
   const threads = new Set(existingThreadIds);
@@ -19,18 +33,6 @@ function makeFakeMemory(existingThreadIds: string[]) {
 }
 
 const fakeMemory = makeFakeMemory(["lap-42", "lap-42~g2"]);
-
-mock.module("../server/ai/chat-agent", () => ({
-  ...RealChatAgent,
-  getChatMemory: () => fakeMemory,
-}));
-
-const {
-  parseThreadGeneration,
-  generationThreadId,
-  listThreadGenerations,
-  resolveActiveThread,
-} = await import("../server/ai/chat-agent");
 
 describe("parseThreadGeneration", () => {
   test("bare base id is generation 1", () => {
@@ -74,7 +76,7 @@ describe("generationThreadId", () => {
 
 describe("listThreadGenerations (against a fake memory)", () => {
   test("lists existing generations oldest→newest, stopping at the first gap", async () => {
-    const gens = await listThreadGenerations("lap-42");
+    const gens = await listThreadGenerations("lap-42", fakeMemory);
     expect(gens).toEqual([
       { threadId: "lap-42", generation: 1 },
       { threadId: "lap-42~g2", generation: 2 },
@@ -82,17 +84,17 @@ describe("listThreadGenerations (against a fake memory)", () => {
   });
 
   test("empty when the base has never been chatted", async () => {
-    const gens = await listThreadGenerations("lap-999");
+    const gens = await listThreadGenerations("lap-999", fakeMemory);
     expect(gens).toEqual([]);
   });
 });
 
 describe("resolveActiveThread (against a fake memory)", () => {
   test("returns the newest existing generation", async () => {
-    expect(await resolveActiveThread("lap-42")).toBe("lap-42~g2");
+    expect(await resolveActiveThread("lap-42", fakeMemory)).toBe("lap-42~g2");
   });
 
   test("falls back to the base when nothing exists yet", async () => {
-    expect(await resolveActiveThread("lap-999")).toBe("lap-999");
+    expect(await resolveActiveThread("lap-999", fakeMemory)).toBe("lap-999");
   });
 });

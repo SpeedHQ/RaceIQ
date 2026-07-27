@@ -1,318 +1,99 @@
 {
+  "slug": "mexico-city",
+  "track": "mexico-city",
+  "layout": "gp",
+  "layoutName": "Grand Prix",
   "name": "Autodromo Hermanos Rodriguez",
-  "sectors": {
-    "s1End": 0.3,
-    "s2End": 0.692
-  },
-  "games": {
-    "f1-2025": {
-      "sectors": {
-        "s1End": 0.302,
-        "s2End": 0.69
-      },
-      "segments": [
-        {
-          "type": "straight",
-          "name": "Start/Finish",
-          "startFrac": 0,
-          "endFrac": 0.2503,
-          "group": "Start/Finish"
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "right",
-          "startFrac": 0.2503,
-          "endFrac": 0.2955,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "left",
-          "startFrac": 0.2955,
-          "endFrac": 0.3111,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "right",
-          "startFrac": 0.3111,
-          "endFrac": 0.3456,
-          "number": 3
-        },
-        {
-          "type": "straight",
-          "name": "Back Straight",
-          "startFrac": 0.3456,
-          "endFrac": 0.4454
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "left",
-          "startFrac": 0.4454,
-          "endFrac": 0.4897,
-          "number": 4
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "right",
-          "startFrac": 0.4897,
-          "endFrac": 0.5143,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "right",
-          "startFrac": 0.5143,
-          "endFrac": 0.5738,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "left",
-          "startFrac": 0.5738,
-          "endFrac": 0.6206,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "right",
-          "startFrac": 0.6206,
-          "endFrac": 0.6436,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "T9",
-          "direction": "left",
-          "startFrac": 0.6436,
-          "endFrac": 0.6781,
-          "number": 9
-        },
-        {
-          "type": "corner",
-          "name": "T10",
-          "direction": "right",
-          "startFrac": 0.6781,
-          "endFrac": 0.7125,
-          "number": 10
-        },
-        {
-          "type": "corner",
-          "name": "T11",
-          "direction": "left",
-          "startFrac": 0.7125,
-          "endFrac": 0.7413,
-          "number": 11
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.7413,
-          "endFrac": 0.817
-        },
-        {
-          "type": "corner",
-          "name": "Foro Sol",
-          "direction": "right",
-          "startFrac": 0.817,
-          "endFrac": 0.8733,
-          "number": 12
-        },
-        {
-          "type": "corner",
-          "name": "T13",
-          "direction": "left",
-          "startFrac": 0.8733,
-          "endFrac": 0.9021,
-          "number": 13
-        },
-        {
-          "type": "corner",
-          "name": "T14",
-          "direction": "right",
-          "startFrac": 0.9021,
-          "endFrac": 0.9235,
-          "number": 14
-        },
-        {
-          "type": "corner",
-          "name": "Peraltada",
-          "direction": "right",
-          "startFrac": 0.9235,
-          "endFrac": 0.9582,
-          "number": 15,
-          "covers": [
-            16,
-            17
-          ]
-        },
-        {
-          "type": "straight",
-          "name": "Start/Finish",
-          "startFrac": 0.9582,
-          "endFrac": 1,
-          "group": "Start/Finish"
-        }
-      ]
-    }
-  },
-  "segments": [
+  "source": "Official F1 track map (17 turns); Foro Sol stadium section",
+  "corners": [
     {
-      "type": "straight",
-      "name": "Start/Finish",
-      "startFrac": 0,
-      "endFrac": 0.2503,
-      "group": "Start/Finish"
-    },
-    {
-      "type": "corner",
-      "name": "T1",
-      "direction": "right",
-      "startFrac": 0.2503,
-      "endFrac": 0.2955,
-      "number": 1
-    },
-    {
-      "type": "corner",
-      "name": "T2",
-      "direction": "left",
-      "startFrac": 0.2955,
-      "endFrac": 0.3111,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "right",
-      "startFrac": 0.3111,
-      "endFrac": 0.3456,
-      "number": 3
-    },
-    {
-      "type": "straight",
-      "name": "Back Straight",
-      "startFrac": 0.3456,
-      "endFrac": 0.4454
-    },
-    {
-      "type": "corner",
-      "name": "T4",
-      "direction": "left",
-      "startFrac": 0.4454,
-      "endFrac": 0.4897,
-      "number": 4
-    },
-    {
-      "type": "corner",
-      "name": "T5",
-      "direction": "right",
-      "startFrac": 0.4897,
-      "endFrac": 0.5143,
-      "number": 5
-    },
-    {
-      "type": "corner",
-      "name": "T6",
-      "direction": "right",
-      "startFrac": 0.5143,
-      "endFrac": 0.5738,
-      "number": 6
-    },
-    {
-      "type": "corner",
-      "name": "T7",
-      "direction": "left",
-      "startFrac": 0.5738,
-      "endFrac": 0.6206,
-      "number": 7
-    },
-    {
-      "type": "corner",
-      "name": "T8",
-      "direction": "right",
-      "startFrac": 0.6206,
-      "endFrac": 0.6436,
-      "number": 8
-    },
-    {
-      "type": "corner",
-      "name": "T9",
-      "direction": "left",
-      "startFrac": 0.6436,
-      "endFrac": 0.6781,
-      "number": 9
-    },
-    {
-      "type": "corner",
-      "name": "T10",
-      "direction": "right",
-      "startFrac": 0.6781,
-      "endFrac": 0.7125,
-      "number": 10
-    },
-    {
-      "type": "corner",
-      "name": "T11",
-      "direction": "left",
-      "startFrac": 0.7125,
-      "endFrac": 0.7413,
-      "number": 11
-    },
-    {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0.7413,
-      "endFrac": 0.817
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 2,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 3,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 4,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 5,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 9,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 10,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 11,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 12,
       "name": "Foro Sol",
-      "direction": "right",
-      "startFrac": 0.817,
-      "endFrac": 0.8733,
-      "number": 12
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T13",
-      "direction": "left",
-      "startFrac": 0.8733,
-      "endFrac": 0.9021,
-      "number": 13
+      "number": 13,
+      "name": "",
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T14",
-      "direction": "right",
-      "startFrac": 0.9021,
-      "endFrac": 0.9235,
-      "number": 14
+      "number": 14,
+      "name": "",
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "Peraltada",
-      "direction": "right",
-      "startFrac": 0.9235,
-      "endFrac": 0.9582,
       "number": 15,
       "covers": [
         16,
         17
-      ]
+      ],
+      "name": "Peraltada",
+      "direction": "right"
+    }
+  ],
+  "straights": [
+    {
+      "after": 3,
+      "name": "Back Straight"
     },
     {
-      "type": "straight",
+      "after": 15,
       "name": "Start/Finish",
-      "startFrac": 0.9582,
-      "endFrac": 1,
       "group": "Start/Finish"
     }
   ]

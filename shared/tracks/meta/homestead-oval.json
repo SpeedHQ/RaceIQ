@@ -1,91 +1,26 @@
 {
-  "name": "Homestead-Miami Speedway (Oval)",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0981
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "left",
-          "startFrac": 0.0981,
-          "endFrac": 0.3791,
-          "number": 1,
-          "covers": [
-            2
-          ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3791,
-          "endFrac": 0.6177
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "left",
-          "startFrac": 0.6177,
-          "endFrac": 0.8654,
-          "number": 3,
-          "covers": [
-            4
-          ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8654,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "homestead-oval",
+  "track": "homestead",
+  "layout": "speedway",
+  "layoutName": "Speedway",
+  "name": "Homestead-Miami Speedway",
+  "source": "derived from track geometry (no official corner names)",
+  "corners": [
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0981
-    },
-    {
-      "type": "corner",
-      "name": "T1",
-      "direction": "left",
-      "startFrac": 0.0981,
-      "endFrac": 0.3791,
       "number": 1,
       "covers": [
         2
-      ]
-    },
-    {
-      "type": "straight",
+      ],
       "name": "",
-      "startFrac": 0.3791,
-      "endFrac": 0.6177
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T3",
-      "direction": "left",
-      "startFrac": 0.6177,
-      "endFrac": 0.8654,
       "number": 3,
       "covers": [
         4
-      ]
-    },
-    {
-      "type": "straight",
+      ],
       "name": "",
-      "startFrac": 0.8654,
-      "endFrac": 1
+      "direction": "left"
     }
   ]
 }

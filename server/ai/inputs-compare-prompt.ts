@@ -9,8 +9,8 @@ import { getCarName, getTrackName } from "../../shared/car-data";
 import type { GameId } from "../../shared/types";
 import { compareLapHeader } from "./compare-engineer";
 import { buildTrackGuideContext } from "./track-guides";
-import { tryGetServerGame } from "../games/registry";
-import { segmentDisplayNames } from "../../shared/segment-label";
+import { resolveTrack } from "../track-info";
+import { segmentPromptNames } from "../../shared/segment-label";
 
 /**
  * Zod schema for the per-segment inputs comparison output.
@@ -296,12 +296,8 @@ export function buildInputsComparePrompt(
   const carA = getCarName(lapA.carOrdinal ?? 0);
   const carB = getCarName(lapB.carOrdinal ?? 0);
   const trackName = getTrackName(lapA.trackOrdinal ?? 0);
-  // Resolve the meta slug so the guide names corners the way meta does.
-  const trackSlug =
-    lapA.trackOrdinal != null && lapA.gameId
-      ? (tryGetServerGame(lapA.gameId)?.getSharedTrackName?.(lapA.trackOrdinal) ?? undefined)
-      : undefined;
-  const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName, { slug: trackSlug, gameId: lapA.gameId });
+  const { slug } = resolveTrack(lapA.gameId, lapA.trackOrdinal);
+  const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName, { slug });
   const finalDelta = comparison.timeDelta[comparison.timeDelta.length - 1] ?? 0;
 
   const useSegs = segments && segments.length > 0 ? segments : fallbackSegments(8);
@@ -320,10 +316,12 @@ export function buildInputsComparePrompt(
     timeB: number;
     delta: number;
   }[] = [];
-  // Label corners exactly as the track map and the expert guide do — "Eau
-  // Rouge/Raidillon (2-4)", not a bare name — so every part of the prompt
-  // refers to a corner by the same string.
-  const segLabels = segmentDisplayNames(useSegs);
+  // Label corners exactly as the analyst prompt and the expert guide do — "Eau
+  // Rouge/Raidillon (2-4)", not the map's "T2-4 Eau Rouge/Raidillon" — so every
+  // part of the prompt refers to a corner by the same string. Per *entry*, not
+  // per piece: each row below is one timed segment, so a grouped complex needs
+  // a label on every apex rather than a blank after the first.
+  const segLabels = segmentPromptNames(useSegs);
   for (const [segIdx, seg] of useSegs.entries()) {
     const segLabel = segLabels[segIdx];
     const startD = startDist + seg.startFrac * totalDist;

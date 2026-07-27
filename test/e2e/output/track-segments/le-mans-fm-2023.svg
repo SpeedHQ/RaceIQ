@@ -108,12 +108,9 @@
   <text x="669.9" y="560.7" text-anchor="start" class="name" fill="#111827">T25 Ford Chicane 2</text>
   <line x1="655.6" y1="555.3" x2="673.0" y2="574.7" stroke="#d1d5db" stroke-width="1" />
   <text x="673.0" y="574.7" text-anchor="start" class="name" fill="#111827">T26</text>
-  <circle cx="413.5" cy="448.5" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="424.5" y="440.5" class="sector">S1 0.330</text>
-  <circle cx="487.8" cy="131.2" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="498.8" y="123.2" class="sector">S2 0.660</text>
+
   <rect x="649.8" y="562.2" width="10" height="10" fill="#111827" />
   <text x="666.8" y="571.2" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Circuit de la Sarthe (Le Mans) — fm-2023</text>
+  <text class="title" x="12" y="22">Circuit de la Sarthe — fm-2023</text>
   <text class="sub" x="12" y="40">26 corners, 7 straights, 33 segments, 13.614 km</text>
 </svg>

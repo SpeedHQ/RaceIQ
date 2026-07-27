@@ -24,9 +24,9 @@
   <line x1="685.9" y1="517.4" x2="708.9" y2="529.7" stroke="#d1d5db" stroke-width="1" />
   <text x="708.9" y="529.7" text-anchor="start" class="name" fill="#6b7280">St1 122m</text>
   <line x1="609.6" y1="619.0" x2="622.5" y2="641.6" stroke="#d1d5db" stroke-width="1" />
-  <text x="622.5" y="641.6" text-anchor="start" class="name" fill="#111827">T1</text>
+  <text x="622.5" y="641.6" text-anchor="start" class="name" fill="#111827">T1 Abbey</text>
   <line x1="445.5" y1="633.8" x2="440.0" y2="659.2" stroke="#d1d5db" stroke-width="1" />
-  <text x="440.0" y="659.2" text-anchor="end" class="name" fill="#111827">T2</text>
+  <text x="440.0" y="659.2" text-anchor="end" class="name" fill="#111827">T2 Farm Curve</text>
   <line x1="333.6" y1="719.6" x2="321.6" y2="742.7" stroke="#d1d5db" stroke-width="1" />
   <text x="321.6" y="742.7" text-anchor="end" class="name" fill="#111827">T3</text>
   <line x1="280.7" y1="644.5" x2="263.1" y2="663.6" stroke="#d1d5db" stroke-width="1" />
@@ -36,18 +36,18 @@
   <line x1="312.5" y1="363.5" x2="287.5" y2="356.4" stroke="#d1d5db" stroke-width="1" />
   <text x="287.5" y="356.4" text-anchor="end" class="name" fill="#6b7280">St2 610m</text>
   <line x1="488.7" y1="80.6" x2="488.4" y2="54.6" stroke="#d1d5db" stroke-width="1" />
-  <text x="488.4" y="54.6" text-anchor="end" class="name" fill="#111827">T6</text>
+  <text x="488.4" y="54.6" text-anchor="end" class="name" fill="#111827">T6 Stowe</text>
   <line x1="608.2" y1="188.9" x2="620.1" y2="165.8" stroke="#d1d5db" stroke-width="1" />
   <text x="620.1" y="165.8" text-anchor="start" class="name" fill="#6b7280">St3 115m</text>
   <line x1="675.0" y1="261.8" x2="694.9" y2="245.1" stroke="#d1d5db" stroke-width="1" />
-  <text x="694.9" y="245.1" text-anchor="start" class="name" fill="#111827">T7</text>
+  <text x="694.9" y="245.1" text-anchor="start" class="name" fill="#111827">T7 Vale</text>
   <line x1="792.2" y1="321.1" x2="817.0" y2="313.4" stroke="#d1d5db" stroke-width="1" />
-  <text x="817.0" y="313.4" text-anchor="start" class="name" fill="#111827">T8</text>
+  <text x="817.0" y="313.4" text-anchor="start" class="name" fill="#111827">T8 Club</text>
   <line x1="738.5" y1="447.7" x2="764.2" y2="451.1" stroke="#d1d5db" stroke-width="1" />
   <text x="764.2" y="451.1" text-anchor="start" class="name" fill="#6b7280">St4 146m</text>
 
   <rect x="704.7" y="480.5" width="10" height="10" fill="#111827" />
   <text x="721.7" y="489.5" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Silverstone — International — fm-2023</text>
+  <text class="title" x="12" y="22">Silverstone Racing Circuit — fm-2023</text>
   <text class="sub" x="12" y="40">8 corners, 4 straights, 12 segments, 2.967 km</text>
 </svg>

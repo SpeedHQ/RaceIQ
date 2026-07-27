@@ -44,13 +44,13 @@
   <line x1="371.2" y1="682.5" x2="354.6" y2="702.5" stroke="#d1d5db" stroke-width="1" />
   <text x="354.6" y="702.5" text-anchor="end" class="name" fill="#6b7280">St1 220m</text>
   <line x1="290.7" y1="628.7" x2="269.0" y2="643.1" stroke="#d1d5db" stroke-width="1" />
-  <text x="269.0" y="643.1" text-anchor="end" class="name" fill="#111827">T1</text>
+  <text x="269.0" y="643.1" text-anchor="end" class="name" fill="#111827">T1 Horseshoe</text>
   <line x1="345.5" y1="625.4" x2="325.4" y2="641.8" stroke="#d1d5db" stroke-width="1" />
   <text x="325.4" y="641.8" text-anchor="end" class="name" fill="#6b7280">St2 156m</text>
   <line x1="410.1" y1="662.9" x2="394.8" y2="683.9" stroke="#d1d5db" stroke-width="1" />
-  <text x="394.8" y="683.9" text-anchor="end" class="name" fill="#111827">T2</text>
+  <text x="394.8" y="683.9" text-anchor="end" class="name" fill="#111827">T2 NASCAR Bend</text>
   <line x1="439.8" y1="600.1" x2="423.2" y2="620.1" stroke="#d1d5db" stroke-width="1" />
-  <text x="423.2" y="620.1" text-anchor="end" class="name" fill="#111827">T3</text>
+  <text x="423.2" y="620.1" text-anchor="end" class="name" fill="#111827">T3 Left Hook</text>
   <line x1="406.6" y1="558.9" x2="385.4" y2="574.0" stroke="#d1d5db" stroke-width="1" />
   <text x="385.4" y="574.0" text-anchor="end" class="name" fill="#111827">T4</text>
   <line x1="436.6" y1="509.9" x2="413.4" y2="521.7" stroke="#d1d5db" stroke-width="1" />
@@ -58,17 +58,17 @@
   <line x1="490.9" y1="426.2" x2="465.3" y2="421.5" stroke="#d1d5db" stroke-width="1" />
   <text x="465.3" y="421.5" text-anchor="end" class="name" fill="#6b7280">St3 404m</text>
   <line x1="551.3" y1="331.4" x2="546.6" y2="305.8" stroke="#d1d5db" stroke-width="1" />
-  <text x="546.6" y="305.8" text-anchor="end" class="name" fill="#111827">T6</text>
+  <text x="546.6" y="305.8" text-anchor="end" class="name" fill="#111827">T6 Climbing Esses</text>
   <line x1="579.2" y1="283.3" x2="580.5" y2="257.3" stroke="#d1d5db" stroke-width="1" />
   <text x="580.5" y="257.3" text-anchor="start" class="name" fill="#111827">T7</text>
   <line x1="601.7" y1="240.2" x2="605.5" y2="214.5" stroke="#d1d5db" stroke-width="1" />
   <text x="605.5" y="214.5" text-anchor="start" class="name" fill="#111827">T8</text>
   <line x1="654.5" y1="194.2" x2="662.8" y2="169.5" stroke="#d1d5db" stroke-width="1" />
-  <text x="662.8" y="169.5" text-anchor="start" class="name" fill="#111827">T9</text>
+  <text x="662.8" y="169.5" text-anchor="start" class="name" fill="#111827">T9 South Bend</text>
   <line x1="664.2" y1="132.0" x2="671.7" y2="107.1" stroke="#d1d5db" stroke-width="1" />
   <text x="671.7" y="107.1" text-anchor="start" class="name" fill="#6b7280">St4 127m</text>
   <line x1="697.8" y1="77.6" x2="706.3" y2="53.0" stroke="#d1d5db" stroke-width="1" />
-  <text x="706.3" y="53.0" text-anchor="start" class="name" fill="#111827">T10</text>
+  <text x="706.3" y="53.0" text-anchor="start" class="name" fill="#111827">T10 Oak Tree</text>
   <line x1="712.9" y1="239.7" x2="727.8" y2="218.4" stroke="#d1d5db" stroke-width="1" />
   <text x="727.8" y="218.4" text-anchor="start" class="name" fill="#6b7280">St5 683m</text>
   <line x1="693.0" y1="424.4" x2="718.8" y2="420.9" stroke="#d1d5db" stroke-width="1" />
@@ -102,12 +102,12 @@
   <line x1="641.5" y1="643.8" x2="650.0" y2="668.4" stroke="#d1d5db" stroke-width="1" />
   <text x="650.0" y="668.4" text-anchor="start" class="name" fill="#111827">T24</text>
   <line x1="635.6" y1="707.4" x2="641.7" y2="732.7" stroke="#d1d5db" stroke-width="1" />
-  <text x="641.7" y="732.7" text-anchor="start" class="name" fill="#111827">T25</text>
+  <text x="641.7" y="732.7" text-anchor="start" class="name" fill="#111827">T25 Hog Pen</text>
   <line x1="497.1" y1="718.8" x2="490.4" y2="743.9" stroke="#d1d5db" stroke-width="1" />
   <text x="490.4" y="743.9" text-anchor="end" class="name" fill="#6b7280">St7 498m</text>
 
   <rect x="402.7" y="696.4" width="10" height="10" fill="#111827" />
   <text x="419.7" y="705.4" class="sub">S/F</text>
-  <text class="title" x="12" y="22">VIR — Grand West — fm-2023</text>
+  <text class="title" x="12" y="22">Virginia International Raceway — fm-2023</text>
   <text class="sub" x="12" y="40">25 corners, 7 straights, 32 segments, 6.633 km</text>
 </svg>

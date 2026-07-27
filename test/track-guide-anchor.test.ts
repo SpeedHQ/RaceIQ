@@ -21,24 +21,25 @@ initServerGameAdapters();
 
 const META_DIR = resolve(import.meta.dir, "../shared/tracks/meta");
 
-type Seg = { type: string; name?: string; number?: number; covers?: number[] };
+type Corner = { number: number; covers?: number[]; name: string; direction?: string; group?: string };
+type Facts = { corners?: Corner[] };
 
-/** Official turn numbers a meta segment accounts for (name is optional here). */
-const numsOf = (s: Seg) => turnNumbers({ number: s.number, covers: s.covers });
-type Meta = { segments?: Seg[]; games?: Record<string, { segments?: Seg[] }> };
+/** Official turn numbers a corner accounts for. */
+const numsOf = (c: Corner) => turnNumbers({ number: c.number, covers: c.covers });
 
-function loadMeta(slug: string): Meta | null {
+function loadFacts(slug: string): Facts | null {
   const p = resolve(META_DIR, `${slug}.json`);
   if (!existsSync(p)) return null;
-  return JSON.parse(readFileSync(p, "utf8")) as Meta;
+  return JSON.parse(readFileSync(p, "utf8")) as Facts;
 }
 
-/** Every turn number meta knows about for a slug, across shared + per-game sets. */
-function knownTurns(meta: Meta): Set<number> {
+/**
+ * Every turn number the layout has. One set, not a union across games — the
+ * corner list is a property of the circuit now, so there is nothing to union.
+ */
+function knownTurns(facts: Facts): Set<number> {
   const out = new Set<number>();
-  const add = (segs?: Seg[]) => (segs ?? []).forEach((s) => numsOf(s).forEach((n) => out.add(n)));
-  add(meta.segments);
-  for (const g of Object.values(meta.games ?? {})) add(g.segments);
+  for (const c of facts.corners ?? []) for (const n of numsOf(c)) out.add(n);
   return out;
 }
 
@@ -98,6 +99,21 @@ const KNOWN_ANCHOR_GAPS: Record<string, string[]> = {
   // meta numbering is self-inconsistent here: New Holland is 16 while T14 is
   // 14, and 13/15 are absent. The post-2023 layout has 14 turns.
   catalunya: ["Turn 12-13", "Turn 14-15"],
+  // shared/tracks/meta/fuji.json is auto-seeded from AC Evo's racing line: 9
+  // unnamed regions for a 16-turn circuit, numbered T1..T9 sequentially, so its
+  // numbering is not the circuit's. Anchoring the guide to it would coach
+  // "TGR Corner" as meta's T1 (a left) instead of the real Turn 1 (a right).
+  // Needs a curated corner-name list before it can be anchored.
+  fuji: [
+    "TGR Corner",
+    "Coca-Cola Corner",
+    "Toyopet 100R",
+    "Advan Corner",
+    "300R",
+    "Dunlop Corner",
+    "GR Supra Corner",
+    "Panasonic Corner",
+  ],
 
   // Region spans several meta segments, so no single segment to anchor to.
   "yas-marina": ["Hotel Corners", "Marina Section"],
@@ -174,15 +190,15 @@ describe("track guide turn-number anchors", () => {
   test("every anchored turn exists in that track's meta", () => {
     const offenders: string[] = [];
     for (const a of anchors) {
-      const meta = loadMeta(a.slug);
-      if (!meta) {
-        offenders.push(`${a.slug} :: ${a.name} — anchored but no meta file`);
+      const facts = loadFacts(a.slug);
+      if (!facts) {
+        offenders.push(`${a.slug} :: ${a.name} — anchored but no facts file`);
         continue;
       }
-      const turns = knownTurns(meta);
+      const turns = knownTurns(facts);
       const missing = a.numbers.filter((n) => !turns.has(n));
       if (missing.length) {
-        offenders.push(`${a.slug} :: ${a.name} — meta has no turn ${missing.join(", ")}`);
+        offenders.push(`${a.slug} :: ${a.name} — layout has no turn ${missing.join(", ")}`);
       }
     }
     expect(offenders).toEqual([]);
@@ -232,15 +248,20 @@ describe("guide entries sharing a meta segment are a known set", () => {
 
     const actual: string[] = [];
     for (const [slug, entries] of bySlug) {
-      const meta = loadMeta(slug);
-      if (!meta) continue;
-      const games = Object.keys(meta.games ?? {});
-      const segs = (games.length ? meta.games![games[0]].segments : meta.segments) ?? [];
+      const facts = loadFacts(slug);
+      if (!facts) continue;
+      // A guide entry collides with another when both render into the same
+      // bullet. Facts keep Eau Rouge and Raidillon as two real turns and tie
+      // them with a `group`, and the guide collapses a group to one label — so
+      // the group is the collision surface, falling back to the corner itself
+      // when it belongs to no group.
       const labelOf = new Map<number, string>();
-      for (const s of segs) {
-        const nums = numsOf(s);
-        if (s.type !== "corner" || nums.length === 0 || !s.name) continue;
-        for (const n of nums) labelOf.set(n, `${s.name}|${nums.join(",")}`);
+      for (const c of facts.corners ?? []) {
+        const nums = numsOf(c);
+        if (nums.length === 0) continue;
+        // An unnamed corner is still one bullet, so it identifies by the same
+        // synthesized token the guide renders (`T8-9`) rather than dropping out.
+        for (const n of nums) labelOf.set(n, c.group ?? `${c.name || `T${nums.join("-")}`}|${nums.join(",")}`);
       }
       const grouped = new Map<string, string[]>();
       for (const e of entries) {
@@ -366,7 +387,7 @@ describe("guide corner naming defers to meta", () => {
   test("Monaco: guide's own names give way to meta's", () => {
     // The guide says "Swimming Pool" and "Grand Hotel Hairpin"; meta (and so
     // the track map, and the prompt's corner whitelist) say Piscine / Fairmont.
-    const out = buildTrackGuideContext("Monaco", { slug: "monaco", gameId: "f1-2025" });
+    const out = buildTrackGuideContext("Monaco", { slug: "monaco" });
     expect(out).toContain("Piscine (14-15)");
     expect(out).toContain("Fairmont Hairpin (6)");
     expect(out).not.toContain("Swimming Pool");
@@ -374,13 +395,13 @@ describe("guide corner naming defers to meta", () => {
   });
 
   test("Spa: accent/article drift resolves to the meta spelling", () => {
-    const out = buildTrackGuideContext("Spa", { slug: "spa", gameId: "f1-2025" });
+    const out = buildTrackGuideContext("Spa", { slug: "spa" });
     // Guide spells it "Fagnes"; meta spells it "Les Fagnes".
     expect(out).toContain("Les Fagnes");
   });
 
   test("priority corners use the same labels as the corner list", () => {
-    const out = buildTrackGuideContext("Monaco", { slug: "monaco", gameId: "f1-2025" });
+    const out = buildTrackGuideContext("Monaco", { slug: "monaco" });
     const priority = out.split("Priority corners (most impactful on lap time): ")[1]?.split("\n")[0] ?? "";
     expect(priority).toContain("Fairmont Hairpin (6)");
     // A priority entry naming a corner the list above labels differently would
@@ -397,8 +418,8 @@ describe("guide corner naming defers to meta", () => {
   });
 
   test("guideCornerLabels matches the labels the context block emits", () => {
-    const labels = guideCornerLabels("Monaco", { slug: "monaco", gameId: "f1-2025" });
-    const out = buildTrackGuideContext("Monaco", { slug: "monaco", gameId: "f1-2025" });
+    const labels = guideCornerLabels("Monaco", { slug: "monaco" });
+    const out = buildTrackGuideContext("Monaco", { slug: "monaco" });
     expect(labels.length).toBeGreaterThan(0);
     for (const l of labels) expect(out).toContain(`• ${l} [`);
   });
@@ -411,7 +432,7 @@ describe("guide corner naming defers to meta", () => {
   test("meta merging two corners into one segment emits one bullet", () => {
     // Monaco meta has a single "Rascasse / Antony Noghès" segment; the guide
     // coaches the two separately. Printing both would read as two corners.
-    const out = buildTrackGuideContext("Monaco", { slug: "monaco", gameId: "f1-2025" });
+    const out = buildTrackGuideContext("Monaco", { slug: "monaco" });
     const occurrences = out.split("• Rascasse / Antony Noghès (18-19) [").length - 1;
     expect(occurrences).toBe(1);
   });

@@ -1,191 +1,52 @@
 {
-  "name": "WeatherTech Raceway Laguna Seca — Short",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0973
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "left",
-          "startFrac": 0.0973,
-          "endFrac": 0.1908,
-          "number": 1
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.1908,
-          "endFrac": 0.2439
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "left",
-          "startFrac": 0.2439,
-          "endFrac": 0.3754,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "left",
-          "startFrac": 0.3754,
-          "endFrac": 0.4614,
-          "number": 3
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.4614,
-          "endFrac": 0.5508
-        },
-        {
-          "type": "corner",
-          "name": "Corkscrew",
-          "direction": "left",
-          "startFrac": 0.5508,
-          "endFrac": 0.6139,
-          "number": 4,
-          "group": "Corkscrew"
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "right",
-          "startFrac": 0.6139,
-          "endFrac": 0.6659,
-          "number": 5,
-          "group": "Corkscrew"
-        },
-        {
-          "type": "corner",
-          "name": "Rainey Curve",
-          "direction": "left",
-          "startFrac": 0.6659,
-          "endFrac": 0.7451,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "right",
-          "startFrac": 0.7451,
-          "endFrac": 0.8395,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "T8",
-          "direction": "left",
-          "startFrac": 0.8395,
-          "endFrac": 0.9189,
-          "number": 8
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9189,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "laguna-seca-s",
+  "track": "laguna-seca",
+  "layout": "short",
+  "layoutName": "Short",
+  "name": "WeatherTech Raceway Laguna Seca",
+  "source": "Parent circuit names on shared corners; sequential numbering",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0973
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "left",
-      "startFrac": 0.0973,
-      "endFrac": 0.1908,
-      "number": 1
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.1908,
-      "endFrac": 0.2439
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T2",
-      "direction": "left",
-      "startFrac": 0.2439,
-      "endFrac": 0.3754,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "left",
-      "startFrac": 0.3754,
-      "endFrac": 0.4614,
-      "number": 3
-    },
-    {
-      "type": "straight",
+      "number": 3,
       "name": "",
-      "startFrac": 0.4614,
-      "endFrac": 0.5508
+      "direction": "left"
     },
     {
-      "type": "corner",
+      "number": 4,
       "name": "Corkscrew",
       "direction": "left",
-      "startFrac": 0.5508,
-      "endFrac": 0.6139,
-      "number": 4,
       "group": "Corkscrew"
     },
     {
-      "type": "corner",
-      "name": "T5",
-      "direction": "right",
-      "startFrac": 0.6139,
-      "endFrac": 0.6659,
       "number": 5,
+      "name": "Corkscrew",
+      "direction": "right",
       "group": "Corkscrew"
     },
     {
-      "type": "corner",
+      "number": 6,
       "name": "Rainey Curve",
-      "direction": "left",
-      "startFrac": 0.6659,
-      "endFrac": 0.7451,
-      "number": 6
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T7",
-      "direction": "right",
-      "startFrac": 0.7451,
-      "endFrac": 0.8395,
-      "number": 7
-    },
-    {
-      "type": "corner",
-      "name": "T8",
-      "direction": "left",
-      "startFrac": 0.8395,
-      "endFrac": 0.9189,
-      "number": 8
-    },
-    {
-      "type": "straight",
+      "number": 7,
       "name": "",
-      "startFrac": 0.9189,
-      "endFrac": 1
+      "direction": "right"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "left"
     }
   ]
 }

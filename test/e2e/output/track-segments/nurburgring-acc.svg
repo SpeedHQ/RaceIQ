@@ -69,12 +69,9 @@
   <text x="764.6" y="71.7" text-anchor="start" class="name" fill="#111827">T14</text>
   <line x1="699.5" y1="158.3" x2="719.4" y2="141.5" stroke="#d1d5db" stroke-width="1" />
   <text x="719.4" y="141.5" text-anchor="start" class="name" fill="#6b7280">St6 160m</text>
-  <circle cx="413.2" cy="592.3" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="424.2" y="584.3" class="sector">S1 0.381</text>
-  <circle cx="365.3" cy="344.0" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="376.3" y="336.0" class="sector">S2 0.683</text>
+
   <rect x="669.2" y="177.7" width="10" height="10" fill="#111827" />
   <text x="686.2" y="186.7" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Nürburgring Grand Prix Circuit — acc</text>
+  <text class="title" x="12" y="22">Nürburgring — acc</text>
   <text class="sub" x="12" y="40">14 corners, 6 straights, 20 segments, 5.060 km</text>
 </svg>

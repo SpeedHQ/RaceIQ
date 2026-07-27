@@ -1,7 +1,8 @@
 {
+  "slug": "sochi",
+  "track": "sochi",
+  "layout": "full",
+  "layoutName": "Full",
   "name": "Sochi Autodrom",
-  "sectors": {
-    "s1End": 0.33,
-    "s2End": 0.66
-  }
+  "corners": []
 }

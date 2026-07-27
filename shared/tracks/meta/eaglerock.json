@@ -1,91 +1,35 @@
 {
-  "name": "Eaglerock Speedway (Full)",
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "left",
-          "startFrac": 0,
-          "endFrac": 0.4102,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "left",
-          "startFrac": 0.4102,
-          "endFrac": 0.4709,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "right",
-          "startFrac": 0.4709,
-          "endFrac": 0.5327,
-          "number": 3
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "left",
-          "startFrac": 0.5327,
-          "endFrac": 0.6015,
-          "number": 4
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "left",
-          "startFrac": 0.6015,
-          "endFrac": 1,
-          "number": 5
-        }
-      ]
-    }
-  },
-  "segments": [
+  "slug": "eaglerock",
+  "track": "eaglerock",
+  "layout": "club",
+  "layoutName": "Club",
+  "name": "Eaglerock Speedway",
+  "source": "derived from track geometry (no official corner names)",
+  "corners": [
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "left",
-      "startFrac": 0,
-      "endFrac": 0.4102,
-      "number": 1
+      "number": 1,
+      "name": "",
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T2",
-      "direction": "left",
-      "startFrac": 0.4102,
-      "endFrac": 0.4709,
-      "number": 2
+      "number": 2,
+      "name": "",
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T3",
-      "direction": "right",
-      "startFrac": 0.4709,
-      "endFrac": 0.5327,
-      "number": 3
+      "number": 3,
+      "name": "",
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T4",
-      "direction": "left",
-      "startFrac": 0.5327,
-      "endFrac": 0.6015,
-      "number": 4
+      "number": 4,
+      "name": "",
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T5",
-      "direction": "left",
-      "startFrac": 0.6015,
-      "endFrac": 1,
-      "number": 5
+      "number": 5,
+      "name": "",
+      "direction": "left"
     }
   ]
 }

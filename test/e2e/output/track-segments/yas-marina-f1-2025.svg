@@ -47,7 +47,7 @@
   <line x1="149.3" y1="370.4" x2="123.8" y2="375.6" stroke="#d1d5db" stroke-width="1" />
   <text x="123.8" y="375.6" text-anchor="end" class="name" fill="#6b7280">Second Straight</text>
   <line x1="136.2" y1="654.4" x2="119.8" y2="674.6" stroke="#d1d5db" stroke-width="1" />
-  <text x="119.8" y="674.6" text-anchor="start" class="name" fill="#111827">T9–T8 Banked Hairpin</text>
+  <text x="119.8" y="674.6" text-anchor="start" class="name" fill="#111827">T8–T9 Banked Hairpin</text>
   <line x1="150.8" y1="500.4" x2="129.6" y2="515.5" stroke="#d1d5db" stroke-width="1" />
   <text x="129.6" y="515.5" text-anchor="end" class="name" fill="#111827">T10</text>
   <line x1="169.7" y1="418.4" x2="145.7" y2="428.5" stroke="#d1d5db" stroke-width="1" />
@@ -60,10 +60,7 @@
   <text x="238.9" y="274.5" text-anchor="end" class="name" fill="#111827">T14</text>
   <line x1="352.0" y1="194.2" x2="341.2" y2="170.5" stroke="#d1d5db" stroke-width="1" />
   <text x="341.2" y="170.5" text-anchor="end" class="name" fill="#111827">T15–T16 T15</text>
-  <circle cx="848.3" cy="146.3" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="859.3" y="138.3" class="sector">S1 0.298</text>
-  <circle cx="163.4" cy="550.1" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="174.4" y="542.1" class="sector">S2 0.758</text>
+
   <rect x="381.3" y="256.0" width="10" height="10" fill="#111827" />
   <text x="398.3" y="265.0" class="sub">S/F</text>
   <text class="title" x="12" y="22">Yas Marina Circuit — f1-2025</text>

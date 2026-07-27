@@ -19,12 +19,6 @@ import { injectDiscoveredAcEvoCars } from "../shared/ac-evo-car-data";
 initGameAdapters();
 initServerGameAdapters();
 
-// Promote any discovered_cars rows whose name has since landed in cars.csv,
-// then load whatever's left into the in-memory name-resolution map so
-// getAcEvoCarName()/getCarName() resolve runtime-discovered cars immediately.
-await reconcileDiscoveredCars();
-injectDiscoveredAcEvoCars(await listDiscoveredCars("ac-evo"));
-
 import { existsSync } from "fs";
 import { resolve } from "path";
 import { PUBLIC_DIR, IS_COMPILED } from "./paths";
@@ -64,9 +58,20 @@ if (recordingGameId) {
   console.log(`[Server] Recording mode enabled for game: ${recordingGameId}`);
 }
 
-// Import DB to ensure schema is created on startup
-import "./db/index";
+// Prepare the DB (PRAGMAs, migrations, backfills) before anything queries it.
+// This used to be implicit in the import — `import "./db/index"` blocked on
+// top-level await inside that module. It is now an explicit awaited call so a
+// stuck DB fails here, at startup, instead of silently wedging the module graph.
+import { initDb } from "./db/index";
 import { deleteEmptySessions, setCacheMaxBytes } from "./db/queries";
+
+await initDb();
+
+// Promote any discovered_cars rows whose name has since landed in cars.csv,
+// then load whatever's left into the in-memory name-resolution map so
+// getAcEvoCarName()/getCarName() resolve runtime-discovered cars immediately.
+await reconcileDiscoveredCars();
+injectDiscoveredAcEvoCars(await listDiscoveredCars("ac-evo"));
 
 // Detect first run (settings file doesn't exist yet) before loadSettings creates it
 import { isFirstRun } from "./settings";

@@ -9,7 +9,7 @@
  * The racing line is preserved as `-raceline.csv` (it is a genuine reference line
  * for coaching, just not a centreline).
  *
- * Migration is per-track: the curated name lists in shared/tracks/corner-names/
+ * Migration is per-track: the curated name lists in shared/tracks/meta/
  * were written against the racing line's segmentation, so the true centre — which
  * resolves corners the racing line had fused — only aligns writably on the tracks
  * in ADOPTED. The rest keep the racing line as their centerline until their name

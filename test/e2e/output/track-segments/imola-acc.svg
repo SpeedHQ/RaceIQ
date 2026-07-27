@@ -47,9 +47,9 @@
   <line x1="203.7" y1="606.7" x2="184.0" y2="623.8" stroke="#d1d5db" stroke-width="1" />
   <text x="184.0" y="623.8" text-anchor="end" class="name" fill="#6b7280">St2 304m</text>
   <line x1="354.1" y1="608.7" x2="342.6" y2="632.0" stroke="#d1d5db" stroke-width="1" />
-  <text x="342.6" y="632.0" text-anchor="end" class="name" fill="#111827">T8</text>
+  <text x="342.6" y="632.0" text-anchor="end" class="name" fill="#111827">T9 Piratella</text>
   <line x1="388.9" y1="511.9" x2="375.8" y2="534.4" stroke="#d1d5db" stroke-width="1" />
-  <text x="375.8" y="534.4" text-anchor="end" class="name" fill="#111827">T9 Piratella</text>
+  <text x="375.8" y="534.4" text-anchor="end" class="name" fill="#111827">T10</text>
   <line x1="375.4" y1="469.4" x2="357.0" y2="487.8" stroke="#d1d5db" stroke-width="1" />
   <text x="357.0" y="487.8" text-anchor="end" class="name" fill="#111827">T11 Acque Minerali</text>
   <line x1="374.2" y1="447.0" x2="353.5" y2="462.6" stroke="#d1d5db" stroke-width="1" />
@@ -72,10 +72,7 @@
   <text x="927.4" y="203.3" text-anchor="start" class="name" fill="#111827">T19</text>
   <line x1="718.0" y1="227.6" x2="740.4" y2="214.3" stroke="#d1d5db" stroke-width="1" />
   <text x="740.4" y="214.3" text-anchor="start" class="name" fill="#6b7280">St5 489m</text>
-  <circle cx="123.6" cy="570.7" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="134.6" y="562.7" class="sector">S1 0.326</text>
-  <circle cx="705.6" cy="375.9" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="716.6" y="367.9" class="sector">S2 0.731</text>
+
   <rect x="605.5" y="227.2" width="10" height="10" fill="#111827" />
   <text x="622.5" y="236.2" class="sub">S/F</text>
   <text class="title" x="12" y="22">Autodromo Internazionale Enzo e Dino Ferrari — acc</text>

@@ -60,12 +60,9 @@
   <text x="342.8" y="110.6" text-anchor="end" class="name" fill="#111827">T13–T15 Arquibancadas</text>
   <line x1="293.7" y1="360.5" x2="267.7" y2="359.5" stroke="#d1d5db" stroke-width="1" />
   <text x="267.7" y="359.5" text-anchor="end" class="name" fill="#6b7280">St4 484m</text>
-  <circle cx="683.1" cy="367.5" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="694.1" y="359.5" class="sector">S1 0.291</text>
-  <circle cx="541.0" cy="173.6" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="552.0" y="165.6" class="sector">S2 0.737</text>
+
   <rect x="321.1" y="501.5" width="10" height="10" fill="#111827" />
   <text x="338.1" y="510.5" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Autódromo José Carlos Pace (Interlagos) — f1-2025</text>
+  <text class="title" x="12" y="22">Autodromo Jose Carlos Pace — f1-2025</text>
   <text class="sub" x="12" y="40">13 corners, 4 straights, 17 segments, 4.284 km</text>
 </svg>

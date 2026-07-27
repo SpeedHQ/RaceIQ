@@ -1,287 +1,87 @@
 {
+  "slug": "interlagos",
+  "track": "interlagos",
+  "layout": "gp",
+  "layoutName": "Grand Prix",
   "name": "Autodromo Jose Carlos Pace",
-  "sectors": {
-    "s1End": 0.239,
-    "s2End": 0.613
-  },
-  "games": {
-    "f1-2025": {
-      "sectors": {
-        "s1End": 0.239,
-        "s2End": 0.59
-      },
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0475
-        },
-        {
-          "type": "corner",
-          "name": "Senna S",
-          "direction": "left",
-          "startFrac": 0.0475,
-          "endFrac": 0.1006,
-          "number": 1,
-          "group": "Senna S"
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "right",
-          "startFrac": 0.1006,
-          "endFrac": 0.1189,
-          "number": 2,
-          "group": "Senna S"
-        },
-        {
-          "type": "corner",
-          "name": "Curva do Sol",
-          "direction": "left",
-          "startFrac": 0.1189,
-          "endFrac": 0.198,
-          "number": 3
-        },
-        {
-          "type": "straight",
-          "name": "Reta Oposta",
-          "startFrac": 0.198,
-          "endFrac": 0.2927
-        },
-        {
-          "type": "corner",
-          "name": "Descida do Lago",
-          "direction": "left",
-          "startFrac": 0.2927,
-          "endFrac": 0.3526,
-          "number": 4
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "left",
-          "startFrac": 0.3526,
-          "endFrac": 0.412,
-          "number": 5
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.412,
-          "endFrac": 0.4363
-        },
-        {
-          "type": "corner",
-          "name": "Ferradura",
-          "direction": "right",
-          "startFrac": 0.4363,
-          "endFrac": 0.5304,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "Laranja",
-          "direction": "right",
-          "startFrac": 0.5304,
-          "endFrac": 0.5623,
-          "number": 7
-        },
-        {
-          "type": "corner",
-          "name": "Pinheirinho",
-          "direction": "left",
-          "startFrac": 0.5623,
-          "endFrac": 0.6045,
-          "number": 8
-        },
-        {
-          "type": "corner",
-          "name": "Bico de Pato",
-          "direction": "right",
-          "startFrac": 0.6045,
-          "endFrac": 0.6665,
-          "number": 9
-        },
-        {
-          "type": "corner",
-          "name": "Mergulho",
-          "direction": "left",
-          "startFrac": 0.6665,
-          "endFrac": 0.737,
-          "number": 10
-        },
-        {
-          "type": "corner",
-          "name": "Juncão",
-          "direction": "left",
-          "startFrac": 0.737,
-          "endFrac": 0.7805,
-          "number": 11
-        },
-        {
-          "type": "corner",
-          "name": "T12",
-          "direction": "left",
-          "startFrac": 0.7805,
-          "endFrac": 0.8236,
-          "number": 12
-        },
-        {
-          "type": "corner",
-          "name": "Arquibancadas",
-          "direction": "left",
-          "startFrac": 0.8236,
-          "endFrac": 0.8871,
-          "number": 13,
-          "covers": [
-            14,
-            15
-          ]
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8871,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "source": "Official F1 track map / FIA circuit guide (4.309 km GP layout); directions verified against F1 2025 centerline geometry",
+  "corners": [
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0475
-    },
-    {
-      "type": "corner",
+      "number": 1,
       "name": "Senna S",
       "direction": "left",
-      "startFrac": 0.0475,
-      "endFrac": 0.1006,
-      "number": 1,
       "group": "Senna S"
     },
     {
-      "type": "corner",
-      "name": "T2",
-      "direction": "right",
-      "startFrac": 0.1006,
-      "endFrac": 0.1189,
       "number": 2,
+      "name": "",
+      "direction": "right",
       "group": "Senna S"
     },
     {
-      "type": "corner",
+      "number": 3,
       "name": "Curva do Sol",
-      "direction": "left",
-      "startFrac": 0.1189,
-      "endFrac": 0.198,
-      "number": 3
+      "direction": "left"
     },
     {
-      "type": "straight",
-      "name": "Reta Oposta",
-      "startFrac": 0.198,
-      "endFrac": 0.2927
-    },
-    {
-      "type": "corner",
+      "number": 4,
       "name": "Descida do Lago",
-      "direction": "left",
-      "startFrac": 0.2927,
-      "endFrac": 0.3526,
-      "number": 4
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T5",
-      "direction": "left",
-      "startFrac": 0.3526,
-      "endFrac": 0.412,
-      "number": 5
-    },
-    {
-      "type": "straight",
+      "number": 5,
       "name": "",
-      "startFrac": 0.412,
-      "endFrac": 0.4363
+      "direction": "left"
     },
     {
-      "type": "corner",
+      "number": 6,
       "name": "Ferradura",
-      "direction": "right",
-      "startFrac": 0.4363,
-      "endFrac": 0.5304,
-      "number": 6
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 7,
       "name": "Laranja",
-      "direction": "right",
-      "startFrac": 0.5304,
-      "endFrac": 0.5623,
-      "number": 7
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 8,
       "name": "Pinheirinho",
-      "direction": "left",
-      "startFrac": 0.5623,
-      "endFrac": 0.6045,
-      "number": 8
+      "direction": "left"
     },
     {
-      "type": "corner",
+      "number": 9,
       "name": "Bico de Pato",
-      "direction": "right",
-      "startFrac": 0.6045,
-      "endFrac": 0.6665,
-      "number": 9
+      "direction": "right"
     },
     {
-      "type": "corner",
+      "number": 10,
       "name": "Mergulho",
-      "direction": "left",
-      "startFrac": 0.6665,
-      "endFrac": 0.737,
-      "number": 10
+      "direction": "left"
     },
     {
-      "type": "corner",
+      "number": 11,
       "name": "Juncão",
-      "direction": "left",
-      "startFrac": 0.737,
-      "endFrac": 0.7805,
-      "number": 11
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T12",
-      "direction": "left",
-      "startFrac": 0.7805,
-      "endFrac": 0.8236,
-      "number": 12
+      "number": 12,
+      "name": "",
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "Arquibancadas",
-      "direction": "left",
-      "startFrac": 0.8236,
-      "endFrac": 0.8871,
       "number": 13,
       "covers": [
         14,
         15
-      ]
-    },
+      ],
+      "name": "Arquibancadas",
+      "direction": "left"
+    }
+  ],
+  "straights": [
     {
-      "type": "straight",
-      "name": "",
-      "startFrac": 0.8871,
-      "endFrac": 1
+      "after": 3,
+      "name": "Reta Oposta"
     }
   ]
 }

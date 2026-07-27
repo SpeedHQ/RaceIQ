@@ -66,10 +66,7 @@
   <text x="490.4" y="746.0" text-anchor="end" class="name" fill="#111827">T16</text>
   <line x1="410.4" y1="627.8" x2="401.7" y2="652.3" stroke="#d1d5db" stroke-width="1" />
   <text x="401.7" y="652.3" text-anchor="end" class="name" fill="#6b7280">St5 264m</text>
-  <circle cx="540.7" cy="115.9" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="551.7" y="107.9" class="sector">S1 0.350</text>
-  <circle cx="724.9" cy="422.9" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="735.9" y="414.9" class="sector">S2 0.700</text>
+
   <rect x="376.4" y="570.7" width="10" height="10" fill="#111827" />
   <text x="393.4" y="579.7" class="sub">S/F</text>
   <text class="title" x="12" y="22">Lusail International Circuit — f1-2025</text>

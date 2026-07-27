@@ -1,232 +1,84 @@
 {
+  "slug": "road-atlanta",
+  "track": "road-atlanta",
+  "layout": "full",
+  "layoutName": "Full",
   "name": "Road Atlanta",
-  "sectors": {
-    "s1End": 0.34,
-    "s2End": 0.66
-  },
-  "games": {
-    "fm-2023": {
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.0489
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "right",
-          "startFrac": 0.0489,
-          "endFrac": 0.1613,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "The Esses",
-          "startFrac": 0.1613,
-          "endFrac": 0.2175,
-          "number": 2,
-          "group": "The Esses"
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "startFrac": 0.2175,
-          "endFrac": 0.2627,
-          "number": 3,
-          "group": "The Esses"
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "startFrac": 0.2627,
-          "endFrac": 0.3079,
-          "number": 4,
-          "group": "The Esses"
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "startFrac": 0.3079,
-          "endFrac": 0.3727,
-          "number": 5,
-          "group": "The Esses"
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.3727,
-          "endFrac": 0.4406
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "right",
-          "startFrac": 0.4406,
-          "endFrac": 0.5115,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "right",
-          "startFrac": 0.5115,
-          "endFrac": 0.5519,
-          "number": 7
-        },
-        {
-          "type": "straight",
-          "name": "Back Straight",
-          "startFrac": 0.5519,
-          "endFrac": 0.8226
-        },
-        {
-          "type": "corner",
-          "name": "T9",
-          "direction": "left",
-          "startFrac": 0.8226,
-          "endFrac": 0.8685,
-          "number": 9
-        },
-        {
-          "type": "corner",
-          "name": "10a/10b Chicane",
-          "direction": "right",
-          "startFrac": 0.8685,
-          "endFrac": 0.9009,
-          "number": 10
-        },
-        {
-          "type": "corner",
-          "name": "T11",
-          "direction": "right",
-          "startFrac": 0.9009,
-          "endFrac": 0.9416,
-          "number": 11
-        },
-        {
-          "type": "corner",
-          "name": "T12",
-          "direction": "right",
-          "startFrac": 0.9416,
-          "endFrac": 1,
-          "number": 12
-        }
-      ],
-      "sectors": {
-        "s1End": 0.3727,
-        "s2End": 0.6989,
-        "source": "corner-anchored"
-      }
-    }
-  },
-  "segments": [
+  "source": "Official circuit map (12 turns); 10a/10b chicane",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.0489
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "right",
-      "startFrac": 0.0489,
-      "endFrac": 0.1613,
-      "number": 1
-    },
-    {
-      "type": "corner",
-      "name": "The Esses",
-      "startFrac": 0.1613,
-      "endFrac": 0.2175,
       "number": 2,
+      "name": "The Esses",
+      "direction": "right",
       "group": "The Esses"
     },
     {
-      "type": "corner",
-      "name": "T3",
-      "startFrac": 0.2175,
-      "endFrac": 0.2627,
       "number": 3,
-      "group": "The Esses"
-    },
-    {
-      "type": "corner",
-      "name": "T4",
-      "startFrac": 0.2627,
-      "endFrac": 0.3079,
-      "number": 4,
-      "group": "The Esses"
-    },
-    {
-      "type": "corner",
-      "name": "T5",
-      "startFrac": 0.3079,
-      "endFrac": 0.3727,
-      "number": 5,
-      "group": "The Esses"
-    },
-    {
-      "type": "straight",
       "name": "",
-      "startFrac": 0.3727,
-      "endFrac": 0.4406
-    },
-    {
-      "type": "corner",
-      "name": "T6",
-      "direction": "right",
-      "startFrac": 0.4406,
-      "endFrac": 0.5115,
-      "number": 6
-    },
-    {
-      "type": "corner",
-      "name": "T7",
-      "direction": "right",
-      "startFrac": 0.5115,
-      "endFrac": 0.5519,
-      "number": 7
-    },
-    {
-      "type": "straight",
-      "name": "Back Straight",
-      "startFrac": 0.5519,
-      "endFrac": 0.8226
-    },
-    {
-      "type": "corner",
-      "name": "T9",
       "direction": "left",
-      "startFrac": 0.8226,
-      "endFrac": 0.8685,
-      "number": 9
+      "group": "The Esses"
     },
     {
-      "type": "corner",
+      "number": 4,
+      "name": "",
+      "direction": "right",
+      "group": "The Esses"
+    },
+    {
+      "number": 5,
+      "name": "",
+      "direction": "left",
+      "group": "The Esses"
+    },
+    {
+      "number": 6,
+      "name": "",
+      "direction": "right",
+      "group": "T6/T7"
+    },
+    {
+      "number": 7,
+      "name": "",
+      "direction": "right",
+      "group": "T6/T7"
+    },
+    {
+      "number": 8,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 9,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 10,
       "name": "10a/10b Chicane",
-      "direction": "right",
-      "startFrac": 0.8685,
-      "endFrac": 0.9009,
-      "number": 10
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T11",
+      "number": 11,
+      "name": "",
       "direction": "right",
-      "startFrac": 0.9009,
-      "endFrac": 0.9416,
-      "number": 11
+      "group": "T11/T12"
     },
     {
-      "type": "corner",
-      "name": "T12",
+      "number": 12,
+      "name": "",
       "direction": "right",
-      "startFrac": 0.9416,
-      "endFrac": 1,
-      "number": 12
+      "group": "T11/T12"
+    }
+  ],
+  "straights": [
+    {
+      "after": 7,
+      "name": "Back Straight"
     }
   ]
 }

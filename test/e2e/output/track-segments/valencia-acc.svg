@@ -42,12 +42,9 @@
   <text x="199.0" y="607.4" text-anchor="end" class="name" fill="#111827">T8</text>
   <line x1="390.0" y1="627.9" x2="378.9" y2="651.4" stroke="#d1d5db" stroke-width="1" />
   <text x="378.9" y="651.4" text-anchor="end" class="name" fill="#6b7280">St3 295m</text>
-  <circle cx="598.7" cy="257.5" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="609.7" y="249.5" class="sector">S1 0.393</text>
-  <circle cx="459.4" cy="300.4" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="470.4" y="292.4" class="sector">S2 0.645</text>
+
   <rect x="475.4" y="559.1" width="10" height="10" fill="#111827" />
   <text x="492.4" y="568.1" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Circuit Ricardo Tormo (Valencia) — acc</text>
+  <text class="title" x="12" y="22">Circuit Ricardo Tormo — acc</text>
   <text class="sub" x="12" y="40">8 corners, 3 straights, 11 segments, 3.939 km</text>
 </svg>

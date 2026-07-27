@@ -63,10 +63,7 @@
   <text x="284.8" y="739.7" text-anchor="end" class="name" fill="#111827">T13–T14 T13</text>
   <line x1="285.6" y1="551.3" x2="267.9" y2="570.3" stroke="#d1d5db" stroke-width="1" />
   <text x="267.9" y="570.3" text-anchor="end" class="name" fill="#6b7280">St5 285m</text>
-  <circle cx="537.1" cy="304.1" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="548.1" y="296.1" class="sector">S1 0.373</text>
-  <circle cx="553.7" cy="444.1" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="564.7" y="436.1" class="sector">S2 0.716</text>
+
   <rect x="283.9" y="469.2" width="10" height="10" fill="#111827" />
   <text x="300.9" y="478.2" class="sub">S/F</text>
   <text class="title" x="12" y="22">Bahrain International Circuit — f1-2025</text>

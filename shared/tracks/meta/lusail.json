@@ -1,315 +1,91 @@
 {
+  "slug": "lusail",
+  "track": "lusail",
+  "layout": "gp",
+  "layoutName": "Grand Prix",
   "name": "Lusail International Circuit",
-  "sectors": {
-    "s1End": 0.317,
-    "s2End": 0.666
-  },
-  "games": {
-    "f1-2025": {
-      "sectors": {
-        "s1End": 0.312,
-        "s2End": 0.624
-      },
-      "segments": [
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0,
-          "endFrac": 0.107
-        },
-        {
-          "type": "corner",
-          "name": "T1",
-          "direction": "right",
-          "startFrac": 0.107,
-          "endFrac": 0.1783,
-          "number": 1
-        },
-        {
-          "type": "corner",
-          "name": "T2",
-          "direction": "left",
-          "startFrac": 0.1783,
-          "endFrac": 0.2286,
-          "number": 2
-        },
-        {
-          "type": "corner",
-          "name": "T3",
-          "direction": "right",
-          "startFrac": 0.2286,
-          "endFrac": 0.2678,
-          "number": 3
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.2678,
-          "endFrac": 0.2874
-        },
-        {
-          "type": "corner",
-          "name": "T4",
-          "direction": "right",
-          "startFrac": 0.2874,
-          "endFrac": 0.3388,
-          "number": 4
-        },
-        {
-          "type": "corner",
-          "name": "T5",
-          "direction": "right",
-          "startFrac": 0.3388,
-          "endFrac": 0.3824,
-          "number": 5
-        },
-        {
-          "type": "corner",
-          "name": "T6",
-          "direction": "left",
-          "startFrac": 0.3824,
-          "endFrac": 0.4438,
-          "number": 6
-        },
-        {
-          "type": "corner",
-          "name": "T7",
-          "direction": "right",
-          "startFrac": 0.4438,
-          "endFrac": 0.5207,
-          "number": 7,
-          "covers": [
-            8
-          ]
-        },
-        {
-          "type": "corner",
-          "name": "T9",
-          "direction": "right",
-          "startFrac": 0.5207,
-          "endFrac": 0.5673,
-          "number": 9
-        },
-        {
-          "type": "corner",
-          "name": "T10",
-          "direction": "left",
-          "startFrac": 0.5673,
-          "endFrac": 0.6109,
-          "number": 10
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.6109,
-          "endFrac": 0.6675
-        },
-        {
-          "type": "corner",
-          "name": "T12",
-          "direction": "right",
-          "startFrac": 0.6675,
-          "endFrac": 0.7249,
-          "number": 12,
-          "group": "Triple Right"
-        },
-        {
-          "type": "corner",
-          "name": "T13",
-          "direction": "right",
-          "startFrac": 0.7249,
-          "endFrac": 0.7596,
-          "number": 13,
-          "group": "Triple Right"
-        },
-        {
-          "type": "corner",
-          "name": "T14",
-          "direction": "right",
-          "startFrac": 0.7596,
-          "endFrac": 0.8084,
-          "number": 14,
-          "group": "Triple Right"
-        },
-        {
-          "type": "corner",
-          "name": "T15",
-          "direction": "left",
-          "startFrac": 0.8084,
-          "endFrac": 0.8595,
-          "number": 15
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.8595,
-          "endFrac": 0.8865
-        },
-        {
-          "type": "corner",
-          "name": "T16",
-          "direction": "right",
-          "startFrac": 0.8865,
-          "endFrac": 0.9512,
-          "number": 16
-        },
-        {
-          "type": "straight",
-          "name": "",
-          "startFrac": 0.9512,
-          "endFrac": 1
-        }
-      ]
-    }
-  },
-  "segments": [
+  "source": "Official F1 track map (5.419 km, turns unnamed); directions verified against F1 2025 centerline geometry",
+  "corners": [
     {
-      "type": "straight",
+      "number": 1,
       "name": "",
-      "startFrac": 0,
-      "endFrac": 0.107
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T1",
-      "direction": "right",
-      "startFrac": 0.107,
-      "endFrac": 0.1783,
-      "number": 1
-    },
-    {
-      "type": "corner",
-      "name": "T2",
-      "direction": "left",
-      "startFrac": 0.1783,
-      "endFrac": 0.2286,
-      "number": 2
-    },
-    {
-      "type": "corner",
-      "name": "T3",
-      "direction": "right",
-      "startFrac": 0.2286,
-      "endFrac": 0.2678,
-      "number": 3
-    },
-    {
-      "type": "straight",
+      "number": 2,
       "name": "",
-      "startFrac": 0.2678,
-      "endFrac": 0.2874
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T4",
-      "direction": "right",
-      "startFrac": 0.2874,
-      "endFrac": 0.3388,
-      "number": 4
+      "number": 3,
+      "name": "",
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T5",
-      "direction": "right",
-      "startFrac": 0.3388,
-      "endFrac": 0.3824,
-      "number": 5
+      "number": 4,
+      "name": "",
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T6",
-      "direction": "left",
-      "startFrac": 0.3824,
-      "endFrac": 0.4438,
-      "number": 6
+      "number": 5,
+      "name": "",
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T7",
-      "direction": "right",
-      "startFrac": 0.4438,
-      "endFrac": 0.5207,
+      "number": 6,
+      "name": "",
+      "direction": "left"
+    },
+    {
       "number": 7,
       "covers": [
         8
-      ]
-    },
-    {
-      "type": "corner",
-      "name": "T9",
-      "direction": "right",
-      "startFrac": 0.5207,
-      "endFrac": 0.5673,
-      "number": 9
-    },
-    {
-      "type": "corner",
-      "name": "T10",
-      "direction": "left",
-      "startFrac": 0.5673,
-      "endFrac": 0.6109,
-      "number": 10
-    },
-    {
-      "type": "straight",
+      ],
       "name": "",
-      "startFrac": 0.6109,
-      "endFrac": 0.6675
+      "direction": "right"
     },
     {
-      "type": "corner",
-      "name": "T12",
-      "direction": "right",
-      "startFrac": 0.6675,
-      "endFrac": 0.7249,
+      "number": 9,
+      "name": "",
+      "direction": "right"
+    },
+    {
+      "number": 10,
+      "name": "",
+      "direction": "left"
+    },
+    {
+      "number": 11,
+      "name": "",
+      "direction": "right"
+    },
+    {
       "number": 12,
+      "name": "",
+      "direction": "right",
       "group": "Triple Right"
     },
     {
-      "type": "corner",
-      "name": "T13",
-      "direction": "right",
-      "startFrac": 0.7249,
-      "endFrac": 0.7596,
       "number": 13,
+      "name": "",
+      "direction": "right",
       "group": "Triple Right"
     },
     {
-      "type": "corner",
-      "name": "T14",
-      "direction": "right",
-      "startFrac": 0.7596,
-      "endFrac": 0.8084,
       "number": 14,
+      "name": "",
+      "direction": "right",
       "group": "Triple Right"
     },
     {
-      "type": "corner",
-      "name": "T15",
-      "direction": "left",
-      "startFrac": 0.8084,
-      "endFrac": 0.8595,
-      "number": 15
-    },
-    {
-      "type": "straight",
+      "number": 15,
       "name": "",
-      "startFrac": 0.8595,
-      "endFrac": 0.8865
+      "direction": "left"
     },
     {
-      "type": "corner",
-      "name": "T16",
-      "direction": "right",
-      "startFrac": 0.8865,
-      "endFrac": 0.9512,
-      "number": 16
-    },
-    {
-      "type": "straight",
+      "number": 16,
       "name": "",
-      "startFrac": 0.9512,
-      "endFrac": 1
+      "direction": "right"
     }
   ]
 }

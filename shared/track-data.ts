@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { resolve } from "path";
 import { getTrackSectorsByName, DEFAULT_SECTORS, type TrackSectors } from "./track-sectors";
 import type { NamedSegment } from "./track-named-segments";
+import { joinSegments, type TrackFacts, type TrackGeometry } from "./track-meta";
 import { GameIdSchema } from "./types";
 import { getF1TrackInfo } from "./f1-track-data";
 
@@ -152,41 +153,98 @@ function bundledGameDir(gameId: string): string {
 
 /** TUMFTM real-world track data (centerlines, boundaries). */
 const tumftmDir = resolve(SHARED_DIR, "tracks", "tumftm");
-/** Shared track metadata (sectors, segments — cross-game). */
-const sharedTracksDir = resolve(SHARED_DIR, "tracks", "meta");
+/** Game-agnostic track facts (turn names, numbers, groups). */
+const trackFactsDir = resolve(SHARED_DIR, "tracks", "meta");
 
-export interface SharedTrackMeta {
-  name: string;
-  sectors?: TrackSectors & { source?: string };
-  segments?: NamedSegment[];
-  games?: Record<string, { sectors?: TrackSectors & { source?: string }; segments?: NamedSegment[] }>;
-}
+/**
+ * Games that reuse another game's curated geometry when they ship none of
+ * their own. AC Evo and ACC use the same Kunos track meshes, so an ACC
+ * geometry file is correct for AC Evo. Classification never needs an alias —
+ * there is only ever one set of facts per layout.
+ */
+const GEOMETRY_ALIAS: Record<string, string> = { "ac-evo": "acc" };
 
-const sharedTrackMetaCache = new Map<string, SharedTrackMeta | null>();
+const factsCache = new Map<string, TrackFacts | null>();
+const geometryCache = new Map<string, TrackGeometry | null>();
 
-/** Load shared track metadata (sectors, segments) by shared track name. */
-export function loadSharedTrackMeta(name: string): SharedTrackMeta | null {
-  if (!name) return null;
-  if (sharedTrackMetaCache.has(name)) return sharedTrackMetaCache.get(name)!;
-  const filePath = resolve(sharedTracksDir, `${name}.json`);
-  const content = readDataFile(filePath);
-  if (!content) { sharedTrackMetaCache.set(name, null); return null; }
-  try {
-    const data = JSON.parse(content);
-    sharedTrackMetaCache.set(name, data);
-    return data;
-  } catch {
-    sharedTrackMetaCache.set(name, null);
-    return null;
+/**
+ * Load a layout's physical facts by slug. Takes no gameId, deliberately: turn
+ * names and numbers are properties of the circuit, identical for every game
+ * that ships it, so a caller that has a gameId to hand still must not use it
+ * here. Geometry is the only thing that varies — see `loadTrackGeometry`.
+ */
+export function loadTrackFacts(slug: string): TrackFacts | null {
+  if (!slug) return null;
+  const hit = factsCache.get(slug);
+  if (hit !== undefined) return hit;
+  const content = readDataFile(resolve(trackFactsDir, `${slug}.json`));
+  let parsed: TrackFacts | null = null;
+  if (content) {
+    try {
+      parsed = JSON.parse(content) as TrackFacts;
+    } catch {
+      parsed = null;
+    }
   }
+  factsCache.set(slug, parsed);
+  return parsed;
 }
 
-/** Persist shared track metadata and keep the in-process cache coherent. */
-export function saveSharedTrackMeta(name: string, meta: SharedTrackMeta): void {
-  if (!name) throw new Error("saveSharedTrackMeta: name required");
-  if (!existsSync(sharedTracksDir)) mkdirSync(sharedTracksDir, { recursive: true });
-  writeFileSync(resolve(sharedTracksDir, `${name}.json`), JSON.stringify(meta, null, 2));
-  sharedTrackMetaCache.set(name, meta);
+/** Load one game's segment fractions for a layout, falling back to its alias. */
+export function loadTrackGeometry(slug: string, gameId: string): TrackGeometry | null {
+  if (!slug || !gameId) return null;
+  const cacheKey = `${gameId}:${slug}`;
+  const hit = geometryCache.get(cacheKey);
+  if (hit !== undefined) return hit;
+
+  let parsed: TrackGeometry | null = null;
+  for (const candidate of [gameId, GEOMETRY_ALIAS[gameId]].filter(Boolean)) {
+    const content = readDataFile(resolve(SHARED_DIR, "tracks", candidate, `${slug}-segments.json`));
+    if (!content) continue;
+    try {
+      parsed = JSON.parse(content) as TrackGeometry;
+      break;
+    } catch {
+      parsed = null;
+    }
+  }
+  geometryCache.set(cacheKey, parsed);
+  return parsed;
+}
+
+/**
+ * The one place labelled segments come from: this game's fractions carrying
+ * the layout's shared names. Returns [] when the game has no geometry for the
+ * layout, so callers fall through to their own auto-detection rather than
+ * borrowing another game's fractions.
+ */
+export function loadLabelledSegments(slug: string, gameId: string): NamedSegment[] {
+  const facts = loadTrackFacts(slug);
+  const geometry = loadTrackGeometry(slug, gameId);
+  if (!facts || !geometry) return [];
+  return joinSegments(facts, geometry);
+}
+
+/** Sector boundaries for a layout in one game's lap fractions. */
+export function loadTrackSectorsFor(slug: string, gameId: string): (TrackSectors & { source?: string }) | undefined {
+  return loadTrackGeometry(slug, gameId)?.sectors;
+}
+
+/** Persist a layout's facts and keep the in-process cache coherent. */
+export function saveTrackFacts(slug: string, facts: TrackFacts): void {
+  if (!slug) throw new Error("saveTrackFacts: slug required");
+  if (!existsSync(trackFactsDir)) mkdirSync(trackFactsDir, { recursive: true });
+  writeFileSync(resolve(trackFactsDir, `${slug}.json`), `${JSON.stringify(facts, null, 2)}\n`);
+  factsCache.set(slug, facts);
+}
+
+/** Persist one game's geometry for a layout and keep the cache coherent. */
+export function saveTrackGeometry(slug: string, gameId: string, geometry: TrackGeometry): void {
+  if (!slug || !gameId) throw new Error("saveTrackGeometry: slug and gameId required");
+  const dir = resolve(SHARED_DIR, "tracks", gameId);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  writeFileSync(resolve(dir, `${slug}-segments.json`), `${JSON.stringify(geometry, null, 2)}\n`);
+  geometryCache.set(`${gameId}:${slug}`, geometry);
 }
 
 /** Load a shared outline CSV by name (e.g. "silverstone"). */
@@ -310,6 +368,19 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 interface CacheEntry<T> { data: T; timer: ReturnType<typeof setTimeout>; }
 
+/**
+ * Schedule the eviction of `key`, unref'd so a pending eviction never keeps a
+ * process alive. Without this, any server/test that performs a single track
+ * lookup arms a ref'd 5-minute timer and `bun test` idles that long after the
+ * suite finishes. `unref?.()` is optional-call because this module is also
+ * bundled for the browser, where `setTimeout` returns a number.
+ */
+function armEviction<V>(map: Map<string, V>, key: string): ReturnType<typeof setTimeout> {
+  const timer = setTimeout(() => map.delete(key), CACHE_TTL_MS);
+  (timer as { unref?: () => void }).unref?.();
+  return timer;
+}
+
 function ttlCache<T>() {
   const map = new Map<string, CacheEntry<T>>();
   return {
@@ -317,13 +388,13 @@ function ttlCache<T>() {
       const entry = map.get(key);
       if (!entry) return undefined;
       clearTimeout(entry.timer);
-      entry.timer = setTimeout(() => map.delete(key), CACHE_TTL_MS);
+      entry.timer = armEviction(map, key);
       return entry.data;
     },
     set(key: string, data: T) {
       const existing = map.get(key);
       if (existing) clearTimeout(existing.timer);
-      map.set(key, { data, timer: setTimeout(() => map.delete(key), CACHE_TTL_MS) });
+      map.set(key, { data, timer: armEviction(map, key) });
     },
     has(key: string) { return map.has(key); },
     delete(key: string) { const e = map.get(key); if (e) clearTimeout(e.timer); map.delete(key); },

@@ -1,16 +1,26 @@
 /**
- * Alignment of curvature-detected corners against curated corner-name lists.
+ * Alignment of curvature-detected corners against a track's shared facts.
  *
  * The geometry (extracted from game files) is authoritative for WHERE corners
- * are; the curated name list (from official circuit maps) is authoritative for
- * WHAT they are called. This module matches the two ordered sequences and
- * produces named segments, refusing to guess when they disagree.
+ * are; the facts file (from official circuit maps) is authoritative for WHAT
+ * they are called. This module matches the two ordered sequences and produces
+ * named segments, refusing to guess when they disagree.
+ *
+ * Facts themselves carry no detector tolerances — a corner is either in the
+ * numbering or it isn't. Where a centerline genuinely resolves one official
+ * turn into two arcs, or skips a kink entirely, the allowance arrives as
+ * DetectHints (shared/tracks/detect-hints.json) from the caller; omit them and
+ * every corner must match exactly once.
  *
  * Locale note: proper nouns ("Eau Rouge") are canonical and never translated.
  * Corners without a real name get the machine token "T<number>" and straights
  * get "" — the client localizes those generically via Paraglide.
  */
 
+import type { CornerFact, TrackFacts } from "./track-meta";
+// Type-only: the hints loader reads from disk, and this module stays pure so the
+// client can bundle it. Callers load the file and pass the map in.
+import { NO_DETECT_HINTS, type DetectHints } from "./track-detect-hints";
 import type { NamedSegment } from "./track-named-segments";
 
 /** A single detected corner region on the centerline. */
@@ -241,92 +251,59 @@ function detectPass(outline: Pt[], K_IN: number, K_OUT: number): { corners: Pass
     // Runs that bend too little to be a corner on their own are kept as weak
     // regions rather than dropped. Geometry alone can't tell Spa's Raidillon
     // (~0.19 rad, just under the cutoff) from a meaningless kink — but the
-    // curated name list can, so alignment claims a weak region when a name
+    // track facts file can, so alignment claims a weak region when a name
     // says a corner is there and skips it for free otherwise.
     .map(({ untrimmedLengthM, ...c }) => (c.turnRad < MIN_TURN_RAD ? { ...c, weak: true } : c));
 
   return { corners, totalDist };
 }
 
-// ─── Name-list types ─────────────────────────────────────────────────────────
+// ─── Facts validation ────────────────────────────────────────────────────────
 
-export interface CornerNameEntry {
-  /** Official turn number (1-based, in racing order). */
-  number: number;
-  /** Canonical proper name; "" if the corner has no real name (renders as T<number>). */
-  name: string;
-  direction?: "left" | "right";
-  /**
-   * Corners sharing a group label form a complex (e.g. a chicane) that the
-   * detector may merge into a single region. When merged, the region is named
-   * after the group.
-   */
-  group?: string;
-  /**
-   * Max detected regions this corner alone may span (default 1). Long
-   * multi-apex corners occasionally split in two.
-   */
-  spans?: number;
-  /**
-   * A shallow/fast corner (big radius, small heading change) that some games'
-   * centerlines don't register as a corner at all. May match zero regions.
-   */
-  optional?: boolean;
-  /**
-   * Additional official turn numbers subsumed by this entry (e.g. Pouhon is
-   * officially T10-T11 but modelled as one entry: number 10, covers [11]).
-   */
-  covers?: number[];
-}
-
-export interface StraightNameEntry {
-  /** The straight directly after this corner number gets this name. */
-  after: number;
-  name: string;
-}
-
-export interface SectorAnchors {
-  /** Sector 1 ends at the exit of this corner number. */
-  s1EndAfterCorner?: number;
-  /** Sector 2 ends at the exit of this corner number. */
-  s2EndAfterCorner?: number;
-  /** Optional meters past the anchored corner exit. */
-  s1OffsetM?: number;
-  s2OffsetM?: number;
-  /** Explicit researched fractions — used verbatim when anchors are absent. */
-  s1End?: number;
-  s2End?: number;
-}
-
-export interface CornerNameList {
-  circuit: string;
-  /** Provenance of the naming/sector data (circuit map, wiki, FIA doc). */
-  source?: string;
-  /** Official number of turns — corner entries must account for 1..turnCount. */
-  turnCount: number;
-  corners: CornerNameEntry[];
-  straights?: StraightNameEntry[];
-  sectors?: SectorAnchors;
+/**
+ * The official turn count, derived: the highest number any corner accounts for.
+ * Facts used to declare this separately, which only worked while a second file
+ * carried the circuit's own claim. With names living in the facts file the
+ * declaration would just be `max(numbers)` restated, so it is computed instead.
+ */
+export function officialTurnCount(facts: TrackFacts): number {
+  let max = 0;
+  for (const c of facts.corners) {
+    for (const n of [c.number, ...(c.covers ?? [])]) {
+      if (Number.isInteger(n) && n > max) max = n;
+    }
+  }
+  return max;
 }
 
 /**
- * Validate a curated name list against its declared official turn count:
- * every turn number 1..turnCount must be accounted for exactly once (via
- * `number` or `covers`), in strictly increasing order around the lap.
+ * Validate a track's corner facts as a turn numbering: every turn from 1 to the
+ * highest number present must be accounted for exactly once (via `number` or
+ * `covers`), in strictly increasing order around the lap. A hole in the run is
+ * a real error — turn 3 missing between 2 and 4 means a corner was lost.
+ *
+ * The one legitimate hole is a number the circuit map carries but no corner
+ * roster does — Baku 13/14, a Catalunya chicane half. Those are declared
+ * `optional` in shared/tracks/detect-hints.json; pass the layout's hints and
+ * they count as accounted for.
  */
-export function validateNameList(list: CornerNameList): AlignmentIssue[] {
+export function validateFacts(
+  facts: TrackFacts,
+  hints: DetectHints = NO_DETECT_HINTS,
+): AlignmentIssue[] {
   const issues: AlignmentIssue[] = [];
-  if (!Number.isInteger(list.turnCount) || list.turnCount < 1) {
-    issues.push({ severity: "error", message: `turnCount missing or invalid (${list.turnCount})` });
+  const turnCount = officialTurnCount(facts);
+  if (turnCount < 1) {
+    issues.push({ severity: "error", message: "no numbered corners" });
     return issues;
   }
   const seen = new Set<number>();
   let prevMax = 0;
-  for (const c of list.corners) {
+  for (const c of facts.corners) {
     const nums = [c.number, ...(c.covers ?? [])];
     for (const n of nums) {
-      if (!Number.isInteger(n) || n < 1 || n > list.turnCount) {
-        issues.push({ severity: "error", message: `turn ${n} outside 1..${list.turnCount}` });
+      if (!Number.isInteger(n) || n < 1) {
+        issues.push({ severity: "error", message: `turn ${n} is not a positive integer` });
         continue;
       }
       if (seen.has(n)) issues.push({ severity: "error", message: `turn ${n} listed twice` });
@@ -336,8 +313,12 @@ export function validateNameList(list: CornerNameList): AlignmentIssue[] {
     if (lo <= prevMax) issues.push({ severity: "error", message: `turn ${c.number} out of racing order` });
     prevMax = Math.max(prevMax, ...nums);
   }
-  for (let n = 1; n <= list.turnCount; n++) {
-    if (!seen.has(n)) issues.push({ severity: "error", message: `turn ${n} unaccounted for (add an entry or covers)` });
+  for (let n = 1; n <= turnCount; n++) {
+    if (seen.has(n) || hints.get(n)?.optional) continue;
+    issues.push({
+      severity: "error",
+      message: `turn ${n} unaccounted for (add an entry, covers, or an optional detect hint)`,
+    });
   }
   return issues;
 }
@@ -346,9 +327,11 @@ export function validateNameList(list: CornerNameList): AlignmentIssue[] {
 
 /** One name-list "unit" to match: a single corner or a grouped complex. */
 interface Unit {
-  members: CornerNameEntry[];
+  members: CornerFact[];
   group?: string;
   maxSpan: number;
+  /** Every member is hinted optional, so the whole unit may go unmatched. */
+  optional: boolean;
 }
 
 export interface AlignmentIssue {
@@ -386,20 +369,28 @@ export interface AlignmentResult {
   corners: AlignedCorner[];
 }
 
-function displayName(entry: CornerNameEntry): string {
+function displayName(entry: CornerFact): string {
   return entry.name || `T${entry.number}`;
 }
 
 /** Collapse consecutive same-group corner entries into matchable units. */
-function buildUnits(corners: CornerNameEntry[]): Unit[] {
+function buildUnits(corners: CornerFact[], hints: DetectHints): Unit[] {
+  const spanOf = (entry: CornerFact) => hints.get(entry.number)?.spans ?? 1;
+  const optionalOf = (entry: CornerFact) => hints.get(entry.number)?.optional === true;
   const units: Unit[] = [];
   for (const entry of corners) {
     const prev = units[units.length - 1];
     if (entry.group && prev?.group === entry.group) {
       prev.members.push(entry);
-      prev.maxSpan += entry.spans ?? 1;
+      prev.maxSpan += spanOf(entry);
+      prev.optional = prev.optional && optionalOf(entry);
     } else {
-      units.push({ members: [entry], group: entry.group, maxSpan: entry.spans ?? 1 });
+      units.push({
+        members: [entry],
+        group: entry.group,
+        maxSpan: spanOf(entry),
+        optional: optionalOf(entry),
+      });
     }
   }
   for (const u of units) {
@@ -417,10 +408,9 @@ const HARD_FAIL = Number.POSITIVE_INFINITY;
 function unitCost(u: Unit, segs: CornerRegion[]): number {
   const expected = u.members.length;
 
-  // Deviations from a 1:1 mapping that the name list explicitly sanctions
-  // (groups may merge, spans may split) carry only a tie-break cost so the
-  // DP still prefers 1:1 when both are possible. Costs < 1 therefore mean
-  // "aligned exactly as annotated"; costs >= 1 mean unsanctioned fuzz.
+  // A grouped complex merging into fewer regions is expected, so it carries only
+  // a tie-break cost and the DP still prefers 1:1 when both are possible. Costs
+  // < 1 therefore mean "aligned as the facts describe"; costs >= 1 mean fuzz.
   const TIE_BREAK = 0.01;
 
   if (segs.length === expected) {
@@ -486,8 +476,8 @@ function matchUnits(units: Unit[], detected: CornerRegion[]):
         }
       }
       if (i === nU) continue;
-      // Optional corners (too shallow for some games' centerlines) may match nothing
-      if (units[i].members.length === 1 && units[i].members[0].optional) {
+      // Hinted-optional corners (too shallow for some games' centerlines) may match nothing
+      if (units[i].optional) {
         const total = dp[i][j] + 0.01;
         if (total < dp[i + 1][j]) {
           dp[i + 1][j] = total;
@@ -528,7 +518,7 @@ function round4(v: number): number {
 }
 
 /**
- * Align detected corner regions (in lap order) against a curated name list
+ * Align detected corner regions (in lap order) against a track facts file
  * and build the full named segment sequence (corners + connecting straights).
  *
  * Handedness is auto-detected: some games' coordinate systems mirror the
@@ -537,15 +527,16 @@ function round4(v: number): number {
  */
 export function alignSegments(
   detected: CornerRegion[],
-  nameList: CornerNameList,
+  facts: TrackFacts,
   totalDistM?: number,
+  hints: DetectHints = new Map(),
 ): AlignmentResult {
   const flip = (c: CornerRegion): CornerRegion => ({
     ...c,
     direction: c.direction === "left" ? "right" : "left",
   });
-  const normal = alignOnePolarity(detected, nameList, totalDistM);
-  const mirrored = alignOnePolarity(detected.map(flip), nameList, totalDistM);
+  const normal = alignOnePolarity(detected, facts, totalDistM, hints);
+  const mirrored = alignOnePolarity(detected.map(flip), facts, totalDistM, hints);
   if (!normal.ok || (mirrored.ok && mirrored.cost < normal.cost)) {
     if (mirrored.ok) {
       mirrored.issues.push({ severity: "warning", message: "mirrored coordinate system detected — directions flipped to real-world" });
@@ -557,11 +548,12 @@ export function alignSegments(
 
 function alignOnePolarity(
   detected: CornerRegion[],
-  nameList: CornerNameList,
-  totalDistM?: number,
+  facts: TrackFacts,
+  totalDistM: number | undefined,
+  hints: DetectHints,
 ): AlignmentResult {
   const issues: AlignmentIssue[] = [];
-  const units = buildUnits(nameList.corners);
+  const units = buildUnits(facts.corners, hints);
 
   if (units.length === 0 || detected.length === 0) {
     issues.push({ severity: "error", message: `nothing to align: ${units.length} units vs ${detected.length} detected corners` });
@@ -587,7 +579,7 @@ function alignOnePolarity(
   if (!match) {
     issues.push({
       severity: "error",
-      message: `no valid alignment at any lap rotation: ${nameList.corners.length} named corners (${units.length} units) vs ${detected.length} detected regions — check direction fields and grouping`,
+      message: `no valid alignment at any lap rotation: ${facts.corners.length} named corners (${units.length} units) vs ${detected.length} detected regions — check direction fields and grouping`,
     });
     return { ok: false, cost: HARD_FAIL, issues, segments: [], corners: [] };
   }
@@ -673,7 +665,7 @@ function alignOnePolarity(
 
   // Straight names anchor to the corner they follow
   const straightNameAfterRegion = new Map<number, string>();
-  for (const s of nameList.straights ?? []) {
+  for (const s of facts.straights ?? []) {
     // If the anchor corner wasn't detected (optional kink), fall back to the
     // nearest earlier detected corner — the straight after it is the same one.
     let idx: number | undefined;
@@ -814,55 +806,4 @@ function alignOnePolarity(
   }
 
   return { ok: true, cost: match.cost, issues, segments, corners };
-}
-
-export interface ResolvedSectors {
-  s1End: number;
-  s2End: number;
-  source: "corner-anchored" | "hand-researched";
-}
-
-/**
- * Resolve sector boundaries from anchors ("S1 ends after corner N") against
- * aligned corner geometry, or pass through explicit researched fractions.
- */
-export function resolveSectors(
-  anchors: SectorAnchors,
-  corners: AlignedCorner[],
-  totalDist: number,
-): { sectors: ResolvedSectors | null; issues: AlignmentIssue[] } {
-  const issues: AlignmentIssue[] = [];
-
-  const anchored = (cornerNum: number | undefined, offsetM: number | undefined, label: string): number | null => {
-    if (cornerNum === undefined) return null;
-    const hits = corners.filter((c) => c.number === cornerNum || c.covers?.includes(cornerNum));
-    if (hits.length === 0) {
-      // Not fatal: explicit s1End/s2End fractions may still cover this boundary
-      issues.push({ severity: "warning", message: `${label} anchor corner ${cornerNum} not present — falling back to explicit fraction if provided` });
-      return null;
-    }
-    const exit = Math.max(...hits.map((c) => c.endFrac));
-    const frac = exit + (offsetM && totalDist > 0 ? offsetM / totalDist : 0);
-    return Math.min(0.999, Math.max(0.001, round4(frac)));
-  };
-
-  const s1Anchored = anchored(anchors.s1EndAfterCorner, anchors.s1OffsetM, "s1End");
-  const s2Anchored = anchored(anchors.s2EndAfterCorner, anchors.s2OffsetM, "s2End");
-
-  const s1 = s1Anchored ?? anchors.s1End ?? null;
-  const s2 = s2Anchored ?? anchors.s2End ?? null;
-  if (s1 === null || s2 === null) {
-    if (anchors.s1EndAfterCorner !== undefined || anchors.s2EndAfterCorner !== undefined
-      || anchors.s1End !== undefined || anchors.s2End !== undefined) {
-      issues.push({ severity: "error", message: "incomplete sector definition: need both s1 and s2 (anchor or explicit)" });
-    }
-    return { sectors: null, issues };
-  }
-  if (!(s1 > 0 && s1 < s2 && s2 < 1)) {
-    issues.push({ severity: "error", message: `invalid resolved sectors: s1End=${s1}, s2End=${s2}` });
-    return { sectors: null, issues };
-  }
-  const source: ResolvedSectors["source"] =
-    s1Anchored !== null && s2Anchored !== null ? "corner-anchored" : "hand-researched";
-  return { sectors: { s1End: s1, s2End: s2, source }, issues };
 }

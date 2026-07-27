@@ -30,7 +30,7 @@
   <line x1="365.9" y1="542.2" x2="353.4" y2="565.0" stroke="#d1d5db" stroke-width="1" />
   <text x="353.4" y="565.0" text-anchor="end" class="name" fill="#6b7280">St2 234m</text>
   <line x1="364.9" y1="706.4" x2="357.4" y2="731.3" stroke="#d1d5db" stroke-width="1" />
-  <text x="357.4" y="731.3" text-anchor="end" class="name" fill="#111827">T4</text>
+  <text x="357.4" y="731.3" text-anchor="end" class="name" fill="#111827">T4 Hairpin</text>
   <line x1="546.3" y1="419.5" x2="565.0" y2="437.6" stroke="#d1d5db" stroke-width="1" />
   <text x="565.0" y="437.6" text-anchor="start" class="name" fill="#6b7280">St3 927m</text>
   <line x1="707.7" y1="89.3" x2="725.2" y2="70.1" stroke="#d1d5db" stroke-width="1" />
@@ -42,6 +42,6 @@
 
   <rect x="468.0" y="140.9" width="10" height="10" fill="#111827" />
   <text x="485.0" y="149.9" class="sub">S/F</text>
-  <text class="title" x="12" y="22">Yas Marina — North — fm-2023</text>
+  <text class="title" x="12" y="22">Yas Marina Circuit — fm-2023</text>
   <text class="sub" x="12" y="40">6 corners, 4 straights, 10 segments, 2.999 km</text>
 </svg>

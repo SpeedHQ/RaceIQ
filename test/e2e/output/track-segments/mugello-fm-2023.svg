@@ -66,10 +66,7 @@
   <text x="856.5" y="602.1" text-anchor="start" class="name" fill="#111827">T15 Bucine</text>
   <line x1="634.9" y1="452.7" x2="659.3" y2="461.7" stroke="#d1d5db" stroke-width="1" />
   <text x="659.3" y="461.7" text-anchor="start" class="name" fill="#6b7280">St4 510m</text>
-  <circle cx="625.9" cy="277.2" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="636.9" y="269.2" class="sector">S1 0.342</text>
-  <circle cx="638.2" cy="583.5" r="7" fill="none" stroke="#7c3aed" stroke-width="2.5" />
-  <text x="649.2" y="575.5" class="sector">S2 0.595</text>
+
   <rect x="485.6" y="406.6" width="10" height="10" fill="#111827" />
   <text x="502.6" y="415.6" class="sub">S/F</text>
   <text class="title" x="12" y="22">Mugello Circuit — fm-2023</text>

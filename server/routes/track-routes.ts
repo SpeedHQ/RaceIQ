@@ -29,15 +29,19 @@ import {
   recordCurbData,
   loadSharedOutline,
   loadSharedBoundary,
-  loadSharedTrackMeta,
-  saveSharedTrackMeta,
+  loadTrackFacts,
+  loadTrackGeometry,
+  loadLabelledSegments,
+  loadTrackSectorsFor,
+  saveTrackFacts,
+  saveTrackGeometry,
   recordLapTrace,
   getTrackAltitudeByOrdinal,
 } from "../../shared/track-data";
 import { trackMap, getCarName, getTrackName, carSpecsMap } from "../../shared/car-data";
 import { getTrackGuide } from "../ai/track-guides";
 import type { Corner } from "../corner-detection";
-import { resolveMetaField } from "../ai/track-context";
+import { cornerKey, cornerNumbers, splitSegments } from "../../shared/track-meta";
 import {
   filterLapOutliers,
   normalizeToFixedPoints,
@@ -66,15 +70,6 @@ const TrackOrdinalParamSchema = z.object({
 });
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-/**
- * Pull a per-game override (segments, sectors, …) from a shared track meta blob.
- * AC Evo and ACC share the same Kunos track geometry, so any ACC override is
- * reused for AC Evo when AC Evo doesn't have its own.
- */
-function gameMetaOverride(sharedMeta: unknown, gameId: string | undefined, field: "sectors" | "segments"): any {
-  return resolveMetaField(sharedMeta as any, gameId as GameId | undefined, field) ?? null;
-}
 
 /** Extract gameId, throwing if missing. Use for endpoints that require game context. */
 function requireGameId(c: { req: { query: (key: string) => string | undefined } }): GameId {
@@ -178,14 +173,13 @@ async function resolveTrackSegments(
   ordinal: number,
   gameId: string | undefined
 ): Promise<{ segments: NamedSegment[]; totalDist: number; source: "shared" | "auto" | "none" }> {
-  const sharedName = getSharedTrackName(ordinal, gameId);
-  const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
-  const metaSegments = gameMetaOverride(sharedMeta, gameId, "segments");
-  if (metaSegments && metaSegments.length > 0) {
+  const slug = getSharedTrackName(ordinal, gameId);
+  const metaSegments = slug && gameId ? loadLabelledSegments(slug, gameId) : [];
+  if (metaSegments.length > 0) {
     return { segments: metaSegments, totalDist: 0, source: "shared" };
   }
 
-  let outline = gameId ? getTrackOutlineByOrdinal(ordinal, gameId, sharedName) : null;
+  let outline = gameId ? getTrackOutlineByOrdinal(ordinal, gameId, slug) : null;
   if (!outline) {
     const recorded = gameId ? await getDbTrackOutline(ordinal, gameId as GameId) : null;
     if (recorded) outline = recorded.map((p: { x: number; z: number }) => ({ x: p.x, z: p.z }));
@@ -331,9 +325,9 @@ export const trackRoutes = new Hono()
       const gameId = c.req.query("gameId");
       const sharedName = getSharedTrackName(ordinal, gameId);
 
-      // Priority: game-specific meta -> shared meta -> bundled code
-      const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
-      const sectors = gameMetaOverride(sharedMeta, gameId, "sectors") ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(ordinal);
+      // Sector fractions are this game's geometry; fall back to bundled defaults.
+      const sectors = (sharedName && gameId ? loadTrackSectorsFor(sharedName, gameId) : undefined)
+        ?? getTrackSectorsByOrdinal(ordinal);
 
       // Compute track length from outline
       let trackLength = 0;
@@ -369,19 +363,13 @@ export const trackRoutes = new Hono()
       }
 
       const gameId = c.req.query("gameId");
-      const sharedName = getSharedTrackName(ordinal, gameId);
+      const slug = getSharedTrackName(ordinal, gameId);
 
-      // Save to meta file (game-specific if gameId provided)
-      if (sharedName) {
-        const meta = loadSharedTrackMeta(sharedName) ?? { name: sharedName };
-        if (gameId) {
-          (meta as any).games = (meta as any).games ?? {};
-          (meta as any).games[gameId] = (meta as any).games[gameId] ?? {};
-          (meta as any).games[gameId].sectors = { s1End, s2End };
-        } else {
-          (meta as any).sectors = { s1End, s2End };
-        }
-        saveSharedTrackMeta(sharedName, meta);
+      // Sector boundaries are lap fractions, so they live with the rest of this
+      // game's geometry rather than in the shared facts.
+      if (slug && gameId) {
+        const geometry = loadTrackGeometry(slug, gameId);
+        saveTrackGeometry(slug, gameId, { sectors: { s1End, s2End }, segments: geometry?.segments ?? [] });
       }
 
       return c.json({ success: true, s1End, s2End });
@@ -503,23 +491,41 @@ export const trackRoutes = new Hono()
         return c.json({ error: "segments array required" }, 400);
       }
 
-      // Resolve shared track name for the meta file
-      const sharedName = getSharedTrackName(trackOrdinal, gameId);
-      if (!sharedName) {
+      const slug = getSharedTrackName(trackOrdinal, gameId);
+      if (!slug) {
         return c.json({ error: "No shared track name for this ordinal" }, 400);
       }
-
-      // Update shared meta file — game-specific if gameId provided, else top-level fallback
-      const meta = loadSharedTrackMeta(sharedName) ?? { name: sharedName };
-      if (gameId) {
-        (meta as any).games = (meta as any).games ?? {};
-        (meta as any).games[gameId] = (meta as any).games[gameId] ?? {};
-        (meta as any).games[gameId].segments = body.segments;
-      } else {
-        (meta as any).segments = body.segments;
+      if (!gameId) {
+        return c.json({ error: "gameId required: fractions are always game-specific" }, 400);
       }
-      saveSharedTrackMeta(sharedName, meta);
-      console.log(`[Track] Saved segments for ${sharedName}${gameId ? ` (${gameId})` : ""} (${body.segments.length} segments)`);
+
+      // The editor hands back joined segments, so split them: fractions belong
+      // to this game, names and groups to the layout every game shares.
+      const { corners, straights, geometry } = splitSegments(body.segments as NamedSegment[]);
+
+      // Merge rather than replace. The payload only covers the corners this
+      // game actually drives, and a game whose detector misses a turn must not
+      // delete that turn for every other game.
+      const existing = loadTrackFacts(slug);
+      const byKey = new Map((existing?.corners ?? []).map((c) => [cornerKey(cornerNumbers(c)), c]));
+      for (const c of corners) byKey.set(cornerKey(cornerNumbers(c)), c);
+      const byAfter = new Map((existing?.straights ?? []).map((s) => [s.after, s]));
+      for (const s of straights) byAfter.set(s.after, s);
+
+      saveTrackFacts(slug, {
+        slug,
+        track: existing?.track ?? slug,
+        layout: existing?.layout ?? "full",
+        layoutName: existing?.layoutName ?? "Full",
+        name: existing?.name ?? slug,
+        corners: [...byKey.values()].sort((a, b) => a.number - b.number),
+        straights: [...byAfter.values()].sort((a, b) => a.after - b.after),
+      });
+      saveTrackGeometry(slug, gameId, {
+        ...(loadTrackGeometry(slug, gameId)?.sectors ? { sectors: loadTrackGeometry(slug, gameId)!.sectors } : {}),
+        segments: geometry,
+      });
+      console.log(`[Track] Saved ${geometry.length} segments for ${slug} (${gameId})`);
 
       return c.json({ success: true, count: body.segments.length });
     }
@@ -554,7 +560,7 @@ export const trackRoutes = new Hono()
       const { ordinal } = c.req.valid("param");
       const gameId = c.req.query("gameId");
       const slug = getSharedTrackName(ordinal, gameId);
-      const guide = getTrackGuide(getTrackName(ordinal, gameId as never), { slug, gameId });
+      const guide = getTrackGuide(getTrackName(ordinal, gameId as never), { slug });
       return c.json(guide);
     }
   )
@@ -773,7 +779,6 @@ export const trackRoutes = new Hono()
           s3Time: lap.s3Time,
           isValid: lap.isValid,
           invalidReason: lap.invalidReason,
-          isLegacy: lap.rawFile == null,
           division: carSpecsMap.get(lap.carOrdinal)?.division ?? null,
           notes: lap.notes,
         };
@@ -835,8 +840,8 @@ export const trackRoutes = new Hono()
 
       // Get sector boundaries (same priority as /api/track-sector-boundaries)
       const sharedName = getSharedTrackName(ordinal, gameId);
-      const sharedMeta = sharedName ? loadSharedTrackMeta(sharedName) : null;
-      const rawSectors = gameMetaOverride(sharedMeta, gameId, "sectors") ?? sharedMeta?.sectors ?? getTrackSectorsByOrdinal(ordinal);
+      const rawSectors = (sharedName && gameId ? loadTrackSectorsFor(sharedName, gameId) : undefined)
+        ?? getTrackSectorsByOrdinal(ordinal);
       const sectors = { s1End: rawSectors?.s1End ?? 1 / 3, s2End: rawSectors?.s2End ?? 2 / 3 };
 
       const result: Record<number, { s1: number; s2: number; s3: number }> = {};

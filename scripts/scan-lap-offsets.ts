@@ -3,7 +3,7 @@
  * Usage: bun run scripts/scan-lap-offsets.ts <sessionId>
  */
 import { readFileSync } from "fs";
-import { db } from "../server/db/index";
+import { db, initDb } from "../server/db/index";
 import { sessions } from "../server/db/schema";
 import { eq } from "drizzle-orm";
 import { initGameAdapters } from "../shared/games/init";
@@ -13,6 +13,8 @@ import { META_FRAME_MAGIC } from "../server/udp-recorder";
 
 initGameAdapters();
 initServerGameAdapters();
+// DB setup is no longer implicit in the import — it must be awaited explicitly.
+await initDb();
 
 const sessionId = Number(process.argv[2]);
 const sess = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
