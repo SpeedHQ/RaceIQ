@@ -258,26 +258,13 @@ Three separate claims, weakest to strongest — **curated is not the same as cor
 | **Meta human-verified** | A person checked that roster against a real turn-by-turn guide and signed it off. |
 | **Segments human-verified** | A person checked that game's rendered geometry (`shared/tracks/<gameId>/<slug>-segments.json`, easiest via the committed `test/e2e/output/track-segments/<slug>-<gameId>.svg`) and signed it off. Kept separate from meta because a correct roster says nothing about whether the corners landed in the right *place* — f1-2025 segments in particular are known to be inaccurate. |
 
-**Counts live in `docs/track-curation.md`, not here.** That doc owns the generated per-game summary and the per-track breakdown of who signed off what. No coverage numbers in CLAUDE.md — they go stale and nobody notices.
+**Counts live in `docs/track-curation.md`, not here.** No coverage numbers in CLAUDE.md — they go stale and nobody notices.
 
-⚠️ **When you curate a track (or add a game's centerlines), refresh the stats:**
+⚠️ **The coverage table is hand-maintained. There is no generator, deliberately** — a generated table would only re-state what the repo contains; it cannot record that a human looked at a track and agreed with it.
 
-```bash
-bun run tracks:coverage            # print the table
-bun run tracks:coverage --write    # rewrite the generated blocks in docs/track-curation.md
-```
-
-**Signing off verification** — only after actually comparing against a real source, never as a side effect of generating or regenerating anything:
-
-```bash
-bun run tracks:coverage --verify meta:suzuka --by "official circuit map"
-bun run tracks:coverage --verify segments:f1-2025/spa --by "svg render vs circuit map"
-bun run tracks:coverage --write    # then refresh the table
-```
-
-Signatures live in `shared/tracks/verified.json` and pin a hash of the file signed. **Edit the file and the signature goes stale** — it drops out of the verified count and shows as `+N stale`, so a human has to look again. Claude must not stamp the ledger on its own: propose it, let the user confirm what they checked. Low verified numbers are honest, not a metric to farm.
-
-`test/track-coverage.test.ts` fails if the committed table drifts from the repo, so this cannot silently rot. Source of truth: `shared/track-coverage.ts` + `shared/track-verified.ts`.
+- Curate a track (or add a game's centerlines) → update that game's row in `docs/track-curation.md` in the same PR.
+- Verify something → only after actually comparing against a real source (turn-by-turn guide for a roster, `test/e2e/output/track-segments/<slug>-<gameId>.svg` vs a circuit map for segments). Bump the cell, name the slug, say in the PR what you checked it against.
+- **Claude never marks anything verified.** Propose it; the user confirms what they actually looked at. Materially re-curating a verified file voids the sign-off. Low verified numbers are honest, not a metric to farm.
 
 📖 Full write-up — layer hierarchy, why the detector is a fallback, sanctioned gaps, verification rules: **[docs/track-curation.md](docs/track-curation.md)**.
 
