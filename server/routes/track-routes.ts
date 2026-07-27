@@ -44,7 +44,6 @@ import type { Corner } from "../corner-detection";
 import { cornerNumbers } from "../../shared/track-facts";
 import { splitSegments } from "../../shared/track-join";
 import { cornerKey } from "../../shared/track-keys";
-import { carryVerified } from "../../shared/track-verification";
 import {
   filterLapOutliers,
   normalizeToFixedPoints,
@@ -372,10 +371,10 @@ export const trackRoutes = new Hono()
       // game's geometry rather than in the shared facts.
       if (slug && gameId) {
         const geometry = loadTrackGeometry(slug, gameId);
-        saveTrackGeometry(slug, gameId, carryVerified(geometry, {
+        saveTrackGeometry(slug, gameId, {
           sectors: { s1End, s2End },
           segments: geometry?.segments ?? [],
-        }));
+        });
       }
 
       return c.json({ success: true, s1End, s2End });
@@ -518,10 +517,11 @@ export const trackRoutes = new Hono()
       const byAfter = new Map((existing?.straights ?? []).map((s) => [s.after, s]));
       for (const s of straights) byAfter.set(s.after, s);
 
-      // An editor save is an edit, not a sign-off: `carryVerified` keeps the
-      // block only when the save changed nothing. The citation is carried
-      // outright — an uncited name is indistinguishable from an invented one.
-      saveTrackFacts(slug, carryVerified(existing, {
+      // An editor save is an edit, not a sign-off — any signature in
+      // `shared/tracks/verified.json` goes stale on the next hash check. The
+      // citation is carried outright: an uncited name is indistinguishable
+      // from an invented one.
+      saveTrackFacts(slug, {
         slug,
         track: existing?.track ?? slug,
         layout: existing?.layout ?? "full",
@@ -530,12 +530,12 @@ export const trackRoutes = new Hono()
         ...(existing?.source ? { source: existing.source } : {}),
         corners: [...byKey.values()].sort((a, b) => a.number - b.number),
         straights: [...byAfter.values()].sort((a, b) => a.after - b.after),
-      }));
+      });
       const existingGeometry = loadTrackGeometry(slug, gameId);
-      saveTrackGeometry(slug, gameId, carryVerified(existingGeometry, {
+      saveTrackGeometry(slug, gameId, {
         ...(existingGeometry?.sectors ? { sectors: existingGeometry.sectors } : {}),
         segments: geometry,
-      }));
+      });
       console.log(`[Track] Saved ${geometry.length} segments for ${slug} (${gameId})`);
 
       return c.json({ success: true, count: body.segments.length });

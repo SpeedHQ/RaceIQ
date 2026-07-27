@@ -34,6 +34,7 @@
     "extract:ac-evo": "bun scripts/extract-ac-evo-tracks.ts && bun scripts/extract-ac-evo-cars.ts",
     "extract:tracks:ac-evo": "bun scripts/extract-ac-evo-tracks.ts",
     "tracks:segments": "bun scripts/generate-track-segments.ts",
+    "tracks:coverage": "bun scripts/track-coverage.ts",
     "extract:cars:ac-evo": "bun scripts/extract-ac-evo-cars.ts",
     "scrape:car-images:ac-evo": "bun scripts/scrape-ac-evo-car-images.ts",
     "laps:export": "bun scripts/export-laps.ts",

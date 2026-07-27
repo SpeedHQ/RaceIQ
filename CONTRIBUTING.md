@@ -63,9 +63,10 @@ of that. Before editing corner data — or before "fixing" the segment detector 
 [docs/track-curation.md](docs/track-curation.md). Curated geometry is the source of
 truth; the detector is a fallback and is not expected to be 100% accurate.
 
-Curated / verified coverage per game is tracked by hand in the table in
-[docs/track-curation.md](docs/track-curation.md) — update it in the same PR that
-curates or verifies a track.
+```bash
+bun run tracks:coverage            # curated / verified coverage per game
+bun run tracks:coverage --write    # refresh the table in CLAUDE.md
+```
 
 ## Database
 

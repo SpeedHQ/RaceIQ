@@ -6,7 +6,6 @@
  * digitises its own centerline, so one file exists per (track, game) pair.
  */
 import type { TrackSectors } from "./track-sectors";
-import type { Verification } from "./track-verification";
 
 /** Where one segment sits along this game's lap. Classification-free. */
 export interface GeometrySegment {
@@ -18,13 +17,5 @@ export interface GeometrySegment {
 
 export interface TrackGeometry {
   sectors?: TrackSectors & { source?: string };
-  /**
-   * Human sign-off on where these segments sit in *this game's* lap. Separate
-   * from the facts sign-off because they are separate claims: the turn list can
-   * be right while the fractions are half a lap out, and each game digitises
-   * its own centerline, so checking one game's geometry says nothing about
-   * another's.
-   */
-  verified?: Verification;
   segments: GeometrySegment[];
 }

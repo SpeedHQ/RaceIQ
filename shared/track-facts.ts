@@ -19,7 +19,6 @@
  * Geometry lives in `shared/track-geometry.ts`; the keys that join the two in
  * `shared/track-keys.ts`; the join itself in `shared/track-join.ts`.
  */
-import type { Verification } from "./track-verification";
 
 /** One officially numbered corner. `number` plus `covers` is its identity. */
 export interface CornerFact {
@@ -66,8 +65,6 @@ export interface TrackFacts {
    * this is the citation that makes them auditable. Never invent one.
    */
   source?: string;
-  /** Human sign-off on the names, numbers and directions below. Never written by a script. */
-  verified?: Verification;
   corners: CornerFact[];
   /** Only gaps that carry a real name. */
   straights?: StraightFact[];

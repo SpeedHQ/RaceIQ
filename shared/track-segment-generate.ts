@@ -24,7 +24,6 @@ import { cornerNumbers, type CornerFact, type StraightFact, type TrackFacts } fr
 import type { TrackGeometry } from "./track-geometry";
 import { splitSegments } from "./track-join";
 import { cornerKey } from "./track-keys";
-import { carryVerified } from "./track-verification";
 import { loadDetectHints } from "./track-detect-hints";
 import type { NamedSegment } from "./track-named-segments";
 import { SHARED_DIR } from "./resolve-data";
@@ -223,11 +222,10 @@ export function buildUpdatedMeta(
     // Sectors are curated per game and live only in geometry — regeneration
     // rewrites segments and must carry them through untouched.
     const sectors = existingGeometry[a.gameId]?.sectors;
-    // A sign-off survives only a run that changed nothing — see `carryVerified`.
-    geometry[a.gameId] = carryVerified(existingGeometry[a.gameId], {
+    geometry[a.gameId] = {
       ...(sectors ? { sectors } : {}),
       segments: split.geometry,
-    });
+    };
     for (const c of split.corners) {
       const key = cornerKey(cornerNumbers(c));
       const seen = cornerVotes.get(key);
@@ -273,7 +271,7 @@ export function buildUpdatedMeta(
 
   const named = [...straights.values()].sort((a, b) => a.after - b.after);
   return {
-    facts: carryVerified(existingFacts, {
+    facts: {
       slug: existingFacts?.slug ?? slug,
       track: existingFacts?.track ?? slug,
       layout: existingFacts?.layout ?? "full",
@@ -284,7 +282,7 @@ export function buildUpdatedMeta(
       ...(existingFacts?.source ? { source: existingFacts.source } : {}),
       corners: [...corners.values()].sort((a, b) => a.number - b.number),
       ...(named.length ? { straights: named } : {}),
-    }),
+    },
     geometry,
   };
 }
