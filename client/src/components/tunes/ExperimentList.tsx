@@ -185,8 +185,9 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
       base64 = btoa(bin);
       try {
         const info = await inspect.mutateAsync(base64);
-        // null when the slug isn't in the roster — the driver names it instead
-        // of us pre-filling a folder that would be wrong.
+        // The file states its own car folder, so this is prefilled even for a
+        // car missing from our static roster (`knownCar` false) — the folder
+        // name is still correct, only the friendly display name is unknown.
         carName = info.carModel ?? undefined;
       } catch (err: any) {
         setDropNote(err?.message ?? "Couldn't read that .carsetup file.");

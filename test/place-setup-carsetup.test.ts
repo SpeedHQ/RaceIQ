@@ -121,10 +121,24 @@ describe("carSlugFromPresetId", () => {
     expect(carSlugFromPresetId("ks_")).toBeNull();
   });
 
-  test("an unknown slug is not in the roster, so the route reports no car", () => {
+  /**
+   * A car missing from the roster must STILL yield its folder name.
+   *
+   * shared/ac-evo-car-data is a static CSV that has to be re-extracted after a
+   * game update, so it lags the game by design. Gating the folder on a roster
+   * hit — which is what this route did first — left the driver retyping a name
+   * the file already states correctly, for exactly the newest cars.
+   *
+   * The roster hit only decides whether a friendly display name is available.
+   */
+  test("an unknown slug still gives a usable folder name", () => {
     const models = new Set(getAllAcEvoCars().map((c) => c.model));
     const slug = carSlugFromPresetId("ks_not_a_real_car_preset_x");
     expect(slug).toBe("not_a_real_car");
+    // Not in the roster …
     expect(models.has(slug!)).toBe(false);
+    // … but the slug is what the game names the folder, so it is still what the
+    // route reports as carModel.
+    expect(slug).toBeTruthy();
   });
 });

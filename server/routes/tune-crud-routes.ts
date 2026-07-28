@@ -344,15 +344,22 @@ export const tuneCrudRoutes = new Hono()
       if (!decoded || decoded.raw.length === 0) {
         return c.json({ error: "Couldn't decode that .carsetup file" }, 400);
       }
-      // Only report a car we can confirm against the canonical roster — a slug
-      // that doesn't match is reported as unknown rather than pre-filling a
-      // folder name that would silently create a bogus directory.
+      // The slug IS the folder name AC EVO writes under `Car Setups/`, so it is
+      // reported whether or not we recognise the car. Gating it on the roster
+      // was wrong: shared/ac-evo-car-data is a static CSV that has to be
+      // re-extracted after a game update (see the extract-ac-evo skill), so any
+      // car newer than the CSV would leave the driver retyping a folder name the
+      // file already states correctly.
+      //
+      // The roster lookup therefore only supplies the friendly display name.
       const slug = carSlugFromPresetId(decoded.presetId);
       const known = slug ? getAllAcEvoCars().find((car) => car.model === slug) : undefined;
       return c.json({
         presetId: decoded.presetId,
-        carModel: known?.model ?? null,
+        carModel: slug,
         carName: known?.name ?? null,
+        /** False when the car isn't in our roster — the folder is still right. */
+        knownCar: known != null,
       });
     }
   )

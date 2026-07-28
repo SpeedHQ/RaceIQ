@@ -585,14 +585,20 @@ export function useSetupFileContent(gameId: "acc" | "ac-evo" | null, path: strin
 
 /** Decode a dropped binary AC EVO `.carsetup` far enough to name its car.
  *  The preset id inside the file carries the car slug, but reading it needs a
- *  protobuf decode the browser can't do — so the bytes go to the server and
- *  come back as a confirmed roster car (or null when it can't be matched). */
+ *  protobuf decode the browser can't do — so the bytes go to the server. */
 export function useInspectCarSetup() {
   return useMutation({
     mutationFn: async (contentBase64: string) => {
       const res = await (client.api.tunes as any)["inspect-carsetup"].$post({ json: { contentBase64 } });
       if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
-      return (await res.json()) as { presetId: string | null; carModel: string | null; carName: string | null };
+      return (await res.json()) as {
+        presetId: string | null;
+        /** The car's folder name under Car Setups/, from the file itself. */
+        carModel: string | null;
+        /** Friendly name, null when the car isn't in our (static) roster. */
+        carName: string | null;
+        knownCar: boolean;
+      };
     },
   });
 }
