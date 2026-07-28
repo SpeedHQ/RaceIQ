@@ -12,6 +12,7 @@ import { initServerGameAdapters } from "./games/init";
 import { initGameAdapters } from "../shared/games/init";
 import { accRecorder } from "./games/acc/recorder";
 import { acEvoRecorder } from "./games/ac-evo/recorder";
+import { iracingRecorder } from "./games/iracing/recorder";
 import { reconcileDiscoveredCars, listDiscoveredCars } from "./db/discovered-cars";
 import { listDiscoveredTracks } from "./db/discovered-tracks";
 import { injectDiscoveredAcEvoCars } from "../shared/ac-evo-car-data";
@@ -224,7 +225,7 @@ if (recordingGameId === "fm-2023" || recordingGameId === "f1-2025") {
 }
 
 // Flush every recorder on Ctrl+C / kill so each .bin has a clean tail. All
-// three recorders buffer via Bun.file().writer() — without this handler the
+// recorders buffer via Bun.file().writer() — without this handler the
 // default SIGINT path exits before the buffer drains and the file ends up
 // zero-length (or missing the tail).
 import { flushSessionRecorder } from "./pipeline";
@@ -239,7 +240,12 @@ const gracefulShutdown = async (signal: NodeJS.Signals) => {
     if (acEvoReader) tasks.push(acEvoReader.stop());
     if (iracingSource) tasks.push(iracingSource.stop());
     if (recordingGameId) {
-      tasks.push(udpListener.stop(), accRecorder.stop(), acEvoRecorder.stop());
+      tasks.push(
+        udpListener.stop(),
+        accRecorder.stop(),
+        acEvoRecorder.stop(),
+        iracingRecorder.stop(),
+      );
     }
     await Promise.allSettled(tasks);
   } finally {
@@ -315,7 +321,9 @@ if (process.platform === "win32") {
     superviseSource(
       isGameRunning("iracing"),
       "iRacing",
-      () => new IRacingTelemetrySource(),
+      () => new IRacingTelemetrySource({
+        recordingEnabled: recordingGameId === "iracing",
+      }),
       () => iracingSource,
       (source) => { iracingSource = source; },
     );

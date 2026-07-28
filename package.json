@@ -12,6 +12,7 @@
     "dev:proxy": "bun scripts/dev-proxy.ts",
     "dev:dump:ac-evo": "bun run dev:proxy && concurrently \"bun --watch run server/index.ts --record=ac-evo\" \"cd client && portless raceiq bun run dev\"",
     "dev:dump:acc": "bun run dev:proxy && concurrently \"bun --watch run server/index.ts --record=acc\" \"cd client && portless raceiq bun run dev\"",
+    "dev:dump:iracing": "bun run dev:proxy && concurrently \"bun --watch run server/index.ts --record=iracing\" \"cd client && portless raceiq bun run dev\"",
     "dev:dump:f1": "bun run dev:proxy && concurrently \"bun --watch run server/index.ts --record=f1-2025\" \"cd client && portless raceiq bun run dev\"",
     "dev:dump:fm": "bun run dev:proxy && concurrently \"bun --watch run server/index.ts --record=fm-2023\" \"cd client && portless raceiq bun run dev\"",
     "dev:client": "bun run dev:proxy && cd client && portless raceiq bun run dev",

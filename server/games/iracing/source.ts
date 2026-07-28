@@ -8,6 +8,7 @@ import {
   type IRacingSourceFrameV1,
   type IRacingValue,
 } from "./source-frame";
+import { iracingRecorder, type IRacingRecorder } from "./recorder";
 
 export interface IRacingFrameReader {
   start(): void;
@@ -19,6 +20,9 @@ export interface IRacingTelemetrySourceOptions {
   reader?: IRacingFrameReader;
   dispatchRawFrame?: (rawFrame: Buffer) => Promise<void>;
   pollIntervalMs?: number;
+  recordingEnabled?: boolean;
+  recordingDir?: string;
+  recorder?: IRacingRecorder;
 }
 
 async function dispatchThroughParser(rawFrame: Buffer): Promise<void> {
@@ -41,6 +45,9 @@ export class IRacingTelemetrySource {
   private readonly reader: IRacingFrameReader;
   private readonly dispatchRawFrame: (rawFrame: Buffer) => Promise<void>;
   private readonly pollIntervalMs: number;
+  private readonly recordingEnabled: boolean;
+  private readonly recordingDir: string | undefined;
+  private readonly recorder: IRacingRecorder;
   private timer: ReturnType<typeof setInterval> | null = null;
   private running = false;
   private polling = false;
@@ -53,10 +60,17 @@ export class IRacingTelemetrySource {
     this.reader = options.reader ?? new IRacingSdkReader();
     this.dispatchRawFrame = options.dispatchRawFrame ?? dispatchThroughParser;
     this.pollIntervalMs = options.pollIntervalMs ?? 1000 / 60;
+    this.recordingEnabled = options.recordingEnabled ?? false;
+    this.recordingDir = options.recordingDir;
+    this.recorder = options.recorder ?? iracingRecorder;
   }
 
   start(): void {
     if (this.running) return;
+    if (this.recordingEnabled && !this.recorder.recording) {
+      const recordPath = this.recorder.start(this.recordingDir);
+      console.log(`[iRacing] Recording mode: bin file created at ${recordPath}`);
+    }
     this.reader.start();
     this.running = true;
     this.timer = setInterval(() => void this.pollOnce(), this.pollIntervalMs);
@@ -69,11 +83,17 @@ export class IRacingTelemetrySource {
       clearInterval(this.timer);
       this.timer = null;
     }
-    await this.reader.stop();
-    this.cachedSessionInfoUpdate = null;
-    this.cachedSessionNum = null;
-    this.cachedSession = null;
-    console.log("[iRacing] Telemetry source stopped");
+    try {
+      await this.reader.stop();
+    } finally {
+      if (this.recordingEnabled) {
+        await this.recorder.stop();
+      }
+      this.cachedSessionInfoUpdate = null;
+      this.cachedSessionNum = null;
+      this.cachedSession = null;
+      console.log("[iRacing] Telemetry source stopped");
+    }
   }
 
   async pollOnce(): Promise<boolean> {
@@ -101,7 +121,11 @@ export class IRacingTelemetrySource {
         session: this.cachedSession,
         values: snapshot.values,
       };
-      await this.dispatchRawFrame(encodeIRacingSourceFrame(frame));
+      const rawFrame = encodeIRacingSourceFrame(frame);
+      if (this.recordingEnabled) {
+        this.recorder.writeFrame(rawFrame);
+      }
+      await this.dispatchRawFrame(rawFrame);
       return true;
     } catch (error) {
       const now = Date.now();
