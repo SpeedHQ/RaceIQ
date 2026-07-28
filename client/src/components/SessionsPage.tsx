@@ -2,7 +2,7 @@ import { MOTEC_SESSION_SOURCE, motecImportSupported } from "@shared/motec";
 import type { LapMeta, SessionMeta } from "@shared/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { queryKeys, useDeleteLap, useLaps, useSessions } from "../hooks/queries";
 import { exportLapsZip } from "../lib/lap-export";
@@ -760,8 +760,8 @@ export function SessionsPage() {
                 return lapSortDir === "asc" ? cmp : -cmp;
               });
               return (
-                <>
-                  <TRow key={session.id} onClick={() => toggleExpand(session.id)} className={isExpanded ? "bg-app-surface-alt/30" : ""}>
+                <Fragment key={session.id}>
+                  <TRow onClick={() => toggleExpand(session.id)} className={isExpanded ? "bg-app-surface-alt/30" : ""}>
                     <TD className="px-2 text-center" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
@@ -822,7 +822,7 @@ export function SessionsPage() {
                     </TD>
                   </TRow>
                   {isExpanded && sessionLaps.length > 0 && (
-                    <tr key={`${session.id}-laps`}>
+                    <tr>
                       <td colSpan={colCount} className="p-0">
                         <div className="bg-app-surface-alt/20 border-b border-app-border pl-8">
                           <SessionLapTable
@@ -838,7 +838,7 @@ export function SessionsPage() {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               );
             })
           )}
