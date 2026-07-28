@@ -89,25 +89,39 @@ describe("telemetry fidelity vs MoTeC-rate logging", () => {
     expect(captureHz).toBeGreaterThan(30);
   });
 
-  test("a third of emitted frames are duplicates, so our effective rate is ~39.5Hz", () => {
-    // The assembler emits on every poll with no gate on the physics page having
-    // advanced, so the same CurrentRaceTime is written repeatedly. This is the
-    // cheapest size win available (docs/telemetry-fidelity.md section 6) and the
-    // reason the honest headline rate is ~39.5Hz, not 63.5Hz.
-    const all = allPackets;
-    let duplicates = 0;
-    for (let i = 1; i < all.length; i++) {
-      if (all[i].CurrentRaceTime === all[i - 1].CurrentRaceTime) duplicates++;
+  // The two shared-memory pages advance at different rates in the sim, so
+  // "duplicate frame" is only meaningful per page. An earlier draft of this test
+  // measured CurrentRaceTime — which is derived from the *graphics* page — and
+  // mislabelled the result as stale physics. It is not: physics is fresh nearly
+  // every poll. See docs/telemetry-fidelity.md sections 1 and 6.
+  const pageRepeats = (key: "physicsPacketId" | "graphicsPacketId"): number => {
+    let repeats = 0;
+    for (let i = 1; i < allPackets.length; i++) {
+      if (allPackets[i].acc?.acEvo?.[key] === allPackets[i - 1].acc?.acEvo?.[key]) repeats++;
     }
-    const dupFraction = duplicates / all.length;
-    expect(dupFraction).toBeGreaterThan(0.3);
-    expect(dupFraction).toBeLessThan(0.45);
+    return repeats / allPackets.length;
+  };
 
-    // If someone adds the page-change gate, this test should fail loudly rather
-    // than the doc silently going stale.
-    const effectiveHz = captureHz * (1 - dupFraction);
-    expect(effectiveHz).toBeGreaterThan(35);
-    expect(effectiveHz).toBeLessThan(45);
+  test("the physics page is fresh on essentially every frame", () => {
+    // No physics sample we write is a stale copy, so our physics-channel rate is
+    // the full capture rate (~63.5Hz) — not a lower "effective" rate.
+    expect(pageRepeats("physicsPacketId")).toBeLessThan(0.01);
+  });
+
+  test("a third of frames re-read an unchanged graphics page", () => {
+    // The graphics page only advances at ~40Hz in the sim, so polling it at
+    // ~63.5Hz re-reads it ~37% of the time. Graphics is also the largest page in
+    // the triplet (3944 of 5000 bytes), which is what makes this the cheapest
+    // size win available (docs/telemetry-fidelity.md section 6).
+    const gfxRepeats = pageRepeats("graphicsPacketId");
+    expect(gfxRepeats).toBeGreaterThan(0.3);
+    expect(gfxRepeats).toBeLessThan(0.45);
+
+    // Graphics-derived channels (lap time, position, flags) therefore genuinely
+    // update at ~40Hz, not at the capture rate.
+    const graphicsHz = captureHz * (1 - gfxRepeats);
+    expect(graphicsHz).toBeGreaterThan(35);
+    expect(graphicsHz).toBeLessThan(45);
   });
 
   describe("what survives decimation to 26.6Hz", () => {
