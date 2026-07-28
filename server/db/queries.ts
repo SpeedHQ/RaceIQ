@@ -490,6 +490,77 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
 }
 
 /**
+ * Every lap in a driver-profile scope, newest first — deliberately unlimited.
+ *
+ * The car/track predicate is pushed into SQL rather than applied to a capped
+ * `getLaps()` page: filtering after a LIMIT silently truncates a deep history,
+ * so a "global" profile would quietly stop being global once the driver had
+ * more laps than the page size. These are metadata rows only (no telemetry
+ * decode), so the scan is cheap; the expensive per-lap frame decode is bounded
+ * separately by MAX_PROFILE_LAPS in driver-profile-aggregate.ts.
+ */
+export async function getLapMetaForProfileScope(gameId: GameId, carOrdinal?: number, trackOrdinal?: number): Promise<LapMeta[]> {
+  const filters = [eq(sessions.gameId, gameId)];
+  if (carOrdinal != null) filters.push(eq(sessions.carOrdinal, carOrdinal));
+  if (trackOrdinal != null) filters.push(eq(sessions.trackOrdinal, trackOrdinal));
+
+  const rows = await db
+    .select({
+      id: laps.id,
+      sessionId: laps.sessionId,
+      lapNumber: laps.lapNumber,
+      lapTime: laps.lapTime,
+      isValid: laps.isValid,
+      invalidReason: laps.invalidReason,
+      notes: laps.notes,
+      pi: laps.pi,
+      carSetup: laps.carSetup,
+      createdAt: laps.createdAt,
+      carOrdinal: sessions.carOrdinal,
+      trackOrdinal: sessions.trackOrdinal,
+      tuneId: laps.tuneId,
+      tuneName: tunes.name,
+      gameId: sessions.gameId,
+      s1Time: laps.s1Time,
+      s2Time: laps.s2Time,
+      s3Time: laps.s3Time,
+      tuningSessionId: laps.tuningSessionId,
+      tuningTestId: laps.tuningTestId,
+      tuningExcluded: laps.tuningExcluded,
+      tuningExcludedSource: laps.tuningExcludedSource,
+      fuelPerLap: laps.fuelPerLap,
+      tyreWear: laps.tyreWear,
+    })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .where(and(...filters))
+    .orderBy(desc(laps.id))
+    .all();
+
+  return rows.map((r) => ({
+    ...r,
+    isValid: Boolean(r.isValid),
+    invalidReason: r.invalidReason ?? undefined,
+    pi: r.pi ?? 0,
+    carSetup: r.carSetup ?? undefined,
+    tuneId: r.tuneId ?? undefined,
+    tuneName: r.tuneName ?? undefined,
+    notes: r.notes ?? undefined,
+    gameId: r.gameId as GameId,
+    s1Time: r.s1Time ?? undefined,
+    s2Time: r.s2Time ?? undefined,
+    s3Time: r.s3Time ?? undefined,
+    tuningSessionId: r.tuningSessionId ?? null,
+    tuningTestId: r.tuningTestId ?? null,
+    tuningExcluded: Boolean(r.tuningExcluded),
+    tuningExcludedSource: (r.tuningExcludedSource as "auto" | "manual" | null) ?? null,
+    fuelPerLap: r.fuelPerLap ?? null,
+    tyreWear: r.tyreWear ?? null,
+  }));
+}
+
+/**
  * Laps explicitly linked to a tuning session (migration v25), newest-first.
  * Joined to sessions for car/track/game exactly like getLaps. This is the
  * authoritative membership query — it replaces the old created-at time-window
