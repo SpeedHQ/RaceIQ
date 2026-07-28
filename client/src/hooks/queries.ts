@@ -1,3 +1,4 @@
+import type { ExperimentFocus, VersionKind } from "@shared/experiment-focus";
 import { tryGetGame } from "@shared/games/registry";
 import type { GameId, LapMeta, SessionMeta, SessionRecap, TelemetryPacket, TuneIssue } from "@shared/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -6,6 +7,7 @@ import { useEffect, useMemo } from "react";
 import type { CatalogTune } from "../data/tune-catalog";
 import type { SectorTimeline } from "../lib/lap-sectors";
 import { client } from "../lib/rpc";
+import { errorFromResponse } from "../lib/rpc-error";
 import { useGameId } from "../stores/game";
 import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
 // ── Query Keys ──────────────────────────────────────────────────────────────
@@ -131,26 +133,26 @@ export function useBulkDeleteLaps() {
 }
 
 /** Include/exclude a lap from the tuning aggregate (design §Phase 7 — the
- *  user-facing counterpart to the `set_lap_excluded` agent tool). `tuningSessionId`
+ *  user-facing counterpart to the `set_lap_excluded` agent tool). `experimentId`
  *  is optional so the mutation still works for laps outside a tuning session
  *  (nothing tuning-scoped to invalidate then). */
 export function useSetLapExcluded() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ lapId, excluded }: { lapId: number; excluded: boolean; tuningSessionId?: number | null }) => {
-      const res = await (client.api.laps as any)[":id"]["tuning-excluded"].$post({
+    mutationFn: async ({ lapId, excluded }: { lapId: number; excluded: boolean; experimentId?: number | null }) => {
+      const res = await (client.api.laps as any)[":id"]["experiment-excluded"].$post({
         param: { id: String(lapId) },
         json: { excluded },
       });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as { ok: true; lapId: number; excluded: boolean };
     },
-    onSuccess: (_data, { tuningSessionId }) => {
+    onSuccess: (_data, { experimentId }) => {
       qc.invalidateQueries({ queryKey: queryKeys.laps });
-      if (tuningSessionId != null) {
-        qc.invalidateQueries({ queryKey: ["tuning-session", tuningSessionId] });
-        qc.invalidateQueries({ queryKey: ["tuning-session-tests", tuningSessionId] });
-        qc.invalidateQueries({ queryKey: ["tuning-session-chat-history", tuningSessionId] });
+      if (experimentId != null) {
+        qc.invalidateQueries({ queryKey: ["experiment", experimentId] });
+        qc.invalidateQueries({ queryKey: ["experiment-tests", experimentId] });
+        qc.invalidateQueries({ queryKey: ["experiment-chat-history", experimentId] });
       }
     },
   });
@@ -475,7 +477,7 @@ export function useRefreshCommunityTunes() {
   return useMutation({
     mutationFn: async () => {
       const res = await client.api.tunes.community.refresh.$post();
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return res.json() as Promise<{ synced: boolean; count: number; version: string | null }>;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.catalogTunes }),
@@ -487,7 +489,7 @@ export function useCreateTune() {
   return useMutation({
     mutationFn: async (data: any) => {
       const res = await client.api.tunes.$post({ json: data });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
@@ -499,7 +501,7 @@ export function useUpdateTune() {
   return useMutation({
     mutationFn: async ({ id, ...data }: any) => {
       const res = await client.api.tunes[":id"].$put({ param: { id: String(id) }, json: data } as any);
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
@@ -511,7 +513,7 @@ export function useDeleteTune() {
   return useMutation({
     mutationFn: async (id: number) => {
       const res = await client.api.tunes[":id"].$delete({ param: { id: String(id) } });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
   });
@@ -522,7 +524,7 @@ export function useCloneCatalogTune() {
   return useMutation({
     mutationFn: async (catalogId: string) => {
       const res = await client.api.tunes.clone[":catalogId"].$post({ param: { catalogId } });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
@@ -534,7 +536,7 @@ export function useDuplicateTune() {
   return useMutation({
     mutationFn: async (id: number) => {
       const res = await client.api.tunes[":id"].duplicate.$post({ param: { id: String(id) } });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
@@ -586,14 +588,43 @@ export function useSetupFileContent(gameId: "acc" | "ac-evo" | null, path: strin
   });
 }
 
+/** Decode a dropped binary AC EVO `.carsetup` far enough to name its car.
+ *  The preset id inside the file carries the car slug, but reading it needs a
+ *  protobuf decode the browser can't do — so the bytes go to the server. */
+export function useInspectCarSetup() {
+  return useMutation({
+    mutationFn: async (contentBase64: string) => {
+      const res = await (client.api.tunes as any)["inspect-carsetup"].$post({ json: { contentBase64 } });
+      if (!res.ok) throw await errorFromResponse(res);
+      return (await res.json()) as {
+        presetId: string | null;
+        /** The car's folder name under Car Setups/, from the file itself. */
+        carModel: string | null;
+        /** Friendly name, null when the car isn't in our (static) roster. */
+        carName: string | null;
+        knownCar: boolean;
+      };
+    },
+  });
+}
+
 /** Place a dropped setup into the user's Setups folder (Setups/<car>/<track>/file)
  *  so it becomes a usable base — instead of rejecting files not saved in-game. */
 export function usePlaceSetup() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { gameId: "acc" | "ac-evo"; carName: string; trackName: string; fileName: string; content: unknown }) => {
+    mutationFn: async (data: {
+      gameId: "acc" | "ac-evo";
+      carName: string;
+      trackName: string;
+      fileName: string;
+      /** ACC / legacy AC EVO JSON. Exactly one of content / contentBase64. */
+      content?: unknown;
+      /** Binary AC EVO `.carsetup`, base64. Written verbatim server-side. */
+      contentBase64?: string;
+    }) => {
       const res = await (client.api.tunes as any)["place-setup"].$post({ json: data });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as { absolutePath: string; carModel: string; trackName: string; fileName: string; placed: boolean };
     },
     onSuccess: (_r, vars) => qc.invalidateQueries({ queryKey: ["setup-files", vars.gameId] }),
@@ -605,7 +636,7 @@ export function useImportTuneFile() {
   return useMutation({
     mutationFn: async (data: { gameId: "acc" | "ac-evo"; filePath: string; name?: string; author?: string; carOrdinal: number; category?: string }) => {
       const res = await (client.api.tunes as any)["import-file"].$post({ json: data });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
@@ -651,7 +682,7 @@ export function useAutoTune() {
       driverNotes?: string;
     }) => {
       const res = await (client.api.tunes as any).auto.$post({ json: data });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as AutoTuneResult;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["setup-files"] }),
@@ -700,7 +731,7 @@ export function useSetTuneAssignment() {
   return useMutation({
     mutationFn: async (data: { gameId: GameId; carOrdinal: number; trackOrdinal: number; tuneId: number }) => {
       const res = await client.api["tune-assignments"].$put({ json: data });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.tuneAssignments }),
@@ -721,7 +752,7 @@ export function useDeleteTuneAssignment() {
 }
 
 // ── Tuning sessions (Setup Engineer front door, plan §6a) ─────────────────────
-export interface TuningSession {
+export interface Experiment {
   id: number;
   /** Per-game display number from 1 (independent of the raw id and races). */
   seq: number;
@@ -736,9 +767,24 @@ export interface TuningSession {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
-  headTestId: number | null;
+  headVersionId: number | null;
+  /** What the experiment is working on right now — 'setup' (varying the car) or
+   *  'driving' (varying the driver). Mutable mid-session via useSetExperimentFocus;
+   *  it decides the kind of the NEXT arm and never rewrites existing ones. */
+  focus: ExperimentFocus;
   /** Track-length-aware stint nudge (Phase 5) — advisory, computed server-side on GET. */
   lapTarget?: number;
+}
+
+/** One entry in an experiment's focus ledger — an era, not a click. */
+export interface ExperimentFocusEvent {
+  id: number;
+  experimentId: number;
+  focus: ExperimentFocus;
+  /** Head version when the switch happened — where this era starts in the tree. */
+  fromVersionId: number | null;
+  note: string | null;
+  createdAt: string;
 }
 
 /** Game ids that can own a tuning session. ACC/AC-Evo carry a setup file on
@@ -746,24 +792,24 @@ export interface TuningSession {
  *  base setup is captured from telemetry (see useCaptureSetup) — so file-only
  *  components (SetupFilePicker, AutoTunePanel, etc.) stay typed "acc" | "ac-evo"
  *  and F1-path components must gate them off rather than widen them. */
-export type TuningGameId = "acc" | "ac-evo" | "f1-2025";
+export type ExperimentGameId = "acc" | "ac-evo" | "f1-2025";
 
-export function useTuningSessions(gameId: TuningGameId) {
+export function useExperiments(gameId: ExperimentGameId) {
   return useQuery({
-    queryKey: ["tuning-sessions", gameId],
+    queryKey: ["experiments", gameId],
     queryFn: async () => {
-      const res = await (client.api as any)["tuning-sessions"].$get({ query: { gameId } });
-      return rpcJson<TuningSession[]>(res);
+      const res = await (client.api as any)["experiments"].$get({ query: { gameId } });
+      return rpcJson<Experiment[]>(res);
     },
     staleTime: 10_000,
   });
 }
 
-export function useCreateTuningSession() {
+export function useCreateExperiment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: {
-      gameId: TuningGameId;
+      gameId: ExperimentGameId;
       name: string;
       carOrdinal?: number | null;
       trackOrdinal?: number | null;
@@ -771,22 +817,62 @@ export function useCreateTuningSession() {
       trackName?: string | null;
       baseSetupPath?: string | null;
       notes?: string | null;
+      focus?: ExperimentFocus;
     }) => {
-      const res = await (client.api as any)["tuning-sessions"].$post({ json: data });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
-      return (await res.json()) as TuningSession;
+      const res = await (client.api as any)["experiments"].$post({ json: data });
+      if (!res.ok) throw await errorFromResponse(res);
+      return (await res.json()) as Experiment;
     },
-    onSuccess: (s) => qc.invalidateQueries({ queryKey: ["tuning-sessions", s.gameId] }),
+    onSuccess: (s) => qc.invalidateQueries({ queryKey: ["experiments", s.gameId] }),
   });
 }
 
-/** One tuning session by id — the workspace opened via ?tuningSession=<id>. */
-export function useTuningSession(id: number | null | undefined) {
+/**
+ * Switch what an experiment is working on, mid-session.
+ *
+ * Not folded into a generic "update experiment" mutation on purpose: this
+ * starts a new era (it changes what the next arm will be and appends to the
+ * focus ledger), so it invalidates the version list and the ledger too.
+ */
+export function useSetExperimentFocus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, focus, note }: { id: number; focus: ExperimentFocus; note?: string | null }) => {
+      const res = await (client.api as any)["experiments"][":id"]["focus"].$patch({
+        param: { id: String(id) },
+        json: { focus, note: note ?? null },
+      });
+      if (!res.ok) throw await errorFromResponse(res);
+      return (await res.json()) as { experiment: Experiment; event: ExperimentFocusEvent | null; changed: boolean };
+    },
+    onSuccess: (r, vars) => {
+      qc.invalidateQueries({ queryKey: ["experiment", vars.id] });
+      qc.invalidateQueries({ queryKey: ["experiment-focus-history", vars.id] });
+      qc.invalidateQueries({ queryKey: ["experiments", r.experiment.gameId] });
+    },
+  });
+}
+
+/** The experiment's focus ledger, oldest first. */
+export function useExperimentFocusHistory(id: number | null | undefined) {
   return useQuery({
-    queryKey: ["tuning-session", id ?? null],
+    queryKey: ["experiment-focus-history", id ?? null],
     queryFn: async () => {
-      const res = await (client.api as any)["tuning-sessions"][":id"].$get({ param: { id: String(id!) } });
-      return rpcJson<TuningSession>(res);
+      const res = await (client.api as any)["experiments"][":id"]["focus-history"].$get({ param: { id: String(id!) } });
+      return rpcJson<ExperimentFocusEvent[]>(res);
+    },
+    enabled: id != null,
+    staleTime: 10_000,
+  });
+}
+
+/** One tuning session by id — the workspace opened via ?experiment=<id>. */
+export function useExperiment(id: number | null | undefined) {
+  return useQuery({
+    queryKey: ["experiment", id ?? null],
+    queryFn: async () => {
+      const res = await (client.api as any)["experiments"][":id"].$get({ param: { id: String(id!) } });
+      return rpcJson<Experiment>(res);
     },
     enabled: id != null,
     staleTime: 10_000,
@@ -794,13 +880,13 @@ export function useTuningSession(id: number | null | undefined) {
 }
 
 // ── Tuning tests (setup versions under evaluation, plan §2) ───────────────────
-export interface TuningTest {
+export interface ExperimentVersion {
   id: number;
-  tuningSessionId: number;
+  experimentId: number;
   version: number;
   label: string;
   setupPath: string | null;
-  parentTestId: number | null;
+  parentVersionId: number | null;
   /** JSON string of AppliedChange[] (null for a base/un-applied version). */
   appliedChanges: string | null;
   driverComment: string | null;
@@ -809,20 +895,23 @@ export interface TuningTest {
   engine: string | null;
   /** F1's captured base / target F1CarSetup JSON; null for file-based (ACC/AC-EVO) nodes. */
   setupSnapshot: string | null;
+  /** What this arm varied, fixed at creation from the focus then in force.
+   *  Decides how the arm is judged — see headlineMetricForVersionKind. */
+  kind: VersionKind;
   status: string;
   createdAt: string;
-  /** Laps driven on this exact version (grouped by tuning_test_id). */
+  /** Laps driven on this exact version (grouped by experiment_version_id). */
   lapCount: number;
   /** Best (min positive) lap time in ms on this version, or null. */
   bestLapMs: number | null;
 }
 
-export function useTuningSessionTests(id: number | null | undefined) {
+export function useExperimentVersions(id: number | null | undefined) {
   return useQuery({
-    queryKey: ["tuning-session-tests", id ?? null],
+    queryKey: ["experiment-tests", id ?? null],
     queryFn: async () => {
-      const res = await (client.api as any)["tuning-sessions"][":id"].tests.$get({ param: { id: String(id!) } });
-      return rpcJson<TuningTest[]>(res);
+      const res = await (client.api as any)["experiments"][":id"].tests.$get({ param: { id: String(id!) } });
+      return rpcJson<ExperimentVersion[]>(res);
     },
     enabled: id != null,
     staleTime: 5_000,
@@ -857,9 +946,9 @@ export interface LineSpreadTrace {
  *  server didn't have enough clean laps to compute a trace (empty arrays). */
 export function useLineSpread(sessionId: number | null | undefined) {
   return useQuery({
-    queryKey: ["tuning-session-line-spread", sessionId ?? null],
+    queryKey: ["experiment-line-spread", sessionId ?? null],
     queryFn: async () => {
-      const res = await (client.api as any)["tuning-sessions"][":id"]["line-spread"].$get({ param: { id: String(sessionId!) } });
+      const res = await (client.api as any)["experiments"][":id"]["line-spread"].$get({ param: { id: String(sessionId!) } });
       return rpcJson<LineSpreadTrace>(res);
     },
     enabled: sessionId != null,
@@ -867,7 +956,7 @@ export function useLineSpread(sessionId: number | null | undefined) {
   });
 }
 
-export function useCreateTuningTest() {
+export function useCreateExperimentVersion() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
@@ -877,16 +966,16 @@ export function useCreateTuningTest() {
       sessionId: number;
       label: string;
       setupPath?: string | null;
-      parentTestId?: number | null;
+      parentVersionId?: number | null;
       appliedChanges?: unknown[] | null;
       driverComment?: string | null;
       engine?: "rules" | "llm" | null;
     }) => {
-      const res = await (client.api as any)["tuning-sessions"][":id"].tests.$post({ param: { id: String(sessionId) }, json: body });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
-      return (await res.json()) as TuningTest;
+      const res = await (client.api as any)["experiments"][":id"].tests.$post({ param: { id: String(sessionId) }, json: body });
+      if (!res.ok) throw await errorFromResponse(res);
+      return (await res.json()) as ExperimentVersion;
     },
-    onSuccess: (t) => qc.invalidateQueries({ queryKey: ["tuning-session-tests", t.tuningSessionId] }),
+    onSuccess: (t) => qc.invalidateQueries({ queryKey: ["experiment-tests", t.experimentId] }),
   });
 }
 
@@ -895,16 +984,16 @@ export function useCreateTuningTest() {
 export function useSetTestNote() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ sessionId, testId, driverComment }: { sessionId: number; testId: number; driverComment: string | null }) => {
-      const res = await (client.api as any)["tuning-sessions"][":id"].tests[":testId"].$patch({
-        param: { id: String(sessionId), testId: String(testId) },
+    mutationFn: async ({ sessionId, versionId, driverComment }: { sessionId: number; versionId: number; driverComment: string | null }) => {
+      const res = await (client.api as any)["experiments"][":id"].tests[":versionId"].$patch({
+        param: { id: String(sessionId), versionId: String(versionId) },
         json: { driverComment },
       });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
-      return (await res.json()) as TuningTest;
+      if (!res.ok) throw await errorFromResponse(res);
+      return (await res.json()) as ExperimentVersion;
     },
     onSuccess: (_t, { sessionId }) => {
-      qc.invalidateQueries({ queryKey: ["tuning-session-tests", sessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment-tests", sessionId] });
     },
   });
 }
@@ -914,16 +1003,16 @@ export function useSetTestNote() {
 export function useSetTestNotes() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ sessionId, testId, notes }: { sessionId: number; testId: number; notes: string | null }) => {
-      const res = await (client.api as any)["tuning-sessions"][":id"].tests[":testId"].$patch({
-        param: { id: String(sessionId), testId: String(testId) },
+    mutationFn: async ({ sessionId, versionId, notes }: { sessionId: number; versionId: number; notes: string | null }) => {
+      const res = await (client.api as any)["experiments"][":id"].tests[":versionId"].$patch({
+        param: { id: String(sessionId), versionId: String(versionId) },
         json: { notes },
       });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
-      return (await res.json()) as TuningTest;
+      if (!res.ok) throw await errorFromResponse(res);
+      return (await res.json()) as ExperimentVersion;
     },
     onSuccess: (_t, { sessionId }) => {
-      qc.invalidateQueries({ queryKey: ["tuning-session-tests", sessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment-tests", sessionId] });
     },
   });
 }
@@ -931,19 +1020,19 @@ export function useSetTestNotes() {
 export function useSetHead() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ sessionId, testId }: { sessionId: number; testId: number }) => {
-      const res = await (client.api as any)["tuning-sessions"][":id"].head.$post({
+    mutationFn: async ({ sessionId, versionId }: { sessionId: number; versionId: number }) => {
+      const res = await (client.api as any)["experiments"][":id"].head.$post({
         param: { id: String(sessionId) },
-        json: { testId },
+        json: { versionId },
       });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
-      return (await res.json()) as { ok: true; headTestId: number; label: string };
+      if (!res.ok) throw await errorFromResponse(res);
+      return (await res.json()) as { ok: true; headVersionId: number; label: string };
     },
     onSuccess: (_data, { sessionId }) => {
-      qc.invalidateQueries({ queryKey: ["tuning-session", sessionId] });
-      qc.invalidateQueries({ queryKey: ["tuning-session-tests", sessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment", sessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment-tests", sessionId] });
       // Chat thread gained the deterministic checkout ack — refetch it.
-      qc.invalidateQueries({ queryKey: ["tuning-session-chat-history", sessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment-chat-history", sessionId] });
     },
   });
 }
@@ -957,16 +1046,16 @@ export function useCaptureSetup() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (sessionId: number) => {
-      const res = await (client.api as any)["tuning-sessions"][":id"]["capture-setup"].$post({
+      const res = await (client.api as any)["experiments"][":id"]["capture-setup"].$post({
         param: { id: String(sessionId) },
       });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
-      return (await res.json()) as TuningTest;
+      if (!res.ok) throw await errorFromResponse(res);
+      return (await res.json()) as ExperimentVersion;
     },
     onSuccess: (t) => {
-      qc.invalidateQueries({ queryKey: ["tuning-session", t.tuningSessionId] });
-      qc.invalidateQueries({ queryKey: ["tuning-session-tests", t.tuningSessionId] });
-      qc.invalidateQueries({ queryKey: ["tuning-session-chat-history", t.tuningSessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment", t.experimentId] });
+      qc.invalidateQueries({ queryKey: ["experiment-tests", t.experimentId] });
+      qc.invalidateQueries({ queryKey: ["experiment-chat-history", t.experimentId] });
     },
   });
 }
@@ -977,17 +1066,17 @@ export function useAddBase() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ sessionId, setupPath, label, setHead }: { sessionId: number; setupPath: string; label?: string; setHead?: boolean }) => {
-      const res = await (client.api as any)["tuning-sessions"][":id"].bases.$post({
+      const res = await (client.api as any)["experiments"][":id"].bases.$post({
         param: { id: String(sessionId) },
         json: { setupPath, label, setHead },
       });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
-      return (await res.json()) as TuningTest;
+      if (!res.ok) throw await errorFromResponse(res);
+      return (await res.json()) as ExperimentVersion;
     },
     onSuccess: (t) => {
-      qc.invalidateQueries({ queryKey: ["tuning-session", t.tuningSessionId] });
-      qc.invalidateQueries({ queryKey: ["tuning-session-tests", t.tuningSessionId] });
-      qc.invalidateQueries({ queryKey: ["tuning-session-chat-history", t.tuningSessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment", t.experimentId] });
+      qc.invalidateQueries({ queryKey: ["experiment-tests", t.experimentId] });
+      qc.invalidateQueries({ queryKey: ["experiment-chat-history", t.experimentId] });
     },
   });
 }
@@ -1004,9 +1093,9 @@ export type ImportableLap = LapMeta & {
  *  tuning session yet — the pool for "Add laps from history" (design Phase 6). */
 export function useImportableLaps(sessionId: number | null | undefined) {
   return useQuery({
-    queryKey: ["tuning-session-importable-laps", sessionId ?? null],
+    queryKey: ["experiment-importable-laps", sessionId ?? null],
     queryFn: async () => {
-      const res = await (client.api as any)["tuning-sessions"][":id"]["importable-laps"].$get({
+      const res = await (client.api as any)["experiments"][":id"]["importable-laps"].$get({
         param: { id: String(sessionId!) },
       });
       return rpcJson<ImportableLap[]>(res);
@@ -1021,24 +1110,24 @@ export function useImportableLaps(sessionId: number | null | undefined) {
 export function useImportLaps() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ sessionId, lapIds, tuningTestId }: { sessionId: number; lapIds: number[]; tuningTestId?: number | null }) => {
-      const res = await (client.api as any)["tuning-sessions"][":id"]["import-laps"].$post({
+    mutationFn: async ({ sessionId, lapIds, experimentVersionId }: { sessionId: number; lapIds: number[]; experimentVersionId?: number | null }) => {
+      const res = await (client.api as any)["experiments"][":id"]["import-laps"].$post({
         param: { id: String(sessionId) },
-        json: { lapIds, tuningTestId },
+        json: { lapIds, experimentVersionId },
       });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as { importedIds: number[] };
     },
     onSuccess: (_data, { sessionId }) => {
-      qc.invalidateQueries({ queryKey: ["tuning-session", sessionId] });
-      qc.invalidateQueries({ queryKey: ["tuning-session-tests", sessionId] });
-      qc.invalidateQueries({ queryKey: ["tuning-session-importable-laps", sessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment", sessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment-tests", sessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment-importable-laps", sessionId] });
       qc.invalidateQueries({ queryKey: ["laps"] });
       // Newly-imported laps carry no cached fuel/tyre metric yet — refresh the
       // per-lap metrics query so the workspace lap table + Fuel card fill in
       // without a manual page refresh (the endpoint lazily computes + persists).
-      qc.invalidateQueries({ queryKey: ["tuning-session-lap-metrics", sessionId] });
-      qc.invalidateQueries({ queryKey: ["tuning-session-chat-history", sessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment-lap-metrics", sessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment-chat-history", sessionId] });
     },
   });
 }
@@ -1046,15 +1135,15 @@ export function useImportLaps() {
 /** Trash view — deleted versions only (design Phase 8's `?includeDeleted=1`
  *  escape hatch, filtered client-side to just the trashed rows). Disabled
  *  until the disclosure listing it is actually opened. */
-export function useDeletedTuningTests(id: number | null | undefined, enabled: boolean) {
+export function useDeletedExperimentVersions(id: number | null | undefined, enabled: boolean) {
   return useQuery({
-    queryKey: ["tuning-session-tests", id ?? null, "deleted"],
+    queryKey: ["experiment-tests", id ?? null, "deleted"],
     queryFn: async () => {
-      const res = await (client.api as any)["tuning-sessions"][":id"].tests.$get({
+      const res = await (client.api as any)["experiments"][":id"].tests.$get({
         param: { id: String(id!) },
         query: { includeDeleted: "1" },
       });
-      const all = await rpcJson<TuningTest[]>(res);
+      const all = await rpcJson<ExperimentVersion[]>(res);
       return all.filter((t) => t.status === "deleted");
     },
     enabled: enabled && id != null,
@@ -1067,24 +1156,24 @@ export function useDeletedTuningTests(id: number | null | undefined, enabled: bo
 export function useDeleteVersion() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ sessionId, testId }: { sessionId: number; testId: number }) => {
-      const res = await (client.api as any)["tuning-sessions"][":id"].tests[":testId"].delete.$post({
-        param: { id: String(sessionId), testId: String(testId) },
+    mutationFn: async ({ sessionId, versionId }: { sessionId: number; versionId: number }) => {
+      const res = await (client.api as any)["experiments"][":id"].tests[":versionId"].delete.$post({
+        param: { id: String(sessionId), versionId: String(versionId) },
       });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
-      return (await res.json()) as { ok: true; deletedIds: number[]; headTestId: number | null };
+      if (!res.ok) throw await errorFromResponse(res);
+      return (await res.json()) as { ok: true; deletedIds: number[]; headVersionId: number | null };
     },
     onSuccess: (_data, { sessionId }) => {
-      qc.invalidateQueries({ queryKey: ["tuning-session", sessionId] });
-      qc.invalidateQueries({ queryKey: ["tuning-session-tests", sessionId] });
-      qc.invalidateQueries({ queryKey: ["tuning-session-chat-history", sessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment", sessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment-tests", sessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment-chat-history", sessionId] });
     },
   });
 }
 
-export interface TuningActionRow {
+export interface ExperimentActionRow {
   id: number;
-  tuningSessionId: number;
+  experimentId: number;
   kind: string;
   inversePayload: unknown;
   undone: boolean;
@@ -1093,14 +1182,14 @@ export interface TuningActionRow {
 
 /** Action history (design Phase 9) — newest-first, includes already-undone
  *  rows so the panel can show them struck through. */
-export function useTuningHistory(id: number | null | undefined) {
+export function useExperimentHistory(id: number | null | undefined) {
   return useQuery({
-    queryKey: ["tuning-session-actions", id ?? null],
+    queryKey: ["experiment-actions", id ?? null],
     queryFn: async () => {
-      const res = await (client.api as any)["tuning-sessions"][":id"].actions.$get({
+      const res = await (client.api as any)["experiments"][":id"].actions.$get({
         param: { id: String(id!) },
       });
-      return rpcJson<TuningActionRow[]>(res);
+      return rpcJson<ExperimentActionRow[]>(res);
     },
     enabled: id != null,
     staleTime: 5_000,
@@ -1115,17 +1204,17 @@ export function useUndo() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ sessionId }: { sessionId: number }) => {
-      const res = await (client.api as any)["tuning-sessions"][":id"].undo.$post({
+      const res = await (client.api as any)["experiments"][":id"].undo.$post({
         param: { id: String(sessionId) },
       });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as { ok: boolean; undone: boolean; kind?: string; warning?: string };
     },
     onSuccess: (_data, { sessionId }) => {
-      qc.invalidateQueries({ queryKey: ["tuning-session", sessionId] });
-      qc.invalidateQueries({ queryKey: ["tuning-session-tests", sessionId] });
-      qc.invalidateQueries({ queryKey: ["tuning-session-actions", sessionId] });
-      qc.invalidateQueries({ queryKey: ["tuning-session-chat-history", sessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment", sessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment-tests", sessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment-actions", sessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment-chat-history", sessionId] });
       qc.invalidateQueries({ queryKey: ["laps"] });
     },
   });
@@ -1135,23 +1224,23 @@ export function useUndo() {
 export function useRestoreVersion() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ sessionId, testId }: { sessionId: number; testId: number }) => {
-      const res = await (client.api as any)["tuning-sessions"][":id"].tests[":testId"].restore.$post({
-        param: { id: String(sessionId), testId: String(testId) },
+    mutationFn: async ({ sessionId, versionId }: { sessionId: number; versionId: number }) => {
+      const res = await (client.api as any)["experiments"][":id"].tests[":versionId"].restore.$post({
+        param: { id: String(sessionId), versionId: String(versionId) },
       });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
-      return (await res.json()) as TuningTest;
+      if (!res.ok) throw await errorFromResponse(res);
+      return (await res.json()) as ExperimentVersion;
     },
     onSuccess: (_data, { sessionId }) => {
-      qc.invalidateQueries({ queryKey: ["tuning-session", sessionId] });
-      qc.invalidateQueries({ queryKey: ["tuning-session-tests", sessionId] });
-      qc.invalidateQueries({ queryKey: ["tuning-session-chat-history", sessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment", sessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment-tests", sessionId] });
+      qc.invalidateQueries({ queryKey: ["experiment-chat-history", sessionId] });
     },
   });
 }
 
 // ── Per-lap tuning metrics (fuel/tyre, plan §2 Phase C) ───────────────────────
-export interface TuningLapMetric {
+export interface ExperimentLapMetric {
   lapId: number;
   /** Litres consumed over the lap; absent when the channel is unavailable. */
   fuelPerLap?: number;
@@ -1159,12 +1248,12 @@ export interface TuningLapMetric {
   tyreWear?: number;
 }
 
-export function useTuningSessionLapMetrics(id: number | null | undefined) {
+export function useExperimentLapMetrics(id: number | null | undefined) {
   return useQuery({
-    queryKey: ["tuning-session-lap-metrics", id ?? null],
+    queryKey: ["experiment-lap-metrics", id ?? null],
     queryFn: async () => {
-      const res = await (client.api as any)["tuning-sessions"][":id"]["lap-metrics"].$get({ param: { id: String(id!) } });
-      return rpcJson<TuningLapMetric[]>(res);
+      const res = await (client.api as any)["experiments"][":id"]["lap-metrics"].$get({ param: { id: String(id!) } });
+      return rpcJson<ExperimentLapMetric[]>(res);
     },
     enabled: id != null,
     staleTime: 5_000,

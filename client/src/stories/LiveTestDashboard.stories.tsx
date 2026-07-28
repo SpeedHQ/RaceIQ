@@ -60,7 +60,7 @@ function StoryDecorator({ children, animate }: { children: React.ReactNode; anim
 }
 
 const meta: Meta<typeof LiveTestDashboard & { animate: boolean }> = {
-  title: "Dashboards/SetupEngineer/LiveTestDashboard",
+  title: "Dashboards/Experiments/LiveTestDashboard",
   component: LiveTestDashboard,
   argTypes: {
     // @ts-expect-error — story-only control, not a LiveTestDashboard prop

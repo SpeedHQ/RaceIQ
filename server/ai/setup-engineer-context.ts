@@ -14,9 +14,9 @@ import { resolve, sep } from "path";
 import { tryGetServerGame } from "../games/registry";
 
 import type { GameId } from "../../shared/types";
-import { getLapById, getLapsForTuningSession } from "../db/queries";
-import { getTuningSession } from "../db/tuning-session-queries";
-import { listTuningTests, updateTuningTestSetupSnapshot } from "../db/tuning-test-queries";
+import { getLapById, getLapsForExperiment } from "../db/queries";
+import { getExperiment } from "../db/experiment-queries";
+import { listExperimentVersions, updateExperimentVersionSetupSnapshot } from "../db/experiment-version-queries";
 import { detectCorners } from "../corner-detection";
 import { telemetryToSymptoms, type TuneSymptoms } from "./tune-symptoms";
 import { telemetryToTrackConditions, type TrackConditions } from "./track-conditions";
@@ -169,8 +169,8 @@ export function setupPathStem(filePath: string): string {
  * session has no analysable lap yet (legacy/empty telemetry laps still let
  * chat work, just with less symptom context).
  */
-export async function computeSessionSymptoms(tuningSessionId: number): Promise<TuneSymptoms | null> {
-  const lap = await loadRepresentativeLap(tuningSessionId);
+export async function computeSessionSymptoms(experimentId: number): Promise<TuneSymptoms | null> {
+  const lap = await loadRepresentativeLap(experimentId);
   if (!lap) return null;
   const corners = detectCorners(lap.telemetry);
   return telemetryToSymptoms(lap.telemetry, corners);
@@ -183,9 +183,9 @@ export async function computeSessionSymptoms(tuningSessionId: number): Promise<T
  * lap exists yet.
  */
 export async function loadRepresentativeLap(
-  tuningSessionId: number,
+  experimentId: number,
 ): Promise<Awaited<ReturnType<typeof getLapById>> | null> {
-  const sessionLaps = await getLapsForTuningSession(tuningSessionId);
+  const sessionLaps = await getLapsForExperiment(experimentId);
   let best: (typeof sessionLaps)[number] | null = null;
   for (const l of sessionLaps) {
     if (!l.isValid || l.lapTime <= 0) continue;
@@ -205,9 +205,9 @@ export async function loadRepresentativeLap(
  * `track-conditions.ts` so the Lap Analyst can reuse it on raw packets.
  */
 export async function computeSessionTrackConditions(
-  tuningSessionId: number,
+  experimentId: number,
 ): Promise<TrackConditions | null> {
-  const lap = await loadRepresentativeLap(tuningSessionId);
+  const lap = await loadRepresentativeLap(experimentId);
   if (!lap) return null;
   return telemetryToTrackConditions(lap.telemetry);
 }
@@ -217,28 +217,74 @@ export async function computeSessionTrackConditions(
  * branch/test). Thin wrapper so setup-engineer callers import everything from
  * this module instead of reaching into clean-lap-aggregate.ts directly.
  */
-export async function computeSessionAggregate(sessionId: number, testId?: number) {
-  return loadCleanLapAggregate(sessionId, testId ? { testId } : undefined);
+export async function computeSessionAggregate(sessionId: number, versionId?: number) {
+  return loadCleanLapAggregate(sessionId, versionId ? { versionId } : undefined);
 }
 
-export type TuningGameId = AccGameId | "f1-2025";
+export type ExperimentGameId = AccGameId | "f1-2025";
 
 /**
  * Only ACC/AC-EVO write a real setup file the user loads from the in-game
  * setup menu. F1 2025 and Forza expose no loadable setup file — applies
  * there are advisory-only diffs the user keys into the setup screen.
  */
-export function gameHasSetupFile(gameId: TuningGameId): boolean {
+export function gameHasSetupFile(gameId: ExperimentGameId): boolean {
   return gameId === "acc" || gameId === "ac-evo";
 }
 
-export type ActiveTuningContext =
+/**
+ * Walk up the version tree from `versionId` to the nearest ancestor that
+ * actually carries a setup, returning that node (or null).
+ *
+ * A drill arm is a real node with `setupPath`/`setupSnapshot` both null: the
+ * driver changed what THEY do, not what the car is. So "the setup the car is on"
+ * is not a property of the head node — it is the nearest setup-bearing ancestor.
+ *
+ * Reading `head.setupPath` and falling straight through to the experiment's base
+ * silently reverts the car to where the experiment started, discarding every
+ * setup change made before the drill. It looks like a valid answer, which is
+ * what makes it dangerous: the engineer would then preview and apply changes
+ * against the wrong baseline and write that file into the driver's game folder.
+ *
+ * Cycle-guarded — `parentVersionId` has no FK and is set by several call sites.
+ */
+export function nearestSetupAncestor<T extends { id: number; parentVersionId: number | null; setupPath: string | null; setupSnapshot: string | null }>(
+  versions: T[],
+  versionId: number | null,
+): T | null {
+  const byId = new Map(versions.map((v) => [v.id, v]));
+  const seen = new Set<number>();
+  let cursor = versionId != null ? (byId.get(versionId) ?? null) : null;
+  while (cursor && !seen.has(cursor.id)) {
+    seen.add(cursor.id);
+    if (cursor.setupPath != null || cursor.setupSnapshot != null) return cursor;
+    cursor = cursor.parentVersionId != null ? (byId.get(cursor.parentVersionId) ?? null) : null;
+  }
+  return null;
+}
+
+/**
+ * The setup file the car is on at `versionId`, walking past drill nodes.
+ *
+ * Falls back to the experiment's base setup only when no ancestor carries one at
+ * all — a purely driving experiment, where the base genuinely is the current car.
+ */
+export async function resolveSetupPathForVersion(
+  experimentId: number,
+  versionId: number | null,
+): Promise<string | null> {
+  const [session, versions] = await Promise.all([getExperiment(experimentId), listExperimentVersions(experimentId)]);
+  const ancestor = nearestSetupAncestor(versions, versionId);
+  return ancestor?.setupPath ?? session?.baseSetupPath ?? null;
+}
+
+export type ActiveExperimentContext =
   | {
       ok: true;
-      gameId: TuningGameId;
-      session: NonNullable<Awaited<ReturnType<typeof getTuningSession>>>;
-      tests: Awaited<ReturnType<typeof listTuningTests>>;
-      activeTest: Awaited<ReturnType<typeof listTuningTests>>[number] | null;
+      gameId: ExperimentGameId;
+      session: NonNullable<Awaited<ReturnType<typeof getExperiment>>>;
+      tests: Awaited<ReturnType<typeof listExperimentVersions>>;
+      activeTest: Awaited<ReturnType<typeof listExperimentVersions>>[number] | null;
       /** File games only — null for F1 (no on-disk setup). */
       baseDir: string | null;
       /** File games only — null for F1 (no on-disk setup). */
@@ -255,8 +301,8 @@ export type ActiveTuningContext =
  * truth so `preview_change` / `apply_changes` / `get_setup` can't
  * disagree about what "active" means.
  */
-export async function loadActiveTuningContext(sessionId: number): Promise<ActiveTuningContext> {
-  const session = await getTuningSession(sessionId);
+export async function loadActiveExperimentContext(sessionId: number): Promise<ActiveExperimentContext> {
+  const session = await getExperiment(sessionId);
   if (!session) return { ok: false, status: 404, error: "Tuning session not found" };
 
   const gameId = session.gameId as GameId;
@@ -264,19 +310,26 @@ export async function loadActiveTuningContext(sessionId: number): Promise<Active
     return { ok: false, status: 400, error: "The setup engineer only supports ACC, AC-EVO and F1 2025" };
   }
 
-  const tests = await listTuningTests(sessionId);
+  const tests = await listExperimentVersions(sessionId);
   // Head-resolved: the checked-out version the chat works from. Falls back to
   // the mainline tip when no head is set (back-compat with pre-branching sessions).
   const activeTest =
-    session.headTestId != null
-      ? (tests.find((t) => t.id === session.headTestId) ?? (tests.length ? tests[tests.length - 1]! : null))
+    session.headVersionId != null
+      ? (tests.find((t) => t.id === session.headVersionId) ?? (tests.length ? tests[tests.length - 1]! : null))
       : (tests.length ? tests[tests.length - 1]! : null);
 
+  // The setup the car is actually on. A drill arm carries none, so this walks
+  // past it rather than reading the head node directly — see `nearestSetupAncestor`.
+  const setupAncestor = nearestSetupAncestor(tests, activeTest?.id ?? null);
+
   if (gameId === "f1-2025") {
-    let setupSnapshot = activeTest?.setupSnapshot ?? null;
+    let setupSnapshot = setupAncestor?.setupSnapshot ?? null;
     if (!setupSnapshot && activeTest) {
       setupSnapshot = await captureF1SetupFromLaps(sessionId);
-      if (setupSnapshot) await updateTuningTestSetupSnapshot(activeTest.id, setupSnapshot);
+      // Backfill onto the setup-bearing node, never onto a drill arm: writing a
+      // snapshot to a drill would make it a setup arm and destroy the kind split.
+      const backfillTarget = setupAncestor ?? (activeTest.kind !== "drill" ? activeTest : null);
+      if (setupSnapshot && backfillTarget) await updateExperimentVersionSetupSnapshot(backfillTarget.id, setupSnapshot);
     }
     if (!setupSnapshot) {
       return {
@@ -291,7 +344,7 @@ export async function loadActiveTuningContext(sessionId: number): Promise<Active
     return { ok: true, gameId, session, tests, activeTest, baseDir: null, realPath: null, setup };
   }
 
-  const setupPath = activeTest?.setupPath ?? session.baseSetupPath ?? null;
+  const setupPath = setupAncestor?.setupPath ?? session.baseSetupPath ?? null;
   if (!setupPath) {
     return { ok: false, status: 400, error: "No base setup on this session — create it from a saved setup first." };
   }
@@ -308,8 +361,8 @@ export async function loadActiveTuningContext(sessionId: number): Promise<Active
  * live-packet bus outside per-connection lap-detector state, so "current"
  * pragmatically means the most recently completed lap's setup.
  */
-export async function captureF1SetupFromLaps(tuningSessionId: number): Promise<string | null> {
-  const sessionLaps = await getLapsForTuningSession(tuningSessionId); // newest first
+export async function captureF1SetupFromLaps(experimentId: number): Promise<string | null> {
+  const sessionLaps = await getLapsForExperiment(experimentId); // newest first
   for (const meta of sessionLaps) {
     const lap = await getLapById(meta.id);
     if (!lap) continue;

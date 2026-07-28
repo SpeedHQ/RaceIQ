@@ -662,25 +662,31 @@ export interface LapMeta {
   tuneName?: string;
   // Ordered sector times from the session's source-defined layout (#134).
   sectorTimes?: number[];
-  // Explicit tuning-session link (migration v25). Stamped at insert from the
-  // active tuning session; null for laps recorded outside a tuning session.
-  tuningSessionId?: number | null;
+  // Explicit experiment link (migration v25). Stamped at insert from the
+  // active experiment; null for laps recorded outside an experiment.
+  experimentId?: number | null;
   // Explicit tuning-test (setup version) link (migration v29). Null when the lap
   // predates head tracking or was driven with no head set.
-  tuningTestId?: number | null;
+  experimentVersionId?: number | null;
   // User flag (migration v30): true = manually excluded from the tuning
   // aggregate. Undefined/false = included.
-  tuningExcluded?: boolean;
-  // Source of the tuningExcluded decision (migration v34): 'auto' = the
-  // fastest-5 curation pass (server/tuning-auto-exclude.ts) owns this lap's
+  experimentExcluded?: boolean;
+  // Source of the experimentExcluded decision (migration v34): 'auto' = the
+  // fastest-5 curation pass (server/experiment-auto-exclude.ts) owns this lap's
   // state and may revise it on a later lap save; 'manual' = user/AI decided,
   // pinned against the auto pass. Undefined/null = not yet reconciled.
-  tuningExcludedSource?: "auto" | "manual" | null;
+  experimentExcludedSource?: "auto" | "manual" | null;
   // Persisted per-lap metrics (migration v32), derived once from telemetry and
   // cached on the lap row. Null/undefined = not yet computed or no usable
   // telemetry channel.
   fuelPerLap?: number | null;
   tyreWear?: number | null;
+  // Number of raw telemetry frames stored for this lap (`laps.raw_frame_count`).
+  // One integer on the row, so a caller can budget decode cost WITHOUT decoding
+  // anything — see FRAME_BUDGET_PER_ARM in server/ai/arm-stream.ts. Only
+  // populated by queries that ask for it; undefined means "not selected", not
+  // "no frames".
+  rawFrameCount?: number | null;
 }
 
 export interface SessionMeta {
@@ -945,3 +951,52 @@ export interface TuneIssue {
   /** Present on per-lap issues; absent on live transients. */
   lapNumber?: number;
 }
+
+// ── Tuning tests as experiments (issue #120, migration v37) ─────────────────
+// A experiment_version node varies exactly one of two things, and `kind` says which.
+// Both shapes are serialised into experiment_versions.applied_changes as a JSON array.
+
+/** A setup knob edit — the original meaning of an applied change. */
+export interface SetupChange {
+  kind: "setup";
+  /** Knob name as shown to the driver, e.g. "Front anti-roll bar". */
+  component: string;
+  /** Every JSON setup path this knob wrote (1 for scalars, 2 for axle pairs). */
+  paths: string[];
+  from: number;
+  to: number;
+  /**
+   * Optional because pre-v37 rows were written without it. Absent means "no
+   * direction word was recorded", not "no direction" — callers fall back to
+   * the signed from→to delta. Mirrors TuneDirection in server/ai/schemas.ts.
+   */
+  direction?: "increase" | "decrease";
+  reason: string;
+}
+
+/** A driving change — a drill the driver runs, with no setup file behind it. */
+export interface DrillChange {
+  kind: "drill";
+  /** Short imperative name, e.g. "Brake 10m later into T4". */
+  title: string;
+  /** What the driver actually does, in enough detail to repeat it. */
+  instruction: string;
+  /** Corner labels the drill targets (e.g. ["T4"]); empty = lap-wide. */
+  corners: string[];
+  reason: string;
+}
+
+export type TestChange = SetupChange | DrillChange;
+
+/** What a tuning test varies. Mirrors experiment_versions.kind. */
+export type ExperimentVersionKind = TestChange["kind"];
+
+/** Outcome of an experiment once laps have run against it. */
+export type ExperimentVersionVerdict =
+  | "better"
+  | "worse"
+  | "neutral"
+  | "inconclusive";
+
+/** Who decided the verdict — an auto call can be overridden by the driver. */
+export type ExperimentVersionVerdictSource = "auto" | "manual";

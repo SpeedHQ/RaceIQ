@@ -9,7 +9,7 @@ import type { LapMeta } from "./types";
  * `server/acc-lap-rules.ts` and stored on `invalidReason`.
  *
  * Shared (not client-only) because the server-side auto-exclude reconciliation
- * (`server/tuning-auto-exclude.ts`) applies the same pit-cycle rule.
+ * (`server/experiment-auto-exclude.ts`) applies the same pit-cycle rule.
  */
 export const PIT_CYCLE_REASONS = ["outlap", "inlap", "pit lap"] as const;
 

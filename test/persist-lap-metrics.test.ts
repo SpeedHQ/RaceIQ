@@ -5,7 +5,7 @@
  * when no channel is usable.
  */
 import { describe, test, expect } from "bun:test";
-import { persistLapMetrics } from "../server/tuning-lap-metrics";
+import { persistLapMetrics } from "../server/experiment-lap-metrics";
 import { CapturingDbAdapter } from "../server/pipeline-adapters";
 import type { TelemetryPacket } from "../shared/types";
 

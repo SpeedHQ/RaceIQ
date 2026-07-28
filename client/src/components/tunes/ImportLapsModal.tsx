@@ -1,7 +1,7 @@
 import type { GameId } from "@shared/types";
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { type ImportableLap, type TuningTest, useImportableLaps, useImportLaps } from "../../hooks/queries";
+import { type ImportableLap, type ExperimentVersion, useImportableLaps, useImportLaps } from "../../hooks/queries";
 
 function fmtLapTime(ms: number | null | undefined): string {
   if (ms == null || ms <= 0) return "—";
@@ -16,7 +16,7 @@ const UNKNOWN_SETUP_KEY = "__unknown__";
 /**
  * "Add laps from history" modal (design Phase 6, Mode B / collect) — lists
  * laps matching this session's game/car/track that aren't stamped to any
- * tuning session yet, lets the user multiselect a batch, then posts them via
+ * experiment yet, lets the user multiselect a batch, then posts them via
  * `POST /:id/import-laps`.
  *
  * F1 laps each carry their own in-car setup, so there's no manual target
@@ -29,7 +29,7 @@ const UNKNOWN_SETUP_KEY = "__unknown__";
  * which may not match the target version's setup file, so those keep the
  * manual target picker plus a generic consistency warning.
  */
-export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId: GameId; sessionId: number; tests: TuningTest[]; onClose: () => void }) {
+export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId: GameId; sessionId: number; tests: ExperimentVersion[]; onClose: () => void }) {
   const isF1 = gameId === "f1-2025";
   const { data: importable, isLoading } = useImportableLaps(sessionId);
   const importLaps = useImportLaps();
@@ -84,7 +84,7 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
       await importLaps.mutateAsync({
         sessionId,
         lapIds: Array.from(selected),
-        tuningTestId: isF1 ? null : targetTestId ? Number(targetTestId) : null,
+        experimentVersionId: isF1 ? null : targetTestId ? Number(targetTestId) : null,
       });
       onClose();
     } catch (err: any) {

@@ -1,6 +1,6 @@
 import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { type TuningGameId, useTrackBoundaries, useTrackOutline } from "../../hooks/queries";
+import { type ExperimentGameId, useTrackBoundaries, useTrackOutline } from "../../hooks/queries";
 import { useTelemetryStore } from "../../stores/telemetry";
 import type { Point } from "../analyse/AnalyseTrackMap";
 import { AnalyseTrackPanel } from "../analyse/AnalyseTrackPanel";
@@ -43,7 +43,7 @@ function LiveTrackConditions({ packet }: { packet: TelemetryPacket | undefined }
  * LiveTestDashboard — the "live" phase of the Setup Engineer test workflow:
  * watch a stint happen (track position, status strip, recorded laps so far),
  * rather than reviewing it after the fact. Rendered only once the driver has
- * clicked "Start Test" in TuningSessionWorkspace; that parent owns the
+ * clicked "Start Test" in ExperimentWorkspace; that parent owns the
  * Start/End Test buttons.
  */
 export function LiveTestDashboard({
@@ -51,7 +51,7 @@ export function LiveTestDashboard({
   trackOrdinal,
   initialTrace,
 }: {
-  gameId: TuningGameId;
+  gameId: ExperimentGameId;
   trackOrdinal: number | null;
   /** Test/story-only: pre-seed the live trace so it renders instantly without replaying packets. */
   initialTrace?: TelemetryPacket[];

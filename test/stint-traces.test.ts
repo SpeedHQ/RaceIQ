@@ -265,7 +265,7 @@ describe("stintStats", () => {
       lapMeta({ id: 2, lapNumber: 2, lapTime: 90 }),
       lapMeta({ id: 3, lapNumber: 3, lapTime: 91 }),
       lapMeta({ id: 4, lapNumber: 4, lapTime: 200, isValid: false }), // invalid
-      lapMeta({ id: 6, lapNumber: 6, lapTime: 400, tuningExcluded: true }), // excluded
+      lapMeta({ id: 6, lapNumber: 6, lapTime: 400, experimentExcluded: true }), // excluded
     ];
     const stats = stintStats(laps);
     expect(stats.n).toBe(2);

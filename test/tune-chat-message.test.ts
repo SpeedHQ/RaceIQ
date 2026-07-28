@@ -10,7 +10,7 @@ import {
  *
  * The generate-from-chat route posts its applied-tweaks summary as an assistant
  * message via `saveAssistantChatMessage`, and the GET
- * `/api/tuning-sessions/:id/chat` route reads it back with a specific extractor.
+ * `/api/experiments/:id/chat` route reads it back with a specific extractor.
  * This test proves the exact save shape survives `memory.recall` and yields the
  * markdown text through the SAME extraction the GET route uses — not empty.
  *

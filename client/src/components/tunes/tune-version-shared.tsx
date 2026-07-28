@@ -1,53 +1,33 @@
+import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/review-laps";
+import { parseTestChanges, summarizeTestChange } from "@shared/test-changes";
 import type { LapMeta } from "@shared/types";
 import { useMemo, useState } from "react";
-import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/review-laps";
-import { type TuningLapMetric, useSetLapExcluded } from "../../hooks/queries";
+import { type ExperimentLapMetric, useSetLapExcluded } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 
 /**
  * Shared rendering pieces for a tuning test ("setup version"): the
  * applied-changes summary and the per-lap breakdown table. Both
- * TuningSessionWorkspace (legacy flat list, kept for reference/tests) and
+ * ExperimentWorkspace (legacy flat list, kept for reference/tests) and
  * VersionGraph (the commit-graph view, Task 11) render the same version rows,
  * so this lives in its own module rather than being exported from either
- * component — VersionGraph importing from TuningSessionWorkspace (or vice
+ * component — VersionGraph importing from ExperimentWorkspace (or vice
  * versa) would create a circular import between the two.
  */
 
-interface AppliedChangeDto {
-  component: string;
-  from: number;
-  to: number;
-  direction?: string;
-  reason?: string;
-}
-
-/** Parse the stored appliedChanges JSON into a typed list (empty on any issue). */
-export function parseAppliedChanges(json: string | null | undefined): AppliedChangeDto[] {
-  if (!json) return [];
-  try {
-    const parsed = JSON.parse(json);
-    return Array.isArray(parsed) ? (parsed as AppliedChangeDto[]) : [];
-  } catch {
-    return [];
-  }
-}
+/** Parse the stored appliedChanges JSON into a typed list (empty on any issue).
+ *  Re-exported from the shared normaliser so the client and the server prompt
+ *  builders agree on how legacy (pre-v37, kind-less) rows are read. */
+export const parseAppliedChanges = parseTestChanges;
 
 /** One-line summary of a version's tweaks for collapsed tree rows, e.g.
  *  "+1 rear wing, softer rear ARB". Prefers the stored direction word when
  *  present, otherwise falls back to the signed numeric delta. Null when the
  *  version has no applied changes (base setup). */
 export function summarizeAppliedChanges(json: string | null | undefined): string | null {
-  const changes = parseAppliedChanges(json);
+  const changes = parseTestChanges(json);
   if (changes.length === 0) return null;
-  return changes
-    .map((c) => {
-      if (c.direction) return `${c.direction} ${c.component}`;
-      const delta = c.to - c.from;
-      if (Number.isFinite(delta) && delta !== 0) return `${delta > 0 ? "+" : ""}${+delta.toFixed(2)} ${c.component}`;
-      return c.component;
-    })
-    .join(", ");
+  return changes.map(summarizeTestChange).join(", ");
 }
 
 /** What was tweaked for a setup version — rendered in the expanded version row
@@ -62,15 +42,25 @@ export function AppliedChangesList({ json, comment }: { json: string | null; com
         <div className="text-[11px] text-app-text-dim">Base setup — no changes applied.</div>
       ) : (
         <ul className="space-y-0.5">
-          {changes.map((c, i) => (
-            <li key={`${c.component}-${i}`} className="text-[11px] text-app-text">
-              <span className="font-mono text-purple-400">{c.component}</span>{" "}
-              <span className="tabular-nums text-app-text-dim">
-                {c.from} → {c.to}
-              </span>
-              {c.reason && <span className="text-app-text-dim"> · {c.reason}</span>}
-            </li>
-          ))}
+          {changes.map((c, i) =>
+            c.kind === "drill" ? (
+              // biome-ignore lint/suspicious/noArrayIndexKey: change rows are a frozen snapshot of one version's tweaks, never reordered; index disambiguates repeated components
+              <li key={`drill-${c.title}-${i}`} className="text-[11px] text-app-text">
+                <span className="font-mono text-amber-400">{c.title}</span>
+                {c.corners.length > 0 && <span className="tabular-nums text-app-text-dim"> · {c.corners.join(", ")}</span>}
+                {c.instruction && <div className="text-app-text-dim">{c.instruction}</div>}
+              </li>
+            ) : (
+              // biome-ignore lint/suspicious/noArrayIndexKey: same frozen snapshot; index disambiguates repeated components
+              <li key={`${c.component}-${i}`} className="text-[11px] text-app-text">
+                <span className="font-mono text-purple-400">{c.component}</span>{" "}
+                <span className="tabular-nums text-app-text-dim">
+                  {c.from} → {c.to}
+                </span>
+                {c.reason && <span className="text-app-text-dim"> · {c.reason}</span>}
+              </li>
+            ),
+          )}
         </ul>
       )}
       {comment && <div className="text-[11px] text-app-text-dim italic">Driver: “{comment}”</div>}
@@ -132,7 +122,7 @@ const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
  *  group by whether the analysis actually reads the lap. */
 function matchesStatusFilter(filter: StatusFilter, l: LapMeta, reason: string | undefined): boolean {
   if (filter === "all") return true;
-  if (l.tuningExcluded === true) return filter === "excluded";
+  if (l.experimentExcluded === true) return filter === "excluded";
   // Pit laps (out/in/pit) are just one flavour of invalid — same bucket.
   if (lapStatusLabel(l) != null) return filter === "invalid";
   if (filter === "eval") return reason === "chosen";
@@ -141,7 +131,7 @@ function matchesStatusFilter(filter: StatusFilter, l: LapMeta, reason: string | 
 }
 
 /** Sort keys for the breakdown table; null means "no value" and always sinks. */
-function sortValue(key: SortKey, l: LapMeta, metricsById: Map<number, TuningLapMetric>): number | string | null {
+function sortValue(key: SortKey, l: LapMeta, metricsById: Map<number, ExperimentLapMetric>): number | string | null {
   switch (key) {
     case "lap":
       return l.sessionId * 1e6 + l.lapNumber;
@@ -161,14 +151,14 @@ export function LapBreakdown({
   laps,
   bestT,
   metricsById,
-  tuningSessionId,
+  experimentId,
 }: {
   laps: LapMeta[];
   bestT: number | null;
-  metricsById: Map<number, TuningLapMetric>;
+  metricsById: Map<number, ExperimentLapMetric>;
   /** Session to invalidate after toggling exclusion (design §Phase 7). Laps
-   *  outside a tuning session (no exclude toggle context) can omit this. */
-  tuningSessionId?: number | null;
+   *  outside an experiment (no exclude toggle context) can omit this. */
+  experimentId?: number | null;
 }) {
   const setExcluded = useSetLapExcluded();
   // Same selector the server's auto-exclude pass and /line-spread use, so the
@@ -199,10 +189,8 @@ export function LapBreakdown({
     });
     return rows;
   }, [laps, metricsById, sort, statusFilter, selection]);
-  const toggleSort = (key: SortKey) =>
-    setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
-  const cycleStatusFilter = () =>
-    setStatusFilter((s) => STATUS_FILTERS[(STATUS_FILTERS.indexOf(s) + 1) % STATUS_FILTERS.length]);
+  const toggleSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
+  const cycleStatusFilter = () => setStatusFilter((s) => STATUS_FILTERS[(STATUS_FILTERS.indexOf(s) + 1) % STATUS_FILTERS.length]);
   if (laps.length === 0) {
     return <div className="px-3 py-2 text-xs text-app-text-dim">No laps recorded against this version yet.</div>;
   }
@@ -211,31 +199,23 @@ export function LapBreakdown({
       <thead>
         <tr className="text-[10px] uppercase tracking-wider text-app-text-muted">
           <th className="px-3 py-1 font-medium text-left">
-            <button
-              type="button"
-              onClick={() => toggleSort("lap")}
-              className={`uppercase tracking-wider hover:text-app-text ${sort.key === "lap" ? "text-app-text" : ""}`}
-              title="Sort by lap"
-            >
+            <button type="button" onClick={() => toggleSort("lap")} className={`uppercase tracking-wider hover:text-app-text ${sort.key === "lap" ? "text-app-text" : ""}`} title="Sort by lap">
               Lap
               {sort.key === "lap" && <span className="ml-1">{sort.dir === 1 ? "▲" : "▼"}</span>}
             </button>
           </th>
           <th className="px-3 py-1 font-medium text-left">
-            <button
-              type="button"
-              onClick={cycleStatusFilter}
-              className={`uppercase tracking-wider hover:text-app-text ${statusFilter !== "all" ? "text-app-text" : ""}`}
-              title="Filter by status"
-            >
+            <button type="button" onClick={cycleStatusFilter} className={`uppercase tracking-wider hover:text-app-text ${statusFilter !== "all" ? "text-app-text" : ""}`} title="Filter by status">
               {STATUS_FILTER_LABELS[statusFilter]}
             </button>
           </th>
-          {([
-            ["time", "Time", "right"],
-            ["fuel", "Fuel used", "right"],
-            ["wear", "Tyre wear", "right"],
-          ] as [SortKey, string, "left" | "right"][]).map(([key, label, align]) => (
+          {(
+            [
+              ["time", "Time", "right"],
+              ["fuel", "Fuel used", "right"],
+              ["wear", "Tyre wear", "right"],
+            ] as [SortKey, string, "left" | "right"][]
+          ).map(([key, label, align]) => (
             <th key={key} className={`px-3 py-1 font-medium ${align === "left" ? "text-left" : "text-right"}`}>
               <button
                 type="button"
@@ -256,7 +236,7 @@ export function LapBreakdown({
           const metric = metricsById.get(l.id);
           const fuel = metric?.fuelPerLap;
           const wear = metric?.tyreWear;
-          const excluded = l.tuningExcluded === true;
+          const excluded = l.experimentExcluded === true;
           // A user-excluded lap says so in the Status column — that's the reason
           // it's struck through, and it outranks any detector reason.
           const status = excluded ? "Excluded by user" : lapStatusLabel(l);
@@ -278,60 +258,52 @@ export function LapBreakdown({
                   keeps the controls to its right in one column across rows. */}
               <td className="px-3 py-1 text-left">
                 <div className="flex items-center gap-1">
-                <span className="w-[130px] shrink-0 flex items-center gap-2">
-                {status && (
-                  <span
-                    className={`text-[10px] uppercase tracking-wider truncate ${excluded ? "text-app-text-dim" : isPitStatus ? "text-amber-400" : "text-red-400"}`}
-                    title={excluded ? "Excluded from the tuning aggregate by you" : (l.invalidReason ?? undefined)}
-                  >
-                    {status}
-                  </span>
-                )}
-                {/* Which laps the analysis actually reads. "Eval" is the
+                  <span className="w-[130px] shrink-0 flex items-center gap-2">
+                    {status && (
+                      <span
+                        className={`text-[10px] uppercase tracking-wider truncate ${excluded ? "text-app-text-dim" : isPitStatus ? "text-amber-400" : "text-red-400"}`}
+                        title={excluded ? "Excluded from the tuning aggregate by you" : (l.invalidReason ?? undefined)}
+                      >
+                        {status}
+                      </span>
+                    )}
+                    {/* Which laps the analysis actually reads. "Eval" is the
                     positive signal users asked for; the capped case is called
                     out separately so a clean lap that merely lost the
                     fastest-N ranking doesn't read as a rejected lap. These are
                     status of the lap too, so they sit with the status text and
                     not next to the exclude control. */}
-                {reason === "chosen" && (
-                  <span
-                    className="text-[10px] uppercase tracking-wider text-emerald-400"
-                    title={`Used for evaluation — one of the fastest ${REVIEW_LAP_CAP} clean laps this analysis reads`}
-                  >
-                    Eval
+                    {reason === "chosen" && (
+                      <span className="text-[10px] uppercase tracking-wider text-emerald-400" title={`Used for evaluation — one of the fastest ${REVIEW_LAP_CAP} clean laps this analysis reads`}>
+                        Eval
+                      </span>
+                    )}
+                    {reason === "slower-than-cap" && (
+                      <span className="text-[10px] uppercase tracking-wider text-app-text-dim" title={`Clean lap, but outside the fastest ${REVIEW_LAP_CAP} — not used for evaluation`}>
+                        Outside top {REVIEW_LAP_CAP}
+                      </span>
+                    )}
                   </span>
-                )}
-                {reason === "slower-than-cap" && (
-                  <span
-                    className="text-[10px] uppercase tracking-wider text-app-text-dim"
-                    title={`Clean lap, but outside the fastest ${REVIEW_LAP_CAP} — not used for evaluation`}
-                  >
-                    Outside top {REVIEW_LAP_CAP}
-                  </span>
-                )}
-                </span>
-                {/* Invalid laps are already out of the analysis by rule
+                  {/* Invalid laps are already out of the analysis by rule
                     (selectEvaluationLaps → "invalid"), so a manual exclude
                     toggle there is a no-op control — hide it. */}
-                {l.isValid && (
-                <button
-                  type="button"
-                  onClick={() => setExcluded.mutate({ lapId: l.id, excluded: !excluded, tuningSessionId })}
-                  disabled={setExcluded.isPending}
-                  title={excluded ? "Include this lap in the tuning aggregate again" : "Exclude this lap from the tuning aggregate (blunder, off-track, spin)"}
-                  className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border disabled:opacity-50 disabled:pointer-events-none ${
-                    excluded ? "border-app-border text-app-text-dim opacity-60" : "border-app-border text-app-text hover:bg-app-border/30"
-                  }`}
-                >
-                  {excluded ? "Excluded" : "Exclude"}
-                </button>
-                )}
+                  {l.isValid && (
+                    <button
+                      type="button"
+                      onClick={() => setExcluded.mutate({ lapId: l.id, excluded: !excluded, experimentId })}
+                      disabled={setExcluded.isPending}
+                      title={excluded ? "Include this lap in the tuning aggregate again" : "Exclude this lap from the tuning aggregate (blunder, off-track, spin)"}
+                      className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border disabled:opacity-50 disabled:pointer-events-none ${
+                        excluded ? "border-app-border text-app-text-dim opacity-60" : "border-app-border text-app-text hover:bg-app-border/30"
+                      }`}
+                    >
+                      {excluded ? "Excluded" : "Exclude"}
+                    </button>
+                  )}
                 </div>
               </td>
               {/* Fastest lap is marked by colouring the time itself purple. */}
-              <td className={`px-3 py-1 text-right font-mono tabular-nums ${isFastest ? "text-purple-400" : "text-app-text/90"} ${strike}`}>
-                {formatLapTime(l.lapTime)}
-              </td>
+              <td className={`px-3 py-1 text-right font-mono tabular-nums ${isFastest ? "text-purple-400" : "text-app-text/90"} ${strike}`}>{formatLapTime(l.lapTime)}</td>
               <td className={`px-3 py-1 text-right font-mono tabular-nums text-app-text/90 ${strike}`}>{fuel != null ? `${fuel.toFixed(2)} L` : <span className="text-app-text-dim">—</span>}</td>
               <td className={`px-3 py-1 text-right font-mono tabular-nums text-app-text/90 ${strike}`}>{wear != null ? `${wear.toFixed(0)}%` : <span className="text-app-text-dim">—</span>}</td>
             </tr>

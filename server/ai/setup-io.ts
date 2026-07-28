@@ -5,18 +5,18 @@
  * active setup" always meant a `.json` file under the game's Setups folder.
  * F1 2025 has no such file — its `F1CarSetup` only ever exists as telemetry
  * (`packet.f1.setup`) or as a JSON snapshot we captured from it. This module
- * gives `loadActiveTuningContext` and the apply/branch tools ONE interface
+ * gives `loadActiveExperimentContext` and the apply/branch tools ONE interface
  * so they don't need to branch on gameId themselves:
  *
  *  - File adapter (acc / ac-evo): read = `resolveGuardedSetupFile`,
  *    write = `writeSetupFile` — unchanged existing behavior.
  *  - Snapshot adapter (f1-2025): read = the test node's `setup_snapshot`
  *    JSON column, write = store the target `F1CarSetup` back onto
- *    `tuning_tests.setup_snapshot` — no file touched.
+ *    `experiment_versions.setup_snapshot` — no file touched.
  */
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "fs";
 import { dirname, resolve, sep } from "path";
-import { updateTuningTestSetupSnapshot } from "../db/tuning-test-queries";
+import { updateExperimentVersionSetupSnapshot } from "../db/experiment-version-queries";
 import { carSetupToKnobValues, parseCarSetup } from "../games/ac-evo/carsetup";
 import { patchCarSetup } from "../games/ac-evo/carsetup-writer";
 import {
@@ -31,9 +31,9 @@ import { writeSetupFile } from "./tune-writer";
 export { captureF1SetupFromLaps };
 
 /** Games the Setup Engineer / tuning workspace supports, beyond ACC/AC-EVO. */
-export type TuningGameId = AccGameId | "f1-2025";
+export type ExperimentGameId = AccGameId | "f1-2025";
 
-export function isTuningGameId(gameId: string): gameId is TuningGameId {
+export function isExperimentGameId(gameId: string): gameId is ExperimentGameId {
   return gameId === "acc" || gameId === "ac-evo" || gameId === "f1-2025";
 }
 
@@ -54,10 +54,10 @@ export interface SetupWriteResult {
  * Read the "active setup" for a test node, dispatching to the file or
  * snapshot adapter by game. `setupPath`/`setupSnapshot` come from the
  * resolved active test (or the session's base fields when no test exists
- * yet — same fallback `loadActiveTuningContext` already used for files).
+ * yet — same fallback `loadActiveExperimentContext` already used for files).
  */
 export async function readActiveSetup(
-  gameId: TuningGameId,
+  gameId: ExperimentGameId,
   node: { setupPath: string | null; setupSnapshot?: string | null },
 ): Promise<SetupReadResult> {
   if (gameId === "f1-2025") {
@@ -102,7 +102,7 @@ export async function readActiveSetup(
  * the new file/label (e.g. the parent's stem + the new branch label).
  */
 export function writeAppliedSetup(
-  gameId: TuningGameId,
+  gameId: ExperimentGameId,
   params: { baseDir: string | null; realPath: string | null; setup: unknown; stem: string; overwrite?: boolean },
 ): SetupWriteResult {
   if (gameId === "f1-2025") {
@@ -220,7 +220,7 @@ function sanitizeStem(name: string): string {
 }
 
 /** Filename stem to seed a new branch/apply node's save name. F1 has no file, so a plain label works. */
-export function activeSetupStem(gameId: TuningGameId, realPath: string | null, fallback: string): string {
+export function activeSetupStem(gameId: ExperimentGameId, realPath: string | null, fallback: string): string {
   if (gameId === "f1-2025" || !realPath) return fallback;
   return setupPathStem(realPath);
 }
@@ -231,14 +231,14 @@ export function activeSetupStem(gameId: TuningGameId, realPath: string | null, f
  * resulting snapshot JSON string, or null if nothing was found.
  */
 export async function backfillF1SetupSnapshot(
-  tuningSessionId: number,
+  experimentId: number,
   test: { id: number; setupSnapshot: string | null } | null,
 ): Promise<string | null> {
   if (!test) return null;
   if (test.setupSnapshot) return test.setupSnapshot;
-  const captured = await captureF1SetupFromLaps(tuningSessionId);
+  const captured = await captureF1SetupFromLaps(experimentId);
   if (!captured) return null;
-  await updateTuningTestSetupSnapshot(test.id, captured);
+  await updateExperimentVersionSetupSnapshot(test.id, captured);
   return captured;
 }
 

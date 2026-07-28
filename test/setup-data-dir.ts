@@ -4,7 +4,7 @@
  * bypasses the package.json `test` script.
  *
  * Why this exists: several suites do unconditional wipes (e.g.
- * `db.delete(tuningSessions)` in test/tuning-sessions.test.ts). Without
+ * `db.delete(experiments)` in test/experiments.test.ts). Without
  * DATA_DIR set, server/data-dir.ts falls back to USER_DATA_DIR — the real
  * user DB — and those wipes destroy live tuning sessions.
  */

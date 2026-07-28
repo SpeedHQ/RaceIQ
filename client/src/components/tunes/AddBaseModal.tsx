@@ -7,7 +7,7 @@ import { SetupFilePicker, type SetupFilePickerValue } from "./SetupFilePicker";
  * "Add base" modal (design Phase 4) — reuses the extracted SetupFilePicker
  * to pick a car/track/setup from the Setups folder, then posts it as a new
  * root of the session's version forest via `POST /:id/bases`. Unlike
- * `NewTuningSessionModal` this doesn't create a session or name it — it just
+ * `NewExperimentModal` this doesn't create a session or name it — it just
  * adds a version node to the one already open.
  */
 export function AddBaseModal({

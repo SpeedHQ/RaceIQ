@@ -18,6 +18,7 @@ import { getChatMemory } from "../../server/ai/chat-agent";
 import { getMastraModelId } from "../model";
 import { loadSettings } from "../../server/settings";
 import { setupEngineerTools } from "../tools/setup-engineer";
+import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiment-focus";
 
 export interface SetupEngineerSessionContext {
   sessionId: number;
@@ -25,6 +26,9 @@ export interface SetupEngineerSessionContext {
   trackName: string | null;
   sessionName: string;
   gameId: string;
+  /** What the experiment is currently varying. Decides which agent is running
+   *  and how this block describes the session; defaults to the car. */
+  focus?: ExperimentFocus;
 }
 
 /**
@@ -36,7 +40,16 @@ export interface SetupEngineerSessionContext {
 export function buildSetupEngineerSystemPrompt(ctx: SetupEngineerSessionContext): string {
   const car = ctx.carName ?? "the car";
   const track = ctx.trackName ? ` at ${ctx.trackName}` : "";
-  return `ACTIVE SESSION — the driver is tuning ${car}${track} in ${ctx.gameId.toUpperCase()} (session "${ctx.sessionName}").
+  // The same experiment is worked by either specialist, so the opening line
+  // must state which mode it is in — "tuning" is wrong when the driver has
+  // switched focus to their own technique.
+  const doing = (ctx.focus ?? DEFAULT_EXPERIMENT_FOCUS) === "driver"
+    ? `working on their driving in ${car}`
+    : `tuning ${car}`;
+  const focusNote = (ctx.focus ?? DEFAULT_EXPERIMENT_FOCUS) === "driver"
+    ? `\nFOCUS: Driver. New versions in this experiment are drills. You cannot change the setup — the race engineer owns that, and the driver can switch this experiment's focus back to Car at any time.`
+    : `\nFOCUS: Car. New versions in this experiment are setup versions. Driving drills belong to the driver coach — the driver can switch this experiment's focus to Driver at any time.`;
+  return `ACTIVE SESSION — the driver is ${doing}${track} in ${ctx.gameId.toUpperCase()} (session "${ctx.sessionName}").${focusNote}
 The active session is bound automatically — tools need NO session id and take no such argument. Call each tool with only its real arguments (a change's component/direction/magnitude; consult_lap_analyst takes none).`;
 }
 
@@ -62,6 +75,7 @@ DECISION RULES
 - **Exclusions.** When LAP BREAKDOWN shows an obvious blunder (a big outlier, an off-track, a spin) still counted as clean, name that specific lap id and offer to exclude it via \`set_lap_excluded\` — propose it, then apply only once the driver agrees. Don't exclude unilaterally.
 - **Setup vs. driver.** Use CONSISTENCY BY CORNER to tell the two apart: a corner marked LOW TRUST means the racing line/inputs were scattered there, i.e. likely a driving inconsistency, not the car — say so rather than tuning for it. A corner with a tight line and tight inputs that's still slow or twitchy is a genuine setup signal — tune for that one. Call \`compare_lap_consistency\` for a deeper on-demand view of the same data when the context block's summary isn't enough.
 - You MUST call \`consult_lap_analyst\` before making your FIRST setup recommendation in a session — attribute the issues to driving vs. setup before touching the car. After that first read, call it again whenever the driver's question needs driving/telemetry insight beyond the setup — where they're losing time, braking/throttle habits, whether a slow lap is a driving problem rather than a setup one.
+- **When it's the driver, hand it over.** You own the car; a separate driver coach owns technique and is the only one who can record a drill. When the evidence says the problem is how the car is being driven (a LOW TRUST corner, scattered inputs, a symptom that survives every setup direction you've tried), say so plainly and tell the driver to switch this experiment's focus to Driver — the switcher is in the workspace header, and the coach picks up this same conversation. Use \`consult_lap_analyst\` first if you need the telemetry read to be sure. Never claim you recorded a drill — you cannot.
 - Use \`preview_change\` to state the REAL resulting value of a single candidate change before the driver commits — never state a specific number without calling it first. It's read-only, call it as often as you like while discussing options.
 - Call \`apply_changes\` as soon as the driver clearly greenlights a change you've already named — "apply that", "yes do it", "let's try it", "change it", "go ahead", or a plain "yes" right after you proposed a specific change ALL mean apply NOW. Do NOT preview again and do NOT ask a second "shall I apply?" once they've said yes — that double-confirm is a bug. Pass the COMPLETE set of changes discussed in one call (there is no accumulator — anything left out is not applied), plus \`goal\` — one short line naming what the driver asked for (e.g. "faster straight speed"); it's stored on the version and shown in the tree — and \`driverConfirmed: true\`. Only hold off if you genuinely haven't yet proposed a concrete change. After it succeeds, tell the driver the new version number and which file to load in-game.
 - To go back to an earlier version and try a different direction from there (e.g. "let's go back to v1 and try something else") — the driver switches the checked-out version themselves in the version tree; the next \`apply_changes\` then branches from it. There is no tool for this — just tell them where to switch.

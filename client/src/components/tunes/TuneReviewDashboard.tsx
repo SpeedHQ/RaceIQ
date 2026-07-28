@@ -1,9 +1,11 @@
+import { headlineMetricForVersionKind, type VersionKind } from "@shared/experiment-focus";
 import { tryGetGame } from "@shared/games/registry";
 import type { LapMeta, TelemetryPacket, TuneIssue } from "@shared/types";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { TuningTest } from "../../hooks/queries";
+import type { ExperimentVersion } from "../../hooks/queries";
 import { useLapIssues, useLapTelemetry, useTirePressureOptimal } from "../../hooks/queries";
+import { formatLapTime } from "../../lib/format";
 import { TireGrid } from "../telemetry/TireGrid";
 import { SectorDetailView } from "./SectorDetailView";
 import { SectorMap } from "./SectorMap";
@@ -16,14 +18,14 @@ interface TuneReviewDashboardProps {
   laps: LapMeta[];
   /** When set, renders a "Back to session" button in the toolbar. */
   onBack?: () => void;
-  /** The version node being reviewed (resolved by the route from ?testId or
+  /** The version node being reviewed (resolved by the route from ?versionId or
    *  the session HEAD). Used to display its driver comment / engineer notes
    *  read-only — editing stays in VersionGraph. */
-  test?: TuningTest;
-  /** The tuning session being reviewed (from the route param). Drives the
+  test?: ExperimentVersion;
+  /** The experiment being reviewed (from the route param). Drives the
    *  Track Focus line-spread lane + map heat. Passed straight through rather
    *  than read off `test` so it survives an orphaned/missing test row. */
-  tuningSessionId?: number | null;
+  experimentId?: number | null;
   /** Fires whenever the compact text summary of the currently-open lap review
    *  changes (lap switch, sector telemetry load, metric change, etc.) — lets a
    *  parent pipe "what the user is currently looking at" into the Setup
@@ -48,7 +50,7 @@ const SEVERITY_CLASS: Record<TuneIssue["severity"], string> = {
  * recommendation. Everything is reconstructed from the selected lap's stored
  * telemetry — no live stream.
  */
-export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, tuningSessionId, onOpenLapContextChange }: TuneReviewDashboardProps) {
+export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, experimentId, onOpenLapContextChange }: TuneReviewDashboardProps) {
   const validLaps = useMemo(() => [...laps].filter((l) => l.isValid).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
 
   // Focus lap lives in the URL (?lap=<id>) so it's linkable/shareable.
@@ -156,7 +158,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, tun
     const lines: string[] = [];
     lines.push("CURRENTLY OPEN LAP REVIEW (visible to user):");
     lines.push(
-      `Lap ${focusLap.lapNumber} — ${focusLap.lapTime.toFixed(3)}s${focusLap.isValid ? "" : ` (INVALID${focusLap.invalidReason ? `: ${focusLap.invalidReason}` : ""})`}${focusLap.tuningExcluded ? " (excluded from tuning aggregate)" : ""}`,
+      `Lap ${focusLap.lapNumber} — ${focusLap.lapTime.toFixed(3)}s${focusLap.isValid ? "" : ` (INVALID${focusLap.invalidReason ? `: ${focusLap.invalidReason}` : ""})`}${focusLap.experimentExcluded ? " (excluded from tuning aggregate)" : ""}`,
     );
 
     if (sectorTimes) {
@@ -171,13 +173,12 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, tun
       };
       const bestS = sectorTimes.times.map((_, index) => bestOf(index));
       const sectorLine = sectorTimes.times
-        .map((i) => {
-          const t = sectorTimes.times[i];
-          if (!(t > 0)) return `S${i + 1} —`;
-          const best = bestS[i];
-          const delta = best != null ? t - best : null;
+        .map((time, index) => {
+          if (!(time > 0)) return `S${index + 1} —`;
+          const best = bestS[index];
+          const delta = best != null ? time - best : null;
           const deltaStr = delta == null ? "" : delta <= 0.0005 ? " (best)" : ` (+${delta.toFixed(3)})`;
-          return `S${i + 1} ${t.toFixed(3)}s${deltaStr}`;
+          return `S${index + 1} ${time.toFixed(3)}s${deltaStr}`;
         })
         .join(", ");
       lines.push(`Sectors: ${sectorLine}`);
@@ -280,6 +281,8 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, tun
           <div className="ml-auto flex items-center gap-2">{trackName && <span className="hidden lg:inline text-xs text-app-text-muted">{trackName}</span>}</div>
         </div>
 
+        {test && <ArmHeadline kind={test.kind} laps={validLaps} />}
+
         {(test?.driverComment || test?.notes) && (
           <div className="border-b border-app-border px-4 py-2.5 space-y-2">
             {test?.driverComment && (
@@ -367,7 +370,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, tun
             trackOrdinal={focusLap.trackOrdinal}
             focusLapId={trackFocusId}
             onFocusLap={setFocus}
-            tuningSessionId={tuningSessionId ?? test?.tuningSessionId ?? null}
+            experimentId={experimentId ?? test?.experimentId ?? null}
           />
         ) : sectorIndex != null ? (
           <SectorDetailView telemetry={telemetry} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusLap.trackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
@@ -442,6 +445,51 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, tun
 /** Overview skeleton shown when the session has no recorded lap yet — mirrors
  *  the real overview (toolbar + sector spine) with placeholder times/maps so the
  *  page reads as the review dashboard, not a bare empty message. */
+/**
+ * The headline read for THIS arm, judged on its own terms.
+ *
+ * A setup arm is meant to move outright pace, so best lap leads. A drill is
+ * meant to make the driver repeatable — its win condition can be a tighter
+ * spread at an unchanged best lap, which a best-lap headline scores as "no
+ * change". Both numbers stay on screen either way; only which one leads
+ * changes, so nothing is hidden from a driver who wants the other read.
+ */
+function ArmHeadline({ kind, laps }: { kind: VersionKind; laps: LapMeta[] }) {
+  const times = laps.map((l) => l.lapTime).filter((t) => t > 0);
+  const best = times.length ? Math.min(...times) : null;
+  // Spread, not standard deviation: with the 3–8 laps a stint actually
+  // produces, "my worst lap was 0.4s off my best" is a number a driver can act
+  // on, and σ over that few samples is noise wearing a statistic's clothes.
+  const spread = times.length >= 2 ? Math.max(...times) - Math.min(...times) : null;
+  const metric = headlineMetricForVersionKind(kind);
+
+  const lead = metric === "consistency" ? { label: "Lap-time spread", value: spread != null ? `${spread.toFixed(3)}s` : "—" } : { label: "Best lap", value: best != null ? formatLapTime(best) : "—" };
+  const secondary = metric === "consistency" ? { label: "Best lap", value: best != null ? formatLapTime(best) : "—" } : { label: "Spread", value: spread != null ? `${spread.toFixed(3)}s` : "—" };
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-app-border px-4 py-2.5">
+      <span
+        className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${kind === "drill" ? "bg-sky-500/15 text-sky-300" : "bg-purple-500/15 text-purple-300"}`}
+        title={kind === "drill" ? "A driving drill — judged on consistency" : "A setup version — judged on best lap"}
+      >
+        {kind === "drill" ? "Driving drill" : "Setup version"}
+      </span>
+      <div>
+        <div className="text-[10px] uppercase tracking-wider text-app-text-muted">{lead.label}</div>
+        <div className="font-mono text-sm text-app-text tabular-nums">{lead.value}</div>
+      </div>
+      <div>
+        <div className="text-[10px] uppercase tracking-wider text-app-text-muted">{secondary.label}</div>
+        <div className="font-mono text-sm text-app-text-dim tabular-nums">{secondary.value}</div>
+      </div>
+      <div>
+        <div className="text-[10px] uppercase tracking-wider text-app-text-muted">Valid laps</div>
+        <div className="font-mono text-sm text-app-text-dim tabular-nums">{times.length}</div>
+      </div>
+    </div>
+  );
+}
+
 function ReviewOverviewSkeleton({ trackName, onBack }: { trackName?: string; onBack?: () => void }) {
   return (
     <div>

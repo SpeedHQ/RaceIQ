@@ -17,8 +17,8 @@ type Source = "live" | number;
  * either the live on-track session (auto-follow, hands-free) or any past
  * recorded session the driver picks.
  *
- * `embedded` hides the "← Tuning sessions" back link and outer padding so the
- * component can sit *inside* TuningSessionWorkspace as the detailed live/review
+ * `embedded` hides the "← Experiments" back link and outer padding so the
+ * component can sit *inside* ExperimentWorkspace as the detailed live/review
  * body (the workspace header already owns the back link). Standalone it renders
  * the back link itself.
  */
@@ -94,7 +94,7 @@ export function TuneWorkspace({ gameId, embedded = false }: { gameId: "acc" | "a
         {!embedded && (
           <BackButton
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            onClick={() => navigate({ to: `/${gameId}/tuning` } as any)}
+            onClick={() => navigate({ to: `/${gameId}/experiments` } as any)}
             className="mb-2"
           />
         )}
@@ -106,7 +106,7 @@ export function TuneWorkspace({ gameId, embedded = false }: { gameId: "acc" | "a
             onChange={(e) => setSource(e.target.value === "live" ? "live" : e.target.value ? Number(e.target.value) : "")}
             disabled={loadingSessions && sortedSessions.length === 0}
           >
-            <option value="">{loadingSessions ? "Loading sessions…" : "Select a session…"}</option>
+            <option value="">{loadingSessions ? "Loading experiments…" : "Select a session…"}</option>
             <option value="live">🔴 Live session</option>
             {sortedSessions.map((s) => (
               <option key={s.id} value={s.id}>

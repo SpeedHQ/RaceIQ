@@ -16,7 +16,7 @@ function cellColor(delta: number | null): string {
 }
 
 /**
- * 3-row (sector) x N-column (lap) delta heatmap: each cell is that lap's
+ * Source-defined-sector x N-column (lap) delta heatmap: each cell is that lap's
  * sector time minus the stint's best valid time for that sector. Gray when
  * the lap is invalid or missing the sector. Click a column to focus that lap.
  */
@@ -26,7 +26,7 @@ export function SectorHeatmap({ laps, focusLapId, onFocusLap }: SectorHeatmapPro
     return Array.from({ length: sectorCount }, (_, sectorIndex) => {
       let best: number | null = null;
       for (const lap of laps) {
-        if (!lap.isValid || lap.tuningExcluded) continue;
+        if (!lap.isValid || lap.experimentExcluded) continue;
         const v = lap.sectorTimes?.[sectorIndex];
         if (v != null && (best == null || v < best)) best = v;
       }
