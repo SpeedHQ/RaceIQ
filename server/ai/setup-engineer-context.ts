@@ -232,6 +232,52 @@ export function gameHasSetupFile(gameId: ExperimentGameId): boolean {
   return gameId === "acc" || gameId === "ac-evo";
 }
 
+/**
+ * Walk up the version tree from `versionId` to the nearest ancestor that
+ * actually carries a setup, returning that node (or null).
+ *
+ * A drill arm is a real node with `setupPath`/`setupSnapshot` both null: the
+ * driver changed what THEY do, not what the car is. So "the setup the car is on"
+ * is not a property of the head node — it is the nearest setup-bearing ancestor.
+ *
+ * Reading `head.setupPath` and falling straight through to the experiment's base
+ * silently reverts the car to where the experiment started, discarding every
+ * setup change made before the drill. It looks like a valid answer, which is
+ * what makes it dangerous: the engineer would then preview and apply changes
+ * against the wrong baseline and write that file into the driver's game folder.
+ *
+ * Cycle-guarded — `parentVersionId` has no FK and is set by several call sites.
+ */
+export function nearestSetupAncestor<T extends { id: number; parentVersionId: number | null; setupPath: string | null; setupSnapshot: string | null }>(
+  versions: T[],
+  versionId: number | null,
+): T | null {
+  const byId = new Map(versions.map((v) => [v.id, v]));
+  const seen = new Set<number>();
+  let cursor = versionId != null ? (byId.get(versionId) ?? null) : null;
+  while (cursor && !seen.has(cursor.id)) {
+    seen.add(cursor.id);
+    if (cursor.setupPath != null || cursor.setupSnapshot != null) return cursor;
+    cursor = cursor.parentVersionId != null ? (byId.get(cursor.parentVersionId) ?? null) : null;
+  }
+  return null;
+}
+
+/**
+ * The setup file the car is on at `versionId`, walking past drill nodes.
+ *
+ * Falls back to the experiment's base setup only when no ancestor carries one at
+ * all — a purely driving experiment, where the base genuinely is the current car.
+ */
+export async function resolveSetupPathForVersion(
+  experimentId: number,
+  versionId: number | null,
+): Promise<string | null> {
+  const [session, versions] = await Promise.all([getExperiment(experimentId), listExperimentVersions(experimentId)]);
+  const ancestor = nearestSetupAncestor(versions, versionId);
+  return ancestor?.setupPath ?? session?.baseSetupPath ?? null;
+}
+
 export type ActiveExperimentContext =
   | {
       ok: true;
@@ -272,11 +318,18 @@ export async function loadActiveExperimentContext(sessionId: number): Promise<Ac
       ? (tests.find((t) => t.id === session.headVersionId) ?? (tests.length ? tests[tests.length - 1]! : null))
       : (tests.length ? tests[tests.length - 1]! : null);
 
+  // The setup the car is actually on. A drill arm carries none, so this walks
+  // past it rather than reading the head node directly — see `nearestSetupAncestor`.
+  const setupAncestor = nearestSetupAncestor(tests, activeTest?.id ?? null);
+
   if (gameId === "f1-2025") {
-    let setupSnapshot = activeTest?.setupSnapshot ?? null;
+    let setupSnapshot = setupAncestor?.setupSnapshot ?? null;
     if (!setupSnapshot && activeTest) {
       setupSnapshot = await captureF1SetupFromLaps(sessionId);
-      if (setupSnapshot) await updateExperimentVersionSetupSnapshot(activeTest.id, setupSnapshot);
+      // Backfill onto the setup-bearing node, never onto a drill arm: writing a
+      // snapshot to a drill would make it a setup arm and destroy the kind split.
+      const backfillTarget = setupAncestor ?? (activeTest.kind !== "drill" ? activeTest : null);
+      if (setupSnapshot && backfillTarget) await updateExperimentVersionSetupSnapshot(backfillTarget.id, setupSnapshot);
     }
     if (!setupSnapshot) {
       return {
@@ -291,7 +344,7 @@ export async function loadActiveExperimentContext(sessionId: number): Promise<Ac
     return { ok: true, gameId, session, tests, activeTest, baseDir: null, realPath: null, setup };
   }
 
-  const setupPath = activeTest?.setupPath ?? session.baseSetupPath ?? null;
+  const setupPath = setupAncestor?.setupPath ?? session.baseSetupPath ?? null;
   if (!setupPath) {
     return { ok: false, status: 400, error: "No base setup on this session — create it from a saved setup first." };
   }
