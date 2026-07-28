@@ -10,16 +10,17 @@
  * The only thing that marks them out is `sessions.source = 'motec'`, stamped
  * after the fact so the pipeline's own signatures stay untouched.
  *
- * ## AC Evo only, deliberately
+ * ## One transcoder per game
  *
  * `.ld` is a container format, not a schema: the channel names, units and
  * corner-suffix conventions inside one are chosen by whichever exporter wrote
  * it. The mapping in `to-ac-evo.ts` was derived from an AC Evo export and has
  * only ever been checked against one. Pointing it at an iRacing or rFactor log
  * would produce frames that parse cleanly and mean the wrong things — silently.
- * So imports are AC Evo only until another game's export has actually been
- * inspected. {@link MOTEC_IMPORT_GAME_ID} is the single place that assumption
- * lives.
+ *
+ * So this file is game-agnostic and knows nothing about AC Evo: which games can
+ * be imported, and how each is transcoded, lives in `targets.ts`. Adding a game
+ * is an entry there.
  */
 
 import { db } from "../db";
@@ -28,19 +29,37 @@ import { eq } from "drizzle-orm";
 import { importSessionBin, type ImportedLap } from "../import-session-bin";
 import { parseLd } from "./ld";
 import { parseLdxBeacons } from "./ldx";
+import type { MotecCarTrack } from "./to-ac-evo";
 import {
-  MOTEC_IMPORT_LIMITATIONS,
-  synthesizeAcEvoCapture,
-  type MotecCarTrack,
-} from "./to-ac-evo";
+  getDefaultMotecTarget,
+  initMotecTargets,
+  tryGetMotecTarget,
+  type MotecTarget,
+} from "./targets";
 
 /** Value written to `sessions.source` for a MoTeC-derived session. */
 export const MOTEC_SESSION_SOURCE = "motec";
 
-/** The only game whose MoTeC export we have verified a channel mapping for. */
-export const MOTEC_IMPORT_GAME_ID = "ac-evo" as const;
+/**
+ * Resolve the game an import should land in.
+ *
+ * Throws rather than falling back to a game: filing a log against the wrong
+ * sim's transcoder is the one failure this module cannot detect afterwards.
+ */
+export function resolveMotecTarget(gameId?: string): MotecTarget {
+  initMotecTargets();
+  if (gameId !== undefined) {
+    const target = tryGetMotecTarget(gameId);
+    if (!target) throw new Error(`No MoTeC transcoder for game '${gameId}'`);
+    return target;
+  }
+  const only = getDefaultMotecTarget();
+  if (!only) throw new Error("gameId is required: more than one game can be imported");
+  return only;
+}
 
 export interface MotecImportResult {
+  gameId: string;
   laps: ImportedLap[];
   packetCount: number;
   lapCount: number;
@@ -60,6 +79,11 @@ export interface MotecImportResult {
 }
 
 export interface MotecImportOptions {
+  /**
+   * Which game's transcoder to run the log through. Optional only while a
+   * single game is registered — see {@link resolveMotecTarget}.
+   */
+  gameId?: string;
   /**
    * Car and track the log was driven on, as chosen by the user. Takes priority
    * over the log header — see `resolveMotecCarTrack` for why the header is only
@@ -88,14 +112,15 @@ export async function importMotec(
   ldxText?: string,
   options?: MotecImportOptions,
 ): Promise<MotecImportResult> {
+  const target = resolveMotecTarget(options?.gameId);
   const log = parseLd(new Uint8Array(ldBytes));
   const beacons = ldxText ? parseLdxBeacons(ldxText) : [];
 
-  const capture = synthesizeAcEvoCapture(log, beacons, {
+  const capture = target.synthesize(log, beacons, {
     carOrdinal: options?.carOrdinal,
     trackOrdinal: options?.trackOrdinal,
   });
-  const { packetCount, laps } = await importSessionBin(capture.bin, MOTEC_IMPORT_GAME_ID);
+  const { packetCount, laps } = await importSessionBin(capture.bin, target.gameId);
 
   // Stamp every session the import touched. Normally one, but the pipeline
   // rotates sessions on a car/track change, so don't assume.
@@ -116,6 +141,7 @@ export async function importMotec(
   }
 
   return {
+    gameId: target.gameId,
     laps,
     packetCount,
     lapCount: capture.lapCount,
@@ -130,6 +156,6 @@ export async function importMotec(
     },
     missingChannels: capture.missingChannels,
     yawFromLateralG: capture.yawFromLateralG,
-    limitations: MOTEC_IMPORT_LIMITATIONS,
+    limitations: target.limitations,
   };
 }
