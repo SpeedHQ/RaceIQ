@@ -16,6 +16,7 @@ import type { AcEvoParserCache } from "./parser";
 import { processPacket } from "../../pipeline";
 import { acEvoRecorder } from "./recorder";
 import { packTriplet, ACEVO_PACKED_MAGIC } from "../shared/pack-triplet";
+import { acquireHighResolutionTimer, releaseHighResolutionTimer } from "../shared/win-timer-resolution";
 import { PHYSICS, GRAPHICS_EVO, STATIC_EVO } from "./structs";
 
 class AcEvoParsingProcessor implements TripletProcessor {
@@ -44,6 +45,8 @@ export class AcEvoSharedMemoryReader {
   private _running = false;
   private _connected = false;
   private _recordingEnabled: boolean;
+  /** True while we hold a timer-resolution reference, so stop() releases exactly one. */
+  private _holdsTimerResolution = false;
 
   constructor(recordingEnabled = false) {
     this._bufferedReader = new BufferedAccMemoryReader({
@@ -98,6 +101,12 @@ export class AcEvoSharedMemoryReader {
     await this._tripletAssembler.stop();
     await this._bufferedReader.stop();
     this._connected = false;
+    // Drop the timer resolution once no capture interval needs it. Guarded so a
+    // stop() without a matching start() cannot underflow the refcount.
+    if (this._holdsTimerResolution) {
+      this._holdsTimerResolution = false;
+      releaseHighResolutionTimer();
+    }
     // Recording mode: this reader opened the bin file in its constructor, so
     // close it when the reader goes down (game exit / shutdown). Finalizes the
     // frameCount header instead of relying on the killed-process scan path.
@@ -111,6 +120,17 @@ export class AcEvoSharedMemoryReader {
     if (this._connected) return;
 
     console.log("[AC Evo] AC Evo process detected, starting buffered reader...");
+
+    // Raise the process timer resolution BEFORE any capture interval is armed.
+    // On Windows the default 15.625ms tick rounds up every setInterval below it,
+    // which silently collapses the reader's 300Hz/60Hz timers and the
+    // assembler's 100Hz timer to ~63.5Hz. Held only for the capture's lifetime
+    // because a raised resolution costs power.
+    // See docs/telemetry-fidelity.md section 1.
+    if (!this._holdsTimerResolution) {
+      acquireHighResolutionTimer();
+      this._holdsTimerResolution = true;
+    }
 
     this._bufferedReader.start();
     this._connected = true;

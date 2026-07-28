@@ -70,6 +70,26 @@ Two consequences the earlier draft missed:
   buffers the reader had not refreshed. Raising the resolution unblocks the whole
   chain at once; fixing one timer in isolation achieves nothing.
 
+### Status: fixed
+
+`server/games/shared/win-timer-resolution.ts` raises the process timer
+resolution via `timeBeginPeriod` on `winmm.dll`, clamped to the platform floor
+reported by `timeGetDevCaps`. Both shared-memory readers
+(`server/games/acc/shared-memory.ts`, `server/games/ac-evo/shared-memory.ts`)
+acquire it immediately before arming any capture interval and release it in
+`stop()`. It is **refcounted**, so ACC and AC Evo running back to back do not
+fight over it, and **scoped to an active capture** rather than the process
+lifetime, because a raised resolution costs power. Off Windows, and on Windows
+if `winmm.dll` will not load, it is inert and capture continues at the coarse
+tick.
+
+Two things this does *not* prove, and which need a real Windows box to confirm:
+the tables above still describe the pre-fix artifact (they are assertions about
+a committed `.bin.gz`, not about live behaviour), and on Windows 11 an occluded
+or minimised window-owning process may have its request ignored.
+`currentPeriodMs()` reports what we asked for, not what was granted — read the
+assembler's `pollIntervalMs` metrics (`ACC_METRICS=1`) for the truth.
+
 It is *not* the pipeline's packet-rate filter — that is a floor guard that
 discards sessions below 30 Hz (`server/lap-detector.ts:183`), not a decimator.
 

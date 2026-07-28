@@ -16,6 +16,7 @@ import { accRecorder } from "./recorder";
 import { BufferedAccMemoryReader } from "./buffered-memory-reader";
 import { TripletAssembler } from "./triplet-assembler";
 import { TripletPipeline, StatusCheckProcessor, DumpToBinProcessor, ParsingProcessor } from "./triplet-pipeline";
+import { acquireHighResolutionTimer, releaseHighResolutionTimer } from "../shared/win-timer-resolution";
 
 // Re-export utilities so tests can import readWString from this module
 export { readWString, toWideString } from "./utils";
@@ -33,6 +34,8 @@ export class AccSharedMemoryReader {
   private _trackOrdinal = -1;
   private _retryTimer: ReturnType<typeof setInterval> | null = null;
   private _recordingEnabled = false;
+  /** True while we hold a timer-resolution reference, so stop() releases exactly one. */
+  private _holdsTimerResolution = false;
 
   constructor(recordingEnabled = false) {
     this._bufferedReader = new BufferedAccMemoryReader();
@@ -82,6 +85,12 @@ export class AccSharedMemoryReader {
       this._retryTimer = null;
     }
     this._connected = false;
+    // Drop the timer resolution once no capture interval needs it. Guarded so a
+    // stop() without a matching start() cannot underflow the refcount.
+    if (this._holdsTimerResolution) {
+      this._holdsTimerResolution = false;
+      releaseHighResolutionTimer();
+    }
     // Recording mode: this reader opened the bin file in its constructor, so
     // close it when the reader goes down (game exit / shutdown). Finalizes the
     // frameCount header instead of relying on the killed-process scan path.
@@ -95,6 +104,17 @@ export class AccSharedMemoryReader {
     if (this._connected) return;
 
     console.log("[ACC] ACC process detected, starting buffered reader...");
+
+    // Raise the process timer resolution BEFORE any capture interval is armed.
+    // On Windows the default 15.625ms tick rounds up every setInterval below it,
+    // which silently collapses the reader's 300Hz/60Hz timers and the
+    // assembler's 100Hz timer to ~63.5Hz. Held only for the capture's lifetime
+    // because a raised resolution costs power.
+    // See docs/telemetry-fidelity.md section 1.
+    if (!this._holdsTimerResolution) {
+      acquireHighResolutionTimer();
+      this._holdsTimerResolution = true;
+    }
 
     // Start buffered reader (loads FFI, opens shared memory, starts 300Hz/60Hz timers)
     this._bufferedReader.start();
