@@ -1,5 +1,5 @@
 /**
- * System prompt for the tuning-session setup chat (plan Phase D).
+ * System prompt for the experiment setup chat (plan Phase D).
  *
  * A setup-scoped conversation the driver has *before* asking for the next tune:
  * the AI is a race engineer discussing THIS car+track setup. It reasons over

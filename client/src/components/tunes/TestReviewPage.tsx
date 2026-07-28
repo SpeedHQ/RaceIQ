@@ -1,45 +1,45 @@
 import { getGame } from "@shared/games/registry";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { type TuningGameId, useLaps, useTuningSession, useTuningSessionTests } from "../../hooks/queries";
+import { type ExperimentGameId, useLaps, useExperiment, useExperimentVersions } from "../../hooks/queries";
 import { TuneReviewDashboard } from "./TuneReviewDashboard";
 import { TuneSetupChat } from "./TuneSetupChat";
 
 /**
  * TestReviewPage — the post-test review dashboard as its own route
- * (/​<game>/tuning/<id>/review?testId=5) rather than a tab inside the tuning
- * workspace. When `testId` is present the reviewed laps are derived from it —
- * laps are stamped with their tuning_test_id server-side, so the set is fully
+ * (/​<game>/experiments/<id>/review?versionId=5) rather than a tab inside the tuning
+ * workspace. When `versionId` is present the reviewed laps are derived from it —
+ * laps are stamped with their experiment_version_id server-side, so the set is fully
  * recoverable from the id and does NOT need to travel in the URL. `lapIds` is
  * an optional fallback for the transient live-stint review (no test node yet),
  * where the explicit list scopes the view to just the current run.
  */
-export function TestReviewPage({ gameId, tuningSessionId, lapIds, testId }: { gameId: TuningGameId; tuningSessionId: number; lapIds?: number[]; testId?: number }) {
+export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { gameId: ExperimentGameId; experimentId: number; lapIds?: number[]; versionId?: number }) {
   const navigate = useNavigate();
-  const { data: session, isLoading: sessionLoading, isError: sessionMissing } = useTuningSession(tuningSessionId);
+  const { data: session, isLoading: sessionLoading, isError: sessionMissing } = useExperiment(experimentId);
   const { data: allLaps = [] } = useLaps();
-  const tests = useTuningSessionTests(tuningSessionId);
+  const tests = useExperimentVersions(experimentId);
   // Compact summary of whatever lap review is open in the dashboard below,
   // rebuilt by TuneReviewDashboard on every lap switch and piped into the
   // Setup Engineer chat so it "sees what the user sees".
   const [lapReviewContext, setLapReviewContext] = useState<string | null>(null);
 
   // Prefer deriving the reviewed laps from the test id (URL-clean path). Fall
-  // back to the explicit lapIds list only when no testId is given (live stint).
+  // back to the explicit lapIds list only when no versionId is given (live stint).
   const laps = useMemo(() => {
-    const selected = testId != null ? allLaps.filter((l) => l.tuningTestId === testId) : allLaps.filter((l) => (lapIds ?? []).includes(l.id));
+    const selected = versionId != null ? allLaps.filter((l) => l.experimentVersionId === versionId) : allLaps.filter((l) => (lapIds ?? []).includes(l.id));
     return [...selected].sort((a, b) => a.lapNumber - b.lapNumber);
-  }, [allLaps, lapIds, testId]);
+  }, [allLaps, lapIds, versionId]);
 
-  const activeTest = tests.data?.find((t) => t.id === testId) ?? tests.data?.find((t) => t.id === session?.headTestId) ?? undefined;
+  const activeTest = tests.data?.find((t) => t.id === versionId) ?? tests.data?.find((t) => t.id === session?.headVersionId) ?? undefined;
 
   const backToWorkspace = () =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    navigate({ to: `/${getGame(gameId).routePrefix}/tuning/${tuningSessionId}` } as any);
+    navigate({ to: `/${getGame(gameId).routePrefix}/experiments/${experimentId}` } as any);
 
-  const backToTuningList = () =>
+  const backToExperimentList = () =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    navigate({ to: `/${getGame(gameId).routePrefix}/tuning` } as any);
+    navigate({ to: `/${getGame(gameId).routePrefix}/experiments` } as any);
 
   // Session no longer exists (deleted, or its row was lost in a DB reset while
   // its laps survived — see the orphaned-stamp sweep in server/db/index.ts).
@@ -49,9 +49,9 @@ export function TestReviewPage({ gameId, tuningSessionId, lapIds, testId }: { ga
       <div className="flex flex-col items-center justify-center gap-3 p-12 text-center">
         <div className="text-lg font-semibold text-app-text">Tuning session not found</div>
         <div className="text-sm text-app-text-muted max-w-md">
-          This tuning session (#{tuningSessionId}) no longer exists — it may have been deleted, or removed when the database was reset. The laps it referenced may still be in your history.
+          This tuning session (#{experimentId}) no longer exists — it may have been deleted, or removed when the database was reset. The laps it referenced may still be in your history.
         </div>
-        <button type="button" onClick={backToTuningList} className="mt-2 px-4 py-2 text-sm rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold">
+        <button type="button" onClick={backToExperimentList} className="mt-2 px-4 py-2 text-sm rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold">
           Back to tuning sessions
         </button>
       </div>
@@ -77,7 +77,7 @@ export function TestReviewPage({ gameId, tuningSessionId, lapIds, testId }: { ga
             trackName={session?.trackName ?? undefined}
             onBack={backToWorkspace}
             test={activeTest}
-            tuningSessionId={tuningSessionId}
+            experimentId={experimentId}
             onOpenLapContextChange={setLapReviewContext}
           />
         </div>
@@ -91,7 +91,7 @@ export function TestReviewPage({ gameId, tuningSessionId, lapIds, testId }: { ga
             </button>
           </div>
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-            <TuneSetupChat sessionId={tuningSessionId} headTestId={session?.headTestId ?? null} extendedContext={lapReviewContext} />
+            <TuneSetupChat sessionId={experimentId} headVersionId={session?.headVersionId ?? null} extendedContext={lapReviewContext} />
           </div>
         </div>
       </div>

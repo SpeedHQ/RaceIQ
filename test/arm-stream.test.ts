@@ -92,8 +92,8 @@ function buildArm(specs: LapSpec[], firstId = 1) {
       lapTime: 90 + LAP_TIME_OFFSETS[i % LAP_TIME_OFFSETS.length],
       isValid: spec.isValid ?? true,
       invalidReason: null,
-      tuningExcluded: false,
-      tuningExcludedSource: null,
+      experimentExcluded: false,
+      experimentExcludedSource: null,
     };
     metas.push({ ...lap, lapNumber: i + 1, createdAt: `2026-01-01T00:0${i % 10}:00Z`, rawFrameCount });
     if (rawFrameCount > 0) frames.set(id, syntheticLap(spec.lateral, spec.brakeShift));

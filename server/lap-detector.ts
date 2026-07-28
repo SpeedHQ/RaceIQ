@@ -15,8 +15,8 @@ import type { DbAdapter } from "./pipeline-adapters";
 import type { ILapDetector, LapDetectorOptions } from "./lap-detector-interface";
 import { extractCurbSegments, recordCurbData } from "../shared/track-data";
 import { assessLapRecording } from "./lap-quality";
-import { persistLapMetrics } from "./tuning-lap-metrics";
-import { reconcileAutoExclusionsForLap } from "./tuning-auto-exclude";
+import { persistLapMetrics } from "./experiment-lap-metrics";
+import { reconcileAutoExclusionsForLap } from "./experiment-auto-exclude";
 import { computeLapSectors as computeLapSectorsHelper } from "./compute-lap-sectors";
 import { detectSessionBoundary, detectLapBoundary, detectLapReset } from "./lap-detection";
 

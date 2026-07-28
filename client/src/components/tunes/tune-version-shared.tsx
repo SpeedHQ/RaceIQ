@@ -2,16 +2,16 @@ import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/review-laps";
 import { parseTestChanges, summarizeTestChange } from "@shared/test-changes";
 import type { LapMeta } from "@shared/types";
 import { useMemo, useState } from "react";
-import { type TuningLapMetric, useSetLapExcluded } from "../../hooks/queries";
+import { type ExperimentLapMetric, useSetLapExcluded } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 
 /**
  * Shared rendering pieces for a tuning test ("setup version"): the
  * applied-changes summary and the per-lap breakdown table. Both
- * TuningSessionWorkspace (legacy flat list, kept for reference/tests) and
+ * ExperimentWorkspace (legacy flat list, kept for reference/tests) and
  * VersionGraph (the commit-graph view, Task 11) render the same version rows,
  * so this lives in its own module rather than being exported from either
- * component — VersionGraph importing from TuningSessionWorkspace (or vice
+ * component — VersionGraph importing from ExperimentWorkspace (or vice
  * versa) would create a circular import between the two.
  */
 
@@ -122,7 +122,7 @@ const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
  *  group by whether the analysis actually reads the lap. */
 function matchesStatusFilter(filter: StatusFilter, l: LapMeta, reason: string | undefined): boolean {
   if (filter === "all") return true;
-  if (l.tuningExcluded === true) return filter === "excluded";
+  if (l.experimentExcluded === true) return filter === "excluded";
   // Pit laps (out/in/pit) are just one flavour of invalid — same bucket.
   if (lapStatusLabel(l) != null) return filter === "invalid";
   if (filter === "eval") return reason === "chosen";
@@ -131,7 +131,7 @@ function matchesStatusFilter(filter: StatusFilter, l: LapMeta, reason: string | 
 }
 
 /** Sort keys for the breakdown table; null means "no value" and always sinks. */
-function sortValue(key: SortKey, l: LapMeta, metricsById: Map<number, TuningLapMetric>): number | string | null {
+function sortValue(key: SortKey, l: LapMeta, metricsById: Map<number, ExperimentLapMetric>): number | string | null {
   switch (key) {
     case "lap":
       return l.sessionId * 1e6 + l.lapNumber;
@@ -151,14 +151,14 @@ export function LapBreakdown({
   laps,
   bestT,
   metricsById,
-  tuningSessionId,
+  experimentId,
 }: {
   laps: LapMeta[];
   bestT: number | null;
-  metricsById: Map<number, TuningLapMetric>;
+  metricsById: Map<number, ExperimentLapMetric>;
   /** Session to invalidate after toggling exclusion (design §Phase 7). Laps
    *  outside a tuning session (no exclude toggle context) can omit this. */
-  tuningSessionId?: number | null;
+  experimentId?: number | null;
 }) {
   const setExcluded = useSetLapExcluded();
   // Same selector the server's auto-exclude pass and /line-spread use, so the
@@ -236,7 +236,7 @@ export function LapBreakdown({
           const metric = metricsById.get(l.id);
           const fuel = metric?.fuelPerLap;
           const wear = metric?.tyreWear;
-          const excluded = l.tuningExcluded === true;
+          const excluded = l.experimentExcluded === true;
           // A user-excluded lap says so in the Status column — that's the reason
           // it's struck through, and it outranks any detector reason.
           const status = excluded ? "Excluded by user" : lapStatusLabel(l);
@@ -290,7 +290,7 @@ export function LapBreakdown({
                   {l.isValid && (
                     <button
                       type="button"
-                      onClick={() => setExcluded.mutate({ lapId: l.id, excluded: !excluded, tuningSessionId })}
+                      onClick={() => setExcluded.mutate({ lapId: l.id, excluded: !excluded, experimentId })}
                       disabled={setExcluded.isPending}
                       title={excluded ? "Include this lap in the tuning aggregate again" : "Exclude this lap from the tuning aggregate (blunder, off-track, spin)"}
                       className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border disabled:opacity-50 disabled:pointer-events-none ${

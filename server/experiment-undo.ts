@@ -1,8 +1,8 @@
 /**
  * Undo (docs/setup-engineer-flow-design.md §Phase 9) — reverses the newest
- * not-yet-undone `tuning_actions` row for a session by applying its
+ * not-yet-undone `experiment_actions` row for a session by applying its
  * `kind`-specific inverse, then flips `undone`. Shared by the HTTP endpoint
- * (`POST /api/tuning-sessions/:id/undo`) and the AI's `undo_last_action`
+ * (`POST /api/experiments/:id/undo`) and the AI's `undo_last_action`
  * tool so both surfaces run identical logic.
  *
  * Idempotent by construction: `listActions(id, true)` only ever returns rows
@@ -16,30 +16,30 @@
  * (laps survive on the trashed node; restore brings them back) and a warning
  * is returned instead of silently stranding anything.
  */
-import { getTuningSession, setSessionHead, updateTuningSession } from "./db/tuning-session-queries";
+import { getExperiment, setSessionHead, updateExperiment } from "./db/experiment-queries";
 import {
   deleteTestSubtree,
   getLapCountsByTest,
-  getTuningTest,
-  listTuningTests,
+  getExperimentVersion,
+  listExperimentVersions,
   restoreTestSubtree,
-  setTuningTestNote,
-  setTuningTestNotes,
-} from "./db/tuning-test-queries";
-import { listActions, markUndone, type TuningAction } from "./db/tuning-action-queries";
-import { setLapTuningExcluded, unstampLapsFromTuningSession } from "./db/queries";
+  setExperimentVersionNote,
+  setExperimentVersionNotes,
+} from "./db/experiment-version-queries";
+import { listActions, markUndone, type ExperimentAction } from "./db/experiment-action-queries";
+import { setLapExperimentExcluded, unstampLapsFromExperiment } from "./db/queries";
 
 export interface UndoResult {
   ok: boolean;
   error?: string;
   undone: boolean;
-  kind?: TuningAction["kind"];
+  kind?: ExperimentAction["kind"];
   actionId?: number;
   warning?: string;
 }
 
 export async function undoLastAction(sessionId: number): Promise<UndoResult> {
-  const session = await getTuningSession(sessionId);
+  const session = await getExperiment(sessionId);
   if (!session) return { ok: false, undone: false, error: "Tuning session not found" };
 
   const pending = await listActions(sessionId, true); // newest-first, undone=false only
@@ -55,16 +55,16 @@ export async function undoLastAction(sessionId: number): Promise<UndoResult> {
     case "apply-changes":
     case "branch":
     case "add-base": {
-      const payload = action.inversePayload as { testId: number; prevHeadTestId: number | null } | null;
-      if (payload?.testId != null) {
-        const test = await getTuningTest(payload.testId);
+      const payload = action.inversePayload as { versionId: number; prevHeadTestId: number | null } | null;
+      if (payload?.versionId != null) {
+        const test = await getExperimentVersion(payload.versionId);
         if (test && test.status !== "deleted") {
           const [counts, allTests] = await Promise.all([
             getLapCountsByTest(sessionId),
-            listTuningTests(sessionId, { includeDeleted: true }),
+            listExperimentVersions(sessionId, { includeDeleted: true }),
           ]);
-          const lapCount = counts.get(payload.testId)?.lapCount ?? 0;
-          const hasChildren = allTests.some((t) => t.parentTestId === payload.testId);
+          const lapCount = counts.get(payload.versionId)?.lapCount ?? 0;
+          const hasChildren = allTests.some((t) => t.parentVersionId === payload.versionId);
           if (lapCount > 0 || hasChildren) {
             const parts = [
               lapCount > 0 ? `${lapCount} lap${lapCount === 1 ? "" : "s"}` : null,
@@ -72,7 +72,7 @@ export async function undoLastAction(sessionId: number): Promise<UndoResult> {
             ].filter(Boolean);
             warning = `This version has ${parts.join(" and ")} — undoing trashes them too; they're restorable from the trash.`;
           }
-          await deleteTestSubtree(sessionId, payload.testId, session.headTestId ?? null);
+          await deleteTestSubtree(sessionId, payload.versionId, session.headVersionId ?? null);
         }
         await setSessionHead(sessionId, payload.prevHeadTestId);
       }
@@ -80,7 +80,7 @@ export async function undoLastAction(sessionId: number): Promise<UndoResult> {
     }
     case "import-laps": {
       const payload = action.inversePayload as { lapIds: number[] } | null;
-      if (payload?.lapIds?.length) await unstampLapsFromTuningSession(payload.lapIds);
+      if (payload?.lapIds?.length) await unstampLapsFromExperiment(payload.lapIds);
       break;
     }
     case "set-head": {
@@ -99,7 +99,7 @@ export async function undoLastAction(sessionId: number): Promise<UndoResult> {
     case "restore": {
       const payload = action.inversePayload as { rootTestId: number } | null;
       if (payload?.rootTestId != null) {
-        await deleteTestSubtree(sessionId, payload.rootTestId, session.headTestId ?? null);
+        await deleteTestSubtree(sessionId, payload.rootTestId, session.headVersionId ?? null);
       }
       break;
     }
@@ -107,22 +107,22 @@ export async function undoLastAction(sessionId: number): Promise<UndoResult> {
       const payload = action.inversePayload as
         | Partial<{ name: string; notes: string | null; baseSetupPath: string | null; status: string }>
         | null;
-      if (payload) await updateTuningSession(sessionId, payload);
+      if (payload) await updateExperiment(sessionId, payload);
       break;
     }
     case "edit-test-note": {
-      const payload = action.inversePayload as { testId: number; prevDriverComment: string | null } | null;
-      if (payload?.testId != null) await setTuningTestNote(payload.testId, payload.prevDriverComment);
+      const payload = action.inversePayload as { versionId: number; prevDriverComment: string | null } | null;
+      if (payload?.versionId != null) await setExperimentVersionNote(payload.versionId, payload.prevDriverComment);
       break;
     }
     case "edit-test-notes": {
-      const payload = action.inversePayload as { testId: number; prevNotes: string | null } | null;
-      if (payload?.testId != null) await setTuningTestNotes(payload.testId, payload.prevNotes);
+      const payload = action.inversePayload as { versionId: number; prevNotes: string | null } | null;
+      if (payload?.versionId != null) await setExperimentVersionNotes(payload.versionId, payload.prevNotes);
       break;
     }
     case "set-lap-excluded": {
       const payload = action.inversePayload as { lapId: number; prevExcluded: boolean } | null;
-      if (payload?.lapId != null) await setLapTuningExcluded(payload.lapId, payload.prevExcluded);
+      if (payload?.lapId != null) await setLapExperimentExcluded(payload.lapId, payload.prevExcluded);
       break;
     }
     default:

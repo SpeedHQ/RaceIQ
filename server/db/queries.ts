@@ -5,8 +5,8 @@ import type { TelemetryPacket, LapMeta, SessionMeta, GameId } from "../../shared
 import type { Corner } from "../corner-detection";
 import { fillNormSuspension } from "../telemetry-utils";
 import { getServerGame } from "../games/registry";
-import { getActiveTuningSession } from "../tuning-active";
-import { resolveActiveTestId } from "./tuning-test-queries";
+import { getActiveExperiment } from "../experiment-active";
+import { resolveActiveTestId } from "./experiment-version-queries";
 import { tryGetGame } from "../../shared/games/registry";
 import { gunzip } from "zlib";
 import { promisify } from "util";
@@ -188,46 +188,46 @@ export async function updateLapValidity(id: number, isValid: boolean, invalidRea
 }
 
 /**
- * Flip a lap's `tuningExcluded` flag (Setup Engineer `set_lap_excluded` tool,
- * docs/setup-engineer-flow-design.md §Phase 3, and the `/api/laps/:id/tuning-excluded`
- * REST route, §Phase 7). Returns the PRIOR value plus the lap's `tuningSessionId`
+ * Flip a lap's `experimentExcluded` flag (Setup Engineer `set_lap_excluded` tool,
+ * docs/setup-engineer-flow-design.md §Phase 3, and the `/api/laps/:id/experiment-excluded`
+ * REST route, §Phase 7). Returns the PRIOR value plus the lap's `experimentId`
  * so the caller can log an inverse via `recordAction` for undo.
  *
- * Stamps `tuningExcludedSource = 'manual'` in BOTH directions (excluding and
- * un-excluding) — docs/superpowers/specs/2026-07-24-tuning-auto-exclude-design.md.
+ * Stamps `experimentExcludedSource = 'manual'` in BOTH directions (excluding and
+ * un-excluding) — docs/superpowers/specs/2026-07-24-experiment-auto-exclude-design.md.
  * This pins the lap against the auto-exclude reconciliation pass
- * (server/tuning-auto-exclude.ts) so a user's un-exclude click sticks instead of
+ * (server/experiment-auto-exclude.ts) so a user's un-exclude click sticks instead of
  * the fastest-5 rule silently re-excluding it on the next lap save.
  */
-export async function setLapTuningExcluded(
+export async function setLapExperimentExcluded(
   lapId: number,
   excluded: boolean,
-): Promise<{ ok: boolean; prev: boolean; tuningSessionId: number | null }> {
+): Promise<{ ok: boolean; prev: boolean; experimentId: number | null }> {
   const row = await db
-    .select({ tuningExcluded: laps.tuningExcluded, tuningSessionId: laps.tuningSessionId })
+    .select({ experimentExcluded: laps.experimentExcluded, experimentId: laps.experimentId })
     .from(laps)
     .where(eq(laps.id, lapId))
     .get();
-  if (!row) return { ok: false, prev: false, tuningSessionId: null };
-  const prev = Boolean(row.tuningExcluded);
+  if (!row) return { ok: false, prev: false, experimentId: null };
+  const prev = Boolean(row.experimentExcluded);
   await db
     .update(laps)
-    .set({ tuningExcluded: excluded ? 1 : null, tuningExcludedSource: "manual" })
+    .set({ experimentExcluded: excluded ? 1 : null, experimentExcludedSource: "manual" })
     .where(eq(laps.id, lapId))
     .run();
-  return { ok: true, prev, tuningSessionId: row.tuningSessionId };
+  return { ok: true, prev, experimentId: row.experimentId };
 }
 
 /**
- * Read the scope laps `reconcileAutoExclusions` (server/tuning-auto-exclude.ts)
- * ranks over: every lap sharing `(tuning_session_id, tune_id)`, with just the
+ * Read the scope laps `reconcileAutoExclusions` (server/experiment-auto-exclude.ts)
+ * ranks over: every lap sharing `(experiment_id, tune_id)`, with just the
  * columns the fastest-5 rule needs.
  */
 export async function getLapsForExclusionScope(
-  tuningSessionId: number,
+  experimentId: number,
   tuneId: number,
 ): Promise<
-  { id: number; lapTime: number; isValid: boolean; invalidReason: string | null; tuningExcluded: boolean; tuningExcludedSource: "auto" | "manual" | null }[]
+  { id: number; lapTime: number; isValid: boolean; invalidReason: string | null; experimentExcluded: boolean; experimentExcludedSource: "auto" | "manual" | null }[]
 > {
   const rows = await db
     .select({
@@ -235,50 +235,50 @@ export async function getLapsForExclusionScope(
       lapTime: laps.lapTime,
       isValid: laps.isValid,
       invalidReason: laps.invalidReason,
-      tuningExcluded: laps.tuningExcluded,
-      tuningExcludedSource: laps.tuningExcludedSource,
+      experimentExcluded: laps.experimentExcluded,
+      experimentExcludedSource: laps.experimentExcludedSource,
     })
     .from(laps)
-    .where(and(eq(laps.tuningSessionId, tuningSessionId), eq(laps.tuneId, tuneId)))
+    .where(and(eq(laps.experimentId, experimentId), eq(laps.tuneId, tuneId)))
     .all();
   return rows.map((r) => ({
     id: r.id,
     lapTime: r.lapTime,
     isValid: Boolean(r.isValid),
     invalidReason: r.invalidReason,
-    tuningExcluded: Boolean(r.tuningExcluded),
-    tuningExcludedSource: (r.tuningExcludedSource as "auto" | "manual" | null) ?? null,
+    experimentExcluded: Boolean(r.experimentExcluded),
+    experimentExcludedSource: (r.experimentExcludedSource as "auto" | "manual" | null) ?? null,
   }));
 }
 
 /**
  * Write an auto-pass exclusion decision for a lap. Always stamps
- * `tuningExcludedSource = 'auto'` — manual decisions never go through this
- * path (see `setLapTuningExcluded`).
+ * `experimentExcludedSource = 'auto'` — manual decisions never go through this
+ * path (see `setLapExperimentExcluded`).
  */
 export async function setLapAutoExclusion(lapId: number, excluded: boolean): Promise<void> {
   await db
     .update(laps)
-    .set({ tuningExcluded: excluded ? 1 : null, tuningExcludedSource: "auto" })
+    .set({ experimentExcluded: excluded ? 1 : null, experimentExcludedSource: "auto" })
     .where(eq(laps.id, lapId))
     .run();
 }
 
 /**
- * Read back the `(tuning_session_id, tune_id)` scope key a just-inserted lap
+ * Read back the `(experiment_id, tune_id)` scope key a just-inserted lap
  * was stamped with, so the caller can decide whether to run
  * `reconcileAutoExclusions` (skipped when either is null — see
- * docs/superpowers/specs/2026-07-24-tuning-auto-exclude-design.md §Trigger).
+ * docs/superpowers/specs/2026-07-24-experiment-auto-exclude-design.md §Trigger).
  */
-export async function getLapTuningScope(
+export async function getLapExperimentScope(
   lapId: number,
-): Promise<{ tuningSessionId: number | null; tuneId: number | null }> {
+): Promise<{ experimentId: number | null; tuneId: number | null }> {
   const row = await db
-    .select({ tuningSessionId: laps.tuningSessionId, tuneId: laps.tuneId })
+    .select({ experimentId: laps.experimentId, tuneId: laps.tuneId })
     .from(laps)
     .where(eq(laps.id, lapId))
     .get();
-  return { tuningSessionId: row?.tuningSessionId ?? null, tuneId: row?.tuneId ?? null };
+  return { experimentId: row?.experimentId ?? null, tuneId: row?.tuneId ?? null };
 }
 
 /**
@@ -316,9 +316,9 @@ async function doInsertLap(
   // reading the in-memory active id here links laps to a tuning session
   // independent of race sessionId — a tuning session can span many race
   // sessions. Cheap, unconditional on game; null when no session is active.
-  const activeTuningSessionId = getActiveTuningSession();
-  const activeTuningTestId =
-    activeTuningSessionId != null ? await resolveActiveTestId(activeTuningSessionId) : null;
+  const activeExperimentId = getActiveExperiment();
+  const activeExperimentVersionId =
+    activeExperimentId != null ? await resolveActiveTestId(activeExperimentId) : null;
   const result = await db
     .insert(laps)
     .values({
@@ -334,8 +334,8 @@ async function doInsertLap(
       profileId,
       tuneId,
       invalidReason,
-      tuningSessionId: activeTuningSessionId,
-      tuningTestId: activeTuningTestId,
+      experimentId: activeExperimentId,
+      experimentVersionId: activeExperimentVersionId,
     })
     .returning({ id: laps.id })
     .get();
@@ -447,10 +447,10 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
       s1Time: laps.s1Time,
       s2Time: laps.s2Time,
       s3Time: laps.s3Time,
-      tuningSessionId: laps.tuningSessionId,
-      tuningTestId: laps.tuningTestId,
-      tuningExcluded: laps.tuningExcluded,
-      tuningExcludedSource: laps.tuningExcludedSource,
+      experimentId: laps.experimentId,
+      experimentVersionId: laps.experimentVersionId,
+      experimentExcluded: laps.experimentExcluded,
+      experimentExcludedSource: laps.experimentExcludedSource,
       fuelPerLap: laps.fuelPerLap,
       tyreWear: laps.tyreWear,
     })
@@ -477,13 +477,13 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
     s1Time: r.s1Time ?? undefined,
     s2Time: r.s2Time ?? undefined,
     s3Time: r.s3Time ?? undefined,
-    tuningSessionId: r.tuningSessionId ?? null,
-    tuningTestId: r.tuningTestId ?? null,
-    tuningExcluded: Boolean(r.tuningExcluded),
+    experimentId: r.experimentId ?? null,
+    experimentVersionId: r.experimentVersionId ?? null,
+    experimentExcluded: Boolean(r.experimentExcluded),
     // Selector (shared/review-laps.ts) only treats a lap as manually excluded
     // when the source is "manual" — must travel with the flag or the client
     // re-ranks the excluded lap into the fastest-N.
-    tuningExcludedSource: (r.tuningExcludedSource as "auto" | "manual" | null) ?? null,
+    experimentExcludedSource: (r.experimentExcludedSource as "auto" | "manual" | null) ?? null,
     fuelPerLap: r.fuelPerLap ?? null,
     tyreWear: r.tyreWear ?? null,
   }));
@@ -497,10 +497,10 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
  * of race sessions (multiple stints) and never over-includes unrelated laps.
  *
  * Laps recorded before v25 (or while no tuning session was active) have
- * tuning_session_id = NULL and are therefore excluded — the link is opt-in
+ * experiment_id = NULL and are therefore excluded — the link is opt-in
  * going forward.
  */
-export async function getLapsForTuningSession(tuningSessionId: number): Promise<LapMeta[]> {
+export async function getLapsForExperiment(experimentId: number): Promise<LapMeta[]> {
   const rows = await db
     .select({
       id: laps.id,
@@ -521,17 +521,17 @@ export async function getLapsForTuningSession(tuningSessionId: number): Promise<
       s1Time: laps.s1Time,
       s2Time: laps.s2Time,
       s3Time: laps.s3Time,
-      tuningSessionId: laps.tuningSessionId,
-      tuningTestId: laps.tuningTestId,
-      tuningExcluded: laps.tuningExcluded,
-      tuningExcludedSource: laps.tuningExcludedSource,
+      experimentId: laps.experimentId,
+      experimentVersionId: laps.experimentVersionId,
+      experimentExcluded: laps.experimentExcluded,
+      experimentExcludedSource: laps.experimentExcludedSource,
       fuelPerLap: laps.fuelPerLap,
       tyreWear: laps.tyreWear,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
-    .where(eq(laps.tuningSessionId, tuningSessionId))
+    .where(eq(laps.experimentId, experimentId))
     .orderBy(desc(laps.id))
     .all();
 
@@ -548,13 +548,13 @@ export async function getLapsForTuningSession(tuningSessionId: number): Promise<
     s1Time: r.s1Time ?? undefined,
     s2Time: r.s2Time ?? undefined,
     s3Time: r.s3Time ?? undefined,
-    tuningSessionId: r.tuningSessionId ?? null,
-    tuningTestId: r.tuningTestId ?? null,
-    tuningExcluded: Boolean(r.tuningExcluded),
+    experimentId: r.experimentId ?? null,
+    experimentVersionId: r.experimentVersionId ?? null,
+    experimentExcluded: Boolean(r.experimentExcluded),
     // Selector (shared/review-laps.ts) only treats a lap as manually excluded
     // when the source is "manual" — must travel with the flag or the client
     // re-ranks the excluded lap into the fastest-N.
-    tuningExcludedSource: (r.tuningExcludedSource as "auto" | "manual" | null) ?? null,
+    experimentExcludedSource: (r.experimentExcludedSource as "auto" | "manual" | null) ?? null,
     fuelPerLap: r.fuelPerLap ?? null,
     tyreWear: r.tyreWear ?? null,
   }));
@@ -562,11 +562,11 @@ export async function getLapsForTuningSession(tuningSessionId: number): Promise<
 
 /**
  * Laps explicitly stamped to one tuning TEST (setup version) — the current
- * run's pool (migration v29). Same shape as getLapsForTuningSession but scoped
+ * run's pool (migration v29). Same shape as getLapsForExperiment but scoped
  * to a single branch node so the clean-lap aggregate reflects exactly the laps
  * driven on that setup. Newest-first.
  */
-export async function getLapMetaForTuningTest(tuningTestId: number): Promise<LapMeta[]> {
+export async function getLapMetaForExperimentVersion(experimentVersionId: number): Promise<LapMeta[]> {
   const rows = await db
     .select({
       id: laps.id,
@@ -587,10 +587,10 @@ export async function getLapMetaForTuningTest(tuningTestId: number): Promise<Lap
       s1Time: laps.s1Time,
       s2Time: laps.s2Time,
       s3Time: laps.s3Time,
-      tuningSessionId: laps.tuningSessionId,
-      tuningTestId: laps.tuningTestId,
-      tuningExcluded: laps.tuningExcluded,
-      tuningExcludedSource: laps.tuningExcludedSource,
+      experimentId: laps.experimentId,
+      experimentVersionId: laps.experimentVersionId,
+      experimentExcluded: laps.experimentExcluded,
+      experimentExcludedSource: laps.experimentExcludedSource,
       fuelPerLap: laps.fuelPerLap,
       tyreWear: laps.tyreWear,
       // Frame count only — never the frames. Lets the arm-comparison loader size
@@ -600,7 +600,7 @@ export async function getLapMetaForTuningTest(tuningTestId: number): Promise<Lap
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .leftJoin(tunes, eq(laps.tuneId, tunes.id))
-    .where(eq(laps.tuningTestId, tuningTestId))
+    .where(eq(laps.experimentVersionId, experimentVersionId))
     .orderBy(desc(laps.id))
     .all();
 
@@ -617,13 +617,13 @@ export async function getLapMetaForTuningTest(tuningTestId: number): Promise<Lap
     s1Time: r.s1Time ?? undefined,
     s2Time: r.s2Time ?? undefined,
     s3Time: r.s3Time ?? undefined,
-    tuningSessionId: r.tuningSessionId ?? null,
-    tuningTestId: r.tuningTestId ?? null,
-    tuningExcluded: Boolean(r.tuningExcluded),
+    experimentId: r.experimentId ?? null,
+    experimentVersionId: r.experimentVersionId ?? null,
+    experimentExcluded: Boolean(r.experimentExcluded),
     // Selector (shared/review-laps.ts) only treats a lap as manually excluded
     // when the source is "manual" — must travel with the flag or the client
     // re-ranks the excluded lap into the fastest-N.
-    tuningExcludedSource: (r.tuningExcludedSource as "auto" | "manual" | null) ?? null,
+    experimentExcludedSource: (r.experimentExcludedSource as "auto" | "manual" | null) ?? null,
     fuelPerLap: r.fuelPerLap ?? null,
     tyreWear: r.tyreWear ?? null,
     rawFrameCount: r.rawFrameCount ?? null,
@@ -635,17 +635,17 @@ export async function getLapMetaForTuningTest(tuningTestId: number): Promise<Lap
  * §Phase 6): laps matching this tuning session's game + car + track that aren't
  * already stamped to ANY tuning session. Ordinal-only match — a name-seeded
  * session already resolves `trackOrdinal` from `trackName` at creation
- * (createTuningSession), so by the time this query runs that fallback is
+ * (createExperiment), so by the time this query runs that fallback is
  * already baked into the ordinal; `carOrdinal`/`trackOrdinal` left null on the
  * session (never resolved) are treated as "match any" for that dimension
- * rather than excluding everything. Newest-first, same shape as getLapsForTuningSession.
+ * rather than excluding everything. Newest-first, same shape as getLapsForExperiment.
  */
-export async function getImportableLapsForTuningSession(
+export async function getImportableLapsForExperiment(
   gameId: GameId,
   carOrdinal: number | null,
   trackOrdinal: number | null,
 ): Promise<LapMeta[]> {
-  const conds = [eq(sessions.gameId, gameId), isNull(laps.tuningSessionId)];
+  const conds = [eq(sessions.gameId, gameId), isNull(laps.experimentId)];
   if (carOrdinal != null) conds.push(eq(sessions.carOrdinal, carOrdinal));
   if (trackOrdinal != null) conds.push(eq(sessions.trackOrdinal, trackOrdinal));
 
@@ -669,10 +669,10 @@ export async function getImportableLapsForTuningSession(
       s1Time: laps.s1Time,
       s2Time: laps.s2Time,
       s3Time: laps.s3Time,
-      tuningSessionId: laps.tuningSessionId,
-      tuningTestId: laps.tuningTestId,
-      tuningExcluded: laps.tuningExcluded,
-      tuningExcludedSource: laps.tuningExcludedSource,
+      experimentId: laps.experimentId,
+      experimentVersionId: laps.experimentVersionId,
+      experimentExcluded: laps.experimentExcluded,
+      experimentExcludedSource: laps.experimentExcludedSource,
       fuelPerLap: laps.fuelPerLap,
       tyreWear: laps.tyreWear,
     })
@@ -696,13 +696,13 @@ export async function getImportableLapsForTuningSession(
     s1Time: r.s1Time ?? undefined,
     s2Time: r.s2Time ?? undefined,
     s3Time: r.s3Time ?? undefined,
-    tuningSessionId: r.tuningSessionId ?? null,
-    tuningTestId: r.tuningTestId ?? null,
-    tuningExcluded: Boolean(r.tuningExcluded),
+    experimentId: r.experimentId ?? null,
+    experimentVersionId: r.experimentVersionId ?? null,
+    experimentExcluded: Boolean(r.experimentExcluded),
     // Selector (shared/review-laps.ts) only treats a lap as manually excluded
     // when the source is "manual" — must travel with the flag or the client
     // re-ranks the excluded lap into the fastest-N.
-    tuningExcludedSource: (r.tuningExcludedSource as "auto" | "manual" | null) ?? null,
+    experimentExcludedSource: (r.experimentExcludedSource as "auto" | "manual" | null) ?? null,
     fuelPerLap: r.fuelPerLap ?? null,
     tyreWear: r.tyreWear ?? null,
   }));
@@ -711,37 +711,37 @@ export async function getImportableLapsForTuningSession(
 /**
  * Stamp a batch of laps onto a tuning session (and optional test/branch) —
  * "Add laps from history" attach step. Only laps that are currently unstamped
- * (`tuningSessionId IS NULL`) are touched, so a lapIds list stale from a
+ * (`experimentId IS NULL`) are touched, so a lapIds list stale from a
  * concurrent import can't steal laps from another session. Returns the ids
  * actually updated.
  */
-export async function importLapsToTuningSession(
-  tuningSessionId: number,
+export async function importLapsToExperiment(
+  experimentId: number,
   lapIds: number[],
-  tuningTestId: number | null,
+  experimentVersionId: number | null,
 ): Promise<number[]> {
   if (lapIds.length === 0) return [];
   const result = await db
     .update(laps)
-    .set({ tuningSessionId, tuningTestId })
-    .where(and(inArray(laps.id, lapIds), isNull(laps.tuningSessionId)))
+    .set({ experimentId, experimentVersionId })
+    .where(and(inArray(laps.id, lapIds), isNull(laps.experimentId)))
     .returning({ id: laps.id })
     .all();
   return result.map((r) => r.id);
 }
 
 /**
- * Undo inverse for `importLapsToTuningSession` (Phase 9): clear
- * `tuningSessionId`/`tuningTestId` on exactly the lap ids the import stamped,
+ * Undo inverse for `importLapsToExperiment` (Phase 9): clear
+ * `experimentId`/`experimentVersionId` on exactly the lap ids the import stamped,
  * returning them to the unstamped/importable pool. No existence guard needed
  * beyond the id list itself — these are always ids `recordAction` captured
  * from the import's own return value.
  */
-export async function unstampLapsFromTuningSession(lapIds: number[]): Promise<void> {
+export async function unstampLapsFromExperiment(lapIds: number[]): Promise<void> {
   if (lapIds.length === 0) return;
   await db
     .update(laps)
-    .set({ tuningSessionId: null, tuningTestId: null })
+    .set({ experimentId: null, experimentVersionId: null })
     .where(inArray(laps.id, lapIds))
     .run();
 }
@@ -1401,22 +1401,22 @@ export function lineSpreadLapSetHash(lapIds: number[]): string {
 }
 
 /** Read a cached line-spread trace JSON, or null on miss. */
-export async function getLineSpreadCache(tuningSessionId: number, lapSetHash: string): Promise<string | null> {
+export async function getLineSpreadCache(experimentId: number, lapSetHash: string): Promise<string | null> {
   const row = await db
     .select({ trace: lineSpreadCache.trace })
     .from(lineSpreadCache)
-    .where(and(eq(lineSpreadCache.tuningSessionId, tuningSessionId), eq(lineSpreadCache.lapSetHash, lapSetHash)))
+    .where(and(eq(lineSpreadCache.experimentId, experimentId), eq(lineSpreadCache.lapSetHash, lapSetHash)))
     .get();
   return row?.trace ?? null;
 }
 
 /** Store a computed line-spread trace JSON (upsert on the composite key). */
-export async function setLineSpreadCache(tuningSessionId: number, lapSetHash: string, trace: string): Promise<void> {
+export async function setLineSpreadCache(experimentId: number, lapSetHash: string, trace: string): Promise<void> {
   await db
     .insert(lineSpreadCache)
-    .values({ tuningSessionId, lapSetHash, trace })
+    .values({ experimentId, lapSetHash, trace })
     .onConflictDoUpdate({
-      target: [lineSpreadCache.tuningSessionId, lineSpreadCache.lapSetHash],
+      target: [lineSpreadCache.experimentId, lineSpreadCache.lapSetHash],
       set: { trace, createdAt: sql`(datetime('now'))` },
     })
     .run();

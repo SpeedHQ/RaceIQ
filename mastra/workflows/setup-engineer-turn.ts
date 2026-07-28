@@ -29,11 +29,11 @@ import { z } from "zod";
 
 import { describeKnobs } from "../../server/ai/tune-rules";
 import { formatSymptoms } from "../../server/ai/tune-chat-prompt";
-import { formatTrackConditions, loadActiveTuningContext } from "../../server/ai/setup-engineer-context";
+import { formatTrackConditions, loadActiveExperimentContext } from "../../server/ai/setup-engineer-context";
 import { loadCleanLapAggregate, baselineFallbackNote } from "../../server/ai/clean-lap-aggregate";
 import { formatLapObservations } from "../../server/ai/lap-observations";
 import { getOrComputeLapMetricsBatch } from "../../server/lap-metrics";
-import { listTuningTests } from "../../server/db/tuning-test-queries";
+import { listExperimentVersions } from "../../server/db/experiment-version-queries";
 
 const InputSchema = z.object({
   sessionId: z.number().int().positive().describe("The tuning session id to gather context for."),
@@ -54,7 +54,7 @@ const gatherPrereqs = createStep({
     const sections: string[] = [];
 
     // Current setup — the exact tunable knobs + values (the model's action space).
-    const ctx = await loadActiveTuningContext(sessionId);
+    const ctx = await loadActiveExperimentContext(sessionId);
     if (ctx.ok) {
       const knobs = describeKnobs(ctx.gameId, ctx.setup);
       const tunable = knobs.filter((k) => k.current != null);
@@ -165,7 +165,7 @@ const gatherPrereqs = createStep({
     // and what the driver concluded) belongs to a version, unlike the
     // observations above which are properties of a lap. A verdict is only ever
     // present because a human recorded it.
-    const tests = ctx.ok ? ctx.tests : await listTuningTests(sessionId);
+    const tests = ctx.ok ? ctx.tests : await listExperimentVersions(sessionId);
     sections.push(
       "--- VERSION HISTORY (oldest first) ---\n" +
         (tests.length

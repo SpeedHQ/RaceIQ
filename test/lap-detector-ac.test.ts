@@ -30,9 +30,9 @@ function makeFakeDb() {
     getTuneAssignment: async () => null,
     getTrackOutlineSectors: async () => null,
     // These fake laps never carry a tuning session / tune, so
-    // reconcileAutoExclusionsForLap (server/tuning-auto-exclude.ts) always
+    // reconcileAutoExclusionsForLap (server/experiment-auto-exclude.ts) always
     // no-ops after seeing null/null here.
-    getLapTuningScope: async () => ({ tuningSessionId: null, tuneId: null }),
+    getLapExperimentScope: async () => ({ experimentId: null, tuneId: null }),
   } as any;
 }
 

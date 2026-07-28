@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
-import { TuningSessionWorkspace } from "../components/tunes/TuningSessionWorkspace";
-import type { TuningLapMetric, TuningSession, TuningTest } from "../hooks/queries";
+import { ExperimentWorkspace } from "../components/tunes/ExperimentWorkspace";
+import type { ExperimentLapMetric, Experiment, ExperimentVersion } from "../hooks/queries";
 import { fakeSessionLaps } from "./fakeData";
 
 const queryClient = new QueryClient({
@@ -11,7 +11,7 @@ const queryClient = new QueryClient({
 
 const sessionId = 42;
 
-const fakeSession: TuningSession = {
+const fakeSession: Experiment = {
   id: sessionId,
   gameId: "acc",
   seq: 7,
@@ -20,18 +20,18 @@ const fakeSession: TuningSession = {
   trackOrdinal: null,
   carName: "Huracan GT3",
   trackName: "Spa-Francorchamps",
-  headTestId: 101,
+  headVersionId: 101,
   createdAt: new Date().toISOString(),
-} as TuningSession;
+} as Experiment;
 
-const fakeTests: TuningTest[] = [
+const fakeTests: ExperimentVersion[] = [
   {
     id: 100,
-    tuningSessionId: sessionId,
+    experimentId: sessionId,
     version: 1,
     label: "Base setup",
     setupPath: "C:/setups/race_dry.json",
-    parentTestId: null,
+    parentVersionId: null,
     appliedChanges: null,
     driverComment: null,
     engine: null,
@@ -42,18 +42,18 @@ const fakeTests: TuningTest[] = [
   },
   {
     id: 101,
-    tuningSessionId: sessionId,
+    experimentId: sessionId,
     version: 2,
     label: "+1 rear wing, softer rear ARB",
     setupPath: null,
-    parentTestId: 100,
+    parentVersionId: 100,
     appliedChanges: JSON.stringify([{ path: "aero.rearWing", from: 4, to: 5 }]),
     driverComment: "Less snap on corner exit",
     engine: "llm",
     status: "active",
     // Must predate every statusExampleLap below (oldest is ~25min back) — laps
     // are grouped to the newest test whose createdAt is <= the lap's createdAt
-    // (TuningSessionWorkspace.tsx lapsByTest), so a too-recent test creation
+    // (ExperimentWorkspace.tsx lapsByTest), so a too-recent test creation
     // time silently drops older stint laps back onto v1.
     createdAt: new Date(Date.now() - 1_700_000).toISOString(),
     lapCount: 16,
@@ -88,7 +88,7 @@ const statusLapCount = statusExampleLapsBase.length;
 const statusExampleLaps = statusExampleLapsBase.map((l, i) => ({
   ...l,
   sessionId: 1,
-  tuningSessionId: sessionId,
+  experimentId: sessionId,
   isValid: l.invalidReason === null,
   lapTime: 94.2 + i * 0.3,
   createdAt: new Date(Date.now() - (statusLapCount - i) * 95_000).toISOString(),
@@ -99,21 +99,21 @@ const statusExampleLaps = statusExampleLapsBase.map((l, i) => ({
   s3Time: 30.6,
 }));
 
-const sessionLaps = [...fakeSessionLaps.map((l) => ({ ...l, tuningSessionId: sessionId })), ...statusExampleLaps];
+const sessionLaps = [...fakeSessionLaps.map((l) => ({ ...l, experimentId: sessionId })), ...statusExampleLaps];
 
 // Server-derived per-lap metrics for every lap in the pool (not just laps 1-10):
 // fuel drifts run-to-run and tyre wear climbs across the stint, so the workspace
 // stat cards, VersionGraph "worst wear" column, and the per-lap breakdown all show
 // realistic example data instead of "—". Wear is the worst-tyre % worn at lap end.
-const fakeLapMetrics: TuningLapMetric[] = sessionLaps.map((l, i) => ({
+const fakeLapMetrics: ExperimentLapMetric[] = sessionLaps.map((l, i) => ({
   lapId: l.id,
   fuelPerLap: +(2.7 + Math.sin(i / 3) * 0.25).toFixed(2),
   tyreWear: +(3 + i * 1.4).toFixed(1),
 }));
 
-queryClient.setQueryData(["tuning-session", sessionId], fakeSession);
-queryClient.setQueryData(["tuning-session-tests", sessionId], fakeTests);
-queryClient.setQueryData(["tuning-session-lap-metrics", sessionId], fakeLapMetrics);
+queryClient.setQueryData(["experiment", sessionId], fakeSession);
+queryClient.setQueryData(["experiment-tests", sessionId], fakeTests);
+queryClient.setQueryData(["experiment-lap-metrics", sessionId], fakeLapMetrics);
 queryClient.setQueryData(["laps", null], sessionLaps);
 queryClient.setQueryData(["laps", "acc"], sessionLaps);
 
@@ -130,14 +130,14 @@ function withRouter(Story: React.ComponentType) {
   const rootRoute = createRootRoute({ component: Comp });
   const router = createRouter({
     routeTree: rootRoute,
-    history: createMemoryHistory({ initialEntries: [`/acc/tuning/${sessionId}`] }),
+    history: createMemoryHistory({ initialEntries: [`/acc/experiments/${sessionId}`] }),
   });
   return <RouterProvider router={router} />;
 }
 
-const meta: Meta<typeof TuningSessionWorkspace> = {
-  title: "Dashboards/SetupEngineer/TuningSessionWorkspace",
-  component: TuningSessionWorkspace,
+const meta: Meta<typeof ExperimentWorkspace> = {
+  title: "Dashboards/SetupEngineer/ExperimentWorkspace",
+  component: ExperimentWorkspace,
   decorators: [
     (Story) => (
       <StoryDecorator>
@@ -150,8 +150,8 @@ const meta: Meta<typeof TuningSessionWorkspace> = {
 };
 
 export default meta;
-type Story = StoryObj<typeof TuningSessionWorkspace>;
+type Story = StoryObj<typeof ExperimentWorkspace>;
 
 export const Default: Story = {
-  args: { gameId: "acc", tuningSessionId: sessionId },
+  args: { gameId: "acc", experimentId: sessionId },
 };

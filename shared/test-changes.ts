@@ -1,7 +1,7 @@
 import type { DrillChange, SetupChange, TestChange } from "./types";
 
 /**
- * Parsing for `tuning_tests.applied_changes` (issue #120).
+ * Parsing for `experiment_versions.applied_changes` (issue #120).
  *
  * The column predates migration v37, when every change was a setup knob edit
  * and the objects had no `kind` field. Rather than rewriting every historical

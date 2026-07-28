@@ -5,15 +5,15 @@ import { useNavigate } from "@tanstack/react-router";
 import { Check, Copy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
-  type TuningGameId,
-  type TuningLapMetric,
-  type TuningTest,
+  type ExperimentGameId,
+  type ExperimentLapMetric,
+  type ExperimentVersion,
   useAccCarName,
   useLaps,
   useResolveNames,
-  useTuningSession,
-  useTuningSessionLapMetrics,
-  useTuningSessionTests,
+  useExperiment,
+  useExperimentLapMetrics,
+  useExperimentVersions,
 } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 import { isPitCycleLap } from "@shared/lap-filters";
@@ -28,14 +28,14 @@ import { TuneSetupChat } from "./TuneSetupChat";
 import { VersionGraph } from "./VersionGraph";
 
 /**
- * TuningSessionWorkspace — the live-first workspace that opens *inside* a tuning
- * session (?tuningSession=<id>). The driver runs stints, the right panel
+ * ExperimentWorkspace — the live-first workspace that opens *inside* a tuning
+ * session (?experiment=<id>). The driver runs stints, the right panel
  * summarises the current stint as laps arrive, and Save & recommend runs the
  * deterministic autotune over the fastest valid lap, writes the next setup
  * version, and records it as a new tuning test (plan §1, Phase B).
  *
  * Per-lap fuel/lap and tyre wear (and the session Fuel/lap card) are real
- * server-derived numbers (Phase C, useTuningSessionLapMetrics) — wear is the
+ * server-derived numbers (Phase C, useExperimentLapMetrics) — wear is the
  * worst-tyre % worn per lap, from the game's tyre-wear channel. The spun flag is
  * omitted (parity Phase 2 spin detection). The right panel's setup chat
  * (TuneSetupChat) is a tool-using Setup Engineer agent
@@ -43,33 +43,33 @@ import { VersionGraph } from "./VersionGraph";
  * symptoms itself via tools and calls apply_changes when the driver confirms,
  * so this component no longer drives a separate generate-from-chat mutation.
  */
-export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: TuningGameId; tuningSessionId: number }) {
+export function ExperimentWorkspace({ gameId, experimentId }: { gameId: ExperimentGameId; experimentId: number }) {
   const navigate = useNavigate();
   const [showAddBase, setShowAddBase] = useState(false);
   const [showImportLaps, setShowImportLaps] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const { data: session, isLoading: loadingSession } = useTuningSession(tuningSessionId);
-  const { data: tests = [] } = useTuningSessionTests(tuningSessionId);
+  const { data: session, isLoading: loadingSession } = useExperiment(experimentId);
+  const { data: tests = [] } = useExperimentVersions(experimentId);
   /** Setup file the session is currently on: the head test's version, falling
    *  back to the session's base setup (before any test exists). */
-  const { data: lapMetrics = [] } = useTuningSessionLapMetrics(tuningSessionId);
+  const { data: lapMetrics = [] } = useExperimentLapMetrics(experimentId);
   const accCarName = useAccCarName();
   const { data: allLaps = [] } = useLaps();
   const liveSessionLaps = useTelemetryStore((s) => s.sessionLaps);
   const livePacket = useTelemetryStore((s) => s.packet);
 
   // Mark this session active while the workspace is open so every lap the
-  // driver records is stamped with this tuning_session_id at insert (server
-  // side). The active id lives in server memory (server/tuning-active.ts), so a
+  // driver records is stamped with this experiment_id at insert (server
+  // side). The active id lives in server memory (server/experiment-active.ts), so a
   // dev-server hot reload or restart silently drops it and every lap after that
   // lands unstamped — modelled as a TanStack query with a refetchInterval so
   // activation is re-asserted on a heartbeat (plus on window focus/reconnect)
   // and survives server restarts.
   useQuery({
-    queryKey: ["tuning-session-activate", tuningSessionId],
+    queryKey: ["experiment-activate", experimentId],
     queryFn: async () => {
       const api = client.api as any;
-      const res = await api["tuning-sessions"][":id"].activate.$post({ param: { id: String(tuningSessionId) } });
+      const res = await api["experiments"][":id"].activate.$post({ param: { id: String(experimentId) } });
       return res.json() as Promise<{ active: number | null }>;
     },
     refetchInterval: 5000,
@@ -83,24 +83,24 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
   // clobber a session the driver has since switched to.
   useEffect(() => {
     return () => {
-      (client.api as any)["tuning-sessions"][":id"].deactivate.$post({ param: { id: String(tuningSessionId) } }).catch(() => {});
+      (client.api as any)["experiments"][":id"].deactivate.$post({ param: { id: String(experimentId) } }).catch(() => {});
     };
-  }, [tuningSessionId]);
+  }, [experimentId]);
 
   // Header car/track labels: setup-file-seeded sessions carry names directly;
   // ordinal-seeded ones resolve names from the ordinals.
   const { data: names } = useResolveNames(session?.trackOrdinal != null ? [session.trackOrdinal] : [], session?.carOrdinal != null ? [session.carOrdinal] : []);
 
   // The session's lap pool: persisted laps explicitly linked to this tuning
-  // session (tuningSessionId stamped server-side, spanning any number of race
+  // session (experimentId stamped server-side, spanning any number of race
   // sessions) merged with the live stint. Live laps belong to this session by
   // definition — the workspace activated it on mount, so the server is stamping
   // them — and are included even before the persisted query refetches. Laps
-  // recorded before this feature have tuningSessionId = null and won't appear.
+  // recorded before this feature have experimentId = null and won't appear.
   const sessionLapPool = useMemo<LapMeta[]>(() => {
     const byId = new Map<number, LapMeta>();
     for (const l of allLaps) {
-      if (l.tuningSessionId === tuningSessionId) byId.set(l.id, l);
+      if (l.experimentId === experimentId) byId.set(l.id, l);
     }
     for (const l of liveSessionLaps) {
       // Live lap objects from the telemetry pipeline never carry the exclusion
@@ -108,24 +108,24 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
       // persisted lap's flag AND its source when both exist — otherwise the
       // exclude toggle looks dead for laps of the current stint.
       // The source must survive: selectEvaluationLaps only reads a lap as
-      // manually excluded when tuningExcludedSource === "manual", so dropping
+      // manually excluded when experimentExcludedSource === "manual", so dropping
       // it leaves the lap ranked in the fastest-N (stale "Eval" badge, no
       // replacement lap promoted).
       const persisted = byId.get(l.id);
       byId.set(
         l.id,
         persisted
-          ? { ...l, tuningExcluded: persisted.tuningExcluded, tuningExcludedSource: persisted.tuningExcludedSource }
+          ? { ...l, experimentExcluded: persisted.experimentExcluded, experimentExcludedSource: persisted.experimentExcludedSource }
           : l,
       );
     }
     return [...byId.values()];
-  }, [allLaps, liveSessionLaps, tuningSessionId]);
+  }, [allLaps, liveSessionLaps, experimentId]);
 
   // Server-derived per-lap metrics (fuel/lap + worst-tyre wear),
   // keyed by lap id for the table + the session Fuel/lap card.
   const metricsById = useMemo(() => {
-    const m = new Map<number, TuningLapMetric>();
+    const m = new Map<number, ExperimentLapMetric>();
     for (const entry of lapMetrics) m.set(entry.lapId, entry);
     return m;
   }, [lapMetrics]);
@@ -135,7 +135,7 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
   // latest (active) test.
   // Outlaps/inlaps/pit laps carry no tuning signal — excluded outright from
   // grouping, counts, and aggregates below.
-  const tuningLapPool = useMemo(() => sessionLapPool.filter((l) => !isPitCycleLap(l)), [sessionLapPool]);
+  const experimentLapPool = useMemo(() => sessionLapPool.filter((l) => !isPitCycleLap(l)), [sessionLapPool]);
 
   const lapsByTest = useMemo(() => {
     const sorted = [...tests].sort((a, b) => a.version - b.version);
@@ -149,7 +149,7 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
       return match;
     };
     const map = new Map<number, LapMeta[]>();
-    for (const l of tuningLapPool) {
+    for (const l of experimentLapPool) {
       const tid = testForLap(l);
       if (tid == null) continue;
       const arr = map.get(tid);
@@ -160,21 +160,21 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
     // order by source session id first, then lap number within that session.
     for (const arr of map.values()) arr.sort((a, b) => a.sessionId - b.sessionId || a.lapNumber - b.lapNumber);
     return map;
-  }, [tuningLapPool, tests]);
+  }, [experimentLapPool, tests]);
 
   // Session-wide stat rollups (hide a card when its value is unavailable).
-  const validLaps = useMemo(() => tuningLapPool.filter((l) => l.isValid && l.lapTime > 0), [tuningLapPool]);
-  const lapCount = tuningLapPool.length;
+  const validLaps = useMemo(() => experimentLapPool.filter((l) => l.isValid && l.lapTime > 0), [experimentLapPool]);
+  const lapCount = experimentLapPool.length;
   const bestLap = validLaps.length ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
   const avgLap = validLaps.length ? validLaps.reduce((s, l) => s + l.lapTime, 0) / validLaps.length : null;
-  const driveTime = tuningLapPool.reduce((s, l) => s + (l.lapTime > 0 ? l.lapTime : 0), 0);
+  const driveTime = experimentLapPool.reduce((s, l) => s + (l.lapTime > 0 ? l.lapTime : 0), 0);
   // Session Fuel/lap: average over the session's laps that have a real fuel
   // metric. null (card hidden) when none do — never a fabricated 0.
-  const fuelVals = useMemo(() => tuningLapPool.map((l) => metricsById.get(l.id)?.fuelPerLap).filter((v): v is number => v != null), [tuningLapPool, metricsById]);
+  const fuelVals = useMemo(() => experimentLapPool.map((l) => metricsById.get(l.id)?.fuelPerLap).filter((v): v is number => v != null), [experimentLapPool, metricsById]);
   const avgFuel = fuelVals.length ? fuelVals.reduce((s, v) => s + v, 0) / fuelVals.length : null;
   // Best setup = the tune test with the fastest single valid lap.
   const bestTest = useMemo(() => {
-    let best: { test: TuningTest; lapTime: number } | null = null;
+    let best: { test: ExperimentVersion; lapTime: number } | null = null;
     for (const t of tests) {
       const laps = (lapsByTest.get(t.id) ?? []).filter((l) => l.isValid && l.lapTime > 0);
       if (!laps.length) continue;
@@ -201,7 +201,7 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
   const routePrefix = getGame(gameId).routePrefix;
   const clearSession = () =>
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    navigate({ to: `/${routePrefix}/tuning` } as any);
+    navigate({ to: `/${routePrefix}/experiments` } as any);
 
   if (loadingSession || !session) {
     return (
@@ -290,17 +290,17 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
                   sessionId={session.id}
                   gameId={gameId}
                   tests={tests}
-                  headTestId={session?.headTestId ?? null}
+                  headVersionId={session?.headVersionId ?? null}
                   lapsByTest={lapsByTest}
                   metricsById={metricsById}
                   onOpenReview={(t) => {
                     setTestPhase("idle");
-                    // Laps are derived from testId in the review page (they're
-                    // stamped with tuning_test_id), so the id alone is enough —
+                    // Laps are derived from versionId in the review page (they're
+                    // stamped with experiment_version_id), so the id alone is enough —
                     // no need to enumerate lap ids in the URL.
                     navigate({
-                      to: `/${routePrefix}/tuning/${tuningSessionId}/review`,
-                      search: { testId: t.id },
+                      to: `/${routePrefix}/experiments/${experimentId}/review`,
+                      search: { versionId: t.id },
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     } as any);
                   }}
@@ -336,7 +336,7 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
                         const lapIds = liveSessionLaps.map((l) => l.id);
                         setTestPhase("idle");
                         navigate({
-                          to: `/${routePrefix}/tuning/${tuningSessionId}/review`,
+                          to: `/${routePrefix}/experiments/${experimentId}/review`,
                           search: { laps: lapIds.join(",") },
                           // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         } as any);
@@ -374,7 +374,7 @@ export function TuningSessionWorkspace({ gameId, tuningSessionId }: { gameId: Tu
               </div>
             </div>
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-              <TuneSetupChat sessionId={session.id} headTestId={session?.headTestId ?? null} />
+              <TuneSetupChat sessionId={session.id} headVersionId={session?.headVersionId ?? null} />
             </div>
           </div>
         )}
@@ -411,7 +411,7 @@ function CopyChatJsonButton({ sessionId }: { sessionId: number }) {
       type="button"
       onClick={async () => {
         try {
-          const res = await fetch(`/api/tuning-sessions/${sessionId}/chat`);
+          const res = await fetch(`/api/experiments/${sessionId}/chat`);
           const data = res.ok ? await res.json() : { error: res.statusText };
           await navigator.clipboard.writeText(JSON.stringify(data.messages ?? data, null, 2));
           setCopied(true);

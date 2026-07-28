@@ -7,7 +7,7 @@
  * deterministic `applyIntents` engine stays REAL while writes are observable
  * fakes. The scenario: every requested change is skipped by `applyIntents`
  * (unknown components), so `applied` is empty — the tool must refuse and MUST
- * NOT create a phantom version (no writeAppliedSetup / createTuningTest /
+ * NOT create a phantom version (no writeAppliedSetup / createExperimentVersion /
  * setSessionHead calls).
  */
 import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
@@ -15,20 +15,20 @@ import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
 // `mock.module` is PROCESS-global in Bun and cannot be undone: re-mocking an
 // already-mocked path is a no-op, so an `afterAll` "restore" achieves nothing
 // and every later test file in the run would import these stubs (which is how
-// the tuning/chat suites started seeing `createTuningTest() === 999`).
+// the tuning/chat suites started seeing `createExperimentVersion() === 999`).
 //
 // So the stubs are *gated dispatchers*: each one delegates to the real export
 // unless `stubsActive` is set, and only this file's tests set it. Real
 // namespaces are captured by static import, which evaluates before any
 // `mock.module` call below.
 import * as RealSetupIo from "../server/ai/setup-io";
-import * as RealTestQueries from "../server/db/tuning-test-queries";
-import * as RealSessionQueries from "../server/db/tuning-session-queries";
+import * as RealTestQueries from "../server/db/experiment-version-queries";
+import * as RealSessionQueries from "../server/db/experiment-queries";
 import * as RealChatAgent from "../server/ai/chat-agent";
 import * as RealEngineerContext from "../server/ai/setup-engineer-context";
 import * as RealQueries from "../server/db/queries";
-import * as RealActionQueries from "../server/db/tuning-action-queries";
-import * as RealUndo from "../server/tuning-undo";
+import * as RealActionQueries from "../server/db/experiment-action-queries";
+import * as RealUndo from "../server/experiment-undo";
 import * as RealConsult from "../server/ai/consult-lap-analyst";
 import * as RealCleanLap from "../server/ai/clean-lap-aggregate";
 import * as RealComparison from "../server/comparison";
@@ -65,17 +65,17 @@ function baseAccSetup() {
 // --- observable fakes for the write path ------------------------------------
 const writeAppliedSetup = mock(() => ({ setupPath: "fake/path.json", setupSnapshot: null, fileName: "fake.json" }));
 const readActiveSetup = mock(async () => ({ ok: true, setup: baseAccSetup(), realPath: "fake/base.json", baseDir: "fake" }));
-const createTuningTest = mock(async () => 999);
+const createExperimentVersion = mock(async () => 999);
 const setSessionHead = mock(async () => {});
 const recordAction = mock(async () => {});
-const setTuningTestNote = mock(async () => null);
+const setExperimentVersionNote = mock(async () => null);
 
 const fakeCtx = {
   ok: true as const,
   gameId: "acc",
-  session: { id: 61, name: "guard-test", headTestId: 1 },
-  tests: [{ id: 1, version: 1, label: "v1", parentTestId: null, setupPath: "fake/base.json", setupSnapshot: null }],
-  activeTest: { id: 1, version: 1, label: "v1", parentTestId: null, setupPath: "fake/base.json", setupSnapshot: null },
+  session: { id: 61, name: "guard-test", headVersionId: 1 },
+  tests: [{ id: 1, version: 1, label: "v1", parentVersionId: null, setupPath: "fake/base.json", setupSnapshot: null }],
+  activeTest: { id: 1, version: 1, label: "v1", parentVersionId: null, setupPath: "fake/base.json", setupSnapshot: null },
   baseDir: "fake",
   realPath: "fake/base.json",
   setup: baseAccSetup(),
@@ -86,17 +86,17 @@ mock.module("../server/ai/setup-io", () => ({
   readActiveSetup: gate(RealSetupIo.readActiveSetup, readActiveSetup),
   writeAppliedSetup: gate(RealSetupIo.writeAppliedSetup, writeAppliedSetup),
 }));
-mock.module("../server/db/tuning-test-queries", () => ({
+mock.module("../server/db/experiment-version-queries", () => ({
   ...RealTestQueries,
-  createTuningTest: gate(RealTestQueries.createTuningTest, createTuningTest),
+  createExperimentVersion: gate(RealTestQueries.createExperimentVersion, createExperimentVersion),
   deleteTestSubtree: gate(RealTestQueries.deleteTestSubtree, mock(async () => {})),
-  getTuningTest: gate(RealTestQueries.getTuningTest, mock(async () => ({ id: 1, version: 1 }))),
-  getTuningTestByVersion: gate(RealTestQueries.getTuningTestByVersion, mock(async () => null)),
+  getExperimentVersion: gate(RealTestQueries.getExperimentVersion, mock(async () => ({ id: 1, version: 1 }))),
+  getExperimentVersionsByLabel: gate(RealTestQueries.getExperimentVersionsByLabel, mock(async () => null)),
   resolveActiveTestId: gate(RealTestQueries.resolveActiveTestId, mock(async () => 1)),
-  setTuningTestNote: gate(RealTestQueries.setTuningTestNote, setTuningTestNote),
-  setTuningTestNotes: gate(RealTestQueries.setTuningTestNotes, mock(async () => {})),
+  setExperimentVersionNote: gate(RealTestQueries.setExperimentVersionNote, setExperimentVersionNote),
+  setExperimentVersionNotes: gate(RealTestQueries.setExperimentVersionNotes, mock(async () => {})),
 }));
-mock.module("../server/db/tuning-session-queries", () => ({
+mock.module("../server/db/experiment-queries", () => ({
   ...RealSessionQueries,
   setSessionHead: gate(RealSessionQueries.setSessionHead, setSessionHead),
 }));
@@ -111,19 +111,19 @@ mock.module("../server/ai/setup-engineer-context", () => ({
   computeSessionSymptoms: gate(RealEngineerContext.computeSessionSymptoms, mock(async () => [])),
   computeSessionTrackConditions: gate(RealEngineerContext.computeSessionTrackConditions, mock(async () => null)),
   formatTrackConditions: gate(RealEngineerContext.formatTrackConditions, mock(() => "")),
-  loadActiveTuningContext: gate(RealEngineerContext.loadActiveTuningContext, mock(async () => fakeCtx)),
+  loadActiveExperimentContext: gate(RealEngineerContext.loadActiveExperimentContext, mock(async () => fakeCtx)),
 }));
 mock.module("../server/db/queries", () => ({
   ...RealQueries,
-  setLapTuningExcluded: gate(RealQueries.setLapTuningExcluded, mock(async () => {})),
+  setLapExperimentExcluded: gate(RealQueries.setLapExperimentExcluded, mock(async () => {})),
   getLapById: gate(RealQueries.getLapById, mock(async () => null)),
-  getLapsForTuningSession: gate(RealQueries.getLapsForTuningSession, mock(async () => [])),
+  getLapsForExperiment: gate(RealQueries.getLapsForExperiment, mock(async () => [])),
 }));
-mock.module("../server/db/tuning-action-queries", () => ({
+mock.module("../server/db/experiment-action-queries", () => ({
   ...RealActionQueries,
   recordAction: gate(RealActionQueries.recordAction, recordAction),
 }));
-mock.module("../server/tuning-undo", () => ({
+mock.module("../server/experiment-undo", () => ({
   ...RealUndo,
   undoLastAction: gate(RealUndo.undoLastAction, mock(async () => ({ ok: true }))),
 }));
@@ -155,7 +155,7 @@ const requestContext = { get: (k: string) => ({ gameId: "acc", sessionId: 61 } a
 describe("apply_changes — no-op guard when every change is skipped", () => {
   test("returns ok:false with skipped reasons and creates NO version", async () => {
     writeAppliedSetup.mockClear();
-    createTuningTest.mockClear();
+    createExperimentVersion.mockClear();
     setSessionHead.mockClear();
 
     const result: any = await setupEngineerTools.applyChangesTool.execute!(
@@ -178,14 +178,14 @@ describe("apply_changes — no-op guard when every change is skipped", () => {
 
     // The phantom-version bug: none of these may run when nothing applied.
     expect(writeAppliedSetup).not.toHaveBeenCalled();
-    expect(createTuningTest).not.toHaveBeenCalled();
+    expect(createExperimentVersion).not.toHaveBeenCalled();
     expect(setSessionHead).not.toHaveBeenCalled();
   });
 });
 
 describe("record_driver_notes — driver confirmation guard", () => {
   test("refuses to write the driver note without driverConfirmed", async () => {
-    setTuningTestNote.mockClear();
+    setExperimentVersionNote.mockClear();
 
     const result: any = await setupEngineerTools.recordDriverNotesTool.execute!(
       { note: "understeer on entry into T1", driverConfirmed: false },
@@ -194,11 +194,11 @@ describe("record_driver_notes — driver confirmation guard", () => {
 
     expect(result.ok).toBe(false);
     expect(result.error).toMatch(/confirm|approve/i);
-    expect(setTuningTestNote).not.toHaveBeenCalled();
+    expect(setExperimentVersionNote).not.toHaveBeenCalled();
   });
 
   test("writes the note once the driver has confirmed it", async () => {
-    setTuningTestNote.mockClear();
+    setExperimentVersionNote.mockClear();
 
     const result: any = await setupEngineerTools.recordDriverNotesTool.execute!(
       { note: "understeer on entry into T1", driverConfirmed: true },
@@ -206,7 +206,7 @@ describe("record_driver_notes — driver confirmation guard", () => {
     );
 
     expect(result.ok).toBe(true);
-    expect(setTuningTestNote).toHaveBeenCalledTimes(1);
+    expect(setExperimentVersionNote).toHaveBeenCalledTimes(1);
   });
 });
 

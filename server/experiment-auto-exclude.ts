@@ -3,11 +3,11 @@ import { isPitCycleLap } from "../shared/lap-filters";
 
 /**
  * Tuning auto-exclude: fastest-5 lap curation
- * (docs/superpowers/specs/2026-07-24-tuning-auto-exclude-design.md).
+ * (docs/superpowers/specs/2026-07-24-experiment-auto-exclude-design.md).
  *
  * Persists the fastest-5 decision (the same rule `shared/review-laps.ts` uses
  * to curate laps for the per-frame heavy review paths) onto
- * `laps.tuning_excluded`, scoped per `(tuning_session_id, tune_id)`, without
+ * `laps.experiment_excluded`, scoped per `(experiment_id, tune_id)`, without
  * stomping deliberate user/AI exclusions.
  */
 
@@ -16,31 +16,31 @@ export interface ExclusionScopeLap {
   lapTime: number;
   isValid: boolean;
   invalidReason: string | null;
-  tuningExcluded: boolean;
-  tuningExcludedSource: "auto" | "manual" | null;
+  experimentExcluded: boolean;
+  experimentExcludedSource: "auto" | "manual" | null;
 }
 
 /** Minimal DB surface `reconcileAutoExclusions` needs. */
 export interface LapExclusionWriter {
-  getLapsForExclusionScope(tuningSessionId: number, tuneId: number): Promise<ExclusionScopeLap[]>;
+  getLapsForExclusionScope(experimentId: number, tuneId: number): Promise<ExclusionScopeLap[]>;
   setLapAutoExclusion(lapId: number, excluded: boolean): Promise<void>;
 }
 
 /** Additionally needed by `reconcileAutoExclusionsForLap` to resolve scope. */
-export interface LapTuningScopeReader {
-  getLapTuningScope(lapId: number): Promise<{ tuningSessionId: number | null; tuneId: number | null }>;
+export interface LapExperimentScopeReader {
+  getLapExperimentScope(lapId: number): Promise<{ experimentId: number | null; tuneId: number | null }>;
 }
 
 function targetState(lap: ExclusionScopeLap, excluded: boolean): boolean {
   // A row is already at the auto-owned target state iff its exclusion flag
   // matches AND its source is already 'auto' (a NULL/unreconciled source
   // still needs a write even when the flag value happens to match).
-  return lap.tuningExcluded === excluded && lap.tuningExcludedSource === "auto";
+  return lap.experimentExcluded === excluded && lap.experimentExcludedSource === "auto";
 }
 
 /**
  * Single-pass reconciliation of the fastest-5 rule for one
- * `(tuning_session_id, tune_id)` scope. See the design doc's "Auto pass"
+ * `(experiment_id, tune_id)` scope. See the design doc's "Auto pass"
  * section for the full algorithm; summarized:
  *
  *   1. Manual laps (`source = 'manual'`) are never read for ranking purposes
@@ -53,16 +53,16 @@ function targetState(lap: ExclusionScopeLap, excluded: boolean): boolean {
  */
 export async function reconcileAutoExclusions(
   db: LapExclusionWriter,
-  tuningSessionId: number,
+  experimentId: number,
   tuneId: number,
 ): Promise<void> {
-  const scopeLaps = await db.getLapsForExclusionScope(tuningSessionId, tuneId);
+  const scopeLaps = await db.getLapsForExclusionScope(experimentId, tuneId);
 
   const candidates: ExclusionScopeLap[] = [];
   const ineligible: ExclusionScopeLap[] = [];
 
   for (const lap of scopeLaps) {
-    if (lap.tuningExcludedSource === "manual") continue; // never read, never written
+    if (lap.experimentExcludedSource === "manual") continue; // never read, never written
     if (!lap.isValid || isPitCycleLap({ invalidReason: lap.invalidReason ?? undefined })) {
       ineligible.push(lap);
     } else {
@@ -84,15 +84,15 @@ export async function reconcileAutoExclusions(
 
 /**
  * Call-site wrapper for lap detectors: resolves the just-inserted lap's
- * `(tuning_session_id, tune_id)` scope and runs `reconcileAutoExclusions`,
+ * `(experiment_id, tune_id)` scope and runs `reconcileAutoExclusions`,
  * skipping entirely when either is null (lap recorded outside a tuning
  * session, or with no tune assigned) — see the design doc's "Trigger" section.
  */
 export async function reconcileAutoExclusionsForLap(
-  db: LapExclusionWriter & LapTuningScopeReader,
+  db: LapExclusionWriter & LapExperimentScopeReader,
   lapId: number,
 ): Promise<void> {
-  const { tuningSessionId, tuneId } = await db.getLapTuningScope(lapId);
-  if (tuningSessionId == null || tuneId == null) return;
-  await reconcileAutoExclusions(db, tuningSessionId, tuneId);
+  const { experimentId, tuneId } = await db.getLapExperimentScope(lapId);
+  if (experimentId == null || tuneId == null) return;
+  await reconcileAutoExclusions(db, experimentId, tuneId);
 }

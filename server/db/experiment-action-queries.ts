@@ -5,15 +5,15 @@
  * `listActions` and flips `undone` via `markUndone`.
  *
  * Kept deliberately small and blob-free — `inversePayload` stores only the refs
- * needed to reverse an op (created testId, prior head id, prior lap stamps), so
+ * needed to reverse an op (created versionId, prior head id, prior lap stamps), so
  * full-session depth stays cheap.
  */
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "./index";
-import { tuningActions } from "./schema";
+import { experimentActions } from "./schema";
 
 /** The mutating op kinds the log records. Matches the Phase 9 design list. */
-export type TuningActionKind =
+export type ExperimentActionKind =
   | "apply-changes"
   | "branch"
   | "add-base"
@@ -26,10 +26,10 @@ export type TuningActionKind =
   | "edit-test-notes"
   | "set-lap-excluded";
 
-export interface TuningAction {
+export interface ExperimentAction {
   id: number;
-  tuningSessionId: number;
-  kind: TuningActionKind;
+  experimentId: number;
+  kind: ExperimentActionKind;
   /** Parsed inverse payload (whatever the op needs to reverse itself). */
   inversePayload: unknown;
   undone: boolean;
@@ -41,40 +41,40 @@ export interface TuningAction {
  * ref set — it is stringified here so callers pass a plain object.
  */
 export async function recordAction(
-  tuningSessionId: number,
-  kind: TuningActionKind,
+  experimentId: number,
+  kind: ExperimentActionKind,
   inversePayload: unknown,
 ): Promise<number> {
   const result = await db
-    .insert(tuningActions)
+    .insert(experimentActions)
     .values({
-      tuningSessionId,
+      experimentId,
       kind,
       inversePayload: inversePayload == null ? null : JSON.stringify(inversePayload),
     })
-    .returning({ id: tuningActions.id })
+    .returning({ id: experimentActions.id })
     .get();
   return result.id;
 }
 
 /** Session actions, newest-first. `onlyPending` drops already-undone rows. */
 export async function listActions(
-  tuningSessionId: number,
+  experimentId: number,
   onlyPending = false,
-): Promise<TuningAction[]> {
+): Promise<ExperimentAction[]> {
   const where = onlyPending
-    ? and(eq(tuningActions.tuningSessionId, tuningSessionId), eq(tuningActions.undone, false))
-    : eq(tuningActions.tuningSessionId, tuningSessionId);
+    ? and(eq(experimentActions.experimentId, experimentId), eq(experimentActions.undone, false))
+    : eq(experimentActions.experimentId, experimentId);
   const rows = await db
     .select()
-    .from(tuningActions)
+    .from(experimentActions)
     .where(where)
-    .orderBy(desc(tuningActions.id))
+    .orderBy(desc(experimentActions.id))
     .all();
   return rows.map((r) => ({
     id: r.id,
-    tuningSessionId: r.tuningSessionId,
-    kind: r.kind as TuningActionKind,
+    experimentId: r.experimentId,
+    kind: r.kind as ExperimentActionKind,
     inversePayload: r.inversePayload == null ? null : safeParse(r.inversePayload),
     undone: r.undone,
     createdAt: r.createdAt,
@@ -83,7 +83,7 @@ export async function listActions(
 
 /** Flip an action's `undone` flag (idempotent — undo marks after reversing). */
 export async function markUndone(actionId: number): Promise<void> {
-  await db.update(tuningActions).set({ undone: true }).where(eq(tuningActions.id, actionId)).run();
+  await db.update(experimentActions).set({ undone: true }).where(eq(experimentActions.id, actionId)).run();
 }
 
 function safeParse(json: string): unknown {

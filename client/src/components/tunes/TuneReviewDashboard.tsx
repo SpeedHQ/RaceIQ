@@ -2,7 +2,7 @@ import { tryGetGame } from "@shared/games/registry";
 import type { LapMeta, TelemetryPacket, TuneIssue } from "@shared/types";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { TuningTest } from "../../hooks/queries";
+import type { ExperimentVersion } from "../../hooks/queries";
 import { useLapIssues, useLapTelemetry, useTirePressureOptimal } from "../../hooks/queries";
 import { TireGrid } from "../telemetry/TireGrid";
 import { SectorDetailView } from "./SectorDetailView";
@@ -16,14 +16,14 @@ interface TuneReviewDashboardProps {
   laps: LapMeta[];
   /** When set, renders a "Back to session" button in the toolbar. */
   onBack?: () => void;
-  /** The version node being reviewed (resolved by the route from ?testId or
+  /** The version node being reviewed (resolved by the route from ?versionId or
    *  the session HEAD). Used to display its driver comment / engineer notes
    *  read-only — editing stays in VersionGraph. */
-  test?: TuningTest;
+  test?: ExperimentVersion;
   /** The tuning session being reviewed (from the route param). Drives the
    *  Track Focus line-spread lane + map heat. Passed straight through rather
    *  than read off `test` so it survives an orphaned/missing test row. */
-  tuningSessionId?: number | null;
+  experimentId?: number | null;
   /** Fires whenever the compact text summary of the currently-open lap review
    *  changes (lap switch, sector telemetry load, metric change, etc.) — lets a
    *  parent pipe "what the user is currently looking at" into the Setup
@@ -46,7 +46,7 @@ const SEVERITY_CLASS: Record<TuneIssue["severity"], string> = {
  * recommendation. Everything is reconstructed from the selected lap's stored
  * telemetry — no live stream.
  */
-export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, tuningSessionId, onOpenLapContextChange }: TuneReviewDashboardProps) {
+export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, experimentId, onOpenLapContextChange }: TuneReviewDashboardProps) {
   const validLaps = useMemo(() => [...laps].filter((l) => l.isValid).sort((a, b) => b.lapNumber - a.lapNumber), [laps]);
 
   // Focus lap lives in the URL (?lap=<id>) so it's linkable/shareable.
@@ -151,7 +151,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, tun
     const lines: string[] = [];
     lines.push("CURRENTLY OPEN LAP REVIEW (visible to user):");
     lines.push(
-      `Lap ${focusLap.lapNumber} — ${focusLap.lapTime.toFixed(3)}s${focusLap.isValid ? "" : ` (INVALID${focusLap.invalidReason ? `: ${focusLap.invalidReason}` : ""})`}${focusLap.tuningExcluded ? " (excluded from tuning aggregate)" : ""}`,
+      `Lap ${focusLap.lapNumber} — ${focusLap.lapTime.toFixed(3)}s${focusLap.isValid ? "" : ` (INVALID${focusLap.invalidReason ? `: ${focusLap.invalidReason}` : ""})`}${focusLap.experimentExcluded ? " (excluded from tuning aggregate)" : ""}`,
     );
 
     if (sectorTimes) {
@@ -356,7 +356,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, tun
       {/* Detail body — owns its own scroll; the header above stays static. */}
       <div className="flex-1 min-h-0 overflow-y-auto">
       {view === "track" ? (
-        <TrackFocusView gameId={gameId} laps={laps} trackOrdinal={focusLap.trackOrdinal} focusLapId={trackFocusId} onFocusLap={setFocus} tuningSessionId={tuningSessionId ?? test?.tuningSessionId ?? null} />
+        <TrackFocusView gameId={gameId} laps={laps} trackOrdinal={focusLap.trackOrdinal} focusLapId={trackFocusId} onFocusLap={setFocus} experimentId={experimentId ?? test?.experimentId ?? null} />
       ) : sectorIndex != null ? (
         <SectorDetailView telemetry={telemetry} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusLap.trackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
       ) : (

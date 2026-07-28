@@ -2,7 +2,7 @@
  * DB-backed loader for `compareArms` (issue #120, Phase 2).
  *
  * Keeps `compare-arms.ts`, `outcome-metrics.ts` and `arm-stream.ts` pure: this
- * is the only place that knows arms live in `tuning_tests` and laps in SQLite.
+ * is the only place that knows arms live in `experiment_versions` and laps in SQLite.
  * Read-only — it never writes a verdict, a lap exclusion, or anything else.
  *
  * Two paths, chosen by the metric's sampling mode:
@@ -20,9 +20,9 @@ import type { GameId, LapMeta, TelemetryPacket } from "../../shared/types";
 import type { EvaluableLap } from "../../shared/review-laps";
 import { detectCorners } from "../corner-detection";
 import type { Corner } from "../corner-detection";
-import { getCorners, getLapById, getLapMetaForTuningTest } from "../db/queries";
-import { getTuningSession } from "../db/tuning-session-queries";
-import { getTuningTest } from "../db/tuning-test-queries";
+import { getCorners, getLapById, getLapMetaForExperimentVersion } from "../db/queries";
+import { getExperiment } from "../db/experiment-queries";
+import { getExperimentVersion } from "../db/experiment-version-queries";
 import {
   type ArmComparison,
   compareArmSamples,
@@ -52,8 +52,8 @@ function toEvaluable(meta: LapMeta): EvaluableLap {
     lapTime: meta.lapTime,
     isValid: meta.isValid,
     invalidReason: meta.invalidReason ?? null,
-    tuningExcluded: meta.tuningExcluded ?? false,
-    tuningExcludedSource: meta.tuningExcludedSource ?? null,
+    experimentExcluded: meta.experimentExcluded ?? false,
+    experimentExcludedSource: meta.experimentExcludedSource ?? null,
   };
 }
 
@@ -66,9 +66,9 @@ function toFrameMeta(meta: LapMeta): FrameLapMeta {
   };
 }
 
-async function armLabel(testId: number): Promise<string> {
-  const test = await getTuningTest(testId);
-  return test ? test.label : `#${testId}`;
+async function armLabel(versionId: number): Promise<string> {
+  const test = await getExperimentVersion(versionId);
+  return test ? test.label : `#${versionId}`;
 }
 
 /**
@@ -82,7 +82,7 @@ async function resolveCornersFor(
   metas: LapMeta[],
   referenceTelemetry: TelemetryPacket[],
 ): Promise<Corner[]> {
-  const session = await getTuningSession(sessionId);
+  const session = await getExperiment(sessionId);
   const trackOrdinal = session?.trackOrdinal ?? metas.find((m) => m.trackOrdinal != null)?.trackOrdinal ?? null;
   const gameId = (session?.gameId ?? metas.find((m) => m.gameId != null)?.gameId ?? null) as GameId | null;
   if (trackOrdinal != null && gameId) {
@@ -107,8 +107,8 @@ export async function loadArmComparison(
 ): Promise<ArmComparison> {
   const metric = getOutcomeMetric(metricId);
   const [aMetas, bMetas, aLabel, bLabel] = await Promise.all([
-    getLapMetaForTuningTest(aTestId),
-    getLapMetaForTuningTest(bTestId),
+    getLapMetaForExperimentVersion(aTestId),
+    getLapMetaForExperimentVersion(bTestId),
     armLabel(aTestId),
     armLabel(bTestId),
   ]);

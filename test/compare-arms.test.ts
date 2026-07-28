@@ -70,8 +70,8 @@ function arm(lapTimes: number[]): { label: string; laps: ArmLap[] } {
       lapTime,
       isValid: true,
       invalidReason: null,
-      tuningExcluded: false,
-      tuningExcludedSource: null,
+      experimentExcluded: false,
+      experimentExcludedSource: null,
     };
     return { lap, telemetry: null };
   });
@@ -388,8 +388,8 @@ function telemetryArm(specs: { lateral: number; brakeShift: number }[]): ArmInpu
       lapTime: 90 + i * 0.05,
       isValid: true,
       invalidReason: null,
-      tuningExcluded: false,
-      tuningExcludedSource: null,
+      experimentExcluded: false,
+      experimentExcludedSource: null,
     },
     telemetry: syntheticLap(spec.lateral, spec.brakeShift),
   }));

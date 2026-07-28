@@ -1,21 +1,21 @@
 import { type DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { type TuningGameId, type TuningSession, useAccCarName, useCreateTuningSession, usePlaceSetup, useResolveNames, useSetupFiles, useTracks, useTuningSessions } from "../../hooks/queries";
+import { type ExperimentGameId, type Experiment, useAccCarName, useCreateExperiment, usePlaceSetup, useResolveNames, useSetupFiles, useTracks, useExperiments } from "../../hooks/queries";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { SearchSelect } from "../ui/SearchSelect";
 import { SetupFilePicker } from "./SetupFilePicker";
 
 /**
- * TuningSessionList — the Setup Engineer landing page (plan §6a). Lists the
+ * ExperimentList — the Setup Engineer landing page (plan §6a). Lists the
  * driver's tuning sessions and creates new ones. A tuning session is the parent
  * container for the whole Setup IQ loop (base setup → stints → versions); the
  * dashboard/detail/autotune views open *inside* a selected session.
  *
  * `onOpen(id)` navigates to the session workspace route
- * (`/<game>/tuning/$tuningSessionId`).
+ * (`/<game>/experiments/$experimentId`).
  */
-export function TuningSessionList({ gameId, onOpen }: { gameId: TuningGameId; onOpen: (id: number) => void }) {
-  const { data: sessions = [], isLoading } = useTuningSessions(gameId);
+export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; onOpen: (id: number) => void }) {
+  const { data: sessions = [], isLoading } = useExperiments(gameId);
   const [creating, setCreating] = useState(false);
 
   return (
@@ -32,7 +32,7 @@ export function TuningSessionList({ gameId, onOpen }: { gameId: TuningGameId; on
 
       {creating &&
         (gameId === "f1-2025" ? (
-          <NewF1TuningSessionModal
+          <NewF1ExperimentModal
             onClose={() => setCreating(false)}
             onCreated={(id) => {
               setCreating(false);
@@ -40,7 +40,7 @@ export function TuningSessionList({ gameId, onOpen }: { gameId: TuningGameId; on
             }}
           />
         ) : (
-          <NewTuningSessionModal
+          <NewExperimentModal
             gameId={gameId}
             onClose={() => setCreating(false)}
             onCreated={(id) => {
@@ -50,12 +50,12 @@ export function TuningSessionList({ gameId, onOpen }: { gameId: TuningGameId; on
           />
         ))}
 
-      <TuningSessionTable sessions={sessions} onOpen={onOpen} isLoading={isLoading} gameId={gameId} />
+      <ExperimentTable sessions={sessions} onOpen={onOpen} isLoading={isLoading} gameId={gameId} />
     </div>
   );
 }
 
-function TuningSessionTable({ sessions, onOpen, isLoading, gameId }: { sessions: TuningSession[]; onOpen: (id: number) => void; isLoading: boolean; gameId: TuningGameId }) {
+function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Experiment[]; onOpen: (id: number) => void; isLoading: boolean; gameId: ExperimentGameId }) {
   const accCarName = useAccCarName();
   const carName = (n: string | null | undefined) => (gameId === "acc" ? accCarName(n) : n) ?? "—";
   return (
@@ -110,9 +110,9 @@ function TuningSessionTable({ sessions, onOpen, isLoading, gameId }: { sessions:
  * expose setups the driver saved in-game, so the base setup determines car +
  * track — a session is always one car + one track.
  */
-function NewTuningSessionModal({ gameId, onClose, onCreated }: { gameId: "acc" | "ac-evo"; onClose: () => void; onCreated: (id: number) => void }) {
+function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "ac-evo"; onClose: () => void; onCreated: (id: number) => void }) {
   const { data: setupFiles, isLoading: loadingFiles } = useSetupFiles(gameId);
-  const create = useCreateTuningSession();
+  const create = useCreateExperiment();
   const place = usePlaceSetup();
   // Cascading pick — car → track → setup file — so a driver with hundreds of
   // setups narrows down instead of scrolling one giant flat list.
@@ -380,7 +380,7 @@ function NewTuningSessionModal({ gameId, onClose, onCreated }: { gameId: "acc" |
  * ordinals when resolvable — otherwise left blank and backfilled from the
  * first lap.
  */
-function NewF1TuningSessionModal({ onClose, onCreated }: { onClose: () => void; onCreated: (id: number) => void }) {
+function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onCreated: (id: number) => void }) {
   const packet = useTelemetryStore((s) => s.packet);
   const { data: names } = useResolveNames(packet?.TrackOrdinal != null ? [packet.TrackOrdinal] : [], packet?.CarOrdinal != null ? [packet.CarOrdinal] : []);
   const liveCar = packet?.CarOrdinal != null ? (names?.carNames[String(packet.CarOrdinal)] ?? "") : "";
@@ -393,7 +393,7 @@ function NewF1TuningSessionModal({ onClose, onCreated }: { onClose: () => void; 
     return [...new Set(list.map((t) => t.name).filter(Boolean))].sort((a, b) => a.localeCompare(b)).map((n) => ({ value: n, label: n }));
   }, [tracksData]);
 
-  const create = useCreateTuningSession();
+  const create = useCreateExperiment();
   const [name, setName] = useState("");
   const [car, setCar] = useState(liveCar);
   const [track, setTrack] = useState("");

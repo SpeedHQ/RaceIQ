@@ -56,7 +56,7 @@ describe("selectEvaluationLaps", () => {
 
   test("manual exclusion wins over every other reason", () => {
     const laps = [
-      lap(1, 90, { isValid: false, tuningExcluded: true, tuningExcludedSource: "manual" }),
+      lap(1, 90, { isValid: false, experimentExcluded: true, experimentExcludedSource: "manual" }),
       lap(2, 92),
     ];
     const sel = selectEvaluationLaps(laps);
@@ -65,7 +65,7 @@ describe("selectEvaluationLaps", () => {
   });
 
   test("a manual source that is not excluded stays a candidate", () => {
-    const laps = [lap(1, 90, { tuningExcluded: false, tuningExcludedSource: "manual" })];
+    const laps = [lap(1, 90, { experimentExcluded: false, experimentExcludedSource: "manual" })];
     const sel = selectEvaluationLaps(laps);
     expect(sel.reasonById.get(1)).toBe("chosen");
   });
@@ -86,7 +86,7 @@ describe("selectEvaluationLaps", () => {
   });
 
   test("a capped lap already stamped by the auto pass reports source auto", () => {
-    const laps = [lap(1, 90), lap(2, 95, { tuningExcluded: true, tuningExcludedSource: "auto" })];
+    const laps = [lap(1, 90), lap(2, 95, { experimentExcluded: true, experimentExcludedSource: "auto" })];
     const sel = selectEvaluationLaps(laps, 1);
     expect(sel.reasonById.get(2)).toBe("auto");
     expect(sel.cappedIds.has(2)).toBe(true);
@@ -94,7 +94,7 @@ describe("selectEvaluationLaps", () => {
 
   test("auto stamping never keeps a lap out of the chosen set", () => {
     // Stale auto-exclude state must lose to a fresh fastest-N ranking.
-    const laps = [lap(1, 90, { tuningExcluded: true, tuningExcludedSource: "auto" }), lap(2, 99)];
+    const laps = [lap(1, 90, { experimentExcluded: true, experimentExcludedSource: "auto" }), lap(2, 99)];
     const sel = selectEvaluationLaps(laps, 1);
     expect(sel.chosen.map((l) => l.id)).toEqual([1]);
     expect(sel.reasonById.get(1)).toBe("chosen");

@@ -15,9 +15,9 @@ function lap(overrides: Partial<LapMeta> & { id: number }): LapMeta {
     lapTime: 90,
     isValid: true,
     createdAt: "2026-07-15T12:00:00.000Z",
-    tuningSessionId: 1,
-    tuningTestId: 1,
-    tuningExcluded: false,
+    experimentId: 1,
+    experimentVersionId: 1,
+    experimentExcluded: false,
     ...overrides,
   };
 }
@@ -53,10 +53,10 @@ describe("selectCleanLaps", () => {
     expect(clean.map((l) => l.id)).toEqual([1]);
   });
 
-  test("marks a tuningExcluded lap as user-excluded", () => {
+  test("marks a experimentExcluded lap as user-excluded", () => {
     const laps: LapMeta[] = [
       lap({ id: 1, lapTime: 90 }),
-      lap({ id: 2, lapTime: 90.1, tuningExcluded: true }),
+      lap({ id: 2, lapTime: 90.1, experimentExcluded: true }),
     ];
 
     const { clean, breakdown } = selectCleanLaps(laps);
@@ -65,10 +65,10 @@ describe("selectCleanLaps", () => {
     expect(clean.map((l) => l.id)).toEqual([1]);
   });
 
-  test("emits one breakdown row per input lap, imported flag set from tuningTestId", () => {
+  test("emits one breakdown row per input lap, imported flag set from experimentVersionId", () => {
     const laps: LapMeta[] = [
-      lap({ id: 1, lapTime: 90, tuningTestId: null }),
-      lap({ id: 2, lapTime: 90.1, tuningTestId: 5 }),
+      lap({ id: 1, lapTime: 90, experimentVersionId: null }),
+      lap({ id: 2, lapTime: 90.1, experimentVersionId: 5 }),
     ];
 
     const { breakdown } = selectCleanLaps(laps);

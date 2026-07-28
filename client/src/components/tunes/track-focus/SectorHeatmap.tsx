@@ -28,7 +28,7 @@ export function SectorHeatmap({ laps, focusLapId, onFocusLap }: SectorHeatmapPro
     return SECTOR_KEYS.map((key) => {
       let best: number | null = null;
       for (const lap of laps) {
-        if (!lap.isValid || lap.tuningExcluded) continue;
+        if (!lap.isValid || lap.experimentExcluded) continue;
         const v = lap[key];
         if (v != null && (best == null || v < best)) best = v;
       }

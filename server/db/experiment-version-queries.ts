@@ -1,14 +1,14 @@
 import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "./index";
-import { laps, tuningSessions, tuningTests } from "./schema";
-import { setSessionHead } from "./tuning-session-queries";
+import { laps, experiments, experimentVersions } from "./schema";
+import { setSessionHead } from "./experiment-queries";
 
-export interface CreateTuningTestData {
-  tuningSessionId: number;
+export interface CreateExperimentVersionData {
+  experimentId: number;
   version: number;
   label: string;
   setupPath?: string | null;
-  parentTestId?: number | null;
+  parentVersionId?: number | null;
   /** AppliedChange[] from the autotune engine, serialised to JSON. */
   appliedChanges?: string | null;
   driverComment?: string | null;
@@ -19,22 +19,22 @@ export interface CreateTuningTestData {
   setupSnapshot?: string | null;
 }
 
-export async function createTuningTest(data: CreateTuningTestData): Promise<number> {
+export async function createExperimentVersion(data: CreateExperimentVersionData): Promise<number> {
   const result = await db
-    .insert(tuningTests)
+    .insert(experimentVersions)
     .values({
-      tuningSessionId: data.tuningSessionId,
+      experimentId: data.experimentId,
       version: data.version,
       label: data.label,
       setupPath: data.setupPath ?? null,
-      parentTestId: data.parentTestId ?? null,
+      parentVersionId: data.parentVersionId ?? null,
       appliedChanges: data.appliedChanges ?? null,
       driverComment: data.driverComment ?? null,
       notes: data.notes ?? null,
       engine: data.engine ?? null,
       setupSnapshot: data.setupSnapshot ?? null,
     })
-    .returning({ id: tuningTests.id })
+    .returning({ id: experimentVersions.id })
     .get();
   return result.id;
 }
@@ -44,30 +44,30 @@ export async function createTuningTest(data: CreateTuningTestData): Promise<numb
  *  Excludes soft-deleted (`status='deleted'`, design Phase 8) nodes by default
  *  so trashed versions never leak into version-history/label/AI-context reads —
  *  pass `includeDeleted: true` for the trash view / subtree walks. */
-export async function listTuningTests(sessionId: number, opts: { includeDeleted?: boolean } = {}) {
-  const conds = [eq(tuningTests.tuningSessionId, sessionId)];
-  if (!opts.includeDeleted) conds.push(ne(tuningTests.status, "deleted"));
+export async function listExperimentVersions(sessionId: number, opts: { includeDeleted?: boolean } = {}) {
+  const conds = [eq(experimentVersions.experimentId, sessionId)];
+  if (!opts.includeDeleted) conds.push(ne(experimentVersions.status, "deleted"));
   return await db
     .select()
-    .from(tuningTests)
+    .from(experimentVersions)
     .where(and(...conds))
-    .orderBy(asc(tuningTests.version), asc(tuningTests.id))
+    .orderBy(asc(experimentVersions.version), asc(experimentVersions.id))
     .all();
 }
 
-/** Walk `parentTestId` children transitively from `rootId` (inclusive) over an
+/** Walk `parentVersionId` children transitively from `rootId` (inclusive) over an
  *  already-fetched test list — pure/pure-ish helper shared by delete/restore
  *  so the subtree definition can't drift between the two ops. */
 export function collectSubtreeIds(
-  tests: { id: number; parentTestId: number | null }[],
+  tests: { id: number; parentVersionId: number | null }[],
   rootId: number,
 ): number[] {
   const childrenOf = new Map<number, number[]>();
   for (const t of tests) {
-    if (t.parentTestId == null) continue;
-    const arr = childrenOf.get(t.parentTestId) ?? [];
+    if (t.parentVersionId == null) continue;
+    const arr = childrenOf.get(t.parentVersionId) ?? [];
     arr.push(t.id);
-    childrenOf.set(t.parentTestId, arr);
+    childrenOf.set(t.parentVersionId, arr);
   }
   const result: number[] = [];
   const seen = new Set<number>();
@@ -87,14 +87,14 @@ export function collectSubtreeIds(
  *  surviving ancestor exists (falls back to the mainline tip via
  *  `resolveActiveTestId`). */
 export function findNearestSurvivingAncestor(
-  tests: { id: number; parentTestId: number | null; status: string }[],
+  tests: { id: number; parentVersionId: number | null; status: string }[],
   fromId: number,
   trashedIds: Set<number>,
 ): number | null {
   const byId = new Map(tests.map((t) => [t.id, t]));
   let cur = byId.get(fromId);
-  while (cur?.parentTestId != null) {
-    const parent = byId.get(cur.parentTestId);
+  while (cur?.parentVersionId != null) {
+    const parent = byId.get(cur.parentVersionId);
     if (!parent) return null;
     if (!trashedIds.has(parent.id) && parent.status !== "deleted") return parent.id;
     cur = parent;
@@ -105,7 +105,7 @@ export function findNearestSurvivingAncestor(
 /** Bulk status flip used by delete/restore. No-op on an empty id list. */
 export async function setTestsStatus(ids: number[], status: string): Promise<void> {
   if (!ids.length) return;
-  await db.update(tuningTests).set({ status }).where(inArray(tuningTests.id, ids)).run();
+  await db.update(experimentVersions).set({ status }).where(inArray(experimentVersions.id, ids)).run();
 }
 
 export interface DeleteSubtreeResult {
@@ -116,8 +116,8 @@ export interface DeleteSubtreeResult {
 }
 
 /**
- * Soft-delete `testId` and its whole descendant subtree (design Phase 8):
- * flips `status` to 'deleted' on every node reachable via `parentTestId`
+ * Soft-delete `versionId` and its whole descendant subtree (design Phase 8):
+ * flips `status` to 'deleted' on every node reachable via `parentVersionId`
  * (including the target itself). Reversible — rows are never removed, so
  * `restoreTestSubtree` can flip them back. If `currentHeadTestId` falls
  * inside the trashed subtree, the session head is moved off it to the
@@ -125,18 +125,18 @@ export interface DeleteSubtreeResult {
  */
 export async function deleteTestSubtree(
   sessionId: number,
-  testId: number,
+  versionId: number,
   currentHeadTestId: number | null,
 ): Promise<DeleteSubtreeResult> {
-  const allTests = await listTuningTests(sessionId, { includeDeleted: true });
-  const deletedIds = collectSubtreeIds(allTests, testId);
+  const allTests = await listExperimentVersions(sessionId, { includeDeleted: true });
+  const deletedIds = collectSubtreeIds(allTests, versionId);
   await setTestsStatus(deletedIds, "deleted");
 
   const trashedSet = new Set(deletedIds);
   let headMoved = false;
   let newHeadTestId = currentHeadTestId;
   if (currentHeadTestId != null && trashedSet.has(currentHeadTestId)) {
-    newHeadTestId = findNearestSurvivingAncestor(allTests, testId, trashedSet);
+    newHeadTestId = findNearestSurvivingAncestor(allTests, versionId, trashedSet);
     await setSessionHead(sessionId, newHeadTestId);
     headMoved = true;
   }
@@ -145,21 +145,21 @@ export async function deleteTestSubtree(
 }
 
 /**
- * Restore path (design Phase 8): flips every node in `testId`'s subtree that
+ * Restore path (design Phase 8): flips every node in `versionId`'s subtree that
  * is currently `status='deleted'` back to 'active'. Nodes in the subtree that
  * survived under another status are left untouched.
  */
-export async function restoreTestSubtree(sessionId: number, testId: number): Promise<number[]> {
-  const allTests = await listTuningTests(sessionId, { includeDeleted: true });
-  const subtreeIds = collectSubtreeIds(allTests, testId);
+export async function restoreTestSubtree(sessionId: number, versionId: number): Promise<number[]> {
+  const allTests = await listExperimentVersions(sessionId, { includeDeleted: true });
+  const subtreeIds = collectSubtreeIds(allTests, versionId);
   const byId = new Map(allTests.map((t) => [t.id, t]));
   const restoredIds = subtreeIds.filter((tid) => byId.get(tid)?.status === "deleted");
   await setTestsStatus(restoredIds, "active");
   return restoredIds;
 }
 
-export async function getTuningTest(id: number) {
-  return (await db.select().from(tuningTests).where(eq(tuningTests.id, id)).get()) ?? null;
+export async function getExperimentVersion(id: number) {
+  return (await db.select().from(experimentVersions).where(eq(experimentVersions.id, id)).get()) ?? null;
 }
 
 /**
@@ -168,45 +168,45 @@ export async function getTuningTest(id: number) {
  * "base-capture timing") and by the live "capture current setup" action.
  * Never touches `setupPath` — file-based games don't call this.
  */
-export async function updateTuningTestSetupSnapshot(id: number, setupSnapshot: string): Promise<void> {
-  await db.update(tuningTests).set({ setupSnapshot }).where(eq(tuningTests.id, id)).run();
+export async function updateExperimentVersionSetupSnapshot(id: number, setupSnapshot: string): Promise<void> {
+  await db.update(experimentVersions).set({ setupSnapshot }).where(eq(experimentVersions.id, id)).run();
 }
 
 /** Set (or clear, with null) a version node's free-text driver note. This is the
  *  user's own annotation on a node — distinct from the applied-changes summary.
  *  Returns the prior value so the caller can log an inverse for undo. */
-export async function setTuningTestNote(id: number, note: string | null): Promise<string | null> {
-  const before = await getTuningTest(id);
-  await db.update(tuningTests).set({ driverComment: note }).where(eq(tuningTests.id, id)).run();
+export async function setExperimentVersionNote(id: number, note: string | null): Promise<string | null> {
+  const before = await getExperimentVersion(id);
+  await db.update(experimentVersions).set({ driverComment: note }).where(eq(experimentVersions.id, id)).run();
   return before?.driverComment ?? null;
 }
 
 /** Set (or clear, with null) a version node's engineer/AI note — distinct from
  *  the driver's feel comment. Returns the prior value so the caller can log an
  *  inverse for undo. */
-export async function setTuningTestNotes(id: number, notes: string | null): Promise<string | null> {
-  const before = await getTuningTest(id);
-  await db.update(tuningTests).set({ notes }).where(eq(tuningTests.id, id)).run();
+export async function setExperimentVersionNotes(id: number, notes: string | null): Promise<string | null> {
+  const before = await getExperimentVersion(id);
+  await db.update(experimentVersions).set({ notes }).where(eq(experimentVersions.id, id)).run();
   return before?.notes ?? null;
 }
 
 /** Resolve one session's version node by its user-facing version number — used
  *  by the setup-engineer agent's note tool, which reasons in version numbers
  *  (never internal test ids). Null when no such version exists. */
-export async function getTuningTestByVersion(sessionId: number, version: number) {
+export async function getExperimentVersionsByLabel(sessionId: number, version: number) {
   return await db
     .select()
-    .from(tuningTests)
-    .where(and(eq(tuningTests.tuningSessionId, sessionId), eq(tuningTests.version, version)))
+    .from(experimentVersions)
+    .where(and(eq(experimentVersions.experimentId, sessionId), eq(experimentVersions.version, version)))
     .get();
 }
 
 /** Next version number for a session — max(version) + 1, or 1 when none exist. */
 export async function nextVersion(sessionId: number): Promise<number> {
   const row = await db
-    .select({ maxVersion: sql<number | null>`MAX(${tuningTests.version})` })
-    .from(tuningTests)
-    .where(eq(tuningTests.tuningSessionId, sessionId))
+    .select({ maxVersion: sql<number | null>`MAX(${experimentVersions.version})` })
+    .from(experimentVersions)
+    .where(eq(experimentVersions.experimentId, sessionId))
     .get();
   return (row?.maxVersion ?? 0) + 1;
 }
@@ -218,40 +218,40 @@ export async function nextVersion(sessionId: number): Promise<number> {
  */
 export async function resolveActiveTestId(sessionId: number): Promise<number | null> {
   const session = await db
-    .select({ headTestId: tuningSessions.headTestId })
-    .from(tuningSessions)
-    .where(eq(tuningSessions.id, sessionId))
+    .select({ headVersionId: experiments.headVersionId })
+    .from(experiments)
+    .where(eq(experiments.id, sessionId))
     .get();
-  if (session?.headTestId != null) return session.headTestId;
+  if (session?.headVersionId != null) return session.headVersionId;
 
   const tip = await db
-    .select({ id: tuningTests.id })
-    .from(tuningTests)
-    .where(eq(tuningTests.tuningSessionId, sessionId))
-    .orderBy(desc(tuningTests.version), desc(tuningTests.id))
+    .select({ id: experimentVersions.id })
+    .from(experimentVersions)
+    .where(eq(experimentVersions.experimentId, sessionId))
+    .orderBy(desc(experimentVersions.version), desc(experimentVersions.id))
     .get();
   return tip?.id ?? null;
 }
 
-/** Lap count + best (min positive) lap time per tuning_test_id for a session. */
+/** Lap count + best (min positive) lap time per experiment_version_id for a session. */
 export async function getLapCountsByTest(
   sessionId: number,
 ): Promise<Map<number, { lapCount: number; bestLapMs: number | null }>> {
   const rows = await db
     .select({
-      testId: laps.tuningTestId,
+      versionId: laps.experimentVersionId,
       lapCount: sql<number>`COUNT(*)`,
       bestLapMs: sql<number | null>`MIN(CASE WHEN ${laps.lapTime} > 0 THEN ${laps.lapTime} END)`,
     })
     .from(laps)
-    .where(eq(laps.tuningSessionId, sessionId))
-    .groupBy(laps.tuningTestId)
+    .where(eq(laps.experimentId, sessionId))
+    .groupBy(laps.experimentVersionId)
     .all();
 
   const map = new Map<number, { lapCount: number; bestLapMs: number | null }>();
   for (const r of rows) {
-    if (r.testId == null) continue;
-    map.set(r.testId, { lapCount: Number(r.lapCount), bestLapMs: r.bestLapMs ?? null });
+    if (r.versionId == null) continue;
+    map.set(r.versionId, { lapCount: Number(r.lapCount), bestLapMs: r.bestLapMs ?? null });
   }
   return map;
 }

@@ -2,7 +2,7 @@ import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/review-laps";
 import type { F1CarSetup, LapMeta } from "@shared/types";
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { type TuningLapMetric, type TuningTest, useDeleteVersion, useSetHead, useSetTestNote } from "../../hooks/queries";
+import { type ExperimentLapMetric, type ExperimentVersion, useDeleteVersion, useSetHead, useSetTestNote } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 import { Button } from "../ui/button";
 import { F1SetupModal } from "../analyse/F1SetupModal";
@@ -11,34 +11,34 @@ import { AppliedChangesList, LapBreakdown, summarizeAppliedChanges } from "./tun
 
 /**
  * Commit-graph-style view of a tuning session's setup versions (plan §1/§task-11).
- * Each tuning_test row is a "commit": version + label, laps recorded against it,
+ * Each experiment_version row is a "commit": version + label, laps recorded against it,
  * and (if any) the tweaks applied to reach it (reused from the row this replaces
  * via the shared AppliedChangesList/LapBreakdown so both views share one source
  * of truth for change/lap rendering).
  *
  * This is a *real* parent/child tree, not a flat version-sorted list: nodes are
- * linked via `parentTestId` and rendered recursively with each generation
+ * linked via `parentVersionId` and rendered recursively with each generation
  * indented under its parent, mirroring `git log --graph` branch structure
  * (a test's descendants — e.g. re-tuned branches off an older base — nest
  * under it rather than being interleaved by version number).
  *
  * "Checkout" is a real action: each non-HEAD node gets a button that calls
- * `useSetHead().mutate({ sessionId, testId })`, which hits
- * `POST /api/tuning-sessions/:id/head` and invalidates the session/tests/chat
+ * `useSetHead().mutate({ sessionId, versionId })`, which hits
+ * `POST /api/experiments/:id/head` and invalidates the session/tests/chat
  * queries on success. The HEAD node shows a badge instead of a button.
  */
 export interface VersionGraphProps {
   sessionId: number;
   gameId: "acc" | "ac-evo" | "f1-2025" | null;
-  tests: TuningTest[];
-  headTestId: number | null;
+  tests: ExperimentVersion[];
+  headVersionId: number | null;
   lapsByTest: Map<number, LapMeta[]>;
-  metricsById: Map<number, TuningLapMetric>;
-  /** Opens the post-test review dashboard scoped to this node's laps/testId. */
-  onOpenReview?: (test: TuningTest) => void;
+  metricsById: Map<number, ExperimentLapMetric>;
+  /** Opens the post-test review dashboard scoped to this node's laps/versionId. */
+  onOpenReview?: (test: ExperimentVersion) => void;
 }
 
-const byVersionDesc = (a: TuningTest, b: TuningTest) => b.version - a.version;
+const byVersionDesc = (a: ExperimentVersion, b: ExperimentVersion) => b.version - a.version;
 
 /** Generic free-text per-node editor. Seeds from the node's stored value,
  *  saves via the supplied mutation, and only enables Save when the text
@@ -109,7 +109,7 @@ function NodeTextEditor({
 }
 
 /** Driver's subjective feel comment for this version. */
-function DriverCommentEditor({ sessionId, testId, note, rows }: { sessionId: number; testId: number; note: string | null; rows?: number }) {
+function DriverCommentEditor({ sessionId, versionId, note, rows }: { sessionId: number; versionId: number; note: string | null; rows?: number }) {
   const setNote = useSetTestNote();
   return (
     <NodeTextEditor
@@ -119,7 +119,7 @@ function DriverCommentEditor({ sessionId, testId, note, rows }: { sessionId: num
       pending={setNote.isPending}
       error={setNote.error}
       rows={rows}
-      onSave={(next, done) => setNote.mutate({ sessionId, testId, driverComment: next }, { onSuccess: done })}
+      onSave={(next, done) => setNote.mutate({ sessionId, versionId, driverComment: next }, { onSuccess: done })}
     />
   );
 }
@@ -142,7 +142,7 @@ function EngineerNotesView({ notes }: { notes: string | null }) {
 
 /** Modal wrapping both per-node comment editors, opened from a node's "Notes"
  *  button. Closes on backdrop click, the × button, or Escape. */
-function NotesModal({ sessionId, test, onClose }: { sessionId: number; test: TuningTest; onClose: () => void }) {
+function NotesModal({ sessionId, test, onClose }: { sessionId: number; test: ExperimentVersion; onClose: () => void }) {
   return createPortal(
     // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close
     <div
@@ -167,7 +167,7 @@ function NotesModal({ sessionId, test, onClose }: { sessionId: number; test: Tun
           </button>
         </div>
         <div className="grid grid-cols-2 divide-x divide-app-border/60 border border-app-border/60 rounded-md overflow-hidden bg-app-surface/40">
-          <DriverCommentEditor sessionId={sessionId} testId={test.id} note={test.driverComment} rows={8} />
+          <DriverCommentEditor sessionId={sessionId} versionId={test.id} note={test.driverComment} rows={8} />
           <EngineerNotesView notes={test.notes} />
         </div>
       </div>
@@ -188,20 +188,20 @@ function RowStat({ label, value, width = "w-[8ch]" }: { label: string; value: st
 }
 
 /**
- * Group tests into a parent/child forest via `parentTestId`. Roots are tests
+ * Group tests into a parent/child forest via `parentVersionId`. Roots are tests
  * with no parent (or whose parent isn't in this test list — e.g. filtered
  * out). Guards against corrupt/cyclic data (a test whose ancestor chain loops
  * back on itself) by promoting anything unreachable from the initial roots to
- * its own root, so a bad `parentTestId` can never make a version silently
+ * its own root, so a bad `parentVersionId` can never make a version silently
  * disappear from the view.
  */
-function buildForest(tests: TuningTest[]): { roots: TuningTest[]; childrenOf: Map<number, TuningTest[]> } {
+function buildForest(tests: ExperimentVersion[]): { roots: ExperimentVersion[]; childrenOf: Map<number, ExperimentVersion[]> } {
   const byId = new Map(tests.map((t) => [t.id, t]));
-  const childrenOf = new Map<number, TuningTest[]>();
+  const childrenOf = new Map<number, ExperimentVersion[]>();
   const hasParent = new Set<number>();
 
   for (const t of tests) {
-    const parent = t.parentTestId != null ? byId.get(t.parentTestId) : undefined;
+    const parent = t.parentVersionId != null ? byId.get(t.parentVersionId) : undefined;
     if (!parent) continue;
     hasParent.add(t.id);
     const arr = childrenOf.get(parent.id) ?? [];
@@ -225,7 +225,7 @@ function buildForest(tests: TuningTest[]): { roots: TuningTest[]; childrenOf: Ma
   return { roots: [...roots, ...orphanedCycle], childrenOf };
 }
 
-export function VersionGraph({ sessionId, gameId, tests, headTestId, lapsByTest, metricsById, onOpenReview }: VersionGraphProps) {
+export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTest, metricsById, onOpenReview }: VersionGraphProps) {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [notesForId, setNotesForId] = useState<number | null>(null);
   const [setupForId, setSetupForId] = useState<number | null>(null);
@@ -257,15 +257,15 @@ export function VersionGraph({ sessionId, gameId, tests, headTestId, lapsByTest,
   }
 
   // Shared across the whole recursive render (not per-branch) so a corrupt
-  // cyclic parentTestId (A's parent is B, B's parent is A) can't recurse
+  // cyclic parentVersionId (A's parent is B, B's parent is A) can't recurse
   // forever: once a node has been rendered once, it's never visited again.
   const rendered = new Set<number>();
 
-  const renderNode = (t: TuningTest, depth: number, isLastSibling: boolean): React.ReactNode => {
+  const renderNode = (t: ExperimentVersion, depth: number, isLastSibling: boolean): React.ReactNode => {
     if (rendered.has(t.id)) return null;
     rendered.add(t.id);
 
-    const isHead = t.id === headTestId;
+    const isHead = t.id === headVersionId;
     const isOpen = expanded.has(t.id);
     const laps = lapsByTest.get(t.id) ?? [];
     // Row stats describe the laps the *analysis* uses, not every lap stamped
@@ -314,7 +314,7 @@ export function VersionGraph({ sessionId, gameId, tests, headTestId, lapsByTest,
               <span className="text-app-text-dim text-xs w-3">{isOpen ? "▾" : "▸"}</span>
               <span className="font-mono text-xs text-app-text shrink-0">{t.label}</span>
               <span className="text-[11px] text-app-text-muted truncate min-w-0">
-                {t.notes || (summarizeAppliedChanges(t.appliedChanges) ?? (t.parentTestId == null ? (t.setupPath?.split(/[\\/]/).pop() ?? "Base setup") : "no changes recorded"))}
+                {t.notes || (summarizeAppliedChanges(t.appliedChanges) ?? (t.parentVersionId == null ? (t.setupPath?.split(/[\\/]/).pop() ?? "Base setup") : "no changes recorded"))}
               </span>
               {isHead && <span className="text-[9px] uppercase tracking-wider text-purple-400 border border-purple-400/40 rounded px-1 py-px shrink-0">HEAD</span>}
               {!isHead && (
@@ -322,7 +322,7 @@ export function VersionGraph({ sessionId, gameId, tests, headTestId, lapsByTest,
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setHead.mutate({ sessionId, testId: t.id });
+                    setHead.mutate({ sessionId, versionId: t.id });
                   }}
                   disabled={setHead.isPending}
                   className="normal-case tracking-normal font-sans text-[10px] px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim disabled:opacity-50 disabled:pointer-events-none shrink-0"
@@ -374,7 +374,7 @@ export function VersionGraph({ sessionId, gameId, tests, headTestId, lapsByTest,
                   e.stopPropagation();
                   const extra = hasChildren ? " and its whole branch" : "";
                   if (!window.confirm(`Delete "${t.label}"${extra}? This can be restored from the trash.`)) return;
-                  deleteVersion.mutate({ sessionId, testId: t.id });
+                  deleteVersion.mutate({ sessionId, versionId: t.id });
                 }}
                 disabled={deleteVersion.isPending}
                 title={hasChildren ? "Trash this version and its whole branch (reversible)" : "Trash this version (reversible)"}
@@ -404,7 +404,7 @@ export function VersionGraph({ sessionId, gameId, tests, headTestId, lapsByTest,
             {isOpen && (
               <div className="ml-3 border border-app-border/60 rounded-md overflow-hidden bg-app-surface/40">
                 <AppliedChangesList json={t.appliedChanges} />
-                <LapBreakdown laps={laps} bestT={bestT} metricsById={metricsById} tuningSessionId={sessionId} />
+                <LapBreakdown laps={laps} bestT={bestT} metricsById={metricsById} experimentId={sessionId} />
               </div>
             )}
           </div>

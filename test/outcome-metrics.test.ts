@@ -21,8 +21,8 @@ function lap(overrides: Partial<EvaluableLap> & { id: number }): EvaluableLap {
     lapTime: 90,
     isValid: true,
     invalidReason: null,
-    tuningExcluded: false,
-    tuningExcludedSource: null,
+    experimentExcluded: false,
+    experimentExcludedSource: null,
     ...overrides,
   };
 }
@@ -123,11 +123,11 @@ describe("curation policy is per-metric", () => {
       lap({ id: 1, lapTime: 90.0 }),
       lap({ id: 2, lapTime: 90.1 }),
       lap({ id: 3, lapTime: 90.2 }),
-      lap({ id: 4, lapTime: 90.25, tuningExcluded: true, tuningExcludedSource: "manual" }),
+      lap({ id: 4, lapTime: 90.25, experimentExcluded: true, experimentExcludedSource: "manual" }),
       lap({ id: 5, lapTime: 90.3 }),
-      lap({ id: 6, lapTime: 90.4, tuningExcluded: true, tuningExcludedSource: "auto" }),
-      lap({ id: 7, lapTime: 90.5, tuningExcluded: true, tuningExcludedSource: "auto" }),
-      lap({ id: 8, lapTime: 90.6, tuningExcluded: true, tuningExcludedSource: "auto" }),
+      lap({ id: 6, lapTime: 90.4, experimentExcluded: true, experimentExcludedSource: "auto" }),
+      lap({ id: 7, lapTime: 90.5, experimentExcluded: true, experimentExcludedSource: "auto" }),
+      lap({ id: 8, lapTime: 90.6, experimentExcluded: true, experimentExcludedSource: "auto" }),
     ];
 
     const all = curateLaps(laps, OUTCOME_METRICS.consistencySpreadSec.curation);

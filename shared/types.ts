@@ -640,20 +640,20 @@ export interface LapMeta {
   s1Time?: number;
   s2Time?: number;
   s3Time?: number;
-  // Explicit tuning-session link (migration v25). Stamped at insert from the
+  // Explicit experiment link (migration v25). Stamped at insert from the
   // active tuning session; null for laps recorded outside a tuning session.
-  tuningSessionId?: number | null;
+  experimentId?: number | null;
   // Explicit tuning-test (setup version) link (migration v29). Null when the lap
   // predates head tracking or was driven with no head set.
-  tuningTestId?: number | null;
+  experimentVersionId?: number | null;
   // User flag (migration v30): true = manually excluded from the tuning
   // aggregate. Undefined/false = included.
-  tuningExcluded?: boolean;
-  // Source of the tuningExcluded decision (migration v34): 'auto' = the
-  // fastest-5 curation pass (server/tuning-auto-exclude.ts) owns this lap's
+  experimentExcluded?: boolean;
+  // Source of the experimentExcluded decision (migration v34): 'auto' = the
+  // fastest-5 curation pass (server/experiment-auto-exclude.ts) owns this lap's
   // state and may revise it on a later lap save; 'manual' = user/AI decided,
   // pinned against the auto pass. Undefined/null = not yet reconciled.
-  tuningExcludedSource?: "auto" | "manual" | null;
+  experimentExcludedSource?: "auto" | "manual" | null;
   // Persisted per-lap metrics (migration v32), derived once from telemetry and
   // cached on the lap row. Null/undefined = not yet computed or no usable
   // telemetry channel.
@@ -930,8 +930,8 @@ export interface TuneIssue {
 }
 
 // ── Tuning tests as experiments (issue #120, migration v37) ─────────────────
-// A tuning_test node varies exactly one of two things, and `kind` says which.
-// Both shapes are serialised into tuning_tests.applied_changes as a JSON array.
+// A experiment_version node varies exactly one of two things, and `kind` says which.
+// Both shapes are serialised into experiment_versions.applied_changes as a JSON array.
 
 /** A setup knob edit — the original meaning of an applied change. */
 export interface SetupChange {
@@ -965,15 +965,15 @@ export interface DrillChange {
 
 export type TestChange = SetupChange | DrillChange;
 
-/** What a tuning test varies. Mirrors tuning_tests.kind. */
-export type TuningTestKind = TestChange["kind"];
+/** What a tuning test varies. Mirrors experiment_versions.kind. */
+export type ExperimentVersionKind = TestChange["kind"];
 
 /** Outcome of an experiment once laps have run against it. */
-export type TuningTestVerdict =
+export type ExperimentVersionVerdict =
   | "better"
   | "worse"
   | "neutral"
   | "inconclusive";
 
 /** Who decided the verdict — an auto call can be overridden by the driver. */
-export type TuningTestVerdictSource = "auto" | "manual";
+export type ExperimentVersionVerdictSource = "auto" | "manual";

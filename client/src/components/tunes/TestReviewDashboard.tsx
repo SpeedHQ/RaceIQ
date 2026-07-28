@@ -1,6 +1,6 @@
 import type { LapMeta, TuneIssue } from "@shared/types";
 import { useMemo, useState } from "react";
-import { type TuningLapMetric, useLapIssues, useLapTelemetry, useSetLapExcluded } from "../../hooks/queries";
+import { type ExperimentLapMetric, useLapIssues, useLapTelemetry, useSetLapExcluded } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 import { isPitCycleLap } from "@shared/lap-filters";
 import { SectorDetailView } from "./SectorDetailView";
@@ -8,9 +8,9 @@ import { SectorDetailView } from "./SectorDetailView";
 interface TestReviewDashboardProps {
   gameId: "acc" | "ac-evo";
   laps: LapMeta[];
-  metricsById?: Map<number, TuningLapMetric>;
+  metricsById?: Map<number, ExperimentLapMetric>;
   /** Session to invalidate after toggling exclusion (design §Phase 7). */
-  tuningSessionId?: number | null;
+  experimentId?: number | null;
 }
 
 /**
@@ -19,7 +19,7 @@ interface TestReviewDashboardProps {
  * Per-lap tabs reuse SectorDetailView exactly as TuneReviewDashboard.tsx
  * composes it for a single lap (sector map + hover-synced corner bars).
  */
-export function TestReviewDashboard({ gameId: _gameId, laps, metricsById, tuningSessionId }: TestReviewDashboardProps) {
+export function TestReviewDashboard({ gameId: _gameId, laps, metricsById, experimentId }: TestReviewDashboardProps) {
   // Outlaps/inlaps/pit laps carry no tuning signal — drop them outright
   // (no tab, no list row, no aggregate contribution).
   const sortedLaps = useMemo(() => laps.filter((l) => !isPitCycleLap(l)).sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
@@ -39,7 +39,7 @@ export function TestReviewDashboard({ gameId: _gameId, laps, metricsById, tuning
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto">
-        {tab === "overview" ? <OverviewTab laps={sortedLaps} metricsById={metricsById} tuningSessionId={tuningSessionId} /> : <LapTab lap={sortedLaps.find((l) => l.id === tab) ?? null} />}
+        {tab === "overview" ? <OverviewTab laps={sortedLaps} metricsById={metricsById} experimentId={experimentId} /> : <LapTab lap={sortedLaps.find((l) => l.id === tab) ?? null} />}
       </div>
     </div>
   );
@@ -57,7 +57,7 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
   );
 }
 
-function OverviewTab({ laps, metricsById, tuningSessionId }: { laps: LapMeta[]; metricsById?: Map<number, TuningLapMetric>; tuningSessionId?: number | null }) {
+function OverviewTab({ laps, metricsById, experimentId }: { laps: LapMeta[]; metricsById?: Map<number, ExperimentLapMetric>; experimentId?: number | null }) {
   const validLaps = useMemo(() => laps.filter((l) => l.isValid && l.lapTime > 0), [laps]);
   const lapCount = laps.length;
   const bestLap = validLaps.length ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
@@ -86,7 +86,7 @@ function OverviewTab({ laps, metricsById, tuningSessionId }: { laps: LapMeta[]; 
       ) : (
         <ul className="mt-3 divide-y divide-app-border/30 border border-app-border/40 rounded-md overflow-hidden">
           {laps.map((l) => {
-            const excluded = l.tuningExcluded === true;
+            const excluded = l.experimentExcluded === true;
             return (
               <li key={l.id} className="flex items-center gap-2 px-3 py-1.5 text-xs">
                 <span className={`font-mono ${excluded ? "line-through decoration-app-text-dim/60 opacity-60" : "text-app-text/90"}`}>Lap {l.lapNumber}</span>
@@ -94,7 +94,7 @@ function OverviewTab({ laps, metricsById, tuningSessionId }: { laps: LapMeta[]; 
                 {excluded && <span className="text-[10px] uppercase tracking-wider text-app-text-dim border border-app-border rounded px-1 py-0.5">Excluded</span>}
                 <button
                   type="button"
-                  onClick={() => setExcluded.mutate({ lapId: l.id, excluded: !excluded, tuningSessionId })}
+                  onClick={() => setExcluded.mutate({ lapId: l.id, excluded: !excluded, experimentId })}
                   disabled={setExcluded.isPending}
                   title={excluded ? "Include this lap in the tuning aggregate again" : "Exclude this lap from the tuning aggregate (blunder, off-track, spin)"}
                   className={`ml-auto text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border disabled:opacity-50 disabled:pointer-events-none ${

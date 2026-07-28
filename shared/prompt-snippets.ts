@@ -19,7 +19,7 @@ TRACK GUIDE POLICY: ground corner names, braking references, and line notes in t
 /**
  * Structured format every setup/tune suggestion must follow, appended to the
  * system prompt of every surface that can produce setup advice (single-lap
- * Analyst, lap-analysis chat, tuning-session setup chat, compare persona,
+ * Analyst, lap-analysis chat, experiment setup chat, compare persona,
  * Setup Engineer agent).
  *
  * Conditional by design: it only fires when a response actually contains a

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import type { TelemetryPacket } from "../shared/types";
-import { deriveFuelPerLap, deriveTyreWear } from "../server/tuning-lap-metrics";
+import { deriveFuelPerLap, deriveTyreWear } from "../server/experiment-lap-metrics";
 
-/** Pure per-lap metric derivation behind GET /api/tuning-sessions/:id/lap-metrics
+/** Pure per-lap metric derivation behind GET /api/experiments/:id/lap-metrics
  *  (plan §2, Phase C). Tests the compute directly — importing the composed app
  *  would bind the UDP socket as a side effect. */
 

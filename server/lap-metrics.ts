@@ -11,7 +11,7 @@
  *
  *    ⚠️ Everything here is a **raw, concrete observation about one lap** and
  *    must stay that way: a pure function of that lap's telemetry plus its
- *    track's curated geometry. No `testId`, no baseline arm, no "did the change
+ *    track's curated geometry. No `versionId`, no baseline arm, no "did the change
  *    work" framing, no problem focus. `brakeOnDist` is a number; whether 10m
  *    later was an improvement is not this module's call. Judgement belongs to
  *    the human (the `verdict` column, set by hand) or to the chat agent, which

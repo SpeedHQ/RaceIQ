@@ -396,7 +396,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   // stints while iterating setups), so membership can't be derived from
   // sessionId or a fragile created-at time window. Instead every lap recorded
   // while a tuning session is active is stamped with its id at insert time
-  // (see server/tuning-active.ts + queries.ts::insertLap).
+  // (see server/experiment-active.ts + queries.ts::insertLap).
   //
   // NOTE: SQLite cannot add a column WITH an inline REFERENCES clause via
   // ALTER TABLE, so the FK is omitted here — the column is a plain nullable
@@ -534,7 +534,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   // `laps.tuning_excluded` was a purely manual flag, so the tuning aggregate
   // disagreed with the fastest-5 curation the review paths (`/line-spread`,
   // `useStintTraces`) actually analysed. This column tracks WHO set the flag:
-  //  • 'auto'   — server/tuning-auto-exclude.ts's fastest-5 reconciliation pass.
+  //  • 'auto'   — server/experiment-auto-exclude.ts's fastest-5 reconciliation pass.
   //  • 'manual' — user or Setup Engineer; the auto pass never touches these.
   //  • NULL     — not yet reconciled (pre-existing NULL rows).
   // Backfill: every existing `tuning_excluded = 1` row was hand-set (the auto
@@ -632,6 +632,107 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE tuning_tests ADD COLUMN verdict TEXT`,
       `ALTER TABLE tuning_tests ADD COLUMN verdict_at TEXT`,
       `ALTER TABLE tuning_tests ADD COLUMN verdict_source TEXT`,
+    ],
+  },
+
+  // ── v38: tuning → experiments (the rename) ──────────────────────────────────
+  // Concept rename, finally reaching the schema (issue #120). A "tuning session"
+  // is an EXPERIMENT and a "tuning test" is one VERSION (a run) inside it. The
+  // old names only ever described the setup case, which stopped being the whole
+  // story the moment a version could be a driving drill.
+  //
+  //   tuning_sessions        → experiments
+  //   tuning_tests           → experiment_versions
+  //   tuning_actions         → experiment_actions
+  //   *.tuning_session_id    → experiment_id
+  //   laps.tuning_test_id    → experiment_version_id
+  //   laps.tuning_excluded*  → experiment_excluded*
+  //   experiments.head_test_id → head_version_id
+  //
+  // ⚠️ `tuning_tests` is REBUILT rather than renamed, and that is not a style
+  // choice. `runMigrations` sets `PRAGMA foreign_keys = OFF` for the whole batch
+  // (see server/db/index.ts — it must be set outside a transaction, so a
+  // migration cannot re-enable it). SQLite only rewrites REFERENCES clauses in
+  // *other* tables during `ALTER TABLE ... RENAME TO` when foreign keys are
+  // ENABLED. With them off, renaming tuning_sessions would leave
+  // tuning_tests.tuning_session_id pointing at a table name that no longer
+  // exists — a schema that only fails later, once FKs come back on. Rebuilding
+  // the child writes the corrected REFERENCES clause explicitly.
+  //
+  // Every other table is safe to rename in place: `laps`, `line_spread_cache`
+  // and `tuning_actions` hold no runtime FK to these tables (their columns were
+  // added by ALTER, which cannot carry an inline REFERENCES), and nothing else
+  // references them. There are no views or triggers in this schema.
+  //
+  // Indexes are dropped and recreated: a renamed table keeps its indexes, but
+  // they keep their OLD names too, so leaving them would strand
+  // `idx_tuning_sessions_game` on a table called `experiments`.
+  {
+    version: 38,
+    name: "rename tuning_* to experiments/experiment_versions",
+    sql: [
+      // ── parent: rename in place, no incoming FKs once the child is rebuilt ──
+      `ALTER TABLE tuning_sessions RENAME TO experiments`,
+      `ALTER TABLE experiments RENAME COLUMN head_test_id TO head_version_id`,
+
+      // ── child: rebuild so its REFERENCES clause names the new parent ────────
+      `CREATE TABLE experiment_versions (
+         id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+         experiment_id      INTEGER NOT NULL REFERENCES experiments(id) ON DELETE CASCADE,
+         version            INTEGER NOT NULL,
+         label              TEXT NOT NULL,
+         setup_path         TEXT,
+         parent_version_id  INTEGER,
+         applied_changes    TEXT,
+         driver_comment     TEXT,
+         notes              TEXT,
+         engine             TEXT,
+         setup_snapshot     TEXT,
+         kind               TEXT NOT NULL DEFAULT 'setup',
+         hypothesis         TEXT,
+         prediction         TEXT,
+         verdict            TEXT,
+         verdict_at         TEXT,
+         verdict_source     TEXT,
+         status             TEXT NOT NULL DEFAULT 'active',
+         created_at         TEXT NOT NULL DEFAULT (datetime('now'))
+       )`,
+      `INSERT INTO experiment_versions (
+         id, experiment_id, version, label, setup_path, parent_version_id,
+         applied_changes, driver_comment, notes, engine, setup_snapshot,
+         kind, hypothesis, prediction, verdict, verdict_at, verdict_source,
+         status, created_at
+       )
+       SELECT
+         id, tuning_session_id, version, label, setup_path, parent_test_id,
+         applied_changes, driver_comment, notes, engine, setup_snapshot,
+         kind, hypothesis, prediction, verdict, verdict_at, verdict_source,
+         status, created_at
+       FROM tuning_tests`,
+      `DROP TABLE tuning_tests`,
+
+      // ── action log: soft ref only, safe to rename ───────────────────────────
+      `ALTER TABLE tuning_actions RENAME TO experiment_actions`,
+      `ALTER TABLE experiment_actions RENAME COLUMN tuning_session_id TO experiment_id`,
+
+      // ── laps + caches: plain columns, no FK ─────────────────────────────────
+      `ALTER TABLE laps RENAME COLUMN tuning_session_id TO experiment_id`,
+      `ALTER TABLE laps RENAME COLUMN tuning_test_id TO experiment_version_id`,
+      `ALTER TABLE laps RENAME COLUMN tuning_excluded TO experiment_excluded`,
+      `ALTER TABLE laps RENAME COLUMN tuning_excluded_source TO experiment_excluded_source`,
+      `ALTER TABLE line_spread_cache RENAME COLUMN tuning_session_id TO experiment_id`,
+
+      // ── indexes: recreate under names that match their tables ───────────────
+      `DROP INDEX IF EXISTS idx_tuning_sessions_game`,
+      `DROP INDEX IF EXISTS idx_tuning_tests_session`,
+      `DROP INDEX IF EXISTS idx_tuning_actions_session`,
+      `DROP INDEX IF EXISTS idx_laps_tuning_session`,
+      `DROP INDEX IF EXISTS idx_laps_tuning_test`,
+      `CREATE INDEX IF NOT EXISTS idx_experiments_game ON experiments(game_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_experiment_versions_experiment ON experiment_versions(experiment_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_experiment_actions_experiment ON experiment_actions(experiment_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_laps_experiment ON laps(experiment_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_laps_experiment_version ON laps(experiment_version_id)`,
     ],
   },
 ];

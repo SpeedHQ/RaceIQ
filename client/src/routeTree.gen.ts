@@ -20,23 +20,23 @@ import { Route as AcEvoAnalyseRouteImport } from './routes/ac-evo/analyse'
 import { Route as AcEvoCarsRouteImport } from './routes/ac-evo/cars'
 import { Route as AcEvoChatsRouteImport } from './routes/ac-evo/chats'
 import { Route as AcEvoCompareRouteImport } from './routes/ac-evo/compare'
+import { Route as AcEvoExperimentsRouteImport } from './routes/ac-evo/experiments'
 import { Route as AcEvoLiveRouteImport } from './routes/ac-evo/live'
 import { Route as AcEvoRawRouteImport } from './routes/ac-evo/raw'
 import { Route as AcEvoSessionsRouteImport } from './routes/ac-evo/sessions'
 import { Route as AcEvoSetupsRouteImport } from './routes/ac-evo/setups'
 import { Route as AcEvoTracksRouteImport } from './routes/ac-evo/tracks'
-import { Route as AcEvoTuningRouteImport } from './routes/ac-evo/tuning'
 import { Route as AccIndexRouteImport } from './routes/acc/index'
 import { Route as AccAnalyseRouteImport } from './routes/acc/analyse'
 import { Route as AccCarsRouteImport } from './routes/acc/cars'
 import { Route as AccChatsRouteImport } from './routes/acc/chats'
 import { Route as AccCompareRouteImport } from './routes/acc/compare'
+import { Route as AccExperimentsRouteImport } from './routes/acc/experiments'
 import { Route as AccLiveRouteImport } from './routes/acc/live'
 import { Route as AccRawRouteImport } from './routes/acc/raw'
 import { Route as AccSessionsRouteImport } from './routes/acc/sessions'
 import { Route as AccSetupsRouteImport } from './routes/acc/setups'
 import { Route as AccTracksRouteImport } from './routes/acc/tracks'
-import { Route as AccTuningRouteImport } from './routes/acc/tuning'
 import { Route as DashIndexRouteImport } from './routes/dash.index'
 import { Route as DashCombo1RouteImport } from './routes/dash.combo-1'
 import { Route as DashCombo2RouteImport } from './routes/dash.combo-2'
@@ -45,13 +45,13 @@ import { Route as F125AnalyseRouteImport } from './routes/f125/analyse'
 import { Route as F125CarsRouteImport } from './routes/f125/cars'
 import { Route as F125ChatsRouteImport } from './routes/f125/chats'
 import { Route as F125CompareRouteImport } from './routes/f125/compare'
+import { Route as F125ExperimentsRouteImport } from './routes/f125/experiments'
 import { Route as F125LiveRouteImport } from './routes/f125/live'
 import { Route as F125RawRouteImport } from './routes/f125/raw'
 import { Route as F125SessionsRouteImport } from './routes/f125/sessions'
 import { Route as F125SetupsRouteImport } from './routes/f125/setups'
 import { Route as F125TracksRouteImport } from './routes/f125/tracks'
 import { Route as F125TunesRouteImport } from './routes/f125/tunes'
-import { Route as F125TuningRouteImport } from './routes/f125/tuning'
 import { Route as Fm23IndexRouteImport } from './routes/fm23/index'
 import { Route as Fm23AnalyseRouteImport } from './routes/fm23/analyse'
 import { Route as Fm23CarsRouteImport } from './routes/fm23/cars'
@@ -62,23 +62,23 @@ import { Route as Fm23RawRouteImport } from './routes/fm23/raw'
 import { Route as Fm23SessionsRouteImport } from './routes/fm23/sessions'
 import { Route as Fm23SetupsRouteImport } from './routes/fm23/setups'
 import { Route as Fm23TracksRouteImport } from './routes/fm23/tracks'
+import { Route as AcEvoExperimentsIndexRouteImport } from './routes/ac-evo/experiments.index'
+import { Route as AcEvoExperimentsExperimentIdRouteImport } from './routes/ac-evo/experiments.$experimentId'
 import { Route as AcEvoSetupsIndexRouteImport } from './routes/ac-evo/setups/index'
 import { Route as AcEvoSetupsImportRouteImport } from './routes/ac-evo/setups/import'
 import { Route as AcEvoSetupsNewRouteImport } from './routes/ac-evo/setups/new'
 import { Route as AcEvoTracksIndexRouteImport } from './routes/ac-evo/tracks.index'
-import { Route as AcEvoTuningIndexRouteImport } from './routes/ac-evo/tuning.index'
-import { Route as AcEvoTuningTuningSessionIdRouteImport } from './routes/ac-evo/tuning.$tuningSessionId'
+import { Route as AccExperimentsIndexRouteImport } from './routes/acc/experiments.index'
+import { Route as AccExperimentsExperimentIdRouteImport } from './routes/acc/experiments.$experimentId'
 import { Route as AccSetupsIndexRouteImport } from './routes/acc/setups/index'
 import { Route as AccSetupsImportRouteImport } from './routes/acc/setups/import'
 import { Route as AccSetupsNewRouteImport } from './routes/acc/setups/new'
 import { Route as AccTracksIndexRouteImport } from './routes/acc/tracks.index'
-import { Route as AccTuningIndexRouteImport } from './routes/acc/tuning.index'
-import { Route as AccTuningTuningSessionIdRouteImport } from './routes/acc/tuning.$tuningSessionId'
+import { Route as F125ExperimentsIndexRouteImport } from './routes/f125/experiments.index'
+import { Route as F125ExperimentsExperimentIdRouteImport } from './routes/f125/experiments.$experimentId'
 import { Route as F125SetupsIndexRouteImport } from './routes/f125/setups/index'
 import { Route as F125TracksIndexRouteImport } from './routes/f125/tracks.index'
 import { Route as F125TunesIndexRouteImport } from './routes/f125/tunes/index'
-import { Route as F125TuningIndexRouteImport } from './routes/f125/tuning.index'
-import { Route as F125TuningTuningSessionIdRouteImport } from './routes/f125/tuning.$tuningSessionId'
 import { Route as Fm23CarsCarOrdinalRouteImport } from './routes/fm23/cars_.$carOrdinal'
 import { Route as Fm23LiveDriverRouteImport } from './routes/fm23/live/driver'
 import { Route as Fm23LivePitRouteImport } from './routes/fm23/live/pit'
@@ -86,17 +86,17 @@ import { Route as Fm23SetupsIndexRouteImport } from './routes/fm23/setups/index'
 import { Route as Fm23SetupsCatalogRouteImport } from './routes/fm23/setups/catalog'
 import { Route as Fm23SetupsNewRouteImport } from './routes/fm23/setups/new'
 import { Route as Fm23TracksIndexRouteImport } from './routes/fm23/tracks.index'
+import { Route as AcEvoExperimentsExperimentIdReviewRouteImport } from './routes/ac-evo/experiments.$experimentId_.review'
 import { Route as AcEvoSetupsEditTuneIdRouteImport } from './routes/ac-evo/setups/edit.$tuneId'
 import { Route as AcEvoTracksTrackOrdinalIndexRouteImport } from './routes/ac-evo/tracks.$trackOrdinal.index'
 import { Route as AcEvoTracksTrackOrdinalTabRouteImport } from './routes/ac-evo/tracks.$trackOrdinal.$tab'
-import { Route as AcEvoTuningTuningSessionIdReviewRouteImport } from './routes/ac-evo/tuning.$tuningSessionId_.review'
+import { Route as AccExperimentsExperimentIdReviewRouteImport } from './routes/acc/experiments.$experimentId_.review'
 import { Route as AccSetupsEditTuneIdRouteImport } from './routes/acc/setups/edit.$tuneId'
 import { Route as AccTracksTrackOrdinalIndexRouteImport } from './routes/acc/tracks.$trackOrdinal.index'
 import { Route as AccTracksTrackOrdinalTabRouteImport } from './routes/acc/tracks.$trackOrdinal.$tab'
-import { Route as AccTuningTuningSessionIdReviewRouteImport } from './routes/acc/tuning.$tuningSessionId_.review'
+import { Route as F125ExperimentsExperimentIdReviewRouteImport } from './routes/f125/experiments.$experimentId_.review'
 import { Route as F125TracksTrackOrdinalIndexRouteImport } from './routes/f125/tracks.$trackOrdinal.index'
 import { Route as F125TracksTrackOrdinalTabRouteImport } from './routes/f125/tracks.$trackOrdinal.$tab'
-import { Route as F125TuningTuningSessionIdReviewRouteImport } from './routes/f125/tuning.$tuningSessionId_.review'
 import { Route as Fm23SetupsEditTuneIdRouteImport } from './routes/fm23/setups/edit.$tuneId'
 import { Route as Fm23SetupsWheelIndexRouteImport } from './routes/fm23/setups/wheel/index'
 import { Route as Fm23SetupsWheelProfileIdRouteImport } from './routes/fm23/setups/wheel/$profileId'
@@ -158,6 +158,11 @@ const AcEvoCompareRoute = AcEvoCompareRouteImport.update({
   path: '/compare',
   getParentRoute: () => AcEvoRoute,
 } as any)
+const AcEvoExperimentsRoute = AcEvoExperimentsRouteImport.update({
+  id: '/experiments',
+  path: '/experiments',
+  getParentRoute: () => AcEvoRoute,
+} as any)
 const AcEvoLiveRoute = AcEvoLiveRouteImport.update({
   id: '/live',
   path: '/live',
@@ -181,11 +186,6 @@ const AcEvoSetupsRoute = AcEvoSetupsRouteImport.update({
 const AcEvoTracksRoute = AcEvoTracksRouteImport.update({
   id: '/tracks',
   path: '/tracks',
-  getParentRoute: () => AcEvoRoute,
-} as any)
-const AcEvoTuningRoute = AcEvoTuningRouteImport.update({
-  id: '/tuning',
-  path: '/tuning',
   getParentRoute: () => AcEvoRoute,
 } as any)
 const AccIndexRoute = AccIndexRouteImport.update({
@@ -213,6 +213,11 @@ const AccCompareRoute = AccCompareRouteImport.update({
   path: '/compare',
   getParentRoute: () => AccRoute,
 } as any)
+const AccExperimentsRoute = AccExperimentsRouteImport.update({
+  id: '/experiments',
+  path: '/experiments',
+  getParentRoute: () => AccRoute,
+} as any)
 const AccLiveRoute = AccLiveRouteImport.update({
   id: '/live',
   path: '/live',
@@ -236,11 +241,6 @@ const AccSetupsRoute = AccSetupsRouteImport.update({
 const AccTracksRoute = AccTracksRouteImport.update({
   id: '/tracks',
   path: '/tracks',
-  getParentRoute: () => AccRoute,
-} as any)
-const AccTuningRoute = AccTuningRouteImport.update({
-  id: '/tuning',
-  path: '/tuning',
   getParentRoute: () => AccRoute,
 } as any)
 const DashIndexRoute = DashIndexRouteImport.update({
@@ -283,6 +283,11 @@ const F125CompareRoute = F125CompareRouteImport.update({
   path: '/compare',
   getParentRoute: () => F125Route,
 } as any)
+const F125ExperimentsRoute = F125ExperimentsRouteImport.update({
+  id: '/experiments',
+  path: '/experiments',
+  getParentRoute: () => F125Route,
+} as any)
 const F125LiveRoute = F125LiveRouteImport.update({
   id: '/live',
   path: '/live',
@@ -311,11 +316,6 @@ const F125TracksRoute = F125TracksRouteImport.update({
 const F125TunesRoute = F125TunesRouteImport.update({
   id: '/tunes',
   path: '/tunes',
-  getParentRoute: () => F125Route,
-} as any)
-const F125TuningRoute = F125TuningRouteImport.update({
-  id: '/tuning',
-  path: '/tuning',
   getParentRoute: () => F125Route,
 } as any)
 const Fm23IndexRoute = Fm23IndexRouteImport.update({
@@ -368,6 +368,17 @@ const Fm23TracksRoute = Fm23TracksRouteImport.update({
   path: '/tracks',
   getParentRoute: () => Fm23Route,
 } as any)
+const AcEvoExperimentsIndexRoute = AcEvoExperimentsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AcEvoExperimentsRoute,
+} as any)
+const AcEvoExperimentsExperimentIdRoute =
+  AcEvoExperimentsExperimentIdRouteImport.update({
+    id: '/$experimentId',
+    path: '/$experimentId',
+    getParentRoute: () => AcEvoExperimentsRoute,
+  } as any)
 const AcEvoSetupsIndexRoute = AcEvoSetupsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -388,16 +399,16 @@ const AcEvoTracksIndexRoute = AcEvoTracksIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AcEvoTracksRoute,
 } as any)
-const AcEvoTuningIndexRoute = AcEvoTuningIndexRouteImport.update({
+const AccExperimentsIndexRoute = AccExperimentsIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AcEvoTuningRoute,
+  getParentRoute: () => AccExperimentsRoute,
 } as any)
-const AcEvoTuningTuningSessionIdRoute =
-  AcEvoTuningTuningSessionIdRouteImport.update({
-    id: '/$tuningSessionId',
-    path: '/$tuningSessionId',
-    getParentRoute: () => AcEvoTuningRoute,
+const AccExperimentsExperimentIdRoute =
+  AccExperimentsExperimentIdRouteImport.update({
+    id: '/$experimentId',
+    path: '/$experimentId',
+    getParentRoute: () => AccExperimentsRoute,
   } as any)
 const AccSetupsIndexRoute = AccSetupsIndexRouteImport.update({
   id: '/',
@@ -419,16 +430,16 @@ const AccTracksIndexRoute = AccTracksIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AccTracksRoute,
 } as any)
-const AccTuningIndexRoute = AccTuningIndexRouteImport.update({
+const F125ExperimentsIndexRoute = F125ExperimentsIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AccTuningRoute,
+  getParentRoute: () => F125ExperimentsRoute,
 } as any)
-const AccTuningTuningSessionIdRoute =
-  AccTuningTuningSessionIdRouteImport.update({
-    id: '/$tuningSessionId',
-    path: '/$tuningSessionId',
-    getParentRoute: () => AccTuningRoute,
+const F125ExperimentsExperimentIdRoute =
+  F125ExperimentsExperimentIdRouteImport.update({
+    id: '/$experimentId',
+    path: '/$experimentId',
+    getParentRoute: () => F125ExperimentsRoute,
   } as any)
 const F125SetupsIndexRoute = F125SetupsIndexRouteImport.update({
   id: '/',
@@ -445,17 +456,6 @@ const F125TunesIndexRoute = F125TunesIndexRouteImport.update({
   path: '/',
   getParentRoute: () => F125TunesRoute,
 } as any)
-const F125TuningIndexRoute = F125TuningIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => F125TuningRoute,
-} as any)
-const F125TuningTuningSessionIdRoute =
-  F125TuningTuningSessionIdRouteImport.update({
-    id: '/$tuningSessionId',
-    path: '/$tuningSessionId',
-    getParentRoute: () => F125TuningRoute,
-  } as any)
 const Fm23CarsCarOrdinalRoute = Fm23CarsCarOrdinalRouteImport.update({
   id: '/cars_/$carOrdinal',
   path: '/cars/$carOrdinal',
@@ -491,6 +491,12 @@ const Fm23TracksIndexRoute = Fm23TracksIndexRouteImport.update({
   path: '/',
   getParentRoute: () => Fm23TracksRoute,
 } as any)
+const AcEvoExperimentsExperimentIdReviewRoute =
+  AcEvoExperimentsExperimentIdReviewRouteImport.update({
+    id: '/$experimentId_/review',
+    path: '/$experimentId/review',
+    getParentRoute: () => AcEvoExperimentsRoute,
+  } as any)
 const AcEvoSetupsEditTuneIdRoute = AcEvoSetupsEditTuneIdRouteImport.update({
   id: '/edit/$tuneId',
   path: '/edit/$tuneId',
@@ -508,11 +514,11 @@ const AcEvoTracksTrackOrdinalTabRoute =
     path: '/$trackOrdinal/$tab',
     getParentRoute: () => AcEvoTracksRoute,
   } as any)
-const AcEvoTuningTuningSessionIdReviewRoute =
-  AcEvoTuningTuningSessionIdReviewRouteImport.update({
-    id: '/$tuningSessionId_/review',
-    path: '/$tuningSessionId/review',
-    getParentRoute: () => AcEvoTuningRoute,
+const AccExperimentsExperimentIdReviewRoute =
+  AccExperimentsExperimentIdReviewRouteImport.update({
+    id: '/$experimentId_/review',
+    path: '/$experimentId/review',
+    getParentRoute: () => AccExperimentsRoute,
   } as any)
 const AccSetupsEditTuneIdRoute = AccSetupsEditTuneIdRouteImport.update({
   id: '/edit/$tuneId',
@@ -531,11 +537,11 @@ const AccTracksTrackOrdinalTabRoute =
     path: '/$trackOrdinal/$tab',
     getParentRoute: () => AccTracksRoute,
   } as any)
-const AccTuningTuningSessionIdReviewRoute =
-  AccTuningTuningSessionIdReviewRouteImport.update({
-    id: '/$tuningSessionId_/review',
-    path: '/$tuningSessionId/review',
-    getParentRoute: () => AccTuningRoute,
+const F125ExperimentsExperimentIdReviewRoute =
+  F125ExperimentsExperimentIdReviewRouteImport.update({
+    id: '/$experimentId_/review',
+    path: '/$experimentId/review',
+    getParentRoute: () => F125ExperimentsRoute,
   } as any)
 const F125TracksTrackOrdinalIndexRoute =
   F125TracksTrackOrdinalIndexRouteImport.update({
@@ -548,12 +554,6 @@ const F125TracksTrackOrdinalTabRoute =
     id: '/$trackOrdinal/$tab',
     path: '/$trackOrdinal/$tab',
     getParentRoute: () => F125TracksRoute,
-  } as any)
-const F125TuningTuningSessionIdReviewRoute =
-  F125TuningTuningSessionIdReviewRouteImport.update({
-    id: '/$tuningSessionId_/review',
-    path: '/$tuningSessionId/review',
-    getParentRoute: () => F125TuningRoute,
   } as any)
 const Fm23SetupsEditTuneIdRoute = Fm23SetupsEditTuneIdRouteImport.update({
   id: '/edit/$tuneId',
@@ -595,35 +595,35 @@ export interface FileRoutesByFullPath {
   '/ac-evo/cars': typeof AcEvoCarsRoute
   '/ac-evo/chats': typeof AcEvoChatsRoute
   '/ac-evo/compare': typeof AcEvoCompareRoute
+  '/ac-evo/experiments': typeof AcEvoExperimentsRouteWithChildren
   '/ac-evo/live': typeof AcEvoLiveRoute
   '/ac-evo/raw': typeof AcEvoRawRoute
   '/ac-evo/sessions': typeof AcEvoSessionsRoute
   '/ac-evo/setups': typeof AcEvoSetupsRouteWithChildren
   '/ac-evo/tracks': typeof AcEvoTracksRouteWithChildren
-  '/ac-evo/tuning': typeof AcEvoTuningRouteWithChildren
   '/acc/analyse': typeof AccAnalyseRoute
   '/acc/cars': typeof AccCarsRoute
   '/acc/chats': typeof AccChatsRoute
   '/acc/compare': typeof AccCompareRoute
+  '/acc/experiments': typeof AccExperimentsRouteWithChildren
   '/acc/live': typeof AccLiveRoute
   '/acc/raw': typeof AccRawRoute
   '/acc/sessions': typeof AccSessionsRoute
   '/acc/setups': typeof AccSetupsRouteWithChildren
   '/acc/tracks': typeof AccTracksRouteWithChildren
-  '/acc/tuning': typeof AccTuningRouteWithChildren
   '/dash/combo-1': typeof DashCombo1Route
   '/dash/combo-2': typeof DashCombo2Route
   '/f125/analyse': typeof F125AnalyseRoute
   '/f125/cars': typeof F125CarsRoute
   '/f125/chats': typeof F125ChatsRoute
   '/f125/compare': typeof F125CompareRoute
+  '/f125/experiments': typeof F125ExperimentsRouteWithChildren
   '/f125/live': typeof F125LiveRoute
   '/f125/raw': typeof F125RawRoute
   '/f125/sessions': typeof F125SessionsRoute
   '/f125/setups': typeof F125SetupsRouteWithChildren
   '/f125/tracks': typeof F125TracksRouteWithChildren
   '/f125/tunes': typeof F125TunesRouteWithChildren
-  '/f125/tuning': typeof F125TuningRouteWithChildren
   '/fm23/analyse': typeof Fm23AnalyseRoute
   '/fm23/cars': typeof Fm23CarsRoute
   '/fm23/chats': typeof Fm23ChatsRoute
@@ -638,38 +638,38 @@ export interface FileRoutesByFullPath {
   '/dash/': typeof DashIndexRoute
   '/f125/': typeof F125IndexRoute
   '/fm23/': typeof Fm23IndexRoute
+  '/ac-evo/experiments/$experimentId': typeof AcEvoExperimentsExperimentIdRoute
   '/ac-evo/setups/import': typeof AcEvoSetupsImportRoute
   '/ac-evo/setups/new': typeof AcEvoSetupsNewRoute
-  '/ac-evo/tuning/$tuningSessionId': typeof AcEvoTuningTuningSessionIdRoute
+  '/acc/experiments/$experimentId': typeof AccExperimentsExperimentIdRoute
   '/acc/setups/import': typeof AccSetupsImportRoute
   '/acc/setups/new': typeof AccSetupsNewRoute
-  '/acc/tuning/$tuningSessionId': typeof AccTuningTuningSessionIdRoute
-  '/f125/tuning/$tuningSessionId': typeof F125TuningTuningSessionIdRoute
+  '/f125/experiments/$experimentId': typeof F125ExperimentsExperimentIdRoute
   '/fm23/cars/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
   '/fm23/live/driver': typeof Fm23LiveDriverRoute
   '/fm23/live/pit': typeof Fm23LivePitRoute
   '/fm23/setups/catalog': typeof Fm23SetupsCatalogRoute
   '/fm23/setups/new': typeof Fm23SetupsNewRoute
+  '/ac-evo/experiments/': typeof AcEvoExperimentsIndexRoute
   '/ac-evo/setups/': typeof AcEvoSetupsIndexRoute
   '/ac-evo/tracks/': typeof AcEvoTracksIndexRoute
-  '/ac-evo/tuning/': typeof AcEvoTuningIndexRoute
+  '/acc/experiments/': typeof AccExperimentsIndexRoute
   '/acc/setups/': typeof AccSetupsIndexRoute
   '/acc/tracks/': typeof AccTracksIndexRoute
-  '/acc/tuning/': typeof AccTuningIndexRoute
+  '/f125/experiments/': typeof F125ExperimentsIndexRoute
   '/f125/setups/': typeof F125SetupsIndexRoute
   '/f125/tracks/': typeof F125TracksIndexRoute
   '/f125/tunes/': typeof F125TunesIndexRoute
-  '/f125/tuning/': typeof F125TuningIndexRoute
   '/fm23/setups/': typeof Fm23SetupsIndexRoute
   '/fm23/tracks/': typeof Fm23TracksIndexRoute
+  '/ac-evo/experiments/$experimentId/review': typeof AcEvoExperimentsExperimentIdReviewRoute
   '/ac-evo/setups/edit/$tuneId': typeof AcEvoSetupsEditTuneIdRoute
   '/ac-evo/tracks/$trackOrdinal/$tab': typeof AcEvoTracksTrackOrdinalTabRoute
-  '/ac-evo/tuning/$tuningSessionId/review': typeof AcEvoTuningTuningSessionIdReviewRoute
+  '/acc/experiments/$experimentId/review': typeof AccExperimentsExperimentIdReviewRoute
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
   '/acc/tracks/$trackOrdinal/$tab': typeof AccTracksTrackOrdinalTabRoute
-  '/acc/tuning/$tuningSessionId/review': typeof AccTuningTuningSessionIdReviewRoute
+  '/f125/experiments/$experimentId/review': typeof F125ExperimentsExperimentIdReviewRoute
   '/f125/tracks/$trackOrdinal/$tab': typeof F125TracksTrackOrdinalTabRoute
-  '/f125/tuning/$tuningSessionId/review': typeof F125TuningTuningSessionIdReviewRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
   '/fm23/setups/wheel/$profileId': typeof Fm23SetupsWheelProfileIdRoute
   '/fm23/tracks/$trackOrdinal/$tab': typeof Fm23TracksTrackOrdinalTabRoute
@@ -717,38 +717,38 @@ export interface FileRoutesByTo {
   '/dash': typeof DashIndexRoute
   '/f125': typeof F125IndexRoute
   '/fm23': typeof Fm23IndexRoute
+  '/ac-evo/experiments/$experimentId': typeof AcEvoExperimentsExperimentIdRoute
   '/ac-evo/setups/import': typeof AcEvoSetupsImportRoute
   '/ac-evo/setups/new': typeof AcEvoSetupsNewRoute
-  '/ac-evo/tuning/$tuningSessionId': typeof AcEvoTuningTuningSessionIdRoute
+  '/acc/experiments/$experimentId': typeof AccExperimentsExperimentIdRoute
   '/acc/setups/import': typeof AccSetupsImportRoute
   '/acc/setups/new': typeof AccSetupsNewRoute
-  '/acc/tuning/$tuningSessionId': typeof AccTuningTuningSessionIdRoute
-  '/f125/tuning/$tuningSessionId': typeof F125TuningTuningSessionIdRoute
+  '/f125/experiments/$experimentId': typeof F125ExperimentsExperimentIdRoute
   '/fm23/cars/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
   '/fm23/live/driver': typeof Fm23LiveDriverRoute
   '/fm23/live/pit': typeof Fm23LivePitRoute
   '/fm23/setups/catalog': typeof Fm23SetupsCatalogRoute
   '/fm23/setups/new': typeof Fm23SetupsNewRoute
+  '/ac-evo/experiments': typeof AcEvoExperimentsIndexRoute
   '/ac-evo/setups': typeof AcEvoSetupsIndexRoute
   '/ac-evo/tracks': typeof AcEvoTracksIndexRoute
-  '/ac-evo/tuning': typeof AcEvoTuningIndexRoute
+  '/acc/experiments': typeof AccExperimentsIndexRoute
   '/acc/setups': typeof AccSetupsIndexRoute
   '/acc/tracks': typeof AccTracksIndexRoute
-  '/acc/tuning': typeof AccTuningIndexRoute
+  '/f125/experiments': typeof F125ExperimentsIndexRoute
   '/f125/setups': typeof F125SetupsIndexRoute
   '/f125/tracks': typeof F125TracksIndexRoute
   '/f125/tunes': typeof F125TunesIndexRoute
-  '/f125/tuning': typeof F125TuningIndexRoute
   '/fm23/setups': typeof Fm23SetupsIndexRoute
   '/fm23/tracks': typeof Fm23TracksIndexRoute
+  '/ac-evo/experiments/$experimentId/review': typeof AcEvoExperimentsExperimentIdReviewRoute
   '/ac-evo/setups/edit/$tuneId': typeof AcEvoSetupsEditTuneIdRoute
   '/ac-evo/tracks/$trackOrdinal/$tab': typeof AcEvoTracksTrackOrdinalTabRoute
-  '/ac-evo/tuning/$tuningSessionId/review': typeof AcEvoTuningTuningSessionIdReviewRoute
+  '/acc/experiments/$experimentId/review': typeof AccExperimentsExperimentIdReviewRoute
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
   '/acc/tracks/$trackOrdinal/$tab': typeof AccTracksTrackOrdinalTabRoute
-  '/acc/tuning/$tuningSessionId/review': typeof AccTuningTuningSessionIdReviewRoute
+  '/f125/experiments/$experimentId/review': typeof F125ExperimentsExperimentIdReviewRoute
   '/f125/tracks/$trackOrdinal/$tab': typeof F125TracksTrackOrdinalTabRoute
-  '/f125/tuning/$tuningSessionId/review': typeof F125TuningTuningSessionIdReviewRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
   '/fm23/setups/wheel/$profileId': typeof Fm23SetupsWheelProfileIdRoute
   '/fm23/tracks/$trackOrdinal/$tab': typeof Fm23TracksTrackOrdinalTabRoute
@@ -770,35 +770,35 @@ export interface FileRoutesById {
   '/ac-evo/cars': typeof AcEvoCarsRoute
   '/ac-evo/chats': typeof AcEvoChatsRoute
   '/ac-evo/compare': typeof AcEvoCompareRoute
+  '/ac-evo/experiments': typeof AcEvoExperimentsRouteWithChildren
   '/ac-evo/live': typeof AcEvoLiveRoute
   '/ac-evo/raw': typeof AcEvoRawRoute
   '/ac-evo/sessions': typeof AcEvoSessionsRoute
   '/ac-evo/setups': typeof AcEvoSetupsRouteWithChildren
   '/ac-evo/tracks': typeof AcEvoTracksRouteWithChildren
-  '/ac-evo/tuning': typeof AcEvoTuningRouteWithChildren
   '/acc/analyse': typeof AccAnalyseRoute
   '/acc/cars': typeof AccCarsRoute
   '/acc/chats': typeof AccChatsRoute
   '/acc/compare': typeof AccCompareRoute
+  '/acc/experiments': typeof AccExperimentsRouteWithChildren
   '/acc/live': typeof AccLiveRoute
   '/acc/raw': typeof AccRawRoute
   '/acc/sessions': typeof AccSessionsRoute
   '/acc/setups': typeof AccSetupsRouteWithChildren
   '/acc/tracks': typeof AccTracksRouteWithChildren
-  '/acc/tuning': typeof AccTuningRouteWithChildren
   '/dash/combo-1': typeof DashCombo1Route
   '/dash/combo-2': typeof DashCombo2Route
   '/f125/analyse': typeof F125AnalyseRoute
   '/f125/cars': typeof F125CarsRoute
   '/f125/chats': typeof F125ChatsRoute
   '/f125/compare': typeof F125CompareRoute
+  '/f125/experiments': typeof F125ExperimentsRouteWithChildren
   '/f125/live': typeof F125LiveRoute
   '/f125/raw': typeof F125RawRoute
   '/f125/sessions': typeof F125SessionsRoute
   '/f125/setups': typeof F125SetupsRouteWithChildren
   '/f125/tracks': typeof F125TracksRouteWithChildren
   '/f125/tunes': typeof F125TunesRouteWithChildren
-  '/f125/tuning': typeof F125TuningRouteWithChildren
   '/fm23/analyse': typeof Fm23AnalyseRoute
   '/fm23/cars': typeof Fm23CarsRoute
   '/fm23/chats': typeof Fm23ChatsRoute
@@ -813,38 +813,38 @@ export interface FileRoutesById {
   '/dash/': typeof DashIndexRoute
   '/f125/': typeof F125IndexRoute
   '/fm23/': typeof Fm23IndexRoute
+  '/ac-evo/experiments/$experimentId': typeof AcEvoExperimentsExperimentIdRoute
   '/ac-evo/setups/import': typeof AcEvoSetupsImportRoute
   '/ac-evo/setups/new': typeof AcEvoSetupsNewRoute
-  '/ac-evo/tuning/$tuningSessionId': typeof AcEvoTuningTuningSessionIdRoute
+  '/acc/experiments/$experimentId': typeof AccExperimentsExperimentIdRoute
   '/acc/setups/import': typeof AccSetupsImportRoute
   '/acc/setups/new': typeof AccSetupsNewRoute
-  '/acc/tuning/$tuningSessionId': typeof AccTuningTuningSessionIdRoute
-  '/f125/tuning/$tuningSessionId': typeof F125TuningTuningSessionIdRoute
+  '/f125/experiments/$experimentId': typeof F125ExperimentsExperimentIdRoute
   '/fm23/cars_/$carOrdinal': typeof Fm23CarsCarOrdinalRoute
   '/fm23/live/driver': typeof Fm23LiveDriverRoute
   '/fm23/live/pit': typeof Fm23LivePitRoute
   '/fm23/setups/catalog': typeof Fm23SetupsCatalogRoute
   '/fm23/setups/new': typeof Fm23SetupsNewRoute
+  '/ac-evo/experiments/': typeof AcEvoExperimentsIndexRoute
   '/ac-evo/setups/': typeof AcEvoSetupsIndexRoute
   '/ac-evo/tracks/': typeof AcEvoTracksIndexRoute
-  '/ac-evo/tuning/': typeof AcEvoTuningIndexRoute
+  '/acc/experiments/': typeof AccExperimentsIndexRoute
   '/acc/setups/': typeof AccSetupsIndexRoute
   '/acc/tracks/': typeof AccTracksIndexRoute
-  '/acc/tuning/': typeof AccTuningIndexRoute
+  '/f125/experiments/': typeof F125ExperimentsIndexRoute
   '/f125/setups/': typeof F125SetupsIndexRoute
   '/f125/tracks/': typeof F125TracksIndexRoute
   '/f125/tunes/': typeof F125TunesIndexRoute
-  '/f125/tuning/': typeof F125TuningIndexRoute
   '/fm23/setups/': typeof Fm23SetupsIndexRoute
   '/fm23/tracks/': typeof Fm23TracksIndexRoute
+  '/ac-evo/experiments/$experimentId_/review': typeof AcEvoExperimentsExperimentIdReviewRoute
   '/ac-evo/setups/edit/$tuneId': typeof AcEvoSetupsEditTuneIdRoute
   '/ac-evo/tracks/$trackOrdinal/$tab': typeof AcEvoTracksTrackOrdinalTabRoute
-  '/ac-evo/tuning/$tuningSessionId_/review': typeof AcEvoTuningTuningSessionIdReviewRoute
+  '/acc/experiments/$experimentId_/review': typeof AccExperimentsExperimentIdReviewRoute
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
   '/acc/tracks/$trackOrdinal/$tab': typeof AccTracksTrackOrdinalTabRoute
-  '/acc/tuning/$tuningSessionId_/review': typeof AccTuningTuningSessionIdReviewRoute
+  '/f125/experiments/$experimentId_/review': typeof F125ExperimentsExperimentIdReviewRoute
   '/f125/tracks/$trackOrdinal/$tab': typeof F125TracksTrackOrdinalTabRoute
-  '/f125/tuning/$tuningSessionId_/review': typeof F125TuningTuningSessionIdReviewRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
   '/fm23/setups/wheel/$profileId': typeof Fm23SetupsWheelProfileIdRoute
   '/fm23/tracks/$trackOrdinal/$tab': typeof Fm23TracksTrackOrdinalTabRoute
@@ -867,35 +867,35 @@ export interface FileRouteTypes {
     | '/ac-evo/cars'
     | '/ac-evo/chats'
     | '/ac-evo/compare'
+    | '/ac-evo/experiments'
     | '/ac-evo/live'
     | '/ac-evo/raw'
     | '/ac-evo/sessions'
     | '/ac-evo/setups'
     | '/ac-evo/tracks'
-    | '/ac-evo/tuning'
     | '/acc/analyse'
     | '/acc/cars'
     | '/acc/chats'
     | '/acc/compare'
+    | '/acc/experiments'
     | '/acc/live'
     | '/acc/raw'
     | '/acc/sessions'
     | '/acc/setups'
     | '/acc/tracks'
-    | '/acc/tuning'
     | '/dash/combo-1'
     | '/dash/combo-2'
     | '/f125/analyse'
     | '/f125/cars'
     | '/f125/chats'
     | '/f125/compare'
+    | '/f125/experiments'
     | '/f125/live'
     | '/f125/raw'
     | '/f125/sessions'
     | '/f125/setups'
     | '/f125/tracks'
     | '/f125/tunes'
-    | '/f125/tuning'
     | '/fm23/analyse'
     | '/fm23/cars'
     | '/fm23/chats'
@@ -910,38 +910,38 @@ export interface FileRouteTypes {
     | '/dash/'
     | '/f125/'
     | '/fm23/'
+    | '/ac-evo/experiments/$experimentId'
     | '/ac-evo/setups/import'
     | '/ac-evo/setups/new'
-    | '/ac-evo/tuning/$tuningSessionId'
+    | '/acc/experiments/$experimentId'
     | '/acc/setups/import'
     | '/acc/setups/new'
-    | '/acc/tuning/$tuningSessionId'
-    | '/f125/tuning/$tuningSessionId'
+    | '/f125/experiments/$experimentId'
     | '/fm23/cars/$carOrdinal'
     | '/fm23/live/driver'
     | '/fm23/live/pit'
     | '/fm23/setups/catalog'
     | '/fm23/setups/new'
+    | '/ac-evo/experiments/'
     | '/ac-evo/setups/'
     | '/ac-evo/tracks/'
-    | '/ac-evo/tuning/'
+    | '/acc/experiments/'
     | '/acc/setups/'
     | '/acc/tracks/'
-    | '/acc/tuning/'
+    | '/f125/experiments/'
     | '/f125/setups/'
     | '/f125/tracks/'
     | '/f125/tunes/'
-    | '/f125/tuning/'
     | '/fm23/setups/'
     | '/fm23/tracks/'
+    | '/ac-evo/experiments/$experimentId/review'
     | '/ac-evo/setups/edit/$tuneId'
     | '/ac-evo/tracks/$trackOrdinal/$tab'
-    | '/ac-evo/tuning/$tuningSessionId/review'
+    | '/acc/experiments/$experimentId/review'
     | '/acc/setups/edit/$tuneId'
     | '/acc/tracks/$trackOrdinal/$tab'
-    | '/acc/tuning/$tuningSessionId/review'
+    | '/f125/experiments/$experimentId/review'
     | '/f125/tracks/$trackOrdinal/$tab'
-    | '/f125/tuning/$tuningSessionId/review'
     | '/fm23/setups/edit/$tuneId'
     | '/fm23/setups/wheel/$profileId'
     | '/fm23/tracks/$trackOrdinal/$tab'
@@ -989,38 +989,38 @@ export interface FileRouteTypes {
     | '/dash'
     | '/f125'
     | '/fm23'
+    | '/ac-evo/experiments/$experimentId'
     | '/ac-evo/setups/import'
     | '/ac-evo/setups/new'
-    | '/ac-evo/tuning/$tuningSessionId'
+    | '/acc/experiments/$experimentId'
     | '/acc/setups/import'
     | '/acc/setups/new'
-    | '/acc/tuning/$tuningSessionId'
-    | '/f125/tuning/$tuningSessionId'
+    | '/f125/experiments/$experimentId'
     | '/fm23/cars/$carOrdinal'
     | '/fm23/live/driver'
     | '/fm23/live/pit'
     | '/fm23/setups/catalog'
     | '/fm23/setups/new'
+    | '/ac-evo/experiments'
     | '/ac-evo/setups'
     | '/ac-evo/tracks'
-    | '/ac-evo/tuning'
+    | '/acc/experiments'
     | '/acc/setups'
     | '/acc/tracks'
-    | '/acc/tuning'
+    | '/f125/experiments'
     | '/f125/setups'
     | '/f125/tracks'
     | '/f125/tunes'
-    | '/f125/tuning'
     | '/fm23/setups'
     | '/fm23/tracks'
+    | '/ac-evo/experiments/$experimentId/review'
     | '/ac-evo/setups/edit/$tuneId'
     | '/ac-evo/tracks/$trackOrdinal/$tab'
-    | '/ac-evo/tuning/$tuningSessionId/review'
+    | '/acc/experiments/$experimentId/review'
     | '/acc/setups/edit/$tuneId'
     | '/acc/tracks/$trackOrdinal/$tab'
-    | '/acc/tuning/$tuningSessionId/review'
+    | '/f125/experiments/$experimentId/review'
     | '/f125/tracks/$trackOrdinal/$tab'
-    | '/f125/tuning/$tuningSessionId/review'
     | '/fm23/setups/edit/$tuneId'
     | '/fm23/setups/wheel/$profileId'
     | '/fm23/tracks/$trackOrdinal/$tab'
@@ -1041,35 +1041,35 @@ export interface FileRouteTypes {
     | '/ac-evo/cars'
     | '/ac-evo/chats'
     | '/ac-evo/compare'
+    | '/ac-evo/experiments'
     | '/ac-evo/live'
     | '/ac-evo/raw'
     | '/ac-evo/sessions'
     | '/ac-evo/setups'
     | '/ac-evo/tracks'
-    | '/ac-evo/tuning'
     | '/acc/analyse'
     | '/acc/cars'
     | '/acc/chats'
     | '/acc/compare'
+    | '/acc/experiments'
     | '/acc/live'
     | '/acc/raw'
     | '/acc/sessions'
     | '/acc/setups'
     | '/acc/tracks'
-    | '/acc/tuning'
     | '/dash/combo-1'
     | '/dash/combo-2'
     | '/f125/analyse'
     | '/f125/cars'
     | '/f125/chats'
     | '/f125/compare'
+    | '/f125/experiments'
     | '/f125/live'
     | '/f125/raw'
     | '/f125/sessions'
     | '/f125/setups'
     | '/f125/tracks'
     | '/f125/tunes'
-    | '/f125/tuning'
     | '/fm23/analyse'
     | '/fm23/cars'
     | '/fm23/chats'
@@ -1084,38 +1084,38 @@ export interface FileRouteTypes {
     | '/dash/'
     | '/f125/'
     | '/fm23/'
+    | '/ac-evo/experiments/$experimentId'
     | '/ac-evo/setups/import'
     | '/ac-evo/setups/new'
-    | '/ac-evo/tuning/$tuningSessionId'
+    | '/acc/experiments/$experimentId'
     | '/acc/setups/import'
     | '/acc/setups/new'
-    | '/acc/tuning/$tuningSessionId'
-    | '/f125/tuning/$tuningSessionId'
+    | '/f125/experiments/$experimentId'
     | '/fm23/cars_/$carOrdinal'
     | '/fm23/live/driver'
     | '/fm23/live/pit'
     | '/fm23/setups/catalog'
     | '/fm23/setups/new'
+    | '/ac-evo/experiments/'
     | '/ac-evo/setups/'
     | '/ac-evo/tracks/'
-    | '/ac-evo/tuning/'
+    | '/acc/experiments/'
     | '/acc/setups/'
     | '/acc/tracks/'
-    | '/acc/tuning/'
+    | '/f125/experiments/'
     | '/f125/setups/'
     | '/f125/tracks/'
     | '/f125/tunes/'
-    | '/f125/tuning/'
     | '/fm23/setups/'
     | '/fm23/tracks/'
+    | '/ac-evo/experiments/$experimentId_/review'
     | '/ac-evo/setups/edit/$tuneId'
     | '/ac-evo/tracks/$trackOrdinal/$tab'
-    | '/ac-evo/tuning/$tuningSessionId_/review'
+    | '/acc/experiments/$experimentId_/review'
     | '/acc/setups/edit/$tuneId'
     | '/acc/tracks/$trackOrdinal/$tab'
-    | '/acc/tuning/$tuningSessionId_/review'
+    | '/f125/experiments/$experimentId_/review'
     | '/f125/tracks/$trackOrdinal/$tab'
-    | '/f125/tuning/$tuningSessionId_/review'
     | '/fm23/setups/edit/$tuneId'
     | '/fm23/setups/wheel/$profileId'
     | '/fm23/tracks/$trackOrdinal/$tab'
@@ -1217,6 +1217,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AcEvoCompareRouteImport
       parentRoute: typeof AcEvoRoute
     }
+    '/ac-evo/experiments': {
+      id: '/ac-evo/experiments'
+      path: '/experiments'
+      fullPath: '/ac-evo/experiments'
+      preLoaderRoute: typeof AcEvoExperimentsRouteImport
+      parentRoute: typeof AcEvoRoute
+    }
     '/ac-evo/live': {
       id: '/ac-evo/live'
       path: '/live'
@@ -1250,13 +1257,6 @@ declare module '@tanstack/react-router' {
       path: '/tracks'
       fullPath: '/ac-evo/tracks'
       preLoaderRoute: typeof AcEvoTracksRouteImport
-      parentRoute: typeof AcEvoRoute
-    }
-    '/ac-evo/tuning': {
-      id: '/ac-evo/tuning'
-      path: '/tuning'
-      fullPath: '/ac-evo/tuning'
-      preLoaderRoute: typeof AcEvoTuningRouteImport
       parentRoute: typeof AcEvoRoute
     }
     '/acc/': {
@@ -1294,6 +1294,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccCompareRouteImport
       parentRoute: typeof AccRoute
     }
+    '/acc/experiments': {
+      id: '/acc/experiments'
+      path: '/experiments'
+      fullPath: '/acc/experiments'
+      preLoaderRoute: typeof AccExperimentsRouteImport
+      parentRoute: typeof AccRoute
+    }
     '/acc/live': {
       id: '/acc/live'
       path: '/live'
@@ -1327,13 +1334,6 @@ declare module '@tanstack/react-router' {
       path: '/tracks'
       fullPath: '/acc/tracks'
       preLoaderRoute: typeof AccTracksRouteImport
-      parentRoute: typeof AccRoute
-    }
-    '/acc/tuning': {
-      id: '/acc/tuning'
-      path: '/tuning'
-      fullPath: '/acc/tuning'
-      preLoaderRoute: typeof AccTuningRouteImport
       parentRoute: typeof AccRoute
     }
     '/dash/': {
@@ -1392,6 +1392,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof F125CompareRouteImport
       parentRoute: typeof F125Route
     }
+    '/f125/experiments': {
+      id: '/f125/experiments'
+      path: '/experiments'
+      fullPath: '/f125/experiments'
+      preLoaderRoute: typeof F125ExperimentsRouteImport
+      parentRoute: typeof F125Route
+    }
     '/f125/live': {
       id: '/f125/live'
       path: '/live'
@@ -1432,13 +1439,6 @@ declare module '@tanstack/react-router' {
       path: '/tunes'
       fullPath: '/f125/tunes'
       preLoaderRoute: typeof F125TunesRouteImport
-      parentRoute: typeof F125Route
-    }
-    '/f125/tuning': {
-      id: '/f125/tuning'
-      path: '/tuning'
-      fullPath: '/f125/tuning'
-      preLoaderRoute: typeof F125TuningRouteImport
       parentRoute: typeof F125Route
     }
     '/fm23/': {
@@ -1511,6 +1511,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Fm23TracksRouteImport
       parentRoute: typeof Fm23Route
     }
+    '/ac-evo/experiments/': {
+      id: '/ac-evo/experiments/'
+      path: '/'
+      fullPath: '/ac-evo/experiments/'
+      preLoaderRoute: typeof AcEvoExperimentsIndexRouteImport
+      parentRoute: typeof AcEvoExperimentsRoute
+    }
+    '/ac-evo/experiments/$experimentId': {
+      id: '/ac-evo/experiments/$experimentId'
+      path: '/$experimentId'
+      fullPath: '/ac-evo/experiments/$experimentId'
+      preLoaderRoute: typeof AcEvoExperimentsExperimentIdRouteImport
+      parentRoute: typeof AcEvoExperimentsRoute
+    }
     '/ac-evo/setups/': {
       id: '/ac-evo/setups/'
       path: '/'
@@ -1539,19 +1553,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AcEvoTracksIndexRouteImport
       parentRoute: typeof AcEvoTracksRoute
     }
-    '/ac-evo/tuning/': {
-      id: '/ac-evo/tuning/'
+    '/acc/experiments/': {
+      id: '/acc/experiments/'
       path: '/'
-      fullPath: '/ac-evo/tuning/'
-      preLoaderRoute: typeof AcEvoTuningIndexRouteImport
-      parentRoute: typeof AcEvoTuningRoute
+      fullPath: '/acc/experiments/'
+      preLoaderRoute: typeof AccExperimentsIndexRouteImport
+      parentRoute: typeof AccExperimentsRoute
     }
-    '/ac-evo/tuning/$tuningSessionId': {
-      id: '/ac-evo/tuning/$tuningSessionId'
-      path: '/$tuningSessionId'
-      fullPath: '/ac-evo/tuning/$tuningSessionId'
-      preLoaderRoute: typeof AcEvoTuningTuningSessionIdRouteImport
-      parentRoute: typeof AcEvoTuningRoute
+    '/acc/experiments/$experimentId': {
+      id: '/acc/experiments/$experimentId'
+      path: '/$experimentId'
+      fullPath: '/acc/experiments/$experimentId'
+      preLoaderRoute: typeof AccExperimentsExperimentIdRouteImport
+      parentRoute: typeof AccExperimentsRoute
     }
     '/acc/setups/': {
       id: '/acc/setups/'
@@ -1581,19 +1595,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccTracksIndexRouteImport
       parentRoute: typeof AccTracksRoute
     }
-    '/acc/tuning/': {
-      id: '/acc/tuning/'
+    '/f125/experiments/': {
+      id: '/f125/experiments/'
       path: '/'
-      fullPath: '/acc/tuning/'
-      preLoaderRoute: typeof AccTuningIndexRouteImport
-      parentRoute: typeof AccTuningRoute
+      fullPath: '/f125/experiments/'
+      preLoaderRoute: typeof F125ExperimentsIndexRouteImport
+      parentRoute: typeof F125ExperimentsRoute
     }
-    '/acc/tuning/$tuningSessionId': {
-      id: '/acc/tuning/$tuningSessionId'
-      path: '/$tuningSessionId'
-      fullPath: '/acc/tuning/$tuningSessionId'
-      preLoaderRoute: typeof AccTuningTuningSessionIdRouteImport
-      parentRoute: typeof AccTuningRoute
+    '/f125/experiments/$experimentId': {
+      id: '/f125/experiments/$experimentId'
+      path: '/$experimentId'
+      fullPath: '/f125/experiments/$experimentId'
+      preLoaderRoute: typeof F125ExperimentsExperimentIdRouteImport
+      parentRoute: typeof F125ExperimentsRoute
     }
     '/f125/setups/': {
       id: '/f125/setups/'
@@ -1615,20 +1629,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/f125/tunes/'
       preLoaderRoute: typeof F125TunesIndexRouteImport
       parentRoute: typeof F125TunesRoute
-    }
-    '/f125/tuning/': {
-      id: '/f125/tuning/'
-      path: '/'
-      fullPath: '/f125/tuning/'
-      preLoaderRoute: typeof F125TuningIndexRouteImport
-      parentRoute: typeof F125TuningRoute
-    }
-    '/f125/tuning/$tuningSessionId': {
-      id: '/f125/tuning/$tuningSessionId'
-      path: '/$tuningSessionId'
-      fullPath: '/f125/tuning/$tuningSessionId'
-      preLoaderRoute: typeof F125TuningTuningSessionIdRouteImport
-      parentRoute: typeof F125TuningRoute
     }
     '/fm23/cars_/$carOrdinal': {
       id: '/fm23/cars_/$carOrdinal'
@@ -1679,6 +1679,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Fm23TracksIndexRouteImport
       parentRoute: typeof Fm23TracksRoute
     }
+    '/ac-evo/experiments/$experimentId_/review': {
+      id: '/ac-evo/experiments/$experimentId_/review'
+      path: '/$experimentId/review'
+      fullPath: '/ac-evo/experiments/$experimentId/review'
+      preLoaderRoute: typeof AcEvoExperimentsExperimentIdReviewRouteImport
+      parentRoute: typeof AcEvoExperimentsRoute
+    }
     '/ac-evo/setups/edit/$tuneId': {
       id: '/ac-evo/setups/edit/$tuneId'
       path: '/edit/$tuneId'
@@ -1700,12 +1707,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AcEvoTracksTrackOrdinalTabRouteImport
       parentRoute: typeof AcEvoTracksRoute
     }
-    '/ac-evo/tuning/$tuningSessionId_/review': {
-      id: '/ac-evo/tuning/$tuningSessionId_/review'
-      path: '/$tuningSessionId/review'
-      fullPath: '/ac-evo/tuning/$tuningSessionId/review'
-      preLoaderRoute: typeof AcEvoTuningTuningSessionIdReviewRouteImport
-      parentRoute: typeof AcEvoTuningRoute
+    '/acc/experiments/$experimentId_/review': {
+      id: '/acc/experiments/$experimentId_/review'
+      path: '/$experimentId/review'
+      fullPath: '/acc/experiments/$experimentId/review'
+      preLoaderRoute: typeof AccExperimentsExperimentIdReviewRouteImport
+      parentRoute: typeof AccExperimentsRoute
     }
     '/acc/setups/edit/$tuneId': {
       id: '/acc/setups/edit/$tuneId'
@@ -1728,12 +1735,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccTracksTrackOrdinalTabRouteImport
       parentRoute: typeof AccTracksRoute
     }
-    '/acc/tuning/$tuningSessionId_/review': {
-      id: '/acc/tuning/$tuningSessionId_/review'
-      path: '/$tuningSessionId/review'
-      fullPath: '/acc/tuning/$tuningSessionId/review'
-      preLoaderRoute: typeof AccTuningTuningSessionIdReviewRouteImport
-      parentRoute: typeof AccTuningRoute
+    '/f125/experiments/$experimentId_/review': {
+      id: '/f125/experiments/$experimentId_/review'
+      path: '/$experimentId/review'
+      fullPath: '/f125/experiments/$experimentId/review'
+      preLoaderRoute: typeof F125ExperimentsExperimentIdReviewRouteImport
+      parentRoute: typeof F125ExperimentsRoute
     }
     '/f125/tracks/$trackOrdinal/': {
       id: '/f125/tracks/$trackOrdinal/'
@@ -1748,13 +1755,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/f125/tracks/$trackOrdinal/$tab'
       preLoaderRoute: typeof F125TracksTrackOrdinalTabRouteImport
       parentRoute: typeof F125TracksRoute
-    }
-    '/f125/tuning/$tuningSessionId_/review': {
-      id: '/f125/tuning/$tuningSessionId_/review'
-      path: '/$tuningSessionId/review'
-      fullPath: '/f125/tuning/$tuningSessionId/review'
-      preLoaderRoute: typeof F125TuningTuningSessionIdReviewRouteImport
-      parentRoute: typeof F125TuningRoute
     }
     '/fm23/setups/edit/$tuneId': {
       id: '/fm23/setups/edit/$tuneId'
@@ -1794,6 +1794,22 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AcEvoExperimentsRouteChildren {
+  AcEvoExperimentsExperimentIdRoute: typeof AcEvoExperimentsExperimentIdRoute
+  AcEvoExperimentsIndexRoute: typeof AcEvoExperimentsIndexRoute
+  AcEvoExperimentsExperimentIdReviewRoute: typeof AcEvoExperimentsExperimentIdReviewRoute
+}
+
+const AcEvoExperimentsRouteChildren: AcEvoExperimentsRouteChildren = {
+  AcEvoExperimentsExperimentIdRoute: AcEvoExperimentsExperimentIdRoute,
+  AcEvoExperimentsIndexRoute: AcEvoExperimentsIndexRoute,
+  AcEvoExperimentsExperimentIdReviewRoute:
+    AcEvoExperimentsExperimentIdReviewRoute,
+}
+
+const AcEvoExperimentsRouteWithChildren =
+  AcEvoExperimentsRoute._addFileChildren(AcEvoExperimentsRouteChildren)
+
 interface AcEvoSetupsRouteChildren {
   AcEvoSetupsImportRoute: typeof AcEvoSetupsImportRoute
   AcEvoSetupsNewRoute: typeof AcEvoSetupsNewRoute
@@ -1828,33 +1844,17 @@ const AcEvoTracksRouteWithChildren = AcEvoTracksRoute._addFileChildren(
   AcEvoTracksRouteChildren,
 )
 
-interface AcEvoTuningRouteChildren {
-  AcEvoTuningTuningSessionIdRoute: typeof AcEvoTuningTuningSessionIdRoute
-  AcEvoTuningIndexRoute: typeof AcEvoTuningIndexRoute
-  AcEvoTuningTuningSessionIdReviewRoute: typeof AcEvoTuningTuningSessionIdReviewRoute
-}
-
-const AcEvoTuningRouteChildren: AcEvoTuningRouteChildren = {
-  AcEvoTuningTuningSessionIdRoute: AcEvoTuningTuningSessionIdRoute,
-  AcEvoTuningIndexRoute: AcEvoTuningIndexRoute,
-  AcEvoTuningTuningSessionIdReviewRoute: AcEvoTuningTuningSessionIdReviewRoute,
-}
-
-const AcEvoTuningRouteWithChildren = AcEvoTuningRoute._addFileChildren(
-  AcEvoTuningRouteChildren,
-)
-
 interface AcEvoRouteChildren {
   AcEvoAnalyseRoute: typeof AcEvoAnalyseRoute
   AcEvoCarsRoute: typeof AcEvoCarsRoute
   AcEvoChatsRoute: typeof AcEvoChatsRoute
   AcEvoCompareRoute: typeof AcEvoCompareRoute
+  AcEvoExperimentsRoute: typeof AcEvoExperimentsRouteWithChildren
   AcEvoLiveRoute: typeof AcEvoLiveRoute
   AcEvoRawRoute: typeof AcEvoRawRoute
   AcEvoSessionsRoute: typeof AcEvoSessionsRoute
   AcEvoSetupsRoute: typeof AcEvoSetupsRouteWithChildren
   AcEvoTracksRoute: typeof AcEvoTracksRouteWithChildren
-  AcEvoTuningRoute: typeof AcEvoTuningRouteWithChildren
   AcEvoIndexRoute: typeof AcEvoIndexRoute
 }
 
@@ -1863,16 +1863,32 @@ const AcEvoRouteChildren: AcEvoRouteChildren = {
   AcEvoCarsRoute: AcEvoCarsRoute,
   AcEvoChatsRoute: AcEvoChatsRoute,
   AcEvoCompareRoute: AcEvoCompareRoute,
+  AcEvoExperimentsRoute: AcEvoExperimentsRouteWithChildren,
   AcEvoLiveRoute: AcEvoLiveRoute,
   AcEvoRawRoute: AcEvoRawRoute,
   AcEvoSessionsRoute: AcEvoSessionsRoute,
   AcEvoSetupsRoute: AcEvoSetupsRouteWithChildren,
   AcEvoTracksRoute: AcEvoTracksRouteWithChildren,
-  AcEvoTuningRoute: AcEvoTuningRouteWithChildren,
   AcEvoIndexRoute: AcEvoIndexRoute,
 }
 
 const AcEvoRouteWithChildren = AcEvoRoute._addFileChildren(AcEvoRouteChildren)
+
+interface AccExperimentsRouteChildren {
+  AccExperimentsExperimentIdRoute: typeof AccExperimentsExperimentIdRoute
+  AccExperimentsIndexRoute: typeof AccExperimentsIndexRoute
+  AccExperimentsExperimentIdReviewRoute: typeof AccExperimentsExperimentIdReviewRoute
+}
+
+const AccExperimentsRouteChildren: AccExperimentsRouteChildren = {
+  AccExperimentsExperimentIdRoute: AccExperimentsExperimentIdRoute,
+  AccExperimentsIndexRoute: AccExperimentsIndexRoute,
+  AccExperimentsExperimentIdReviewRoute: AccExperimentsExperimentIdReviewRoute,
+}
+
+const AccExperimentsRouteWithChildren = AccExperimentsRoute._addFileChildren(
+  AccExperimentsRouteChildren,
+)
 
 interface AccSetupsRouteChildren {
   AccSetupsImportRoute: typeof AccSetupsImportRoute
@@ -1908,33 +1924,17 @@ const AccTracksRouteWithChildren = AccTracksRoute._addFileChildren(
   AccTracksRouteChildren,
 )
 
-interface AccTuningRouteChildren {
-  AccTuningTuningSessionIdRoute: typeof AccTuningTuningSessionIdRoute
-  AccTuningIndexRoute: typeof AccTuningIndexRoute
-  AccTuningTuningSessionIdReviewRoute: typeof AccTuningTuningSessionIdReviewRoute
-}
-
-const AccTuningRouteChildren: AccTuningRouteChildren = {
-  AccTuningTuningSessionIdRoute: AccTuningTuningSessionIdRoute,
-  AccTuningIndexRoute: AccTuningIndexRoute,
-  AccTuningTuningSessionIdReviewRoute: AccTuningTuningSessionIdReviewRoute,
-}
-
-const AccTuningRouteWithChildren = AccTuningRoute._addFileChildren(
-  AccTuningRouteChildren,
-)
-
 interface AccRouteChildren {
   AccAnalyseRoute: typeof AccAnalyseRoute
   AccCarsRoute: typeof AccCarsRoute
   AccChatsRoute: typeof AccChatsRoute
   AccCompareRoute: typeof AccCompareRoute
+  AccExperimentsRoute: typeof AccExperimentsRouteWithChildren
   AccLiveRoute: typeof AccLiveRoute
   AccRawRoute: typeof AccRawRoute
   AccSessionsRoute: typeof AccSessionsRoute
   AccSetupsRoute: typeof AccSetupsRouteWithChildren
   AccTracksRoute: typeof AccTracksRouteWithChildren
-  AccTuningRoute: typeof AccTuningRouteWithChildren
   AccIndexRoute: typeof AccIndexRoute
 }
 
@@ -1943,16 +1943,33 @@ const AccRouteChildren: AccRouteChildren = {
   AccCarsRoute: AccCarsRoute,
   AccChatsRoute: AccChatsRoute,
   AccCompareRoute: AccCompareRoute,
+  AccExperimentsRoute: AccExperimentsRouteWithChildren,
   AccLiveRoute: AccLiveRoute,
   AccRawRoute: AccRawRoute,
   AccSessionsRoute: AccSessionsRoute,
   AccSetupsRoute: AccSetupsRouteWithChildren,
   AccTracksRoute: AccTracksRouteWithChildren,
-  AccTuningRoute: AccTuningRouteWithChildren,
   AccIndexRoute: AccIndexRoute,
 }
 
 const AccRouteWithChildren = AccRoute._addFileChildren(AccRouteChildren)
+
+interface F125ExperimentsRouteChildren {
+  F125ExperimentsExperimentIdRoute: typeof F125ExperimentsExperimentIdRoute
+  F125ExperimentsIndexRoute: typeof F125ExperimentsIndexRoute
+  F125ExperimentsExperimentIdReviewRoute: typeof F125ExperimentsExperimentIdReviewRoute
+}
+
+const F125ExperimentsRouteChildren: F125ExperimentsRouteChildren = {
+  F125ExperimentsExperimentIdRoute: F125ExperimentsExperimentIdRoute,
+  F125ExperimentsIndexRoute: F125ExperimentsIndexRoute,
+  F125ExperimentsExperimentIdReviewRoute:
+    F125ExperimentsExperimentIdReviewRoute,
+}
+
+const F125ExperimentsRouteWithChildren = F125ExperimentsRoute._addFileChildren(
+  F125ExperimentsRouteChildren,
+)
 
 interface F125SetupsRouteChildren {
   F125SetupsIndexRoute: typeof F125SetupsIndexRoute
@@ -1994,34 +2011,18 @@ const F125TunesRouteWithChildren = F125TunesRoute._addFileChildren(
   F125TunesRouteChildren,
 )
 
-interface F125TuningRouteChildren {
-  F125TuningTuningSessionIdRoute: typeof F125TuningTuningSessionIdRoute
-  F125TuningIndexRoute: typeof F125TuningIndexRoute
-  F125TuningTuningSessionIdReviewRoute: typeof F125TuningTuningSessionIdReviewRoute
-}
-
-const F125TuningRouteChildren: F125TuningRouteChildren = {
-  F125TuningTuningSessionIdRoute: F125TuningTuningSessionIdRoute,
-  F125TuningIndexRoute: F125TuningIndexRoute,
-  F125TuningTuningSessionIdReviewRoute: F125TuningTuningSessionIdReviewRoute,
-}
-
-const F125TuningRouteWithChildren = F125TuningRoute._addFileChildren(
-  F125TuningRouteChildren,
-)
-
 interface F125RouteChildren {
   F125AnalyseRoute: typeof F125AnalyseRoute
   F125CarsRoute: typeof F125CarsRoute
   F125ChatsRoute: typeof F125ChatsRoute
   F125CompareRoute: typeof F125CompareRoute
+  F125ExperimentsRoute: typeof F125ExperimentsRouteWithChildren
   F125LiveRoute: typeof F125LiveRoute
   F125RawRoute: typeof F125RawRoute
   F125SessionsRoute: typeof F125SessionsRoute
   F125SetupsRoute: typeof F125SetupsRouteWithChildren
   F125TracksRoute: typeof F125TracksRouteWithChildren
   F125TunesRoute: typeof F125TunesRouteWithChildren
-  F125TuningRoute: typeof F125TuningRouteWithChildren
   F125IndexRoute: typeof F125IndexRoute
 }
 
@@ -2030,13 +2031,13 @@ const F125RouteChildren: F125RouteChildren = {
   F125CarsRoute: F125CarsRoute,
   F125ChatsRoute: F125ChatsRoute,
   F125CompareRoute: F125CompareRoute,
+  F125ExperimentsRoute: F125ExperimentsRouteWithChildren,
   F125LiveRoute: F125LiveRoute,
   F125RawRoute: F125RawRoute,
   F125SessionsRoute: F125SessionsRoute,
   F125SetupsRoute: F125SetupsRouteWithChildren,
   F125TracksRoute: F125TracksRouteWithChildren,
   F125TunesRoute: F125TunesRouteWithChildren,
-  F125TuningRoute: F125TuningRouteWithChildren,
   F125IndexRoute: F125IndexRoute,
 }
 

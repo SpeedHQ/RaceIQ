@@ -18,7 +18,7 @@ type Source = "live" | number;
  * recorded session the driver picks.
  *
  * `embedded` hides the "← Tuning sessions" back link and outer padding so the
- * component can sit *inside* TuningSessionWorkspace as the detailed live/review
+ * component can sit *inside* ExperimentWorkspace as the detailed live/review
  * body (the workspace header already owns the back link). Standalone it renders
  * the back link itself.
  */
@@ -94,7 +94,7 @@ export function TuneWorkspace({ gameId, embedded = false }: { gameId: "acc" | "a
         {!embedded && (
           <BackButton
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            onClick={() => navigate({ to: `/${gameId}/tuning` } as any)}
+            onClick={() => navigate({ to: `/${gameId}/experiments` } as any)}
             className="mb-2"
           />
         )}

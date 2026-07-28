@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { TuningSessionWorkspace } from "../../components/tunes/TuningSessionWorkspace";
+import { ExperimentWorkspace } from "../../components/tunes/ExperimentWorkspace";
 
 export type TuneView = "overview" | "s1" | "s2" | "s3";
 const VIEWS: TuneView[] = ["overview", "s1", "s2", "s3"];
@@ -12,7 +12,7 @@ export type TuneSearch = {
   view?: TuneView;
 };
 
-export const Route = createFileRoute("/ac-evo/tuning/$tuningSessionId")({
+export const Route = createFileRoute("/ac-evo/experiments/$experimentId")({
   component: RouteComponent,
   validateSearch: (search: Record<string, unknown>): TuneSearch => ({
     session: search.session === "live" ? "live" : search.session != null ? Number(search.session) : undefined,
@@ -22,6 +22,6 @@ export const Route = createFileRoute("/ac-evo/tuning/$tuningSessionId")({
 });
 
 function RouteComponent() {
-  const { tuningSessionId } = Route.useParams();
-  return <TuningSessionWorkspace gameId="ac-evo" tuningSessionId={Number(tuningSessionId)} />;
+  const { experimentId } = Route.useParams();
+  return <ExperimentWorkspace gameId="ac-evo" experimentId={Number(experimentId)} />;
 }

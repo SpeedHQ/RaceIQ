@@ -3,8 +3,8 @@ import type { ILapDetector, LapDetectorOptions } from "./lap-detector-interface"
 import type { SessionState } from "./lap-detector";
 import type { LapDetectorCallbacks } from "./lap-detector-interface";
 import type { DbAdapter } from "./pipeline-adapters";
-import { persistLapMetrics } from "./tuning-lap-metrics";
-import { reconcileAutoExclusionsForLap } from "./tuning-auto-exclude";
+import { persistLapMetrics } from "./experiment-lap-metrics";
+import { reconcileAutoExclusionsForLap } from "./experiment-auto-exclude";
 import { assessLapRecording } from "./lap-quality";
 import { computeLapSectors } from "./compute-lap-sectors";
 import {
@@ -286,7 +286,7 @@ export class LapDetectorAcEvo implements ILapDetector {
     // /lap-metrics never decodes on first open.
     await persistLapMetrics(this.db, lapId, packets);
     // Reconcile the fastest-5 auto-exclude curation for this lap's tuning
-    // scope (docs/superpowers/specs/2026-07-24-tuning-auto-exclude-design.md).
+    // scope (docs/superpowers/specs/2026-07-24-experiment-auto-exclude-design.md).
     // No-ops when the lap has no tuning session or tune assigned.
     await reconcileAutoExclusionsForLap(this.db, lapId);
     if (!opts?.silent) {

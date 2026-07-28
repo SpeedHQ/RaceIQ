@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, test } from "bun:test";
-import { createTuningSession, getTuningSession, setSessionHead } from "../server/db/tuning-session-queries";
-import { createTuningTest, resolveActiveTestId } from "../server/db/tuning-test-queries";
-import { setSessionHead as _setHead } from "../server/db/tuning-session-queries";
-import { loadActiveTuningContext } from "../server/ai/setup-engineer-context";
+import { createExperiment, getExperiment, setSessionHead } from "../server/db/experiment-queries";
+import { createExperimentVersion, resolveActiveTestId } from "../server/db/experiment-version-queries";
+import { setSessionHead as _setHead } from "../server/db/experiment-queries";
+import { loadActiveExperimentContext } from "../server/ai/setup-engineer-context";
 import { computeChildLabel, nextFreeLabel } from "../server/ai/version-label";
-import { getActiveTuningSession, setActiveTuningSession } from "../server/tuning-active";
+import { getActiveExperiment, setActiveExperiment } from "../server/experiment-active";
 
 describe("head + active-test resolution", () => {
   let sessionId: number;
@@ -12,9 +12,9 @@ describe("head + active-test resolution", () => {
   let v2: number;
 
   beforeAll(async () => {
-    sessionId = await createTuningSession({ gameId: "acc", name: "branch-test" });
-    v1 = await createTuningTest({ tuningSessionId: sessionId, version: 1, label: "v1", parentTestId: null });
-    v2 = await createTuningTest({ tuningSessionId: sessionId, version: 2, label: "v2", parentTestId: v1 });
+    sessionId = await createExperiment({ gameId: "acc", name: "branch-test" });
+    v1 = await createExperimentVersion({ experimentId: sessionId, version: 1, label: "v1", parentVersionId: null });
+    v2 = await createExperimentVersion({ experimentId: sessionId, version: 2, label: "v2", parentVersionId: v1 });
   });
 
   test("resolveActiveTestId falls back to max-version test when no head", async () => {
@@ -23,18 +23,18 @@ describe("head + active-test resolution", () => {
 
   test("setSessionHead persists and resolveActiveTestId honours it", async () => {
     expect(await setSessionHead(sessionId, v1)).toBe(true);
-    expect((await getTuningSession(sessionId))!.headTestId).toBe(v1);
+    expect((await getExperiment(sessionId))!.headVersionId).toBe(v1);
     expect(await resolveActiveTestId(sessionId)).toBe(v1);
   });
 });
 
-describe("loadActiveTuningContext head resolution", () => {
+describe("loadActiveExperimentContext head resolution", () => {
   test("activeTest follows the persisted head, not the tip", async () => {
-    const sid = await createTuningSession({ gameId: "acc", name: "ctx-head" });
-    const a = await createTuningTest({ tuningSessionId: sid, version: 1, label: "v1", parentTestId: null });
-    await createTuningTest({ tuningSessionId: sid, version: 2, label: "v2", parentTestId: a });
+    const sid = await createExperiment({ gameId: "acc", name: "ctx-head" });
+    const a = await createExperimentVersion({ experimentId: sid, version: 1, label: "v1", parentVersionId: null });
+    await createExperimentVersion({ experimentId: sid, version: 2, label: "v2", parentVersionId: a });
     await _setHead(sid, a);
-    const ctx = await loadActiveTuningContext(sid);
+    const ctx = await loadActiveExperimentContext(sid);
     // No base setup file on this synthetic session → ctx.ok is false, but the
     // failure must be the missing-setup path, proving head (v1) was resolved and
     // its (null) setupPath drove the "no base setup" branch rather than the tip.
@@ -57,12 +57,12 @@ describe("apply-changes label derivation (unit of the branch math)", () => {
 
 describe("resolveActiveTestId drives the lap stamp value", () => {
   test("resolves the head test for the active session", async () => {
-    const sid = await createTuningSession({ gameId: "acc", name: "stamp" });
-    const a = await createTuningTest({ tuningSessionId: sid, version: 1, label: "v1", parentTestId: null });
+    const sid = await createExperiment({ gameId: "acc", name: "stamp" });
+    const a = await createExperimentVersion({ experimentId: sid, version: 1, label: "v1", parentVersionId: null });
     await setSessionHead(sid, a);
-    setActiveTuningSession(sid);
-    expect(getActiveTuningSession()).toBe(sid);
+    setActiveExperiment(sid);
+    expect(getActiveExperiment()).toBe(sid);
     expect(await resolveActiveTestId(sid)).toBe(a);
-    setActiveTuningSession(null);
+    setActiveExperiment(null);
   });
 });

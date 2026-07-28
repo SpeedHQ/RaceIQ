@@ -68,7 +68,7 @@ export function chatThreadId(lapId: number): string {
   return `lap-${lapId}`;
 }
 
-/** Build the threadId for a tuning-session's setup chat (plan Phase D). */
+/** Build the threadId for a experiment's setup chat (plan Phase D). */
 export function tuneSessionThreadId(sessionId: number): string {
   return `tune-session-${sessionId}`;
 }
@@ -88,7 +88,7 @@ export const CHAT_RESOURCE_ID = "raceiq";
 
 // ─── Chat generations ──────────────────────────────────────────────────────
 //
-// A chat surface (lap / compare / tuning-session) can accumulate multiple
+// A chat surface (lap / compare / experiment) can accumulate multiple
 // "generations" over its lifetime. Generation 1 keeps the plain base id
 // (`lap-42`) so existing single-thread chats stay valid with no migration.
 // Later generations suffix `~g<N>` (`lap-42~g2`). `~g` is deliberately NOT a

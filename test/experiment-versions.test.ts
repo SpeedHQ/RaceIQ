@@ -1,30 +1,30 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { db } from "../server/db/index";
-import { tuningSessions, tuningTests } from "../server/db/schema";
-import { createTuningSession } from "../server/db/tuning-session-queries";
+import { experiments, experimentVersions } from "../server/db/schema";
+import { createExperiment } from "../server/db/experiment-queries";
 import {
-  createTuningTest,
-  getTuningTest,
-  getTuningTestByVersion,
-  listTuningTests,
+  createExperimentVersion,
+  getExperimentVersion,
+  getExperimentVersionsByLabel,
+  listExperimentVersions,
   nextVersion,
-  setTuningTestNotes,
-} from "../server/db/tuning-test-queries";
+  setExperimentVersionNotes,
+} from "../server/db/experiment-version-queries";
 
-/** Query layer behind the tuning-tests endpoints — the setup versions under
+/** Query layer behind the experiment-versions endpoints — the setup versions under
  *  evaluation inside a tuning session (plan §2). Tests the DB layer directly
  *  (importing the composed app would bind the UDP socket as a side effect). */
 describe("tuning-test queries", () => {
   beforeEach(async () => {
-    // tuning_tests cascades from tuning_sessions, but clear both explicitly so
+    // experiment_versions cascades from experiments, but clear both explicitly so
     // the test is order-independent.
-    await db.delete(tuningTests).run();
-    await db.delete(tuningSessions).run();
+    await db.delete(experimentVersions).run();
+    await db.delete(experiments).run();
   });
 
   async function seedSession(): Promise<number> {
-    return createTuningSession({
+    return createExperiment({
       gameId: "ac-evo",
       name: "Mugello GT3",
       carName: "Ferrari 296 GT3",
@@ -35,8 +35,8 @@ describe("tuning-test queries", () => {
 
   test("create → get round-trips a version, carrying setup + diff", async () => {
     const sessionId = await seedSession();
-    const id = await createTuningTest({
-      tuningSessionId: sessionId,
+    const id = await createExperimentVersion({
+      experimentId: sessionId,
       version: 1,
       label: "base",
       setupPath: "/x/Setups/car/track/base.json",
@@ -44,7 +44,7 @@ describe("tuning-test queries", () => {
       engine: "rules",
     });
     expect(id).toBeGreaterThan(0);
-    const row = await getTuningTest(id);
+    const row = await getExperimentVersion(id);
     expect(row?.label).toBe("base");
     expect(row?.version).toBe(1);
     expect(row?.status).toBe("active");
@@ -54,54 +54,54 @@ describe("tuning-test queries", () => {
 
   test("engineer notes: set returns prior value, clears with null, distinct from driver comment", async () => {
     const sessionId = await seedSession();
-    const id = await createTuningTest({
-      tuningSessionId: sessionId,
+    const id = await createExperimentVersion({
+      experimentId: sessionId,
       version: 1,
       label: "base",
       driverComment: "felt loose on entry",
     });
 
     // First write: prior value was null (new column).
-    expect(await setTuningTestNotes(id, "softened front ARB, retry next stint")).toBeNull();
-    let row = await getTuningTest(id);
+    expect(await setExperimentVersionNotes(id, "softened front ARB, retry next stint")).toBeNull();
+    let row = await getExperimentVersion(id);
     expect(row?.notes).toBe("softened front ARB, retry next stint");
     // Never touches the driver's feel comment.
     expect(row?.driverComment).toBe("felt loose on entry");
 
     // Overwrite returns the prior note (undo inverse).
-    expect(await setTuningTestNotes(id, "v2 plan: raise rear ride height")).toBe(
+    expect(await setExperimentVersionNotes(id, "v2 plan: raise rear ride height")).toBe(
       "softened front ARB, retry next stint",
     );
 
     // Clear with null.
-    expect(await setTuningTestNotes(id, null)).toBe("v2 plan: raise rear ride height");
-    row = await getTuningTest(id);
+    expect(await setExperimentVersionNotes(id, null)).toBe("v2 plan: raise rear ride height");
+    row = await getExperimentVersion(id);
     expect(row?.notes).toBeNull();
   });
 
-  test("getTuningTestByVersion resolves a node by its version within the session", async () => {
+  test("getExperimentVersionsByLabel resolves a node by its version within the session", async () => {
     const a = await seedSession();
     const b = await seedSession();
-    await createTuningTest({ tuningSessionId: a, version: 1, label: "base" });
-    await createTuningTest({ tuningSessionId: a, version: 2, label: "v2" });
-    await createTuningTest({ tuningSessionId: b, version: 1, label: "other base" });
+    await createExperimentVersion({ experimentId: a, version: 1, label: "base" });
+    await createExperimentVersion({ experimentId: a, version: 2, label: "v2" });
+    await createExperimentVersion({ experimentId: b, version: 1, label: "other base" });
 
-    expect((await getTuningTestByVersion(a, 2))?.label).toBe("v2");
+    expect((await getExperimentVersionsByLabel(a, 2))?.label).toBe("v2");
     // Scoped to the session — b's v1 is not a's v1.
-    expect((await getTuningTestByVersion(a, 1))?.label).toBe("base");
-    expect(await getTuningTestByVersion(a, 99)).toBeUndefined();
+    expect((await getExperimentVersionsByLabel(a, 1))?.label).toBe("base");
+    expect(await getExperimentVersionsByLabel(a, 99)).toBeUndefined();
   });
 
   test("list is scoped to the session and ordered oldest-first by version", async () => {
     const a = await seedSession();
     const b = await seedSession();
-    await createTuningTest({ tuningSessionId: a, version: 1, label: "base" });
-    await createTuningTest({ tuningSessionId: a, version: 2, label: "Front ARB -1" });
-    await createTuningTest({ tuningSessionId: b, version: 1, label: "other base" });
+    await createExperimentVersion({ experimentId: a, version: 1, label: "base" });
+    await createExperimentVersion({ experimentId: a, version: 2, label: "Front ARB -1" });
+    await createExperimentVersion({ experimentId: b, version: 1, label: "other base" });
 
-    const forA = await listTuningTests(a);
+    const forA = await listExperimentVersions(a);
     expect(forA).toHaveLength(2);
-    expect(forA.every((t) => t.tuningSessionId === a)).toBe(true);
+    expect(forA.every((t) => t.experimentId === a)).toBe(true);
     expect(forA.map((t) => t.version)).toEqual([1, 2]);
     expect(forA.map((t) => t.label)).toEqual(["base", "Front ARB -1"]);
   });
@@ -110,19 +110,19 @@ describe("tuning-test queries", () => {
     const sessionId = await seedSession();
     expect(await nextVersion(sessionId)).toBe(1);
 
-    await createTuningTest({ tuningSessionId: sessionId, version: 1, label: "base" });
+    await createExperimentVersion({ experimentId: sessionId, version: 1, label: "base" });
     expect(await nextVersion(sessionId)).toBe(2);
 
-    await createTuningTest({ tuningSessionId: sessionId, version: 2, label: "v2" });
+    await createExperimentVersion({ experimentId: sessionId, version: 2, label: "v2" });
     expect(await nextVersion(sessionId)).toBe(3);
   });
 
   test("deleting the parent session cascades to its tests", async () => {
     const sessionId = await seedSession();
-    await createTuningTest({ tuningSessionId: sessionId, version: 1, label: "base" });
-    expect(await listTuningTests(sessionId)).toHaveLength(1);
+    await createExperimentVersion({ experimentId: sessionId, version: 1, label: "base" });
+    expect(await listExperimentVersions(sessionId)).toHaveLength(1);
 
-    await db.delete(tuningSessions).where(eq(tuningSessions.id, sessionId)).run();
-    expect(await listTuningTests(sessionId)).toHaveLength(0);
+    await db.delete(experiments).where(eq(experiments.id, sessionId)).run();
+    expect(await listExperimentVersions(sessionId)).toHaveLength(0);
   });
 });

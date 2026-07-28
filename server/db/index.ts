@@ -128,17 +128,17 @@ if (Number(profileCount.rows[0].c) === 0) {
 await client.execute("UPDATE laps SET profile_id = (SELECT id FROM profiles ORDER BY id LIMIT 1) WHERE profile_id IS NULL");
 
 // ── Orphaned tuning-stamp sweep ─────────────────────────────────────
-// Laps carry tuning_session_id / tuning_test_id foreign keys, but there is
-// no cascade: if a tuning_sessions / tuning_tests row disappears (a DB reset
+// Laps carry experiment_id / experiment_version_id foreign keys, but there is
+// no cascade: if a experiments / experiment_versions row disappears (a DB reset
 // or swap that drops those tables while laps persist), the laps are left
 // pointing at ids that no longer resolve. Those dangling ids make the review
 // page (and any tuning dashboard) request a session that 404s. Null them out
 // on every boot — idempotent, cheap, and catches orphans from any cause.
 const orphanSession = await client.execute(
-  "UPDATE laps SET tuning_session_id = NULL WHERE tuning_session_id IS NOT NULL AND tuning_session_id NOT IN (SELECT id FROM tuning_sessions)",
+  "UPDATE laps SET experiment_id = NULL WHERE experiment_id IS NOT NULL AND experiment_id NOT IN (SELECT id FROM experiments)",
 );
 const orphanTest = await client.execute(
-  "UPDATE laps SET tuning_test_id = NULL WHERE tuning_test_id IS NOT NULL AND tuning_test_id NOT IN (SELECT id FROM tuning_tests)",
+  "UPDATE laps SET experiment_version_id = NULL WHERE experiment_version_id IS NOT NULL AND experiment_version_id NOT IN (SELECT id FROM experiment_versions)",
 );
 const orphanCleared = Number(orphanSession.rowsAffected ?? 0) + Number(orphanTest.rowsAffected ?? 0);
 if (orphanCleared > 0) {

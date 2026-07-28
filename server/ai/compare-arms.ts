@@ -13,7 +13,7 @@
  * distinguishable from noise?" It does NOT mean the change was good, and it is
  * deliberately *not* called `verdict`.
  *
- * `tuning_tests.verdict` is a human column. Nothing in this file writes it,
+ * `experiment_versions.verdict` is a human column. Nothing in this file writes it,
  * nothing derived from this file may write it, and `verdict_source` exists to
  * record how the *driver* decided ('manual', or 'ai' for a chat suggestion the
  * driver accepted). See the v37 migration comment in `server/db/migrations.ts`.

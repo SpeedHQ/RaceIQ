@@ -89,14 +89,14 @@ export class ImportCaptureAdapter implements DbAdapter {
     this._sessionMeta.set(sessionId, { carOrdinal, trackOrdinal });
     return this._inner.updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal);
   }
-  getLapsForExclusionScope(tuningSessionId: number, tuneId: number) {
-    return this._inner.getLapsForExclusionScope(tuningSessionId, tuneId);
+  getLapsForExclusionScope(experimentId: number, tuneId: number) {
+    return this._inner.getLapsForExclusionScope(experimentId, tuneId);
   }
   setLapAutoExclusion(lapId: number, excluded: boolean): Promise<void> {
     return this._inner.setLapAutoExclusion(lapId, excluded);
   }
-  getLapTuningScope(lapId: number) {
-    return this._inner.getLapTuningScope(lapId);
+  getLapExperimentScope(lapId: number) {
+    return this._inner.getLapExperimentScope(lapId);
   }
 }
 

@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { type TuningActionRow, useTuningHistory, useUndo } from "../../hooks/queries";
+import { type ExperimentActionRow, useExperimentHistory, useUndo } from "../../hooks/queries";
 
 /**
  * History panel (design Phase 9) — session-scoped, newest-first action log
@@ -9,7 +9,7 @@ import { type TuningActionRow, useTuningHistory, useUndo } from "../../hooks/que
  * full audit trail rather than disappearing entries.
  */
 export function HistoryPanel({ sessionId, onClose }: { sessionId: number; onClose: () => void }) {
-  const { data: actions = [], isLoading } = useTuningHistory(sessionId);
+  const { data: actions = [], isLoading } = useExperimentHistory(sessionId);
   const undo = useUndo();
   const nextPending = actions.find((a) => !a.undone);
 
@@ -82,6 +82,6 @@ const KIND_LABELS: Record<string, string> = {
   "set-lap-excluded": "Toggled a lap's excluded flag",
 };
 
-function describeAction(a: TuningActionRow): string {
+function describeAction(a: ExperimentActionRow): string {
   return KIND_LABELS[a.kind] ?? a.kind;
 }
