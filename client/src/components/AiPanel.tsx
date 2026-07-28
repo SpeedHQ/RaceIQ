@@ -432,19 +432,19 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 onHighlightsChange?.([]);
               }}
             />
-          </AnalysisModalShell>
-        )}
 
-        {/* Chat continues the conversation, below the analysis card. Only
-            mounted once analysis exists (or chat has been used before) so
-            the panel doesn't show an empty composer with nothing to discuss
-            yet — matches the old gating behaviour. */}
-        {!loading && analysis && (
-          <div className="flex justify-end -mb-1">
-            <button type="button" onClick={clearChat} className="text-[9px] text-app-text-muted hover:text-red-400 transition-colors">
-              <Trash2 className="size-3" />
-            </button>
-          </div>
+            {/* Clear-chat lives here rather than loose in the panel, where it
+                was an unlabelled bin floating under the summary row. */}
+            <div className="flex justify-end pt-2">
+              <button
+                type="button"
+                onClick={clearChat}
+                className="flex items-center gap-1 text-[10px] text-app-text-muted hover:text-red-400 px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
+              >
+                <Trash2 className="size-3" /> {m.compare_clear_chat()}
+              </button>
+            </div>
+          </AnalysisModalShell>
         )}
       </div>
 
