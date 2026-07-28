@@ -1,6 +1,7 @@
+import { MOTEC_SESSION_SOURCE, motecImportSupported } from "@shared/motec";
 import type { LapMeta, SessionMeta } from "@shared/types";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { queryKeys, useDeleteLap, useLaps, useSessions } from "../hooks/queries";
@@ -8,12 +9,15 @@ import { exportLapsZip } from "../lib/lap-export";
 import { client } from "../lib/rpc";
 import { RotatePrompt } from "../routes/__root";
 import { useGameId, useGameRoute } from "../stores/game";
+import { MotecImportModal } from "./analyse/MotecImportModal";
 import { formatLapTime } from "./LiveTelemetry";
 import { SessionRecapModal } from "./SessionRecapModal";
 import { AppInput } from "./ui/AppInput";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 import { Button } from "./ui/button";
 import { NoteModal } from "./ui/NoteModal";
+
+export type SessionsTab = "recorded" | "imported";
 
 const PAGE_SIZE = 25;
 
@@ -276,6 +280,27 @@ export function SessionsPage() {
   const [search, setSearch] = useState("");
   const [recapSessionId, setRecapSessionId] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
+  /**
+   * Recorded and imported sessions are listed apart rather than mixed with a
+   * badge: an imported MoTeC lap has a dead-reckoned line and no absolute
+   * position, so it is not a like-for-like row next to a recorded session.
+   */
+  const routeSearch = useSearch({ strict: false }) as { tab?: string };
+  /**
+   * A stale/hand-typed `?tab=imported` on a game without a verified MoTeC
+   * mapping falls back to the recorded list — that game has no imports and no
+   * tab strip to switch back with.
+   */
+  const tab: SessionsTab = routeSearch.tab === "imported" && motecImportSupported(gameId) ? "imported" : "recorded";
+  /** The tab lives in the URL so a MoTeC import is linkable and survives reload. */
+  const setTab = useCallback(
+    (next: SessionsTab) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      navigate({ to: ".", search: (prev: any) => ({ ...prev, tab: next === "recorded" ? undefined : next }) } as any);
+    },
+    [navigate],
+  );
+  const [importOpen, setImportOpen] = useState(false);
 
   /** Download laps/sessions as a .zip; surfaces server errors inline. */
   const runExport = useCallback(async (sel: { lapIds?: number[]; sessionIds?: number[] }) => {
@@ -384,6 +409,8 @@ export function SessionsPage() {
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     return sorted.filter((s) => {
+      const imported = s.source === MOTEC_SESSION_SOURCE;
+      if (imported !== (tab === "imported")) return false;
       if (q) {
         const track = (trackNames[s.trackOrdinal] ?? "").toLowerCase();
         const car = (carNames[s.carOrdinal] ?? "").toLowerCase();
@@ -394,7 +421,7 @@ export function SessionsPage() {
       }
       return true;
     });
-  }, [sorted, search, trackNames, carNames]);
+  }, [sorted, search, trackNames, carNames, tab]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -458,6 +485,8 @@ export function SessionsPage() {
     qc.invalidateQueries({ queryKey: queryKeys.laps });
   }, [selectedLaps, selectedSessions, qc]);
 
+  /** Only games with a verified MoTeC channel mapping get the import UI. */
+  const motecEnabled = motecImportSupported(gameId);
   const isF1 = gameId === "f1-2025";
   const colCount = isF1 ? 8 : 7;
 
@@ -465,7 +494,36 @@ export function SessionsPage() {
     <div className="h-full flex flex-col p-4 gap-3">
       {recapSessionId != null && <SessionRecapModal sessionId={recapSessionId} onClose={() => setRecapSessionId(null)} />}
       <RotatePrompt />
+      {importOpen && (
+        <MotecImportModal
+          onClose={() => setImportOpen(false)}
+          onImported={() => {
+            setImportOpen(false);
+            qc.invalidateQueries({ queryKey: ["sessions"] });
+            qc.invalidateQueries({ queryKey: ["laps"] });
+          }}
+        />
+      )}
       <div className="flex items-center flex-wrap gap-3">
+        {motecEnabled && (
+          <div className="flex items-center rounded border border-app-border overflow-hidden shrink-0">
+            {(["recorded", "imported"] as const satisfies readonly SessionsTab[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => {
+                  setTab(t);
+                  setPage(0);
+                  setSelectedSessions(new Set());
+                  setSelectedLaps(new Set());
+                }}
+                className={`px-3 py-1.5 text-sm font-semibold transition-colors ${tab === t ? "bg-app-accent text-white" : "text-app-text/90-muted hover:text-app-text/90"}`}
+              >
+                {t === "recorded" ? m.sessions_tab_recorded() : m.sessions_tab_imported()}
+              </button>
+            ))}
+          </div>
+        )}
         <AppInput type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={m.sessions_search_placeholder()} className="flex-1 min-w-[200px] sm:flex-none sm:w-64" />
         <h1 className="text-sm font-semibold text-app-text/90 shrink-0">
           {m.label_sessions()}
@@ -476,6 +534,11 @@ export function SessionsPage() {
           )}
         </h1>
         <div className="flex items-center flex-wrap gap-2">
+          {tab === "imported" && (
+            <Button variant="app-outline" size="app-sm" onClick={() => setImportOpen(true)}>
+              {m.sessions_import_motec()}
+            </Button>
+          )}
           {selectedLaps.size === 2 &&
             (() => {
               // Only show Compare when the two selected laps are from sessions
@@ -529,7 +592,7 @@ export function SessionsPage() {
         {isLoading ? (
           <div className="px-3 py-8 text-center text-app-text/90-muted">{m.common_loading()}</div>
         ) : pageItems.length === 0 ? (
-          <div className="px-3 py-8 text-center text-app-text/90-muted">{m.sessions_none()}</div>
+          <div className="px-3 py-8 text-center text-app-text/90-muted">{tab === "imported" ? m.sessions_none_imported() : m.sessions_none()}</div>
         ) : (
           pageItems.map((session) => {
             const isExpanded = expandedSessions.has(session.id);
@@ -658,7 +721,7 @@ export function SessionsPage() {
           ) : pageItems.length === 0 ? (
             <tr>
               <td colSpan={colCount} className="px-3 py-8 text-center text-app-text/90-muted">
-                {m.sessions_none()}
+                {tab === "imported" ? m.sessions_none_imported() : m.sessions_none()}
               </td>
             </tr>
           ) : (

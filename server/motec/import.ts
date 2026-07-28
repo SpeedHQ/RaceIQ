@@ -26,6 +26,7 @@
 import { db } from "../db";
 import { laps as laps_, sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
+import { MOTEC_SESSION_SOURCE } from "@shared/motec";
 import { importSessionBin, type ImportedLap } from "../import-session-bin";
 import { parseLd } from "./ld";
 import { parseLdxBeacons } from "./ldx";
@@ -37,8 +38,7 @@ import {
   type MotecTarget,
 } from "./targets";
 
-/** Value written to `sessions.source` for a MoTeC-derived session. */
-export const MOTEC_SESSION_SOURCE = "motec";
+export { MOTEC_SESSION_SOURCE };
 
 /**
  * Resolve the game an import should land in.

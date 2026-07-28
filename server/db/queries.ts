@@ -1648,6 +1648,7 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       gameId: sessions.gameId,
       sessionType: sessions.sessionType,
       notes: sessions.notes,
+      source: sessions.source,
     })
     .from(sessions)
     .orderBy(desc(sessions.id));
@@ -1673,6 +1674,7 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       bestLapTime,
       sessionType: session.sessionType ?? undefined,
       notes: session.notes ?? undefined,
+      source: session.source ?? undefined,
       gameId: session.gameId as GameId,
     });
   }

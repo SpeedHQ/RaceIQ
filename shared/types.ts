@@ -683,6 +683,13 @@ export interface SessionMeta {
   bestLapTime?: number;
   sessionType?: string;
   notes?: string;
+  /**
+   * How the session's telemetry was obtained. `undefined` = recorded live from
+   * the game; `"motec"` = transcoded from a MoTeC export (dead-reckoned line).
+   * Callers must not treat the two as interchangeable when the racing line or
+   * absolute position matters.
+   */
+  source?: string;
   gameId?: GameId;
 }
 
