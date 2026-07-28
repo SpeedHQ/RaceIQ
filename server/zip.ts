@@ -26,6 +26,7 @@ import {
   type ImportedLap,
 } from "./import-session-bin";
 import { META_FRAME_MAGIC } from "./udp-recorder";
+import { isIRacingSessionFrame } from "./games/iracing/source-frame";
 import type { GameId } from "../shared/types";
 
 /** Bumped when the zip layout changes in a way older readers can't handle. */
@@ -90,6 +91,40 @@ function advanceFrames(buf: Buffer, offset: number, count: number): number {
   return at;
 }
 
+function frameAt(buf: Buffer, offset: number): Buffer | null {
+  if (offset < 0 || offset + 4 > buf.length) return null;
+  const length = buf.readUInt32LE(offset);
+  if (length <= 0 || offset + 4 + length > buf.length) return null;
+  return buf.subarray(offset + 4, offset + 4 + length);
+}
+
+/**
+ * iRacing value frames depend on the latest packed session frame. Exports can
+ * begin at a later lap, so carry that one length-prefixed header record into
+ * the slice instead of replaying every preceding telemetry frame.
+ */
+function latestIRacingSessionRecord(
+  buf: Buffer,
+  beforeOffset: number,
+): Buffer | null {
+  let offset =
+    buf.length >= 8 && buf.readUInt32LE(0) === META_FRAME_MAGIC
+      ? 8 + buf.readUInt32LE(4)
+      : 0;
+  let latest: Buffer | null = null;
+  while (offset < beforeOffset) {
+    const frame = frameAt(buf, offset);
+    if (!frame) break;
+    const recordEnd = offset + 4 + frame.length;
+    if (recordEnd > beforeOffset) break;
+    if (isIRacingSessionFrame(frame)) {
+      latest = Buffer.from(buf.subarray(offset, recordEnd));
+    }
+    offset = recordEnd;
+  }
+  return latest;
+}
+
 function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
@@ -151,10 +186,21 @@ export async function buildLapsZip(
       (last.rawFrameCount as number) + 1
     );
 
-    const slice = Buffer.concat([metaFrame(), buf.subarray(startByte, endByte)]);
-
     const first = usable[0];
     const gameId = first.gameId as GameId;
+    const firstFrame = frameAt(buf, startByte);
+    const sessionPrefix =
+      gameId === "iracing" &&
+      firstFrame &&
+      !isIRacingSessionFrame(firstFrame)
+        ? latestIRacingSessionRecord(buf, startByte)
+        : null;
+    const slice = Buffer.concat([
+      metaFrame(),
+      ...(sessionPrefix ? [sessionPrefix] : []),
+      buf.subarray(startByte, endByte),
+    ]);
+
     const trackName = getTrackName(first.trackOrdinal ?? -1, gameId);
     const carName = getCarName(first.carOrdinal ?? -1, gameId);
     // Filename MUST start with `<gameId>-` so import can fall back to

@@ -3,9 +3,9 @@ import { processPacket } from "../../pipeline";
 import { IRacingSdkReader, type IRacingSdkSnapshot } from "./sdk-reader";
 import { parseIRacingSessionInfo } from "./session-info";
 import {
-  encodeIRacingSourceFrame,
+  IRacingSourceFrameEncoder,
   type IRacingSessionSnapshot,
-  type IRacingSourceFrameV1,
+  type IRacingSourceFrameV2,
   type IRacingValue,
 } from "./source-frame";
 import { iracingRecorder, type IRacingRecorder } from "./recorder";
@@ -52,6 +52,7 @@ export class IRacingTelemetrySource {
   private readonly recordingEnabled: boolean;
   private readonly recordingDir: string | undefined;
   private readonly recorder: IRacingRecorder;
+  private readonly frameEncoder = new IRacingSourceFrameEncoder();
   private timer: ReturnType<typeof setInterval> | null = null;
   private running = false;
   private polling = false;
@@ -97,6 +98,7 @@ export class IRacingTelemetrySource {
       this.cachedSessionInfoUpdate = null;
       this.cachedSessionNum = null;
       this.cachedSession = null;
+      this.frameEncoder.reset();
       console.log("[iRacing] Telemetry source stopped");
     }
   }
@@ -123,12 +125,12 @@ export class IRacingTelemetrySource {
         this.cachedSessionNum = sessionNum;
         this.cachedSession = session;
       }
-      const frame: IRacingSourceFrameV1 = {
-        schemaVersion: 1,
+      const frame: IRacingSourceFrameV2 = {
+        schemaVersion: 2,
         session: this.cachedSession,
         values: snapshot.values,
       };
-      const rawFrame = encodeIRacingSourceFrame(frame);
+      const rawFrame = this.frameEncoder.encode(frame);
       if (this.recordingEnabled) {
         this.recorder.writeFrame(rawFrame);
       }

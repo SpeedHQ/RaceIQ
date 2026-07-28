@@ -28,9 +28,11 @@ import {
 } from "../server/games/iracing/source";
 import {
   canHandleIRacingSourceFrame,
+  createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,
-  encodeIRacingSourceFrame,
-  type IRacingSourceFrameV1,
+  IRacingSourceFrameEncoder,
+  isIRacingSessionFrame,
+  type IRacingSourceFrameV2,
 } from "../server/games/iracing/source-frame";
 import {
   IRacingVariableTable,
@@ -71,9 +73,9 @@ function descriptor(
   return buf;
 }
 
-function sampleFrame(): IRacingSourceFrameV1 {
+function sampleFrame(): IRacingSourceFrameV2 {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     session: {
       sessionId: 123,
       subSessionId: 456,
@@ -306,8 +308,9 @@ describe("iRacing raw source frame parser integration", () => {
   });
 
   test("round-trips a self-contained frame through central parsePacket", () => {
-    const raw = encodeIRacingSourceFrame(sampleFrame());
+    const raw = new IRacingSourceFrameEncoder().encode(sampleFrame());
     expect(canHandleIRacingSourceFrame(raw)).toBe(true);
+    expect(isIRacingSessionFrame(raw)).toBe(true);
     expect(decodeIRacingSourceFrame(raw)).toEqual(sampleFrame());
 
     const packet = parsePacket(raw);
@@ -324,6 +327,31 @@ describe("iRacing raw source frame parser integration", () => {
     expect(packet?.TireTempFL).toBeCloseTo(84);
     expect(packet?.TireWearFL).toBeCloseTo(0.06);
     expect(packet?.iracing?.incidents).toBe(1);
+  });
+
+  test("packs normal ticks as value-only deltas", () => {
+    const encoder = new IRacingSourceFrameEncoder();
+    const decoder = createIRacingSourceDecoderState();
+    const first = sampleFrame();
+    const next = sampleFrame();
+    next.values = {
+      ...next.values,
+      SessionTime: 125.5 + 1 / 60,
+      SessionTick: 7531,
+    };
+
+    const sessionFrame = encoder.encode(first);
+    const deltaFrame = encoder.encode(next);
+    const unchangedDeltaFrame = encoder.encode(next);
+    expect(isIRacingSessionFrame(sessionFrame)).toBe(true);
+    expect(isIRacingSessionFrame(deltaFrame)).toBe(false);
+    expect(deltaFrame.length).toBeLessThan(64);
+    expect(deltaFrame.length).toBeLessThan(sessionFrame.length / 10);
+    expect(unchangedDeltaFrame.length).toBe(14);
+    expect(decodeIRacingSourceFrame(deltaFrame)).toBeNull();
+    expect(decodeIRacingSourceFrame(sessionFrame, decoder)).toEqual(first);
+    expect(decodeIRacingSourceFrame(deltaFrame, decoder)).toEqual(next);
+    expect(decodeIRacingSourceFrame(unchangedDeltaFrame, decoder)).toEqual(next);
   });
 
   test("parsing a historical frame cannot overwrite live identity", () => {
@@ -375,7 +403,7 @@ describe("iRacing raw source frame parser integration", () => {
   });
 
   test("rejects truncated and corrupt source frames", () => {
-    const raw = encodeIRacingSourceFrame(sampleFrame());
+    const raw = new IRacingSourceFrameEncoder().encode(sampleFrame());
     expect(decodeIRacingSourceFrame(raw.subarray(0, raw.length - 1))).toBeNull();
     raw.writeUInt32LE(0xffffffff, 8);
     expect(decodeIRacingSourceFrame(raw)).toBeNull();
@@ -484,9 +512,10 @@ DriverInfo:
     expect(await source.pollOnce()).toBe(true);
     expect(await source.pollOnce()).toBe(true);
     expect(await source.pollOnce()).toBe(true);
+    const decoder = createIRacingSourceDecoderState();
     expect(
       delivered.map(
-        (raw) => decodeIRacingSourceFrame(raw)?.session.trackName,
+        (raw) => decodeIRacingSourceFrame(raw, decoder)?.session.trackName,
       ),
     ).toEqual(["Road America", "Road America", "Spa"]);
     expect(registeredTrackNames).toEqual(["Road America", "Spa"]);

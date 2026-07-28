@@ -38,9 +38,10 @@ export const iracingServerAdapter: ServerGameAdapter = {
   },
 
   tryParse(buf: Buffer, state: unknown): TelemetryPacket | null {
-    const frame = decodeIRacingSourceFrame(buf);
+    const parserState = state as IRacingParserState | null;
+    const frame = decodeIRacingSourceFrame(buf, parserState?.source);
     return frame
-      ? normalizeIRacingFrame(frame, state as IRacingParserState | null)
+      ? normalizeIRacingFrame(frame, parserState)
       : null;
   },
 

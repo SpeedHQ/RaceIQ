@@ -14,7 +14,7 @@ import { resolveDataDir } from "./data-dir";
 import { IRacingIbtReader } from "./games/iracing/ibt-reader";
 import { parseIRacingSessionInfo } from "./games/iracing/session-info";
 import {
-  encodeIRacingSourceFrame,
+  IRacingSourceFrameEncoder,
   type IRacingSessionSnapshot,
   type IRacingValue,
 } from "./games/iracing/source-frame";
@@ -429,6 +429,7 @@ async function* ibtFrames(
   preview: IbtImportPreview,
 ): AsyncGenerator<Buffer> {
   const reader = new IRacingIbtReader(path);
+  const frameEncoder = new IRacingSourceFrameEncoder();
   const sessionCache = new Map<number, IRacingSessionSnapshot>();
   const lastRecord = Math.min(
     preview.recordCount - 1,
@@ -460,8 +461,8 @@ async function* ibtFrames(
         );
         sessionCache.set(sessionNum, session);
       }
-      yield encodeIRacingSourceFrame({
-        schemaVersion: 1,
+      yield frameEncoder.encode({
+        schemaVersion: 2,
         session,
         values: snapshot.values,
       });

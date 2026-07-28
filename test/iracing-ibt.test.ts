@@ -25,6 +25,7 @@ import { deleteSession, getLapsRaw } from "../server/db/queries";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import {
+  createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,
 } from "../server/games/iracing/source-frame";
 import {
@@ -322,7 +323,8 @@ describe("IRacingIbtReader", () => {
     expect(await source.pollOnce()).toBe(false);
     expect(delivered).toHaveLength(2);
 
-    const frame = decodeIRacingSourceFrame(delivered[0]);
+    const decoder = createIRacingSourceDecoderState();
+    const frame = decodeIRacingSourceFrame(delivered[0], decoder);
     expect(frame?.session).toMatchObject({
       sessionId: 123,
       subSessionId: 456,
@@ -340,7 +342,7 @@ describe("IRacingIbtReader", () => {
     expect(packet.LapNumber).toBe(3);
     expect(packet.iracing?.lapDistancePct).toBeCloseTo(0.25);
 
-    const secondFrame = decodeIRacingSourceFrame(delivered[1]);
+    const secondFrame = decodeIRacingSourceFrame(delivered[1], decoder);
     expect(secondFrame?.values.Speed).toBeCloseTo(51.5);
 
     await source.stop();

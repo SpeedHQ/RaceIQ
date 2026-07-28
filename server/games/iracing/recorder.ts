@@ -2,22 +2,22 @@
  * iRacing dump-mode recorder.
  *
  * This is intentionally separate from AcRecorder: iRacing emits one
- * self-contained source frame per SDK tick, not an ACC-style shared-memory
- * triplet, and its files must be identifiable without relying on filenames.
+ * packed source frame per SDK tick, not an ACC-style shared-memory triplet,
+ * and its files must be identifiable without relying on filenames.
  *
- * Format (v1):
+ * Format (v2):
  *   Header: "IRIQDMP\0" (8 bytes magic)
  *           u32le version (4 bytes)
  *           u32le frameCount (4 bytes)
  *   Frames: [type(1 byte)] [size(4 bytes)] [data(N bytes)]
- *           type: 0=encoded IRacingSourceFrameV1
+ *           type: 0=packed iRacing session/value-delta source frame
  */
 import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { gunzipSync } from "zlib";
 
 export const IRACING_DUMP_MAGIC = Buffer.from("IRIQDMP\0", "ascii");
-export const IRACING_DUMP_VERSION = 1;
+export const IRACING_DUMP_VERSION = 2;
 
 const HEADER_SIZE = 16;
 const FRAME_HEADER_SIZE = 5;

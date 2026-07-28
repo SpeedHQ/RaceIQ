@@ -1,9 +1,15 @@
 import type { TelemetryPacket } from "../../../shared/types";
-import type { IRacingSourceFrameV1, IRacingValue } from "./source-frame";
+import {
+  createIRacingSourceDecoderState,
+  type IRacingSourceDecoderState,
+  type IRacingSourceFrameV2,
+  type IRacingValue,
+} from "./source-frame";
 
 const KPA_TO_PSI = 0.1450377377;
 
 export interface IRacingParserState {
+  source: IRacingSourceDecoderState;
   sessionKey: string | null;
   rawLap: number | null;
   lapStartSessionTime: number;
@@ -11,6 +17,7 @@ export interface IRacingParserState {
 
 export function createIRacingParserState(): IRacingParserState {
   return {
+    source: createIRacingSourceDecoderState(),
     sessionKey: null,
     rawLap: null,
     lapStartSessionTime: 0,
@@ -108,7 +115,7 @@ function normalizeSectorStarts(
 }
 
 export function normalizeIRacingFrame(
-  frame: IRacingSourceFrameV1,
+  frame: IRacingSourceFrameV2,
   state?: IRacingParserState | null,
 ): TelemetryPacket {
   const { session, values } = frame;
