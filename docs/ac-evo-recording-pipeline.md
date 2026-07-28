@@ -28,6 +28,23 @@ The session recorder is the one that matters architecturally — laps in the DB
 carry a byte offset into its file. The dev dump recorder is a debug tap that
 sits in front of the parser.
 
+### Caveat: AC Evo dumps really do say `ACCTEST` v3
+
+`acEvoRecorder` is a plain `AcRecorder` instance, and `AcRecorder.start()`
+writes the `ACCTEST\0` magic and `RECORDER_VERSION = 3` for every game. So an
+AC Evo dump byte-for-byte carries ACC's header, and `readAccFrames` (which only
+accepts versions 2 and 3) is what reads it back — including in the `ac-evo`
+branch of the dev import route.
+
+The version number describes the **container**, not the payload. `AcRecorder`'s
+own header comment defines v3 in ACC terms ("graphics buffer captured at full
+1588 bytes, ACC SDK v1.8.12"), but an AC Evo dump's graphics frames are
+`GRAPHICS_EVO.SIZE` = 3944 bytes. That is fine because frames are
+self-describing — `[type u8][size u32le][data]` — so the reader never assumes a
+struct size. Nothing in the file identifies which game produced it; that comes
+from the `<gameId>-` filename prefix, which is why `docs/dev-recordings.md`
+warns not to rename dumps.
+
 ---
 
 ## Pipeline graph
