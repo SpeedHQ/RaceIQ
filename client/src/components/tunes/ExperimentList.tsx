@@ -145,6 +145,24 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
     return [...new Set([...canonical, ...files.map((f) => f.trackName)])].sort();
   }, [setupFiles, files]);
 
+  // Car options for the place-into-Setups picker: the canonical roster (friendly
+  // name, slug value) unioned with any car folder the driver already has — the
+  // roster is a static CSV that lags game updates, so their disk is the more
+  // current source for anything new.
+  // A car read out of a dropped file that predates our static roster (and that
+  // the driver has no folder for yet) is added as a real option rather than
+  // handled as a display-only fallback — it must stay selectable, not just
+  // visible.
+  const allPlaceCars = useMemo(() => {
+    const roster = setupFiles?.cars ?? [];
+    const byModel = new Map(roster.map((c) => [c.model, c.name] as const));
+    for (const f of files) if (!byModel.has(f.carModel)) byModel.set(f.carModel, f.carModel);
+    if (placeCar && !byModel.has(placeCar)) byModel.set(placeCar, placeCar);
+    return [...byModel.entries()]
+      .map(([model, name]) => ({ value: model, label: name === model ? model : `${name} (${model})` }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [setupFiles, files, placeCar]);
+
   // Default the name from the chosen car+track so the driver can just click Create.
   const effectiveName = name.trim() || (car && track ? `${car} @ ${track}` : "");
   const canCreate = !!car && !!track && !!baseSetupPath && !!effectiveName;
@@ -174,6 +192,9 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
     let parsed: any;
     let base64: string | undefined;
     let carName: string | undefined;
+    // Set when a .carsetup tells us something the driver needs to know about
+    // its car id; survives the match/place branches below.
+    let carSetupNote: string | null = null;
     if (isCarSetup) {
       const buf = new Uint8Array(await file.arrayBuffer());
       let bin = "";
@@ -189,6 +210,16 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
         // car missing from our static roster (`knownCar` false) — the folder
         // name is still correct, only the friendly display name is unknown.
         carName = info.carModel ?? undefined;
+        // Not every .carsetup carries a car. The preset id (wire field #9) is
+        // what names it, and a file saved without one decodes perfectly while
+        // identifying nothing — so say that plainly rather than silently
+        // leaving the field blank and looking broken.
+        carSetupNote =
+          info.carModel == null
+            ? "This .carsetup doesn't contain a car id — pick the car folder yourself."
+            : info.knownCar
+              ? null
+              : `Car read from the file as "${info.carModel}" — not in our car list, so double-check the folder.`;
       } catch (err: any) {
         setDropNote(err?.message ?? "Couldn't read that .carsetup file.");
         return;
@@ -210,6 +241,8 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
       setTrack(match.trackName);
       setBaseSetupPath(match.absolutePath);
       setPendingDrop(null);
+      // The folder the file was matched into already names the car, so an
+      // absent car id inside the file is no longer worth flagging.
       setDropNote(null);
       return;
     }
@@ -221,7 +254,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
     );
     setPlaceCar(carName ?? "");
     setPlaceTrack("");
-    setDropNote(null);
+    setDropNote(carSetupNote);
   };
 
   const doPlace = async () => {
@@ -319,12 +352,20 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
             <div className="flex flex-wrap items-end gap-2">
               <label className="flex flex-col gap-1">
                 <span className="text-[10px] text-app-text-muted uppercase tracking-wider">Car folder</span>
-                <input
-                  value={placeCar}
-                  onChange={(e) => setPlaceCar(e.target.value)}
-                  placeholder="car key"
-                  className="bg-app-bg border border-app-border rounded px-2 py-1 text-xs font-mono w-[180px]"
-                />
+                {/* A picker, not free text: when the file names its own car
+                    this is already selected, but a .carsetup saved without a
+                    preset id carries no car at all — and nobody should have to
+                    type "ford_mustang_gt3" from memory. */}
+                <div className="w-[180px]">
+                  <SearchSelect
+                    value={placeCar}
+                    onChange={setPlaceCar}
+                    options={allPlaceCars}
+                    placeholder={allPlaceCars.length ? "Search cars…" : "No cars found"}
+                    disabled={allPlaceCars.length === 0}
+                    focusColor="purple-500"
+                  />
+                </div>
               </label>
               <label className="flex flex-col gap-1">
                 <span className="text-[10px] text-app-text-muted uppercase tracking-wider">Track</span>
