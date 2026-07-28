@@ -888,8 +888,20 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_experiments_game ON experiments(game_id)`,
     ],
   },
+  {
+    version: 43,
+    name: "record how a session's telemetry was obtained",
+    sql: [
+      // NULL means the session was recorded live from the game, which is every
+      // pre-existing row — the flag only needs to mark the cases that are not
+      // direct captures. 'motec' means the frames were transcoded from a MoTeC
+      // .ld export, so quantities MoTeC does not log (notably the racing line)
+      // are reconstructions and the UI must not present them as measured.
+      `ALTER TABLE sessions ADD COLUMN source TEXT`,
+    ],
+  },
 
-  // ── v43: cached driver improvement plans ────────────────────────────────────
+  // ── v44: cached driver improvement plans ────────────────────────────────────
   // One row per profile scope. `scope_key` rather than a composite UNIQUE over
   // (game_id, car_ordinal, track_ordinal) because SQLite treats NULLs as
   // distinct in a UNIQUE index: a global-scope profile has both ordinals NULL,
@@ -901,7 +913,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   // the row when that scope's laps change. A cascade would instead delete a
   // still-serviceable plan whenever one old lap was pruned.
   {
-    version: 43,
+    version: 44,
     name: "driver profiles (cached improvement plans)",
     sql: [
       `CREATE TABLE IF NOT EXISTS driver_profiles (
