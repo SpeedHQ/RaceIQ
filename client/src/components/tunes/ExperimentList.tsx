@@ -138,11 +138,20 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
   // driver can place a setup for any track, not only ones they already have a
   // folder for) unioned with whatever folders they do have (catches AC-Evo and
   // any key not in the canonical list).
+  // The value stays the on-disk folder key (that's what gets written), but the
+  // label is the circuit's real name — "Brands Hatch GP", not "brands_hatch".
+  // The server already resolves these from tracks.csv and ships them as
+  // `trackNames`, including the layout variant so GP and Indy stay distinct.
+  // A folder with no canonical name falls back to its key, which is the most
+  // honest label available for it.
   const allTracks = useMemo(() => {
     // Canonical roster from tracks.csv (server, setupFolder column) unioned with
     // whatever track folders the driver already has (catches any key not in csv).
     const canonical = setupFiles?.tracks ?? [];
-    return [...new Set([...canonical, ...files.map((f) => f.trackName)])].sort();
+    const names = setupFiles?.trackNames ?? {};
+    return [...new Set([...canonical, ...files.map((f) => f.trackName)])]
+      .map((key) => ({ value: key, label: names[key] ?? key }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   }, [setupFiles, files]);
 
   // Car options for the place-into-Setups picker: the canonical roster (friendly
@@ -158,8 +167,10 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
     const byModel = new Map(roster.map((c) => [c.model, c.name] as const));
     for (const f of files) if (!byModel.has(f.carModel)) byModel.set(f.carModel, f.carModel);
     if (placeCar && !byModel.has(placeCar)) byModel.set(placeCar, placeCar);
+    // Label is the car's real name; the slug is the value, not something to
+    // read. A car with no canonical name falls back to its folder key.
     return [...byModel.entries()]
-      .map(([model, name]) => ({ value: model, label: name === model ? model : `${name} (${model})` }))
+      .map(([model, name]) => ({ value: model, label: name }))
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [setupFiles, files, placeCar]);
 
@@ -373,7 +384,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
                   <SearchSelect
                     value={placeTrack}
                     onChange={setPlaceTrack}
-                    options={allTracks.map((t) => ({ value: t, label: t }))}
+                    options={allTracks}
                     placeholder={allTracks.length ? "Search tracks…" : "No track folders yet"}
                     disabled={allTracks.length === 0}
                     focusColor="purple-500"
