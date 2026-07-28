@@ -87,17 +87,38 @@ describe("place-setup: binary .carsetup round-trip", () => {
 describe("carSlugFromPresetId", () => {
   const FIXTURE_DIR = resolve(import.meta.dir, "artifacts/carsetup");
 
-  test("every real fixture resolves to a car in the roster", () => {
+  /**
+   * Not every `.carsetup` names its car — `Tourist.carsetup` is a real file
+   * from a driver's Downloads that decodes perfectly (16 wire fields) yet has
+   * no field #9 at all, so there is no preset id and nothing to read.
+   *
+   * So the claim is conditional: a fixture that HAS a preset id must resolve to
+   * a real roster car, and one without must resolve to nothing rather than to a
+   * guess. An earlier version of this test asserted the unconditional version
+   * and only passed because every fixture then happened to carry a preset id.
+   */
+  test("a fixture with a preset id resolves to a roster car; one without resolves to null", () => {
     const models = new Set(getAllAcEvoCars().map((c) => c.model));
     const files = readdirSync(FIXTURE_DIR).filter((f) => f.endsWith(".carsetup"));
     expect(files.length).toBeGreaterThan(0);
 
+    let withPreset = 0;
+    let withoutPreset = 0;
     for (const f of files) {
       const setup = parseCarSetup(readFileSync(resolve(FIXTURE_DIR, f)))!;
       const slug = carSlugFromPresetId(setup.presetId);
-      expect(slug, `${f} (${setup.presetId})`).not.toBeNull();
-      expect(models.has(slug!), `${f} → ${slug} not in roster`).toBe(true);
+      if (setup.presetId == null) {
+        withoutPreset++;
+        expect(slug, `${f} has no preset id, so no car may be inferred`).toBeNull();
+      } else {
+        withPreset++;
+        expect(slug, `${f} (${setup.presetId})`).not.toBeNull();
+        expect(models.has(slug!), `${f} → ${slug} not in roster`).toBe(true);
+      }
     }
+    // Both cases are represented, so neither branch can rot unnoticed.
+    expect(withPreset).toBeGreaterThan(0);
+    expect(withoutPreset).toBeGreaterThan(0);
   });
 
   test("strips the ks_ prefix and cuts at the first _preset_", () => {

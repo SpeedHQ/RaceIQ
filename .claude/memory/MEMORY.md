@@ -25,3 +25,4 @@
 - [project_i18n_paraglide.md](project_i18n_paraglide.md) — i18n via Paraglide JS; `language` setting drives UI locale + AI output language; shared/locales.ts is source of truth
 - [project_track_segment_pipeline.md](project_track_segment_pipeline.md) — Static corner-name + sector pipeline (PR #84); no telemetry calibration; corner-names JSON + generator + SVG viz
 - [feedback_subagent_model_tiers.md](feedback_subagent_model_tiers.md) — Fan-out parallel subagents never on Fable 5 (use sonnet/haiku); Fable = investigation + orchestration only
+- [feedback_targeted_test_runs.md](feedback_targeted_test_runs.md) — Iterate with `bun test <path>` on the file you're editing; save full `bun run test` for the pre-commit check

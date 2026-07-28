@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 import type { CatalogTune } from "../data/tune-catalog";
 import { client } from "../lib/rpc";
+import { errorFromResponse } from "../lib/rpc-error";
 import { useGameId } from "../stores/game";
 import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
 // ── Query Keys ──────────────────────────────────────────────────────────────
@@ -139,7 +140,7 @@ export function useSetLapExcluded() {
         param: { id: String(lapId) },
         json: { excluded },
       });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as { ok: true; lapId: number; excluded: boolean };
     },
     onSuccess: (_data, { experimentId }) => {
@@ -472,7 +473,7 @@ export function useRefreshCommunityTunes() {
   return useMutation({
     mutationFn: async () => {
       const res = await client.api.tunes.community.refresh.$post();
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return res.json() as Promise<{ synced: boolean; count: number; version: string | null }>;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.catalogTunes }),
@@ -484,7 +485,7 @@ export function useCreateTune() {
   return useMutation({
     mutationFn: async (data: any) => {
       const res = await client.api.tunes.$post({ json: data });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
@@ -496,7 +497,7 @@ export function useUpdateTune() {
   return useMutation({
     mutationFn: async ({ id, ...data }: any) => {
       const res = await client.api.tunes[":id"].$put({ param: { id: String(id) }, json: data } as any);
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
@@ -508,7 +509,7 @@ export function useDeleteTune() {
   return useMutation({
     mutationFn: async (id: number) => {
       const res = await client.api.tunes[":id"].$delete({ param: { id: String(id) } });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
   });
@@ -519,7 +520,7 @@ export function useCloneCatalogTune() {
   return useMutation({
     mutationFn: async (catalogId: string) => {
       const res = await client.api.tunes.clone[":catalogId"].$post({ param: { catalogId } });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
@@ -531,7 +532,7 @@ export function useDuplicateTune() {
   return useMutation({
     mutationFn: async (id: number) => {
       const res = await client.api.tunes[":id"].duplicate.$post({ param: { id: String(id) } });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
@@ -590,7 +591,7 @@ export function useInspectCarSetup() {
   return useMutation({
     mutationFn: async (contentBase64: string) => {
       const res = await (client.api.tunes as any)["inspect-carsetup"].$post({ json: { contentBase64 } });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as {
         presetId: string | null;
         /** The car's folder name under Car Setups/, from the file itself. */
@@ -619,7 +620,7 @@ export function usePlaceSetup() {
       contentBase64?: string;
     }) => {
       const res = await (client.api.tunes as any)["place-setup"].$post({ json: data });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as { absolutePath: string; carModel: string; trackName: string; fileName: string; placed: boolean };
     },
     onSuccess: (_r, vars) => qc.invalidateQueries({ queryKey: ["setup-files", vars.gameId] }),
@@ -631,7 +632,7 @@ export function useImportTuneFile() {
   return useMutation({
     mutationFn: async (data: { gameId: "acc" | "ac-evo"; filePath: string; name?: string; author?: string; carOrdinal: number; category?: string }) => {
       const res = await (client.api.tunes as any)["import-file"].$post({ json: data });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.userTunes }),
@@ -677,7 +678,7 @@ export function useAutoTune() {
       driverNotes?: string;
     }) => {
       const res = await (client.api.tunes as any).auto.$post({ json: data });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as AutoTuneResult;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["setup-files"] }),
@@ -726,7 +727,7 @@ export function useSetTuneAssignment() {
   return useMutation({
     mutationFn: async (data: { gameId: GameId; carOrdinal: number; trackOrdinal: number; tuneId: number }) => {
       const res = await client.api["tune-assignments"].$put({ json: data });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return res.json();
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.tuneAssignments }),
@@ -799,7 +800,7 @@ export function useCreateExperiment() {
       notes?: string | null;
     }) => {
       const res = await (client.api as any)["experiments"].$post({ json: data });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as Experiment;
     },
     onSuccess: (s) => qc.invalidateQueries({ queryKey: ["experiments", s.gameId] }),
@@ -909,7 +910,7 @@ export function useCreateExperimentVersion() {
       engine?: "rules" | "llm" | null;
     }) => {
       const res = await (client.api as any)["experiments"][":id"].tests.$post({ param: { id: String(sessionId) }, json: body });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as ExperimentVersion;
     },
     onSuccess: (t) => qc.invalidateQueries({ queryKey: ["experiment-tests", t.experimentId] }),
@@ -926,7 +927,7 @@ export function useSetTestNote() {
         param: { id: String(sessionId), versionId: String(versionId) },
         json: { driverComment },
       });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as ExperimentVersion;
     },
     onSuccess: (_t, { sessionId }) => {
@@ -945,7 +946,7 @@ export function useSetTestNotes() {
         param: { id: String(sessionId), versionId: String(versionId) },
         json: { notes },
       });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as ExperimentVersion;
     },
     onSuccess: (_t, { sessionId }) => {
@@ -962,7 +963,7 @@ export function useSetHead() {
         param: { id: String(sessionId) },
         json: { versionId },
       });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as { ok: true; headVersionId: number; label: string };
     },
     onSuccess: (_data, { sessionId }) => {
@@ -986,7 +987,7 @@ export function useCaptureSetup() {
       const res = await (client.api as any)["experiments"][":id"]["capture-setup"].$post({
         param: { id: String(sessionId) },
       });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as ExperimentVersion;
     },
     onSuccess: (t) => {
@@ -1007,7 +1008,7 @@ export function useAddBase() {
         param: { id: String(sessionId) },
         json: { setupPath, label, setHead },
       });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as ExperimentVersion;
     },
     onSuccess: (t) => {
@@ -1052,7 +1053,7 @@ export function useImportLaps() {
         param: { id: String(sessionId) },
         json: { lapIds, experimentVersionId },
       });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as { importedIds: number[] };
     },
     onSuccess: (_data, { sessionId }) => {
@@ -1097,7 +1098,7 @@ export function useDeleteVersion() {
       const res = await (client.api as any)["experiments"][":id"].tests[":versionId"].delete.$post({
         param: { id: String(sessionId), versionId: String(versionId) },
       });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as { ok: true; deletedIds: number[]; headVersionId: number | null };
     },
     onSuccess: (_data, { sessionId }) => {
@@ -1144,7 +1145,7 @@ export function useUndo() {
       const res = await (client.api as any)["experiments"][":id"].undo.$post({
         param: { id: String(sessionId) },
       });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as { ok: boolean; undone: boolean; kind?: string; warning?: string };
     },
     onSuccess: (_data, { sessionId }) => {
@@ -1165,7 +1166,7 @@ export function useRestoreVersion() {
       const res = await (client.api as any)["experiments"][":id"].tests[":versionId"].restore.$post({
         param: { id: String(sessionId), versionId: String(versionId) },
       });
-      if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
+      if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as ExperimentVersion;
     },
     onSuccess: (_data, { sessionId }) => {
