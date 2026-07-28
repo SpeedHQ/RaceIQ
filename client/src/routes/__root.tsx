@@ -20,7 +20,7 @@ import { useUiStore } from "../stores/ui";
 
 // Canonical (English, path-stable) game sub-tab keys. The URL segment is always
 // the lowercased English key; only the *display* label is localized.
-const GAME_SUB_TABS = ["Live", "Sessions", "Compare", "Analyse", "Tuning", "Chats", "Tracks", "Cars", "Setups", "Raw"] as const;
+const GAME_SUB_TABS = ["Live", "Sessions", "Compare", "Analyse", "Driver", "Tuning", "Chats", "Tracks", "Cars", "Setups", "Raw"] as const;
 
 // Sub-tabs only exposed for certain games. Tune is acc/ac-evo/f1-2025 — ACC and
 // AC-Evo use the file-based auto-tune pipeline (saved setup → autotune engine);
@@ -35,6 +35,7 @@ const SUB_TAB_LABELS: Record<(typeof GAME_SUB_TABS)[number], () => string> = {
   Sessions: m.label_sessions,
   Compare: m.label_compare,
   Analyse: m.label_analyse,
+  Driver: () => "Driver",
   Tuning: () => "Tuning",
   Chats: m.tab_chats,
   Tracks: m.label_tracks,

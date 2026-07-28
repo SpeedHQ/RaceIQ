@@ -7,12 +7,14 @@
  *
  * Two rules follow from that, and both are load-bearing:
  *
- *  1. **Every style axis is rendered as a word first, then the number with its
- *     reference range.** A bare "0.72" invites the model to narrate it as a
- *     percentage or a score out of one. Rendering "works close to the limit
- *     (median grip use 0.72, where 1.0 = at peak grip)" leaves nothing to
- *     infer. The words come from fixed thresholds here rather than from the
- *     model's judgement, so the same numbers always produce the same claim.
+ *  1. **Every style axis is rendered as a plain-language reading first, then the
+ *     number with its reference range.** A bare "0.72" invites the model to
+ *     narrate it as a percentage or a score out of one. Rendering "You work the
+ *     tyres in a normal quick-driver range. 0.72, where 1.0 = at peak grip"
+ *     leaves nothing to infer. The readings come from fixed thresholds in
+ *     `@shared/lib/style-readings` rather than from the model's judgement, so
+ *     the same numbers always produce the same claim — and the profile panel
+ *     renders those same functions, so screen and plan cannot disagree.
  *
  *  2. **An unquantified cost is stated as unquantified, never as zero.** The
  *     aggregator returns weaknesses in two lists precisely because their scores
@@ -21,6 +23,16 @@
  *     free, and it would dutifully deprioritise them. They get their own
  *     section with an explicit note instead.
  */
+import {
+  balanceReading,
+  brakingStyleReading,
+  consistencyReading,
+  controlLossReading,
+  gripMedianReading,
+  gripP95Reading,
+  reversalsReading,
+  slipVariabilityReading,
+} from "../../shared/lib/style-readings";
 import type {
   DetectorStat,
   DriverFingerprint,
@@ -58,83 +70,54 @@ function pct(n: number | null | undefined): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Each axis renders as `word (number, with what the number is measured against)`.
+ * Each axis renders as `reading (number, with what the number is measured against)`.
  *
- * The thresholds are the ones documented on `StyleAxes` itself — kept in one
- * place here so the prompt and the interface doc cannot drift into describing
- * the same number two different ways.
+ * The wording comes from `@shared/lib/style-readings` — the same functions the
+ * profile panel renders. Restating the thresholds here would let the prompt and
+ * the UI describe an identical number two different ways, and the driver would
+ * have no way to tell which one to believe.
  */
 function describeStyle(style: StyleAxes): string[] {
   const lines: string[] = [];
 
   if (style.gripUtilMedian !== null) {
-    const v = style.gripUtilMedian;
-    const word =
-      v >= 1.0
-        ? "past the limit for much of the corner — this is scrubbing, not commitment"
-        : v >= 0.85
-          ? "works very close to the tyres' limit"
-          : v >= 0.6
-            ? "works the tyres in a normal quick-driver range"
-            : "leaves grip unused through the corner";
-    lines.push(`- Grip usage (median): ${word} — ${fmt(v)}, where 1.0 = at peak grip.`);
+    lines.push(`- Grip usage (median): ${gripMedianReading(style.gripUtilMedian).text} ${fmt(style.gripUtilMedian)}, where 1.0 = at peak grip.`);
   }
   if (style.gripUtilP95 !== null) {
-    const v = style.gripUtilP95;
-    const word =
-      v >= 1.0 ? "does ask the car for everything it has" : v >= 0.8 ? "approaches the limit but rarely touches it" : "never asks the car for its full grip";
-    lines.push(`- Grip usage (peak, 95th percentile): ${word} — ${fmt(v)}, where 1.0 = at the limit.`);
+    lines.push(`- Grip usage (peak, 95th percentile): ${gripP95Reading(style.gripUtilP95).text} ${fmt(style.gripUtilP95)}, where 1.0 = at the limit.`);
   }
   if (style.balanceMedianDeg !== null) {
     const v = style.balanceMedianDeg;
-    const mag = Math.abs(v);
-    const dir = v > 0 ? "understeer" : "oversteer";
-    const word = mag < 1 ? "neutral balance" : mag < 4 ? `mild ${dir} lean` : `pronounced ${dir}`;
     lines.push(
-      `- Balance: ${word} — ${v > 0 ? "+" : ""}${fmt(v, 1)}° front-minus-rear slip angle (positive = understeer). ±1-3° is a normal working range.`,
+      `- Balance: ${balanceReading(v).text} ${v > 0 ? "+" : ""}${fmt(v, 1)}° front-minus-rear slip angle (positive = understeer). ±1-3° is a normal working range.`,
     );
   }
   if (style.understeerFraction !== null || style.oversteerFraction !== null) {
     lines.push(`- Cornering frames classified: ${pct(style.understeerFraction)} understeer, ${pct(style.oversteerFraction)} oversteer.`);
   }
   if (style.controlLossFraction !== null) {
-    const v = style.controlLossFraction;
-    const word =
-      v <= 0.03
-        ? "keeps the car placed — rotation looks deliberate"
-        : v <= 0.1
-          ? "occasionally has to catch the car"
-          : "spends a lot of the corner catching the car rather than placing it";
     lines.push(
-      `- Loss of control: ${word} — ${pct(v)} of cornering frames have the body rotating faster than the path demands with the rear carrying more slip than the front.`,
+      `- Loss of control: ${controlLossReading(style.controlLossFraction).text} ${pct(style.controlLossFraction)} of cornering frames have the body rotating faster than the path demands with the rear carrying more slip than the front.`,
     );
   }
   if (style.steerReversalsPerS !== null) {
-    const v = style.steerReversalsPerS;
-    const word = v <= 2 ? "steering input is settled" : v <= 3 ? "some correcting at the wheel" : "sawing at the wheel";
-    lines.push(`- Steering variability: ${word} — ${fmt(v, 1)} direction reversals per second of cornering (0.5-2 /s is ordinary).`);
+    lines.push(`- Steering variability: ${reversalsReading(style.steerReversalsPerS).text} ${fmt(style.steerReversalsPerS, 1)} direction reversals per second of cornering (0.5-2 /s is ordinary).`);
   }
   if (style.slipVariabilityDeg !== null) {
-    const v = style.slipVariabilityDeg;
-    const word = v <= 1.5 ? "holds the car's attitude steady" : v <= 2.5 ? "attitude moves around somewhat" : "the car's attitude is not being held";
     lines.push(
-      `- Attitude stability: ${word} — slip delta moves ${fmt(v, 1)}° about its median (0.5-1.5° is ordinary). This is blind to how much slip is carried; it measures only how much it moves.`,
+      `- Attitude stability: ${slipVariabilityReading(style.slipVariabilityDeg).text} Slip delta moves ${fmt(style.slipVariabilityDeg, 1)}° about its median (0.5-1.5° is ordinary). This is blind to how much slip is carried; it measures only how much it moves.`,
     );
   }
 
   // Deliberately last and explicitly caveated: unlike the axes above it has no
   // absolute scale, so it must not be read alongside them as if it did.
   const bs = style.brakingStyle;
-  const bsWord =
-    bs <= -30 ? "leans early / over-slowing" : bs >= 30 ? "leans late / overshooting" : "no dominant braking-timing pattern";
   lines.push(
-    `- Braking timing lean: ${bsWord} (${bs > 0 ? "+" : ""}${bs.toFixed(0)} on a -100 early … +100 late scale). RELATIVE ONLY — read the sign and the size, never as a percentage.`,
+    `- Braking timing lean: ${brakingStyleReading(bs).text} (${bs > 0 ? "+" : ""}${bs.toFixed(0)} on a -100 early … +100 late scale). RELATIVE ONLY — read the sign and the size, never as a percentage.`,
   );
 
   if (style.consistency !== null) {
-    const v = style.consistency;
-    const word = v >= 90 ? "very repeatable" : v >= 75 ? "reasonably repeatable" : "lap times scatter";
-    lines.push(`- Consistency: ${word} — ${v.toFixed(0)}/100 lap-time repeatability.`);
+    lines.push(`- Consistency: ${consistencyReading(style.consistency).text} ${style.consistency.toFixed(0)}/100 lap-time repeatability.`);
   }
 
   lines.push(`(Style measured across ${style.physicsLaps} laps with usable cornering telemetry.)`);

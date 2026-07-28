@@ -3,6 +3,7 @@ import { buildDrivingCoachPrompt } from "../server/ai/driving-coach-prompt";
 import { emptyFingerprint, type DriverFingerprint, type RankedWeakness, type StyleAxes } from "../server/ai/driver-profile-aggregate";
 import { parseDriverProfileOutput, DriverProfileOutputSchema } from "../server/ai/schemas";
 import { driverProfileScopeKey } from "../server/db/queries";
+import { balanceReading, gripMedianReading, reversalsReading } from "../shared/lib/style-readings";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -66,7 +67,7 @@ describe("buildDrivingCoachPrompt — style axes", () => {
   test("renders a plain-language reading before every raw number", () => {
     const p = buildDrivingCoachPrompt({ fingerprint: fingerprint(), ...ctx });
     // 0.72 alone tells the model nothing about the scale it lives on.
-    expect(p).toContain("works the tyres in a normal quick-driver range");
+    expect(p).toContain("You work the tyres in a normal quick-driver range.");
     expect(p).toContain("1.0 = at peak grip");
   });
 
@@ -79,7 +80,7 @@ describe("buildDrivingCoachPrompt — style axes", () => {
   test("flags oversteer with a negative balance", () => {
     const fp = fingerprint({ style: style({ balanceMedianDeg: -5.2 }) });
     const p = buildDrivingCoachPrompt({ fingerprint: fp, ...ctx });
-    expect(p).toContain("pronounced oversteer");
+    expect(p).toContain("Pronounced oversteer.");
   });
 
   test("reads a median grip utilisation above 1.0 as scrubbing, not commitment", () => {
@@ -91,7 +92,7 @@ describe("buildDrivingCoachPrompt — style axes", () => {
   test("marks brakingStyle as relative-only so it is not read as a percentage", () => {
     const p = buildDrivingCoachPrompt({ fingerprint: fingerprint(), ...ctx });
     expect(p).toContain("RELATIVE ONLY");
-    expect(p).toContain("leans early / over-slowing");
+    expect(p).toContain("Leans early / over-slowing.");
   });
 
   test("omits axes that could not be measured rather than printing a zero", () => {
@@ -265,5 +266,36 @@ describe("driverProfileScopeKey", () => {
 
   test("ordinal 0 is a real ordinal, not an absent one", () => {
     expect(driverProfileScopeKey({ gameId: "fm-2023", carOrdinal: 0, trackOrdinal: 0 })).toBe("fm-2023|0|0");
+  });
+});
+
+describe("style readings are shared between the prompt and the panel", () => {
+  // The panel imports these same functions (StyleGauges.tsx). Restating the
+  // thresholds in either place would let a driver read "you work close to the
+  // limit" on screen and "you leave grip unused" in the plan, with no way to
+  // tell which one to believe. These pin the boundaries so a change has to be
+  // deliberate in one place rather than silent in two.
+  test("grip utilisation flips to scrubbing exactly at the limit", () => {
+    expect(gripMedianReading(0.99).text).not.toContain("scrubbing");
+    expect(gripMedianReading(1.0).text).toContain("scrubbing");
+  });
+
+  test("grip utilisation tone is not simply 'higher is better'", () => {
+    // Above the limit is a fault, not commitment — the naive mapping would
+    // paint the worst case green.
+    expect(gripMedianReading(1.2).tone).toBe("bad");
+    expect(gripMedianReading(0.9).tone).toBe("good");
+  });
+
+  test("balance names the direction from the sign", () => {
+    expect(balanceReading(5).text).toContain("understeer");
+    expect(balanceReading(-5).text).toContain("oversteer");
+    expect(balanceReading(0.5).text).toContain("Neutral");
+  });
+
+  test("the prompt renders the reading the shared module produces", () => {
+    const fp = fingerprint({ style: style({ steerReversalsPerS: 4.2 }) });
+    const p = buildDrivingCoachPrompt({ fingerprint: fp, ...ctx });
+    expect(p).toContain(reversalsReading(4.2).text);
   });
 });
