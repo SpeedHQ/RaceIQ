@@ -1,13 +1,17 @@
 import { describe, expect, test } from "bun:test";
+import { and, eq } from "drizzle-orm";
 import {
   computeIRacingSectorTimeline,
   computeLapSectors,
 } from "../server/compute-lap-sectors";
+import { getDiscoveredCarName, listDiscoveredCars } from "../server/db/discovered-cars";
 import {
-  deleteSession,
-  getStoredSessionIdentities,
-  insertSession,
-} from "../server/db/queries";
+  getDiscoveredTrackName,
+  listDiscoveredTracks,
+} from "../server/db/discovered-tracks";
+import { db } from "../server/db/index";
+import { deleteSession, insertSession } from "../server/db/queries";
+import { discoveredCars, discoveredTracks } from "../server/db/schema";
 import { initServerGameAdapters } from "../server/games/init";
 import {
   createIRacingParserState,
@@ -38,6 +42,10 @@ import { parsePacket } from "../server/parsers";
 import { CapturingDbAdapter } from "../server/pipeline-adapters";
 import { SectorTracker } from "../server/sector-tracker";
 import { initGameAdapters } from "../shared/games/init";
+import {
+  injectDiscoveredIRacingIdentity,
+  iracingAdapter,
+} from "../shared/games/iracing";
 import type { TelemetryPacket } from "../shared/types";
 
 initGameAdapters();
@@ -241,27 +249,58 @@ DriverInfo:
 });
 
 describe("iRacing raw source frame parser integration", () => {
-  test("persists telemetry-provided names for restart hydration", async () => {
+  test("persists one runtime identity per ordinal for restart hydration", async () => {
     const carOrdinal = 900_042;
     const trackOrdinal = 900_099;
-    const sessionId = await insertSession(
-      carOrdinal,
-      trackOrdinal,
-      "iracing",
-      undefined,
-      { carName: "Persisted GT3", trackName: "Persisted Raceway" },
-    );
+    const sessionIds: number[] = [];
 
     try {
-      const identities = await getStoredSessionIdentities("iracing");
-      expect(identities).toContainEqual({
+      sessionIds.push(await insertSession(
         carOrdinal,
-        carName: "Persisted GT3",
         trackOrdinal,
-        trackName: "Persisted Raceway",
-      });
+        "iracing",
+        undefined,
+        { carName: "Persisted GT3", trackName: "Persisted Raceway" },
+      ));
+      sessionIds.push(await insertSession(
+        carOrdinal,
+        trackOrdinal,
+        "iracing",
+        undefined,
+        { carName: "Later Rename", trackName: "Later Track Rename" },
+      ));
+
+      expect(await getDiscoveredCarName("iracing", carOrdinal)).toBe("Persisted GT3");
+      expect(await getDiscoveredTrackName("iracing", trackOrdinal)).toBe("Persisted Raceway");
+      expect(
+        (await listDiscoveredCars("iracing")).filter((row) => row.ordinal === carOrdinal),
+      ).toHaveLength(1);
+      expect(
+        (await listDiscoveredTracks("iracing")).filter((row) => row.ordinal === trackOrdinal),
+      ).toHaveLength(1);
+
+      injectDiscoveredIRacingIdentity(
+        await listDiscoveredCars("iracing"),
+        await listDiscoveredTracks("iracing"),
+      );
+      expect(iracingAdapter.getCarName(carOrdinal)).toBe("Persisted GT3");
+      expect(iracingAdapter.getTrackName(trackOrdinal)).toBe("Persisted Raceway");
     } finally {
-      await deleteSession(sessionId);
+      for (const sessionId of sessionIds) await deleteSession(sessionId);
+      await db
+        .delete(discoveredCars)
+        .where(and(
+          eq(discoveredCars.gameId, "iracing"),
+          eq(discoveredCars.ordinal, carOrdinal),
+        ))
+        .run();
+      await db
+        .delete(discoveredTracks)
+        .where(and(
+          eq(discoveredTracks.gameId, "iracing"),
+          eq(discoveredTracks.ordinal, trackOrdinal),
+        ))
+        .run();
     }
   });
 
@@ -626,9 +665,11 @@ describe("iRacing lap timing and native sectors", () => {
     expect(db.laps[0].rawFrameCount).toBe(65);
     expect(db.laps[0].sectors?.s3).toBe(0);
     expect(db.sessions[0]).toMatchObject({
-      carName: "GT3 Test Car",
-      trackName: "Road America",
+      carOrdinal: 42,
+      trackOrdinal: 99,
     });
+    expect(db.sessions[0]).not.toHaveProperty("carName");
+    expect(db.sessions[0]).not.toHaveProperty("trackName");
 
     // A native timer rollover without a valid LastLap discards that lap and
     // leaves the following valid lap aligned with its own timing.

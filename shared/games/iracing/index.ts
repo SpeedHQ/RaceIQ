@@ -22,6 +22,18 @@ export function rememberIRacingIdentity(identity: {
   }
 }
 
+export function injectDiscoveredIRacingIdentity(
+  cars: Iterable<{ ordinal: number; name: string }>,
+  tracks: Iterable<{ ordinal: number; name: string }>,
+): void {
+  for (const car of cars) {
+    carNames.set(car.ordinal, car.name);
+  }
+  for (const track of tracks) {
+    trackNames.set(track.ordinal, track.name);
+  }
+}
+
 export const iracingAdapter: GameAdapter = {
   id: "iracing",
   displayName: "iRacing",

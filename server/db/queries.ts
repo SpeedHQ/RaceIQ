@@ -5,6 +5,8 @@ import type { TelemetryPacket, LapMeta, SessionMeta, GameId, SessionIdentity } f
 import type { Corner } from "../corner-detection";
 import { fillNormSuspension } from "../telemetry-utils";
 import { getServerGame } from "../games/registry";
+import { registerDiscoveredCar } from "./discovered-cars";
+import { registerDiscoveredTrack } from "./discovered-tracks";
 import { getActiveTuningSession } from "../tuning-active";
 import { resolveActiveTestId } from "./tuning-test-queries";
 import { tryGetGame } from "../../shared/games/registry";
@@ -156,44 +158,19 @@ export async function insertSession(
   sessionType?: string,
   identity?: SessionIdentity,
 ): Promise<number> {
+  if (identity?.carName && carOrdinal >= 0) {
+    await registerDiscoveredCar(gameId, carOrdinal, identity.carName);
+  }
+  if (identity?.trackName && trackOrdinal >= 0) {
+    await registerDiscoveredTrack(gameId, trackOrdinal, identity.trackName);
+  }
+
   const result = await db
     .insert(sessions)
-    .values({
-      carOrdinal,
-      trackOrdinal,
-      gameId,
-      sessionType,
-      carName: identity?.carName,
-      trackName: identity?.trackName,
-    })
+    .values({ carOrdinal, trackOrdinal, gameId, sessionType })
     .returning({ id: sessions.id })
     .get();
   return result.id;
-}
-
-/**
- * Return telemetry-provided names in recording order so a later session can
- * refresh an earlier display name for the same native ordinal.
- */
-export async function getStoredSessionIdentities(
-  gameId: GameId,
-): Promise<Array<{
-  carOrdinal: number;
-  carName: string | null;
-  trackOrdinal: number;
-  trackName: string | null;
-}>> {
-  return db
-    .select({
-      carOrdinal: sessions.carOrdinal,
-      carName: sessions.carName,
-      trackOrdinal: sessions.trackOrdinal,
-      trackName: sessions.trackName,
-    })
-    .from(sessions)
-    .where(eq(sessions.gameId, gameId))
-    .orderBy(sessions.id)
-    .all();
 }
 
 /**

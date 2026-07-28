@@ -697,7 +697,7 @@ export interface SessionMeta {
   gameId?: GameId;
 }
 
-/** Optional display identity supplied by telemetry rather than a static catalogue. */
+/** Optional display identity to register for telemetry-provided native ordinals. */
 export interface SessionIdentity {
   carName?: string;
   trackName?: string;

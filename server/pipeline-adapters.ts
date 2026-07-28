@@ -13,8 +13,6 @@ export interface CapturedSession {
   trackOrdinal: number;
   gameId: GameId;
   sessionType?: string;
-  carName?: string;
-  trackName?: string;
 }
 
 export interface CapturedLap {
@@ -157,8 +155,8 @@ export class CapturingDbAdapter implements DbAdapter {
   private _sessionId = 0;
   private _lapId = 0;
 
-  insertSession(carOrdinal: number, trackOrdinal: number, gameId: GameId, sessionType?: string, identity?: SessionIdentity): Promise<number> {
-    this.sessions.push({ carOrdinal, trackOrdinal, gameId, sessionType, ...identity });
+  insertSession(carOrdinal: number, trackOrdinal: number, gameId: GameId, sessionType?: string, _identity?: SessionIdentity): Promise<number> {
+    this.sessions.push({ carOrdinal, trackOrdinal, gameId, sessionType });
     return Promise.resolve(++this._sessionId);
   }
 

@@ -67,13 +67,30 @@ export const discoveredCars = sqliteTable(
 	],
 );
 
+/**
+ * Tracks whose identity is supplied by runtime telemetry rather than a bundled
+ * catalogue. The native ordinal is the durable identity; names are hydrated
+ * into the relevant game adapter at startup.
+ */
+export const discoveredTracks = sqliteTable(
+	"discovered_tracks",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		gameId: text("game_id").notNull(),
+		ordinal: integer("ordinal").notNull(),
+		name: text("name").notNull(),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+	},
+	(table) => [
+		unique().on(table.gameId, table.ordinal),
+	],
+);
+
 export const sessions = sqliteTable("sessions", {
 	id: integer("id").primaryKey({ autoIncrement: true }),
 	carOrdinal: integer("car_ordinal").notNull(),
 	trackOrdinal: integer("track_ordinal").notNull(),
 	gameId: text("game_id").notNull(),
-	carName: text("car_name"),
-	trackName: text("track_name"),
 	sessionType: text("session_type"),
 	notes: text("notes"),
 	rawFile: text("raw_file"),

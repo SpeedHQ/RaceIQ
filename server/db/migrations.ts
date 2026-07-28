@@ -579,16 +579,22 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
     ],
   },
 
-  // ── v36: Persist telemetry-provided session identity ──────────────────────
-  // Static game catalogues can always resolve an ordinal after restart.
-  // iRacing publishes car/track names only in the live session-info block, so
-  // retaining the names on the session keeps historical UI and exports stable.
+  // ── v36: Runtime-discovered track identity registry ───────────────────────
+  // v23 established discovered_cars for runtime-provided car identity. iRacing
+  // also provides stable track ordinals and names at runtime, so keep the same
+  // normalized mapping for tracks instead of repeating names on session rows.
   {
     version: 36,
-    name: "persist telemetry-provided session identity",
+    name: "discovered tracks registry",
     sql: [
-      `ALTER TABLE sessions ADD COLUMN car_name TEXT`,
-      `ALTER TABLE sessions ADD COLUMN track_name TEXT`,
+      `CREATE TABLE IF NOT EXISTS discovered_tracks (
+         id          INTEGER PRIMARY KEY AUTOINCREMENT,
+         game_id     TEXT NOT NULL,
+         ordinal     INTEGER NOT NULL,
+         name        TEXT NOT NULL,
+         created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+         UNIQUE(game_id, ordinal)
+       )`,
     ],
   },
 ];
