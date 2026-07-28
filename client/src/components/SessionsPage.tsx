@@ -4,6 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { queryKeys, useDeleteLap, useLaps, useSessions } from "../hooks/queries";
+import { exportLapsZip } from "../lib/lap-export";
 import { client } from "../lib/rpc";
 import { RotatePrompt } from "../routes/__root";
 import { useGameId, useGameRoute } from "../stores/game";
@@ -208,6 +209,21 @@ function SessionLapTable({
             >
               {m.sessions_recheck_validity()}
             </button>
+            <button
+              type="button"
+              className="w-full px-3 py-1.5 text-left hover:bg-app-surface-alt text-app-text"
+              onClick={async () => {
+                const lapId = contextMenu.lapId;
+                setContextMenu(null);
+                try {
+                  await exportLapsZip({ lapIds: [lapId] });
+                } catch (e) {
+                  window.alert(e instanceof Error ? e.message : String(e));
+                }
+              }}
+            >
+              {m.sessions_export_lap()}
+            </button>
           </div>
         </>
       )}
@@ -259,6 +275,19 @@ export function SessionsPage() {
   const [selectedSessions, setSelectedSessions] = useState<Set<number>>(new Set());
   const [search, setSearch] = useState("");
   const [recapSessionId, setRecapSessionId] = useState<number | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  /** Download laps/sessions as a .zip; surfaces server errors inline. */
+  const runExport = useCallback(async (sel: { lapIds?: number[]; sessionIds?: number[] }) => {
+    setExporting(true);
+    try {
+      await exportLapsZip(sel);
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : String(e));
+    } finally {
+      setExporting(false);
+    }
+  }, []);
 
   // Group laps by session
   const lapsBySession = useMemo(() => {
@@ -534,6 +563,18 @@ export function SessionsPage() {
                         >
                           Recap
                         </Button>
+                        <Button
+                          variant="app-outline"
+                          size="app-sm"
+                          disabled={exporting}
+                          title={m.sessions_export_session()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            runExport({ sessionIds: [session.id] });
+                          }}
+                        >
+                          {m.label_export()}
+                        </Button>
                       </div>
                     </div>
                     <div className="text-xs text-app-text/90-muted truncate mt-0.5">
@@ -658,6 +699,18 @@ export function SessionsPage() {
                           }}
                         >
                           Recap
+                        </Button>
+                        <Button
+                          variant="app-outline"
+                          size="app-sm"
+                          disabled={exporting}
+                          title={m.sessions_export_session()}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            runExport({ sessionIds: [session.id] });
+                          }}
+                        >
+                          {m.label_export()}
                         </Button>
                       </div>
                     </TD>
