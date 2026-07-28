@@ -240,6 +240,25 @@ const PlaceSetupSchema = z.object({
 });
 
 
+/**
+ * Reduce one user-supplied name to a single safe path segment.
+ *
+ * Strips path separators, traversal material and the characters Windows
+ * reserves, so `place-setup` cannot write outside the Setups folder.
+ *
+ * The control-character range is written ONLY as the `\x00-\x1f` escape.
+ * The class previously ended `\x1f-<raw 0x1F byte>`, whose trailing `-` was a
+ * literal and stripped EVERY hyphen: "spa-francorchamps" was written as
+ * "spafrancorchamps", a folder the game never created and the driver could not
+ * find. Hyphen is legal on every filesystem we target, so it is not sanitised.
+ *
+ * Exported for test/place-setup-sanitise.test.ts — silent name corruption is
+ * exactly the kind of bug that needs a pinned example.
+ */
+export function sanitisePathSegment(s: string): string {
+  return s.replace(/[<>:"/\\|?*\x00-\x1f]/g, "").trim();
+}
+
 const AutoTuneSchema = z.object({
   gameId: z.enum(["acc", "ac-evo"]),
   stintId: z.number().int(),
@@ -417,11 +436,9 @@ export const tuneCrudRoutes = new Hono()
       const baseDir = await getSetupsBaseDir(body.gameId, { create: true });
       if (!baseDir) return c.json({ error: "Setups folder not found" }, 404);
 
-      // Sanitise each path segment: no separators, no traversal, no reserved chars.
-      const clean = (s: string) => s.replace(/[<>:"/\\|?*\x00-\x1f-]/g, "").trim();
-      const car = clean(body.carName);
-      const track = clean(body.trackName);
-      let file = clean(body.fileName);
+      const car = sanitisePathSegment(body.carName);
+      const track = sanitisePathSegment(body.trackName);
+      let file = sanitisePathSegment(body.fileName);
       // The schema already refused the other game's extension, so anything
       // without this game's own extension gets it appended.
       const SETUP_EXT = /\.(json|carsetup)$/i;
