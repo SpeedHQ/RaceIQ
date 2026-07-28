@@ -1,75 +1,73 @@
 # Screenshots
 
-## Home & Dashboards
+### AccLiveDashboard
 
-### Home
+![AccLiveDashboard](AccLiveDashboard.png)
 
-![home](home.png)
+### ComboDash1
 
-### Combo Dashboard
+![ComboDash1](ComboDash1.png)
 
-![Combo Dashboard 1](ComboDash1.png)
+### ComboDash2
 
-![Combo Dashboard 2](ComboDash2.png)
+![ComboDash2](ComboDash2.png)
 
-<!-- dashboard-screenshots-start -->
-### F1 2025 Live Dashboard
+### F1LiveDashboard
 
-![F1 2025 Live Dashboard](F1LiveDashboard.png)
+![F1LiveDashboard](F1LiveDashboard.png)
 
-### Forza Motorsport Live Dashboard
+### ForzaLiveDashboard
 
-![Forza Motorsport Live Dashboard](ForzaLiveDashboard.png)
+![ForzaLiveDashboard](ForzaLiveDashboard.png)
 
-### Assetto Corsa Competizione Live Dashboard
+### SetupBrowser
 
-![Assetto Corsa Competizione Live Dashboard](AccLiveDashboard.png)
-<!-- dashboard-screenshots-end -->
+![SetupBrowser](SetupBrowser.png)
 
-## Lap Analysis
+### SetupBrowserReadOnly
 
-### Lap Analytics
+![SetupBrowserReadOnly](SetupBrowserReadOnly.png)
 
-![lap analytics](lap-analytics.png)
-
-### Compare
-
-![compare](compare.png)
-
-## Cars
-
-### Car Catalogue — Forza
-
-![car catalogue forza](car-catalogue-forza.png)
-
-### Car Catalogue — Forza (grid)
-
-![car catalogue forza grid](car-catalogue-forza-grid.png)
-
-### Car Catalogue — F1 2025 (table)
-
-![car catalogue f125 table](car-catalogue-f125-table.png)
-
-### Car Catalogue — F1 2025 (grid)
+### car catalogue f125 grid
 
 ![car catalogue f125 grid](car-catalogue-f125-grid.png)
 
-### Car Compare — Forza
+### car catalogue f125 table
+
+![car catalogue f125 table](car-catalogue-f125-table.png)
+
+### car catalogue forza grid
+
+![car catalogue forza grid](car-catalogue-forza-grid.png)
+
+### car catalogue forza
+
+![car catalogue forza](car-catalogue-forza.png)
+
+### car compare forza
 
 ![car compare forza](car-compare-forza.png)
 
-## Setups
+### compare
 
-### Setups
+![compare](compare.png)
 
-![setups](setups.png)
+### home
 
-### Setups — Ranges
+![home](home.png)
+
+### lap analytics
+
+![lap analytics](lap-analytics.png)
+
+### setups ranges
 
 ![setups ranges](setups-ranges.png)
 
-## Tracks
+### setups
 
-### Tracks
+![setups](setups.png)
+
+### tracks
 
 ![tracks](tracks.png)

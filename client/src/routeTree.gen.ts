@@ -20,6 +20,7 @@ import { Route as AcEvoAnalyseRouteImport } from './routes/ac-evo/analyse'
 import { Route as AcEvoCarsRouteImport } from './routes/ac-evo/cars'
 import { Route as AcEvoChatsRouteImport } from './routes/ac-evo/chats'
 import { Route as AcEvoCompareRouteImport } from './routes/ac-evo/compare'
+import { Route as AcEvoDriverRouteImport } from './routes/ac-evo/driver'
 import { Route as AcEvoExperimentsRouteImport } from './routes/ac-evo/experiments'
 import { Route as AcEvoLiveRouteImport } from './routes/ac-evo/live'
 import { Route as AcEvoRawRouteImport } from './routes/ac-evo/raw'
@@ -31,6 +32,7 @@ import { Route as AccAnalyseRouteImport } from './routes/acc/analyse'
 import { Route as AccCarsRouteImport } from './routes/acc/cars'
 import { Route as AccChatsRouteImport } from './routes/acc/chats'
 import { Route as AccCompareRouteImport } from './routes/acc/compare'
+import { Route as AccDriverRouteImport } from './routes/acc/driver'
 import { Route as AccExperimentsRouteImport } from './routes/acc/experiments'
 import { Route as AccLiveRouteImport } from './routes/acc/live'
 import { Route as AccRawRouteImport } from './routes/acc/raw'
@@ -45,6 +47,7 @@ import { Route as F125AnalyseRouteImport } from './routes/f125/analyse'
 import { Route as F125CarsRouteImport } from './routes/f125/cars'
 import { Route as F125ChatsRouteImport } from './routes/f125/chats'
 import { Route as F125CompareRouteImport } from './routes/f125/compare'
+import { Route as F125DriverRouteImport } from './routes/f125/driver'
 import { Route as F125ExperimentsRouteImport } from './routes/f125/experiments'
 import { Route as F125LiveRouteImport } from './routes/f125/live'
 import { Route as F125RawRouteImport } from './routes/f125/raw'
@@ -57,6 +60,7 @@ import { Route as Fm23AnalyseRouteImport } from './routes/fm23/analyse'
 import { Route as Fm23CarsRouteImport } from './routes/fm23/cars'
 import { Route as Fm23ChatsRouteImport } from './routes/fm23/chats'
 import { Route as Fm23CompareRouteImport } from './routes/fm23/compare'
+import { Route as Fm23DriverRouteImport } from './routes/fm23/driver'
 import { Route as Fm23LiveRouteImport } from './routes/fm23/live'
 import { Route as Fm23RawRouteImport } from './routes/fm23/raw'
 import { Route as Fm23SessionsRouteImport } from './routes/fm23/sessions'
@@ -158,6 +162,11 @@ const AcEvoCompareRoute = AcEvoCompareRouteImport.update({
   path: '/compare',
   getParentRoute: () => AcEvoRoute,
 } as any)
+const AcEvoDriverRoute = AcEvoDriverRouteImport.update({
+  id: '/driver',
+  path: '/driver',
+  getParentRoute: () => AcEvoRoute,
+} as any)
 const AcEvoExperimentsRoute = AcEvoExperimentsRouteImport.update({
   id: '/experiments',
   path: '/experiments',
@@ -211,6 +220,11 @@ const AccChatsRoute = AccChatsRouteImport.update({
 const AccCompareRoute = AccCompareRouteImport.update({
   id: '/compare',
   path: '/compare',
+  getParentRoute: () => AccRoute,
+} as any)
+const AccDriverRoute = AccDriverRouteImport.update({
+  id: '/driver',
+  path: '/driver',
   getParentRoute: () => AccRoute,
 } as any)
 const AccExperimentsRoute = AccExperimentsRouteImport.update({
@@ -283,6 +297,11 @@ const F125CompareRoute = F125CompareRouteImport.update({
   path: '/compare',
   getParentRoute: () => F125Route,
 } as any)
+const F125DriverRoute = F125DriverRouteImport.update({
+  id: '/driver',
+  path: '/driver',
+  getParentRoute: () => F125Route,
+} as any)
 const F125ExperimentsRoute = F125ExperimentsRouteImport.update({
   id: '/experiments',
   path: '/experiments',
@@ -341,6 +360,11 @@ const Fm23ChatsRoute = Fm23ChatsRouteImport.update({
 const Fm23CompareRoute = Fm23CompareRouteImport.update({
   id: '/compare',
   path: '/compare',
+  getParentRoute: () => Fm23Route,
+} as any)
+const Fm23DriverRoute = Fm23DriverRouteImport.update({
+  id: '/driver',
+  path: '/driver',
   getParentRoute: () => Fm23Route,
 } as any)
 const Fm23LiveRoute = Fm23LiveRouteImport.update({
@@ -595,6 +619,7 @@ export interface FileRoutesByFullPath {
   '/ac-evo/cars': typeof AcEvoCarsRoute
   '/ac-evo/chats': typeof AcEvoChatsRoute
   '/ac-evo/compare': typeof AcEvoCompareRoute
+  '/ac-evo/driver': typeof AcEvoDriverRoute
   '/ac-evo/experiments': typeof AcEvoExperimentsRouteWithChildren
   '/ac-evo/live': typeof AcEvoLiveRoute
   '/ac-evo/raw': typeof AcEvoRawRoute
@@ -605,6 +630,7 @@ export interface FileRoutesByFullPath {
   '/acc/cars': typeof AccCarsRoute
   '/acc/chats': typeof AccChatsRoute
   '/acc/compare': typeof AccCompareRoute
+  '/acc/driver': typeof AccDriverRoute
   '/acc/experiments': typeof AccExperimentsRouteWithChildren
   '/acc/live': typeof AccLiveRoute
   '/acc/raw': typeof AccRawRoute
@@ -617,6 +643,7 @@ export interface FileRoutesByFullPath {
   '/f125/cars': typeof F125CarsRoute
   '/f125/chats': typeof F125ChatsRoute
   '/f125/compare': typeof F125CompareRoute
+  '/f125/driver': typeof F125DriverRoute
   '/f125/experiments': typeof F125ExperimentsRouteWithChildren
   '/f125/live': typeof F125LiveRoute
   '/f125/raw': typeof F125RawRoute
@@ -628,6 +655,7 @@ export interface FileRoutesByFullPath {
   '/fm23/cars': typeof Fm23CarsRoute
   '/fm23/chats': typeof Fm23ChatsRoute
   '/fm23/compare': typeof Fm23CompareRoute
+  '/fm23/driver': typeof Fm23DriverRoute
   '/fm23/live': typeof Fm23LiveRouteWithChildren
   '/fm23/raw': typeof Fm23RawRoute
   '/fm23/sessions': typeof Fm23SessionsRoute
@@ -686,6 +714,7 @@ export interface FileRoutesByTo {
   '/ac-evo/cars': typeof AcEvoCarsRoute
   '/ac-evo/chats': typeof AcEvoChatsRoute
   '/ac-evo/compare': typeof AcEvoCompareRoute
+  '/ac-evo/driver': typeof AcEvoDriverRoute
   '/ac-evo/live': typeof AcEvoLiveRoute
   '/ac-evo/raw': typeof AcEvoRawRoute
   '/ac-evo/sessions': typeof AcEvoSessionsRoute
@@ -693,6 +722,7 @@ export interface FileRoutesByTo {
   '/acc/cars': typeof AccCarsRoute
   '/acc/chats': typeof AccChatsRoute
   '/acc/compare': typeof AccCompareRoute
+  '/acc/driver': typeof AccDriverRoute
   '/acc/live': typeof AccLiveRoute
   '/acc/raw': typeof AccRawRoute
   '/acc/sessions': typeof AccSessionsRoute
@@ -702,6 +732,7 @@ export interface FileRoutesByTo {
   '/f125/cars': typeof F125CarsRoute
   '/f125/chats': typeof F125ChatsRoute
   '/f125/compare': typeof F125CompareRoute
+  '/f125/driver': typeof F125DriverRoute
   '/f125/live': typeof F125LiveRoute
   '/f125/raw': typeof F125RawRoute
   '/f125/sessions': typeof F125SessionsRoute
@@ -709,6 +740,7 @@ export interface FileRoutesByTo {
   '/fm23/cars': typeof Fm23CarsRoute
   '/fm23/chats': typeof Fm23ChatsRoute
   '/fm23/compare': typeof Fm23CompareRoute
+  '/fm23/driver': typeof Fm23DriverRoute
   '/fm23/live': typeof Fm23LiveRouteWithChildren
   '/fm23/raw': typeof Fm23RawRoute
   '/fm23/sessions': typeof Fm23SessionsRoute
@@ -770,6 +802,7 @@ export interface FileRoutesById {
   '/ac-evo/cars': typeof AcEvoCarsRoute
   '/ac-evo/chats': typeof AcEvoChatsRoute
   '/ac-evo/compare': typeof AcEvoCompareRoute
+  '/ac-evo/driver': typeof AcEvoDriverRoute
   '/ac-evo/experiments': typeof AcEvoExperimentsRouteWithChildren
   '/ac-evo/live': typeof AcEvoLiveRoute
   '/ac-evo/raw': typeof AcEvoRawRoute
@@ -780,6 +813,7 @@ export interface FileRoutesById {
   '/acc/cars': typeof AccCarsRoute
   '/acc/chats': typeof AccChatsRoute
   '/acc/compare': typeof AccCompareRoute
+  '/acc/driver': typeof AccDriverRoute
   '/acc/experiments': typeof AccExperimentsRouteWithChildren
   '/acc/live': typeof AccLiveRoute
   '/acc/raw': typeof AccRawRoute
@@ -792,6 +826,7 @@ export interface FileRoutesById {
   '/f125/cars': typeof F125CarsRoute
   '/f125/chats': typeof F125ChatsRoute
   '/f125/compare': typeof F125CompareRoute
+  '/f125/driver': typeof F125DriverRoute
   '/f125/experiments': typeof F125ExperimentsRouteWithChildren
   '/f125/live': typeof F125LiveRoute
   '/f125/raw': typeof F125RawRoute
@@ -803,6 +838,7 @@ export interface FileRoutesById {
   '/fm23/cars': typeof Fm23CarsRoute
   '/fm23/chats': typeof Fm23ChatsRoute
   '/fm23/compare': typeof Fm23CompareRoute
+  '/fm23/driver': typeof Fm23DriverRoute
   '/fm23/live': typeof Fm23LiveRouteWithChildren
   '/fm23/raw': typeof Fm23RawRoute
   '/fm23/sessions': typeof Fm23SessionsRoute
@@ -867,6 +903,7 @@ export interface FileRouteTypes {
     | '/ac-evo/cars'
     | '/ac-evo/chats'
     | '/ac-evo/compare'
+    | '/ac-evo/driver'
     | '/ac-evo/experiments'
     | '/ac-evo/live'
     | '/ac-evo/raw'
@@ -877,6 +914,7 @@ export interface FileRouteTypes {
     | '/acc/cars'
     | '/acc/chats'
     | '/acc/compare'
+    | '/acc/driver'
     | '/acc/experiments'
     | '/acc/live'
     | '/acc/raw'
@@ -889,6 +927,7 @@ export interface FileRouteTypes {
     | '/f125/cars'
     | '/f125/chats'
     | '/f125/compare'
+    | '/f125/driver'
     | '/f125/experiments'
     | '/f125/live'
     | '/f125/raw'
@@ -900,6 +939,7 @@ export interface FileRouteTypes {
     | '/fm23/cars'
     | '/fm23/chats'
     | '/fm23/compare'
+    | '/fm23/driver'
     | '/fm23/live'
     | '/fm23/raw'
     | '/fm23/sessions'
@@ -958,6 +998,7 @@ export interface FileRouteTypes {
     | '/ac-evo/cars'
     | '/ac-evo/chats'
     | '/ac-evo/compare'
+    | '/ac-evo/driver'
     | '/ac-evo/live'
     | '/ac-evo/raw'
     | '/ac-evo/sessions'
@@ -965,6 +1006,7 @@ export interface FileRouteTypes {
     | '/acc/cars'
     | '/acc/chats'
     | '/acc/compare'
+    | '/acc/driver'
     | '/acc/live'
     | '/acc/raw'
     | '/acc/sessions'
@@ -974,6 +1016,7 @@ export interface FileRouteTypes {
     | '/f125/cars'
     | '/f125/chats'
     | '/f125/compare'
+    | '/f125/driver'
     | '/f125/live'
     | '/f125/raw'
     | '/f125/sessions'
@@ -981,6 +1024,7 @@ export interface FileRouteTypes {
     | '/fm23/cars'
     | '/fm23/chats'
     | '/fm23/compare'
+    | '/fm23/driver'
     | '/fm23/live'
     | '/fm23/raw'
     | '/fm23/sessions'
@@ -1041,6 +1085,7 @@ export interface FileRouteTypes {
     | '/ac-evo/cars'
     | '/ac-evo/chats'
     | '/ac-evo/compare'
+    | '/ac-evo/driver'
     | '/ac-evo/experiments'
     | '/ac-evo/live'
     | '/ac-evo/raw'
@@ -1051,6 +1096,7 @@ export interface FileRouteTypes {
     | '/acc/cars'
     | '/acc/chats'
     | '/acc/compare'
+    | '/acc/driver'
     | '/acc/experiments'
     | '/acc/live'
     | '/acc/raw'
@@ -1063,6 +1109,7 @@ export interface FileRouteTypes {
     | '/f125/cars'
     | '/f125/chats'
     | '/f125/compare'
+    | '/f125/driver'
     | '/f125/experiments'
     | '/f125/live'
     | '/f125/raw'
@@ -1074,6 +1121,7 @@ export interface FileRouteTypes {
     | '/fm23/cars'
     | '/fm23/chats'
     | '/fm23/compare'
+    | '/fm23/driver'
     | '/fm23/live'
     | '/fm23/raw'
     | '/fm23/sessions'
@@ -1217,6 +1265,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AcEvoCompareRouteImport
       parentRoute: typeof AcEvoRoute
     }
+    '/ac-evo/driver': {
+      id: '/ac-evo/driver'
+      path: '/driver'
+      fullPath: '/ac-evo/driver'
+      preLoaderRoute: typeof AcEvoDriverRouteImport
+      parentRoute: typeof AcEvoRoute
+    }
     '/ac-evo/experiments': {
       id: '/ac-evo/experiments'
       path: '/experiments'
@@ -1292,6 +1347,13 @@ declare module '@tanstack/react-router' {
       path: '/compare'
       fullPath: '/acc/compare'
       preLoaderRoute: typeof AccCompareRouteImport
+      parentRoute: typeof AccRoute
+    }
+    '/acc/driver': {
+      id: '/acc/driver'
+      path: '/driver'
+      fullPath: '/acc/driver'
+      preLoaderRoute: typeof AccDriverRouteImport
       parentRoute: typeof AccRoute
     }
     '/acc/experiments': {
@@ -1392,6 +1454,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof F125CompareRouteImport
       parentRoute: typeof F125Route
     }
+    '/f125/driver': {
+      id: '/f125/driver'
+      path: '/driver'
+      fullPath: '/f125/driver'
+      preLoaderRoute: typeof F125DriverRouteImport
+      parentRoute: typeof F125Route
+    }
     '/f125/experiments': {
       id: '/f125/experiments'
       path: '/experiments'
@@ -1474,6 +1543,13 @@ declare module '@tanstack/react-router' {
       path: '/compare'
       fullPath: '/fm23/compare'
       preLoaderRoute: typeof Fm23CompareRouteImport
+      parentRoute: typeof Fm23Route
+    }
+    '/fm23/driver': {
+      id: '/fm23/driver'
+      path: '/driver'
+      fullPath: '/fm23/driver'
+      preLoaderRoute: typeof Fm23DriverRouteImport
       parentRoute: typeof Fm23Route
     }
     '/fm23/live': {
@@ -1849,6 +1925,7 @@ interface AcEvoRouteChildren {
   AcEvoCarsRoute: typeof AcEvoCarsRoute
   AcEvoChatsRoute: typeof AcEvoChatsRoute
   AcEvoCompareRoute: typeof AcEvoCompareRoute
+  AcEvoDriverRoute: typeof AcEvoDriverRoute
   AcEvoExperimentsRoute: typeof AcEvoExperimentsRouteWithChildren
   AcEvoLiveRoute: typeof AcEvoLiveRoute
   AcEvoRawRoute: typeof AcEvoRawRoute
@@ -1863,6 +1940,7 @@ const AcEvoRouteChildren: AcEvoRouteChildren = {
   AcEvoCarsRoute: AcEvoCarsRoute,
   AcEvoChatsRoute: AcEvoChatsRoute,
   AcEvoCompareRoute: AcEvoCompareRoute,
+  AcEvoDriverRoute: AcEvoDriverRoute,
   AcEvoExperimentsRoute: AcEvoExperimentsRouteWithChildren,
   AcEvoLiveRoute: AcEvoLiveRoute,
   AcEvoRawRoute: AcEvoRawRoute,
@@ -1929,6 +2007,7 @@ interface AccRouteChildren {
   AccCarsRoute: typeof AccCarsRoute
   AccChatsRoute: typeof AccChatsRoute
   AccCompareRoute: typeof AccCompareRoute
+  AccDriverRoute: typeof AccDriverRoute
   AccExperimentsRoute: typeof AccExperimentsRouteWithChildren
   AccLiveRoute: typeof AccLiveRoute
   AccRawRoute: typeof AccRawRoute
@@ -1943,6 +2022,7 @@ const AccRouteChildren: AccRouteChildren = {
   AccCarsRoute: AccCarsRoute,
   AccChatsRoute: AccChatsRoute,
   AccCompareRoute: AccCompareRoute,
+  AccDriverRoute: AccDriverRoute,
   AccExperimentsRoute: AccExperimentsRouteWithChildren,
   AccLiveRoute: AccLiveRoute,
   AccRawRoute: AccRawRoute,
@@ -2016,6 +2096,7 @@ interface F125RouteChildren {
   F125CarsRoute: typeof F125CarsRoute
   F125ChatsRoute: typeof F125ChatsRoute
   F125CompareRoute: typeof F125CompareRoute
+  F125DriverRoute: typeof F125DriverRoute
   F125ExperimentsRoute: typeof F125ExperimentsRouteWithChildren
   F125LiveRoute: typeof F125LiveRoute
   F125RawRoute: typeof F125RawRoute
@@ -2031,6 +2112,7 @@ const F125RouteChildren: F125RouteChildren = {
   F125CarsRoute: F125CarsRoute,
   F125ChatsRoute: F125ChatsRoute,
   F125CompareRoute: F125CompareRoute,
+  F125DriverRoute: F125DriverRoute,
   F125ExperimentsRoute: F125ExperimentsRouteWithChildren,
   F125LiveRoute: F125LiveRoute,
   F125RawRoute: F125RawRoute,
@@ -2100,6 +2182,7 @@ interface Fm23RouteChildren {
   Fm23CarsRoute: typeof Fm23CarsRoute
   Fm23ChatsRoute: typeof Fm23ChatsRoute
   Fm23CompareRoute: typeof Fm23CompareRoute
+  Fm23DriverRoute: typeof Fm23DriverRoute
   Fm23LiveRoute: typeof Fm23LiveRouteWithChildren
   Fm23RawRoute: typeof Fm23RawRoute
   Fm23SessionsRoute: typeof Fm23SessionsRoute
@@ -2114,6 +2197,7 @@ const Fm23RouteChildren: Fm23RouteChildren = {
   Fm23CarsRoute: Fm23CarsRoute,
   Fm23ChatsRoute: Fm23ChatsRoute,
   Fm23CompareRoute: Fm23CompareRoute,
+  Fm23DriverRoute: Fm23DriverRoute,
   Fm23LiveRoute: Fm23LiveRouteWithChildren,
   Fm23RawRoute: Fm23RawRoute,
   Fm23SessionsRoute: Fm23SessionsRoute,

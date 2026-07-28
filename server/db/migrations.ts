@@ -900,4 +900,40 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE sessions ADD COLUMN source TEXT`,
     ],
   },
+
+  // ── v44: cached driver improvement plans ────────────────────────────────────
+  // One row per profile scope. `scope_key` rather than a composite UNIQUE over
+  // (game_id, car_ordinal, track_ordinal) because SQLite treats NULLs as
+  // distinct in a UNIQUE index: a global-scope profile has both ordinals NULL,
+  // so a composite index would happily hold two of them and the upsert would
+  // never find the row it meant to replace.
+  //
+  // No foreign key to laps: the pool is a scope query, not a fixed set of rows,
+  // and `pool_key` (a digest of the contributing lap ids) already invalidates
+  // the row when that scope's laps change. A cascade would instead delete a
+  // still-serviceable plan whenever one old lap was pruned.
+  {
+    version: 44,
+    name: "driver profiles (cached improvement plans)",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS driver_profiles (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         scope_key TEXT NOT NULL,
+         game_id TEXT NOT NULL,
+         car_ordinal INTEGER,
+         track_ordinal INTEGER,
+         pool_key TEXT NOT NULL,
+         fingerprint TEXT NOT NULL,
+         plan TEXT NOT NULL,
+         input_tokens INTEGER NOT NULL DEFAULT 0,
+         output_tokens INTEGER NOT NULL DEFAULT 0,
+         cost_usd REAL NOT NULL DEFAULT 0,
+         duration_ms INTEGER NOT NULL DEFAULT 0,
+         model TEXT NOT NULL DEFAULT '',
+         created_at TEXT NOT NULL DEFAULT (datetime('now'))
+       )`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS driver_profiles_scope_key_idx ON driver_profiles (scope_key)`,
+      `CREATE INDEX IF NOT EXISTS driver_profiles_game_idx ON driver_profiles (game_id)`,
+    ],
+  },
 ];

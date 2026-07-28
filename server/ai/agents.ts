@@ -29,6 +29,7 @@ import { lapChatAgent as rawLapChatAgent } from "../../mastra/agents/lap-chat";
 import { compareEngineerAgent as rawCompareEngineerAgent } from "../../mastra/agents/compare-engineer";
 import { compareChatAgent as rawCompareChatAgent } from "../../mastra/agents/compare-chat";
 import { setupEngineerAgent as rawSetupEngineerAgent } from "../../mastra/agents/setup-engineer";
+import { driverProfilerAgent as rawDriverProfilerAgent } from "../../mastra/agents/driver-profiler";
 import { driverCoachAgent as rawDriverCoachAgent } from "../../mastra/agents/driver-coach";
 
 type LapAnalystAgent = typeof rawLapAnalystAgent;
@@ -36,6 +37,7 @@ type LapChatAgent = typeof rawLapChatAgent;
 type CompareEngineerAgent = typeof rawCompareEngineerAgent;
 type CompareChatAgent = typeof rawCompareChatAgent;
 type SetupEngineerAgent = typeof rawSetupEngineerAgent;
+type DriverProfilerAgent = typeof rawDriverProfilerAgent;
 type DriverCoachAgent = typeof rawDriverCoachAgent;
 
 export function isMastraSignalMigrationRequiredError(err: unknown): boolean {
@@ -51,6 +53,7 @@ let lapChatAgent: LapChatAgent = rawLapChatAgent;
 let compareEngineerAgent: CompareEngineerAgent = rawCompareEngineerAgent;
 let compareChatAgent: CompareChatAgent = rawCompareChatAgent;
 let setupEngineerAgent: SetupEngineerAgent = rawSetupEngineerAgent;
+let driverProfilerAgent: DriverProfilerAgent = rawDriverProfilerAgent;
 let driverCoachAgent: DriverCoachAgent = rawDriverCoachAgent;
 
 if (process.env.NODE_ENV !== "production") {
@@ -61,6 +64,7 @@ if (process.env.NODE_ENV !== "production") {
     compareEngineerAgent = mastra.getAgent("compare-engineer") as unknown as CompareEngineerAgent;
     compareChatAgent = mastra.getAgent("compare-chat") as unknown as CompareChatAgent;
     setupEngineerAgent = mastra.getAgent("setup-engineer") as unknown as SetupEngineerAgent;
+    driverProfilerAgent = mastra.getAgent("driver-profiler") as unknown as DriverProfilerAgent;
     driverCoachAgent = mastra.getAgent("driver-coach") as unknown as DriverCoachAgent;
   } catch (err) {
     if (isMastraSignalMigrationRequiredError(err)) {
@@ -87,4 +91,12 @@ export function sessionAgentForFocus(focus: ExperimentFocus) {
   return focus === "driver" ? driverCoachAgent : setupEngineerAgent;
 }
 
-export { lapAnalystAgent, lapChatAgent, compareEngineerAgent, compareChatAgent, setupEngineerAgent, driverCoachAgent };
+export {
+  lapAnalystAgent,
+  lapChatAgent,
+  compareEngineerAgent,
+  compareChatAgent,
+  setupEngineerAgent,
+  driverProfilerAgent,
+  driverCoachAgent,
+};

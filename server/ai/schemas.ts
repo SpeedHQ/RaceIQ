@@ -190,3 +190,100 @@ export function parseTuneIntents(raw: unknown): ReturnType<typeof TuneIntentsSch
     return TuneIntentsSchema.safeParse(raw);
   }
 }
+
+// ─── Driver profile / improvement plan ──────────────────────────────────────
+
+/**
+ * Output shape for the Driver Profiler agent (POST /api/drivers/profile).
+ *
+ * Deliberately narrower than the analyst schema. The coach is not re-analysing
+ * telemetry — the deterministic aggregator has already done that and handed it
+ * a ranked list. Its job is to explain *why* the top faults happen and what to
+ * practise, so every field here is prose keyed to a detector the aggregator
+ * actually reported.
+ */
+const FocusArea = z.object({
+  /** Detector id from the fingerprint. Pins the prose to a measured fault. */
+  detectorId: z.string(),
+  title: z.string(),
+  /** What the driver is doing, in their terms. */
+  whatHappens: z.string(),
+  /** Why it costs time — the mechanism, not a restatement of the number. */
+  whyItCosts: z.string(),
+  /** A concrete practice drill with a way to tell it worked. */
+  drill: z.string(),
+  /**
+   * Verbatim from the fingerprint when the aggregator quantified a cost, and
+   * omitted when it did not. The model must not invent one: an unquantified
+   * fault is "cost not measured", never "costs nothing".
+   */
+  estimatedGainS: z.number().optional(),
+});
+
+const ProfileStrength = z.object({
+  title: z.string(),
+  detail: z.string(),
+});
+
+export const DriverProfileOutputSchema = z.object({
+  /** 2–3 sentences: the driver's style in plain language, then the headline. */
+  summary: z.string(),
+  /** One short phrase naming the style, e.g. "committed but inconsistent on entry". */
+  styleLabel: z.string(),
+  strengths: z.array(ProfileStrength),
+  /** Ranked, most valuable first. Mirrors the aggregator's ordering. */
+  focusAreas: z.array(FocusArea),
+  /** What to actually do in the next session, in order. */
+  sessionPlan: z.array(z.string()),
+});
+
+export type DriverProfileOutput = z.infer<typeof DriverProfileOutputSchema>;
+
+export function getDriverProfileJsonSchema(): Record<string, unknown> {
+  return z.toJSONSchema(DriverProfileOutputSchema) as Record<string, unknown>;
+}
+
+/** JSON skeleton for embedding in the coach system prompt. */
+export function renderDriverProfileSchemaForPrompt(): string {
+  return `{
+  "summary": "2-3 sentences: how this driver drives, then the single biggest opportunity.",
+  "styleLabel": "short phrase naming the style, e.g. 'committed but loose on entry'",
+  "strengths": [
+    { "title": "short phrase", "detail": "1 sentence, referencing the measured evidence" }
+  ],
+  "focusAreas": [
+    {
+      "detectorId": "exact id from the FOCUS AREAS table — never invented",
+      "title": "short imperative phrase",
+      "whatHappens": "1-2 sentences describing the driver's actual input pattern",
+      "whyItCosts": "1-2 sentences on the mechanism — why this loses time",
+      "drill": "a concrete practice exercise plus how to tell it worked",
+      "estimatedGainS": 0.25
+    }
+  ],
+  "sessionPlan": [
+    "one instruction for the next session, in the order to do them"
+  ]
+}
+Omit "estimatedGainS" entirely for any focus area whose table row says the cost was not measured. Do not write 0.`;
+}
+
+export function parseDriverProfileOutput(raw: unknown): ReturnType<typeof DriverProfileOutputSchema.safeParse> {
+  if (typeof raw !== "string") return DriverProfileOutputSchema.safeParse(raw);
+
+  const fenceStripped = raw
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```\s*$/i, "");
+
+  const firstBrace = fenceStripped.indexOf("{");
+  const lastBrace = fenceStripped.lastIndexOf("}");
+  const jsonSlice =
+    firstBrace >= 0 && lastBrace > firstBrace ? fenceStripped.slice(firstBrace, lastBrace + 1) : fenceStripped;
+
+  try {
+    return DriverProfileOutputSchema.safeParse(JSON.parse(jsonSlice));
+  } catch {
+    return DriverProfileOutputSchema.safeParse(raw);
+  }
+}
