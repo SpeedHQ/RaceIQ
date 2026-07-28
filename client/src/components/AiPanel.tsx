@@ -1,6 +1,6 @@
 import type { UIMessage } from "ai";
 import { toPng } from "html-to-image";
-import { Sparkles, Trash2 } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { useSettings } from "../hooks/queries";
@@ -8,7 +8,7 @@ import { type ChatStreamError, type ChatStreamStatus, readChatStream } from "../
 import { isAiConfigured } from "../lib/is-ai-configured";
 import { client } from "../lib/rpc";
 import { useUiStore } from "../stores/ui";
-import { type AnalysisData, AnalysisDisplay, type AnalysisHighlight, findSegment, type Segment } from "./ai/analysis-display";
+import { type AnalysisData, AnalysisDisplay, type AnalysisHighlight, findSegment, type Segment, SetupList } from "./ai/analysis-display";
 import { AnalysisModalShell, AnalysisSummaryRow } from "./ai/analysis-summary";
 import { ChatPanel } from "./ai-chat/ChatPanel";
 import { Button } from "./ui/button";
@@ -105,6 +105,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
   const [analyseTool, setAnalyseTool] = useState<string | null>(null);
   const [chatRemountKey, setChatRemountKey] = useState(0);
   const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [modalTab, setModalTab] = useState("analysis");
 
   useImperativeHandle(
     ref,
@@ -408,42 +409,48 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         )}
 
         {analysis && !loading && analysisOpen && (
-          <AnalysisModalShell subtitle={`${carName} · ${trackName}`} onClose={() => setAnalysisOpen(false)}>
-            <AnalysisDisplay
-              analysis={analysis}
-              cornerFracs={cornerFracs}
-              segments={segments}
-              hasTune={hasTune}
-              usage={usage}
-              loading={loading}
-              containerRef={analysisRef}
-              onJumpToFrac={onJumpToFrac}
-              onHighlightsChange={onHighlightsChange}
-              onExport={handleExport}
-              onRegenerate={() => {
-                clearChat();
-                fetchAnalysis(true);
-              }}
-              onClear={() => {
-                clearChat();
-                setAnalysis(null);
-                setUsage(null);
-                setAnalysisOpen(false);
-                onHighlightsChange?.([]);
-              }}
-            />
-
-            {/* Clear-chat lives here rather than loose in the panel, where it
-                was an unlabelled bin floating under the summary row. */}
-            <div className="flex justify-end pt-2">
-              <button
-                type="button"
-                onClick={clearChat}
-                className="flex items-center gap-1 text-[10px] text-app-text-muted hover:text-red-400 px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
-              >
-                <Trash2 className="size-3" /> {m.compare_clear_chat()}
-              </button>
-            </div>
+          <AnalysisModalShell
+            subtitle={`${carName} · ${trackName}`}
+            onClose={() => setAnalysisOpen(false)}
+            tabs={[
+              { key: "analysis", label: m.label_ai_analysis() },
+              ...(analysis.setup?.length ? [{ key: "setup", label: m.aidisplay_setup(), badge: analysis.setup.length, flag: hasTune ? undefined : m.aidisplay_best_guess() }] : []),
+            ]}
+            activeTab={modalTab}
+            onTabChange={setModalTab}
+          >
+            {modalTab === "setup" ? (
+              <SetupList
+                setup={analysis.setup}
+                hasTune={hasTune}
+                lookupSegs={cornerFracs.length ? cornerFracs : (segments ?? null)}
+                onJumpToFrac={onJumpToFrac}
+                onHighlightsChange={onHighlightsChange}
+              />
+            ) : (
+              <AnalysisDisplay
+                analysis={analysis}
+                cornerFracs={cornerFracs}
+                segments={segments}
+                usage={usage}
+                loading={loading}
+                containerRef={analysisRef}
+                onJumpToFrac={onJumpToFrac}
+                onHighlightsChange={onHighlightsChange}
+                onExport={handleExport}
+                onRegenerate={() => {
+                  clearChat();
+                  fetchAnalysis(true);
+                }}
+                onClear={() => {
+                  clearChat();
+                  setAnalysis(null);
+                  setUsage(null);
+                  setAnalysisOpen(false);
+                  onHighlightsChange?.([]);
+                }}
+              />
+            )}
           </AnalysisModalShell>
         )}
       </div>

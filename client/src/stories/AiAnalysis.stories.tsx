@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
-import { type AnalysisData, AnalysisDisplay, type Segment } from "../components/ai/analysis-display";
+import { type AnalysisData, AnalysisDisplay, type Segment, SetupList } from "../components/ai/analysis-display";
 import { AnalysisModalShell, AnalysisSummaryRow } from "../components/ai/analysis-summary";
 
 // Fixed, deterministic analysis for a Forza lap at Spa. Covers every section
@@ -98,34 +98,57 @@ export const SummaryRowCustomTitle: StoryObj = {
   ),
 };
 
-/** The full breakdown, as rendered inside the modal body. */
+/** The analysis tab body, as rendered inside the modal. */
 export const Display: StoryObj = {
   render: () => (
     <div className="w-[600px]">
-      <AnalysisDisplay analysis={analysis} segments={segments} hasTune usage={usage} onJumpToFrac={() => {}} onExport={() => {}} onRegenerate={() => {}} onClear={() => {}} />
+      <AnalysisDisplay analysis={analysis} segments={segments} usage={usage} onJumpToFrac={() => {}} onExport={() => {}} onRegenerate={() => {}} onClear={() => {}} />
     </div>
   ),
 };
 
-/** Analysis with no linked tune — setup values are flagged as best-guess. */
-export const DisplayWithoutTune: StoryObj = {
+/** The setup tab body, with a linked tune. */
+export const SetupTab: StoryObj = {
   render: () => (
     <div className="w-[600px]">
-      <AnalysisDisplay analysis={analysis} segments={segments} usage={usage} onJumpToFrac={() => {}} />
+      <SetupList setup={analysis.setup} hasTune lookupSegs={segments} onJumpToFrac={() => {}} />
     </div>
   ),
 };
 
-/** Row plus modal wired together — click through the collapsed state. */
+/** Setup with no linked tune — values are estimated, so the note shows. */
+export const SetupTabWithoutTune: StoryObj = {
+  render: () => (
+    <div className="w-[600px]">
+      <SetupList setup={analysis.setup} lookupSegs={segments} onJumpToFrac={() => {}} />
+    </div>
+  ),
+};
+
+/** Row plus the tabbed modal — click View, then switch between the tabs. */
 export const RowOpensModal: StoryObj = {
   render: () => {
     const [open, setOpen] = useState(true);
+    const [tab, setTab] = useState("analysis");
     return (
       <SidebarFrame>
         <AnalysisSummaryRow detail={`${analysis.corners.length} corners · ${analysis.coaching.length} tips · ${analysis.setup.length} setup`} onView={() => setOpen(true)} />
         {open && (
-          <AnalysisModalShell subtitle="Porsche 911 GT3 R · Spa-Francorchamps" onClose={() => setOpen(false)}>
-            <AnalysisDisplay analysis={analysis} segments={segments} hasTune usage={usage} onJumpToFrac={() => {}} onExport={() => {}} onRegenerate={() => {}} onClear={() => setOpen(false)} />
+          <AnalysisModalShell
+            subtitle="Porsche 911 GT3 R · Spa-Francorchamps"
+            onClose={() => setOpen(false)}
+            tabs={[
+              { key: "analysis", label: "AI Analysis" },
+              { key: "setup", label: "Setup", badge: analysis.setup.length },
+            ]}
+            activeTab={tab}
+            onTabChange={setTab}
+          >
+            {tab === "setup" ? (
+              <SetupList setup={analysis.setup} hasTune lookupSegs={segments} onJumpToFrac={() => {}} />
+            ) : (
+              <AnalysisDisplay analysis={analysis} segments={segments} usage={usage} onJumpToFrac={() => {}} onExport={() => {}} onRegenerate={() => {}} onClear={() => setOpen(false)} />
+            )}
           </AnalysisModalShell>
         )}
       </SidebarFrame>

@@ -7,7 +7,7 @@ import { isAiConfigured } from "../../lib/is-ai-configured";
 import { client } from "../../lib/rpc";
 import { m } from "../../paraglide/messages";
 import { useUiStore } from "../../stores/ui";
-import { type AnalysisData, AnalysisDisplay } from "../ai/analysis-display";
+import { type AnalysisData, AnalysisDisplay, SetupList } from "../ai/analysis-display";
 import { AnalysisModalShell, AnalysisSummaryRow } from "../ai/analysis-summary";
 import { ChatPanel } from "../ai-chat/ChatPanel";
 import { Button } from "../ui/button";
@@ -429,10 +429,18 @@ function InputsModal({
 }
 
 function AnalysisModal({ label, summary, onClose }: { label: string; summary: AnalysisSummary; onClose: () => void }) {
-  const a = summary.raw ?? {};
+  const a = (summary.raw ?? {}) as AnalysisData;
+  const [tab, setTab] = useState("analysis");
+  const setup = a.setup ?? [];
   return (
-    <AnalysisModalShell subtitle={label} onClose={onClose}>
-      <AnalysisDisplay analysis={a as AnalysisData} />
+    <AnalysisModalShell
+      subtitle={label}
+      onClose={onClose}
+      tabs={[{ key: "analysis", label: m.label_ai_analysis() }, ...(setup.length ? [{ key: "setup", label: m.aidisplay_setup(), badge: setup.length }] : [])]}
+      activeTab={tab}
+      onTabChange={setTab}
+    >
+      {tab === "setup" ? <SetupList setup={setup} lookupSegs={null} /> : <AnalysisDisplay analysis={a} />}
     </AnalysisModalShell>
   );
 }

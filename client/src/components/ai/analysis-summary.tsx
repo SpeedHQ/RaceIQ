@@ -28,11 +28,36 @@ export function AnalysisSummaryRow({ title, detail, onView }: { title?: string; 
   );
 }
 
+export interface AnalysisModalTab {
+  key: string;
+  label: string;
+  /** Small count pill after the label, e.g. the number of setup entries. */
+  badge?: number;
+  /** Amber "best guess" style flag, used when no tune is linked. */
+  flag?: string;
+}
+
 /**
  * Portal modal chrome for whatever an AnalysisSummaryRow opens — backdrop
  * click-to-close, header with title and optional subtitle, scrollable body.
+ * Optional tabs switch the body between sections (analysis / setup) instead of
+ * stacking a second modal on top of this one.
  */
-export function AnalysisModalShell({ subtitle, onClose, children }: { subtitle?: string; onClose: () => void; children: ReactNode }) {
+export function AnalysisModalShell({
+  subtitle,
+  onClose,
+  tabs,
+  activeTab,
+  onTabChange,
+  children,
+}: {
+  subtitle?: string;
+  onClose: () => void;
+  tabs?: AnalysisModalTab[];
+  activeTab?: string;
+  onTabChange?: (key: string) => void;
+  children: ReactNode;
+}) {
   return createPortal(
     // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close
     <div
@@ -52,6 +77,27 @@ export function AnalysisModalShell({ subtitle, onClose, children }: { subtitle?:
             <X className="size-4" />
           </button>
         </div>
+        {tabs && tabs.length > 1 && (
+          <div className="flex items-center gap-1 px-3 pt-2 border-b border-app-border shrink-0">
+            {tabs.map((tab) => {
+              const active = tab.key === activeTab;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => onTabChange?.(tab.key)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 -mb-px border-b-2 text-[11px] font-semibold uppercase tracking-wider transition-colors ${
+                    active ? "border-amber-400 text-app-text" : "border-transparent text-app-text-muted hover:text-app-text-secondary"
+                  }`}
+                >
+                  {tab.label}
+                  {tab.badge !== undefined && <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-app-border-input/30 text-app-text-secondary">{tab.badge}</span>}
+                  {tab.flag && <span className="text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">{tab.flag}</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
         <div className="flex-1 overflow-y-auto px-4 py-3">{children}</div>
       </div>
     </div>,
