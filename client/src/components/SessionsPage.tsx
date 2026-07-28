@@ -34,8 +34,9 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
   return (
     <>
       {open && <NoteModal value={value} onSave={onSave} onClose={() => setOpen(false)} />}
-      <span
-        className="relative cursor-pointer group block w-full"
+      <button
+        type="button"
+        className="relative cursor-pointer group block w-full text-left"
         onClick={(e) => {
           e.stopPropagation();
           setOpen(true);
@@ -51,7 +52,7 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
           </svg>
           {m.common_edit()}
         </span>
-      </span>
+      </button>
     </>
   );
 }
@@ -192,8 +193,10 @@ function SessionLapTable({
       {/* Dev context menu */}
       {contextMenu && (
         <>
-          <div
-            className="fixed inset-0 z-40"
+          <button
+            type="button"
+            aria-label={m.common_close()}
+            className="fixed inset-0 z-40 cursor-default"
             onClick={() => setContextMenu(null)}
             onContextMenu={(e) => {
               e.preventDefault();
@@ -202,6 +205,7 @@ function SessionLapTable({
           />
           <div className="fixed z-50 bg-app-surface border border-app-border rounded shadow-lg py-1 text-sm" style={{ left: contextMenu.x, top: contextMenu.y }}>
             <button
+              type="button"
               className="w-full px-3 py-1.5 text-left hover:bg-app-surface-alt text-app-text"
               onClick={async () => {
                 const res = await fetch(`/api/laps/${contextMenu.lapId}/recheck`, { method: "POST" });
@@ -553,6 +557,7 @@ export function SessionsPage() {
               if (sessA.trackOrdinal !== sessB.trackOrdinal) return null;
               return (
                 <button
+                  type="button"
                   onClick={() => {
                     // Route shape is per-game (fm23/compare, f125/compare, …).
                     // TanStack Router types don't know about the dynamic gameRoute
@@ -578,7 +583,7 @@ export function SessionsPage() {
               );
             })()}
           {(selectedSessions.size > 0 || selectedLaps.size > 0) && (
-            <button onClick={deleteSelected} className="px-3 py-1.5 text-sm rounded bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors">
+            <button type="button" onClick={deleteSelected} className="px-3 py-1.5 text-sm rounded bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors">
               {m.common_delete()} {selectedSessions.size > 0 ? `${selectedSessions.size} ${m.sessions_count_sessions()}` : ""}
               {selectedSessions.size > 0 && selectedLaps.size > 0 ? " + " : ""}
               {selectedLaps.size > 0 ? `${selectedLaps.size} ${m.sessions_count_laps()}` : ""}
@@ -600,7 +605,23 @@ export function SessionsPage() {
             const bestTime = session.bestLapTime || (sessionLaps.length > 0 ? Math.min(...sessionLaps.map((l) => l.lapTime)) : 0);
             return (
               <div key={session.id} className={`rounded-lg border border-app-border bg-app-surface ${isExpanded ? "bg-app-surface-alt/40" : ""}`}>
-                <div className="flex items-start gap-3 p-3 cursor-pointer" onClick={() => toggleExpand(session.id)}>
+                {/* Whole card toggles the lap list on tap. Nested controls
+                    (checkbox, Recap/Export) stop propagation themselves. */}
+                {/* biome-ignore lint/a11y/useSemanticElements: cannot be a real <button> — it wraps a checkbox and two buttons, which may not nest inside one */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={isExpanded}
+                  className="flex items-start gap-3 p-3 cursor-pointer"
+                  onClick={() => toggleExpand(session.id)}
+                  onKeyDown={(e) => {
+                    if (e.target !== e.currentTarget) return;
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleExpand(session.id);
+                    }
+                  }}
+                >
                   <input
                     type="checkbox"
                     checked={selectedSessions.has(session.id)}
@@ -653,7 +674,10 @@ export function SessionsPage() {
                       </span>
                       <span className="ml-auto text-app-text/90-dim">{isExpanded ? "▾" : "▸"}</span>
                     </div>
-                    <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                    {/* Contains the note button and its modal; keeps their
+                        clicks from reaching the card's expand toggle. */}
+                    {/* biome-ignore lint/a11y/noStaticElementInteractions: event containment only, no behaviour of its own */}
+                    <div role="presentation" className="mt-2" onClick={(e) => e.stopPropagation()}>
                       <NoteCell
                         value={session.notes ?? undefined}
                         onSave={(notes) => {
@@ -828,6 +852,7 @@ export function SessionsPage() {
           </span>
           <div className="flex gap-1">
             <button
+              type="button"
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0}
               className="px-2 py-1 rounded bg-app-surface border border-app-border hover:bg-app-accent/10 disabled:opacity-30 disabled:cursor-not-allowed"
@@ -835,6 +860,7 @@ export function SessionsPage() {
               {m.sessions_prev()}
             </button>
             <button
+              type="button"
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1}
               className="px-2 py-1 rounded bg-app-surface border border-app-border hover:bg-app-accent/10 disabled:opacity-30 disabled:cursor-not-allowed"
