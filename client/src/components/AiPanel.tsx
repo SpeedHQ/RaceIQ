@@ -1,15 +1,15 @@
 import type { UIMessage } from "ai";
 import { toPng } from "html-to-image";
-import { AlertTriangle, CircleDot, Download, Eye, Gauge, Lightbulb, RefreshCw, Sliders, Sparkles, Trash2, X, Zap } from "lucide-react";
+import { Sparkles, Trash2 } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { m } from "@/paraglide/messages";
 import { useSettings } from "../hooks/queries";
 import { type ChatStreamError, type ChatStreamStatus, readChatStream } from "../lib/chat-stream";
 import { isAiConfigured } from "../lib/is-ai-configured";
 import { client } from "../lib/rpc";
 import { useUiStore } from "../stores/ui";
-import { SetupSection } from "./ai/analysis-display";
+import { type AnalysisData, AnalysisDisplay, type AnalysisHighlight, findSegment, type Segment } from "./ai/analysis-display";
+import { AnalysisModalShell, AnalysisSummaryRow } from "./ai/analysis-summary";
 import { ChatPanel } from "./ai-chat/ChatPanel";
 import { Button } from "./ui/button";
 
@@ -56,12 +56,7 @@ function safeParseAnalysis(raw: string): unknown {
   }
 }
 
-export interface AnalysisHighlight {
-  startFrac: number;
-  endFrac: number;
-  color: "good" | "warning" | "critical";
-  label: string;
-}
+export type { AnalysisHighlight } from "./ai/analysis-display";
 
 interface AiPanelProps {
   lapId: number;
@@ -72,151 +67,6 @@ interface AiPanelProps {
   onJumpToFrac?: (frac: number) => void;
   onHighlightsChange?: (highlights: AnalysisHighlight[]) => void;
   panelOpen?: boolean;
-}
-
-// ── Analysis types ───────────────────────────────────────────
-
-interface PaceItem {
-  label: string;
-  value: string;
-  assessment: "good" | "warning" | "critical";
-  detail: string;
-}
-interface HandlingItem {
-  label: string;
-  value: string;
-  assessment: "good" | "warning" | "critical";
-  detail: string;
-}
-interface CornerItem {
-  name: string;
-  issue: string;
-  fix: string;
-  severity: "minor" | "moderate" | "major";
-}
-interface CornerBrakingItem {
-  corner: string;
-  assessment: "good" | "warning" | "critical";
-  brakePoint: string;
-  detail: string;
-}
-interface CornerThrottleItem {
-  corner: string;
-  assessment: "good" | "warning" | "critical";
-  throttlePoint: string;
-  detail: string;
-}
-interface CoachingItem {
-  tip: string;
-  detail: string;
-}
-interface SetupItem {
-  component: string;
-  symptom: string;
-  fix: string;
-  current: string;
-  target: string;
-  direction: "increase" | "decrease" | "adjust";
-}
-
-interface AnalysisData {
-  verdict: string;
-  pace: PaceItem[];
-  handling: HandlingItem[];
-  corners: CornerItem[];
-  braking: CornerBrakingItem[];
-  throttle: CornerThrottleItem[];
-  coaching: CoachingItem[];
-  setup: SetupItem[];
-}
-
-const ASSESSMENT_COLORS = { good: "text-emerald-400", warning: "text-amber-400", critical: "text-red-400" };
-const ASSESSMENT_BG = { good: "bg-emerald-400/10 border-emerald-400/20", warning: "bg-amber-400/10 border-amber-400/20", critical: "bg-red-400/10 border-red-400/20" };
-const SEVERITY_COLORS = { minor: "bg-app-text-dim", moderate: "bg-amber-500", major: "bg-red-500" };
-
-function MetricCard({ item }: { item: PaceItem | HandlingItem }) {
-  return (
-    <div className={`rounded-lg border px-2.5 py-1.5 ${ASSESSMENT_BG[item.assessment]}`}>
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[10px] text-app-text-secondary uppercase tracking-wide">{item.label}</span>
-        <span className={`text-[11px] font-mono font-semibold ${ASSESSMENT_COLORS[item.assessment]}`}>{item.value}</span>
-      </div>
-      <p className="text-[10px] text-app-text-secondary mt-0.5 leading-relaxed">{item.detail}</p>
-    </div>
-  );
-}
-
-type Segment = { type: string; name: string; startFrac: number; endFrac: number };
-
-/** Find a segment whose name matches any of the search strings. */
-function findSegment(segments: Segment[] | null | undefined, ...texts: string[]): Segment | null {
-  if (!segments || segments.length === 0) return null;
-  const combined = texts.join(" ").toLowerCase();
-  // Exact substring match first
-  for (const s of segments) {
-    const sn = s.name.toLowerCase();
-    if (combined.includes(sn) || sn.includes(combined)) return s;
-  }
-  // Word-level fuzzy: any word > 2 chars appears in segment name
-  const words = combined.split(/\s+/).filter((w) => w.length > 2);
-  for (const s of segments) {
-    const sn = s.name.toLowerCase();
-    if (words.some((w) => sn.includes(w))) return s;
-  }
-  return null;
-}
-
-/** Wrapper that makes a card clickable to highlight a track zone. */
-function TrackCard({
-  seg,
-  color,
-  onJumpToFrac,
-  onHighlightsChange,
-  className,
-  children,
-}: {
-  seg: Segment | null;
-  color: "good" | "warning" | "critical";
-  onJumpToFrac?: (frac: number) => void;
-  onHighlightsChange?: (h: AnalysisHighlight[]) => void;
-  className?: string;
-  children: React.ReactNode;
-}) {
-  const clickable = !!(seg && onJumpToFrac);
-  const activate = () => {
-    if (!seg) return;
-    onJumpToFrac?.((seg.startFrac + seg.endFrac) / 2);
-    onHighlightsChange?.([{ startFrac: seg.startFrac, endFrac: seg.endFrac, color, label: seg.name }]);
-  };
-  return (
-    <div
-      className={`${className ?? ""} ${clickable ? "cursor-pointer hover:brightness-110 transition" : ""}`}
-      {...(clickable
-        ? {
-            role: "button" as const,
-            tabIndex: 0,
-            onClick: activate,
-            onKeyDown: (e: React.KeyboardEvent) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                activate();
-              }
-            },
-          }
-        : {})}
-    >
-      {children}
-    </div>
-  );
-}
-
-function SectionHeader({ icon, title }: { icon: React.ReactNode; title: string }) {
-  return (
-    <div className="flex items-center gap-1.5 mb-2">
-      <span className="text-app-text-secondary">{icon}</span>
-      <h3 className="text-[10px] font-semibold text-app-text uppercase tracking-wider">{title}</h3>
-    </div>
-  );
 }
 
 async function fetchLapChatHistory(lapId: number, gen?: number): Promise<UIMessage[]> {
@@ -545,243 +395,43 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           </div>
         )}
 
-        {/* Analysis collapses to a one-line summary row; the full breakdown
-            opens in a modal — same pattern as the compare panel, so the chat
-            gets the panel height instead of scrolling past the analysis. */}
+        {/* Analysis collapses to a summary row; the full breakdown opens in a
+            modal. Both pieces are the shared components the compare panel
+            uses, so the two pages stay in lockstep. */}
         {analysis && !loading && (
-          <button
-            type="button"
-            onClick={() => setAnalysisOpen(true)}
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/15 transition-colors text-left"
-          >
-            <Sparkles className="size-3 text-emerald-400 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <div className="text-[10px] font-semibold text-emerald-300 uppercase tracking-wider">{m.compare_analysis_complete()}</div>
-              <div className="text-[9px] text-app-text-muted font-mono">
-                {analysis.corners?.length ?? 0} corners · {analysis.coaching?.length ?? 0} tips · {analysis.setup?.length ?? 0} setup
-              </div>
-            </div>
-            <span className="flex items-center gap-1 text-[10px] text-app-text-secondary shrink-0">
-              <Eye className="size-3" /> {m.label_view()}
-            </span>
-          </button>
+          <AnalysisSummaryRow
+            detail={`${analysis.corners?.length ?? 0} corners · ${analysis.coaching?.length ?? 0} tips · ${analysis.setup?.length ?? 0} setup`}
+            onView={() => setAnalysisOpen(true)}
+          />
         )}
 
-        {analysis &&
-          !loading &&
-          analysisOpen &&
-          createPortal(
-            // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close
-            <div
-              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-              onMouseDown={(e) => {
-                if (e.target === e.currentTarget) setAnalysisOpen(false);
+        {analysis && !loading && analysisOpen && (
+          <AnalysisModalShell subtitle={`${carName} · ${trackName}`} onClose={() => setAnalysisOpen(false)}>
+            <AnalysisDisplay
+              analysis={analysis}
+              cornerFracs={cornerFracs}
+              segments={segments}
+              hasTune={hasTune}
+              usage={usage}
+              loading={loading}
+              containerRef={analysisRef}
+              onJumpToFrac={onJumpToFrac}
+              onHighlightsChange={onHighlightsChange}
+              onExport={handleExport}
+              onRegenerate={() => {
+                clearChat();
+                fetchAnalysis(true);
               }}
-            >
-              <div className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[640px] max-w-[95vw] max-h-[85vh] flex flex-col overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-app-border shrink-0">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="size-3.5 text-amber-400" />
-                    <span className="text-[11px] font-semibold text-app-text uppercase tracking-wider">{m.label_ai_analysis()}</span>
-                    <span className="text-[11px] text-app-text-secondary truncate max-w-[300px]">
-                      {carName} · {trackName}
-                    </span>
-                  </div>
-                  <button type="button" onClick={() => setAnalysisOpen(false)} className="text-app-text-muted hover:text-app-text">
-                    <X className="size-4" />
-                  </button>
-                </div>
-                <div className="flex-1 overflow-y-auto px-4 py-3">
-                  <div ref={analysisRef} className="flex justify-start">
-                    <div className="max-w-full rounded-lg px-2.5 py-2 bg-app-surface-alt/60 border border-app-border-input/40 text-app-text-secondary space-y-3">
-                      {/* Verdict */}
-                      <p className="text-[11px] text-app-text leading-relaxed">{analysis.verdict}</p>
-
-                      {/* Pace */}
-                      {analysis.pace?.length > 0 && (
-                        <div>
-                          <SectionHeader icon={<Gauge className="size-3" />} title={m.label_pace()} />
-                          <div className="grid grid-cols-1 gap-1.5">
-                            {analysis.pace.map((item) => (
-                              <MetricCard key={item.label} item={item} />
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Handling */}
-                      {analysis.handling?.length > 0 && (
-                        <div>
-                          <SectionHeader icon={<Sliders className="size-3" />} title={m.label_handling()} />
-                          <div className="grid grid-cols-1 gap-1.5">
-                            {analysis.handling.map((item) => (
-                              <MetricCard key={item.label} item={item} />
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Problem Corners */}
-                      {analysis.corners?.length > 0 && (
-                        <div>
-                          <SectionHeader icon={<AlertTriangle className="size-3" />} title={m.label_problem_corners()} />
-                          <div className="space-y-1.5">
-                            {analysis.corners.map((corner) => (
-                              <TrackCard
-                                key={corner.name}
-                                seg={findSegment(cornerFracs.length ? cornerFracs : segments, corner.name)}
-                                color={corner.severity === "major" ? "critical" : corner.severity === "moderate" ? "warning" : "good"}
-                                onJumpToFrac={onJumpToFrac}
-                                onHighlightsChange={onHighlightsChange}
-                                className="bg-app-surface-alt/40 border border-app-border-input/40 rounded-lg px-2.5 py-2"
-                              >
-                                <div className="flex items-center gap-1.5 mb-0.5">
-                                  <span className={`size-1.5 rounded-full ${SEVERITY_COLORS[corner.severity]}`} />
-                                  <span className="text-[11px] font-semibold text-app-text">{corner.name}</span>
-                                </div>
-                                <p className="text-[10px] text-app-text-secondary">{corner.issue}</p>
-                                <p className="text-[10px] text-emerald-400/80 mt-0.5">{corner.fix}</p>
-                              </TrackCard>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Braking per corner */}
-                      {analysis.braking?.length > 0 && (
-                        <div>
-                          <SectionHeader icon={<CircleDot className="size-3" />} title={m.label_braking_points()} />
-                          <div className="space-y-1.5">
-                            {analysis.braking.map((item) => (
-                              <TrackCard
-                                key={item.corner}
-                                seg={findSegment(cornerFracs.length ? cornerFracs : segments, item.corner)}
-                                color={item.assessment}
-                                onJumpToFrac={onJumpToFrac}
-                                onHighlightsChange={onHighlightsChange}
-                                className={`rounded-lg border px-2.5 py-1.5 ${ASSESSMENT_BG[item.assessment]}`}
-                              >
-                                <div className="flex items-baseline justify-between gap-2">
-                                  <span className="text-[11px] font-semibold text-app-text">{item.corner}</span>
-                                  <span className={`text-[10px] font-mono ${ASSESSMENT_COLORS[item.assessment]}`}>{item.brakePoint}</span>
-                                </div>
-                                <p className="text-[10px] text-app-text-secondary mt-0.5">{item.detail}</p>
-                              </TrackCard>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Throttle per corner */}
-                      {analysis.throttle?.length > 0 && (
-                        <div>
-                          <SectionHeader icon={<Zap className="size-3" />} title={m.label_throttle_application()} />
-                          <div className="space-y-1.5">
-                            {analysis.throttle.map((item) => (
-                              <TrackCard
-                                key={item.corner}
-                                seg={findSegment(cornerFracs.length ? cornerFracs : segments, item.corner)}
-                                color={item.assessment}
-                                onJumpToFrac={onJumpToFrac}
-                                onHighlightsChange={onHighlightsChange}
-                                className={`rounded-lg border px-2.5 py-1.5 ${ASSESSMENT_BG[item.assessment]}`}
-                              >
-                                <div className="flex items-baseline justify-between gap-2">
-                                  <span className="text-[11px] font-semibold text-app-text">{item.corner}</span>
-                                  <span className={`text-[10px] font-mono ${ASSESSMENT_COLORS[item.assessment]}`}>{item.throttlePoint}</span>
-                                </div>
-                                <p className="text-[10px] text-app-text-secondary mt-0.5">{item.detail}</p>
-                              </TrackCard>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Coaching */}
-                      {analysis.coaching?.length > 0 && (
-                        <div>
-                          <SectionHeader icon={<Lightbulb className="size-3" />} title={m.label_coaching()} />
-                          <div className="space-y-1.5">
-                            {analysis.coaching.map((item, i) => (
-                              <TrackCard
-                                key={item.tip}
-                                seg={findSegment(cornerFracs.length ? cornerFracs : segments, item.tip, item.detail)}
-                                color="warning"
-                                onJumpToFrac={onJumpToFrac}
-                                onHighlightsChange={onHighlightsChange}
-                                className="flex gap-2"
-                              >
-                                <span className="text-amber-400/60 text-[10px] font-mono mt-0.5">{i + 1}.</span>
-                                <div>
-                                  <span className="text-[11px] font-medium text-app-text">{item.tip}</span>
-                                  <p className="text-[10px] text-app-text-secondary mt-0.5">{item.detail}</p>
-                                </div>
-                              </TrackCard>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Setup — collapsed into a button; opens a modal. Shared with AnalysisDisplay. */}
-                      {analysis.setup?.length > 0 && (
-                        <SetupSection
-                          setup={analysis.setup}
-                          hasTune={hasTune}
-                          lookupSegs={cornerFracs.length ? cornerFracs : (segments ?? null)}
-                          onJumpToFrac={onJumpToFrac}
-                          onHighlightsChange={onHighlightsChange}
-                        />
-                      )}
-
-                      {/* Actions bar */}
-                      <div className="flex items-center gap-1.5 pt-1.5 border-t border-app-border-input/30">
-                        {usage && (
-                          <span className="text-[9px] text-app-text-muted font-mono mr-auto">
-                            {usage.inputTokens.toLocaleString()}↓ {usage.outputTokens.toLocaleString()}↑ ${usage.costUsd.toFixed(4)} {(usage.durationMs / 1000).toFixed(1)}s
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          onClick={handleExport}
-                          className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
-                          title={m.label_export_as_image()}
-                        >
-                          <Download className="size-3" /> {m.aipanel_export()}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            clearChat();
-                            fetchAnalysis(true);
-                          }}
-                          disabled={loading}
-                          className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors disabled:opacity-50"
-                          title={m.aipanel_regenerate_title()}
-                        >
-                          <RefreshCw className="size-3" /> {m.label_regenerate()}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            clearChat();
-                            setAnalysis(null);
-                            setUsage(null);
-                            setAnalysisOpen(false);
-                            onHighlightsChange?.([]);
-                          }}
-                          className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-red-400 px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
-                          title={m.aipanel_clear_title()}
-                        >
-                          <Trash2 className="size-3" /> {m.common_clear()}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>,
-            document.body,
-          )}
+              onClear={() => {
+                clearChat();
+                setAnalysis(null);
+                setUsage(null);
+                setAnalysisOpen(false);
+                onHighlightsChange?.([]);
+              }}
+            />
+          </AnalysisModalShell>
+        )}
 
         {/* Chat continues the conversation, below the analysis card. Only
             mounted once analysis exists (or chat has been used before) so

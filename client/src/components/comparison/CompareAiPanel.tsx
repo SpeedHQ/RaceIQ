@@ -1,5 +1,5 @@
 import type { UIMessage } from "ai";
-import { Eye, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
+import { RefreshCw, Sparkles, Trash2, X } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSettings } from "../../hooks/queries";
@@ -8,6 +8,7 @@ import { client } from "../../lib/rpc";
 import { m } from "../../paraglide/messages";
 import { useUiStore } from "../../stores/ui";
 import { type AnalysisData, AnalysisDisplay } from "../ai/analysis-display";
+import { AnalysisModalShell, AnalysisSummaryRow } from "../ai/analysis-summary";
 import { ChatPanel } from "../ai-chat/ChatPanel";
 import { Button } from "../ui/button";
 
@@ -239,22 +240,7 @@ function InputsSection({ lapAId, lapBId, panelOpen, onView }: { lapAId: number; 
       )}
 
       {analysis && (
-        <button
-          type="button"
-          onClick={() => onView(analysis)}
-          className="w-full flex items-center gap-2 px-2 py-1.5 rounded bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/15 transition-colors text-left"
-        >
-          <Sparkles className="size-3 text-emerald-400 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <div className="text-[10px] font-semibold text-emerald-300 uppercase tracking-wider">{m.compare_inputs_analysed()}</div>
-            <div className="text-[9px] text-app-text-muted font-mono">
-              {analysis.segments?.length ?? 0} segments · {analysis.coaching?.length ?? 0} tips
-            </div>
-          </div>
-          <span className="flex items-center gap-1 text-[10px] text-app-text-secondary shrink-0">
-            <Eye className="size-3" /> {m.label_view()}
-          </span>
-        </button>
+        <AnalysisSummaryRow title={m.compare_inputs_analysed()} detail={`${analysis.segments?.length ?? 0} segments · ${analysis.coaching?.length ?? 0} tips`} onView={() => onView(analysis)} />
       )}
     </div>
   );
@@ -318,24 +304,7 @@ function LapSection({
         </div>
       )}
 
-      {summary && (
-        <button
-          type="button"
-          onClick={() => onView(lap.label, summary)}
-          className="w-full flex items-center gap-2 px-2 py-1.5 rounded bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/15 transition-colors text-left"
-        >
-          <Sparkles className="size-3 text-emerald-400 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <div className="text-[10px] font-semibold text-emerald-300 uppercase tracking-wider">{m.compare_analysis_complete()}</div>
-            <div className="text-[9px] text-app-text-muted font-mono">
-              {summary.cornerCount} corners · {summary.coachingCount} tips · {summary.setupCount} setup
-            </div>
-          </div>
-          <span className="flex items-center gap-1 text-[10px] text-app-text-secondary shrink-0">
-            <Eye className="size-3" /> {m.label_view()}
-          </span>
-        </button>
-      )}
+      {summary && <AnalysisSummaryRow detail={`${summary.cornerCount} corners · ${summary.coachingCount} tips · ${summary.setupCount} setup`} onView={() => onView(lap.label, summary)} />}
     </div>
   );
 }
@@ -461,31 +430,10 @@ function InputsModal({
 
 function AnalysisModal({ label, summary, onClose }: { label: string; summary: AnalysisSummary; onClose: () => void }) {
   const a = summary.raw ?? {};
-  return createPortal(
-    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[640px] max-w-[95vw] max-h-[85vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-app-border shrink-0">
-          <div className="flex items-center gap-2">
-            <Sparkles className="size-3.5 text-amber-400" />
-            <span className="text-[11px] font-semibold text-app-text uppercase tracking-wider">{m.label_ai_analysis()}</span>
-            <span className="text-[11px] text-app-text-secondary truncate max-w-[300px]">{label}</span>
-          </div>
-          <button type="button" onClick={onClose} className="text-app-text-muted hover:text-app-text">
-            <X className="size-4" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto px-4 py-3">
-          <AnalysisDisplay analysis={a as AnalysisData} />
-        </div>
-      </div>
-    </div>,
-    document.body,
+  return (
+    <AnalysisModalShell subtitle={label} onClose={onClose}>
+      <AnalysisDisplay analysis={a as AnalysisData} />
+    </AnalysisModalShell>
   );
 }
 
