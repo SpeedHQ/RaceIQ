@@ -10,40 +10,21 @@ parameterised for both games.
 
 ---
 
-## Two recorders, two file formats
+## Scope
 
-There are **two independent recorders** and they are easy to confuse:
+This document covers the **production** recording path only — what happens on
+every session, for every user, with no dev flags set.
 
-| | Session recorder (production) | Dev dump recorder |
-| --- | --- | --- |
-| Class | `UdpRecorder` via `RealSessionRecorderAdapter` | `AcRecorder` (`acEvoRecorder` singleton) |
-| Owner | `Pipeline` (`server/pipeline.ts`) | `AcEvoSharedMemoryReader` constructor |
-| Written | always, on every session | only with `bun run dev:dump:ac-evo` |
-| Unit | one **packed triplet** per record | one **buffer** per frame (physics / graphics / static) |
-| Path | `<DATA_DIR>/sessions/ac-evo/<timestamp>.bin` | `test/artifacts/laps/ac-evo-<timestamp>.bin` |
-| Magic | per-record `ACEP` (`ACEVO_PACKED_MAGIC`) | file header `ACCTEST\0`, version 3 |
-| Purpose | lap replay, reprocessing, analysis | parser fixtures, regression dumps |
+The developer dump path (`bun run dev:dump:ac-evo`, `DumpToBinProcessor`,
+`AcRecorder`, `readAccFrames`, and the `/dev` import route) is a separate debug
+tap that produces test fixtures, not user data. It is documented in
+`docs/dev-recordings.md` and deliberately left out here.
 
-The session recorder is the one that matters architecturally — laps in the DB
-carry a byte offset into its file. The dev dump recorder is a debug tap that
-sits in front of the parser.
-
-### Caveat: AC Evo dumps really do say `ACCTEST` v3
-
-`acEvoRecorder` is a plain `AcRecorder` instance, and `AcRecorder.start()`
-writes the `ACCTEST\0` magic and `RECORDER_VERSION = 3` for every game. So an
-AC Evo dump byte-for-byte carries ACC's header, and `readAccFrames` (which only
-accepts versions 2 and 3) is what reads it back — including in the `ac-evo`
-branch of the dev import route.
-
-The version number describes the **container**, not the payload. `AcRecorder`'s
-own header comment defines v3 in ACC terms ("graphics buffer captured at full
-1588 bytes, ACC SDK v1.8.12"), but an AC Evo dump's graphics frames are
-`GRAPHICS_EVO.SIZE` = 3944 bytes. That is fine because frames are
-self-describing — `[type u8][size u32le][data]` — so the reader never assumes a
-struct size. Nothing in the file identifies which game produced it; that comes
-from the `<gameId>-` filename prefix, which is why `docs/dev-recordings.md`
-warns not to rename dumps.
+The recorder that matters architecturally is the **session recorder**:
+`UdpRecorder`, owned by `Pipeline` (`server/pipeline.ts`) via
+`RealSessionRecorderAdapter`. It writes one packed triplet per record to
+`<DATA_DIR>/sessions/ac-evo/<timestamp>.bin`, each record carrying the `ACEP`
+magic (`ACEVO_PACKED_MAGIC`), and laps in the DB store a byte offset into it.
 
 ---
 
@@ -57,7 +38,7 @@ flowchart TD
 
     SUP["Supervisor (server/index.ts)<br/>2s poll, win32 only<br/>isGameRunning('ac-evo')"]
     SUP -->|process up| READER
-    SUP -->|process gone| STOP["reader.stop()<br/>closes dev dump bin"]
+    SUP -->|process gone| STOP["reader.stop()"]
 
     subgraph READER["AcEvoSharedMemoryReader"]
         BR["BufferedAccMemoryReader<br/>kernel32 FFI OpenFileMappingW + MapViewOfFile<br/>physics 300Hz · graphics 60Hz · static 1Hz refresh"]
@@ -67,19 +48,7 @@ flowchart TD
 
     SHM -.->|RtlCopyMemory| BR
 
-    TA --> TP{"TripletPipeline"}
-    TP -->|recording mode only| DUMP["DumpToBinProcessor"]
-
-    DUMP --> WP["writePhysics<br/>always writes"]
-    DUMP --> WG["writeGraphics<br/>always writes"]
-    DUMP --> WS2["writeStatic"]
-    WS2 --> DEDUP{"bytes equal<br/>_lastStatic?"}
-    DEDUP -->|yes| SKIP(["skip — no frame written"])
-    DEDUP -->|no| WRITE["write frame,<br/>cache as _lastStatic"]
-
-    WP --> DEVBIN[("test/artifacts/laps/<br/>ac-evo-*.bin (ACCTEST v3)")]
-    WG --> DEVBIN
-    WRITE --> DEVBIN
+    TA --> TP["TripletPipeline"]
     TP --> PARSE["AcEvoParsingProcessor<br/>parseAcEvoBuffers(physics, graphics, static, cache)"]
 
     PARSE -->|AC_OFF / AC_REPLAY -> null| DROP(["frame dropped"])
@@ -101,7 +70,6 @@ flowchart TD
     SESSBIN -.->|>24h idle| GZ["session-compressor<br/>gzip in place, DB path -> .bin.gz"]
     SESSBIN -.->|replay| RP["reprocessSession()<br/>unpackTriplet -> tryParse -> fresh detector"]
     RP --> DB
-    DEVBIN -.->|readAccFrames| RP
 ```
 
 ---
@@ -117,10 +85,6 @@ running, and stopped when it disappears. No idle shared-memory polling.
 `AcEvoProcessChecker` (`games/ac-evo/process-checker.ts`) exists and emits
 `ac-evo-detected` / `ac-evo-lost`, but the central supervisor owns lifecycle —
 `AcEvoSharedMemoryReader.start()` calls `_onDetected()` directly.
-
-The constructor takes `recordingEnabled`, wired from the CLI recording game id.
-When true it opens the dev dump file immediately, so a dump exists even if the
-game never reaches a live session.
 
 ### 2. Shared memory read — `BufferedAccMemoryReader`
 
@@ -156,41 +120,7 @@ the lap detector's problem — see `_lastEmittedLapNumber` below.
 ### 4. Triplet pipeline — `TripletPipeline`
 
 Processors run in sequence; returning `false` halts the chain for that triplet.
-
-Registration for AC Evo:
-
-- recording mode: `DumpToBinProcessor` → `AcEvoParsingProcessor`
-- normal mode: `AcEvoParsingProcessor`
-
-**Static-frame dedup.** `DumpToBinProcessor` calls all three writers per
-triplet, but only physics and graphics are written unconditionally.
-`AcRecorder.writeStatic` compares the buffer against the last static frame it
-wrote and returns early when the bytes are identical:
-
-```ts
-writeStatic(buffer: Buffer): void {
-  if (this._lastStatic && this._lastStatic.equals(buffer)) return;
-  this._lastStatic = Buffer.from(buffer);
-  this._writeBufferFrame(2, buffer);
-}
-```
-
-Without this, a 100Hz assembler would emit ~100 identical 256-byte static
-frames per second for a page that changes only on session/car/track
-transitions. Dedup keeps every state transition — including the game populating
-the track name mid-session — while dropping the repeats.
-
-The cost is that the file no longer contains one static frame per triplet, so
-the reader has to reconstruct them: `readAccFrames` flushes a triplet when the
-*next* poll's physics frame arrives (or at EOF) and carries `lastStatic`
-forward across polls that skipped a static frame. A triplet is only emitted once
-`lastStatic.length > 0`, so frames recorded before the first static write are
-discarded.
-
-Physics and graphics are deliberately **not** deduped — they change nearly
-every frame, so a comparison would cost more than it saves, and dropping a
-repeated physics frame would desynchronise the triplet reconstruction above,
-which keys off physics-frame boundaries.
+In production AC Evo registers exactly one: `AcEvoParsingProcessor`.
 
 **`StatusCheckProcessor` is deliberately not registered for AC Evo.** In v0.6
 the `status` byte at offset 4 of the legacy `acpmf_graphics` page stays 0 even
@@ -322,21 +252,16 @@ still in memory) and `reconcileAutoExclusionsForLap`.
   detector backed by `CapturingDbAdapter`. Same lap count → in-place index
   update; different count → replace. Bumping `LAP_DETECTOR_AC_EVO_ID` marks
   every prior AC Evo session stale so `/api/sessions/reprocess-stale` backfills.
-- **Dev dump import**: `readAccFrames` (`games/acc/frame-reader.ts`) reassembles
-  triplets from the `ACCTEST` file, carrying the last-seen static forward across
-  polls where it was deduped. Handles `frameCount === 0` (killed process) by
-  scanning. See `docs/dev-recordings.md`.
 
 ---
 
 ## Shutdown
 
-`gracefulShutdown` on SIGINT/SIGTERM awaits, in parallel:
-`flushSessionRecorder()`, `acEvoReader.stop()` (which stops the assembler, the
-buffered reader, and closes the dev dump so `frameCount` is finalised), and in
-recording mode `acEvoRecorder.stop()`. All writers buffer through
-`Bun.file().writer()` — without this handler the process exits before the buffer
-drains and files end up truncated or zero-length.
+`gracefulShutdown` on SIGINT/SIGTERM awaits `flushSessionRecorder()` and
+`acEvoReader.stop()` (which stops the assembler and the buffered reader) in
+parallel. The session recorder buffers through `Bun.file().writer()` — without
+this handler the process exits before the buffer drains and the session `.bin`
+ends up truncated or zero-length, stranding lap byte offsets past EOF.
 
 ---
 
@@ -362,12 +287,9 @@ drains and files end up truncated or zero-length.
 | `server/games/ac-evo/parser.ts` | Buffers → `TelemetryPacket`, status gating |
 | `server/games/ac-evo/structs.ts` | `PHYSICS` / `GRAPHICS_EVO` / `STATIC_EVO` layouts |
 | `server/games/ac-evo/index.ts` | `acEvoServerAdapter` (canHandle / tryParse / detector factory / AI prompt) |
-| `server/games/ac-evo/recorder.ts` | `acEvoRecorder` dev dump singleton |
 | `server/games/acc/buffered-memory-reader.ts` | kernel32 FFI shared-memory reads |
 | `server/games/acc/triplet-assembler.ts` | 100Hz triplet snapshot |
-| `server/games/acc/triplet-pipeline.ts` | Processor chain, `DumpToBinProcessor` |
-| `server/games/acc/recorder.ts` | `AcRecorder`, `ACCTEST` dev dump format |
-| `server/games/acc/frame-reader.ts` | Dev dump → triplets |
+| `server/games/acc/triplet-pipeline.ts` | Processor chain |
 | `server/games/shared/pack-triplet.ts` | `ACEP` pack/unpack |
 | `server/pipeline.ts` | Shared per-packet processing, session recorder ownership |
 | `server/pipeline-adapters.ts` | DB / WS / session-recorder adapter seams |
