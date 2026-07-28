@@ -17,6 +17,15 @@ export interface GameAdapter {
   /** Coordinate system used for track maps */
   coordSystem: string;
 
+  /** Sector boundaries and lap fraction are supplied authoritatively by telemetry. */
+  nativeSectors: boolean;
+
+  /** Raw-lap replay should synthesize a finish sample from the following frame. */
+  appendsDelayedFinishFrame: boolean;
+
+  /** Telemetry track length must not be refined from observed completed distance. */
+  authoritativeTrackLength: boolean;
+
   /**
    * Returns the world-space forward offset (dx, dz) for rendering the car arrow
    * at a given yaw angle. Accounts for each game's heading convention.

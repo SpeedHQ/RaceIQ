@@ -6,6 +6,9 @@ export const f1Adapter: GameAdapter = {
   shortName: "F1 25",
   routePrefix: "f125",
   coordSystem: "f1-2025",
+  nativeSectors: false,
+  appendsDelayedFinishFrame: true,
+  authoritativeTrackLength: false,
   steeringCenter: 0,
   // Steer is emitted as steer(-1..1) × 127 by the parser (Forza ±127
   // convention), so the usable range is 127 — not 1. Corner detection scales

@@ -42,6 +42,9 @@ export const iracingAdapter: GameAdapter = {
   // iRacing's public telemetry exposes lap distance directly. It does not
   // provide a stable world-space racing-line position in the live SDK row.
   coordSystem: "lap-distance",
+  nativeSectors: true,
+  appendsDelayedFinishFrame: false,
+  authoritativeTrackLength: true,
   steeringCenter: 0,
   steeringRange: 127,
   tireHealthThresholds: { green: 0.85, yellow: 0.70 },

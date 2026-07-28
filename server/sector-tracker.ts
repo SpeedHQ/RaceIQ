@@ -6,6 +6,8 @@
  * client just renders numbers.
  */
 import type { TelemetryPacket, GameId, LiveSectorData, LivePitData, LapMeta } from "../shared/types";
+import { getGame } from "../shared/games/registry";
+import type { GameAdapter } from "../shared/games/types";
 import { getLaps, getLapById } from "./db/queries";
 import { resolveTrack } from "./track-info";
 
@@ -43,6 +45,7 @@ export class SectorTracker {
   private currentTrackOrdinal = -1;
   private currentCarOrdinal = -1;
   private currentGameId: GameId | null = null;
+  private currentGame: GameAdapter | null = null;
 
   /** Reset for a new session — loads sector boundaries and track length. */
   async reset(trackOrdinal: number, gameId: GameId, carOrdinal: number = -1): Promise<void> {
@@ -64,10 +67,11 @@ export class SectorTracker {
     this.currentTrackOrdinal = trackOrdinal;
     this.currentCarOrdinal = carOrdinal;
     this.currentGameId = gameId;
+    this.currentGame = getGame(gameId);
 
-    // iRacing publishes the authoritative layout in SplitTimeInfo. Wait for
-    // the first native frame rather than inventing equal thirds.
-    if (gameId === "iracing") return;
+    // Games with native sector metadata provide their authoritative layout on
+    // telemetry frames. Wait for it rather than inventing equal thirds.
+    if (this.currentGame.nativeSectors) return;
 
     // Sector boundaries: this game's curated pair, else bundled, else thirds.
     const track = resolveTrack(gameId, trackOrdinal);
@@ -94,7 +98,7 @@ export class SectorTracker {
 
   /** Process a packet. Returns sector data or null if no sector bounds loaded. */
   feed(packet: TelemetryPacket): LiveSectorData | null {
-    if (packet.gameId === "iracing") {
+    if (this.currentGame?.nativeSectors) {
       const starts = packet.iracing?.sectorStarts;
       if (
         starts &&
@@ -170,11 +174,11 @@ export class SectorTracker {
       // For ACC/AC Evo: guard against pit laps — their short completedDist would
       // corrupt lapDistTotal and make sector fractions fire too early on the
       // following lap (e.g. S3 before turn 2 on the outlap).
-      // iRacing already publishes authoritative track length and the source can
-      // attach mid-lap, so its first completedDist may be only a lap fragment.
+      // An authoritative telemetry length must survive a source attaching
+      // mid-lap, when the first completedDist may be only a lap fragment.
       const completedDist = packet.DistanceTraveled - this.lapDistStart;
       const minPlausibleLap = this.currentGameId === "acc" && this.bounds ? this.bounds.trackLength * 0.5 : 100;
-      if (this.currentGameId !== "iracing" && completedDist > minPlausibleLap) {
+      if (!this.currentGame?.authoritativeTrackLength && completedDist > minPlausibleLap) {
         this.lapDistTotal = completedDist;
       }
 
@@ -191,10 +195,9 @@ export class SectorTracker {
     if (this.currentGameId === "acc" && packet.acc?.currentSectorIndex !== undefined) {
       this.updateAccSector(packet);
     } else {
-      // Native iRacing sector starts are fractions and the SDK supplies the
-      // matching lap fraction directly. Other games retain the shared
-      // distance-derived compatibility path.
-      const frac = this.currentGameId === "iracing"
+      // Native sector starts are fractions and their telemetry supplies the
+      // matching lap fraction directly. Other games derive it from distance.
+      const frac = this.currentGame?.nativeSectors
         ? packet.iracing?.lapDistancePct
         : this.lapDistTotal > 0
           ? (packet.DistanceTraveled - this.lapDistStart) / this.lapDistTotal
@@ -302,7 +305,7 @@ export class SectorTracker {
   updateRefLap(packets: TelemetryPacket[], lapTime: number, sectors?: { s1: number; s2: number; s3: number } | null): void {
     if (lapTime < this.bestLapTime) this.bestLapTime = lapTime;
     if (sectors) {
-      if (this.currentGameId === "iracing") {
+      if (this.currentGame?.nativeSectors) {
         this.lastTimes = [sectors.s1, sectors.s2, sectors.s3];
         this.lastLapTime = lapTime;
       }

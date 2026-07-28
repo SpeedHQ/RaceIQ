@@ -139,6 +139,12 @@ function sampleFrame(): IRacingSourceFrameV2 {
 }
 
 describe("native iRacing SDK decoding", () => {
+  test("declares native timing and replay capabilities", () => {
+    expect(iracingAdapter.nativeSectors).toBe(true);
+    expect(iracingAdapter.authoritativeTrackLength).toBe(true);
+    expect(iracingAdapter.appendsDelayedFinishFrame).toBe(false);
+  });
+
   test("bounds native reads to the VirtualQuery region", () => {
     expect(isValidIRacingMappingRange(0, 112, 112)).toBe(true);
     expect(isValidIRacingMappingRange(112, 1, 112)).toBe(false);

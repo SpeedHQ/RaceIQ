@@ -1046,11 +1046,10 @@ async function parseRawLapFrames(
         // outgoing lap so consumers don't see a stray new-lap entry.
         const last = packets[packets.length - 1];
         const finishTime = packet.LastLap ?? 0;
-        // iRacing publishes LastLap after the physical line crossing, so the
-        // first next-lap frame still contains the prior timing state. Its
-        // native detector already stores the exact outgoing frame range.
+        // Some native detectors already store the exact outgoing frame range,
+        // so their next-lap timing frame must not be appended here.
         if (
-          gameId !== "iracing" &&
+          serverGame.appendsDelayedFinishFrame &&
           last &&
           finishTime > (last.CurrentLap ?? 0)
         ) {
@@ -1197,9 +1196,7 @@ async function parseSessionLapsBatched(
     // as parseRawLapFrames' extra-frame branch).
     const trailing = parsed[end];
     const last = packets[packets.length - 1];
-    // Do not append iRacing's delayed next-lap timing frame to the outgoing
-    // lap; doing so creates the analyzer's end-of-lap scrubber jump.
-    if (gameId !== "iracing" && trailing && last) {
+    if (serverGame.appendsDelayedFinishFrame && trailing && last) {
       const finishTime = trailing.LastLap ?? 0;
       if (finishTime > (last.CurrentLap ?? 0)) {
         packets.push({
