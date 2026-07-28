@@ -297,9 +297,15 @@ export const tuningSessions = sqliteTable(
  * session's baseSetupPath on session create, and each Save & recommend appends
  * v(N+1) with the applied diff + the newly written setup file.
  *
- * `appliedChanges` is a JSON blob of the AppliedChange[] returned by the
- * autotune engine. `parentTestId` links a version to the one it was derived
- * from (self-referential; not a hard FK so a parent can be archived independently).
+ * `appliedChanges` is a JSON blob of `TestChange[]` (shared/types.ts) — a
+ * discriminated union on `kind`, either a setup knob edit from the autotune
+ * engine or a driving drill. `parentTestId` links a version to the one it was
+ * derived from (self-referential; not a hard FK so a parent can be archived
+ * independently).
+ *
+ * Since migration v37 a row is an *experiment*, not just a setup: `kind`
+ * says what is being varied and hypothesis/prediction/verdict record the
+ * scientific frame around it.
  */
 export const tuningTests = sqliteTable(
 	"tuning_tests",
@@ -323,6 +329,21 @@ export const tuningTests = sqliteTable(
 		// F1's captured base / target F1CarSetup JSON (migration v30). Null for
 		// file-based ACC/AC-Evo nodes, which keep using setupPath.
 		setupSnapshot: text("setup_snapshot"),
+		// What this node changes (migration v37). 'setup' = a setup file under
+		// evaluation (the original and default meaning); 'drill' = a driving
+		// change under evaluation, which has no setupPath/setupSnapshot at all.
+		kind: text("kind").notNull().default("setup"), // 'setup' | 'drill'
+		// The experiment frame around the change. `hypothesis` is why we expect
+		// this to help, `prediction` is the falsifiable claim it makes.
+		hypothesis: text("hypothesis"),
+		prediction: text("prediction"),
+		// Outcome once laps have been run against it. Always a human call — no
+		// code path infers a verdict from lap data. `lap_metrics` observations are
+		// test-agnostic by design; the chat agent may propose a verdict from them,
+		// but the driver records it. `verdictSource` is how the driver decided.
+		verdict: text("verdict"), // 'better' | 'worse' | 'neutral' | 'inconclusive'
+		verdictAt: text("verdict_at"),
+		verdictSource: text("verdict_source"), // 'manual' | 'ai' (suggested in chat, accepted by driver)
 		status: text("status").notNull().default("active"), // 'active' | 'archived' | 'deleted'
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
@@ -378,3 +399,22 @@ export const compareAnalyses = sqliteTable(
 	},
 	(table) => [unique().on(table.lapAId, table.lapBId, table.kind)],
 );
+
+/**
+ * Per-lap derived metrics (insights + per-segment input stats), cached so the
+ * tuning views don't re-decode a lap's raw .bin on every read.
+ *
+ * `algo_version` is the cache key alongside `lap_id`: bumping
+ * `LAP_METRICS_ALGO_VERSION` invalidates every stored row on next read rather
+ * than requiring a migration to recompute. One row per lap — the recompute
+ * overwrites in place.
+ */
+export const lapMetrics = sqliteTable("lap_metrics", {
+	lapId: integer("lap_id")
+		.primaryKey()
+		.references(() => laps.id, { onDelete: "cascade" }),
+	algoVersion: integer("algo_version").notNull().default(1),
+	insights: text("insights").notNull(),
+	segmentStats: text("segment_stats").notNull(),
+	computedAt: text("computed_at").notNull().default(sql`(datetime('now'))`),
+});

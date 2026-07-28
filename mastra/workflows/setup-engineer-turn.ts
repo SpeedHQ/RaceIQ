@@ -31,6 +31,8 @@ import { describeKnobs } from "../../server/ai/tune-rules";
 import { formatSymptoms } from "../../server/ai/tune-chat-prompt";
 import { formatTrackConditions, loadActiveTuningContext } from "../../server/ai/setup-engineer-context";
 import { loadCleanLapAggregate, baselineFallbackNote } from "../../server/ai/clean-lap-aggregate";
+import { formatLapObservations } from "../../server/ai/lap-observations";
+import { getOrComputeLapMetricsBatch } from "../../server/lap-metrics";
 import { listTuningTests } from "../../server/db/tuning-test-queries";
 
 const InputSchema = z.object({
@@ -143,22 +145,44 @@ const gatherPrereqs = createStep({
         (agg.symptoms ? formatSymptoms(agg.symptoms) : "No analysable lap yet — reason from the driver's description."),
     );
 
+    // Raw driving observations over the same clean pool. Deliberately separate
+    // from SYMPTOMS above: symptoms are already an interpretation (understeer,
+    // etc.), these are the underlying measurements, with no problem framing and
+    // no knowledge of which experiment is running. Cached per lap in
+    // `lap_metrics`, so a week-long experiment does not re-decode every .bin.
+    const metricsByLap = await getOrComputeLapMetricsBatch(agg.lapIds);
+    sections.push(
+      "--- DRIVING OBSERVATIONS (raw measurements) ---\n" + formatLapObservations([...metricsByLap.values()]),
+    );
+
     sections.push(
       "--- TRACK CONDITIONS ---\n" +
         (agg.trackConditions ? formatTrackConditions(agg.trackConditions) : "No conditions data for this session yet."),
     );
 
     // What's already been tried this session, so the model doesn't repeat it.
+    // This is the one test-scoped block: the experiment frame (what was expected
+    // and what the driver concluded) belongs to a version, unlike the
+    // observations above which are properties of a lap. A verdict is only ever
+    // present because a human recorded it.
     const tests = ctx.ok ? ctx.tests : await listTuningTests(sessionId);
     sections.push(
       "--- VERSION HISTORY (oldest first) ---\n" +
         (tests.length
           ? tests
-              .map(
-                (t) =>
-                  `v${t.version} "${t.label}"${t.engine ? ` (${t.engine})` : ""}` +
-                  (t.notes ? ` — note: ${t.notes}` : ""),
-              )
+              .map((t) => {
+                const frame = [
+                  t.hypothesis ? `expected: ${t.hypothesis}` : null,
+                  t.prediction ? `prediction: ${t.prediction}` : null,
+                  t.verdict ? `driver's verdict: ${t.verdict}` : null,
+                  t.notes ? `note: ${t.notes}` : null,
+                ].filter((s): s is string => s != null);
+                return (
+                  `v${t.version} "${t.label}"${t.kind === "drill" ? " (driving drill)" : ""}` +
+                  `${t.engine ? ` (${t.engine})` : ""}` +
+                  (frame.length ? ` — ${frame.join("; ")}` : "")
+                );
+              })
               .join("\n")
           : "none yet"),
     );

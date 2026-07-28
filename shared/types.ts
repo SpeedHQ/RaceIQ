@@ -922,3 +922,52 @@ export interface TuneIssue {
   /** Present on per-lap issues; absent on live transients. */
   lapNumber?: number;
 }
+
+// ── Tuning tests as experiments (issue #120, migration v37) ─────────────────
+// A tuning_test node varies exactly one of two things, and `kind` says which.
+// Both shapes are serialised into tuning_tests.applied_changes as a JSON array.
+
+/** A setup knob edit — the original meaning of an applied change. */
+export interface SetupChange {
+  kind: "setup";
+  /** Knob name as shown to the driver, e.g. "Front anti-roll bar". */
+  component: string;
+  /** Every JSON setup path this knob wrote (1 for scalars, 2 for axle pairs). */
+  paths: string[];
+  from: number;
+  to: number;
+  /**
+   * Optional because pre-v37 rows were written without it. Absent means "no
+   * direction word was recorded", not "no direction" — callers fall back to
+   * the signed from→to delta. Mirrors TuneDirection in server/ai/schemas.ts.
+   */
+  direction?: "increase" | "decrease";
+  reason: string;
+}
+
+/** A driving change — a drill the driver runs, with no setup file behind it. */
+export interface DrillChange {
+  kind: "drill";
+  /** Short imperative name, e.g. "Brake 10m later into T4". */
+  title: string;
+  /** What the driver actually does, in enough detail to repeat it. */
+  instruction: string;
+  /** Corner labels the drill targets (e.g. ["T4"]); empty = lap-wide. */
+  corners: string[];
+  reason: string;
+}
+
+export type TestChange = SetupChange | DrillChange;
+
+/** What a tuning test varies. Mirrors tuning_tests.kind. */
+export type TuningTestKind = TestChange["kind"];
+
+/** Outcome of an experiment once laps have run against it. */
+export type TuningTestVerdict =
+  | "better"
+  | "worse"
+  | "neutral"
+  | "inconclusive";
+
+/** Who decided the verdict — an auto call can be overridden by the driver. */
+export type TuningTestVerdictSource = "auto" | "manual";

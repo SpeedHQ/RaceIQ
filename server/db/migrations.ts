@@ -578,4 +578,60 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `DELETE FROM sessions WHERE raw_file IS NULL`,
     ],
   },
+
+  // ── v36: per-lap derived metrics cache ──────────────────────────────────────
+  // Insights + per-segment input stats are pure functions of a lap's raw
+  // telemetry, but decoding the .bin costs ~100ms/lap — too slow for the tuning
+  // views that read dozens of laps at once. Cached here instead.
+  //
+  // No backfill: rows are written lazily on first read, so an existing DB just
+  // warms up as laps get opened. `algo_version` makes a recompute a code change
+  // (bump LAP_METRICS_ALGO_VERSION), not a migration.
+  {
+    version: 36,
+    name: "lap_metrics cache table",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS lap_metrics (
+         lap_id INTEGER PRIMARY KEY REFERENCES laps(id) ON DELETE CASCADE,
+         algo_version INTEGER NOT NULL DEFAULT 1,
+         insights TEXT NOT NULL,
+         segment_stats TEXT NOT NULL,
+         computed_at TEXT NOT NULL DEFAULT (datetime('now'))
+       )`,
+    ],
+  },
+
+  // ── v37: tuning tests become experiments ────────────────────────────────────
+  // A tuning_test used to mean exactly one thing: "a setup file under
+  // evaluation". Pivot tuning (issue #120) needs the same node to also express
+  // "a driving change under evaluation" — a drill with no setup file at all —
+  // plus the scientific frame around either kind: what we expect to happen
+  // (`hypothesis`/`prediction`) and what actually happened (`verdict`).
+  //
+  // `kind` defaults to 'setup' so every existing row keeps its current meaning;
+  // no backfill needed. setup_path / base_setup_path were already nullable, so
+  // drill nodes need no table rebuild to omit them.
+  //
+  // `verdict` is always a human call — 'better'/'worse'/'neutral'/'inconclusive'
+  // is a judgement, and nothing in the codebase infers it. Per-lap analysis
+  // (`lap_metrics`) is deliberately test-agnostic: it produces concrete
+  // observations about how a lap was driven and knows nothing about which
+  // experiment, if any, was running. The chat agent reads those observations and
+  // may *propose* a verdict; the driver is the one who records it.
+  //
+  // `verdict_source` therefore records how the driver arrived at the call
+  // ('manual' unaided vs 'ai' suggested in chat and accepted), not who wrote the
+  // row.
+  {
+    version: 37,
+    name: "tuning_tests experiment semantics (kind, hypothesis, verdict)",
+    sql: [
+      `ALTER TABLE tuning_tests ADD COLUMN kind TEXT NOT NULL DEFAULT 'setup'`,
+      `ALTER TABLE tuning_tests ADD COLUMN hypothesis TEXT`,
+      `ALTER TABLE tuning_tests ADD COLUMN prediction TEXT`,
+      `ALTER TABLE tuning_tests ADD COLUMN verdict TEXT`,
+      `ALTER TABLE tuning_tests ADD COLUMN verdict_at TEXT`,
+      `ALTER TABLE tuning_tests ADD COLUMN verdict_source TEXT`,
+    ],
+  },
 ];
