@@ -28,6 +28,7 @@ import { synthesizeAcEvoCapture, SYNTH_HZ } from "../server/motec/to-ac-evo";
 import { META_FRAME_MAGIC } from "../server/udp-recorder";
 import { buildLd } from "./helpers/motec-ld";
 import {
+  alignToReference,
   centerlineToStint,
   normalizeToOriginHeading,
   signedArea,
@@ -119,7 +120,15 @@ describe("MoTeC reconstruction vs real centerlines", () => {
       const reference = stint.reference.slice(0, lapFrames);
       expect(reconstructed.length).toBeGreaterThan(100);
 
-      const devs = deviations(reference, reconstructed);
+      // Put the reconstruction back where the track actually is. Dead reckoning
+      // emits every lap from the origin heading along +Z, so without this the
+      // comparison silently normalises away any rotation error. Deviations are
+      // unchanged by a rigid transform — what this buys is that the numbers and
+      // the rendered overlay describe the same thing.
+      const referenceRaw = stint.referenceRaw.slice(0, lapFrames);
+      const aligned = alignToReference(reconstructed, referenceRaw);
+
+      const devs = deviations(referenceRaw, aligned);
       const meanDeviationM = devs.reduce((a, b) => a + b, 0) / devs.length;
       const maxDeviationM = Math.max(...devs);
 
@@ -130,7 +139,9 @@ describe("MoTeC reconstruction vs real centerlines", () => {
       const recArea = signedArea(normalizeToOriginHeading(reconstructed));
       const handednessMatches = Math.sign(refArea) === Math.sign(recArea);
 
-      writeOverlaySvg(OUTPUT_DIR, `${slug}-ac-evo`, reference, reconstructed, {
+      // Full centerline for the track outline so the panel shows the whole
+      // circuit, not just the frames this lap happened to cover.
+      writeOverlaySvg(OUTPUT_DIR, `${slug}-ac-evo`, "ac-evo", raw!, aligned, {
         meanDeviationM,
         maxDeviationM,
         handednessMatches,

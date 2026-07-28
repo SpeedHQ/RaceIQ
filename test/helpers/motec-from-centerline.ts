@@ -90,6 +90,30 @@ export function normalizeToOriginHeading(points: Point[]): Point[] {
 }
 
 /**
+ * Put a reconstructed path back into the reference's own frame — the inverse of
+ * {@link normalizeToOriginHeading}.
+ *
+ * Dead reckoning cannot know where on Earth the lap started or which way the car
+ * was pointing, so it emits every lap from the origin heading along +Z.
+ * Comparing *shape* only needs the reference brought into that frame. But to
+ * check the reconstruction against the track as the app actually draws it, the
+ * rotation and translation have to be put back, so both can be projected
+ * together and a rotated or mirrored result becomes visible rather than
+ * normalised away.
+ */
+export function alignToReference(points: Point[], referenceRaw: Point[]): Point[] {
+  if (points.length === 0 || referenceRaw.length < 2) return points.slice();
+  const origin = referenceRaw[0]!;
+  const theta0 = headingOf(referenceRaw[0]!, referenceRaw[1]!);
+  const c = Math.cos(theta0);
+  const s = Math.sin(theta0);
+  return points.map((p) => ({
+    x: p.x * c + p.z * s + origin.x,
+    z: -p.x * s + p.z * c + origin.z,
+  }));
+}
+
+/**
  * Signed area via the shoelace formula. Its *sign* is the path's handedness —
  * the single number that flips when a reconstruction comes out mirrored.
  */
@@ -108,6 +132,13 @@ export interface CenterlineStint {
   beacons: number[];
   /** The reference path, resampled and normalised, one point per synthesized frame. */
   reference: Point[];
+  /**
+   * The same resampled path in the track's own coordinates. Needed to compare
+   * against the reconstruction where the track actually is — `reference` has had
+   * its position and orientation removed, and the original centerline has a
+   * different point spacing, so neither can stand in for this.
+   */
+  referenceRaw: Point[];
   lapSeconds: number;
   lapLengthM: number;
 }
@@ -184,6 +215,7 @@ export function centerlineToStint(
     },
     beacons: Array.from({ length: laps - 1 }, (_, i) => (i + 1) * lapSeconds),
     reference: normalized,
+    referenceRaw: lapPath,
     lapSeconds,
     lapLengthM,
   };
