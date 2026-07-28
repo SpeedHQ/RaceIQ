@@ -15,6 +15,10 @@ import {
 } from "../server/games/iracing/normalizer";
 import { parseIRacingSessionInfo } from "../server/games/iracing/session-info";
 import {
+  IRacingSdkReader,
+  isValidIRacingMappingRange,
+} from "../server/games/iracing/sdk-reader";
+import {
   type IRacingFrameReader,
   IRacingTelemetrySource,
 } from "../server/games/iracing/source";
@@ -124,6 +128,48 @@ function sampleFrame(): IRacingSourceFrameV1 {
 }
 
 describe("native iRacing SDK decoding", () => {
+  test("bounds native reads to the VirtualQuery region", () => {
+    expect(isValidIRacingMappingRange(0, 112, 112)).toBe(true);
+    expect(isValidIRacingMappingRange(112, 1, 112)).toBe(false);
+    expect(isValidIRacingMappingRange(96, 17, 112)).toBe(false);
+    expect(isValidIRacingMappingRange(-1, 1, 112)).toBe(false);
+    expect(
+      isValidIRacingMappingRange(
+        Number.MAX_SAFE_INTEGER,
+        2,
+        Number.MAX_SAFE_INTEGER,
+      ),
+    ).toBe(false);
+  });
+
+  test("rejects an out-of-region copy before calling RtlCopyMemory", () => {
+    let nativeCopyCalled = false;
+    const reader = new IRacingSdkReader() as unknown as {
+      _mappingView: number;
+      _mappingSize: number;
+      _ffiPtr: (buffer: Buffer) => number;
+      _kernel32: {
+        symbols: {
+          RtlCopyMemory: () => void;
+        };
+      };
+      _copy: (offset: number, length: number) => Buffer;
+    };
+    reader._mappingView = 4096;
+    reader._mappingSize = 112;
+    reader._ffiPtr = () => 8192;
+    reader._kernel32 = {
+      symbols: {
+        RtlCopyMemory: () => {
+          nativeCopyCalled = true;
+        },
+      },
+    };
+
+    expect(() => reader._copy(96, 17)).toThrow(/exceeds mapped region/);
+    expect(nativeCopyCalled).toBe(false);
+  });
+
   test("reads official descriptor types from one telemetry row", () => {
     const headers = Buffer.concat([
       descriptor(IRSDKVariableType.Float, 0, 1, "Speed"),
@@ -280,6 +326,7 @@ describe("iRacing raw source frame parser integration", () => {
       readLatest() {
         return {
           tick: 7530,
+          sessionInfoUpdate: 1,
           sessionInfo: `
 WeekendInfo:
   TrackID: 99
@@ -313,6 +360,67 @@ DriverInfo:
     expect(await source.pollOnce()).toBe(true);
     expect(delivered).not.toBeNull();
     expect(parsePacket(delivered!)?.gameId).toBe("iracing");
+  });
+
+  test("reparses session YAML only when sessionInfoUpdate changes", async () => {
+    const frame = sampleFrame();
+    const sessionInfo = (trackName: string) => `
+WeekendInfo:
+  TrackID: 99
+  TrackLength: 6.515 km
+  TrackDisplayName: ${trackName}
+  SessionID: 123
+  SubSessionID: 456
+DriverInfo:
+  DriverCarIdx: 7
+  Drivers:
+  - CarIdx: 7
+    CarID: 42
+    CarScreenName: GT3 Test Car
+`;
+    const snapshots = [
+      {
+        tick: 7530,
+        sessionInfoUpdate: 1,
+        sessionInfo: sessionInfo("Road America"),
+        values: frame.values,
+      },
+      {
+        tick: 7531,
+        sessionInfoUpdate: 1,
+        sessionInfo: sessionInfo("Ignored Without Revision"),
+        values: frame.values,
+      },
+      {
+        tick: 7532,
+        sessionInfoUpdate: 2,
+        sessionInfo: sessionInfo("Spa"),
+        values: frame.values,
+      },
+    ];
+    const reader: IRacingFrameReader = {
+      start() {},
+      async stop() {},
+      readLatest() {
+        return snapshots.shift() ?? null;
+      },
+    };
+    const delivered: Buffer[] = [];
+    const source = new IRacingTelemetrySource({
+      reader,
+      dispatchRawFrame: async (raw) => {
+        delivered.push(raw);
+      },
+    });
+
+    expect(await source.pollOnce()).toBe(true);
+    expect(await source.pollOnce()).toBe(true);
+    expect(await source.pollOnce()).toBe(true);
+    expect(
+      delivered.map(
+        (raw) => decodeIRacingSourceFrame(raw)?.session.trackName,
+      ),
+    ).toEqual(["Road America", "Road America", "Spa"]);
   });
 });
 

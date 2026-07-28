@@ -45,7 +45,7 @@ export class IRacingTelemetrySource {
   private running = false;
   private polling = false;
   private lastErrorLogAt = 0;
-  private cachedSessionInfo = "";
+  private cachedSessionInfoUpdate: number | null = null;
   private cachedSessionNum: number | null = null;
   private cachedSession: IRacingSessionSnapshot | null = null;
 
@@ -70,7 +70,7 @@ export class IRacingTelemetrySource {
       this.timer = null;
     }
     await this.reader.stop();
-    this.cachedSessionInfo = "";
+    this.cachedSessionInfoUpdate = null;
     this.cachedSessionNum = null;
     this.cachedSession = null;
     console.log("[iRacing] Telemetry source stopped");
@@ -86,10 +86,10 @@ export class IRacingTelemetrySource {
       const sessionNum = Math.trunc(numeric(snapshot.values, "SessionNum", 0));
       if (
         !this.cachedSession ||
-        this.cachedSessionInfo !== snapshot.sessionInfo ||
+        this.cachedSessionInfoUpdate !== snapshot.sessionInfoUpdate ||
         this.cachedSessionNum !== sessionNum
       ) {
-        this.cachedSessionInfo = snapshot.sessionInfo;
+        this.cachedSessionInfoUpdate = snapshot.sessionInfoUpdate;
         this.cachedSessionNum = sessionNum;
         this.cachedSession = parseIRacingSessionInfo(
           snapshot.sessionInfo,

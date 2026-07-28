@@ -255,7 +255,7 @@ export const lapRoutes = new Hono()
       const lastDist = packets[packets.length - 1].DistanceTraveled;
       const lapDist = lastDist - firstDist;
 
-      if (lap.gameId === "iracing") {
+      if (gameId === "iracing") {
         const nativeTimeline = computeIRacingSectorTimeline(
           packets,
           lap.lapTime,

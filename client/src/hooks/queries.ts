@@ -80,10 +80,11 @@ export function useLaps(options?: { refetchInterval?: number | false }) {
 }
 
 export function useLapTelemetry(lapId: number | null) {
+  const gameId = useGameId();
   return useQuery({
-    queryKey: ["lap-telemetry", lapId],
+    queryKey: ["lap-telemetry", lapId, gameId ?? null],
     queryFn: async () => {
-      const res = await client.api.laps[":id"].$get({ param: { id: String(lapId!) } });
+      const res = await client.api.laps[":id"].$get({ param: { id: String(lapId!) } }, { headers: gameId ? { "X-Game-Id": gameId } : undefined });
       if (!res.ok) throw new Error(res.statusText);
       return res.json() as Promise<{
         telemetry: TelemetryPacket[];

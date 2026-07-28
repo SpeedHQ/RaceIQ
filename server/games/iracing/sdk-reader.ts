@@ -11,6 +11,10 @@ const MAX_VARIABLES = 4096;
 const MAX_BUFFER_LENGTH = 4 * 1024 * 1024;
 const MAX_SESSION_INFO_LENGTH = 4 * 1024 * 1024;
 const MAX_MAPPING_OFFSET = 64 * 1024 * 1024;
+// 64-bit Windows MEMORY_BASIC_INFORMATION layout used by Bun x64/arm64.
+const MEMORY_BASIC_INFORMATION_SIZE = 48;
+const MEMORY_BASIC_INFORMATION_BASE_ADDRESS_OFFSET = 0;
+const MEMORY_BASIC_INFORMATION_REGION_SIZE_OFFSET = 24;
 
 export const IRACING_TELEMETRY_VARIABLES = [
   "SessionTime",
@@ -109,6 +113,7 @@ interface IRacingSdkHeader {
 
 export interface IRacingSdkSnapshot {
   tick: number;
+  sessionInfoUpdate: number;
   sessionInfo: string;
   values: Record<string, IRacingValue>;
 }
@@ -141,19 +146,41 @@ function parseHeader(buf: Buffer): IRacingSdkHeader | null {
   };
 }
 
-function validRange(offset: number, length: number, maxLength: number): boolean {
+export function isValidIRacingMappingRange(
+  offset: number,
+  length: number,
+  mappingSize: number,
+): boolean {
+  const end = offset + length;
   return (
-    Number.isInteger(offset) &&
-    Number.isInteger(length) &&
+    Number.isSafeInteger(offset) &&
+    Number.isSafeInteger(length) &&
+    Number.isSafeInteger(mappingSize) &&
+    Number.isSafeInteger(end) &&
     offset >= 0 &&
-    offset <= MAX_MAPPING_OFFSET &&
     length > 0 &&
-    length <= maxLength &&
-    offset + length <= MAX_MAPPING_OFFSET
+    mappingSize >= IRSDK_HEADER_SIZE &&
+    end <= mappingSize &&
+    end <= MAX_MAPPING_OFFSET
   );
 }
 
-function isUsableHeader(header: IRacingSdkHeader): boolean {
+function validRange(
+  offset: number,
+  length: number,
+  maxLength: number,
+  mappingSize: number,
+): boolean {
+  return (
+    length <= maxLength &&
+    isValidIRacingMappingRange(offset, length, mappingSize)
+  );
+}
+
+function isUsableHeader(
+  header: IRacingSdkHeader,
+  mappingSize: number,
+): boolean {
   return (
     header.version > 0 &&
     header.bufferCount > 0 &&
@@ -164,12 +191,23 @@ function isUsableHeader(header: IRacingSdkHeader): boolean {
       header.variableHeaderOffset,
       header.variableCount * IRSDK_VAR_HEADER_SIZE,
       MAX_VARIABLES * IRSDK_VAR_HEADER_SIZE,
+      mappingSize,
     ) &&
-    validRange(header.sessionInfoOffset, header.sessionInfoLength, MAX_SESSION_INFO_LENGTH) &&
+    validRange(
+      header.sessionInfoOffset,
+      header.sessionInfoLength,
+      MAX_SESSION_INFO_LENGTH,
+      mappingSize,
+    ) &&
     header.bufferLength > 0 &&
     header.bufferLength <= MAX_BUFFER_LENGTH &&
     header.buffers.every((entry) =>
-      validRange(entry.offset, header.bufferLength, MAX_BUFFER_LENGTH),
+      validRange(
+        entry.offset,
+        header.bufferLength,
+        MAX_BUFFER_LENGTH,
+        mappingSize,
+      ),
     )
   );
 }
@@ -188,6 +226,7 @@ export class IRacingSdkReader {
   private _ffiPtr: ((buf: Buffer) => unknown) | null = null;
   private _mappingHandle = 0;
   private _mappingView = 0;
+  private _mappingSize = 0;
   private _variableTable: IRacingVariableTable | null = null;
   private _tableSignature = "";
   private _sessionInfo = "";
@@ -223,7 +262,7 @@ export class IRacingSdkReader {
     try {
       for (let attempt = 0; attempt < 3; attempt++) {
         const before = this._readHeader();
-        if (!before || !isUsableHeader(before)) {
+        if (!before || !isUsableHeader(before, this._mappingSize)) {
           this._disconnect();
           return null;
         }
@@ -256,6 +295,7 @@ export class IRacingSdkReader {
         this._lastTick = newest.tickCount;
         return {
           tick: newest.tickCount,
+          sessionInfoUpdate: before.sessionInfoUpdate,
           sessionInfo: this._sessionInfo,
           values,
         };
@@ -289,6 +329,10 @@ export class IRacingSdkReader {
             args: [FFIType.ptr, FFIType.u32, FFIType.u32, FFIType.u32, FFIType.u32],
             returns: FFIType.ptr,
           },
+          VirtualQuery: {
+            args: [FFIType.ptr, FFIType.ptr, FFIType.u64],
+            returns: FFIType.u64,
+          },
           UnmapViewOfFile: { args: [FFIType.ptr], returns: FFIType.bool },
           CloseHandle: { args: [FFIType.ptr], returns: FFIType.bool },
           RtlCopyMemory: {
@@ -321,8 +365,38 @@ export class IRacingSdkReader {
 
       this._mappingHandle = Number(handle);
       this._mappingView = Number(view);
+      const memoryInfo = Buffer.alloc(MEMORY_BASIC_INFORMATION_SIZE);
+      const bytesWritten = Number(
+        this._kernel32.symbols.VirtualQuery(
+          view,
+          this._ffiPtr!(memoryInfo),
+          memoryInfo.length,
+        ),
+      );
+      if (bytesWritten < MEMORY_BASIC_INFORMATION_SIZE) {
+        this._disconnect();
+        return;
+      }
+      const baseAddress = memoryInfo.readBigUInt64LE(
+        MEMORY_BASIC_INFORMATION_BASE_ADDRESS_OFFSET,
+      );
+      const regionSize = Number(
+        memoryInfo.readBigUInt64LE(
+          MEMORY_BASIC_INFORMATION_REGION_SIZE_OFFSET,
+        ),
+      );
+      if (
+        baseAddress !== BigInt(this._mappingView) ||
+        !Number.isSafeInteger(regionSize) ||
+        regionSize < IRSDK_HEADER_SIZE
+      ) {
+        this._disconnect();
+        return;
+      }
+      this._mappingSize = regionSize;
+
       const header = this._readHeader();
-      if (!header || !isUsableHeader(header)) {
+      if (!header || !isUsableHeader(header, this._mappingSize)) {
         this._disconnect();
         return;
       }
@@ -370,6 +444,18 @@ export class IRacingSdkReader {
     if (!this._mappingView || !this._ffiPtr || !this._kernel32) {
       throw new Error("iRacing SDK memory map is not connected");
     }
+    if (
+      !isValidIRacingMappingRange(
+        offset,
+        length,
+        this._mappingSize,
+      )
+    ) {
+      throw new RangeError(
+        `iRacing SDK read [${offset}, ${offset + length}) exceeds ` +
+          `mapped region (${this._mappingSize} bytes)`,
+      );
+    }
     const output = Buffer.allocUnsafe(length);
     this._kernel32.symbols.RtlCopyMemory(
       this._ffiPtr(output),
@@ -391,6 +477,7 @@ export class IRacingSdkReader {
     if (this._connected) console.log("[iRacing SDK] Disconnected");
     this._mappingHandle = 0;
     this._mappingView = 0;
+    this._mappingSize = 0;
     this._connected = false;
     this._variableTable = null;
     this._tableSignature = "";

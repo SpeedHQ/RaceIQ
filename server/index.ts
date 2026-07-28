@@ -288,6 +288,7 @@ import { AcEvoSharedMemoryReader } from "./games/ac-evo/shared-memory";
 import { IRacingTelemetrySource } from "./games/iracing/source";
 import { startTray } from "./tray";
 import { isGameRunning } from "./games/registry";
+import { superviseSource } from "./source-supervisor";
 
 // Readers are instantiated + started only when the underlying game process is
 // detected. No idle SHM polling, no process-checker thread running while the
@@ -296,48 +297,25 @@ export let accReader: AccSharedMemoryReader | null = null;
 export let acEvoReader: AcEvoSharedMemoryReader | null = null;
 export let iracingSource: IRacingTelemetrySource | null = null;
 
-function superviseSource<R extends { start(): void; stop(): Promise<void> }>(
-  gameId: string,
-  label: string,
-  factory: () => R,
-  getCurrent: () => R | null,
-  setCurrent: (r: R | null) => void,
-): void {
-  const running = isGameRunning(gameId);
-  const current = getCurrent();
-  if (running && !current) {
-    console.log(`[Server] ${label} process detected — starting telemetry source`);
-    const source = factory();
-    source.start();
-    setCurrent(source);
-  } else if (!running && current) {
-    console.log(`[Server] ${label} process lost — stopping telemetry source`);
-    current.stop().catch((err) => {
-      console.error(`[Server] ${label} source stop failed:`, err instanceof Error ? err.message : err);
-    });
-    setCurrent(null);
-  }
-}
-
 if (process.platform === "win32") {
   console.log("[Supervisor] Watching for native telemetry games (acc, ac-evo, iracing) — 2s poll");
   setInterval(() => {
     superviseSource(
-      "acc",
+      isGameRunning("acc"),
       "ACC",
       () => new AccSharedMemoryReader(recordingGameId === "acc"),
       () => accReader,
       (r) => { accReader = r; },
     );
     superviseSource(
-      "ac-evo",
+      isGameRunning("ac-evo"),
       "AC Evo",
       () => new AcEvoSharedMemoryReader(recordingGameId === "ac-evo"),
       () => acEvoReader,
       (r) => { acEvoReader = r; },
     );
     superviseSource(
-      "iracing",
+      isGameRunning("iracing"),
       "iRacing",
       () => new IRacingTelemetrySource(),
       () => iracingSource,

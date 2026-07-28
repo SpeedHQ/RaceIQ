@@ -321,6 +321,8 @@ export class IRacingIbtReader {
 
     return {
       tick,
+      // Session YAML is immutable within an IBT recording.
+      sessionInfoUpdate: 0,
       sessionInfo: this.sessionInfo,
       values,
     };
