@@ -671,25 +671,6 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
     version: 38,
     name: "rename tuning_* to experiments/experiment_versions",
     sql: [
-      // The iRacing branch briefly occupied migration numbers 36/37 before
-      // upstream assigned them to lap_metrics and experiment semantics. A DB
-      // that ran that branch legitimately reports both versions as applied,
-      // so establish the upstream v36/v37 schema here before the rename. These
-      // statements are idempotent under the migration runner's duplicate-
-      // column handling and are no-ops for databases that followed main.
-      `CREATE TABLE IF NOT EXISTS lap_metrics (
-         lap_id INTEGER PRIMARY KEY REFERENCES laps(id) ON DELETE CASCADE,
-         algo_version INTEGER NOT NULL DEFAULT 1,
-         insights TEXT NOT NULL,
-         segment_stats TEXT NOT NULL,
-         computed_at TEXT NOT NULL DEFAULT (datetime('now'))
-       )`,
-      `ALTER TABLE tuning_tests ADD COLUMN kind TEXT NOT NULL DEFAULT 'setup'`,
-      `ALTER TABLE tuning_tests ADD COLUMN hypothesis TEXT`,
-      `ALTER TABLE tuning_tests ADD COLUMN prediction TEXT`,
-      `ALTER TABLE tuning_tests ADD COLUMN verdict TEXT`,
-      `ALTER TABLE tuning_tests ADD COLUMN verdict_at TEXT`,
-      `ALTER TABLE tuning_tests ADD COLUMN verdict_source TEXT`,
       // ── parent: rename in place, no incoming FKs once the child is rebuilt ──
       `ALTER TABLE tuning_sessions RENAME TO experiments`,
       `ALTER TABLE experiments RENAME COLUMN head_test_id TO head_version_id`,
