@@ -124,6 +124,31 @@ describe("telemetry fidelity vs MoTeC-rate logging", () => {
     expect(graphicsHz).toBeLessThan(45);
   });
 
+  test("poll spacing is one Windows timer tick, not the 10ms we ask for", () => {
+    // physicsPacketId is the *sim's* own counter, so it is an independent ruler
+    // for how far apart our polls actually landed — no wall clock needed.
+    const pid = allPackets
+      .map((p) => p.acc?.acEvo?.physicsPacketId)
+      .filter((v): v is number => typeof v === "number");
+    const deltas: number[] = [];
+    for (let i = 1; i < pid.length; i++) deltas.push(pid[i] - pid[i - 1]);
+
+    // The sim publishes physics far faster than we read it: ~336Hz.
+    const simHz = captureHz * mean(deltas);
+    expect(simHz).toBeGreaterThan(300);
+    expect(simHz).toBeLessThan(360);
+
+    // A genuine 10ms poll against a ~3ms sim tick would advance ~3.35 ticks per
+    // frame. We see ~5.29, i.e. ~15.8ms — the 15.625ms Windows tick plus
+    // callback cost. This is the whole of the 63.5-vs-100Hz gap.
+    expect(mean(deltas)).toBeGreaterThan(4.8);
+    expect(mean(deltas)).toBeLessThan(5.8);
+
+    const pollMs = (1000 * mean(deltas)) / simHz;
+    expect(pollMs).toBeGreaterThan(14.5);
+    expect(pollMs).toBeLessThan(17);
+  });
+
   describe("what survives decimation to 26.6Hz", () => {
     const apexErrors: number[] = [];
     const brakePeakLoss: number[] = [];

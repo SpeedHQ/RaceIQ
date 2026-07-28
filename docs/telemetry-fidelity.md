@@ -32,12 +32,50 @@ not:
 | 3 | 6697 | 105.478 s | **63.5 Hz** |
 
 Two independent laps agreeing to three significant figures rules out a one-off
-stall. The cause is **timer granularity**: a 10 ms `setInterval` in this runtime
-delivers ~15.7 ms, which is exactly 63.5 Hz. The assembler already collects
-`pollIntervalMs` metrics that would confirm this in a live session.
+stall. The cause is the **Windows default timer resolution of 15.625 ms**
+(64.0 Hz). Any `setInterval` shorter than a tick is rounded up to it, because
+libuv's loop hands its computed timeout to `GetQueuedCompletionStatus` and that
+blocking wait is quantised to the system tick. Node and Bun do not raise the
+resolution themselves, and since Windows 10 2004 a process no longer inherits a
+raised resolution from some other app on the machine — it must call
+[`timeBeginPeriod`](https://learn.microsoft.com/en-us/windows/win32/api/timeapi/nf-timeapi-timebeginperiod)
+for itself.
+
+This is platform-specific, not a property of Bun. Probed on Linux, `setInterval`
+is fine — `setInterval(10)` measures 10.07 ms mean (99.3 Hz), `setInterval(1)`
+resolves to 1.06 ms. The bug only exists on the platform AC Evo capture actually
+runs on.
+
+Confirmed from the artifact itself, without needing a wall clock. The sim's own
+`physicsPacketId` is the ruler: it advances **5.291 ticks per frame we store**,
+bimodally 5 or 6, and the counter covers 106378 ticks over the session's 316.7 s
+— so the sim's physics runs at **336 Hz** and our poll spacing was
+5.291 × 2.98 ms = **15.8 ms**. A poll that genuinely ran at 10 ms would show a
+mean delta of 3.35, bimodal 3/4. It does not. The interval really was a tick.
+
+Two consequences the earlier draft missed:
+
+- **The fix is not a drift-compensated scheduler.** Recomputing the next
+  deadline from an absolute start only removes accumulated drift; it cannot make
+  the OS wake you before the next tick. (Measured: drift compensation on Linux
+  moves 10.07 ms to 10.00 ms — it corrects drift, not granularity.) The fix is
+  to raise the process timer resolution via `bun:ffi` on `winmm.dll`, paired
+  with `timeEndPeriod` on shutdown. We already `dlopen` `kernel32.dll` under a
+  Windows guard in `server/games/acc/buffered-memory-reader.ts:159`, so there is
+  precedent and no new dependency.
+- **`triplet-assembler.ts` is not the only clamped timer.** The reader beneath
+  it runs `setInterval(1000 / 300)` for physics and `setInterval(1000 / 60)` for
+  graphics (`buffered-memory-reader.ts:243,279`). On Windows *all three* collapse
+  to the same 64 Hz tick, so speeding up the assembler alone would just re-read
+  buffers the reader had not refreshed. Raising the resolution unblocks the whole
+  chain at once; fixing one timer in isolation achieves nothing.
 
 It is *not* the pipeline's packet-rate filter — that is a floor guard that
 discards sessions below 30 Hz (`server/lap-detector.ts:183`), not a decimator.
+
+Worth stating plainly, because it reframes section 2: **the sim publishes physics
+at 336 Hz** — above MoTeC's 200 Hz tier — and we discard 81% of it to a timer
+default. The ceiling here is ours, not the sim's.
 
 The second finding is about the *pages*, not the rate. AC Evo exposes two
 shared-memory pages that advance independently, and we poll both on the same
@@ -191,10 +229,12 @@ not by an error threshold.**
   channels that need rate we are 5× behind it. Nor that rate improves lap
   comparison, apex speeds, racing line, or AI analysis — those are identical at
   26.6 Hz.
-- **Fix first:** the 63.5 ≠ 100 timer in `triplet-assembler.ts`, and the
-  re-storing of an unchanged graphics page. Both are bugs; neither needs this
-  doc to justify it. Note the second is a *storage* bug, not an accuracy one —
-  physics is fresh every frame.
+- **Fix first:** the 63.5 ≠ 100 Hz Windows timer tick — raise process timer
+  resolution once at capture start rather than touching individual intervals —
+  and the re-storing of an unchanged graphics page. Both are bugs; neither needs
+  this doc to justify it. Note the second is a *storage* bug, not an accuracy
+  one — physics is fresh every frame. The first has headroom well past 100 Hz,
+  since the sim publishes at 336 Hz.
 - **Then consider:** a curated per-channel rate split, tiered by role.
 - **Importing third-party logs** is safe for trace-based analysis and unsafe for
   event counting. An imported 20 Hz channel must not be compared against a
