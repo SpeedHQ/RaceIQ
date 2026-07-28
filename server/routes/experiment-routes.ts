@@ -14,7 +14,8 @@ import { OUTCOME_METRIC_IDS } from "../ai/outcome-metrics";
 import { fastestLaps } from "../../shared/review-laps";
 import { getTrackLengthMeters } from "../../shared/track-data";
 import { suggestLapTarget } from "../../shared/lap-target";
-import { createExperiment, getExperiment, listExperiments, updateExperiment, setSessionHead } from "../db/experiment-queries";
+import { createExperiment, getExperiment, listExperiments, updateExperiment, setSessionHead, setExperimentFocus, listExperimentFocusEvents } from "../db/experiment-queries";
+import { ExperimentFocusSchema } from "../../shared/experiment-focus";
 import { getActiveExperiment, setActiveExperiment } from "../experiment-active";
 import { deriveFuelPerLap, deriveTyreWear, type LapMetric } from "../experiment-lap-metrics";
 import { createExperimentVersion, listExperimentVersions, nextVersion, getExperimentVersion, getLapCountsByTest, updateExperimentVersionSetupSnapshot, setExperimentVersionNote, setExperimentVersionNotes, deleteTestSubtree, restoreTestSubtree } from "../db/experiment-version-queries";
@@ -48,6 +49,15 @@ const CreateExperimentSchema = z.object({
   trackName: z.string().max(200).nullable().optional(),
   baseSetupPath: z.string().max(1000).nullable().optional(),
   notes: z.string().max(2000).nullable().optional(),
+  // What the experiment opens on. Mutable afterwards — see PATCH .../focus.
+  focus: ExperimentFocusSchema.optional(),
+});
+
+/** Switch what the experiment is working on. `note` is the driver's own reason,
+ *  never inferred. */
+const SetFocusSchema = z.object({
+  focus: ExperimentFocusSchema,
+  note: z.string().max(2000).nullable().optional(),
 });
 
 
@@ -139,11 +149,52 @@ export const experimentRoutes = new Hono()
           label: "v1",
           setupPath: body.baseSetupPath,
           engine: null,
+          // Explicitly a setup arm even when the experiment opens on driving
+          // focus: v1 IS the base setup file. Letting focus decide here would
+          // record the driver's own starting car as a drill.
+          kind: "setup",
         });
         await setSessionHead(id, baseTestId);
       }
       const created = await getExperiment(id);
       return c.json(created, 201);
+    }
+  )
+
+  // PATCH /api/experiments/:id/focus — switch what the experiment is working
+  // on (tuning the car vs working on technique) mid-session, and append the
+  // switch to the focus ledger.
+  //
+  // Deliberately not part of PATCH /api/experiments: this is not an edit to a
+  // field, it starts a new era in the session. It changes what kind the NEXT
+  // arm gets and leaves every existing arm exactly as it was.
+  .patch("/api/experiments/:id/focus",
+    zValidator("param", IdParamSchema),
+    zValidator("json", SetFocusSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const { focus, note } = c.req.valid("json");
+      const session = await getExperiment(id);
+      if (!session) return c.json({ error: "Experiment not found" }, 404);
+
+      const event = await setExperimentFocus(id, focus, { note: note ?? null });
+      // `event` is null when the focus was already what was asked for. That is
+      // success, not an error — the caller's desired state holds — but nothing
+      // is appended to the ledger for it.
+      const updated = await getExperiment(id);
+      return c.json({ experiment: updated, event, changed: event != null });
+    }
+  )
+
+  // GET /api/experiments/:id/focus-history — the focus ledger, oldest first.
+  // Reads as the session's timeline: opened on setup, moved to driving at v4.
+  .get("/api/experiments/:id/focus-history",
+    zValidator("param", IdParamSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const session = await getExperiment(id);
+      if (!session) return c.json({ error: "Experiment not found" }, 404);
+      return c.json(await listExperimentFocusEvents(id));
     }
   )
 

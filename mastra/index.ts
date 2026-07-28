@@ -23,6 +23,7 @@ import { lapChatAgent } from "./agents/lap-chat";
 import { compareEngineerAgent } from "./agents/compare-engineer";
 import { compareChatAgent } from "./agents/compare-chat";
 import { setupEngineerAgent } from "./agents/setup-engineer";
+import { driverCoachAgent } from "./agents/driver-coach";
 import { compareAnalyseWorkflow } from "./workflows/compare-analyse";
 import { setupEngineerTurnWorkflow } from "./workflows/setup-engineer-turn";
 import { scorerRegistry } from "./evals";
@@ -50,6 +51,7 @@ export const mastra = new Mastra({
     "compare-engineer": compareEngineerAgent,
     "compare-chat": compareChatAgent,
     "setup-engineer": setupEngineerAgent,
+    "driver-coach": driverCoachAgent,
   },
   workflows: {
     "compare-analyse": compareAnalyseWorkflow,

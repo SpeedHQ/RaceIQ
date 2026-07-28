@@ -32,7 +32,7 @@ function withRouter(Story: React.ComponentType) {
 }
 
 const meta: Meta<typeof TuneReviewDashboard> = {
-  title: "Dashboards/SetupEngineer/TuneReviewDashboard",
+  title: "Dashboards/Experiments/TuneReviewDashboard",
   component: TuneReviewDashboard,
   decorators: [
     (Story) => (

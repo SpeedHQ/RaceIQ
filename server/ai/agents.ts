@@ -28,12 +28,14 @@ import { lapChatAgent as rawLapChatAgent } from "../../mastra/agents/lap-chat";
 import { compareEngineerAgent as rawCompareEngineerAgent } from "../../mastra/agents/compare-engineer";
 import { compareChatAgent as rawCompareChatAgent } from "../../mastra/agents/compare-chat";
 import { setupEngineerAgent as rawSetupEngineerAgent } from "../../mastra/agents/setup-engineer";
+import { driverCoachAgent as rawDriverCoachAgent } from "../../mastra/agents/driver-coach";
 
 type LapAnalystAgent = typeof rawLapAnalystAgent;
 type LapChatAgent = typeof rawLapChatAgent;
 type CompareEngineerAgent = typeof rawCompareEngineerAgent;
 type CompareChatAgent = typeof rawCompareChatAgent;
 type SetupEngineerAgent = typeof rawSetupEngineerAgent;
+type DriverCoachAgent = typeof rawDriverCoachAgent;
 
 export function isMastraSignalMigrationRequiredError(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
@@ -48,6 +50,7 @@ let lapChatAgent: LapChatAgent = rawLapChatAgent;
 let compareEngineerAgent: CompareEngineerAgent = rawCompareEngineerAgent;
 let compareChatAgent: CompareChatAgent = rawCompareChatAgent;
 let setupEngineerAgent: SetupEngineerAgent = rawSetupEngineerAgent;
+let driverCoachAgent: DriverCoachAgent = rawDriverCoachAgent;
 
 if (process.env.NODE_ENV !== "production") {
   try {
@@ -57,6 +60,7 @@ if (process.env.NODE_ENV !== "production") {
     compareEngineerAgent = mastra.getAgent("compare-engineer") as unknown as CompareEngineerAgent;
     compareChatAgent = mastra.getAgent("compare-chat") as unknown as CompareChatAgent;
     setupEngineerAgent = mastra.getAgent("setup-engineer") as unknown as SetupEngineerAgent;
+    driverCoachAgent = mastra.getAgent("driver-coach") as unknown as DriverCoachAgent;
   } catch (err) {
     if (isMastraSignalMigrationRequiredError(err)) {
       const dataDir = process.env.DATA_DIR ?? resolve(process.cwd(), "data");
@@ -70,4 +74,4 @@ if (process.env.NODE_ENV !== "production") {
   }
 }
 
-export { lapAnalystAgent, lapChatAgent, compareEngineerAgent, compareChatAgent, setupEngineerAgent };
+export { lapAnalystAgent, lapChatAgent, compareEngineerAgent, compareChatAgent, setupEngineerAgent, driverCoachAgent };

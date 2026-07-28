@@ -1,4 +1,6 @@
+import { EXPERIMENT_FOCUS_AGENT_LABELS } from "@shared/experiment-focus";
 import { getGame } from "@shared/games/registry";
+import { isPitCycleLap } from "@shared/lap-filters";
 import type { LapMeta } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -9,18 +11,18 @@ import {
   type ExperimentLapMetric,
   type ExperimentVersion,
   useAccCarName,
-  useLaps,
-  useResolveNames,
   useExperiment,
   useExperimentLapMetrics,
   useExperimentVersions,
+  useLaps,
+  useResolveNames,
 } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
-import { isPitCycleLap } from "@shared/lap-filters";
 import { client } from "../../lib/rpc";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { AddBaseModal } from "./AddBaseModal";
 import { BackButton } from "./BackButton";
+import { FocusSwitcher } from "./FocusSwitcher";
 import { HistoryPanel } from "./HistoryPanel";
 import { ImportLapsModal } from "./ImportLapsModal";
 import { LiveTestDashboard } from "./LiveTestDashboard";
@@ -112,12 +114,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
       // it leaves the lap ranked in the fastest-N (stale "Eval" badge, no
       // replacement lap promoted).
       const persisted = byId.get(l.id);
-      byId.set(
-        l.id,
-        persisted
-          ? { ...l, experimentExcluded: persisted.experimentExcluded, experimentExcludedSource: persisted.experimentExcludedSource }
-          : l,
-      );
+      byId.set(l.id, persisted ? { ...l, experimentExcluded: persisted.experimentExcluded, experimentExcludedSource: persisted.experimentExcludedSource } : l);
     }
     return [...byId.values()];
   }, [allLaps, liveSessionLaps, experimentId]);
@@ -217,10 +214,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
   const rawTrackLabel = session.trackName ?? (session.trackOrdinal != null ? names?.trackNames[String(session.trackOrdinal)] : undefined) ?? null;
   // Session trackName can be a raw folder slug (e.g. "brands_hatch") — turn
   // slug-looking values into a friendly title-cased label.
-  const trackLabel =
-    rawTrackLabel && /^[a-z0-9_-]+$/.test(rawTrackLabel)
-      ? rawTrackLabel.replace(/[_-]+/g, " ").replace(/\b[a-z]/g, (c) => c.toUpperCase())
-      : rawTrackLabel;
+  const trackLabel = rawTrackLabel && /^[a-z0-9_-]+$/.test(rawTrackLabel) ? rawTrackLabel.replace(/[_-]+/g, " ").replace(/\b[a-z]/g, (c) => c.toUpperCase()) : rawTrackLabel;
   const subtitle = [carLabel, trackLabel].filter(Boolean).join(" · ");
 
   return (
@@ -228,10 +222,13 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
       {/* Header */}
       <div className="shrink-0">
         <BackButton onClick={clearSession} className="mb-2" />
-        <h1 className="text-lg font-semibold text-app-text">
-          <span className="text-app-text-muted font-mono mr-2">#{session.seq}</span>
-          {session.name}
-        </h1>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-lg font-semibold text-app-text">
+            <span className="text-app-text-muted font-mono mr-2">#{session.seq}</span>
+            {session.name}
+          </h1>
+          <FocusSwitcher experimentId={session.id} focus={session.focus} />
+        </div>
         {subtitle && <div className="mt-0.5 text-xs text-app-text-muted">{subtitle}</div>}
       </div>
 
@@ -365,7 +362,10 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
         {testPhase === "idle" && (
           <div className="min-h-0 flex flex-col border border-app-border rounded-lg overflow-hidden">
             <div className="shrink-0 px-3 py-2 border-b border-app-border flex items-center justify-between">
-              <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Setup engineer</span>
+              {/* The panel is the same agent either way, but naming it after
+                  the current focus is the difference between "why is the setup
+                  engineer talking about my braking" and an obvious mode. */}
+              <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{EXPERIMENT_FOCUS_AGENT_LABELS[session.focus]}</span>
               <div className="flex items-center gap-3">
                 <button type="button" onClick={() => setTestPhase("live")} className="px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold">
                   Dashboard

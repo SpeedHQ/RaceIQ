@@ -1,7 +1,8 @@
+import { DEFAULT_EXPERIMENT_FOCUS, EXPERIMENT_FOCUS_AGENT_LABELS } from "@shared/experiment-focus";
 import { getGame } from "@shared/games/registry";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { type ExperimentGameId, useLaps, useExperiment, useExperimentVersions } from "../../hooks/queries";
+import { type ExperimentGameId, useExperiment, useExperimentVersions, useLaps } from "../../hooks/queries";
 import { TuneReviewDashboard } from "./TuneReviewDashboard";
 import { TuneSetupChat } from "./TuneSetupChat";
 
@@ -85,7 +86,9 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
             scroll container) and scrolls its own message list internally. */}
         <div className="flex flex-col border border-app-border rounded-lg overflow-hidden h-[70vh] lg:sticky lg:top-0 lg:h-[calc(100vh-5.5rem)]">
           <div className="shrink-0 px-3 py-2 border-b border-app-border flex items-center justify-between">
-            <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Setup engineer</span>
+            {/* Named after the experiment's current focus, same as the
+                workspace panel — one agent, two modes. */}
+            <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{EXPERIMENT_FOCUS_AGENT_LABELS[session?.focus ?? DEFAULT_EXPERIMENT_FOCUS]}</span>
             <button type="button" onClick={backToWorkspace} className="px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold">
               Session
             </button>

@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "./index";
 import { laps, experiments, experimentVersions } from "./schema";
 import { setSessionHead } from "./experiment-queries";
+import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus, versionKindForFocus, type VersionKind } from "../../shared/experiment-focus";
 
 export interface CreateExperimentVersionData {
   experimentId: number;
@@ -17,12 +18,30 @@ export interface CreateExperimentVersionData {
   engine?: string | null;
   /** F1's captured base / target F1CarSetup JSON; null for file-based nodes. */
   setupSnapshot?: string | null;
+  /** What this arm varies. Omitted → the experiment's current focus decides
+   *  ('driving' focus produces drills), which is what makes a focus switch
+   *  actually change the next arm rather than just relabelling the UI. */
+  kind?: VersionKind;
 }
 
 export async function createExperimentVersion(data: CreateExperimentVersionData): Promise<number> {
+  // An arm's kind is fixed at creation from the focus in force at that moment,
+  // and never rewritten afterwards — switching focus later must not turn the
+  // setup versions already recorded into drills.
+  let kind = data.kind;
+  if (!kind) {
+    const parent = await db
+      .select({ focus: experiments.focus })
+      .from(experiments)
+      .where(eq(experiments.id, data.experimentId))
+      .get();
+    kind = versionKindForFocus((parent?.focus as ExperimentFocus | undefined) ?? DEFAULT_EXPERIMENT_FOCUS);
+  }
+
   const result = await db
     .insert(experimentVersions)
     .values({
+      kind,
       experimentId: data.experimentId,
       version: data.version,
       label: data.label,

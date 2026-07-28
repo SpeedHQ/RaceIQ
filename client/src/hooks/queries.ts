@@ -1,3 +1,4 @@
+import type { ExperimentFocus, VersionKind } from "@shared/experiment-focus";
 import { tryGetGame } from "@shared/games/registry";
 import type { GameId, LapMeta, SessionMeta, SessionRecap, TelemetryPacket, TuneIssue } from "@shared/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -764,8 +765,23 @@ export interface Experiment {
   createdAt: string;
   updatedAt: string;
   headVersionId: number | null;
+  /** What the experiment is working on right now — 'setup' (varying the car) or
+   *  'driving' (varying the driver). Mutable mid-session via useSetExperimentFocus;
+   *  it decides the kind of the NEXT arm and never rewrites existing ones. */
+  focus: ExperimentFocus;
   /** Track-length-aware stint nudge (Phase 5) — advisory, computed server-side on GET. */
   lapTarget?: number;
+}
+
+/** One entry in an experiment's focus ledger — an era, not a click. */
+export interface ExperimentFocusEvent {
+  id: number;
+  experimentId: number;
+  focus: ExperimentFocus;
+  /** Head version when the switch happened — where this era starts in the tree. */
+  fromVersionId: number | null;
+  note: string | null;
+  createdAt: string;
 }
 
 /** Game ids that can own a tuning session. ACC/AC-Evo carry a setup file on
@@ -798,12 +814,52 @@ export function useCreateExperiment() {
       trackName?: string | null;
       baseSetupPath?: string | null;
       notes?: string | null;
+      focus?: ExperimentFocus;
     }) => {
       const res = await (client.api as any)["experiments"].$post({ json: data });
       if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as Experiment;
     },
     onSuccess: (s) => qc.invalidateQueries({ queryKey: ["experiments", s.gameId] }),
+  });
+}
+
+/**
+ * Switch what an experiment is working on, mid-session.
+ *
+ * Not folded into a generic "update experiment" mutation on purpose: this
+ * starts a new era (it changes what the next arm will be and appends to the
+ * focus ledger), so it invalidates the version list and the ledger too.
+ */
+export function useSetExperimentFocus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, focus, note }: { id: number; focus: ExperimentFocus; note?: string | null }) => {
+      const res = await (client.api as any)["experiments"][":id"]["focus"].$patch({
+        param: { id: String(id) },
+        json: { focus, note: note ?? null },
+      });
+      if (!res.ok) throw await errorFromResponse(res);
+      return (await res.json()) as { experiment: Experiment; event: ExperimentFocusEvent | null; changed: boolean };
+    },
+    onSuccess: (r, vars) => {
+      qc.invalidateQueries({ queryKey: ["experiment", vars.id] });
+      qc.invalidateQueries({ queryKey: ["experiment-focus-history", vars.id] });
+      qc.invalidateQueries({ queryKey: ["experiments", r.experiment.gameId] });
+    },
+  });
+}
+
+/** The experiment's focus ledger, oldest first. */
+export function useExperimentFocusHistory(id: number | null | undefined) {
+  return useQuery({
+    queryKey: ["experiment-focus-history", id ?? null],
+    queryFn: async () => {
+      const res = await (client.api as any)["experiments"][":id"]["focus-history"].$get({ param: { id: String(id!) } });
+      return rpcJson<ExperimentFocusEvent[]>(res);
+    },
+    enabled: id != null,
+    staleTime: 10_000,
   });
 }
 
@@ -836,6 +892,9 @@ export interface ExperimentVersion {
   engine: string | null;
   /** F1's captured base / target F1CarSetup JSON; null for file-based (ACC/AC-EVO) nodes. */
   setupSnapshot: string | null;
+  /** What this arm varied, fixed at creation from the focus then in force.
+   *  Decides how the arm is judged — see headlineMetricForVersionKind. */
+  kind: VersionKind;
   status: string;
   createdAt: string;
   /** Laps driven on this exact version (grouped by experiment_version_id). */

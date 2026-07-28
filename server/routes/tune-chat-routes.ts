@@ -22,7 +22,8 @@ import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-optio
 import { startDetachedAgentTurn } from "../ai/agent-stream";
 import { reserveChatRun, buildReplayStream } from "../ai/chat-run-registry";
 import { createUIMessageStreamResponse } from "ai";
-import { setupEngineerAgent } from "../ai/agents";
+import { setupEngineerAgent, driverCoachAgent } from "../ai/agents";
+import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiment-focus";
 import { buildSetupEngineerSystemPrompt } from "../../mastra/agents/setup-engineer";
 import { RequestContext } from "@mastra/core/request-context";
 import { setupEngineerTurnWorkflow } from "../../mastra/workflows/setup-engineer-turn";
@@ -142,10 +143,16 @@ export const tuneChatRoutes = new Hono()
         return c.json({ error: "The setup engineer only supports ACC, AC-EVO and F1 2025" }, 400);
       }
 
-      // The Setup Engineer is now a shared singleton agent; per-session context
-      // (car/track/sessionId the tools must receive) is injected per request as
-      // a system message via buildSetupEngineerSystemPrompt.
-      const agent = setupEngineerAgent;
+      // Which specialist answers is decided by the experiment's focus column —
+      // a switch, not a coordinator agent inferring a route the driver already
+      // set with the workspace switcher. Both agents share this session's
+      // thread, so flipping focus mid-conversation keeps the history continuous
+      // (the switch happens *inside* the conversation).
+      //
+      // Authority is split by tool availability, not by prompt etiquette: only
+      // the engineer has apply_changes, only the coach has record_drill.
+      const focus = (session.focus as ExperimentFocus | null) ?? DEFAULT_EXPERIMENT_FOCUS;
+      const agent = focus === "driver" ? driverCoachAgent : setupEngineerAgent;
       // Persist the incoming user message NOW, not at turn end. Mastra's
       // memory only writes the turn's messages when the stream finishes, so a
       // reload mid-turn made the just-sent user message vanish from history
@@ -185,6 +192,7 @@ export const tuneChatRoutes = new Hono()
         carName: session.carName,
         trackName: session.trackName,
         sessionName: session.name,
+        focus,
       });
 
       // Deterministic prerequisite gathering — force the read side (setup,

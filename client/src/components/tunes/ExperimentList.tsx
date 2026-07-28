@@ -1,6 +1,19 @@
+import { DEFAULT_EXPERIMENT_FOCUS, EXPERIMENT_FOCUS_HINTS, EXPERIMENT_FOCUS_LABELS, EXPERIMENT_FOCUSES, type ExperimentFocus } from "@shared/experiment-focus";
+import { AccSetupJsonSchema, setupFileFormat, setupFileRejectReason } from "@shared/setup-file-formats";
 import { type DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { type ExperimentGameId, type Experiment, useAccCarName, useCreateExperiment, useInspectCarSetup, usePlaceSetup, useResolveNames, useSetupFiles, useTracks, useExperiments } from "../../hooks/queries";
+import {
+  type Experiment,
+  type ExperimentGameId,
+  useAccCarName,
+  useCreateExperiment,
+  useExperiments,
+  useInspectCarSetup,
+  usePlaceSetup,
+  useResolveNames,
+  useSetupFiles,
+  useTracks,
+} from "../../hooks/queries";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { SearchSelect } from "../ui/SearchSelect";
 import { SetupFilePicker } from "./SetupFilePicker";
@@ -55,6 +68,17 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
   );
 }
 
+/** What an experiment is working on right now. Purple = the car is being
+ *  varied, sky = the driver is. Colour-coded because the list is scanned, not
+ *  read, and a row's focus decides how its arms should be judged. */
+export function FocusBadge({ focus }: { focus: ExperimentFocus }) {
+  return (
+    <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap ${focus === "driver" ? "bg-sky-500/15 text-sky-300" : "bg-purple-500/15 text-purple-300"}`}>
+      {EXPERIMENT_FOCUS_LABELS[focus]}
+    </span>
+  );
+}
+
 function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Experiment[]; onOpen: (id: number) => void; isLoading: boolean; gameId: ExperimentGameId }) {
   const accCarName = useAccCarName();
   const carName = (n: string | null | undefined) => (gameId === "acc" ? accCarName(n) : n) ?? "—";
@@ -65,6 +89,7 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
           <tr className="text-left text-[11px] uppercase tracking-wider text-app-text-muted border-b border-app-border">
             <th className="px-3 py-2 font-medium w-12 text-right">#</th>
             <th className="px-3 py-2 font-medium">Session</th>
+            <th className="px-3 py-2 font-medium">Varying</th>
             <th className="px-3 py-2 font-medium">Car</th>
             <th className="px-3 py-2 font-medium">Track</th>
             <th className="px-3 py-2 font-medium">Base setup</th>
@@ -75,7 +100,7 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
         <tbody>
           {sessions.length === 0 && (
             <tr>
-              <td colSpan={7} className="px-3 py-6 text-center text-xs text-app-text-dim">
+              <td colSpan={8} className="px-3 py-6 text-center text-xs text-app-text-dim">
                 {isLoading ? "Loading experiments…" : "No experiments yet. Create one above to get started."}
               </td>
             </tr>
@@ -86,6 +111,9 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
               <tr key={s.id} onClick={() => onOpen(s.id)} className="border-b border-app-border/60 last:border-0 hover:bg-app-panel/60 cursor-pointer">
                 <td className="px-3 py-2 text-right font-mono text-app-text-dim tabular-nums">{s.seq}</td>
                 <td className="px-3 py-2 font-medium text-app-text">{s.name}</td>
+                <td className="px-3 py-2">
+                  <FocusBadge focus={s.focus} />
+                </td>
                 <td className="px-3 py-2 text-app-text-dim">{carName(s.carName)}</td>
                 <td className="px-3 py-2 text-app-text-dim">{s.trackName ?? "—"}</td>
                 <td className="px-3 py-2 text-app-text-dim font-mono text-xs max-w-[220px] truncate" title={s.baseSetupPath ?? undefined}>
@@ -121,9 +149,18 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
   const [track, setTrack] = useState("");
   const [baseSetupPath, setBaseSetupPath] = useState("");
   const [name, setName] = useState("");
+  // What the experiment opens on. Switchable afterwards from the workspace —
+  // this is only the starting mode, so it never needs to be a hard choice.
+  const [focus, setFocus] = useState<ExperimentFocus>(DEFAULT_EXPERIMENT_FOCUS);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
-  const [dropNote, setDropNote] = useState<string | null>(null);
+  // Only things the driver has to act on or know about — a refused file, a
+  // .carsetup with no car id. Success is NOT a notice: it's the pinned card's
+  // status pill, so "Placed X" and "X is already in your Setups folder" can't
+  // both be on screen contradicting each other.
+  const [notice, setNotice] = useState<{ tone: "warn" | "error"; text: string } | null>(null);
+  /** How the pinned file got there — drives the card's status pill. */
+  const [dropStatus, setDropStatus] = useState<"matched" | "placed" | "existing" | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // The dropped file's payload, kept whether or not it matched something
   // already in the Setups folder — a match must not throw the bytes away, or
@@ -153,9 +190,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
     // whatever track folders the driver already has (catches any key not in csv).
     const canonical = setupFiles?.tracks ?? [];
     const names = setupFiles?.trackNames ?? {};
-    return [...new Set([...canonical, ...files.map((f) => f.trackName)])]
-      .map((key) => ({ value: key, label: names[key] ?? key }))
-      .sort((a, b) => a.label.localeCompare(b.label));
+    return [...new Set([...canonical, ...files.map((f) => f.trackName)])].map((key) => ({ value: key, label: names[key] ?? key })).sort((a, b) => a.label.localeCompare(b.label));
   }, [setupFiles, files]);
 
   // Car options for the place-into-Setups picker: the canonical roster (friendly
@@ -173,14 +208,16 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
     if (placeCar && !byModel.has(placeCar)) byModel.set(placeCar, placeCar);
     // Label is the car's real name; the slug is the value, not something to
     // read. A car with no canonical name falls back to its folder key.
-    return [...byModel.entries()]
-      .map(([model, name]) => ({ value: model, label: name }))
-      .sort((a, b) => a.label.localeCompare(b.label));
+    return [...byModel.entries()].map(([model, name]) => ({ value: model, label: name })).sort((a, b) => a.label.localeCompare(b.label));
   }, [setupFiles, files, placeCar]);
 
   // Default the name from the chosen car+track so the driver can just click Create.
   const effectiveName = name.trim() || (car && track ? `${car} @ ${track}` : "");
-  const canCreate = !!car && !!track && !!baseSetupPath && !!effectiveName;
+  // A driving experiment varies the driver, not the car, so it does not need a
+  // base setup file to start — the driver may simply want to work on braking in
+  // whatever they are running. A setup experiment still does: its arms ARE setup
+  // files, and there is nothing to version without one.
+  const canCreate = !!car && !!track && !!effectiveName && (focus === "driver" || !!baseSetupPath);
 
   // Drag-in: match the dropped .json against the Setups listing so the stored
   // baseSetupPath is always a real, guarded file under the Setups folder (the
@@ -194,12 +231,16 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
 
   const processFile = async (file: File | undefined | null) => {
     if (!file) return;
-    const lower = file.name.toLowerCase();
-    const isCarSetup = lower.endsWith(".carsetup");
-    if (!isCarSetup && !lower.endsWith(".json")) {
-      setDropNote("Pick a .json or .carsetup setup file.");
+    // Each game takes exactly one format (ACC → .json, AC EVO → .carsetup), so
+    // the wrong game's file is refused here rather than sent to a route that
+    // would reject it anyway — and the message names the mismatch.
+    const reject = setupFileRejectReason(gameId, file.name);
+    if (reject) {
+      setNotice({ tone: "warn", text: reject });
       return;
     }
+    setNotice(null);
+    const isCarSetup = setupFileFormat(gameId).payload === "binary";
 
     // AC EVO `.carsetup` is protobuf, not JSON — it travels as base64. Its
     // preset id names the car, but reading it needs a decode only the server
@@ -236,22 +277,30 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
               ? null
               : `Car read from the file as "${info.carModel}" — not in our car list, so double-check the folder.`;
       } catch (err: any) {
-        setDropNote(err?.message ?? "Couldn't read that .carsetup file.");
+        setNotice({ tone: "error", text: err?.message ?? "Couldn't read that .carsetup file." });
         return;
       }
     } else {
+      let raw: unknown;
       try {
-        parsed = JSON.parse(await file.text());
+        raw = JSON.parse(await file.text());
       } catch {
-        setDropNote("Couldn't read that file as JSON.");
+        setNotice({ tone: "error", text: "Couldn't read that file as JSON." });
         return;
       }
-      carName = typeof parsed?.carName === "string" ? parsed.carName : undefined;
+      // Shape gate — a .json that isn't a setup (a lap export, a tune catalog
+      // entry) must not end up written into the Setups folder. Loose on
+      // purpose: only the keys every Kunos setup has.
+      const check = AccSetupJsonSchema.safeParse(raw);
+      if (!check.success) {
+        setNotice({ tone: "error", text: "That .json doesn't look like a saved setup — it needs a carName and basicSetup." });
+        return;
+      }
+      parsed = check.data;
+      carName = parsed.carName;
     }
 
-    const payload = isCarSetup
-      ? { fileName: file.name, contentBase64: base64, carName: carName ?? "" }
-      : { fileName: file.name, content: parsed, carName: carName ?? "" };
+    const payload = isCarSetup ? { fileName: file.name, contentBase64: base64, carName: carName ?? "" } : { fileName: file.name, content: parsed, carName: carName ?? "" };
 
     const byName = files.filter((f) => f.fileName === file.name);
     const match = byName.length === 1 ? byName[0] : carName ? byName.find((f) => f.carModel === carName) : undefined;
@@ -268,14 +317,27 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
       setTrack(match.trackName);
       setBaseSetupPath(match.absolutePath);
       setPlacing(false);
+      setDropStatus("matched");
       // The folder the file was matched into already names the car, so an
       // absent car id inside the file is no longer worth flagging.
-      setDropNote(null);
+      setNotice(null);
       return;
     }
     // Not in the Setups folder at all — go straight to placing it.
     setPlacing(true);
-    setDropNote(carSetupNote);
+    setDropStatus(null);
+    setNotice(carSetupNote ? { tone: "warn", text: carSetupNote } : null);
+  };
+
+  /** Unpin the dropped file and everything it selected. */
+  const clearDrop = () => {
+    setPendingDrop(null);
+    setDropStatus(null);
+    setNotice(null);
+    setPlacing(false);
+    setCar("");
+    setTrack("");
+    setBaseSetupPath("");
   };
 
   const doPlace = async () => {
@@ -288,9 +350,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
         trackName: placeTrack.trim(),
         fileName: pendingDrop.fileName,
         // Exactly one of these is set — the server rejects both or neither.
-        ...(pendingDrop.contentBase64 != null
-          ? { contentBase64: pendingDrop.contentBase64 }
-          : { content: pendingDrop.content }),
+        ...(pendingDrop.contentBase64 != null ? { contentBase64: pendingDrop.contentBase64 } : { content: pendingDrop.content }),
       });
       setCar(r.carModel);
       setTrack(r.trackName);
@@ -298,11 +358,11 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
       // Keep the payload: the driver may want this same setup at a third
       // track. Only the form closes.
       setPlacing(false);
-      setDropNote(
-        r.placed
-          ? `Placed ${r.fileName} in your Setups folder — ready to use.`
-          : `A setup named ${r.fileName} already existed for that track — using it.`,
-      );
+      // The outcome is the card's status pill, not a separate line of prose —
+      // `placed` means a copy was written under the new track, `false` means an
+      // identically-named setup was already there and is reused as-is.
+      setDropStatus(r.placed ? "placed" : "existing");
+      setNotice(null);
     } catch (err: any) {
       setError(err?.message ?? "Couldn't place the setup");
     }
@@ -312,7 +372,15 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
     if (!canCreate) return;
     setError(null);
     try {
-      const s = await create.mutateAsync({ gameId, name: effectiveName, carName: car, trackName: track, baseSetupPath });
+      const s = await create.mutateAsync({
+        gameId,
+        name: effectiveName,
+        carName: car,
+        trackName: track,
+        // A driving experiment may legitimately have none.
+        baseSetupPath: baseSetupPath || null,
+        focus,
+      });
       onCreated(s.id);
     } catch (err: any) {
       setError(err?.message ?? "Could not create experiment");
@@ -339,11 +407,34 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
           </button>
         </div>
 
+        {/* What this experiment starts on. Presented as a starting mode rather
+            than a type, because it is switchable from the workspace at any
+            point — the driver who fixes a balance problem and then wants to
+            work on braking stays in the same experiment. */}
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Start by varying</span>
+          <div className="grid grid-cols-2 gap-2">
+            {EXPERIMENT_FOCUSES.map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFocus(f)}
+                aria-pressed={focus === f}
+                className={`rounded-lg border px-3 py-2 text-left transition-colors ${focus === f ? "border-purple-500 bg-purple-500/10" : "border-app-border hover:border-purple-500/50"}`}
+              >
+                <div className="text-xs font-semibold text-app-text">{EXPERIMENT_FOCUS_LABELS[f]}</div>
+                <div className="mt-0.5 text-[11px] text-app-text-dim">{EXPERIMENT_FOCUS_HINTS[f]}</div>
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-app-text-dim">You can switch focus later without starting a new experiment.</p>
+        </div>
+
         {/* Drag-in / click-to-browse zone */}
         <input
           ref={fileInputRef}
           type="file"
-          accept=".json,.carsetup,application/json"
+          accept={setupFileFormat(gameId).accept}
           className="hidden"
           onChange={(e) => {
             void processFile(e.target.files?.[0]);
@@ -359,36 +450,80 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
           }}
           onDragLeave={() => setDragging(false)}
           onDrop={handleDrop}
-          className={`w-full rounded-lg border border-dashed px-3 py-8 text-center text-xs transition-colors ${
-            dragging ? "border-purple-500 bg-purple-500/10 text-app-text" : "border-app-border text-app-text-dim hover:border-purple-500/60"
-          }`}
+          className={`w-full rounded-lg border border-dashed px-3 text-center text-xs transition-colors ${
+            pendingDrop ? "py-4" : "py-8"
+          } ${dragging ? "border-purple-500 bg-purple-500/10 text-app-text" : "border-app-border text-app-text-dim hover:border-purple-500/60"}`}
         >
-          Drag a saved setup <span className="font-mono">.json</span> or <span className="font-mono">.carsetup</span> here, or click to browse
-          <br />— pins car + track. Or pick them below.
+          {pendingDrop ? (
+            <>
+              Drop another <span className="font-mono">{setupFileFormat(gameId).extension}</span> to replace it
+            </>
+          ) : (
+            <>
+              Drag a saved <span className="font-mono">{setupFileFormat(gameId).extension}</span> setup here, or click to browse
+              <br />— pins car + track. Or pick them below.
+            </>
+          )}
         </button>
-        {dropNote && <div className="text-[11px] text-amber-400">{dropNote}</div>}
-
-        {/* The dropped file already exists in the Setups folder, so it's pinned
-            above — but the same base setup is routinely run at several
-            circuits, and matching on filename alone must not decide that for
-            the driver. Offer the copy explicitly. */}
-        {pendingDrop && !placing && (
-          <div className="flex flex-wrap items-center gap-2 text-[11px] text-app-text-dim">
-            <span>
-              <span className="font-mono text-app-text">{pendingDrop.fileName}</span> is already in your Setups folder
-              {track ? ` under ${allTracks.find((t) => t.value === track)?.label ?? track}` : ""}.
+        {notice && (
+          <div
+            className={`flex items-start gap-2 rounded-md border px-2.5 py-2 text-[11px] ${
+              notice.tone === "error" ? "border-red-500/40 bg-red-500/10 text-red-300" : "border-amber-500/40 bg-amber-500/10 text-amber-300"
+            }`}
+          >
+            <span aria-hidden className="leading-none">
+              {notice.tone === "error" ? "✕" : "!"}
             </span>
-            <button
-              type="button"
-              onClick={() => {
-                setPlacing(true);
-                setPlaceTrack("");
-                setDropNote(null);
-              }}
-              className="px-2 py-1 rounded border border-app-border text-app-text hover:bg-app-border/30"
-            >
-              Use it for another track
-            </button>
+            <span className="flex-1">{notice.text}</span>
+          </div>
+        )}
+
+        {/* The pinned file, as one card instead of a stack of status sentences.
+            The same base setup is routinely run at several circuits, and a
+            filename match must not decide that for the driver — so "Copy to
+            another track" stays offered here, and writes a real copy under
+            Setups/<car>/<newTrack>/ rather than repointing at the existing one. */}
+        {pendingDrop && !placing && (
+          <div className="rounded-lg border border-app-border bg-app-bg/40 p-3">
+            <div className="flex items-start gap-3">
+              <span className="shrink-0 rounded bg-app-border/40 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-app-text-dim">{setupFileFormat(gameId).extension.slice(1)}</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-xs text-app-text truncate" title={pendingDrop.fileName}>
+                    {pendingDrop.fileName}
+                  </span>
+                  {dropStatus && (
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${dropStatus === "placed" ? "bg-emerald-500/15 text-emerald-300" : "bg-app-border/50 text-app-text-dim"}`}>
+                      {dropStatus === "placed" ? "Copied to Setups" : dropStatus === "existing" ? "Already saved there" : "Found in Setups"}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-app-text-dim">
+                  <span>
+                    Car <span className="text-app-text">{allPlaceCars.find((c) => c.value === car)?.label ?? car ?? "—"}</span>
+                  </span>
+                  <span>
+                    Track <span className="text-app-text">{allTracks.find((t) => t.value === track)?.label ?? track ?? "—"}</span>
+                  </span>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPlacing(true);
+                    setPlaceTrack("");
+                    setNotice(null);
+                  }}
+                  className="px-2 py-1 text-[11px] rounded border border-app-border text-app-text hover:bg-app-border/30"
+                >
+                  Copy to another track
+                </button>
+                <button type="button" onClick={clearDrop} aria-label="Remove this setup" title="Remove this setup" className="px-1.5 py-1 text-app-text-dim hover:text-app-text leading-none">
+                  ×
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -397,8 +532,12 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
             has no track). Writes it under Setups/<car>/<track>/ so it's usable. */}
         {pendingDrop && placing && (
           <div className="rounded-lg border border-purple-500/40 bg-purple-500/5 p-3 space-y-2">
+            {/* Two ways in: a file that was never in Setups, and an existing
+                one the driver chose to copy to a second circuit. Saying "isn't
+                in your Setups folder yet" in the second case is simply false. */}
             <div className="text-[11px] text-app-text">
-              <span className="font-mono">{pendingDrop.fileName}</span> isn't in your Setups folder yet — add it and pick its track:
+              <span className="font-mono">{pendingDrop.fileName}</span>{" "}
+              {dropStatus == null ? "isn't in your Setups folder yet — add it and pick its track:" : "will be copied into the track folder you pick — the existing copy stays where it is:"}
             </div>
             <div className="flex flex-wrap items-end gap-2">
               <label className="flex flex-col gap-1">
@@ -446,6 +585,12 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
           </div>
         )}
 
+        {/* A driving experiment still needs car + track (an experiment is always
+            one car at one circuit) but the setup file is optional there. */}
+        {focus === "driver" && (
+          <p className="-mb-2 text-[11px] text-app-text-dim">Pick the car and track you're driving. A base setup is optional for driving work — leave it blank to just log drills.</p>
+        )}
+
         {/* Cascading searchable pickers */}
         <SetupFilePicker
           gameId={gameId}
@@ -468,7 +613,10 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
           />
         </label>
 
-        {car && track && baseSetupPath && (
+        {/* Only when the pick came from the dropdowns — the dropped-file card
+            above already states car + track, and saying it twice was half of
+            what made this modal read as a pile of status lines. */}
+        {car && track && baseSetupPath && !pendingDrop && (
           <div className="text-[11px] text-app-text-dim">
             Pinned to <span className="text-app-text font-medium">{car}</span> · <span className="text-app-text font-medium">{track}</span> — each session is one car + track.
           </div>

@@ -282,12 +282,57 @@ export const experiments = sqliteTable(
 		// archived independently (mirrors experiment_versions.parentVersionId).
 		headVersionId: integer("head_version_id"),
 		status: text("status").notNull().default("active"), // 'active' | 'archived'
+		// What the experiment is varying RIGHT NOW (migration v39): 'car' or
+		// 'driver'. Mutable — a driver fixes a balance problem and then moves
+		// on to technique within the same car/track experiment. It steers what
+		// the workspace offers and what `kind` the next version gets; it never
+		// rewrites the kind of versions already recorded. Every switch is
+		// appended to experiment_focus_events.
+		//
+		// Values intentionally differ from experimentVersions.kind
+		// ('setup'|'drill') — mode and arm are different levels and must not
+		// share a vocabulary. See shared/experiment-focus.ts.
+		focus: text("focus").notNull().default("car"), // 'car' | 'driver'
 		notes: text("notes"),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 		updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(table) => ({
 		gameIdx: index("idx_experiments_game").on(table.gameId),
+	}),
+);
+
+/**
+ * Focus ledger (migration v39) — one row per focus switch, including the
+ * experiment's opening focus.
+ *
+ * `experiments.focus` alone only answers "what now"; a session that went setup
+ * → driving → setup reads as a flat list of arms without it. The ledger records
+ * when the driver changed what they were working on and (optionally) which
+ * version node they were sitting on at the time, so the version tree can be
+ * annotated with where each focus era began.
+ *
+ * Append-only by construction: nothing updates a row, and a switch to the focus
+ * already active is not recorded (see setExperimentFocus).
+ */
+export const experimentFocusEvents = sqliteTable(
+	"experiment_focus_events",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		experimentId: integer("experiment_id")
+			.notNull()
+			.references(() => experiments.id, { onDelete: "cascade" }),
+		focus: text("focus").notNull(), // 'car' | 'driver'
+		// The head version when the switch happened, so the tree can show where
+		// a focus era started. Soft ref (not an FK) to match headVersionId: a
+		// version can be archived independently of the ledger entry naming it.
+		fromVersionId: integer("from_version_id"),
+		// Why the driver switched, when they said so. Free text, never inferred.
+		note: text("note"),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+	},
+	(table) => ({
+		experimentIdx: index("idx_experiment_focus_events_experiment").on(table.experimentId),
 	}),
 );
 

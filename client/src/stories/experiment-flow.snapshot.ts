@@ -39,6 +39,16 @@ const stories: StoryCase[] = [
     expectText: "No experiments yet",
   },
   {
+    // The story's play function drops a setup file into the new-experiment
+    // modal. `Found in Setups` is the pinned card's status pill; the forbidden
+    // strings are the two prose lines it replaced, which used to appear
+    // together and contradict each other.
+    name: "new experiment (dropped setup card)",
+    id: "dashboards-experiments-flow--new-experiment-dropped-setup",
+    expectText: "Found in Setups",
+    forbidText: ["is already in your Setups folder", "isn't in your Setups folder yet"],
+  },
+  {
     name: "workspace (setup)",
     id: "dashboards-experiments-flow--workspace-setup",
     expectText: "Softer rear ARB",
@@ -48,6 +58,14 @@ const stories: StoryCase[] = [
     name: "workspace (driving)",
     id: "dashboards-experiments-flow--workspace-driving",
     expectText: "Trail-brake to the apex at Les Combes",
+    forbidText: ["Experiment not found"],
+  },
+  {
+    // A driving-focus experiment renders the same workspace — the difference is
+    // the agent panel's name and the switcher state, not a separate route.
+    name: "workspace (driving focus)",
+    id: "dashboards-experiments-flow--workspace-driving-focus",
+    expectText: "Driver coach",
     forbidText: ["Experiment not found"],
   },
   {

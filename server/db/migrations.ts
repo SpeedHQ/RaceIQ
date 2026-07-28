@@ -735,4 +735,59 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_laps_experiment_version ON laps(experiment_version_id)`,
     ],
   },
+
+  {
+    version: 39,
+    name: "experiment focus (mutable mode + ledger)",
+    sql: [
+      // What the experiment is varying now: 'car' or 'driver'. Defaults to
+      // 'car', which is what every pre-existing experiment was doing — they all
+      // began from a base setup file and their arms are already kind='setup'.
+      //
+      // Deliberately NOT named 'setup'/'drill' like experiment_versions.kind:
+      // the mode and the arm are different levels, and sharing words made
+      // "setup" mean three things at once. See shared/experiment-focus.ts.
+      `ALTER TABLE experiments ADD COLUMN focus TEXT NOT NULL DEFAULT 'car'`,
+
+      // Append-only record of focus switches, so a session that moved between
+      // tuning the car and working on technique can say when and why — and the
+      // version tree can mark where each era began.
+      `CREATE TABLE IF NOT EXISTS experiment_focus_events (
+         id              INTEGER PRIMARY KEY AUTOINCREMENT,
+         experiment_id   INTEGER NOT NULL REFERENCES experiments(id) ON DELETE CASCADE,
+         focus           TEXT NOT NULL,
+         from_version_id INTEGER,
+         note            TEXT,
+         created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+       )`,
+      `CREATE INDEX IF NOT EXISTS idx_experiment_focus_events_experiment ON experiment_focus_events(experiment_id)`,
+
+      // Seed the ledger so existing experiments aren't blank: each one opened
+      // on 'car'. created_at is the experiment's own, not now — the era did
+      // start when the experiment did.
+      `INSERT INTO experiment_focus_events (experiment_id, focus, created_at)
+         SELECT id, 'car', created_at FROM experiments`,
+    ],
+  },
+
+  {
+    version: 40,
+    name: "normalise focus values to car/driver",
+    sql: [
+      // v39 first shipped focus as 'setup'|'driving', which collided with
+      // experiment_versions.kind ('setup'|'drill') and made "setup" mean a
+      // mode, an arm and a knob edit at once. The values are now 'car'|'driver'
+      // (see shared/experiment-focus.ts).
+      //
+      // v39 is edited in place for anyone who has not run it yet; this pass
+      // exists for databases that already applied the old version — a migration
+      // that has run is never re-run, so those rows would otherwise sit on a
+      // value the zod enum now rejects, breaking the focus switcher and
+      // rendering a blank badge.
+      `UPDATE experiments SET focus = 'car' WHERE focus = 'setup'`,
+      `UPDATE experiments SET focus = 'driver' WHERE focus = 'driving'`,
+      `UPDATE experiment_focus_events SET focus = 'car' WHERE focus = 'setup'`,
+      `UPDATE experiment_focus_events SET focus = 'driver' WHERE focus = 'driving'`,
+    ],
+  },
 ];

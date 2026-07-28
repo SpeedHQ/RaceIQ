@@ -1,9 +1,11 @@
+import { headlineMetricForVersionKind, type VersionKind } from "@shared/experiment-focus";
 import { tryGetGame } from "@shared/games/registry";
 import type { LapMeta, TelemetryPacket, TuneIssue } from "@shared/types";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ExperimentVersion } from "../../hooks/queries";
 import { useLapIssues, useLapTelemetry, useTirePressureOptimal } from "../../hooks/queries";
+import { formatLapTime } from "../../lib/format";
 import { TireGrid } from "../telemetry/TireGrid";
 import { SectorDetailView } from "./SectorDetailView";
 import { SectorMap } from "./SectorMap";
@@ -228,74 +230,76 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
           sector "track display". Stays put; it does NOT scroll over the detail
           body — instead the issues / tyres content owns its own scroll below. */}
       <div className="flex-none bg-app-bg">
-      {/* Toolbar: lap picker + view switcher on the left, Setup Engineer on the right */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 border-b border-app-border">
-        {onBack && (
-          <button type="button" onClick={onBack} className="px-2.5 py-1 text-xs rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim">
-            ← Session
-          </button>
-        )}
-        <span className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Post-lap</span>
-        <select
-          className="bg-app-panel border border-app-border rounded px-2 py-1 text-sm font-mono"
-          value={view === "track" ? (trackFocusId ?? "all") : focusLap.id}
-          onChange={(e) => {
-            if (e.target.value === "all") {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              navigate({ search: (p: any) => ({ ...p, lap: undefined }) } as any);
-            } else {
-              setFocus(Number(e.target.value));
-            }
-          }}
-        >
-          {view === "track" && <option value="all">All laps</option>}
-          {validLaps.map((l) => (
-            <option key={l.id} value={l.id}>
-              Lap {l.lapNumber} — {l.lapTime.toFixed(3)}s
-            </option>
-          ))}
-        </select>
-        {!(view === "track" && trackFocusId == null) && (
-          <span className="text-emerald-400 text-sm" title="valid lap">
-            ✓
-          </span>
-        )}
-        <div className="flex gap-1">
-          {(["overview", "s1", "s2", "s3", "track"] as const).map((v) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setView(v)}
-              className={`px-2.5 py-1 text-xs rounded border ${view === v ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
-            >
-              {v === "overview" ? "Overview" : v === "track" ? "Track" : `Sector ${v.slice(1)}`}
+        {/* Toolbar: lap picker + view switcher on the left, Setup Engineer on the right */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 border-b border-app-border">
+          {onBack && (
+            <button type="button" onClick={onBack} className="px-2.5 py-1 text-xs rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim">
+              ← Session
             </button>
-          ))}
-        </div>
-        <div className="ml-auto flex items-center gap-2">{trackName && <span className="hidden lg:inline text-xs text-app-text-muted">{trackName}</span>}</div>
-      </div>
-
-      {(test?.driverComment || test?.notes) && (
-        <div className="border-b border-app-border px-4 py-2.5 space-y-2">
-          {test?.driverComment && (
-            <div>
-              <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Driver comment</div>
-              <div className="text-xs text-app-text whitespace-pre-wrap">{test.driverComment}</div>
-            </div>
           )}
-          {test?.notes && (
-            <div>
-              <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Engineer notes</div>
-              <div className="text-xs text-app-text whitespace-pre-wrap">{test.notes}</div>
-            </div>
+          <span className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Post-lap</span>
+          <select
+            className="bg-app-panel border border-app-border rounded px-2 py-1 text-sm font-mono"
+            value={view === "track" ? (trackFocusId ?? "all") : focusLap.id}
+            onChange={(e) => {
+              if (e.target.value === "all") {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                navigate({ search: (p: any) => ({ ...p, lap: undefined }) } as any);
+              } else {
+                setFocus(Number(e.target.value));
+              }
+            }}
+          >
+            {view === "track" && <option value="all">All laps</option>}
+            {validLaps.map((l) => (
+              <option key={l.id} value={l.id}>
+                Lap {l.lapNumber} — {l.lapTime.toFixed(3)}s
+              </option>
+            ))}
+          </select>
+          {!(view === "track" && trackFocusId == null) && (
+            <span className="text-emerald-400 text-sm" title="valid lap">
+              ✓
+            </span>
           )}
+          <div className="flex gap-1">
+            {(["overview", "s1", "s2", "s3", "track"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setView(v)}
+                className={`px-2.5 py-1 text-xs rounded border ${view === v ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
+              >
+                {v === "overview" ? "Overview" : v === "track" ? "Track" : `Sector ${v.slice(1)}`}
+              </button>
+            ))}
+          </div>
+          <div className="ml-auto flex items-center gap-2">{trackName && <span className="hidden lg:inline text-xs text-app-text-muted">{trackName}</span>}</div>
         </div>
-      )}
 
-      {/* Sector spine (Overview only) — the "track display" itself, kept inside
+        {test && <ArmHeadline kind={test.kind} laps={validLaps} />}
+
+        {(test?.driverComment || test?.notes) && (
+          <div className="border-b border-app-border px-4 py-2.5 space-y-2">
+            {test?.driverComment && (
+              <div>
+                <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Driver comment</div>
+                <div className="text-xs text-app-text whitespace-pre-wrap">{test.driverComment}</div>
+              </div>
+            )}
+            {test?.notes && (
+              <div>
+                <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Engineer notes</div>
+                <div className="text-xs text-app-text whitespace-pre-wrap">{test.notes}</div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Sector spine (Overview only) — the "track display" itself, kept inside
           the sticky header so it and everything above it pin together. */}
-      {isOverview && (
-        <div className="border-b border-app-border">
+        {isOverview && (
+          <div className="border-b border-app-border">
             <div className="flex items-center justify-between gap-3 px-4 py-2 border-b border-app-border">
               <span className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Sectors</span>
               <div className="flex gap-1 flex-wrap justify-end">
@@ -349,79 +353,79 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
                 {metric.label}: bars span min→max, tick = average · shared scale {Math.round(ranges.domain[0])}–{Math.round(ranges.domain[1])} {metric.unit}
               </div>
             )}
-        </div>
-      )}
+          </div>
+        )}
       </div>
 
       {/* Detail body — owns its own scroll; the header above stays static. */}
       <div className="flex-1 min-h-0 overflow-y-auto">
-      {view === "track" ? (
-        <TrackFocusView gameId={gameId} laps={laps} trackOrdinal={focusLap.trackOrdinal} focusLapId={trackFocusId} onFocusLap={setFocus} experimentId={experimentId ?? test?.experimentId ?? null} />
-      ) : sectorIndex != null ? (
-        <SectorDetailView telemetry={telemetry} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusLap.trackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
-      ) : (
-        <>
-          {/* Detected issues, laid out per sector */}
-          <div className="border-b border-app-border">
-            <div className="px-4 pt-3 pb-1 text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Detected from telemetry</div>
-            {!issues ? (
-              <div className="px-4 pb-3 text-xs text-app-text-dim">Loading issues…</div>
-            ) : issues.length === 0 ? (
-              <div className="px-4 pb-3 text-xs text-app-text-dim">No handling or tyre issues detected on this lap.</div>
-            ) : (
-              <>
-                {issueGroups.wholeLap.length > 0 && (
-                  <div className="px-4 pb-2">
-                    <div className="text-[10px] text-app-text-dim uppercase tracking-wider mb-1">Whole lap</div>
-                    <div className="flex flex-wrap gap-2">
-                      {issueGroups.wholeLap.map((it) => (
-                        <IssuePill key={`${it.kind}-${it.corner ?? ""}-${it.detail}`} issue={it} />
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div className="grid grid-cols-1 sm:grid-cols-3">
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} className={`px-3 py-2 ${i < 2 ? "sm:border-r border-app-border" : ""} border-t sm:border-t-0 border-app-border`}>
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <span className="w-3 h-1 rounded" style={{ background: SECTOR_COLORS[i] }} />
-                        <span className="text-[10px] text-app-text-muted uppercase tracking-wider">Sector {i + 1}</span>
-                      </div>
-                      {issueGroups.bySector[i].length === 0 ? (
-                        <div className="text-[11px] text-app-text-dim">No issues</div>
-                      ) : (
-                        <div className="flex flex-col gap-1.5">
-                          {issueGroups.bySector[i].map((it) => (
-                            <IssuePill key={`${it.kind}-${it.corner ?? ""}-${it.detail}`} issue={it} onHover={(f) => setMarkedIssue(f == null ? null : { sector: i, frac: f })} />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Tyres */}
-          <div>
-            <div className="px-3 pt-3 text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Tyres · end of lap</div>
-            <div>
-              {corners ? (
-                <TireGrid
-                  corners={corners}
-                  healthThresholds={game?.tireHealthThresholds ?? { green: 0.85, yellow: 0.7 }}
-                  tempThresholds={{ blue: 70, orange: 100, red: 110 }}
-                  pressureOptimal={pressureOptimal}
-                  brakeTempThresholds={game?.brakeTempThresholds}
-                />
+        {view === "track" ? (
+          <TrackFocusView gameId={gameId} laps={laps} trackOrdinal={focusLap.trackOrdinal} focusLapId={trackFocusId} onFocusLap={setFocus} experimentId={experimentId ?? test?.experimentId ?? null} />
+        ) : sectorIndex != null ? (
+          <SectorDetailView telemetry={telemetry} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusLap.trackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
+        ) : (
+          <>
+            {/* Detected issues, laid out per sector */}
+            <div className="border-b border-app-border">
+              <div className="px-4 pt-3 pb-1 text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Detected from telemetry</div>
+              {!issues ? (
+                <div className="px-4 pb-3 text-xs text-app-text-dim">Loading issues…</div>
+              ) : issues.length === 0 ? (
+                <div className="px-4 pb-3 text-xs text-app-text-dim">No handling or tyre issues detected on this lap.</div>
               ) : (
-                <div className="p-3 text-xs text-app-text-dim">{loadingTel ? "Loading tyre state…" : "No stored telemetry for this lap."}</div>
+                <>
+                  {issueGroups.wholeLap.length > 0 && (
+                    <div className="px-4 pb-2">
+                      <div className="text-[10px] text-app-text-dim uppercase tracking-wider mb-1">Whole lap</div>
+                      <div className="flex flex-wrap gap-2">
+                        {issueGroups.wholeLap.map((it) => (
+                          <IssuePill key={`${it.kind}-${it.corner ?? ""}-${it.detail}`} issue={it} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-3">
+                    {[0, 1, 2].map((i) => (
+                      <div key={i} className={`px-3 py-2 ${i < 2 ? "sm:border-r border-app-border" : ""} border-t sm:border-t-0 border-app-border`}>
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <span className="w-3 h-1 rounded" style={{ background: SECTOR_COLORS[i] }} />
+                          <span className="text-[10px] text-app-text-muted uppercase tracking-wider">Sector {i + 1}</span>
+                        </div>
+                        {issueGroups.bySector[i].length === 0 ? (
+                          <div className="text-[11px] text-app-text-dim">No issues</div>
+                        ) : (
+                          <div className="flex flex-col gap-1.5">
+                            {issueGroups.bySector[i].map((it) => (
+                              <IssuePill key={`${it.kind}-${it.corner ?? ""}-${it.detail}`} issue={it} onHover={(f) => setMarkedIssue(f == null ? null : { sector: i, frac: f })} />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
-          </div>
-        </>
-      )}
+
+            {/* Tyres */}
+            <div>
+              <div className="px-3 pt-3 text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Tyres · end of lap</div>
+              <div>
+                {corners ? (
+                  <TireGrid
+                    corners={corners}
+                    healthThresholds={game?.tireHealthThresholds ?? { green: 0.85, yellow: 0.7 }}
+                    tempThresholds={{ blue: 70, orange: 100, red: 110 }}
+                    pressureOptimal={pressureOptimal}
+                    brakeTempThresholds={game?.brakeTempThresholds}
+                  />
+                ) : (
+                  <div className="p-3 text-xs text-app-text-dim">{loadingTel ? "Loading tyre state…" : "No stored telemetry for this lap."}</div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -430,6 +434,51 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
 /** Overview skeleton shown when the session has no recorded lap yet — mirrors
  *  the real overview (toolbar + sector spine) with placeholder times/maps so the
  *  page reads as the review dashboard, not a bare empty message. */
+/**
+ * The headline read for THIS arm, judged on its own terms.
+ *
+ * A setup arm is meant to move outright pace, so best lap leads. A drill is
+ * meant to make the driver repeatable — its win condition can be a tighter
+ * spread at an unchanged best lap, which a best-lap headline scores as "no
+ * change". Both numbers stay on screen either way; only which one leads
+ * changes, so nothing is hidden from a driver who wants the other read.
+ */
+function ArmHeadline({ kind, laps }: { kind: VersionKind; laps: LapMeta[] }) {
+  const times = laps.map((l) => l.lapTime).filter((t) => t > 0);
+  const best = times.length ? Math.min(...times) : null;
+  // Spread, not standard deviation: with the 3–8 laps a stint actually
+  // produces, "my worst lap was 0.4s off my best" is a number a driver can act
+  // on, and σ over that few samples is noise wearing a statistic's clothes.
+  const spread = times.length >= 2 ? Math.max(...times) - Math.min(...times) : null;
+  const metric = headlineMetricForVersionKind(kind);
+
+  const lead = metric === "consistency" ? { label: "Lap-time spread", value: spread != null ? `${spread.toFixed(3)}s` : "—" } : { label: "Best lap", value: best != null ? formatLapTime(best) : "—" };
+  const secondary = metric === "consistency" ? { label: "Best lap", value: best != null ? formatLapTime(best) : "—" } : { label: "Spread", value: spread != null ? `${spread.toFixed(3)}s` : "—" };
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-app-border px-4 py-2.5">
+      <span
+        className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${kind === "drill" ? "bg-sky-500/15 text-sky-300" : "bg-purple-500/15 text-purple-300"}`}
+        title={kind === "drill" ? "A driving drill — judged on consistency" : "A setup version — judged on best lap"}
+      >
+        {kind === "drill" ? "Driving drill" : "Setup version"}
+      </span>
+      <div>
+        <div className="text-[10px] uppercase tracking-wider text-app-text-muted">{lead.label}</div>
+        <div className="font-mono text-sm text-app-text tabular-nums">{lead.value}</div>
+      </div>
+      <div>
+        <div className="text-[10px] uppercase tracking-wider text-app-text-muted">{secondary.label}</div>
+        <div className="font-mono text-sm text-app-text-dim tabular-nums">{secondary.value}</div>
+      </div>
+      <div>
+        <div className="text-[10px] uppercase tracking-wider text-app-text-muted">Valid laps</div>
+        <div className="font-mono text-sm text-app-text-dim tabular-nums">{times.length}</div>
+      </div>
+    </div>
+  );
+}
+
 function ReviewOverviewSkeleton({ trackName, onBack }: { trackName?: string; onBack?: () => void }) {
   return (
     <div>

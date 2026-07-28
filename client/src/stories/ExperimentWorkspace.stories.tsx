@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import { ExperimentWorkspace } from "../components/tunes/ExperimentWorkspace";
-import type { ExperimentLapMetric, Experiment, ExperimentVersion } from "../hooks/queries";
+import type { Experiment, ExperimentLapMetric, ExperimentVersion } from "../hooks/queries";
 import { fakeSessionLaps } from "./fakeData";
 
 const queryClient = new QueryClient({
@@ -136,7 +136,7 @@ function withRouter(Story: React.ComponentType) {
 }
 
 const meta: Meta<typeof ExperimentWorkspace> = {
-  title: "Dashboards/SetupEngineer/ExperimentWorkspace",
+  title: "Dashboards/Experiments/Workspace",
   component: ExperimentWorkspace,
   decorators: [
     (Story) => (
