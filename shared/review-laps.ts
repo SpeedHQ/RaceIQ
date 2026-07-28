@@ -53,8 +53,8 @@ export interface EvaluableLap {
   lapTime: number;
   isValid: boolean;
   invalidReason?: string | null;
-  tuningExcluded?: boolean;
-  tuningExcludedSource?: "auto" | "manual" | null;
+  experimentExcluded?: boolean;
+  experimentExcludedSource?: "auto" | "manual" | null;
 }
 
 /**
@@ -67,7 +67,7 @@ export interface EvaluableLap {
  * silently drop laps that the UI still rendered as included. Everything routes
  * through here now so what's displayed is what's computed.
  *
- * Ordering mirrors the auto-exclude pass in server/tuning-auto-exclude.ts:
+ * Ordering mirrors the auto-exclude pass in server/experiment-auto-exclude.ts:
  * manual decisions are pinned first, then hard-ineligible laps, then the
  * fastest-N ranking over whatever remains.
  */
@@ -80,7 +80,7 @@ export function selectEvaluationLaps<T extends EvaluableLap>(
 
   for (const lap of laps) {
     // Manual pins win over everything — never read, never overridden.
-    if (lap.tuningExcludedSource === "manual" && lap.tuningExcluded) {
+    if (lap.experimentExcludedSource === "manual" && lap.experimentExcluded) {
       reasonById.set(lap.id, "manual");
     } else if (!lap.isValid || lap.lapTime <= 0) {
       reasonById.set(lap.id, "invalid");
@@ -101,7 +101,7 @@ export function selectEvaluationLaps<T extends EvaluableLap>(
     } else {
       // Clean, just outside the cap. If the auto pass already stamped it,
       // report that source so the row matches the persisted state.
-      reasonById.set(lap.id, lap.tuningExcluded ? "auto" : "slower-than-cap");
+      reasonById.set(lap.id, lap.experimentExcluded ? "auto" : "slower-than-cap");
       cappedIds.add(lap.id);
     }
   }

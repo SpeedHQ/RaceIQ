@@ -168,7 +168,7 @@ export interface SetupFilePickerValue {
 
 /**
  * Cascading car → track → setup file picker, extracted from
- * `NewTuningSessionModal` (design doc cross-cutting cleanup #2) so it can be
+ * `NewExperimentModal` (design doc cross-cutting cleanup #2) so it can be
  * reused wherever a driver needs to pick an existing Setups-folder file
  * without dragging in session-creation-only logic (drag/drop-to-place, name
  * defaulting, etc). Reused by the "Add base" modal (Phase 4).

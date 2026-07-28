@@ -11,6 +11,7 @@ import { compareLapHeader } from "./compare-engineer";
 import { buildTrackGuideContext } from "./track-guides";
 import { resolveTrack } from "../track-info";
 import { segmentPromptNames } from "../../shared/segment-label";
+import { computeStatsRange, steerScaleFor, type InputStats } from "../lap-metrics";
 
 /**
  * Zod schema for the per-segment inputs comparison output.
@@ -69,158 +70,8 @@ export interface PromptSegment {
   covers?: number[];
 }
 
-interface InputStats {
-  // Aggregates
-  throttleAvg: number;
-  throttleMax: number;
-  fullThrottlePctDist: number;
-  brakeAvg: number;
-  brakeMax: number;
-  brakingPctDist: number;
-  brakeApplications: number;
-  steerAbsAvg: number;
-  steerAbsMax: number;
-  steeringSmoothness: number;
-  // Event points — distances are meters from the start of the LAP (not segment)
-  brakeOnDist: number | null; // first sample where brake crosses >5%
-  brakeOffDist: number | null; // last sample where brake was >5%
-  peakBrakeValue: number; // 0..1
-  peakBrakeDist: number | null; // distance where peak brake occurred
-  fullThrottleDist: number | null; // first sample where throttle reaches >=95%
-  liftOffThrottleDist: number | null; // first sample (after any full throttle) where throttle drops below 80%
-  minSpeed: number; // km/h equivalent from the raw mph trace
-  minSpeedDist: number | null;
-  maxSpeed: number;
-  maxSpeedDist: number | null;
-}
-
 function pct(n: number) {
   return (n * 100).toFixed(1) + "%";
-}
-
-const MPH_TO_KMH = 1.609344;
-
-function computeStatsRange(throttle: number[], brake: number[], steer: number[], speedMph: number[], distances: number[], startIdx: number, endIdx: number): InputStats {
-  const lo = Math.max(0, Math.min(startIdx, throttle.length - 1));
-  const hi = Math.max(lo + 1, Math.min(endIdx, throttle.length));
-  const n = hi - lo;
-  const empty: InputStats = {
-    throttleAvg: 0,
-    throttleMax: 0,
-    fullThrottlePctDist: 0,
-    brakeAvg: 0,
-    brakeMax: 0,
-    brakingPctDist: 0,
-    brakeApplications: 0,
-    steerAbsAvg: 0,
-    steerAbsMax: 0,
-    steeringSmoothness: 0,
-    brakeOnDist: null,
-    brakeOffDist: null,
-    peakBrakeValue: 0,
-    peakBrakeDist: null,
-    fullThrottleDist: null,
-    liftOffThrottleDist: null,
-    minSpeed: 0,
-    minSpeedDist: null,
-    maxSpeed: 0,
-    maxSpeedDist: null,
-  };
-  if (n === 0) return empty;
-
-  let tSum = 0,
-    tMax = 0,
-    tFull = 0;
-  let bSum = 0,
-    bMax = 0,
-    bOn = 0,
-    bEvents = 0,
-    prevBrake = false;
-  let sAbsSum = 0,
-    sAbsMax = 0;
-  let smoothSum = 0,
-    prev = 0;
-
-  let brakeOnDist: number | null = null;
-  let brakeOffDist: number | null = null;
-  let peakBrakeValue = 0;
-  let peakBrakeDist: number | null = null;
-  let fullThrottleDist: number | null = null;
-  let liftOffThrottleDist: number | null = null;
-  let sawFullThrottle = false;
-  let minSpeed = Infinity,
-    minSpeedDist: number | null = null;
-  let maxSpeed = -Infinity,
-    maxSpeedDist: number | null = null;
-
-  for (let i = lo; i < hi; i++) {
-    const t = throttle[i];
-    tSum += t;
-    if (t > tMax) tMax = t;
-    if (t >= 0.95) {
-      tFull++;
-      if (fullThrottleDist == null) fullThrottleDist = distances[i];
-      sawFullThrottle = true;
-    } else if (sawFullThrottle && t < 0.8 && liftOffThrottleDist == null) {
-      liftOffThrottleDist = distances[i];
-    }
-
-    const b = brake[i];
-    bSum += b;
-    if (b > bMax) bMax = b;
-    if (b > peakBrakeValue) {
-      peakBrakeValue = b;
-      peakBrakeDist = distances[i];
-    }
-    const isBraking = b > 0.05;
-    if (isBraking) {
-      bOn++;
-      if (brakeOnDist == null) brakeOnDist = distances[i];
-      brakeOffDist = distances[i];
-    }
-    if (isBraking && !prevBrake) bEvents++;
-    prevBrake = isBraking;
-
-    const norm = (steer[i] - 127) / 127;
-    const a = Math.abs(norm);
-    sAbsSum += a;
-    if (a > sAbsMax) sAbsMax = a;
-    if (i > lo) smoothSum += Math.abs(norm - prev);
-    prev = norm;
-
-    const speedKmh = speedMph[i] * MPH_TO_KMH;
-    if (speedKmh < minSpeed) {
-      minSpeed = speedKmh;
-      minSpeedDist = distances[i];
-    }
-    if (speedKmh > maxSpeed) {
-      maxSpeed = speedKmh;
-      maxSpeedDist = distances[i];
-    }
-  }
-
-  return {
-    throttleAvg: tSum / n,
-    throttleMax: tMax,
-    fullThrottlePctDist: tFull / n,
-    brakeAvg: bSum / n,
-    brakeMax: bMax,
-    brakingPctDist: bOn / n,
-    brakeApplications: bEvents,
-    steerAbsAvg: sAbsSum / n,
-    steerAbsMax: sAbsMax,
-    steeringSmoothness: n > 1 ? smoothSum / (n - 1) : 0,
-    brakeOnDist,
-    brakeOffDist,
-    peakBrakeValue,
-    peakBrakeDist,
-    fullThrottleDist,
-    liftOffThrottleDist,
-    minSpeed: isFinite(minSpeed) ? minSpeed : 0,
-    minSpeedDist,
-    maxSpeed: isFinite(maxSpeed) ? maxSpeed : 0,
-    maxSpeedDist,
-  };
 }
 
 function mOrDash(v: number | null): string {
@@ -302,6 +153,11 @@ export function buildInputsComparePrompt(
 
   const useSegs = segments && segments.length > 0 ? segments : fallbackSegments(8);
 
+  // Steering is raw game units in the traces; each lap normalises with its own
+  // game's convention (the two laps can come from different games).
+  const steerScaleA = steerScaleFor(lapA.gameId);
+  const steerScaleB = steerScaleFor(lapB.gameId);
+
   const distances = comparison.distances;
   const totalDist = distances[distances.length - 1] - distances[0] || 1;
   const startDist = distances[0];
@@ -339,8 +195,8 @@ export function buildInputsComparePrompt(
     const segTimeB = (elB[hi - 1] ?? 0) - (elB[lo] ?? 0);
     const segDelta = segTimeA - segTimeB;
 
-    const sA = computeStatsRange(comparison.lapA.throttle, comparison.lapA.brake, comparison.lapA.steer, comparison.lapA.speed, distances, lo, hi);
-    const sB = computeStatsRange(comparison.lapB.throttle, comparison.lapB.brake, comparison.lapB.steer, comparison.lapB.speed, distances, lo, hi);
+    const sA = computeStatsRange(comparison.lapA.throttle, comparison.lapA.brake, comparison.lapA.steer, comparison.lapA.speed, distances, lo, hi, steerScaleA);
+    const sB = computeStatsRange(comparison.lapB.throttle, comparison.lapB.brake, comparison.lapB.steer, comparison.lapB.speed, distances, lo, hi, steerScaleB);
 
     // Fuel + tire health snapshot at segment start/end (tire health = 1 - wear)
     const fuelStartA = comparison.lapA.fuel[lo] ?? 0;

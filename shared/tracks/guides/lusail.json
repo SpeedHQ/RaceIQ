@@ -1,0 +1,42 @@
+{
+  "id": "lusail",
+  "locale": "en",
+  "character": "Long, flowing former MotoGP circuit with a mix of high-speed sweeps and tighter technical corners, raced at night in the desert. Abrasive surface and sustained high-speed corners put a premium on tyre management.",
+  "sources": "https://www.formula1.com/en/racing/2026/qatar/circuit — deliberately generic Turn-N labels (see comment above)",
+  "notes": "Corner numbers only — deliberately avoids naming any corner (\"Bit-Kurve\" style errors have previously been hallucinated for this track). Character sourced from well-documented circuit facts (long, sweeping MotoGP-derived layout, desert night race).",
+  "corners": [
+    {
+      "key": "turn-1",
+      "name": "Turn 1",
+      "numbers": [1],
+      "type": "heavy-braking corner off the main straight",
+      "technique": "Brake hard, late apex to set up the following sequence",
+      "trap": "Over-braking and losing momentum into the technical section"
+    },
+    {
+      "key": "turn-6",
+      "name": "Turn 6",
+      "numbers": [6],
+      "type": "fast, sweeping corner",
+      "technique": "Commit with smooth steering, manage tyre load through the sustained load",
+      "trap": "Overloading the tyre through a long high-speed corner and sliding wide late"
+    },
+    {
+      "key": "turn-12",
+      "name": "Turn 12",
+      "numbers": [12],
+      "type": "technical, medium-speed corner",
+      "technique": "Late apex, patient throttle application on exit",
+      "trap": "Early throttle causing a slide on the tightening exit"
+    },
+    {
+      "key": "turn-16",
+      "name": "Turn 16",
+      "numbers": [16],
+      "type": "final corner onto the pit straight",
+      "technique": "Clean exit is critical — feeds the run to the line",
+      "trap": "Compromised exit costs time down the entire straight"
+    }
+  ],
+  "priorityCorners": ["turn-1","turn-6","turn-16"]
+}

@@ -23,12 +23,14 @@
  * emit traces.
  */
 import { resolve } from "path";
+import type { ExperimentFocus } from "../../shared/experiment-focus";
 import { lapAnalystAgent as rawLapAnalystAgent } from "../../mastra/agents/lap-analyst";
 import { lapChatAgent as rawLapChatAgent } from "../../mastra/agents/lap-chat";
 import { compareEngineerAgent as rawCompareEngineerAgent } from "../../mastra/agents/compare-engineer";
 import { compareChatAgent as rawCompareChatAgent } from "../../mastra/agents/compare-chat";
 import { setupEngineerAgent as rawSetupEngineerAgent } from "../../mastra/agents/setup-engineer";
 import { drivingCoachAgent as rawDrivingCoachAgent } from "../../mastra/agents/driving-coach";
+import { driverCoachAgent as rawDriverCoachAgent } from "../../mastra/agents/driver-coach";
 
 type LapAnalystAgent = typeof rawLapAnalystAgent;
 type LapChatAgent = typeof rawLapChatAgent;
@@ -36,6 +38,7 @@ type CompareEngineerAgent = typeof rawCompareEngineerAgent;
 type CompareChatAgent = typeof rawCompareChatAgent;
 type SetupEngineerAgent = typeof rawSetupEngineerAgent;
 type DrivingCoachAgent = typeof rawDrivingCoachAgent;
+type DriverCoachAgent = typeof rawDriverCoachAgent;
 
 export function isMastraSignalMigrationRequiredError(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
@@ -51,6 +54,7 @@ let compareEngineerAgent: CompareEngineerAgent = rawCompareEngineerAgent;
 let compareChatAgent: CompareChatAgent = rawCompareChatAgent;
 let setupEngineerAgent: SetupEngineerAgent = rawSetupEngineerAgent;
 let drivingCoachAgent: DrivingCoachAgent = rawDrivingCoachAgent;
+let driverCoachAgent: DriverCoachAgent = rawDriverCoachAgent;
 
 if (process.env.NODE_ENV !== "production") {
   try {
@@ -61,6 +65,7 @@ if (process.env.NODE_ENV !== "production") {
     compareChatAgent = mastra.getAgent("compare-chat") as unknown as CompareChatAgent;
     setupEngineerAgent = mastra.getAgent("setup-engineer") as unknown as SetupEngineerAgent;
     drivingCoachAgent = mastra.getAgent("driving-coach") as unknown as DrivingCoachAgent;
+    driverCoachAgent = mastra.getAgent("driver-coach") as unknown as DriverCoachAgent;
   } catch (err) {
     if (isMastraSignalMigrationRequiredError(err)) {
       const dataDir = process.env.DATA_DIR ?? resolve(process.cwd(), "data");
@@ -74,4 +79,24 @@ if (process.env.NODE_ENV !== "production") {
   }
 }
 
-export { lapAnalystAgent, lapChatAgent, compareEngineerAgent, compareChatAgent, setupEngineerAgent, drivingCoachAgent };
+/**
+ * Which specialist answers a session turn.
+ *
+ * The experiment's focus column decides — a switch, not a coordinator agent
+ * inferring a route the driver already set with the workspace switcher. Kept
+ * here rather than inline in the chat route so the mapping is testable and has
+ * exactly one definition.
+ */
+export function sessionAgentForFocus(focus: ExperimentFocus) {
+  return focus === "driver" ? driverCoachAgent : setupEngineerAgent;
+}
+
+export {
+  lapAnalystAgent,
+  lapChatAgent,
+  compareEngineerAgent,
+  compareChatAgent,
+  setupEngineerAgent,
+  drivingCoachAgent,
+  driverCoachAgent,
+};

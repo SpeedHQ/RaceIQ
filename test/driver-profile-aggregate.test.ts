@@ -464,7 +464,7 @@ describe("sampleProfileLaps", () => {
 });
 
 describe("selectCleanLaps user-exclusion opt-out", () => {
-  const pool: LapMeta[] = [lap(1, { lapTime: 90 }), lap(2, { lapTime: 90.2, tuningExcluded: true }), lap(3, { lapTime: 90.4 })];
+  const pool: LapMeta[] = [lap(1, { lapTime: 90 }), lap(2, { lapTime: 90.2, experimentExcluded: true }), lap(3, { lapTime: 90.4 })];
 
   test("default behaviour is unchanged — excluded laps are dropped", () => {
     const { clean, breakdown } = selectCleanLaps(pool);

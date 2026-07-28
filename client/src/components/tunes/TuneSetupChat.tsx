@@ -3,7 +3,7 @@ import type { UIMessage } from "ai";
 import { ChatPanel } from "@/components/ai-chat/ChatPanel";
 
 /**
- * TuneSetupChat — the setup-scoped chat inside a tuning session (plan Phase D).
+ * TuneSetupChat — the setup-scoped chat inside an experiment (plan Phase D).
  *
  * Thin wrapper around the shared `ChatPanel` — keeps only what's specific to
  * this surface: the persisted-history fetch and the version-tree/test-list
@@ -21,7 +21,7 @@ import { ChatPanel } from "@/components/ai-chat/ChatPanel";
  * needed — the streamed reply already contains the outcome.
  */
 async function fetchTuneChatHistory(sessionId: number, gen?: number): Promise<UIMessage[]> {
-  const url = gen && gen > 1 ? `/api/tuning-sessions/${sessionId}/chat?gen=${gen}` : `/api/tuning-sessions/${sessionId}/chat`;
+  const url = gen && gen > 1 ? `/api/experiments/${sessionId}/chat?gen=${gen}` : `/api/experiments/${sessionId}/chat`;
   const res = await fetch(url);
   if (!res.ok) return [];
   const data = (await res.json()) as { messages?: UIMessage[] };
@@ -51,11 +51,11 @@ async function fetchTuneChatHistory(sessionId: number, gen?: number): Promise<UI
 
 export function TuneSetupChat({
   sessionId,
-  headTestId,
+  headVersionId,
   extendedContext,
 }: {
   sessionId: number;
-  headTestId: number | null;
+  headVersionId: number | null;
   /** Compact text summary of whatever lap review is currently open in the
    *  Review Laps dashboard next to this chat (see TuneReviewDashboard's
    *  `onOpenLapContextChange`) — re-read on every message send, so switching
@@ -67,21 +67,21 @@ export function TuneSetupChat({
 
   return (
     <ChatPanel
-      api={`/api/tuning-sessions/${sessionId}/chat`}
+      api={`/api/experiments/${sessionId}/chat`}
       fetchHistory={(gen) => fetchTuneChatHistory(sessionId, gen)}
-      historyQueryKey={["tuning-session-chat-history", sessionId]}
-      remountKey={`${sessionId}:${headTestId ?? "none"}`}
+      historyQueryKey={["experiment-chat-history", sessionId]}
+      remountKey={`${sessionId}:${headVersionId ?? "none"}`}
       compactThreadId={`tune-session-${sessionId}`}
       extraBody={extendedContext ? { extendedContext } : undefined}
       onFinish={() => {
-        queryClient.invalidateQueries({ queryKey: ["tuning-session-tests", sessionId] });
-        queryClient.invalidateQueries({ queryKey: ["tuning-session", sessionId] });
-        // A branching turn changes headTestId, which is part of ChatPanel's
+        queryClient.invalidateQueries({ queryKey: ["experiment-tests", sessionId] });
+        queryClient.invalidateQueries({ queryKey: ["experiment", sessionId] });
+        // A branching turn changes headVersionId, which is part of ChatPanel's
         // remount key — the runtime remounts and reseeds from persisted
         // history. Refetch that history too, or the remount reseeds from the
         // STALE cache (missing this turn + the server-posted branch notes) and
         // the thread appears to vanish until a manual refresh.
-        queryClient.invalidateQueries({ queryKey: ["tuning-session-chat-history", sessionId] });
+        queryClient.invalidateQueries({ queryKey: ["experiment-chat-history", sessionId] });
       }}
     />
   );

@@ -4,7 +4,7 @@
  *
  * Deliberately does NOT import the composed app (server/index.ts) or
  * `mastra/tools/setup-engineer.ts` itself — the tool file wires DB/fs/memory
- * side effects via `loadActiveTuningContext`/`writeSetupFile`/`createTuningTest`,
+ * side effects via `loadActiveExperimentContext`/`writeSetupFile`/`createExperimentVersion`,
  * none of which are worth mocking here. Instead this exercises the same
  * primitives the tools are built on directly:
  *   - `describeKnobs` — what `get_setup` returns.

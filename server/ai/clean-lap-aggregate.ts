@@ -24,8 +24,8 @@ import type { LapMeta } from "../../shared/types";
 import type { TelemetryPacket } from "../../shared/types";
 import type { Corner } from "../corner-detection";
 import { detectCorners } from "../corner-detection";
-import { getLapById, getLapsForTuningSession, getLapMetaForTuningTest, getCorners } from "../db/queries";
-import { resolveActiveTestId } from "../db/tuning-test-queries";
+import { getLapById, getLapsForExperiment, getLapMetaForExperimentVersion, getCorners } from "../db/queries";
+import { resolveActiveTestId } from "../db/experiment-version-queries";
 import { telemetryToSymptoms, type TuneSymptoms, type TyreDeltas } from "./tune-symptoms";
 import { telemetryToTrackConditions, type TrackConditions } from "./track-conditions";
 import { loadRepresentativeLap } from "./setup-engineer-context";
@@ -124,7 +124,7 @@ function median(values: number[]): number | null {
  * dropped, then a blunder rule (median + 1.5*IQR, floored at best*1.02) drops
  * statistical outliers. Everything else survives as "clean".
  *
- * `applyUserExclusions: false` keeps `tuningExcluded` laps in the pool. That
+ * `applyUserExclusions: false` keeps `experimentExcluded` laps in the pool. That
  * exists for the driver profile (driver-profile-aggregate.ts): a lap the user
  * excluded from a *tuning* comparison is still a lap the driver drove, and
  * dropping it would bias the driving fingerprint towards the laps that happened
@@ -143,7 +143,7 @@ export function selectCleanLaps(
   const breakdown: LapBreakdownRow[] = [];
 
   for (const lap of laps) {
-    const imported = lap.tuningTestId == null;
+    const imported = lap.experimentVersionId == null;
     if (!(lap.isValid === true && lap.lapTime > 0)) {
       breakdown.push({ lapId: lap.id, lapTimeSec: lap.lapTime, valid: lap.isValid, reason: "invalid", imported });
       continue;
@@ -153,8 +153,8 @@ export function selectCleanLaps(
 
   const notExcluded: LapMeta[] = [];
   for (const lap of candidates) {
-    const imported = lap.tuningTestId == null;
-    if (applyUserExclusions && lap.tuningExcluded === true) {
+    const imported = lap.experimentVersionId == null;
+    if (applyUserExclusions && lap.experimentExcluded === true) {
       breakdown.push({ lapId: lap.id, lapTimeSec: lap.lapTime, valid: lap.isValid, reason: "user-excluded", imported });
       continue;
     }
@@ -173,7 +173,7 @@ export function selectCleanLaps(
   const clean: LapMeta[] = [];
   const dropped: LapMeta[] = [];
   for (const lap of notExcluded) {
-    const imported = lap.tuningTestId == null;
+    const imported = lap.experimentVersionId == null;
     if (times.length > 1 && lap.lapTime > threshold) {
       breakdown.push({ lapId: lap.id, lapTimeSec: lap.lapTime, valid: lap.isValid, reason: "auto-outlier", imported });
       dropped.push(lap);
@@ -320,16 +320,16 @@ function emptyConsistency(confidence: Confidence): ConsistencyReport {
  */
 export async function loadCleanLapAggregate(
   sessionId: number,
-  opts?: { testId?: number },
+  opts?: { versionId?: number },
 ): Promise<CleanLapAggregate> {
-  const headTestId = opts?.testId ?? (await resolveActiveTestId(sessionId));
+  const headVersionId = opts?.versionId ?? (await resolveActiveTestId(sessionId));
 
   let pool: LapMeta[] = [];
   let sourceScope: "branch" | "session-baseline" = "session-baseline";
 
   let headOwnLapCount: number | null = null;
-  if (headTestId != null) {
-    const branchPool = await getLapMetaForTuningTest(headTestId);
+  if (headVersionId != null) {
+    const branchPool = await getLapMetaForExperimentVersion(headVersionId);
     headOwnLapCount = branchPool.length;
     const branchClean = selectCleanLaps(branchPool);
     if (branchClean.clean.length >= 2) {
@@ -339,7 +339,7 @@ export async function loadCleanLapAggregate(
   }
 
   if (sourceScope === "session-baseline") {
-    pool = await getLapsForTuningSession(sessionId);
+    pool = await getLapsForExperiment(sessionId);
   }
 
   const { clean, breakdown } = selectCleanLaps(pool);

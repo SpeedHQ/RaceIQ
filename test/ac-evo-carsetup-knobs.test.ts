@@ -169,7 +169,7 @@ describe("writeAppliedSetup .carsetup", () => {
     const { writeAppliedSetup, readActiveSetup } = await import("../server/ai/setup-io");
     const { applyIntents } = await import("../server/ai/tune-rules");
 
-    // Same read path loadActiveTuningContext uses for an ac-evo session whose
+    // Same read path loadActiveExperimentContext uses for an ac-evo session whose
     // base is a .carsetup file.
     const guarded = await resolveGuardedSetupFile("ac-evo", join(setupsDir, "Default-12312.carsetup"));
     expect(guarded.ok).toBe(true);

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { IdParamSchema } from "../../shared/schemas";
 import type { GameId } from "../../shared/types";
 import { getLapById } from "../db/queries";
-import { getTuningSession } from "../db/tuning-session-queries";
+import { getExperiment } from "../db/experiment-queries";
 import { detectCorners } from "../corner-detection";
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
 import { symptomsToIssues } from "../ai/tune-issues";
@@ -22,7 +22,8 @@ import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-optio
 import { startDetachedAgentTurn } from "../ai/agent-stream";
 import { reserveChatRun, buildReplayStream } from "../ai/chat-run-registry";
 import { createUIMessageStreamResponse } from "ai";
-import { setupEngineerAgent } from "../ai/agents";
+import { sessionAgentForFocus } from "../ai/agents";
+import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiment-focus";
 import { buildSetupEngineerSystemPrompt } from "../../mastra/agents/setup-engineer";
 import { RequestContext } from "@mastra/core/request-context";
 import { setupEngineerTurnWorkflow } from "../../mastra/workflows/setup-engineer-turn";
@@ -49,7 +50,7 @@ const TuneChatBodySchema = z.object({
 // Setup-file guard, session-symptom, and applied-changes-markdown helpers
 // (formerly local) now live in ../ai/setup-engineer-context — the Setup
 // Engineer tools (mastra/tools/setup-engineer.ts) share the exact same
-// implementations via loadActiveTuningContext, so /chat and the tools can't
+// implementations via loadActiveExperimentContext, so /chat and the tools can't
 // disagree about what "the active setup" is.
 
 
@@ -85,8 +86,8 @@ export const tuneChatRoutes = new Hono()
 
   // ─── Tuning sessions (Setup Engineer front door, plan §6a) ─────────────────
 
-  // GET /api/tuning-sessions?gameId= — list the driver's tuning sessions.
-  .get("/api/tuning-sessions/:id/chat",
+  // GET /api/experiments?gameId= — list the driver's tuning sessions.
+  .get("/api/experiments/:id/chat",
     zValidator("param", IdParamSchema),
     async (c) => {
       const { id } = c.req.valid("param");
@@ -116,12 +117,12 @@ export const tuneChatRoutes = new Hono()
     }
   )
 
-  // POST /api/tuning-sessions/:id/chat — send a message (streaming NDJSON).
+  // POST /api/experiments/:id/chat — send a message (streaming NDJSON).
   // Builds a fresh Setup Engineer Agent bound to this session's tools; the
   // agent decides for itself when to call get_setup / get_symptoms /
   // get_version_history / preview_change, and calls apply_changes once the
   // driver confirms (replacing the old separate generate-from-chat POST).
-  .post("/api/tuning-sessions/:id/chat",
+  .post("/api/experiments/:id/chat",
     zValidator("param", IdParamSchema),
     zValidator("json", TuneChatBodySchema),
     async (c) => {
@@ -134,7 +135,7 @@ export const tuneChatRoutes = new Hono()
       // reserveChatRun, memory, and the detached agent turn.
       const threadId = await resolveActiveThread(tuneSessionThreadId(id));
 
-      const session = await getTuningSession(id);
+      const session = await getExperiment(id);
       if (!session) return c.json({ error: "Tuning session not found" }, 404);
 
       const gameId = session.gameId as GameId;
@@ -142,10 +143,16 @@ export const tuneChatRoutes = new Hono()
         return c.json({ error: "The setup engineer only supports ACC, AC-EVO and F1 2025" }, 400);
       }
 
-      // The Setup Engineer is now a shared singleton agent; per-session context
-      // (car/track/sessionId the tools must receive) is injected per request as
-      // a system message via buildSetupEngineerSystemPrompt.
-      const agent = setupEngineerAgent;
+      // Which specialist answers is decided by the experiment's focus column —
+      // a switch, not a coordinator agent inferring a route the driver already
+      // set with the workspace switcher. Both agents share this session's
+      // thread, so flipping focus mid-conversation keeps the history continuous
+      // (the switch happens *inside* the conversation).
+      //
+      // Authority is split by tool availability, not by prompt etiquette: only
+      // the engineer has apply_changes, only the coach has record_drill.
+      const focus = (session.focus as ExperimentFocus | null) ?? DEFAULT_EXPERIMENT_FOCUS;
+      const agent = sessionAgentForFocus(focus);
       // Persist the incoming user message NOW, not at turn end. Mastra's
       // memory only writes the turn's messages when the stream finishes, so a
       // reload mid-turn made the just-sent user message vanish from history
@@ -185,6 +192,7 @@ export const tuneChatRoutes = new Hono()
         carName: session.carName,
         trackName: session.trackName,
         sessionName: session.name,
+        focus,
       });
 
       // Deterministic prerequisite gathering — force the read side (setup,
@@ -298,8 +306,8 @@ export const tuneChatRoutes = new Hono()
     }
   )
 
-  // DELETE /api/tuning-sessions/:id/chat — clear the thread.
-  .delete("/api/tuning-sessions/:id/chat",
+  // DELETE /api/experiments/:id/chat — clear the thread.
+  .delete("/api/experiments/:id/chat",
     zValidator("param", IdParamSchema),
     async (c) => {
       const { id } = c.req.valid("param");
@@ -319,7 +327,7 @@ export const tuneChatRoutes = new Hono()
     }
   )
 
-  // GET /api/tuning-sessions/:id — one session.
+  // GET /api/experiments/:id — one session.
   // Ships a computed `lapTarget` (Phase 5, track-length-aware stint nudge):
   // advisory-only "how many laps is a full stint here", derived from the
   // session's best known lap time, falling back to track length / avg speed,
