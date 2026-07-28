@@ -1,0 +1,49 @@
+{
+  "id": "melbourne",
+  "locale": "en",
+  "character": "Fast, flowing semi-street circuit around Albert Park Lake, resurfaced and widened for a more permanent-track feel. Mix of high-speed sweeps and a few technical braking zones.",
+  "sources": "https://www.formula1.com/en/racing/2026/australia/circuit official F1 circuit guide (numbered-turn convention)",
+  "corners": [
+    {
+      "key": "turn-1",
+      "name": "Turn 1",
+      "numbers": [1],
+      "type": "medium-speed right",
+      "technique": "Firm braking from the straight, late apex to set up Turn 3",
+      "trap": "Over-braking and getting passed on the inside at the first-lap pinch point"
+    },
+    {
+      "key": "turn-6",
+      "name": "Turn 6",
+      "numbers": [6],
+      "type": "fast, high-commitment left",
+      "technique": "Minimal lift, smooth steering, trust the grip through this quick section",
+      "trap": "Lifting or correcting mid-corner scrubs significant speed"
+    },
+    {
+      "key": "turn-9-10",
+      "name": "Turn 9-10",
+      "numbers": [9, 10],
+      "type": "fast, flowing left-right combination",
+      "technique": "Carry momentum through both parts with smooth direction changes",
+      "trap": "Over-driving the first part compromises the second apex"
+    },
+    {
+      "key": "turn-11",
+      "name": "Turn 11",
+      "numbers": [11],
+      "type": "medium-speed corner leading to the lake section",
+      "technique": "Late apex, prioritise a strong exit onto the following straight",
+      "trap": "Early apex kills exit speed onto the straight"
+    },
+    {
+      "key": "turn-13",
+      "name": "Turn 13",
+      "numbers": [13],
+      "type": "tight, technical final-sector corner",
+      "technique": "Hard braking, patient entry, clean exit onto the pit straight",
+      "trap": "Braking too late and running wide, losing drive onto the straight"
+    }
+  ],
+  "priorityCorners": ["turn-1","turn-9-10","turn-13"]
+}

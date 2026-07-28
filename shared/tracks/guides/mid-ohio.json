@@ -1,0 +1,46 @@
+{
+  "id": "mid-ohio",
+  "locale": "en",
+  "character": "Undulating Ohio road course through rolling, wooded terrain. The Keyhole and Carousel are the signature corners; Thunder Valley and the Madness esses demand a well-balanced car.",
+  "sources": "https://www.paradigmshiftracing.com/mid-ohio-sports-car-course-track-guide-map.html ; https://en.wikipedia.org/wiki/Mid-Ohio_Sports_Car_Course — Keyhole/Carousel/Thunder Valley/Madness verified",
+  "corners": [
+    {
+      "key": "turn-1",
+      "name": "Turn 1",
+      "numbers": [1],
+      "type": "blind, fast corner at the end of the front straight",
+      "technique": "Commit to the blind entry, trust the line",
+      "trap": "Lifting unnecessarily costs significant time on a corner that's faster than it looks"
+    },
+    {
+      "key": "keyhole",
+      "name": "Keyhole",
+      "numbers": [2],
+      "type": "tight, technical corner with a difficult, narrow entry",
+      "technique": "Patient, precise braking, low speed, prioritise a clean exit",
+      "trap": "Carrying too much speed in and running out of track"
+    },
+    {
+      "key": "madness",
+      "name": "Madness",
+      "type": "roller-coaster esses sequence",
+      "technique": "Rhythm and smooth inputs through the direction changes",
+      "trap": "Over-driving any single apex disrupts the whole sequence"
+    },
+    {
+      "key": "thunder-valley",
+      "name": "Thunder Valley",
+      "type": "downhill straight section",
+      "technique": "Full commitment, prepare early for the braking zone that follows",
+      "trap": "Not preparing early enough for the next braking zone"
+    },
+    {
+      "key": "carousel",
+      "name": "Carousel",
+      "type": "near-360-degree tightening corner with multiple possible lines",
+      "technique": "Progressive, patient throttle as the corner tightens, use the largest reasonable radius",
+      "trap": "Apexing too early leaves nowhere to go as the corner keeps tightening"
+    }
+  ],
+  "priorityCorners": ["keyhole","carousel"]
+}

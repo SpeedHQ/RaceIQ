@@ -13,6 +13,7 @@
 <p align="center">
   <a href="https://github.com/SpeedHQ/RaceIQ/releases/latest"><img src="https://img.shields.io/github/downloads/SpeedHQ/RaceIQ/total?style=for-the-badge&color=blue&label=downloads" alt="Downloads"></a>
   <a href="https://github.com/SpeedHQ/RaceIQ/blob/main/LICENSE"><img src="https://img.shields.io/github/license/SpeedHQ/RaceIQ?style=for-the-badge&color=blue" alt="License"></a>
+  <a href="https://deepwiki.com/SpeedHQ/RaceIQ"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 </p>
 
 <p align="center">
@@ -48,12 +49,23 @@ Check out the [demo](https://www.youtube.com/watch?v=hWuIItofivA) and [screensho
 
 | Game | Status | Public Tunes | Public Guides | Tune Creator |
 |------|--------|--------------|---------------|--------------|
-| Forza Motorsport 2023 | Supported | No | No | Yes |
+| Assetto Corsa Evo | Supported | No | No | No |
 | F1 2025 | Supported | Yes | Yes | No |
 | Assetto Corsa Competizione | Supported | Yes | Yes | No |
-| Assetto Corsa Evo | Supported | No | No | No |
+| Forza Motorsport 2023 | Supported | No | No | Yes |
 | Le Mans Ultimate | Blocked — awaiting game key / sponsorship | — | — | — |
 | iRacing | Blocked — awaiting game key / sponsorship | — | — | — |
+
+### Development priority
+
+Supported games are listed in priority order. Priority is based on ongoing game support and freshness — how actively each title is still being updated by its developer:
+
+1. **Assetto Corsa Evo** — actively developed, frequent content updates.
+2. **F1 2025** — current-season title, actively maintained telemetry spec.
+3. **Assetto Corsa Competizione** — stable and widely raced, but feature-complete upstream.
+4. **Forza Motorsport 2023** — lowest priority; no longer meaningfully updated and its telemetry format is frozen.
+
+Lower priority means slower turnaround on new features for that title — it does not mean deprecated. All supported games keep working.
 
 ## Getting Started
 
