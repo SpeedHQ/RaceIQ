@@ -224,8 +224,8 @@ export class IRacingSdkReader {
   private _connected = false;
   private _kernel32: any = null;
   private _ffiPtr: ((buf: Buffer) => unknown) | null = null;
-  private _mappingHandle = 0;
-  private _mappingView = 0;
+  private _mappingHandle = 0n;
+  private _mappingView = 0n;
   private _mappingSize = 0;
   private _variableTable: IRacingVariableTable | null = null;
   private _tableSignature = "";
@@ -323,20 +323,20 @@ export class IRacingSdkReader {
         this._kernel32 = dlopen("kernel32.dll", {
           OpenFileMappingW: {
             args: [FFIType.u32, FFIType.bool, FFIType.ptr],
-            returns: FFIType.ptr,
-          },
-          MapViewOfFile: {
-            args: [FFIType.ptr, FFIType.u32, FFIType.u32, FFIType.u32, FFIType.u32],
-            returns: FFIType.ptr,
-          },
-          VirtualQuery: {
-            args: [FFIType.ptr, FFIType.ptr, FFIType.u64],
             returns: FFIType.u64,
           },
-          UnmapViewOfFile: { args: [FFIType.ptr], returns: FFIType.bool },
-          CloseHandle: { args: [FFIType.ptr], returns: FFIType.bool },
+          MapViewOfFile: {
+            args: [FFIType.u64, FFIType.u32, FFIType.u32, FFIType.u32, FFIType.u32],
+            returns: FFIType.u64,
+          },
+          VirtualQuery: {
+            args: [FFIType.u64, FFIType.ptr, FFIType.u64],
+            returns: FFIType.u64,
+          },
+          UnmapViewOfFile: { args: [FFIType.u64], returns: FFIType.bool },
+          CloseHandle: { args: [FFIType.u64], returns: FFIType.bool },
           RtlCopyMemory: {
-            args: [FFIType.ptr, FFIType.ptr, FFIType.u64],
+            args: [FFIType.ptr, FFIType.u64, FFIType.u64],
             returns: FFIType.void,
           },
         });
@@ -348,7 +348,7 @@ export class IRacingSdkReader {
         FILE_MAP_READ,
         false,
         this._ffiPtr!(mapName),
-      );
+      ) as bigint;
       if (!handle) return;
 
       const view = this._kernel32.symbols.MapViewOfFile(
@@ -357,20 +357,20 @@ export class IRacingSdkReader {
         0,
         0,
         0,
-      );
+      ) as bigint;
       if (!view) {
         this._kernel32.symbols.CloseHandle(handle);
         return;
       }
 
-      this._mappingHandle = Number(handle);
-      this._mappingView = Number(view);
+      this._mappingHandle = handle;
+      this._mappingView = view;
       const memoryInfo = Buffer.alloc(MEMORY_BASIC_INFORMATION_SIZE);
       const bytesWritten = Number(
         this._kernel32.symbols.VirtualQuery(
           view,
           this._ffiPtr!(memoryInfo),
-          memoryInfo.length,
+          BigInt(memoryInfo.length),
         ),
       );
       if (bytesWritten < MEMORY_BASIC_INFORMATION_SIZE) {
@@ -386,7 +386,7 @@ export class IRacingSdkReader {
         ),
       );
       if (
-        baseAddress !== BigInt(this._mappingView) ||
+        baseAddress !== this._mappingView ||
         !Number.isSafeInteger(regionSize) ||
         regionSize < IRSDK_HEADER_SIZE
       ) {
@@ -459,8 +459,8 @@ export class IRacingSdkReader {
     const output = Buffer.allocUnsafe(length);
     this._kernel32.symbols.RtlCopyMemory(
       this._ffiPtr(output),
-      this._mappingView + offset,
-      length,
+      this._mappingView + BigInt(offset),
+      BigInt(length),
     );
     return output;
   }
@@ -475,8 +475,8 @@ export class IRacingSdkReader {
       }
     }
     if (this._connected) console.log("[iRacing SDK] Disconnected");
-    this._mappingHandle = 0;
-    this._mappingView = 0;
+    this._mappingHandle = 0n;
+    this._mappingView = 0n;
     this._mappingSize = 0;
     this._connected = false;
     this._variableTable = null;

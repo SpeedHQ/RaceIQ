@@ -159,6 +159,45 @@ describe("migration runner e2e", () => {
     expect(versions).toEqual([...versions].sort((a, b) => a - b));
   });
 
+  test("v36 keeps native car ordinals unique without treating names as identity", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 35);
+    await client.execute(
+      `INSERT INTO discovered_cars (game_id, ordinal, name)
+       VALUES ('iracing', 101, 'Shared Display Name')`,
+    );
+
+    await runMigrations(client, 36);
+    await client.execute(
+      `INSERT INTO discovered_cars (game_id, ordinal, name)
+       VALUES ('iracing', 202, 'Shared Display Name')`,
+    );
+
+    const rows = await client.execute(
+      `SELECT ordinal, name
+       FROM discovered_cars
+       WHERE game_id = 'iracing'
+       ORDER BY ordinal`,
+    );
+    expect(
+      rows.rows.map((row) => ({
+        ordinal: Number(row.ordinal),
+        name: String(row.name),
+      })),
+    ).toEqual([
+      { ordinal: 101, name: "Shared Display Name" },
+      { ordinal: 202, name: "Shared Display Name" },
+    ]);
+    await expect(
+      client.execute(
+        `INSERT INTO discovered_cars (game_id, ordinal, name)
+         VALUES ('iracing', 202, 'Different Name')`,
+      ),
+    ).rejects.toThrow();
+    client.close();
+  });
+
   test("v37 preserves valid layouts, rejects incomplete rows, and stales iRacing captures", async () => {
     const client = newClient();
     await bootstrap(client);

@@ -232,9 +232,16 @@ export const lapRoutes = new Hono()
 
   // ── Get single lap ──────────────────────────────────────────
   .get("/api/laps/:id", zValidator("param", IdParamSchema), async (c) => {
+    const gameIdResult = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
+    if (!gameIdResult.success) {
+      return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
+    }
+    const gameId = gameIdResult.data;
     const { id } = c.req.valid("param");
     const lap = await getLapById(id);
-    if (!lap) return c.json({ error: "Lap not found" }, 404);
+    if (!lap || lap.gameId !== gameId) {
+      return c.json({ error: "Lap not found" }, 404);
+    }
 
     // Compute sector times server-side
     let sectorTimes: {
@@ -247,7 +254,6 @@ export const lapRoutes = new Hono()
     } | null = null;
     const packets = lap.telemetry;
     if (packets.length >= 10 && lap.trackOrdinal != null) {
-      const gameId = lap.gameId as GameId;
       const game = getGame(gameId);
       const firstDist = packets[0].DistanceTraveled;
       const lastDist = packets[packets.length - 1].DistanceTraveled;
@@ -307,7 +313,7 @@ export const lapRoutes = new Hono()
 
     // Precomputed lap insights — server-side so the client gets them in the
     // initial fetch instead of re-deriving on every render
-    const insights = lap.gameId ? analyzeLap(packets, lap.gameId) : [];
+    const insights = analyzeLap(packets, gameId);
 
     return c.json({ ...lap, sectorTimes, insights });
   })

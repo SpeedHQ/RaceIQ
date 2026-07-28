@@ -580,13 +580,30 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   },
 
   // ── v36: Runtime-discovered track identity registry ───────────────────────
-  // v23 established discovered_cars for runtime-provided car identity. iRacing
-  // also provides stable track ordinals and names at runtime, so keep the same
-  // normalized mapping for tracks instead of repeating names on session rows.
+  // v23 established discovered_cars for runtime-provided car identity, but its
+  // name constraint incorrectly treated display text as identity. Rebuild it
+  // so native ordinals remain the only per-game key. iRacing also provides
+  // stable track ordinals and names at runtime, so keep the same normalized
+  // mapping for tracks instead of repeating names on session rows.
   {
     version: 36,
-    name: "discovered tracks registry",
+    name: "runtime-discovered identity registries",
     sql: [
+      `CREATE TABLE discovered_cars_v36 (
+         id          INTEGER PRIMARY KEY AUTOINCREMENT,
+         game_id     TEXT NOT NULL,
+         ordinal     INTEGER NOT NULL,
+         name        TEXT NOT NULL,
+         model       TEXT NOT NULL DEFAULT '',
+         created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+         UNIQUE(game_id, ordinal)
+       )`,
+      `INSERT INTO discovered_cars_v36
+         (id, game_id, ordinal, name, model, created_at)
+       SELECT id, game_id, ordinal, name, model, created_at
+       FROM discovered_cars`,
+      `DROP TABLE discovered_cars`,
+      `ALTER TABLE discovered_cars_v36 RENAME TO discovered_cars`,
       `CREATE TABLE IF NOT EXISTS discovered_tracks (
          id          INTEGER PRIMARY KEY AUTOINCREMENT,
          game_id     TEXT NOT NULL,

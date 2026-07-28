@@ -18,6 +18,11 @@ import {
   IRACING_DUMP_VERSION,
   readIRacingFrames,
 } from "../server/games/iracing/recorder";
+import {
+  DumpToBinProcessor,
+  IRacingFramePipeline,
+  ParsingProcessor,
+} from "../server/games/iracing/frame-pipeline";
 import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
 import { initGameAdapters } from "../shared/games/init";
@@ -88,5 +93,27 @@ describe("iRacing recorder container", () => {
     writeFileSync(truncated, raw.subarray(0, raw.length - 3));
 
     expect(readIRacingFrames(truncated)).toHaveLength(137);
+  });
+
+  test("records through DumpToBinProcessor before parser dispatch", async () => {
+    const calls: string[] = [];
+    const frame = Buffer.from("canonical iRacing frame");
+    const pipeline = new IRacingFramePipeline();
+    pipeline.register(
+      new DumpToBinProcessor({
+        writeFrame(value) {
+          expect(value).toBe(frame);
+          calls.push("dump");
+        },
+      }),
+      new ParsingProcessor(async (value) => {
+        expect(value).toBe(frame);
+        calls.push("parse");
+      }),
+    );
+
+    await pipeline.process(frame);
+
+    expect(calls).toEqual(["dump", "parse"]);
   });
 });

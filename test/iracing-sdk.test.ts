@@ -164,7 +164,7 @@ describe("native iRacing SDK decoding", () => {
   test("rejects an out-of-region copy before calling RtlCopyMemory", () => {
     let nativeCopyCalled = false;
     const reader = new IRacingSdkReader() as unknown as {
-      _mappingView: number;
+      _mappingView: bigint;
       _mappingSize: number;
       _ffiPtr: (buffer: Buffer) => number;
       _kernel32: {
@@ -174,7 +174,7 @@ describe("native iRacing SDK decoding", () => {
       };
       _copy: (offset: number, length: number) => Buffer;
     };
-    reader._mappingView = 4096;
+    reader._mappingView = 4096n;
     reader._mappingSize = 112;
     reader._ffiPtr = () => 8192;
     reader._kernel32 = {
@@ -187,6 +187,41 @@ describe("native iRacing SDK decoding", () => {
 
     expect(() => reader._copy(96, 17)).toThrow(/exceeds mapped region/);
     expect(nativeCopyCalled).toBe(false);
+  });
+
+  test("keeps native source-pointer arithmetic in u64 space", () => {
+    let sourceAddress: bigint | null = null;
+    let byteLength: bigint | null = null;
+    const reader = new IRacingSdkReader() as unknown as {
+      _mappingView: bigint;
+      _mappingSize: number;
+      _ffiPtr: (buffer: Buffer) => number;
+      _kernel32: {
+        symbols: {
+          RtlCopyMemory: (
+            destination: number,
+            source: bigint,
+            length: bigint,
+          ) => void;
+        };
+      };
+      _copy: (offset: number, length: number) => Buffer;
+    };
+    reader._mappingView = 0x1_0000_0000n;
+    reader._mappingSize = 112;
+    reader._ffiPtr = () => 8192;
+    reader._kernel32 = {
+      symbols: {
+        RtlCopyMemory: (_destination, source, length) => {
+          sourceAddress = source;
+          byteLength = length;
+        },
+      },
+    };
+
+    expect(reader._copy(96, 16)).toHaveLength(16);
+    expect(sourceAddress).toBe(0x1_0000_0060n);
+    expect(byteLength).toBe(16n);
   });
 
   test("reads official descriptor types from one telemetry row", () => {
@@ -337,6 +372,22 @@ describe("iRacing raw source frame parser integration", () => {
     expect(packet?.TireTempFL).toBeCloseTo(84);
     expect(packet?.TireWearFL).toBeCloseTo(0.06);
     expect(packet?.iracing?.incidents).toBe(1);
+  });
+
+  test("maps lateral, vertical, and braking acceleration onto canonical axes", () => {
+    const frame = sampleFrame();
+    frame.values = {
+      ...frame.values,
+      LatAccel: 4.2,
+      VertAccel: 9.8,
+      LongAccel: -3.5,
+    };
+
+    const packet = normalizeIRacingFrame(frame);
+
+    expect(packet.AccelerationX).toBeCloseTo(4.2);
+    expect(packet.AccelerationY).toBeCloseTo(9.8);
+    expect(packet.AccelerationZ).toBeCloseTo(-3.5);
   });
 
   test("packs normal ticks as value-only deltas", () => {

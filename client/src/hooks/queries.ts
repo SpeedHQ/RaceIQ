@@ -85,7 +85,8 @@ export function useLapTelemetry(lapId: number | null) {
   return useQuery({
     queryKey: ["lap-telemetry", lapId, gameId ?? null],
     queryFn: async () => {
-      const res = await client.api.laps[":id"].$get({ param: { id: String(lapId!) } }, { headers: gameId ? { "X-Game-Id": gameId } : undefined });
+      if (!gameId) throw new Error("Missing game context");
+      const res = await client.api.laps[":id"].$get({ param: { id: String(lapId!) } }, { headers: { "X-Game-Id": gameId } });
       if (!res.ok) throw new Error(res.statusText);
       return res.json() as Promise<{
         telemetry: TelemetryPacket[];
@@ -93,7 +94,7 @@ export function useLapTelemetry(lapId: number | null) {
         [key: string]: any;
       }>;
     },
-    enabled: lapId != null,
+    enabled: lapId != null && gameId != null,
     // A single lap carries 15k–80k packets (~5–50 MB). TanStack Query's
     // default gcTime is 5 minutes — enough to hold a dozen laps in memory
     // and OOM the tab. Release as soon as no component subscribes.

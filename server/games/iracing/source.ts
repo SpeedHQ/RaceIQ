@@ -9,6 +9,11 @@ import {
   type IRacingValue,
 } from "./source-frame";
 import { iracingRecorder, type IRacingRecorder } from "./recorder";
+import {
+  DumpToBinProcessor,
+  IRacingFramePipeline,
+  ParsingProcessor,
+} from "./frame-pipeline";
 
 export interface IRacingFrameReader {
   start(): void;
@@ -53,6 +58,7 @@ export class IRacingTelemetrySource {
   private readonly recordingDir: string | undefined;
   private readonly recorder: IRacingRecorder;
   private readonly frameEncoder = new IRacingSourceFrameEncoder();
+  private readonly framePipeline = new IRacingFramePipeline();
   private timer: ReturnType<typeof setInterval> | null = null;
   private running = false;
   private polling = false;
@@ -69,6 +75,10 @@ export class IRacingTelemetrySource {
     this.recordingEnabled = options.recordingEnabled ?? false;
     this.recordingDir = options.recordingDir;
     this.recorder = options.recorder ?? iracingRecorder;
+    if (this.recordingEnabled) {
+      this.framePipeline.register(new DumpToBinProcessor(this.recorder));
+    }
+    this.framePipeline.register(new ParsingProcessor(this.dispatchRawFrame));
   }
 
   start(): void {
@@ -131,10 +141,7 @@ export class IRacingTelemetrySource {
         values: snapshot.values,
       };
       const rawFrame = this.frameEncoder.encode(frame);
-      if (this.recordingEnabled) {
-        this.recorder.writeFrame(rawFrame);
-      }
-      await this.dispatchRawFrame(rawFrame);
+      await this.framePipeline.process(rawFrame);
       return true;
     } catch (error) {
       const now = Date.now();

@@ -61,10 +61,7 @@ export const discoveredCars = sqliteTable(
 		model: text("model").notNull().default(""),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
-	(table) => [
-		unique().on(table.gameId, table.ordinal),
-		unique().on(table.gameId, table.name),
-	],
+	(table) => [unique().on(table.gameId, table.ordinal)],
 );
 
 /**
