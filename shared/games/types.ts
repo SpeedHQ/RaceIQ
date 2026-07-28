@@ -1,4 +1,4 @@
-import type { GameId } from "../types";
+import type { GameId, TelemetryPacket } from "../types";
 
 /** Configuration that every game must provide. Shared between server and client. */
 export interface GameAdapter {
@@ -19,6 +19,13 @@ export interface GameAdapter {
 
   /** Sector boundaries and lap fraction are supplied authoritatively by telemetry. */
   nativeSectors: boolean;
+
+  /** Read the source-defined sector layout from a normalized telemetry frame. */
+  getNativeSectorLayout?(packet: TelemetryPacket): {
+    starts: number[];
+    lapFraction?: number;
+    trackLengthM?: number;
+  } | undefined;
 
   /** Raw-lap replay should synthesize a finish sample from the following frame. */
   appendsDelayedFinishFrame: boolean;

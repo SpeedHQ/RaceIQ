@@ -14,9 +14,7 @@ function lap(overrides: Partial<RecapLapInput>): RecapLapInput {
     lapNumber: 1,
     lapTime: 100,
     isValid: true,
-    s1Time: null,
-    s2Time: null,
-    s3Time: null,
+    sectorTimes: null,
     ...overrides,
   };
   // Default the id to the lap number so fixtures can assert bestLapId readably.
@@ -28,7 +26,7 @@ function run(
   opts: Partial<{
     trackLengthM: number | null;
     allTimeBestSec: number | null;
-    allTimeBestSectors: { s1: number | null; s2: number | null; s3: number | null } | null;
+    allTimeBestSectors: Array<number | null> | null;
     carName: string;
     trackName: string;
   }> = {},
@@ -70,15 +68,13 @@ describe("computeRecap", () => {
 
   test("theoretical mixes sectors across laps", () => {
     const laps = [
-      lap({ lapNumber: 1, lapTime: 100, s1Time: 30, s2Time: 40, s3Time: 30 }),
-      lap({ lapNumber: 2, lapTime: 99, s1Time: 29, s2Time: 40, s3Time: 30 }),
-      lap({ lapNumber: 3, lapTime: 98, s1Time: 29, s2Time: 39, s3Time: 30 }),
+      lap({ lapNumber: 1, lapTime: 100, sectorTimes: [30, 40, 30] }),
+      lap({ lapNumber: 2, lapTime: 99, sectorTimes: [29, 40, 30] }),
+      lap({ lapNumber: 3, lapTime: 98, sectorTimes: [29, 39, 30] }),
     ];
     const recap = run(laps);
     expect(recap.theoretical).not.toBeNull();
-    expect(recap.theoretical!.bestS1).toBe(29);
-    expect(recap.theoretical!.bestS2).toBe(39);
-    expect(recap.theoretical!.bestS3).toBe(30);
+    expect(recap.theoretical!.bestSectorTimes).toEqual([29, 39, 30]);
     expect(recap.theoretical!.sumSec).toBe(98);
     // bestLapSec = 98, sumSec = 98 -> delta 0
     expect(recap.theoretical!.deltaToBestSec).toBe(0);
@@ -86,8 +82,8 @@ describe("computeRecap", () => {
 
   test("theoretical equals best lap when one lap owns all three sectors", () => {
     const laps = [
-      lap({ lapNumber: 1, lapTime: 100, s1Time: 33, s2Time: 34, s3Time: 33 }),
-      lap({ lapNumber: 2, lapTime: 105, s1Time: 35, s2Time: 35, s3Time: 35 }),
+      lap({ lapNumber: 1, lapTime: 100, sectorTimes: [33, 34, 33] }),
+      lap({ lapNumber: 2, lapTime: 105, sectorTimes: [35, 35, 35] }),
     ];
     const recap = run(laps);
     expect(recap.theoretical!.sumSec).toBe(100);
@@ -97,8 +93,8 @@ describe("computeRecap", () => {
 
   test("theoretical null when any sector missing on all valid laps", () => {
     const laps = [
-      lap({ lapNumber: 1, lapTime: 100, s1Time: 33, s2Time: 34, s3Time: null }),
-      lap({ lapNumber: 2, lapTime: 101, s1Time: null, s2Time: 35, s3Time: 35 }),
+      lap({ lapNumber: 1, lapTime: 100, sectorTimes: null }),
+      lap({ lapNumber: 2, lapTime: 101, sectorTimes: null }),
     ];
     const recap = run(laps);
     expect(recap.theoretical).toBeNull();
@@ -287,7 +283,7 @@ describe("computeRecap", () => {
 
     test("all laps invalid: bestLapSec/theoretical/personalBest null, time + distance zero", () => {
       const laps = [
-        lap({ lapNumber: 1, lapTime: 100, isValid: false, s1Time: 30, s2Time: 40, s3Time: 30 }),
+        lap({ lapNumber: 1, lapTime: 100, isValid: false, sectorTimes: [30, 40, 30] }),
         lap({ lapNumber: 2, lapTime: 101, isValid: false }),
       ];
       const recap = run(laps, { trackLengthM: 500, allTimeBestSec: 90 });
@@ -312,7 +308,7 @@ describe("computeRecap", () => {
   describe("sectors", () => {
     test("null when no valid lap has all three sectors", () => {
       const laps = [
-        lap({ lapNumber: 1, lapTime: 100, s1Time: 33, s2Time: null, s3Time: 33 }),
+        lap({ lapNumber: 1, lapTime: 100, sectorTimes: null }),
       ];
       const recap = run(laps);
       expect(recap.sectors).toBeNull();
@@ -320,8 +316,8 @@ describe("computeRecap", () => {
 
     test("sessionBestSec is the min per sector across different laps", () => {
       const laps = [
-        lap({ id: 1, lapNumber: 1, lapTime: 100, s1Time: 30, s2Time: 40, s3Time: 30 }),
-        lap({ id: 2, lapNumber: 2, lapTime: 99, s1Time: 29, s2Time: 41, s3Time: 29 }),
+        lap({ id: 1, lapNumber: 1, lapTime: 100, sectorTimes: [30, 40, 30] }),
+        lap({ id: 2, lapNumber: 2, lapTime: 99, sectorTimes: [29, 41, 29] }),
       ];
       const recap = run(laps);
       expect(recap.sectors).not.toBeNull();
@@ -332,28 +328,28 @@ describe("computeRecap", () => {
     });
 
     test("status is 'record' when there is no all-time (first ever)", () => {
-      const laps = [lap({ lapNumber: 1, lapTime: 100, s1Time: 33, s2Time: 34, s3Time: 33 })];
+      const laps = [lap({ lapNumber: 1, lapTime: 100, sectorTimes: [33, 34, 33] })];
       const recap = run(laps, { allTimeBestSectors: null });
       expect(recap.sectors!.every((s) => s.status === "record")).toBe(true);
       expect(recap.sectors!.every((s) => s.allTimeBestSec === null)).toBe(true);
     });
 
     test("status is 'record' when sessionBest beats all-time", () => {
-      const laps = [lap({ lapNumber: 1, lapTime: 100, s1Time: 33, s2Time: 34, s3Time: 33 })];
+      const laps = [lap({ lapNumber: 1, lapTime: 100, sectorTimes: [33, 34, 33] })];
       const recap = run(laps, {
-        allTimeBestSectors: { s1: 34, s2: 35, s3: 34 },
+        allTimeBestSectors: [34, 35, 34],
       });
       expect(recap.sectors!.every((s) => s.status === "record")).toBe(true);
     });
 
     test("status is 'session-best' when the best lap owns that sector and all-time is faster", () => {
       const laps = [
-        lap({ id: 1, lapNumber: 1, lapTime: 100, s1Time: 33, s2Time: 34, s3Time: 33 }),
-        lap({ id: 2, lapNumber: 2, lapTime: 105, s1Time: 40, s2Time: 40, s3Time: 40 }),
+        lap({ id: 1, lapNumber: 1, lapTime: 100, sectorTimes: [33, 34, 33] }),
+        lap({ id: 2, lapNumber: 2, lapTime: 105, sectorTimes: [40, 40, 40] }),
       ];
       // best lap (id 1, lapTime 100) owns all three sectors, all faster than all-time
       const recap = run(laps, {
-        allTimeBestSectors: { s1: 30, s2: 30, s3: 30 },
+        allTimeBestSectors: [30, 30, 30],
       });
       // sessionBest for each sector equals best lap's own sector (it's the only fast lap)
       expect(recap.sectors!.every((s) => s.status === "session-best" || s.status === "record")).toBe(true);
@@ -362,12 +358,12 @@ describe("computeRecap", () => {
     test("status is 'lost' when the best lap's sector is slower than the session best, with all-time faster", () => {
       const laps = [
         // best overall lap (fastest lapTime), but slow s1
-        lap({ id: 1, lapNumber: 1, lapTime: 98, s1Time: 35, s2Time: 30, s3Time: 33 }),
+        lap({ id: 1, lapNumber: 1, lapTime: 98, sectorTimes: [35, 30, 33] }),
         // slower overall lap, but fastest s1
-        lap({ id: 2, lapNumber: 2, lapTime: 100, s1Time: 29, s2Time: 40, s3Time: 31 }),
+        lap({ id: 2, lapNumber: 2, lapTime: 100, sectorTimes: [29, 40, 31] }),
       ];
       const recap = run(laps, {
-        allTimeBestSectors: { s1: 20, s2: 20, s3: 20 },
+        allTimeBestSectors: [20, 20, 20],
       });
       const s1 = recap.sectors!.find((s) => s.index === 1)!;
       expect(s1.bestLapSec).toBe(35); // best lap's own s1
@@ -378,12 +374,12 @@ describe("computeRecap", () => {
     test("best lap has null sectors but another valid lap has complete sectors: must not throw, no 'lost' status", () => {
       const laps = [
         // fastest overall lap, but missing sector data
-        lap({ id: 1, lapNumber: 1, lapTime: 90, s1Time: null, s2Time: null, s3Time: null }),
+        lap({ id: 1, lapNumber: 1, lapTime: 90, sectorTimes: null }),
         // slower lap, complete sectors
-        lap({ id: 2, lapNumber: 2, lapTime: 100, s1Time: 33, s2Time: 34, s3Time: 33 }),
+        lap({ id: 2, lapNumber: 2, lapTime: 100, sectorTimes: [33, 34, 33] }),
       ];
-      expect(() => run(laps, { allTimeBestSectors: { s1: 20, s2: 20, s3: 20 } })).not.toThrow();
-      const recap = run(laps, { allTimeBestSectors: { s1: 20, s2: 20, s3: 20 } });
+      expect(() => run(laps, { allTimeBestSectors: [20, 20, 20] })).not.toThrow();
+      const recap = run(laps, { allTimeBestSectors: [20, 20, 20] });
       expect(recap.bestLapSec).toBe(90);
       expect(recap.sectors).not.toBeNull();
       expect(recap.sectors!.every((s) => s.status !== "lost")).toBe(true);
@@ -395,9 +391,30 @@ describe("computeRecap", () => {
     });
 
     test("sectors entries are ordered index 1,2,3", () => {
-      const laps = [lap({ lapNumber: 1, lapTime: 100, s1Time: 33, s2Time: 34, s3Time: 33 })];
+      const laps = [lap({ lapNumber: 1, lapTime: 100, sectorTimes: [33, 34, 33] })];
       const recap = run(laps);
       expect(recap.sectors!.map((s) => s.index)).toEqual([1, 2, 3]);
+    });
+
+    test("preserves a six-sector session layout without projecting it to three", () => {
+      const sectorStarts = [0, 0.1, 0.25, 0.45, 0.7, 0.85];
+      const recap = computeRecap({
+        session: baseSession,
+        laps: [
+          lap({ lapNumber: 1, lapTime: 60, sectorTimes: [8, 10, 11, 12, 9, 10] }),
+          lap({ lapNumber: 2, lapTime: 59, sectorTimes: [7, 10, 12, 11, 9, 10] }),
+        ],
+        carName: "Test Car",
+        trackName: "Test Track",
+        trackLengthM: 4000,
+        allTimeBestSec: null,
+        allTimeBestSectors: null,
+        sectorStarts,
+      });
+
+      expect(recap.sectorStarts).toEqual(sectorStarts);
+      expect(recap.theoretical?.bestSectorTimes).toEqual([7, 10, 11, 11, 9, 10]);
+      expect(recap.sectors?.map((sector) => sector.index)).toEqual([1, 2, 3, 4, 5, 6]);
     });
   });
 });

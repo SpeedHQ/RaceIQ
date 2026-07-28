@@ -115,7 +115,9 @@ SplitTimeInfo:
   - SectorNum: 0
     SectorStartPct: 0.000000
   - SectorNum: 1
-    SectorStartPct: 0.500000
+    SectorStartPct: 0.340000
+  - SectorNum: 2
+    SectorStartPct: 0.670000
   DriverInfo:
   DriverCarIdx: 7
   DriverCarIdleRPM: 900
@@ -331,6 +333,7 @@ describe("IRacingIbtReader", () => {
       sessionNum: 2,
       trackId: 99,
       trackName: "Road America",
+      sectorStarts: [0, 0.34, 0.67],
       carId: 42,
       carName: "GT3 Test Car",
     });

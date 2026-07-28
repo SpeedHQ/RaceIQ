@@ -273,14 +273,20 @@ import { countStaleSessions } from "./db/queries";
 import { LAP_DETECTOR_ID } from "./lap-detector";
 import { LAP_DETECTOR_V2_ID } from "./lap-detector-acc";
 import { LAP_DETECTOR_AC_EVO_ID } from "./lap-detector-ac-evo";
-const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_V2_ID, LAP_DETECTOR_AC_EVO_ID];
+import { LAP_DETECTOR_IRACING_ID } from "./lap-detector-iracing";
+const ALL_DETECTOR_IDS = [
+  LAP_DETECTOR_ID,
+  LAP_DETECTOR_V2_ID,
+  LAP_DETECTOR_AC_EVO_ID,
+  LAP_DETECTOR_IRACING_ID,
+];
 countStaleSessions(ALL_DETECTOR_IDS).then((count) => {
   if (count > 0) {
     console.log(`[Server] ${count} session(s) recorded with stale lap detector — will prompt user to reprocess`);
     wsManager.setStaleSessionsNotification({
       type: "stale-lap-detection",
       sessionCount: count,
-      currentVersion: `${LAP_DETECTOR_ID},${LAP_DETECTOR_V2_ID}`,
+      currentVersion: ALL_DETECTOR_IDS.join(","),
     });
   }
 }).catch((err) => {

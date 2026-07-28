@@ -1,7 +1,6 @@
 import type { TelemetryPacket } from "@shared/types";
 import {
   LapDetector,
-  LAP_DETECTOR_ID,
   type LapFuelData,
   type LapTireWearData,
   type SessionState,
@@ -10,6 +9,8 @@ import type {
   ILapDetector,
   LapDetectorOptions,
 } from "./lap-detector-interface";
+
+export const LAP_DETECTOR_IRACING_ID = "iracing_lapdetector_v2";
 
 interface DeferredPacket {
   packet: TelemetryPacket;
@@ -27,7 +28,7 @@ interface DeferredPacket {
  * and tyre history, callbacks, and incomplete laps—stays in `LapDetector`.
  */
 export class LapDetectorIRacing implements ILapDetector {
-  readonly detectorId = LAP_DETECTOR_ID;
+  readonly detectorId = LAP_DETECTOR_IRACING_ID;
 
   private readonly detector: LapDetector;
   private sessionKey: string | undefined;

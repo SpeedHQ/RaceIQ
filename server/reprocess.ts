@@ -108,7 +108,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
     for (const detected of detectedLaps) {
       const existing = existingByLapNum.get(detected.lapNumber);
       if (!existing) continue;
-      const sectors = detected.sectors ? { s1: detected.sectors.s1, s2: detected.sectors.s2, s3: detected.sectors.s3 } : null;
+      const sectors = detected.sectors ? [...detected.sectors] : null;
       await updateLapRawIndex(
         existing.id,
         detected.rawByteOffset,
@@ -127,7 +127,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
     await deleteLapsForSession(sessionId);
     for (const detected of detectedLaps) {
       const preserved = notesByLapNum.get(detected.lapNumber);
-      const sectors = detected.sectors ? { s1: detected.sectors.s1, s2: detected.sectors.s2, s3: detected.sectors.s3 } : null;
+      const sectors = detected.sectors ? [...detected.sectors] : null;
       await insertReprocessedLap(
         sessionId,
         detected.lapNumber,

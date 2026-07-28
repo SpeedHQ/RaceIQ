@@ -1,8 +1,8 @@
+import { isPitCycleLap } from "@shared/lap-filters";
 import type { LapMeta, TuneIssue } from "@shared/types";
 import { useMemo, useState } from "react";
 import { type TuningLapMetric, useLapIssues, useLapTelemetry, useSetLapExcluded } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
-import { isPitCycleLap } from "@shared/lap-filters";
 import { SectorDetailView } from "./SectorDetailView";
 
 interface TestReviewDashboardProps {
@@ -126,23 +126,24 @@ function LapTab({ lap }: { lap: LapMeta | null }) {
   const { data: issues } = useLapIssues(lap?.id ?? null);
   const [sectorIndex, setSectorIndex] = useState(0);
 
-  if (!lap) return <div className="p-4 text-xs text-app-text-dim">Lap not found.</div>;
-
   const telemetry = lapTel?.telemetry ?? [];
   const sectorTimes = lapTel?.sectorTimes ?? null;
+  const sectorCount = sectorTimes?.times.length ?? 3;
 
   const bySector = useMemo(() => {
-    const groups: TuneIssue[][] = [[], [], []];
+    const count = sectorTimes?.times.length ?? 3;
+    const groups: TuneIssue[][] = Array.from({ length: count }, () => []);
     const len = telemetry.length;
-    const s1f = sectorTimes && len > 1 ? sectorTimes.s1Idx / (len - 1) : 1 / 3;
-    const s2f = sectorTimes && len > 1 ? sectorTimes.s2Idx / (len - 1) : 2 / 3;
+    const boundaries = sectorTimes && len > 1 ? sectorTimes.boundaryIndices.map((index) => index / (len - 1)) : Array.from({ length: count - 1 }, (_, index) => (index + 1) / count);
     for (const it of issues ?? []) {
       if (it.distanceFrac == null) continue;
-      const s = it.distanceFrac < s1f ? 0 : it.distanceFrac < s2f ? 1 : 2;
-      groups[s].push(it);
+      const sector = boundaries.findIndex((boundary) => it.distanceFrac! < boundary);
+      groups[sector < 0 ? count - 1 : sector].push(it);
     }
     return groups;
   }, [issues, telemetry.length, sectorTimes]);
+
+  if (!lap) return <div className="p-4 text-xs text-app-text-dim">Lap not found.</div>;
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -151,20 +152,26 @@ function LapTab({ lap }: { lap: LapMeta | null }) {
           Lap {lap.lapNumber} · {formatLapTime(lap.lapTime)}
         </span>
         <div className="flex gap-1 ml-auto">
-          {[0, 1, 2].map((i) => (
+          {Array.from({ length: sectorCount }, (_, i) => `Sector ${i + 1}`).map((label, i) => (
             <button
-              key={i}
+              key={label}
               type="button"
               onClick={() => setSectorIndex(i)}
               className={`px-2.5 py-1 text-xs rounded border ${sectorIndex === i ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
             >
-              Sector {i + 1}
+              {label}
             </button>
           ))}
         </div>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto">
-        <SectorDetailView telemetry={telemetry} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={lap.trackOrdinal} issues={bySector[sectorIndex]} />
+        <SectorDetailView
+          telemetry={telemetry}
+          sectorTimes={sectorTimes}
+          sectorIndex={Math.min(sectorIndex, sectorCount - 1)}
+          trackOrdinal={lap.trackOrdinal}
+          issues={bySector[Math.min(sectorIndex, sectorCount - 1)]}
+        />
       </div>
     </div>
   );

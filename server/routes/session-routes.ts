@@ -9,12 +9,18 @@ import { reprocessSession } from "../reprocess";
 import { LAP_DETECTOR_ID } from "../lap-detector";
 import { LAP_DETECTOR_V2_ID } from "../lap-detector-acc";
 import { LAP_DETECTOR_AC_EVO_ID } from "../lap-detector-ac-evo";
+import { LAP_DETECTOR_IRACING_ID } from "../lap-detector-iracing";
 import { wsManager } from "../ws";
 import { computeRecap } from "../recap";
 import { tryGetGame } from "../../shared/games/registry";
 import { getCarName, getTrackName } from "../../shared/car-data";
 
-const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_V2_ID, LAP_DETECTOR_AC_EVO_ID];
+const ALL_DETECTOR_IDS = [
+  LAP_DETECTOR_ID,
+  LAP_DETECTOR_V2_ID,
+  LAP_DETECTOR_AC_EVO_ID,
+  LAP_DETECTOR_IRACING_ID,
+];
 
 export const sessionRoutes = new Hono()
   // GET /api/sessions
@@ -49,6 +55,7 @@ export const sessionRoutes = new Hono()
         trackLengthM: data.trackLengthM,
         allTimeBestSec: data.allTimeBestSec,
         allTimeBestSectors: data.allTimeBestSectors,
+        sectorStarts: data.sectorStarts,
       });
       return c.json(recap);
     },

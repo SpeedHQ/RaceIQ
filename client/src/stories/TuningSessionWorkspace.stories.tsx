@@ -94,9 +94,7 @@ const statusExampleLaps = statusExampleLapsBase.map((l, i) => ({
   createdAt: new Date(Date.now() - (statusLapCount - i) * 95_000).toISOString(),
   carOrdinal: 42,
   trackOrdinal: 7,
-  s1Time: 30.1,
-  s2Time: 33.5,
-  s3Time: 30.6,
+  sectorTimes: [30.1, 33.5, 30.6],
 }));
 
 const sessionLaps = [...fakeSessionLaps.map((l) => ({ ...l, tuningSessionId: sessionId })), ...statusExampleLaps];

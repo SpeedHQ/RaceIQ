@@ -117,19 +117,19 @@ export function SectorTimes({ sectors }: { sectors: LiveSectorData | null }) {
 
   if (!sectors) return null;
 
-  const sectorNames = [m.sectortimes_s1(), m.sectortimes_s2(), m.sectortimes_s3()];
-  const sectorColors = ["#ef4444", "#3b82f6", "#eab308"];
-  const visibleSectorNames = sectorNames.slice(0, sectors.sectorCount);
+  const translatedNames = [m.sectortimes_s1(), m.sectortimes_s2(), m.sectortimes_s3()];
+  const sectorNames = Array.from({ length: sectors.sectorCount }, (_, index) => translatedNames[index] ?? `S${index + 1}`);
+  const sectorColors = ["#ef4444", "#3b82f6", "#eab308", "#22c55e", "#a855f7", "#f97316"];
 
   return (
     <div className="border-t border-app-border/50 pt-3">
       <div
         className="grid gap-2"
         style={{
-          gridTemplateColumns: `repeat(${sectors.sectorCount}, minmax(0, 1fr))`,
+          gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
         }}
       >
-        {visibleSectorNames.map((name, i) => {
+        {sectorNames.map((name, i) => {
           const current = i === sectors.currentSector ? sectors.currentSectorTime : sectors.currentTimes[i];
           const best = sectors.bestTimes[i];
           const last = sectors.lastTimes[i];
@@ -147,9 +147,9 @@ export function SectorTimes({ sectors }: { sectors: LiveSectorData | null }) {
           }
 
           return (
-            <div key={name} className={`rounded p-2.5 ${isActive ? "ring-1" : ""}`} style={isActive ? ({ "--tw-ring-color": sectorColors[i] } as React.CSSProperties) : {}}>
+            <div key={name} className={`rounded p-2.5 ${isActive ? "ring-1" : ""}`} style={isActive ? ({ "--tw-ring-color": sectorColors[i % sectorColors.length] } as React.CSSProperties) : {}}>
               <div className="flex items-center gap-1.5 mb-1.5">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: sectorColors[i] }} />
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: sectorColors[i % sectorColors.length] }} />
                 <span className="text-xs font-bold text-app-text-secondary">{name}</span>
                 <span className={`text-xl font-mono font-bold tabular-nums leading-none ml-auto ${timeColor}`}>{current > 0 ? formatLapTime(current) : "--:--.---"}</span>
                 {showDelta && (

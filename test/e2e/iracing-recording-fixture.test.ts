@@ -68,10 +68,11 @@ describe("committed iRacing recorder fixture", () => {
     for (const lap of recording.laps) {
       expect(lap.sectors).not.toBeNull();
       const sectors = lap.sectors!;
-      expect(sectors.s1).toBeGreaterThan(10);
-      expect(sectors.s2).toBeGreaterThan(10);
-      expect(sectors.s3).toBeGreaterThan(9);
-      expect(sectors.s1 + sectors.s2 + sectors.s3).toBeCloseTo(
+      expect(sectors).toHaveLength(3);
+      expect(sectors[0]).toBeGreaterThan(10);
+      expect(sectors[1]).toBeGreaterThan(10);
+      expect(sectors[2]).toBeGreaterThan(9);
+      expect(sectors.reduce((sum, time) => sum + time, 0)).toBeCloseTo(
         lap.lapTime,
         6,
       );

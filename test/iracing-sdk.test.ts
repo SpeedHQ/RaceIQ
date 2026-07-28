@@ -26,6 +26,7 @@ import {
   type IRacingFrameReader,
   IRacingTelemetrySource,
 } from "../server/games/iracing/source";
+import { LAP_DETECTOR_IRACING_ID } from "../server/lap-detector-iracing";
 import {
   canHandleIRacingSourceFrame,
   createIRacingSourceDecoderState,
@@ -143,6 +144,7 @@ describe("native iRacing SDK decoding", () => {
     expect(iracingAdapter.nativeSectors).toBe(true);
     expect(iracingAdapter.authoritativeTrackLength).toBe(true);
     expect(iracingAdapter.appendsDelayedFinishFrame).toBe(false);
+    expect(LAP_DETECTOR_IRACING_ID).toBe("iracing_lapdetector_v2");
   });
 
   test("bounds native reads to the VirtualQuery region", () => {
@@ -230,7 +232,9 @@ SplitTimeInfo:
   - SectorNum: 0
     SectorStartPct: 0.000000
   - SectorNum: 1
-    SectorStartPct: 0.500000
+    SectorStartPct: 0.340000
+  - SectorNum: 2
+    SectorStartPct: 0.670000
 DriverInfo:
   DriverCarIdx: 7
   DriverCarIdleRPM: 900
@@ -249,7 +253,7 @@ DriverInfo:
 
     expect(session.trackName).toBe("Road America");
     expect(session.trackLengthM).toBeCloseTo(6515);
-    expect(session.sectorStarts).toEqual([0, 0.5]);
+    expect(session.sectorStarts).toEqual([0, 0.34, 0.67]);
     expect(session.carId).toBe(42);
     expect(session.carName).toBe("GT3 Test Car");
     expect(session.carClassName).toBe("GT3");
@@ -432,6 +436,14 @@ WeekendInfo:
   TrackDisplayName: Road America
   SessionID: 123
   SubSessionID: 456
+SplitTimeInfo:
+  Sectors:
+  - SectorNum: 0
+    SectorStartPct: 0.000000
+  - SectorNum: 1
+    SectorStartPct: 0.340000
+  - SectorNum: 2
+    SectorStartPct: 0.670000
 DriverInfo:
   DriverCarIdx: 7
   DriverCarIdleRPM: 900
@@ -457,7 +469,10 @@ DriverInfo:
 
     expect(await source.pollOnce()).toBe(true);
     expect(delivered).not.toBeNull();
-    expect(parsePacket(delivered!)?.gameId).toBe("iracing");
+    expect(parsePacket(delivered!)).toMatchObject({
+      gameId: "iracing",
+      iracing: { sectorStarts: [0, 0.34, 0.67] },
+    });
   });
 
   test("reparses session YAML only when sessionInfoUpdate changes", async () => {
@@ -567,7 +582,8 @@ describe("iRacing lap timing and native sectors", () => {
     expect(rolloverPacket.LastLap).toBeCloseTo(31.7559);
   });
 
-  test("computes exactly two sectors from native SplitTimeInfo", async () => {
+  test("supports an explicitly two-sector native layout", async () => {
+    const twoSectorTrackOrdinal = 1_000_099;
     const packets = Array.from({ length: 101 }, (_, index) => {
       const fraction = index / 100;
       return {
@@ -584,16 +600,19 @@ describe("iRacing lap timing and native sectors", () => {
 
     const timeline = computeIRacingSectorTimeline(packets, 32);
     expect(timeline?.sectorCount).toBe(2);
-    expect(timeline?.times).toEqual([16, 16, 0]);
-    expect(timeline?.s2Idx).toBe(-1);
-    expect(await computeLapSectors(99, "iracing", packets, 32)).toEqual({
-      s1: 16,
-      s2: 16,
-      s3: 0,
-    });
+    expect(timeline?.times).toEqual([16, 16]);
+    expect(timeline?.boundaryIndices).toHaveLength(1);
+    expect(
+      await computeLapSectors(
+        twoSectorTrackOrdinal,
+        "iracing",
+        packets,
+        32,
+      ),
+    ).toEqual([16, 16]);
 
     const liveTracker = new SectorTracker();
-    await liveTracker.reset(99, "iracing", 42);
+    await liveTracker.reset(twoSectorTrackOrdinal, "iracing", 42);
     let live: ReturnType<SectorTracker["feed"]> = null;
     for (const packet of packets) live = liveTracker.feed(packet);
     expect(live?.sectorCount).toBe(2);
@@ -728,7 +747,7 @@ describe("iRacing lap timing and native sectors", () => {
     expect(db.laps[0].lapTime).toBeCloseTo(31.917, 3);
     expect(db.laps[1].lapTime).toBeCloseTo(32.045, 3);
     expect(db.laps[0].rawFrameCount).toBe(65);
-    expect(db.laps[0].sectors?.s3).toBe(0);
+    expect(db.laps[0].sectors).toHaveLength(2);
     expect(db.sessions[0]).toMatchObject({
       carOrdinal: 42,
       trackOrdinal: 99,

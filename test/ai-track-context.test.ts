@@ -111,7 +111,7 @@ describe("analyst prompt carries the curated track data", () => {
     track.segments,
     undefined,
     "en",
-    { times: { s1: 30.1, s2: 42.4, s3: 32.0 }, s1End: track.sectors.s1End, s2End: track.sectors.s2End },
+    { times: [30.1, 42.4, 32.0], sectorStarts: [0, track.sectors.s1End, track.sectors.s2End] },
   );
 
   test("segment list labels corners with their turn numbers", () => {
@@ -130,7 +130,7 @@ describe("analyst prompt carries the curated track data", () => {
     expect(prompt).toContain("S1: 30.100s");
     expect(prompt).toContain("S2: 42.400s");
     expect(prompt).toContain("S3: 32.000s");
-    expect(prompt).toContain("S1 ends at");
+    expect(prompt).toContain("Sector starts: 0.0%, 32.0%, 72.0%.");
   });
 
   test("each sector names the corners it covers", () => {

@@ -161,9 +161,7 @@ export class Pipeline {
             gameId: session.gameId,
             carOrdinal: session.carOrdinal,
             trackOrdinal: session.trackOrdinal,
-            s1Time: event.sectors?.s1,
-            s2Time: event.sectors?.s2,
-            s3Time: event.sectors?.s3,
+            sectorTimes: event.sectors ?? undefined,
           });
           this._broadcastSessionLaps();
         }

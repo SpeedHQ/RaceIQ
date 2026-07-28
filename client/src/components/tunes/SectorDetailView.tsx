@@ -4,9 +4,8 @@ import { SectorMap } from "./SectorMap";
 import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS } from "./SectorRangeBreakdown";
 
 interface SectorTimes {
-  times: [number, number, number];
-  s1Idx: number;
-  s2Idx: number;
+  times: number[];
+  boundaryIndices: number[];
 }
 
 interface SectorDetailViewProps {
@@ -17,7 +16,7 @@ interface SectorDetailViewProps {
   issues: TuneIssue[];
 }
 
-const SECTOR_COLORS = ["#f87171", "#60a5fa", "#facc15"] as const;
+const SECTOR_COLORS = ["#f87171", "#60a5fa", "#facc15", "#34d399", "#c084fc", "#fb923c"] as const;
 const SEVERITY_CLASS: Record<TuneIssue["severity"], string> = {
   critical: "text-red-400 border-red-800/60 bg-red-950/30",
   warn: "text-amber-400 border-amber-800/60 bg-amber-950/30",
@@ -60,7 +59,7 @@ export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrd
       <div className="lg:border-r border-app-border">
         <div className="flex items-center justify-between px-4 py-2 border-b border-app-border">
           <div className="flex items-center gap-2">
-            <span className="w-6 h-1 rounded" style={{ background: SECTOR_COLORS[sectorIndex] }} />
+            <span className="w-6 h-1 rounded" style={{ background: SECTOR_COLORS[sectorIndex % SECTOR_COLORS.length] }} />
             <span className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Sector {sectorIndex + 1}</span>
           </div>
           <span className="text-lg font-mono tabular-nums text-app-text">{sectorTime}</span>
@@ -88,16 +87,20 @@ export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrd
               {issues.map((it) => {
                 const locatable = it.distanceFrac != null;
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={`${it.kind}-${it.corner ?? ""}-${it.detail}`}
+                    disabled={!locatable}
                     onMouseEnter={locatable ? () => setMarkFrac(it.distanceFrac!) : undefined}
                     onMouseLeave={locatable ? () => setMarkFrac(null) : undefined}
-                    className={`text-xs px-2 py-1 rounded border ${SEVERITY_CLASS[it.severity]} ${locatable ? "cursor-pointer" : ""}`}
+                    onFocus={locatable ? () => setMarkFrac(it.distanceFrac!) : undefined}
+                    onBlur={locatable ? () => setMarkFrac(null) : undefined}
+                    className={`text-left text-xs px-2 py-1 rounded border ${SEVERITY_CLASS[it.severity]} ${locatable ? "cursor-pointer" : ""}`}
                   >
                     <span className="font-mono uppercase mr-1.5 opacity-70">{it.kind}</span>
                     {it.corner ? <span className="font-mono mr-1">{it.corner}</span> : null}
                     {it.detail}
-                  </div>
+                  </button>
                 );
               })}
             </div>

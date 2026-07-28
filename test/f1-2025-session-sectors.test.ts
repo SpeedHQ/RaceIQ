@@ -34,7 +34,7 @@ interface ReplayedLap {
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
-  sectors: { s1: number; s2: number; s3: number } | null;
+  sectors: number[] | null;
   packets: TelemetryPacket[];
 }
 
@@ -105,7 +105,7 @@ describe("F1 2025 session 2026-04-22 11:42 — lap times and sector splits", () 
     const laps = await replay();
     for (const lap of laps) {
       if (!lap.isValid || !lap.sectors || lap.lapTime <= 0) continue;
-      const sum = lap.sectors.s1 + lap.sectors.s2 + lap.sectors.s3;
+      const sum = lap.sectors.reduce((total, time) => total + time, 0);
       expect(sum).toBeCloseTo(lap.lapTime, 2);
     }
   }, { timeout: 180_000 });
@@ -117,9 +117,7 @@ describe("F1 2025 session 2026-04-22 11:42 — lap times and sector splits", () 
     const laps = await replay();
     for (const lap of laps) {
       if (!lap.isValid || !lap.sectors || lap.lapTime <= 0) continue;
-      expect(lap.sectors.s1).toBeGreaterThan(10);
-      expect(lap.sectors.s2).toBeGreaterThan(10);
-      expect(lap.sectors.s3).toBeGreaterThan(10);
+      expect(lap.sectors.every((time) => time > 10)).toBe(true);
     }
   }, { timeout: 180_000 });
 
@@ -132,9 +130,7 @@ describe("F1 2025 session 2026-04-22 11:42 — lap times and sector splits", () 
       if (!lap.isValid || lap.packets.length < 50 || !lap.sectors) continue;
       const recomputed = await computeLapSectors(19, "f1-2025", lap.packets, lap.lapTime);
       expect(recomputed).not.toBeNull();
-      expect(recomputed!.s1).toBeCloseTo(lap.sectors.s1, 2);
-      expect(recomputed!.s2).toBeCloseTo(lap.sectors.s2, 2);
-      expect(recomputed!.s3).toBeCloseTo(lap.sectors.s3, 2);
+      expect(recomputed).toEqual(lap.sectors);
     }
   }, { timeout: 180_000 });
 
@@ -155,9 +151,9 @@ describe("F1 2025 session 2026-04-22 11:42 — lap times and sector splits", () 
       if (!want) continue;
       expect(lap.lapTime).toBeCloseTo(want.lapTime, 2);
       if (lap.sectors) {
-        expect(lap.sectors.s1).toBeCloseTo(want.s1, 2);
-        expect(lap.sectors.s2).toBeCloseTo(want.s2, 2);
-        expect(lap.sectors.s3).toBeCloseTo(want.s3, 2);
+        expect(lap.sectors[0]).toBeCloseTo(want.s1, 2);
+        expect(lap.sectors[1]).toBeCloseTo(want.s2, 2);
+        expect(lap.sectors[2]).toBeCloseTo(want.s3, 2);
       }
     }
   }, { timeout: 180_000 });

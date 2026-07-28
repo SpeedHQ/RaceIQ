@@ -5,6 +5,10 @@ import {
   type IRacingSourceFrameV2,
   type IRacingValue,
 } from "./source-frame";
+import {
+  startsAtIRacingSectorOrigin,
+  warnInvalidIRacingSectorLayout,
+} from "./sector-layout";
 
 const KPA_TO_PSI = 0.1450377377;
 
@@ -101,16 +105,22 @@ function coldPressurePsi(
 function normalizeSectorStarts(
   nativeStarts: readonly number[] | undefined,
 ): number[] {
-  const starts = nativeStarts
-    ?.filter((value) => Number.isFinite(value) && value >= 0 && value < 1)
-    .sort((a, b) => a - b);
+  if (!nativeStarts) return [];
+  const starts = [...nativeStarts].sort((a, b) => a - b);
   if (
-    starts &&
-    (starts.length === 2 || starts.length === 3) &&
-    starts[0] === 0
+    starts.length >= 2 &&
+    startsAtIRacingSectorOrigin(starts[0]) &&
+    starts.every(
+      (value, index) =>
+        Number.isFinite(value) &&
+        value >= 0 &&
+        value < 1 &&
+        (index === 0 || value > starts[index - 1]),
+    )
   ) {
     return starts;
   }
+  if (starts.length > 0) warnInvalidIRacingSectorLayout(starts);
   return [];
 }
 

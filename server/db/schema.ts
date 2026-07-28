@@ -116,9 +116,9 @@ export const laps = sqliteTable(
 		tuneId: integer("tune_id").references(() => tunes.id, {
 			onDelete: "set null",
 		}),
-		s1Time: real("s1_time"),
-		s2Time: real("s2_time"),
-		s3Time: real("s3_time"),
+		// Ordered, source-defined sector times. Sector count is session/layout
+		// data and is deliberately not constrained to three (GitHub #134).
+		sectorTimes: text("sector_times", { mode: "json" }).$type<number[]>(),
 		rawByteOffset: integer("raw_byte_offset"),
 		rawFrameCount: integer("raw_frame_count"),
 		// Explicit tuning-session link (migration v25). Stamped at insert from the

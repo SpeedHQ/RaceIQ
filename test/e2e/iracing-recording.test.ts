@@ -32,6 +32,14 @@ WeekendInfo:
   TrackDisplayName: Road America
   SessionID: 123
   SubSessionID: 456
+SplitTimeInfo:
+  Sectors:
+  - SectorNum: 0
+    SectorStartPct: 0.000000
+  - SectorNum: 1
+    SectorStartPct: 0.340000
+  - SectorNum: 2
+    SectorStartPct: 0.670000
 DriverInfo:
   DriverCarIdx: 7
   DriverCarIdleRPM: 900
@@ -111,6 +119,7 @@ describe("iRacing dump-mode recording", () => {
       expect(replay.rawPackets[0]?.iracing).toMatchObject({
         carName: "GT3 Test Car",
         trackName: "Road America",
+        sectorStarts: [0, 0.34, 0.67],
       });
       expect(replay.carModel).toBe("GT3 Test Car");
       expect(replay.trackName).toBe("Road America");

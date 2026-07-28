@@ -64,6 +64,7 @@ import { getAcEvoTracks } from "../../shared/ac-evo-track-data";
 import { tryGetServerGame } from "../games/registry";
 import { tryGetGame } from "../../shared/games/registry";
 import { GameIdSchema, type GameId } from "../../shared/types";
+import { computeLapSectors } from "../compute-lap-sectors";
 
 // ─── Param schemas ──────────────────────────────────────────────────────────
 
@@ -785,9 +786,7 @@ export const trackRoutes = new Hono()
           pi,
           createdAt: lap.createdAt,
           sessionId: lap.sessionId,
-          s1Time: lap.s1Time,
-          s2Time: lap.s2Time,
-          s3Time: lap.s3Time,
+          sectorTimes: lap.sectorTimes,
           isValid: lap.isValid,
           invalidReason: lap.invalidReason,
           division: carSpecsMap.get(lap.carOrdinal)?.division ?? null,
@@ -849,56 +848,20 @@ export const trackRoutes = new Hono()
       const trackLaps = (await getLaps(gameId)).filter((l) => l.trackOrdinal === ordinal && l.lapTime > 0);
       if (trackLaps.length === 0) return c.json({});
 
-      // Get sector boundaries (same priority as /api/track-sector-boundaries)
-      const sharedName = getSharedTrackName(ordinal, gameId);
-      const rawSectors = (sharedName && gameId ? loadTrackSectorsFor(sharedName, gameId) : undefined)
-        ?? getTrackSectorsByOrdinal(ordinal);
-      const sectors = { s1End: rawSectors?.s1End ?? 1 / 3, s2End: rawSectors?.s2End ?? 2 / 3 };
-
-      const result: Record<number, { s1: number; s2: number; s3: number }> = {};
+      const result: Record<number, number[]> = {};
 
       for (const lapMeta of trackLaps) {
         const lapData = await getLapById(lapMeta.id);
         if (!lapData?.telemetry || lapData.telemetry.length < 50) continue;
-
-        const packets = lapData.telemetry;
-
-        // Prefer game-broadcast sector times (non-zero values in packets)
-        let s1Time = 0;
-        let s2Time = 0;
-        for (const p of packets) {
-          if ((p.f1?.sector1Time ?? 0) > 0) s1Time = p.f1!.sector1Time;
-          if ((p.f1?.sector2Time ?? 0) > 0) s2Time = p.f1!.sector2Time;
-        }
-
-        // Fall back to distance-fraction computation when game didn't provide sector times
-        if (s1Time === 0 || s2Time === 0) {
-          const startDist = packets[0].DistanceTraveled;
-          const lapDistance = packets[packets.length - 1].DistanceTraveled - startDist;
-          if (lapDistance < 100) continue;
-
-          let currentSector = 0;
-          let sectorStartTime = packets[0].CurrentLap;
-          s1Time = 0;
-          s2Time = 0;
-
-          for (const p of packets) {
-            const frac = (p.DistanceTraveled - startDist) / lapDistance;
-            const expectedSector = frac < sectors.s1End ? 0 : frac < sectors.s2End ? 1 : 2;
-            if (expectedSector > currentSector) {
-              const sectorTime = p.CurrentLap - sectorStartTime;
-              if (currentSector === 0) s1Time = sectorTime;
-              else if (currentSector === 1) s2Time = sectorTime;
-              sectorStartTime = p.CurrentLap;
-              currentSector = expectedSector;
-            }
-          }
-        }
-
-        if (s1Time > 0 && s2Time > 0) {
-          const s3Time = lapMeta.lapTime - s1Time - s2Time;
-          result[lapMeta.id] = { s1: s1Time, s2: s2Time, s3: Math.max(0, s3Time) };
-        }
+        const lapGameId = lapMeta.gameId ?? gameId;
+        if (!lapGameId) continue;
+        const times = await computeLapSectors(
+          ordinal,
+          lapGameId,
+          lapData.telemetry,
+          lapMeta.lapTime,
+        );
+        if (times) result[lapMeta.id] = times;
       }
 
       return c.json(result);

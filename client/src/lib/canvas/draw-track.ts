@@ -104,9 +104,9 @@ export function drawTrack(
   sectors?: TrackSectors | null,
   zoom: number = 1,
   pan: { x: number; z: number } = { x: 0, z: 0 },
-  sectorOverride?: { s1End: number; s2End: number },
+  sectorOverride?: { starts: number[] },
   flipX?: boolean,
-  sectorColors?: [string, string, string],
+  sectorColors?: string[],
   /** Debug editing: label every segment individually instead of once per group. */
   perSegmentLabels?: boolean,
 ) {
@@ -160,15 +160,16 @@ export function drawTrack(
   ctx.lineTo(sx, sy);
   ctx.stroke();
 
-  // Sector override mode: draw S1/S2/S3 as colored bands, suppressing segment coloring
+  // Sector override mode: draw source-defined sector bands, suppressing segment coloring.
   if (sectorOverride) {
     const n = outline.length;
-    const [s1Color, s2Color, s3Color] = sectorColors ?? ["#ef4444", "#3b82f6", "#eab308"];
-    const sectorDefs = [
-      { label: "S1", color: s1Color, start: 0, end: sectorOverride.s1End },
-      { label: "S2", color: s2Color, start: sectorOverride.s1End, end: sectorOverride.s2End },
-      { label: "S3", color: s3Color, start: sectorOverride.s2End, end: 1 },
-    ];
+    const palette = sectorColors ?? ["#ef4444", "#3b82f6", "#eab308", "#22c55e", "#a855f7", "#f97316"];
+    const sectorDefs = sectorOverride.starts.map((start, index) => ({
+      label: `S${index + 1}`,
+      color: palette[index % palette.length],
+      start,
+      end: sectorOverride.starts[index + 1] ?? 1,
+    }));
     // s1End/s2End are fractions of LAP DISTANCE, and outline points are not evenly
     // spaced — so map them through cumulative arc length. Using the raw point index
     // put the boundaries wherever the points happened to bunch up.
@@ -255,9 +256,7 @@ export function drawTrack(
 
     // Corner names carry their official turn numbers ("Eau Rouge/Raidillon (2-4)");
     // thumbnails stay clean with names only.
-    const forLabels = large
-      ? sectors.segments
-      : sectors.segments.map((s) => ({ ...s, number: undefined, covers: undefined }));
+    const forLabels = large ? sectors.segments : sectors.segments.map((s) => ({ ...s, number: undefined, covers: undefined }));
     // A complex (Rivazza, Les Combes) is one section per turn so each can be
     // edited on its own, but the map names the piece once. `segmentGroupLabels`
     // labels the first member and returns "" for the rest, which is the same

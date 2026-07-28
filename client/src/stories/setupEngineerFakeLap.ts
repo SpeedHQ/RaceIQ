@@ -44,9 +44,10 @@ export function generateFakeLapTelemetry(frames = 600): TelemetryPacket[] {
 }
 
 export const fakeSectorTimes = {
-  times: [29.845, 31.8, 30.696] as [number, number, number],
-  s1Idx: 195,
-  s2Idx: 400,
+  times: [29.845, 31.8, 30.696],
+  sectorCount: 3,
+  boundaryIndices: [195, 400],
+  sectorStarts: [0, 195 / 600, 400 / 600],
   firstDist: 0,
   lapDist: 4200,
 };

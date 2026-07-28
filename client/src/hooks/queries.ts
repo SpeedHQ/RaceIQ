@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo } from "react";
 import type { CatalogTune } from "../data/tune-catalog";
+import type { SectorTimeline } from "../lib/lap-sectors";
 import { client } from "../lib/rpc";
 import { useGameId } from "../stores/game";
 import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
@@ -88,16 +89,7 @@ export function useLapTelemetry(lapId: number | null) {
       if (!res.ok) throw new Error(res.statusText);
       return res.json() as Promise<{
         telemetry: TelemetryPacket[];
-        sectorTimes: {
-          times: [number, number, number];
-          sectorCount: 2 | 3;
-          s1Idx: number;
-          s2Idx: number;
-          s1End: number;
-          s2End: number;
-          firstDist: number;
-          lapDist: number;
-        } | null;
+        sectorTimes: SectorTimeline | null;
         [key: string]: any;
       }>;
     },

@@ -98,7 +98,7 @@ function deltaColor(dv: number | null): string {
 /**
  * Sector-by-sector ledger: same visual language and interaction model as
  * `CornerLedger` (left-aligned, full-width table, integrated time-loss bar,
- * inputs sparkline last column) but rows are the track's sectors (S1/S2/S3)
+ * inputs sparkline last column) but rows are the track's source-defined sectors
  * rather than individual corners. Sector boundaries are derived from the
  * focus lap's `SectorTimesLite` indices upstream (see `TrackFocusView`).
  */

@@ -13,9 +13,8 @@ export interface TrackMapHandle {
 }
 
 export interface SectorBoundaries {
-  s1End: number;
-  s2End: number;
-  sectorCount: 2 | 3;
+  sectorStarts: number[];
+  sectorCount: number;
 }
 
 export interface TrackHighlight {
@@ -205,19 +204,16 @@ export const AnalyseTrackMap = forwardRef<
       return lo;
     }
 
-    // Sector-colored driving line (S1=red, S2=blue, S3=yellow)
+    // Sector-colored driving line. Native games may define any count (#134).
     if (sectors && displayOutline.length > 10 && !showInputs) {
-      const sectorLineColors = ["#ef4444", "#3b82f6", "#eab308"];
-      const sectorBoundaries =
-        sectors.sectorCount === 2
-          ? [0, sectors.s1End, 1]
-          : [0, sectors.s1End, sectors.s2End, 1];
+      const sectorLineColors = ["#ef4444", "#3b82f6", "#eab308", "#22c55e", "#a855f7", "#f97316"];
+      const sectorBoundaries = [...sectors.sectorStarts, 1];
       for (let si = 0; si < sectors.sectorCount; si++) {
         const startIdx = fracToIdx(sectorBoundaries[si]);
         const endIdx = fracToIdx(sectorBoundaries[si + 1]);
         if (startIdx >= endIdx) continue;
         ctx.beginPath();
-        ctx.strokeStyle = sectorLineColors[si];
+        ctx.strokeStyle = sectorLineColors[si % sectorLineColors.length];
         ctx.lineWidth = 2.5;
         ctx.lineCap = "round";
         const [mx, my] = toCanvas(displayOutline[startIdx].x, displayOutline[startIdx].z);
@@ -311,11 +307,8 @@ export const AnalyseTrackMap = forwardRef<
 
     // Sector boundary markers
     if (sectors && displayOutline.length > 10) {
-      const sectorColors = ["#ef4444", "#3b82f6", "#eab308"];
-      const sectorFracs =
-        sectors.sectorCount === 2
-          ? [sectors.s1End]
-          : [sectors.s1End, sectors.s2End];
+      const sectorColors = ["#ef4444", "#3b82f6", "#eab308", "#22c55e", "#a855f7", "#f97316"];
+      const sectorFracs = sectors.sectorStarts.slice(1);
       for (let si = 0; si < sectorFracs.length; si++) {
         const sIdx = fracToIdx(sectorFracs[si]);
         const pt = displayOutline[sIdx];
@@ -333,7 +326,7 @@ export const AnalyseTrackMap = forwardRef<
           ctx.beginPath();
           ctx.moveTo(mx - nx * tickLen, my + nz * tickLen);
           ctx.lineTo(mx + nx * tickLen, my - nz * tickLen);
-          ctx.strokeStyle = sectorColors[si];
+          ctx.strokeStyle = sectorColors[si % sectorColors.length];
           ctx.lineWidth = 2;
           ctx.stroke();
         }

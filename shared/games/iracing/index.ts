@@ -43,6 +43,15 @@ export const iracingAdapter: GameAdapter = {
   // provide a stable world-space racing-line position in the live SDK row.
   coordSystem: "lap-distance",
   nativeSectors: true,
+  getNativeSectorLayout(packet) {
+    const starts = packet.iracing?.sectorStarts;
+    if (!starts?.length) return undefined;
+    return {
+      starts,
+      lapFraction: packet.iracing?.lapDistancePct,
+      trackLengthM: packet.iracing?.trackLengthM,
+    };
+  },
   appendsDelayedFinishFrame: false,
   authoritativeTrackLength: true,
   steeringCenter: 0,

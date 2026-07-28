@@ -594,7 +594,81 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          name        TEXT NOT NULL,
          created_at  TEXT NOT NULL DEFAULT (datetime('now')),
          UNIQUE(game_id, ordinal)
-       )`,
+      )`,
+    ],
+  },
+
+  // v37: Dynamic source-defined sector times (GitHub #134)
+  // Sector count belongs to the session layout. iRacing can publish layouts
+  // beyond the old fixed S1/S2/S3 shape, including two-sector ovals and road
+  // layouts with more than three timing splits. Replace the three summary
+  // columns with one ordered JSON array; no projection or compatibility
+  // summary is retained.
+  {
+    version: 37,
+    name: "dynamic source-defined sector times",
+    sql: [
+      `CREATE TABLE laps_v37 (
+        id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id               INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+        lap_number               INTEGER NOT NULL,
+        lap_time                 REAL NOT NULL,
+        is_valid                 INTEGER NOT NULL DEFAULT 1,
+        invalid_reason           TEXT,
+        notes                    TEXT,
+        profile_id               INTEGER REFERENCES profiles(id),
+        pi                       INTEGER,
+        car_setup                TEXT,
+        tune_id                  INTEGER REFERENCES tunes(id) ON DELETE SET NULL,
+        sector_times             TEXT,
+        raw_byte_offset          INTEGER,
+        raw_frame_count          INTEGER,
+        tuning_session_id        INTEGER,
+        tuning_test_id           INTEGER,
+        tuning_excluded          INTEGER,
+        tuning_excluded_source   TEXT,
+        fuel_per_lap             REAL,
+        tyre_wear                REAL,
+        created_at               TEXT NOT NULL DEFAULT (datetime('now'))
+      )`,
+      `INSERT INTO laps_v37 (
+         id, session_id, lap_number, lap_time, is_valid, invalid_reason,
+         notes, profile_id, pi, car_setup, tune_id, sector_times,
+         raw_byte_offset, raw_frame_count, tuning_session_id, tuning_test_id,
+         tuning_excluded, tuning_excluded_source, fuel_per_lap, tyre_wear,
+         created_at
+       )
+       SELECT
+         id, session_id, lap_number, lap_time, is_valid, invalid_reason,
+         notes, profile_id, pi, car_setup, tune_id,
+         CASE
+           WHEN s1_time IS NULL OR s1_time <= 0
+             OR s2_time IS NULL OR s2_time <= 0
+             THEN NULL
+           WHEN s3_time IS NOT NULL AND s3_time > 0
+             THEN json_array(s1_time, s2_time, s3_time)
+           WHEN s3_time = 0 AND EXISTS (
+             SELECT 1
+             FROM sessions
+             WHERE sessions.id = laps.session_id
+               AND sessions.game_id = 'iracing'
+           )
+             THEN json_array(s1_time, s2_time)
+           ELSE NULL
+         END,
+         raw_byte_offset, raw_frame_count, tuning_session_id, tuning_test_id,
+         tuning_excluded, tuning_excluded_source, fuel_per_lap, tyre_wear,
+         created_at
+       FROM laps`,
+      `DROP TABLE laps`,
+      `ALTER TABLE laps_v37 RENAME TO laps`,
+      `CREATE INDEX IF NOT EXISTS idx_laps_session ON laps(session_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_laps_tuning_session ON laps(tuning_session_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_laps_tuning_test ON laps(tuning_test_id)`,
+      `UPDATE sessions
+       SET lap_detector_version = NULL
+       WHERE game_id = 'iracing'
+         AND raw_file IS NOT NULL`,
     ],
   },
 ];

@@ -67,7 +67,7 @@ export class ImportCaptureAdapter implements DbAdapter {
     profileId: number | null,
     tuneId: number | null,
     invalidReason: string | null,
-    sectors: { s1: number; s2: number; s3: number } | null
+    sectors: number[] | null
   ): Promise<number> {
     const pending = this._inner.insertLap(
       sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors

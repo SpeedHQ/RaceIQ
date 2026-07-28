@@ -599,12 +599,12 @@ export interface TelemetryPacket {
 
 /** Server-computed live sector timing, broadcast via WebSocket. */
 export interface LiveSectorData {
-  sectorCount: 2 | 3;
+  sectorCount: number;
   currentSector: number;
   currentSectorTime: number;
-  currentTimes: [number, number, number];
-  lastTimes: [number, number, number];
-  bestTimes: [number, number, number];
+  currentTimes: number[];
+  lastTimes: number[];
+  bestTimes: number[];
   lastLapTime: number;
   bestLapTime: number;
   estimatedLap: number;
@@ -660,10 +660,8 @@ export interface LapMeta {
   // Tune assignment
   tuneId?: number;
   tuneName?: string;
-  // Sector times (stored at save time)
-  s1Time?: number;
-  s2Time?: number;
-  s3Time?: number;
+  // Ordered sector times from the session's source-defined layout (#134).
+  sectorTimes?: number[];
   // Explicit tuning-session link (migration v25). Stamped at insert from the
   // active tuning session; null for laps recorded outside a tuning session.
   tuningSessionId?: number | null;
@@ -728,15 +726,16 @@ export interface SessionRecap {
   /** Pace trend, in lap order. */
   sparkline: { lapNumber: number; lapTimeSec: number; isValid: boolean }[];
 
-  /** Best sectors across valid laps, possibly from different laps. Null when no valid lap has all three. */
+  /** Best sectors across valid laps, possibly from different laps. */
   theoretical: {
-    bestS1: number;
-    bestS2: number;
-    bestS3: number;
+    bestSectorTimes: number[];
     sumSec: number;
     /** bestLapSec - sumSec, clamped >= 0. The time left on the table. */
     deltaToBestSec: number;
   } | null;
+
+  /** Source-defined sector start fractions for this session's layout. */
+  sectorStarts: number[] | null;
 
   /** First valid lap minus best lap, clamped >= 0. Null when fewer than 2 valid laps. */
   improvementSec: number | null;
@@ -758,8 +757,8 @@ export interface SessionRecap {
    */
   sectors:
     | {
-        /** 1, 2 or 3. */
-        index: 1 | 2 | 3;
+        /** One-based sector index in the source-defined layout. */
+        index: number;
         /** This sector's time on the session's BEST lap. */
         bestLapSec: number;
         /** Fastest time in this sector across all valid laps this session (feeds `theoretical`). */

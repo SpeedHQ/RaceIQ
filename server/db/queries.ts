@@ -177,12 +177,10 @@ export async function updateLapNotes(id: number, notes: string | null): Promise<
   await db.update(laps).set({ notes }).where(eq(laps.id, id)).run();
 }
 
-export async function updateLapValidity(id: number, isValid: boolean, invalidReason: string | null, sectors?: { s1: number; s2: number; s3: number } | null): Promise<void> {
+export async function updateLapValidity(id: number, isValid: boolean, invalidReason: string | null, sectors?: number[] | null): Promise<void> {
   const values: Record<string, unknown> = { isValid, invalidReason };
-  if (sectors) {
-    values.s1Time = sectors.s1;
-    values.s2Time = sectors.s2;
-    values.s3Time = sectors.s3;
+  if (sectors !== undefined) {
+    values.sectorTimes = sectors;
   }
   await db.update(laps).set(values).where(eq(laps.id, id)).run();
 }
@@ -294,7 +292,7 @@ export function insertLap(
   profileId: number | null = null,
   tuneId: number | null = null,
   invalidReason: string | null = null,
-  sectors: { s1: number; s2: number; s3: number } | null = null
+  sectors: number[] | null = null
 ): Promise<number> {
   return doInsertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors);
 }
@@ -309,7 +307,7 @@ async function doInsertLap(
   profileId: number | null,
   tuneId: number | null,
   invalidReason: string | null,
-  sectors: { s1: number; s2: number; s3: number } | null = null
+  sectors: number[] | null = null
 ): Promise<number> {
   // Stamp the lap with the active tuning session (if any). This is the single
   // choke point every live lap-detector funnels through (via the DbAdapter), so
@@ -328,9 +326,7 @@ async function doInsertLap(
       isValid,
       rawByteOffset,
       rawFrameCount,
-      s1Time: sectors?.s1 ?? null,
-      s2Time: sectors?.s2 ?? null,
-      s3Time: sectors?.s3 ?? null,
+      sectorTimes: sectors,
       profileId,
       tuneId,
       invalidReason,
@@ -444,9 +440,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
       tuneId: laps.tuneId,
       tuneName: tunes.name,
       gameId: sessions.gameId,
-      s1Time: laps.s1Time,
-      s2Time: laps.s2Time,
-      s3Time: laps.s3Time,
+      sectorTimes: laps.sectorTimes,
       tuningSessionId: laps.tuningSessionId,
       tuningTestId: laps.tuningTestId,
       tuningExcluded: laps.tuningExcluded,
@@ -474,9 +468,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
     tuneName: r.tuneName ?? undefined,
     notes: r.notes ?? undefined,
     gameId: r.gameId as GameId,
-    s1Time: r.s1Time ?? undefined,
-    s2Time: r.s2Time ?? undefined,
-    s3Time: r.s3Time ?? undefined,
+    sectorTimes: r.sectorTimes ?? undefined,
     tuningSessionId: r.tuningSessionId ?? null,
     tuningTestId: r.tuningTestId ?? null,
     tuningExcluded: Boolean(r.tuningExcluded),
@@ -518,9 +510,7 @@ export async function getLapsForTuningSession(tuningSessionId: number): Promise<
       tuneId: laps.tuneId,
       tuneName: tunes.name,
       gameId: sessions.gameId,
-      s1Time: laps.s1Time,
-      s2Time: laps.s2Time,
-      s3Time: laps.s3Time,
+      sectorTimes: laps.sectorTimes,
       tuningSessionId: laps.tuningSessionId,
       tuningTestId: laps.tuningTestId,
       tuningExcluded: laps.tuningExcluded,
@@ -545,9 +535,7 @@ export async function getLapsForTuningSession(tuningSessionId: number): Promise<
     tuneName: r.tuneName ?? undefined,
     notes: r.notes ?? undefined,
     gameId: r.gameId as GameId,
-    s1Time: r.s1Time ?? undefined,
-    s2Time: r.s2Time ?? undefined,
-    s3Time: r.s3Time ?? undefined,
+    sectorTimes: r.sectorTimes ?? undefined,
     tuningSessionId: r.tuningSessionId ?? null,
     tuningTestId: r.tuningTestId ?? null,
     tuningExcluded: Boolean(r.tuningExcluded),
@@ -584,9 +572,7 @@ export async function getLapMetaForTuningTest(tuningTestId: number): Promise<Lap
       tuneId: laps.tuneId,
       tuneName: tunes.name,
       gameId: sessions.gameId,
-      s1Time: laps.s1Time,
-      s2Time: laps.s2Time,
-      s3Time: laps.s3Time,
+      sectorTimes: laps.sectorTimes,
       tuningSessionId: laps.tuningSessionId,
       tuningTestId: laps.tuningTestId,
       tuningExcluded: laps.tuningExcluded,
@@ -611,9 +597,7 @@ export async function getLapMetaForTuningTest(tuningTestId: number): Promise<Lap
     tuneName: r.tuneName ?? undefined,
     notes: r.notes ?? undefined,
     gameId: r.gameId as GameId,
-    s1Time: r.s1Time ?? undefined,
-    s2Time: r.s2Time ?? undefined,
-    s3Time: r.s3Time ?? undefined,
+    sectorTimes: r.sectorTimes ?? undefined,
     tuningSessionId: r.tuningSessionId ?? null,
     tuningTestId: r.tuningTestId ?? null,
     tuningExcluded: Boolean(r.tuningExcluded),
@@ -662,9 +646,7 @@ export async function getImportableLapsForTuningSession(
       tuneId: laps.tuneId,
       tuneName: tunes.name,
       gameId: sessions.gameId,
-      s1Time: laps.s1Time,
-      s2Time: laps.s2Time,
-      s3Time: laps.s3Time,
+      sectorTimes: laps.sectorTimes,
       tuningSessionId: laps.tuningSessionId,
       tuningTestId: laps.tuningTestId,
       tuningExcluded: laps.tuningExcluded,
@@ -689,9 +671,7 @@ export async function getImportableLapsForTuningSession(
     tuneName: r.tuneName ?? undefined,
     notes: r.notes ?? undefined,
     gameId: r.gameId as GameId,
-    s1Time: r.s1Time ?? undefined,
-    s2Time: r.s2Time ?? undefined,
-    s3Time: r.s3Time ?? undefined,
+    sectorTimes: r.sectorTimes ?? undefined,
     tuningSessionId: r.tuningSessionId ?? null,
     tuningTestId: r.tuningTestId ?? null,
     tuningExcluded: Boolean(r.tuningExcluded),
@@ -751,9 +731,7 @@ export type LapSummary = {
   gameId: GameId;
   sessionId: number;
   createdAt: string;
-  s1Time: number | null;
-  s2Time: number | null;
-  s3Time: number | null;
+  sectorTimes: number[] | null;
   isValid: boolean;
   invalidReason: string | null;
   notes: string | null;
@@ -770,9 +748,7 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
       gameId: sessions.gameId,
       sessionId: laps.sessionId,
       createdAt: laps.createdAt,
-      s1Time: laps.s1Time,
-      s2Time: laps.s2Time,
-      s3Time: laps.s3Time,
+      sectorTimes: laps.sectorTimes,
       isValid: laps.isValid,
       invalidReason: laps.invalidReason,
       notes: laps.notes,
@@ -798,9 +774,7 @@ export async function getLapSummariesByTrack(trackOrdinal: number, gameId?: Game
       gameId: r.gameId as GameId,
       sessionId: r.sessionId,
       createdAt: r.createdAt,
-      s1Time: r.s1Time ?? null,
-      s2Time: r.s2Time ?? null,
-      s3Time: r.s3Time ?? null,
+      sectorTimes: r.sectorTimes ?? null,
       isValid: Boolean(r.isValid),
       invalidReason: r.invalidReason ?? null,
       notes: r.notes ?? null,
@@ -1237,6 +1211,7 @@ export async function getLapById(
       tuneName: tunes.name,
       gameId: sessions.gameId,
       carSetup: laps.carSetup,
+      sectorTimes: laps.sectorTimes,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -1282,7 +1257,7 @@ export async function getLapById(
 }
 
 function buildLapResult(
-  row: { id: number; sessionId: number; lapNumber: number; lapTime: number; isValid: number | boolean; createdAt: string; carOrdinal: number; trackOrdinal: number; tuneId: number | null; tuneName: string | null; gameId: string; carSetup: string | null; rawFile?: string | null },
+  row: { id: number; sessionId: number; lapNumber: number; lapTime: number; isValid: number | boolean; createdAt: string; carOrdinal: number; trackOrdinal: number; tuneId: number | null; tuneName: string | null; gameId: string; carSetup: string | null; sectorTimes: number[] | null; rawFile?: string | null },
   telemetry: TelemetryPacket[]
 ) {
   return {
@@ -1298,6 +1273,7 @@ function buildLapResult(
     tuneName: row.tuneName ?? undefined,
     gameId: row.gameId as GameId,
     carSetup: row.carSetup ?? undefined,
+    sectorTimes: row.sectorTimes ?? undefined,
     telemetry,
   };
 }
@@ -1333,6 +1309,7 @@ export async function getLapsByIds(
       tuneName: tunes.name,
       gameId: sessions.gameId,
       carSetup: laps.carSetup,
+      sectorTimes: laps.sectorTimes,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -1518,7 +1495,7 @@ export async function getLapsForSession(sessionId: number): Promise<Array<{
   id: number; lapNumber: number; lapTime: number; isValid: boolean;
   notes: string | null; tuneId: number | null;
   rawByteOffset: number | null; rawFrameCount: number | null;
-  s1Time: number | null; s2Time: number | null; s3Time: number | null;
+  sectorTimes: number[] | null;
 }>> {
   const rows = await db
     .select({
@@ -1530,9 +1507,7 @@ export async function getLapsForSession(sessionId: number): Promise<Array<{
       tuneId: laps.tuneId,
       rawByteOffset: laps.rawByteOffset,
       rawFrameCount: laps.rawFrameCount,
-      s1Time: laps.s1Time,
-      s2Time: laps.s2Time,
-      s3Time: laps.s3Time,
+      sectorTimes: laps.sectorTimes,
     })
     .from(laps)
     .where(eq(laps.sessionId, sessionId))
@@ -1549,7 +1524,7 @@ export async function updateLapRawIndex(
   lapTime: number,
   isValid: boolean,
   invalidReason: string | null,
-  sectors: { s1: number; s2: number; s3: number } | null
+  sectors: number[] | null
 ): Promise<void> {
   cacheDelete(lapId);
   await db.update(laps).set({
@@ -1558,9 +1533,7 @@ export async function updateLapRawIndex(
     lapTime,
     isValid,
     invalidReason,
-    s1Time: sectors?.s1 ?? null,
-    s2Time: sectors?.s2 ?? null,
-    s3Time: sectors?.s3 ?? null,
+    sectorTimes: sectors,
   }).where(eq(laps.id, lapId));
 }
 
@@ -1575,15 +1548,13 @@ export async function insertReprocessedLap(
   tuneId: number | null,
   notes: string | null,
   invalidReason: string | null,
-  sectors: { s1: number; s2: number; s3: number } | null
+  sectors: number[] | null
 ): Promise<number> {
   const result = await db.insert(laps).values({
     sessionId, lapNumber, lapTime, isValid,
     rawByteOffset, rawFrameCount,
     tuneId, notes, invalidReason,
-    s1Time: sectors?.s1 ?? null,
-    s2Time: sectors?.s2 ?? null,
-    s3Time: sectors?.s3 ?? null,
+    sectorTimes: sectors,
   }).returning({ id: laps.id }).get();
   return result.id;
 }
@@ -1689,7 +1660,8 @@ export async function getSessionRecapData(
   laps: RecapLapInput[];
   trackLengthM: number | null;
   allTimeBestSec: number | null;
-  allTimeBestSectors: { s1: number | null; s2: number | null; s3: number | null } | null;
+  allTimeBestSectors: Array<number | null> | null;
+  sectorStarts: number[] | null;
 } | null> {
   const sessionRow = await db
     .select({
@@ -1711,9 +1683,7 @@ export async function getSessionRecapData(
       lapNumber: laps.lapNumber,
       lapTime: laps.lapTime,
       isValid: laps.isValid,
-      s1Time: laps.s1Time,
-      s2Time: laps.s2Time,
-      s3Time: laps.s3Time,
+      sectorTimes: laps.sectorTimes,
     })
     .from(laps)
     .where(eq(laps.sessionId, id))
@@ -1721,6 +1691,30 @@ export async function getSessionRecapData(
     .all();
 
   const trackLengthM = getTrackLengthMeters(sessionRow.trackOrdinal, gameId);
+  const sessionSectorCount =
+    lapRows.find(
+      (lap) =>
+        Boolean(lap.isValid) &&
+        lap.sectorTimes != null &&
+        lap.sectorTimes.length >= 2 &&
+        lap.sectorTimes.every((time) => time > 0),
+    )?.sectorTimes?.length ?? 0;
+
+  let sectorStarts: number[] | null = null;
+  const gameAdapter = tryGetGame(gameId);
+  if (gameAdapter?.nativeSectors && gameAdapter.getNativeSectorLayout && sessionSectorCount >= 2) {
+    for (const row of lapRows) {
+      if (row.sectorTimes?.length !== sessionSectorCount) continue;
+      const lap = await getLapById(row.id);
+      const layout = lap?.telemetry
+        .map((packet) => gameAdapter.getNativeSectorLayout!(packet))
+        .find((candidate) => candidate?.starts.length === sessionSectorCount);
+      if (layout) {
+        sectorStarts = [...layout.starts];
+        break;
+      }
+    }
+  }
 
   const bestOtherRow = await db
     .select({ lapTime: laps.lapTime })
@@ -1740,8 +1734,8 @@ export async function getSessionRecapData(
     .limit(1)
     .get();
 
-  const bestOtherS1Row = await db
-    .select({ s1Time: laps.s1Time })
+  const otherSectorRows = await db
+    .select({ sectorTimes: laps.sectorTimes })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
     .where(
@@ -1752,50 +1746,23 @@ export async function getSessionRecapData(
         sql`${sessions.id} != ${id}`,
         eq(laps.isValid, true),
         sql`${laps.lapTime} > 0`,
-        sql`${laps.s1Time} IS NOT NULL`,
+        sql`${laps.sectorTimes} IS NOT NULL`,
       ),
     )
-    .orderBy(laps.s1Time)
-    .limit(1)
-    .get();
-
-  const bestOtherS2Row = await db
-    .select({ s2Time: laps.s2Time })
-    .from(laps)
-    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
-    .where(
-      and(
-        eq(sessions.trackOrdinal, sessionRow.trackOrdinal),
-        eq(sessions.carOrdinal, sessionRow.carOrdinal),
-        eq(sessions.gameId, gameId),
-        sql`${sessions.id} != ${id}`,
-        eq(laps.isValid, true),
-        sql`${laps.lapTime} > 0`,
-        sql`${laps.s2Time} IS NOT NULL`,
-      ),
-    )
-    .orderBy(laps.s2Time)
-    .limit(1)
-    .get();
-
-  const bestOtherS3Row = await db
-    .select({ s3Time: laps.s3Time })
-    .from(laps)
-    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
-    .where(
-      and(
-        eq(sessions.trackOrdinal, sessionRow.trackOrdinal),
-        eq(sessions.carOrdinal, sessionRow.carOrdinal),
-        eq(sessions.gameId, gameId),
-        sql`${sessions.id} != ${id}`,
-        eq(laps.isValid, true),
-        sql`${laps.lapTime} > 0`,
-        sql`${laps.s3Time} IS NOT NULL`,
-      ),
-    )
-    .orderBy(laps.s3Time)
-    .limit(1)
-    .get();
+    .all();
+  const allTimeBestSectors = otherSectorRows.reduce<Array<number | null>>(
+    (best, row) => {
+      if (row.sectorTimes?.length !== sessionSectorCount) return best;
+      for (let index = 0; index < (row.sectorTimes?.length ?? 0); index++) {
+        const time = row.sectorTimes![index];
+        if (time > 0 && (best[index] === undefined || best[index] === null || time < best[index]!)) {
+          best[index] = time;
+        }
+      }
+      return best;
+    },
+    [],
+  );
 
   return {
     session: {
@@ -1808,11 +1775,9 @@ export async function getSessionRecapData(
     laps: lapRows.map((l) => ({ ...l, isValid: Boolean(l.isValid) })),
     trackLengthM,
     allTimeBestSec: bestOtherRow?.lapTime ?? null,
-    allTimeBestSectors: {
-      s1: bestOtherS1Row?.s1Time ?? null,
-      s2: bestOtherS2Row?.s2Time ?? null,
-      s3: bestOtherS3Row?.s3Time ?? null,
-    },
+    allTimeBestSectors:
+      allTimeBestSectors.length > 0 ? allTimeBestSectors : null,
+    sectorStarts,
   };
 }
 

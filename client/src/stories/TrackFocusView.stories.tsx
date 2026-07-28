@@ -40,9 +40,7 @@ const laps: LapMeta[] = LAP_TIMES.map((t, i) => ({
   lapTime: t,
   isValid: i !== 3,
   createdAt: new Date().toISOString(),
-  s1Time: t * 0.32,
-  s2Time: t * 0.4,
-  s3Time: t * 0.28,
+  sectorTimes: [t * 0.32, t * 0.4, t * 0.28],
 }));
 
 const telemetryByLap = new Map(laps.map((l, i) => [l.id, makeLapTelemetry(l.lapTime, i === 3 ? 40 : 6)]));
@@ -77,8 +75,8 @@ export const Default: Story = {
     edges: null,
     corners: [
       { index: 0, label: "T1", distanceStart: 0.08, distanceEnd: 0.12 },
-      { index: 1, label: "T4", distanceStart: 0.35, distanceEnd: 0.40 },
-      { index: 2, label: "T7", distanceStart: 0.70, distanceEnd: 0.75 },
+      { index: 1, label: "T4", distanceStart: 0.35, distanceEnd: 0.4 },
+      { index: 2, label: "T7", distanceStart: 0.7, distanceEnd: 0.75 },
     ],
     issues,
     stats: stintStats(laps),

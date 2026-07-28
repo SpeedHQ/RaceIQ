@@ -31,7 +31,8 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
   return (
     <>
       {open && <NoteModal value={value} onSave={onSave} onClose={() => setOpen(false)} />}
-      <span
+      <button
+        type="button"
         className="relative cursor-pointer group block w-full"
         onClick={(e) => {
           e.stopPropagation();
@@ -48,7 +49,7 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
           </svg>
           {m.common_edit()}
         </span>
-      </span>
+      </button>
     </>
   );
 }
@@ -72,25 +73,19 @@ function SessionLapTable({
   selectedLaps: Set<number>;
   toggleLapSelection: (id: number) => void;
 }) {
-  const gameId = useGameId();
   const gameRoute = useGameRoute();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; lapId: number } | null>(null);
-  const sectorCount = storedLapsSectorCount(laps, gameId ?? undefined);
+  const sectorCount = storedLapsSectorCount(laps);
+  const sectorLabels = Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`);
 
   const bestSectors = useMemo(() => {
-    const best = { s1: Infinity, s2: Infinity, s3: Infinity };
-    for (const lap of laps) {
-      const s1 = lap.s1Time ?? 0,
-        s2 = lap.s2Time ?? 0,
-        s3 = lap.s3Time ?? 0;
-      if (s1 > 0 && s1 < best.s1) best.s1 = s1;
-      if (s2 > 0 && s2 < best.s2) best.s2 = s2;
-      if (s3 > 0 && s3 < best.s3) best.s3 = s3;
-    }
-    return best;
-  }, [laps]);
+    return Array.from({ length: sectorCount }, (_, index) => {
+      const times = laps.map((lap) => lap.sectorTimes?.[index] ?? 0).filter((time) => time > 0);
+      return times.length > 0 ? Math.min(...times) : Infinity;
+    });
+  }, [laps, sectorCount]);
 
   const sortedLaps = useMemo(
     () =>
@@ -119,9 +114,9 @@ function SessionLapTable({
               {lapSortKey === f && <span className="ml-0.5">{lapSortDir === "asc" ? "↑" : "↓"}</span>}
             </TH>
           ))}
-          <TH className="text-red-400">S1</TH>
-          <TH className="text-blue-400">S2</TH>
-          {sectorCount === 3 && <TH className="text-yellow-400">S3</TH>}
+          {sectorLabels.map((label) => (
+            <TH key={label}>{label}</TH>
+          ))}
           <TH className="w-[40%]">{m.sessions_col_notes()}</TH>
         </THead>
         <TBody>
@@ -165,10 +160,10 @@ function SessionLapTable({
                     </Button>
                   </div>
                 </TD>
-                {(["s1", "s2", "s3"] as const).slice(0, sectorCount).map((s) => {
-                  const val = s === "s1" ? (lap.s1Time ?? 0) : s === "s2" ? (lap.s2Time ?? 0) : (lap.s3Time ?? 0);
+                {sectorLabels.map((label, index) => {
+                  const val = lap.sectorTimes?.[index] ?? 0;
                   return (
-                    <TD key={s} className={`font-mono ${sectorColor(val, bestSectors[s])}`}>
+                    <TD key={label} className={`font-mono ${sectorColor(val, bestSectors[index])}`}>
                       {val > 0 ? formatLapTime(val) : "—"}
                     </TD>
                   );
@@ -191,7 +186,9 @@ function SessionLapTable({
       {/* Dev context menu */}
       {contextMenu && (
         <>
-          <div
+          <button
+            type="button"
+            aria-label="Close lap context menu"
             className="fixed inset-0 z-40"
             onClick={() => setContextMenu(null)}
             onContextMenu={(e) => {
@@ -201,6 +198,7 @@ function SessionLapTable({
           />
           <div className="fixed z-50 bg-app-surface border border-app-border rounded shadow-lg py-1 text-sm" style={{ left: contextMenu.x, top: contextMenu.y }}>
             <button
+              type="button"
               className="w-full px-3 py-1.5 text-left hover:bg-app-surface-alt text-app-text"
               onClick={async () => {
                 const res = await fetch(`/api/laps/${contextMenu.lapId}/recheck`, { method: "POST" });
@@ -493,6 +491,7 @@ export function SessionsPage() {
               if (sessA.trackOrdinal !== sessB.trackOrdinal) return null;
               return (
                 <button
+                  type="button"
                   onClick={() => {
                     // Route shape is per-game (fm23/compare, f125/compare, …).
                     // TanStack Router types don't know about the dynamic gameRoute
@@ -518,7 +517,7 @@ export function SessionsPage() {
               );
             })()}
           {(selectedSessions.size > 0 || selectedLaps.size > 0) && (
-            <button onClick={deleteSelected} className="px-3 py-1.5 text-sm rounded bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors">
+            <button type="button" onClick={deleteSelected} className="px-3 py-1.5 text-sm rounded bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors">
               {m.common_delete()} {selectedSessions.size > 0 ? `${selectedSessions.size} ${m.sessions_count_sessions()}` : ""}
               {selectedSessions.size > 0 && selectedLaps.size > 0 ? " + " : ""}
               {selectedLaps.size > 0 ? `${selectedLaps.size} ${m.sessions_count_laps()}` : ""}
@@ -540,7 +539,20 @@ export function SessionsPage() {
             const bestTime = session.bestLapTime || (sessionLaps.length > 0 ? Math.min(...sessionLaps.map((l) => l.lapTime)) : 0);
             return (
               <div key={session.id} className={`rounded-lg border border-app-border bg-app-surface ${isExpanded ? "bg-app-surface-alt/40" : ""}`}>
-                <div className="flex items-start gap-3 p-3 cursor-pointer" onClick={() => toggleExpand(session.id)}>
+                {/* biome-ignore lint/a11y/useSemanticElements: the expandable row contains nested form controls and cannot be a button. */}
+                <div
+                  className="flex items-start gap-3 p-3 cursor-pointer"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => toggleExpand(session.id)}
+                  onKeyDown={(event) => {
+                    if (event.target !== event.currentTarget) return;
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      toggleExpand(session.id);
+                    }
+                  }}
+                >
                   <input
                     type="checkbox"
                     checked={selectedSessions.has(session.id)}
@@ -593,7 +605,7 @@ export function SessionsPage() {
                       </span>
                       <span className="ml-auto text-app-text/90-dim">{isExpanded ? "▾" : "▸"}</span>
                     </div>
-                    <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                    <div className="mt-2">
                       <NoteCell
                         value={session.notes ?? undefined}
                         onSave={(notes) => {
@@ -768,6 +780,7 @@ export function SessionsPage() {
           </span>
           <div className="flex gap-1">
             <button
+              type="button"
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0}
               className="px-2 py-1 rounded bg-app-surface border border-app-border hover:bg-app-accent/10 disabled:opacity-30 disabled:cursor-not-allowed"
@@ -775,6 +788,7 @@ export function SessionsPage() {
               {m.sessions_prev()}
             </button>
             <button
+              type="button"
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1}
               className="px-2 py-1 rounded bg-app-surface border border-app-border hover:bg-app-accent/10 disabled:opacity-30 disabled:cursor-not-allowed"

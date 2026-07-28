@@ -1,9 +1,8 @@
 import type { TelemetryPacket } from "@shared/types";
 
 interface SectorTimes {
-  times: [number, number, number];
-  s1Idx: number;
-  s2Idx: number;
+  times: number[];
+  boundaryIndices: number[];
 }
 
 export type MetricKey = "tyreTemp" | "brakeTemp" | "pressure" | "wear";
@@ -59,7 +58,7 @@ export interface Range {
 }
 
 export interface SectorRangeModel {
-  /** Per-sector corner ranges, index 0..2 = S1..S3. */
+  /** Per-sector corner ranges in source-defined order. */
   sectors: Record<CornerKey, Range>[];
   /** Shared value domain across all sectors, for comparable bar scales. */
   domain: [number, number];
@@ -70,10 +69,17 @@ export function buildSectorRanges(telemetry: TelemetryPacket[], sectorTimes: Sec
   if (telemetry.length < 5) return null;
 
   const n = telemetry.length;
-  const s1 = sectorTimes && sectorTimes.s1Idx > 0 ? Math.min(sectorTimes.s1Idx, n - 1) : Math.floor(n / 3);
-  const s2 = sectorTimes && sectorTimes.s2Idx > s1 ? Math.min(sectorTimes.s2Idx, n - 1) : Math.floor((2 * n) / 3);
-
-  const slices = [telemetry.slice(0, s1), telemetry.slice(s1, s2), telemetry.slice(s2)];
+  const sectorCount = sectorTimes?.times.length && sectorTimes.times.length >= 2 ? sectorTimes.times.length : 3;
+  const rawBoundaries =
+    sectorTimes?.boundaryIndices.length === sectorCount - 1 ? sectorTimes.boundaryIndices : Array.from({ length: sectorCount - 1 }, (_, index) => Math.floor(((index + 1) * n) / sectorCount));
+  const boundaries: number[] = [];
+  for (let index = 0; index < rawBoundaries.length; index++) {
+    const previous = boundaries[index - 1] ?? 0;
+    const remaining = rawBoundaries.length - index;
+    boundaries.push(Math.min(Math.max(rawBoundaries[index], previous + 1), n - remaining));
+  }
+  const sliceBounds = [0, ...boundaries, n];
+  const slices = Array.from({ length: sectorCount }, (_, index) => telemetry.slice(sliceBounds[index], sliceBounds[index + 1]));
   const skipZero = metric.key !== "wear"; // wear of 0 is valid; temp of 0 = unpopulated
 
   const sectors = slices.map((frames) => Object.fromEntries(CORNERS.map((c) => [c, rangeOf(frames, metric.sel[c], skipZero)])) as Record<CornerKey, Range>);

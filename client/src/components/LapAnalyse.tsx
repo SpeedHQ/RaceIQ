@@ -107,47 +107,40 @@ function LapAnalyseInner() {
   const { data: outlineRaw } = useTrackOutline(trackOrd ?? undefined);
   const outline = useMemo(() => {
     if (!outlineRaw) return null;
-    // biome-ignore lint/suspicious/noExplicitAny: pre-existing
     const d = outlineRaw as any;
     if (d?.points && Array.isArray(d.points)) return d.points as Point[];
     if (Array.isArray(d)) return d as Point[];
     return null;
   }, [outlineRaw]);
   const { data: boundariesRaw } = useTrackBoundaries(trackOrd ?? undefined);
-  // biome-ignore lint/suspicious/noExplicitAny: pre-existing
   const boundaries = (boundariesRaw as any) ?? null;
   const { data: sectorsRaw } = useTrackSectorBoundaries(trackOrd ?? undefined);
   const sectorData = lapData?.sectorTimes ?? null;
   const sectors = useMemo(() => {
-    if (gameId === "iracing") {
+    if (getGame(gameId).nativeSectors) {
       return sectorData
         ? ({
-            s1End: sectorData.s1End,
-            s2End: sectorData.s2End,
+            sectorStarts: sectorData.sectorStarts,
             sectorCount: sectorData.sectorCount,
           } satisfies SectorBoundaries)
         : null;
     }
-    // biome-ignore lint/suspicious/noExplicitAny: pre-existing
     const s = sectorsRaw as any;
     return s?.s1End
       ? ({
-          s1End: s.s1End,
-          s2End: s.s2End,
+          sectorStarts: [0, s.s1End, s.s2End],
           sectorCount: 3,
         } satisfies SectorBoundaries)
       : null;
   }, [gameId, sectorData, sectorsRaw]);
   const { data: segmentsRaw } = useTrackSectors(trackOrd ?? undefined);
   const segments = useMemo(() => {
-    // biome-ignore lint/suspicious/noExplicitAny: pre-existing
     const s = segmentsRaw as any;
     return s?.segments ? (s.segments as { type: string; name: string; startFrac: number; endFrac: number }[]) : null;
   }, [segmentsRaw]);
 
   const [carName, setCarName] = useState("");
   const [trackName, setTrackName] = useState("");
-  // biome-ignore lint/suspicious/noExplicitAny: pre-existing
   const initialCursor = (search as any).cursor as number | undefined;
   const [cursorIdx, setCursorIdx] = useState(0);
   // Visual time fraction override — set during scrubbing through gaps
@@ -155,7 +148,6 @@ function LapAnalyseInner() {
   const [visualTimeFrac, setVisualTimeFrac] = useState<number | null>(null);
   const [sidebarTab, setSidebarTab] = useState<"live" | "insights">("live");
 
-  // biome-ignore lint/suspicious/noExplicitAny: pre-existing
   const vizParam = (search as any).viz as string | undefined;
   const [vizMode, setWheelTab] = useCookieState<"2d" | "3d">("analyse-vizMode", "2d");
   // URL ?viz= param overrides cookie on mount
@@ -397,7 +389,11 @@ function LapAnalyseInner() {
   const sectorTimes = useMemo(() => {
     if (!sectorData || !sectors) return null;
     const cursorFrac = telemetry.length > 1 ? (telemetry[cursorIdx]?.DistanceTraveled - sectorData.firstDist) / sectorData.lapDist : 0;
-    const cursorSector = sectorData.sectorCount === 2 ? (cursorFrac < sectors.s1End ? 0 : 1) : cursorFrac < sectors.s1End ? 0 : cursorFrac < sectors.s2End ? 1 : 2;
+    let cursorSector = 0;
+    for (let index = 1; index < sectors.sectorStarts.length; index++) {
+      if (cursorFrac < sectors.sectorStarts[index]) break;
+      cursorSector = index;
+    }
     return { ...sectorData, cursorSector };
   }, [sectorData, sectors, telemetry, cursorIdx]);
 
@@ -454,17 +450,12 @@ function LapAnalyseInner() {
   // Tune selector
   const { data: availableTunes } = useQuery({
     queryKey: ["tunes", selectedLap?.carOrdinal],
-    // biome-ignore lint/suspicious/noExplicitAny: pre-existing
     queryFn: () => client.api.tunes.$get({ query: { carOrdinal: selectedLap?.carOrdinal != null ? String(selectedLap.carOrdinal) : undefined } }).then((r) => r.json() as any),
     enabled: !!selectedLap?.carOrdinal,
   });
 
   const updateLapTune = useMutation({
-    mutationFn: (tuneId: number | null) =>
-      client.api.laps[":id"].tune
-        .$patch({ param: { id: String(selectedLapId) }, json: { tuneId } })
-        // biome-ignore lint/suspicious/noExplicitAny: pre-existing
-        .then((r) => r.json() as any),
+    mutationFn: (tuneId: number | null) => client.api.laps[":id"].tune.$patch({ param: { id: String(selectedLapId) }, json: { tuneId } }).then((r) => r.json() as any),
     onMutate: (tuneId) => {
       // Optimistically update local laps state so dropdown doesn't reset
       setLaps((prev) =>
@@ -477,11 +468,7 @@ function LapAnalyseInner() {
   });
 
   const updateLapNotesMutation = useMutation({
-    mutationFn: (notes: string) =>
-      client.api.laps[":id"].notes
-        .$patch({ param: { id: String(selectedLapId) }, json: { notes: notes || null } })
-        // biome-ignore lint/suspicious/noExplicitAny: pre-existing
-        .then((r) => r.json() as any),
+    mutationFn: (notes: string) => client.api.laps[":id"].notes.$patch({ param: { id: String(selectedLapId) }, json: { notes: notes || null } }).then((r) => r.json() as any),
     onMutate: (notes) => {
       setLaps((prev) => prev.map((l) => (l.id === selectedLapId ? { ...l, notes: notes || undefined } : l)));
     },
@@ -491,11 +478,7 @@ function LapAnalyseInner() {
   });
 
   const deleteLapMutation = useMutation({
-    mutationFn: (lapId: number) =>
-      client.api.laps[":id"]
-        .$delete({ param: { id: String(lapId) } })
-        // biome-ignore lint/suspicious/noExplicitAny: pre-existing
-        .then((r) => r.json() as any),
+    mutationFn: (lapId: number) => client.api.laps[":id"].$delete({ param: { id: String(lapId) } }).then((r) => r.json() as any),
     onSuccess: () => {
       setSelectedLapId(null);
       queryClient.invalidateQueries({ queryKey: ["laps"] });

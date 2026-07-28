@@ -427,7 +427,7 @@ describe("FM-2023: Lap 0 complete, Lap 1 receives estimated lap", () => {
 
   test("lap 0 sector times sum to lap time", () => {
     const lap0 = {
-      sectors: { s1: 45.2, s2: 48.5, s3: 45.8 },
+      sectors: [45.2, 48.5, 45.8],
       lapTime: 139.5,
     };
     assertSectorTimesMatchLapTime(lap0 as any);
@@ -435,7 +435,7 @@ describe("FM-2023: Lap 0 complete, Lap 1 receives estimated lap", () => {
 
   test("lap 1 sector times sum to lap time", () => {
     const lap1 = {
-      sectors: { s1: 44.8, s2: 48.3, s3: 45.6 },
+      sectors: [44.8, 48.3, 45.6],
       lapTime: 138.7,
     };
     assertSectorTimesMatchLapTime(lap1 as any);

@@ -50,7 +50,7 @@ export interface LapSavedEvent {
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
-  sectors: { s1: number; s2: number; s3: number } | null;
+  sectors: number[] | null;
   estimatedBestLapTime: number; // best lap time in session (0 if none yet)
 }
 
@@ -66,7 +66,7 @@ export interface LapCompleteEvent {
   lapDistStart: number;
   lapTime: number;
   isValid: boolean;
-  sectors: { s1: number; s2: number; s3: number } | null;
+  sectors: number[] | null;
 }
 
 export class LapDetector implements ILapDetector {
@@ -620,7 +620,7 @@ export class LapDetector implements ILapDetector {
   private async computeLapSectors(
     packets: TelemetryPacket[],
     lapTime: number
-  ): Promise<{ s1: number; s2: number; s3: number } | null> {
+  ): Promise<number[] | null> {
     if (!this.currentSession) return null;
     const { trackOrdinal, gameId } = this.currentSession;
     const accLiveSectors = this.accS1 > 0 && this.accS2 > 0
