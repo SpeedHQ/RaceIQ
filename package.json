@@ -39,6 +39,7 @@
     "scrape:car-images:ac-evo": "bun scripts/scrape-ac-evo-car-images.ts",
     "laps:export": "bun scripts/export-laps.ts",
     "laps:import": "bun scripts/import-laps.ts",
+    "ibt:probe": "bun scripts/probe-ibt.ts",
     "gzip:recording": "bun scripts/gzip-recording.ts",
     "build:installer": "bun scripts/build-installer.ts",
     "mastra:studio": "portless studio bun scripts/mastra-studio.ts",

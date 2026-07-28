@@ -199,7 +199,7 @@ export function AnalyseLapHeader({
           <input
             ref={importInputRef}
             type="file"
-            accept=".bin,.gz,.bin.gz"
+            accept=".bin,.gz,.bin.gz,.ibt"
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -237,8 +237,8 @@ export function AnalyseLapHeader({
                   ]
                 : []),
               {
-                key: "import-bin",
-                label: "Import .bin",
+                key: "import-session",
+                label: "Import session (.bin or .ibt)",
                 icon: <Upload className="size-3.5" />,
                 onClick: () => importInputRef.current?.click(),
                 disabled: importingBin,

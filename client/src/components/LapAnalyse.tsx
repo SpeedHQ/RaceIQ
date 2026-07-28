@@ -32,12 +32,9 @@ import { AnalyseDataPanel } from "./analyse/AnalyseDataPanel";
 import { AnalyseLapHeader } from "./analyse/AnalyseLapHeader";
 import { AnalyseTimelineScrubber } from "./analyse/AnalyseTimelineScrubber";
 import { AnalyseTopSection } from "./analyse/AnalyseTopSection";
-import type {
-  Point,
-  SectorBoundaries,
-  TrackMapHandle,
-} from "./analyse/AnalyseTrackMap";
+import type { Point, SectorBoundaries, TrackMapHandle } from "./analyse/AnalyseTrackMap";
 import { F1SetupModal } from "./analyse/F1SetupModal";
+import { type IbtImportPreview, IbtImportPreviewModal } from "./analyse/IbtImportPreviewModal";
 import { ImportResultModal } from "./analyse/ImportResultModal";
 import { TuneViewModal } from "./analyse/TuneViewModal";
 
@@ -400,16 +397,7 @@ function LapAnalyseInner() {
   const sectorTimes = useMemo(() => {
     if (!sectorData || !sectors) return null;
     const cursorFrac = telemetry.length > 1 ? (telemetry[cursorIdx]?.DistanceTraveled - sectorData.firstDist) / sectorData.lapDist : 0;
-    const cursorSector =
-      sectorData.sectorCount === 2
-        ? cursorFrac < sectors.s1End
-          ? 0
-          : 1
-        : cursorFrac < sectors.s1End
-          ? 0
-          : cursorFrac < sectors.s2End
-            ? 1
-            : 2;
+    const cursorSector = sectorData.sectorCount === 2 ? (cursorFrac < sectors.s1End ? 0 : 1) : cursorFrac < sectors.s1End ? 0 : cursorFrac < sectors.s2End ? 1 : 2;
     return { ...sectorData, cursorSector };
   }, [sectorData, sectors, telemetry, cursorIdx]);
 
@@ -568,10 +556,36 @@ function LapAnalyseInner() {
     gameId: string;
     routePrefix: string;
   } | null>(null);
+  const [ibtPreview, setIbtPreview] = useState<{
+    token: string | null;
+    preview: IbtImportPreview;
+  } | null>(null);
   const handleImportBin = useCallback(
     async (file: File) => {
       setImportingBin(true);
       try {
+        if (file.name.toLowerCase().endsWith(".ibt")) {
+          const res = await fetch("/api/laps/import-ibt/preview", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/octet-stream",
+              "X-File-Name": encodeURIComponent(file.name),
+              "X-File-Size": String(file.size),
+            },
+            body: file,
+          });
+          const data = await res.json().catch(() => null);
+          if (!res.ok) {
+            window.alert(data?.error ?? `IBT preview failed (${res.status})`);
+            return;
+          }
+          setIbtPreview({
+            token: data?.token ?? null,
+            preview: data?.preview as IbtImportPreview,
+          });
+          return;
+        }
+
         const body = new FormData();
         body.append("file", file);
         const res = await fetch("/api/laps/import", { method: "POST", body });
@@ -581,6 +595,8 @@ function LapAnalyseInner() {
           return;
         }
         queryClient.invalidateQueries({ queryKey: ["laps"] });
+        queryClient.invalidateQueries({ queryKey: ["sessions"] });
+        queryClient.invalidateQueries({ queryKey: ["tracks"] });
         const laps: ImportedLap[] = data?.laps ?? [];
         setImportResult({
           fileName: file.name,
@@ -604,6 +620,56 @@ function LapAnalyseInner() {
     },
     [queryClient, gameId],
   );
+
+  const handleCancelIbt = useCallback(() => {
+    const token = ibtPreview?.token;
+    setIbtPreview(null);
+    if (!token) return;
+    void client.api.laps["import-ibt"].cancel.$post({ json: { token } }).catch(() => {
+      // Staging is short-lived and server-side expiry remains the fallback.
+    });
+  }, [ibtPreview]);
+
+  const handleCommitIbt = useCallback(async () => {
+    const staged = ibtPreview;
+    if (!staged?.token) return;
+    setImportingBin(true);
+    try {
+      const res = await client.api.laps["import-ibt"].commit.$post({
+        json: { token: staged.token },
+      });
+      const data = (await res.json().catch(() => null)) as any;
+      if (!res.ok) {
+        setIbtPreview(null);
+        window.alert(data?.error ?? `IBT import failed (${res.status})`);
+        return;
+      }
+
+      setIbtPreview(null);
+      queryClient.invalidateQueries({ queryKey: ["laps"] });
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["tracks"] });
+      const importedLaps: ImportedLap[] = data?.laps ?? [];
+      setImportResult({
+        fileName: staged.preview.fileName,
+        packetCount: data?.packetCount ?? 0,
+        laps: importedLaps,
+        gameId: data?.gameId,
+        routePrefix: data?.routePrefix,
+      });
+      if (data?.gameId === gameId && importedLaps.length > 0) {
+        const lastLap = importedLaps[importedLaps.length - 1];
+        setSelectedTrack(lastLap.trackOrdinal);
+        setSelectedCar(lastLap.carOrdinal);
+        setSelectedLapId(lastLap.lapId);
+      }
+    } catch (error) {
+      setIbtPreview(null);
+      window.alert(`IBT import failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setImportingBin(false);
+    }
+  }, [ibtPreview, queryClient, gameId]);
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -695,8 +761,22 @@ function LapAnalyseInner() {
             />
 
             {/* Resize handle */}
-            <div
+            <hr
+              aria-orientation="horizontal"
+              aria-valuemin={250}
+              aria-valuemax={800}
+              aria-valuenow={topHeight}
+              tabIndex={0}
               className="h-3 cursor-row-resize border-y border-app-border bg-app-surface-alt/80 hover:bg-app-accent/30 transition-colors shrink-0 flex items-center justify-center"
+              onKeyDown={(event) => {
+                if (event.key === "ArrowUp") {
+                  event.preventDefault();
+                  setTopHeight((height) => Math.max(250, height - 10));
+                } else if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  setTopHeight((height) => Math.min(800, height + 10));
+                }
+              }}
               onMouseDown={(e) => {
                 e.preventDefault();
                 const startY = e.clientY;
@@ -712,9 +792,7 @@ function LapAnalyseInner() {
                 window.addEventListener("mousemove", onMove);
                 window.addEventListener("mouseup", onUp);
               }}
-            >
-              <div className="w-10 h-1 rounded-full bg-app-text-muted/60" />
-            </div>
+            />
 
             {/* Lap time + Timeline scrubber */}
             <AnalyseTimelineScrubber
@@ -799,6 +877,8 @@ function LapAnalyseInner() {
       {showSetup && telemetry[0]?.f1?.setup && <F1SetupModal setup={telemetry[0].f1.setup} onClose={() => setShowSetup(false)} />}
 
       {/* Import result modal */}
+      {ibtPreview && <IbtImportPreviewModal token={ibtPreview.token} preview={ibtPreview.preview} importing={importingBin} onImport={() => void handleCommitIbt()} onClose={handleCancelIbt} />}
+
       {importResult &&
         (() => {
           const sameGame = importResult.gameId === gameId;

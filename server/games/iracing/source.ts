@@ -4,6 +4,7 @@ import { IRacingSdkReader, type IRacingSdkSnapshot } from "./sdk-reader";
 import { parseIRacingSessionInfo } from "./session-info";
 import {
   encodeIRacingSourceFrame,
+  type IRacingSessionSnapshot,
   type IRacingSourceFrameV1,
   type IRacingValue,
 } from "./source-frame";
@@ -33,7 +34,7 @@ function numeric(values: Record<string, IRacingValue>, name: string, fallback = 
 }
 
 /**
- * Owns the iRacing SDK polling loop and publishes raw frames into the exact
+ * Owns the iRacing telemetry polling loop and publishes raw frames into the exact
  * parser -> pipeline path used by the UDP games.
  */
 export class IRacingTelemetrySource {
@@ -44,6 +45,9 @@ export class IRacingTelemetrySource {
   private running = false;
   private polling = false;
   private lastErrorLogAt = 0;
+  private cachedSessionInfo = "";
+  private cachedSessionNum: number | null = null;
+  private cachedSession: IRacingSessionSnapshot | null = null;
 
   constructor(options: IRacingTelemetrySourceOptions = {}) {
     this.reader = options.reader ?? new IRacingSdkReader();
@@ -53,10 +57,10 @@ export class IRacingTelemetrySource {
 
   start(): void {
     if (this.running) return;
-    this.running = true;
     this.reader.start();
+    this.running = true;
     this.timer = setInterval(() => void this.pollOnce(), this.pollIntervalMs);
-    console.log("[iRacing] Native SDK telemetry source started");
+    console.log("[iRacing] Telemetry source started");
   }
 
   async stop(): Promise<void> {
@@ -66,7 +70,10 @@ export class IRacingTelemetrySource {
       this.timer = null;
     }
     await this.reader.stop();
-    console.log("[iRacing] Native SDK telemetry source stopped");
+    this.cachedSessionInfo = "";
+    this.cachedSessionNum = null;
+    this.cachedSession = null;
+    console.log("[iRacing] Telemetry source stopped");
   }
 
   async pollOnce(): Promise<boolean> {
@@ -77,10 +84,21 @@ export class IRacingTelemetrySource {
       if (!snapshot) return false;
 
       const sessionNum = Math.trunc(numeric(snapshot.values, "SessionNum", 0));
-      const session = parseIRacingSessionInfo(snapshot.sessionInfo, sessionNum);
+      if (
+        !this.cachedSession ||
+        this.cachedSessionInfo !== snapshot.sessionInfo ||
+        this.cachedSessionNum !== sessionNum
+      ) {
+        this.cachedSessionInfo = snapshot.sessionInfo;
+        this.cachedSessionNum = sessionNum;
+        this.cachedSession = parseIRacingSessionInfo(
+          snapshot.sessionInfo,
+          sessionNum,
+        );
+      }
       const frame: IRacingSourceFrameV1 = {
         schemaVersion: 1,
-        session,
+        session: this.cachedSession,
         values: snapshot.values,
       };
       await this.dispatchRawFrame(encodeIRacingSourceFrame(frame));

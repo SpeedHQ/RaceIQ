@@ -27,6 +27,12 @@ import { buildLapsZip, lapsZipFilename, importLapsZip } from "../zip";
 import { recordAction } from "../db/tuning-action-queries";
 import { KNOWN_GAME_IDS } from "../../shared/types";
 import { importSessionBin, detectGameIdFromBuffer } from "../import-session-bin";
+import {
+  cancelStagedIbt,
+  commitStagedIbt,
+  IbtImportError,
+  stageIbtUpload,
+} from "../import-ibt";
 import { analyzeLap } from "../../shared/lib/lap-insights";
 import { downsampleLap, encodeLapTrace, type EncodedLapTrace } from "../../shared/stint-trace";
 import { buildCompareInsightsBlock } from "../ai/insight-format";
@@ -138,6 +144,10 @@ const AnalyseQuerySchema = z.object({
 
 const BulkDeleteSchema = z.object({
   ids: z.array(z.number().int()),
+});
+
+const IbtImportTokenSchema = z.object({
+  token: z.string().uuid(),
 });
 
 /** Comma-separated id list in a query string → number[] (ignores junk/empties). */
@@ -411,6 +421,84 @@ export const lapRoutes = new Hono()
   })
 
   // ── AI analysis ─────────────────────────────────────────────
+  // Preview + commit an iRacing disk telemetry capture (.ibt). The raw
+  // request body is streamed to a short-lived staging file, avoiding the
+  // multipart/arrayBuffer path used by small canonical .bin captures.
+  // Preview never writes sessions or laps. Commit feeds canonical iRacing
+  // source frames into the same isolated Pipeline used by .bin imports.
+  .post("/api/laps/import-ibt/preview", async (c) => {
+    const uploadName =
+      c.req.header("x-file-name") ?? "session.ibt";
+    if (!uploadName.toLowerCase().endsWith(".ibt")) {
+      return c.json({ error: "Expected an .ibt file" }, 400);
+    }
+    const declaredHeader =
+      c.req.header("x-file-size") ?? c.req.header("content-length");
+    const declaredBytes = declaredHeader
+      ? Number(declaredHeader)
+      : undefined;
+
+    try {
+      const result = await stageIbtUpload(
+        c.req.raw.body,
+        uploadName,
+        declaredBytes,
+      );
+      return c.json(result);
+    } catch (error) {
+      const status =
+        error instanceof IbtImportError ? error.status : 400;
+      const message =
+        error instanceof Error ? error.message : String(error);
+      console.error("[IBT Import] Preview failed:", message);
+      return c.json(
+        { error: `Failed to preview IBT: ${message}` },
+        status,
+      );
+    }
+  })
+
+  .post(
+    "/api/laps/import-ibt/commit",
+    zValidator("json", IbtImportTokenSchema),
+    async (c) => {
+      const { token } = c.req.valid("json");
+      try {
+        const { packetCount, laps, preview } =
+          await commitStagedIbt(token);
+        return c.json({
+          ok: true,
+          gameId: "iracing" as const,
+          routePrefix: getGame("iracing").routePrefix,
+          packetCount,
+          imported: laps.length,
+          laps,
+          preview,
+        });
+      } catch (error) {
+        const status =
+          error instanceof IbtImportError ? error.status : 500;
+        const message =
+          error instanceof Error ? error.message : String(error);
+        console.error("[IBT Import] Commit failed:", message);
+        return c.json(
+          { error: `Failed to import IBT: ${message}` },
+          status,
+        );
+      }
+    },
+  )
+
+  .post(
+    "/api/laps/import-ibt/cancel",
+    zValidator("json", IbtImportTokenSchema),
+    (c) => {
+      const { token } = c.req.valid("json");
+      cancelStagedIbt(token);
+      return c.json({ ok: true });
+    },
+  )
+
   .post("/api/laps/:id/analyse", zValidator("param", IdParamSchema), zValidator("query", AnalyseQuerySchema), async (c) => {
     const { id } = c.req.valid("param");
     const { regenerate, cacheOnly } = c.req.valid("query");
