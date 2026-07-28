@@ -27,6 +27,7 @@ import { buildLapsZip, lapsZipFilename, importLapsZip } from "../zip";
 import { recordAction } from "../db/experiment-action-queries";
 import { KNOWN_GAME_IDS } from "../../shared/types";
 import { importSessionBin, detectGameIdFromBuffer } from "../import-session-bin";
+import { importMotec, MOTEC_IMPORT_GAME_ID } from "../motec/import";
 import { analyzeLap } from "../../shared/lib/lap-insights";
 import { downsampleLap, encodeLapTrace, type EncodedLapTrace } from "../../shared/stint-trace";
 import { buildCompareInsightsBlock } from "../ai/insight-format";
@@ -373,6 +374,45 @@ export const lapRoutes = new Hono()
     } catch (err: any) {
       console.error("[Import] Failed:", err?.message);
       return c.json({ error: "Failed to import file", details: String(err?.message ?? err) }, 500);
+    }
+  })
+
+  // ── Import a MoTeC i2 log (.ld, optionally with its .ldx) ───
+  // AC Evo only: the channel mapping was derived from an AC Evo export and
+  // other sims' exporters name and scale channels differently, so a log from
+  // another game would import silently wrong rather than fail. See
+  // server/motec/import.ts.
+  .post("/api/laps/import-motec", async (c) => {
+    const form = await c.req.formData().catch(() => null);
+    const file = form?.get("file");
+    if (!(file instanceof File)) return c.json({ error: "Missing 'file' in multipart body" }, 400);
+    if (!file.name.toLowerCase().endsWith(".ld")) {
+      return c.json({ error: "Expected a MoTeC .ld file" }, 400);
+    }
+
+    // The sidecar carries the lap beacons. Without it the log imports as a
+    // single unsplit stint, which is correct for a standalone hotlap export.
+    const sidecar = form?.get("ldx");
+    const ldxText = sidecar instanceof File ? await sidecar.text() : undefined;
+
+    try {
+      const result = await importMotec(Buffer.from(await file.arrayBuffer()), ldxText);
+      if (result.laps.length === 0) {
+        return c.json(
+          { error: "No laps could be detected in this log", meta: result.meta, limitations: result.limitations },
+          400
+        );
+      }
+      return c.json({
+        ok: true,
+        gameId: MOTEC_IMPORT_GAME_ID,
+        routePrefix: getGame(MOTEC_IMPORT_GAME_ID).routePrefix,
+        imported: result.laps.length,
+        ...result,
+      });
+    } catch (err: any) {
+      console.error("[MoTeC Import] Failed:", err?.message);
+      return c.json({ error: "Failed to import MoTeC log", details: String(err?.message ?? err) }, 500);
     }
   })
 

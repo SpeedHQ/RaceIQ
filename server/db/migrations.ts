@@ -888,4 +888,16 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_experiments_game ON experiments(game_id)`,
     ],
   },
+  {
+    version: 43,
+    name: "record how a session's telemetry was obtained",
+    sql: [
+      // NULL means the session was recorded live from the game, which is every
+      // pre-existing row — the flag only needs to mark the cases that are not
+      // direct captures. 'motec' means the frames were transcoded from a MoTeC
+      // .ld export, so quantities MoTeC does not log (notably the racing line)
+      // are reconstructions and the UI must not present them as measured.
+      `ALTER TABLE sessions ADD COLUMN source TEXT`,
+    ],
+  },
 ];
