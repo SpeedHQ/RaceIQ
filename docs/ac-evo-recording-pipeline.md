@@ -1,12 +1,22 @@
-# AC Evo recording pipeline architecture
+# Assetto Corsa recording pipeline architecture (AC Evo)
 
-How an Assetto Corsa Evo frame travels from the game's shared memory to a lap
-row in the database, and which bytes get persisted along the way.
+How an Assetto Corsa frame travels from the game's shared memory to a lap row
+in the database, and which bytes get persisted along the way.
 
-AC Evo reuses ACC's shared-memory infrastructure (`server/games/acc/*`) with
-AC Evo-specific mapping names, struct sizes, parser, and lap detector. Anything
-described here as "shared" is code physically living under `games/acc/` but
-parameterised for both games.
+This is really **the Assetto Corsa shared-memory pipeline**. Both Assetto Corsa
+titles RaceIQ supports — Competizione and Evo — publish telemetry the same way
+(three memory-mapped pages, read and assembled identically), so they run through
+one pipeline with two sets of parameters: mapping names, struct layouts, parser,
+and lap detector. Everything else is common code.
+
+This document walks that pipeline with **AC Evo** as the worked example. Where a
+value is game-specific it is called out as such; where the text says "shared",
+it means code both titles run.
+
+One naming wrinkle: the common code physically lives under `server/games/acc/`
+and carries `Acc` in its identifiers (`BufferedAccMemoryReader`, the
+`ACC_METRICS` env var), because Competizione was implemented first. Those are
+historical names, not a statement about scope — AC Evo runs the same classes.
 
 ---
 
@@ -92,10 +102,11 @@ Windows-only, `bun:ffi` against `kernel32.dll`
 (`OpenFileMappingW` → `MapViewOfFile` → `RtlCopyMemory` into a fresh `Buffer`).
 Connection retries every 10s until all three mappings open.
 
-AC Evo overrides vs ACC:
+The reader's defaults are Competizione's, so AC Evo passes overrides for
+everything the two titles disagree on:
 
-- Mapping names are `Local\acevo_pmf_*`, not `acpmf_*` (confirmed with
-  `handle.exe` — the game does not own the ACC names).
+- Mapping names are `Local\acevo_pmf_*`, not the default `acpmf_*` (confirmed
+  with `handle.exe` — AC Evo does not own the `acpmf_*` names).
 - Struct sizes come from `PHYSICS.SIZE`, `GRAPHICS_EVO.SIZE`, `STATIC_EVO.SIZE`
   in `games/ac-evo/structs.ts`.
 - `sessionIdOffset: null`. Graphics offset 8 in AC Evo v0.6 is a `uint64`
@@ -149,7 +160,7 @@ the session recorder can stay format-agnostic:
 [physLen u32le][physics] [graphLen u32le][graphics] [staticLen u32le][static]
 ```
 
-**This step exists only because AC Evo (and ACC) telemetry arrives as three
+**This step exists only because Assetto Corsa telemetry arrives as three
 separate memory pages.** Forza and F1 are UDP games — one datagram already *is*
 the complete record, so there is nothing to assemble or pack. Their listener
 hands the raw datagram straight to `processPacket(packet, rawBuf)` and the
