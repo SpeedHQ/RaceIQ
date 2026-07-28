@@ -54,7 +54,7 @@ export default defineConfig({
       name: "marketing",
       testMatch: "marketing.spec.ts",
       use: {
-        baseURL: "https://raceiq.localhost",
+        baseURL: process.env.MARKETING_BASE_URL ?? "https://raceiq.localhost",
         viewport: { width: 1920, height: 1080 },
       },
     },
