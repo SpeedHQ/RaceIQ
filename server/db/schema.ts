@@ -76,6 +76,10 @@ export const sessions = sqliteTable("sessions", {
 	notes: text("notes"),
 	rawFile: text("raw_file"),
 	lapDetectorVersion: text("lap_detector_version"),
+	// How this session's telemetry was obtained (migration v43). NULL = recorded
+	// live from the game. 'motec' = transcoded from a MoTeC .ld export, where the
+	// racing line is dead-reckoned rather than logged — see server/motec/.
+	source: text("source"),
 	createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });
 

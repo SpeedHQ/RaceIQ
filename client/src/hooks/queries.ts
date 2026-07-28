@@ -317,6 +317,74 @@ export function useSessionRecap(sessionId: number | null | undefined, gameId: Ga
   });
 }
 
+/**
+ * Tracks for a specific game, independent of the active game context.
+ *
+ * `useTracks()` reads the route's game, which is wrong for the MoTeC importer:
+ * the log is filed against the game the user picked in the dialog, which need
+ * not be the game whose Analyse page they opened it from.
+ */
+export function useTracksForGame(gameId: GameId | null) {
+  return useQuery({
+    queryKey: ["tracks", gameId ?? null],
+    queryFn: async () => rpcJson<{ ordinal: number; name: string }[]>(await client.api.tracks.$get({ query: { gameId: gameId! } })),
+    enabled: !!gameId,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+}
+
+export interface MotecTargetInfo {
+  gameId: GameId;
+  displayName: string;
+  routePrefix: string;
+  carsEndpoint: string;
+  limitations: string[];
+}
+
+/**
+ * Games a MoTeC `.ld` can be imported for.
+ *
+ * Asked of the server rather than hardcoded: a transcoder only exists once
+ * someone has checked it against a real export from that game, so the list
+ * grows server-side and the dialog follows.
+ */
+export function useMotecTargets() {
+  return useQuery({
+    queryKey: ["motec-targets"],
+    queryFn: async () => rpcJson<MotecTargetInfo[]>(await client.api.motec.targets.$get()),
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+}
+
+/**
+ * Car roster from a game-supplied endpoint (see `MotecTargetInfo.carsEndpoint`).
+ *
+ * Untyped fetch on purpose: the URL comes from the server's target list, so
+ * there is no RPC binding to name. The contract is the response shape below.
+ */
+export function useCarsFromEndpoint(endpoint: string | null) {
+  return useQuery({
+    queryKey: ["motec-cars", endpoint],
+    queryFn: async () => {
+      const res = await fetch(endpoint!);
+      if (!res.ok) throw new Error(`Failed to load cars (${res.status})`);
+      return (await res.json()) as { ordinal: number; name: string; class?: string }[];
+    },
+    enabled: !!endpoint,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+}
+
+/** AC Evo car roster (ordinal + display name + class), for import pickers. */
+export function useAcEvoCars(enabled = true) {
+  return useQuery({
+    queryKey: ["ac-evo-cars"],
+    queryFn: async () => rpcJson<{ ordinal: number; name: string; class: string }[]>(await client.api["ac-evo"].cars.$get()),
+    enabled,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+}
+
 export function useTracks() {
   const gameId = useGameId();
   return useQuery({
@@ -795,7 +863,7 @@ export function useExperiments(gameId: ExperimentGameId) {
   return useQuery({
     queryKey: ["experiments", gameId],
     queryFn: async () => {
-      const res = await (client.api as any)["experiments"].$get({ query: { gameId } });
+      const res = await (client.api as any).experiments.$get({ query: { gameId } });
       return rpcJson<Experiment[]>(res);
     },
     staleTime: 10_000,
@@ -816,7 +884,7 @@ export function useCreateExperiment() {
       notes?: string | null;
       focus?: ExperimentFocus;
     }) => {
-      const res = await (client.api as any)["experiments"].$post({ json: data });
+      const res = await (client.api as any).experiments.$post({ json: data });
       if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as Experiment;
     },
@@ -835,7 +903,7 @@ export function useSetExperimentFocus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, focus, note }: { id: number; focus: ExperimentFocus; note?: string | null }) => {
-      const res = await (client.api as any)["experiments"][":id"]["focus"].$patch({
+      const res = await (client.api as any).experiments[":id"].focus.$patch({
         param: { id: String(id) },
         json: { focus, note: note ?? null },
       });
@@ -855,7 +923,7 @@ export function useExperimentFocusHistory(id: number | null | undefined) {
   return useQuery({
     queryKey: ["experiment-focus-history", id ?? null],
     queryFn: async () => {
-      const res = await (client.api as any)["experiments"][":id"]["focus-history"].$get({ param: { id: String(id!) } });
+      const res = await (client.api as any).experiments[":id"]["focus-history"].$get({ param: { id: String(id!) } });
       return rpcJson<ExperimentFocusEvent[]>(res);
     },
     enabled: id != null,
@@ -868,7 +936,7 @@ export function useExperiment(id: number | null | undefined) {
   return useQuery({
     queryKey: ["experiment", id ?? null],
     queryFn: async () => {
-      const res = await (client.api as any)["experiments"][":id"].$get({ param: { id: String(id!) } });
+      const res = await (client.api as any).experiments[":id"].$get({ param: { id: String(id!) } });
       return rpcJson<Experiment>(res);
     },
     enabled: id != null,
@@ -907,7 +975,7 @@ export function useExperimentVersions(id: number | null | undefined) {
   return useQuery({
     queryKey: ["experiment-tests", id ?? null],
     queryFn: async () => {
-      const res = await (client.api as any)["experiments"][":id"].tests.$get({ param: { id: String(id!) } });
+      const res = await (client.api as any).experiments[":id"].tests.$get({ param: { id: String(id!) } });
       return rpcJson<ExperimentVersion[]>(res);
     },
     enabled: id != null,
@@ -945,7 +1013,7 @@ export function useLineSpread(sessionId: number | null | undefined) {
   return useQuery({
     queryKey: ["experiment-line-spread", sessionId ?? null],
     queryFn: async () => {
-      const res = await (client.api as any)["experiments"][":id"]["line-spread"].$get({ param: { id: String(sessionId!) } });
+      const res = await (client.api as any).experiments[":id"]["line-spread"].$get({ param: { id: String(sessionId!) } });
       return rpcJson<LineSpreadTrace>(res);
     },
     enabled: sessionId != null,
@@ -968,7 +1036,7 @@ export function useCreateExperimentVersion() {
       driverComment?: string | null;
       engine?: "rules" | "llm" | null;
     }) => {
-      const res = await (client.api as any)["experiments"][":id"].tests.$post({ param: { id: String(sessionId) }, json: body });
+      const res = await (client.api as any).experiments[":id"].tests.$post({ param: { id: String(sessionId) }, json: body });
       if (!res.ok) throw await errorFromResponse(res);
       return (await res.json()) as ExperimentVersion;
     },
@@ -982,7 +1050,7 @@ export function useSetTestNote() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ sessionId, versionId, driverComment }: { sessionId: number; versionId: number; driverComment: string | null }) => {
-      const res = await (client.api as any)["experiments"][":id"].tests[":versionId"].$patch({
+      const res = await (client.api as any).experiments[":id"].tests[":versionId"].$patch({
         param: { id: String(sessionId), versionId: String(versionId) },
         json: { driverComment },
       });
@@ -1001,7 +1069,7 @@ export function useSetTestNotes() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ sessionId, versionId, notes }: { sessionId: number; versionId: number; notes: string | null }) => {
-      const res = await (client.api as any)["experiments"][":id"].tests[":versionId"].$patch({
+      const res = await (client.api as any).experiments[":id"].tests[":versionId"].$patch({
         param: { id: String(sessionId), versionId: String(versionId) },
         json: { notes },
       });
@@ -1018,7 +1086,7 @@ export function useSetHead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ sessionId, versionId }: { sessionId: number; versionId: number }) => {
-      const res = await (client.api as any)["experiments"][":id"].head.$post({
+      const res = await (client.api as any).experiments[":id"].head.$post({
         param: { id: String(sessionId) },
         json: { versionId },
       });
@@ -1043,7 +1111,7 @@ export function useCaptureSetup() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (sessionId: number) => {
-      const res = await (client.api as any)["experiments"][":id"]["capture-setup"].$post({
+      const res = await (client.api as any).experiments[":id"]["capture-setup"].$post({
         param: { id: String(sessionId) },
       });
       if (!res.ok) throw await errorFromResponse(res);
@@ -1063,7 +1131,7 @@ export function useAddBase() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ sessionId, setupPath, label, setHead }: { sessionId: number; setupPath: string; label?: string; setHead?: boolean }) => {
-      const res = await (client.api as any)["experiments"][":id"].bases.$post({
+      const res = await (client.api as any).experiments[":id"].bases.$post({
         param: { id: String(sessionId) },
         json: { setupPath, label, setHead },
       });
@@ -1092,7 +1160,7 @@ export function useImportableLaps(sessionId: number | null | undefined) {
   return useQuery({
     queryKey: ["experiment-importable-laps", sessionId ?? null],
     queryFn: async () => {
-      const res = await (client.api as any)["experiments"][":id"]["importable-laps"].$get({
+      const res = await (client.api as any).experiments[":id"]["importable-laps"].$get({
         param: { id: String(sessionId!) },
       });
       return rpcJson<ImportableLap[]>(res);
@@ -1108,7 +1176,7 @@ export function useImportLaps() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ sessionId, lapIds, experimentVersionId }: { sessionId: number; lapIds: number[]; experimentVersionId?: number | null }) => {
-      const res = await (client.api as any)["experiments"][":id"]["import-laps"].$post({
+      const res = await (client.api as any).experiments[":id"]["import-laps"].$post({
         param: { id: String(sessionId) },
         json: { lapIds, experimentVersionId },
       });
@@ -1136,7 +1204,7 @@ export function useDeletedExperimentVersions(id: number | null | undefined, enab
   return useQuery({
     queryKey: ["experiment-tests", id ?? null, "deleted"],
     queryFn: async () => {
-      const res = await (client.api as any)["experiments"][":id"].tests.$get({
+      const res = await (client.api as any).experiments[":id"].tests.$get({
         param: { id: String(id!) },
         query: { includeDeleted: "1" },
       });
@@ -1154,7 +1222,7 @@ export function useDeleteVersion() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ sessionId, versionId }: { sessionId: number; versionId: number }) => {
-      const res = await (client.api as any)["experiments"][":id"].tests[":versionId"].delete.$post({
+      const res = await (client.api as any).experiments[":id"].tests[":versionId"].delete.$post({
         param: { id: String(sessionId), versionId: String(versionId) },
       });
       if (!res.ok) throw await errorFromResponse(res);
@@ -1183,7 +1251,7 @@ export function useExperimentHistory(id: number | null | undefined) {
   return useQuery({
     queryKey: ["experiment-actions", id ?? null],
     queryFn: async () => {
-      const res = await (client.api as any)["experiments"][":id"].actions.$get({
+      const res = await (client.api as any).experiments[":id"].actions.$get({
         param: { id: String(id!) },
       });
       return rpcJson<ExperimentActionRow[]>(res);
@@ -1201,7 +1269,7 @@ export function useUndo() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ sessionId }: { sessionId: number }) => {
-      const res = await (client.api as any)["experiments"][":id"].undo.$post({
+      const res = await (client.api as any).experiments[":id"].undo.$post({
         param: { id: String(sessionId) },
       });
       if (!res.ok) throw await errorFromResponse(res);
@@ -1222,7 +1290,7 @@ export function useRestoreVersion() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ sessionId, versionId }: { sessionId: number; versionId: number }) => {
-      const res = await (client.api as any)["experiments"][":id"].tests[":versionId"].restore.$post({
+      const res = await (client.api as any).experiments[":id"].tests[":versionId"].restore.$post({
         param: { id: String(sessionId), versionId: String(versionId) },
       });
       if (!res.ok) throw await errorFromResponse(res);
@@ -1249,7 +1317,7 @@ export function useExperimentLapMetrics(id: number | null | undefined) {
   return useQuery({
     queryKey: ["experiment-lap-metrics", id ?? null],
     queryFn: async () => {
-      const res = await (client.api as any)["experiments"][":id"]["lap-metrics"].$get({ param: { id: String(id!) } });
+      const res = await (client.api as any).experiments[":id"]["lap-metrics"].$get({ param: { id: String(id!) } });
       return rpcJson<ExperimentLapMetric[]>(res);
     },
     enabled: id != null,

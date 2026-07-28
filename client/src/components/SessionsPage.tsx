@@ -1,19 +1,23 @@
+import { MOTEC_SESSION_SOURCE, motecImportSupported } from "@shared/motec";
 import type { LapMeta, SessionMeta } from "@shared/types";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearch } from "@tanstack/react-router";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { queryKeys, useDeleteLap, useLaps, useSessions } from "../hooks/queries";
 import { exportLapsZip } from "../lib/lap-export";
 import { client } from "../lib/rpc";
 import { RotatePrompt } from "../routes/__root";
 import { useGameId, useGameRoute } from "../stores/game";
+import { MotecImportModal } from "./analyse/MotecImportModal";
 import { formatLapTime } from "./LiveTelemetry";
 import { SessionRecapModal } from "./SessionRecapModal";
 import { AppInput } from "./ui/AppInput";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 import { Button } from "./ui/button";
 import { NoteModal } from "./ui/NoteModal";
+
+export type SessionsTab = "recorded" | "imported";
 
 const PAGE_SIZE = 25;
 
@@ -30,8 +34,9 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
   return (
     <>
       {open && <NoteModal value={value} onSave={onSave} onClose={() => setOpen(false)} />}
-      <span
-        className="relative cursor-pointer group block w-full"
+      <button
+        type="button"
+        className="relative cursor-pointer group block w-full text-left"
         onClick={(e) => {
           e.stopPropagation();
           setOpen(true);
@@ -47,7 +52,7 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
           </svg>
           {m.common_edit()}
         </span>
-      </span>
+      </button>
     </>
   );
 }
@@ -188,8 +193,10 @@ function SessionLapTable({
       {/* Dev context menu */}
       {contextMenu && (
         <>
-          <div
-            className="fixed inset-0 z-40"
+          <button
+            type="button"
+            aria-label={m.common_close()}
+            className="fixed inset-0 z-40 cursor-default"
             onClick={() => setContextMenu(null)}
             onContextMenu={(e) => {
               e.preventDefault();
@@ -198,6 +205,7 @@ function SessionLapTable({
           />
           <div className="fixed z-50 bg-app-surface border border-app-border rounded shadow-lg py-1 text-sm" style={{ left: contextMenu.x, top: contextMenu.y }}>
             <button
+              type="button"
               className="w-full px-3 py-1.5 text-left hover:bg-app-surface-alt text-app-text"
               onClick={async () => {
                 const res = await fetch(`/api/laps/${contextMenu.lapId}/recheck`, { method: "POST" });
@@ -276,6 +284,27 @@ export function SessionsPage() {
   const [search, setSearch] = useState("");
   const [recapSessionId, setRecapSessionId] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
+  /**
+   * Recorded and imported sessions are listed apart rather than mixed with a
+   * badge: an imported MoTeC lap has a dead-reckoned line and no absolute
+   * position, so it is not a like-for-like row next to a recorded session.
+   */
+  const routeSearch = useSearch({ strict: false }) as { tab?: string };
+  /**
+   * A stale/hand-typed `?tab=imported` on a game without a verified MoTeC
+   * mapping falls back to the recorded list — that game has no imports and no
+   * tab strip to switch back with.
+   */
+  const tab: SessionsTab = routeSearch.tab === "imported" && motecImportSupported(gameId) ? "imported" : "recorded";
+  /** The tab lives in the URL so a MoTeC import is linkable and survives reload. */
+  const setTab = useCallback(
+    (next: SessionsTab) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      navigate({ to: ".", search: (prev: any) => ({ ...prev, tab: next === "recorded" ? undefined : next }) } as any);
+    },
+    [navigate],
+  );
+  const [importOpen, setImportOpen] = useState(false);
 
   /** Download laps/sessions as a .zip; surfaces server errors inline. */
   const runExport = useCallback(async (sel: { lapIds?: number[]; sessionIds?: number[] }) => {
@@ -384,6 +413,8 @@ export function SessionsPage() {
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     return sorted.filter((s) => {
+      const imported = s.source === MOTEC_SESSION_SOURCE;
+      if (imported !== (tab === "imported")) return false;
       if (q) {
         const track = (trackNames[s.trackOrdinal] ?? "").toLowerCase();
         const car = (carNames[s.carOrdinal] ?? "").toLowerCase();
@@ -394,7 +425,7 @@ export function SessionsPage() {
       }
       return true;
     });
-  }, [sorted, search, trackNames, carNames]);
+  }, [sorted, search, trackNames, carNames, tab]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -458,6 +489,8 @@ export function SessionsPage() {
     qc.invalidateQueries({ queryKey: queryKeys.laps });
   }, [selectedLaps, selectedSessions, qc]);
 
+  /** Only games with a verified MoTeC channel mapping get the import UI. */
+  const motecEnabled = motecImportSupported(gameId);
   const isF1 = gameId === "f1-2025";
   const colCount = isF1 ? 8 : 7;
 
@@ -465,7 +498,36 @@ export function SessionsPage() {
     <div className="h-full flex flex-col p-4 gap-3">
       {recapSessionId != null && <SessionRecapModal sessionId={recapSessionId} onClose={() => setRecapSessionId(null)} />}
       <RotatePrompt />
+      {importOpen && (
+        <MotecImportModal
+          onClose={() => setImportOpen(false)}
+          onImported={() => {
+            setImportOpen(false);
+            qc.invalidateQueries({ queryKey: ["sessions"] });
+            qc.invalidateQueries({ queryKey: ["laps"] });
+          }}
+        />
+      )}
       <div className="flex items-center flex-wrap gap-3">
+        {motecEnabled && (
+          <div className="flex items-center rounded border border-app-border overflow-hidden shrink-0">
+            {(["recorded", "imported"] as const satisfies readonly SessionsTab[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => {
+                  setTab(t);
+                  setPage(0);
+                  setSelectedSessions(new Set());
+                  setSelectedLaps(new Set());
+                }}
+                className={`px-3 py-1.5 text-sm font-semibold transition-colors ${tab === t ? "bg-app-accent text-white" : "text-app-text/90-muted hover:text-app-text/90"}`}
+              >
+                {t === "recorded" ? m.sessions_tab_recorded() : m.sessions_tab_imported()}
+              </button>
+            ))}
+          </div>
+        )}
         <AppInput type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={m.sessions_search_placeholder()} className="flex-1 min-w-[200px] sm:flex-none sm:w-64" />
         <h1 className="text-sm font-semibold text-app-text/90 shrink-0">
           {m.label_sessions()}
@@ -476,6 +538,11 @@ export function SessionsPage() {
           )}
         </h1>
         <div className="flex items-center flex-wrap gap-2">
+          {tab === "imported" && (
+            <Button variant="app-outline" size="app-sm" onClick={() => setImportOpen(true)}>
+              {m.sessions_import_motec()}
+            </Button>
+          )}
           {selectedLaps.size === 2 &&
             (() => {
               // Only show Compare when the two selected laps are from sessions
@@ -490,6 +557,7 @@ export function SessionsPage() {
               if (sessA.trackOrdinal !== sessB.trackOrdinal) return null;
               return (
                 <button
+                  type="button"
                   onClick={() => {
                     // Route shape is per-game (fm23/compare, f125/compare, …).
                     // TanStack Router types don't know about the dynamic gameRoute
@@ -515,7 +583,7 @@ export function SessionsPage() {
               );
             })()}
           {(selectedSessions.size > 0 || selectedLaps.size > 0) && (
-            <button onClick={deleteSelected} className="px-3 py-1.5 text-sm rounded bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors">
+            <button type="button" onClick={deleteSelected} className="px-3 py-1.5 text-sm rounded bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors">
               {m.common_delete()} {selectedSessions.size > 0 ? `${selectedSessions.size} ${m.sessions_count_sessions()}` : ""}
               {selectedSessions.size > 0 && selectedLaps.size > 0 ? " + " : ""}
               {selectedLaps.size > 0 ? `${selectedLaps.size} ${m.sessions_count_laps()}` : ""}
@@ -529,7 +597,7 @@ export function SessionsPage() {
         {isLoading ? (
           <div className="px-3 py-8 text-center text-app-text/90-muted">{m.common_loading()}</div>
         ) : pageItems.length === 0 ? (
-          <div className="px-3 py-8 text-center text-app-text/90-muted">{m.sessions_none()}</div>
+          <div className="px-3 py-8 text-center text-app-text/90-muted">{tab === "imported" ? m.sessions_none_imported() : m.sessions_none()}</div>
         ) : (
           pageItems.map((session) => {
             const isExpanded = expandedSessions.has(session.id);
@@ -537,7 +605,23 @@ export function SessionsPage() {
             const bestTime = session.bestLapTime || (sessionLaps.length > 0 ? Math.min(...sessionLaps.map((l) => l.lapTime)) : 0);
             return (
               <div key={session.id} className={`rounded-lg border border-app-border bg-app-surface ${isExpanded ? "bg-app-surface-alt/40" : ""}`}>
-                <div className="flex items-start gap-3 p-3 cursor-pointer" onClick={() => toggleExpand(session.id)}>
+                {/* Whole card toggles the lap list on tap. Nested controls
+                    (checkbox, Recap/Export) stop propagation themselves. */}
+                {/* biome-ignore lint/a11y/useSemanticElements: cannot be a real <button> — it wraps a checkbox and two buttons, which may not nest inside one */}
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={isExpanded}
+                  className="flex items-start gap-3 p-3 cursor-pointer"
+                  onClick={() => toggleExpand(session.id)}
+                  onKeyDown={(e) => {
+                    if (e.target !== e.currentTarget) return;
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleExpand(session.id);
+                    }
+                  }}
+                >
                   <input
                     type="checkbox"
                     checked={selectedSessions.has(session.id)}
@@ -590,7 +674,10 @@ export function SessionsPage() {
                       </span>
                       <span className="ml-auto text-app-text/90-dim">{isExpanded ? "▾" : "▸"}</span>
                     </div>
-                    <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                    {/* Contains the note button and its modal; keeps their
+                        clicks from reaching the card's expand toggle. */}
+                    {/* biome-ignore lint/a11y/noStaticElementInteractions: event containment only, no behaviour of its own */}
+                    <div role="presentation" className="mt-2" onClick={(e) => e.stopPropagation()}>
                       <NoteCell
                         value={session.notes ?? undefined}
                         onSave={(notes) => {
@@ -658,7 +745,7 @@ export function SessionsPage() {
           ) : pageItems.length === 0 ? (
             <tr>
               <td colSpan={colCount} className="px-3 py-8 text-center text-app-text/90-muted">
-                {m.sessions_none()}
+                {tab === "imported" ? m.sessions_none_imported() : m.sessions_none()}
               </td>
             </tr>
           ) : (
@@ -673,8 +760,8 @@ export function SessionsPage() {
                 return lapSortDir === "asc" ? cmp : -cmp;
               });
               return (
-                <>
-                  <TRow key={session.id} onClick={() => toggleExpand(session.id)} className={isExpanded ? "bg-app-surface-alt/30" : ""}>
+                <Fragment key={session.id}>
+                  <TRow onClick={() => toggleExpand(session.id)} className={isExpanded ? "bg-app-surface-alt/30" : ""}>
                     <TD className="px-2 text-center" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
@@ -735,7 +822,7 @@ export function SessionsPage() {
                     </TD>
                   </TRow>
                   {isExpanded && sessionLaps.length > 0 && (
-                    <tr key={`${session.id}-laps`}>
+                    <tr>
                       <td colSpan={colCount} className="p-0">
                         <div className="bg-app-surface-alt/20 border-b border-app-border pl-8">
                           <SessionLapTable
@@ -751,7 +838,7 @@ export function SessionsPage() {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               );
             })
           )}
@@ -765,6 +852,7 @@ export function SessionsPage() {
           </span>
           <div className="flex gap-1">
             <button
+              type="button"
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0}
               className="px-2 py-1 rounded bg-app-surface border border-app-border hover:bg-app-accent/10 disabled:opacity-30 disabled:cursor-not-allowed"
@@ -772,6 +860,7 @@ export function SessionsPage() {
               {m.sessions_prev()}
             </button>
             <button
+              type="button"
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1}
               className="px-2 py-1 rounded bg-app-surface border border-app-border hover:bg-app-accent/10 disabled:opacity-30 disabled:cursor-not-allowed"
