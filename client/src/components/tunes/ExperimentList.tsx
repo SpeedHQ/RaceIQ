@@ -126,7 +126,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
   const fileInputRef = useRef<HTMLInputElement>(null);
   // A dropped setup that isn't in the Setups folder yet — offer to place it there
   // (car from the file's content; track the driver picks) instead of rejecting it.
-  const [pendingDrop, setPendingDrop] = useState<{ fileName: string; content: unknown; carName: string } | null>(null);
+  const [pendingDrop, setPendingDrop] = useState<{ fileName: string; content?: unknown; contentBase64?: string; carName: string } | null>(null);
   const [placeCar, setPlaceCar] = useState("");
   const [placeTrack, setPlaceTrack] = useState("");
 
@@ -160,18 +160,36 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
 
   const processFile = async (file: File | undefined | null) => {
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith(".json")) {
-      setDropNote("Pick a .json setup file.");
+    const lower = file.name.toLowerCase();
+    const isCarSetup = lower.endsWith(".carsetup");
+    if (!isCarSetup && !lower.endsWith(".json")) {
+      setDropNote("Pick a .json or .carsetup setup file.");
       return;
     }
+
+    // AC EVO `.carsetup` is protobuf, not JSON, and carries no readable car
+    // name — so it travels as base64 and the driver names the car folder below.
     let parsed: any;
-    try {
-      parsed = JSON.parse(await file.text());
-    } catch {
-      setDropNote("Couldn't read that file as JSON.");
-      return;
+    let base64: string | undefined;
+    let carName: string | undefined;
+    if (isCarSetup) {
+      const buf = new Uint8Array(await file.arrayBuffer());
+      let bin = "";
+      // Chunked: String.fromCharCode(...buf) blows the argument limit on a
+      // file of any real size.
+      for (let i = 0; i < buf.length; i += 0x8000) {
+        bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+      }
+      base64 = btoa(bin);
+    } else {
+      try {
+        parsed = JSON.parse(await file.text());
+      } catch {
+        setDropNote("Couldn't read that file as JSON.");
+        return;
+      }
+      carName = typeof parsed?.carName === "string" ? parsed.carName : undefined;
     }
-    const carName = typeof parsed?.carName === "string" ? parsed.carName : undefined;
 
     const byName = files.filter((f) => f.fileName === file.name);
     const match = byName.length === 1 ? byName[0] : carName ? byName.find((f) => f.carModel === carName) : undefined;
@@ -184,7 +202,11 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
       return;
     }
     // Not in the Setups folder — offer to place it there rather than rejecting.
-    setPendingDrop({ fileName: file.name, content: parsed, carName: carName ?? "" });
+    setPendingDrop(
+      isCarSetup
+        ? { fileName: file.name, contentBase64: base64, carName: "" }
+        : { fileName: file.name, content: parsed, carName: carName ?? "" },
+    );
     setPlaceCar(carName ?? "");
     setPlaceTrack("");
     setDropNote(null);
@@ -199,7 +221,10 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
         carName: placeCar.trim(),
         trackName: placeTrack.trim(),
         fileName: pendingDrop.fileName,
-        content: pendingDrop.content,
+        // Exactly one of these is set — the server rejects both or neither.
+        ...(pendingDrop.contentBase64 != null
+          ? { contentBase64: pendingDrop.contentBase64 }
+          : { content: pendingDrop.content }),
       });
       setCar(r.carModel);
       setTrack(r.trackName);
@@ -246,7 +271,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
         <input
           ref={fileInputRef}
           type="file"
-          accept=".json,application/json"
+          accept=".json,.carsetup,application/json"
           className="hidden"
           onChange={(e) => {
             void processFile(e.target.files?.[0]);
@@ -266,7 +291,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
             dragging ? "border-purple-500 bg-purple-500/10 text-app-text" : "border-app-border text-app-text-dim hover:border-purple-500/60"
           }`}
         >
-          Drag a saved setup <span className="font-mono">.json</span> here, or click to browse
+          Drag a saved setup <span className="font-mono">.json</span> or <span className="font-mono">.carsetup</span> here, or click to browse
           <br />— pins car + track. Or pick them below.
         </button>
         {dropNote && <div className="text-[11px] text-amber-400">{dropNote}</div>}

@@ -20,7 +20,7 @@ import { symptomsToIntents } from "../ai/tune-recommend";
 import { applyIntents, getAcEvoCarRanges } from "../ai/tune-rules";
 import { writeSetupFile } from "../ai/tune-writer";
 import { getSetupsBaseDir, resolveGuardedSetupFile } from "../ai/setup-engineer-context";
-import { formatCarSetup, readCarSetupFile, summarizeCarSetup } from "../games/ac-evo/carsetup";
+import { formatCarSetup, parseCarSetup, readCarSetupFile, summarizeCarSetup } from "../games/ac-evo/carsetup";
 import { communityRowToCatalog, CarOrdinalQuerySchema } from "./tune-shared";
 
 /** Forza's TuneSettings has a specific shape that the built-in Forza UI expects.
@@ -187,8 +187,16 @@ const PlaceSetupSchema = z.object({
   // Track folder — driver-chosen (ACC setup JSON carries no track).
   trackName: z.string().min(1).max(120),
   fileName: z.string().min(1).max(160),
-  // The dropped setup JSON, as an object or raw string.
-  content: z.union([z.string(), z.record(z.string(), z.unknown())]),
+  // The dropped setup JSON, as an object or raw string. ACC and legacy AC EVO
+  // setups only.
+  content: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
+  // A binary AC EVO `.carsetup`, base64-encoded. Mutually exclusive with
+  // `content`: these files are protobuf wire format, not JSON, and
+  // carsetup-writer.ts patches them by byte offset — so they must round-trip
+  // byte-for-byte and can never be re-serialised.
+  contentBase64: z.string().min(1).optional(),
+}).refine((b) => (b.content == null) !== (b.contentBase64 == null), {
+  message: "Provide exactly one of content or contentBase64",
 });
 
 
@@ -336,18 +344,40 @@ export const tuneCrudRoutes = new Hono()
       const car = clean(body.carName);
       const track = clean(body.trackName);
       let file = clean(body.fileName);
-      if (!file.toLowerCase().endsWith(".json")) file += ".json";
+      // Preserve a known setup extension; anything else is treated as JSON, which
+      // is what every pre-.carsetup dropped file was.
+      const SETUP_EXT = /\.(json|carsetup)$/i;
+      if (!SETUP_EXT.test(file)) file += ".json";
       const bad = (s: string) => !s || s === "." || s === "..";
-      if (bad(car) || bad(track) || bad(file.replace(/\.json$/i, ""))) {
+      if (bad(car) || bad(track) || bad(file.replace(SETUP_EXT, ""))) {
         return c.json({ error: "Invalid car, track, or file name" }, 400);
       }
 
-      // Validate/normalise the setup JSON.
+      // Decode the payload up front so a malformed file is rejected before any
+      // directory is created. Binary stays a Buffer end to end — see the schema.
+      let bytes: Buffer | null = null;
       let json: unknown;
-      try {
-        json = typeof body.content === "string" ? JSON.parse(body.content) : body.content;
-      } catch (err: any) {
-        return c.json({ error: `Invalid setup JSON: ${err.message}` }, 400);
+      if (body.contentBase64 != null) {
+        bytes = Buffer.from(body.contentBase64, "base64");
+        if (bytes.length === 0) return c.json({ error: "Empty .carsetup file" }, 400);
+        // Reject anything that isn't actually a decodable setup rather than
+        // writing junk into the driver's game folder. Note `parseCarSetup`
+        // returns an EMPTY tree (not null) for input it can't find any fields
+        // in, so a null check alone would let junk through — require fields.
+        const decoded = parseCarSetup(bytes);
+        if (!decoded || decoded.raw.length === 0) {
+          return c.json({ error: "Couldn't decode that .carsetup file" }, 400);
+        }
+        if (!/\.carsetup$/i.test(file)) file = `${file.replace(SETUP_EXT, "")}.carsetup`;
+      } else {
+        try {
+          json = typeof body.content === "string" ? JSON.parse(body.content) : body.content;
+        } catch (err: any) {
+          return c.json({ error: `Invalid setup JSON: ${err.message}` }, 400);
+        }
+        if (/\.carsetup$/i.test(file)) {
+          return c.json({ error: "A .carsetup must be sent as contentBase64, not JSON" }, 400);
+        }
       }
 
       const realBase = realpathSync(resolve(baseDir));
@@ -364,7 +394,10 @@ export const tuneCrudRoutes = new Hono()
       }
       try {
         mkdirSync(trackDir, { recursive: true });
-        writeFileSync(target, JSON.stringify(json, null, 2), "utf-8");
+        // Binary is written verbatim: re-encoding a .carsetup would invalidate
+        // the byte offsets carsetup-writer.ts patches against.
+        if (bytes) writeFileSync(target, bytes);
+        else writeFileSync(target, JSON.stringify(json, null, 2), "utf-8");
       } catch (err: any) {
         return c.json({ error: `Couldn't write setup: ${err.message}` }, 500);
       }

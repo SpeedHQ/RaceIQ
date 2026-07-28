@@ -588,7 +588,16 @@ export function useSetupFileContent(gameId: "acc" | "ac-evo" | null, path: strin
 export function usePlaceSetup() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { gameId: "acc" | "ac-evo"; carName: string; trackName: string; fileName: string; content: unknown }) => {
+    mutationFn: async (data: {
+      gameId: "acc" | "ac-evo";
+      carName: string;
+      trackName: string;
+      fileName: string;
+      /** ACC / legacy AC EVO JSON. Exactly one of content / contentBase64. */
+      content?: unknown;
+      /** Binary AC EVO `.carsetup`, base64. Written verbatim server-side. */
+      contentBase64?: string;
+    }) => {
       const res = await (client.api.tunes as any)["place-setup"].$post({ json: data });
       if (!res.ok) throw new Error(((await res.json()) as any).error ?? res.statusText);
       return (await res.json()) as { absolutePath: string; carModel: string; trackName: string; fileName: string; placed: boolean };
