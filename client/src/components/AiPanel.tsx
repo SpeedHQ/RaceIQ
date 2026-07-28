@@ -410,7 +410,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
 
         {analysis && !loading && analysisOpen && (
           <AnalysisModalShell
-            subtitle={`${carName} · ${trackName}`}
+            subtitle={[carName, trackName].filter(Boolean).join(" · ") || undefined}
             onClose={() => setAnalysisOpen(false)}
             tabs={[
               { key: "analysis", label: m.label_ai_analysis() },
