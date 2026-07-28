@@ -102,25 +102,25 @@ export const laps = sqliteTable(
 		s3Time: real("s3_time"),
 		rawByteOffset: integer("raw_byte_offset"),
 		rawFrameCount: integer("raw_frame_count"),
-		// Explicit tuning-session link (migration v25). Stamped at insert from the
-		// in-memory active tuning session (server/tuning-active.ts) so a tuning
+		// Explicit experiment link (migration v25). Stamped at insert from the
+		// in-memory active tuning session (server/experiment-active.ts) so a tuning
 		// session can span many race sessions. The `.references()` here is
 		// type-level intent only — migration v25 adds a plain nullable column with
 		// NO runtime FK (SQLite can't ALTER-ADD a column with inline REFERENCES),
 		// so there is no ON DELETE SET NULL cascade in the actual DB.
-		tuningSessionId: integer("tuning_session_id").references(
-			() => tuningSessions.id,
+		experimentId: integer("experiment_id").references(
+			() => experiments.id,
 			{ onDelete: "set null" },
 		),
-		tuningTestId: integer("tuning_test_id"),
+		experimentVersionId: integer("experiment_version_id"),
 		// User flag (migration v30): 1 = manually excluded from the tuning
 		// aggregate (beyond the auto-outlier rule). Nullable; null/0 = included.
-		tuningExcluded: integer("tuning_excluded"),
+		experimentExcluded: integer("experiment_excluded"),
 		// Source of the exclusion decision (migration v34): 'auto' | 'manual' | NULL.
 		// 'manual' pins the lap so the auto-exclude reconciliation pass
-		// (server/tuning-auto-exclude.ts) never touches it; 'auto' means the
+		// (server/experiment-auto-exclude.ts) never touches it; 'auto' means the
 		// fastest-5 rule owns the state pair and may flip it on a later lap save.
-		tuningExcludedSource: text("tuning_excluded_source"),
+		experimentExcludedSource: text("experiment_excluded_source"),
 		// Persisted per-lap metrics (migration v32), derived once from the lap's
 		// telemetry and cached here so the tuning workspace / lap-metrics endpoint
 		// never re-decode every lap's frames on each read. Null = not yet computed
@@ -131,7 +131,7 @@ export const laps = sqliteTable(
 	},
 	(table) => ({
 		sessionIdx: index("idx_laps_session").on(table.sessionId),
-		tuningSessionIdx: index("idx_laps_tuning_session").on(table.tuningSessionId),
+		experimentIdx: index("idx_laps_experiment").on(table.experimentId),
 	}),
 );
 
@@ -219,12 +219,12 @@ export const lapAnalyses = sqliteTable(
 export const lineSpreadCache = sqliteTable(
 	"line_spread_cache",
 	{
-		tuningSessionId: integer("tuning_session_id").notNull(),
+		experimentId: integer("experiment_id").notNull(),
 		lapSetHash: text("lap_set_hash").notNull(),
 		trace: text("trace").notNull(),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
-	(table) => [primaryKey({ columns: [table.tuningSessionId, table.lapSetHash] })],
+	(table) => [primaryKey({ columns: [table.experimentId, table.lapSetHash] })],
 );
 
 /**
@@ -263,8 +263,8 @@ export const communityTunes = sqliteTable(
  * or recorded telemetry session gives numeric ordinals. Both are nullable; a
  * session uses whichever its origin provided.
  */
-export const tuningSessions = sqliteTable(
-	"tuning_sessions",
+export const experiments = sqliteTable(
+	"experiments",
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
 		// Per-game display number, counted from 1 and independent of the raw
@@ -279,15 +279,60 @@ export const tuningSessions = sqliteTable(
 		baseSetupPath: text("base_setup_path"),
 		// The checked-out tuning-test the Setup Engineer chat works from.
 		// null → fall back to the mainline tip. Not a hard FK so a test can be
-		// archived independently (mirrors tuning_tests.parentTestId).
-		headTestId: integer("head_test_id"),
+		// archived independently (mirrors experiment_versions.parentVersionId).
+		headVersionId: integer("head_version_id"),
 		status: text("status").notNull().default("active"), // 'active' | 'archived'
+		// What the experiment is varying RIGHT NOW (migration v39): 'car' or
+		// 'driver'. Mutable — a driver fixes a balance problem and then moves
+		// on to technique within the same car/track experiment. It steers what
+		// the workspace offers and what `kind` the next version gets; it never
+		// rewrites the kind of versions already recorded. Every switch is
+		// appended to experiment_focus_events.
+		//
+		// Values intentionally differ from experimentVersions.kind
+		// ('setup'|'drill') — mode and arm are different levels and must not
+		// share a vocabulary. See shared/experiment-focus.ts.
+		focus: text("focus").notNull().default("car"), // 'car' | 'driver'
 		notes: text("notes"),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 		updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(table) => ({
-		gameIdx: index("idx_tuning_sessions_game").on(table.gameId),
+		gameIdx: index("idx_experiments_game").on(table.gameId),
+	}),
+);
+
+/**
+ * Focus ledger (migration v39) — one row per focus switch, including the
+ * experiment's opening focus.
+ *
+ * `experiments.focus` alone only answers "what now"; a session that went setup
+ * → driving → setup reads as a flat list of arms without it. The ledger records
+ * when the driver changed what they were working on and (optionally) which
+ * version node they were sitting on at the time, so the version tree can be
+ * annotated with where each focus era began.
+ *
+ * Append-only by construction: nothing updates a row, and a switch to the focus
+ * already active is not recorded (see setExperimentFocus).
+ */
+export const experimentFocusEvents = sqliteTable(
+	"experiment_focus_events",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		experimentId: integer("experiment_id")
+			.notNull()
+			.references(() => experiments.id, { onDelete: "cascade" }),
+		focus: text("focus").notNull(), // 'car' | 'driver'
+		// The head version when the switch happened, so the tree can show where
+		// a focus era started. Soft ref (not an FK) to match headVersionId: a
+		// version can be archived independently of the ledger entry naming it.
+		fromVersionId: integer("from_version_id"),
+		// Why the driver switched, when they said so. Free text, never inferred.
+		note: text("note"),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+	},
+	(table) => ({
+		experimentIdx: index("idx_experiment_focus_events_experiment").on(table.experimentId),
 	}),
 );
 
@@ -297,21 +342,27 @@ export const tuningSessions = sqliteTable(
  * session's baseSetupPath on session create, and each Save & recommend appends
  * v(N+1) with the applied diff + the newly written setup file.
  *
- * `appliedChanges` is a JSON blob of the AppliedChange[] returned by the
- * autotune engine. `parentTestId` links a version to the one it was derived
- * from (self-referential; not a hard FK so a parent can be archived independently).
+ * `appliedChanges` is a JSON blob of `TestChange[]` (shared/types.ts) — a
+ * discriminated union on `kind`, either a setup knob edit from the autotune
+ * engine or a driving drill. `parentVersionId` links a version to the one it was
+ * derived from (self-referential; not a hard FK so a parent can be archived
+ * independently).
+ *
+ * Since migration v37 a row is an *experiment*, not just a setup: `kind`
+ * says what is being varied and hypothesis/prediction/verdict record the
+ * scientific frame around it.
  */
-export const tuningTests = sqliteTable(
-	"tuning_tests",
+export const experimentVersions = sqliteTable(
+	"experiment_versions",
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
-		tuningSessionId: integer("tuning_session_id")
+		experimentId: integer("experiment_id")
 			.notNull()
-			.references(() => tuningSessions.id, { onDelete: "cascade" }),
+			.references(() => experiments.id, { onDelete: "cascade" }),
 		version: integer("version").notNull(),
 		label: text("label").notNull(),
 		setupPath: text("setup_path"),
-		parentTestId: integer("parent_test_id"),
+		parentVersionId: integer("parent_version_id"),
 		appliedChanges: text("applied_changes"), // JSON: AppliedChange[]
 		driverComment: text("driver_comment"),
 		// Engineer/AI free-text annotation on this node — distinct from the
@@ -323,11 +374,33 @@ export const tuningTests = sqliteTable(
 		// F1's captured base / target F1CarSetup JSON (migration v30). Null for
 		// file-based ACC/AC-Evo nodes, which keep using setupPath.
 		setupSnapshot: text("setup_snapshot"),
+		// What this node changes (migration v37). 'setup' = a setup file under
+		// evaluation (the original and default meaning); 'drill' = a driving
+		// change under evaluation, which has no setupPath/setupSnapshot at all.
+		kind: text("kind").notNull().default("setup"), // 'setup' | 'drill'
+		// The experiment frame around the change. `hypothesis` is why we expect
+		// this to help, `prediction` is the falsifiable claim it makes.
+		hypothesis: text("hypothesis"),
+		prediction: text("prediction"),
+		// Outcome once laps have been run against it. Always a human call — no
+		// code path infers a verdict from lap data. `lap_metrics` observations are
+		// test-agnostic by design; the chat agent may propose a verdict from them,
+		// but the driver records it. `verdictSource` is how the driver decided.
+		verdict: text("verdict"), // 'better' | 'worse' | 'neutral' | 'inconclusive'
+		verdictAt: text("verdict_at"),
+		verdictSource: text("verdict_source"), // 'manual' | 'ai' (suggested in chat, accepted by driver)
 		status: text("status").notNull().default("active"), // 'active' | 'archived' | 'deleted'
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(table) => ({
-		sessionIdx: index("idx_tuning_tests_session").on(table.tuningSessionId),
+		sessionIdx: index("idx_experiment_versions_experiment").on(table.experimentId),
+		// A version number identifies an arm in tool calls ("branch from v5"), in
+		// the version tree and in the undo log. Two arms sharing one is not a
+		// display bug, it is three subsystems disagreeing. Enforced since v41.
+		experimentVersionUnique: unique("idx_experiment_versions_experiment_version").on(
+			table.experimentId,
+			table.version,
+		),
 	}),
 );
 
@@ -336,22 +409,22 @@ export const tuningTests = sqliteTable(
  * (migration v30, docs/setup-engineer-flow-design.md §Phase 9). Every mutating
  * op (apply/branch/add-base/import/set-head/delete/restore/rename/exclude)
  * records its inverse here. `inversePayload` holds only small JSON refs (created
- * testId, prior head, prior lap stamps) — no blobs — so full-session depth is
- * cheap. `tuningSessionId` is a soft ref (no FK; SQLite can't ALTER-ADD one,
- * matching the laps.tuning_session_id precedent).
+ * versionId, prior head, prior lap stamps) — no blobs — so full-session depth is
+ * cheap. `experimentId` is a soft ref (no FK; SQLite can't ALTER-ADD one,
+ * matching the laps.experiment_id precedent).
  */
-export const tuningActions = sqliteTable(
-	"tuning_actions",
+export const experimentActions = sqliteTable(
+	"experiment_actions",
 	{
 		id: integer("id").primaryKey({ autoIncrement: true }),
-		tuningSessionId: integer("tuning_session_id").notNull(),
+		experimentId: integer("experiment_id").notNull(),
 		kind: text("kind").notNull(),
 		inversePayload: text("inverse_payload"), // JSON
 		undone: integer("undone", { mode: "boolean" }).notNull().default(false),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
 	(table) => ({
-		sessionIdx: index("idx_tuning_actions_session").on(table.tuningSessionId),
+		sessionIdx: index("idx_experiment_actions_experiment").on(table.experimentId),
 	}),
 );
 
@@ -378,3 +451,22 @@ export const compareAnalyses = sqliteTable(
 	},
 	(table) => [unique().on(table.lapAId, table.lapBId, table.kind)],
 );
+
+/**
+ * Per-lap derived metrics (insights + per-segment input stats), cached so the
+ * tuning views don't re-decode a lap's raw .bin on every read.
+ *
+ * `algo_version` is the cache key alongside `lap_id`: bumping
+ * `LAP_METRICS_ALGO_VERSION` invalidates every stored row on next read rather
+ * than requiring a migration to recompute. One row per lap — the recompute
+ * overwrites in place.
+ */
+export const lapMetrics = sqliteTable("lap_metrics", {
+	lapId: integer("lap_id")
+		.primaryKey()
+		.references(() => laps.id, { onDelete: "cascade" }),
+	algoVersion: integer("algo_version").notNull().default(1),
+	insights: text("insights").notNull(),
+	segmentStats: text("segment_stats").notNull(),
+	computedAt: text("computed_at").notNull().default(sql`(datetime('now'))`),
+});

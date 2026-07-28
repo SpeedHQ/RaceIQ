@@ -396,7 +396,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   // stints while iterating setups), so membership can't be derived from
   // sessionId or a fragile created-at time window. Instead every lap recorded
   // while a tuning session is active is stamped with its id at insert time
-  // (see server/tuning-active.ts + queries.ts::insertLap).
+  // (see server/experiment-active.ts + queries.ts::insertLap).
   //
   // NOTE: SQLite cannot add a column WITH an inline REFERENCES clause via
   // ALTER TABLE, so the FK is omitted here — the column is a plain nullable
@@ -534,7 +534,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   // `laps.tuning_excluded` was a purely manual flag, so the tuning aggregate
   // disagreed with the fastest-5 curation the review paths (`/line-spread`,
   // `useStintTraces`) actually analysed. This column tracks WHO set the flag:
-  //  • 'auto'   — server/tuning-auto-exclude.ts's fastest-5 reconciliation pass.
+  //  • 'auto'   — server/experiment-auto-exclude.ts's fastest-5 reconciliation pass.
   //  • 'manual' — user or Setup Engineer; the auto pass never touches these.
   //  • NULL     — not yet reconciled (pre-existing NULL rows).
   // Backfill: every existing `tuning_excluded = 1` row was hand-set (the auto
@@ -576,6 +576,316 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          WHERE lap_id IN (SELECT id FROM laps WHERE session_id IN (SELECT id FROM sessions WHERE raw_file IS NULL))`,
       `DELETE FROM laps WHERE session_id IN (SELECT id FROM sessions WHERE raw_file IS NULL)`,
       `DELETE FROM sessions WHERE raw_file IS NULL`,
+    ],
+  },
+
+  // ── v36: per-lap derived metrics cache ──────────────────────────────────────
+  // Insights + per-segment input stats are pure functions of a lap's raw
+  // telemetry, but decoding the .bin costs ~100ms/lap — too slow for the tuning
+  // views that read dozens of laps at once. Cached here instead.
+  //
+  // No backfill: rows are written lazily on first read, so an existing DB just
+  // warms up as laps get opened. `algo_version` makes a recompute a code change
+  // (bump LAP_METRICS_ALGO_VERSION), not a migration.
+  {
+    version: 36,
+    name: "lap_metrics cache table",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS lap_metrics (
+         lap_id INTEGER PRIMARY KEY REFERENCES laps(id) ON DELETE CASCADE,
+         algo_version INTEGER NOT NULL DEFAULT 1,
+         insights TEXT NOT NULL,
+         segment_stats TEXT NOT NULL,
+         computed_at TEXT NOT NULL DEFAULT (datetime('now'))
+       )`,
+    ],
+  },
+
+  // ── v37: tuning tests become experiments ────────────────────────────────────
+  // A tuning_test used to mean exactly one thing: "a setup file under
+  // evaluation". Pivot tuning (issue #120) needs the same node to also express
+  // "a driving change under evaluation" — a drill with no setup file at all —
+  // plus the scientific frame around either kind: what we expect to happen
+  // (`hypothesis`/`prediction`) and what actually happened (`verdict`).
+  //
+  // `kind` defaults to 'setup' so every existing row keeps its current meaning;
+  // no backfill needed. setup_path / base_setup_path were already nullable, so
+  // drill nodes need no table rebuild to omit them.
+  //
+  // `verdict` is always a human call — 'better'/'worse'/'neutral'/'inconclusive'
+  // is a judgement, and nothing in the codebase infers it. Per-lap analysis
+  // (`lap_metrics`) is deliberately test-agnostic: it produces concrete
+  // observations about how a lap was driven and knows nothing about which
+  // experiment, if any, was running. The chat agent reads those observations and
+  // may *propose* a verdict; the driver is the one who records it.
+  //
+  // `verdict_source` therefore records how the driver arrived at the call
+  // ('manual' unaided vs 'ai' suggested in chat and accepted), not who wrote the
+  // row.
+  {
+    version: 37,
+    name: "tuning_tests experiment semantics (kind, hypothesis, verdict)",
+    sql: [
+      `ALTER TABLE tuning_tests ADD COLUMN kind TEXT NOT NULL DEFAULT 'setup'`,
+      `ALTER TABLE tuning_tests ADD COLUMN hypothesis TEXT`,
+      `ALTER TABLE tuning_tests ADD COLUMN prediction TEXT`,
+      `ALTER TABLE tuning_tests ADD COLUMN verdict TEXT`,
+      `ALTER TABLE tuning_tests ADD COLUMN verdict_at TEXT`,
+      `ALTER TABLE tuning_tests ADD COLUMN verdict_source TEXT`,
+    ],
+  },
+
+  // ── v38: tuning → experiments (the rename) ──────────────────────────────────
+  // Concept rename, finally reaching the schema (issue #120). A "tuning session"
+  // is an EXPERIMENT and a "tuning test" is one VERSION (a run) inside it. The
+  // old names only ever described the setup case, which stopped being the whole
+  // story the moment a version could be a driving drill.
+  //
+  //   tuning_sessions        → experiments
+  //   tuning_tests           → experiment_versions
+  //   tuning_actions         → experiment_actions
+  //   *.tuning_session_id    → experiment_id
+  //   laps.tuning_test_id    → experiment_version_id
+  //   laps.tuning_excluded*  → experiment_excluded*
+  //   experiments.head_test_id → head_version_id
+  //
+  // ⚠️ `tuning_tests` is REBUILT rather than renamed, and that is not a style
+  // choice. `runMigrations` sets `PRAGMA foreign_keys = OFF` for the whole batch
+  // (see server/db/index.ts — it must be set outside a transaction, so a
+  // migration cannot re-enable it). SQLite only rewrites REFERENCES clauses in
+  // *other* tables during `ALTER TABLE ... RENAME TO` when foreign keys are
+  // ENABLED. With them off, renaming tuning_sessions would leave
+  // tuning_tests.tuning_session_id pointing at a table name that no longer
+  // exists — a schema that only fails later, once FKs come back on. Rebuilding
+  // the child writes the corrected REFERENCES clause explicitly.
+  //
+  // Every other table is safe to rename in place: `laps`, `line_spread_cache`
+  // and `tuning_actions` hold no runtime FK to these tables (their columns were
+  // added by ALTER, which cannot carry an inline REFERENCES), and nothing else
+  // references them. There are no views or triggers in this schema.
+  //
+  // Indexes are dropped and recreated: a renamed table keeps its indexes, but
+  // they keep their OLD names too, so leaving them would strand
+  // `idx_tuning_sessions_game` on a table called `experiments`.
+  {
+    version: 38,
+    name: "rename tuning_* to experiments/experiment_versions",
+    sql: [
+      // ── parent: rename in place, no incoming FKs once the child is rebuilt ──
+      `ALTER TABLE tuning_sessions RENAME TO experiments`,
+      `ALTER TABLE experiments RENAME COLUMN head_test_id TO head_version_id`,
+
+      // ── child: rebuild so its REFERENCES clause names the new parent ────────
+      `CREATE TABLE experiment_versions (
+         id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+         experiment_id      INTEGER NOT NULL REFERENCES experiments(id) ON DELETE CASCADE,
+         version            INTEGER NOT NULL,
+         label              TEXT NOT NULL,
+         setup_path         TEXT,
+         parent_version_id  INTEGER,
+         applied_changes    TEXT,
+         driver_comment     TEXT,
+         notes              TEXT,
+         engine             TEXT,
+         setup_snapshot     TEXT,
+         kind               TEXT NOT NULL DEFAULT 'setup',
+         hypothesis         TEXT,
+         prediction         TEXT,
+         verdict            TEXT,
+         verdict_at         TEXT,
+         verdict_source     TEXT,
+         status             TEXT NOT NULL DEFAULT 'active',
+         created_at         TEXT NOT NULL DEFAULT (datetime('now'))
+       )`,
+      `INSERT INTO experiment_versions (
+         id, experiment_id, version, label, setup_path, parent_version_id,
+         applied_changes, driver_comment, notes, engine, setup_snapshot,
+         kind, hypothesis, prediction, verdict, verdict_at, verdict_source,
+         status, created_at
+       )
+       SELECT
+         id, tuning_session_id, version, label, setup_path, parent_test_id,
+         applied_changes, driver_comment, notes, engine, setup_snapshot,
+         kind, hypothesis, prediction, verdict, verdict_at, verdict_source,
+         status, created_at
+       FROM tuning_tests`,
+      `DROP TABLE tuning_tests`,
+
+      // ── action log: soft ref only, safe to rename ───────────────────────────
+      `ALTER TABLE tuning_actions RENAME TO experiment_actions`,
+      `ALTER TABLE experiment_actions RENAME COLUMN tuning_session_id TO experiment_id`,
+
+      // ── laps + caches: plain columns, no FK ─────────────────────────────────
+      `ALTER TABLE laps RENAME COLUMN tuning_session_id TO experiment_id`,
+      `ALTER TABLE laps RENAME COLUMN tuning_test_id TO experiment_version_id`,
+      `ALTER TABLE laps RENAME COLUMN tuning_excluded TO experiment_excluded`,
+      `ALTER TABLE laps RENAME COLUMN tuning_excluded_source TO experiment_excluded_source`,
+      `ALTER TABLE line_spread_cache RENAME COLUMN tuning_session_id TO experiment_id`,
+
+      // ── indexes: recreate under names that match their tables ───────────────
+      `DROP INDEX IF EXISTS idx_tuning_sessions_game`,
+      `DROP INDEX IF EXISTS idx_tuning_tests_session`,
+      `DROP INDEX IF EXISTS idx_tuning_actions_session`,
+      `DROP INDEX IF EXISTS idx_laps_tuning_session`,
+      `DROP INDEX IF EXISTS idx_laps_tuning_test`,
+      `CREATE INDEX IF NOT EXISTS idx_experiments_game ON experiments(game_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_experiment_versions_experiment ON experiment_versions(experiment_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_experiment_actions_experiment ON experiment_actions(experiment_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_laps_experiment ON laps(experiment_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_laps_experiment_version ON laps(experiment_version_id)`,
+    ],
+  },
+
+  {
+    version: 39,
+    name: "experiment focus (mutable mode + ledger)",
+    sql: [
+      // What the experiment is varying now: 'car' or 'driver'. Defaults to
+      // 'car', which is what every pre-existing experiment was doing — they all
+      // began from a base setup file and their arms are already kind='setup'.
+      //
+      // Deliberately NOT named 'setup'/'drill' like experiment_versions.kind:
+      // the mode and the arm are different levels, and sharing words made
+      // "setup" mean three things at once. See shared/experiment-focus.ts.
+      `ALTER TABLE experiments ADD COLUMN focus TEXT NOT NULL DEFAULT 'car'`,
+
+      // Append-only record of focus switches, so a session that moved between
+      // tuning the car and working on technique can say when and why — and the
+      // version tree can mark where each era began.
+      `CREATE TABLE IF NOT EXISTS experiment_focus_events (
+         id              INTEGER PRIMARY KEY AUTOINCREMENT,
+         experiment_id   INTEGER NOT NULL REFERENCES experiments(id) ON DELETE CASCADE,
+         focus           TEXT NOT NULL,
+         from_version_id INTEGER,
+         note            TEXT,
+         created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+       )`,
+      `CREATE INDEX IF NOT EXISTS idx_experiment_focus_events_experiment ON experiment_focus_events(experiment_id)`,
+
+      // Seed the ledger so existing experiments aren't blank: each one opened
+      // on 'car'. created_at is the experiment's own, not now — the era did
+      // start when the experiment did.
+      `INSERT INTO experiment_focus_events (experiment_id, focus, created_at)
+         SELECT id, 'car', created_at FROM experiments`,
+    ],
+  },
+
+  {
+    version: 40,
+    name: "normalise focus values to car/driver",
+    sql: [
+      // v39 first shipped focus as 'setup'|'driving', which collided with
+      // experiment_versions.kind ('setup'|'drill') and made "setup" mean a
+      // mode, an arm and a knob edit at once. The values are now 'car'|'driver'
+      // (see shared/experiment-focus.ts).
+      //
+      // v39 is edited in place for anyone who has not run it yet; this pass
+      // exists for databases that already applied the old version — a migration
+      // that has run is never re-run, so those rows would otherwise sit on a
+      // value the zod enum now rejects, breaking the focus switcher and
+      // rendering a blank badge.
+      `UPDATE experiments SET focus = 'car' WHERE focus = 'setup'`,
+      `UPDATE experiments SET focus = 'driver' WHERE focus = 'driving'`,
+      `UPDATE experiment_focus_events SET focus = 'car' WHERE focus = 'setup'`,
+      `UPDATE experiment_focus_events SET focus = 'driver' WHERE focus = 'driving'`,
+    ],
+  },
+
+  {
+    version: 41,
+    name: "enforce unique (experiment_id, version) on experiment_versions",
+    sql: [
+      // Two write paths derived the next version number differently: the routes
+      // asked the DB (`nextVersion`, MAX over every row), while the apply-changes
+      // and record-drill tools took MAX over `listExperimentVersions`, which
+      // filters `status='deleted'`. Soft-delete the highest arm, apply a change,
+      // and the new arm reuses that number — after which `target: "v5"` in a tool
+      // call, the version tree and the undo log all disagree about which arm is
+      // meant. Nothing in the schema objected, so the divergence was silent.
+      //
+      // Both call sites now use `nextVersion`; this makes the invariant the
+      // database's, so a third write path cannot reintroduce it.
+      //
+      // Existing duplicates must be renumbered before the index will build.
+      // Keep the lowest id on the original number (it is the one the labels and
+      // the action log already point at) and push the rest above the current max
+      // for their experiment, preserving relative order.
+      `UPDATE experiment_versions
+         SET version = (
+           SELECT MAX(v2.version) FROM experiment_versions v2
+            WHERE v2.experiment_id = experiment_versions.experiment_id
+         ) + (
+           SELECT COUNT(*) FROM experiment_versions v3
+            WHERE v3.experiment_id = experiment_versions.experiment_id
+              AND v3.id < experiment_versions.id
+              AND v3.version = experiment_versions.version
+         )
+       WHERE EXISTS (
+         SELECT 1 FROM experiment_versions v4
+          WHERE v4.experiment_id = experiment_versions.experiment_id
+            AND v4.version = experiment_versions.version
+            AND v4.id < experiment_versions.id
+       )`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_experiment_versions_experiment_version
+         ON experiment_versions(experiment_id, version)`,
+    ],
+  },
+
+  // ── v42: fix the focus COLUMN DEFAULT left behind by the v39 edit ───────────
+  // v40 rewrote the focus *values* but not the column's DEFAULT, and a migration
+  // that has already run is never re-run. So a database that applied the
+  // pre-rename v39 still carries `focus TEXT NOT NULL DEFAULT 'setup'` — a value
+  // `ExperimentFocusSchema` rejects. Nothing hits it today only because
+  // `createExperiment` always passes focus explicitly; the next insert path that
+  // omits it would silently write an unparseable experiment. Fixing the schema
+  // is cheaper than relying on every future caller to remember.
+  //
+  // SQLite has no `ALTER COLUMN ... SET DEFAULT`, so the table is rebuilt —
+  // same shape as v18/v22. Column list and order are taken from the live schema
+  // after v38/v39 (`seq`, `head_version_id` and `focus` were appended by ALTER,
+  // so they trail the v24 columns).
+  //
+  // Renaming the rebuilt table into place is safe here, unlike the parent rename
+  // in v38: `experiment_versions` and `experiment_focus_events` reference this
+  // table BY NAME, and the name is identical before and after. With
+  // `PRAGMA foreign_keys = OFF` (set by `runMigrations` for the whole batch)
+  // SQLite does not rewrite other tables' REFERENCES clauses during a rename —
+  // which is exactly what makes an unchanged name a no-op for them, and what
+  // made v38's changed name a hazard.
+  {
+    version: 42,
+    name: "rebuild experiments with focus DEFAULT 'car'",
+    sql: [
+      `CREATE TABLE experiments_new (
+         id              INTEGER PRIMARY KEY AUTOINCREMENT,
+         game_id         TEXT NOT NULL,
+         name            TEXT NOT NULL,
+         car_ordinal     INTEGER,
+         track_ordinal   INTEGER,
+         car_name        TEXT,
+         track_name      TEXT,
+         base_setup_path TEXT,
+         status          TEXT NOT NULL DEFAULT 'active',
+         notes           TEXT,
+         created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+         updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
+         seq             INTEGER NOT NULL DEFAULT 1,
+         head_version_id INTEGER,
+         focus           TEXT NOT NULL DEFAULT 'car'
+       )`,
+      `INSERT INTO experiments_new (
+         id, game_id, name, car_ordinal, track_ordinal, car_name, track_name,
+         base_setup_path, status, notes, created_at, updated_at, seq,
+         head_version_id, focus
+       )
+       SELECT
+         id, game_id, name, car_ordinal, track_ordinal, car_name, track_name,
+         base_setup_path, status, notes, created_at, updated_at, seq,
+         head_version_id, focus
+       FROM experiments`,
+      `DROP TABLE experiments`,
+      `ALTER TABLE experiments_new RENAME TO experiments`,
+      `CREATE INDEX IF NOT EXISTS idx_experiments_game ON experiments(game_id)`,
     ],
   },
 ];

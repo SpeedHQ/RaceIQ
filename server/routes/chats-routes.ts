@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { GameIdSchema } from "../../shared/types";
 import { z } from "zod";
 import { getLapById } from "../db/queries";
-import { getTuningSession } from "../db/tuning-session-queries";
+import { getExperiment } from "../db/experiment-queries";
 import { getCarName, getTrackName } from "../../shared/car-data";
 import {
   getChatMemory,
@@ -27,7 +27,7 @@ interface LapSummary {
   gameId: string;
 }
 
-/** Setup-engineer (tuning-session) chat, keyed by session rather than laps. */
+/** Setup-engineer (experiment) chat, keyed by session rather than laps. */
 interface TuneSummary {
   id: number;
   seq: number;
@@ -110,7 +110,7 @@ export const chatsRoutes = new Hono()
           } else if (id.startsWith("tune-session-")) {
             const sessionId = Number(id.slice("tune-session-".length));
             if (!Number.isFinite(sessionId)) continue;
-            const session = await getTuningSession(sessionId);
+            const session = await getExperiment(sessionId);
             if (!session || session.gameId !== gameId) continue;
             const carName = session.carName ?? getCarName(session.carOrdinal ?? 0, session.gameId);
             const trackName = session.trackName ?? getTrackName(session.trackOrdinal ?? 0, session.gameId);

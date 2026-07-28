@@ -108,10 +108,54 @@ The AI system uses Mastra agents backed by Claude API with streaming and prompt 
 - Lap Analyst — single-lap breakdown with corner-by-corner analysis
 - Compare Engineer — head-to-head lap comparison (inputs-focused)
 - Chat Agent — interactive Q&A about laps and comparisons
+- Race Engineer (`mastra/agents/setup-engineer.ts`, id `setup-engineer`) — owns the CAR in an experiment; the only agent with `apply_changes`
+- Driver Coach (`mastra/agents/driver-coach.ts`, id `driver-coach`) — owns the DRIVER; the only agent with `record_drill`
+
+The experiment chat picks between the last two by `experiments.focus` via
+`sessionAgentForFocus()` — a switch over a column the driver set, not a
+coordinator agent inferring a route. Both share one session thread
+(`tune-session-<id>`) so switching focus mid-conversation keeps its history,
+and neither can do the other's job because the tool is simply not on it.
+There is deliberately no agent-to-agent consult: handover is the driver
+flipping focus. See [Experiment focus](#experiment-focus).
 
 **Prompt files** (`server/ai/`): `analyst-prompt.ts`, `chat-prompt.ts`, `compare-engineer.ts`, `compare-chat-prompt.ts`, `inputs-compare-prompt.ts`, `corner-data.ts`, `format-tune.ts`
 
 **Mastra directory** (`mastra/`): Agent definitions + the `mastra` instance (LibSQL default store + DuckDB observability). In dev it is mounted **in-process** onto the RaceIQ Hono app under `/studio-api` (see `server/dev-studio.ts`), so the server is the sole DuckDB writer and `bun run mastra:studio` reads its real traces over HTTP — no second `mastra dev` process, no DuckDB file lock. Excluded from the prod binary via `NODE_ENV` gating.
+
+### Experiment focus
+
+An experiment has a **focus** — what it is currently varying — and the driver
+switches it mid-session from the workspace header (fix the balance, then work
+on braking, same experiment).
+
+| Level | Column / field | Values | Mutable? |
+|-------|----------------|--------|----------|
+| Experiment mode | `experiments.focus` | `car` \| `driver` | **Yes** — switchable any time |
+| Arm | `experiment_versions.kind` | `setup` \| `drill` | No — fixed at creation |
+| One change inside an arm | `TestChange.kind` (`shared/types.ts`) | `setup` \| `drill` | No |
+
+⚠️ **The three levels deliberately do NOT share a vocabulary.** An earlier cut
+named the mode `setup`/`driving`, which made "setup" mean a mode, an arm AND a
+knob edit at once, while its opposite was "driving" at one level and "drill" at
+the others. Keep the mode as `car`/`driver`. Source of truth for the mapping:
+`shared/experiment-focus.ts` (`versionKindForFocus`, `focusForVersionKind`,
+`headlineMetricForVersionKind`).
+
+**Focus decides the NEXT arm; it never rewrites arms already recorded.**
+Switching to `driver` does not turn v1–v3 into drills — that split is what lets
+a mixed experiment be reviewed honestly, since each arm is judged on its own
+metric (setup arm → best lap, drill → lap-time spread; a drill's win condition
+can be a tighter spread at an unchanged best lap).
+
+**Focus ledger** — every switch is appended to `experiment_focus_events`
+(append-only; a no-op re-select writes nothing) with `from_version_id`, the head
+at the moment of the switch, so the version tree can mark where each era began.
+Surfaced by `FocusTimeline` (in the History panel) and an era badge in
+`VersionGraph`.
+
+Migrations: **v39** adds the column + ledger, **v40** normalises databases that
+ran v39 before the `car`/`driver` rename.
 
 **Caching**: Analysis results cached in DB (`lapAnalyses` for single laps, `compareAnalyses` for lap pairs with a `kind` discriminator).
 
@@ -298,6 +342,7 @@ Lap Analyst and Compare Engineer outputs are gated by deterministic scorers unde
 - `unit-consistency` — metric fixtures must not leak imperial units, and vice versa. Threshold 1.0.
 - `compare-directionality` — compare output correctly names the faster lap. Threshold 0.9.
 - `chat-freeform-shape` — chat output is non-empty, cites real corners, no hallucinated corner names. Threshold 0.8.
+- `drill-quality` — a Driver Coach drill is LOCATED (0.3), ACTIONABLE (0.3), SINGULAR (0.3) and CONCRETE (0.1). Threshold 0.75. ⚠️ The weights are load-bearing: under equal weights a drill that bundled two changes, or named nowhere to run it, scored exactly the pass mark. Any one of located/actionable/singular missing must fail. Coaching output has no deterministic rules engine behind it, so this is the only thing stopping "be smoother" being recorded as an arm and then judged on a spread it cannot move.
 
 **Schema source of truth:** every game adapter prompt (FM, F1, ACC, AC Evo) renders its JSON output shape via `renderAnalystSchemaForPrompt()` from `server/ai/schemas.ts`, so the scorer and the model's instructions stay in lockstep. Per-game prompts still own their own category guidelines and domain rules, but the shape is centralised.
 

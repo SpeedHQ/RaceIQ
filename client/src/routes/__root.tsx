@@ -20,14 +20,14 @@ import { useUiStore } from "../stores/ui";
 
 // Canonical (English, path-stable) game sub-tab keys. The URL segment is always
 // the lowercased English key; only the *display* label is localized.
-const GAME_SUB_TABS = ["Live", "Sessions", "Compare", "Analyse", "Tuning", "Chats", "Tracks", "Cars", "Setups", "Raw"] as const;
+const GAME_SUB_TABS = ["Live", "Sessions", "Compare", "Analyse", "Experiments", "Chats", "Tracks", "Cars", "Setups", "Raw"] as const;
 
 // Sub-tabs only exposed for certain games. Tune is acc/ac-evo/f1-2025 — ACC and
 // AC-Evo use the file-based auto-tune pipeline (saved setup → autotune engine);
 // F1 2025 has no setup file, so it uses the telemetry-capture flow instead
-// (base setup captured from a driven lap, see TuningSessionWorkspace).
+// (base setup captured from a driven lap, see ExperimentWorkspace).
 const GAME_SUB_TAB_GATE: Partial<Record<(typeof GAME_SUB_TABS)[number], readonly string[]>> = {
-  Tuning: ["/acc", "/ac-evo", "/f125"],
+  Experiments: ["/acc", "/ac-evo", "/f125"],
 };
 
 const SUB_TAB_LABELS: Record<(typeof GAME_SUB_TABS)[number], () => string> = {
@@ -35,7 +35,7 @@ const SUB_TAB_LABELS: Record<(typeof GAME_SUB_TABS)[number], () => string> = {
   Sessions: m.label_sessions,
   Compare: m.label_compare,
   Analyse: m.label_analyse,
-  Tuning: () => "Tuning",
+  Experiments: () => "Experiments",
   Chats: m.tab_chats,
   Tracks: m.label_tracks,
   Cars: m.label_cars,

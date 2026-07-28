@@ -65,10 +65,10 @@ export function useWebSocket() {
             queryClient.invalidateQueries({ queryKey: ["laps"] });
             queryClient.invalidateQueries({ queryKey: ["sessions"] });
             useTelemetryStore.getState().incrementReprocessProgress();
-          } else if (data.type === "tuning-session-updated") {
+          } else if (data.type === "experiment-updated") {
             const sid = data.sessionId as number;
-            queryClient.invalidateQueries({ queryKey: ["tuning-session-tests", sid] });
-            queryClient.invalidateQueries({ queryKey: ["tuning-session", sid] });
+            queryClient.invalidateQueries({ queryKey: ["experiment-tests", sid] });
+            queryClient.invalidateQueries({ queryKey: ["experiment", sid] });
           } else if (data.type === "lap-issues") {
             useTelemetryStore.getState().addLapIssues({
               lapId: data.lapId as number,

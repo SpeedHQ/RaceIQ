@@ -11,7 +11,7 @@
  * Mastra instance, so Mastra Studio lists them). They hold no state and close
  * over nothing. Every tool takes an explicit `sessionId` parameter — the caller
  * (chat route) passes the resolved session id on each call, and `gameId` is
- * derived from it via `loadActiveTuningContext(sessionId)`. Pure functions of
+ * derived from it via `loadActiveExperimentContext(sessionId)`. Pure functions of
  * their inputs: unit-testable, no requestContext coupling, no cross-call state.
  */
 import { createTool } from "@mastra/core/tools";
@@ -20,15 +20,16 @@ import { z } from "zod";
 import type { TuneDirection, TuneMagnitude } from "../../server/ai/schemas";
 import { applyIntents, describeKnobs } from "../../server/ai/tune-rules";
 import {
-  createTuningTest,
+  createExperimentVersion,
   deleteTestSubtree,
-  getTuningTest,
-  getTuningTestByVersion,
+  getExperimentVersion,
+  getExperimentVersionsByLabel,
+  nextVersion,
   resolveActiveTestId,
-  setTuningTestNote,
-  setTuningTestNotes,
-} from "../../server/db/tuning-test-queries";
-import { setSessionHead } from "../../server/db/tuning-session-queries";
+  setExperimentVersionNote,
+  setExperimentVersionNotes,
+} from "../../server/db/experiment-version-queries";
+import { setSessionHead } from "../../server/db/experiment-queries";
 import { changeSlug, computeChildLabel, nextFreeLabel } from "../../server/ai/version-label";
 import { saveAssistantChatMessage, tuneSessionThreadId } from "../../server/ai/chat-agent";
 import { wsManager } from "../../server/ws";
@@ -39,15 +40,15 @@ import {
   computeSessionTrackConditions,
   formatTrackConditions,
   gameHasSetupFile,
-  loadActiveTuningContext,
+  loadActiveExperimentContext,
 } from "../../server/ai/setup-engineer-context";
 import { readActiveSetup, writeAppliedSetup } from "../../server/ai/setup-io";
 import { readSetupEngineerContext } from "./setup-engineer-request-context";
 import { consultLapAnalystForSession } from "../../server/ai/consult-lap-analyst";
 import { loadCleanLapAggregate } from "../../server/ai/clean-lap-aggregate";
-import { setLapTuningExcluded, getLapById, getLapsForTuningSession } from "../../server/db/queries";
-import { recordAction } from "../../server/db/tuning-action-queries";
-import { undoLastAction } from "../../server/tuning-undo";
+import { setLapExperimentExcluded, getLapById, getLapsForExperiment } from "../../server/db/queries";
+import { recordAction } from "../../server/db/experiment-action-queries";
+import { undoLastAction } from "../../server/experiment-undo";
 import { detectCorners } from "../../server/corner-detection";
 import { telemetryToSymptoms } from "../../server/ai/tune-symptoms";
 import { symptomsToIssues } from "../../server/ai/tune-issues";
@@ -137,7 +138,7 @@ export function buildSetupEngineerTools() {
     }),
     execute: async (_input, execCtx) => {
       const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const ctx = await loadActiveTuningContext(sessionId);
+      const ctx = await loadActiveExperimentContext(sessionId);
       if (!ctx.ok) return { ok: false, error: ctx.error, knobs: [] };
       return {
         ok: true,
@@ -254,7 +255,7 @@ export function buildSetupEngineerTools() {
     }),
     execute: async (_input, execCtx) => {
       const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const ctx = await loadActiveTuningContext(sessionId);
+      const ctx = await loadActiveExperimentContext(sessionId);
       const tests = ctx.ok ? ctx.tests : [];
       return {
         versions: tests.map((t) => {
@@ -300,7 +301,7 @@ export function buildSetupEngineerTools() {
     }),
     execute: async (inputData, execCtx) => {
       const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const ctx = await loadActiveTuningContext(sessionId);
+      const ctx = await loadActiveExperimentContext(sessionId);
       if (!ctx.ok) return { ok: false, error: ctx.error };
       const { setup, applied, skipped } = applyIntents(ctx.gameId, ctx.setup, [{
         component: inputData.component,
@@ -363,7 +364,7 @@ export function buildSetupEngineerTools() {
           skipped: [],
         };
       }
-      const ctx = await loadActiveTuningContext(sessionId);
+      const ctx = await loadActiveExperimentContext(sessionId);
       if (!ctx.ok) return { ok: false, error: ctx.error, applied: [], skipped: [] };
 
       // Optional explicit base: apply on top of a named version instead of the
@@ -410,12 +411,14 @@ export function buildSetupEngineerTools() {
           skipped,
         };
       }
-      const nextVer = Math.max(0, ...ctx.tests.map((t) => t.version)) + 1;
+      // From the DB, not from `ctx.tests`: that list excludes soft-deleted rows,
+      // so a max over it reissues the version number of a deleted arm.
+      const nextVer = await nextVersion(sessionId);
 
       // Branch-relative label off the head/parent. existingChildCount = how many
       // children the parent already has (its continuation + any forks).
       const parentLabel = parent?.label ?? "v1";
-      const childCount = parent ? ctx.tests.filter((t) => t.parentTestId === parent.id).length : 0;
+      const childCount = parent ? ctx.tests.filter((t) => t.parentVersionId === parent.id).length : 0;
       const takenLabels = new Set(ctx.tests.map((t) => t.label));
       const label = nextFreeLabel(computeChildLabel(parentLabel, childCount), takenLabels);
       // Descriptive slug from what actually changed, e.g. "soft-rarb" —
@@ -435,13 +438,13 @@ export function buildSetupEngineerTools() {
         return { ok: false, error: `Write failed: ${err.message}`, applied: [], skipped: [] };
       }
 
-      const newTestId = await createTuningTest({
-        tuningSessionId: sessionId,
+      const newTestId = await createExperimentVersion({
+        experimentId: sessionId,
         version: nextVer,
         label,
         setupPath: written.setupPath,
         setupSnapshot: written.setupSnapshot,
-        parentTestId: parent?.id ?? null,
+        parentVersionId: parent?.id ?? null,
         appliedChanges: applied.length ? JSON.stringify(applied) : null,
         driverComment: null,
         notes: inputData.goal?.trim() || null,
@@ -449,7 +452,13 @@ export function buildSetupEngineerTools() {
       });
 
       // Branch grows and head follows the work: the new node becomes the head.
-      const prevHeadTestId = parent?.id ?? null;
+      //
+      // The head we are about to overwrite is the SESSION's head, not the
+      // parent: with `target` set, the new arm branches off some other version
+      // while the head sits elsewhere, and undo must restore where the driver
+      // actually was. Matches every other recordAction call site
+      // (`server/routes/experiment-routes.ts`).
+      const prevHeadTestId = ctx.session.headVersionId ?? parent?.id ?? null;
       try {
         await setSessionHead(sessionId, newTestId);
       } catch (err: any) {
@@ -459,12 +468,12 @@ export function buildSetupEngineerTools() {
       // Push the new version to any open clients so the tree + head update
       // live, as each version lands — not batched at end-of-turn. No-op when
       // no clients are connected.
-      wsManager.broadcastNotification({ type: "tuning-session-updated", sessionId });
+      wsManager.broadcastNotification({ type: "experiment-updated", sessionId });
 
       // Best-effort: an action-log write failure must not fail the apply —
       // the file + tuning test + head are already committed.
       try {
-        await recordAction(sessionId, "apply-changes", { testId: newTestId, prevHeadTestId });
+        await recordAction(sessionId, "apply-changes", { versionId: newTestId, prevHeadTestId });
       } catch (err: any) {
         console.error("[SetupEngineer] Failed to log apply-changes action:", err?.message);
       }
@@ -509,7 +518,7 @@ export function buildSetupEngineerTools() {
     }),
     execute: async (inputData, execCtx) => {
       const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const { ok, prev } = await setLapTuningExcluded(inputData.lapId, inputData.excluded);
+      const { ok, prev } = await setLapExperimentExcluded(inputData.lapId, inputData.excluded);
       if (!ok) return { ok: false, error: `No lap ${inputData.lapId} found.` };
 
       // Best-effort: an action-log write failure must not fail the tool — the
@@ -554,13 +563,13 @@ export function buildSetupEngineerTools() {
       // model didn't name one.
       let target: { id: number; version: number } | undefined;
       if (inputData.version != null) {
-        const t = await getTuningTestByVersion(sessionId, inputData.version);
+        const t = await getExperimentVersionsByLabel(sessionId, inputData.version);
         if (!t) return { ok: false, error: `No version ${inputData.version} in this session.` };
         target = { id: t.id, version: t.version };
       } else {
         const headId = await resolveActiveTestId(sessionId);
         if (headId == null) return { ok: false, error: "No version exists yet to attach a note to." };
-        const t = await getTuningTest(headId);
+        const t = await getExperimentVersion(headId);
         if (!t) return { ok: false, error: "No version exists yet to attach a note to." };
         target = { id: t.id, version: t.version };
       }
@@ -568,10 +577,10 @@ export function buildSetupEngineerTools() {
       const note = inputData.note.trim() === "" ? null : inputData.note;
 
       // Write the engineer note, capturing the prior value for undo.
-      const prevNotes = await setTuningTestNotes(target.id, note);
-      wsManager.broadcastNotification({ type: "tuning-session-updated", sessionId });
+      const prevNotes = await setExperimentVersionNotes(target.id, note);
+      wsManager.broadcastNotification({ type: "experiment-updated", sessionId });
       try {
-        await recordAction(sessionId, "edit-test-notes", { testId: target.id, prevNotes });
+        await recordAction(sessionId, "edit-test-notes", { versionId: target.id, prevNotes });
       } catch (err: any) {
         console.error("[SetupEngineer] Failed to log edit-test-notes action:", err?.message);
       }
@@ -629,23 +638,23 @@ export function buildSetupEngineerTools() {
       // model didn't name one.
       let target: { id: number; version: number } | undefined;
       if (inputData.version != null) {
-        const t = await getTuningTestByVersion(sessionId, inputData.version);
+        const t = await getExperimentVersionsByLabel(sessionId, inputData.version);
         if (!t) return { ok: false, error: `No version ${inputData.version} in this session.` };
         target = { id: t.id, version: t.version };
       } else {
         const headId = await resolveActiveTestId(sessionId);
         if (headId == null) return { ok: false, error: "No version exists yet to attach a note to." };
-        const t = await getTuningTest(headId);
+        const t = await getExperimentVersion(headId);
         if (!t) return { ok: false, error: "No version exists yet to attach a note to." };
         target = { id: t.id, version: t.version };
       }
 
       const note = inputData.note.trim() === "" ? null : inputData.note;
 
-      const prev = await setTuningTestNote(target.id, note);
-      wsManager.broadcastNotification({ type: "tuning-session-updated", sessionId });
+      const prev = await setExperimentVersionNote(target.id, note);
+      wsManager.broadcastNotification({ type: "experiment-updated", sessionId });
       try {
-        await recordAction(sessionId, "edit-test-note", { testId: target.id, prevDriverComment: prev });
+        await recordAction(sessionId, "edit-test-note", { versionId: target.id, prevDriverComment: prev });
       } catch (err: any) {
         console.error("[SetupEngineer] Failed to log edit-test-note action:", err?.message);
       }
@@ -717,7 +726,7 @@ export function buildSetupEngineerTools() {
     }),
     execute: async (_input, execCtx) => {
       const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const laps = await getLapsForTuningSession(sessionId);
+      const laps = await getLapsForExperiment(sessionId);
       const bestLapTime = laps.reduce<number | null>((best, l) => {
         if (!l.isValid || l.lapTime <= 0) return best;
         return best == null || l.lapTime < best ? l.lapTime : best;
@@ -729,7 +738,7 @@ export function buildSetupEngineerTools() {
           lapNumber: l.lapNumber,
           lapTime: l.lapTime,
           isValid: l.isValid,
-          excluded: Boolean(l.tuningExcluded),
+          excluded: Boolean(l.experimentExcluded),
           s1Time: l.s1Time ?? null,
           s2Time: l.s2Time ?? null,
           s3Time: l.s3Time ?? null,
@@ -775,7 +784,7 @@ export function buildSetupEngineerTools() {
     }),
     execute: async (inputData, execCtx) => {
       const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const sessionLaps = await getLapsForTuningSession(sessionId);
+      const sessionLaps = await getLapsForExperiment(sessionId);
       const meta = sessionLaps.find((l) => l.id === inputData.lapId);
       if (!meta) return { ok: false, error: `Lap ${inputData.lapId} is not in this session.` };
 
@@ -789,7 +798,7 @@ export function buildSetupEngineerTools() {
           lapNumber: meta.lapNumber,
           lapTime: meta.lapTime,
           isValid: meta.isValid,
-          excluded: Boolean(meta.tuningExcluded),
+          excluded: Boolean(meta.experimentExcluded),
           s1Time: meta.s1Time ?? null,
           s2Time: meta.s2Time ?? null,
           s3Time: meta.s3Time ?? null,
@@ -808,7 +817,7 @@ export function buildSetupEngineerTools() {
         lapNumber: meta.lapNumber,
         lapTime: meta.lapTime,
         isValid: meta.isValid,
-        excluded: Boolean(meta.tuningExcluded),
+        excluded: Boolean(meta.experimentExcluded),
         s1Time: meta.s1Time ?? null,
         s2Time: meta.s2Time ?? null,
         s3Time: meta.s3Time ?? null,
@@ -843,7 +852,7 @@ export function buildSetupEngineerTools() {
     }),
     execute: async (inputData, execCtx) => {
       const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const sessionLaps = await getLapsForTuningSession(sessionId);
+      const sessionLaps = await getLapsForExperiment(sessionId);
 
       const issuesForLap = async (meta: (typeof sessionLaps)[number]) => {
         const lap = await getLapById(meta.id);
@@ -900,7 +909,7 @@ export function buildSetupEngineerTools() {
       const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
       if (inputData.lapId1 === inputData.lapId2) return { ok: false, error: "Cannot compare a lap with itself." };
 
-      const sessionLaps = await getLapsForTuningSession(sessionId);
+      const sessionLaps = await getLapsForExperiment(sessionId);
       const metaA = sessionLaps.find((l) => l.id === inputData.lapId1);
       const metaB = sessionLaps.find((l) => l.id === inputData.lapId2);
       if (!metaA) return { ok: false, error: `Lap ${inputData.lapId1} is not in this session.` };
@@ -936,27 +945,27 @@ export function buildSetupEngineerTools() {
       "affects a real, laps-bearing version tree, not just the one node named. Never call it until the " +
       "driver has explicitly said yes to deleting that specific version in a message after you asked.",
     inputSchema: z.object({
-      testId: z.number().int().positive(),
+      versionId: z.number().int().positive(),
     }),
     outputSchema: z.object({
       ok: z.boolean(),
       error: z.string().optional(),
       deletedIds: z.array(z.number()).default([]),
-      headTestId: z.number().nullable().optional(),
+      headVersionId: z.number().nullable().optional(),
     }),
     execute: async (inputData, execCtx) => {
       const { sessionId } = readSetupEngineerContext(execCtx?.requestContext);
-      const ctx = await loadActiveTuningContext(sessionId);
+      const ctx = await loadActiveExperimentContext(sessionId);
       if (!ctx.ok) return { ok: false, error: ctx.error, deletedIds: [] };
 
-      const test = ctx.tests.find((t) => t.id === inputData.testId);
-      if (!test) return { ok: false, error: `No version ${inputData.testId} found in this session.`, deletedIds: [] };
+      const test = ctx.tests.find((t) => t.id === inputData.versionId);
+      if (!test) return { ok: false, error: `No version ${inputData.versionId} found in this session.`, deletedIds: [] };
 
-      const result = await deleteTestSubtree(sessionId, inputData.testId, ctx.session.headTestId ?? null);
+      const result = await deleteTestSubtree(sessionId, inputData.versionId, ctx.session.headVersionId ?? null);
 
       try {
         await recordAction(sessionId, "delete", {
-          rootTestId: inputData.testId,
+          rootTestId: inputData.versionId,
           testIds: result.deletedIds,
           prevHeadTestId: result.headMoved ? result.prevHeadTestId : null,
         });
@@ -964,7 +973,7 @@ export function buildSetupEngineerTools() {
         console.error("[SetupEngineer] Failed to log delete action:", err?.message);
       }
 
-      return { ok: true, deletedIds: result.deletedIds, headTestId: result.newHeadTestId };
+      return { ok: true, deletedIds: result.deletedIds, headVersionId: result.newHeadTestId };
     },
   });
 

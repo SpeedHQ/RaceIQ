@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
-import { type TuningActionRow, useTuningHistory, useUndo } from "../../hooks/queries";
+import { type ExperimentActionRow, useExperimentHistory, useExperimentVersions, useUndo } from "../../hooks/queries";
+import { FocusTimeline } from "./FocusTimeline";
 
 /**
  * History panel (design Phase 9) — session-scoped, newest-first action log
@@ -9,7 +10,9 @@ import { type TuningActionRow, useTuningHistory, useUndo } from "../../hooks/que
  * full audit trail rather than disappearing entries.
  */
 export function HistoryPanel({ sessionId, onClose }: { sessionId: number; onClose: () => void }) {
-  const { data: actions = [], isLoading } = useTuningHistory(sessionId);
+  const { data: actions = [], isLoading } = useExperimentHistory(sessionId);
+  // Version labels so the timeline can say WHERE a focus era began.
+  const { data: versions = [] } = useExperimentVersions(sessionId);
   const undo = useUndo();
   const nextPending = actions.find((a) => !a.undone);
 
@@ -43,6 +46,14 @@ export function HistoryPanel({ sessionId, onClose }: { sessionId: number; onClos
           >
             {undo.isPending ? "Undoing…" : "Undo last"}
           </button>
+        </div>
+
+        {/* What the session was WORKING ON over time, above what was done to
+            it — a switch from the car to the driver is the context that makes
+            the action log below readable. */}
+        <div className="rounded border border-app-border p-3">
+          <div className="text-[10px] uppercase tracking-wider text-app-text-muted mb-1.5">Focus</div>
+          <FocusTimeline experimentId={sessionId} versions={versions} />
         </div>
 
         {undo.data?.warning && <div className="text-xs text-amber-400">{undo.data.warning}</div>}
@@ -82,6 +93,6 @@ const KIND_LABELS: Record<string, string> = {
   "set-lap-excluded": "Toggled a lap's excluded flag",
 };
 
-function describeAction(a: TuningActionRow): string {
+function describeAction(a: ExperimentActionRow): string {
   return KIND_LABELS[a.kind] ?? a.kind;
 }

@@ -1,5 +1,5 @@
 /**
- * System prompt for the tuning-session setup chat (plan Phase D).
+ * System prompt for the experiment setup chat (plan Phase D).
  *
  * A setup-scoped conversation the driver has *before* asking for the next tune:
  * the AI is a race engineer discussing THIS car+track setup. It reasons over
@@ -18,19 +18,11 @@
 import type { GameId } from "../../shared/types";
 import { aiLanguageInstruction } from "../../shared/locales";
 import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
+import { parseTestChanges } from "../../shared/test-changes";
 import type { TuneSymptoms } from "./tune-symptoms";
 import { formatTireTempSymptoms } from "./tune-tire-symptoms";
 import { formatDamperSymptoms } from "./tune-damper-symptoms";
 import { formatWeightTransferSymptoms } from "./tune-weight-transfer";
-
-/** A single applied setup change, mirroring tune-rules' AppliedChange. */
-interface AppliedChangeLike {
-  component?: unknown;
-  from?: unknown;
-  to?: unknown;
-  direction?: unknown;
-  reason?: unknown;
-}
 
 /** The subset of a tuning test the prompt needs to render version history. */
 export interface TuneChatTest {
@@ -151,25 +143,19 @@ function formatHistory(tests: TuneChatTest[]): string {
   if (tests.length === 0) return "  (no setup versions yet)";
   return tests
     .map((t) => {
-      let changes = "base setup — no changes applied";
-      if (t.appliedChanges) {
-        try {
-          const parsed = JSON.parse(t.appliedChanges) as AppliedChangeLike[];
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            changes = parsed
-              .map((ch) => {
-                const comp = String(ch.component ?? "?");
-                const from = ch.from;
-                const to = ch.to;
-                const dir = ch.direction ? ` (${ch.direction})` : "";
-                return `${comp} ${from}→${to}${dir}`;
-              })
+      // Shared normaliser: tolerates malformed JSON and pre-v37 rows that
+      // carry no `kind`, and renders drill changes as well as setup tweaks.
+      const parsed = parseTestChanges(t.appliedChanges);
+      const changes =
+        parsed.length === 0
+          ? "base setup — no changes applied"
+          : parsed
+              .map((ch) =>
+                ch.kind === "drill"
+                  ? `drill: ${ch.title}${ch.corners.length > 0 ? ` @ ${ch.corners.join(", ")}` : ""}`
+                  : `${ch.component} ${ch.from}→${ch.to}${ch.direction ? ` (${ch.direction})` : ""}`,
+              )
               .join(", ");
-          }
-        } catch {
-          /* malformed — keep the default label */
-        }
-      }
       const comment = t.driverComment ? ` — driver: "${t.driverComment}"` : "";
       const engine = t.engine ? ` [${t.engine}]` : "";
       return `  ${t.label}${engine}: ${changes}${comment}`;
@@ -199,7 +185,7 @@ HOW TO ANSWER
 
 HARD RULES
 - A deterministic engine — not you — computes the exact clicks/values. Never state a specific number as "the" setting, and never recite the current setup values back as if they were your prescription. The values below are EVIDENCE for your reasoning only; talk in directions and relative amounts and let the engine do the maths.
-- You have NO lap-comparison feature and NO access to any lap ids, other laps, or telemetry beyond the single symptom report below. NEVER invent lap ids, reference a "lap 36", claim to compare laps, or cite data that is not in this prompt. If something isn't here, say you'd need a driven lap for it — don't fabricate it.
+- You have NO lap-comparison feature and NO access to any telemetry beyond the symptom report below. NEVER invent lap ids, claim to compare laps, or cite data that is not in this prompt.
 - When the driver is happy with a direction, tell them to hit "Generate setup" — that applies the changes you've discussed and the engine works out the exact clicks. This works even before they've driven a lap.${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(language)}
 
 ${setupBlock}

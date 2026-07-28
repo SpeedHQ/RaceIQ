@@ -24,8 +24,8 @@ import type { LapMeta } from "../../shared/types";
 import type { TelemetryPacket } from "../../shared/types";
 import type { Corner } from "../corner-detection";
 import { detectCorners } from "../corner-detection";
-import { getLapById, getLapsForTuningSession, getLapMetaForTuningTest, getCorners } from "../db/queries";
-import { resolveActiveTestId } from "../db/tuning-test-queries";
+import { getLapById, getLapsForExperiment, getLapMetaForExperimentVersion, getCorners } from "../db/queries";
+import { resolveActiveTestId } from "../db/experiment-version-queries";
 import { telemetryToSymptoms, type TuneSymptoms, type TyreDeltas } from "./tune-symptoms";
 import { telemetryToTrackConditions, type TrackConditions } from "./track-conditions";
 import { loadRepresentativeLap } from "./setup-engineer-context";
@@ -133,7 +133,7 @@ export function selectCleanLaps(laps: LapMeta[]): {
   const breakdown: LapBreakdownRow[] = [];
 
   for (const lap of laps) {
-    const imported = lap.tuningTestId == null;
+    const imported = lap.experimentVersionId == null;
     if (!(lap.isValid === true && lap.lapTime > 0)) {
       breakdown.push({ lapId: lap.id, lapTimeSec: lap.lapTime, valid: lap.isValid, reason: "invalid", imported });
       continue;
@@ -143,8 +143,8 @@ export function selectCleanLaps(laps: LapMeta[]): {
 
   const notExcluded: LapMeta[] = [];
   for (const lap of candidates) {
-    const imported = lap.tuningTestId == null;
-    if (lap.tuningExcluded === true) {
+    const imported = lap.experimentVersionId == null;
+    if (lap.experimentExcluded === true) {
       breakdown.push({ lapId: lap.id, lapTimeSec: lap.lapTime, valid: lap.isValid, reason: "user-excluded", imported });
       continue;
     }
@@ -163,7 +163,7 @@ export function selectCleanLaps(laps: LapMeta[]): {
   const clean: LapMeta[] = [];
   const dropped: LapMeta[] = [];
   for (const lap of notExcluded) {
-    const imported = lap.tuningTestId == null;
+    const imported = lap.experimentVersionId == null;
     if (times.length > 1 && lap.lapTime > threshold) {
       breakdown.push({ lapId: lap.id, lapTimeSec: lap.lapTime, valid: lap.isValid, reason: "auto-outlier", imported });
       dropped.push(lap);
@@ -310,16 +310,16 @@ function emptyConsistency(confidence: Confidence): ConsistencyReport {
  */
 export async function loadCleanLapAggregate(
   sessionId: number,
-  opts?: { testId?: number },
+  opts?: { versionId?: number },
 ): Promise<CleanLapAggregate> {
-  const headTestId = opts?.testId ?? (await resolveActiveTestId(sessionId));
+  const headVersionId = opts?.versionId ?? (await resolveActiveTestId(sessionId));
 
   let pool: LapMeta[] = [];
   let sourceScope: "branch" | "session-baseline" = "session-baseline";
 
   let headOwnLapCount: number | null = null;
-  if (headTestId != null) {
-    const branchPool = await getLapMetaForTuningTest(headTestId);
+  if (headVersionId != null) {
+    const branchPool = await getLapMetaForExperimentVersion(headVersionId);
     headOwnLapCount = branchPool.length;
     const branchClean = selectCleanLaps(branchPool);
     if (branchClean.clean.length >= 2) {
@@ -329,7 +329,7 @@ export async function loadCleanLapAggregate(
   }
 
   if (sourceScope === "session-baseline") {
-    pool = await getLapsForTuningSession(sessionId);
+    pool = await getLapsForExperiment(sessionId);
   }
 
   const { clean, breakdown } = selectCleanLaps(pool);

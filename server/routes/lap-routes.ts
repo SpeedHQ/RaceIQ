@@ -21,10 +21,10 @@ import {
   deleteCompareAnalysis,
   getLapsRaw,
   getLapsForSession,
-  setLapTuningExcluded,
+  setLapExperimentExcluded,
 } from "../db/queries";
 import { buildLapsZip, lapsZipFilename, importLapsZip } from "../zip";
-import { recordAction } from "../db/tuning-action-queries";
+import { recordAction } from "../db/experiment-action-queries";
 import { KNOWN_GAME_IDS } from "../../shared/types";
 import { importSessionBin, detectGameIdFromBuffer } from "../import-session-bin";
 import { analyzeLap } from "../../shared/lib/lap-insights";
@@ -768,21 +768,21 @@ export const lapRoutes = new Hono()
 
   // ── Manual lap exclusion from tuning aggregate (setup-engineer-flow §Phase 7) ──
   .post(
-    "/api/laps/:id/tuning-excluded",
+    "/api/laps/:id/experiment-excluded",
     zValidator("param", IdParamSchema),
     zValidator("json", z.object({ excluded: z.boolean() })),
     async (c) => {
       const { id } = c.req.valid("param");
       const { excluded } = c.req.valid("json");
-      const { ok, prev, tuningSessionId } = await setLapTuningExcluded(id, excluded);
+      const { ok, prev, experimentId } = await setLapExperimentExcluded(id, excluded);
       if (!ok) return c.json({ error: "Lap not found" }, 404);
 
       // Best-effort: an action-log write failure must not fail the request —
       // the lap flag is already committed. Only log when the lap is linked
       // to a tuning session (laps outside a tuning session have nothing to undo into).
-      if (tuningSessionId != null) {
+      if (experimentId != null) {
         try {
-          await recordAction(tuningSessionId, "set-lap-excluded", { lapId: id, prevExcluded: prev });
+          await recordAction(experimentId, "set-lap-excluded", { lapId: id, prevExcluded: prev });
         } catch (err: any) {
           console.error("[LapRoutes] Failed to log set-lap-excluded action:", err?.message);
         }

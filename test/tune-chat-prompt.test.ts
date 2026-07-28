@@ -7,7 +7,7 @@ import {
 import type { TuneSymptoms } from "../server/ai/tune-symptoms";
 
 /**
- * Prompt-layer tests for the tuning-session setup chat (plan Phase D). Exercises
+ * Prompt-layer tests for the experiment setup chat (plan Phase D). Exercises
  * the pure prompt/summary builders directly — importing the composed app would
  * bind the UDP socket (EADDRINUSE), so nothing HTTP is touched here.
  */

@@ -175,6 +175,28 @@ export function parseCarSetup(data: Buffer): CarSetupFile | null {
   return { presetId: preset?.value ?? null, raw };
 }
 
+/**
+ * The car slug embedded in a preset id, or null.
+ *
+ * AC EVO preset ids look like
+ * `ks_audi_r8_lms_gt3_evo_2_preset_r8gt3_mech_1_preset_r8gt3_visual_1`:
+ * a `ks_` vendor prefix, the car slug, then one `_preset_<name>` segment per
+ * preset layer. The slug between them is exactly the car's folder name under
+ * `Car Setups/`, so a dropped file identifies its own car.
+ *
+ * Returns the raw slug only — the caller is expected to validate it against the
+ * canonical roster and treat a non-match as "unknown" rather than trusting this
+ * string. The `_preset_` delimiter is an observed convention, not a documented
+ * one, and a car whose own slug contained `_preset_` would split early.
+ */
+export function carSlugFromPresetId(presetId: string | null | undefined): string | null {
+  if (!presetId) return null;
+  const body = presetId.replace(/^ks_/, "");
+  const idx = body.indexOf("_preset_");
+  const slug = (idx === -1 ? body : body.slice(0, idx)).trim();
+  return slug || null;
+}
+
 /** Read and parse a `.carsetup` file from disk. */
 export async function readCarSetupFile(filePath: string): Promise<CarSetupFile | null> {
   try {

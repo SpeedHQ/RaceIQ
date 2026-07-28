@@ -20,8 +20,9 @@ import { symptomsToIntents } from "../ai/tune-recommend";
 import { applyIntents, getAcEvoCarRanges } from "../ai/tune-rules";
 import { writeSetupFile } from "../ai/tune-writer";
 import { getSetupsBaseDir, resolveGuardedSetupFile } from "../ai/setup-engineer-context";
-import { formatCarSetup, readCarSetupFile, summarizeCarSetup } from "../games/ac-evo/carsetup";
+import { carSlugFromPresetId, formatCarSetup, parseCarSetup, readCarSetupFile, summarizeCarSetup } from "../games/ac-evo/carsetup";
 import { communityRowToCatalog, CarOrdinalQuerySchema } from "./tune-shared";
+import { AccSetupJsonSchema, SetupGameIdSchema, isSetupFileNameForGame, setupFileFormat, setupFileRejectReason } from "../../shared/setup-file-formats";
 
 /** Forza's TuneSettings has a specific shape that the built-in Forza UI expects.
  *  ACC / AC-EVO / F1 save raw game-specific JSON blobs instead, so validation
@@ -181,16 +182,82 @@ const ImportFileSchema = z.object({
 
 
 const PlaceSetupSchema = z.object({
-  gameId: z.enum(["acc", "ac-evo"]),
+  gameId: SetupGameIdSchema,
   // Car folder = the setup's own carName key (e.g. "mclaren_720s_gt3_evo").
   carName: z.string().min(1).max(120),
   // Track folder — driver-chosen (ACC setup JSON carries no track).
   trackName: z.string().min(1).max(120),
   fileName: z.string().min(1).max(160),
-  // The dropped setup JSON, as an object or raw string.
-  content: z.union([z.string(), z.record(z.string(), z.unknown())]),
+  // The dropped setup JSON, as an object or raw string. ACC and legacy AC EVO
+  // setups only.
+  content: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
+  // A binary AC EVO `.carsetup`, base64-encoded. Mutually exclusive with
+  // `content`: these files are protobuf wire format, not JSON, and
+  // carsetup-writer.ts patches them by byte offset — so they must round-trip
+  // byte-for-byte and can never be re-serialised.
+  contentBase64: z.string().min(1).optional(),
+}).superRefine((b, ctx) => {
+  if ((b.content == null) === (b.contentBase64 == null)) {
+    ctx.addIssue({ code: "custom", message: "Provide exactly one of content or contentBase64" });
+    return;
+  }
+  // One format per game (shared/setup-file-formats.ts): ACC setups are JSON,
+  // AC EVO setups are binary `.carsetup`. Accepting the other game's format
+  // here would drop an unreadable file into the driver's Setups folder — and
+  // for AC EVO specifically it would mean a JSON base setup that
+  // carsetup-writer.ts can never patch. Note this also refuses the legacy
+  // AC-EVO-as-JSON path on purpose.
+  const fmt = setupFileFormat(b.gameId);
+  const wantBinary = fmt.payload === "binary";
+  if (wantBinary && b.contentBase64 == null) {
+    ctx.addIssue({ code: "custom", path: ["contentBase64"], message: `${fmt.gameLabel} setups must be sent as a base64 ${fmt.extension} (contentBase64)` });
+  }
+  if (!wantBinary && b.content == null) {
+    ctx.addIssue({ code: "custom", path: ["content"], message: `${fmt.gameLabel} setups must be sent as JSON (content)` });
+  }
+  // Shape gate for the JSON payload, here rather than in the handler so a file
+  // that isn't a setup is refused before anything touches the filesystem.
+  if (!wantBinary && b.content != null) {
+    let parsed: unknown = b.content;
+    if (typeof parsed === "string") {
+      try {
+        parsed = JSON.parse(parsed);
+      } catch (err: any) {
+        ctx.addIssue({ code: "custom", path: ["content"], message: `Invalid setup JSON: ${err.message}` });
+        return;
+      }
+    }
+    if (!AccSetupJsonSchema.safeParse(parsed).success) {
+      ctx.addIssue({ code: "custom", path: ["content"], message: "That JSON isn't a saved setup — it needs a carName and basicSetup" });
+    }
+  }
+  // A name with no extension is fine — the route appends the game's own. A
+  // name carrying the *other* game's extension is not.
+  const hasExt = /\.[^.]+$/.test(b.fileName);
+  if (hasExt && !isSetupFileNameForGame(b.gameId, b.fileName)) {
+    ctx.addIssue({ code: "custom", path: ["fileName"], message: setupFileRejectReason(b.gameId, b.fileName) ?? "Unsupported setup file" });
+  }
 });
 
+
+/**
+ * Reduce one user-supplied name to a single safe path segment.
+ *
+ * Strips path separators, traversal material and the characters Windows
+ * reserves, so `place-setup` cannot write outside the Setups folder.
+ *
+ * The control-character range is written ONLY as the `\x00-\x1f` escape.
+ * The class previously ended `\x1f-<raw 0x1F byte>`, whose trailing `-` was a
+ * literal and stripped EVERY hyphen: "spa-francorchamps" was written as
+ * "spafrancorchamps", a folder the game never created and the driver could not
+ * find. Hyphen is legal on every filesystem we target, so it is not sanitised.
+ *
+ * Exported for test/place-setup-sanitise.test.ts — silent name corruption is
+ * exactly the kind of bug that needs a pinned example.
+ */
+export function sanitisePathSegment(s: string): string {
+  return s.replace(/[<>:"/\\|?*\x00-\x1f]/g, "").trim();
+}
 
 const AutoTuneSchema = z.object({
   gameId: z.enum(["acc", "ac-evo"]),
@@ -320,6 +387,42 @@ export const tuneCrudRoutes = new Hono()
     }
   )
 
+  // POST /api/tunes/inspect-carsetup — decode a dropped binary `.carsetup`
+  // (base64) far enough to name its car, without writing anything.
+  //
+  // Exists because a `.carsetup` identifies its own car via the preset id, but
+  // only after a protobuf decode — which the browser can't do. Without this the
+  // driver would have to retype a car folder the file already knows.
+  .post("/api/tunes/inspect-carsetup",
+    zValidator("json", z.object({ contentBase64: z.string().min(1) })),
+    async (c) => {
+      const { contentBase64 } = c.req.valid("json");
+      const bytes = Buffer.from(contentBase64, "base64");
+      const decoded = bytes.length > 0 ? parseCarSetup(bytes) : null;
+      // Same gate as place-setup: an undecodable file, or one with no fields.
+      if (!decoded || decoded.raw.length === 0) {
+        return c.json({ error: "Couldn't decode that .carsetup file" }, 400);
+      }
+      // The slug IS the folder name AC EVO writes under `Car Setups/`, so it is
+      // reported whether or not we recognise the car. Gating it on the roster
+      // was wrong: shared/ac-evo-car-data is a static CSV that has to be
+      // re-extracted after a game update (see the extract-ac-evo skill), so any
+      // car newer than the CSV would leave the driver retyping a folder name the
+      // file already states correctly.
+      //
+      // The roster lookup therefore only supplies the friendly display name.
+      const slug = carSlugFromPresetId(decoded.presetId);
+      const known = slug ? getAllAcEvoCars().find((car) => car.model === slug) : undefined;
+      return c.json({
+        presetId: decoded.presetId,
+        carModel: slug,
+        carName: known?.name ?? null,
+        /** False when the car isn't in our roster — the folder is still right. */
+        knownCar: known != null,
+      });
+    }
+  )
+
   // POST /api/tunes/place-setup — write a dropped setup into the user's Setups
   // folder (Setups/<car>/<track>/<file>.json) so it becomes a usable base, instead
   // of rejecting files that aren't already saved in-game. car/track/file are
@@ -333,23 +436,52 @@ export const tuneCrudRoutes = new Hono()
       const baseDir = await getSetupsBaseDir(body.gameId, { create: true });
       if (!baseDir) return c.json({ error: "Setups folder not found" }, 404);
 
-      // Sanitise each path segment: no separators, no traversal, no reserved chars.
-      const clean = (s: string) => s.replace(/[<>:"/\\|?*\x00-\x1f-]/g, "").trim();
-      const car = clean(body.carName);
-      const track = clean(body.trackName);
-      let file = clean(body.fileName);
-      if (!file.toLowerCase().endsWith(".json")) file += ".json";
+      const car = sanitisePathSegment(body.carName);
+      const track = sanitisePathSegment(body.trackName);
+      let file = sanitisePathSegment(body.fileName);
+      // The schema already refused the other game's extension, so anything
+      // without this game's own extension gets it appended.
+      const SETUP_EXT = /\.(json|carsetup)$/i;
+      const gameExt = setupFileFormat(body.gameId).extension;
+      if (!SETUP_EXT.test(file)) file += gameExt;
       const bad = (s: string) => !s || s === "." || s === "..";
-      if (bad(car) || bad(track) || bad(file.replace(/\.json$/i, ""))) {
+      if (bad(car) || bad(track) || bad(file.replace(SETUP_EXT, ""))) {
         return c.json({ error: "Invalid car, track, or file name" }, 400);
       }
 
-      // Validate/normalise the setup JSON.
+      // Decode the payload up front so a malformed file is rejected before any
+      // directory is created. Binary stays a Buffer end to end — see the schema.
+      let bytes: Buffer | null = null;
       let json: unknown;
-      try {
-        json = typeof body.content === "string" ? JSON.parse(body.content) : body.content;
-      } catch (err: any) {
-        return c.json({ error: `Invalid setup JSON: ${err.message}` }, 400);
+      if (body.contentBase64 != null) {
+        bytes = Buffer.from(body.contentBase64, "base64");
+        if (bytes.length === 0) return c.json({ error: "Empty .carsetup file" }, 400);
+        // Reject anything that isn't actually a decodable setup rather than
+        // writing junk into the driver's game folder. Note `parseCarSetup`
+        // returns an EMPTY tree (not null) for input it can't find any fields
+        // in, so a null check alone would let junk through — require fields.
+        const decoded = parseCarSetup(bytes);
+        if (!decoded || decoded.raw.length === 0) {
+          return c.json({ error: "Couldn't decode that .carsetup file" }, 400);
+        }
+        if (!/\.carsetup$/i.test(file)) file = `${file.replace(SETUP_EXT, "")}.carsetup`;
+      } else {
+        try {
+          json = typeof body.content === "string" ? JSON.parse(body.content) : body.content;
+        } catch (err: any) {
+          return c.json({ error: `Invalid setup JSON: ${err.message}` }, 400);
+        }
+        // Loose shape gate: a JSON file that isn't a setup at all (lap export,
+        // tune catalog entry) must not be written into the Setups folder, where
+        // every later read would then fail. Unknown fields pass through — the
+        // click-value tree varies by car and game version.
+        const shape = AccSetupJsonSchema.safeParse(json);
+        if (!shape.success) {
+          return c.json({ error: "That JSON isn't a saved setup — it needs a carName and basicSetup" }, 400);
+        }
+        if (/\.carsetup$/i.test(file)) {
+          return c.json({ error: "A .carsetup must be sent as contentBase64, not JSON" }, 400);
+        }
       }
 
       const realBase = realpathSync(resolve(baseDir));
@@ -366,7 +498,10 @@ export const tuneCrudRoutes = new Hono()
       }
       try {
         mkdirSync(trackDir, { recursive: true });
-        writeFileSync(target, JSON.stringify(json, null, 2), "utf-8");
+        // Binary is written verbatim: re-encoding a .carsetup would invalidate
+        // the byte offsets carsetup-writer.ts patches against.
+        if (bytes) writeFileSync(target, bytes);
+        else writeFileSync(target, JSON.stringify(json, null, 2), "utf-8");
       } catch (err: any) {
         return c.json({ error: `Couldn't write setup: ${err.message}` }, 500);
       }

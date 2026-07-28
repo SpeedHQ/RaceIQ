@@ -13,6 +13,7 @@ import { numericGroundingScorer } from "./scorers/numeric-grounding";
 import { unitConsistencyScorer } from "./scorers/unit-consistency";
 import { compareDirectionalityScorer } from "./scorers/compare-directionality";
 import { chatFreeformShapeScorer } from "./scorers/chat-freeform-shape";
+import { drillQualityScorer } from "./scorers/drill-quality";
 import { llmFaithfulnessScorer } from "./scorers/llm-faithfulness";
 
 export const analystScorers = [
@@ -24,6 +25,18 @@ export const analystScorers = [
 
 export const compareScorers = [
   compareDirectionalityScorer,
+  unitConsistencyScorer,
+] as const satisfies ReadonlyArray<MastraScorer>;
+
+/**
+ * Driver Coach. `drill-quality` is the coach's counterpart to the analyst's
+ * `numeric-grounding`: coaching output has no deterministic rules engine behind
+ * it, so nothing but this stops "be smoother" from being recorded as a drill.
+ * Freeform shape still applies — a coach must cite real corners too.
+ */
+export const coachScorers = [
+  drillQualityScorer,
+  chatFreeformShapeScorer,
   unitConsistencyScorer,
 ] as const satisfies ReadonlyArray<MastraScorer>;
 
@@ -55,6 +68,7 @@ export const scorerRegistry = {
   "unit-consistency": unitConsistencyScorer,
   "compare-directionality": compareDirectionalityScorer,
   "chat-freeform-shape": chatFreeformShapeScorer,
+  "drill-quality": drillQualityScorer,
   "llm-faithfulness": llmFaithfulnessScorer,
 } satisfies Record<string, MastraScorer>;
 
@@ -77,6 +91,10 @@ export const liveAnalystScorers = attachScorers([
   ...(HAS_LOCAL_JUDGE ? judgeScorers : []),
 ]);
 
+/** Live scorers for the Driver Coach — deterministic only, so Studio scores
+ *  its traces without LM Studio running. */
+export const liveCoachScorers = attachScorers(coachScorers);
+
 /** Default pass thresholds per scorer id. Tests read these directly. */
 export const SCORER_THRESHOLDS: Record<string, number> = {
   "output-shape": 1.0,
@@ -85,6 +103,10 @@ export const SCORER_THRESHOLDS: Record<string, number> = {
   "unit-consistency": 1.0,
   "compare-directionality": 0.9,
   "chat-freeform-shape": 0.8,
+  // 0.75 = three of four signals. Deliberately not 1.0: a legitimately
+  // lap-wide drill ("keep your eyes up through every corner") can miss the
+  // measurable-reference signal and still be a real, repeatable instruction.
+  "drill-quality": 0.75,
   "llm-faithfulness": 1.0,
 };
 

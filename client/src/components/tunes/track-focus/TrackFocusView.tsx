@@ -25,10 +25,10 @@ interface TrackFocusViewProps {
   /** Controlled focus lap (null = "All" — falls back to the best lap for map/telemetry). Omit for internal state. */
   focusLapId?: number | null;
   onFocusLap?: (lapId: number) => void;
-  /** Tuning session id, when this view is hosted inside a tuning session
+  /** Experiment id, when this view is hosted inside an experiment
    *  review (drives the /line-spread racing-line consistency query). Omit to
    *  hide the line-spread lane + map overlay (e.g. Storybook, non-tuning contexts). */
-  tuningSessionId?: number | null;
+  experimentId?: number | null;
 }
 
 const TABS = ["consistency", "tires", "balance", "suspension"] as const;
@@ -38,7 +38,7 @@ const TAB_LABELS: Record<Tab, string> = { consistency: "Consistency", tires: "Ti
 /** Data-fetching wrapper: resolves the stint's laps into downsampled traces,
  *  the focus lap's raw telemetry, issues, and track corners, then hands
  *  everything to the presentational `TrackFocusViewInner`. */
-export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: controlledFocusId, onFocusLap: controlledOnFocusLap, tuningSessionId }: TrackFocusViewProps) {
+export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: controlledFocusId, onFocusLap: controlledOnFocusLap, experimentId }: TrackFocusViewProps) {
   // Invalid laps are excluded from the whole Track Focus view —
   // traces, stats, best-lap, ledgers and tyres all read `stintLaps`.
   const stintLaps = useMemo(() => laps.filter((l) => l.isValid).sort((a, b) => a.lapNumber - b.lapNumber), [laps]);
@@ -53,12 +53,12 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
   // applies the valid/legacy/pit rules itself and reports why each lap fell out.
   const reviewLaps = useMemo(() => selectEvaluationLaps(laps).chosen, [laps]);
   const { traces } = useStintTraces(reviewLaps);
-  const { data: lineSpread } = useLineSpread(tuningSessionId);
+  const { data: lineSpread } = useLineSpread(experimentId);
 
   const bestLapId = useMemo(() => {
     let best: LapMeta | null = null;
     for (const l of stintLaps) {
-      if (!l.isValid || l.tuningExcluded) continue;
+      if (!l.isValid || l.experimentExcluded) continue;
       if (best == null || l.lapTime < best.lapTime) best = l;
     }
     return best?.id ?? null;
