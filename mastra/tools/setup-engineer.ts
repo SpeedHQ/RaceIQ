@@ -24,6 +24,7 @@ import {
   deleteTestSubtree,
   getExperimentVersion,
   getExperimentVersionsByLabel,
+  nextVersion,
   resolveActiveTestId,
   setExperimentVersionNote,
   setExperimentVersionNotes,
@@ -410,7 +411,9 @@ export function buildSetupEngineerTools() {
           skipped,
         };
       }
-      const nextVer = Math.max(0, ...ctx.tests.map((t) => t.version)) + 1;
+      // From the DB, not from `ctx.tests`: that list excludes soft-deleted rows,
+      // so a max over it reissues the version number of a deleted arm.
+      const nextVer = await nextVersion(sessionId);
 
       // Branch-relative label off the head/parent. existingChildCount = how many
       // children the parent already has (its continuation + any forks).

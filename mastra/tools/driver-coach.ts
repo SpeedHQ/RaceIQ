@@ -4,7 +4,7 @@ import { z } from "zod";
 import { computeChildLabel, nextFreeLabel } from "../../server/ai/version-label";
 import { recordAction } from "../../server/db/experiment-action-queries";
 import { getExperiment, setSessionHead } from "../../server/db/experiment-queries";
-import { createExperimentVersion, listExperimentVersions } from "../../server/db/experiment-version-queries";
+import { createExperimentVersion, listExperimentVersions, nextVersion } from "../../server/db/experiment-version-queries";
 import { wsManager } from "../../server/ws";
 import type { DrillChange } from "../../shared/types";
 import { readSetupEngineerContext } from "./setup-engineer-request-context";
@@ -103,7 +103,11 @@ const recordDrillTool = createTool({
       parent = match;
     }
 
-    const nextVer = Math.max(0, ...versions.map((t) => t.version)) + 1;
+    // `nextVersion` counts deleted rows too; `versions` here does not
+    // (`listExperimentVersions` filters `status='deleted'`). Deriving the number
+    // from this list reissues the version of a soft-deleted arm, and nothing in
+    // the schema stops it — so ask the DB, exactly as the routes do.
+    const nextVer = await nextVersion(sessionId);
     const parentLabel = parent?.label ?? "v1";
     const childCount = parent ? versions.filter((t) => t.parentVersionId === parent!.id).length : 0;
     const label = nextFreeLabel(computeChildLabel(parentLabel, childCount), new Set(versions.map((t) => t.label)));
@@ -134,10 +138,23 @@ const recordDrillTool = createTool({
     });
 
     const prevHeadTestId = parent?.id ?? null;
+    // NOT best-effort. If the head does not advance, the arm exists but the
+    // session still points at its parent: the next drill branches off a stale
+    // node and the driver was told otherwise. Report it instead of returning ok.
     try {
       await setSessionHead(sessionId, versionId);
     } catch (err: any) {
       console.error("[DriverCoach] Failed to advance head:", err?.message);
+      wsManager.broadcastNotification({ type: "experiment-updated", sessionId });
+      return {
+        ok: false,
+        version: nextVer,
+        label,
+        error:
+          `Recorded ${label}, but the session head could not be advanced to it, so it is not the ` +
+          `current arm. Tell the driver to select ${label} manually before running laps; do not ` +
+          `call record_drill again for this drill.`,
+      };
     }
 
     wsManager.broadcastNotification({ type: "experiment-updated", sessionId });

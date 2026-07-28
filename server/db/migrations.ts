@@ -790,4 +790,44 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `UPDATE experiment_focus_events SET focus = 'driver' WHERE focus = 'driving'`,
     ],
   },
+
+  {
+    version: 41,
+    name: "enforce unique (experiment_id, version) on experiment_versions",
+    sql: [
+      // Two write paths derived the next version number differently: the routes
+      // asked the DB (`nextVersion`, MAX over every row), while the apply-changes
+      // and record-drill tools took MAX over `listExperimentVersions`, which
+      // filters `status='deleted'`. Soft-delete the highest arm, apply a change,
+      // and the new arm reuses that number — after which `target: "v5"` in a tool
+      // call, the version tree and the undo log all disagree about which arm is
+      // meant. Nothing in the schema objected, so the divergence was silent.
+      //
+      // Both call sites now use `nextVersion`; this makes the invariant the
+      // database's, so a third write path cannot reintroduce it.
+      //
+      // Existing duplicates must be renumbered before the index will build.
+      // Keep the lowest id on the original number (it is the one the labels and
+      // the action log already point at) and push the rest above the current max
+      // for their experiment, preserving relative order.
+      `UPDATE experiment_versions
+         SET version = (
+           SELECT MAX(v2.version) FROM experiment_versions v2
+            WHERE v2.experiment_id = experiment_versions.experiment_id
+         ) + (
+           SELECT COUNT(*) FROM experiment_versions v3
+            WHERE v3.experiment_id = experiment_versions.experiment_id
+              AND v3.id < experiment_versions.id
+              AND v3.version = experiment_versions.version
+         )
+       WHERE EXISTS (
+         SELECT 1 FROM experiment_versions v4
+          WHERE v4.experiment_id = experiment_versions.experiment_id
+            AND v4.version = experiment_versions.version
+            AND v4.id < experiment_versions.id
+       )`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_experiment_versions_experiment_version
+         ON experiment_versions(experiment_id, version)`,
+    ],
+  },
 ];

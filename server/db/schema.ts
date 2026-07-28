@@ -394,6 +394,13 @@ export const experimentVersions = sqliteTable(
 	},
 	(table) => ({
 		sessionIdx: index("idx_experiment_versions_experiment").on(table.experimentId),
+		// A version number identifies an arm in tool calls ("branch from v5"), in
+		// the version tree and in the undo log. Two arms sharing one is not a
+		// display bug, it is three subsystems disagreeing. Enforced since v41.
+		experimentVersionUnique: unique("idx_experiment_versions_experiment_version").on(
+			table.experimentId,
+			table.version,
+		),
 	}),
 );
 
