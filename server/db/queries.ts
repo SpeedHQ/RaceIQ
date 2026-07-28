@@ -593,6 +593,9 @@ export async function getLapMetaForTuningTest(tuningTestId: number): Promise<Lap
       tuningExcludedSource: laps.tuningExcludedSource,
       fuelPerLap: laps.fuelPerLap,
       tyreWear: laps.tyreWear,
+      // Frame count only — never the frames. Lets the arm-comparison loader size
+      // its decode budget from metadata (server/ai/arm-stream.ts).
+      rawFrameCount: laps.rawFrameCount,
     })
     .from(laps)
     .innerJoin(sessions, eq(laps.sessionId, sessions.id))
@@ -623,6 +626,7 @@ export async function getLapMetaForTuningTest(tuningTestId: number): Promise<Lap
     tuningExcludedSource: (r.tuningExcludedSource as "auto" | "manual" | null) ?? null,
     fuelPerLap: r.fuelPerLap ?? null,
     tyreWear: r.tyreWear ?? null,
+    rawFrameCount: r.rawFrameCount ?? null,
   }));
 }
 

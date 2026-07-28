@@ -8,6 +8,9 @@ import { getLapById, getLapsByIds, getLapsForTuningSession, getImportableLapsFor
 import { detectCorners } from "../corner-detection";
 import { computeLineSpreadTrace } from "../lap-consistency";
 import { selectCleanLaps } from "../ai/clean-lap-aggregate";
+import { serializeComparison } from "../ai/compare-arms";
+import { loadArmComparison } from "../ai/arm-comparison-load";
+import { OUTCOME_METRIC_IDS } from "../ai/outcome-metrics";
 import { fastestLaps } from "../../shared/review-laps";
 import { getTrackLengthMeters } from "../../shared/track-data";
 import { suggestLapTarget } from "../../shared/lap-target";
@@ -26,6 +29,13 @@ import { resolveLapF1Setup, f1SetupFingerprint, summarizeF1Setup } from "../ai/f
 const TuningSessionQuerySchema = z.object({
   gameId: GameIdSchema,
   includeArchived: z.coerce.boolean().optional().default(false),
+});
+
+
+const ArmComparisonQuerySchema = z.object({
+  a: z.coerce.number().int().positive(),
+  b: z.coerce.number().int().positive(),
+  metric: z.enum(OUTCOME_METRIC_IDS).default("lapTimeSec"),
 });
 
 
@@ -862,6 +872,35 @@ export const tuningSessionRoutes = new Hono()
       // Store for next open (fire-and-forget correctness: recompute is safe).
       await setLineSpreadCache(id, lapSetHash, JSON.stringify(trace));
       return c.json(trace);
+    }
+  )
+
+  // GET /api/tuning-sessions/:id/arm-comparison?a=&b=&metric= — A/B significance
+  // between two experiment arms (tuning_tests) on one outcome metric
+  // (issue #120, Phase 2). Read-only, and deliberately so: the response's
+  // `significance` says whether the difference is distinguishable from noise,
+  // NOT whether the change was good. `tuning_tests.verdict` stays a human call
+  // and nothing on this path writes it.
+  //
+  // Lap curation is the metric's policy, not the session's: lap time gets the
+  // fastest-N pool, the variance metrics get every eligible lap (see
+  // server/ai/outcome-metrics.ts).
+  .get("/api/tuning-sessions/:id/arm-comparison",
+    zValidator("param", IdParamSchema),
+    zValidator("query", ArmComparisonQuerySchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const { a, b, metric } = c.req.valid("query");
+      if (a === b) return c.json({ error: "Pick two different arms to compare" }, 400);
+
+      for (const testId of [a, b]) {
+        const test = await getTuningTest(testId);
+        if (!test) return c.json({ error: `Tuning test ${testId} not found` }, 404);
+        if (test.tuningSessionId !== id) return c.json({ error: `Tuning test ${testId} is not in this session` }, 400);
+      }
+
+      const comparison = await loadArmComparison(id, a, b, metric);
+      return c.json(serializeComparison(comparison));
     }
   )
 
