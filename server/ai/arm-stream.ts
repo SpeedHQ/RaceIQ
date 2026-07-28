@@ -96,6 +96,14 @@ export interface StreamArmArgs {
    */
   resolveCorners: (referenceTelemetry: TelemetryPacket[]) => Promise<Corner[]>;
   frameBudget?: number;
+  /**
+   * Blunder threshold shared with the other arm (`pooledBlunderFence`). Must be
+   * passed whenever this arm is going into a comparison: fencing each arm at its
+   * own median+3*IQR censors the two at different thresholds, and the in-memory
+   * `compareArms` pools it — leaving this per-arm would silently break the
+   * streaming/in-memory equivalence that test/arm-stream.test.ts pins.
+   */
+  fence?: number | null;
 }
 
 /** Most-recent-first: lap number, `createdAt` as tiebreak. */
@@ -170,7 +178,7 @@ export async function streamArmSamples(args: StreamArmArgs): Promise<PreparedArm
 
   // Curate over the WHOLE pool first: it is metadata-only, so it is free, and
   // the blunder fence wants to see every lap before anything is trimmed.
-  const pool = curateLaps<EvaluableLap>(metas, metric.curation);
+  const pool = curateLaps<EvaluableLap>(metas, metric.curation, { fence: args.fence });
   const keptIds = new Set(pool.kept.map((l) => l.id));
 
   // A lap with no stored frames can never yield a sample; it must not eat a

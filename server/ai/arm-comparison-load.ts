@@ -31,7 +31,7 @@ import {
   type PreparedArm,
 } from "./compare-arms";
 import { type FrameLapMeta, type LapFrameLoader, streamArmSamples } from "./arm-stream";
-import { getOutcomeMetric, type OutcomeMetricId } from "./outcome-metrics";
+import { blunderFencesForArms, getOutcomeMetric, type OutcomeMetricId } from "./outcome-metrics";
 
 /**
  * Frames for one lap, through the shared LRU telemetry cache.
@@ -113,10 +113,19 @@ export async function loadArmComparison(
     armLabel(bTestId),
   ]);
 
+  // Shared fence width, per-arm placement (`blunderFencesForArms`). Computed
+  // here, where both pools are known, and handed to whichever path runs below —
+  // the streaming and in-memory paths must censor identically or the equivalence
+  // test/arm-stream.test.ts pins is a fiction.
+  const [fenceA, fenceB] =
+    metric.curation.outlierRule === "blunder-fence"
+      ? blunderFencesForArms([aMetas.map((m) => m.lapTime), bMetas.map((m) => m.lapTime)])
+      : [undefined, undefined];
+
   if (metric.sampling === "metadata") {
-    const prepare = (label: string, metas: LapMeta[]): PreparedArm =>
-      prepareArm({ label, laps: metas.map((m) => ({ lap: toEvaluable(m), telemetry: null })) }, metric);
-    return compareArmSamples(prepare(aLabel, aMetas), prepare(bLabel, bMetas), metric, opts);
+    const prepare = (label: string, metas: LapMeta[], fence: number | null | undefined): PreparedArm =>
+      prepareArm({ label, laps: metas.map((m) => ({ lap: toEvaluable(m), telemetry: null })) }, metric, { fence });
+    return compareArmSamples(prepare(aLabel, aMetas, fenceA), prepare(bLabel, bMetas, fenceB), metric, opts);
   }
 
   // Resolved once, on whichever arm streams first, and shared: two arms of the
@@ -133,6 +142,7 @@ export async function loadArmComparison(
     metric,
     loadFrames: loadLapFrames,
     resolveCorners,
+    fence: fenceA,
   });
   const b = await streamArmSamples({
     label: bLabel,
@@ -140,6 +150,7 @@ export async function loadArmComparison(
     metric,
     loadFrames: loadLapFrames,
     resolveCorners,
+    fence: fenceB,
   });
 
   return compareArmSamples(a, b, metric, opts);

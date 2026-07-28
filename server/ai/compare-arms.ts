@@ -39,6 +39,7 @@ import {
   metricNeedsTelemetry,
   type MetricSample,
   type OutcomeMetric,
+  blunderFencesForArms,
 } from "./outcome-metrics";
 
 /**
@@ -103,8 +104,23 @@ export interface ArmComparison {
   deltaMean: number | null;
   /** Percentile bootstrap CI (default 95%) on `deltaMean`. */
   ci: [number, number] | null;
-  /** Two-sided Welch p-value. */
+  /**
+   * False when the CI is being reported below `RECOMMENDED_LAPS_PER_ARM`.
+   *
+   * The percentile bootstrap resamples what it was given: at n=3 an arm has only
+   * 10 distinct resample multisets, so the interval is discrete, narrow, and
+   * nowhere near 95% coverage. It is still the best available summary of where
+   * the difference sits — it just must not be rendered as "95% CI", and
+   * `describeComparison` says "indicative range" instead.
+   */
+  ciReliable: boolean;
+  /** Two-sided Welch p-value, uncorrected. */
   pValue: number | null;
+  /**
+   * `pValue` after Holm correction across every metric shown for this arm pair.
+   * Null until `holmAdjust` has run; equal to `pValue` for a family of one.
+   */
+  pValueAdjusted?: number | null;
   /** Hedges' g (bias-corrected Cohen's d), signed like `deltaMean`. */
   effectSize: number | null;
   significance: Significance;
@@ -339,10 +355,11 @@ function summarize(prepared: PreparedArm, curationMode: OutcomeMetric["curation"
  * Exported so a test (or any caller holding laps already) can build the
  * non-streaming side of an equivalence check.
  */
-export function prepareArm(arm: ArmInput, metric: OutcomeMetric): PreparedArm {
+export function prepareArm(arm: ArmInput, metric: OutcomeMetric, opts?: { fence?: number | null }): PreparedArm {
   const pool = curateLaps(
     arm.laps.map((e) => e.lap),
     metric.curation,
+    opts,
   );
   const kept = new Set(pool.kept.map((l) => l.id));
   // Input order, not curated (lap-time-sorted) order — see `extractSamples`.
@@ -363,7 +380,17 @@ export function prepareArm(arm: ArmInput, metric: OutcomeMetric): PreparedArm {
  * or the metric's policy is silently bypassed.
  */
 export function compareArms(a: ArmInput, b: ArmInput, metric: OutcomeMetric, opts?: CompareArmsOptions): ArmComparison {
-  return compareArmSamples(prepareArm(a, metric), prepareArm(b, metric), metric, opts);
+  // Shared fence width, per-arm placement — see `blunderFencesForArms`.
+  const [fenceA, fenceB] =
+    metric.curation.outlierRule === "blunder-fence"
+      ? blunderFencesForArms([a.laps.map((e) => e.lap.lapTime), b.laps.map((e) => e.lap.lapTime)])
+      : [undefined, undefined];
+  return compareArmSamples(
+    prepareArm(a, metric, { fence: fenceA }),
+    prepareArm(b, metric, { fence: fenceB }),
+    metric,
+    opts,
+  );
 }
 
 /** The statistics, over two already-sampled arms. */
@@ -399,6 +426,7 @@ export function compareArmSamples(
     return {
       ...base,
       ci: null,
+      ciReliable: false,
       pValue: null,
       effectSize: null,
       significance: "inconclusive",
@@ -415,6 +443,7 @@ export function compareArmSamples(
     return {
       ...base,
       ci: null,
+      ciReliable: false,
       pValue: null,
       effectSize: null,
       significance: "inconclusive",
@@ -448,6 +477,7 @@ export function compareArmSamples(
   return {
     ...base,
     ci,
+    ciReliable: minN >= RECOMMENDED_LAPS_PER_ARM,
     pValue: welch.p,
     effectSize,
     significance: significant ? "significant" : "not-significant",
@@ -455,6 +485,60 @@ export function compareArmSamples(
     favours,
     reason,
   };
+}
+
+/**
+ * Holm–Bonferroni across a family of comparisons shown together.
+ *
+ * Each `compareArmSamples` call controls its own false-positive rate at alpha.
+ * A review screen that tests the same arm pair on five metrics and lets the
+ * driver read whichever came back significant is running five tests and
+ * reporting the best one: at alpha=0.05 that family is wrong about 23% of the
+ * time, not 5%. Undoing the fastest-N bias and then leaking the error back in
+ * through the metric list would be a wash.
+ *
+ * Holm rather than plain Bonferroni because it is uniformly more powerful and
+ * needs no independence assumption — these metrics are computed from the same
+ * laps and are anything but independent.
+ *
+ * Only the significance flags change: `pValue` stays the raw per-metric value,
+ * `pValueAdjusted` carries the corrected one, and an arm that loses significance
+ * also loses `favours`, because there is no longer a difference to point at.
+ *
+ * Call this wherever more than one metric is surfaced for one arm pair. A single
+ * metric is unaffected (a family of one adjusts to itself).
+ */
+export function holmAdjust(comparisons: ArmComparison[], alpha = DEFAULT_ALPHA): ArmComparison[] {
+  const testable = comparisons.filter((c) => c.pValue != null);
+  if (testable.length <= 1) return comparisons.map((c) => ({ ...c, pValueAdjusted: c.pValue }));
+
+  const order = [...testable].sort((x, y) => (x.pValue ?? 1) - (y.pValue ?? 1));
+  const m = order.length;
+  const adjusted = new Map<ArmComparison, number>();
+  let running = 0;
+  order.forEach((cmp, i) => {
+    // Step-down: each p is scaled by the number of hypotheses still standing,
+    // then made monotone so a later metric can never be adjusted below an
+    // earlier one.
+    running = Math.max(running, Math.min(1, (cmp.pValue ?? 1) * (m - i)));
+    adjusted.set(cmp, running);
+  });
+
+  return comparisons.map((cmp) => {
+    const p = adjusted.get(cmp);
+    if (p == null) return { ...cmp, pValueAdjusted: cmp.pValue };
+    const stillSignificant = cmp.significance === "significant" && p < alpha;
+    return {
+      ...cmp,
+      pValueAdjusted: p,
+      significance: cmp.significance === "significant" && !stillSignificant ? "not-significant" : cmp.significance,
+      favours: stillSignificant ? cmp.favours : null,
+      reason:
+        cmp.significance === "significant" && !stillSignificant
+          ? `Distinguishable on its own, but not after correcting for the ${m} metrics tested on this pair.`
+          : cmp.reason,
+    };
+  });
 }
 
 /** JSON-safe projection of a comparison (`reasonById` is a Map). */
@@ -498,8 +582,13 @@ export function describeComparison(cmp: ArmComparison): string {
   if (cmp.significance === "inconclusive") return `${head} — inconclusive. ${cmp.reason ?? ""}`.trim();
 
   const delta = cmp.deltaMean ?? 0;
-  const ci = cmp.ci ? ` [95% CI ${cmp.ci[0].toFixed(3)} to ${cmp.ci[1].toFixed(3)}]` : "";
-  const stats = ` delta ${delta >= 0 ? "+" : ""}${delta.toFixed(3)}${unit}${ci}, p=${cmp.pValue?.toFixed(4)}, g=${cmp.effectSize?.toFixed(2) ?? "n/a"}`;
+  // Below RECOMMENDED_LAPS_PER_ARM the bootstrap has too few distinct resamples
+  // to carry a coverage claim, so it is not labelled as one.
+  const ciLabel = cmp.ciReliable ? "95% CI" : "indicative range, too few laps for a 95% claim";
+  const ci = cmp.ci ? ` [${ciLabel} ${cmp.ci[0].toFixed(3)} to ${cmp.ci[1].toFixed(3)}]` : "";
+  const pShown = cmp.pValueAdjusted ?? cmp.pValue;
+  const pLabel = cmp.pValueAdjusted != null && cmp.pValueAdjusted !== cmp.pValue ? "p(adj)" : "p";
+  const stats = ` delta ${delta >= 0 ? "+" : ""}${delta.toFixed(3)}${unit}${ci}, ${pLabel}=${pShown?.toFixed(4)}, g=${cmp.effectSize?.toFixed(2) ?? "n/a"}`;
   if (cmp.significance === "significant") {
     const arm = cmp.favours === "b" ? bLabel : aLabel;
     return `${head} —${stats}. Distinguishable from noise, pointing at ${arm} on this metric. Whether that is an improvement is the driver's call.`;

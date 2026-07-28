@@ -156,12 +156,61 @@ export function blunderFence(lapTimes: number[]): number | null {
 }
 
 /**
+ * Blunder thresholds for a set of arms being compared: one shared *width*,
+ * each arm's own *location*.
+ *
+ * Two arms fenced independently are censored at different widths, because each
+ * arm's `IQR` and `best` are its own. The wider arm gets the more forgiving cut,
+ * so for a dispersion metric — where the tail IS the measurement — the arms are
+ * not comparably censored.
+ *
+ * The obvious repair, flattening both arms and fencing the pool, is worse: if
+ * the arms differ in mean, that between-arm shift lands in the pooled IQR and
+ * inflates it, so the fence stops firing at all. (Measured on a 90.0s vs 91.5s
+ * pair: per-arm 94.50 / 96.08, naively pooled 99.20 — leniency, not fairness.)
+ *
+ * So the spread is pooled over arm-CENTERED residuals, which contain only
+ * within-arm variation, and the threshold is then placed at each arm's own
+ * median. A blunder stays "a lap far slower than this arm normally runs", but
+ * "far" now means the same thing in both arms.
+ *
+ * The relative-gap floor stays per-arm on purpose: it exists so a metronomic
+ * arm cannot flag its own noise, which is a statement about that arm's best lap.
+ *
+ * Returns one threshold per input arm, index-aligned; null entries mean that arm
+ * is not fenced. All-null when the pooled sample is too small for quartiles.
+ */
+export function blunderFencesForArms(armLapTimes: number[][]): (number | null)[] {
+  const total = armLapTimes.reduce((n, a) => n + a.length, 0);
+  if (total < MIN_FENCE_SAMPLES) return armLapTimes.map(() => null);
+
+  const residuals: number[] = [];
+  for (const arm of armLapTimes) {
+    if (arm.length === 0) continue;
+    const med = medianAsc([...arm].sort((x, y) => x - y));
+    for (const t of arm) residuals.push(t - med);
+  }
+  const sortedRes = residuals.sort((x, y) => x - y);
+  const pooledIqr = percentileAsc(sortedRes, 0.75) - percentileAsc(sortedRes, 0.25);
+
+  return armLapTimes.map((arm) => {
+    if (arm.length === 0) return null;
+    const sorted = [...arm].sort((x, y) => x - y);
+    return Math.max(medianAsc(sorted) + FENCE_IQR_MULT * pooledIqr, sorted[0] * FENCE_MIN_REL_GAP);
+  });
+}
+
+/**
  * Reduce one arm's raw lap pool to the laps a metric is computed over.
  *
  * Eligibility is delegated to `selectEvaluationLaps` so this never becomes a
  * fourth place that re-derives "which laps count".
  */
-export function curateLaps<T extends EvaluableLap>(laps: T[], curation: CurationSpec): CuratedPool<T> {
+export function curateLaps<T extends EvaluableLap>(
+  laps: T[],
+  curation: CurationSpec,
+  opts?: { fence?: number | null },
+): CuratedPool<T> {
   const cap = curation.mode === "fastest-n" ? (curation.n ?? REVIEW_LAP_CAP) : Number.POSITIVE_INFINITY;
   const selection = selectEvaluationLaps(laps, cap);
 
@@ -170,7 +219,12 @@ export function curateLaps<T extends EvaluableLap>(laps: T[], curation: Curation
   let droppedOutliers = 0;
 
   if (curation.outlierRule === "blunder-fence") {
-    const fence = blunderFence(kept.map((l) => l.lapTime));
+    // `opts.fence` lets a caller comparing two arms censor both at ONE threshold
+    // (see `pooledBlunderFence`). Per-arm fences are not comparable: each arm is
+    // cut relative to its own spread, so the wider arm loses more of its tail and
+    // a dispersion metric is biased toward "no difference" — the same defect this
+    // module rejects fastest-N for. Undefined keeps the single-arm behaviour.
+    const fence = opts?.fence !== undefined ? opts.fence : blunderFence(kept.map((l) => l.lapTime));
     if (fence != null) {
       const survivors: T[] = [];
       for (const lap of kept) {
