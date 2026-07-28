@@ -578,4 +578,17 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `DELETE FROM sessions WHERE raw_file IS NULL`,
     ],
   },
+
+  // ── v36: Persist telemetry-provided session identity ──────────────────────
+  // Static game catalogues can always resolve an ordinal after restart.
+  // iRacing publishes car/track names only in the live session-info block, so
+  // retaining the names on the session keeps historical UI and exports stable.
+  {
+    version: 36,
+    name: "persist telemetry-provided session identity",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN car_name TEXT`,
+      `ALTER TABLE sessions ADD COLUMN track_name TEXT`,
+    ],
+  },
 ];

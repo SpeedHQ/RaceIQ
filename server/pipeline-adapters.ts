@@ -1,6 +1,6 @@
 import { resolve } from "path";
 import { mkdirSync } from "fs";
-import type { LapMeta, LiveSectorData, LivePitData, GameId, TelemetryPacket, TuneIssue } from "../shared/types";
+import type { LapMeta, LiveSectorData, LivePitData, GameId, TelemetryPacket, TuneIssue, SessionIdentity } from "../shared/types";
 import { insertSession, insertLap, setLapMetrics, getLaps, updateSessionRawFile, updateSessionCarTrack, getLapsForExclusionScope, setLapAutoExclusion, getLapTuningScope } from "./db/queries";
 import type { ExclusionScopeLap } from "./tuning-auto-exclude";
 import { getTuneAssignment } from "./db/tune-queries";
@@ -13,6 +13,8 @@ export interface CapturedSession {
   trackOrdinal: number;
   gameId: GameId;
   sessionType?: string;
+  carName?: string;
+  trackName?: string;
 }
 
 export interface CapturedLap {
@@ -35,7 +37,8 @@ export interface DbAdapter {
     carOrdinal: number,
     trackOrdinal: number,
     gameId: GameId,
-    sessionType?: string
+    sessionType?: string,
+    identity?: SessionIdentity,
   ): Promise<number>;
   insertLap(
     sessionId: number,
@@ -102,8 +105,8 @@ export interface WsAdapter {
 
 /** Delegates to the real query functions. Used in production. */
 export class RealDbAdapter implements DbAdapter {
-  insertSession(carOrdinal: number, trackOrdinal: number, gameId: GameId, sessionType?: string): Promise<number> {
-    return insertSession(carOrdinal, trackOrdinal, gameId, sessionType);
+  insertSession(carOrdinal: number, trackOrdinal: number, gameId: GameId, sessionType?: string, identity?: SessionIdentity): Promise<number> {
+    return insertSession(carOrdinal, trackOrdinal, gameId, sessionType, identity);
   }
   insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: { s1: number; s2: number; s3: number } | null): Promise<number> {
     return insertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors);
@@ -154,8 +157,8 @@ export class CapturingDbAdapter implements DbAdapter {
   private _sessionId = 0;
   private _lapId = 0;
 
-  insertSession(carOrdinal: number, trackOrdinal: number, gameId: GameId, sessionType?: string): Promise<number> {
-    this.sessions.push({ carOrdinal, trackOrdinal, gameId, sessionType });
+  insertSession(carOrdinal: number, trackOrdinal: number, gameId: GameId, sessionType?: string, identity?: SessionIdentity): Promise<number> {
+    this.sessions.push({ carOrdinal, trackOrdinal, gameId, sessionType, ...identity });
     return Promise.resolve(++this._sessionId);
   }
 
@@ -214,7 +217,7 @@ export class NullWsAdapter implements WsAdapter {
 
 /** No-op database adapter. Used in benchmarks and tests that don't need DB output. */
 export class NullDbAdapter implements DbAdapter {
-  insertSession(_carOrdinal: number, _trackOrdinal: number, _gameId: GameId, _sessionType?: string): Promise<number> {
+  insertSession(_carOrdinal: number, _trackOrdinal: number, _gameId: GameId, _sessionType?: string, _identity?: SessionIdentity): Promise<number> {
     return Promise.resolve(1);
   }
   insertLap(_sessionId: number, _lapNumber: number, _lapTime: number, _isValid: boolean, _rawByteOffset: number | null, _rawFrameCount: number, _profileId: number | null, _tuneId: number | null, _invalidReason: string | null, _sectors: { s1: number; s2: number; s3: number } | null): Promise<number> {

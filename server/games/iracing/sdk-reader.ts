@@ -53,6 +53,7 @@ export const IRACING_TELEMETRY_VARIABLES = [
   "RollRate",
   "TrackTemp",
   "AirTemp",
+  "Precipitation",
   "TrackWetness",
   "LFshockDefl",
   "RFshockDefl",

@@ -1,7 +1,7 @@
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, compareAnalyses, profiles, tunes, lineSpreadCache } from "./schema";
-import type { TelemetryPacket, LapMeta, SessionMeta, GameId } from "../../shared/types";
+import type { TelemetryPacket, LapMeta, SessionMeta, GameId, SessionIdentity } from "../../shared/types";
 import type { Corner } from "../corner-detection";
 import { fillNormSuspension } from "../telemetry-utils";
 import { getServerGame } from "../games/registry";
@@ -153,14 +153,47 @@ export async function insertSession(
   carOrdinal: number,
   trackOrdinal: number,
   gameId: GameId,
-  sessionType?: string
+  sessionType?: string,
+  identity?: SessionIdentity,
 ): Promise<number> {
   const result = await db
     .insert(sessions)
-    .values({ carOrdinal, trackOrdinal, gameId, sessionType })
+    .values({
+      carOrdinal,
+      trackOrdinal,
+      gameId,
+      sessionType,
+      carName: identity?.carName,
+      trackName: identity?.trackName,
+    })
     .returning({ id: sessions.id })
     .get();
   return result.id;
+}
+
+/**
+ * Return telemetry-provided names in recording order so a later session can
+ * refresh an earlier display name for the same native ordinal.
+ */
+export async function getStoredSessionIdentities(
+  gameId: GameId,
+): Promise<Array<{
+  carOrdinal: number;
+  carName: string | null;
+  trackOrdinal: number;
+  trackName: string | null;
+}>> {
+  return db
+    .select({
+      carOrdinal: sessions.carOrdinal,
+      carName: sessions.carName,
+      trackOrdinal: sessions.trackOrdinal,
+      trackName: sessions.trackName,
+    })
+    .from(sessions)
+    .where(eq(sessions.gameId, gameId))
+    .orderBy(sessions.id)
+    .all();
 }
 
 /**

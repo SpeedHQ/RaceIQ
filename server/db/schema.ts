@@ -72,6 +72,8 @@ export const sessions = sqliteTable("sessions", {
 	carOrdinal: integer("car_ordinal").notNull(),
 	trackOrdinal: integer("track_ordinal").notNull(),
 	gameId: text("game_id").notNull(),
+	carName: text("car_name"),
+	trackName: text("track_name"),
 	sessionType: text("session_type"),
 	notes: text("notes"),
 	rawFile: text("raw_file"),

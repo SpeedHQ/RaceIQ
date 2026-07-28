@@ -42,6 +42,17 @@ function input255(value: number): number {
   return Math.round(clamp(value, 0, 1) * 255);
 }
 
+/**
+ * The shared dashboard retains Forza's canonical gear encoding (0 = reverse,
+ * 11 = neutral). Translate iRacing's native -1/0 values at the source boundary.
+ */
+function canonicalGear(value: number): number {
+  const nativeGear = Math.trunc(value);
+  if (nativeGear < 0) return 0;
+  if (nativeGear === 0) return 11;
+  return nativeGear;
+}
+
 function tireTemperature(
   values: Record<string, IRacingValue>,
   corner: "LF" | "RF" | "LR" | "RR",
@@ -160,6 +171,7 @@ export function normalizeIRacingFrame(
       onPitRoad: bool(values, "OnPitRoad"),
       playerTrackSurface: Math.trunc(scalar(values, "PlayerTrackSurface", 0)),
       incidents: Math.trunc(scalar(values, "PlayerIncidents", 0)),
+      trackWetness: Math.trunc(wetness),
       carName: session.carName,
       carClassName: session.carClassName,
       trackName: session.trackName,
@@ -239,7 +251,7 @@ export function normalizeIRacingFrame(
     Brake: input255(scalar(values, "Brake", 0)),
     Clutch: input255(scalar(values, "Clutch", 0)),
     HandBrake: 0,
-    Gear: Math.max(0, Math.trunc(scalar(values, "Gear", 0))),
+    Gear: canonicalGear(scalar(values, "Gear", 0)),
     Steer: steer,
     NormDrivingLine: 0,
     NormAIBrakeDiff: 0,
@@ -289,6 +301,9 @@ export function normalizeIRacingFrame(
     TirePressureRearRight: coldPressurePsi(values, "RR"),
     TrackTemp: scalar(values, "TrackTemp", 0),
     AirTemp: scalar(values, "AirTemp", 0),
-    RainPercent: Math.round((wetness / 7) * 100),
+    // RaceIQ's canonical field is a numeric percentage. TrackWetness is a
+    // categorical surface-state enum, so use iRacing's real precipitation
+    // channel instead of pretending the category is a linear percentage.
+    RainPercent: Math.round(clamp(scalar(values, "Precipitation", 0), 0, 1) * 100),
   };
 }

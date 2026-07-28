@@ -1,5 +1,5 @@
 import { gunzipSync } from "zlib";
-import { KNOWN_GAME_IDS, type GameId, type LapMeta } from "../shared/types";
+import { KNOWN_GAME_IDS, type GameId, type LapMeta, type SessionIdentity } from "../shared/types";
 import { getAllServerGames, getServerGame } from "./games/registry";
 import { Pipeline } from "./pipeline";
 import { RealDbAdapter, type DbAdapter, type WsAdapter } from "./pipeline-adapters";
@@ -38,9 +38,16 @@ export class ImportCaptureAdapter implements DbAdapter {
     carOrdinal: number,
     trackOrdinal: number,
     gameId: GameId,
-    sessionType?: string
+    sessionType?: string,
+    identity?: SessionIdentity,
   ): Promise<number> {
-    const id = await this._inner.insertSession(carOrdinal, trackOrdinal, gameId, sessionType);
+    const id = await this._inner.insertSession(
+      carOrdinal,
+      trackOrdinal,
+      gameId,
+      sessionType,
+      identity,
+    );
     this._sessionMeta.set(id, { carOrdinal, trackOrdinal });
     return id;
   }

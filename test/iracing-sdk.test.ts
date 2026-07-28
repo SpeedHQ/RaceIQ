@@ -3,6 +3,11 @@ import {
   computeIRacingSectorTimeline,
   computeLapSectors,
 } from "../server/compute-lap-sectors";
+import {
+  deleteSession,
+  getStoredSessionIdentities,
+  insertSession,
+} from "../server/db/queries";
 import { initServerGameAdapters } from "../server/games/init";
 import {
   createIRacingParserState,
@@ -112,6 +117,7 @@ function sampleFrame(): IRacingSourceFrameV1 {
       LFwearR: 0.96,
       TrackTemp: 32,
       AirTemp: 23,
+      Precipitation: 0,
       TrackWetness: 0,
     },
   };
@@ -189,6 +195,30 @@ DriverInfo:
 });
 
 describe("iRacing raw source frame parser integration", () => {
+  test("persists telemetry-provided names for restart hydration", async () => {
+    const carOrdinal = 900_042;
+    const trackOrdinal = 900_099;
+    const sessionId = await insertSession(
+      carOrdinal,
+      trackOrdinal,
+      "iracing",
+      undefined,
+      { carName: "Persisted GT3", trackName: "Persisted Raceway" },
+    );
+
+    try {
+      const identities = await getStoredSessionIdentities("iracing");
+      expect(identities).toContainEqual({
+        carOrdinal,
+        carName: "Persisted GT3",
+        trackOrdinal,
+        trackName: "Persisted Raceway",
+      });
+    } finally {
+      await deleteSession(sessionId);
+    }
+  });
+
   test("round-trips a self-contained frame through central parsePacket", () => {
     const raw = encodeIRacingSourceFrame(sampleFrame());
     expect(canHandleIRacingSourceFrame(raw)).toBe(true);
@@ -208,6 +238,30 @@ describe("iRacing raw source frame parser integration", () => {
     expect(packet?.TireTempFL).toBeCloseTo(84);
     expect(packet?.TireWearFL).toBeCloseTo(0.06);
     expect(packet?.iracing?.incidents).toBe(1);
+  });
+
+  test("translates iRacing gear and weather into canonical dashboard fields", () => {
+    const reverse = sampleFrame();
+    reverse.values = {
+      ...reverse.values,
+      Gear: -1,
+      Precipitation: 0.42,
+      TrackWetness: 5,
+    };
+    const reversePacket = normalizeIRacingFrame(reverse);
+    expect(reversePacket.Gear).toBe(0);
+    expect(reversePacket.RainPercent).toBe(42);
+    expect(reversePacket.iracing?.trackWetness).toBe(5);
+
+    const neutral = sampleFrame();
+    neutral.values = {
+      ...neutral.values,
+      Gear: 0,
+      TrackWetness: 1,
+    };
+    const neutralPacket = normalizeIRacingFrame(neutral);
+    expect(neutralPacket.Gear).toBe(11);
+    expect(neutralPacket.RainPercent).toBe(0);
   });
 
   test("rejects truncated and corrupt source frames", () => {
@@ -349,6 +403,37 @@ describe("iRacing lap timing and native sectors", () => {
     expect(await computeLapSectors(99, "iracing", packets, 32)).toBeNull();
   });
 
+  test("keeps native sector fractions when the source attaches mid-lap", async () => {
+    const tracker = new SectorTracker();
+    await tracker.reset(99, "iracing", 42);
+
+    const packet = (
+      lapNumber: number,
+      distance: number,
+      fraction: number,
+      currentLap: number,
+    ): TelemetryPacket =>
+      ({
+        gameId: "iracing",
+        LapNumber: lapNumber,
+        LastLap: 40,
+        CurrentLap: currentLap,
+        DistanceTraveled: distance,
+        iracing: {
+          trackLengthM: 1000,
+          lapDistancePct: fraction,
+          sectorStarts: [0, 0.34, 0.67],
+        },
+      }) as TelemetryPacket;
+
+    tracker.feed(packet(5, 5750, 0.75, 30));
+    tracker.feed(packet(6, 6000, 0, 0));
+    const live = tracker.feed(packet(6, 6300, 0.3, 10));
+
+    expect(tracker.getTrackLength()).toBe(1000);
+    expect(live?.currentSector).toBe(0);
+  });
+
   test("attaches delayed LastLap to the physical lap and native lap number", async () => {
     const db = new CapturingDbAdapter();
     const detector = new LapDetectorIRacing({
@@ -395,6 +480,8 @@ describe("iRacing lap timing and native sectors", () => {
           sdkCurrentLapTime,
           lapDistancePct: fraction,
           sectorStarts: [0, 0.5],
+          carName: "GT3 Test Car",
+          trackName: "Road America",
         },
       }) as TelemetryPacket;
 
@@ -430,6 +517,10 @@ describe("iRacing lap timing and native sectors", () => {
     expect(db.laps[1].lapTime).toBeCloseTo(32.045, 3);
     expect(db.laps[0].rawFrameCount).toBe(65);
     expect(db.laps[0].sectors?.s3).toBe(0);
+    expect(db.sessions[0]).toMatchObject({
+      carName: "GT3 Test Car",
+      trackName: "Road America",
+    });
 
     // A native timer rollover without a valid LastLap discards that lap and
     // leaves the following valid lap aligned with its own timing.

@@ -394,6 +394,8 @@ export interface IRacingExtendedData {
   onPitRoad: boolean;
   playerTrackSurface: number;
   incidents: number;
+  /** Native irsdk_TrackWetness category (0 unknown through 7 extremely wet). */
+  trackWetness: number;
   carName: string;
   carClassName: string;
   trackName: string;
@@ -693,6 +695,12 @@ export interface SessionMeta {
   sessionType?: string;
   notes?: string;
   gameId?: GameId;
+}
+
+/** Optional display identity supplied by telemetry rather than a static catalogue. */
+export interface SessionIdentity {
+  carName?: string;
+  trackName?: string;
 }
 
 /**

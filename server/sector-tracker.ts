@@ -170,10 +170,11 @@ export class SectorTracker {
       // For ACC/AC Evo: guard against pit laps — their short completedDist would
       // corrupt lapDistTotal and make sector fractions fire too early on the
       // following lap (e.g. S3 before turn 2 on the outlap).
-      // Other games don't have this issue so always refine for them.
+      // iRacing already publishes authoritative track length and the source can
+      // attach mid-lap, so its first completedDist may be only a lap fragment.
       const completedDist = packet.DistanceTraveled - this.lapDistStart;
       const minPlausibleLap = this.currentGameId === "acc" && this.bounds ? this.bounds.trackLength * 0.5 : 100;
-      if (completedDist > minPlausibleLap) {
+      if (this.currentGameId !== "iracing" && completedDist > minPlausibleLap) {
         this.lapDistTotal = completedDist;
       }
 
@@ -189,12 +190,19 @@ export class SectorTracker {
     // Other games: fall back to distance-fraction against lapDistTotal.
     if (this.currentGameId === "acc" && packet.acc?.currentSectorIndex !== undefined) {
       this.updateAccSector(packet);
-    } else if (this.lapDistTotal > 0) {
-      const lapDist = packet.DistanceTraveled - this.lapDistStart;
-      const frac = lapDist / this.lapDistTotal;
+    } else {
+      // Native iRacing sector starts are fractions and the SDK supplies the
+      // matching lap fraction directly. Other games retain the shared
+      // distance-derived compatibility path.
+      const frac = this.currentGameId === "iracing"
+        ? packet.iracing?.lapDistancePct
+        : this.lapDistTotal > 0
+          ? (packet.DistanceTraveled - this.lapDistStart) / this.lapDistTotal
+          : undefined;
 
-      const expectedSector =
-        this.sectorCount === 2
+      const expectedSector = frac === undefined
+        ? this.currentSector
+        : this.sectorCount === 2
           ? frac < s1End
             ? 0
             : 1

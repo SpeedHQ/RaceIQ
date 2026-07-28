@@ -63,7 +63,8 @@ if (recordingGameId) {
 // top-level await inside that module. It is now an explicit awaited call so a
 // stuck DB fails here, at startup, instead of silently wedging the module graph.
 import { initDb } from "./db/index";
-import { deleteEmptySessions, setCacheMaxBytes } from "./db/queries";
+import { deleteEmptySessions, getStoredSessionIdentities, setCacheMaxBytes } from "./db/queries";
+import { rememberIRacingIdentity } from "../shared/games/iracing";
 
 await initDb();
 
@@ -72,6 +73,17 @@ await initDb();
 // getAcEvoCarName()/getCarName() resolve runtime-discovered cars immediately.
 await reconcileDiscoveredCars();
 injectDiscoveredAcEvoCars(await listDiscoveredCars("ac-evo"));
+
+// iRacing has no bundled identity catalogue. Rehydrate the names captured on
+// prior sessions before HTTP routes begin resolving historical ordinals.
+for (const identity of await getStoredSessionIdentities("iracing")) {
+  rememberIRacingIdentity({
+    carId: identity.carOrdinal,
+    carName: identity.carName ?? "",
+    trackId: identity.trackOrdinal,
+    trackName: identity.trackName ?? "",
+  });
+}
 
 // Detect first run (settings file doesn't exist yet) before loadSettings creates it
 import { isFirstRun } from "./settings";

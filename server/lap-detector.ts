@@ -297,9 +297,21 @@ export class LapDetector implements ILapDetector {
     const trackOrd = packet.TrackOrdinal ?? 0;
     const gameId = packet.gameId;
     const sessionType = packet.f1?.sessionType;
+    const identity = packet.iracing
+      ? {
+          carName: packet.iracing.carName,
+          trackName: packet.iracing.trackName,
+        }
+      : undefined;
     let sessionId: number;
     try {
-      sessionId = await this.db.insertSession(packet.CarOrdinal, trackOrd, gameId, sessionType);
+      sessionId = await this.db.insertSession(
+        packet.CarOrdinal,
+        trackOrd,
+        gameId,
+        sessionType,
+        identity,
+      );
     } catch (err) {
       console.error(`[LapDetector] Failed to insert session:`, (err as Error).message);
       return;
