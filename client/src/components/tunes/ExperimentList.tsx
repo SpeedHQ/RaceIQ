@@ -125,9 +125,13 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
   const [dragging, setDragging] = useState(false);
   const [dropNote, setDropNote] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // A dropped setup that isn't in the Setups folder yet — offer to place it there
-  // (car from the file's content; track the driver picks) instead of rejecting it.
+  // The dropped file's payload, kept whether or not it matched something
+  // already in the Setups folder — a match must not throw the bytes away, or
+  // the same setup could never be imported for a second track.
   const [pendingDrop, setPendingDrop] = useState<{ fileName: string; content?: unknown; contentBase64?: string; carName: string } | null>(null);
+  // Whether the "add it to Setups" form is open. Separate from `pendingDrop`
+  // so a matched file can still be placed under a different track on request.
+  const [placing, setPlacing] = useState(false);
   const [placeCar, setPlaceCar] = useState("");
   const [placeTrack, setPlaceTrack] = useState("");
 
@@ -245,26 +249,32 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
       carName = typeof parsed?.carName === "string" ? parsed.carName : undefined;
     }
 
+    const payload = isCarSetup
+      ? { fileName: file.name, contentBase64: base64, carName: carName ?? "" }
+      : { fileName: file.name, content: parsed, carName: carName ?? "" };
+
     const byName = files.filter((f) => f.fileName === file.name);
     const match = byName.length === 1 ? byName[0] : carName ? byName.find((f) => f.carModel === carName) : undefined;
+    // A file already in the Setups folder is pinned for convenience — but the
+    // payload is retained and the form stays available, because "I already
+    // imported this setup for Spa" is not a reason to refuse importing it for
+    // Monza. Copying it per track is the normal way to run the same base setup
+    // at more than one circuit.
+    setPendingDrop(payload);
+    setPlaceCar(match?.carModel || carName || "");
+    setPlaceTrack("");
     if (match) {
       setCar(match.carModel);
       setTrack(match.trackName);
       setBaseSetupPath(match.absolutePath);
-      setPendingDrop(null);
+      setPlacing(false);
       // The folder the file was matched into already names the car, so an
       // absent car id inside the file is no longer worth flagging.
       setDropNote(null);
       return;
     }
-    // Not in the Setups folder — offer to place it there rather than rejecting.
-    setPendingDrop(
-      isCarSetup
-        ? { fileName: file.name, contentBase64: base64, carName: carName ?? "" }
-        : { fileName: file.name, content: parsed, carName: carName ?? "" },
-    );
-    setPlaceCar(carName ?? "");
-    setPlaceTrack("");
+    // Not in the Setups folder at all — go straight to placing it.
+    setPlacing(true);
     setDropNote(carSetupNote);
   };
 
@@ -285,8 +295,14 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
       setCar(r.carModel);
       setTrack(r.trackName);
       setBaseSetupPath(r.absolutePath);
-      setPendingDrop(null);
-      setDropNote(r.placed ? `Placed ${r.fileName} in your Setups folder — ready to use.` : `A setup named ${r.fileName} already existed there — using it.`);
+      // Keep the payload: the driver may want this same setup at a third
+      // track. Only the form closes.
+      setPlacing(false);
+      setDropNote(
+        r.placed
+          ? `Placed ${r.fileName} in your Setups folder — ready to use.`
+          : `A setup named ${r.fileName} already existed for that track — using it.`,
+      );
     } catch (err: any) {
       setError(err?.message ?? "Couldn't place the setup");
     }
@@ -352,10 +368,34 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
         </button>
         {dropNote && <div className="text-[11px] text-amber-400">{dropNote}</div>}
 
+        {/* The dropped file already exists in the Setups folder, so it's pinned
+            above — but the same base setup is routinely run at several
+            circuits, and matching on filename alone must not decide that for
+            the driver. Offer the copy explicitly. */}
+        {pendingDrop && !placing && (
+          <div className="flex flex-wrap items-center gap-2 text-[11px] text-app-text-dim">
+            <span>
+              <span className="font-mono text-app-text">{pendingDrop.fileName}</span> is already in your Setups folder
+              {track ? ` under ${allTracks.find((t) => t.value === track)?.label ?? track}` : ""}.
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setPlacing(true);
+                setPlaceTrack("");
+                setDropNote(null);
+              }}
+              className="px-2 py-1 rounded border border-app-border text-app-text hover:bg-app-border/30"
+            >
+              Use it for another track
+            </button>
+          </div>
+        )}
+
         {/* Place a dropped setup that isn't in the Setups folder yet. Car comes
             from the file's carName; the driver names the track (ACC setup JSON
             has no track). Writes it under Setups/<car>/<track>/ so it's usable. */}
-        {pendingDrop && (
+        {pendingDrop && placing && (
           <div className="rounded-lg border border-purple-500/40 bg-purple-500/5 p-3 space-y-2">
             <div className="text-[11px] text-app-text">
               <span className="font-mono">{pendingDrop.fileName}</span> isn't in your Setups folder yet — add it and pick its track:
@@ -399,7 +439,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
               >
                 {place.isPending ? "Placing…" : "Add to Setups & use"}
               </button>
-              <button type="button" onClick={() => setPendingDrop(null)} className="px-2 py-1.5 text-xs text-app-text-dim hover:text-app-text">
+              <button type="button" onClick={() => setPlacing(false)} className="px-2 py-1.5 text-xs text-app-text-dim hover:text-app-text">
                 Cancel
               </button>
             </div>

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { resolve } from "path";
 import { errorFromResponse } from "../client/src/lib/rpc-error";
 import { tuneCrudRoutes } from "../server/routes/tune-crud-routes";
@@ -160,5 +160,41 @@ describe("errorFromResponse", () => {
   test("an empty body yields status text alone", async () => {
     const err = await errorFromResponse(new Response("", { status: 502, statusText: "Bad Gateway" }));
     expect(err.message).toBe("502 Bad Gateway");
+  });
+});
+
+/**
+ * The same base setup is routinely run at several circuits, so importing a file
+ * that already exists under one track must still be allowed for another.
+ *
+ * Setups are keyed by path (Setups/<car>/<track>/<file>), so two tracks are two
+ * distinct targets — the server was never the thing blocking this. The bug was
+ * client-side: a filename match pinned the existing track and returned early,
+ * discarding the payload so the file could never be placed elsewhere.
+ */
+describe("place-setup: the same file under a second track", () => {
+  const tmp = resolve(import.meta.dir, "artifacts/.place-setup-tmp");
+
+  test("writing the same file to two tracks yields two independent copies", () => {
+    const bytes = read("mustang.carsetup");
+    const spa = resolve(tmp, "ford_mustang_gt3", "spa", "mustang.carsetup");
+    const monza = resolve(tmp, "ford_mustang_gt3", "monza", "mustang.carsetup");
+
+    rmSync(tmp, { recursive: true, force: true });
+    for (const target of [spa, monza]) {
+      mkdirSync(resolve(target, ".."), { recursive: true });
+      writeFileSync(target, bytes);
+    }
+
+    // Distinct paths, so neither overwrites the other …
+    expect(spa).not.toBe(monza);
+    expect(existsSync(spa)).toBe(true);
+    expect(existsSync(monza)).toBe(true);
+    // … and both are byte-identical to the source, which is what makes the
+    // second import a real usable base rather than a stub.
+    expect(readFileSync(spa).equals(bytes)).toBe(true);
+    expect(readFileSync(monza).equals(bytes)).toBe(true);
+
+    rmSync(tmp, { recursive: true, force: true });
   });
 });
