@@ -42,6 +42,7 @@
     "laps:import": "bun scripts/import-laps.ts",
     "ibt:probe": "bun scripts/probe-ibt.ts",
     "gzip:recording": "bun scripts/gzip-recording.ts",
+    "fixtures:iracing": "bun scripts/generate-iracing-recording-fixture.ts",
     "build:installer": "bun scripts/build-installer.ts",
     "mastra:studio": "portless studio bun scripts/mastra-studio.ts",
     "mastra:migrate": "DATA_DIR=\"$PWD/data\" bunx --bun mastra migrate --dir mastra",
