@@ -441,6 +441,7 @@
   "aidisplay_best_guess": "Beste Vermutung",
   "aidisplay_setup_recommendations": "Setup-Empfehlungen",
   "aidisplay_close_setup": "Setup-Fenster schließen",
+  "aidisplay_no_tune_linked": "Kein Tune verknüpft — Werte werden aus der Telemetrie geschätzt. Verknüpfe einen Tune für genaue Setup-Vorschläge.",
   "aidisplay_regenerate": "Analyse neu generieren",
   "aidisplay_symptom": "Symptom:",
   "aidisplay_fix": "Lösung:",
