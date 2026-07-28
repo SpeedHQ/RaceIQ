@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "fs";
+import { readdirSync, readFileSync } from "fs";
 import { resolve } from "path";
-import { parseCarSetup } from "../server/games/ac-evo/carsetup";
+import { carSlugFromPresetId, parseCarSetup } from "../server/games/ac-evo/carsetup";
+import { getAllAcEvoCars } from "../shared/ac-evo-car-data";
 
 /**
  * `POST /api/tunes/place-setup` accepts a binary AC EVO `.carsetup` as base64
@@ -71,5 +72,59 @@ describe("place-setup: binary .carsetup round-trip", () => {
 
     // A real setup is what passing the gate looks like.
     expect(parseCarSetup(readFileSync(FIXTURE))!.raw.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * A dropped `.carsetup` names its own car via the preset id, so the driver
+ * should never have to retype a car folder the file already knows.
+ *
+ * The slug must be validated against the canonical roster rather than trusted:
+ * `_preset_` is an observed delimiter, not a documented one, so an unmatched
+ * slug has to read as "unknown" instead of pre-filling a folder name that would
+ * silently create a bogus directory under the driver's game install.
+ */
+describe("carSlugFromPresetId", () => {
+  const FIXTURE_DIR = resolve(import.meta.dir, "artifacts/carsetup");
+
+  test("every real fixture resolves to a car in the roster", () => {
+    const models = new Set(getAllAcEvoCars().map((c) => c.model));
+    const files = readdirSync(FIXTURE_DIR).filter((f) => f.endsWith(".carsetup"));
+    expect(files.length).toBeGreaterThan(0);
+
+    for (const f of files) {
+      const setup = parseCarSetup(readFileSync(resolve(FIXTURE_DIR, f)))!;
+      const slug = carSlugFromPresetId(setup.presetId);
+      expect(slug, `${f} (${setup.presetId})`).not.toBeNull();
+      expect(models.has(slug!), `${f} → ${slug} not in roster`).toBe(true);
+    }
+  });
+
+  test("strips the ks_ prefix and cuts at the first _preset_", () => {
+    expect(carSlugFromPresetId("ks_audi_r8_lms_gt3_evo_2_preset_r8gt3_mech_1_preset_r8gt3_visual_1")).toBe(
+      "audi_r8_lms_gt3_evo_2",
+    );
+    expect(carSlugFromPresetId("ks_ferrari_sf_25_preset_sf25_mech_1_preset_sf25_visual_1")).toBe("ferrari_sf_25");
+  });
+
+  test("a slug with no preset suffix is returned whole", () => {
+    expect(carSlugFromPresetId("ks_ferrari_sf_25")).toBe("ferrari_sf_25");
+    // No vendor prefix either — take it as-is rather than guessing.
+    expect(carSlugFromPresetId("some_other_car")).toBe("some_other_car");
+  });
+
+  test("missing or empty preset id yields null, never a bogus slug", () => {
+    expect(carSlugFromPresetId(null)).toBeNull();
+    expect(carSlugFromPresetId(undefined)).toBeNull();
+    expect(carSlugFromPresetId("")).toBeNull();
+    // Prefix only — nothing left after stripping, so there is no car to report.
+    expect(carSlugFromPresetId("ks_")).toBeNull();
+  });
+
+  test("an unknown slug is not in the roster, so the route reports no car", () => {
+    const models = new Set(getAllAcEvoCars().map((c) => c.model));
+    const slug = carSlugFromPresetId("ks_not_a_real_car_preset_x");
+    expect(slug).toBe("not_a_real_car");
+    expect(models.has(slug!)).toBe(false);
   });
 });

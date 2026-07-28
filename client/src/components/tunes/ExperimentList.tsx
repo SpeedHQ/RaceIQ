@@ -1,6 +1,6 @@
 import { type DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { type ExperimentGameId, type Experiment, useAccCarName, useCreateExperiment, usePlaceSetup, useResolveNames, useSetupFiles, useTracks, useExperiments } from "../../hooks/queries";
+import { type ExperimentGameId, type Experiment, useAccCarName, useCreateExperiment, useInspectCarSetup, usePlaceSetup, useResolveNames, useSetupFiles, useTracks, useExperiments } from "../../hooks/queries";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { SearchSelect } from "../ui/SearchSelect";
 import { SetupFilePicker } from "./SetupFilePicker";
@@ -114,6 +114,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
   const { data: setupFiles, isLoading: loadingFiles } = useSetupFiles(gameId);
   const create = useCreateExperiment();
   const place = usePlaceSetup();
+  const inspect = useInspectCarSetup();
   // Cascading pick — car → track → setup file — so a driver with hundreds of
   // setups narrows down instead of scrolling one giant flat list.
   const [car, setCar] = useState("");
@@ -167,8 +168,9 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
       return;
     }
 
-    // AC EVO `.carsetup` is protobuf, not JSON, and carries no readable car
-    // name — so it travels as base64 and the driver names the car folder below.
+    // AC EVO `.carsetup` is protobuf, not JSON — it travels as base64. Its
+    // preset id names the car, but reading it needs a decode only the server
+    // can do, so the bytes go there first.
     let parsed: any;
     let base64: string | undefined;
     let carName: string | undefined;
@@ -181,6 +183,15 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
         bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
       }
       base64 = btoa(bin);
+      try {
+        const info = await inspect.mutateAsync(base64);
+        // null when the slug isn't in the roster — the driver names it instead
+        // of us pre-filling a folder that would be wrong.
+        carName = info.carModel ?? undefined;
+      } catch (err: any) {
+        setDropNote(err?.message ?? "Couldn't read that .carsetup file.");
+        return;
+      }
     } else {
       try {
         parsed = JSON.parse(await file.text());
@@ -204,7 +215,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
     // Not in the Setups folder — offer to place it there rather than rejecting.
     setPendingDrop(
       isCarSetup
-        ? { fileName: file.name, contentBase64: base64, carName: "" }
+        ? { fileName: file.name, contentBase64: base64, carName: carName ?? "" }
         : { fileName: file.name, content: parsed, carName: carName ?? "" },
     );
     setPlaceCar(carName ?? "");

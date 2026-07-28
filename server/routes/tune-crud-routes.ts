@@ -20,7 +20,7 @@ import { symptomsToIntents } from "../ai/tune-recommend";
 import { applyIntents, getAcEvoCarRanges } from "../ai/tune-rules";
 import { writeSetupFile } from "../ai/tune-writer";
 import { getSetupsBaseDir, resolveGuardedSetupFile } from "../ai/setup-engineer-context";
-import { formatCarSetup, parseCarSetup, readCarSetupFile, summarizeCarSetup } from "../games/ac-evo/carsetup";
+import { carSlugFromPresetId, formatCarSetup, parseCarSetup, readCarSetupFile, summarizeCarSetup } from "../games/ac-evo/carsetup";
 import { communityRowToCatalog, CarOrdinalQuerySchema } from "./tune-shared";
 
 /** Forza's TuneSettings has a specific shape that the built-in Forza UI expects.
@@ -325,6 +325,35 @@ export const tuneCrudRoutes = new Hono()
         });
       }
       return c.json({ fileName, kind: "json" as const, presetId: null, formatted: null, sections: null, setup: guarded.setup });
+    }
+  )
+
+  // POST /api/tunes/inspect-carsetup — decode a dropped binary `.carsetup`
+  // (base64) far enough to name its car, without writing anything.
+  //
+  // Exists because a `.carsetup` identifies its own car via the preset id, but
+  // only after a protobuf decode — which the browser can't do. Without this the
+  // driver would have to retype a car folder the file already knows.
+  .post("/api/tunes/inspect-carsetup",
+    zValidator("json", z.object({ contentBase64: z.string().min(1) })),
+    async (c) => {
+      const { contentBase64 } = c.req.valid("json");
+      const bytes = Buffer.from(contentBase64, "base64");
+      const decoded = bytes.length > 0 ? parseCarSetup(bytes) : null;
+      // Same gate as place-setup: an undecodable file, or one with no fields.
+      if (!decoded || decoded.raw.length === 0) {
+        return c.json({ error: "Couldn't decode that .carsetup file" }, 400);
+      }
+      // Only report a car we can confirm against the canonical roster — a slug
+      // that doesn't match is reported as unknown rather than pre-filling a
+      // folder name that would silently create a bogus directory.
+      const slug = carSlugFromPresetId(decoded.presetId);
+      const known = slug ? getAllAcEvoCars().find((car) => car.model === slug) : undefined;
+      return c.json({
+        presetId: decoded.presetId,
+        carModel: known?.model ?? null,
+        carName: known?.name ?? null,
+      });
     }
   )
 
