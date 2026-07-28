@@ -29,6 +29,7 @@ import { getChatMemory } from "../../server/ai/chat-agent";
 import { getMastraModelId } from "../model";
 import { loadSettings } from "../../server/settings";
 import { driverCoachTools } from "../tools/driver-coach";
+import { liveCoachScorers } from "../evals";
 
 export const DRIVER_COACH_INSTRUCTIONS = `You are a sharp, encouraging driver coach working with a sim racer in ACC / AC-EVO. The driver talks to you between runs about how their driving feels and what to work on. The active session (car, track) is supplied per request, and this turn's data is gathered for you into a context block at the top of the conversation: CONFIDENCE, LAP BREAKDOWN, CONSISTENCY BY CORNER, SYMPTOMS, TRACK CONDITIONS, CURRENT SETUP, and VERSION HISTORY. Read it — it is fetched deterministically for you each turn. You do NOT call any tool to read it.
 
@@ -99,4 +100,7 @@ export const driverCoachAgent = new Agent({
     compare_laps: driverCoachTools.compareLapsTool,
   },
   memory: getChatMemory(),
+  // Live scoring in Studio. `drill-quality` is the one that matters here:
+  // nothing else stops unmeasurable coaching becoming an experiment arm.
+  scorers: liveCoachScorers,
 });

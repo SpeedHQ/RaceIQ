@@ -342,6 +342,7 @@ Lap Analyst and Compare Engineer outputs are gated by deterministic scorers unde
 - `unit-consistency` — metric fixtures must not leak imperial units, and vice versa. Threshold 1.0.
 - `compare-directionality` — compare output correctly names the faster lap. Threshold 0.9.
 - `chat-freeform-shape` — chat output is non-empty, cites real corners, no hallucinated corner names. Threshold 0.8.
+- `drill-quality` — a Driver Coach drill is LOCATED (0.3), ACTIONABLE (0.3), SINGULAR (0.3) and CONCRETE (0.1). Threshold 0.75. ⚠️ The weights are load-bearing: under equal weights a drill that bundled two changes, or named nowhere to run it, scored exactly the pass mark. Any one of located/actionable/singular missing must fail. Coaching output has no deterministic rules engine behind it, so this is the only thing stopping "be smoother" being recorded as an arm and then judged on a spread it cannot move.
 
 **Schema source of truth:** every game adapter prompt (FM, F1, ACC, AC Evo) renders its JSON output shape via `renderAnalystSchemaForPrompt()` from `server/ai/schemas.ts`, so the scorer and the model's instructions stay in lockstep. Per-game prompts still own their own category guidelines and domain rules, but the shape is centralised.
 
