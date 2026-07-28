@@ -68,8 +68,18 @@ flowchart TD
     SHM -.->|RtlCopyMemory| BR
 
     TA --> TP{"TripletPipeline"}
-    TP -->|recording mode only| DUMP["DumpToBinProcessor<br/>writePhysics / writeGraphics / writeStatic<br/>static deduped"]
-    DUMP --> DEVBIN[("test/artifacts/laps/<br/>ac-evo-*.bin (ACCTEST v3)")]
+    TP -->|recording mode only| DUMP["DumpToBinProcessor"]
+
+    DUMP --> WP["writePhysics<br/>always writes"]
+    DUMP --> WG["writeGraphics<br/>always writes"]
+    DUMP --> WS2["writeStatic"]
+    WS2 --> DEDUP{"bytes equal<br/>_lastStatic?"}
+    DEDUP -->|yes| SKIP(["skip — no frame written"])
+    DEDUP -->|no| WRITE["write frame,<br/>cache as _lastStatic"]
+
+    WP --> DEVBIN[("test/artifacts/laps/<br/>ac-evo-*.bin (ACCTEST v3)")]
+    WG --> DEVBIN
+    WRITE --> DEVBIN
     TP --> PARSE["AcEvoParsingProcessor<br/>parseAcEvoBuffers(physics, graphics, static, cache)"]
 
     PARSE -->|AC_OFF / AC_REPLAY -> null| DROP(["frame dropped"])
@@ -151,6 +161,36 @@ Registration for AC Evo:
 
 - recording mode: `DumpToBinProcessor` → `AcEvoParsingProcessor`
 - normal mode: `AcEvoParsingProcessor`
+
+**Static-frame dedup.** `DumpToBinProcessor` calls all three writers per
+triplet, but only physics and graphics are written unconditionally.
+`AcRecorder.writeStatic` compares the buffer against the last static frame it
+wrote and returns early when the bytes are identical:
+
+```ts
+writeStatic(buffer: Buffer): void {
+  if (this._lastStatic && this._lastStatic.equals(buffer)) return;
+  this._lastStatic = Buffer.from(buffer);
+  this._writeBufferFrame(2, buffer);
+}
+```
+
+Without this, a 100Hz assembler would emit ~100 identical 256-byte static
+frames per second for a page that changes only on session/car/track
+transitions. Dedup keeps every state transition — including the game populating
+the track name mid-session — while dropping the repeats.
+
+The cost is that the file no longer contains one static frame per triplet, so
+the reader has to reconstruct them: `readAccFrames` flushes a triplet when the
+*next* poll's physics frame arrives (or at EOF) and carries `lastStatic`
+forward across polls that skipped a static frame. A triplet is only emitted once
+`lastStatic.length > 0`, so frames recorded before the first static write are
+discarded.
+
+Physics and graphics are deliberately **not** deduped — they change nearly
+every frame, so a comparison would cost more than it saves, and dropping a
+repeated physics frame would desynchronise the triplet reconstruction above,
+which keys off physics-frame boundaries.
 
 **`StatusCheckProcessor` is deliberately not registered for AC Evo.** In v0.6
 the `status` byte at offset 4 of the legacy `acpmf_graphics` page stays 0 even
