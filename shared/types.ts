@@ -697,12 +697,6 @@ export interface SessionMeta {
   gameId?: GameId;
 }
 
-/** Optional display identity to register for telemetry-provided native ordinals. */
-export interface SessionIdentity {
-  carName?: string;
-  trackName?: string;
-}
-
 /**
  * Post-session summary shown on the recap card. Every field is derived from laps
  * we already store — see server/recap.ts for the rules. Nullable fields mean

@@ -10,9 +10,9 @@ import {
   listDiscoveredTracks,
 } from "../server/db/discovered-tracks";
 import { db } from "../server/db/index";
-import { deleteSession, insertSession } from "../server/db/queries";
 import { discoveredCars, discoveredTracks } from "../server/db/schema";
 import { initServerGameAdapters } from "../server/games/init";
+import { registerLiveIRacingIdentity } from "../server/games/iracing/identity";
 import {
   createIRacingParserState,
   normalizeIRacingFrame,
@@ -45,6 +45,7 @@ import { initGameAdapters } from "../shared/games/init";
 import {
   injectDiscoveredIRacingIdentity,
   iracingAdapter,
+  rememberIRacingIdentity,
 } from "../shared/games/iracing";
 import type { TelemetryPacket } from "../shared/types";
 
@@ -249,26 +250,25 @@ DriverInfo:
 });
 
 describe("iRacing raw source frame parser integration", () => {
-  test("persists one runtime identity per ordinal for restart hydration", async () => {
+  test("persists live source identity once per ordinal for restart hydration", async () => {
     const carOrdinal = 900_042;
     const trackOrdinal = 900_099;
-    const sessionIds: number[] = [];
 
     try {
-      sessionIds.push(await insertSession(
-        carOrdinal,
-        trackOrdinal,
-        "iracing",
-        undefined,
-        { carName: "Persisted GT3", trackName: "Persisted Raceway" },
-      ));
-      sessionIds.push(await insertSession(
-        carOrdinal,
-        trackOrdinal,
-        "iracing",
-        undefined,
-        { carName: "Later Rename", trackName: "Later Track Rename" },
-      ));
+      await registerLiveIRacingIdentity({
+        ...sampleFrame().session,
+        carId: carOrdinal,
+        carName: "Persisted GT3",
+        trackId: trackOrdinal,
+        trackName: "Persisted Raceway",
+      });
+      await registerLiveIRacingIdentity({
+        ...sampleFrame().session,
+        carId: carOrdinal,
+        carName: "Later Rename",
+        trackId: trackOrdinal,
+        trackName: "Later Track Rename",
+      });
 
       expect(await getDiscoveredCarName("iracing", carOrdinal)).toBe("Persisted GT3");
       expect(await getDiscoveredTrackName("iracing", trackOrdinal)).toBe("Persisted Raceway");
@@ -278,6 +278,8 @@ describe("iRacing raw source frame parser integration", () => {
       expect(
         (await listDiscoveredTracks("iracing")).filter((row) => row.ordinal === trackOrdinal),
       ).toHaveLength(1);
+      expect(iracingAdapter.getCarName(carOrdinal)).toBe("Persisted GT3");
+      expect(iracingAdapter.getTrackName(trackOrdinal)).toBe("Persisted Raceway");
 
       injectDiscoveredIRacingIdentity(
         await listDiscoveredCars("iracing"),
@@ -286,7 +288,6 @@ describe("iRacing raw source frame parser integration", () => {
       expect(iracingAdapter.getCarName(carOrdinal)).toBe("Persisted GT3");
       expect(iracingAdapter.getTrackName(trackOrdinal)).toBe("Persisted Raceway");
     } finally {
-      for (const sessionId of sessionIds) await deleteSession(sessionId);
       await db
         .delete(discoveredCars)
         .where(and(
@@ -323,6 +324,30 @@ describe("iRacing raw source frame parser integration", () => {
     expect(packet?.TireTempFL).toBeCloseTo(84);
     expect(packet?.TireWearFL).toBeCloseTo(0.06);
     expect(packet?.iracing?.incidents).toBe(1);
+  });
+
+  test("parsing a historical frame cannot overwrite live identity", () => {
+    const carOrdinal = 901_042;
+    const trackOrdinal = 901_099;
+    rememberIRacingIdentity({
+      carId: carOrdinal,
+      carName: "Live GT3",
+      trackId: trackOrdinal,
+      trackName: "Live Raceway",
+    });
+
+    const historical = sampleFrame();
+    historical.session = {
+      ...historical.session,
+      carId: carOrdinal,
+      carName: "Old Capture GT3",
+      trackId: trackOrdinal,
+      trackName: "Old Capture Raceway",
+    };
+    normalizeIRacingFrame(historical);
+
+    expect(iracingAdapter.getCarName(carOrdinal)).toBe("Live GT3");
+    expect(iracingAdapter.getTrackName(trackOrdinal)).toBe("Live Raceway");
   });
 
   test("translates iRacing gear and weather into canonical dashboard fields", () => {
@@ -445,10 +470,14 @@ DriverInfo:
       },
     };
     const delivered: Buffer[] = [];
+    const registeredTrackNames: string[] = [];
     const source = new IRacingTelemetrySource({
       reader,
       dispatchRawFrame: async (raw) => {
         delivered.push(raw);
+      },
+      registerIdentity: async (session) => {
+        registeredTrackNames.push(session.trackName);
       },
     });
 
@@ -460,6 +489,7 @@ DriverInfo:
         (raw) => decodeIRacingSourceFrame(raw)?.session.trackName,
       ),
     ).toEqual(["Road America", "Road America", "Spa"]);
+    expect(registeredTrackNames).toEqual(["Road America", "Spa"]);
   });
 });
 

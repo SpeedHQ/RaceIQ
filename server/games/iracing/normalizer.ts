@@ -1,4 +1,3 @@
-import { rememberIRacingIdentity } from "../../../shared/games/iracing";
 import type { TelemetryPacket } from "../../../shared/types";
 import type { IRacingSourceFrameV1, IRacingValue } from "./source-frame";
 
@@ -113,12 +112,6 @@ export function normalizeIRacingFrame(
   state?: IRacingParserState | null,
 ): TelemetryPacket {
   const { session, values } = frame;
-  rememberIRacingIdentity({
-    carId: session.carId,
-    carName: session.carName,
-    trackId: session.trackId,
-    trackName: session.trackName,
-  });
 
   const rawLap = Math.max(0, Math.trunc(scalar(values, "Lap", 0)));
   const lapDistanceM = Math.max(0, scalar(values, "LapDist", 0));

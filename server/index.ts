@@ -290,6 +290,7 @@ countStaleSessions(ALL_DETECTOR_IDS).then((count) => {
 import { AccSharedMemoryReader } from "./games/acc/shared-memory";
 import { AcEvoSharedMemoryReader } from "./games/ac-evo/shared-memory";
 import { IRacingTelemetrySource } from "./games/iracing/source";
+import { registerLiveIRacingIdentity } from "./games/iracing/identity";
 import { startTray } from "./tray";
 import { isGameRunning } from "./games/registry";
 import { superviseSource } from "./source-supervisor";
@@ -323,6 +324,7 @@ if (process.platform === "win32") {
       "iRacing",
       () => new IRacingTelemetrySource({
         recordingEnabled: recordingGameId === "iracing",
+        registerIdentity: registerLiveIRacingIdentity,
       }),
       () => iracingSource,
       (source) => { iracingSource = source; },

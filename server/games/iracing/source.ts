@@ -19,6 +19,7 @@ export interface IRacingFrameReader {
 export interface IRacingTelemetrySourceOptions {
   reader?: IRacingFrameReader;
   dispatchRawFrame?: (rawFrame: Buffer) => Promise<void>;
+  registerIdentity?: (session: IRacingSessionSnapshot) => Promise<void>;
   pollIntervalMs?: number;
   recordingEnabled?: boolean;
   recordingDir?: string;
@@ -44,6 +45,9 @@ function numeric(values: Record<string, IRacingValue>, name: string, fallback = 
 export class IRacingTelemetrySource {
   private readonly reader: IRacingFrameReader;
   private readonly dispatchRawFrame: (rawFrame: Buffer) => Promise<void>;
+  private readonly registerIdentity:
+    | ((session: IRacingSessionSnapshot) => Promise<void>)
+    | undefined;
   private readonly pollIntervalMs: number;
   private readonly recordingEnabled: boolean;
   private readonly recordingDir: string | undefined;
@@ -59,6 +63,7 @@ export class IRacingTelemetrySource {
   constructor(options: IRacingTelemetrySourceOptions = {}) {
     this.reader = options.reader ?? new IRacingSdkReader();
     this.dispatchRawFrame = options.dispatchRawFrame ?? dispatchThroughParser;
+    this.registerIdentity = options.registerIdentity;
     this.pollIntervalMs = options.pollIntervalMs ?? 1000 / 60;
     this.recordingEnabled = options.recordingEnabled ?? false;
     this.recordingDir = options.recordingDir;
@@ -109,12 +114,14 @@ export class IRacingTelemetrySource {
         this.cachedSessionInfoUpdate !== snapshot.sessionInfoUpdate ||
         this.cachedSessionNum !== sessionNum
       ) {
-        this.cachedSessionInfoUpdate = snapshot.sessionInfoUpdate;
-        this.cachedSessionNum = sessionNum;
-        this.cachedSession = parseIRacingSessionInfo(
+        const session = parseIRacingSessionInfo(
           snapshot.sessionInfo,
           sessionNum,
         );
+        await this.registerIdentity?.(session);
+        this.cachedSessionInfoUpdate = snapshot.sessionInfoUpdate;
+        this.cachedSessionNum = sessionNum;
+        this.cachedSession = session;
       }
       const frame: IRacingSourceFrameV1 = {
         schemaVersion: 1,

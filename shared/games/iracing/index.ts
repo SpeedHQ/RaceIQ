@@ -5,8 +5,8 @@ const trackNames = new Map<number, string>();
 
 /**
  * iRacing publishes car and track identity in its session-info block instead
- * of a bundled catalogue. Keep the latest names available to the shared game
- * adapter so sessions and live UI resolve the same stable numeric IDs.
+ * of a bundled catalogue. This setter is for accepted live-source metadata;
+ * parsers and replay/import paths must remain side-effect free.
  */
 export function rememberIRacingIdentity(identity: {
   carId: number;

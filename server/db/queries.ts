@@ -1,12 +1,10 @@
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, compareAnalyses, profiles, tunes, lineSpreadCache } from "./schema";
-import type { TelemetryPacket, LapMeta, SessionMeta, GameId, SessionIdentity } from "../../shared/types";
+import type { TelemetryPacket, LapMeta, SessionMeta, GameId } from "../../shared/types";
 import type { Corner } from "../corner-detection";
 import { fillNormSuspension } from "../telemetry-utils";
 import { getServerGame } from "../games/registry";
-import { registerDiscoveredCar } from "./discovered-cars";
-import { registerDiscoveredTrack } from "./discovered-tracks";
 import { getActiveTuningSession } from "../tuning-active";
 import { resolveActiveTestId } from "./tuning-test-queries";
 import { tryGetGame } from "../../shared/games/registry";
@@ -156,15 +154,7 @@ export async function insertSession(
   trackOrdinal: number,
   gameId: GameId,
   sessionType?: string,
-  identity?: SessionIdentity,
 ): Promise<number> {
-  if (identity?.carName && carOrdinal >= 0) {
-    await registerDiscoveredCar(gameId, carOrdinal, identity.carName);
-  }
-  if (identity?.trackName && trackOrdinal >= 0) {
-    await registerDiscoveredTrack(gameId, trackOrdinal, identity.trackName);
-  }
-
   const result = await db
     .insert(sessions)
     .values({ carOrdinal, trackOrdinal, gameId, sessionType })
