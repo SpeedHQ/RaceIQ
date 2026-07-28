@@ -395,8 +395,36 @@ export const lapRoutes = new Hono()
     const sidecar = form?.get("ldx");
     const ldxText = sidecar instanceof File ? await sidecar.text() : undefined;
 
+    // Car and track are the user's call, not the log header's — a log filed
+    // against the wrong track gets meaningless sectors and corner names. The
+    // setup is optional: not knowing it costs a label, nothing more.
+    const num = (key: string): number | undefined => {
+      const raw = form?.get(key);
+      if (typeof raw !== "string" || raw.trim() === "") return undefined;
+      const parsed = Number(raw);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
+    const carOrdinal = num("carOrdinal");
+    const trackOrdinal = num("trackOrdinal");
+    if (carOrdinal === undefined || trackOrdinal === undefined) {
+      return c.json({ error: "carOrdinal and trackOrdinal are required" }, 400);
+    }
+
+    // laps.tune_id is a real FK, so an id that doesn't exist would surface as a
+    // constraint failure and a 500. It's user input; say so plainly instead.
+    const tuneId = num("tuneId");
+    if (tuneId !== undefined) {
+      if (!(await getDbTune(tuneId))) {
+        return c.json({ error: `No setup with id ${tuneId}` }, 400);
+      }
+    }
+
     try {
-      const result = await importMotec(Buffer.from(await file.arrayBuffer()), ldxText);
+      const result = await importMotec(Buffer.from(await file.arrayBuffer()), ldxText, {
+        carOrdinal,
+        trackOrdinal,
+        tuneId,
+      });
       if (result.laps.length === 0) {
         return c.json(
           { error: "No laps could be detected in this log", meta: result.meta, limitations: result.limitations },

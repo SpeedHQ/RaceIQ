@@ -57,8 +57,12 @@ import {
 } from "../games/ac-evo/structs";
 import { ACEVO_PACKED_MAGIC, packTriplet } from "../games/shared/pack-triplet";
 import { META_FRAME_MAGIC } from "../udp-recorder";
-import { getAcEvoCarByModel } from "../../shared/ac-evo-car-data";
-import { getAcEvoTrackByName, getAcEvoTrackBySetupFolder } from "../../shared/ac-evo-track-data";
+import { getAcEvoCarByModel, getAcEvoCarName } from "../../shared/ac-evo-car-data";
+import {
+  getAcEvoTrackByName,
+  getAcEvoTrackBySetupFolder,
+  getAcEvoTracks,
+} from "../../shared/ac-evo-track-data";
 import { findChannel, type LdChannel, type LdLog } from "./ld";
 
 /**
@@ -325,20 +329,43 @@ export interface MotecCarTrack {
   trackName: string;
 }
 
+/** Caller-supplied car/track, which always beats what the log header claims. */
+export interface MotecCarTrackOverride {
+  carOrdinal?: number;
+  trackOrdinal?: number;
+}
+
 /**
- * Resolve the log's `vehicleId` / `venue` header strings to RaceIQ ordinals.
+ * Resolve which car and track this log belongs to.
  *
- * MoTeC writes AC's *folder* ids (`mercedes_amg_gt3_evo`, `spa`), while the
- * parser resolves cars by display name and tracks by shared-memory name. We
- * translate here so the parser's own lookups succeed; when a lookup fails we
- * pass the raw string through rather than guessing, which lets the AC Evo lap
- * detector register it in `discovered_cars` exactly as it does for an unknown
- * live car.
+ * The header is only a hint. MoTeC writes AC's *folder* ids
+ * (`mercedes_amg_gt3_evo`, `spa`), which we can usually translate — but the
+ * strings come from whichever exporter wrote the file, a track can be logged
+ * under a layout we don't match, and a car may simply not be in cars.csv. So the
+ * import asks the user which car and track it is, and those answers take
+ * priority over anything parsed out of the header. Guessing wrong here silently
+ * files a lap under the wrong track, where its sectors and corner names are
+ * quietly meaningless.
+ *
+ * With no override we fall back to the header, and when *that* fails we pass the
+ * raw string through rather than inventing a match — which lets the AC Evo lap
+ * detector register an unknown car in `discovered_cars` exactly as it does for
+ * an unknown live one.
  */
-export function resolveMotecCarTrack(log: LdLog): MotecCarTrack {
-  const car = getAcEvoCarByModel(log.vehicleId);
+export function resolveMotecCarTrack(
+  log: LdLog,
+  override?: MotecCarTrackOverride,
+): MotecCarTrack {
+  const car =
+    override?.carOrdinal !== undefined && override.carOrdinal >= 0
+      ? { id: override.carOrdinal, name: getAcEvoCarName(override.carOrdinal) }
+      : getAcEvoCarByModel(log.vehicleId);
+
   const track =
-    getAcEvoTrackBySetupFolder(log.venue) ?? getAcEvoTrackByName(log.venue);
+    override?.trackOrdinal !== undefined && override.trackOrdinal >= 0
+      ? getAcEvoTracks().get(override.trackOrdinal)
+      : (getAcEvoTrackBySetupFolder(log.venue) ?? getAcEvoTrackByName(log.venue));
+
   return {
     carOrdinal: car?.id ?? -1,
     trackOrdinal: track?.id ?? -1,
@@ -388,7 +415,11 @@ export interface SynthesizeResult {
 /**
  * Transcode a parsed MoTeC log (plus its `.ldx` beacons) into a session capture.
  */
-export function synthesizeAcEvoCapture(log: LdLog, beacons: number[]): SynthesizeResult {
+export function synthesizeAcEvoCapture(
+  log: LdLog,
+  beacons: number[],
+  override?: MotecCarTrackOverride,
+): SynthesizeResult {
   const dt = 1 / SYNTH_HZ;
   const duration = log.duration;
   if (!(duration > 0)) throw new Error("MoTeC log has no usable duration");
@@ -424,7 +455,7 @@ export function synthesizeAcEvoCapture(log: LdLog, beacons: number[]): Synthesiz
   const suspTravel = CORNERS.map((c) => resample(pick(log, CHANNELS.suspTravel(c)), frames, dt));
   const wheelSpeed = CORNERS.map((c) => resample(pick(log, CHANNELS.wheelSpeed(c)), frames, dt));
 
-  const carTrack = resolveMotecCarTrack(log);
+  const carTrack = resolveMotecCarTrack(log, override);
   const windows = lapWindows(beacons, duration);
 
   // --- distance, integrated from speed ---

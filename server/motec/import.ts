@@ -23,7 +23,7 @@
  */
 
 import { db } from "../db";
-import { sessions } from "../db/schema";
+import { laps as laps_, sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { importSessionBin, type ImportedLap } from "../import-session-bin";
 import { parseLd } from "./ld";
@@ -59,6 +59,23 @@ export interface MotecImportResult {
   limitations: readonly string[];
 }
 
+export interface MotecImportOptions {
+  /**
+   * Car and track the log was driven on, as chosen by the user. Takes priority
+   * over the log header — see `resolveMotecCarTrack` for why the header is only
+   * a hint.
+   */
+  carOrdinal?: number;
+  trackOrdinal?: number;
+  /**
+   * Optional setup the stint was run on, as a `tunes` row id. Stamped onto every
+   * imported lap so the laps sit in the same comparison scope as recorded laps
+   * on that setup. Left null when the driver doesn't know or doesn't care —
+   * unlike car and track, an absent setup costs nothing but a missing label.
+   */
+  tuneId?: number;
+}
+
 /**
  * Import a MoTeC `.ld` log, optionally with its `.ldx` sidecar.
  *
@@ -69,11 +86,15 @@ export interface MotecImportResult {
 export async function importMotec(
   ldBytes: Buffer,
   ldxText?: string,
+  options?: MotecImportOptions,
 ): Promise<MotecImportResult> {
   const log = parseLd(new Uint8Array(ldBytes));
   const beacons = ldxText ? parseLdxBeacons(ldxText) : [];
 
-  const capture = synthesizeAcEvoCapture(log, beacons);
+  const capture = synthesizeAcEvoCapture(log, beacons, {
+    carOrdinal: options?.carOrdinal,
+    trackOrdinal: options?.trackOrdinal,
+  });
   const { packetCount, laps } = await importSessionBin(capture.bin, MOTEC_IMPORT_GAME_ID);
 
   // Stamp every session the import touched. Normally one, but the pipeline
@@ -84,6 +105,14 @@ export async function importMotec(
       .update(sessions)
       .set({ source: MOTEC_SESSION_SOURCE })
       .where(eq(sessions.id, sessionId));
+  }
+
+  // The pipeline resolves a lap's tune from the live tune assignment, which an
+  // import has no business touching, so the chosen setup is applied afterwards.
+  if (options?.tuneId !== undefined) {
+    for (const lap of laps) {
+      await db.update(laps_).set({ tuneId: options.tuneId }).where(eq(laps_.id, lap.lapId));
+    }
   }
 
   return {

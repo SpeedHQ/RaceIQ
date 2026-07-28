@@ -14,8 +14,9 @@ import {
 } from "../server/motec/to-ac-evo";
 import { importMotec, MOTEC_SESSION_SOURCE } from "../server/motec/import";
 import { db } from "../server/db";
-import { sessions } from "../server/db/schema";
+import { laps as lapsTable, sessions, tunes } from "../server/db/schema";
 import { eq, isNull } from "drizzle-orm";
+import { getAcEvoTrackByName } from "../shared/ac-evo-track-data";
 import { META_FRAME_MAGIC } from "../server/udp-recorder";
 import { buildLd, buildLdx, syntheticStint } from "./helpers/motec-ld";
 
@@ -185,6 +186,35 @@ describe("resolveMotecCarTrack", () => {
     expect(resolved.trackName.length).toBeGreaterThan(0);
   });
 
+  test("a caller-supplied car and track beat the log header", () => {
+    // The header says Spa; the user says otherwise. The user wins — filing a
+    // lap under the wrong track silently ruins its sectors and corner names.
+    const bytes = buildLd({
+      vehicleId: "mercedes_amg_gt3_evo",
+      venue: "spa",
+      channels: [{ name: "SPEED", freq: 10, samples: [50, 50] }],
+    });
+    const header = resolveMotecCarTrack(parseLd(bytes));
+    const monza = getAcEvoTrackByName("monza")!;
+    expect(monza.id).not.toBe(header.trackOrdinal);
+
+    const overridden = resolveMotecCarTrack(parseLd(bytes), {
+      carOrdinal: 0,
+      trackOrdinal: monza.id,
+    });
+    expect(overridden.trackOrdinal).toBe(monza.id);
+    expect(overridden.carOrdinal).toBe(0);
+  });
+
+  test("an absent override falls back to the header", () => {
+    const bytes = buildLd({
+      venue: "monza",
+      channels: [{ name: "SPEED", freq: 10, samples: [50, 50] }],
+    });
+    const resolved = resolveMotecCarTrack(parseLd(bytes), {});
+    expect(resolved.trackOrdinal).toBe(getAcEvoTrackByName("monza")!.id);
+  });
+
   test("passes an unknown car through instead of guessing", () => {
     const bytes = buildLd({
       vehicleId: "not_a_real_car",
@@ -293,6 +323,59 @@ describe("importMotec end to end", () => {
     for (const id of sessionIds) {
       const [row] = await db.select().from(sessions).where(eq(sessions.id, id));
       expect(row?.source).toBe(MOTEC_SESSION_SOURCE);
+    }
+  });
+
+  test("files laps under the user's chosen track, not the header's", async () => {
+    const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
+    // Header says spa (see syntheticStint); import it as Monza instead.
+    const monza = getAcEvoTrackByName("monza")!;
+    const result = await importMotec(buildLd(spec), buildLdx(beacons), {
+      carOrdinal: 0,
+      trackOrdinal: monza.id,
+    });
+
+    expect(result.carTrack.trackOrdinal).toBe(monza.id);
+    for (const lap of result.laps) expect(lap.trackOrdinal).toBe(monza.id);
+  });
+
+  test("an optional setup is stamped on every imported lap", async () => {
+    const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
+    const [tune] = await db
+      .insert(tunes)
+      .values({
+        gameId: "ac-evo",
+        name: "MoTeC import test setup",
+        author: "test",
+        carOrdinal: 0,
+        category: "race",
+        settings: "{}",
+      })
+      .returning({ id: tunes.id });
+    const tuneId = tune!.id;
+    const result = await importMotec(buildLd(spec), buildLdx(beacons), {
+      carOrdinal: 0,
+      trackOrdinal: getAcEvoTrackByName("monza")!.id,
+      tuneId,
+    });
+
+    expect(result.laps.length).toBeGreaterThan(0);
+    for (const lap of result.laps) {
+      const [row] = await db.select().from(lapsTable).where(eq(lapsTable.id, lap.lapId));
+      expect(row?.tuneId).toBe(tuneId);
+    }
+  });
+
+  test("omitting the setup leaves laps unassigned rather than guessing one", async () => {
+    const { spec, beacons } = syntheticStint({ laps: 3, lapSeconds: 120, hz: 60 });
+    const result = await importMotec(buildLd(spec), buildLdx(beacons), {
+      carOrdinal: 0,
+      trackOrdinal: getAcEvoTrackByName("monza")!.id,
+    });
+
+    for (const lap of result.laps) {
+      const [row] = await db.select().from(lapsTable).where(eq(lapsTable.id, lap.lapId));
+      expect(row?.tuneId).toBeNull();
     }
   });
 
