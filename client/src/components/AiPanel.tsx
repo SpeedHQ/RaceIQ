@@ -322,8 +322,10 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      {/* Unified conversation */}
-      <div className="flex-1 overflow-y-auto min-h-0 px-3 py-3 space-y-2.5">
+      {/* Analysis area. Once the chat is mounted below it this shrinks to its
+          content — otherwise two flex-1 siblings would split the panel 50/50
+          and the collapsed row would sit on top of a tall empty box. */}
+      <div className={`overflow-y-auto px-3 py-3 space-y-2.5 ${analysis && !loading ? "shrink-0 max-h-[50%]" : "flex-1 min-h-0"}`}>
         {/* No AI provider configured */}
         {!aiConfigured && (
           <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
