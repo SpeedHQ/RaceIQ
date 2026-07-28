@@ -1,6 +1,6 @@
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, compareAnalyses, profiles, tunes, lineSpreadCache } from "./schema";
+import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, compareAnalyses, profiles, tunes, lineSpreadCache, driverProfiles } from "./schema";
 import type { TelemetryPacket, LapMeta, SessionMeta, GameId } from "../../shared/types";
 import type { Corner } from "../corner-detection";
 import { fillNormSuspension } from "../telemetry-utils";
@@ -2312,4 +2312,104 @@ export async function getLapCountsByTrack(gameId: GameId): Promise<Map<number, n
     .groupBy(sessions.trackOrdinal)
     .all();
   return new Map(rows.map((r) => [r.trackOrdinal, Number(r.count)]));
+}
+
+// ---------------------------------------------------------------------------
+// Driver profiles (cached improvement plans)
+// ---------------------------------------------------------------------------
+
+export interface DriverProfileScopeKey {
+  gameId: GameId;
+  carOrdinal?: number | null;
+  trackOrdinal?: number | null;
+}
+
+/**
+ * Canonical cache key for a profile scope.
+ *
+ * `*` stands in for an unset ordinal rather than leaning on SQL NULL, because
+ * SQLite treats NULLs as distinct in a UNIQUE index — two global-scope rows
+ * would both insert and the upsert would never replace the one it meant to.
+ */
+export function driverProfileScopeKey(scope: DriverProfileScopeKey): string {
+  const car = scope.carOrdinal ?? "*";
+  const track = scope.trackOrdinal ?? "*";
+  return `${scope.gameId}|${car}|${track}`;
+}
+
+export interface DriverProfileRow {
+  scopeKey: string;
+  poolKey: string;
+  fingerprint: string;
+  plan: string;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  durationMs: number;
+  model: string;
+  createdAt: string;
+}
+
+export async function getDriverProfile(scope: DriverProfileScopeKey): Promise<DriverProfileRow | null> {
+  const row = await db
+    .select({
+      scopeKey: driverProfiles.scopeKey,
+      poolKey: driverProfiles.poolKey,
+      fingerprint: driverProfiles.fingerprint,
+      plan: driverProfiles.plan,
+      inputTokens: driverProfiles.inputTokens,
+      outputTokens: driverProfiles.outputTokens,
+      costUsd: driverProfiles.costUsd,
+      durationMs: driverProfiles.durationMs,
+      model: driverProfiles.model,
+      createdAt: driverProfiles.createdAt,
+    })
+    .from(driverProfiles)
+    .where(eq(driverProfiles.scopeKey, driverProfileScopeKey(scope)))
+    .get();
+  return row ?? null;
+}
+
+/** Save or replace the cached plan for a scope. */
+export async function saveDriverProfile(
+  scope: DriverProfileScopeKey,
+  data: { poolKey: string; fingerprint: string; plan: string; usage: AnalysisUsage },
+): Promise<void> {
+  const scopeKey = driverProfileScopeKey(scope);
+  const values = {
+    poolKey: data.poolKey,
+    fingerprint: data.fingerprint,
+    plan: data.plan,
+    inputTokens: data.usage.inputTokens,
+    outputTokens: data.usage.outputTokens,
+    costUsd: data.usage.costUsd,
+    durationMs: data.usage.durationMs,
+    model: data.usage.model,
+    createdAt: sql`(datetime('now'))`,
+  };
+
+  const existing = await db
+    .select({ id: driverProfiles.id })
+    .from(driverProfiles)
+    .where(eq(driverProfiles.scopeKey, scopeKey))
+    .get();
+
+  if (existing) {
+    await db.update(driverProfiles).set(values).where(eq(driverProfiles.scopeKey, scopeKey)).run();
+  } else {
+    await db
+      .insert(driverProfiles)
+      .values({
+        scopeKey,
+        gameId: scope.gameId,
+        carOrdinal: scope.carOrdinal ?? null,
+        trackOrdinal: scope.trackOrdinal ?? null,
+        ...values,
+      })
+      .run();
+  }
+}
+
+export async function deleteDriverProfile(scope: DriverProfileScopeKey): Promise<void> {
+  await db.delete(driverProfiles).where(eq(driverProfiles.scopeKey, driverProfileScopeKey(scope))).run();
 }

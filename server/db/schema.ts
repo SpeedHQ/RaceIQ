@@ -378,3 +378,46 @@ export const compareAnalyses = sqliteTable(
 	},
 	(table) => [unique().on(table.lapAId, table.lapBId, table.kind)],
 );
+
+/**
+ * Cached driver improvement plans, one row per profile scope.
+ *
+ * `scopeKey` (`gameId|carOrdinal|trackOrdinal`, with `*` for an unset ordinal)
+ * carries the uniqueness rather than a composite index over the three columns,
+ * because SQLite treats NULLs as distinct in a UNIQUE index — a global-scope
+ * profile (both ordinals NULL) could otherwise be inserted twice and the second
+ * write would never replace the first. The individual columns are kept
+ * alongside it so a scope can still be queried or purged by game.
+ *
+ * `poolKey` is a digest of the candidate lap ids the plan was built from. It is
+ * the staleness check: driving another lap in scope changes the digest, so the
+ * cached plan stops being served without needing to re-decode any telemetry to
+ * find that out. Comparing lap *counts* would miss a deletion that coincides
+ * with a new lap.
+ *
+ * `fingerprint` is the deterministic aggregator output, stored beside the
+ * model's `plan` so the numbers the plan was written against can be shown (and
+ * audited) later, even if the aggregator's behaviour changes underneath.
+ */
+export const driverProfiles = sqliteTable(
+	"driver_profiles",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		scopeKey: text("scope_key").notNull(),
+		gameId: text("game_id").notNull(),
+		carOrdinal: integer("car_ordinal"),
+		trackOrdinal: integer("track_ordinal"),
+		poolKey: text("pool_key").notNull(),
+		/** JSON — DriverFingerprint from server/ai/driver-profile-aggregate.ts. */
+		fingerprint: text("fingerprint").notNull(),
+		/** JSON — DriverProfileOutput from the Driving Coach agent. */
+		plan: text("plan").notNull(),
+		inputTokens: integer("input_tokens").notNull().default(0),
+		outputTokens: integer("output_tokens").notNull().default(0),
+		costUsd: real("cost_usd").notNull().default(0),
+		durationMs: integer("duration_ms").notNull().default(0),
+		model: text("model").notNull().default(""),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+	},
+	(table) => [unique().on(table.scopeKey)],
+);
