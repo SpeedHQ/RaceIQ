@@ -157,7 +157,7 @@ export function LapBreakdown({
   bestT: number | null;
   metricsById: Map<number, ExperimentLapMetric>;
   /** Session to invalidate after toggling exclusion (design §Phase 7). Laps
-   *  outside a tuning session (no exclude toggle context) can omit this. */
+   *  outside an experiment (no exclude toggle context) can omit this. */
   experimentId?: number | null;
 }) {
   const setExcluded = useSetLapExcluded();

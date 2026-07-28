@@ -25,7 +25,7 @@ interface TrackFocusViewProps {
   /** Controlled focus lap (null = "All" — falls back to the best lap for map/telemetry). Omit for internal state. */
   focusLapId?: number | null;
   onFocusLap?: (lapId: number) => void;
-  /** Tuning session id, when this view is hosted inside a tuning session
+  /** Experiment id, when this view is hosted inside an experiment
    *  review (drives the /line-spread racing-line consistency query). Omit to
    *  hide the line-spread lane + map overlay (e.g. Storybook, non-tuning contexts). */
   experimentId?: number | null;

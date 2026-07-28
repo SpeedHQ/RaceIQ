@@ -7,7 +7,7 @@ import { SetupFilePicker } from "./SetupFilePicker";
 
 /**
  * ExperimentList — the Setup Engineer landing page (plan §6a). Lists the
- * driver's tuning sessions and creates new ones. A tuning session is the parent
+ * driver's experiments and creates new ones. An experiment is the parent
  * container for the whole Setup IQ loop (base setup → stints → versions); the
  * dashboard/detail/autotune views open *inside* a selected session.
  *
@@ -22,11 +22,11 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
       <div className="space-y-2">
         <div>
-          <h1 className="text-lg font-semibold text-app-text">Tuning sessions</h1>
-          <p className="text-xs text-app-text-dim mt-0.5">A tuning session tracks one car + track as you iterate setups — base setup, stints driven, and (soon) versions with lap deltas.</p>
+          <h1 className="text-lg font-semibold text-app-text">Experiments</h1>
+          <p className="text-xs text-app-text-dim mt-0.5">An experiment tracks one car + track as you iterate setups — base setup, stints driven, and (soon) versions with lap deltas.</p>
         </div>
         <button type="button" onClick={() => setCreating(true)} className="self-start px-3 py-1.5 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold">
-          + New session
+          + New experiment
         </button>
       </div>
 
@@ -76,7 +76,7 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
           {sessions.length === 0 && (
             <tr>
               <td colSpan={7} className="px-3 py-6 text-center text-xs text-app-text-dim">
-                {isLoading ? "Loading sessions…" : "No tuning sessions yet. Create one above to get started."}
+                {isLoading ? "Loading experiments…" : "No experiments yet. Create one above to get started."}
               </td>
             </tr>
           )}
@@ -218,7 +218,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
       const s = await create.mutateAsync({ gameId, name: effectiveName, carName: car, trackName: track, baseSetupPath });
       onCreated(s.id);
     } catch (err: any) {
-      setError(err?.message ?? "Could not create tuning session");
+      setError(err?.message ?? "Could not create experiment");
     }
   };
 
@@ -236,7 +236,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
         }}
       >
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-app-text">New tuning session</p>
+          <p className="text-sm font-semibold text-app-text">New experiment</p>
           <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">
             ×
           </button>
@@ -427,7 +427,7 @@ function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onC
       });
       onCreated(s.id);
     } catch (err: any) {
-      setError(err?.message ?? "Could not create tuning session");
+      setError(err?.message ?? "Could not create experiment");
     }
   };
 
@@ -445,7 +445,7 @@ function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onC
         }}
       >
         <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-app-text">New tuning session</p>
+          <p className="text-sm font-semibold text-app-text">New experiment</p>
           <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">
             ×
           </button>

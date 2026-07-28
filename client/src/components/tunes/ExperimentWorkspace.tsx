@@ -207,7 +207,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
     return (
       <div className="flex-1 p-3">
         <BackButton onClick={clearSession} className="mb-3" />
-        <div className="text-sm text-app-text-dim mt-3">{loadingSession ? "Loading session…" : "Tuning session not found."}</div>
+        <div className="text-sm text-app-text-dim mt-3">{loadingSession ? "Loading experiment…" : "Experiment not found."}</div>
       </div>
     );
   }

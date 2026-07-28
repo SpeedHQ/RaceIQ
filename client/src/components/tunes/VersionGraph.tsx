@@ -10,7 +10,7 @@ import { SetupContentModal } from "./SetupFilePicker";
 import { AppliedChangesList, LapBreakdown, summarizeAppliedChanges } from "./tune-version-shared";
 
 /**
- * Commit-graph-style view of a tuning session's setup versions (plan §1/§task-11).
+ * Commit-graph-style view of an experiment's setup versions (plan §1/§task-11).
  * Each experiment_version row is a "commit": version + label, laps recorded against it,
  * and (if any) the tweaks applied to reach it (reused from the row this replaces
  * via the shared AppliedChangesList/LapBreakdown so both views share one source

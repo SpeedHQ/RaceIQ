@@ -47,12 +47,12 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
   if (sessionMissing && !sessionLoading) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 p-12 text-center">
-        <div className="text-lg font-semibold text-app-text">Tuning session not found</div>
+        <div className="text-lg font-semibold text-app-text">Experiment not found</div>
         <div className="text-sm text-app-text-muted max-w-md">
-          This tuning session (#{experimentId}) no longer exists — it may have been deleted, or removed when the database was reset. The laps it referenced may still be in your history.
+          This experiment (#{experimentId}) no longer exists — it may have been deleted, or removed when the database was reset. The laps it referenced may still be in your history.
         </div>
         <button type="button" onClick={backToExperimentList} className="mt-2 px-4 py-2 text-sm rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold">
-          Back to tuning sessions
+          Back to experiments
         </button>
       </div>
     );

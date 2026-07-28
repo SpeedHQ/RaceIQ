@@ -3,7 +3,7 @@ import type { UIMessage } from "ai";
 import { ChatPanel } from "@/components/ai-chat/ChatPanel";
 
 /**
- * TuneSetupChat — the setup-scoped chat inside a tuning session (plan Phase D).
+ * TuneSetupChat — the setup-scoped chat inside an experiment (plan Phase D).
  *
  * Thin wrapper around the shared `ChatPanel` — keeps only what's specific to
  * this surface: the persisted-history fetch and the version-tree/test-list

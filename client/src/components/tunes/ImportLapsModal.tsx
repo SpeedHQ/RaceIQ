@@ -16,7 +16,7 @@ const UNKNOWN_SETUP_KEY = "__unknown__";
 /**
  * "Add laps from history" modal (design Phase 6, Mode B / collect) — lists
  * laps matching this session's game/car/track that aren't stamped to any
- * tuning session yet, lets the user multiselect a batch, then posts them via
+ * experiment yet, lets the user multiselect a batch, then posts them via
  * `POST /:id/import-laps`.
  *
  * F1 laps each carry their own in-car setup, so there's no manual target

@@ -5,7 +5,7 @@ export type TuneView = "overview" | "s1" | "s2" | "s3";
 const VIEWS: TuneView[] = ["overview", "s1", "s2", "s3"];
 
 /** Inner review state for the embedded detailed dashboard (race session / lap /
- *  sector view). The tuning session itself is the path param, not a search. */
+ *  sector view). The experiment itself is the path param, not a search. */
 export type TuneSearch = {
   session?: number | "live";
   lap?: number;

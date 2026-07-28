@@ -20,7 +20,7 @@ interface TuneReviewDashboardProps {
    *  the session HEAD). Used to display its driver comment / engineer notes
    *  read-only — editing stays in VersionGraph. */
   test?: ExperimentVersion;
-  /** The tuning session being reviewed (from the route param). Drives the
+  /** The experiment being reviewed (from the route param). Drives the
    *  Track Focus line-spread lane + map heat. Passed straight through rather
    *  than read off `test` so it survives an orphaned/missing test row. */
   experimentId?: number | null;
