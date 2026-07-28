@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { driverCoachAgent, DRIVER_COACH_INSTRUCTIONS } from "../mastra/agents/driver-coach";
 import { setupEngineerAgent } from "../mastra/agents/setup-engineer";
+import { sessionAgentForFocus } from "../server/ai/agents";
 import { buildSetupEngineerSystemPrompt } from "../mastra/agents/setup-engineer";
 
 /**
@@ -61,6 +62,14 @@ describe("authority split between the two session agents", () => {
       expect(tools).not.toContain("consult_race_engineer");
       expect(tools).not.toContain("consult_driver_coach");
     }
+  });
+});
+
+describe("focus picks the agent", () => {
+  test("car focus answers as the race engineer, driver focus as the coach", () => {
+    // The routing decision in one place: a column lookup, no model involved.
+    expect(sessionAgentForFocus("car").id).toBe("setup-engineer");
+    expect(sessionAgentForFocus("driver").id).toBe("driver-coach");
   });
 });
 

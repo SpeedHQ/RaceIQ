@@ -23,6 +23,7 @@
  * emit traces.
  */
 import { resolve } from "path";
+import type { ExperimentFocus } from "../../shared/experiment-focus";
 import { lapAnalystAgent as rawLapAnalystAgent } from "../../mastra/agents/lap-analyst";
 import { lapChatAgent as rawLapChatAgent } from "../../mastra/agents/lap-chat";
 import { compareEngineerAgent as rawCompareEngineerAgent } from "../../mastra/agents/compare-engineer";
@@ -72,6 +73,18 @@ if (process.env.NODE_ENV !== "production") {
       throw err;
     }
   }
+}
+
+/**
+ * Which specialist answers a session turn.
+ *
+ * The experiment's focus column decides — a switch, not a coordinator agent
+ * inferring a route the driver already set with the workspace switcher. Kept
+ * here rather than inline in the chat route so the mapping is testable and has
+ * exactly one definition.
+ */
+export function sessionAgentForFocus(focus: ExperimentFocus) {
+  return focus === "driver" ? driverCoachAgent : setupEngineerAgent;
 }
 
 export { lapAnalystAgent, lapChatAgent, compareEngineerAgent, compareChatAgent, setupEngineerAgent, driverCoachAgent };

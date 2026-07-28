@@ -22,7 +22,7 @@ import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-optio
 import { startDetachedAgentTurn } from "../ai/agent-stream";
 import { reserveChatRun, buildReplayStream } from "../ai/chat-run-registry";
 import { createUIMessageStreamResponse } from "ai";
-import { setupEngineerAgent, driverCoachAgent } from "../ai/agents";
+import { sessionAgentForFocus } from "../ai/agents";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiment-focus";
 import { buildSetupEngineerSystemPrompt } from "../../mastra/agents/setup-engineer";
 import { RequestContext } from "@mastra/core/request-context";
@@ -152,7 +152,7 @@ export const tuneChatRoutes = new Hono()
       // Authority is split by tool availability, not by prompt etiquette: only
       // the engineer has apply_changes, only the coach has record_drill.
       const focus = (session.focus as ExperimentFocus | null) ?? DEFAULT_EXPERIMENT_FOCUS;
-      const agent = focus === "driver" ? driverCoachAgent : setupEngineerAgent;
+      const agent = sessionAgentForFocus(focus);
       // Persist the incoming user message NOW, not at turn end. Mastra's
       // memory only writes the turn's messages when the stream finishes, so a
       // reload mid-turn made the just-sent user message vanish from history

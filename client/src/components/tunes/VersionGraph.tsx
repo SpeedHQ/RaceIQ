@@ -1,8 +1,9 @@
+import { EXPERIMENT_FOCUS_LABELS, type ExperimentFocus } from "@shared/experiment-focus";
 import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/review-laps";
 import type { F1CarSetup, LapMeta } from "@shared/types";
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { type ExperimentLapMetric, type ExperimentVersion, useDeleteVersion, useSetHead, useSetTestNote } from "../../hooks/queries";
+import { type ExperimentLapMetric, type ExperimentVersion, useDeleteVersion, useExperimentFocusHistory, useSetHead, useSetTestNote } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 import { Button } from "../ui/button";
 import { F1SetupModal } from "../analyse/F1SetupModal";
@@ -242,6 +243,17 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
   }, [setupTest]);
   const setHead = useSetHead();
   const deleteVersion = useDeleteVersion();
+  // Focus eras, keyed by the version the driver was sitting on when they
+  // switched — this is why the ledger records fromVersionId at all. Marking the
+  // node makes "v1-v3 were setup work, then I moved to my braking" visible in
+  // the tree instead of only in the history modal.
+  const { data: focusEvents = [] } = useExperimentFocusHistory(sessionId);
+  const focusEraByVersionId = useMemo(() => {
+    const m = new Map<number, ExperimentFocus>();
+    // Skip the opening entry: it has no fromVersionId and marks nothing.
+    for (const e of focusEvents) if (e.fromVersionId != null) m.set(e.fromVersionId, e.focus);
+    return m;
+  }, [focusEvents]);
   const { roots, childrenOf } = useMemo(() => buildForest(tests), [tests]);
 
   const toggle = (id: number) =>
@@ -313,6 +325,16 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
             >
               <span className="text-app-text-dim text-xs w-3">{isOpen ? "▾" : "▸"}</span>
               <span className="font-mono text-xs text-app-text shrink-0">{t.label}</span>
+              {focusEraByVersionId.has(t.id) && (
+                <span
+                  title={`Focus switched to ${EXPERIMENT_FOCUS_LABELS[focusEraByVersionId.get(t.id)!]} here`}
+                  className={`text-[9px] uppercase tracking-wider rounded px-1 py-px shrink-0 ${
+                    focusEraByVersionId.get(t.id) === "driver" ? "text-sky-300 border border-sky-400/40" : "text-purple-300 border border-purple-400/40"
+                  }`}
+                >
+                  → {EXPERIMENT_FOCUS_LABELS[focusEraByVersionId.get(t.id)!]}
+                </span>
+              )}
               <span className="text-[11px] text-app-text-muted truncate min-w-0">
                 {t.notes || (summarizeAppliedChanges(t.appliedChanges) ?? (t.parentVersionId == null ? (t.setupPath?.split(/[\\/]/).pop() ?? "Base setup") : "no changes recorded"))}
               </span>

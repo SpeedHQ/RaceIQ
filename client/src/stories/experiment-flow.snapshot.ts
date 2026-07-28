@@ -84,10 +84,46 @@ const stories: StoryCase[] = [
   },
 ];
 
+/**
+ * Pay Storybook's cold Vite compile ONCE, here, instead of charging it to
+ * whichever test happens to run first.
+ *
+ * Without this the first story in the file has to both compile the module graph
+ * and render inside its own wait, so a heavier import graph pushes that one test
+ * past its timeout while every later story passes — a failure that follows load
+ * order rather than the story, and looks exactly like a regression in whatever
+ * story sorted first.
+ */
+test.beforeAll(async ({ browser }) => {
+  test.setTimeout(360_000);
+  const page = await browser.newPage();
+  try {
+    // The FIRST navigation after Storybook boots reliably sticks on
+    // `sb-preparing-story` forever — the preview iframe asks for the story
+    // before the dev server's index is ready and never retries. A reload always
+    // resolves it, so retry rather than wait: waiting is what turns this into a
+    // timeout blamed on whichever story sorted first.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await page.goto(`/iframe.html?id=${stories[0].id}&viewMode=story`, { waitUntil: "domcontentloaded" });
+      try {
+        await page.waitForFunction(() => (document.body.innerText ?? "").trim().length > 0, null, { timeout: 60_000 });
+        return;
+      } catch {
+        // Fall through and reload. Budget is deliberately large (5 x 60s): a
+        // COLD preview build genuinely takes minutes on this graph, and it is
+        // paid once per run here rather than by whichever story sorts first.
+      }
+    }
+    throw new Error("Storybook never rendered a story — is the dev server healthy?");
+  } finally {
+    await page.close();
+  }
+});
+
 for (const story of stories) {
   test(`renders: ${story.name}`, async ({ page }) => {
-    // Above Playwright's 30s default: whichever story runs first waits on
-    // Storybook's cold Vite compile before it renders anything.
+    // Above Playwright's 30s default: even warm, these screens do real work
+    // (seeded queries, canvas track maps) before their first text lands.
     test.setTimeout(120_000);
 
     // Only uncaught exceptions count. Storybook has no API server behind it, so

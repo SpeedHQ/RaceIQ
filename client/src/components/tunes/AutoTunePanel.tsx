@@ -62,7 +62,7 @@ export function AutoTunePanel({ gameId, laps, trackName, liveMode = false, fixed
   return (
     <div className="p-3 space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Setup Engineer</h2>
+        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Race engineer</h2>
         {liveMode && (
           <span className="flex items-center gap-1.5 text-[11px] text-red-400">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />

@@ -1,4 +1,4 @@
-import { DEFAULT_EXPERIMENT_FOCUS, EXPERIMENT_FOCUS_HINTS, EXPERIMENT_FOCUS_LABELS, EXPERIMENT_FOCUSES, type ExperimentFocus } from "@shared/experiment-focus";
+import { DEFAULT_EXPERIMENT_FOCUS, EXPERIMENT_FOCUS_LABELS, type ExperimentFocus } from "@shared/experiment-focus";
 import { AccSetupJsonSchema, setupFileFormat, setupFileRejectReason } from "@shared/setup-file-formats";
 import { type DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -16,6 +16,7 @@ import {
 } from "../../hooks/queries";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { SearchSelect } from "../ui/SearchSelect";
+import { FocusPicker } from "./FocusPicker";
 import { SetupFilePicker } from "./SetupFilePicker";
 
 /**
@@ -411,24 +412,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
             than a type, because it is switchable from the workspace at any
             point — the driver who fixes a balance problem and then wants to
             work on braking stays in the same experiment. */}
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Start by varying</span>
-          <div className="grid grid-cols-2 gap-2">
-            {EXPERIMENT_FOCUSES.map((f) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setFocus(f)}
-                aria-pressed={focus === f}
-                className={`rounded-lg border px-3 py-2 text-left transition-colors ${focus === f ? "border-purple-500 bg-purple-500/10" : "border-app-border hover:border-purple-500/50"}`}
-              >
-                <div className="text-xs font-semibold text-app-text">{EXPERIMENT_FOCUS_LABELS[f]}</div>
-                <div className="mt-0.5 text-[11px] text-app-text-dim">{EXPERIMENT_FOCUS_HINTS[f]}</div>
-              </button>
-            ))}
-          </div>
-          <p className="text-[11px] text-app-text-dim">You can switch focus later without starting a new experiment.</p>
-        </div>
+        <FocusPicker value={focus} onChange={setFocus} />
 
         {/* Drag-in / click-to-browse zone */}
         <input
@@ -675,6 +659,9 @@ function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onC
   const [car, setCar] = useState(liveCar);
   const [track, setTrack] = useState("");
   const [trackAutoSet, setTrackAutoSet] = useState(false);
+  // Same choice every game offers — focus belongs to the experiment, not to a
+  // game's setup format.
+  const [focus, setFocus] = useState<ExperimentFocus>(DEFAULT_EXPERIMENT_FOCUS);
   const [error, setError] = useState<string | null>(null);
 
   // trackOptions may be empty on first render (query not resolved yet), so we
@@ -701,6 +688,7 @@ function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onC
         carName: car.trim() || null,
         trackName: track.trim() || null,
         baseSetupPath: null,
+        focus,
       });
       onCreated(s.id);
     } catch (err: any) {
@@ -728,7 +716,11 @@ function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onC
           </button>
         </div>
 
-        <p className="text-[11px] text-app-text-dim">F1 setups are read from telemetry — your base setup will be captured from your first lap, or via "Capture current setup" in the session.</p>
+        <FocusPicker value={focus} onChange={setFocus} />
+
+        {focus === "car" && (
+          <p className="text-[11px] text-app-text-dim">F1 setups are read from telemetry — your base setup will be captured from your first lap, or via "Capture current setup" in the session.</p>
+        )}
 
         <div className="flex gap-2">
           <label className="flex flex-col gap-1 flex-1">
