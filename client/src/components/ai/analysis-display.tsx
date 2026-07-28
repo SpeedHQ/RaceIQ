@@ -1,5 +1,5 @@
-import { AlertTriangle, ChevronRight, CircleDot, Download, Gauge, Lightbulb, RefreshCw, Sliders, Sparkles, Trash2, Wrench, X, Zap } from "lucide-react";
-import { type ReactNode, useRef, useState } from "react";
+import { AlertTriangle, CircleDot, Download, Gauge, Lightbulb, RefreshCw, Sliders, Sparkles, Trash2, Zap } from "lucide-react";
+import { type ReactNode, useRef } from "react";
 import { m } from "@/paraglide/messages";
 
 export interface AnalysisHighlight {
@@ -222,14 +222,27 @@ export function TrackCard({
   children: ReactNode;
 }) {
   const clickable = !!(seg && onJumpToFrac);
+  const activate = () => {
+    if (!seg) return;
+    onJumpToFrac?.((seg.startFrac + seg.endFrac) / 2);
+    onHighlightsChange?.([{ startFrac: seg.startFrac, endFrac: seg.endFrac, color, label: seg.name }]);
+  };
   return (
     <div
       className={`${className ?? ""} ${clickable ? "cursor-pointer hover:brightness-110 transition" : ""}`}
-      onClick={() => {
-        if (!seg) return;
-        onJumpToFrac?.((seg.startFrac + seg.endFrac) / 2);
-        onHighlightsChange?.([{ startFrac: seg.startFrac, endFrac: seg.endFrac, color, label: seg.name }]);
-      }}
+      {...(clickable
+        ? {
+            role: "button" as const,
+            tabIndex: 0,
+            onClick: activate,
+            onKeyDown: (e: React.KeyboardEvent) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                activate();
+              }
+            },
+          }
+        : {})}
     >
       {children}
     </div>
@@ -246,12 +259,11 @@ export function SectionHeader({ icon, title }: { icon: ReactNode; title: string 
 }
 
 /**
- * Setup recommendations collapse into a single button so the analysis panel
- * stays scannable when the model returns 10+ entries. Clicking opens a
- * fixed-overlay modal that renders the full grid — same TrackCard + TuneBar
- * content as before, with a close button.
+ * The setup recommendations themselves — just the list. Hosts decide where it
+ * lives; the analysis modal renders it as a tab rather than stacking a second
+ * modal on top of itself.
  */
-export function SetupSection({
+export function SetupList({
   setup,
   hasTune,
   lookupSegs,
@@ -264,97 +276,57 @@ export function SetupSection({
   onJumpToFrac?: (frac: number) => void;
   onHighlightsChange?: (h: AnalysisHighlight[]) => void;
 }) {
-  const [open, setOpen] = useState(false);
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="w-full flex items-center gap-2 rounded-lg border border-app-border-input/60 bg-app-surface-alt/40 hover:border-app-border-input hover:bg-app-surface-alt/70 transition-colors px-3 py-2 text-left"
-      >
-        <Wrench className="size-3.5 text-app-text-secondary" />
-        <span className="text-[11px] font-semibold text-app-text uppercase tracking-wider">{m.aidisplay_setup()}</span>
-        <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-app-border-input/30 text-app-text-secondary">{setup.length}</span>
-        {!hasTune && (
-          <span className="text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">{m.aidisplay_best_guess()}</span>
-        )}
-        <ChevronRight className="ml-auto size-3.5 text-app-text-muted" />
-      </button>
-
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setOpen(false)}>
-          <div className="relative w-full max-w-2xl max-h-[85vh] bg-app-surface border border-app-border-input rounded-lg shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-app-border-input/50 rounded-t-lg shrink-0">
-              <Wrench className="size-4 text-app-text-secondary" />
-              <h2 className="text-sm font-semibold text-app-text">{m.aidisplay_setup_recommendations()}</h2>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-app-border-input/30 text-app-text-secondary">{setup.length}</span>
-              {!hasTune && (
-                <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">{m.aidisplay_best_guess()}</span>
-              )}
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="ml-auto p-1 rounded hover:bg-app-border-input/30 text-app-text-muted hover:text-app-text"
-                aria-label={m.aidisplay_close_setup()}
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-              {!hasTune && <p className="text-[10px] text-amber-400/70 leading-snug">No tune data linked — values are estimated from telemetry. Link a tune for accurate setup suggestions.</p>}
-              {setup.map((item, i) => {
-                const extractNum = (s?: string) => {
-                  const m = s?.match(/-?\d+\.?\d*/);
-                  return m ? parseFloat(m[0]) : NaN;
-                };
-                const currentNum = extractNum(item.current);
-                const targetNum = extractNum(item.target);
-                const hasBoth = !isNaN(currentNum) && !isNaN(targetNum) && currentNum !== targetNum;
-                return (
-                  <TrackCard
-                    key={i}
-                    seg={findSegment(lookupSegs, item.symptom, item.fix)}
-                    color="warning"
-                    onJumpToFrac={onJumpToFrac}
-                    onHighlightsChange={onHighlightsChange}
-                    className="bg-app-surface-alt/40 border border-app-border-input/40 rounded-lg px-3 py-2.5"
-                  >
-                    <span className="text-[12px] font-semibold text-app-text block mb-1">{item.component}</span>
-                    <span
-                      className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-                        item.direction === "increase" ? "bg-emerald-400/10 text-emerald-400" : item.direction === "decrease" ? "bg-red-400/10 text-red-400" : "bg-amber-400/10 text-amber-400"
-                      }`}
-                    >
-                      {item.current} → {item.target}
-                    </span>
-                    {hasBoth && <TuneBar current={currentNum} target={targetNum} component={item.component} />}
-                    <p className="text-[11px] text-app-text-secondary mt-1.5">
-                      <span className="text-red-400/70">{m.aidisplay_symptom()}</span> {item.symptom}
-                    </p>
-                    <p className="text-[11px] text-app-text-secondary mt-0.5">
-                      <span className="text-emerald-400/70">{m.aidisplay_fix()}</span> {item.fix}
-                    </p>
-                  </TrackCard>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+    <div className="space-y-2">
+      {!hasTune && <p className="text-[10px] text-amber-400/70 leading-snug">{m.aidisplay_no_tune_linked()}</p>}
+      {setup.map((item) => {
+        const extractNum = (s?: string) => {
+          const match = s?.match(/-?\d+\.?\d*/);
+          return match ? parseFloat(match[0]) : NaN;
+        };
+        const currentNum = extractNum(item.current);
+        const targetNum = extractNum(item.target);
+        const hasBoth = !Number.isNaN(currentNum) && !Number.isNaN(targetNum) && currentNum !== targetNum;
+        return (
+          <TrackCard
+            key={`${item.component}-${item.symptom}`}
+            seg={findSegment(lookupSegs, item.symptom, item.fix)}
+            color="warning"
+            onJumpToFrac={onJumpToFrac}
+            onHighlightsChange={onHighlightsChange}
+            className="bg-app-surface-alt/40 border border-app-border-input/40 rounded-lg px-3 py-2.5"
+          >
+            <span className="text-[12px] font-semibold text-app-text block mb-1">{item.component}</span>
+            <span
+              className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                item.direction === "increase" ? "bg-emerald-400/10 text-emerald-400" : item.direction === "decrease" ? "bg-red-400/10 text-red-400" : "bg-amber-400/10 text-amber-400"
+              }`}
+            >
+              {item.current} → {item.target}
+            </span>
+            {hasBoth && <TuneBar current={currentNum} target={targetNum} component={item.component} />}
+            <p className="text-[11px] text-app-text-secondary mt-1.5">
+              <span className="text-red-400/70">{m.aidisplay_symptom()}</span> {item.symptom}
+            </p>
+            <p className="text-[11px] text-app-text-secondary mt-0.5">
+              <span className="text-emerald-400/70">{m.aidisplay_fix()}</span> {item.fix}
+            </p>
+          </TrackCard>
+        );
+      })}
+    </div>
   );
 }
 
 /**
- * Renders the structured analysis cards (verdict, pace, handling, corners, braking,
- * throttle, coaching, setup) plus an optional actions bar. Used by the analyse-view
- * AiPanel and the compare-view analysis modal.
+ * Renders the structured analysis cards (verdict, pace, handling, corners,
+ * braking, throttle, coaching) plus an optional actions bar. Setup is not
+ * included — it is a sibling tab in the analysis modal, rendered by SetupList.
  */
 export function AnalysisDisplay({
   analysis,
   cornerFracs,
   segments,
-  hasTune,
   usage,
   onJumpToFrac,
   onHighlightsChange,
@@ -367,7 +339,6 @@ export function AnalysisDisplay({
   analysis: AnalysisData;
   cornerFracs?: Segment[];
   segments?: Segment[] | null;
-  hasTune?: boolean;
   usage?: AnalysisUsage | null;
   onJumpToFrac?: (frac: number) => void;
   onHighlightsChange?: (h: AnalysisHighlight[]) => void;
@@ -391,8 +362,8 @@ export function AnalysisDisplay({
         <div>
           <SectionHeader icon={<Gauge className="size-3" />} title={m.label_pace()} />
           <div className="grid grid-cols-1 gap-1.5">
-            {analysis.pace.map((item, i) => (
-              <MetricCard key={i} item={item} />
+            {analysis.pace.map((item) => (
+              <MetricCard key={item.label} item={item} />
             ))}
           </div>
         </div>
@@ -403,8 +374,8 @@ export function AnalysisDisplay({
         <div>
           <SectionHeader icon={<Sliders className="size-3" />} title={m.label_handling()} />
           <div className="grid grid-cols-1 gap-1.5">
-            {analysis.handling.map((item, i) => (
-              <MetricCard key={i} item={item} />
+            {analysis.handling.map((item) => (
+              <MetricCard key={item.label} item={item} />
             ))}
           </div>
         </div>
@@ -415,9 +386,9 @@ export function AnalysisDisplay({
         <div>
           <SectionHeader icon={<AlertTriangle className="size-3" />} title={m.label_problem_corners()} />
           <div className="space-y-1.5">
-            {analysis.corners.map((corner, i) => (
+            {analysis.corners.map((corner) => (
               <TrackCard
-                key={i}
+                key={corner.name}
                 seg={findSegment(lookupSegs, corner.name)}
                 color={corner.severity === "major" ? "critical" : corner.severity === "moderate" ? "warning" : "good"}
                 onJumpToFrac={onJumpToFrac}
@@ -441,9 +412,9 @@ export function AnalysisDisplay({
         <div>
           <SectionHeader icon={<CircleDot className="size-3" />} title={m.label_braking_points()} />
           <div className="space-y-1.5">
-            {analysis.braking.map((item, i) => (
+            {analysis.braking.map((item) => (
               <TrackCard
-                key={i}
+                key={item.corner}
                 seg={findSegment(lookupSegs, item.corner)}
                 color={item.assessment}
                 onJumpToFrac={onJumpToFrac}
@@ -466,9 +437,9 @@ export function AnalysisDisplay({
         <div>
           <SectionHeader icon={<Zap className="size-3" />} title={m.label_throttle_application()} />
           <div className="space-y-1.5">
-            {analysis.throttle.map((item, i) => (
+            {analysis.throttle.map((item) => (
               <TrackCard
-                key={i}
+                key={item.corner}
                 seg={findSegment(lookupSegs, item.corner)}
                 color={item.assessment}
                 onJumpToFrac={onJumpToFrac}
@@ -492,7 +463,7 @@ export function AnalysisDisplay({
           <SectionHeader icon={<Lightbulb className="size-3" />} title={m.label_coaching()} />
           <div className="space-y-1.5">
             {analysis.coaching.map((item, i) => (
-              <TrackCard key={i} seg={findSegment(lookupSegs, item.tip, item.detail)} color="warning" onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} className="flex gap-2">
+              <TrackCard key={item.tip} seg={findSegment(lookupSegs, item.tip, item.detail)} color="warning" onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} className="flex gap-2">
                 <span className="text-amber-400/60 text-[10px] font-mono mt-0.5">{i + 1}.</span>
                 <div>
                   <span className="text-[11px] font-medium text-app-text">{item.tip}</span>
@@ -504,8 +475,7 @@ export function AnalysisDisplay({
         </div>
       )}
 
-      {/* Setup — compact button, details in a modal */}
-      {analysis.setup?.length > 0 && <SetupSection setup={analysis.setup} hasTune={hasTune} lookupSegs={lookupSegs} onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} />}
+      {/* Setup lives in its own tab alongside this card — see AnalysisModalShell. */}
 
       {/* Actions bar */}
       {(usage || onExport || onRegenerate || onClear) && (
@@ -517,6 +487,7 @@ export function AnalysisDisplay({
           )}
           {onExport && (
             <button
+              type="button"
               onClick={onExport}
               className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
               title={m.label_export_as_image()}
@@ -526,6 +497,7 @@ export function AnalysisDisplay({
           )}
           {onRegenerate && (
             <button
+              type="button"
               onClick={onRegenerate}
               disabled={loading}
               className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors disabled:opacity-50"
@@ -536,6 +508,7 @@ export function AnalysisDisplay({
           )}
           {onClear && (
             <button
+              type="button"
               onClick={onClear}
               className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-red-400 px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
               title={m.aipanel_clear_title()}
