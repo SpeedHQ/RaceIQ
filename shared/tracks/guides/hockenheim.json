@@ -1,0 +1,47 @@
+{
+  "id": "hockenheim",
+  "locale": "en",
+  "character": "Short, modern German circuit built after the historic forest layout was truncated in 2002. A long straight into a tight hairpin (Spitzkehre) leads into the Motodrom stadium section, where several corners are packed in front of the grandstands.",
+  "sources": "long-established F1/DTM circuit knowledge (Wikipedia, racingcircuits.info) — Spitzkehre/Sachskurve/Motodrom naming well documented since the 2002 circuit shortening",
+  "corners": [
+    {
+      "key": "nordkurve",
+      "name": "Nordkurve",
+      "numbers": [1],
+      "type": "medium-speed right-hander off the front straight (Turn 1)",
+      "technique": "Firm braking, late apex",
+      "trap": "Running wide compromises the run to the following section"
+    },
+    {
+      "key": "turn-6",
+      "name": "Turn 6",
+      "type": "fast right-hander leading onto the back straight",
+      "technique": "Commit with smooth steering, carry speed onto the straight",
+      "trap": "Lifting unnecessarily costs speed down the entire straight"
+    },
+    {
+      "key": "spitzkehre",
+      "name": "Spitzkehre",
+      "numbers": [6],
+      "type": "very tight hairpin at the end of the long back straight",
+      "technique": "Hard, late braking from very high speed, patient throttle on exit",
+      "trap": "Locking the front from the high approach speed"
+    },
+    {
+      "key": "sachskurve",
+      "name": "Sachskurve",
+      "numbers": [12],
+      "type": "fast corner leading into the Motodrom stadium section",
+      "technique": "Commit through the corner, smooth transition into the technical stadium sequence",
+      "trap": "Over-driving the entry and compromising the stadium section that follows"
+    },
+    {
+      "key": "motodrom",
+      "name": "Motodrom",
+      "type": "tight, technical stadium section in front of the grandstands (final corners)",
+      "technique": "Patient, precise inputs through the tightening sequence, clean exit onto the front straight is critical",
+      "trap": "Compromised exit here costs time down the entire front straight"
+    }
+  ],
+  "priorityCorners": ["spitzkehre","motodrom"]
+}

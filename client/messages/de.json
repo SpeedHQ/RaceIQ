@@ -210,6 +210,8 @@
   "nodata_waiting_title": "Warte auf Telemetrie",
   "nodata_waiting_desc": "Starte eine Sitzung im Spiel, um Daten zu empfangen",
   "sessions_add_note": "Notiz hinzufügen…",
+  "sessions_export_lap": "Runde exportieren",
+  "sessions_export_session": "Session exportieren",
   "sessions_col_notes": "Notizen",
   "sessions_recheck_validity": "Gültigkeit erneut prüfen",
   "sessions_search_placeholder": "Strecke, Auto, Notizen suchen…",

@@ -39,14 +39,23 @@ export type AccGameId = "acc" | "ac-evo";
  * Locations where a game stores user setup files under the user's profile.
  * Candidate dirs come from the game adapter (`getSetupsDirCandidates`), so
  * per-game paths live with the game code instead of being hardcoded here.
+ *
+ * Read-only by default: returns null when no candidate exists so callers can
+ * render the "couldn't find your Setups folder" empty state. It must NOT
+ * conjure a folder in the home dir of someone who doesn't even own the game —
+ * only write paths (which need somewhere to put the file) pass `create: true`.
  */
-export async function getSetupsBaseDir(gameId: AccGameId): Promise<string | null> {
+export async function getSetupsBaseDir(
+  gameId: AccGameId,
+  opts: { create?: boolean } = {},
+): Promise<string | null> {
   const home = homedir();
   const candidates = tryGetServerGame(gameId)?.getSetupsDirCandidates?.(home) ?? [];
   if (candidates.length === 0) return null;
   for (const p of candidates) {
     if (existsSync(p)) return p;
   }
+  if (!opts.create) return null;
 
   const primary = candidates[0];
   try {

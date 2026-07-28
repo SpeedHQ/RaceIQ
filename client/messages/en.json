@@ -210,6 +210,8 @@
   "nodata_waiting_title": "Waiting for telemetry",
   "nodata_waiting_desc": "Start a session in-game to begin receiving data",
   "sessions_add_note": "Add note…",
+  "sessions_export_lap": "Export lap",
+  "sessions_export_session": "Export session",
   "sessions_col_notes": "Notes",
   "sessions_recheck_validity": "Recheck validity",
   "sessions_search_placeholder": "Search track, car, notes…",
