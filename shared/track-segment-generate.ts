@@ -30,7 +30,7 @@ import { SHARED_DIR } from "./resolve-data";
 import type { GameId } from "./types";
 
 export const TRACK_META_DIR = resolve(SHARED_DIR, "tracks", "meta");
-const GAME_DIRS: Record<GameId, string> = {
+const GAME_DIRS: Partial<Record<GameId, string>> = {
   "f1-2025": resolve(SHARED_DIR, "tracks", "f1-2025"),
   acc: resolve(SHARED_DIR, "tracks", "acc"),
   "fm-2023": resolve(SHARED_DIR, "tracks", "fm-2023"),

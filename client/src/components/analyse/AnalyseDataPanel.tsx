@@ -56,7 +56,7 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
     if (gameId === "fm-2023" || pkt.Boost > 0) lines.push(`Boost: ${pkt.Boost.toFixed(1)} psi`);
     if (gameId === "fm-2023" || pkt.Power > 0) lines.push(`Power: ${(pkt.Power / 745.7).toFixed(0)} hp`);
     if (gameId === "fm-2023" || pkt.Torque > 0) lines.push(`Torque: ${pkt.Torque.toFixed(0)} Nm`);
-    const fuelIsLitres = pkt.gameId === "acc" || pkt.gameId === "ac-evo" || pkt.gameId === "f1-2025";
+    const fuelIsLitres = pkt.gameId === "acc" || pkt.gameId === "ac-evo" || pkt.gameId === "f1-2025" || pkt.gameId === "iracing";
     lines.push(fuelIsLitres ? `Fuel: ${pkt.Fuel.toFixed(1)}L` : `Fuel: ${(pkt.Fuel * 100).toFixed(1)}%`);
 
     // Dynamics
@@ -93,6 +93,7 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
       {/* Tab switcher */}
       <div className="flex border-b border-app-border shrink-0">
         <button
+          type="button"
           onClick={() => onSidebarTabChange("live")}
           className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
             sidebarTab === "live" ? "text-app-text border-b-2 border-app-accent" : "text-app-text-muted hover:text-app-text"
@@ -101,6 +102,7 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
           {m.analyse_tab_data()}
         </button>
         <button
+          type="button"
           onClick={() => onSidebarTabChange("insights")}
           className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
             sidebarTab === "insights" ? "text-app-text border-b-2 border-app-accent" : "text-app-text-muted hover:text-app-text"
@@ -115,7 +117,7 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
         <div className="px-3 pt-3 pb-1 shrink-0 flex items-center justify-between">
           <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-0 font-semibold">{m.analyse_metrics_at_cursor()}</h3>
           {currentPacket && (
-            <button onClick={handleCopyValues} title={m.analyse_copy_values_tooltip()} className="text-app-text-muted hover:text-app-text transition-colors">
+            <button type="button" onClick={handleCopyValues} title={m.analyse_copy_values_tooltip()} className="text-app-text-muted hover:text-app-text transition-colors">
               {copied ? <Check className="size-3.5 text-green-400" /> : <Copy className="size-3.5" />}
             </button>
           )}

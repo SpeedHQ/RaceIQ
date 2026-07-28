@@ -227,6 +227,7 @@ const gracefulShutdown = async (signal: NodeJS.Signals) => {
     const tasks: Promise<unknown>[] = [flushSessionRecorder()];
     if (accReader) tasks.push(accReader.stop());
     if (acEvoReader) tasks.push(acEvoReader.stop());
+    if (iracingSource) tasks.push(iracingSource.stop());
     if (recordingGameId) {
       tasks.push(udpListener.stop(), accRecorder.stop(), acEvoRecorder.stop());
     }
@@ -272,6 +273,7 @@ countStaleSessions(ALL_DETECTOR_IDS).then((count) => {
 
 import { AccSharedMemoryReader } from "./games/acc/shared-memory";
 import { AcEvoSharedMemoryReader } from "./games/ac-evo/shared-memory";
+import { IRacingTelemetrySource } from "./games/iracing/source";
 import { startTray } from "./tray";
 import { isGameRunning } from "./games/registry";
 
@@ -280,8 +282,9 @@ import { isGameRunning } from "./games/registry";
 // game isn't open. Central poll cadence matches per-reader ProcessCheckers (2s).
 export let accReader: AccSharedMemoryReader | null = null;
 export let acEvoReader: AcEvoSharedMemoryReader | null = null;
+export let iracingSource: IRacingTelemetrySource | null = null;
 
-function superviseReader<R extends { start(): void; stop(): Promise<void> }>(
+function superviseSource<R extends { start(): void; stop(): Promise<void> }>(
   gameId: string,
   label: string,
   factory: () => R,
@@ -291,35 +294,42 @@ function superviseReader<R extends { start(): void; stop(): Promise<void> }>(
   const running = isGameRunning(gameId);
   const current = getCurrent();
   if (running && !current) {
-    console.log(`[Server] ${label} process detected — starting shared memory reader`);
-    const reader = factory();
-    reader.start();
-    setCurrent(reader);
+    console.log(`[Server] ${label} process detected — starting telemetry source`);
+    const source = factory();
+    source.start();
+    setCurrent(source);
   } else if (!running && current) {
-    console.log(`[Server] ${label} process lost — stopping shared memory reader`);
+    console.log(`[Server] ${label} process lost — stopping telemetry source`);
     current.stop().catch((err) => {
-      console.error(`[Server] ${label} reader stop failed:`, err instanceof Error ? err.message : err);
+      console.error(`[Server] ${label} source stop failed:`, err instanceof Error ? err.message : err);
     });
     setCurrent(null);
   }
 }
 
 if (process.platform === "win32") {
-  console.log("[Supervisor] Watching for shared-memory games (acc, ac-evo) — 2s poll");
+  console.log("[Supervisor] Watching for native telemetry games (acc, ac-evo, iracing) — 2s poll");
   setInterval(() => {
-    superviseReader(
+    superviseSource(
       "acc",
       "ACC",
       () => new AccSharedMemoryReader(recordingGameId === "acc"),
       () => accReader,
       (r) => { accReader = r; },
     );
-    superviseReader(
+    superviseSource(
       "ac-evo",
       "AC Evo",
       () => new AcEvoSharedMemoryReader(recordingGameId === "ac-evo"),
       () => acEvoReader,
       (r) => { acEvoReader = r; },
+    );
+    superviseSource(
+      "iracing",
+      "iRacing",
+      () => new IRacingTelemetrySource(),
+      () => iracingSource,
+      (source) => { iracingSource = source; },
     );
   }, 2000);
 

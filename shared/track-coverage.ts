@@ -24,9 +24,12 @@ const GAME_LABELS: Record<GameId, string> = {
   "f1-2025": "F1 25 (f1-2025)",
   acc: "ACC (acc)",
   "ac-evo": "AC Evo (ac-evo)",
+  iracing: "iRacing (iracing)",
 };
 
 /** Order rows are rendered in — stable output so the committed table diffs cleanly. */
+// iRacing exposes lap distance but not a stable world-space centerline through
+// its live SDK, so it does not participate in centerline-curation coverage.
 const GAME_ORDER: GameId[] = ["fm-2023", "f1-2025", "acc", "ac-evo"];
 
 /**

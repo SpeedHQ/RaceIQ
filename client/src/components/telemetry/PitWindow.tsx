@@ -11,7 +11,7 @@ interface PitWindowProps {
  * Pure component; caller supplies pit + gameId.
  */
 export function PitWindow({ pit, gameId }: PitWindowProps) {
-  const fuelIsLitres = gameId === "acc" || gameId === "ac-evo" || gameId === "f1-2025";
+  const fuelIsLitres = gameId === "acc" || gameId === "ac-evo" || gameId === "f1-2025" || gameId === "iracing";
   const fuelColor = fuelIsLitres
     ? pit?.fuelLapsRemaining != null
       ? pit.fuelLapsRemaining < 5

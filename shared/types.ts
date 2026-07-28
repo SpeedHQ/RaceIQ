@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const KNOWN_GAME_IDS = ["fm-2023", "f1-2025", "acc", "ac-evo"] as const;
+export const KNOWN_GAME_IDS = ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"] as const;
 
 export const GameIdSchema = z.enum(KNOWN_GAME_IDS);
 export type GameId = z.infer<typeof GameIdSchema>;
@@ -379,12 +379,29 @@ export interface AcEvoExtendedData {
   timeOfDaySeconds: number;
 }
 
+/** iRacing-specific values carried alongside the normalized packet. */
+export interface IRacingExtendedData {
+  sessionTick: number;
+  sessionNum: number;
+  driverCarIdx: number;
+  trackLengthM: number;
+  lapDistanceM: number;
+  lapDistancePct: number;
+  onPitRoad: boolean;
+  playerTrackSurface: number;
+  incidents: number;
+  carName: string;
+  carClassName: string;
+  trackName: string;
+}
+
 export interface TelemetryPacket {
   gameId: GameId;
   f1?: F1ExtendedData;
   acc?: AccExtendedData;
+  iracing?: IRacingExtendedData;
 
-  // Game session UID (F1 only — used for session boundary detection)
+  // Game session UID (used for reliable session boundary detection)
   sessionUID?: string;
 
   // Race status

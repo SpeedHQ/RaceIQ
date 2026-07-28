@@ -108,7 +108,7 @@ export function FuelGauge({ packet }: { packet: TelemetryPacket }) {
     f.lastLap = packet.LapNumber;
   }, [packet.LapNumber, packet.Fuel]);
 
-  const fuelIsLitres = packet.gameId === "acc" || packet.gameId === "ac-evo" || packet.gameId === "f1-2025";
+  const fuelIsLitres = packet.gameId === "acc" || packet.gameId === "ac-evo" || packet.gameId === "f1-2025" || packet.gameId === "iracing";
   const pct = fuelIsLitres ? Math.min(100, packet.Fuel) : packet.Fuel * 100;
   const fuelLabel = fuelIsLitres ? `${packet.Fuel.toFixed(1)}L` : `${pct.toFixed(0)}%`;
   const fuelColor = fuelIsLitres ? (packet.Fuel < 5 ? "bg-red-500" : packet.Fuel < 15 ? "bg-amber-400" : "bg-emerald-400") : pct < 20 ? "bg-red-500" : pct < 40 ? "bg-amber-400" : "bg-emerald-400";

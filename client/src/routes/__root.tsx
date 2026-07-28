@@ -28,6 +28,7 @@ const GAME_SUB_TABS = ["Live", "Sessions", "Compare", "Analyse", "Tuning", "Chat
 // (base setup captured from a driven lap, see TuningSessionWorkspace).
 const GAME_SUB_TAB_GATE: Partial<Record<(typeof GAME_SUB_TABS)[number], readonly string[]>> = {
   Tuning: ["/acc", "/ac-evo", "/f125"],
+  Setups: ["/fm23", "/acc", "/ac-evo", "/f125"],
 };
 
 const SUB_TAB_LABELS: Record<(typeof GAME_SUB_TABS)[number], () => string> = {
@@ -290,9 +291,8 @@ function AppShell() {
   const gameTabs = useMemo(() => {
     const prefix = getGamePrefixes().find((p) => location.pathname.startsWith(p));
     if (!prefix) return [];
-    // Every game exposes a "Setups" tab: fm23/acc/ac-evo show the tune browser
-    // (Forza also folds its wheel/FFB catalogue in as a sub-tab), f125 shows a
-    // placeholder. No per-game gating needed.
+    // Setups is hidden for games whose live SDK does not expose writable setup
+    // files or a complete setup snapshot (currently iRacing).
     return GAME_SUB_TABS.filter((key) => {
       const gate = GAME_SUB_TAB_GATE[key];
       return !gate || gate.includes(prefix);
@@ -453,9 +453,9 @@ function AppShell() {
 
         {/* Mobile nav drawer */}
         {mobileNavOpen && (
-          <div className="md:hidden fixed inset-0 z-50 flex justify-end" onClick={() => setMobileNavOpen(false)}>
-            <div className="absolute inset-0 bg-black/60" />
-            <nav className="relative w-64 max-w-[80vw] h-full bg-app-bg border-l border-app-border flex flex-col overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="md:hidden fixed inset-0 z-50 flex justify-end">
+            <button type="button" className="absolute inset-0 bg-black/60" onClick={() => setMobileNavOpen(false)} aria-label="Close navigation" />
+            <nav className="relative w-64 max-w-[80vw] h-full bg-app-bg border-l border-app-border flex flex-col overflow-y-auto">
               <div className="flex items-center justify-between px-4 py-3 border-b border-app-border">
                 <span className="text-sm font-semibold text-app-text">{m.nav_navigation()}</span>
                 <button type="button" onClick={() => setMobileNavOpen(false)} className="p-1 text-app-text-muted hover:text-app-text" aria-label="Close navigation">
@@ -521,13 +521,16 @@ function AppShell() {
         )}
 
         {showSettings && (
-          <div
-            className="fixed inset-0 z-50 flex items-stretch md:items-start justify-center md:pt-12 md:pb-12 bg-black/60"
-            onClick={() => {
-              closeSettings();
-            }}
-          >
-            <div className="w-full md:max-w-2xl h-full md:rounded-lg md:border border-app-border bg-app-bg overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-50 flex items-stretch md:items-start justify-center md:pt-12 md:pb-12">
+            <button
+              type="button"
+              className="absolute inset-0 bg-black/60"
+              onClick={() => {
+                closeSettings();
+              }}
+              aria-label="Close settings"
+            />
+            <div className="relative w-full md:max-w-2xl h-full md:rounded-lg md:border border-app-border bg-app-bg overflow-hidden shadow-2xl">
               <div className="flex items-center justify-between px-4 py-3 border-b border-app-border bg-app-surface">
                 <h1 className="text-sm font-semibold text-app-text">{m.nav_settings()}</h1>
                 <button
