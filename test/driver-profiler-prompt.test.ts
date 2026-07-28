@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { buildDrivingCoachPrompt } from "../server/ai/driving-coach-prompt";
+import { buildDriverProfilerPrompt } from "../server/ai/driver-profiler-prompt";
 import { emptyFingerprint, type DriverFingerprint, type RankedWeakness, type StyleAxes } from "../server/ai/driver-profile-aggregate";
 import { parseDriverProfileOutput, DriverProfileOutputSchema } from "../server/ai/schemas";
 import { driverProfileScopeKey } from "../server/db/queries";
@@ -63,41 +63,41 @@ const ctx = { gameName: "Forza Motorsport", carName: "Porsche 911 GT3 R", trackN
 
 // ---------------------------------------------------------------------------
 
-describe("buildDrivingCoachPrompt — style axes", () => {
+describe("buildDriverProfilerPrompt — style axes", () => {
   test("renders a plain-language reading before every raw number", () => {
-    const p = buildDrivingCoachPrompt({ fingerprint: fingerprint(), ...ctx });
+    const p = buildDriverProfilerPrompt({ fingerprint: fingerprint(), ...ctx });
     // 0.72 alone tells the model nothing about the scale it lives on.
     expect(p).toContain("You work the tyres in a normal quick-driver range.");
     expect(p).toContain("1.0 = at peak grip");
   });
 
   test("names the balance direction and keeps the unit", () => {
-    const p = buildDrivingCoachPrompt({ fingerprint: fingerprint(), ...ctx });
+    const p = buildDriverProfilerPrompt({ fingerprint: fingerprint(), ...ctx });
     expect(p).toContain("understeer lean");
     expect(p).toContain("+2.1° front-minus-rear slip angle");
   });
 
   test("flags oversteer with a negative balance", () => {
     const fp = fingerprint({ style: style({ balanceMedianDeg: -5.2 }) });
-    const p = buildDrivingCoachPrompt({ fingerprint: fp, ...ctx });
+    const p = buildDriverProfilerPrompt({ fingerprint: fp, ...ctx });
     expect(p).toContain("Pronounced oversteer.");
   });
 
   test("reads a median grip utilisation above 1.0 as scrubbing, not commitment", () => {
     const fp = fingerprint({ style: style({ gripUtilMedian: 1.15 }) });
-    const p = buildDrivingCoachPrompt({ fingerprint: fp, ...ctx });
+    const p = buildDriverProfilerPrompt({ fingerprint: fp, ...ctx });
     expect(p).toContain("scrubbing, not commitment");
   });
 
   test("marks brakingStyle as relative-only so it is not read as a percentage", () => {
-    const p = buildDrivingCoachPrompt({ fingerprint: fingerprint(), ...ctx });
+    const p = buildDriverProfilerPrompt({ fingerprint: fingerprint(), ...ctx });
     expect(p).toContain("RELATIVE ONLY");
     expect(p).toContain("Leans early / over-slowing.");
   });
 
   test("omits axes that could not be measured rather than printing a zero", () => {
     const fp = fingerprint({ style: style({ gripUtilMedian: null, controlLossFraction: null }) });
-    const p = buildDrivingCoachPrompt({ fingerprint: fp, ...ctx });
+    const p = buildDriverProfilerPrompt({ fingerprint: fp, ...ctx });
     expect(p).not.toContain("Grip usage (median)");
     expect(p).not.toContain("Loss of control");
     // The axes that *were* measured still appear.
@@ -106,17 +106,17 @@ describe("buildDrivingCoachPrompt — style axes", () => {
 
   test("tells the model to stay non-committal when there is no style at all", () => {
     const fp = fingerprint({ style: null });
-    const p = buildDrivingCoachPrompt({ fingerprint: fp, ...ctx });
+    const p = buildDriverProfilerPrompt({ fingerprint: fp, ...ctx });
     expect(p).toContain("Not enough laps to characterise a style");
     expect(p).toContain("do not guess at a style from the fault list alone");
   });
 });
 
-describe("buildDrivingCoachPrompt — unquantified costs", () => {
+describe("buildDriverProfilerPrompt — unquantified costs", () => {
   test("says 'cost not measured' and never renders a zero", () => {
     const un = weakness({ id: "driving-coasting", label: "Coasting", medianTimeLossS: null, lapsQuantified: 0, timeLossKnown: false, score: 0.5 });
     const fp = fingerprint({ weaknesses: [], unquantifiedWeaknesses: [un], detectors: [un] });
-    const p = buildDrivingCoachPrompt({ fingerprint: fp, ...ctx });
+    const p = buildDriverProfilerPrompt({ fingerprint: fp, ...ctx });
     expect(p).toContain("cost not measured");
     expect(p).not.toContain("0.00 s");
   });
@@ -124,7 +124,7 @@ describe("buildDrivingCoachPrompt — unquantified costs", () => {
   test("states explicitly that not-measured is neither free nor unimportant", () => {
     const un = weakness({ medianTimeLossS: null, timeLossKnown: false });
     const fp = fingerprint({ unquantifiedWeaknesses: [un] });
-    const p = buildDrivingCoachPrompt({ fingerprint: fp, ...ctx });
+    const p = buildDriverProfilerPrompt({ fingerprint: fp, ...ctx });
     expect(p).toContain(`does NOT mean "costs nothing"`);
     expect(p).toContain(`does NOT mean "less important"`);
   });
@@ -132,19 +132,19 @@ describe("buildDrivingCoachPrompt — unquantified costs", () => {
   test("falls back to the unquantified list when nothing at all was costed", () => {
     const un = weakness({ medianTimeLossS: null, timeLossKnown: false });
     const fp = fingerprint({ weaknesses: [], unquantifiedWeaknesses: [un] });
-    const p = buildDrivingCoachPrompt({ fingerprint: fp, ...ctx });
+    const p = buildDriverProfilerPrompt({ fingerprint: fp, ...ctx });
     expect(p).toContain("Build `focusAreas` from the section below instead");
   });
 
   test("forbids summing the per-fault costs into a lap total", () => {
-    const p = buildDrivingCoachPrompt({ fingerprint: fingerprint(), ...ctx });
+    const p = buildDriverProfilerPrompt({ fingerprint: fingerprint(), ...ctx });
     expect(p).toContain("NEVER add them together into a lap total");
   });
 });
 
-describe("buildDrivingCoachPrompt — pace", () => {
+describe("buildDriverProfilerPrompt — pace", () => {
   test("reports seconds for a single car+track context", () => {
-    const p = buildDrivingCoachPrompt({ fingerprint: fingerprint(), ...ctx });
+    const p = buildDriverProfilerPrompt({ fingerprint: fingerprint(), ...ctx });
     expect(p).toContain("Best lap: 92.104 s");
   });
 
@@ -153,47 +153,47 @@ describe("buildDrivingCoachPrompt — pace", () => {
       scope: { kind: "global", gameId: "fm-2023", carOrdinal: null, trackOrdinal: null },
       pace: { consistency: 84, sdS: null, bestS: null, meanS: null, degSlopeSPerLap: null, n: 40, basis: "median-of-contexts", contexts: 7 },
     });
-    const p = buildDrivingCoachPrompt({ fingerprint: fp, gameName: "Forza Motorsport" });
+    const p = buildDriverProfilerPrompt({ fingerprint: fp, gameName: "Forza Motorsport" });
     expect(p).toContain("Lap times are NOT reported");
     expect(p).toContain("would be meaningless");
     expect(p).not.toContain("Best lap:");
   });
 });
 
-describe("buildDrivingCoachPrompt — guardrails", () => {
+describe("buildDriverProfilerPrompt — guardrails", () => {
   test("pins focus areas to detector ids that exist", () => {
-    const p = buildDrivingCoachPrompt({ fingerprint: fingerprint(), ...ctx });
+    const p = buildDriverProfilerPrompt({ fingerprint: fingerprint(), ...ctx });
     expect(p).toContain("id: driving-early-braking");
     expect(p).toContain("MUST be an id copied exactly from the tables above");
   });
 
   test("tells the model to omit estimatedGainS rather than write zero", () => {
-    const p = buildDrivingCoachPrompt({ fingerprint: fingerprint(), ...ctx });
+    const p = buildDriverProfilerPrompt({ fingerprint: fingerprint(), ...ctx });
     expect(p).toContain("do not write 0");
   });
 
   test("keeps strength claims honest about what absence proves", () => {
     const fp = fingerprint({ strengths: [{ id: "tire-lockup-front", label: "Front lockups", perLapFrequency: 0, basis: "absent" }] });
-    const p = buildDrivingCoachPrompt({ fingerprint: fp, ...ctx });
+    const p = buildDriverProfilerPrompt({ fingerprint: fp, ...ctx });
     expect(p).toContain("never absent means never detected, not proof of mastery");
   });
 
   test("surfaces data caveats when the aggregator recorded any", () => {
     const fp = fingerprint({ notes: ["Capped at 40 laps."] });
-    const p = buildDrivingCoachPrompt({ fingerprint: fp, ...ctx });
+    const p = buildDriverProfilerPrompt({ fingerprint: fp, ...ctx });
     expect(p).toContain("DATA CAVEATS");
     expect(p).toContain("Capped at 40 laps.");
   });
 
   test("names the scope so the model does not generalise a car+track profile", () => {
-    const p = buildDrivingCoachPrompt({ fingerprint: fingerprint(), ...ctx });
+    const p = buildDriverProfilerPrompt({ fingerprint: fingerprint(), ...ctx });
     expect(p).toContain("Porsche 911 GT3 R");
     expect(p).toContain("Road Atlanta");
   });
 
   test("adds a language directive only for non-English", () => {
-    const en = buildDrivingCoachPrompt({ fingerprint: fingerprint(), ...ctx, language: "en" });
-    const de = buildDrivingCoachPrompt({ fingerprint: fingerprint(), ...ctx, language: "de" });
+    const en = buildDriverProfilerPrompt({ fingerprint: fingerprint(), ...ctx, language: "en" });
+    const de = buildDriverProfilerPrompt({ fingerprint: fingerprint(), ...ctx, language: "de" });
     expect(en).not.toContain("Write all prose in language code");
     expect(de).toContain(`Write all prose in language code "de"`);
   });
@@ -295,7 +295,7 @@ describe("style readings are shared between the prompt and the panel", () => {
 
   test("the prompt renders the reading the shared module produces", () => {
     const fp = fingerprint({ style: style({ steerReversalsPerS: 4.2 }) });
-    const p = buildDrivingCoachPrompt({ fingerprint: fp, ...ctx });
+    const p = buildDriverProfilerPrompt({ fingerprint: fp, ...ctx });
     expect(p).toContain(reversalsReading(4.2).text);
   });
 });

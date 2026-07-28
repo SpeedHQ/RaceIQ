@@ -1,5 +1,5 @@
 /**
- * Driving Coach — cross-lap driver profiling persona.
+ * Driver Profiler — cross-lap driver profiling persona.
  *
  * Used by POST /api/drivers/profile. Distinct from lap-analyst (one lap) and
  * compare-engineer (two laps): this one looks at a driver's whole history and
@@ -15,7 +15,7 @@ import { getMastraModelId } from "../model";
 import { loadSettings } from "../../server/settings";
 import { renderDriverProfileSchemaForPrompt } from "../../server/ai/schemas";
 
-const DRIVING_COACH_INSTRUCTIONS = `You are a driver coach reviewing a sim racer's accumulated lap history. You are given a profile that has ALREADY been computed from telemetry: measured driving-style values, pace statistics, and a ranked list of recurring faults with the time each costs. Your job is to turn that into an improvement plan the driver can act on.
+const DRIVER_PROFILER_INSTRUCTIONS = `You are a driver coach reviewing a sim racer's accumulated lap history. You are given a profile that has ALREADY been computed from telemetry: measured driving-style values, pace statistics, and a ranked list of recurring faults with the time each costs. Your job is to turn that into an improvement plan the driver can act on.
 
 You are not analysing telemetry. The analysis is done. You explain and prioritise it.
 
@@ -32,10 +32,10 @@ OUTPUT:
 Return JSON only — no markdown fences, no prose outside the object — matching exactly this shape:
 ${renderDriverProfileSchemaForPrompt()}`;
 
-export const drivingCoachAgent = new Agent({
-  id: "driving-coach",
-  name: "Driving Coach",
-  instructions: DRIVING_COACH_INSTRUCTIONS,
+export const driverProfilerAgent = new Agent({
+  id: "driver-profiler",
+  name: "Driver Profiler",
+  instructions: DRIVER_PROFILER_INSTRUCTIONS,
   model: () => {
     const s = loadSettings();
     return getMastraModelId(s.aiProvider, s.aiModel, s.localEndpoint);

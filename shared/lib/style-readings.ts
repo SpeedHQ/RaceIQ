@@ -2,7 +2,7 @@
  * Plain-language readings for the driving-style axes.
  *
  * Shared because two very different consumers must agree on what a given number
- * means: the coach prompt (`server/ai/driving-coach-prompt.ts`) renders these so
+ * means: the coach prompt (`server/ai/driver-profiler-prompt.ts`) renders these so
  * the model cannot invent its own scale for "0.72", and the profile panel
  * (`client/src/components/driver/StyleGauges.tsx`) renders them next to the
  * gauges. If the two drifted, a driver would read "you work close to the limit"

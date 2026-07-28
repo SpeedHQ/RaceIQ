@@ -1,5 +1,5 @@
 /**
- * driver-profile-aggregate — the deterministic half of the Driving Coach
+ * driver-profile-aggregate — the deterministic half of the Driver Profiler
  * (issue #118). Reduces a pool of the driver's laps to a single
  * `DriverFingerprint`: normalised style axes, ranked weaknesses, strengths and
  * pace stats.

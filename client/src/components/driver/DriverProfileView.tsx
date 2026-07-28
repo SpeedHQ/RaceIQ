@@ -10,7 +10,7 @@
  * Two halves with different provenance, kept visually apart on purpose. The left
  * column is measured — it comes from the deterministic aggregator and is true
  * whether or not anyone ever calls a model. The right column is written by the
- * Driving Coach agent from those measurements. Presented as one continuous
+ * Driver Profiler agent from those measurements. Presented as one continuous
  * document, model prose would borrow the authority of the telemetry.
  */
 import { ChevronDown } from "lucide-react";

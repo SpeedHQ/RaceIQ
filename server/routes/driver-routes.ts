@@ -22,8 +22,8 @@ import { tryGetGame } from "../../shared/games/registry";
 import { loadSettings } from "../settings";
 import { getSecret } from "../keystore";
 import { toClientAiError } from "../ai/provider-error";
-import { drivingCoachAgent } from "../ai/agents";
-import { buildDrivingCoachPrompt } from "../ai/driving-coach-prompt";
+import { driverProfilerAgent } from "../ai/agents";
+import { buildDriverProfilerPrompt } from "../ai/driver-profiler-prompt";
 import { getDriverProfileJsonSchema, parseDriverProfileOutput } from "../ai/schemas";
 import { buildGoogleProviderOptions } from "../ai/google-provider-options";
 import { loadDriverProfile, type DriverFingerprint } from "../ai/driver-profile-aggregate";
@@ -158,7 +158,7 @@ export const driverRoutes = new Hono()
       process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
     }
 
-    const prompt = buildDrivingCoachPrompt({
+    const prompt = buildDriverProfilerPrompt({
       fingerprint,
       gameName: names.gameName,
       carName: names.carName,
@@ -186,7 +186,7 @@ export const driverRoutes = new Hono()
       async start(controller) {
         const keepAlive = setInterval(() => writeEvent(controller, { type: "ping" }), 200_000);
         try {
-          const result = await drivingCoachAgent.generate(prompt, {
+          const result = await driverProfilerAgent.generate(prompt, {
             modelSettings: { maxOutputTokens: 6144, temperature: 0 },
             providerOptions: {
               openai: {

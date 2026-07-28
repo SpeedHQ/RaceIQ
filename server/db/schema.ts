@@ -502,7 +502,7 @@ export const driverProfiles = sqliteTable(
 		poolKey: text("pool_key").notNull(),
 		/** JSON — DriverFingerprint from server/ai/driver-profile-aggregate.ts. */
 		fingerprint: text("fingerprint").notNull(),
-		/** JSON — DriverProfileOutput from the Driving Coach agent. */
+		/** JSON — DriverProfileOutput from the Driver Profiler agent. */
 		plan: text("plan").notNull(),
 		inputTokens: integer("input_tokens").notNull().default(0),
 		outputTokens: integer("output_tokens").notNull().default(0),

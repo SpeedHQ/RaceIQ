@@ -1,5 +1,5 @@
 /**
- * Prompt builder for the Driving Coach agent.
+ * Prompt builder for the Driver Profiler agent.
  *
  * The contract with the model is narrow on purpose: everything quantitative has
  * already been decided by `driver-profile-aggregate.ts`. This file's whole job
@@ -41,7 +41,7 @@ import type {
   StyleAxes,
 } from "./driver-profile-aggregate";
 
-export interface CoachPromptContext {
+export interface DriverProfilerPromptContext {
   fingerprint: DriverFingerprint;
   /** Resolved display name for the scoped car, when the scope pins one. */
   carName?: string;
@@ -165,7 +165,7 @@ function paceBlock(pace: PaceProfile): string {
 // Prompt
 // ---------------------------------------------------------------------------
 
-export function buildDrivingCoachPrompt(ctx: CoachPromptContext): string {
+export function buildDriverProfilerPrompt(ctx: DriverProfilerPromptContext): string {
   const { fingerprint: fp } = ctx;
   const parts: string[] = [];
 

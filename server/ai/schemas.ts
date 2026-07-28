@@ -194,7 +194,7 @@ export function parseTuneIntents(raw: unknown): ReturnType<typeof TuneIntentsSch
 // ─── Driver profile / improvement plan ──────────────────────────────────────
 
 /**
- * Output shape for the Driving Coach agent (POST /api/drivers/profile).
+ * Output shape for the Driver Profiler agent (POST /api/drivers/profile).
  *
  * Deliberately narrower than the analyst schema. The coach is not re-analysing
  * telemetry — the deterministic aggregator has already done that and handed it
