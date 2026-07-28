@@ -1,9 +1,13 @@
 import { iracingAdapter } from "../../../shared/games/iracing";
 import type { TelemetryPacket } from "../../../shared/types";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
-import { LapDetector } from "../../lap-detector";
+import { LapDetectorIRacing } from "../../lap-detector-iracing";
 import type { ServerGameAdapter } from "../types";
-import { normalizeIRacingFrame } from "./normalizer";
+import {
+  createIRacingParserState,
+  type IRacingParserState,
+  normalizeIRacingFrame,
+} from "./normalizer";
 import {
   canHandleIRacingSourceFrame,
   decodeIRacingSourceFrame,
@@ -33,16 +37,18 @@ export const iracingServerAdapter: ServerGameAdapter = {
     return canHandleIRacingSourceFrame(buf);
   },
 
-  tryParse(buf: Buffer, _state: unknown): TelemetryPacket | null {
+  tryParse(buf: Buffer, state: unknown): TelemetryPacket | null {
     const frame = decodeIRacingSourceFrame(buf);
-    return frame ? normalizeIRacingFrame(frame) : null;
+    return frame
+      ? normalizeIRacingFrame(frame, state as IRacingParserState | null)
+      : null;
   },
 
-  createParserState(): null {
-    return null;
+  createParserState(): IRacingParserState {
+    return createIRacingParserState();
   },
 
-  createLapDetector: (opts) => new LapDetector(opts),
+  createLapDetector: (opts) => new LapDetectorIRacing(opts),
   aiSystemPrompt: IRACING_SYSTEM_PROMPT,
 
   buildAiContext(packets: TelemetryPacket[]): string {

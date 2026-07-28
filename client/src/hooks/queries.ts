@@ -87,7 +87,16 @@ export function useLapTelemetry(lapId: number | null) {
       if (!res.ok) throw new Error(res.statusText);
       return res.json() as Promise<{
         telemetry: TelemetryPacket[];
-        sectorTimes: { times: [number, number, number]; s1Idx: number; s2Idx: number; firstDist: number; lapDist: number } | null;
+        sectorTimes: {
+          times: [number, number, number];
+          sectorCount: 2 | 3;
+          s1Idx: number;
+          s2Idx: number;
+          s1End: number;
+          s2End: number;
+          firstDist: number;
+          lapDist: number;
+        } | null;
         [key: string]: any;
       }>;
     },

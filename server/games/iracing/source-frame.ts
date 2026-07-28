@@ -14,6 +14,8 @@ export interface IRacingSessionSnapshot {
   trackId: number;
   trackName: string;
   trackLengthM: number;
+  /** Native sector start fractions, including sector 1 at 0. */
+  sectorStarts?: number[];
   carId: number;
   carName: string;
   carClassId: number;
@@ -49,6 +51,9 @@ function isSessionSnapshot(value: unknown): value is IRacingSessionSnapshot {
     isFiniteNumber(session.trackId) &&
     typeof session.trackName === "string" &&
     isFiniteNumber(session.trackLengthM) &&
+    (session.sectorStarts === undefined ||
+      (Array.isArray(session.sectorStarts) &&
+        session.sectorStarts.every(isFiniteNumber))) &&
     isFiniteNumber(session.carId) &&
     typeof session.carName === "string" &&
     isFiniteNumber(session.carClassId) &&

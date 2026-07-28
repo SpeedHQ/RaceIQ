@@ -495,6 +495,7 @@ export const fakeAcEvoDisplayPacket: DisplayPacket = makeDisplayPacket(fakeAcEvo
 // Current lap: S1=29.845 done, S2 running at ~31.8 (on pace for purple)
 
 export const fakeSectors: LiveSectorData = {
+  sectorCount: 3,
   currentSector: 1, // 0-indexed: in sector 2
   currentSectorTime: 31.8, // elapsed time in current sector (S2)
   currentTimes: [29.845, 31.8, 0], // S1 done, S2 in progress

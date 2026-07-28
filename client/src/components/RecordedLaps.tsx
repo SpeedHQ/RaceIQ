@@ -2,7 +2,8 @@ import type { LapMeta } from "@shared/types";
 import { useNavigate } from "@tanstack/react-router";
 import { m } from "@/paraglide/messages";
 import { useDeleteLap } from "../hooks/queries";
-import { useGameRoute } from "../stores/game";
+import { storedLapsSectorCount } from "../lib/lap-sectors";
+import { useGameId, useGameRoute } from "../stores/game";
 
 function formatLapTime(seconds: number): string {
   if (seconds <= 0) return "-:--.---";
@@ -19,6 +20,7 @@ interface RecordedLapsProps {
 
 export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsProps) {
   const navigate = useNavigate({ from: "/" });
+  const gameId = useGameId();
   const gameRoute = useGameRoute();
   const deleteLap = useDeleteLap();
 
@@ -26,6 +28,11 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
   const filteredLaps = trackOrdinal != null ? laps.filter((l) => l.trackOrdinal === trackOrdinal) : laps;
 
   const sorted = [...filteredLaps].sort((a, b) => b.lapNumber - a.lapNumber).slice(0, maxLaps);
+  const sectorCount = storedLapsSectorCount(filteredLaps, gameId ?? undefined);
+  const gridTemplateColumns =
+    sectorCount === 2
+      ? "auto minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) auto auto"
+      : "auto minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) auto auto";
 
   const allTimes = filteredLaps.map((l) => l.lapTime);
   const best = allTimes.length > 0 ? Math.min(...allTimes) : 0;
@@ -60,11 +67,14 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
         <div className="p-3 text-center text-xs text-app-text-dim">{m.laps_none_completed()}</div>
       ) : (
         <>
-          <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_auto_auto] gap-x-2 px-3 py-1 text-xs text-app-text-dim uppercase tracking-wider border-b border-app-border/50">
+          <div
+            className="grid gap-x-2 px-3 py-1 text-xs text-app-text-dim uppercase tracking-wider border-b border-app-border/50"
+            style={{ gridTemplateColumns }}
+          >
             <div className="w-10">{m.label_lap()}</div>
             <div className="text-right">S1</div>
             <div className="text-right">S2</div>
-            <div className="text-right">S3</div>
+            {sectorCount === 3 && <div className="text-right">S3</div>}
             <div className="text-right">{m.label_time()}</div>
             <div className="text-right w-14">{m.label_delta()}</div>
             <div className="w-16"></div>
@@ -78,7 +88,11 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
               const isBest = delta === 0;
               const timeColor = isBest ? "text-purple-400" : delta < 0.5 ? "text-emerald-400" : delta < 1.5 ? "text-app-text" : "text-red-400";
               return (
-                <div key={l.id} className="grid grid-cols-[auto_1fr_1fr_1fr_1fr_auto_auto] gap-x-2 px-3 py-1.5 items-center">
+                <div
+                  key={l.id}
+                  className="grid gap-x-2 px-3 py-1.5 items-center"
+                  style={{ gridTemplateColumns }}
+                >
                   <span
                     className={`text-xs font-mono w-10 flex items-center gap-1 ${l.isValid ? "text-app-text-muted" : "text-red-400"}`}
                     title={!l.isValid ? (l.invalidReason ?? "invalid") : undefined}
@@ -88,7 +102,9 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
                   </span>
                   <span className={`text-sm font-mono tabular-nums text-right ${sectorColor(s1, bestS1)}`}>{s1 > 0 ? s1.toFixed(3) : "—"}</span>
                   <span className={`text-sm font-mono tabular-nums text-right ${sectorColor(s2, bestS2)}`}>{s2 > 0 ? s2.toFixed(3) : "—"}</span>
-                  <span className={`text-sm font-mono tabular-nums text-right ${sectorColor(s3, bestS3)}`}>{s3 > 0 ? s3.toFixed(3) : "—"}</span>
+                  {sectorCount === 3 && (
+                    <span className={`text-sm font-mono tabular-nums text-right ${sectorColor(s3, bestS3)}`}>{s3 > 0 ? s3.toFixed(3) : "—"}</span>
+                  )}
                   <span className={`text-base font-mono font-bold tabular-nums text-right ${timeColor}`}>{formatLapTime(l.lapTime)}</span>
                   <span className="text-xs text-app-text-dim font-mono tabular-nums text-right w-14">{isBest ? "PB" : `+${delta.toFixed(3)}`}</span>
                   <div className="flex items-center gap-1 w-16 justify-end">

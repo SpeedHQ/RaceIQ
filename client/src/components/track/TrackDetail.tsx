@@ -13,6 +13,7 @@ import { drawTrack } from "@/lib/canvas/draw-track";
 import { countryName } from "@/lib/country-names";
 import { isDevelopment } from "@/lib/env";
 import { formatLapTime } from "@/lib/format";
+import { storedLapsSectorCount } from "@/lib/lap-sectors";
 import { client } from "@/lib/rpc";
 import { segmentDisplayNames } from "@/lib/segment-label";
 import { m } from "@/paraglide/messages";
@@ -43,7 +44,15 @@ interface TrackLap {
   notes?: string | null;
 }
 
-function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSessionFilter?: boolean }) {
+function LapStatsPanel({
+  laps,
+  sectorCount,
+  showSessionFilter,
+}: {
+  laps: TrackLap[];
+  sectorCount: 2 | 3;
+  showSessionFilter?: boolean;
+}) {
   const [lapFilter, setLapFilter] = useState<null | "race" | "quali">(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   if (laps.length === 0) {
@@ -142,17 +151,26 @@ function LapStatsPanel({ laps, showSessionFilter }: { laps: TrackLap[]; showSess
   const lastDate = chronoLaps[chronoLaps.length - 1]?.createdAt ? new Date(chronoLaps[chronoLaps.length - 1].createdAt!).toLocaleDateString([], { month: "short", day: "numeric" }) : "Recent";
 
   // Theoretical best sectors
-  const lapsWithSectors = chronoLaps.filter((l) => l.s1Time != null && l.s2Time != null && l.s3Time != null);
+  const lapsWithSectors = chronoLaps.filter(
+    (l) =>
+      l.s1Time != null &&
+      l.s2Time != null &&
+      (sectorCount === 2 || l.s3Time != null),
+  );
   const hasSectors = lapsWithSectors.length > 0;
   const bestS1 = hasSectors ? Math.min(...lapsWithSectors.map((l) => l.s1Time!)) : null;
   const bestS2 = hasSectors ? Math.min(...lapsWithSectors.map((l) => l.s2Time!)) : null;
-  const bestS3 = hasSectors ? Math.min(...lapsWithSectors.map((l) => l.s3Time!)) : null;
-  const theoretical = hasSectors ? bestS1! + bestS2! + bestS3! : null;
+  const bestS3 =
+    hasSectors && sectorCount === 3
+      ? Math.min(...lapsWithSectors.map((l) => l.s3Time!))
+      : null;
+  const theoretical =
+    hasSectors ? bestS1! + bestS2! + (bestS3 ?? 0) : null;
   const sectorGap = theoretical != null ? minT - theoretical : null;
 
   // Sector range stats for mini range bars
   const sectorStats = hasSectors
-    ? ([1, 2, 3] as const).map((s) => {
+    ? ([1, 2, 3] as const).slice(0, sectorCount).map((s) => {
         const key = `s${s}Time` as "s1Time" | "s2Time" | "s3Time";
         const vals = lapsWithSectors.map((l) => l[key]!).sort((a, b) => a - b);
         const mn = vals[0];
@@ -872,6 +890,10 @@ export function TrackDetail({
         return sortAsc ? cmp : -cmp;
       });
   }, [trackLaps, selectedCars, selectedDivision, sortBy, sortAsc]);
+  const sectorCount = storedLapsSectorCount(
+    filteredLaps,
+    gameId ?? undefined,
+  );
 
   const sessionLapCounts = useMemo(() => {
     if (!isF125) return new Map<number, number>();
@@ -1120,7 +1142,9 @@ export function TrackDetail({
               </div>
             )}
             {/* Sector Boundaries */}
-            <div className="bg-app-surface/50 rounded-lg border border-app-border p-3">
+            <div
+              className={`bg-app-surface/50 rounded-lg border border-app-border p-3 ${gameId === "iracing" ? "hidden" : ""}`}
+            >
               <div className="flex items-center justify-between mb-2">
                 <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.trackdetail_sector_boundaries()}</div>
                 {isDevelopment &&
@@ -1486,7 +1510,11 @@ export function TrackDetail({
                                 style={carouselHeight ? { height: carouselHeight } : undefined}
                               >
                                 <div className="snap-center shrink-0 w-full">
-                                  <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} showSessionFilter={isF125} />
+                                  <LapStatsPanel
+                                    laps={filteredLaps.filter((l) => l.isValid !== false)}
+                                    sectorCount={sectorCount}
+                                    showSessionFilter={isF125}
+                                  />
                                 </div>
                                 <div className="snap-center shrink-0 w-full flex flex-col gap-2">
                                   {(() => {
@@ -1549,10 +1577,12 @@ export function TrackDetail({
                                                     <span>{lap.s2Time != null ? formatLapTime(lap.s2Time) : "—"}</span>
                                                     <span className="text-blue-400 w-6 text-center">S2</span>
                                                   </div>
-                                                  <div className="flex items-center gap-1">
-                                                    <span>{lap.s3Time != null ? formatLapTime(lap.s3Time) : "—"}</span>
-                                                    <span className="text-yellow-400 w-6 text-center">S3</span>
-                                                  </div>
+                                                  {sectorCount === 3 && (
+                                                    <div className="flex items-center gap-1">
+                                                      <span>{lap.s3Time != null ? formatLapTime(lap.s3Time) : "—"}</span>
+                                                      <span className="text-yellow-400 w-6 text-center">S3</span>
+                                                    </div>
+                                                  )}
                                                 </div>
                                               </div>
                                             </div>
@@ -1567,7 +1597,11 @@ export function TrackDetail({
 
                             {/* Desktop: stats + table side-by-side */}
                             <div className="hidden md:flex gap-3 flex-1 min-h-0 overflow-hidden">
-                              <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} showSessionFilter={isF125} />
+                              <LapStatsPanel
+                                laps={filteredLaps.filter((l) => l.isValid !== false)}
+                                sectorCount={sectorCount}
+                                showSessionFilter={isF125}
+                              />
                               {/* Lap table (md+) */}
                               <div className="flex-1 min-w-0 overflow-y-auto bg-app-surface/50 border border-app-border rounded-lg">
                                 <Table>
@@ -1587,7 +1621,7 @@ export function TrackDetail({
                                     <TH className="w-px" />
                                     <TH className="text-red-400">S1</TH>
                                     <TH className="text-blue-400">S2</TH>
-                                    <TH className="text-yellow-400">S3</TH>
+                                    {sectorCount === 3 && <TH className="text-yellow-400">S3</TH>}
                                     <TH className="cursor-pointer hover:text-app-text select-none" onClick={() => handleSort("date")}>
                                       {m.sessions_col_date()} {sortBy === "date" ? (sortAsc ? "▲" : "▼") : ""}
                                     </TH>
@@ -1651,7 +1685,9 @@ export function TrackDetail({
                                             </TD>
                                             <TD className="font-mono tabular-nums text-app-text/90">{lap.s1Time != null ? formatLapTime(lap.s1Time) : "—"}</TD>
                                             <TD className="font-mono tabular-nums text-app-text/90">{lap.s2Time != null ? formatLapTime(lap.s2Time) : "—"}</TD>
-                                            <TD className="font-mono tabular-nums text-app-text/90">{lap.s3Time != null ? formatLapTime(lap.s3Time) : "—"}</TD>
+                                            {sectorCount === 3 && (
+                                              <TD className="font-mono tabular-nums text-app-text/90">{lap.s3Time != null ? formatLapTime(lap.s3Time) : "—"}</TD>
+                                            )}
                                             <TD className="text-app-text-secondary whitespace-nowrap font-mono">
                                               {lap.createdAt
                                                 ? `${new Date(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })} ${new Date(lap.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`

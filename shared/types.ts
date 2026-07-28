@@ -387,6 +387,10 @@ export interface IRacingExtendedData {
   trackLengthM: number;
   lapDistanceM: number;
   lapDistancePct: number;
+  /** Native current-lap timer before RaceIQ's physical-line correction. */
+  sdkCurrentLapTime?: number;
+  /** Native session-info sector layout; absent when the SDK did not publish it. */
+  sectorStarts?: number[];
   onPitRoad: boolean;
   playerTrackSurface: number;
   incidents: number;
@@ -593,6 +597,7 @@ export interface TelemetryPacket {
 
 /** Server-computed live sector timing, broadcast via WebSocket. */
 export interface LiveSectorData {
+  sectorCount: 2 | 3;
   currentSector: number;
   currentSectorTime: number;
   currentTimes: [number, number, number];

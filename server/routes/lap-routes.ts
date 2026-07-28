@@ -44,7 +44,10 @@ import type { GameId } from "../../shared/types";
 import { loadSettings } from "../settings";
 import { buildAnalystPrompt } from "../ai/analyst-prompt";
 import { resolveTrack } from "../track-info";
-import { computeLapSectors } from "../compute-lap-sectors";
+import {
+  computeIRacingSectorTimeline,
+  computeLapSectors,
+} from "../compute-lap-sectors";
 import { getAnalystJsonSchema } from "../ai/schemas";
 import {
   getChatMemory,
@@ -225,16 +228,38 @@ export const lapRoutes = new Hono()
     if (!lap) return c.json({ error: "Lap not found" }, 404);
 
     // Compute sector times server-side
-    let sectorTimes: { times: [number, number, number]; s1Idx: number; s2Idx: number; firstDist: number; lapDist: number } | null = null;
+    let sectorTimes: {
+      times: [number, number, number];
+      sectorCount: 2 | 3;
+      s1Idx: number;
+      s2Idx: number;
+      s1End: number;
+      s2End: number;
+      firstDist: number;
+      lapDist: number;
+    } | null = null;
     const packets = lap.telemetry;
     if (packets.length >= 10 && lap.trackOrdinal != null) {
       const gameId = c.req.header("x-game-id") as GameId | undefined;
-      const sectors = resolveTrack(gameId, lap.trackOrdinal).sectors;
-      if (sectors?.s1End && sectors?.s2End) {
-        const firstDist = packets[0].DistanceTraveled;
-        const lastDist = packets[packets.length - 1].DistanceTraveled;
-        const lapDist = lastDist - firstDist;
-        if (lapDist > 0) {
+      const firstDist = packets[0].DistanceTraveled;
+      const lastDist = packets[packets.length - 1].DistanceTraveled;
+      const lapDist = lastDist - firstDist;
+
+      if (lap.gameId === "iracing") {
+        const nativeTimeline = computeIRacingSectorTimeline(
+          packets,
+          lap.lapTime,
+        );
+        if (nativeTimeline && lapDist > 0) {
+          sectorTimes = {
+            ...nativeTimeline,
+            firstDist,
+            lapDist,
+          };
+        }
+      } else {
+        const sectors = resolveTrack(gameId, lap.trackOrdinal).sectors;
+        if (sectors?.s1End && sectors?.s2End && lapDist > 0) {
           // Determine the best time source: CurrentLap if it progresses, else TimestampMS
           const lapProgression = packets[packets.length - 1].CurrentLap - packets[0].CurrentLap;
           const useTimestamp = lapProgression < 1; // CurrentLap unreliable (e.g. ACC with invalid iCurrentTime)
@@ -259,7 +284,16 @@ export const lapRoutes = new Hono()
             lap.lapTime || (useTimestamp ? (packets[packets.length - 1].TimestampMS - packets[0].TimestampMS) / 1000 : packets[packets.length - 1].CurrentLap - packets[0].CurrentLap);
           let s3Time = totalLapTime - s1Time - s2Time;
           if (s3Time < 0) s3Time = 0;
-          sectorTimes = { times: [s1Time, s2Time, s3Time], s1Idx, s2Idx, firstDist, lapDist };
+          sectorTimes = {
+            times: [s1Time, s2Time, s3Time],
+            sectorCount: 3,
+            s1Idx,
+            s2Idx,
+            s1End: sectors.s1End,
+            s2End: sectors.s2End,
+            firstDist,
+            lapDist,
+          };
         }
       }
     }

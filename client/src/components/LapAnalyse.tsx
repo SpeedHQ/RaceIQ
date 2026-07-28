@@ -32,7 +32,11 @@ import { AnalyseDataPanel } from "./analyse/AnalyseDataPanel";
 import { AnalyseLapHeader } from "./analyse/AnalyseLapHeader";
 import { AnalyseTimelineScrubber } from "./analyse/AnalyseTimelineScrubber";
 import { AnalyseTopSection } from "./analyse/AnalyseTopSection";
-import type { Point, TrackMapHandle } from "./analyse/AnalyseTrackMap";
+import type {
+  Point,
+  SectorBoundaries,
+  TrackMapHandle,
+} from "./analyse/AnalyseTrackMap";
 import { F1SetupModal } from "./analyse/F1SetupModal";
 import { ImportResultModal } from "./analyse/ImportResultModal";
 import { TuneViewModal } from "./analyse/TuneViewModal";
@@ -116,11 +120,27 @@ function LapAnalyseInner() {
   // biome-ignore lint/suspicious/noExplicitAny: pre-existing
   const boundaries = (boundariesRaw as any) ?? null;
   const { data: sectorsRaw } = useTrackSectorBoundaries(trackOrd ?? undefined);
+  const sectorData = lapData?.sectorTimes ?? null;
   const sectors = useMemo(() => {
+    if (gameId === "iracing") {
+      return sectorData
+        ? ({
+            s1End: sectorData.s1End,
+            s2End: sectorData.s2End,
+            sectorCount: sectorData.sectorCount,
+          } satisfies SectorBoundaries)
+        : null;
+    }
     // biome-ignore lint/suspicious/noExplicitAny: pre-existing
     const s = sectorsRaw as any;
-    return s?.s1End ? (s as { s1End: number; s2End: number }) : null;
-  }, [sectorsRaw]);
+    return s?.s1End
+      ? ({
+          s1End: s.s1End,
+          s2End: s.s2End,
+          sectorCount: 3,
+        } satisfies SectorBoundaries)
+      : null;
+  }, [gameId, sectorData, sectorsRaw]);
   const { data: segmentsRaw } = useTrackSectors(trackOrd ?? undefined);
   const segments = useMemo(() => {
     // biome-ignore lint/suspicious/noExplicitAny: pre-existing
@@ -376,14 +396,20 @@ function LapAnalyseInner() {
     setPlaying,
   });
 
-  // Sector data from server response
-  const sectorData = lapData?.sectorTimes ?? null;
-
   // Derive cursor sector cheaply from precomputed server data
   const sectorTimes = useMemo(() => {
     if (!sectorData || !sectors) return null;
     const cursorFrac = telemetry.length > 1 ? (telemetry[cursorIdx]?.DistanceTraveled - sectorData.firstDist) / sectorData.lapDist : 0;
-    const cursorSector = cursorFrac < sectors.s1End ? 0 : cursorFrac < sectors.s2End ? 1 : 2;
+    const cursorSector =
+      sectorData.sectorCount === 2
+        ? cursorFrac < sectors.s1End
+          ? 0
+          : 1
+        : cursorFrac < sectors.s1End
+          ? 0
+          : cursorFrac < sectors.s2End
+            ? 1
+            : 2;
     return { ...sectorData, cursorSector };
   }, [sectorData, sectors, telemetry, cursorIdx]);
 

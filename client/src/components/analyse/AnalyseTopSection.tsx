@@ -4,7 +4,11 @@ import type { DisplayPacket } from "../../lib/convert-packet";
 import { m } from "../../paraglide/messages";
 import type { AnalysisHighlight } from "../AiPanel";
 import { AnalyseSegmentList } from "./AnalyseSegmentList";
-import type { Point, TrackMapHandle } from "./AnalyseTrackMap";
+import type {
+  Point,
+  SectorBoundaries,
+  TrackMapHandle,
+} from "./AnalyseTrackMap";
 import { AnalyseTrackPanel } from "./AnalyseTrackPanel";
 import { AnalyseVizPanel } from "./AnalyseVizPanel";
 
@@ -22,7 +26,7 @@ interface AnalyseTopSectionProps {
   outline: Point[] | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   boundaries: any;
-  sectors: { s1End: number; s2End: number } | null;
+  sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   currentPacket: TelemetryPacket | null;
   currentDisplayPacket: DisplayPacket | null;

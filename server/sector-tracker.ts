@@ -24,6 +24,7 @@ interface ReferenceLap {
 
 export class SectorTracker {
   private bounds: SectorBounds | null = null;
+  private sectorCount: 2 | 3 = 3;
 
   // Running state
   private lapDistStart = 0;
@@ -46,6 +47,7 @@ export class SectorTracker {
   /** Reset for a new session — loads sector boundaries and track length. */
   async reset(trackOrdinal: number, gameId: GameId, carOrdinal: number = -1): Promise<void> {
     this.bounds = null;
+    this.sectorCount = 3;
     this.lapDistStart = 0;
     this.lapDistTotal = 0;
     this.currentSector = 0;
@@ -62,6 +64,10 @@ export class SectorTracker {
     this.currentTrackOrdinal = trackOrdinal;
     this.currentCarOrdinal = carOrdinal;
     this.currentGameId = gameId;
+
+    // iRacing publishes the authoritative layout in SplitTimeInfo. Wait for
+    // the first native frame rather than inventing equal thirds.
+    if (gameId === "iracing") return;
 
     // Sector boundaries: this game's curated pair, else bundled, else thirds.
     const track = resolveTrack(gameId, trackOrdinal);
@@ -88,6 +94,26 @@ export class SectorTracker {
 
   /** Process a packet. Returns sector data or null if no sector bounds loaded. */
   feed(packet: TelemetryPacket): LiveSectorData | null {
+    if (packet.gameId === "iracing") {
+      const starts = packet.iracing?.sectorStarts;
+      if (
+        starts &&
+        (starts.length === 2 || starts.length === 3) &&
+        starts[0] === 0
+      ) {
+        const trackLength = packet.iracing?.trackLengthM ?? 0;
+        this.sectorCount = starts.length;
+        this.bounds = {
+          s1End: starts[1],
+          s2End: starts.length === 3 ? starts[2] : 1,
+          trackLength,
+        };
+        if (this.lapDistTotal <= 0 && trackLength > 0) {
+          this.lapDistTotal = trackLength;
+        }
+      }
+    }
+
     if (!this.bounds) return null;
 
     const { s1End, s2End } = this.bounds;
@@ -116,10 +142,22 @@ export class SectorTracker {
 
     // Lap boundary: LapNumber increment (any, including 0→1) OR CurrentLap reset
     if (packet.LapNumber > this.lastLap || currentLapReset) {
-      if (this.currentTimes[0] > 0 && this.currentTimes[1] > 0) {
+      const hasCompletedSectors =
+        this.currentTimes[0] > 0 &&
+        (this.sectorCount === 2 || this.currentTimes[1] > 0);
+      if (hasCompletedSectors) {
         this.lastTimes = [...this.currentTimes] as [number, number, number];
-        this.lastTimes[2] = packet.LastLap - this.currentTimes[0] - this.currentTimes[1];
-        if (this.lastTimes[2] < 0) this.lastTimes[2] = 0;
+        if (this.sectorCount === 2) {
+          this.lastTimes[1] = Math.max(
+            0,
+            packet.LastLap - this.currentTimes[0],
+          );
+          this.lastTimes[2] = 0;
+        } else {
+          this.lastTimes[2] =
+            packet.LastLap - this.currentTimes[0] - this.currentTimes[1];
+          if (this.lastTimes[2] < 0) this.lastTimes[2] = 0;
+        }
         // bestTimes only updated from valid laps (via updateRefLap / seeding)
       }
 
@@ -155,7 +193,16 @@ export class SectorTracker {
       const lapDist = packet.DistanceTraveled - this.lapDistStart;
       const frac = lapDist / this.lapDistTotal;
 
-      const expectedSector = frac < s1End ? 0 : frac < s2End ? 1 : 2;
+      const expectedSector =
+        this.sectorCount === 2
+          ? frac < s1End
+            ? 0
+            : 1
+          : frac < s1End
+            ? 0
+            : frac < s2End
+              ? 1
+              : 2;
 
       if (expectedSector > this.currentSector) {
         this.currentTimes[this.currentSector] = packet.CurrentLap - this.sectorStartTime;
@@ -187,6 +234,7 @@ export class SectorTracker {
       : 0;
 
     return {
+      sectorCount: this.sectorCount,
       currentSector: this.currentSector,
       currentSectorTime,
       currentTimes: [...this.currentTimes] as [number, number, number],
@@ -246,6 +294,10 @@ export class SectorTracker {
   updateRefLap(packets: TelemetryPacket[], lapTime: number, sectors?: { s1: number; s2: number; s3: number } | null): void {
     if (lapTime < this.bestLapTime) this.bestLapTime = lapTime;
     if (sectors) {
+      if (this.currentGameId === "iracing") {
+        this.lastTimes = [sectors.s1, sectors.s2, sectors.s3];
+        this.lastLapTime = lapTime;
+      }
       if (sectors.s1 > 0 && sectors.s1 < this.bestTimes[0]) this.bestTimes[0] = sectors.s1;
       if (sectors.s2 > 0 && sectors.s2 < this.bestTimes[1]) this.bestTimes[1] = sectors.s2;
       if (sectors.s3 > 0 && sectors.s3 < this.bestTimes[2]) this.bestTimes[2] = sectors.s3;
@@ -274,6 +326,7 @@ export class SectorTracker {
   getDebugState(): Record<string, unknown> {
     return {
       bounds: this.bounds,
+      sectorCount: this.sectorCount,
       lapDistStart: this.lapDistStart,
       lapDistTotal: this.lapDistTotal,
       currentSector: this.currentSector,

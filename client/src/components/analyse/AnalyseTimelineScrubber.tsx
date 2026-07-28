@@ -4,6 +4,7 @@ import { formatLapTime } from "@/lib/format";
 
 interface SectorTimesData {
   times: [number, number, number];
+  sectorCount: 2 | 3;
   cursorSector: number;
 }
 
@@ -73,7 +74,9 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
         <span className="text-2xl font-mono font-bold tabular-nums text-app-accent">{formatLapTime(currentTime)}</span>
         <span className="text-sm font-mono tabular-nums text-app-text-secondary">/ {formatLapTime(totalTime)}</span>
         {sectorTimes &&
-          (["S1", "S2", "S3"] as const).map((name, i) => {
+          (["S1", "S2", "S3"] as const)
+            .slice(0, sectorTimes.sectorCount)
+            .map((name, i) => {
             const colors = ["#ef4444", "#3b82f6", "#eab308"];
             const isActive = sectorTimes.cursorSector === i;
             return (
@@ -87,7 +90,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
                 <span className={`text-xs font-mono font-bold tabular-nums ${isActive ? "text-app-text" : "text-app-text-secondary"}`}>{formatLapTime(sectorTimes.times[i])}</span>
               </div>
             );
-          })}
+            })}
         <span className="text-[10px] font-mono text-app-text-dim ml-auto">
           Packet {cursorIdx + 1}/{totalPackets}
         </span>

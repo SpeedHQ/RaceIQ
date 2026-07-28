@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { queryKeys, useDeleteLap, useLaps, useSessions } from "../hooks/queries";
 import { exportLapsZip } from "../lib/lap-export";
+import { storedLapsSectorCount } from "../lib/lap-sectors";
 import { client } from "../lib/rpc";
 import { RotatePrompt } from "../routes/__root";
 import { useGameId, useGameRoute } from "../stores/game";
@@ -71,10 +72,12 @@ function SessionLapTable({
   selectedLaps: Set<number>;
   toggleLapSelection: (id: number) => void;
 }) {
+  const gameId = useGameId();
   const gameRoute = useGameRoute();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; lapId: number } | null>(null);
+  const sectorCount = storedLapsSectorCount(laps, gameId ?? undefined);
 
   const bestSectors = useMemo(() => {
     const best = { s1: Infinity, s2: Infinity, s3: Infinity };
@@ -118,7 +121,7 @@ function SessionLapTable({
           ))}
           <TH className="text-red-400">S1</TH>
           <TH className="text-blue-400">S2</TH>
-          <TH className="text-yellow-400">S3</TH>
+          {sectorCount === 3 && <TH className="text-yellow-400">S3</TH>}
           <TH className="w-[40%]">{m.sessions_col_notes()}</TH>
         </THead>
         <TBody>
@@ -162,7 +165,7 @@ function SessionLapTable({
                     </Button>
                   </div>
                 </TD>
-                {(["s1", "s2", "s3"] as const).map((s) => {
+                {(["s1", "s2", "s3"] as const).slice(0, sectorCount).map((s) => {
                   const val = s === "s1" ? (lap.s1Time ?? 0) : s === "s2" ? (lap.s2Time ?? 0) : (lap.s3Time ?? 0);
                   return (
                     <TD key={s} className={`font-mono ${sectorColor(val, bestSectors[s])}`}>

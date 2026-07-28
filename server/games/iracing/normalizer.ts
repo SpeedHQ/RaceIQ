@@ -4,6 +4,20 @@ import type { IRacingSourceFrameV1, IRacingValue } from "./source-frame";
 
 const KPA_TO_PSI = 0.1450377377;
 
+export interface IRacingParserState {
+  sessionKey: string | null;
+  rawLap: number | null;
+  lapStartSessionTime: number;
+}
+
+export function createIRacingParserState(): IRacingParserState {
+  return {
+    sessionKey: null,
+    rawLap: null,
+    lapStartSessionTime: 0,
+  };
+}
+
 function scalar(
   values: Record<string, IRacingValue>,
   name: string,
@@ -67,7 +81,26 @@ function coldPressurePsi(
   return Number.isFinite(kpa) && kpa > 0 ? kpa * KPA_TO_PSI : undefined;
 }
 
-export function normalizeIRacingFrame(frame: IRacingSourceFrameV1): TelemetryPacket {
+function normalizeSectorStarts(
+  nativeStarts: readonly number[] | undefined,
+): number[] {
+  const starts = nativeStarts
+    ?.filter((value) => Number.isFinite(value) && value >= 0 && value < 1)
+    .sort((a, b) => a - b);
+  if (
+    starts &&
+    (starts.length === 2 || starts.length === 3) &&
+    starts[0] === 0
+  ) {
+    return starts;
+  }
+  return [];
+}
+
+export function normalizeIRacingFrame(
+  frame: IRacingSourceFrameV1,
+  state?: IRacingParserState | null,
+): TelemetryPacket {
   const { session, values } = frame;
   rememberIRacingIdentity({
     carId: session.carId,
@@ -80,6 +113,28 @@ export function normalizeIRacingFrame(frame: IRacingSourceFrameV1): TelemetryPac
   const lapDistanceM = Math.max(0, scalar(values, "LapDist", 0));
   const lapDistancePct = clamp(scalar(values, "LapDistPct", 0), 0, 1);
   const sessionTime = Math.max(0, scalar(values, "SessionTime", 0));
+  const sdkCurrentLapTime = Math.max(
+    0,
+    scalar(values, "LapCurrentLapTime", 0),
+  );
+  const sdkLastLapTime = Math.max(0, scalar(values, "LapLastLapTime", 0));
+  const sessionKey = `${session.subSessionId}:${session.sessionId}:${session.sessionNum}`;
+  let currentLapTime = sdkCurrentLapTime;
+  if (state) {
+    if (state.sessionKey !== sessionKey || state.rawLap === null) {
+      state.sessionKey = sessionKey;
+      state.rawLap = rawLap;
+      state.lapStartSessionTime = sessionTime - sdkCurrentLapTime;
+    } else if (state.rawLap !== rawLap) {
+      // iRacing's Lap changes at the physical start/finish line, while
+      // LapCurrentLapTime rolls over roughly two seconds later. SessionTime is
+      // monotonic, so anchor elapsed time at the immediate Lap transition.
+      state.rawLap = rawLap;
+      state.lapStartSessionTime = sessionTime;
+    }
+    currentLapTime = Math.max(0, sessionTime - state.lapStartSessionTime);
+  }
+  const sectorStarts = normalizeSectorStarts(session.sectorStarts);
   const steeringAngle = scalar(values, "SteeringWheelAngle", 0);
   const steeringMax = Math.abs(scalar(values, "SteeringWheelAngleMax", 0));
   const steer = steeringMax > 0
@@ -100,6 +155,8 @@ export function normalizeIRacingFrame(frame: IRacingSourceFrameV1): TelemetryPac
       trackLengthM,
       lapDistanceM,
       lapDistancePct,
+      sdkCurrentLapTime,
+      sectorStarts,
       onPitRoad: bool(values, "OnPitRoad"),
       playerTrackSurface: Math.trunc(scalar(values, "PlayerTrackSurface", 0)),
       incidents: Math.trunc(scalar(values, "PlayerIncidents", 0)),
@@ -107,7 +164,7 @@ export function normalizeIRacingFrame(frame: IRacingSourceFrameV1): TelemetryPac
       carClassName: session.carClassName,
       trackName: session.trackName,
     },
-    sessionUID: `${session.subSessionId}:${session.sessionId}:${session.sessionNum}`,
+    sessionUID: sessionKey,
 
     IsRaceOn: onTrack ? 1 : 0,
     TimestampMS: Math.round(sessionTime * 1000),
@@ -169,13 +226,13 @@ export function normalizeIRacingFrame(frame: IRacingSourceFrameV1): TelemetryPac
     Fuel: Math.max(0, scalar(values, "FuelLevel", 0)),
     DistanceTraveled: distanceTraveled,
     BestLap: Math.max(0, scalar(values, "LapBestLapTime", 0)),
-    LastLap: Math.max(0, scalar(values, "LapLastLapTime", 0)),
-    CurrentLap: Math.max(0, scalar(values, "LapCurrentLapTime", 0)),
+    LastLap: sdkLastLapTime,
+    CurrentLap: currentLapTime,
     CurrentRaceTime: sessionTime,
 
-    // iRacing's Lap is zero-based (the first/out lap is 0); RaceIQ's lap
-    // detector and UI use a one-based current-lap number.
-    LapNumber: rawLap + 1,
+    // Preserve iRacing's displayed current-lap number. LapCompleted trails it
+    // by one while the lap is in progress; adding one here mislabels results.
+    LapNumber: rawLap,
     RacePosition: Math.max(0, Math.trunc(scalar(values, "PlayerCarPosition", 0))),
 
     Accel: input255(scalar(values, "Throttle", 0)),

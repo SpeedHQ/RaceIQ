@@ -1,6 +1,82 @@
 import type { TelemetryPacket, GameId } from "../shared/types";
 import { resolveTrack } from "./track-info";
 
+export interface IRacingSectorTimeline {
+  sectorCount: 2 | 3;
+  times: [number, number, number];
+  s1Idx: number;
+  s2Idx: number;
+  s1End: number;
+  s2End: number;
+}
+
+/**
+ * Resolve iRacing sectors exclusively from SplitTimeInfo carried in the native
+ * source frames. A missing or malformed SDK layout deliberately returns null.
+ */
+export function computeIRacingSectorTimeline(
+  packets: TelemetryPacket[],
+  lapTime: number,
+): IRacingSectorTimeline | null {
+  const starts = packets.find(
+    (packet) => packet.iracing?.sectorStarts?.length,
+  )?.iracing?.sectorStarts;
+  if (
+    !starts ||
+    (starts.length !== 2 && starts.length !== 3) ||
+    starts[0] !== 0 ||
+    starts.some(
+      (value, index) =>
+        !Number.isFinite(value) ||
+        value < 0 ||
+        value >= 1 ||
+        (index > 0 && value <= starts[index - 1]),
+    )
+  ) {
+    return null;
+  }
+
+  const boundaryIndices = starts.slice(1).map((boundary) =>
+    packets.findIndex(
+      (packet) => (packet.iracing?.lapDistancePct ?? -1) >= boundary,
+    ),
+  );
+  if (boundaryIndices.some((index) => index <= 0)) return null;
+
+  const startTime = packets[0].CurrentLap;
+  const boundaryTimes = boundaryIndices.map(
+    (index) => packets[index].CurrentLap - startTime,
+  );
+  const s1 = boundaryTimes[0];
+  if (!(s1 > 0 && s1 < lapTime)) return null;
+
+  if (starts.length === 2) {
+    const s2 = lapTime - s1;
+    if (s2 <= 0) return null;
+    return {
+      sectorCount: 2,
+      times: [s1, s2, 0],
+      s1Idx: boundaryIndices[0],
+      s2Idx: -1,
+      s1End: starts[1],
+      s2End: 1,
+    };
+  }
+
+  const s2Cumulative = boundaryTimes[1];
+  const s2 = s2Cumulative - s1;
+  const s3 = lapTime - s2Cumulative;
+  if (s2 <= 0 || s3 <= 0) return null;
+  return {
+    sectorCount: 3,
+    times: [s1, s2, s3],
+    s1Idx: boundaryIndices[0],
+    s2Idx: boundaryIndices[1],
+    s1End: starts[1],
+    s2End: starts[2],
+  };
+}
+
 /**
  * Pure function that computes s1/s2/s3 sector times from a lap's telemetry buffer.
  *
@@ -20,6 +96,13 @@ export async function computeLapSectors(
   accLiveSectors?: { s1: number; s2: number },
 ): Promise<{ s1: number; s2: number; s3: number } | null> {
   if (packets.length < 50) return null;
+
+  if (gameId === "iracing") {
+    const timeline = computeIRacingSectorTimeline(packets, lapTime);
+    if (!timeline) return null;
+    const [s1, s2, s3] = timeline.times;
+    return { s1, s2, s3 };
+  }
 
   // Sector boundaries: this game's curated pair, else bundled, else thirds.
   const { s1End, s2End } = resolveTrack(gameId, trackOrdinal).sectors;

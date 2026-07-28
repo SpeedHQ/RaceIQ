@@ -4,7 +4,12 @@ import { m } from "../../paraglide/messages";
 import type { AnalysisHighlight } from "../AiPanel";
 import { Compass } from "../Compass";
 import { AnalyseSteeringOverlay } from "./AnalyseSteeringOverlay";
-import { AnalyseTrackMap, type Point, type TrackMapHandle } from "./AnalyseTrackMap";
+import {
+  AnalyseTrackMap,
+  type Point,
+  type SectorBoundaries,
+  type TrackMapHandle,
+} from "./AnalyseTrackMap";
 import { WeatherWidget } from "./WeatherWidget";
 
 interface AnalyseTrackPanelProps {
@@ -13,7 +18,7 @@ interface AnalyseTrackPanelProps {
   outline: Point[] | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   boundaries: any;
-  sectors: { s1End: number; s2End: number } | null;
+  sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   currentPacket: TelemetryPacket | null;
   containerHeight: number;

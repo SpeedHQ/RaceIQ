@@ -12,6 +12,12 @@ export interface TrackMapHandle {
   updateCursor: (idx: number) => void;
 }
 
+export interface SectorBoundaries {
+  s1End: number;
+  s2End: number;
+  sectorCount: 2 | 3;
+}
+
 export interface TrackHighlight {
   startFrac: number;
   endFrac: number;
@@ -32,7 +38,7 @@ export const AnalyseTrackMap = forwardRef<
     cursorIdx: number;
     outline: Point[] | null;
     boundaries: { leftEdge: Point[]; rightEdge: Point[]; centerLine: Point[]; pitLane: Point[] | null; coordSystem: string } | null;
-    sectors: { s1End: number; s2End: number } | null;
+    sectors: SectorBoundaries | null;
     segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
     highlights?: TrackHighlight[] | null;
     showInputs?: boolean;
@@ -202,10 +208,13 @@ export const AnalyseTrackMap = forwardRef<
     // Sector-colored driving line (S1=red, S2=blue, S3=yellow)
     if (sectors && displayOutline.length > 10 && !showInputs) {
       const sectorLineColors = ["#ef4444", "#3b82f6", "#eab308"];
-      const boundaries = [0, sectors.s1End, sectors.s2End, 1];
-      for (let si = 0; si < 3; si++) {
-        const startIdx = fracToIdx(boundaries[si]);
-        const endIdx = fracToIdx(boundaries[si + 1]);
+      const sectorBoundaries =
+        sectors.sectorCount === 2
+          ? [0, sectors.s1End, 1]
+          : [0, sectors.s1End, sectors.s2End, 1];
+      for (let si = 0; si < sectors.sectorCount; si++) {
+        const startIdx = fracToIdx(sectorBoundaries[si]);
+        const endIdx = fracToIdx(sectorBoundaries[si + 1]);
         if (startIdx >= endIdx) continue;
         ctx.beginPath();
         ctx.strokeStyle = sectorLineColors[si];
@@ -303,7 +312,10 @@ export const AnalyseTrackMap = forwardRef<
     // Sector boundary markers
     if (sectors && displayOutline.length > 10) {
       const sectorColors = ["#ef4444", "#3b82f6", "#eab308"];
-      const sectorFracs = [sectors.s1End, sectors.s2End];
+      const sectorFracs =
+        sectors.sectorCount === 2
+          ? [sectors.s1End]
+          : [sectors.s1End, sectors.s2End];
       for (let si = 0; si < sectorFracs.length; si++) {
         const sIdx = fracToIdx(sectorFracs[si]);
         const pt = displayOutline[sIdx];

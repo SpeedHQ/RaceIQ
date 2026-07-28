@@ -119,11 +119,17 @@ export function SectorTimes({ sectors }: { sectors: LiveSectorData | null }) {
 
   const sectorNames = [m.sectortimes_s1(), m.sectortimes_s2(), m.sectortimes_s3()];
   const sectorColors = ["#ef4444", "#3b82f6", "#eab308"];
+  const visibleSectorNames = sectorNames.slice(0, sectors.sectorCount);
 
   return (
     <div className="border-t border-app-border/50 pt-3">
-      <div className="grid grid-cols-3 gap-2">
-        {sectorNames.map((name, i) => {
+      <div
+        className="grid gap-2"
+        style={{
+          gridTemplateColumns: `repeat(${sectors.sectorCount}, minmax(0, 1fr))`,
+        }}
+      >
+        {visibleSectorNames.map((name, i) => {
           const current = i === sectors.currentSector ? sectors.currentSectorTime : sectors.currentTimes[i];
           const best = sectors.bestTimes[i];
           const last = sectors.lastTimes[i];

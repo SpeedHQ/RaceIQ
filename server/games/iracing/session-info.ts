@@ -44,6 +44,35 @@ function parseTrackLengthM(value: string | undefined): number {
   }
 }
 
+function parseSectorStarts(lines: readonly string[]): number[] | undefined {
+  let inSplitTimeInfo = false;
+  let sectionIndent = -1;
+  const starts: number[] = [];
+
+  for (const line of lines) {
+    if (!inSplitTimeInfo) {
+      const match = line.match(/^(\s*)SplitTimeInfo:\s*$/);
+      if (match) {
+        inSplitTimeInfo = true;
+        sectionIndent = match[1].length;
+      }
+      continue;
+    }
+
+    if (line.trim() === "" || line.trimStart().startsWith("#")) continue;
+    const indent = line.length - line.trimStart().length;
+    if (indent <= sectionIndent) break;
+
+    const match = line.match(/^\s*SectorStartPct:\s*(-?\d+(?:\.\d+)?)\s*$/);
+    if (!match) continue;
+    const value = Number(match[1]);
+    if (Number.isFinite(value) && value >= 0 && value < 1) starts.push(value);
+  }
+
+  const unique = [...new Set(starts)].sort((a, b) => a - b);
+  return unique.length >= 2 ? unique : undefined;
+}
+
 function parseDrivers(lines: readonly string[]): Array<Record<string, string>> {
   const drivers: Array<Record<string, string>> = [];
   let inDrivers = false;
@@ -108,6 +137,7 @@ export function parseIRacingSessionInfo(
     trackId: toNumber(findScalar(lines, "TrackID"), -1),
     trackName,
     trackLengthM: parseTrackLengthM(findScalar(lines, "TrackLength")),
+    sectorStarts: parseSectorStarts(lines),
     carId: toNumber(driver?.CarID, -1),
     carName:
       driver?.CarScreenName ??
