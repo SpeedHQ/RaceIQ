@@ -328,7 +328,9 @@ export const tuneCrudRoutes = new Hono()
     zValidator("json", PlaceSetupSchema),
     async (c) => {
       const body = c.req.valid("json");
-      const baseDir = await getSetupsBaseDir(body.gameId);
+      // Write path: this route's whole job is to put a file in the Setups
+      // folder, so create it when missing (read routes never do).
+      const baseDir = await getSetupsBaseDir(body.gameId, { create: true });
       if (!baseDir) return c.json({ error: "Setups folder not found" }, 404);
 
       // Sanitise each path segment: no separators, no traversal, no reserved chars.

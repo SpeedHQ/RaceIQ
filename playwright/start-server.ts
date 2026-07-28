@@ -37,9 +37,14 @@ mkdirSync(dir, { recursive: true });
 writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort }));
 
 const binaryName = process.platform === "win32" ? "raceiq.exe" : "raceiq";
-const binary = resolve(__dirname, "..", "dist", binaryName);
+const distDir = resolve(__dirname, "..", "dist");
+const binary = resolve(distDir, binaryName);
 
-const child = spawn(binary, { stdio: "inherit", env: process.env });
+// cwd = dist/ so the binary resolves its native libsql addon from
+// dist/node_modules/@libsql/<target> — native .node modules can't be embedded
+// in a Bun single-file executable (oven-sh/bun#18909). This matches the
+// installed layout, where raceiq.exe sits next to node_modules/.
+const child = spawn(binary, { stdio: "inherit", cwd: distDir, env: process.env });
 child.on("exit", (code, signal) => {
   if (signal) process.kill(process.pid, signal);
   else process.exit(code ?? 0);
