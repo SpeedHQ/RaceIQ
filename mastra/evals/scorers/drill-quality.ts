@@ -121,15 +121,39 @@ function isConcrete(text: string): boolean {
  * One change at a time. Two simultaneous changes make the result unreadable —
  * you cannot tell which one moved the spread.
  *
- * Conservative: only flags an explicit second instruction ("and also brake
- * later", "then squeeze the throttle earlier"), not the ordinary use of "and"
- * inside one instruction ("brake later and release progressively" is a single
- * described action).
+ * Three ways a drill bundles, in rising order of how easy they are to miss:
+ *
+ *  1. An explicit second instruction — "and also brake later", "additionally".
+ *  2. Two numbered or bulleted steps: two drills wearing one coat.
+ *  3. ⚠️ Two actions aimed at two DIFFERENT PLACES — "brake 10m later at T4 and
+ *     get on the throttle earlier at T7". This is the form a model actually
+ *     produces, it reads as one fluent sentence, and an earlier cut of this
+ *     scorer passed it at 1.0. It is the whole reason SINGULAR is weighted
+ *     load-bearing, so it must be the case that is caught.
+ *
+ * Still conservative about plain "and": two verbs at ONE location describe a
+ * single action ("brake later and release progressively into T4" is one drill),
+ * so the flag is two distinct *corner references*, not two verbs. A lap-wide
+ * drill names no corner and therefore cannot trip (3).
  */
 function isSingular(text: string): boolean {
   if (/\b(and also|also,|plus also|as well as also)\b/i.test(text)) return false;
   if (/\b(and then also|and additionally|additionally,)\b/i.test(text)) return false;
   // Two numbered/bulleted steps is two drills wearing one coat.
   if (/(^|\n)\s*(2[.)]|second(ly)?[,:])/im.test(text)) return false;
-  return true;
+  return !targetsTwoPlaces(text);
+}
+
+/**
+ * True when the text names two or more distinct corners AND carries a
+ * conjunction joining them — i.e. two separate places to do something.
+ *
+ * Requiring the conjunction keeps a legitimate single drill that merely
+ * *mentions* a second corner as context ("brake earlier at T4; you are losing
+ * the exit onto the T5 straight") from being scored as two drills.
+ */
+function targetsTwoPlaces(text: string): boolean {
+  const refs = new Set((text.match(/\b(?:t\s?\d{1,2}|turn \d{1,2})\b/gi) ?? []).map((r) => r.replace(/\s|turn/gi, "").toLowerCase()));
+  if (refs.size < 2) return false;
+  return /\b(and|then|,)\s/i.test(text);
 }

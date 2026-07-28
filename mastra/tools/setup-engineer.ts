@@ -452,7 +452,13 @@ export function buildSetupEngineerTools() {
       });
 
       // Branch grows and head follows the work: the new node becomes the head.
-      const prevHeadTestId = parent?.id ?? null;
+      //
+      // The head we are about to overwrite is the SESSION's head, not the
+      // parent: with `target` set, the new arm branches off some other version
+      // while the head sits elsewhere, and undo must restore where the driver
+      // actually was. Matches every other recordAction call site
+      // (`server/routes/experiment-routes.ts`).
+      const prevHeadTestId = ctx.session.headVersionId ?? parent?.id ?? null;
       try {
         await setSessionHead(sessionId, newTestId);
       } catch (err: any) {

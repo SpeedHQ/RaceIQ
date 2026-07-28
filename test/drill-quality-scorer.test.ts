@@ -123,6 +123,38 @@ describe("drill-quality: input shapes", () => {
     expect(await score(text)).toBe(1);
   });
 
+  test("two actions at two different corners is two drills, and must fail", async () => {
+    // The bundling form a model actually produces: one fluent sentence, no
+    // "and also", two separate places to do something. It scores full marks on
+    // LOCATED / ACTIONABLE / CONCRETE, so only SINGULAR can catch it — and if it
+    // does not, the arm gets judged on a spread that two changes moved together.
+    const bundled = {
+      title: "Braking and throttle",
+      instruction: "Brake 10m later at T4 and get on the throttle earlier at T7.",
+      corners: [],
+    };
+    expect(await score(bundled)).toBeLessThan(SCORER_THRESHOLDS["drill-quality"]);
+  });
+
+  test("but two verbs at ONE corner is still a single drill", async () => {
+    // The conservative half of the rule: a described action can have parts.
+    const single = {
+      title: "Trail brake into T4",
+      instruction: "Brake at the 100m board and release progressively to the apex at T4.",
+      corners: ["T4"],
+    };
+    expect(await score(single)).toBe(1);
+  });
+
+  test("mentioning a second corner as context does not make it two drills", async () => {
+    const withContext = {
+      title: "Earlier brake release at T4",
+      instruction: "Release the brake 5m earlier at T4; you are losing the exit onto the T5 straight.",
+      corners: ["T4"],
+    };
+    expect(await score(withContext)).toBeGreaterThanOrEqual(SCORER_THRESHOLDS["drill-quality"]);
+  });
+
   test("a lap-wide drill is legitimately located", async () => {
     const lapWide = {
       title: "Eyes up",

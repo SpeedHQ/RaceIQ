@@ -137,7 +137,10 @@ const recordDrillTool = createTool({
       engine: "llm",
     });
 
-    const prevHeadTestId = parent?.id ?? null;
+    // The head being overwritten, not the branch parent — with `target` set
+    // those differ, and undo must put the driver back where they were. Same as
+    // apply-changes and the route handlers.
+    const prevHeadTestId = session.headVersionId ?? parent?.id ?? null;
     // NOT best-effort. If the head does not advance, the arm exists but the
     // session still points at its parent: the next drill branches off a stale
     // node and the driver was told otherwise. Report it instead of returning ok.

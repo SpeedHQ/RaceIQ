@@ -830,4 +830,62 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          ON experiment_versions(experiment_id, version)`,
     ],
   },
+
+  // ── v42: fix the focus COLUMN DEFAULT left behind by the v39 edit ───────────
+  // v40 rewrote the focus *values* but not the column's DEFAULT, and a migration
+  // that has already run is never re-run. So a database that applied the
+  // pre-rename v39 still carries `focus TEXT NOT NULL DEFAULT 'setup'` — a value
+  // `ExperimentFocusSchema` rejects. Nothing hits it today only because
+  // `createExperiment` always passes focus explicitly; the next insert path that
+  // omits it would silently write an unparseable experiment. Fixing the schema
+  // is cheaper than relying on every future caller to remember.
+  //
+  // SQLite has no `ALTER COLUMN ... SET DEFAULT`, so the table is rebuilt —
+  // same shape as v18/v22. Column list and order are taken from the live schema
+  // after v38/v39 (`seq`, `head_version_id` and `focus` were appended by ALTER,
+  // so they trail the v24 columns).
+  //
+  // Renaming the rebuilt table into place is safe here, unlike the parent rename
+  // in v38: `experiment_versions` and `experiment_focus_events` reference this
+  // table BY NAME, and the name is identical before and after. With
+  // `PRAGMA foreign_keys = OFF` (set by `runMigrations` for the whole batch)
+  // SQLite does not rewrite other tables' REFERENCES clauses during a rename —
+  // which is exactly what makes an unchanged name a no-op for them, and what
+  // made v38's changed name a hazard.
+  {
+    version: 42,
+    name: "rebuild experiments with focus DEFAULT 'car'",
+    sql: [
+      `CREATE TABLE experiments_new (
+         id              INTEGER PRIMARY KEY AUTOINCREMENT,
+         game_id         TEXT NOT NULL,
+         name            TEXT NOT NULL,
+         car_ordinal     INTEGER,
+         track_ordinal   INTEGER,
+         car_name        TEXT,
+         track_name      TEXT,
+         base_setup_path TEXT,
+         status          TEXT NOT NULL DEFAULT 'active',
+         notes           TEXT,
+         created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+         updated_at      TEXT NOT NULL DEFAULT (datetime('now')),
+         seq             INTEGER NOT NULL DEFAULT 1,
+         head_version_id INTEGER,
+         focus           TEXT NOT NULL DEFAULT 'car'
+       )`,
+      `INSERT INTO experiments_new (
+         id, game_id, name, car_ordinal, track_ordinal, car_name, track_name,
+         base_setup_path, status, notes, created_at, updated_at, seq,
+         head_version_id, focus
+       )
+       SELECT
+         id, game_id, name, car_ordinal, track_ordinal, car_name, track_name,
+         base_setup_path, status, notes, created_at, updated_at, seq,
+         head_version_id, focus
+       FROM experiments`,
+      `DROP TABLE experiments`,
+      `ALTER TABLE experiments_new RENAME TO experiments`,
+      `CREATE INDEX IF NOT EXISTS idx_experiments_game ON experiments(game_id)`,
+    ],
+  },
 ];

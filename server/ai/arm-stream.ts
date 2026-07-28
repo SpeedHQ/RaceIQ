@@ -34,6 +34,12 @@
  * decode is counted into `ArmSummary.droppedByFrameBudget` and stated in
  * `describeComparison`'s one-liner. It is never quietly truncated.
  *
+ * The other way an arm's sample can fall short of its curated pool is a lap with
+ * no usable frames stored. That is NOT a cap and is reported separately, as
+ * `ArmSummary.droppedNoTelemetry` — a driver can drive more laps to fix a budget
+ * drop, and cannot do anything about a lap the store never kept frames for. Both
+ * counts appear in the one-liner; neither is ever a silent filter.
+ *
  * This module is pure: frames arrive through an injected `LapFrameLoader`, so it
  * has no DB dependency and is testable against synthetic laps.
  * `arm-comparison-load.ts` wires SQLite into it.
@@ -128,6 +134,13 @@ export interface FrameBudgetSelection {
  * on a tuning run the recent laps are the ones driven with the setup as it
  * finally stood.
  *
+ * The window is CONTIGUOUS from the newest lap: the walk stops at the first lap
+ * that would breach the budget rather than skipping it to fit smaller older
+ * laps. Packing by size would hand the metric a sample selected on lap length —
+ * a lap's frame count correlates with how it was driven (a lift, a half-spin,
+ * traffic), so "whatever happens to fit" is a quiet selection bias of the same
+ * family as fastest-N. A clean recency window has none.
+ *
  * The newest lap is always kept even if it alone blows the budget: returning
  * zero samples would be a worse answer than one slow decode.
  */
@@ -182,8 +195,16 @@ export async function streamArmSamples(args: StreamArmArgs): Promise<PreparedArm
   const keptIds = new Set(pool.kept.map((l) => l.id));
 
   // A lap with no stored frames can never yield a sample; it must not eat a
-  // budget slot a decodable lap could have used.
-  const candidates = metas.filter((m) => keptIds.has(m.id) && (m.rawFrameCount ?? 0) >= MIN_TELEMETRY_FRAMES);
+  // budget slot a decodable lap could have used. Counted, not silently
+  // filtered — it is a real gap between the arm's curated pool and its sample
+  // size, and it is reported separately from a budget drop because the two mean
+  // different things (see `describeBudgetDrop`).
+  const curated = metas.filter((m) => keptIds.has(m.id));
+  const candidates = curated.filter((m) => (m.rawFrameCount ?? 0) >= MIN_TELEMETRY_FRAMES);
+  // `let`, because a lap whose row claims enough frames can still decode to
+  // nothing; the fold below counts those the same way. `empty()` closes over
+  // the binding, so a late return still reports the current total.
+  let droppedNoTelemetry = curated.length - candidates.length;
   const budgeted = selectWithinFrameBudget(candidates, budget);
 
   const empty = (framesDecoded: number | null): PreparedArm => ({
@@ -192,6 +213,7 @@ export async function streamArmSamples(args: StreamArmArgs): Promise<PreparedArm
     pool,
     samples: [],
     droppedByFrameBudget: budgeted.dropped.length,
+    droppedNoTelemetry,
     framesDecoded,
   });
 
@@ -221,7 +243,12 @@ export async function streamArmSamples(args: StreamArmArgs): Promise<PreparedArm
   for (const meta of budgeted.selected) {
     if (meta.id === reference.id) continue;
     const telemetry = await loadFrames(meta.id);
-    if (!telemetry || telemetry.length < MIN_TELEMETRY_FRAMES) continue;
+    if (!telemetry || telemetry.length < MIN_TELEMETRY_FRAMES) {
+      // The row's `raw_frame_count` promised frames the store could not
+      // produce. Same class of gap as a lap with no telemetry at all.
+      droppedNoTelemetry++;
+      continue;
+    }
     framesDecoded += telemetry.length;
     const value = metric.reduce({ lap: meta, telemetry, referenceTelemetry: reference.telemetry, corners });
     if (value != null) samples.push({ lapId: meta.id, value });
@@ -234,6 +261,7 @@ export async function streamArmSamples(args: StreamArmArgs): Promise<PreparedArm
     pool,
     samples,
     droppedByFrameBudget: budgeted.dropped.length,
+    droppedNoTelemetry,
     framesDecoded,
   };
 }

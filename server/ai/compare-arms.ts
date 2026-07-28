@@ -37,6 +37,7 @@ import {
   curateLaps,
   extractSamples,
   metricNeedsTelemetry,
+  MIN_TELEMETRY_FRAMES,
   type MetricSample,
   type OutcomeMetric,
   blunderFencesForArms,
@@ -87,6 +88,14 @@ export interface ArmSummary {
    * smaller than the driver's stint — never truncate without saying so.
    */
   droppedByFrameBudget: number;
+  /**
+   * Curated laps that carry too few stored frames to measure at all (below
+   * `MIN_TELEMETRY_FRAMES`). Distinct from `droppedByFrameBudget`: those laps
+   * were measurable and the latency budget declined them; these could never
+   * have produced a sample. Always 0 for a `"metadata"` metric. Counted rather
+   * than quietly filtered — same no-silent-caps rule.
+   */
+  droppedNoTelemetry: number;
   /** Frames actually decoded for this arm, or null when nothing was decoded. */
   framesDecoded: number | null;
   curationMode: OutcomeMetric["curation"]["mode"];
@@ -325,6 +334,8 @@ export interface PreparedArm {
   samples: MetricSample[];
   /** See `ArmSummary.droppedByFrameBudget`. */
   droppedByFrameBudget?: number;
+  /** See `ArmSummary.droppedNoTelemetry`. */
+  droppedNoTelemetry?: number;
   framesDecoded?: number | null;
 }
 
@@ -343,6 +354,7 @@ function summarize(prepared: PreparedArm, curationMode: OutcomeMetric["curation"
     droppedIneligible: prepared.pool.droppedIneligible,
     droppedByCap: prepared.pool.droppedByCap,
     droppedByFrameBudget: prepared.droppedByFrameBudget ?? 0,
+    droppedNoTelemetry: prepared.droppedNoTelemetry ?? 0,
     framesDecoded: prepared.framesDecoded ?? null,
     curationMode,
     reasonById: prepared.pool.reasonById,
@@ -364,10 +376,17 @@ export function prepareArm(arm: ArmInput, metric: OutcomeMetric, opts?: { fence?
   const kept = new Set(pool.kept.map((l) => l.id));
   // Input order, not curated (lap-time-sorted) order — see `extractSamples`.
   const laps = arm.laps.filter((e) => kept.has(e.lap.id));
+  // Counted on this path too, so an in-memory comparison discloses the same
+  // shortfall a streamed one does (`server/ai/arm-stream.ts`). Zero for a
+  // metadata metric, which reads no frames.
+  const droppedNoTelemetry = metricNeedsTelemetry(metric)
+    ? laps.filter((e) => !e.telemetry || e.telemetry.length < MIN_TELEMETRY_FRAMES).length
+    : 0;
   return {
     label: arm.label ?? null,
     rawLapCount: arm.laps.length,
     pool,
+    droppedNoTelemetry,
     samples: extractSamples(metric, { laps, corners: arm.corners }),
   };
 }
@@ -558,20 +577,29 @@ export function serializeComparison(cmp: ArmComparison) {
  * "better" — a reader must not be able to lift this string into a verdict.
  */
 /**
- * Frame-budget disclosure. A sample smaller than the driver's stint must say so
- * on the face of the result, not only in a field nobody reads.
+ * Sample-shortfall disclosure. A sample smaller than the driver's stint must say
+ * so on the face of the result, not only in a field nobody reads.
+ *
+ * The two causes are reported separately because they mean different things to
+ * the driver: a budget drop is "we chose not to decode this, drive fewer laps or
+ * accept the recency window", while a no-telemetry drop is "these laps have no
+ * usable frames stored and never could have counted".
  */
 function describeBudgetDrop(cmp: ArmComparison): string {
-  const parts: string[] = [];
-  for (const [name, arm] of [
+  const arms = [
     [cmp.a.label ?? "A", cmp.a],
     [cmp.b.label ?? "B", cmp.b],
-  ] as const) {
-    if (arm.droppedByFrameBudget > 0) {
-      parts.push(`${arm.droppedByFrameBudget} on ${name}`);
-    }
-  }
-  return parts.length > 0 ? ` [oldest laps not decoded within the frame budget: ${parts.join(", ")}]` : "";
+  ] as const;
+
+  const notes: string[] = [];
+
+  const budget = arms.filter(([, a]) => a.droppedByFrameBudget > 0).map(([n, a]) => `${a.droppedByFrameBudget} on ${n}`);
+  if (budget.length > 0) notes.push(`oldest laps not decoded within the frame budget: ${budget.join(", ")}`);
+
+  const noTelemetry = arms.filter(([, a]) => a.droppedNoTelemetry > 0).map(([n, a]) => `${a.droppedNoTelemetry} on ${n}`);
+  if (noTelemetry.length > 0) notes.push(`laps without usable telemetry: ${noTelemetry.join(", ")}`);
+
+  return notes.length > 0 ? ` [${notes.join("; ")}]` : "";
 }
 
 export function describeComparison(cmp: ArmComparison): string {

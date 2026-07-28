@@ -447,6 +447,14 @@ const lapTimeSec: MetadataOutcomeMetric = {
  *
  * All eligible laps, precisely because fastest-N would delete the spread being
  * measured.
+ *
+ * ⚠️ One caveat the fastest-N argument above does NOT cover: the median is
+ * estimated from the same laps the samples are built from, so these samples are
+ * mildly dependent and Welch's p is slightly anti-conservative at small n. That
+ * is inherent to Brown-Forsythe and accepted here — unlike fastest-N it is a
+ * small, known bias in one direction rather than a 2.5x inflation that also
+ * misranks. `MIN_LAPS_PER_ARM` is the guard that keeps it small; do not read a
+ * marginal p on a spread metric as tightly as one on lap time.
  */
 const consistencySpreadSec: MetadataOutcomeMetric = {
   id: "consistencySpreadSec",
