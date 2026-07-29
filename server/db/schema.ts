@@ -533,3 +533,34 @@ export const driverProfiles = sqliteTable(
 	},
 	(table) => [unique().on(table.scopeKey)],
 );
+
+/** Immutable ledger of manual and background driver-profile attempts. */
+export const driverProfileRuns = sqliteTable(
+	"driver_profile_runs",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		scopeKey: text("scope_key").notNull(),
+		gameId: text("game_id").notNull(),
+		carOrdinal: integer("car_ordinal"),
+		trackOrdinal: integer("track_ordinal"),
+		poolKey: text("pool_key").notNull(),
+		status: text("status", { enum: ["queued", "running", "succeeded", "failed"] }).notNull().default("queued"),
+		/** JSON — deterministic DriverFingerprint snapshot, when available. */
+		fingerprint: text("fingerprint"),
+		/** JSON — generated DriverProfileOutput snapshot, when available. */
+		plan: text("plan"),
+		error: text("error"),
+		inputTokens: integer("input_tokens").notNull().default(0),
+		outputTokens: integer("output_tokens").notNull().default(0),
+		costUsd: real("cost_usd").notNull().default(0),
+		durationMs: integer("duration_ms").notNull().default(0),
+		model: text("model").notNull().default(""),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+		startedAt: text("started_at"),
+		completedAt: text("completed_at"),
+	},
+	(table) => [
+		index("driver_profile_runs_scope_status_idx").on(table.scopeKey, table.status),
+		index("driver_profile_runs_scope_created_idx").on(table.scopeKey, table.createdAt, table.id),
+	],
+);
