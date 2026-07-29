@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import { Button } from "../ui/button";
+import { IbtTelemetryWarning } from "./IbtTelemetryWarning";
 
 export interface IbtImportPreview {
   gameId: "iracing";
@@ -80,12 +81,7 @@ export function IbtImportPreviewModal({ token, preview, importing, onImport, onC
           <dd className="text-app-text font-medium">{preview.candidateLapCount}</dd>
         </dl>
 
-        {preview.missingRaceIQVariables.length > 0 && preview.missingRequiredVariables.length === 0 && (
-          <p className="text-xs text-amber-300/90">
-            {preview.missingRaceIQVariables.length} optional RaceIQ telemetry {preview.missingRaceIQVariables.length === 1 ? "channel is" : "channels are"} unavailable; affected views will show
-            fallback values.
-          </p>
-        )}
+        {preview.missingRaceIQVariables.length > 0 && preview.missingRequiredVariables.length === 0 && <IbtTelemetryWarning missingVariables={preview.missingRaceIQVariables} />}
 
         {!preview.canImport && <p className="rounded border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{preview.reason ?? "This recording cannot be imported."}</p>}
 
