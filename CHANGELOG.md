@@ -9,6 +9,7 @@
 ### Fixes
 
 ### Internal
+- Consolidated live dashboard routing across all supported games while preserving game-specific URLs
 - Deterministic iRacing recording and replay coverage through the production parser pipeline
 
 ## v0.13.0 - 2026-07-16
