@@ -1,16 +1,16 @@
+import { balanceReading, controlLossReading, gripMedianReading, reversalsReading, type StyleTone } from "@shared/lib/style-readings";
 import type { GameId, LapMeta, SessionMeta, SessionRecap as SessionRecapDto } from "@shared/types";
 import { Link } from "@tanstack/react-router";
 import { Settings2 } from "lucide-react";
-import { type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { m } from "@/paraglide/messages";
 import type { DriverFingerprint } from "../../../server/ai/driver-profile-aggregate";
 import type { DriverProfileState } from "../hooks/queries";
+import { getGameRoute } from "../stores/game";
 import { ActivityHeatmap } from "./ActivityHeatmap";
 import { formatLapTime } from "./LiveTelemetry";
 import { SessionRecapView, type TrackOutlineData, type TrackSectorBounds } from "./SessionRecap";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
-import { getGameRoute } from "../stores/game";
-import { balanceReading, controlLossReading, gripMedianReading, reversalsReading, type StyleTone } from "@shared/lib/style-readings";
 
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
@@ -22,7 +22,19 @@ function StatCard({ label, value, sub, color }: { label: string; value: string; 
   );
 }
 
-function RecentLapsTable({ laps, carNames, trackNames, gameId, onAnalyseLap }: { laps: LapMeta[]; carNames: Record<number, string>; trackNames: Record<number, string>; gameId: string | null; onAnalyseLap: (lap: LapMeta) => void }) {
+function RecentLapsTable({
+  laps,
+  carNames,
+  trackNames,
+  gameId,
+  onAnalyseLap,
+}: {
+  laps: LapMeta[];
+  carNames: Record<number, string>;
+  trackNames: Record<number, string>;
+  gameId: string | null;
+  onAnalyseLap: (lap: LapMeta) => void;
+}) {
   const showGame = !gameId; // show game column on global homepage
   if (laps.length === 0) {
     return <div className="p-6 text-center text-app-text/90-dim">{m.home_no_laps()}</div>;
@@ -164,14 +176,7 @@ function aiStateLabel(state: DriverProfileState): string {
 }
 
 /** Compact driver profile glance for the per-game home dashboard. */
-export function DriverProgressCard({
-  gameId,
-  fingerprint,
-  loading = false,
-  error = null,
-  medianLapSec = null,
-  runState = "not-configured",
-}: DriverProgressCardProps) {
+export function DriverProgressCard({ gameId, fingerprint, loading = false, error = null, medianLapSec = null, runState = "not-configured" }: DriverProgressCardProps) {
   const profileHref = `${getGameRoute(gameId)}/driver`;
   const analyseHref = `${getGameRoute(gameId)}/analyse`;
   const measured = fingerprint?.ok && fingerprint.laps.analyzed > 0 ? fingerprint : null;
@@ -187,7 +192,10 @@ export function DriverProgressCard({
             {loading ? "Loading measured profile…" : error ? "Profile unavailable" : measured ? `${measured.laps.analyzed} analyzed laps` : "Build your profile from clean laps"}
           </p>
         </div>
-        <a href={profileHref} className="rounded px-1 text-xs font-semibold text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
+        <a
+          href={profileHref}
+          className="rounded px-1 text-xs font-semibold text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
+        >
           View full profile →
         </a>
       </div>
@@ -200,7 +208,10 @@ export function DriverProgressCard({
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed border-app-border px-3 py-2">
           <p className="text-xs text-app-text-muted">{loading ? "Measured signals are loading…" : "Record a few clean laps to unlock profile signals."}</p>
           {!loading && (
-            <a href={analyseHref} className="rounded px-1 text-xs font-semibold text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
+            <a
+              href={analyseHref}
+              className="rounded px-1 text-xs font-semibold text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
+            >
               Analyse laps →
             </a>
           )}
@@ -254,7 +265,10 @@ export function DriverProgressCard({
               <span className="uppercase tracking-wider text-app-text-muted">Coach</span>
               <span className={runState === "failed" ? "font-semibold text-red-300" : "font-semibold text-app-text"}>{aiStateLabel(runState)}</span>
             </div>
-            <a href={profileHref} className="ml-auto rounded px-1 font-semibold text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
+            <a
+              href={profileHref}
+              className="ml-auto rounded px-1 font-semibold text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
+            >
               Details →
             </a>
           </div>
@@ -299,7 +313,6 @@ export interface HomePageViewProps {
   medianLapSec: number | null;
   driverRunState?: DriverProfileState;
 }
-
 
 export function HomePageView({
   gameId,
@@ -429,12 +442,7 @@ export function HomePageView({
             <h1 className="text-2xl font-bold text-app-text/90">{displaySettings.driverName ? `${m.home_hello()}, ${displaySettings.driverName}` : "RaceIQ"}</h1>
             <p className="text-sm text-app-text/90-muted mt-0.5">{m.home_dashboard_overview()}</p>
           </div>
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            className="p-1.5 rounded text-app-text-muted hover:text-app-text hover:bg-app-surface-alt transition-colors"
-            title={m.home_manage_games()}
-          >
+          <button type="button" onClick={onOpenSettings} className="p-1.5 rounded text-app-text-muted hover:text-app-text hover:bg-app-surface-alt transition-colors" title={m.home_manage_games()}>
             <Settings2 className="size-4" />
           </button>
         </div>
@@ -664,14 +672,7 @@ export function HomePageView({
       {gameId ? (
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
           <main className="min-w-0 space-y-6">
-            <DriverProgressCard
-              gameId={driverGameId ?? gameId}
-              fingerprint={driverFingerprint}
-              loading={driverLoading}
-              error={driverError}
-              medianLapSec={medianLapSec}
-              runState={driverRunState}
-            />
+            <DriverProgressCard gameId={driverGameId ?? gameId} fingerprint={driverFingerprint} loading={driverLoading} error={driverError} medianLapSec={medianLapSec} runState={driverRunState} />
 
             <section>
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90-muted">Activity</h2>
@@ -721,7 +722,7 @@ export function HomePageView({
 
             <section>
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90-muted">{m.home_recent_laps()}</h2>
-            <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseLap={onAnalyseLap} />
+              <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseLap={onAnalyseLap} />
             </section>
           </main>
 
@@ -738,7 +739,16 @@ export function HomePageView({
                 ) : latestRecapError || !latestRecap ? (
                   <div className="p-6 text-center text-red-400">{m.common_error()}</div>
                 ) : (
-                  <SessionRecapView recap={latestRecap} gameId={latestRecap.gameId} linkToAnalyse copied={recapCopied} onCopy={onCopyRecap} onAnalyse={onAnalyseRecap} outlineData={latestRecapOutline} bounds={latestRecapBounds} />
+                  <SessionRecapView
+                    recap={latestRecap}
+                    gameId={latestRecap.gameId}
+                    linkToAnalyse
+                    copied={recapCopied}
+                    onCopy={onCopyRecap}
+                    onAnalyse={onAnalyseRecap}
+                    outlineData={latestRecapOutline}
+                    bounds={latestRecapBounds}
+                  />
                 )}
               </div>
             ) : (
@@ -756,7 +766,16 @@ export function HomePageView({
               ) : latestRecapError || !latestRecap ? (
                 <div className="p-6 text-center text-red-400">{m.common_error()}</div>
               ) : (
-                <SessionRecapView recap={latestRecap} gameId={latestRecap.gameId} linkToAnalyse copied={recapCopied} onCopy={onCopyRecap} onAnalyse={onAnalyseRecap} outlineData={latestRecapOutline} bounds={latestRecapBounds} />
+                <SessionRecapView
+                  recap={latestRecap}
+                  gameId={latestRecap.gameId}
+                  linkToAnalyse
+                  copied={recapCopied}
+                  onCopy={onCopyRecap}
+                  onAnalyse={onAnalyseRecap}
+                  outlineData={latestRecapOutline}
+                  bounds={latestRecapBounds}
+                />
               )}
             </div>
           )}

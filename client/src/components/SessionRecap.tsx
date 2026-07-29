@@ -38,7 +38,17 @@ function sectorLabel(status: SectorStatus): string {
   }
 }
 
-function SectorTrackMap({ sectors, sourceStarts, outlineData, bounds }: { sectors: NonNullable<SessionRecapDto["sectors"]>; sourceStarts: number[] | null; outlineData?: TrackOutlineData; bounds?: TrackSectorBounds }) {
+function SectorTrackMap({
+  sectors,
+  sourceStarts,
+  outlineData,
+  bounds,
+}: {
+  sectors: NonNullable<SessionRecapDto["sectors"]>;
+  sourceStarts: number[] | null;
+  outlineData?: TrackOutlineData;
+  bounds?: TrackSectorBounds;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const points = Array.isArray(outlineData) ? outlineData : (outlineData?.points ?? null);
   const flipX = Array.isArray(outlineData) ? undefined : outlineData?.flipX;
@@ -101,27 +111,56 @@ function Tile({ label, value, sub, color }: { label: string; value: string; sub?
     </div>
   );
 }
-function formatDelta(sec: number): string { return `${sec >= 0 ? "-" : "+"}${Math.abs(sec).toFixed(3)}`; }
-function formatDistance(m: number): string { return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`; }
-function formatDuration(sec: number): string { const totalMin = Math.round(sec / 60); if (totalMin < 60) return `${totalMin}m`; const h = Math.floor(totalMin / 60); const min = totalMin % 60; return `${h}h ${min}m`; }
+function formatDelta(sec: number): string {
+  return `${sec >= 0 ? "-" : "+"}${Math.abs(sec).toFixed(3)}`;
+}
+function formatDistance(m: number): string {
+  return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`;
+}
+function formatDuration(sec: number): string {
+  const totalMin = Math.round(sec / 60);
+  if (totalMin < 60) return `${totalMin}m`;
+  const h = Math.floor(totalMin / 60);
+  const min = totalMin % 60;
+  return `${h}h ${min}m`;
+}
 
 function Sparkline({ laps }: { laps: SessionRecapDto["sparkline"] }) {
   if (laps.length < 2) return null;
-  const width = 240, height = 48, pad = 4;
+  const width = 240,
+    height = 48,
+    pad = 4;
   const times = laps.map((l) => l.lapTimeSec).filter((t) => t > 0);
   if (times.length === 0) return null;
-  const min = Math.min(...times), max = Math.max(...times), range = max - min || 1;
+  const min = Math.min(...times),
+    max = Math.max(...times),
+    range = max - min || 1;
   const stepX = (width - pad * 2) / Math.max(1, laps.length - 1);
-  const points = laps.map((l, i) => { const x = pad + i * stepX; const t = l.lapTimeSec > 0 ? l.lapTimeSec : max; const y = pad + (1 - (t - min) / range) * (height - pad * 2); return { x, y, lap: l }; });
+  const points = laps.map((l, i) => {
+    const x = pad + i * stepX;
+    const t = l.lapTimeSec > 0 ? l.lapTimeSec : max;
+    const y = pad + (1 - (t - min) / range) * (height - pad * 2);
+    return { x, y, lap: l };
+  });
   const path = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
-  return <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible" role="img" aria-label={m.recap_pace()}><title>{m.recap_pace()}</title><path d={path} fill="none" stroke="currentColor" className="text-app-accent/50" strokeWidth={1.5} />{points.map((p) => <circle key={p.lap.lapNumber} cx={p.x} cy={p.y} r={p.lap.isValid ? 2 : 2.5} className={p.lap.isValid ? "fill-app-accent" : "fill-red-400"} />)}</svg>;
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible" role="img" aria-label={m.recap_pace()}>
+      <title>{m.recap_pace()}</title>
+      <path d={path} fill="none" stroke="currentColor" className="text-app-accent/50" strokeWidth={1.5} />
+      {points.map((p) => (
+        <circle key={p.lap.lapNumber} cx={p.x} cy={p.y} r={p.lap.isValid ? 2 : 2.5} className={p.lap.isValid ? "fill-app-accent" : "fill-red-400"} />
+      ))}
+    </svg>
+  );
 }
 
 export function buildRecapText(recap: SessionRecapDto): string {
   const lines: string[] = [`RaceIQ — ${recap.trackName} · ${recap.carName}`];
-  const best = recap.bestLapSec, pb = recap.personalBest;
+  const best = recap.bestLapSec,
+    pb = recap.personalBest;
   const bestPart = best != null ? `${m.recap_text_best()} ${formatLapTime(best)}` : null;
-  const pbPart = pb?.isNew !== true ? null : pb.previousBestSec != null && best != null ? `${m.recap_new_pb()}, ${formatDelta(pb.previousBestSec - best)}` : `${m.recap_new_pb()}, ${m.recap_new_pb_first_ever()}`;
+  const pbPart =
+    pb?.isNew !== true ? null : pb.previousBestSec != null && best != null ? `${m.recap_new_pb()}, ${formatDelta(pb.previousBestSec - best)}` : `${m.recap_new_pb()}, ${m.recap_new_pb_first_ever()}`;
   const lapsLine = [`${recap.lapsValid} ${m.recap_text_laps()}`, bestPart ? (pbPart ? `${bestPart} (${pbPart})` : bestPart) : null].filter(Boolean).join(" · ");
   if (lapsLine) lines.push(lapsLine);
   if (recap.theoretical != null) lines.push(`${m.recap_text_theoretical()} ${formatLapTime(recap.theoretical.sumSec)} (${recap.theoretical.deltaToBestSec.toFixed(1)}s ${m.recap_left_on_table()})`);
@@ -133,7 +172,16 @@ export function buildRecapText(recap: SessionRecapDto): string {
   return lines.join("\n");
 }
 
-export interface SessionRecapViewProps { recap: SessionRecapDto; gameId: GameId; linkToAnalyse?: boolean; copied?: boolean; onCopy: () => void; onAnalyse?: () => void; outlineData?: TrackOutlineData; bounds?: TrackSectorBounds; }
+export interface SessionRecapViewProps {
+  recap: SessionRecapDto;
+  gameId: GameId;
+  linkToAnalyse?: boolean;
+  copied?: boolean;
+  onCopy: () => void;
+  onAnalyse?: () => void;
+  outlineData?: TrackOutlineData;
+  bounds?: TrackSectorBounds;
+}
 
 export function SessionRecapView({ recap, gameId, linkToAnalyse = false, copied = false, onCopy, onAnalyse, outlineData, bounds }: SessionRecapViewProps) {
   const canAnalyse = linkToAnalyse && gameId === recap.gameId && recap.bestLapId != null && onAnalyse != null;
@@ -164,10 +212,7 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, copied 
       ) : (
         <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_240px]">
           <div className="flex min-w-0 flex-col gap-4">
-            <div
-              className="grid min-w-0 gap-2"
-              style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 150px), 1fr))" }}
-            >
+            <div className="grid min-w-0 gap-2" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 150px), 1fr))" }}>
               <Tile label={m.recap_laps()} value={`${recap.lapsValid}/${recap.lapsTotal}`} />
               {recap.bestLapSec != null && (
                 <Tile
@@ -202,12 +247,7 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, copied 
 
           {recap.sectors != null && (
             <div className="lg:w-[240px] shrink-0">
-              <SectorTrackMap
-                sectors={recap.sectors}
-                sourceStarts={recap.sectorStarts}
-                outlineData={outlineData}
-                bounds={bounds}
-              />
+              <SectorTrackMap sectors={recap.sectors} sourceStarts={recap.sectorStarts} outlineData={outlineData} bounds={bounds} />
             </div>
           )}
         </div>
@@ -215,7 +255,6 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, copied 
     </div>
   );
 }
-
 
 export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = false }: { sessionId: number; gameId?: GameId | null; linkToAnalyse?: boolean }) {
   const storeGameId = useGameId();
@@ -226,7 +265,15 @@ export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = fa
   const [copied, setCopied] = useState(false);
   if (isLoading) return <div className="p-6 text-center text-app-text-dim">{m.common_loading()}</div>;
   if (isError || !recap) return <div className="p-6 text-center text-red-400">{m.common_error()}</div>;
-  const copy = () => { navigator.clipboard.writeText(buildRecapText(recap)).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }); };
-  const analyse = () => { if (recap.bestLapId == null) return; window.location.href = `${getGameRoute(recap.gameId)}/analyse?track=${recap.trackOrdinal}&car=${recap.carOrdinal}&lap=${recap.bestLapId}`; };
+  const copy = () => {
+    navigator.clipboard.writeText(buildRecapText(recap)).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+  const analyse = () => {
+    if (recap.bestLapId == null) return;
+    window.location.href = `${getGameRoute(recap.gameId)}/analyse?track=${recap.trackOrdinal}&car=${recap.carOrdinal}&lap=${recap.bestLapId}`;
+  };
   return <SessionRecapView recap={recap} gameId={recap.gameId} linkToAnalyse={linkToAnalyse} copied={copied} onCopy={copy} onAnalyse={analyse} outlineData={outlineData} bounds={bounds} />;
 }

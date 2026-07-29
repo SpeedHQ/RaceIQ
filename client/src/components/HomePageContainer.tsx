@@ -6,8 +6,8 @@ import { useDriverProfile, useDriverProfileRuns, useLaps, useSessionRecap, useSe
 import { client } from "../lib/rpc";
 import { getGameRoute, useGameId } from "../stores/game";
 import { useUiStore } from "../stores/ui";
+import { type GameStats, HomePageView, type PeriodKey, type PeriodStats } from "./HomePage";
 import { buildRecapText } from "./SessionRecap";
-import { HomePageView, type GameStats, type PeriodKey, type PeriodStats } from "./HomePage";
 
 export function HomePageContainer() {
   const gameId = useGameId();
