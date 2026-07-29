@@ -16,6 +16,7 @@ import { iracingRecorder } from "./games/iracing/recorder";
 import { reconcileDiscoveredCars, listDiscoveredCars } from "./db/discovered-cars";
 import { listDiscoveredTracks } from "./db/discovered-tracks";
 import { injectDiscoveredAcEvoCars } from "../shared/ac-evo-car-data";
+import { getOnboardingOverride } from "./runtime-options";
 
 // Register all game adapters (shared + server)
 initGameAdapters();
@@ -48,6 +49,11 @@ if (process.platform === "darwin") {
 }
 
 const HTTP_PORT = Number(process.env.SERVER_PORT) || 3117;
+const onboardingOverride = getOnboardingOverride();
+
+if (onboardingOverride !== null) {
+  console.log(`[Server] Development onboarding override: ${onboardingOverride ? "show" : "skip"}`);
+}
 
 // Check for recording mode flag: --record=gameId
 // e.g. bun run dev --record=acc

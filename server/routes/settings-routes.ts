@@ -14,6 +14,7 @@ import { enableLaunchOnLogin, disableLaunchOnLogin, getLaunchOnLoginExeDir } fro
 import { getLapStats, setCacheMaxBytes } from "../db/queries";
 import { getRunningGame } from "../games/registry";
 import { getTrackLengthMeters } from "../../shared/track-data";
+import { withOnboardingOverride } from "../runtime-options";
 
 const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
 const MODELS_EMPTY_RETRY_MS = 10 * 1000;
@@ -47,7 +48,7 @@ export const settingsRoutes = new Hono()
 
   // GET /api/settings
   .get("/api/settings", async (c) => {
-    const settings = loadSettings();
+    const settings = withOnboardingOverride(loadSettings());
     const hasGeminiKey = !!(await getSecret("gemini-api-key"));
     const hasOpenaiKey = !!(await getSecret("openai-api-key"));
     const hasAnthropicKey = !!(await getSecret("anthropic-api-key"));
