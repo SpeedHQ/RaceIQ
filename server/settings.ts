@@ -41,6 +41,7 @@ const AppSettingsSchema = z.object({
   driverProfileProvider: AiProviderSchema.default(""),
   driverProfileModel: z.string().default(""),
   driverProfileThinkingBudget: z.number().int().min(0).nullable().default(null),
+  localEndpoint: z.string().default("http://localhost:1234/v1"),
   wsRefreshRate: z.enum(["60", "50", "40", "30"]).default("60"),
   // Max render rate for the 3D wireframe Canvas. Throttles gl.render
   // calls to cap GPU/CPU work when the scene is idle or when the user

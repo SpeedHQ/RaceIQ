@@ -35,6 +35,7 @@ describe("driver profile run persistence", () => {
     expect(settings.driverProfileProvider).toBe("");
     expect(settings.driverProfileModel).toBe("");
     expect(settings.driverProfileThinkingBudget).toBeNull();
+    expect(settings.localEndpoint).toBe("http://localhost:1234/v1");
   });
 
   test("migration exposes the run table", async () => {
@@ -58,8 +59,18 @@ describe("driver profile run persistence", () => {
       plan: null,
     });
 
-    await updateDriverProfileRun(id, { status: "running", startedAt: "2026-07-29T12:00:00.000Z" });
-    await updateDriverProfileRun(id, {
+    await expect(
+      updateDriverProfileRun(id, "fm-2023|other|scope", "queued", { status: "running" }),
+    ).rejects.toThrow("was not owned");
+    await expect(
+      updateDriverProfileRun(id, "fm-2023|42|7", "queued", { status: "succeeded" }),
+    ).rejects.toThrow("Invalid driver profile run transition");
+
+    await updateDriverProfileRun(id, "fm-2023|42|7", "queued", {
+      status: "running",
+      startedAt: "2026-07-29T12:00:00.000Z",
+    });
+    await updateDriverProfileRun(id, "fm-2023|42|7", "running", {
       status: "succeeded",
       fingerprint: '{"pace":1}',
       plan: '{"summary":"keep braking"}',
@@ -93,7 +104,7 @@ describe("driver profile run persistence", () => {
   });
 
   test("lists history newest first within a scope", async () => {
-    const oldest = await createDriverProfileRun(scope, { poolKey: "oldest", createdAt: "2026-07-29T12:00:00.000Z" });
+    const oldest = await createDriverProfileRun(scope, { poolKey: "oldest", createdAt: "2026-07-29 12:00:00" });
     const newest = await createDriverProfileRun(scope, { poolKey: "newest", createdAt: "2026-07-29T12:01:00.000Z" });
     await createDriverProfileRun({ gameId: "fm-2023", carOrdinal: 99, trackOrdinal: 7 }, { poolKey: "other-scope" });
 

@@ -2482,8 +2482,21 @@ export interface UpdateDriverProfileRunInput {
 
 export async function updateDriverProfileRun(
   id: number,
+  scopeKey: string,
+  expectedStatus: DriverProfileRunStatus,
   patch: UpdateDriverProfileRunInput,
 ): Promise<void> {
+  const nextStatus = patch.status ?? expectedStatus;
+  const allowedTransitions: Record<DriverProfileRunStatus, readonly DriverProfileRunStatus[]> = {
+    queued: ["queued", "running", "failed"],
+    running: ["running", "succeeded", "failed"],
+    succeeded: ["succeeded"],
+    failed: ["failed"],
+  };
+  if (!allowedTransitions[expectedStatus].includes(nextStatus)) {
+    throw new Error(`Invalid driver profile run transition: ${expectedStatus} -> ${nextStatus}`);
+  }
+
   const values = {
     ...(patch.status !== undefined ? { status: patch.status } : {}),
     ...(patch.fingerprint !== undefined ? { fingerprint: patch.fingerprint } : {}),
@@ -2498,7 +2511,19 @@ export async function updateDriverProfileRun(
     ...(patch.completedAt !== undefined ? { completedAt: patch.completedAt } : {}),
   };
   if (Object.keys(values).length === 0) return;
-  await db.update(driverProfileRuns).set(values).where(eq(driverProfileRuns.id, id)).run();
+
+  const result = await db
+    .update(driverProfileRuns)
+    .set(values)
+    .where(and(
+      eq(driverProfileRuns.id, id),
+      eq(driverProfileRuns.scopeKey, scopeKey),
+      eq(driverProfileRuns.status, expectedStatus),
+    ))
+    .run();
+  if (result.rowsAffected !== 1) {
+    throw new Error(`Driver profile run ${id} was not owned by scope or status ${expectedStatus}`);
+  }
 }
 
 export async function getDriverProfileRun(id: number): Promise<DriverProfileRunRow | null> {
@@ -2518,7 +2543,7 @@ export async function listDriverProfileRuns(
     .select()
     .from(driverProfileRuns)
     .where(eq(driverProfileRuns.scopeKey, driverProfileScopeKey(scope)))
-    .orderBy(desc(driverProfileRuns.createdAt), desc(driverProfileRuns.id))
+    .orderBy(desc(sql`datetime(${driverProfileRuns.createdAt})`), desc(driverProfileRuns.id))
     .limit(limit)
     .all();
 }
@@ -2534,7 +2559,7 @@ export async function findDriverProfileRunByScopePool(
       eq(driverProfileRuns.scopeKey, driverProfileScopeKey(scope)),
       eq(driverProfileRuns.poolKey, poolKey),
     ))
-    .orderBy(desc(driverProfileRuns.createdAt), desc(driverProfileRuns.id))
+    .orderBy(desc(sql`datetime(${driverProfileRuns.createdAt})`), desc(driverProfileRuns.id))
     .get();
   return row ?? null;
 }
