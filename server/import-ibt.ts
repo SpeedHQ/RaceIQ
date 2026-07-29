@@ -12,6 +12,7 @@ import { randomUUID } from "crypto";
 import { basename, join, resolve } from "path";
 import { resolveDataDir } from "./data-dir";
 import { IRacingIbtReader } from "./games/iracing/ibt-reader";
+import { registerImportedIRacingIdentity } from "./games/iracing/identity";
 import { parseIRacingSessionInfo } from "./games/iracing/session-info";
 import {
   IRacingSourceFrameEncoder,
@@ -480,6 +481,7 @@ export async function commitStagedIbt(token: string): Promise<{
   const { paths, manifest } = loadManifest(token);
   try {
     try {
+      await registerImportedIRacingIdentity(manifest.preview);
       const result = await importSessionFrames(
         ibtFrames(paths.ibt, manifest.preview),
         "iracing",

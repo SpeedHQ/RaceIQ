@@ -4,6 +4,7 @@ import {
   expect,
   test,
 } from "bun:test";
+import { and, eq } from "drizzle-orm";
 import {
   existsSync,
   mkdtempSync,
@@ -13,6 +14,10 @@ import {
 } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+import { getDiscoveredCarName } from "../server/db/discovered-cars";
+import { getDiscoveredTrackName } from "../server/db/discovered-tracks";
+import { db } from "../server/db/index";
+import { discoveredCars, discoveredTracks } from "../server/db/schema";
 import { IRacingIbtReader } from "../server/games/iracing/ibt-reader";
 import {
   commitStagedIbt,
@@ -32,6 +37,7 @@ import {
   IRSDK_VAR_HEADER_SIZE,
   IRSDKVariableType,
 } from "../server/games/iracing/variable-table";
+import { iracingAdapter } from "../shared/games/iracing";
 
 const DISK_HEADER_SIZE = 144;
 const ROW_LENGTH = 40;
@@ -48,6 +54,20 @@ interface SyntheticRow {
   lastLapTime?: number;
   currentLapTime?: number;
 }
+
+interface SyntheticIdentity {
+  trackId: number;
+  trackName: string;
+  carId: number;
+  carName: string;
+}
+
+const DEFAULT_IDENTITY: SyntheticIdentity = {
+  trackId: 99,
+  trackName: "Road America",
+  carId: 42,
+  carName: "GT3 Test Car",
+};
 
 function writeCString(
   buffer: Buffer,
@@ -90,6 +110,7 @@ function telemetryRow(row: SyntheticRow): Buffer {
 function writeSyntheticIbt(
   path: string,
   suppliedRows?: SyntheticRow[],
+  identity: SyntheticIdentity = DEFAULT_IDENTITY,
 ): void {
   const variableHeaders = Buffer.concat([
     descriptor(IRSDKVariableType.Double, 0, "SessionTime"),
@@ -105,9 +126,9 @@ function writeSyntheticIbt(
   ]);
   const sessionInfo = Buffer.from(`
 WeekendInfo:
-  TrackID: 99
+  TrackID: ${identity.trackId}
   TrackLength: 6.515 km
-  TrackDisplayName: Road America
+  TrackDisplayName: ${identity.trackName}
   SessionID: 123
   SubSessionID: 456
 SplitTimeInfo:
@@ -125,8 +146,8 @@ SplitTimeInfo:
   DriverCarEngCylinderCount: 8
   Drivers:
   - CarIdx: 7
-    CarID: 42
-    CarScreenName: GT3 Test Car
+    CarID: ${identity.carId}
+    CarScreenName: ${identity.carName}
     CarClassID: 8
     CarClassShortName: GT3
 \0`);
@@ -386,7 +407,13 @@ describe("IRacingIbtReader", () => {
   test("commits a staged IBT through the normal pipeline and canonical recorder", async () => {
     tempDir = mkdtempSync(join(tmpdir(), "raceiq-ibt-"));
     const path = join(tempDir, "driven.ibt");
-    writeSyntheticIbt(path, drivenRows());
+    const importedIdentity: SyntheticIdentity = {
+      trackId: 910_099,
+      trackName: "Imported Raceway",
+      carId: 910_042,
+      carName: "Imported GT3",
+    };
+    writeSyntheticIbt(path, drivenRows(), importedIdentity);
     const bytes = readFileSync(path);
     const body = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -411,7 +438,21 @@ describe("IRacingIbtReader", () => {
       expect(imported.laps).toHaveLength(1);
       expect(imported.laps[0]).toMatchObject({
         lapNumber: 2,
+        carOrdinal: importedIdentity.carId,
+        trackOrdinal: importedIdentity.trackId,
       });
+      expect(
+        await getDiscoveredCarName("iracing", importedIdentity.carId),
+      ).toBe(importedIdentity.carName);
+      expect(
+        await getDiscoveredTrackName("iracing", importedIdentity.trackId),
+      ).toBe(importedIdentity.trackName);
+      expect(iracingAdapter.getCarName(importedIdentity.carId)).toBe(
+        importedIdentity.carName,
+      );
+      expect(iracingAdapter.getTrackName(importedIdentity.trackId)).toBe(
+        importedIdentity.trackName,
+      );
 
       sessionId = imported.laps[0].sessionId;
       const [stored] = await getLapsRaw([imported.laps[0].lapId]);
@@ -421,6 +462,24 @@ describe("IRacingIbtReader", () => {
     } finally {
       if (sessionId !== null) await deleteSession(sessionId);
       if (rawFile) rmSync(rawFile, { force: true });
+      await db
+        .delete(discoveredCars)
+        .where(
+          and(
+            eq(discoveredCars.gameId, "iracing"),
+            eq(discoveredCars.ordinal, importedIdentity.carId),
+          ),
+        )
+        .run();
+      await db
+        .delete(discoveredTracks)
+        .where(
+          and(
+            eq(discoveredTracks.gameId, "iracing"),
+            eq(discoveredTracks.ordinal, importedIdentity.trackId),
+          ),
+        )
+        .run();
     }
   });
 

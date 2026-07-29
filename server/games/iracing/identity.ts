@@ -10,37 +10,68 @@ import {
 import type { IRacingSessionSnapshot } from "./source-frame";
 
 /**
- * Accept identity only from the live SDK source. Parsers and import/replay
- * pipelines must remain pure so historical captures cannot rewrite live names.
+ * Persist identity accepted at an explicit source boundary. The registry keeps
+ * the first name observed for each native ordinal, so a later recording cannot
+ * silently rename an existing car or track.
  */
-export async function registerLiveIRacingIdentity(
-  session: IRacingSessionSnapshot,
+async function registerAcceptedIRacingIdentity(
+  identity: Pick<
+    IRacingSessionSnapshot,
+    "carId" | "carName" | "trackId" | "trackName"
+  >,
 ): Promise<void> {
   const writes: Promise<void>[] = [];
-  if (session.carId >= 0 && session.carName) {
+  if (identity.carId >= 0 && identity.carName) {
     writes.push(
-      registerDiscoveredCar("iracing", session.carId, session.carName),
+      registerDiscoveredCar("iracing", identity.carId, identity.carName),
     );
   }
-  if (session.trackId >= 0 && session.trackName) {
+  if (identity.trackId >= 0 && identity.trackName) {
     writes.push(
-      registerDiscoveredTrack("iracing", session.trackId, session.trackName),
+      registerDiscoveredTrack(
+        "iracing",
+        identity.trackId,
+        identity.trackName,
+      ),
     );
   }
   await Promise.all(writes);
 
   const [carName, trackName] = await Promise.all([
-    session.carId >= 0
-      ? getDiscoveredCarName("iracing", session.carId)
+    identity.carId >= 0
+      ? getDiscoveredCarName("iracing", identity.carId)
       : undefined,
-    session.trackId >= 0
-      ? getDiscoveredTrackName("iracing", session.trackId)
+    identity.trackId >= 0
+      ? getDiscoveredTrackName("iracing", identity.trackId)
       : undefined,
   ]);
   rememberIRacingIdentity({
-    carId: session.carId,
-    carName: carName ?? session.carName,
-    trackId: session.trackId,
-    trackName: trackName ?? session.trackName,
+    carId: identity.carId,
+    carName: carName ?? identity.carName,
+    trackId: identity.trackId,
+    trackName: trackName ?? identity.trackName,
   });
+}
+
+/**
+ * Accept identity from the live SDK source. Parsers and passive replay remain
+ * pure so merely reading a historical capture cannot mutate the registry.
+ */
+export async function registerLiveIRacingIdentity(
+  session: IRacingSessionSnapshot,
+): Promise<void> {
+  await registerAcceptedIRacingIdentity(session);
+}
+
+/**
+ * Accept identity when the user explicitly commits a validated IBT import.
+ * Preview and cancel remain read-only.
+ */
+export async function registerImportedIRacingIdentity(
+  identity: Pick<
+    IRacingSessionSnapshot,
+    "carId" | "carName" | "trackId" | "trackName"
+  >,
+): Promise<void> {
+  await registerAcceptedIRacingIdentity(identity);
 }
