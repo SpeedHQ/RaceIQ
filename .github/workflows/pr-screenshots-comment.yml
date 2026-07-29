@@ -111,13 +111,8 @@ jobs:
             echo "<sub>Rendered from Storybook and responsive app screenshot tests against current main.</sub>"
           } > body.md
 
-          existing=$(gh api "repos/${REPO}/issues/${PR}/comments" \
-            --jq ".[] | select(.body | contains(\"$marker\")) | .id" | head -1)
-          if [ -n "$existing" ]; then
-            gh api -X PATCH "repos/${REPO}/issues/comments/${existing}" -F body=@body.md
-          else
-            gh api "repos/${REPO}/issues/${PR}/comments" -F body=@body.md
-          fi
+          # Keep each UI-diff report as a new comment for a visible run history.
+          gh api "repos/${REPO}/issues/${PR}/comments" -F body=@body.md
 
       - name: Label PR as a UI change
         if: steps.meta.outputs.changed == 'true'
