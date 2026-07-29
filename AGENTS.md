@@ -62,20 +62,18 @@ bun run lighthouse             # run Lighthouse audit on local dev server
 | `UDP_PORT` | `5300` | Game telemetry UDP listen port |
 | `DATA_DIR` | `./data` | Database and settings directory |
 
-### Development Navigation Handler
+### Development Onboarding Flag
 
-When the Vite development server is running, open `/dev/open?to=<path>` to mark
-onboarding complete for that browser tab and go directly to a RaceIQ page. For
-example:
+Pass `--onboarding false` to the full development command to skip the Setup
+Wizard and open any RaceIQ page directly:
 
-```text
-http://raceiq.localhost:1355/dev/open?to=/iracing/cars
+```bash
+bun run dev --onboarding false
 ```
 
-The completed-onboarding override is development-only and stored in
-`sessionStorage`; all client settings consumers see `onboardingComplete: true`
-without changing persisted settings or production onboarding. Use `?welcome`
-on any page to force the Setup Wizard when testing onboarding.
+Use `--onboarding true` to force the Setup Wizard, or omit the flag to use the
+persisted onboarding state normally. The server-side override is development
+only and does not change `settings.json`; production builds ignore the flag.
 
 ## Architecture
 

@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo } from "react";
 import type { CatalogTune } from "../data/tune-catalog";
-import { withDevOnboardingCompletion } from "../lib/dev-navigation";
 import type { SectorTimeline } from "../lib/lap-sectors";
 import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
@@ -52,8 +51,7 @@ export function useSettings() {
     refetchOnMount: false,
     refetchOnWindowFocus: true,
   });
-  const effectiveDisplaySettings = useMemo(() => withDevOnboardingCompletion(displaySettings, import.meta.env.DEV, window.sessionStorage), [displaySettings]);
-  return { displaySettings: effectiveDisplaySettings, settingsLoaded: isSuccess };
+  return { displaySettings, settingsLoaded: isSuccess };
 }
 
 export function useSaveSettings() {
