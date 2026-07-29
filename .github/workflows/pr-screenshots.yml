@@ -34,7 +34,7 @@ jobs:
     # renders deterministically across machines. Run the SAME image locally
     # (client `bun run snapshot:docker`) and baselines match byte-for-byte.
     container:
-      image: mcr.microsoft.com/playwright:v1.61.1-jammy
+      image: mcr.microsoft.com/playwright:v1.62.0-jammy
     permissions:
       contents: read
     env:
