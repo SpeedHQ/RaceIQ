@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { and, eq } from "drizzle-orm";
+import { existsSync, statSync } from "node:fs";
+import { resolve } from "node:path";
 import { registerDiscoveredCar } from "../server/db/discovered-cars";
 import { db } from "../server/db/index";
 import { discoveredCars } from "../server/db/schema";
@@ -52,8 +54,7 @@ describe("GET /api/cars game context", () => {
       name: "Porsche 911 Cup (992.2)",
       path: "cars\\porsche9922cup",
       category: "sports_car",
-      imageUrl:
-        "https://images-static.iracing.com/img/cars/carid_208/porsche9922cup-small.jpg",
+      imageUrl: "/iracing-car-images/208.jpg",
     });
     expect(cars).toContainEqual({
       ordinal: CAR_ID,
@@ -76,11 +77,12 @@ describe("GET /api/cars game context", () => {
       "oval",
       "sports_car",
     ]);
-    expect(
-      catalogCars.every((car) =>
-        car.imageUrl.startsWith("https://images-static.iracing.com/img/cars/"),
-      ),
-    ).toBe(true);
+    for (const car of catalogCars) {
+      expect(car.imageUrl).toBe(`/iracing-car-images/${car.ordinal}.jpg`);
+      const imagePath = resolve(import.meta.dir, "../client/public", car.imageUrl.slice(1));
+      expect(existsSync(imagePath)).toBe(true);
+      expect(statSync(imagePath).size).toBeGreaterThan(0);
+    }
   });
 
   test("returns seeded iRacing car details by native ID", async () => {
