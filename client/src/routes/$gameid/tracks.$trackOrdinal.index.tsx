@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { TrackDetailRoute } from "../../components/track/TrackDetailRoute";
 
-/** A track's index route is its Info view — the reference data for the track. */
-export const Route = createFileRoute("/f125/tracks/$trackOrdinal/")({
+export const Route = createFileRoute("/$gameid/tracks/$trackOrdinal/")({
   component: () => <TrackDetailRoute tab="info" />,
 });

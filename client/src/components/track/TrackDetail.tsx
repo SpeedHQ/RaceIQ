@@ -1452,7 +1452,7 @@ export function TrackDetail({
                                         type="button"
                                         onClick={() =>
                                           navTo({
-                                            to: "/fm23/compare",
+                                            to: `${getGameRoute(gameId ?? "")}/compare`,
                                             search: {
                                               track: track.ordinal,
                                               lapA,

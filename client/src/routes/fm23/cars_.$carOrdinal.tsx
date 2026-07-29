@@ -129,7 +129,7 @@ function CarModelPage() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4 text-app-text-dim">
         <div className="text-lg">{m.carmodel_no_model()}</div>
-        <button onClick={() => navigate({ to: "/fm23/cars" })} className="px-4 py-2 rounded bg-app-surface-alt border border-app-border-input text-app-text-secondary hover:text-app-text">
+        <button onClick={() => navigate({ to: "/$gameid/cars", params: { gameid: "fm23" } })} className="px-4 py-2 rounded bg-app-surface-alt border border-app-border-input text-app-text-secondary hover:text-app-text">
           {m.carmodel_back_to_cars()}
         </button>
       </div>
@@ -140,7 +140,7 @@ function CarModelPage() {
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center gap-3 p-3 border-b border-app-border shrink-0">
         <button
-          onClick={() => navigate({ to: "/fm23/cars" })}
+          onClick={() => navigate({ to: "/$gameid/cars", params: { gameid: "fm23" } })}
           className="text-app-label text-app-text-secondary hover:text-app-text px-2 py-1 rounded bg-app-surface-alt hover:bg-app-border-input transition-colors"
         >
           &larr; Cars

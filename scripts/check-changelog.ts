@@ -8,8 +8,13 @@ if (!baseRef) throw new Error("GITHUB_BASE_REF is required for pull-request chan
 const diff = Bun.spawnSync(["git", "diff", "--unified=3", `origin/${baseRef}`, "HEAD", "--", "CHANGELOG.md"]);
 if (diff.exitCode !== 0) throw new Error("Unable to compare CHANGELOG.md with the pull-request base branch");
 
+const baseChangelog = Bun.spawnSync(["git", "show", `origin/${baseRef}:CHANGELOG.md`]);
+if (baseChangelog.exitCode !== 0) throw new Error("Unable to read CHANGELOG.md from the pull-request base branch");
+
 const patch = new TextDecoder().decode(diff.stdout);
-if (!hasUnreleasedChangelogChange(patch)) {
+const before = new TextDecoder().decode(baseChangelog.stdout);
+const after = await Bun.file("CHANGELOG.md").text();
+if (!hasUnreleasedChangelogChange(patch, before, after)) {
   console.error("CHANGELOG.md must add a note under ## Unreleased for this pull request.");
   process.exit(1);
 }
