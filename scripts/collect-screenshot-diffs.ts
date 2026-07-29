@@ -37,6 +37,30 @@ async function decode(path: string): Promise<DecodedImage> {
   return { data, width: info.width, height: info.height };
 }
 
+const CHANNEL_TOLERANCE = 1;
+const MAX_TOLERATED_DIFF_RATIO = 0.0001;
+
+function imagesMatch(base: DecodedImage, current: DecodedImage): boolean {
+  if (base.width !== current.width || base.height !== current.height) return false;
+
+  let differingPixels = 0;
+  const pixelCount = base.width * base.height;
+
+  for (let offset = 0; offset < base.data.length; offset += 4) {
+    const channelDelta = Math.max(
+      Math.abs(base.data[offset] - current.data[offset]),
+      Math.abs(base.data[offset + 1] - current.data[offset + 1]),
+      Math.abs(base.data[offset + 2] - current.data[offset + 2]),
+      Math.abs(base.data[offset + 3] - current.data[offset + 3]),
+    );
+
+    if (channelDelta > CHANNEL_TOLERANCE) return false;
+    if (channelDelta > 0) differingPixels += 1;
+  }
+
+  return differingPixels / pixelCount <= MAX_TOLERATED_DIFF_RATIO;
+}
+
 function placeholder(width: number, height: number, label: string): Promise<Buffer> {
   const fontSize = Math.max(16, Math.min(40, Math.floor(width / 18)));
   const svg = Buffer.from(
@@ -137,11 +161,7 @@ export async function collectScreenshotDiffs(options: Options): Promise<number> 
       status = "removed";
     } else {
       const [baseImage, currentImage] = await Promise.all([decode(basePath), decode(currentPath)]);
-      if (
-        baseImage.width === currentImage.width &&
-        baseImage.height === currentImage.height &&
-        baseImage.data.equals(currentImage.data)
-      ) {
+      if (imagesMatch(baseImage, currentImage)) {
         continue;
       }
       status = "changed";

@@ -1,7 +1,7 @@
-name: Render dashboard screenshots
+name: Render dashboard snapshots
 
-# Renders responsive app screenshots on pull requests that change the client
-# and compares them against the current main branch. Any differences produce
+# Renders Storybook dashboard snapshots on pull requests that change the client
+# and compares them against the committed baselines. Any differences produce
 # before/after/diff PNGs for the companion comment workflow.
 #
 # This workflow runs the PR's code, so it deliberately uses the read-only
@@ -24,15 +24,12 @@ on:
         type: number
 
 concurrency:
-  group: pr-screenshots-${{ github.event.pull_request.number || inputs.pr }}
+  group: pr-snapshots-${{ github.event.pull_request.number || inputs.pr }}
   cancel-in-progress: true
 
 jobs:
   render:
     runs-on: blacksmith-2vcpu-ubuntu-2204
-    # Pin the render environment so responsive screenshots are reproducible:
-    # the Playwright image ships the exact Chromium + system fonts, and
-    # software GL (SwiftShader) renders deterministically across machines.
     container:
       image: mcr.microsoft.com/playwright:v1.62.0-jammy
     permissions:
@@ -40,10 +37,6 @@ jobs:
     env:
       PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr }}
     steps:
-      # Check out the PR HEAD (not refs/pull/N/merge): GitHub recomputes the
-      # merge ref lazily, so on workflow_dispatch it can be stale and render
-      # old code against old baselines. We merge current main ourselves below
-      # so the render is always "PR code + latest main (baselines + fixes)".
       - uses: actions/checkout@v4
         with:
           ref: refs/pull/${{ github.event.pull_request.number || inputs.pr }}/head
@@ -74,63 +67,43 @@ jobs:
         working-directory: client
         run: bun install
 
-      - name: Capture current responsive screenshots
-        id: current-responsive
+      - name: Render and compare against committed baselines
+        id: storybook-render
+        working-directory: client
+        # This is the collaborator assertion: `snapshot:test` (no --update)
+        # fails when the PR render differs from its committed snapshot.
+        run: bun run snapshot:test
+        # Keep running so the diff can be collected and posted as UI-change
+        # awareness even when the collaborator assertion fails.
         continue-on-error: true
-        run: |
-          bun run build
-          cd playwright
-          set +e
-          bunx playwright test --project=mobile-screenshots
-          status=$?
-          set -e
-          if [ -d screenshots/mobile ]; then
-            mv screenshots/mobile "$RUNNER_TEMP/current-responsive"
-          fi
-          exit "$status"
-
-      - name: Capture main responsive screenshots with current tests
-        id: main-responsive
-        continue-on-error: true
-        working-directory: ${{ runner.temp }}/raceiq-main
-        run: |
-          bun install
-          bun run build
-          rm -rf "$GITHUB_WORKSPACE/dist"
-          cp -a dist "$GITHUB_WORKSPACE/dist"
-          cd "$GITHUB_WORKSPACE/playwright"
-          set +e
-          bunx playwright test --project=mobile-screenshots
-          status=$?
-          set -e
-          if [ -d screenshots/mobile ]; then
-            mv screenshots/mobile "$RUNNER_TEMP/main-responsive"
-          fi
-          exit "$status"
 
       - name: Collect diffs
         id: collect
         working-directory: client
-        # Container default shell is sh; this step uses bash process substitution.
         shell: bash
         run: |
           out="$GITHUB_WORKSPACE/pr-preview"
           mkdir -p "$out"
-          # Always record the PR number so the comment job can find the PR even
-          # for fork PRs (workflow_run.pull_requests is empty for forks).
           echo "${{ github.event.pull_request.number || inputs.pr }}" > "$out/pr-number.txt"
 
-          # Responsive tests write ordinary PNGs rather than Playwright
-          # snapshots. Render both revisions and compare the union of paths,
-          # which covers added, changed, and removed test screenshots.
-          bun "$GITHUB_WORKSPACE/scripts/collect-screenshot-diffs.ts" \
-            --base "$RUNNER_TEMP/main-responsive" \
-            --current "$RUNNER_TEMP/current-responsive" \
-            --out "$out" \
-            --prefix responsive
-          if [[ "${{ steps.current-responsive.outcome }}" == "failure" || "${{ steps.main-responsive.outcome }}" == "failure" ]]; then
-            echo "::warning::Responsive screenshot comparison is partial because one render failed."
+          results="src/stories/__snapshots__/results"
+          if [ -d "$results" ]; then
+            while IFS= read -r diff; do
+              dir=$(dirname "$diff")
+              name=$(basename "$diff")
+              name=${name%-diff.png}
+              cp "$dir/$name-expected.png" "$out/changed--render--$name-before.png" 2>/dev/null || continue
+              cp "$dir/$name-actual.png"   "$out/changed--render--$name-after.png"  2>/dev/null || continue
+              cp "$dir/$name-diff.png"     "$out/changed--render--$name-diff.png"   2>/dev/null || continue
+              echo "changed rendered snapshot: $name"
+            done < <(find "$results" -name '*-diff.png')
           fi
+
+          bun "$GITHUB_WORKSPACE/scripts/collect-screenshot-diffs.ts" \
+            --base "$RUNNER_TEMP/raceiq-main/client/src/stories/__snapshots__" \
+            --current "$GITHUB_WORKSPACE/client/src/stories/__snapshots__" \
+            --out "$out" \
+            --prefix storybook
 
           if compgen -G "$out/*-after.png" >/dev/null; then
             echo "changed=1" >> "$GITHUB_OUTPUT"
@@ -144,3 +117,9 @@ jobs:
           name: pr-screenshot-preview
           path: pr-preview/
           retention-days: 14
+
+      - name: Fail when committed snapshots do not match
+        if: steps.storybook-render.outcome == 'failure'
+        run: |
+          echo "::error::Committed Storybook snapshots do not match the current render. Run 'bun run snapshot' to update them."
+          exit 1
