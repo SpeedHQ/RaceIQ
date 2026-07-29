@@ -13,7 +13,13 @@
 import type { TelemetryPacket, GameId } from "../shared/types";
 import type { DbAdapter } from "./pipeline-adapters";
 import type { ILapDetector, LapDetectorOptions } from "./lap-detector-interface";
-import { extractCurbSegments, recordCurbData } from "../shared/track-data";
+import {
+  extractCurbSegments,
+  recordCurbData,
+  recordLapTrace,
+} from "../shared/track-data";
+import { getIRacingSharedTrackName } from "../shared/iracing-track-data";
+import { lapPath } from "../shared/lib/lap-path";
 import { assessLapRecording } from "./lap-quality";
 import { persistLapMetrics } from "./experiment-lap-metrics";
 import { reconcileAutoExclusionsForLap } from "./experiment-auto-exclude";
@@ -421,6 +427,31 @@ export class LapDetector implements ILapDetector {
       const invalidReason = this.invalidReason ?? (!quality.valid ? quality.reason : null);
 
       const sectors = await this.computeLapSectors(this.lapBuffer, lapTime);
+
+      // iRacing exposes heading, speed, and native LapDistPct but no public
+      // world position. Keep RaceIQ's existing recorded-outline fallback warm
+      // for layouts without exact shared geometry (or when the official SVG
+      // cannot be reached). Higher-quality shared/SVG sources still win in the
+      // outline resolver.
+      if (
+        valid &&
+        this.currentSession.gameId === "iracing" &&
+        this.currentSession.trackOrdinal > 0 &&
+        !getIRacingSharedTrackName(this.currentSession.trackOrdinal)
+      ) {
+        const path = lapPath(this.lapBuffer);
+        const trace = path.x.map((x, index) => ({
+          x,
+          z: path.z[index],
+        }));
+        recordLapTrace(
+          this.currentSession.trackOrdinal,
+          trace,
+          trace[0] ?? null,
+          this.lapBuffer[0]?.Yaw ?? null,
+          "iracing",
+        );
+      }
 
       // Update session best lap time
       if (valid && (this.currentSession!.bestLapTime === 0 || lapTime < this.currentSession!.bestLapTime)) {

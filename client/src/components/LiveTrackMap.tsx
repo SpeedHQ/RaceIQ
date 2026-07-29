@@ -1,3 +1,7 @@
+import {
+  deadReckonIRacingPosition,
+  pointAtLapFraction,
+} from "@shared/lib/lap-path";
 import type { TelemetryPacket, TuneIssue } from "@shared/types";
 import { useEffect, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
@@ -58,6 +62,9 @@ export function LiveTrackMap({ packet, issues }: Props) {
   // Live trace: build outline from driving data when no pre-made outline exists.
   const liveTraceRef = useRef<Point[]>([]);
   const lastTracePos = useRef<Point | null>(null);
+  const deadReckonedPosRef = useRef<Point | null>(null);
+  const deadReckonedPacketRef = useRef<TelemetryPacket | null>(null);
+  const deadReckonedLapRef = useRef<number | null>(null);
   const traceMinDist = 3;
 
   // Auto-detect track changes from packet.TrackOrdinal and fetch outline
@@ -70,6 +77,9 @@ export function LiveTrackMap({ packet, issues }: Props) {
     // Reset state for new track
     liveTraceRef.current = [];
     lastTracePos.current = null;
+    deadReckonedPosRef.current = null;
+    deadReckonedPacketRef.current = null;
+    deadReckonedLapRef.current = null;
     lapDistRef.current = { startDist: 0, totalDist: 0, lastLap: -1 };
     setOutline(null);
     setNoOutline(false);
@@ -138,10 +148,11 @@ export function LiveTrackMap({ packet, issues }: Props) {
         .then((r) => r.json() as any) // eslint-disable-line @typescript-eslint/no-explicit-any
         .then((data: any) => {
           // eslint-disable-line @typescript-eslint/no-explicit-any
-          if (data?.points && data.recorded) {
+          if (data?.points && Array.isArray(data.points)) {
             setOutline(data.points);
-            setIsRecorded(true);
+            setIsRecorded(!!data.recorded);
             setStartYaw(data.startYaw ?? null);
+            setNoOutline(false);
           }
         })
         .catch(() => {});
@@ -176,13 +187,35 @@ export function LiveTrackMap({ packet, issues }: Props) {
     }
   }, [packet?.LapNumber, packet?.DistanceTraveled]);
 
-  // Always collect Forza positions — used for live trace (no outline) and
-  // for nearest-point mapping (pre-made outline where coords don't match)
+  // Collect real positions when available. iRacing deliberately publishes no
+  // world position, so dead-reckon speed along heading while the first lap is
+  // being built. Once an outline exists, native LapDistPct takes over.
   useEffect(() => {
     if (!packet) return;
-    if (packet.PositionX === 0 && packet.PositionZ === 0) return;
-
-    const pos = { x: packet.PositionX, z: packet.PositionZ };
+    let pos: Point | null = null;
+    if (packet.PositionX !== 0 || packet.PositionZ !== 0) {
+      pos = { x: packet.PositionX, z: packet.PositionZ };
+    } else if (packet.gameId === "iracing") {
+      const previousPacket = deadReckonedPacketRef.current;
+      const lapChanged =
+        deadReckonedLapRef.current != null &&
+        deadReckonedLapRef.current !== packet.LapNumber;
+      if (!deadReckonedPosRef.current || lapChanged) {
+        deadReckonedPosRef.current = { x: 0, z: 0 };
+        liveTraceRef.current = [];
+        lastTracePos.current = null;
+      } else if (previousPacket) {
+        deadReckonedPosRef.current = deadReckonIRacingPosition(
+          previousPacket,
+          packet,
+          deadReckonedPosRef.current,
+        );
+      }
+      deadReckonedPacketRef.current = packet;
+      deadReckonedLapRef.current = packet.LapNumber;
+      pos = deadReckonedPosRef.current;
+    }
+    if (!pos) return;
     const last = lastTracePos.current;
 
     if (last) {
@@ -578,7 +611,31 @@ export function LiveTrackMap({ packet, issues }: Props) {
       let cy: number;
       let hasPos = false;
 
-      if (isLiveTrace || isRecorded || boundaryCenter) {
+      const nativeLapFraction = packet.iracing?.lapDistancePct;
+      if (
+        packet.gameId === "iracing" &&
+        outline &&
+        Number.isFinite(nativeLapFraction)
+      ) {
+        const point = pointAtLapFraction(
+          displayOutline,
+          nativeLapFraction!,
+        );
+        if (point) {
+          [cx, cy] = toCanvas(point.x, point.z);
+          hasPos = true;
+        } else {
+          [cx, cy] = [0, 0];
+        }
+      } else if (isLiveTrace && packet.gameId === "iracing") {
+        const point = deadReckonedPosRef.current;
+        if (point) {
+          [cx, cy] = toCanvas(point.x, point.z);
+          hasPos = true;
+        } else {
+          [cx, cy] = [0, 0];
+        }
+      } else if (isLiveTrace || isRecorded || boundaryCenter) {
         // Forza coords: live trace, recorded outline, or boundary center — plot directly
         if (packet.PositionX !== 0 || packet.PositionZ !== 0) {
           [cx, cy] = toCanvas(packet.PositionX, packet.PositionZ);
@@ -639,6 +696,9 @@ export function LiveTrackMap({ packet, issues }: Props) {
       setNoOutline(true);
       liveTraceRef.current = [];
       lastTracePos.current = null;
+      deadReckonedPosRef.current = null;
+      deadReckonedPacketRef.current = null;
+      deadReckonedLapRef.current = null;
     } catch {}
   }
 

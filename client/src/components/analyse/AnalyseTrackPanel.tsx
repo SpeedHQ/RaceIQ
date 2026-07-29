@@ -8,6 +8,7 @@ import {
   AnalyseTrackMap,
   type Point,
   type SectorBoundaries,
+  type TrackMapLabel,
   type TrackMapHandle,
 } from "./AnalyseTrackMap";
 import { WeatherWidget } from "./WeatherWidget";
@@ -16,6 +17,7 @@ interface AnalyseTrackPanelProps {
   telemetry: TelemetryPacket[];
   cursorIdx: number;
   outline: Point[] | null;
+  mapLabels?: TrackMapLabel[] | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   boundaries: any;
   sectors: SectorBoundaries | null;
@@ -55,6 +57,7 @@ export function AnalyseTrackPanel({
   telemetry,
   cursorIdx,
   outline,
+  mapLabels,
   boundaries,
   sectors,
   segments,
@@ -88,6 +91,7 @@ export function AnalyseTrackPanel({
         telemetry={telemetry}
         cursorIdx={cursorIdx}
         outline={outline}
+        mapLabels={trackOverlay === "segments" ? mapLabels : null}
         boundaries={boundaries}
         sectors={trackOverlay === "sectors" ? sectors : null}
         segments={trackOverlay === "segments" ? segments : null}

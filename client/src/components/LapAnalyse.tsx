@@ -32,7 +32,12 @@ import { AnalyseDataPanel } from "./analyse/AnalyseDataPanel";
 import { AnalyseLapHeader } from "./analyse/AnalyseLapHeader";
 import { AnalyseTimelineScrubber } from "./analyse/AnalyseTimelineScrubber";
 import { AnalyseTopSection } from "./analyse/AnalyseTopSection";
-import type { Point, SectorBoundaries, TrackMapHandle } from "./analyse/AnalyseTrackMap";
+import type {
+  Point,
+  SectorBoundaries,
+  TrackMapHandle,
+  TrackMapLabel,
+} from "./analyse/AnalyseTrackMap";
 import { F1SetupModal } from "./analyse/F1SetupModal";
 import { type IbtImportPreview, IbtImportPreviewModal } from "./analyse/IbtImportPreviewModal";
 import { ImportResultModal } from "./analyse/ImportResultModal";
@@ -111,6 +116,11 @@ function LapAnalyseInner() {
     if (d?.points && Array.isArray(d.points)) return d.points as Point[];
     if (Array.isArray(d)) return d as Point[];
     return null;
+  }, [outlineRaw]);
+  const mapLabels = useMemo(() => {
+    if (!outlineRaw || Array.isArray(outlineRaw)) return null;
+    const labels = (outlineRaw as { labels?: TrackMapLabel[] }).labels;
+    return Array.isArray(labels) ? labels : null;
   }, [outlineRaw]);
   const { data: boundariesRaw } = useTrackBoundaries(trackOrd ?? undefined);
   const boundaries = (boundariesRaw as any) ?? null;
@@ -720,6 +730,7 @@ function LapAnalyseInner() {
               telemetry={telemetry}
               cursorIdx={cursorIdx}
               outline={outline}
+              mapLabels={mapLabels}
               boundaries={boundaries}
               sectors={sectors}
               segments={segments}

@@ -74,7 +74,7 @@ describe("iRacing track catalog", () => {
     expect(getTrackOutlineByOrdinal(8, "iracing")).toBeNull();
   });
 
-  test("serves the iRacing roster with static-map and centerline capability separated", async () => {
+  test("serves every official SVG as a renderable outline source", async () => {
     await registerDiscoveredTrack(
       "iracing",
       FUTURE_TRACK_ID,
@@ -99,7 +99,7 @@ describe("iRacing track catalog", () => {
       commonTrackName: "road-america",
     });
     expect(tracks.find((track) => track.ordinal === 8)).toMatchObject({
-      hasOutline: false,
+      hasOutline: true,
       hasMap: true,
       commonTrackName: null,
     });
