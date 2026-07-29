@@ -18,75 +18,65 @@ import { Route as F125RouteImport } from './routes/f125'
 import { Route as Fm23RouteImport } from './routes/fm23'
 import { Route as IracingRouteImport } from './routes/iracing'
 import { Route as GameLiveRouteImport } from './routes/$game/live'
+import { Route as GameidCarsRouteImport } from './routes/$gameid/cars'
 import { Route as GameidCompareRouteImport } from './routes/$gameid/compare'
+import { Route as GameidTracksRouteImport } from './routes/$gameid/tracks'
 import { Route as AcEvoIndexRouteImport } from './routes/ac-evo/index'
 import { Route as AcEvoAnalyseRouteImport } from './routes/ac-evo/analyse'
-import { Route as AcEvoCarsRouteImport } from './routes/ac-evo/cars'
 import { Route as AcEvoChatsRouteImport } from './routes/ac-evo/chats'
 import { Route as AcEvoDriverRouteImport } from './routes/ac-evo/driver'
 import { Route as AcEvoExperimentsRouteImport } from './routes/ac-evo/experiments'
 import { Route as AcEvoRawRouteImport } from './routes/ac-evo/raw'
 import { Route as AcEvoSessionsRouteImport } from './routes/ac-evo/sessions'
 import { Route as AcEvoSetupsRouteImport } from './routes/ac-evo/setups'
-import { Route as AcEvoTracksRouteImport } from './routes/ac-evo/tracks'
 import { Route as AccIndexRouteImport } from './routes/acc/index'
 import { Route as AccAnalyseRouteImport } from './routes/acc/analyse'
-import { Route as AccCarsRouteImport } from './routes/acc/cars'
 import { Route as AccChatsRouteImport } from './routes/acc/chats'
 import { Route as AccDriverRouteImport } from './routes/acc/driver'
 import { Route as AccExperimentsRouteImport } from './routes/acc/experiments'
 import { Route as AccRawRouteImport } from './routes/acc/raw'
 import { Route as AccSessionsRouteImport } from './routes/acc/sessions'
 import { Route as AccSetupsRouteImport } from './routes/acc/setups'
-import { Route as AccTracksRouteImport } from './routes/acc/tracks'
 import { Route as DashIndexRouteImport } from './routes/dash.index'
 import { Route as DashCombo1RouteImport } from './routes/dash.combo-1'
 import { Route as DashCombo2RouteImport } from './routes/dash.combo-2'
 import { Route as F125IndexRouteImport } from './routes/f125/index'
 import { Route as F125AnalyseRouteImport } from './routes/f125/analyse'
-import { Route as F125CarsRouteImport } from './routes/f125/cars'
 import { Route as F125ChatsRouteImport } from './routes/f125/chats'
 import { Route as F125DriverRouteImport } from './routes/f125/driver'
 import { Route as F125ExperimentsRouteImport } from './routes/f125/experiments'
 import { Route as F125RawRouteImport } from './routes/f125/raw'
 import { Route as F125SessionsRouteImport } from './routes/f125/sessions'
 import { Route as F125SetupsRouteImport } from './routes/f125/setups'
-import { Route as F125TracksRouteImport } from './routes/f125/tracks'
 import { Route as F125TunesRouteImport } from './routes/f125/tunes'
 import { Route as Fm23IndexRouteImport } from './routes/fm23/index'
 import { Route as Fm23AnalyseRouteImport } from './routes/fm23/analyse'
-import { Route as Fm23CarsRouteImport } from './routes/fm23/cars'
 import { Route as Fm23ChatsRouteImport } from './routes/fm23/chats'
 import { Route as Fm23DriverRouteImport } from './routes/fm23/driver'
 import { Route as Fm23LiveRouteImport } from './routes/fm23/live'
 import { Route as Fm23RawRouteImport } from './routes/fm23/raw'
 import { Route as Fm23SessionsRouteImport } from './routes/fm23/sessions'
 import { Route as Fm23SetupsRouteImport } from './routes/fm23/setups'
-import { Route as Fm23TracksRouteImport } from './routes/fm23/tracks'
 import { Route as IracingIndexRouteImport } from './routes/iracing/index'
 import { Route as IracingAnalyseRouteImport } from './routes/iracing/analyse'
-import { Route as IracingCarsRouteImport } from './routes/iracing/cars'
 import { Route as IracingChatsRouteImport } from './routes/iracing/chats'
 import { Route as IracingLiveRouteImport } from './routes/iracing/live'
 import { Route as IracingRawRouteImport } from './routes/iracing/raw'
 import { Route as IracingSessionsRouteImport } from './routes/iracing/sessions'
-import { Route as IracingTracksRouteImport } from './routes/iracing/tracks'
+import { Route as GameidTracksIndexRouteImport } from './routes/$gameid/tracks.index'
 import { Route as AcEvoExperimentsIndexRouteImport } from './routes/ac-evo/experiments.index'
 import { Route as AcEvoExperimentsExperimentIdRouteImport } from './routes/ac-evo/experiments.$experimentId'
 import { Route as AcEvoSetupsIndexRouteImport } from './routes/ac-evo/setups/index'
 import { Route as AcEvoSetupsImportRouteImport } from './routes/ac-evo/setups/import'
 import { Route as AcEvoSetupsNewRouteImport } from './routes/ac-evo/setups/new'
-import { Route as AcEvoTracksIndexRouteImport } from './routes/ac-evo/tracks.index'
 import { Route as AccExperimentsIndexRouteImport } from './routes/acc/experiments.index'
 import { Route as AccExperimentsExperimentIdRouteImport } from './routes/acc/experiments.$experimentId'
 import { Route as AccSetupsIndexRouteImport } from './routes/acc/setups/index'
 import { Route as AccSetupsImportRouteImport } from './routes/acc/setups/import'
 import { Route as AccSetupsNewRouteImport } from './routes/acc/setups/new'
-import { Route as AccTracksIndexRouteImport } from './routes/acc/tracks.index'
 import { Route as F125ExperimentsIndexRouteImport } from './routes/f125/experiments.index'
 import { Route as F125ExperimentsExperimentIdRouteImport } from './routes/f125/experiments.$experimentId'
 import { Route as F125SetupsIndexRouteImport } from './routes/f125/setups/index'
-import { Route as F125TracksIndexRouteImport } from './routes/f125/tracks.index'
 import { Route as F125TunesIndexRouteImport } from './routes/f125/tunes/index'
 import { Route as Fm23CarsCarOrdinalRouteImport } from './routes/fm23/cars_.$carOrdinal'
 import { Route as Fm23LiveDriverRouteImport } from './routes/fm23/live/driver'
@@ -94,28 +84,18 @@ import { Route as Fm23LivePitRouteImport } from './routes/fm23/live/pit'
 import { Route as Fm23SetupsIndexRouteImport } from './routes/fm23/setups/index'
 import { Route as Fm23SetupsCatalogRouteImport } from './routes/fm23/setups/catalog'
 import { Route as Fm23SetupsNewRouteImport } from './routes/fm23/setups/new'
-import { Route as Fm23TracksIndexRouteImport } from './routes/fm23/tracks.index'
 import { Route as IracingLiveDriverRouteImport } from './routes/iracing/live/driver'
 import { Route as IracingLivePitRouteImport } from './routes/iracing/live/pit'
-import { Route as IracingTracksIndexRouteImport } from './routes/iracing/tracks.index'
+import { Route as GameidTracksTrackOrdinalIndexRouteImport } from './routes/$gameid/tracks.$trackOrdinal.index'
+import { Route as GameidTracksTrackOrdinalTabRouteImport } from './routes/$gameid/tracks.$trackOrdinal.$tab'
 import { Route as AcEvoExperimentsExperimentIdReviewRouteImport } from './routes/ac-evo/experiments.$experimentId_.review'
 import { Route as AcEvoSetupsEditTuneIdRouteImport } from './routes/ac-evo/setups/edit.$tuneId'
-import { Route as AcEvoTracksTrackOrdinalIndexRouteImport } from './routes/ac-evo/tracks.$trackOrdinal.index'
-import { Route as AcEvoTracksTrackOrdinalTabRouteImport } from './routes/ac-evo/tracks.$trackOrdinal.$tab'
 import { Route as AccExperimentsExperimentIdReviewRouteImport } from './routes/acc/experiments.$experimentId_.review'
 import { Route as AccSetupsEditTuneIdRouteImport } from './routes/acc/setups/edit.$tuneId'
-import { Route as AccTracksTrackOrdinalIndexRouteImport } from './routes/acc/tracks.$trackOrdinal.index'
-import { Route as AccTracksTrackOrdinalTabRouteImport } from './routes/acc/tracks.$trackOrdinal.$tab'
 import { Route as F125ExperimentsExperimentIdReviewRouteImport } from './routes/f125/experiments.$experimentId_.review'
-import { Route as F125TracksTrackOrdinalIndexRouteImport } from './routes/f125/tracks.$trackOrdinal.index'
-import { Route as F125TracksTrackOrdinalTabRouteImport } from './routes/f125/tracks.$trackOrdinal.$tab'
 import { Route as Fm23SetupsEditTuneIdRouteImport } from './routes/fm23/setups/edit.$tuneId'
 import { Route as Fm23SetupsWheelIndexRouteImport } from './routes/fm23/setups/wheel/index'
 import { Route as Fm23SetupsWheelProfileIdRouteImport } from './routes/fm23/setups/wheel/$profileId'
-import { Route as Fm23TracksTrackOrdinalIndexRouteImport } from './routes/fm23/tracks.$trackOrdinal.index'
-import { Route as Fm23TracksTrackOrdinalTabRouteImport } from './routes/fm23/tracks.$trackOrdinal.$tab'
-import { Route as IracingTracksTrackOrdinalIndexRouteImport } from './routes/iracing/tracks.$trackOrdinal.index'
-import { Route as IracingTracksTrackOrdinalTabRouteImport } from './routes/iracing/tracks.$trackOrdinal.$tab'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -162,9 +142,19 @@ const GameLiveRoute = GameLiveRouteImport.update({
   path: '/$game/live',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GameidCarsRoute = GameidCarsRouteImport.update({
+  id: '/cars',
+  path: '/cars',
+  getParentRoute: () => GameidRoute,
+} as any)
 const GameidCompareRoute = GameidCompareRouteImport.update({
   id: '/compare',
   path: '/compare',
+  getParentRoute: () => GameidRoute,
+} as any)
+const GameidTracksRoute = GameidTracksRouteImport.update({
+  id: '/tracks',
+  path: '/tracks',
   getParentRoute: () => GameidRoute,
 } as any)
 const AcEvoIndexRoute = AcEvoIndexRouteImport.update({
@@ -175,11 +165,6 @@ const AcEvoIndexRoute = AcEvoIndexRouteImport.update({
 const AcEvoAnalyseRoute = AcEvoAnalyseRouteImport.update({
   id: '/analyse',
   path: '/analyse',
-  getParentRoute: () => AcEvoRoute,
-} as any)
-const AcEvoCarsRoute = AcEvoCarsRouteImport.update({
-  id: '/cars',
-  path: '/cars',
   getParentRoute: () => AcEvoRoute,
 } as any)
 const AcEvoChatsRoute = AcEvoChatsRouteImport.update({
@@ -212,11 +197,6 @@ const AcEvoSetupsRoute = AcEvoSetupsRouteImport.update({
   path: '/setups',
   getParentRoute: () => AcEvoRoute,
 } as any)
-const AcEvoTracksRoute = AcEvoTracksRouteImport.update({
-  id: '/tracks',
-  path: '/tracks',
-  getParentRoute: () => AcEvoRoute,
-} as any)
 const AccIndexRoute = AccIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -225,11 +205,6 @@ const AccIndexRoute = AccIndexRouteImport.update({
 const AccAnalyseRoute = AccAnalyseRouteImport.update({
   id: '/analyse',
   path: '/analyse',
-  getParentRoute: () => AccRoute,
-} as any)
-const AccCarsRoute = AccCarsRouteImport.update({
-  id: '/cars',
-  path: '/cars',
   getParentRoute: () => AccRoute,
 } as any)
 const AccChatsRoute = AccChatsRouteImport.update({
@@ -262,11 +237,6 @@ const AccSetupsRoute = AccSetupsRouteImport.update({
   path: '/setups',
   getParentRoute: () => AccRoute,
 } as any)
-const AccTracksRoute = AccTracksRouteImport.update({
-  id: '/tracks',
-  path: '/tracks',
-  getParentRoute: () => AccRoute,
-} as any)
 const DashIndexRoute = DashIndexRouteImport.update({
   id: '/dash/',
   path: '/dash/',
@@ -290,11 +260,6 @@ const F125IndexRoute = F125IndexRouteImport.update({
 const F125AnalyseRoute = F125AnalyseRouteImport.update({
   id: '/analyse',
   path: '/analyse',
-  getParentRoute: () => F125Route,
-} as any)
-const F125CarsRoute = F125CarsRouteImport.update({
-  id: '/cars',
-  path: '/cars',
   getParentRoute: () => F125Route,
 } as any)
 const F125ChatsRoute = F125ChatsRouteImport.update({
@@ -327,11 +292,6 @@ const F125SetupsRoute = F125SetupsRouteImport.update({
   path: '/setups',
   getParentRoute: () => F125Route,
 } as any)
-const F125TracksRoute = F125TracksRouteImport.update({
-  id: '/tracks',
-  path: '/tracks',
-  getParentRoute: () => F125Route,
-} as any)
 const F125TunesRoute = F125TunesRouteImport.update({
   id: '/tunes',
   path: '/tunes',
@@ -345,11 +305,6 @@ const Fm23IndexRoute = Fm23IndexRouteImport.update({
 const Fm23AnalyseRoute = Fm23AnalyseRouteImport.update({
   id: '/analyse',
   path: '/analyse',
-  getParentRoute: () => Fm23Route,
-} as any)
-const Fm23CarsRoute = Fm23CarsRouteImport.update({
-  id: '/cars',
-  path: '/cars',
   getParentRoute: () => Fm23Route,
 } as any)
 const Fm23ChatsRoute = Fm23ChatsRouteImport.update({
@@ -382,11 +337,6 @@ const Fm23SetupsRoute = Fm23SetupsRouteImport.update({
   path: '/setups',
   getParentRoute: () => Fm23Route,
 } as any)
-const Fm23TracksRoute = Fm23TracksRouteImport.update({
-  id: '/tracks',
-  path: '/tracks',
-  getParentRoute: () => Fm23Route,
-} as any)
 const IracingIndexRoute = IracingIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -395,11 +345,6 @@ const IracingIndexRoute = IracingIndexRouteImport.update({
 const IracingAnalyseRoute = IracingAnalyseRouteImport.update({
   id: '/analyse',
   path: '/analyse',
-  getParentRoute: () => IracingRoute,
-} as any)
-const IracingCarsRoute = IracingCarsRouteImport.update({
-  id: '/cars',
-  path: '/cars',
   getParentRoute: () => IracingRoute,
 } as any)
 const IracingChatsRoute = IracingChatsRouteImport.update({
@@ -422,10 +367,10 @@ const IracingSessionsRoute = IracingSessionsRouteImport.update({
   path: '/sessions',
   getParentRoute: () => IracingRoute,
 } as any)
-const IracingTracksRoute = IracingTracksRouteImport.update({
-  id: '/tracks',
-  path: '/tracks',
-  getParentRoute: () => IracingRoute,
+const GameidTracksIndexRoute = GameidTracksIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => GameidTracksRoute,
 } as any)
 const AcEvoExperimentsIndexRoute = AcEvoExperimentsIndexRouteImport.update({
   id: '/',
@@ -453,11 +398,6 @@ const AcEvoSetupsNewRoute = AcEvoSetupsNewRouteImport.update({
   path: '/new',
   getParentRoute: () => AcEvoSetupsRoute,
 } as any)
-const AcEvoTracksIndexRoute = AcEvoTracksIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AcEvoTracksRoute,
-} as any)
 const AccExperimentsIndexRoute = AccExperimentsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -484,11 +424,6 @@ const AccSetupsNewRoute = AccSetupsNewRouteImport.update({
   path: '/new',
   getParentRoute: () => AccSetupsRoute,
 } as any)
-const AccTracksIndexRoute = AccTracksIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AccTracksRoute,
-} as any)
 const F125ExperimentsIndexRoute = F125ExperimentsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -504,11 +439,6 @@ const F125SetupsIndexRoute = F125SetupsIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => F125SetupsRoute,
-} as any)
-const F125TracksIndexRoute = F125TracksIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => F125TracksRoute,
 } as any)
 const F125TunesIndexRoute = F125TunesIndexRouteImport.update({
   id: '/',
@@ -545,11 +475,6 @@ const Fm23SetupsNewRoute = Fm23SetupsNewRouteImport.update({
   path: '/new',
   getParentRoute: () => Fm23SetupsRoute,
 } as any)
-const Fm23TracksIndexRoute = Fm23TracksIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => Fm23TracksRoute,
-} as any)
 const IracingLiveDriverRoute = IracingLiveDriverRouteImport.update({
   id: '/driver',
   path: '/driver',
@@ -560,11 +485,18 @@ const IracingLivePitRoute = IracingLivePitRouteImport.update({
   path: '/pit',
   getParentRoute: () => IracingLiveRoute,
 } as any)
-const IracingTracksIndexRoute = IracingTracksIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => IracingTracksRoute,
-} as any)
+const GameidTracksTrackOrdinalIndexRoute =
+  GameidTracksTrackOrdinalIndexRouteImport.update({
+    id: '/$trackOrdinal/',
+    path: '/$trackOrdinal/',
+    getParentRoute: () => GameidTracksRoute,
+  } as any)
+const GameidTracksTrackOrdinalTabRoute =
+  GameidTracksTrackOrdinalTabRouteImport.update({
+    id: '/$trackOrdinal/$tab',
+    path: '/$trackOrdinal/$tab',
+    getParentRoute: () => GameidTracksRoute,
+  } as any)
 const AcEvoExperimentsExperimentIdReviewRoute =
   AcEvoExperimentsExperimentIdReviewRouteImport.update({
     id: '/$experimentId_/review',
@@ -576,18 +508,6 @@ const AcEvoSetupsEditTuneIdRoute = AcEvoSetupsEditTuneIdRouteImport.update({
   path: '/edit/$tuneId',
   getParentRoute: () => AcEvoSetupsRoute,
 } as any)
-const AcEvoTracksTrackOrdinalIndexRoute =
-  AcEvoTracksTrackOrdinalIndexRouteImport.update({
-    id: '/$trackOrdinal/',
-    path: '/$trackOrdinal/',
-    getParentRoute: () => AcEvoTracksRoute,
-  } as any)
-const AcEvoTracksTrackOrdinalTabRoute =
-  AcEvoTracksTrackOrdinalTabRouteImport.update({
-    id: '/$trackOrdinal/$tab',
-    path: '/$trackOrdinal/$tab',
-    getParentRoute: () => AcEvoTracksRoute,
-  } as any)
 const AccExperimentsExperimentIdReviewRoute =
   AccExperimentsExperimentIdReviewRouteImport.update({
     id: '/$experimentId_/review',
@@ -599,35 +519,11 @@ const AccSetupsEditTuneIdRoute = AccSetupsEditTuneIdRouteImport.update({
   path: '/edit/$tuneId',
   getParentRoute: () => AccSetupsRoute,
 } as any)
-const AccTracksTrackOrdinalIndexRoute =
-  AccTracksTrackOrdinalIndexRouteImport.update({
-    id: '/$trackOrdinal/',
-    path: '/$trackOrdinal/',
-    getParentRoute: () => AccTracksRoute,
-  } as any)
-const AccTracksTrackOrdinalTabRoute =
-  AccTracksTrackOrdinalTabRouteImport.update({
-    id: '/$trackOrdinal/$tab',
-    path: '/$trackOrdinal/$tab',
-    getParentRoute: () => AccTracksRoute,
-  } as any)
 const F125ExperimentsExperimentIdReviewRoute =
   F125ExperimentsExperimentIdReviewRouteImport.update({
     id: '/$experimentId_/review',
     path: '/$experimentId/review',
     getParentRoute: () => F125ExperimentsRoute,
-  } as any)
-const F125TracksTrackOrdinalIndexRoute =
-  F125TracksTrackOrdinalIndexRouteImport.update({
-    id: '/$trackOrdinal/',
-    path: '/$trackOrdinal/',
-    getParentRoute: () => F125TracksRoute,
-  } as any)
-const F125TracksTrackOrdinalTabRoute =
-  F125TracksTrackOrdinalTabRouteImport.update({
-    id: '/$trackOrdinal/$tab',
-    path: '/$trackOrdinal/$tab',
-    getParentRoute: () => F125TracksRoute,
   } as any)
 const Fm23SetupsEditTuneIdRoute = Fm23SetupsEditTuneIdRouteImport.update({
   id: '/edit/$tuneId',
@@ -645,30 +541,6 @@ const Fm23SetupsWheelProfileIdRoute =
     path: '/wheel/$profileId',
     getParentRoute: () => Fm23SetupsRoute,
   } as any)
-const Fm23TracksTrackOrdinalIndexRoute =
-  Fm23TracksTrackOrdinalIndexRouteImport.update({
-    id: '/$trackOrdinal/',
-    path: '/$trackOrdinal/',
-    getParentRoute: () => Fm23TracksRoute,
-  } as any)
-const Fm23TracksTrackOrdinalTabRoute =
-  Fm23TracksTrackOrdinalTabRouteImport.update({
-    id: '/$trackOrdinal/$tab',
-    path: '/$trackOrdinal/$tab',
-    getParentRoute: () => Fm23TracksRoute,
-  } as any)
-const IracingTracksTrackOrdinalIndexRoute =
-  IracingTracksTrackOrdinalIndexRouteImport.update({
-    id: '/$trackOrdinal/',
-    path: '/$trackOrdinal/',
-    getParentRoute: () => IracingTracksRoute,
-  } as any)
-const IracingTracksTrackOrdinalTabRoute =
-  IracingTracksTrackOrdinalTabRouteImport.update({
-    id: '/$trackOrdinal/$tab',
-    path: '/$trackOrdinal/$tab',
-    getParentRoute: () => IracingTracksRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -680,53 +552,45 @@ export interface FileRoutesByFullPath {
   '/fm23': typeof Fm23RouteWithChildren
   '/iracing': typeof IracingRouteWithChildren
   '/$game/live': typeof GameLiveRoute
+  '/$gameid/cars': typeof GameidCarsRoute
   '/$gameid/compare': typeof GameidCompareRoute
+  '/$gameid/tracks': typeof GameidTracksRouteWithChildren
   '/ac-evo/analyse': typeof AcEvoAnalyseRoute
-  '/ac-evo/cars': typeof AcEvoCarsRoute
   '/ac-evo/chats': typeof AcEvoChatsRoute
   '/ac-evo/driver': typeof AcEvoDriverRoute
   '/ac-evo/experiments': typeof AcEvoExperimentsRouteWithChildren
   '/ac-evo/raw': typeof AcEvoRawRoute
   '/ac-evo/sessions': typeof AcEvoSessionsRoute
   '/ac-evo/setups': typeof AcEvoSetupsRouteWithChildren
-  '/ac-evo/tracks': typeof AcEvoTracksRouteWithChildren
   '/acc/analyse': typeof AccAnalyseRoute
-  '/acc/cars': typeof AccCarsRoute
   '/acc/chats': typeof AccChatsRoute
   '/acc/driver': typeof AccDriverRoute
   '/acc/experiments': typeof AccExperimentsRouteWithChildren
   '/acc/raw': typeof AccRawRoute
   '/acc/sessions': typeof AccSessionsRoute
   '/acc/setups': typeof AccSetupsRouteWithChildren
-  '/acc/tracks': typeof AccTracksRouteWithChildren
   '/dash/combo-1': typeof DashCombo1Route
   '/dash/combo-2': typeof DashCombo2Route
   '/f125/analyse': typeof F125AnalyseRoute
-  '/f125/cars': typeof F125CarsRoute
   '/f125/chats': typeof F125ChatsRoute
   '/f125/driver': typeof F125DriverRoute
   '/f125/experiments': typeof F125ExperimentsRouteWithChildren
   '/f125/raw': typeof F125RawRoute
   '/f125/sessions': typeof F125SessionsRoute
   '/f125/setups': typeof F125SetupsRouteWithChildren
-  '/f125/tracks': typeof F125TracksRouteWithChildren
   '/f125/tunes': typeof F125TunesRouteWithChildren
   '/fm23/analyse': typeof Fm23AnalyseRoute
-  '/fm23/cars': typeof Fm23CarsRoute
   '/fm23/chats': typeof Fm23ChatsRoute
   '/fm23/driver': typeof Fm23DriverRoute
   '/fm23/live': typeof Fm23LiveRouteWithChildren
   '/fm23/raw': typeof Fm23RawRoute
   '/fm23/sessions': typeof Fm23SessionsRoute
   '/fm23/setups': typeof Fm23SetupsRouteWithChildren
-  '/fm23/tracks': typeof Fm23TracksRouteWithChildren
   '/iracing/analyse': typeof IracingAnalyseRoute
-  '/iracing/cars': typeof IracingCarsRoute
   '/iracing/chats': typeof IracingChatsRoute
   '/iracing/live': typeof IracingLiveRouteWithChildren
   '/iracing/raw': typeof IracingRawRoute
   '/iracing/sessions': typeof IracingSessionsRoute
-  '/iracing/tracks': typeof IracingTracksRouteWithChildren
   '/ac-evo/': typeof AcEvoIndexRoute
   '/acc/': typeof AccIndexRoute
   '/dash/': typeof DashIndexRoute
@@ -747,52 +611,39 @@ export interface FileRoutesByFullPath {
   '/fm23/setups/new': typeof Fm23SetupsNewRoute
   '/iracing/live/driver': typeof IracingLiveDriverRoute
   '/iracing/live/pit': typeof IracingLivePitRoute
+  '/$gameid/tracks/': typeof GameidTracksIndexRoute
   '/ac-evo/experiments/': typeof AcEvoExperimentsIndexRoute
   '/ac-evo/setups/': typeof AcEvoSetupsIndexRoute
-  '/ac-evo/tracks/': typeof AcEvoTracksIndexRoute
   '/acc/experiments/': typeof AccExperimentsIndexRoute
   '/acc/setups/': typeof AccSetupsIndexRoute
-  '/acc/tracks/': typeof AccTracksIndexRoute
   '/f125/experiments/': typeof F125ExperimentsIndexRoute
   '/f125/setups/': typeof F125SetupsIndexRoute
-  '/f125/tracks/': typeof F125TracksIndexRoute
   '/f125/tunes/': typeof F125TunesIndexRoute
   '/fm23/setups/': typeof Fm23SetupsIndexRoute
-  '/fm23/tracks/': typeof Fm23TracksIndexRoute
-  '/iracing/tracks/': typeof IracingTracksIndexRoute
+  '/$gameid/tracks/$trackOrdinal/$tab': typeof GameidTracksTrackOrdinalTabRoute
   '/ac-evo/experiments/$experimentId/review': typeof AcEvoExperimentsExperimentIdReviewRoute
   '/ac-evo/setups/edit/$tuneId': typeof AcEvoSetupsEditTuneIdRoute
-  '/ac-evo/tracks/$trackOrdinal/$tab': typeof AcEvoTracksTrackOrdinalTabRoute
   '/acc/experiments/$experimentId/review': typeof AccExperimentsExperimentIdReviewRoute
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
-  '/acc/tracks/$trackOrdinal/$tab': typeof AccTracksTrackOrdinalTabRoute
   '/f125/experiments/$experimentId/review': typeof F125ExperimentsExperimentIdReviewRoute
-  '/f125/tracks/$trackOrdinal/$tab': typeof F125TracksTrackOrdinalTabRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
   '/fm23/setups/wheel/$profileId': typeof Fm23SetupsWheelProfileIdRoute
-  '/fm23/tracks/$trackOrdinal/$tab': typeof Fm23TracksTrackOrdinalTabRoute
-  '/iracing/tracks/$trackOrdinal/$tab': typeof IracingTracksTrackOrdinalTabRoute
-  '/ac-evo/tracks/$trackOrdinal/': typeof AcEvoTracksTrackOrdinalIndexRoute
-  '/acc/tracks/$trackOrdinal/': typeof AccTracksTrackOrdinalIndexRoute
-  '/f125/tracks/$trackOrdinal/': typeof F125TracksTrackOrdinalIndexRoute
+  '/$gameid/tracks/$trackOrdinal/': typeof GameidTracksTrackOrdinalIndexRoute
   '/fm23/setups/wheel/': typeof Fm23SetupsWheelIndexRoute
-  '/fm23/tracks/$trackOrdinal/': typeof Fm23TracksTrackOrdinalIndexRoute
-  '/iracing/tracks/$trackOrdinal/': typeof IracingTracksTrackOrdinalIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$gameid': typeof GameidRouteWithChildren
   '/dev': typeof DevRoute
   '/$game/live': typeof GameLiveRoute
+  '/$gameid/cars': typeof GameidCarsRoute
   '/$gameid/compare': typeof GameidCompareRoute
   '/ac-evo/analyse': typeof AcEvoAnalyseRoute
-  '/ac-evo/cars': typeof AcEvoCarsRoute
   '/ac-evo/chats': typeof AcEvoChatsRoute
   '/ac-evo/driver': typeof AcEvoDriverRoute
   '/ac-evo/raw': typeof AcEvoRawRoute
   '/ac-evo/sessions': typeof AcEvoSessionsRoute
   '/acc/analyse': typeof AccAnalyseRoute
-  '/acc/cars': typeof AccCarsRoute
   '/acc/chats': typeof AccChatsRoute
   '/acc/driver': typeof AccDriverRoute
   '/acc/raw': typeof AccRawRoute
@@ -800,20 +651,17 @@ export interface FileRoutesByTo {
   '/dash/combo-1': typeof DashCombo1Route
   '/dash/combo-2': typeof DashCombo2Route
   '/f125/analyse': typeof F125AnalyseRoute
-  '/f125/cars': typeof F125CarsRoute
   '/f125/chats': typeof F125ChatsRoute
   '/f125/driver': typeof F125DriverRoute
   '/f125/raw': typeof F125RawRoute
   '/f125/sessions': typeof F125SessionsRoute
   '/fm23/analyse': typeof Fm23AnalyseRoute
-  '/fm23/cars': typeof Fm23CarsRoute
   '/fm23/chats': typeof Fm23ChatsRoute
   '/fm23/driver': typeof Fm23DriverRoute
   '/fm23/live': typeof Fm23LiveRouteWithChildren
   '/fm23/raw': typeof Fm23RawRoute
   '/fm23/sessions': typeof Fm23SessionsRoute
   '/iracing/analyse': typeof IracingAnalyseRoute
-  '/iracing/cars': typeof IracingCarsRoute
   '/iracing/chats': typeof IracingChatsRoute
   '/iracing/live': typeof IracingLiveRouteWithChildren
   '/iracing/raw': typeof IracingRawRoute
@@ -838,37 +686,25 @@ export interface FileRoutesByTo {
   '/fm23/setups/new': typeof Fm23SetupsNewRoute
   '/iracing/live/driver': typeof IracingLiveDriverRoute
   '/iracing/live/pit': typeof IracingLivePitRoute
+  '/$gameid/tracks': typeof GameidTracksIndexRoute
   '/ac-evo/experiments': typeof AcEvoExperimentsIndexRoute
   '/ac-evo/setups': typeof AcEvoSetupsIndexRoute
-  '/ac-evo/tracks': typeof AcEvoTracksIndexRoute
   '/acc/experiments': typeof AccExperimentsIndexRoute
   '/acc/setups': typeof AccSetupsIndexRoute
-  '/acc/tracks': typeof AccTracksIndexRoute
   '/f125/experiments': typeof F125ExperimentsIndexRoute
   '/f125/setups': typeof F125SetupsIndexRoute
-  '/f125/tracks': typeof F125TracksIndexRoute
   '/f125/tunes': typeof F125TunesIndexRoute
   '/fm23/setups': typeof Fm23SetupsIndexRoute
-  '/fm23/tracks': typeof Fm23TracksIndexRoute
-  '/iracing/tracks': typeof IracingTracksIndexRoute
+  '/$gameid/tracks/$trackOrdinal/$tab': typeof GameidTracksTrackOrdinalTabRoute
   '/ac-evo/experiments/$experimentId/review': typeof AcEvoExperimentsExperimentIdReviewRoute
   '/ac-evo/setups/edit/$tuneId': typeof AcEvoSetupsEditTuneIdRoute
-  '/ac-evo/tracks/$trackOrdinal/$tab': typeof AcEvoTracksTrackOrdinalTabRoute
   '/acc/experiments/$experimentId/review': typeof AccExperimentsExperimentIdReviewRoute
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
-  '/acc/tracks/$trackOrdinal/$tab': typeof AccTracksTrackOrdinalTabRoute
   '/f125/experiments/$experimentId/review': typeof F125ExperimentsExperimentIdReviewRoute
-  '/f125/tracks/$trackOrdinal/$tab': typeof F125TracksTrackOrdinalTabRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
   '/fm23/setups/wheel/$profileId': typeof Fm23SetupsWheelProfileIdRoute
-  '/fm23/tracks/$trackOrdinal/$tab': typeof Fm23TracksTrackOrdinalTabRoute
-  '/iracing/tracks/$trackOrdinal/$tab': typeof IracingTracksTrackOrdinalTabRoute
-  '/ac-evo/tracks/$trackOrdinal': typeof AcEvoTracksTrackOrdinalIndexRoute
-  '/acc/tracks/$trackOrdinal': typeof AccTracksTrackOrdinalIndexRoute
-  '/f125/tracks/$trackOrdinal': typeof F125TracksTrackOrdinalIndexRoute
+  '/$gameid/tracks/$trackOrdinal': typeof GameidTracksTrackOrdinalIndexRoute
   '/fm23/setups/wheel': typeof Fm23SetupsWheelIndexRoute
-  '/fm23/tracks/$trackOrdinal': typeof Fm23TracksTrackOrdinalIndexRoute
-  '/iracing/tracks/$trackOrdinal': typeof IracingTracksTrackOrdinalIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -881,53 +717,45 @@ export interface FileRoutesById {
   '/fm23': typeof Fm23RouteWithChildren
   '/iracing': typeof IracingRouteWithChildren
   '/$game/live': typeof GameLiveRoute
+  '/$gameid/cars': typeof GameidCarsRoute
   '/$gameid/compare': typeof GameidCompareRoute
+  '/$gameid/tracks': typeof GameidTracksRouteWithChildren
   '/ac-evo/analyse': typeof AcEvoAnalyseRoute
-  '/ac-evo/cars': typeof AcEvoCarsRoute
   '/ac-evo/chats': typeof AcEvoChatsRoute
   '/ac-evo/driver': typeof AcEvoDriverRoute
   '/ac-evo/experiments': typeof AcEvoExperimentsRouteWithChildren
   '/ac-evo/raw': typeof AcEvoRawRoute
   '/ac-evo/sessions': typeof AcEvoSessionsRoute
   '/ac-evo/setups': typeof AcEvoSetupsRouteWithChildren
-  '/ac-evo/tracks': typeof AcEvoTracksRouteWithChildren
   '/acc/analyse': typeof AccAnalyseRoute
-  '/acc/cars': typeof AccCarsRoute
   '/acc/chats': typeof AccChatsRoute
   '/acc/driver': typeof AccDriverRoute
   '/acc/experiments': typeof AccExperimentsRouteWithChildren
   '/acc/raw': typeof AccRawRoute
   '/acc/sessions': typeof AccSessionsRoute
   '/acc/setups': typeof AccSetupsRouteWithChildren
-  '/acc/tracks': typeof AccTracksRouteWithChildren
   '/dash/combo-1': typeof DashCombo1Route
   '/dash/combo-2': typeof DashCombo2Route
   '/f125/analyse': typeof F125AnalyseRoute
-  '/f125/cars': typeof F125CarsRoute
   '/f125/chats': typeof F125ChatsRoute
   '/f125/driver': typeof F125DriverRoute
   '/f125/experiments': typeof F125ExperimentsRouteWithChildren
   '/f125/raw': typeof F125RawRoute
   '/f125/sessions': typeof F125SessionsRoute
   '/f125/setups': typeof F125SetupsRouteWithChildren
-  '/f125/tracks': typeof F125TracksRouteWithChildren
   '/f125/tunes': typeof F125TunesRouteWithChildren
   '/fm23/analyse': typeof Fm23AnalyseRoute
-  '/fm23/cars': typeof Fm23CarsRoute
   '/fm23/chats': typeof Fm23ChatsRoute
   '/fm23/driver': typeof Fm23DriverRoute
   '/fm23/live': typeof Fm23LiveRouteWithChildren
   '/fm23/raw': typeof Fm23RawRoute
   '/fm23/sessions': typeof Fm23SessionsRoute
   '/fm23/setups': typeof Fm23SetupsRouteWithChildren
-  '/fm23/tracks': typeof Fm23TracksRouteWithChildren
   '/iracing/analyse': typeof IracingAnalyseRoute
-  '/iracing/cars': typeof IracingCarsRoute
   '/iracing/chats': typeof IracingChatsRoute
   '/iracing/live': typeof IracingLiveRouteWithChildren
   '/iracing/raw': typeof IracingRawRoute
   '/iracing/sessions': typeof IracingSessionsRoute
-  '/iracing/tracks': typeof IracingTracksRouteWithChildren
   '/ac-evo/': typeof AcEvoIndexRoute
   '/acc/': typeof AccIndexRoute
   '/dash/': typeof DashIndexRoute
@@ -948,37 +776,25 @@ export interface FileRoutesById {
   '/fm23/setups/new': typeof Fm23SetupsNewRoute
   '/iracing/live/driver': typeof IracingLiveDriverRoute
   '/iracing/live/pit': typeof IracingLivePitRoute
+  '/$gameid/tracks/': typeof GameidTracksIndexRoute
   '/ac-evo/experiments/': typeof AcEvoExperimentsIndexRoute
   '/ac-evo/setups/': typeof AcEvoSetupsIndexRoute
-  '/ac-evo/tracks/': typeof AcEvoTracksIndexRoute
   '/acc/experiments/': typeof AccExperimentsIndexRoute
   '/acc/setups/': typeof AccSetupsIndexRoute
-  '/acc/tracks/': typeof AccTracksIndexRoute
   '/f125/experiments/': typeof F125ExperimentsIndexRoute
   '/f125/setups/': typeof F125SetupsIndexRoute
-  '/f125/tracks/': typeof F125TracksIndexRoute
   '/f125/tunes/': typeof F125TunesIndexRoute
   '/fm23/setups/': typeof Fm23SetupsIndexRoute
-  '/fm23/tracks/': typeof Fm23TracksIndexRoute
-  '/iracing/tracks/': typeof IracingTracksIndexRoute
+  '/$gameid/tracks/$trackOrdinal/$tab': typeof GameidTracksTrackOrdinalTabRoute
   '/ac-evo/experiments/$experimentId_/review': typeof AcEvoExperimentsExperimentIdReviewRoute
   '/ac-evo/setups/edit/$tuneId': typeof AcEvoSetupsEditTuneIdRoute
-  '/ac-evo/tracks/$trackOrdinal/$tab': typeof AcEvoTracksTrackOrdinalTabRoute
   '/acc/experiments/$experimentId_/review': typeof AccExperimentsExperimentIdReviewRoute
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
-  '/acc/tracks/$trackOrdinal/$tab': typeof AccTracksTrackOrdinalTabRoute
   '/f125/experiments/$experimentId_/review': typeof F125ExperimentsExperimentIdReviewRoute
-  '/f125/tracks/$trackOrdinal/$tab': typeof F125TracksTrackOrdinalTabRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
   '/fm23/setups/wheel/$profileId': typeof Fm23SetupsWheelProfileIdRoute
-  '/fm23/tracks/$trackOrdinal/$tab': typeof Fm23TracksTrackOrdinalTabRoute
-  '/iracing/tracks/$trackOrdinal/$tab': typeof IracingTracksTrackOrdinalTabRoute
-  '/ac-evo/tracks/$trackOrdinal/': typeof AcEvoTracksTrackOrdinalIndexRoute
-  '/acc/tracks/$trackOrdinal/': typeof AccTracksTrackOrdinalIndexRoute
-  '/f125/tracks/$trackOrdinal/': typeof F125TracksTrackOrdinalIndexRoute
+  '/$gameid/tracks/$trackOrdinal/': typeof GameidTracksTrackOrdinalIndexRoute
   '/fm23/setups/wheel/': typeof Fm23SetupsWheelIndexRoute
-  '/fm23/tracks/$trackOrdinal/': typeof Fm23TracksTrackOrdinalIndexRoute
-  '/iracing/tracks/$trackOrdinal/': typeof IracingTracksTrackOrdinalIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -992,53 +808,45 @@ export interface FileRouteTypes {
     | '/fm23'
     | '/iracing'
     | '/$game/live'
+    | '/$gameid/cars'
     | '/$gameid/compare'
+    | '/$gameid/tracks'
     | '/ac-evo/analyse'
-    | '/ac-evo/cars'
     | '/ac-evo/chats'
     | '/ac-evo/driver'
     | '/ac-evo/experiments'
     | '/ac-evo/raw'
     | '/ac-evo/sessions'
     | '/ac-evo/setups'
-    | '/ac-evo/tracks'
     | '/acc/analyse'
-    | '/acc/cars'
     | '/acc/chats'
     | '/acc/driver'
     | '/acc/experiments'
     | '/acc/raw'
     | '/acc/sessions'
     | '/acc/setups'
-    | '/acc/tracks'
     | '/dash/combo-1'
     | '/dash/combo-2'
     | '/f125/analyse'
-    | '/f125/cars'
     | '/f125/chats'
     | '/f125/driver'
     | '/f125/experiments'
     | '/f125/raw'
     | '/f125/sessions'
     | '/f125/setups'
-    | '/f125/tracks'
     | '/f125/tunes'
     | '/fm23/analyse'
-    | '/fm23/cars'
     | '/fm23/chats'
     | '/fm23/driver'
     | '/fm23/live'
     | '/fm23/raw'
     | '/fm23/sessions'
     | '/fm23/setups'
-    | '/fm23/tracks'
     | '/iracing/analyse'
-    | '/iracing/cars'
     | '/iracing/chats'
     | '/iracing/live'
     | '/iracing/raw'
     | '/iracing/sessions'
-    | '/iracing/tracks'
     | '/ac-evo/'
     | '/acc/'
     | '/dash/'
@@ -1059,52 +867,39 @@ export interface FileRouteTypes {
     | '/fm23/setups/new'
     | '/iracing/live/driver'
     | '/iracing/live/pit'
+    | '/$gameid/tracks/'
     | '/ac-evo/experiments/'
     | '/ac-evo/setups/'
-    | '/ac-evo/tracks/'
     | '/acc/experiments/'
     | '/acc/setups/'
-    | '/acc/tracks/'
     | '/f125/experiments/'
     | '/f125/setups/'
-    | '/f125/tracks/'
     | '/f125/tunes/'
     | '/fm23/setups/'
-    | '/fm23/tracks/'
-    | '/iracing/tracks/'
+    | '/$gameid/tracks/$trackOrdinal/$tab'
     | '/ac-evo/experiments/$experimentId/review'
     | '/ac-evo/setups/edit/$tuneId'
-    | '/ac-evo/tracks/$trackOrdinal/$tab'
     | '/acc/experiments/$experimentId/review'
     | '/acc/setups/edit/$tuneId'
-    | '/acc/tracks/$trackOrdinal/$tab'
     | '/f125/experiments/$experimentId/review'
-    | '/f125/tracks/$trackOrdinal/$tab'
     | '/fm23/setups/edit/$tuneId'
     | '/fm23/setups/wheel/$profileId'
-    | '/fm23/tracks/$trackOrdinal/$tab'
-    | '/iracing/tracks/$trackOrdinal/$tab'
-    | '/ac-evo/tracks/$trackOrdinal/'
-    | '/acc/tracks/$trackOrdinal/'
-    | '/f125/tracks/$trackOrdinal/'
+    | '/$gameid/tracks/$trackOrdinal/'
     | '/fm23/setups/wheel/'
-    | '/fm23/tracks/$trackOrdinal/'
-    | '/iracing/tracks/$trackOrdinal/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/$gameid'
     | '/dev'
     | '/$game/live'
+    | '/$gameid/cars'
     | '/$gameid/compare'
     | '/ac-evo/analyse'
-    | '/ac-evo/cars'
     | '/ac-evo/chats'
     | '/ac-evo/driver'
     | '/ac-evo/raw'
     | '/ac-evo/sessions'
     | '/acc/analyse'
-    | '/acc/cars'
     | '/acc/chats'
     | '/acc/driver'
     | '/acc/raw'
@@ -1112,20 +907,17 @@ export interface FileRouteTypes {
     | '/dash/combo-1'
     | '/dash/combo-2'
     | '/f125/analyse'
-    | '/f125/cars'
     | '/f125/chats'
     | '/f125/driver'
     | '/f125/raw'
     | '/f125/sessions'
     | '/fm23/analyse'
-    | '/fm23/cars'
     | '/fm23/chats'
     | '/fm23/driver'
     | '/fm23/live'
     | '/fm23/raw'
     | '/fm23/sessions'
     | '/iracing/analyse'
-    | '/iracing/cars'
     | '/iracing/chats'
     | '/iracing/live'
     | '/iracing/raw'
@@ -1150,37 +942,25 @@ export interface FileRouteTypes {
     | '/fm23/setups/new'
     | '/iracing/live/driver'
     | '/iracing/live/pit'
+    | '/$gameid/tracks'
     | '/ac-evo/experiments'
     | '/ac-evo/setups'
-    | '/ac-evo/tracks'
     | '/acc/experiments'
     | '/acc/setups'
-    | '/acc/tracks'
     | '/f125/experiments'
     | '/f125/setups'
-    | '/f125/tracks'
     | '/f125/tunes'
     | '/fm23/setups'
-    | '/fm23/tracks'
-    | '/iracing/tracks'
+    | '/$gameid/tracks/$trackOrdinal/$tab'
     | '/ac-evo/experiments/$experimentId/review'
     | '/ac-evo/setups/edit/$tuneId'
-    | '/ac-evo/tracks/$trackOrdinal/$tab'
     | '/acc/experiments/$experimentId/review'
     | '/acc/setups/edit/$tuneId'
-    | '/acc/tracks/$trackOrdinal/$tab'
     | '/f125/experiments/$experimentId/review'
-    | '/f125/tracks/$trackOrdinal/$tab'
     | '/fm23/setups/edit/$tuneId'
     | '/fm23/setups/wheel/$profileId'
-    | '/fm23/tracks/$trackOrdinal/$tab'
-    | '/iracing/tracks/$trackOrdinal/$tab'
-    | '/ac-evo/tracks/$trackOrdinal'
-    | '/acc/tracks/$trackOrdinal'
-    | '/f125/tracks/$trackOrdinal'
+    | '/$gameid/tracks/$trackOrdinal'
     | '/fm23/setups/wheel'
-    | '/fm23/tracks/$trackOrdinal'
-    | '/iracing/tracks/$trackOrdinal'
   id:
     | '__root__'
     | '/'
@@ -1192,53 +972,45 @@ export interface FileRouteTypes {
     | '/fm23'
     | '/iracing'
     | '/$game/live'
+    | '/$gameid/cars'
     | '/$gameid/compare'
+    | '/$gameid/tracks'
     | '/ac-evo/analyse'
-    | '/ac-evo/cars'
     | '/ac-evo/chats'
     | '/ac-evo/driver'
     | '/ac-evo/experiments'
     | '/ac-evo/raw'
     | '/ac-evo/sessions'
     | '/ac-evo/setups'
-    | '/ac-evo/tracks'
     | '/acc/analyse'
-    | '/acc/cars'
     | '/acc/chats'
     | '/acc/driver'
     | '/acc/experiments'
     | '/acc/raw'
     | '/acc/sessions'
     | '/acc/setups'
-    | '/acc/tracks'
     | '/dash/combo-1'
     | '/dash/combo-2'
     | '/f125/analyse'
-    | '/f125/cars'
     | '/f125/chats'
     | '/f125/driver'
     | '/f125/experiments'
     | '/f125/raw'
     | '/f125/sessions'
     | '/f125/setups'
-    | '/f125/tracks'
     | '/f125/tunes'
     | '/fm23/analyse'
-    | '/fm23/cars'
     | '/fm23/chats'
     | '/fm23/driver'
     | '/fm23/live'
     | '/fm23/raw'
     | '/fm23/sessions'
     | '/fm23/setups'
-    | '/fm23/tracks'
     | '/iracing/analyse'
-    | '/iracing/cars'
     | '/iracing/chats'
     | '/iracing/live'
     | '/iracing/raw'
     | '/iracing/sessions'
-    | '/iracing/tracks'
     | '/ac-evo/'
     | '/acc/'
     | '/dash/'
@@ -1259,37 +1031,25 @@ export interface FileRouteTypes {
     | '/fm23/setups/new'
     | '/iracing/live/driver'
     | '/iracing/live/pit'
+    | '/$gameid/tracks/'
     | '/ac-evo/experiments/'
     | '/ac-evo/setups/'
-    | '/ac-evo/tracks/'
     | '/acc/experiments/'
     | '/acc/setups/'
-    | '/acc/tracks/'
     | '/f125/experiments/'
     | '/f125/setups/'
-    | '/f125/tracks/'
     | '/f125/tunes/'
     | '/fm23/setups/'
-    | '/fm23/tracks/'
-    | '/iracing/tracks/'
+    | '/$gameid/tracks/$trackOrdinal/$tab'
     | '/ac-evo/experiments/$experimentId_/review'
     | '/ac-evo/setups/edit/$tuneId'
-    | '/ac-evo/tracks/$trackOrdinal/$tab'
     | '/acc/experiments/$experimentId_/review'
     | '/acc/setups/edit/$tuneId'
-    | '/acc/tracks/$trackOrdinal/$tab'
     | '/f125/experiments/$experimentId_/review'
-    | '/f125/tracks/$trackOrdinal/$tab'
     | '/fm23/setups/edit/$tuneId'
     | '/fm23/setups/wheel/$profileId'
-    | '/fm23/tracks/$trackOrdinal/$tab'
-    | '/iracing/tracks/$trackOrdinal/$tab'
-    | '/ac-evo/tracks/$trackOrdinal/'
-    | '/acc/tracks/$trackOrdinal/'
-    | '/f125/tracks/$trackOrdinal/'
+    | '/$gameid/tracks/$trackOrdinal/'
     | '/fm23/setups/wheel/'
-    | '/fm23/tracks/$trackOrdinal/'
-    | '/iracing/tracks/$trackOrdinal/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1372,11 +1132,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GameLiveRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/$gameid/cars': {
+      id: '/$gameid/cars'
+      path: '/cars'
+      fullPath: '/$gameid/cars'
+      preLoaderRoute: typeof GameidCarsRouteImport
+      parentRoute: typeof GameidRoute
+    }
     '/$gameid/compare': {
       id: '/$gameid/compare'
       path: '/compare'
       fullPath: '/$gameid/compare'
       preLoaderRoute: typeof GameidCompareRouteImport
+      parentRoute: typeof GameidRoute
+    }
+    '/$gameid/tracks': {
+      id: '/$gameid/tracks'
+      path: '/tracks'
+      fullPath: '/$gameid/tracks'
+      preLoaderRoute: typeof GameidTracksRouteImport
       parentRoute: typeof GameidRoute
     }
     '/ac-evo/': {
@@ -1391,13 +1165,6 @@ declare module '@tanstack/react-router' {
       path: '/analyse'
       fullPath: '/ac-evo/analyse'
       preLoaderRoute: typeof AcEvoAnalyseRouteImport
-      parentRoute: typeof AcEvoRoute
-    }
-    '/ac-evo/cars': {
-      id: '/ac-evo/cars'
-      path: '/cars'
-      fullPath: '/ac-evo/cars'
-      preLoaderRoute: typeof AcEvoCarsRouteImport
       parentRoute: typeof AcEvoRoute
     }
     '/ac-evo/chats': {
@@ -1442,13 +1209,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AcEvoSetupsRouteImport
       parentRoute: typeof AcEvoRoute
     }
-    '/ac-evo/tracks': {
-      id: '/ac-evo/tracks'
-      path: '/tracks'
-      fullPath: '/ac-evo/tracks'
-      preLoaderRoute: typeof AcEvoTracksRouteImport
-      parentRoute: typeof AcEvoRoute
-    }
     '/acc/': {
       id: '/acc/'
       path: '/'
@@ -1461,13 +1221,6 @@ declare module '@tanstack/react-router' {
       path: '/analyse'
       fullPath: '/acc/analyse'
       preLoaderRoute: typeof AccAnalyseRouteImport
-      parentRoute: typeof AccRoute
-    }
-    '/acc/cars': {
-      id: '/acc/cars'
-      path: '/cars'
-      fullPath: '/acc/cars'
-      preLoaderRoute: typeof AccCarsRouteImport
       parentRoute: typeof AccRoute
     }
     '/acc/chats': {
@@ -1512,13 +1265,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccSetupsRouteImport
       parentRoute: typeof AccRoute
     }
-    '/acc/tracks': {
-      id: '/acc/tracks'
-      path: '/tracks'
-      fullPath: '/acc/tracks'
-      preLoaderRoute: typeof AccTracksRouteImport
-      parentRoute: typeof AccRoute
-    }
     '/dash/': {
       id: '/dash/'
       path: '/dash'
@@ -1552,13 +1298,6 @@ declare module '@tanstack/react-router' {
       path: '/analyse'
       fullPath: '/f125/analyse'
       preLoaderRoute: typeof F125AnalyseRouteImport
-      parentRoute: typeof F125Route
-    }
-    '/f125/cars': {
-      id: '/f125/cars'
-      path: '/cars'
-      fullPath: '/f125/cars'
-      preLoaderRoute: typeof F125CarsRouteImport
       parentRoute: typeof F125Route
     }
     '/f125/chats': {
@@ -1603,13 +1342,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof F125SetupsRouteImport
       parentRoute: typeof F125Route
     }
-    '/f125/tracks': {
-      id: '/f125/tracks'
-      path: '/tracks'
-      fullPath: '/f125/tracks'
-      preLoaderRoute: typeof F125TracksRouteImport
-      parentRoute: typeof F125Route
-    }
     '/f125/tunes': {
       id: '/f125/tunes'
       path: '/tunes'
@@ -1629,13 +1361,6 @@ declare module '@tanstack/react-router' {
       path: '/analyse'
       fullPath: '/fm23/analyse'
       preLoaderRoute: typeof Fm23AnalyseRouteImport
-      parentRoute: typeof Fm23Route
-    }
-    '/fm23/cars': {
-      id: '/fm23/cars'
-      path: '/cars'
-      fullPath: '/fm23/cars'
-      preLoaderRoute: typeof Fm23CarsRouteImport
       parentRoute: typeof Fm23Route
     }
     '/fm23/chats': {
@@ -1680,13 +1405,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Fm23SetupsRouteImport
       parentRoute: typeof Fm23Route
     }
-    '/fm23/tracks': {
-      id: '/fm23/tracks'
-      path: '/tracks'
-      fullPath: '/fm23/tracks'
-      preLoaderRoute: typeof Fm23TracksRouteImport
-      parentRoute: typeof Fm23Route
-    }
     '/iracing/': {
       id: '/iracing/'
       path: '/'
@@ -1699,13 +1417,6 @@ declare module '@tanstack/react-router' {
       path: '/analyse'
       fullPath: '/iracing/analyse'
       preLoaderRoute: typeof IracingAnalyseRouteImport
-      parentRoute: typeof IracingRoute
-    }
-    '/iracing/cars': {
-      id: '/iracing/cars'
-      path: '/cars'
-      fullPath: '/iracing/cars'
-      preLoaderRoute: typeof IracingCarsRouteImport
       parentRoute: typeof IracingRoute
     }
     '/iracing/chats': {
@@ -1736,12 +1447,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IracingSessionsRouteImport
       parentRoute: typeof IracingRoute
     }
-    '/iracing/tracks': {
-      id: '/iracing/tracks'
-      path: '/tracks'
-      fullPath: '/iracing/tracks'
-      preLoaderRoute: typeof IracingTracksRouteImport
-      parentRoute: typeof IracingRoute
+    '/$gameid/tracks/': {
+      id: '/$gameid/tracks/'
+      path: '/'
+      fullPath: '/$gameid/tracks/'
+      preLoaderRoute: typeof GameidTracksIndexRouteImport
+      parentRoute: typeof GameidTracksRoute
     }
     '/ac-evo/experiments/': {
       id: '/ac-evo/experiments/'
@@ -1778,13 +1489,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AcEvoSetupsNewRouteImport
       parentRoute: typeof AcEvoSetupsRoute
     }
-    '/ac-evo/tracks/': {
-      id: '/ac-evo/tracks/'
-      path: '/'
-      fullPath: '/ac-evo/tracks/'
-      preLoaderRoute: typeof AcEvoTracksIndexRouteImport
-      parentRoute: typeof AcEvoTracksRoute
-    }
     '/acc/experiments/': {
       id: '/acc/experiments/'
       path: '/'
@@ -1820,13 +1524,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccSetupsNewRouteImport
       parentRoute: typeof AccSetupsRoute
     }
-    '/acc/tracks/': {
-      id: '/acc/tracks/'
-      path: '/'
-      fullPath: '/acc/tracks/'
-      preLoaderRoute: typeof AccTracksIndexRouteImport
-      parentRoute: typeof AccTracksRoute
-    }
     '/f125/experiments/': {
       id: '/f125/experiments/'
       path: '/'
@@ -1847,13 +1544,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/f125/setups/'
       preLoaderRoute: typeof F125SetupsIndexRouteImport
       parentRoute: typeof F125SetupsRoute
-    }
-    '/f125/tracks/': {
-      id: '/f125/tracks/'
-      path: '/'
-      fullPath: '/f125/tracks/'
-      preLoaderRoute: typeof F125TracksIndexRouteImport
-      parentRoute: typeof F125TracksRoute
     }
     '/f125/tunes/': {
       id: '/f125/tunes/'
@@ -1904,13 +1594,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Fm23SetupsNewRouteImport
       parentRoute: typeof Fm23SetupsRoute
     }
-    '/fm23/tracks/': {
-      id: '/fm23/tracks/'
-      path: '/'
-      fullPath: '/fm23/tracks/'
-      preLoaderRoute: typeof Fm23TracksIndexRouteImport
-      parentRoute: typeof Fm23TracksRoute
-    }
     '/iracing/live/driver': {
       id: '/iracing/live/driver'
       path: '/driver'
@@ -1925,12 +1608,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IracingLivePitRouteImport
       parentRoute: typeof IracingLiveRoute
     }
-    '/iracing/tracks/': {
-      id: '/iracing/tracks/'
-      path: '/'
-      fullPath: '/iracing/tracks/'
-      preLoaderRoute: typeof IracingTracksIndexRouteImport
-      parentRoute: typeof IracingTracksRoute
+    '/$gameid/tracks/$trackOrdinal/': {
+      id: '/$gameid/tracks/$trackOrdinal/'
+      path: '/$trackOrdinal'
+      fullPath: '/$gameid/tracks/$trackOrdinal/'
+      preLoaderRoute: typeof GameidTracksTrackOrdinalIndexRouteImport
+      parentRoute: typeof GameidTracksRoute
+    }
+    '/$gameid/tracks/$trackOrdinal/$tab': {
+      id: '/$gameid/tracks/$trackOrdinal/$tab'
+      path: '/$trackOrdinal/$tab'
+      fullPath: '/$gameid/tracks/$trackOrdinal/$tab'
+      preLoaderRoute: typeof GameidTracksTrackOrdinalTabRouteImport
+      parentRoute: typeof GameidTracksRoute
     }
     '/ac-evo/experiments/$experimentId_/review': {
       id: '/ac-evo/experiments/$experimentId_/review'
@@ -1946,20 +1636,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AcEvoSetupsEditTuneIdRouteImport
       parentRoute: typeof AcEvoSetupsRoute
     }
-    '/ac-evo/tracks/$trackOrdinal/': {
-      id: '/ac-evo/tracks/$trackOrdinal/'
-      path: '/$trackOrdinal'
-      fullPath: '/ac-evo/tracks/$trackOrdinal/'
-      preLoaderRoute: typeof AcEvoTracksTrackOrdinalIndexRouteImport
-      parentRoute: typeof AcEvoTracksRoute
-    }
-    '/ac-evo/tracks/$trackOrdinal/$tab': {
-      id: '/ac-evo/tracks/$trackOrdinal/$tab'
-      path: '/$trackOrdinal/$tab'
-      fullPath: '/ac-evo/tracks/$trackOrdinal/$tab'
-      preLoaderRoute: typeof AcEvoTracksTrackOrdinalTabRouteImport
-      parentRoute: typeof AcEvoTracksRoute
-    }
     '/acc/experiments/$experimentId_/review': {
       id: '/acc/experiments/$experimentId_/review'
       path: '/$experimentId/review'
@@ -1974,40 +1650,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccSetupsEditTuneIdRouteImport
       parentRoute: typeof AccSetupsRoute
     }
-    '/acc/tracks/$trackOrdinal/': {
-      id: '/acc/tracks/$trackOrdinal/'
-      path: '/$trackOrdinal'
-      fullPath: '/acc/tracks/$trackOrdinal/'
-      preLoaderRoute: typeof AccTracksTrackOrdinalIndexRouteImport
-      parentRoute: typeof AccTracksRoute
-    }
-    '/acc/tracks/$trackOrdinal/$tab': {
-      id: '/acc/tracks/$trackOrdinal/$tab'
-      path: '/$trackOrdinal/$tab'
-      fullPath: '/acc/tracks/$trackOrdinal/$tab'
-      preLoaderRoute: typeof AccTracksTrackOrdinalTabRouteImport
-      parentRoute: typeof AccTracksRoute
-    }
     '/f125/experiments/$experimentId_/review': {
       id: '/f125/experiments/$experimentId_/review'
       path: '/$experimentId/review'
       fullPath: '/f125/experiments/$experimentId/review'
       preLoaderRoute: typeof F125ExperimentsExperimentIdReviewRouteImport
       parentRoute: typeof F125ExperimentsRoute
-    }
-    '/f125/tracks/$trackOrdinal/': {
-      id: '/f125/tracks/$trackOrdinal/'
-      path: '/$trackOrdinal'
-      fullPath: '/f125/tracks/$trackOrdinal/'
-      preLoaderRoute: typeof F125TracksTrackOrdinalIndexRouteImport
-      parentRoute: typeof F125TracksRoute
-    }
-    '/f125/tracks/$trackOrdinal/$tab': {
-      id: '/f125/tracks/$trackOrdinal/$tab'
-      path: '/$trackOrdinal/$tab'
-      fullPath: '/f125/tracks/$trackOrdinal/$tab'
-      preLoaderRoute: typeof F125TracksTrackOrdinalTabRouteImport
-      parentRoute: typeof F125TracksRoute
     }
     '/fm23/setups/edit/$tuneId': {
       id: '/fm23/setups/edit/$tuneId'
@@ -2030,43 +1678,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Fm23SetupsWheelProfileIdRouteImport
       parentRoute: typeof Fm23SetupsRoute
     }
-    '/fm23/tracks/$trackOrdinal/': {
-      id: '/fm23/tracks/$trackOrdinal/'
-      path: '/$trackOrdinal'
-      fullPath: '/fm23/tracks/$trackOrdinal/'
-      preLoaderRoute: typeof Fm23TracksTrackOrdinalIndexRouteImport
-      parentRoute: typeof Fm23TracksRoute
-    }
-    '/fm23/tracks/$trackOrdinal/$tab': {
-      id: '/fm23/tracks/$trackOrdinal/$tab'
-      path: '/$trackOrdinal/$tab'
-      fullPath: '/fm23/tracks/$trackOrdinal/$tab'
-      preLoaderRoute: typeof Fm23TracksTrackOrdinalTabRouteImport
-      parentRoute: typeof Fm23TracksRoute
-    }
-    '/iracing/tracks/$trackOrdinal/': {
-      id: '/iracing/tracks/$trackOrdinal/'
-      path: '/$trackOrdinal'
-      fullPath: '/iracing/tracks/$trackOrdinal/'
-      preLoaderRoute: typeof IracingTracksTrackOrdinalIndexRouteImport
-      parentRoute: typeof IracingTracksRoute
-    }
-    '/iracing/tracks/$trackOrdinal/$tab': {
-      id: '/iracing/tracks/$trackOrdinal/$tab'
-      path: '/$trackOrdinal/$tab'
-      fullPath: '/iracing/tracks/$trackOrdinal/$tab'
-      preLoaderRoute: typeof IracingTracksTrackOrdinalTabRouteImport
-      parentRoute: typeof IracingTracksRoute
-    }
   }
 }
 
+interface GameidTracksRouteChildren {
+  GameidTracksIndexRoute: typeof GameidTracksIndexRoute
+  GameidTracksTrackOrdinalTabRoute: typeof GameidTracksTrackOrdinalTabRoute
+  GameidTracksTrackOrdinalIndexRoute: typeof GameidTracksTrackOrdinalIndexRoute
+}
+
+const GameidTracksRouteChildren: GameidTracksRouteChildren = {
+  GameidTracksIndexRoute: GameidTracksIndexRoute,
+  GameidTracksTrackOrdinalTabRoute: GameidTracksTrackOrdinalTabRoute,
+  GameidTracksTrackOrdinalIndexRoute: GameidTracksTrackOrdinalIndexRoute,
+}
+
+const GameidTracksRouteWithChildren = GameidTracksRoute._addFileChildren(
+  GameidTracksRouteChildren,
+)
+
 interface GameidRouteChildren {
+  GameidCarsRoute: typeof GameidCarsRoute
   GameidCompareRoute: typeof GameidCompareRoute
+  GameidTracksRoute: typeof GameidTracksRouteWithChildren
 }
 
 const GameidRouteChildren: GameidRouteChildren = {
+  GameidCarsRoute: GameidCarsRoute,
   GameidCompareRoute: GameidCompareRoute,
+  GameidTracksRoute: GameidTracksRouteWithChildren,
 }
 
 const GameidRouteWithChildren =
@@ -2106,45 +1746,25 @@ const AcEvoSetupsRouteWithChildren = AcEvoSetupsRoute._addFileChildren(
   AcEvoSetupsRouteChildren,
 )
 
-interface AcEvoTracksRouteChildren {
-  AcEvoTracksIndexRoute: typeof AcEvoTracksIndexRoute
-  AcEvoTracksTrackOrdinalTabRoute: typeof AcEvoTracksTrackOrdinalTabRoute
-  AcEvoTracksTrackOrdinalIndexRoute: typeof AcEvoTracksTrackOrdinalIndexRoute
-}
-
-const AcEvoTracksRouteChildren: AcEvoTracksRouteChildren = {
-  AcEvoTracksIndexRoute: AcEvoTracksIndexRoute,
-  AcEvoTracksTrackOrdinalTabRoute: AcEvoTracksTrackOrdinalTabRoute,
-  AcEvoTracksTrackOrdinalIndexRoute: AcEvoTracksTrackOrdinalIndexRoute,
-}
-
-const AcEvoTracksRouteWithChildren = AcEvoTracksRoute._addFileChildren(
-  AcEvoTracksRouteChildren,
-)
-
 interface AcEvoRouteChildren {
   AcEvoAnalyseRoute: typeof AcEvoAnalyseRoute
-  AcEvoCarsRoute: typeof AcEvoCarsRoute
   AcEvoChatsRoute: typeof AcEvoChatsRoute
   AcEvoDriverRoute: typeof AcEvoDriverRoute
   AcEvoExperimentsRoute: typeof AcEvoExperimentsRouteWithChildren
   AcEvoRawRoute: typeof AcEvoRawRoute
   AcEvoSessionsRoute: typeof AcEvoSessionsRoute
   AcEvoSetupsRoute: typeof AcEvoSetupsRouteWithChildren
-  AcEvoTracksRoute: typeof AcEvoTracksRouteWithChildren
   AcEvoIndexRoute: typeof AcEvoIndexRoute
 }
 
 const AcEvoRouteChildren: AcEvoRouteChildren = {
   AcEvoAnalyseRoute: AcEvoAnalyseRoute,
-  AcEvoCarsRoute: AcEvoCarsRoute,
   AcEvoChatsRoute: AcEvoChatsRoute,
   AcEvoDriverRoute: AcEvoDriverRoute,
   AcEvoExperimentsRoute: AcEvoExperimentsRouteWithChildren,
   AcEvoRawRoute: AcEvoRawRoute,
   AcEvoSessionsRoute: AcEvoSessionsRoute,
   AcEvoSetupsRoute: AcEvoSetupsRouteWithChildren,
-  AcEvoTracksRoute: AcEvoTracksRouteWithChildren,
   AcEvoIndexRoute: AcEvoIndexRoute,
 }
 
@@ -2184,45 +1804,25 @@ const AccSetupsRouteWithChildren = AccSetupsRoute._addFileChildren(
   AccSetupsRouteChildren,
 )
 
-interface AccTracksRouteChildren {
-  AccTracksIndexRoute: typeof AccTracksIndexRoute
-  AccTracksTrackOrdinalTabRoute: typeof AccTracksTrackOrdinalTabRoute
-  AccTracksTrackOrdinalIndexRoute: typeof AccTracksTrackOrdinalIndexRoute
-}
-
-const AccTracksRouteChildren: AccTracksRouteChildren = {
-  AccTracksIndexRoute: AccTracksIndexRoute,
-  AccTracksTrackOrdinalTabRoute: AccTracksTrackOrdinalTabRoute,
-  AccTracksTrackOrdinalIndexRoute: AccTracksTrackOrdinalIndexRoute,
-}
-
-const AccTracksRouteWithChildren = AccTracksRoute._addFileChildren(
-  AccTracksRouteChildren,
-)
-
 interface AccRouteChildren {
   AccAnalyseRoute: typeof AccAnalyseRoute
-  AccCarsRoute: typeof AccCarsRoute
   AccChatsRoute: typeof AccChatsRoute
   AccDriverRoute: typeof AccDriverRoute
   AccExperimentsRoute: typeof AccExperimentsRouteWithChildren
   AccRawRoute: typeof AccRawRoute
   AccSessionsRoute: typeof AccSessionsRoute
   AccSetupsRoute: typeof AccSetupsRouteWithChildren
-  AccTracksRoute: typeof AccTracksRouteWithChildren
   AccIndexRoute: typeof AccIndexRoute
 }
 
 const AccRouteChildren: AccRouteChildren = {
   AccAnalyseRoute: AccAnalyseRoute,
-  AccCarsRoute: AccCarsRoute,
   AccChatsRoute: AccChatsRoute,
   AccDriverRoute: AccDriverRoute,
   AccExperimentsRoute: AccExperimentsRouteWithChildren,
   AccRawRoute: AccRawRoute,
   AccSessionsRoute: AccSessionsRoute,
   AccSetupsRoute: AccSetupsRouteWithChildren,
-  AccTracksRoute: AccTracksRouteWithChildren,
   AccIndexRoute: AccIndexRoute,
 }
 
@@ -2257,22 +1857,6 @@ const F125SetupsRouteWithChildren = F125SetupsRoute._addFileChildren(
   F125SetupsRouteChildren,
 )
 
-interface F125TracksRouteChildren {
-  F125TracksIndexRoute: typeof F125TracksIndexRoute
-  F125TracksTrackOrdinalTabRoute: typeof F125TracksTrackOrdinalTabRoute
-  F125TracksTrackOrdinalIndexRoute: typeof F125TracksTrackOrdinalIndexRoute
-}
-
-const F125TracksRouteChildren: F125TracksRouteChildren = {
-  F125TracksIndexRoute: F125TracksIndexRoute,
-  F125TracksTrackOrdinalTabRoute: F125TracksTrackOrdinalTabRoute,
-  F125TracksTrackOrdinalIndexRoute: F125TracksTrackOrdinalIndexRoute,
-}
-
-const F125TracksRouteWithChildren = F125TracksRoute._addFileChildren(
-  F125TracksRouteChildren,
-)
-
 interface F125TunesRouteChildren {
   F125TunesIndexRoute: typeof F125TunesIndexRoute
 }
@@ -2287,28 +1871,24 @@ const F125TunesRouteWithChildren = F125TunesRoute._addFileChildren(
 
 interface F125RouteChildren {
   F125AnalyseRoute: typeof F125AnalyseRoute
-  F125CarsRoute: typeof F125CarsRoute
   F125ChatsRoute: typeof F125ChatsRoute
   F125DriverRoute: typeof F125DriverRoute
   F125ExperimentsRoute: typeof F125ExperimentsRouteWithChildren
   F125RawRoute: typeof F125RawRoute
   F125SessionsRoute: typeof F125SessionsRoute
   F125SetupsRoute: typeof F125SetupsRouteWithChildren
-  F125TracksRoute: typeof F125TracksRouteWithChildren
   F125TunesRoute: typeof F125TunesRouteWithChildren
   F125IndexRoute: typeof F125IndexRoute
 }
 
 const F125RouteChildren: F125RouteChildren = {
   F125AnalyseRoute: F125AnalyseRoute,
-  F125CarsRoute: F125CarsRoute,
   F125ChatsRoute: F125ChatsRoute,
   F125DriverRoute: F125DriverRoute,
   F125ExperimentsRoute: F125ExperimentsRouteWithChildren,
   F125RawRoute: F125RawRoute,
   F125SessionsRoute: F125SessionsRoute,
   F125SetupsRoute: F125SetupsRouteWithChildren,
-  F125TracksRoute: F125TracksRouteWithChildren,
   F125TunesRoute: F125TunesRouteWithChildren,
   F125IndexRoute: F125IndexRoute,
 }
@@ -2351,46 +1931,26 @@ const Fm23SetupsRouteWithChildren = Fm23SetupsRoute._addFileChildren(
   Fm23SetupsRouteChildren,
 )
 
-interface Fm23TracksRouteChildren {
-  Fm23TracksIndexRoute: typeof Fm23TracksIndexRoute
-  Fm23TracksTrackOrdinalTabRoute: typeof Fm23TracksTrackOrdinalTabRoute
-  Fm23TracksTrackOrdinalIndexRoute: typeof Fm23TracksTrackOrdinalIndexRoute
-}
-
-const Fm23TracksRouteChildren: Fm23TracksRouteChildren = {
-  Fm23TracksIndexRoute: Fm23TracksIndexRoute,
-  Fm23TracksTrackOrdinalTabRoute: Fm23TracksTrackOrdinalTabRoute,
-  Fm23TracksTrackOrdinalIndexRoute: Fm23TracksTrackOrdinalIndexRoute,
-}
-
-const Fm23TracksRouteWithChildren = Fm23TracksRoute._addFileChildren(
-  Fm23TracksRouteChildren,
-)
-
 interface Fm23RouteChildren {
   Fm23AnalyseRoute: typeof Fm23AnalyseRoute
-  Fm23CarsRoute: typeof Fm23CarsRoute
   Fm23ChatsRoute: typeof Fm23ChatsRoute
   Fm23DriverRoute: typeof Fm23DriverRoute
   Fm23LiveRoute: typeof Fm23LiveRouteWithChildren
   Fm23RawRoute: typeof Fm23RawRoute
   Fm23SessionsRoute: typeof Fm23SessionsRoute
   Fm23SetupsRoute: typeof Fm23SetupsRouteWithChildren
-  Fm23TracksRoute: typeof Fm23TracksRouteWithChildren
   Fm23IndexRoute: typeof Fm23IndexRoute
   Fm23CarsCarOrdinalRoute: typeof Fm23CarsCarOrdinalRoute
 }
 
 const Fm23RouteChildren: Fm23RouteChildren = {
   Fm23AnalyseRoute: Fm23AnalyseRoute,
-  Fm23CarsRoute: Fm23CarsRoute,
   Fm23ChatsRoute: Fm23ChatsRoute,
   Fm23DriverRoute: Fm23DriverRoute,
   Fm23LiveRoute: Fm23LiveRouteWithChildren,
   Fm23RawRoute: Fm23RawRoute,
   Fm23SessionsRoute: Fm23SessionsRoute,
   Fm23SetupsRoute: Fm23SetupsRouteWithChildren,
-  Fm23TracksRoute: Fm23TracksRouteWithChildren,
   Fm23IndexRoute: Fm23IndexRoute,
   Fm23CarsCarOrdinalRoute: Fm23CarsCarOrdinalRoute,
 }
@@ -2411,41 +1971,21 @@ const IracingLiveRouteWithChildren = IracingLiveRoute._addFileChildren(
   IracingLiveRouteChildren,
 )
 
-interface IracingTracksRouteChildren {
-  IracingTracksIndexRoute: typeof IracingTracksIndexRoute
-  IracingTracksTrackOrdinalTabRoute: typeof IracingTracksTrackOrdinalTabRoute
-  IracingTracksTrackOrdinalIndexRoute: typeof IracingTracksTrackOrdinalIndexRoute
-}
-
-const IracingTracksRouteChildren: IracingTracksRouteChildren = {
-  IracingTracksIndexRoute: IracingTracksIndexRoute,
-  IracingTracksTrackOrdinalTabRoute: IracingTracksTrackOrdinalTabRoute,
-  IracingTracksTrackOrdinalIndexRoute: IracingTracksTrackOrdinalIndexRoute,
-}
-
-const IracingTracksRouteWithChildren = IracingTracksRoute._addFileChildren(
-  IracingTracksRouteChildren,
-)
-
 interface IracingRouteChildren {
   IracingAnalyseRoute: typeof IracingAnalyseRoute
-  IracingCarsRoute: typeof IracingCarsRoute
   IracingChatsRoute: typeof IracingChatsRoute
   IracingLiveRoute: typeof IracingLiveRouteWithChildren
   IracingRawRoute: typeof IracingRawRoute
   IracingSessionsRoute: typeof IracingSessionsRoute
-  IracingTracksRoute: typeof IracingTracksRouteWithChildren
   IracingIndexRoute: typeof IracingIndexRoute
 }
 
 const IracingRouteChildren: IracingRouteChildren = {
   IracingAnalyseRoute: IracingAnalyseRoute,
-  IracingCarsRoute: IracingCarsRoute,
   IracingChatsRoute: IracingChatsRoute,
   IracingLiveRoute: IracingLiveRouteWithChildren,
   IracingRawRoute: IracingRawRoute,
   IracingSessionsRoute: IracingSessionsRoute,
-  IracingTracksRoute: IracingTracksRouteWithChildren,
   IracingIndexRoute: IracingIndexRoute,
 }
 
