@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { HomePage } from "../../components/HomePage";
+import { HomePageContainer } from "../../components/HomePageContainer";
 
 export const Route = createFileRoute("/iracing/")({
-  component: HomePage,
+  component: HomePageContainer,
 });
