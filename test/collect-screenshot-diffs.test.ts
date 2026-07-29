@@ -43,6 +43,7 @@ describe("collect-screenshot-diffs", () => {
     await writePng(join(current, "mobile", "same.png"), { r: 0, g: 0, b: 255 });
     await writePng(join(current, "tablet", "new-page.png"), { r: 255, g: 255, b: 0 });
     await writePng(join(base, "desktop", "removed-page.png"), { r: 255, g: 0, b: 255 });
+    await writePng(join(current, "results", "transient.png"), { r: 0, g: 255, b: 255 });
 
     const proc = Bun.spawn(
       [

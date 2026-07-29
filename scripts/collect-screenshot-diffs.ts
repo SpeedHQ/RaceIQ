@@ -23,7 +23,7 @@ function listPngs(root: string, dir = root, files = new Map<string, string>()): 
 
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const path = join(dir, entry.name);
-    if (entry.isDirectory()) {
+    if (entry.isDirectory() && entry.name !== "results") {
       listPngs(root, path, files);
     } else if (entry.isFile() && entry.name.toLowerCase().endsWith(".png")) {
       files.set(relative(root, path).split(sep).join("/"), path);
