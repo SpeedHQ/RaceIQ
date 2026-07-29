@@ -14,6 +14,7 @@ export interface ConnectionStatusView {
   gameLabel: string | null;
   gameText: string;
   dotColor: "green" | "red" | "cyan" | "amber" | "dim";
+  statusKind: "disconnected" | "server" | "waiting" | "receiving";
 }
 
 export function deriveConnectionStatusView(inputs: ConnectionStatusInputs): ConnectionStatusView {
@@ -21,24 +22,41 @@ export function deriveConnectionStatusView(inputs: ConnectionStatusInputs): Conn
 
   const gameLabel = detectedGame?.name ?? null;
 
-  let gameText: string;
-  if (forzaReceiving) {
-    gameText = gameLabel ?? "Receiving";
-  } else if (gameLabel) {
-    gameText = `${gameLabel} — Waiting`;
-  } else {
-    gameText = "No Signal";
+  if (!connected) {
+    return {
+      serverLabel: "Disconnected",
+      gameLabel: null,
+      gameText: "Disconnected",
+      dotColor: "red",
+      statusKind: "disconnected",
+    };
   }
 
-  let dotColor: ConnectionStatusView["dotColor"];
-  if (forzaReceiving) dotColor = "cyan";
-  else if (gameLabel) dotColor = "amber";
-  else dotColor = "dim";
+  if (forzaReceiving) {
+    return {
+      serverLabel: "Server",
+      gameLabel,
+      gameText: gameLabel ?? "Receiving",
+      dotColor: "cyan",
+      statusKind: "receiving",
+    };
+  }
+
+  if (gameLabel) {
+    return {
+      serverLabel: "Server",
+      gameLabel,
+      gameText: `${gameLabel} — Waiting`,
+      dotColor: "amber",
+      statusKind: "waiting",
+    };
+  }
 
   return {
-    serverLabel: connected ? "Server" : "Disconnected",
-    gameLabel,
-    gameText,
-    dotColor,
+    serverLabel: "Server",
+    gameLabel: null,
+    gameText: "Server",
+    dotColor: "green",
+    statusKind: "server",
   };
 }

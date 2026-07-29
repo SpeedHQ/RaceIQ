@@ -19,7 +19,20 @@ if (!existsSync(destDir)) mkdirSync(destDir, { recursive: true });
 
 const prefix = "snapshot-";
 const suffix = ".png";
-const entries = readdirSync(snapshotDir).filter((f) => f.startsWith(prefix) && f.endsWith(suffix));
+// Only snapshots explicitly intended for README/Steam marketing belong here.
+const marketingSnapshots: Record<string, true> = {
+  ForzaLiveDashboard: true,
+  F1LiveDashboard: true,
+  AccLiveDashboard: true,
+  SetupBrowser: true,
+  SetupBrowserReadOnly: true,
+  ComboDash1: true,
+  ComboDash2: true,
+};
+const entries = readdirSync(snapshotDir).filter((f) => {
+  if (!f.startsWith(prefix) || !f.endsWith(suffix)) return false;
+  return marketingSnapshots[f.slice(prefix.length, -suffix.length)] === true;
+});
 
 if (entries.length === 0) {
   console.error(`No snapshots found in ${snapshotDir}`);
