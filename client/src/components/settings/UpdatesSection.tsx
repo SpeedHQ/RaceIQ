@@ -1,4 +1,5 @@
-import { useState } from "react";
+import type { ChangelogEntry } from "@shared/changelog";
+import { useEffect, useState } from "react";
 import { ReleaseNotes } from "@/components/ReleaseNotes";
 import { Button } from "@/components/ui/button";
 import { client } from "@/lib/rpc";
@@ -10,6 +11,20 @@ export function UpdatesSection() {
   const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const versionInfo = useTelemetryStore((s) => s.versionInfo);
   const [checking, setChecking] = useState(false);
+  const [history, setHistory] = useState<ChangelogEntry[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    void client.api.changelog
+      .$get()
+      .then(async (res) => {
+        if (res.ok && active) setHistory(await res.json());
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleCheck = async () => {
     setChecking(true);
@@ -130,6 +145,29 @@ export function UpdatesSection() {
             )}
           </div>
           <ReleaseNotes notes={versionInfo.currentReleaseNotes} />
+        </div>
+      )}
+      {!stage && history.length > 0 && (
+        <div className="border-t border-app-border pt-4 mt-4">
+          <h3 className="text-sm font-semibold text-app-text mb-3">Version history</h3>
+          <div className="space-y-4">
+            {history.map((release) => (
+              <div key={release.version}>
+                <div className="flex items-baseline justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-medium text-app-text">v{release.version}</h4>
+                    {release.breaking && <span className="rounded bg-amber-400/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">Breaking</span>}
+                  </div>
+                  {release.date && (
+                    <span className="text-xs text-app-text-muted">
+                      {m.updates_released()} {new Date(release.date).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                    </span>
+                  )}
+                </div>
+                <ReleaseNotes notes={release.notes} />
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </section>
