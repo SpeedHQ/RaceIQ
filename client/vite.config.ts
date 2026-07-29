@@ -1,9 +1,20 @@
-import { createLogger, defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import tailwindcss from "@tailwindcss/vite";
 import { TanStackRouterVite } from "@tanstack/router-vite-plugin";
-import { paraglideVitePlugin } from "@inlang/paraglide-js";
+import react from "@vitejs/plugin-react";
 import path from "path";
+import { createLogger, defineConfig } from "vite";
+
+const configuredServerTarget = process.env.PROXY_TARGET;
+const serverTarget = configuredServerTarget ?? `http://localhost:${process.env.SERVER_PORT ?? "3117"}`;
+const serverUrl = new URL(serverTarget);
+const devWebSocketTarget = {
+  protocol: serverUrl.protocol === "https:" ? "wss:" : "ws:",
+  // With the default local target, use the page hostname so LAN development
+  // still reaches the machine serving RaceIQ. An explicit target owns its host.
+  hostname: configuredServerTarget ? serverUrl.hostname : "",
+  port: serverUrl.port,
+};
 
 // Deduplicate proxy error logs — show once, then suppress repeats
 const logger = createLogger();
@@ -41,6 +52,9 @@ export default defineConfig({
     }),
   ],
   customLogger: logger,
+  define: {
+    __RACEIQ_DEV_WS_TARGET__: JSON.stringify(devWebSocketTarget),
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
@@ -55,18 +69,14 @@ export default defineConfig({
     host: true,
     proxy: {
       "/api": {
-        target: process.env.PROXY_TARGET ?? "http://localhost:3117",
+        target: serverTarget,
         changeOrigin: true,
       },
       // Dev-only Mastra Studio API (server/dev-studio.ts) — Studio reads it
       // through the portless hostname, so Vite must forward it to the server.
       "/studio-api": {
-        target: process.env.PROXY_TARGET ?? "http://localhost:3117",
+        target: serverTarget,
         changeOrigin: true,
-      },
-      "/ws": {
-        target: (process.env.PROXY_TARGET ?? "http://localhost:3117").replace(/^http/, "ws"),
-        ws: true,
       },
     },
   },
