@@ -1,7 +1,8 @@
 name: Render dashboard screenshots
 
-# Renders the Storybook dashboard stories on every PR and compares them against
-# the committed baselines (client/src/stories/__snapshots__/snapshot-*.png).
+# Renders the Storybook dashboard stories on pull requests that change the
+# client and compares them against the committed baselines
+# (client/src/stories/__snapshots__/snapshot-*.png).
 # Any dashboard whose render differs produces before/after/diff PNGs, which are
 # uploaded as an artifact. A companion workflow (pr-screenshots-comment.yml)
 # runs afterwards with a write token and posts them as a PR comment.
@@ -14,7 +15,10 @@ name: Render dashboard screenshots
 on:
   pull_request:
     branches: [main]
+    paths:
+      - "client/**"
     types: [opened, synchronize, reopened]
+  # Manual dispatch remains available for any PR, including non-client changes.
   workflow_dispatch:
     inputs:
       pr:
