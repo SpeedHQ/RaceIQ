@@ -2,18 +2,23 @@
 name: RaceIQ
 description: Multi-game racing telemetry dashboard with AI-powered lap coaching
 colors:
-  app-bg: "#020617"
-  app-surface: "#0f172a"
-  app-surface-alt: "#1e293b"
-  app-border: "#1e293b"
-  app-border-input: "#334155"
-  app-text: "#f1f5f9"
-  app-text-secondary: "#b8c5d4"
-  app-text-muted: "#a0b0c0"
-  app-text-dim: "#7a8ea0"
+  app-bg: "#000000"
+  app-surface: "#0d0d0d"
+  app-surface-alt: "#141414"
+  app-border: "#2a2a2a"
+  app-border-input: "#333333"
+  app-text: "#f5f5f5"
+  app-text-secondary: "#aaaaaa"
+  app-text-muted: "#999999"
+  app-text-dim: "#777777"
   app-accent: "#22d3ee"
   app-accent-hover: "#67e8f9"
   app-highlight: "#06b6d4"
+  status-success: "#34d399"
+  status-warning: "#fbbf24"
+  status-danger: "#ef4444"
+  status-info: "#22d3ee"
+  status-unavailable: "#777777"
   dynamics-green: "#34d399"
   dynamics-yellow: "#fbbf24"
   dynamics-amber: "#f59e0b"
@@ -63,11 +68,13 @@ components:
 
 # Design System: RaceIQ
 
+> The CSS contracts are the source of truth: `src/styles/theme.css` owns app chrome and UI status, `src/styles/telemetry.css` owns measured-data encoding, and `src/styles/branding.css` owns product, manufacturer, and team identity. The frontmatter above is a tooling mirror checked by `test/theme-contract.test.ts`; change the owning CSS contract first and update the mirror in the same change.
+
 ## 1. Overview
 
 **Creative North Star: "The Cockpit Display"**
 
-RaceIQ reads like an instrument panel, not a startup dashboard. Near-black surfaces (#020617 body, #0f172a card, #1e293b elevated-alt) hold data at rest; a single cyan accent (#22d3ee) marks what's live, active, or actionable, the way a dash needle catches your eye against dark bezel. Depth comes from tonal stepping between surface levels, never from drop shadows — the same physical logic as a real cockpit panel, where layers sit flush and legibility comes from contrast, not lift.
+RaceIQ reads like an instrument panel, not a startup dashboard. The `app-bg`, `app-surface`, and `app-surface-alt` tokens provide the near-black tonal steps; `app-accent` marks what's live, active, or actionable, the way a dash needle catches your eye against dark bezel. Depth comes from tonal stepping between surface levels, never from drop shadows — the same physical logic as a real cockpit panel, where layers sit flush and legibility comes from contrast, not lift.
 
 This system explicitly rejects the generic SaaS look — no gradient hero-metric tiles, no glassmorphism, no cutesy rounded card grids that could belong to any startup — and it rejects the opposite failure mode too: a raw, ungoverned sim-racing overlay (MoTeC-style) that's dense but uncalibrated and ugly. Density here is deliberate: every pixel of surface either shows a value or frames one.
 
@@ -83,22 +90,28 @@ This system explicitly rejects the generic SaaS look — no gradient hero-metric
 A near-black instrument-panel base with one cyan accent doing all the signaling; a separate telemetry-only palette exists purely to encode data values, kept out of the interface chrome.
 
 ### Primary
-- **App Accent Cyan** (#22d3ee): The only accent in the interface. Used for active states, live indicators, primary CTAs (`app-primary` button), links, and anything the driver needs to notice first. Hover lightens to #67e8f9 (App Accent Hover); a slightly deeper #06b6d4 (App Highlight) marks emphasis without a full accent block.
+- **App Accent Cyan** (`app-accent`): The only accent in the interface. Used for active states, live indicators, primary CTAs (`app-primary` button), links, and anything the driver needs to notice first. `app-accent-hover` handles hover emphasis and `app-highlight` handles emphasis without a full accent block.
 
 ### Neutral
-- **App Background** (#020617): The base canvas — near-black, the "cockpit bezel."
-- **App Surface** (#0f172a): Primary card/panel background, one tonal step up from the bezel.
-- **App Surface Alt** (#1e293b): Secondary elevation — nested panels, hovers, dropdowns. Also doubles as the border color at rest.
-- **App Border / App Border Input** (#1e293b / #334155): Hairline dividers and input strokes; input borders sit one step lighter for legibility against surfaces.
-- **App Text** (#f1f5f9): Primary reading text, near-white.
-- **App Text Secondary** (#b8c5d4): Secondary copy, labels with real content.
-- **App Text Muted** (#a0b0c0): De-emphasized supporting text.
-- **App Text Dim** (#7a8ea0): Fine print, units, the lowest-priority readable tier.
+- **App Background** (`app-bg`): The base canvas — near-black, the "cockpit bezel."
+- **App Surface** (`app-surface`): Primary card/panel background, one tonal step up from the bezel.
+- **App Surface Alt** (`app-surface-alt`): Secondary elevation — nested panels, hovers, dropdowns.
+- **App Border / App Border Input** (`app-border` / `app-border-input`): Hairline dividers and input strokes; input borders sit one step lighter for legibility against surfaces.
+- **App Text** (`app-text`): Primary reading text, near-white.
+- **App Text Secondary** (`app-text-secondary`): Secondary copy, labels with real content.
+- **App Text Muted** (`app-text-muted`): De-emphasized supporting text.
+- **App Text Dim** (`app-text-dim`): Fine print, units, the lowest-priority readable tier.
 
 ### Telemetry Encoding Palette (data only, never UI chrome)
-- **Dynamics Green/Yellow/Amber/Orange/Red** (#34d399 → #ef4444): A severity ramp for telemetry values — tire temp, slip, brake bias, damage state. Reads left-to-right as "nominal → critical."
-- **Dynamics Blue** (#3b82f6): Neutral/informational telemetry marker distinct from the UI's cyan accent — used so a data point never gets mistaken for an interactive control.
-- **Dynamics Gray** (#94a3b8): Inactive/no-data telemetry state.
+- **Dynamics Green/Yellow/Amber/Orange/Red** (`dynamics-green` → `dynamics-red`): A severity ramp for telemetry values — tire temp, slip, brake bias, damage state. Reads left-to-right as "nominal → critical."
+- **Dynamics Blue** (`dynamics-blue`): Neutral/informational telemetry marker distinct from the UI's cyan accent — used so a data point never gets mistaken for an interactive control.
+- **Dynamics Gray** (`dynamics-gray`): Inactive/no-data telemetry state.
+
+### UI Status Palette
+- **Success / Warning / Danger / Info / Unavailable** (`status-*`): Semantic application state such as connection health, operation outcome, and unavailable data. These describe UI state; they do not encode measured telemetry.
+
+### Branding Palette
+- Product, vehicle-manufacturer, and F1-team colors are editable in `src/styles/branding.css`. Components select identity with `data-game-brand`, `data-car-brand`, or `data-team-brand`; React and game adapters do not own brand color values.
 
 ### Named Rules
 **The One Signal Rule.** The interface itself has exactly one accent color: cyan. If a UI element needs a second color to stand out, it's competing with the accent — fix the hierarchy, don't add a color. The `dynamics-*` ramp exists solely to encode telemetry values and must never leak into buttons, nav, or chrome.
@@ -135,7 +148,7 @@ Tactile and confident: interactive elements shift color decisively on hover/acti
 
 ### Buttons
 - **Shape:** Small rounded corners (6-8px, `rounded-sm`/`rounded` via `--radius-md`), consistent across all app-* variants.
-- **Primary (`app-primary`):** Solid cyan accent background, white text, hover darkens toward `app-accent-hover`; disabled drops to 40% opacity accent with `disabled:opacity-100` to avoid double-fading.
+- **Primary (`app-primary`):** Solid cyan accent background, white text, hover lightens toward `app-accent-hover`; disabled drops to 40% opacity accent with `disabled:opacity-100` to avoid double-fading.
 - **Outline (`app-outline`):** Transparent background, neutral-700 border, secondary text color that brightens to full `app-text` on hover.
 - **Ghost (`app-ghost`):** Transparent, no border, text-only with the same secondary-to-full-text hover shift.
 - **Danger (`app-danger`):** Solid red-600, hover to red-500 — reserved for destructive actions only (delete session, clear data).
@@ -158,7 +171,7 @@ Tactile and confident: interactive elements shift color decisively on hover/acti
 ## 6. Do's and Don'ts
 
 ### Do:
-- **Do** keep cyan (#22d3ee) as the only interface accent — telemetry data can use the full `dynamics-*` ramp, chrome cannot.
+- **Do** keep `app-accent` as the only interface accent — telemetry data can use the full `dynamics-*` ramp, chrome cannot.
 - **Do** convey elevation with the bg → surface → surface-alt tonal steps, never a shadow.
 - **Do** keep the type scale within 11px–18px; this is a cockpit, not a marketing page.
 - **Do** use the `translate-y-px` active-press shift on interactive elements to keep the "tactile and confident" feel.

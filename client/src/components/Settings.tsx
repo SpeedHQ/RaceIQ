@@ -7,7 +7,6 @@ import { SearchSelect } from "@/components/ui/SearchSelect";
 import { isDevelopment } from "@/lib/env";
 import { applyLocale } from "@/lib/locale";
 import { m } from "@/paraglide/messages";
-import { type Theme, useTheme } from "../context/theme";
 import { useSaveSettings, useSettings } from "../hooks/queries";
 import { useUiStore } from "../stores/ui";
 import { playBlip, preloadSound } from "./SectorTimes";
@@ -56,7 +55,6 @@ import {
 
 const NAV_ITEMS = [
   { id: "general", label: "General" },
-  { id: "theme", label: "Theme" },
   { id: "games", label: "Games" },
   { id: "connection", label: "Connection" },
   { id: "wheel", label: "Wheel" },
@@ -76,7 +74,6 @@ type SectionId = (typeof NAV_ITEMS)[number]["id"];
 // label if a key is somehow missing.
 const NAV_LABELS: Record<SectionId, () => string> = {
   general: m.label_general,
-  theme: m.label_theme,
   games: m.label_games,
   connection: m.label_connection,
   wheel: m.label_wheel,
@@ -108,7 +105,6 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
 
   const { displaySettings } = useSettings();
   const saveSettings = useSaveSettings();
-  const { theme, setTheme } = useTheme();
   const [unitSystem, setUnitSystem] = useState<"metric" | "imperial">(displaySettings.unit);
   const [temperatureUnit, setTemperatureUnit] = useState<"C" | "F">(displaySettings.temperatureUnit);
   const [unitStatus, setUnitStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -169,8 +165,6 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
       setUnitError(err instanceof Error ? err.message : m.label_failed_to_save());
     }
   }
-
-  const themes: { value: Theme; label: string; description: string }[] = [{ value: "morph", label: m.settings_theme_morph(), description: m.settings_theme_morphic_black() }];
 
   return (
     <div className="flex flex-col md:flex-row h-full">
@@ -274,29 +268,6 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
         )}
 
         {activeSection === "games" && <GamesSection />}
-
-        {activeSection === "theme" && (
-          <section>
-            <h2 className="text-lg font-semibold text-app-text mb-1">{m.label_theme()}</h2>
-            <p className="text-sm text-app-text-muted mb-4">{m.settings_theme_desc()}</p>
-            <div className="grid grid-cols-2 gap-3 max-w-sm">
-              {themes.map((t) => (
-                <button
-                  type="button"
-                  key={t.value}
-                  onClick={() => setTheme(t.value)}
-                  className={`relative rounded-lg border p-3 text-left transition-all ${
-                    theme === t.value ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30" : "border-app-border bg-app-surface-alt hover:border-app-border-input"
-                  }`}
-                >
-                  <div className="text-sm font-medium text-app-text">{t.label}</div>
-                  <div className="text-xs text-app-text-muted mt-0.5">{t.description}</div>
-                  <div className="mt-2 h-8 rounded-md border border-[#2a2a2a] bg-gradient-to-br from-[#1e1e1e] to-[#141414]" />
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
 
         {activeSection === "connection" && (
           <section>

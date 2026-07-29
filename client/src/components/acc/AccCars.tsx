@@ -29,34 +29,6 @@ function classColor(cls: string) {
   return CLASS_COLORS[cls] ?? { bg: "bg-app-surface-alt/20", text: "text-app-text-dim", border: "border-app-border" };
 }
 
-const BRAND_COLORS: Record<string, string> = {
-  Porsche: "#c4a035",
-  "Mercedes-AMG": "#00d2be",
-  Ferrari: "#dc0000",
-  Audi: "#bb0a30",
-  Lamborghini: "#ddb321",
-  McLaren: "#ff8000",
-  Nissan: "#c3002f",
-  BMW: "#0066b1",
-  Bentley: "#333333",
-  Aston: "#006f62",
-  Emil: "#1a1a2e",
-  Lexus: "#1a1a1a",
-  Honda: "#cc0000",
-  Alpine: "#0090ff",
-  Chevrolet: "#d4af37",
-  Ginetta: "#003399",
-  KTM: "#ff6600",
-  Maserati: "#00205b",
-};
-
-function getBrandColor(name: string): string {
-  for (const [brand, color] of Object.entries(BRAND_COLORS)) {
-    if (name.startsWith(brand)) return color;
-  }
-  return "#555555";
-}
-
 function getManufacturer(name: string): string {
   if (name.startsWith("Aston Martin")) return "Aston Martin";
   if (name.startsWith("Mercedes-AMG")) return "Mercedes-AMG";
@@ -65,7 +37,6 @@ function getManufacturer(name: string): string {
 }
 
 function BrandBadge({ brand }: { brand: string }) {
-  const color = getBrandColor(brand);
   const abbr =
     brand === "Mercedes-AMG"
       ? "AMG"
@@ -80,10 +51,8 @@ function BrandBadge({ brand }: { brand: string }) {
               : brand.slice(0, 3).toUpperCase();
 
   return (
-    <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: color + "20", borderColor: color + "40", borderWidth: 1 }}>
-      <span className="text-[9px] font-black tracking-tight" style={{ color }}>
-        {abbr}
-      </span>
+    <div data-car-brand={brand} className="brand-color-badge w-10 h-10 rounded-lg border flex items-center justify-center shrink-0">
+      <span className="text-[9px] font-black tracking-tight">{abbr}</span>
     </div>
   );
 }
@@ -171,11 +140,14 @@ export function AccCars() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {classCars.map((car) => {
                 const brand = getManufacturer(car.name);
-                const brandColor = getBrandColor(car.name);
                 const specs = car.specs;
                 return (
-                  <div key={car.id} className="group relative bg-app-surface-alt/20 rounded-lg border border-app-border/10 overflow-hidden hover:border-app-border/30 transition-all">
-                    <div className="h-0.5" style={{ backgroundColor: brandColor }} />
+                  <div
+                    key={car.id}
+                    data-car-brand={brand}
+                    className="group relative bg-app-surface-alt/20 rounded-lg border border-app-border/10 overflow-hidden hover:border-app-border/30 transition-all"
+                  >
+                    <div className="brand-color-strip h-0.5" />
                     {/* Car image */}
                     <div className="relative w-full h-48 overflow-hidden bg-app-surface-alt/10">
                       <img

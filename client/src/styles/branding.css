@@ -1,0 +1,224 @@
+/*
+ * RaceIQ branding contract
+ *
+ * Product, manufacturer, and team identity colors live here instead of in
+ * React or game adapters. Edit the variables below to rebrand a product card,
+ * vehicle manufacturer, or F1 team everywhere it appears.
+ */
+
+:root {
+  /* Product brands */
+  --brand-game-forza: #00d4ff;
+  --brand-game-forza-surface-start: #060a14;
+  --brand-game-forza-surface-mid: #0a1628;
+  --brand-game-forza-surface-end: #0d2040;
+  --brand-game-forza-logo-filter: brightness(0) saturate(100%) invert(72%) sepia(98%) saturate(1234%) hue-rotate(152deg) brightness(101%) contrast(101%);
+
+  --brand-game-f1: #ff1a1a;
+  --brand-game-f1-surface-start: #0e0606;
+  --brand-game-f1-surface-mid: #1a0808;
+  --brand-game-f1-surface-end: #2d0a0a;
+  --brand-game-f1-logo-filter: brightness(0) saturate(100%) invert(28%) sepia(67%) saturate(5839%) hue-rotate(350deg) brightness(100%) contrast(107%);
+
+  --brand-game-acc: #ff8c00;
+  --brand-game-acc-surface-start: #0e0a04;
+  --brand-game-acc-surface-mid: #1a1008;
+  --brand-game-acc-surface-end: #2d1a0a;
+
+  --brand-game-ac-evo: #00e676;
+  --brand-game-ac-evo-surface-start: #030e06;
+  --brand-game-ac-evo-surface-mid: #071a0c;
+  --brand-game-ac-evo-surface-end: #0a2d14;
+
+  --brand-game-iracing: #3b82f6;
+  --brand-game-iracing-surface-start: #040912;
+  --brand-game-iracing-surface-mid: #07172c;
+  --brand-game-iracing-surface-end: #092b52;
+
+  /* Vehicle manufacturers */
+  --brand-car-default: #555555;
+  --brand-car-porsche: #c4a035;
+  --brand-car-mercedes-amg: #00d2be;
+  --brand-car-ferrari: #dc0000;
+  --brand-car-audi: #bb0a30;
+  --brand-car-lamborghini: #ddb321;
+  --brand-car-mclaren: #ff8000;
+  --brand-car-nissan: #c3002f;
+  --brand-car-bmw: #0066b1;
+  --brand-car-bentley: #333333;
+  --brand-car-aston-martin: #006f62;
+  --brand-car-emil-frey: #1a1a2e;
+  --brand-car-lexus: #1a1a1a;
+  --brand-car-honda: #cc0000;
+  --brand-car-alpine: #0090ff;
+  --brand-car-chevrolet: #d4af37;
+  --brand-car-ginetta: #003399;
+  --brand-car-ktm: #ff6600;
+  --brand-car-maserati: #00205b;
+  --brand-car-alfa-romeo: #900000;
+  --brand-car-abarth: #e04000;
+  --brand-car-lotus: #b9cc00;
+  --brand-car-toyota: #eb0a1e;
+
+  /* F1 teams */
+  --brand-team-mclaren: #ff8000;
+  --brand-team-ferrari: #e8002d;
+  --brand-team-red-bull: #3671c6;
+  --brand-team-mercedes: #27f4d2;
+  --brand-team-aston-martin: #229971;
+  --brand-team-alpine: #ff87bc;
+  --brand-team-haas: #b6babd;
+  --brand-team-racing-bulls: #6692ff;
+  --brand-team-williams: #1868db;
+  --brand-team-sauber: #52e252;
+}
+
+[data-game-brand="fm-2023"] {
+  --brand-color: var(--brand-game-forza);
+  --brand-surface-start: var(--brand-game-forza-surface-start);
+  --brand-surface-mid: var(--brand-game-forza-surface-mid);
+  --brand-surface-end: var(--brand-game-forza-surface-end);
+  --brand-logo-filter: var(--brand-game-forza-logo-filter);
+}
+
+[data-game-brand="f1-2025"] {
+  --brand-color: var(--brand-game-f1);
+  --brand-surface-start: var(--brand-game-f1-surface-start);
+  --brand-surface-mid: var(--brand-game-f1-surface-mid);
+  --brand-surface-end: var(--brand-game-f1-surface-end);
+  --brand-logo-filter: var(--brand-game-f1-logo-filter);
+}
+
+[data-game-brand="acc"] {
+  --brand-color: var(--brand-game-acc);
+  --brand-surface-start: var(--brand-game-acc-surface-start);
+  --brand-surface-mid: var(--brand-game-acc-surface-mid);
+  --brand-surface-end: var(--brand-game-acc-surface-end);
+}
+
+[data-game-brand="ac-evo"] {
+  --brand-color: var(--brand-game-ac-evo);
+  --brand-surface-start: var(--brand-game-ac-evo-surface-start);
+  --brand-surface-mid: var(--brand-game-ac-evo-surface-mid);
+  --brand-surface-end: var(--brand-game-ac-evo-surface-end);
+}
+
+[data-game-brand="iracing"] {
+  --brand-color: var(--brand-game-iracing);
+  --brand-surface-start: var(--brand-game-iracing-surface-start);
+  --brand-surface-mid: var(--brand-game-iracing-surface-mid);
+  --brand-surface-end: var(--brand-game-iracing-surface-end);
+}
+
+.game-brand-panel {
+  background: linear-gradient(135deg, var(--brand-surface-start) 0%, var(--brand-surface-mid) 40%, var(--brand-surface-end) 100%);
+  border-color: color-mix(in srgb, var(--brand-color) 20%, transparent);
+}
+
+.game-brand-card {
+  border-color: color-mix(in srgb, var(--brand-color) 12%, transparent);
+}
+
+.game-brand-card:hover {
+  border-color: color-mix(in srgb, var(--brand-color) 35%, transparent);
+  box-shadow: 0 8px 32px color-mix(in srgb, var(--brand-color) 10%, transparent);
+}
+
+.game-brand-glow {
+  background: radial-gradient(circle, color-mix(in srgb, var(--brand-color) 15%, transparent) 0%, transparent 70%);
+}
+
+.game-brand-bar {
+  background: linear-gradient(90deg, var(--brand-color) 0%, transparent 70%);
+}
+
+.game-brand-speed-line {
+  background: linear-gradient(90deg, transparent 0%, var(--brand-color) var(--brand-line-stop, 50%), transparent 100%);
+}
+
+.game-brand-line-30 {
+  --brand-line-stop: 30%;
+}
+
+.game-brand-line-50 {
+  --brand-line-stop: 50%;
+}
+
+.game-brand-line-60 {
+  --brand-line-stop: 60%;
+}
+
+.game-brand-icon {
+  background: color-mix(in srgb, var(--brand-color) 8%, transparent);
+  border-color: color-mix(in srgb, var(--brand-color) 10%, transparent);
+}
+
+.game-brand-logo {
+  filter: var(--brand-logo-filter, none);
+}
+
+.game-brand-accent {
+  color: var(--brand-color);
+}
+
+.game-brand-badge {
+  color: var(--brand-color);
+  background: color-mix(in srgb, var(--brand-color) 20%, transparent);
+}
+
+[data-car-brand] {
+  --brand-color: var(--brand-car-default);
+}
+
+[data-car-brand="Porsche"] { --brand-color: var(--brand-car-porsche); }
+[data-car-brand="Mercedes-AMG"] { --brand-color: var(--brand-car-mercedes-amg); }
+[data-car-brand="Ferrari"] { --brand-color: var(--brand-car-ferrari); }
+[data-car-brand="Audi"] { --brand-color: var(--brand-car-audi); }
+[data-car-brand="Lamborghini"] { --brand-color: var(--brand-car-lamborghini); }
+[data-car-brand="McLaren"] { --brand-color: var(--brand-car-mclaren); }
+[data-car-brand="Nissan"] { --brand-color: var(--brand-car-nissan); }
+[data-car-brand="BMW"] { --brand-color: var(--brand-car-bmw); }
+[data-car-brand="Bentley"] { --brand-color: var(--brand-car-bentley); }
+[data-car-brand="Aston Martin"] { --brand-color: var(--brand-car-aston-martin); }
+[data-car-brand="Emil Frey"] { --brand-color: var(--brand-car-emil-frey); }
+[data-car-brand="Lexus"] { --brand-color: var(--brand-car-lexus); }
+[data-car-brand="Honda"] { --brand-color: var(--brand-car-honda); }
+[data-car-brand="Alpine"] { --brand-color: var(--brand-car-alpine); }
+[data-car-brand="Chevrolet"] { --brand-color: var(--brand-car-chevrolet); }
+[data-car-brand="Ginetta"] { --brand-color: var(--brand-car-ginetta); }
+[data-car-brand="KTM"] { --brand-color: var(--brand-car-ktm); }
+[data-car-brand="Maserati"] { --brand-color: var(--brand-car-maserati); }
+[data-car-brand="Alfa Romeo"] { --brand-color: var(--brand-car-alfa-romeo); }
+[data-car-brand="Abarth"] { --brand-color: var(--brand-car-abarth); }
+[data-car-brand="Lotus"] { --brand-color: var(--brand-car-lotus); }
+[data-car-brand="Toyota"] { --brand-color: var(--brand-car-toyota); }
+
+[data-team-brand] {
+  --brand-color: var(--brand-car-default);
+}
+
+[data-team-brand="mclaren"] { --brand-color: var(--brand-team-mclaren); }
+[data-team-brand="ferrari"] { --brand-color: var(--brand-team-ferrari); }
+[data-team-brand="red-bull-racing"] { --brand-color: var(--brand-team-red-bull); }
+[data-team-brand="mercedes"] { --brand-color: var(--brand-team-mercedes); }
+[data-team-brand="aston-martin"] { --brand-color: var(--brand-team-aston-martin); }
+[data-team-brand="alpine"] { --brand-color: var(--brand-team-alpine); }
+[data-team-brand="haas"] { --brand-color: var(--brand-team-haas); }
+[data-team-brand="racing-bulls"] { --brand-color: var(--brand-team-racing-bulls); }
+[data-team-brand="williams"] { --brand-color: var(--brand-team-williams); }
+[data-team-brand="sauber"] { --brand-color: var(--brand-team-sauber); }
+
+.brand-color-strip,
+.brand-color-dot {
+  background: var(--brand-color);
+}
+
+.brand-color-text {
+  color: var(--brand-color);
+}
+
+.brand-color-badge {
+  color: var(--brand-color);
+  background: color-mix(in srgb, var(--brand-color) 12.5%, transparent);
+  border-color: color-mix(in srgb, var(--brand-color) 25%, transparent);
+}

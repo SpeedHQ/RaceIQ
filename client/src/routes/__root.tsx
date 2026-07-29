@@ -10,7 +10,6 @@ import { AppSidebar } from "../components/AppSidebar";
 import { OnboardingModal } from "../components/Onboarding";
 import { Settings } from "../components/Settings";
 import { UpdateModal } from "../components/UpdateModal";
-import { ThemeProvider } from "../context/theme";
 import { useSettings } from "../hooks/queries";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useWebSocket } from "../hooks/useWebSocket";
@@ -234,34 +233,24 @@ function AppShell() {
   const isDash = location.pathname.startsWith("/dash/");
 
   if (!settingsLoaded) {
-    return (
-      <ThemeProvider>
-        <div className="h-screen bg-app-bg" />
-      </ThemeProvider>
-    );
+    return <div className="h-screen bg-app-bg" />;
   }
 
   const forceWelcome = new URLSearchParams(window.location.search).has("welcome");
   if (forceWelcome || !displaySettings.onboardingComplete) {
-    return (
-      <ThemeProvider>
-        <OnboardingModal />
-      </ThemeProvider>
-    );
+    return <OnboardingModal />;
   }
 
   if (isDash) {
     return (
-      <ThemeProvider>
-        <div className="h-screen bg-black text-app-text">
-          <Outlet key={uiLocale} />
-        </div>
-      </ThemeProvider>
+      <div className="h-screen bg-black text-app-text">
+        <Outlet key={uiLocale} />
+      </div>
     );
   }
 
   return (
-    <ThemeProvider>
+    <>
       <div className="flex h-screen min-h-0 bg-app-bg text-app-text">
         <aside className="hidden h-full shrink-0 md:block">
           <AppSidebar
@@ -335,7 +324,7 @@ function AppShell() {
         {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
       </div>
       <StaleLapButton />
-    </ThemeProvider>
+    </>
   );
 }
 

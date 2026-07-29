@@ -12,11 +12,11 @@ interface Props {
 }
 
 const DOT_CLASS: Record<"green" | "red" | "cyan" | "amber" | "dim", string> = {
-  green: "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]",
-  red: "bg-red-500",
-  cyan: "bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.5)]",
-  amber: "bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.3)]",
-  dim: "bg-app-text-dim",
+  green: "status-dot-success",
+  red: "status-dot-danger",
+  cyan: "status-dot-info",
+  amber: "status-dot-warning",
+  dim: "status-dot-unavailable",
 };
 
 export function ConnectionStatus({ connected, packetsPerSec, forzaReceiving, collapsed = false }: Props) {

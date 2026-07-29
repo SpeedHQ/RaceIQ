@@ -128,15 +128,15 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
   return (
     <div>
       <div className="flex items-baseline justify-between mb-2">
-        <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider">{m.heatmap_title()}</h2>
-        <div className="text-[11px] text-app-text/90-dim">
+        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.heatmap_title()}</h2>
+        <div className="text-[11px] text-app-text-dim">
           {fmtDuration(totalSeconds)} · {totalDays} {m.heatmap_active_days()} · {m.heatmap_longest_streak()} {longestStreak} {m.heatmap_days_word()} · {m.heatmap_longest_day()}{" "}
           {fmtDuration(bestDaySeconds)}
         </div>
       </div>
       <div ref={scrollRef} className="rounded-lg p-4 overflow-x-auto relative">
         <div className="flex gap-2 w-max mx-auto">
-          <div className="flex flex-col justify-between py-[14px] pr-1 text-[9px] text-app-text/90-dim leading-none select-none">
+          <div className="flex flex-col justify-between py-[14px] pr-1 text-[9px] text-app-text-dim leading-none select-none">
             {dayLabels.map((l, i) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: static ordered weekday labels, never reordered
               <div key={i} style={{ height: CELL }}>
@@ -147,7 +147,7 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
           <div>
             <div className="relative" style={{ height: 14, width }}>
               {monthMarkers.map((m) => (
-                <div key={`${m.label}-${m.week}`} className="absolute text-[9px] text-app-text/90-dim uppercase tracking-wider" style={{ left: m.week * (CELL + GAP) }}>
+                <div key={`${m.label}-${m.week}`} className="absolute text-[9px] text-app-text-dim uppercase tracking-wider" style={{ left: m.week * (CELL + GAP) }}>
                   {m.label}
                 </div>
               ))}
@@ -191,7 +191,7 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
             </svg>
           </div>
         </div>
-        <div className="sticky left-0 right-0 flex flex-wrap items-center justify-end gap-3 mt-2 px-1 text-[10px] text-app-text/90-dim">
+        <div className="sticky left-0 right-0 flex flex-wrap items-center justify-end gap-3 mt-2 px-1 text-[10px] text-app-text-dim">
           <span className="flex items-center gap-1.5">
             <span
               className="inline-block rounded-sm"
@@ -218,7 +218,7 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
             style={{ left: hover.x, top: hover.y - 8, transform: "translate(-50%, -100%)" }}
           >
             <div className="font-mono font-bold">{hover.seconds > 0 ? fmtDuration(hover.seconds) : m.heatmap_no_activity()}</div>
-            <div className="text-app-text/90-dim">{hover.date}</div>
+            <div className="text-app-text-dim">{hover.date}</div>
           </div>
         )}
       </div>

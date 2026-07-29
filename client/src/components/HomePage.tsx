@@ -3,7 +3,7 @@ import type { LapMeta } from "@shared/types";
 import { useQueries } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Settings2 } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { useLaps, useSessions, useSettings } from "../hooks/queries";
 import { client } from "../lib/rpc";
@@ -14,12 +14,19 @@ import { formatLapTime } from "./LiveTelemetry";
 import { SessionRecap } from "./SessionRecap";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 
+function GameBrandLogo({ gameId, className = "w-5 h-5" }: { gameId: string; className?: string }) {
+  if (gameId === "fm-2023") return <img src="/forza-logo.svg" alt="" className={`game-brand-logo ${className}`} />;
+  if (gameId === "f1-2025") return <img src="/f1-logo.svg" alt="" className={`game-brand-logo ${className}`} />;
+  if (gameId === "acc") return <img src="/acc-logo.png" alt="" className={`object-contain ${className}`} />;
+  return <span className="game-brand-accent text-xs font-black">{gameId === "iracing" ? "iR" : "ACE"}</span>;
+}
+
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
     <div className="bg-app-surface-alt/30 rounded-lg p-4">
-      <div className="text-[10px] text-app-text/90-muted uppercase tracking-wider mb-1">{label}</div>
+      <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">{label}</div>
       <div className={`text-3xl font-mono font-black tabular-nums leading-none ${color ?? "text-app-text/90"}`}>{value}</div>
-      {sub && <div className="text-xs text-app-text/90-dim mt-1">{sub}</div>}
+      {sub && <div className="text-xs text-app-text-dim mt-1">{sub}</div>}
     </div>
   );
 }
@@ -27,7 +34,7 @@ function StatCard({ label, value, sub, color }: { label: string; value: string; 
 function RecentLapsTable({ laps, carNames, trackNames, gameId }: { laps: LapMeta[]; carNames: Record<number, string>; trackNames: Record<number, string>; gameId: string | null }) {
   const showGame = !gameId; // show game column on global homepage
   if (laps.length === 0) {
-    return <div className="p-6 text-center text-app-text/90-dim">{m.home_no_laps()}</div>;
+    return <div className="p-6 text-center text-app-text-dim">{m.home_no_laps()}</div>;
   }
 
   return (
@@ -55,9 +62,7 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: { laps: LapMeta
             >
               {showGame && (
                 <TD>
-                  <span
-                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${lap.gameId === "f1-2025" ? "bg-red-500/20 text-red-400" : lap.gameId === "acc" ? "bg-orange-500/20 text-orange-400" : lap.gameId === "ac-evo" ? "bg-green-500/20 text-green-400" : lap.gameId === "iracing" ? "bg-blue-500/20 text-blue-400" : "bg-app-accent/20 text-app-accent"}`}
-                  >
+                  <span data-game-brand={lap.gameId ?? "fm-2023"} className="game-brand-badge text-[10px] font-semibold px-1.5 py-0.5 rounded">
                     {lap.gameId === "f1-2025" ? "F1" : lap.gameId === "acc" ? "ACC" : lap.gameId === "ac-evo" ? "ACE" : lap.gameId === "iracing" ? "iR" : "FM"}
                   </span>
                 </TD>
@@ -231,98 +236,31 @@ export function HomePage() {
     <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
       {/* Header */}
       {gameId ? (
-        (() => {
-          const themes: Record<string, { bg: string; border: string; glow: string; bar: string; line: string; accent: string; logo: ReactNode }> = {
-            "fm-2023": {
-              bg: "linear-gradient(135deg, #060a14 0%, #0a1628 40%, #0d2040 100%)",
-              border: "border-cyan-500/20",
-              glow: "rgba(0,212,255,0.15)",
-              bar: "#00d4ff",
-              line: "#00d4ff",
-              accent: "text-cyan-400",
-              logo: (
-                <img
-                  src="/forza-logo.svg"
-                  alt=""
-                  className="w-6 h-6"
-                  style={{ filter: "brightness(0) saturate(100%) invert(72%) sepia(98%) saturate(1234%) hue-rotate(152deg) brightness(101%) contrast(101%)" }}
-                />
-              ),
-            },
-            "f1-2025": {
-              bg: "linear-gradient(135deg, #0e0606 0%, #1a0808 40%, #2d0a0a 100%)",
-              border: "border-red-500/20",
-              glow: "rgba(255,26,26,0.15)",
-              bar: "#ff1a1a",
-              line: "#ff1a1a",
-              accent: "text-red-400",
-              logo: (
-                <img
-                  src="/f1-logo.svg"
-                  alt=""
-                  className="w-6 h-6"
-                  style={{ filter: "brightness(0) saturate(100%) invert(28%) sepia(67%) saturate(5839%) hue-rotate(350deg) brightness(100%) contrast(107%)" }}
-                />
-              ),
-            },
-            acc: {
-              bg: "linear-gradient(135deg, #0e0a04 0%, #1a1008 40%, #2d1a0a 100%)",
-              border: "border-orange-500/20",
-              glow: "rgba(255,140,0,0.15)",
-              bar: "#ff8c00",
-              line: "#ff8c00",
-              accent: "text-orange-400",
-              logo: <img src="/acc-logo.png" alt="" className="w-6 h-6 object-contain" />,
-            },
-            "ac-evo": {
-              bg: "linear-gradient(135deg, #030e06 0%, #071a0c 40%, #0a2d14 100%)",
-              border: "border-green-500/20",
-              glow: "rgba(0,230,118,0.15)",
-              bar: "#00e676",
-              line: "#00e676",
-              accent: "text-green-400",
-              logo: <span className="text-xs font-black text-green-400">ACE</span>,
-            },
-            iracing: {
-              bg: "linear-gradient(135deg, #040912 0%, #07172c 40%, #092b52 100%)",
-              border: "border-blue-500/20",
-              glow: "rgba(59,130,246,0.15)",
-              bar: "#3b82f6",
-              line: "#3b82f6",
-              accent: "text-blue-400",
-              logo: <span className="text-xs font-black text-blue-400">iR</span>,
-            },
-          };
-          const t = themes[gameId] ?? themes["fm-2023"];
-          return (
-            <div className={`relative overflow-hidden rounded-lg border ${t.border} p-5`} style={{ background: t.bg }}>
-              {/* Glow */}
-              <div
-                className="absolute -top-10 -right-10 w-[160px] h-[160px] rounded-full opacity-15 pointer-events-none"
-                style={{ background: `radial-gradient(circle, ${t.glow} 0%, transparent 70%)` }}
-              />
-              {/* Bottom bar */}
-              <div className="absolute bottom-0 left-0 right-0 h-[1.5px] opacity-60" style={{ background: `linear-gradient(90deg, ${t.bar} 0%, transparent 70%)` }} />
-              {/* Speed lines */}
-              <div className="absolute inset-0 overflow-hidden opacity-[0.05] pointer-events-none">
-                <div className="absolute top-[20%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" style={{ background: `linear-gradient(90deg, transparent 0%, ${t.line} 30%, transparent 100%)` }} />
-                <div className="absolute top-[55%] -left-[10%] w-[120%] h-px -rotate-[3deg]" style={{ background: `linear-gradient(90deg, transparent 0%, ${t.line} 50%, transparent 100%)` }} />
-                <div className="absolute top-[80%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]" style={{ background: `linear-gradient(90deg, transparent 10%, ${t.line} 60%, transparent 100%)` }} />
+        <div data-game-brand={gameId} className="game-brand-panel relative overflow-hidden rounded-lg border p-5">
+          {/* Glow */}
+          <div className="game-brand-glow absolute -top-10 -right-10 w-[160px] h-[160px] rounded-full opacity-15 pointer-events-none" />
+          {/* Bottom bar */}
+          <div className="game-brand-bar absolute bottom-0 left-0 right-0 h-[1.5px] opacity-60" />
+          {/* Speed lines */}
+          <div className="absolute inset-0 overflow-hidden opacity-[0.05] pointer-events-none">
+            <div className="game-brand-speed-line game-brand-line-30 absolute top-[20%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" />
+            <div className="game-brand-speed-line game-brand-line-50 absolute top-[55%] -left-[10%] w-[120%] h-px -rotate-[3deg]" />
+            <div className="game-brand-speed-line game-brand-line-60 absolute top-[80%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]" />
+          </div>
+          <div className="relative flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="game-brand-icon w-9 h-9 rounded-md border flex items-center justify-center shrink-0">
+                <GameBrandLogo gameId={gameId} className="w-6 h-6" />
               </div>
-              <div className="relative flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-md flex items-center justify-center shrink-0 bg-white/5 border border-white/10">{t.logo}</div>
-                  <div className="text-base font-bold text-white/90">{gameAdapter?.displayName ?? gameId}</div>
-                </div>
-              </div>
+              <div className="text-base font-bold text-white/90">{gameAdapter?.displayName ?? gameId}</div>
             </div>
-          );
-        })()
+          </div>
+        </div>
       ) : (
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-app-text/90">{displaySettings.driverName ? `${m.home_hello()}, ${displaySettings.driverName}` : "RaceIQ"}</h1>
-            <p className="text-sm text-app-text/90-muted mt-0.5">{m.home_dashboard_overview()}</p>
+            <p className="text-sm text-app-text-muted mt-0.5">{m.home_dashboard_overview()}</p>
           </div>
           <button
             type="button"
@@ -341,34 +279,23 @@ export function HomePage() {
           {!hiddenGames.includes("fm-2023") && (
             <Link
               to="/fm23"
-              className="group md:flex-1 relative overflow-hidden rounded-lg border border-cyan-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-cyan-500/35 hover:shadow-[0_8px_32px_rgba(0,212,255,0.1)]"
-              style={{ background: "linear-gradient(135deg, #060a14 0%, #0a1628 40%, #0d2040 100%)" }}
+              data-game-brand="fm-2023"
+              className="game-brand-panel game-brand-card group md:flex-1 relative overflow-hidden rounded-lg border p-5 transition-all duration-250 ease-out hover:scale-[1.02]"
             >
               {/* Accent glow */}
-              <div
-                className="absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20"
-                style={{ background: "radial-gradient(circle, rgba(0,212,255,0.15) 0%, transparent 70%)" }}
-              />
+              <div className="game-brand-glow absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20" />
               {/* Bottom accent bar */}
-              <div
-                className="absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100"
-                style={{ background: "linear-gradient(90deg, #00d4ff 0%, transparent 70%)" }}
-              />
+              <div className="game-brand-bar absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100" />
               {/* Speed lines */}
               <div className="absolute inset-0 overflow-hidden opacity-[0.06] pointer-events-none">
-                <div className="absolute top-[18%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #00d4ff 30%, transparent 100%)" }} />
-                <div className="absolute top-[45%] -left-[10%] w-[120%] h-px -rotate-[3deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #00d4ff 50%, transparent 100%)" }} />
-                <div className="absolute top-[72%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]" style={{ background: "linear-gradient(90deg, transparent 10%, #00d4ff 60%, transparent 100%)" }} />
+                <div className="game-brand-speed-line game-brand-line-30 absolute top-[18%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" />
+                <div className="game-brand-speed-line game-brand-line-50 absolute top-[45%] -left-[10%] w-[120%] h-px -rotate-[3deg]" />
+                <div className="game-brand-speed-line game-brand-line-60 absolute top-[72%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]" />
               </div>
               {/* Icon + Name */}
               <div className="relative flex items-center gap-2.5 mb-3.5">
-                <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 bg-cyan-500/8 border border-cyan-500/10">
-                  <img
-                    src="/forza-logo.svg"
-                    alt=""
-                    className="w-5 h-5"
-                    style={{ filter: "brightness(0) saturate(100%) invert(72%) sepia(98%) saturate(1234%) hue-rotate(152deg) brightness(101%) contrast(101%)" }}
-                  />
+                <div className="game-brand-icon w-8 h-8 rounded-md border flex items-center justify-center shrink-0">
+                  <GameBrandLogo gameId="fm-2023" />
                 </div>
                 <span className="text-sm font-bold text-white/90">Forza Motorsport</span>
               </div>
@@ -376,7 +303,7 @@ export function HomePage() {
               <div className="relative flex gap-5">
                 <div>
                   <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
-                  <div className="text-lg font-extrabold font-mono leading-none text-cyan-400">{gameStats.fm.laps}</div>
+                  <div className="game-brand-accent text-lg font-extrabold font-mono leading-none">{gameStats.fm.laps}</div>
                 </div>
                 <div>
                   <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
@@ -388,34 +315,23 @@ export function HomePage() {
           {!hiddenGames.includes("f1-2025") && (
             <Link
               to="/f125"
-              className="group md:flex-1 relative overflow-hidden rounded-lg border border-red-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-red-500/35 hover:shadow-[0_8px_32px_rgba(255,26,26,0.1)]"
-              style={{ background: "linear-gradient(135deg, #0e0606 0%, #1a0808 40%, #2d0a0a 100%)" }}
+              data-game-brand="f1-2025"
+              className="game-brand-panel game-brand-card group md:flex-1 relative overflow-hidden rounded-lg border p-5 transition-all duration-250 ease-out hover:scale-[1.02]"
             >
               {/* Accent glow */}
-              <div
-                className="absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20"
-                style={{ background: "radial-gradient(circle, rgba(255,26,26,0.15) 0%, transparent 70%)" }}
-              />
+              <div className="game-brand-glow absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20" />
               {/* Bottom accent bar */}
-              <div
-                className="absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100"
-                style={{ background: "linear-gradient(90deg, #ff1a1a 0%, transparent 70%)" }}
-              />
+              <div className="game-brand-bar absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100" />
               {/* Speed lines */}
               <div className="absolute inset-0 overflow-hidden opacity-[0.06] pointer-events-none">
-                <div className="absolute top-[20%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #ff1a1a 30%, transparent 100%)" }} />
-                <div className="absolute top-[50%] -left-[10%] w-[120%] h-px -rotate-[3deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #ff1a1a 50%, transparent 100%)" }} />
-                <div className="absolute top-[75%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]" style={{ background: "linear-gradient(90deg, transparent 10%, #ff1a1a 60%, transparent 100%)" }} />
+                <div className="game-brand-speed-line game-brand-line-30 absolute top-[20%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" />
+                <div className="game-brand-speed-line game-brand-line-50 absolute top-[50%] -left-[10%] w-[120%] h-px -rotate-[3deg]" />
+                <div className="game-brand-speed-line game-brand-line-60 absolute top-[75%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]" />
               </div>
               {/* Icon + Name */}
               <div className="relative flex items-center gap-2.5 mb-3.5">
-                <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 bg-red-500/8 border border-red-500/10">
-                  <img
-                    src="/f1-logo.svg"
-                    alt=""
-                    className="w-5 h-5"
-                    style={{ filter: "brightness(0) saturate(100%) invert(28%) sepia(67%) saturate(5839%) hue-rotate(350deg) brightness(100%) contrast(107%)" }}
-                  />
+                <div className="game-brand-icon w-8 h-8 rounded-md border flex items-center justify-center shrink-0">
+                  <GameBrandLogo gameId="f1-2025" />
                 </div>
                 <span className="text-sm font-bold text-white/90">F1 2025</span>
               </div>
@@ -423,7 +339,7 @@ export function HomePage() {
               <div className="relative flex gap-5">
                 <div>
                   <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
-                  <div className="text-lg font-extrabold font-mono leading-none text-red-500">{gameStats.f1.laps}</div>
+                  <div className="game-brand-accent text-lg font-extrabold font-mono leading-none">{gameStats.f1.laps}</div>
                 </div>
                 <div>
                   <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
@@ -435,29 +351,23 @@ export function HomePage() {
           {!hiddenGames.includes("acc") && (
             <Link
               to="/acc"
-              className="group md:flex-1 relative overflow-hidden rounded-lg border border-orange-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-orange-500/35 hover:shadow-[0_8px_32px_rgba(255,140,0,0.1)]"
-              style={{ background: "linear-gradient(135deg, #0e0a04 0%, #1a1008 40%, #2d1a0a 100%)" }}
+              data-game-brand="acc"
+              className="game-brand-panel game-brand-card group md:flex-1 relative overflow-hidden rounded-lg border p-5 transition-all duration-250 ease-out hover:scale-[1.02]"
             >
               {/* Accent glow */}
-              <div
-                className="absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20"
-                style={{ background: "radial-gradient(circle, rgba(255,140,0,0.15) 0%, transparent 70%)" }}
-              />
+              <div className="game-brand-glow absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20" />
               {/* Bottom accent bar */}
-              <div
-                className="absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100"
-                style={{ background: "linear-gradient(90deg, #ff8c00 0%, transparent 70%)" }}
-              />
+              <div className="game-brand-bar absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100" />
               {/* Speed lines */}
               <div className="absolute inset-0 overflow-hidden opacity-[0.06] pointer-events-none">
-                <div className="absolute top-[20%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #ff8c00 30%, transparent 100%)" }} />
-                <div className="absolute top-[50%] -left-[10%] w-[120%] h-px -rotate-[3deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #ff8c00 50%, transparent 100%)" }} />
-                <div className="absolute top-[75%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]" style={{ background: "linear-gradient(90deg, transparent 10%, #ff8c00 60%, transparent 100%)" }} />
+                <div className="game-brand-speed-line game-brand-line-30 absolute top-[20%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" />
+                <div className="game-brand-speed-line game-brand-line-50 absolute top-[50%] -left-[10%] w-[120%] h-px -rotate-[3deg]" />
+                <div className="game-brand-speed-line game-brand-line-60 absolute top-[75%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]" />
               </div>
               {/* Icon + Name */}
               <div className="relative flex items-center gap-2.5 mb-3.5">
-                <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 bg-orange-500/8 border border-orange-500/10">
-                  <img src="/acc-logo.png" alt="" className="w-5 h-5 object-contain" />
+                <div className="game-brand-icon w-8 h-8 rounded-md border flex items-center justify-center shrink-0">
+                  <GameBrandLogo gameId="acc" />
                 </div>
                 <span className="text-sm font-bold text-white/90">Assetto Corsa Competizione</span>
               </div>
@@ -465,7 +375,7 @@ export function HomePage() {
               <div className="relative flex gap-5">
                 <div>
                   <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
-                  <div className="text-lg font-extrabold font-mono leading-none text-orange-400">{gameStats.acc.laps}</div>
+                  <div className="game-brand-accent text-lg font-extrabold font-mono leading-none">{gameStats.acc.laps}</div>
                 </div>
                 <div>
                   <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
@@ -477,29 +387,23 @@ export function HomePage() {
           {!hiddenGames.includes("ac-evo") && (
             <Link
               to="/ac-evo"
-              className="group md:flex-1 relative overflow-hidden rounded-lg border border-green-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-green-500/35 hover:shadow-[0_8px_32px_rgba(0,230,118,0.1)]"
-              style={{ background: "linear-gradient(135deg, #030e06 0%, #071a0c 40%, #0a2d14 100%)" }}
+              data-game-brand="ac-evo"
+              className="game-brand-panel game-brand-card group md:flex-1 relative overflow-hidden rounded-lg border p-5 transition-all duration-250 ease-out hover:scale-[1.02]"
             >
               {/* Accent glow */}
-              <div
-                className="absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20"
-                style={{ background: "radial-gradient(circle, rgba(0,230,118,0.15) 0%, transparent 70%)" }}
-              />
+              <div className="game-brand-glow absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20" />
               {/* Bottom accent bar */}
-              <div
-                className="absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100"
-                style={{ background: "linear-gradient(90deg, #00e676 0%, transparent 70%)" }}
-              />
+              <div className="game-brand-bar absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100" />
               {/* Speed lines */}
               <div className="absolute inset-0 overflow-hidden opacity-[0.06] pointer-events-none">
-                <div className="absolute top-[20%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #00e676 30%, transparent 100%)" }} />
-                <div className="absolute top-[50%] -left-[10%] w-[120%] h-px -rotate-[3deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #00e676 50%, transparent 100%)" }} />
-                <div className="absolute top-[75%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]" style={{ background: "linear-gradient(90deg, transparent 10%, #00e676 60%, transparent 100%)" }} />
+                <div className="game-brand-speed-line game-brand-line-30 absolute top-[20%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" />
+                <div className="game-brand-speed-line game-brand-line-50 absolute top-[50%] -left-[10%] w-[120%] h-px -rotate-[3deg]" />
+                <div className="game-brand-speed-line game-brand-line-60 absolute top-[75%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]" />
               </div>
               {/* Icon + Name */}
               <div className="relative flex items-center gap-2.5 mb-3.5">
-                <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 bg-green-500/8 border border-green-500/10">
-                  <span className="text-xs font-black text-green-400">ACE</span>
+                <div className="game-brand-icon w-8 h-8 rounded-md border flex items-center justify-center shrink-0">
+                  <GameBrandLogo gameId="ac-evo" />
                 </div>
                 <span className="text-sm font-bold text-white/90">Assetto Corsa Evo</span>
               </div>
@@ -507,7 +411,7 @@ export function HomePage() {
               <div className="relative flex gap-5">
                 <div>
                   <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
-                  <div className="text-lg font-extrabold font-mono leading-none text-green-400">{gameStats.acEvo.laps}</div>
+                  <div className="game-brand-accent text-lg font-extrabold font-mono leading-none">{gameStats.acEvo.laps}</div>
                 </div>
                 <div>
                   <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
@@ -519,32 +423,26 @@ export function HomePage() {
           {!hiddenGames.includes("iracing") && (
             <Link
               to="/iracing"
-              className="group md:flex-1 relative overflow-hidden rounded-lg border border-blue-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-blue-500/35 hover:shadow-[0_8px_32px_rgba(59,130,246,0.1)]"
-              style={{ background: "linear-gradient(135deg, #040912 0%, #07172c 40%, #092b52 100%)" }}
+              data-game-brand="iracing"
+              className="game-brand-panel game-brand-card group md:flex-1 relative overflow-hidden rounded-lg border p-5 transition-all duration-250 ease-out hover:scale-[1.02]"
             >
-              <div
-                className="absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20"
-                style={{ background: "radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%)" }}
-              />
-              <div
-                className="absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100"
-                style={{ background: "linear-gradient(90deg, #3b82f6 0%, transparent 70%)" }}
-              />
+              <div className="game-brand-glow absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20" />
+              <div className="game-brand-bar absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100" />
               <div className="absolute inset-0 overflow-hidden opacity-[0.06] pointer-events-none">
-                <div className="absolute top-[20%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #3b82f6 30%, transparent 100%)" }} />
-                <div className="absolute top-[50%] -left-[10%] w-[120%] h-px -rotate-[3deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #3b82f6 50%, transparent 100%)" }} />
-                <div className="absolute top-[75%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]" style={{ background: "linear-gradient(90deg, transparent 10%, #3b82f6 60%, transparent 100%)" }} />
+                <div className="game-brand-speed-line game-brand-line-30 absolute top-[20%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" />
+                <div className="game-brand-speed-line game-brand-line-50 absolute top-[50%] -left-[10%] w-[120%] h-px -rotate-[3deg]" />
+                <div className="game-brand-speed-line game-brand-line-60 absolute top-[75%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]" />
               </div>
               <div className="relative flex items-center gap-2.5 mb-3.5">
-                <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 bg-blue-500/8 border border-blue-500/10">
-                  <span className="text-xs font-black text-blue-400">iR</span>
+                <div className="game-brand-icon w-8 h-8 rounded-md border flex items-center justify-center shrink-0">
+                  <GameBrandLogo gameId="iracing" />
                 </div>
                 <span className="text-sm font-bold text-white/90">iRacing</span>
               </div>
               <div className="relative flex gap-5">
                 <div>
                   <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
-                  <div className="text-lg font-extrabold font-mono leading-none text-blue-400">{gameStats.iracing.laps}</div>
+                  <div className="game-brand-accent text-lg font-extrabold font-mono leading-none">{gameStats.iracing.laps}</div>
                 </div>
                 <div>
                   <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
@@ -585,7 +483,7 @@ export function HomePage() {
               type="button"
               key={key}
               onClick={() => setPeriodTab(key)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90-muted hover:text-app-text/90"}`}
+              className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text/90"}`}
             >
               {label}
             </button>
@@ -614,7 +512,7 @@ export function HomePage() {
       {/* Recent laps */}
       <div>
         <div className="mb-2">
-          <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider">{m.home_recent_laps()}</h2>
+          <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.home_recent_laps()}</h2>
         </div>
         <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} />
       </div>

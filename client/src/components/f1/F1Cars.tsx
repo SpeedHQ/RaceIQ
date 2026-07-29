@@ -28,7 +28,6 @@ interface F1Team {
   powerUnit: string;
   teamPrincipal: string;
   base: string;
-  color: string;
   image: string;
   drivers: [F1Driver, F1Driver];
   stats: CarStats;
@@ -43,7 +42,6 @@ const teams: F1Team[] = [
     powerUnit: "Mercedes",
     teamPrincipal: "Andrea Stella",
     base: "Woking, UK",
-    color: "#FF8000",
     image: "/car-images/f1/mclaren.png",
     drivers: [
       { name: "Lando Norris", number: 4, nationality: "GB" },
@@ -68,7 +66,6 @@ const teams: F1Team[] = [
     powerUnit: "Ferrari",
     teamPrincipal: "Frederic Vasseur",
     base: "Maranello, Italy",
-    color: "#E8002D",
     image: "/car-images/f1/ferrari.png",
     drivers: [
       { name: "Charles Leclerc", number: 16, nationality: "MC" },
@@ -93,7 +90,6 @@ const teams: F1Team[] = [
     powerUnit: "Honda RBPT",
     teamPrincipal: "Christian Horner",
     base: "Milton Keynes, UK",
-    color: "#3671C6",
     image: "/car-images/f1/redbullracing.png",
     drivers: [
       { name: "Max Verstappen", number: 1, nationality: "NL" },
@@ -118,7 +114,6 @@ const teams: F1Team[] = [
     powerUnit: "Mercedes",
     teamPrincipal: "Toto Wolff",
     base: "Brackley, UK",
-    color: "#27F4D2",
     image: "/car-images/f1/mercedes.png",
     drivers: [
       { name: "George Russell", number: 63, nationality: "GB" },
@@ -143,7 +138,6 @@ const teams: F1Team[] = [
     powerUnit: "Mercedes",
     teamPrincipal: "Andy Cowell",
     base: "Silverstone, UK",
-    color: "#229971",
     image: "/car-images/f1/astonmartin.png",
     drivers: [
       { name: "Fernando Alonso", number: 14, nationality: "ES" },
@@ -168,7 +162,6 @@ const teams: F1Team[] = [
     powerUnit: "Mercedes",
     teamPrincipal: "Oliver Oakes",
     base: "Enstone, UK",
-    color: "#FF87BC",
     image: "/car-images/f1/alpine.png",
     drivers: [
       { name: "Pierre Gasly", number: 10, nationality: "FR" },
@@ -193,7 +186,6 @@ const teams: F1Team[] = [
     powerUnit: "Ferrari",
     teamPrincipal: "Ayao Komatsu",
     base: "Kannapolis, USA",
-    color: "#B6BABD",
     image: "/car-images/f1/haas.png",
     drivers: [
       { name: "Oliver Bearman", number: 87, nationality: "GB" },
@@ -218,7 +210,6 @@ const teams: F1Team[] = [
     powerUnit: "Honda RBPT",
     teamPrincipal: "Laurent Mekies",
     base: "Faenza, Italy",
-    color: "#6692FF",
     image: "/car-images/f1/racingbulls.png",
     drivers: [
       { name: "Yuki Tsunoda", number: 22, nationality: "JP" },
@@ -243,7 +234,6 @@ const teams: F1Team[] = [
     powerUnit: "Mercedes",
     teamPrincipal: "James Vowles",
     base: "Grove, UK",
-    color: "#1868DB",
     image: "/car-images/f1/williams.png",
     drivers: [
       { name: "Alexander Albon", number: 23, nationality: "TH" },
@@ -268,7 +258,6 @@ const teams: F1Team[] = [
     powerUnit: "Ferrari",
     teamPrincipal: "Mattia Binotto",
     base: "Hinwil, Switzerland",
-    color: "#52E252",
     image: "/car-images/f1/sauber.png",
     drivers: [
       { name: "Nico Hulkenberg", number: 27, nationality: "DE" },
@@ -318,6 +307,10 @@ const statLabels: { key: keyof CarStats; label: string }[] = [
 
 type ViewMode = "grid" | "table";
 
+function teamBrand(team: F1Team): string {
+  return team.name.toLowerCase().replaceAll(" ", "-");
+}
+
 function getRatingColor(value: number): string {
   if (value >= 93) return "text-emerald-400";
   if (value >= 88) return "text-cyan-400";
@@ -335,7 +328,7 @@ export function F1Cars() {
           <button
             onClick={() => setView("table")}
             title={m.label_table_view()}
-            className={`px-2.5 py-1.5 transition-colors ${view === "table" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90-muted hover:text-app-text/90"}`}
+            className={`px-2.5 py-1.5 transition-colors ${view === "table" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text-muted hover:text-app-text/90"}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -345,7 +338,7 @@ export function F1Cars() {
           <button
             onClick={() => setView("grid")}
             title={m.label_grid_view()}
-            className={`px-2.5 py-1.5 transition-colors ${view === "grid" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90-muted hover:text-app-text/90"}`}
+            className={`px-2.5 py-1.5 transition-colors ${view === "grid" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text-muted hover:text-app-text/90"}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="7" height="7" />
@@ -365,7 +358,7 @@ export function F1Cars() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {Object.entries(regulations).map(([key, value]) => (
             <div key={key} className="bg-app-surface-alt/20 rounded-lg p-3">
-              <div className="text-[10px] text-app-text/90-dim uppercase tracking-wider mb-1">{key.replace(/([A-Z])/g, " $1").trim()}</div>
+              <div className="text-[10px] text-app-text-dim uppercase tracking-wider mb-1">{key.replace(/([A-Z])/g, " $1").trim()}</div>
               <div className="text-xs text-app-text/90 font-medium">{value}</div>
             </div>
           ))}
@@ -383,8 +376,8 @@ export function F1Cars() {
                 {pu.teams.map((t) => {
                   const team = teams.find((tm) => tm.name === t)!;
                   return (
-                    <div key={t} className="flex items-center gap-2 text-xs">
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: team.color }} />
+                    <div key={t} data-team-brand={teamBrand(team)} className="flex items-center gap-2 text-xs">
+                      <span className="brand-color-dot w-2 h-2 rounded-full shrink-0" />
                       <span className="text-app-text/90">{team.name}</span>
                     </div>
                   );
@@ -410,9 +403,9 @@ function GridView() {
 
 function TeamCard({ team }: { team: F1Team }) {
   return (
-    <div className="bg-app-surface-alt/20 rounded-lg overflow-hidden">
+    <div data-team-brand={teamBrand(team)} className="bg-app-surface-alt/20 rounded-lg overflow-hidden">
       {/* Team color bar */}
-      <div className="h-1" style={{ backgroundColor: team.color }} />
+      <div className="brand-color-strip h-1" />
       <div className="p-4 space-y-3">
         {/* Header */}
         <div className="flex items-start justify-between">
@@ -421,17 +414,9 @@ function TeamCard({ team }: { team: F1Team }) {
               <div className="text-base font-semibold text-app-text/90">{team.name}</div>
               <span className={`text-sm font-mono font-bold ${getRatingColor(team.stats.overallRating)}`}>{team.stats.overallRating}</span>
             </div>
-            <div className="text-xs text-app-text/90-dim">{team.fullName}</div>
+            <div className="text-xs text-app-text-dim">{team.fullName}</div>
           </div>
-          <div
-            className="text-xs font-mono px-2 py-0.5 rounded"
-            style={{
-              backgroundColor: team.color + "20",
-              color: team.color,
-            }}
-          >
-            {team.chassis}
-          </div>
+          <div className="brand-color-badge text-xs font-mono px-2 py-0.5 rounded">{team.chassis}</div>
         </div>
 
         {/* Car image */}
@@ -444,12 +429,10 @@ function TeamCard({ team }: { team: F1Team }) {
           {team.drivers.map((driver) => (
             <div key={driver.number} className="bg-app-surface-alt/30 rounded px-3 py-2">
               <div className="flex items-center gap-2">
-                <span className="text-lg font-mono font-bold leading-none" style={{ color: team.color }}>
-                  {driver.number}
-                </span>
+                <span className="brand-color-text text-lg font-mono font-bold leading-none">{driver.number}</span>
                 <div>
                   <div className="text-sm font-medium text-app-text/90 leading-tight">{driver.name}</div>
-                  <div className="text-[10px] text-app-text/90-dim uppercase">{driver.nationality}</div>
+                  <div className="text-[10px] text-app-text-dim uppercase">{driver.nationality}</div>
                 </div>
               </div>
             </div>
@@ -463,7 +446,7 @@ function TeamCard({ team }: { team: F1Team }) {
             .map(({ key, label }) => (
               <div key={key} className="text-center">
                 <div className={`text-base font-mono font-bold leading-none ${getRatingColor(team.stats[key])}`}>{team.stats[key]}</div>
-                <div className="text-[9px] text-app-text/90-dim uppercase tracking-wider mt-1">{label}</div>
+                <div className="text-[9px] text-app-text-dim uppercase tracking-wider mt-1">{label}</div>
               </div>
             ))}
         </div>
@@ -471,15 +454,15 @@ function TeamCard({ team }: { team: F1Team }) {
         {/* Info row */}
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs border-t border-app-border/30 pt-2">
           <div className="flex justify-between">
-            <span className="text-app-text/90-dim">{m.label_power_unit()}</span>
+            <span className="text-app-text-dim">{m.label_power_unit()}</span>
             <span className="text-app-text/90">{team.powerUnit}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-app-text/90-dim">{m.label_base()}</span>
+            <span className="text-app-text-dim">{m.label_base()}</span>
             <span className="text-app-text/90">{team.base}</span>
           </div>
           <div className="flex justify-between col-span-2">
-            <span className="text-app-text/90-dim">{m.label_team_principal()}</span>
+            <span className="text-app-text-dim">{m.label_team_principal()}</span>
             <span className="text-app-text/90">{team.teamPrincipal}</span>
           </div>
         </div>
@@ -510,12 +493,12 @@ function TableView() {
           <TRow key={team.id}>
             <TD>
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: team.color }} />
+                <span data-team-brand={teamBrand(team)} className="brand-color-dot w-2 h-2 rounded-full shrink-0" />
                 <span className="font-medium text-app-text/90">{team.name}</span>
               </div>
             </TD>
             <TD>
-              <span className="font-mono text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: team.color + "20", color: team.color }}>
+              <span data-team-brand={teamBrand(team)} className="brand-color-badge font-mono text-xs px-1.5 py-0.5 rounded">
                 {team.chassis}
               </span>
             </TD>
@@ -525,7 +508,7 @@ function TableView() {
                 {team.drivers.map((d) => (
                   <span key={d.number} className="text-xs text-app-text/90">
                     {d.name}
-                    <span className="ml-1 font-mono" style={{ color: team.color }}>
+                    <span data-team-brand={teamBrand(team)} className="brand-color-text ml-1 font-mono">
                       #{d.number}
                     </span>
                   </span>

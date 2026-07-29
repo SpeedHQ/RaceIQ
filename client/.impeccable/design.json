@@ -4,8 +4,15 @@
   "extensions": {
     "colorMeta": {
       "app-accent": { "hover": "#67e8f9", "emphasis": "#06b6d4" },
-      "surfaceRamp": ["#020617", "#0f172a", "#1e293b"],
-      "textRamp": ["#f1f5f9", "#b8c5d4", "#a0b0c0", "#7a8ea0"],
+      "surfaceRamp": ["#000000", "#0d0d0d", "#141414"],
+      "textRamp": ["#f5f5f5", "#aaaaaa", "#999999", "#777777"],
+      "statusPalette": {
+        "success": "#34d399",
+        "warning": "#fbbf24",
+        "danger": "#ef4444",
+        "info": "#22d3ee",
+        "unavailable": "#777777"
+      },
       "dynamicsRamp": {
         "green": "#34d399",
         "yellow": "#fbbf24",
@@ -46,17 +53,17 @@
     {
       "name": "button-app-primary",
       "html": "<button class=\"ds-btn ds-btn-primary\">Analyze Lap</button>",
-      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:8px;font-family:'Geist Variable',sans-serif;font-size:0.8rem;font-weight:500;white-space:nowrap;transition:all 150ms;border:1px solid transparent;padding:6px 10px;}.ds-btn:active{transform:translateY(1px);}.ds-btn-primary{background:#22d3ee;color:#ffffff;}.ds-btn-primary:hover{background:rgba(34,211,238,0.8);}.ds-btn-primary:disabled{background:rgba(34,211,238,0.4);opacity:1;pointer-events:none;}"
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:8px;font-family:'Geist Variable',sans-serif;font-size:0.8rem;font-weight:500;white-space:nowrap;transition:all 150ms;border:1px solid transparent;padding:6px 10px;}.ds-btn:active{transform:translateY(1px);}.ds-btn-primary{background:var(--app-accent);color:#ffffff;}.ds-btn-primary:hover{background:var(--app-accent-hover);}.ds-btn-primary:disabled{background:color-mix(in srgb,var(--app-accent) 40%,transparent);opacity:1;pointer-events:none;}"
     },
     {
       "name": "button-app-outline",
       "html": "<button class=\"ds-btn ds-btn-outline\">Cancel</button>",
-      "css": ".ds-btn-outline{background:transparent;color:#b8c5d4;border-color:#404040;}.ds-btn-outline:hover{color:#f1f5f9;}"
+      "css": ".ds-btn-outline{background:transparent;color:var(--app-text-secondary);border-color:var(--app-border-input);}.ds-btn-outline:hover{color:var(--app-text);}"
     },
     {
       "name": "button-app-ghost",
       "html": "<button class=\"ds-btn ds-btn-ghost\">Dismiss</button>",
-      "css": ".ds-btn-ghost{background:transparent;color:#b8c5d4;border-color:transparent;}.ds-btn-ghost:hover{color:#f1f5f9;}"
+      "css": ".ds-btn-ghost{background:transparent;color:var(--app-text-secondary);border-color:transparent;}.ds-btn-ghost:hover{color:var(--app-text);}"
     },
     {
       "name": "button-app-danger",
@@ -66,12 +73,12 @@
     {
       "name": "card",
       "html": "<div class=\"ds-card\"><div class=\"ds-card-header\">Sector Times</div><div class=\"ds-card-body\">Corner-by-corner breakdown</div></div>",
-      "css": ".ds-card{background:#0f172a;border:1px solid #1e293b;border-radius:8px;}.ds-card:hover{background:#1e293b;}.ds-card-header{font-family:'Geist Variable',sans-serif;font-size:1rem;font-weight:600;color:#f1f5f9;padding:12px 16px;border-bottom:1px solid #1e293b;}.ds-card-body{font-family:'Geist Variable',sans-serif;font-size:0.875rem;color:#b8c5d4;padding:12px 16px;}"
+      "css": ".ds-card{background:var(--app-surface);border:1px solid var(--app-border);border-radius:8px;}.ds-card:hover{background:var(--app-surface-alt);}.ds-card-header{font-family:'Geist Variable',sans-serif;font-size:1rem;font-weight:600;color:var(--app-text);padding:12px 16px;border-bottom:1px solid var(--app-border);}.ds-card-body{font-family:'Geist Variable',sans-serif;font-size:0.875rem;color:var(--app-text-secondary);padding:12px 16px;}"
     },
     {
       "name": "input",
       "html": "<input class=\"ds-input\" placeholder=\"Search laps\" />",
-      "css": ".ds-input{background:#0f172a;border:1px solid #334155;border-radius:8px;color:#f1f5f9;font-family:'Geist Variable',sans-serif;font-size:0.875rem;padding:6px 10px;}.ds-input:focus{outline:none;border-color:#22d3ee;box-shadow:0 0 0 3px rgba(34,211,238,0.2);}.ds-input::placeholder{color:#7a8ea0;}"
+      "css": ".ds-input{background:var(--app-surface);border:1px solid var(--app-border-input);border-radius:8px;color:var(--app-text);font-family:'Geist Variable',sans-serif;font-size:0.875rem;padding:6px 10px;}.ds-input:focus{outline:none;border-color:var(--app-accent);}.ds-input::placeholder{color:var(--app-text-dim);}"
     }
   ],
   "narrative": {
