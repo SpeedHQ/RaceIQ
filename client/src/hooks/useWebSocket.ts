@@ -4,6 +4,9 @@ import { queryClient } from "../lib/queryClient";
 import { client } from "../lib/rpc";
 import type { VersionInfo } from "../stores/telemetry";
 import { useTelemetryStore } from "../stores/telemetry";
+import { buildWebSocketUrl, type DevWebSocketTarget } from "./websocket-url";
+
+declare const __RACEIQ_DEV_WS_TARGET__: DevWebSocketTarget;
 
 function fetchVersionInfo() {
   client.api.version
@@ -27,8 +30,8 @@ export function useWebSocket() {
         wsRef.current = null;
       }
 
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+      const devTarget = import.meta.env.DEV ? __RACEIQ_DEV_WS_TARGET__ : undefined;
+      const ws = new WebSocket(buildWebSocketUrl(window.location, devTarget));
       wsRef.current = ws;
 
       // Read store actions via getState() — stable, no dependency issues
