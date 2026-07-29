@@ -49,6 +49,19 @@ function placeholder(width: number, height: number, label: string): Promise<Buff
   return sharp(svg).png().toBuffer();
 }
 
+function blankCanvas(width: number, height: number): Promise<Buffer> {
+  return sharp({
+    create: {
+      width,
+      height,
+      channels: 4,
+      background: { r: 17, g: 24, b: 39, alpha: 1 },
+    },
+  })
+    .png()
+    .toBuffer();
+}
+
 async function fitOnCanvas(path: string, width: number, height: number): Promise<Buffer> {
   const metadata = await sharp(path).metadata();
   return sharp(path)
@@ -89,7 +102,13 @@ async function writeTriplet(
   const after = currentPath
     ? await fitOnCanvas(currentPath, width, height)
     : await placeholder(width, height, "Screenshot removed");
-  const diff = await sharp(before).composite([{ input: after, blend: "difference" }]).png().toBuffer();
+  const blank = !basePath || !currentPath ? await blankCanvas(width, height) : undefined;
+  const diffBefore = basePath ? before : blank!;
+  const diffAfter = currentPath ? after : blank!;
+  const diff = await sharp(diffBefore)
+    .composite([{ input: diffAfter, blend: "difference" }])
+    .png()
+    .toBuffer();
   const stem = outputStem(status, options.prefix, relativePath);
 
   await Promise.all([

@@ -12,12 +12,17 @@ function makeTempDir(): string {
   return dir;
 }
 
-async function writePng(path: string, color: { r: number; g: number; b: number }): Promise<void> {
+async function writePng(
+  path: string,
+  color: { r: number; g: number; b: number },
+  width = 3,
+  height = 2,
+): Promise<void> {
   mkdirSync(join(path, ".."), { recursive: true });
   await sharp({
     create: {
-      width: 3,
-      height: 2,
+      width,
+      height,
       channels: 4,
       background: { ...color, alpha: 1 },
     },
@@ -41,7 +46,7 @@ describe("collect-screenshot-diffs", () => {
     await writePng(join(current, "mobile", "changed.png"), { r: 0, g: 255, b: 0 });
     await writePng(join(base, "mobile", "same.png"), { r: 0, g: 0, b: 255 });
     await writePng(join(current, "mobile", "same.png"), { r: 0, g: 0, b: 255 });
-    await writePng(join(current, "tablet", "new-page.png"), { r: 255, g: 255, b: 0 });
+    await writePng(join(current, "tablet", "new-page.png"), { r: 255, g: 255, b: 0 }, 300, 100);
     await writePng(join(base, "desktop", "removed-page.png"), { r: 255, g: 0, b: 255 });
     await writePng(join(current, "results", "transient.png"), { r: 0, g: 255, b: 255 });
 
@@ -76,5 +81,29 @@ describe("collect-screenshot-diffs", () => {
       "removed--responsive--desktop--removed-page-diff.png",
     ]);
     expect(existsSync(join(out, "responsive--mobile--same-after.png"))).toBe(false);
+
+    const blank = await sharp({
+      create: {
+        width: 300,
+        height: 100,
+        channels: 4,
+        background: { r: 17, g: 24, b: 39, alpha: 1 },
+      },
+    })
+      .png()
+      .toBuffer();
+    const expectedAddedDiff = await sharp(blank)
+      .composite([
+        {
+          input: join(out, "added--responsive--tablet--new-page-after.png"),
+          blend: "difference",
+        },
+      ])
+      .raw()
+      .toBuffer();
+    const actualAddedDiff = await sharp(join(out, "added--responsive--tablet--new-page-diff.png"))
+      .raw()
+      .toBuffer();
+    expect(actualAddedDiff.equals(expectedAddedDiff)).toBe(true);
   });
 });
