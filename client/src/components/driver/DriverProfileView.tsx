@@ -15,19 +15,27 @@
  */
 import { ChevronDown } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { DriverFingerprint, RankedWeakness } from "../../../../server/ai/driver-profile-aggregate";
 import type { DriverProfileOutput } from "../../../../server/ai/schemas";
+import type { DriverProfileRun, DriverProfileState } from "../../hooks/queries";
 import { StyleGauges } from "./StyleGauges";
-
 export interface DriverProfileViewProps {
   fingerprint: DriverFingerprint;
   /** Null when only the deterministic half has been built. */
-  plan: DriverProfileOutput | null;
+  plan?: DriverProfileOutput | null;
   cached?: boolean;
   warnings?: string[];
   coachStatus?: "idle" | "running" | "error";
   coachError?: string;
+  runReason?: string;
+  runState?: DriverProfileState;
+  latestRun?: DriverProfileRun | null;
+  runHistory?: DriverProfileRun[];
+  onRunNow?: () => void;
+  onRetry?: () => void;
+  runPending?: boolean;
 }
 
 /**
@@ -82,12 +90,143 @@ function FocusArea({ area, rank, detector, defaultOpen }: { area: DriverProfileO
   );
 }
 
-export function DriverProfileView({ fingerprint: fp, plan, cached = false, warnings, coachStatus = "idle", coachError }: DriverProfileViewProps) {
+const RUN_STATE_LABELS: Record<DriverProfileState | "idle", string> = {
+  idle: "Ready",
+  disabled: "Disabled",
+  "not-configured": "Not configured",
+  queued: "Queued",
+  running: "Running",
+  succeeded: "Succeeded",
+  failed: "Failed",
+};
+
+function formatRunDate(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.valueOf()) ? value : date.toLocaleString();
+}
+
+function CoachingStatusCard({
+  state,
+  latestRun,
+  runHistory = [],
+  reason,
+  coachError,
+  onRunNow,
+  onRetry,
+  runPending = false,
+}: {
+  state?: DriverProfileState;
+  latestRun?: DriverProfileRun | null;
+  runHistory?: DriverProfileRun[];
+  reason?: string;
+  coachError?: string;
+  onRunNow?: () => void;
+  onRetry?: () => void;
+  runPending?: boolean;
+}) {
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const effectiveState: DriverProfileState | "idle" = state ?? "idle";
+  const active = effectiveState === "queued" || effectiveState === "running" || runPending;
+  const canRun = effectiveState !== "disabled" && effectiveState !== "not-configured" && !active;
+  const message =
+    effectiveState === "disabled"
+      ? "Background coaching is disabled. Your measured profile remains available."
+      : effectiveState === "not-configured"
+        ? reason ?? "Choose an AI provider in settings to generate a practice plan."
+        : effectiveState === "queued"
+          ? "The coach is queued and will start shortly."
+          : effectiveState === "running"
+            ? "The coach is turning these measurements into a practice plan."
+            : effectiveState === "failed"
+              ? "The coach could not finish. Your measurements and previous successful plan remain available."
+              : effectiveState === "succeeded"
+                ? "Your latest practice plan is ready."
+                : "Your measurements are ready for coaching.";
+  const tone = effectiveState === "failed" ? "bg-red-500/10 ring-red-500/20" : "bg-app-surface ring-white/10";
+
+  return (
+    <div className={`rounded-lg p-4 ring-1 ${tone}`} aria-live={active ? "polite" : undefined}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-app-text">AI coaching</h2>
+        <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-medium text-app-text">{RUN_STATE_LABELS[effectiveState]}</span>
+      </div>
+      <p className="mt-2 text-sm text-app-text-muted">{message}</p>
+      {(reason || coachError || latestRun?.error) && (
+        <p className="mt-2 text-xs text-red-300" role={effectiveState === "failed" ? "alert" : undefined}>
+          {coachError ?? latestRun?.error ?? reason}
+        </p>
+      )}
+
+      {latestRun && (
+        <dl className="mt-3 grid gap-x-4 gap-y-1 text-xs text-app-text-muted sm:grid-cols-2">
+          <div><dt className="inline font-medium text-app-text">Created: </dt><dd className="inline">{formatRunDate(latestRun.createdAt) ?? "Unknown"}</dd></div>
+          {latestRun.completedAt && <div><dt className="inline font-medium text-app-text">Completed: </dt><dd className="inline">{formatRunDate(latestRun.completedAt)}</dd></div>}
+          <div><dt className="inline font-medium text-app-text">Model: </dt><dd className="inline">{latestRun.model || "Unknown"}</dd></div>
+          {latestRun.durationMs > 0 && <div><dt className="inline font-medium text-app-text">Duration: </dt><dd className="inline">{(latestRun.durationMs / 1000).toFixed(1)}s</dd></div>}
+          {(latestRun.inputTokens > 0 || latestRun.outputTokens > 0) && (
+            <div className="sm:col-span-2"><dt className="inline font-medium text-app-text">Tokens: </dt><dd className="inline">{latestRun.inputTokens.toLocaleString()} in · {latestRun.outputTokens.toLocaleString()} out</dd></div>
+          )}
+        </dl>
+      )}
+
+      {canRun && (onRunNow || (effectiveState === "failed" && onRetry)) && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {onRunNow && <Button type="button" onClick={onRunNow} disabled={runPending}>Run now</Button>}
+          {effectiveState === "failed" && onRetry && <Button type="button" variant="outline" onClick={onRetry} disabled={runPending}>Retry</Button>}
+        </div>
+      )}
+
+      {runHistory.length > 0 && (
+        <Collapsible open={historyOpen} onOpenChange={setHistoryOpen} className="mt-4 border-t border-white/10 pt-3">
+          <CollapsibleTrigger className="flex w-full items-center justify-between text-left text-xs font-medium text-app-text-muted">
+            <span>Run history ({runHistory.length})</span>
+            <ChevronDown className={`size-4 transition-transform ${historyOpen ? "rotate-180" : ""}`} />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <ol className="mt-2 space-y-2">
+              {runHistory.map((run) => (
+                <li key={run.id} className="rounded-md bg-black/10 p-2 text-xs text-app-text-muted">
+                  <div className="flex flex-wrap justify-between gap-2">
+                    <span className="font-medium text-app-text">{RUN_STATE_LABELS[run.status]}</span>
+                    <span>{formatRunDate(run.createdAt) ?? "Unknown"}</span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                    <span>{run.model || "Unknown model"}</span>
+                    {run.durationMs > 0 && <span>{(run.durationMs / 1000).toFixed(1)}s</span>}
+                    {run.error && <span className="text-red-300">{run.error}</span>}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+    </div>
+  );
+}
+
+export function DriverProfileView({
+  fingerprint: fp,
+  plan = null,
+  cached = false,
+  warnings,
+  coachStatus = "idle",
+  coachError,
+  runReason,
+  runState,
+  latestRun,
+  runHistory,
+  onRunNow,
+  onRetry,
+  runPending = false,
+}: DriverProfileViewProps) {
   const detectorById = useMemo(() => {
     const map = new Map<string, RankedWeakness>();
     for (const w of [...fp.weaknesses, ...fp.unquantifiedWeaknesses]) map.set(w.id, w);
     return map;
   }, [fp]);
+  const effectiveRunState = runState ?? (coachStatus === "running" ? "running" : coachStatus === "error" ? "failed" : undefined);
 
   return (
     <div className="grid gap-5 lg:grid-cols-2">
@@ -158,6 +297,16 @@ export function DriverProfileView({ fingerprint: fp, plan, cached = false, warni
 
       {/* ── Coached ────────────────────────────────────────────────────── */}
       <section className="space-y-4">
+        <CoachingStatusCard
+          state={effectiveRunState}
+          latestRun={latestRun}
+          runHistory={runHistory}
+          reason={runReason}
+          coachError={coachError}
+          onRunNow={onRunNow}
+          onRetry={onRetry}
+          runPending={runPending}
+        />
         {plan ? (
           <>
             <div className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10">
@@ -220,17 +369,6 @@ export function DriverProfileView({ fingerprint: fp, plan, cached = false, warni
               </p>
             ))}
           </>
-        ) : coachStatus === "running" ? (
-          <div className="rounded-lg bg-app-surface p-6 text-center ring-1 ring-white/10" aria-live="polite">
-            <p className="text-sm text-app-text">The coach is turning these measurements into a practice plan…</p>
-            <p className="mt-1 text-xs text-app-text-muted">Your measured profile stays available while it runs.</p>
-          </div>
-        ) : coachStatus === "error" ? (
-          <div className="rounded-lg bg-red-500/10 p-6 text-center ring-1 ring-red-500/20" role="alert">
-            <p className="text-sm text-red-200">The coach could not finish.</p>
-            {coachError && <p className="mt-1 text-xs text-red-300/80">{coachError}</p>}
-            <p className="mt-2 text-xs text-red-200/70">Your deterministic measurements are still valid. Try the coach again when ready.</p>
-          </div>
         ) : (
           <div className="rounded-lg bg-app-surface p-6 text-center ring-1 ring-white/10">
             <p className="text-sm text-app-text-muted">The measurements on the left are ready. Run the coach to turn them into a ranked plan.</p>

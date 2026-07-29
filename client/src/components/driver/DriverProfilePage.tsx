@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import type { DriverFingerprint } from "../../../../server/ai/driver-profile-aggregate";
 import type { DriverProfileOutput } from "../../../../server/ai/schemas";
-import { useDriverProfile, useLaps } from "../../hooks/queries";
+import { useDriverProfile, useDriverProfileRuns, useLaps, useRunDriverProfile } from "../../hooks/queries";
 import { useRequiredGameId } from "../../stores/game";
 import { DriverProfileView } from "./DriverProfileView";
 
@@ -70,6 +70,15 @@ function parseScope(value: string): { carOrdinal?: number; trackOrdinal?: number
   return { carOrdinal: car, trackOrdinal: track };
 }
 
+function parsePlan(raw: string | null | undefined): DriverProfileOutput | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as DriverProfileOutput;
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
@@ -84,6 +93,8 @@ export function DriverProfilePage() {
 
   const scope = parseScope(scopeValue);
   const profileQuery = useDriverProfile({ gameId, ...scope });
+  const runsQuery = useDriverProfileRuns({ gameId, ...scope });
+  const trackedRunMutation = useRunDriverProfile();
 
   // A coached response belongs to one scope. Deterministic data is keyed by
   // scope in TanStack Query and loads independently of the coach.
@@ -146,9 +157,17 @@ export function DriverProfilePage() {
         setError(err instanceof Error ? err.message : String(err));
       } finally {
         setLoading(false);
+        void runsQuery.refetch();
       }
     },
-    [gameId, scope.carOrdinal, scope.trackOrdinal],
+    [gameId, scope.carOrdinal, scope.trackOrdinal, runsQuery.refetch],
+  );
+
+  const runTracked = useCallback(
+    (retry = false) => {
+      trackedRunMutation.mutate({ gameId, carOrdinal: scope.carOrdinal, trackOrdinal: scope.trackOrdinal, retry });
+    },
+    [gameId, scope.carOrdinal, scope.trackOrdinal, trackedRunMutation],
   );
 
   const clearCache = useCallback(async () => {
@@ -162,8 +181,18 @@ export function DriverProfilePage() {
   const fp = profileQuery.data?.fingerprint ?? data?.fingerprint ?? null;
   const profileError = profileQuery.error instanceof Error ? profileQuery.error.message : profileQuery.error ? String(profileQuery.error) : null;
 
+  const previousPlan = useMemo(() => {
+    if (data?.plan) return data.plan;
+    const successful = runsQuery.data?.runs.find((run) => run.status === "succeeded" && run.plan);
+    return parsePlan(successful?.plan);
+  }, [data?.plan, runsQuery.data?.runs]);
+  const latestRun = runsQuery.data?.latest ?? null;
+  const trackedRunActive = latestRun?.status === "queued" || latestRun?.status === "running";
+  const runPending = loading || trackedRunMutation.isPending || trackedRunActive;
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
+
       <header className="mb-5 flex flex-wrap items-center gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="text-lg font-semibold text-app-text">Driver Profile</h1>
@@ -172,7 +201,7 @@ export function DriverProfilePage() {
         <div className="w-72">
           <SearchSelect value={scopeValue} onChange={setScopeValue} options={scopeOptions} placeholder="Choose scope…" />
         </div>
-        <Button onClick={() => void run({ regenerate: !!data })} disabled={loading || profileQuery.isLoading || !fp?.ok}>
+        <Button onClick={() => void run({ regenerate: !!data })} disabled={runPending || profileQuery.isLoading || !fp?.ok}>
           <Sparkles className="size-4" />
           {loading ? "Analysing…" : data ? "Regenerate" : "Run coach"}
         </Button>
@@ -197,11 +226,18 @@ export function DriverProfilePage() {
       {fp && (
         <DriverProfileView
           fingerprint={fp}
-          plan={data?.plan ?? null}
+          plan={previousPlan}
           cached={data?.cached}
           warnings={data?.warnings}
           coachStatus={loading ? "running" : error ? "error" : "idle"}
           coachError={error ?? undefined}
+          runState={runsQuery.data?.state}
+          runReason={runsQuery.data?.reason}
+          latestRun={latestRun}
+          runHistory={runsQuery.data?.runs}
+          onRunNow={fp?.ok ? () => runTracked(false) : undefined}
+          onRetry={fp?.ok ? () => runTracked(true) : undefined}
+          runPending={runPending}
         />
       )}
     </div>
