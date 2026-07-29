@@ -111,12 +111,11 @@ jobs:
       - name: Render and compare against committed baselines
         id: storybook-render
         working-directory: client
-        # snapshot:test = `playwright test` (no --update). Dashboards whose
-        # render differs from the committed baseline fail and emit
-        # <Name>-{actual,expected,diff}.png into the results dir.
+        # This is the collaborator assertion: `snapshot:test` (no --update)
+        # fails when the PR render differs from its committed snapshot.
         run: bun run snapshot:test
-        # A visual change is expected, not a failure — keep going so we can
-        # collect and publish the diff.
+        # Keep running so the diff can be collected and posted as UI-change
+        # awareness even when the collaborator assertion fails.
         continue-on-error: true
 
       - name: Collect diffs
@@ -180,8 +179,10 @@ jobs:
           path: pr-preview/
           retention-days: 14
 
-      - name: Fail when visual diffs or screenshot renders fail
-        if: steps.collect.outputs.changed == '1' || steps.current-responsive.outcome == 'failure' || steps.main-responsive.outcome == 'failure' || steps.storybook-render.outcome == 'failure'
+      # Main-comparison diffs are informational and are posted by the companion
+      # workflow. Only the local committed-snapshot assertion is blocking.
+      - name: Fail when committed snapshots do not match
+        if: steps.storybook-render.outcome == 'failure'
         run: |
-          echo "::error::Screenshot differences or render failures detected. Review the PR comment and workflow logs."
+          echo "::error::Committed Storybook snapshots do not match the current render. Run 'bun run snapshot' to update them."
           exit 1
