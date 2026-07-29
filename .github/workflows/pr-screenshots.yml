@@ -115,3 +115,9 @@ jobs:
           name: pr-screenshot-preview
           path: pr-preview/
           retention-days: 14
+
+      - name: Fail when visual diffs are detected
+        if: steps.collect.outputs.changed == '1'
+        run: |
+          echo "::error::Visual snapshot differences detected. Review the PR comment, then run 'cd client && bun run snapshot' locally if the changes are intentional."
+          exit 1
