@@ -1,3 +1,5 @@
+import { getGame } from "@shared/games/registry";
+import { getFuelDisplay } from "@shared/games/telemetry";
 import type { F1ExtendedData, TelemetryPacket } from "@shared/types";
 import { m } from "@/paraglide/messages";
 import { F1TyreCompound } from "./F1TyreCompound";
@@ -14,15 +16,14 @@ function formatLapTime(seconds: number): string {
   return `${mins}:${secs.toFixed(3).padStart(6, "0")}`;
 }
 
-// Fahrenheit back to Celsius for display (F1 temps were normalized to F in parser)
-function fToC(f: number): number {
-  return (f - 32) / 1.8;
-}
-
 export function F1TelemetryPanel({ packet, f1, unitSystem = "metric" }: { packet: TelemetryPacket; f1: F1ExtendedData; unitSystem?: "metric" | "imperial" }) {
   const throttlePct = (packet.Accel / 255) * 100;
   const brakePct = (packet.Brake / 255) * 100;
   const gear = packet.Gear <= 0 ? (packet.Gear === 0 ? "N" : "R") : packet.Gear.toString();
+  const fuel = getFuelDisplay(
+    packet,
+    getGame(packet.gameId).telemetry.fuel,
+  );
 
   return (
     <div className="space-y-4">
@@ -85,7 +86,7 @@ export function F1TelemetryPanel({ packet, f1, unitSystem = "metric" }: { packet
       <div className="flex items-center justify-between">
         <F1TyreCompound f1={f1} />
         <div className="text-xs text-zinc-500">
-          {m.f1tele_fuel()}: {packet.Fuel.toFixed(1)} {m.f1tele_fuel_unit()}
+          {m.f1tele_fuel()}: {fuel.amount.toFixed(1)}{fuel.unit}
         </div>
       </div>
 
@@ -95,7 +96,7 @@ export function F1TelemetryPanel({ packet, f1, unitSystem = "metric" }: { packet
         <div className="grid grid-cols-4 gap-1 text-center">
           {(["FL", "FR", "RL", "RR"] as const).map((pos) => {
             const key = `TireTemp${pos}` as keyof TelemetryPacket;
-            const tempC = Math.round(fToC(packet[key] as number));
+            const tempC = Math.round(packet[key] as number);
             return (
               <div key={pos} className="bg-zinc-800 rounded p-1">
                 <div className="text-[9px] text-zinc-500">{pos}</div>

@@ -43,6 +43,6 @@ export function resolveAnalysisTelemetry(
 ): AnalysisTelemetryModel {
   return {
     ...DEFAULT_ANALYSIS_TELEMETRY,
-    ...adapter?.telemetry?.analysis,
+    ...adapter?.telemetry.analysis,
   };
 }

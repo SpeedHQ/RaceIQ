@@ -5,6 +5,13 @@ export const forzaAdapter: GameAdapter = {
   displayName: "Forza Motorsport 2023",
   shortName: "Forza",
   routePrefix: "fm23",
+  telemetry: {
+    fuel: { packetUnit: "fraction" },
+    tireTemperature: { packetUnit: "fahrenheit" },
+    boost: { packetUnit: "psi" },
+    power: { packetUnit: "watt" },
+    torque: { packetUnit: "newton-metre" },
+  },
   coordSystem: "forza",
   nativeSectors: false,
   appendsDelayedFinishFrame: true,

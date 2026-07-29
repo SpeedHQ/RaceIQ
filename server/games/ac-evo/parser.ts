@@ -214,6 +214,7 @@ export function parseAcEvoBuffers(
   const gas = physicsBuf.readFloatLE(PHYSICS.gas.offset);
   const brake = physicsBuf.readFloatLE(PHYSICS.brake.offset);
   const fuel = physicsBuf.readFloatLE(PHYSICS.fuel.offset);
+  const maxFuel = graphicsBuf.readFloatLE(GRAPHICS_EVO.max_fuel.offset);
   const accGear = physicsBuf.readInt32LE(PHYSICS.gear.offset);
   const rpms = physicsBuf.readInt32LE(PHYSICS.rpms.offset);
   const steerAngle = physicsBuf.readFloatLE(PHYSICS.steerAngle.offset);
@@ -639,6 +640,8 @@ export function parseAcEvoBuffers(
 
     Boost: 0,
     Fuel: fuel,
+    FuelCapacity:
+      Number.isFinite(maxFuel) && maxFuel > 0 ? maxFuel : undefined,
     DistanceTraveled: distanceTraveled,
     BestLap: bestLap,
     LastLap: lastLap,

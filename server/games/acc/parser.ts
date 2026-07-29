@@ -257,6 +257,7 @@ export function parseAccBuffers(
 
   // --- Static ---
   const maxRpm = staticBuf.readInt32LE(STATIC.maxRpm.offset);
+  const maxFuel = staticBuf.readFloatLE(STATIC.maxFuel.offset);
   const suspMaxFL = staticBuf.readFloatLE(STATIC.suspMaxFL.offset);
   const suspMaxFR = staticBuf.readFloatLE(STATIC.suspMaxFR.offset);
   const suspMaxRL = staticBuf.readFloatLE(STATIC.suspMaxRL.offset);
@@ -397,6 +398,8 @@ export function parseAccBuffers(
 
     Boost: 0,
     Fuel: fuel,
+    FuelCapacity:
+      Number.isFinite(maxFuel) && maxFuel > 0 ? maxFuel : undefined,
     DistanceTraveled: distanceTraveled,
     BestLap: bestLap,
     LastLap: lastLap,

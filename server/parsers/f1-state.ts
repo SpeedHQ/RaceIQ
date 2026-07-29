@@ -1072,11 +1072,17 @@ export class F1StateAccumulator {
       PositionZ: m.posZ,
 
       Speed: ct.speed / 3.6, // km/h to m/s
-      Power: cs ? (cs.enginePowerICE + cs.enginePowerMGUK) / 745.7 : 0, // W to hp
+      // F1 publishes both power channels in watts. TelemetryPacket.Power is
+      // canonical watts; display consumers own any horsepower conversion.
+      Power: cs ? cs.enginePowerICE + cs.enginePowerMGUK : 0,
       Torque: 0,
 
       Boost: 0,
       Fuel: cs && cs.fuelCapacity > 0 ? cs.fuelRemaining / cs.fuelCapacity : 0,
+      FuelCapacity:
+        cs && Number.isFinite(cs.fuelCapacity) && cs.fuelCapacity > 0
+          ? cs.fuelCapacity
+          : undefined,
 
       DistanceTraveled: ld.lapDistance,
       BestLap: ld.bestLapTime,

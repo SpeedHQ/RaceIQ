@@ -6,6 +6,10 @@ export const acEvoAdapter: GameAdapter = {
   shortName: "AC Evo",
   routePrefix: "ac-evo",
   telemetry: {
+    fuel: { packetUnit: "litre" },
+    tireTemperature: { packetUnit: "celsius" },
+    brakeTemperature: { packetUnit: "celsius" },
+    tirePressure: { packetUnit: "psi" },
     analysis: {
       suspensionTravel: {
         source: "direct",

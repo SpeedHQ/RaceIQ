@@ -119,7 +119,7 @@ export function F1LiveDashboard() {
             <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.f1live_section_pit_window()}</h2>
           </div>
           <div className="p-3">
-            <PitEstimate packet={rawPacket!} pit={pit} gameId="f1-2025" />
+            <PitEstimate packet={rawPacket!} pit={pit} />
           </div>
         </div>
         <GridSection f1={f1} playerPosition={rawPacket!.RacePosition} />

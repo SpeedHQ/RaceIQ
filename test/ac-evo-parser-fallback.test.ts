@@ -84,4 +84,21 @@ describe("AC Evo parser — malformed/empty STATIC recovery", () => {
     );
     expect(packet).toBeNull();
   });
+
+  test("maps source-provided fuel capacity in litres", () => {
+    const { physics, graphics, staticData } = emptyBuffers();
+    physics.writeFloatLE(42, PHYSICS.fuel.offset);
+    graphics.writeFloatLE(100, GRAPHICS_EVO.max_fuel.offset);
+
+    const packet = parseAcEvoBuffers(
+      physics,
+      graphics,
+      staticData,
+      createAcEvoParserCache(),
+    );
+
+    expect(packet).not.toBeNull();
+    expect(packet!.Fuel).toBeCloseTo(42);
+    expect(packet!.FuelCapacity).toBeCloseTo(100);
+  });
 });

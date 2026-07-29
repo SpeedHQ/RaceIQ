@@ -489,6 +489,8 @@ export interface TelemetryPacket {
   // Engine/fuel
   Boost: number;
   Fuel: number;
+  /** Source-provided tank capacity in litres, when available. */
+  FuelCapacity?: number;
 
   // Distance & lap times
   DistanceTraveled: number;

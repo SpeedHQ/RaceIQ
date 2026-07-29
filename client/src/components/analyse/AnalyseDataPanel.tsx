@@ -1,5 +1,9 @@
 import { resolveAnalysisTelemetry } from "@shared/games/analysis-telemetry";
-import { tryGetGame } from "@shared/games/registry";
+import { getGame } from "@shared/games/registry";
+import {
+  getFuelDisplay,
+  WATTS_PER_HORSEPOWER,
+} from "@shared/games/telemetry";
 import type { GameId, TelemetryPacket } from "@shared/types";
 import { Check, Copy } from "lucide-react";
 import { useCallback, useState } from "react";
@@ -37,7 +41,9 @@ interface Props {
 
 export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket, currentDisplayPacket, startFuel, gameId, units, wearRate, lapInsights, onJumpToFrame }: Props) {
   const [copied, setCopied] = useState(false);
-  const analysis = resolveAnalysisTelemetry(tryGetGame(gameId));
+  const adapter = getGame(gameId);
+  const analysis = resolveAnalysisTelemetry(adapter);
+  const telemetryModel = adapter.telemetry;
   const handleCopyValues = useCallback(() => {
     if (!currentPacket) return;
     const pkt = currentPacket;
@@ -56,11 +62,11 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
       `Brake: ${brakePct}%`,
       `Steer: ${steerDeg > 0 ? "+" : ""}${steerDeg.toFixed(0)}°`,
     ];
-    if (gameId === "fm-2023" || pkt.Boost > 0) lines.push(`Boost: ${pkt.Boost.toFixed(1)} psi`);
-    if (gameId === "fm-2023" || pkt.Power > 0) lines.push(`Power: ${(pkt.Power / 745.7).toFixed(0)} hp`);
-    if (gameId === "fm-2023" || pkt.Torque > 0) lines.push(`Torque: ${pkt.Torque.toFixed(0)} Nm`);
-    const fuelIsLitres = pkt.gameId === "acc" || pkt.gameId === "ac-evo" || pkt.gameId === "f1-2025" || pkt.gameId === "iracing";
-    lines.push(fuelIsLitres ? `Fuel: ${pkt.Fuel.toFixed(1)}L` : `Fuel: ${(pkt.Fuel * 100).toFixed(1)}%`);
+    if (telemetryModel.boost) lines.push(`Boost: ${pkt.Boost.toFixed(1)} psi`);
+    if (telemetryModel.power) lines.push(`Power: ${(pkt.Power / WATTS_PER_HORSEPOWER).toFixed(0)} hp`);
+    if (telemetryModel.torque) lines.push(`Torque: ${pkt.Torque.toFixed(0)} Nm`);
+    const fuel = getFuelDisplay(pkt, telemetryModel.fuel);
+    lines.push(`Fuel: ${fuel.amount.toFixed(1)}${fuel.unit}`);
 
     // Dynamics
     lines.push("", "--- Dynamics ---");
@@ -107,7 +113,7 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
     navigator.clipboard.writeText(lines.join("\n"));
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
-  }, [analysis, currentPacket, currentDisplayPacket, gameId, units]);
+  }, [analysis, currentPacket, currentDisplayPacket, telemetryModel, units]);
 
   return (
     <div className="w-[22rem] h-full shrink-0 border-l border-app-border bg-app-surface/50 flex flex-col overflow-hidden">
@@ -148,7 +154,7 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
       <div className="p-3 flex-1 min-h-0 overflow-y-auto">
         {sidebarTab === "live" ? (
           <>
-            {currentPacket && <MetricsPanel pkt={currentPacket} startFuel={startFuel} gameId={gameId} />}
+            {currentPacket && <MetricsPanel pkt={currentPacket} startFuel={startFuel} />}
 
             {currentPacket && (
               <>
@@ -161,7 +167,7 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
 
                 <AnalyseSuspensionPanel currentPacket={currentPacket} />
 
-                {gameId === "f1-2025" && <AnalyseF1ErsPanel currentPacket={currentPacket} />}
+                {telemetryModel.ers && <AnalyseF1ErsPanel currentPacket={currentPacket} />}
               </>
             )}
           </>
