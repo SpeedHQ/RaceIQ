@@ -227,17 +227,15 @@ export function HomePage() {
     [allLaps],
   );
   const medianLapSec = useMemo(() => {
-    const fingerprint = driverProfileQuery.data?.fingerprint;
-    if (!fingerprint?.ok) return null;
-    const selectedIds = new Set(fingerprint.laps.lapIds);
-    const times = allLaps
-      .filter((lap) => selectedIds.has(lap.id) && lap.isValid && lap.lapTime > 0)
+    const selectedLapTimes = driverProfileQuery.data?.selectedLapTimes ?? [];
+    const times = selectedLapTimes
+      .filter((lap) => lap.isValid && lap.lapTime > 0)
       .map((lap) => lap.lapTime)
       .sort((a, b) => a - b);
     if (times.length === 0) return null;
     const middle = Math.floor(times.length / 2);
     return times.length % 2 === 0 ? (times[middle - 1] + times[middle]) / 2 : times[middle];
-  }, [allLaps, driverProfileQuery.data]);
+  }, [driverProfileQuery.data]);
 
   // Per-game stats — fetched from /api/stats per game so counts aren't
   // capped by useLaps()'s 200-row limit (home and /<gameId> used to

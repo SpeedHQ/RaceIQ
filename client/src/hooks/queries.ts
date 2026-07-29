@@ -91,6 +91,7 @@ export interface DriverProfileResponse {
   gameName: string;
   carName?: string;
   trackName?: string;
+  selectedLapTimes: Array<{ id: number; lapTime: number; isValid: boolean }>;
 }
 export type DriverProfileRunStatus = "queued" | "running" | "succeeded" | "failed";
 export type DriverProfileState = DriverProfileRunStatus | "disabled" | "not-configured";
