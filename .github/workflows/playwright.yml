@@ -10,7 +10,7 @@ on:
 
 jobs:
   fresh-install:
-    runs-on: blacksmith-2vcpu-windows-2025
+    runs-on: blacksmith-4vcpu-windows-2025
     steps:
       - uses: actions/checkout@v4
 

@@ -51,7 +51,11 @@ function collectErrors(page: Page) {
 
 // Serial: wizard runs first and flips server-side onboardingComplete=true,
 // so later tests can navigate straight to game routes without the modal.
+// The compiled binary starts a WebGL demo on the welcome step. On the
+// 2-vCPU CI runner that startup can consume the default 30-second test budget
+// before the wizard reaches its final step.
 test.describe.serial("fresh install", () => {
+  test.setTimeout(120_000);
   test("user steps through wizard and lands on home page", async ({ page }) => {
     resetSettingsFile();
     const errors = collectErrors(page);
