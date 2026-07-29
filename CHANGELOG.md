@@ -1,7 +1,7 @@
 ## Unreleased
 
 ### Features
-- In-app version history with offline release notes
+- View all release notes since your installed version in the app
 
 ## v0.13.0 - 2026-07-16
 

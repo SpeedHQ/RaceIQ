@@ -21,10 +21,10 @@ Use this skill on the PR branch before opening or updating a pull request.
 
 ## Writing rules
 
-- Describe the outcome, not the implementation.
-- Use imperative or concise present tense.
-- Keep one change per bullet; avoid issue/PR metadata in the note.
-- Internal notes are retained in `CHANGELOG.md` but stripped from published release-note artifacts.
+- Write `Breaking`, `Features`, and `Fixes` notes for the user, describing what they can now do or what behavior changed.
+- Do not mention files, functions, implementation details, CI, or internal process in user-facing sections.
+- Use imperative or concise present tense and keep one change per bullet; avoid issue/PR metadata.
+- Put implementation, CI, tooling, and maintenance work only under `Internal`; Internal notes are stripped from published release-note artifacts.
 
 ## Pull-request checklist
 
