@@ -7,6 +7,7 @@ import { AnalyseSegmentList } from "./AnalyseSegmentList";
 import type {
   Point,
   SectorBoundaries,
+  TrackMapLabel,
   TrackMapHandle,
 } from "./AnalyseTrackMap";
 import { AnalyseTrackPanel } from "./AnalyseTrackPanel";
@@ -24,6 +25,7 @@ interface AnalyseTopSectionProps {
   telemetry: TelemetryPacket[];
   cursorIdx: number;
   outline: Point[] | null;
+  mapLabels?: TrackMapLabel[] | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   boundaries: any;
   sectors: SectorBoundaries | null;
@@ -66,6 +68,7 @@ export function AnalyseTopSection({
   telemetry,
   cursorIdx,
   outline,
+  mapLabels,
   boundaries,
   sectors,
   segments,
@@ -132,6 +135,7 @@ export function AnalyseTopSection({
           telemetry={telemetry}
           cursorIdx={cursorIdx}
           outline={outline}
+          mapLabels={mapLabels}
           boundaries={boundaries}
           sectors={sectors}
           segments={segments}

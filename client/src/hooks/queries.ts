@@ -219,7 +219,16 @@ export function useTrackOutline(ord: number | undefined, gameIdOverride?: GameId
         param: { ordinal: String(ord!) },
         query: { gameId: gameId! },
       });
-      return rpcJson<{ points?: { x: number; z: number }[]; flipX?: boolean } | { x: number; z: number }[]>(res);
+      return rpcJson<
+        | {
+            points?: { x: number; z: number }[];
+            labels?: { text: string; x: number; z: number }[];
+            flipX?: boolean;
+            recorded?: boolean;
+            source?: string;
+          }
+        | { x: number; z: number }[]
+      >(res);
     },
     enabled: ord != null && !!gameId,
   });

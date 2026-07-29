@@ -65,7 +65,7 @@ export function TrackCard({
         </div>
       </div>
       <div className="bg-app-bg relative" style={{ height: 150 }}>
-        {track.hasOutline ? (
+        {outline ? (
           <canvas ref={canvasRef} className="w-full h-full" />
         ) : track.mapUrl ? (
           <img

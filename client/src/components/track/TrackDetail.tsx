@@ -1257,7 +1257,7 @@ export function TrackDetail({
                   </div>
                 )}
                 <div className="order-1 md:order-2 bg-app-bg rounded-lg border border-app-border relative flex-1 min-w-0 h-[260px] md:h-auto">
-                  {track.hasOutline ? (
+                  {outline ? (
                     <canvas
                       ref={canvasRef}
                       className="w-full h-full cursor-grab active:cursor-grabbing"
@@ -1286,7 +1286,7 @@ export function TrackDetail({
                   ) : (
                     <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">{m.trackdetail_no_outline_available()}</div>
                   )}
-                  {track.hasOutline && (
+                  {outline && (
                     <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
                     <button
                       type="button"
