@@ -62,6 +62,19 @@ bun run lighthouse             # run Lighthouse audit on local dev server
 | `UDP_PORT` | `5300` | Game telemetry UDP listen port |
 | `DATA_DIR` | `./data` | Database and settings directory |
 
+### Development Onboarding Flag
+
+Pass `--onboarding false` to the full development command to skip the Setup
+Wizard and open any RaceIQ page directly:
+
+```bash
+bun run dev --onboarding false
+```
+
+Use `--onboarding true` to force the Setup Wizard, or omit the flag to use the
+persisted onboarding state normally. The server-side override is development
+only and does not change `settings.json`; production builds ignore the flag.
+
 ## Architecture
 
 ### Three-layer monorepo: `server/`, `client/`, `shared/`
