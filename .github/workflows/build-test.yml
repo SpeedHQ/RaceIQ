@@ -20,6 +20,12 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Check changelog
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          bun scripts/check-changelog.ts
+
       - name: Build client
         run: cd client && bun install && bun run build
 

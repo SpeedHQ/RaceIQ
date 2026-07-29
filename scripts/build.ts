@@ -83,7 +83,6 @@ function copyLibsqlAddon() {
 async function main() {
   rmSync(distDir, { recursive: true, force: true });
   mkdirSync(distDir, { recursive: true });
-
   await run(["bun", "run", "build"], { cwd: join(root, "client") });
   await run(["bun", "scripts/copy-shared-data.ts"]);
   await run(["bun", "scripts/copy-client-dist.ts"]);
