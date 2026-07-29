@@ -124,6 +124,13 @@ const FEATURE_LINKS: ReadonlyArray<{
   { segment: "raw", label: m.tab_raw, icon: Binary },
 ];
 
+const GAME_LOGO_SRC: Readonly<Record<string, string>> = {
+  "fm-2023": "/forza-logo.svg",
+  "f1-2025": "/f1-logo.svg",
+  acc: "/acc-logo.svg",
+  "ac-evo": "/acevo-logo.svg",
+};
+
 export function AppSidebar({
   collapsed,
   connected,
@@ -220,14 +227,13 @@ export function AppSidebar({
           <Select.Root<string> items={selectItems} value={activeGame?.id ?? null} open={gameSelectOpen} onOpenChange={setGameSelectOpen} onValueChange={handleGameChange} modal={false}>
             <Select.Trigger
               aria-label={m.label_games()}
-              disabled={visibleGames.length === 0}
               onPointerEnter={openOnHover}
               onPointerLeave={scheduleClose}
               className={`flex h-9 w-full items-center gap-2 rounded border border-app-border-input bg-app-surface text-xs font-semibold text-app-text transition-colors hover:border-app-accent focus-visible:border-app-accent focus-visible:outline-none ${
                 showCollapsed ? "justify-center px-0" : "px-2"
               }`}
             >
-              <Gamepad2 className="size-4 shrink-0 text-app-accent" />
+              {activeGame ? <img src={GAME_LOGO_SRC[activeGame.id]} alt="" aria-hidden="true" className="h-4 w-5 shrink-0 object-contain" /> : <Gamepad2 className="size-4 shrink-0 text-app-accent" />}
               <Select.Value className={showCollapsed ? "sr-only" : "truncate"} placeholder={m.label_games()} />
             </Select.Trigger>
             <Select.Portal>
