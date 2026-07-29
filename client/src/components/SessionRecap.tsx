@@ -93,7 +93,13 @@ function SectorTrackMap({ sectors, sourceStarts, outlineData, bounds }: { sector
 }
 
 function Tile({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
-  return <div className="bg-app-surface-alt/30 rounded-lg p-3"><div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">{label}</div><div className={`text-xl font-mono font-black tabular-nums leading-none ${color ?? "text-app-text/90"}`}>{value}</div>{sub && <div className="text-[11px] text-app-text-dim mt-1">{sub}</div>}</div>;
+  return (
+    <div className="min-w-0 overflow-hidden rounded-lg bg-app-surface-alt/30 p-3">
+      <div className="mb-1 min-h-7 break-words text-[10px] uppercase tracking-wider text-app-text-muted">{label}</div>
+      <div className={`min-w-0 break-words text-xl font-mono font-black tabular-nums leading-none ${color ?? "text-app-text/90"}`}>{value}</div>
+      {sub && <div className="mt-1 break-words text-[11px] text-app-text-dim">{sub}</div>}
+    </div>
+  );
 }
 function formatDelta(sec: number): string { return `${sec >= 0 ? "-" : "+"}${Math.abs(sec).toFixed(3)}`; }
 function formatDistance(m: number): string { return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`; }
@@ -131,7 +137,83 @@ export interface SessionRecapViewProps { recap: SessionRecapDto; gameId: GameId;
 
 export function SessionRecapView({ recap, gameId, linkToAnalyse = false, copied = false, onCopy, onAnalyse, outlineData, bounds }: SessionRecapViewProps) {
   const canAnalyse = linkToAnalyse && gameId === recap.gameId && recap.bestLapId != null && onAnalyse != null;
-  return <div className="flex flex-col gap-4"><div className="flex items-start justify-between gap-3"><div><div className="text-base font-bold text-app-text/90">{recap.carName} · {recap.trackName}</div><div className="text-xs text-app-text-muted mt-0.5">{new Date(recap.createdAt).toLocaleString()}</div></div><div className="flex items-center gap-2">{canAnalyse && <Button variant="app-outline" size="app-sm" onClick={onAnalyse}>{m.recap_analyse_best_lap()}</Button>}<Button variant="app-outline" size="app-sm" onClick={onCopy}>{copied ? m.recap_copied() : m.recap_copy()}</Button></div></div>{recap.lapsTotal === 0 ? <div className="p-6 text-center text-app-text-dim">{m.recap_no_laps()}</div> : <div className="grid grid-cols-1 lg:grid-cols-[1fr_240px] gap-4"><div className="flex flex-col gap-4 min-w-0"><div className="grid grid-cols-2 sm:grid-cols-3 gap-2"><Tile label={m.recap_laps()} value={`${recap.lapsValid}/${recap.lapsTotal}`} />{recap.bestLapSec != null && <Tile label={m.recap_best_lap()} value={formatLapTime(recap.bestLapSec)} color="text-emerald-400" sub={recap.personalBest?.isNew ? recap.personalBest.previousBestSec != null ? `${m.recap_new_pb()} · ${formatDelta(recap.personalBest.previousBestSec - recap.bestLapSec)}` : `${m.recap_new_pb()} · ${m.recap_new_pb_first_ever()}` : undefined} />}{<Tile label={m.recap_time_on_track()} value={formatDuration(recap.timeOnTrackSec)} />}{recap.distanceM != null && <Tile label={m.recap_distance()} value={formatDistance(recap.distanceM)} />}{recap.improvementSec != null && <Tile label={m.recap_improvement()} value={`-${recap.improvementSec.toFixed(3)}s`} />}{recap.consistency != null && <Tile label={m.recap_consistency()} value={`${recap.consistency.rating}★`} sub={`σ ${recap.consistency.stdDevSec.toFixed(3)}s`} />}{recap.theoretical != null && <Tile label={m.recap_theoretical_best()} value={formatLapTime(recap.theoretical.sumSec)} sub={`${recap.theoretical.deltaToBestSec.toFixed(1)}s ${m.recap_left_on_table()}`} />}</div>{recap.sparkline.length >= 2 && <div><div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">{m.recap_pace()}</div><Sparkline laps={recap.sparkline} /></div>}</div>{recap.sectors != null && <div className="lg:w-[240px] shrink-0"><SectorTrackMap sectors={recap.sectors} sourceStarts={recap.sectorStarts} outlineData={outlineData} bounds={bounds} /></div>}</div>}</div>;
+
+  return (
+    <div className="flex min-w-0 flex-col gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="break-words text-base font-bold text-app-text/90">
+            {recap.carName} · {recap.trackName}
+          </div>
+          <div className="mt-0.5 text-xs text-app-text-muted">{new Date(recap.createdAt).toLocaleString()}</div>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {canAnalyse && (
+            <Button variant="app-outline" size="app-sm" onClick={onAnalyse}>
+              {m.recap_analyse_best_lap()}
+            </Button>
+          )}
+          <Button variant="app-outline" size="app-sm" onClick={onCopy}>
+            {copied ? m.recap_copied() : m.recap_copy()}
+          </Button>
+        </div>
+      </div>
+
+      {recap.lapsTotal === 0 ? (
+        <div className="p-6 text-center text-app-text-dim">{m.recap_no_laps()}</div>
+      ) : (
+        <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_240px]">
+          <div className="flex min-w-0 flex-col gap-4">
+            <div
+              className="grid min-w-0 gap-2"
+              style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 150px), 1fr))" }}
+            >
+              <Tile label={m.recap_laps()} value={`${recap.lapsValid}/${recap.lapsTotal}`} />
+              {recap.bestLapSec != null && (
+                <Tile
+                  label={m.recap_best_lap()}
+                  value={formatLapTime(recap.bestLapSec)}
+                  color="text-emerald-400"
+                  sub={
+                    recap.personalBest?.isNew
+                      ? recap.personalBest.previousBestSec != null
+                        ? `${m.recap_new_pb()} · ${formatDelta(recap.personalBest.previousBestSec - recap.bestLapSec)}`
+                        : `${m.recap_new_pb()} · ${m.recap_new_pb_first_ever()}`
+                      : undefined
+                  }
+                />
+              )}
+              <Tile label={m.recap_time_on_track()} value={formatDuration(recap.timeOnTrackSec)} />
+              {recap.distanceM != null && <Tile label={m.recap_distance()} value={formatDistance(recap.distanceM)} />}
+              {recap.improvementSec != null && <Tile label={m.recap_improvement()} value={`-${recap.improvementSec.toFixed(3)}s`} />}
+              {recap.consistency != null && <Tile label={m.recap_consistency()} value={`${recap.consistency.rating}★`} sub={`σ ${recap.consistency.stdDevSec.toFixed(3)}s`} />}
+              {recap.theoretical != null && (
+                <Tile label={m.recap_theoretical_best()} value={formatLapTime(recap.theoretical.sumSec)} sub={`${recap.theoretical.deltaToBestSec.toFixed(1)}s ${m.recap_left_on_table()}`} />
+              )}
+            </div>
+
+            {recap.sparkline.length >= 2 && (
+              <div>
+                <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">{m.recap_pace()}</div>
+                <Sparkline laps={recap.sparkline} />
+              </div>
+            )}
+          </div>
+
+          {recap.sectors != null && (
+            <div className="lg:w-[240px] shrink-0">
+              <SectorTrackMap
+                sectors={recap.sectors}
+                sourceStarts={recap.sectorStarts}
+                outlineData={outlineData}
+                bounds={bounds}
+              />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = false }: { sessionId: number; gameId?: GameId | null; linkToAnalyse?: boolean }) {
