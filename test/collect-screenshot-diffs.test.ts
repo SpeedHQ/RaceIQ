@@ -1,0 +1,79 @@
+import { afterEach, describe, expect, test } from "bun:test";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
+import sharp from "sharp";
+
+const tempDirs: string[] = [];
+
+function makeTempDir(): string {
+  const dir = mkdtempSync(join(tmpdir(), "raceiq-screenshot-diff-"));
+  tempDirs.push(dir);
+  return dir;
+}
+
+async function writePng(path: string, color: { r: number; g: number; b: number }): Promise<void> {
+  mkdirSync(join(path, ".."), { recursive: true });
+  await sharp({
+    create: {
+      width: 3,
+      height: 2,
+      channels: 4,
+      background: { ...color, alpha: 1 },
+    },
+  })
+    .png()
+    .toFile(path);
+}
+
+afterEach(() => {
+  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
+
+describe("collect-screenshot-diffs", () => {
+  test("lists changed, added, and removed screenshots while omitting identical ones", async () => {
+    const root = makeTempDir();
+    const base = join(root, "base");
+    const current = join(root, "current");
+    const out = join(root, "out");
+
+    await writePng(join(base, "mobile", "changed.png"), { r: 255, g: 0, b: 0 });
+    await writePng(join(current, "mobile", "changed.png"), { r: 0, g: 255, b: 0 });
+    await writePng(join(base, "mobile", "same.png"), { r: 0, g: 0, b: 255 });
+    await writePng(join(current, "mobile", "same.png"), { r: 0, g: 0, b: 255 });
+    await writePng(join(current, "tablet", "new-page.png"), { r: 255, g: 255, b: 0 });
+    await writePng(join(base, "desktop", "removed-page.png"), { r: 255, g: 0, b: 255 });
+
+    const proc = Bun.spawn(
+      [
+        "bun",
+        "scripts/collect-screenshot-diffs.ts",
+        "--base",
+        base,
+        "--current",
+        current,
+        "--out",
+        out,
+        "--prefix",
+        "responsive",
+      ],
+      { cwd: process.cwd(), stdout: "pipe", stderr: "pipe" },
+    );
+    const exitCode = await proc.exited;
+    const stderr = await new Response(proc.stderr).text();
+
+    expect(exitCode, stderr).toBe(0);
+    expect(readdirSync(out).sort()).toEqual([
+      "added--responsive--tablet--new-page-after.png",
+      "added--responsive--tablet--new-page-before.png",
+      "added--responsive--tablet--new-page-diff.png",
+      "changed--responsive--mobile--changed-after.png",
+      "changed--responsive--mobile--changed-before.png",
+      "changed--responsive--mobile--changed-diff.png",
+      "removed--responsive--desktop--removed-page-after.png",
+      "removed--responsive--desktop--removed-page-before.png",
+      "removed--responsive--desktop--removed-page-diff.png",
+    ]);
+    expect(existsSync(join(out, "responsive--mobile--same-after.png"))).toBe(false);
+  });
+});

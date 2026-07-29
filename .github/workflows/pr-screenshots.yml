@@ -59,6 +59,9 @@ jobs:
           git fetch origin main
           git merge --no-edit origin/main
 
+      - name: Prepare main comparison worktree
+        run: git worktree add --detach "$RUNNER_TEMP/raceiq-main" origin/main
+
       - name: Install unzip (required by setup-bun in the container)
         run: apt-get update && apt-get install -y --no-install-recommends unzip
 
@@ -71,7 +74,42 @@ jobs:
         working-directory: client
         run: bun install
 
+      - name: Capture current responsive screenshots
+        id: current-responsive
+        continue-on-error: true
+        run: |
+          bun run build
+          cd playwright
+          set +e
+          bunx playwright test --project=mobile-screenshots
+          status=$?
+          set -e
+          if [ -d screenshots/mobile ]; then
+            mv screenshots/mobile "$RUNNER_TEMP/current-responsive"
+          fi
+          exit "$status"
+
+      - name: Capture main responsive screenshots with current tests
+        id: main-responsive
+        continue-on-error: true
+        working-directory: ${{ runner.temp }}/raceiq-main
+        run: |
+          bun install
+          bun run build
+          rm -rf "$GITHUB_WORKSPACE/dist"
+          cp -a dist "$GITHUB_WORKSPACE/dist"
+          cd "$GITHUB_WORKSPACE/playwright"
+          set +e
+          bunx playwright test --project=mobile-screenshots
+          status=$?
+          set -e
+          if [ -d screenshots/mobile ]; then
+            mv screenshots/mobile "$RUNNER_TEMP/main-responsive"
+          fi
+          exit "$status"
+
       - name: Render and compare against committed baselines
+        id: storybook-render
         working-directory: client
         # snapshot:test = `playwright test` (no --update). Dashboards whose
         # render differs from the committed baseline fail and emit
@@ -93,21 +131,47 @@ jobs:
           # for fork PRs (workflow_run.pull_requests is empty for forks).
           echo "${{ github.event.pull_request.number || inputs.pr }}" > "$out/pr-number.txt"
 
+          # Preserve Playwright's direct render failures. These catch current
+          # renders that differ from the baseline committed on the PR itself.
           results="src/stories/__snapshots__/results"
-          changed=0
           if [ -d "$results" ]; then
             while IFS= read -r diff; do
               dir=$(dirname "$diff")
               name=$(basename "$diff")
               name=${name%-diff.png}
-              cp "$dir/$name-expected.png" "$out/$name-before.png" 2>/dev/null || continue
-              cp "$dir/$name-actual.png"   "$out/$name-after.png"  2>/dev/null || continue
-              cp "$dir/$name-diff.png"     "$out/$name-diff.png"   2>/dev/null || continue
-              echo "changed dashboard: $name"
-              changed=1
+              cp "$dir/$name-expected.png" "$out/changed--render--$name-before.png" 2>/dev/null || continue
+              cp "$dir/$name-actual.png"   "$out/changed--render--$name-after.png"  2>/dev/null || continue
+              cp "$dir/$name-diff.png"     "$out/changed--render--$name-diff.png"   2>/dev/null || continue
+              echo "changed rendered screenshot: $name"
             done < <(find "$results" -name '*-diff.png')
           fi
-          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+
+          # Compare committed/generated Storybook snapshots to main as a set,
+          # so new baselines are reported even though Playwright has no expected
+          # image (and therefore emits no *-diff.png).
+          bun "$GITHUB_WORKSPACE/scripts/collect-screenshot-diffs.ts" \
+            --base "$RUNNER_TEMP/raceiq-main/client/src/stories/__snapshots__" \
+            --current "$GITHUB_WORKSPACE/client/src/stories/__snapshots__" \
+            --out "$out" \
+            --prefix storybook
+
+          # Responsive tests write ordinary PNGs rather than Playwright
+          # snapshots. Render both revisions and compare the union of paths,
+          # which covers added, changed, and removed test screenshots.
+          bun "$GITHUB_WORKSPACE/scripts/collect-screenshot-diffs.ts" \
+            --base "$RUNNER_TEMP/main-responsive" \
+            --current "$RUNNER_TEMP/current-responsive" \
+            --out "$out" \
+            --prefix responsive
+          if [[ "${{ steps.current-responsive.outcome }}" == "failure" || "${{ steps.main-responsive.outcome }}" == "failure" ]]; then
+            echo "::warning::Responsive screenshot comparison is partial because one render failed."
+          fi
+
+          if compgen -G "$out/*-after.png" >/dev/null; then
+            echo "changed=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=0" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Upload preview artifact
         uses: actions/upload-artifact@v4
@@ -116,8 +180,8 @@ jobs:
           path: pr-preview/
           retention-days: 14
 
-      - name: Fail when visual diffs are detected
-        if: steps.collect.outputs.changed == '1'
+      - name: Fail when visual diffs or screenshot renders fail
+        if: steps.collect.outputs.changed == '1' || steps.current-responsive.outcome == 'failure' || steps.main-responsive.outcome == 'failure' || steps.storybook-render.outcome == 'failure'
         run: |
-          echo "::error::Visual snapshot differences detected. Review the PR comment, then run 'cd client && bun run snapshot' locally if the changes are intentional."
+          echo "::error::Screenshot differences or render failures detected. Review the PR comment and workflow logs."
           exit 1
