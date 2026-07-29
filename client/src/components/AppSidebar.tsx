@@ -44,6 +44,7 @@ export interface AppSidebarProps {
   onShowUpdate: () => void;
   packetsPerSec: number;
   updateAvailable: boolean;
+  updateVersion?: string | null;
 }
 
 type SidebarLinkProps = {
@@ -144,6 +145,7 @@ export function AppSidebar({
   onShowUpdate,
   packetsPerSec,
   updateAvailable,
+  updateVersion,
 }: AppSidebarProps): ReactElement {
   const location = useLocation();
   const navigate = useNavigate();
@@ -200,6 +202,7 @@ export function AppSidebar({
   };
 
   const toggleLabel = collapsed ? m.nav_expand_sidebar() : m.nav_collapse_sidebar();
+  const updateLabel = updateVersion ? `${m.root_update_available()} · v${updateVersion}` : m.root_update_available();
 
   return (
     <TooltipProvider>
@@ -280,9 +283,9 @@ export function AppSidebar({
           <SidebarLink collapsed={showCollapsed} icon={LayoutDashboard} label={m.nav_dash()} to="/dash" onClick={onClose} />
           {import.meta.env.DEV && <SidebarLink collapsed={showCollapsed} icon={Code2} label={m.nav_dev()} to="/dev" onClick={onClose} />}
           {updateAvailable && (
-            <SidebarAction collapsed={showCollapsed} label={m.root_update_available()} onClick={handleUpdate}>
+            <SidebarAction collapsed={showCollapsed} label={updateLabel} onClick={handleUpdate}>
               <RefreshCw className="size-4 text-app-accent" />
-              <span className={showCollapsed ? "sr-only" : "truncate"}>{m.root_update_available()}</span>
+              <span className={showCollapsed ? "sr-only" : "truncate"}>{updateLabel}</span>
             </SidebarAction>
           )}
           <SidebarAction collapsed={showCollapsed} label={driverName ? `${m.nav_settings()} (${driverName})` : m.nav_settings()} onClick={handleSettings}>

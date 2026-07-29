@@ -276,6 +276,7 @@ function AppShell() {
             onShowUpdate={() => setShowUpdateModal(true)}
             packetsPerSec={packetsPerSec}
             updateAvailable={updateState?.updateAvailable ?? false}
+            updateVersion={updateState?.latest ?? null}
           />
         </aside>
 
@@ -307,6 +308,7 @@ function AppShell() {
                 onShowUpdate={() => setShowUpdateModal(true)}
                 packetsPerSec={packetsPerSec}
                 updateAvailable={updateState?.updateAvailable ?? false}
+                updateVersion={updateState?.latest ?? null}
               />
             </div>
           </div>
