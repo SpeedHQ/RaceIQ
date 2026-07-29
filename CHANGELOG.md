@@ -13,6 +13,7 @@
 - Deterministic iRacing recording and replay coverage through the production parser pipeline
 - Consolidated per-game car, track, and compare routes into shared dynamic game routes
 - Consolidated shared sessions, chats, analysis, driver, and experiment routes across all supported games
+- Tolerate sparse screenshot antialiasing differences while preserving substantial visual regression reporting
 
 ## v0.13.0 - 2026-07-16
 
