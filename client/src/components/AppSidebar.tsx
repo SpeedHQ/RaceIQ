@@ -29,6 +29,7 @@ import { type ReactElement, type ReactNode, useEffect, useMemo, useRef, useState
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { m } from "@/paraglide/messages";
+import { type GameRouteFeature, supportsGameFeature } from "../lib/game-routes";
 import { ConnectionStatus } from "./ConnectionStatus";
 
 export interface AppSidebarProps {
@@ -109,19 +110,19 @@ const FEATURE_LINKS: ReadonlyArray<{
   icon: LucideIcon;
   label: () => string;
   segment: string;
-  routePrefixes?: readonly string[];
+  feature?: GameRouteFeature;
 }> = [
   { segment: "live", label: m.tab_live, icon: Gauge },
   { segment: "sessions", label: m.label_sessions, icon: History },
   { segment: "compare", label: m.label_compare, icon: GitCompareArrows },
   { segment: "analyse", label: m.label_analyse, icon: ChartNoAxesCombined },
-  { segment: "driver", label: m.label_driver, icon: UserRound, routePrefixes: ["fm23", "f125", "acc", "ac-evo"] },
-  { segment: "experiments", label: m.nav_experiments, icon: FlaskConical, routePrefixes: ["acc", "ac-evo", "f125"] },
+  { segment: "driver", label: m.label_driver, icon: UserRound, feature: "driver" },
+  { segment: "experiments", label: m.nav_experiments, icon: FlaskConical, feature: "experiments" },
   { segment: "chats", label: m.tab_chats, icon: MessagesSquare },
   { segment: "tracks", label: m.label_tracks, icon: MapIcon },
   { segment: "cars", label: m.label_cars, icon: Car },
-  { segment: "setups", label: m.tab_setups, icon: SlidersHorizontal, routePrefixes: ["fm23", "f125", "acc", "ac-evo"] },
-  { segment: "raw", label: m.tab_raw, icon: Binary },
+  { segment: "setups", label: m.tab_setups, icon: SlidersHorizontal, feature: "setups" },
+  { segment: "raw", label: m.tab_raw, icon: Binary, feature: "raw" },
 ];
 
 const GAME_LOGO_SRC: Readonly<Partial<Record<string, string>>> = {
@@ -152,7 +153,7 @@ export function AppSidebar({
   const activeGame = getAllGames().find((game) => location.pathname === `/${game.routePrefix}` || location.pathname.startsWith(`/${game.routePrefix}/`));
   const visibleGames = getAllGames().filter((game) => !hiddenGames.includes(game.id) || game.id === activeGame?.id);
   const selectItems = useMemo(() => visibleGames.map((game) => ({ value: game.id, label: game.displayName })), [visibleGames]);
-  const visibleFeatures = activeGame ? FEATURE_LINKS.filter((feature) => !feature.routePrefixes || feature.routePrefixes.includes(activeGame.routePrefix)) : [];
+  const visibleFeatures = activeGame ? FEATURE_LINKS.filter((feature) => !feature.feature || supportsGameFeature(activeGame.routePrefix, feature.feature)) : [];
   const showCollapsed = !mobile && collapsed;
 
   useEffect(
