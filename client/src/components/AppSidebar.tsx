@@ -233,7 +233,15 @@ export function AppSidebar({
                 showCollapsed ? "justify-center px-0" : "px-2"
               }`}
             >
-              {activeGame ? <img src={GAME_LOGO_SRC[activeGame.id]} alt="" aria-hidden="true" className="h-4 w-5 shrink-0 object-contain" /> : <Gamepad2 className="size-4 shrink-0 text-app-accent" />}
+              {activeGame ? (
+                <span
+                  aria-hidden="true"
+                  className="h-4 w-5 shrink-0 bg-app-accent [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain]"
+                  style={{ maskImage: `url(${GAME_LOGO_SRC[activeGame.id]})`, WebkitMaskImage: `url(${GAME_LOGO_SRC[activeGame.id]})` }}
+                />
+              ) : (
+                <Gamepad2 className="size-4 shrink-0 text-app-accent" />
+              )}
               <Select.Value className={showCollapsed ? "sr-only" : "truncate"} placeholder={m.label_games()} />
             </Select.Trigger>
             <Select.Portal>
