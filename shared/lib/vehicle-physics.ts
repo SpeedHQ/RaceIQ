@@ -111,8 +111,8 @@ export function allFrictionCircle(pkt: TelemetryPacket): { fl: number; fr: numbe
 
 const RAD2DEG = 180 / Math.PI;
 const G = 9.81; // m/s²
-const LAT_G_FLOOR = 0.25; // g — below this, not really cornering
-const SPEED_FLOOR = 5; // m/s (~18 km/h)
+export const LAT_G_FLOOR = 0.25; // g — below this, not really cornering
+export const SPEED_FLOOR = 5; // m/s (~18 km/h)
 const YAW_ERR_SCALE = 0.3; // rad/s yaw-rate error that counts as "full" severity
 const SLIP_DELTA_SCALE = 6; // degrees front-rear slip delta that counts as "full" severity
 const CLASSIFY_THRESHOLD = 0.3; // combined-signal magnitude to leave "neutral"

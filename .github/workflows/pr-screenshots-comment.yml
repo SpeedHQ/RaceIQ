@@ -1,9 +1,10 @@
-name: Comment dashboard screenshot diffs
+name: Comment app screenshot diffs
 
 # Runs after "Render dashboard screenshots" completes. Downloads the rendered
 # before/after/diff PNGs, hosts them on the throwaway `pr-previews` branch, and
-# posts (or updates) a sticky PR comment showing the visual diff. Also labels
+# posts (or updates) a sticky PR comment showing every change from main. Also labels
 # the PR "ui change".
+
 #
 # Security: this triggers on workflow_run, so it runs in the BASE repo context
 # with a write token but does NOT check out or execute the PR's code. The PR's
@@ -81,24 +82,33 @@ jobs:
           PR: ${{ steps.meta.outputs.pr }}
           SUBDIR: ${{ steps.publish.outputs.subdir }}
         run: |
-          marker='<!-- dashboard-screenshot-diff -->'
+          marker='<!-- app-screenshot-diff -->'
           base="https://raw.githubusercontent.com/${REPO}/${PREVIEW_BRANCH}/${SUBDIR}"
           {
             echo "$marker"
-            echo "## 🖼️ Dashboard UI changes"
+            echo "## 🖼️ App UI changes"
             echo
-            echo "This PR changes how a dashboard renders. Before / After / Diff below."
+            echo "Current PR screenshots compared with main. Added and removed screenshots are included."
             echo
             for after in pr-preview/*-after.png; do
               name=$(basename "$after" -after.png)
-              echo "### ${name}"
+              if [[ "$name" == *"--"* ]]; then
+                status=${name%%--*}
+                label=${name#*--}
+                label=${label//--/ /}
+              else
+                status=changed
+                label=$name
+              fi
+              status_label="${status^}"
+              echo "### ${status_label}: ${label}"
               echo
               echo "| Before | After | Diff |"
               echo "| --- | --- | --- |"
               echo "| ![before](${base}/${name}-before.png) | ![after](${base}/${name}-after.png) | ![diff](${base}/${name}-diff.png) |"
               echo
             done
-            echo "<sub>Rendered from Storybook snapshots. To accept these as the new baseline, run \`cd client && bun run snapshot\` and commit.</sub>"
+            echo "<sub>Rendered from Storybook and responsive app screenshot tests against current main.</sub>"
           } > body.md
 
           existing=$(gh api "repos/${REPO}/issues/${PR}/comments" \

@@ -1,6 +1,7 @@
 import { getGame } from "../games/registry";
 import type { TelemetryModel } from "../games/types";
 import type { GameId, TelemetryPacket } from "../types";
+import { type AccelReference, accelDeficitLoss, buildAccelReference, frameDt, reportableLoss, speedDeficitLoss, sumLosses } from "./time-loss";
 import { allWheelStates, steerBalance } from "./vehicle-physics";
 
 export type InsightCategory = "suspension" | "tires" | "driving" | "mechanical";
@@ -13,6 +14,24 @@ export interface LapInsight {
   label: string;
   detail: string;
   frameIndices: number[];
+  /**
+   * Conservative estimate of the seconds this fault cost, when one can be
+   * defended (see `time-loss.ts`). Absent means "not quantified", which is not
+   * the same as zero — most detectors describe a symptom whose cost is already
+   * counted by whichever quantified detector it causes.
+   *
+   * Never sum these into a lap total: detectors overlap in time.
+   */
+  timeLossS?: number;
+}
+
+/**
+ * Shared per-lap inputs for time-loss estimation, built once in `analyzeLap`
+ * and passed to the detectors that can defend an estimate.
+ */
+interface TimeLossCtx {
+  dt: number[];
+  ref: AccelReference;
 }
 
 function groupEvents(flags: boolean[], minFrames: number, mergeGap = 0): [number, number][] {
@@ -226,13 +245,17 @@ function detectBrakeTractionLoss(telemetry: TelemetryPacket[]): LapInsight | nul
   };
 }
 
-function detectRevLimiter(telemetry: TelemetryPacket[]): LapInsight | null {
+function detectRevLimiter(telemetry: TelemetryPacket[], ctx?: TimeLossCtx): LapInsight | null {
   if (telemetry.length === 0) return null;
   const maxRpm = telemetry[0].EngineMaxRpm;
   if (maxRpm === 0) return null;
   const flags = telemetry.map((p) => p.CurrentEngineRpm >= maxRpm - 50);
   const events = groupEvents(flags, 10, 20);
   if (events.length === 0) return null;
+  // On the limiter the car stops accelerating; the cost is the acceleration it
+  // would still have had in the next gear. Assumes an upshift was available —
+  // if the driver was already in top gear this over-charges slightly.
+  const timeLossS = ctx ? reportableLoss(sumLosses(events.map(([s, e]) => accelDeficitLoss(telemetry, ctx.dt, s, e, ctx.ref)))) : undefined;
   return {
     id: "driving-rev-limiter",
     category: "driving",
@@ -240,14 +263,31 @@ function detectRevLimiter(telemetry: TelemetryPacket[]): LapInsight | null {
     label: "Rev Limiter",
     detail: `Hit limiter ${events.length} time${events.length > 1 ? "s" : ""}`,
     frameIndices: midFrame(events),
+    timeLossS,
   };
 }
 
-function detectCoasting(telemetry: TelemetryPacket[]): LapInsight | null {
+function detectCoasting(telemetry: TelemetryPacket[], ctx?: TimeLossCtx): LapInsight | null {
   const flags = telemetry.map((p) => p.Accel < 5 && p.Brake < 5 && p.Speed * 2.23694 > 20);
   const events = groupEvents(flags, 30);
   if (events.length === 0) return null;
   const totalFrames = events.reduce((s, [a, b]) => s + (b - a + 1), 0);
+
+  // Only charge coasting that wasn't corner entry: a coast which runs straight
+  // into braking is the driver releasing early on purpose, not dead time.
+  const timeLossS = ctx
+    ? reportableLoss(
+        sumLosses(
+          events.map(([s, e]) => {
+            for (let i = e + 1; i < Math.min(e + 31, telemetry.length); i++) {
+              if (telemetry[i].Brake > 25) return undefined;
+            }
+            return speedDeficitLoss(telemetry, ctx.dt, s, e, telemetry[s].Speed);
+          }),
+        ),
+      )
+    : undefined;
+
   return {
     id: "driving-coasting",
     category: "driving",
@@ -255,6 +295,7 @@ function detectCoasting(telemetry: TelemetryPacket[]): LapInsight | null {
     label: "Coasting",
     detail: `${events.length} zone${events.length > 1 ? "s" : ""}, ${((totalFrames / telemetry.length) * 100).toFixed(1)}% of lap`,
     frameIndices: midFrame(events),
+    timeLossS,
   };
 }
 
@@ -283,7 +324,7 @@ function detectTrailBraking(telemetry: TelemetryPacket[]): LapInsight | null {
   };
 }
 
-function detectEarlyBraking(telemetry: TelemetryPacket[]): LapInsight | null {
+function detectEarlyBraking(telemetry: TelemetryPacket[], ctx?: TimeLossCtx): LapInsight | null {
   // Pattern: brake zone ends → sustained coast/low throttle → throttle applied while
   // still turning. Driver braked too early, lost speed, then had to accelerate mid-corner.
   const brakeFlags = telemetry.map((p) => p.Brake > 25);
@@ -316,10 +357,13 @@ function detectEarlyBraking(telemetry: TelemetryPacket[]): LapInsight | null {
     label: "Early Braking",
     detail: `${events.length} corner${events.length > 1 ? "s" : ""} — braked early, coasted, then had to accelerate mid-turn`,
     frameIndices: midFrame(events),
+    // The gap between brake release and throttle is dead time by this
+    // detector's own definition, so brake-release speed is the counterfactual.
+    timeLossS: ctx ? reportableLoss(sumLosses(events.map(([s, e]) => speedDeficitLoss(telemetry, ctx.dt, s, e, telemetry[s].Speed)))) : undefined,
   };
 }
 
-function detectOverSlowing(telemetry: TelemetryPacket[]): LapInsight | null {
+function detectOverSlowing(telemetry: TelemetryPacket[], ctx?: TimeLossCtx): LapInsight | null {
   // Over-slowed corner entry: driver scrubs off too much speed, then has to get back
   // on the throttle before the corner is done. Signature: speed keeps falling after
   // brake release, hits a minimum well below the brake-release speed, then the driver
@@ -370,6 +414,9 @@ function detectOverSlowing(telemetry: TelemetryPacket[]): LapInsight | null {
     label: "Over-Slowed Corner",
     detail: `${events.length} corner${events.length > 1 ? "s" : ""} — scrubbed extra speed after brake release, then re-accelerated mid-turn. Carry more entry speed or brake later/lighter.`,
     frameIndices: events.map(([, minIdx]) => minIdx),
+    // Counterfactual is the speed the driver had at brake release: the detector
+    // only fires when the extra scrub happened with the brakes already off.
+    timeLossS: ctx ? reportableLoss(sumLosses(events.map(([s, e]) => speedDeficitLoss(telemetry, ctx.dt, s, e, telemetry[s].Speed)))) : undefined,
   };
 }
 
@@ -687,11 +734,12 @@ function detectSteeringSawing(telemetry: TelemetryPacket[]): LapInsight | null {
   };
 }
 
-function detectThrottleMicroLifts(telemetry: TelemetryPacket[]): LapInsight | null {
+function detectThrottleMicroLifts(telemetry: TelemetryPacket[], ctx?: TimeLossCtx): LapInsight | null {
   // Repeated small throttle lifts under power with the rear breaking loose —
   // manually doing traction control's job. Signature: near-full throttle,
   // sharp dip, quick recovery, with wheelspin nearby.
   const liftFrames: number[] = [];
+  const liftWindows: [number, number][] = [];
   let i = 1;
   while (i < telemetry.length - 1) {
     const prev = telemetry[i - 1];
@@ -716,7 +764,10 @@ function detectThrottleMicroLifts(telemetry: TelemetryPacket[]): LapInsight | nu
             break;
           }
         }
-        if (slipNearby) liftFrames.push(i);
+        if (slipNearby) {
+          liftFrames.push(i);
+          liftWindows.push([i - 1, recovered]);
+        }
         i = recovered + 1;
         continue;
       }
@@ -732,6 +783,11 @@ function detectThrottleMicroLifts(telemetry: TelemetryPacket[]): LapInsight | nu
     label: "Throttle Micro-Lifts",
     detail: `${liftFrames.length} quick lifts under power with rear slip — feeding throttle more progressively beats stabbing and lifting`,
     frameIndices: liftFrames,
+    // Each lift-and-recover window is time the car spent accelerating worse than
+    // this car demonstrably accelerates at that speed. Charged against the
+    // acceleration reference, not against the wheelspin that provoked the lift —
+    // the two overlap, which is why these numbers must never be summed.
+    timeLossS: ctx ? reportableLoss(sumLosses(liftWindows.map(([s, e]) => accelDeficitLoss(telemetry, ctx.dt, s, e, ctx.ref)))) : undefined,
   };
 }
 
@@ -850,6 +906,12 @@ export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId): LapIns
 
   const insights: LapInsight[] = [];
 
+  // Built once: frameDt walks the lap and the acceleration reference bins every
+  // clean full-throttle frame, so rebuilding it per detector would be wasteful
+  // and — worse — let two detectors disagree about the same counterfactual.
+  const dt = frameDt(telemetry);
+  const ctx: TimeLossCtx = { dt, ref: buildAccelReference(telemetry, dt) };
+
   // Suspension
   insights.push(...detectSuspensionOverload(telemetry));
   const imbalance = detectSuspensionImbalance(telemetry);
@@ -868,17 +930,17 @@ export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId): LapIns
   // Driving
   const brakeLoss = detectBrakeTractionLoss(telemetry);
   if (brakeLoss) insights.push(brakeLoss);
-  const rev = detectRevLimiter(telemetry);
+  const rev = detectRevLimiter(telemetry, ctx);
   if (rev) insights.push(rev);
-  const coast = detectCoasting(telemetry);
+  const coast = detectCoasting(telemetry, ctx);
   if (coast) insights.push(coast);
   const trail = detectTrailBraking(telemetry);
   if (trail) insights.push(trail);
   const counterSteer = detectCounterSteer(telemetry);
   if (counterSteer) insights.push(counterSteer);
-  const earlyBrake = detectEarlyBraking(telemetry);
+  const earlyBrake = detectEarlyBraking(telemetry, ctx);
   if (earlyBrake) insights.push(earlyBrake);
-  const overSlow = detectOverSlowing(telemetry);
+  const overSlow = detectOverSlowing(telemetry, ctx);
   if (overSlow) insights.push(overSlow);
   const throttleLoss = detectThrottleTractionLoss(telemetry);
   if (throttleLoss) insights.push(throttleLoss);
@@ -897,7 +959,7 @@ export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId): LapIns
   if (scrub) insights.push(scrub);
   const sawing = detectSteeringSawing(telemetry);
   if (sawing) insights.push(sawing);
-  const microLifts = detectThrottleMicroLifts(telemetry);
+  const microLifts = detectThrottleMicroLifts(telemetry, ctx);
   if (microLifts) insights.push(microLifts);
   const kerbs = detectKerbRiding(telemetry);
   if (kerbs) insights.push(kerbs);

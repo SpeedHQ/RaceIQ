@@ -888,18 +888,66 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_experiments_game ON experiments(game_id)`,
     ],
   },
+  {
+    version: 43,
+    name: "record how a session's telemetry was obtained",
+    sql: [
+      // NULL means the session was recorded live from the game, which is every
+      // pre-existing row — the flag only needs to mark the cases that are not
+      // direct captures. 'motec' means the frames were transcoded from a MoTeC
+      // .ld export, so quantities MoTeC does not log (notably the racing line)
+      // are reconstructions and the UI must not present them as measured.
+      `ALTER TABLE sessions ADD COLUMN source TEXT`,
+    ],
+  },
 
-  // v43: Runtime-discovered identity registries
+  // ── v44: cached driver improvement plans ────────────────────────────────────
+  // One row per profile scope. `scope_key` rather than a composite UNIQUE over
+  // (game_id, car_ordinal, track_ordinal) because SQLite treats NULLs as
+  // distinct in a UNIQUE index: a global-scope profile has both ordinals NULL,
+  // so a composite index would happily hold two of them and the upsert would
+  // never find the row it meant to replace.
+  //
+  // No foreign key to laps: the pool is a scope query, not a fixed set of rows,
+  // and `pool_key` (a digest of the contributing lap ids) already invalidates
+  // the row when that scope's laps change. A cascade would instead delete a
+  // still-serviceable plan whenever one old lap was pruned.
+  {
+    version: 44,
+    name: "driver profiles (cached improvement plans)",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS driver_profiles (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         scope_key TEXT NOT NULL,
+         game_id TEXT NOT NULL,
+         car_ordinal INTEGER,
+         track_ordinal INTEGER,
+         pool_key TEXT NOT NULL,
+         fingerprint TEXT NOT NULL,
+         plan TEXT NOT NULL,
+         input_tokens INTEGER NOT NULL DEFAULT 0,
+         output_tokens INTEGER NOT NULL DEFAULT 0,
+         cost_usd REAL NOT NULL DEFAULT 0,
+         duration_ms INTEGER NOT NULL DEFAULT 0,
+         model TEXT NOT NULL DEFAULT '',
+         created_at TEXT NOT NULL DEFAULT (datetime('now'))
+       )`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS driver_profiles_scope_key_idx ON driver_profiles (scope_key)`,
+      `CREATE INDEX IF NOT EXISTS driver_profiles_game_idx ON driver_profiles (game_id)`,
+    ],
+  },
+
+  // v45: Runtime-discovered identity registries
   // v23 established discovered_cars for runtime-provided car identity, but its
   // name constraint incorrectly treated display text as identity. Rebuild it
   // so native ordinals remain the only per-game key. iRacing also provides
   // stable track ordinals and names at runtime, so keep the same normalized
   // mapping for tracks instead of repeating names on session rows.
   {
-    version: 43,
+    version: 45,
     name: "runtime-discovered identity registries",
     sql: [
-      `CREATE TABLE discovered_cars_v43 (
+      `CREATE TABLE discovered_cars_v45 (
          id          INTEGER PRIMARY KEY AUTOINCREMENT,
          game_id     TEXT NOT NULL,
          ordinal     INTEGER NOT NULL,
@@ -908,12 +956,12 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          created_at  TEXT NOT NULL DEFAULT (datetime('now')),
          UNIQUE(game_id, ordinal)
        )`,
-      `INSERT INTO discovered_cars_v43
+      `INSERT INTO discovered_cars_v45
          (id, game_id, ordinal, name, model, created_at)
        SELECT id, game_id, ordinal, name, model, created_at
        FROM discovered_cars`,
       `DROP TABLE discovered_cars`,
-      `ALTER TABLE discovered_cars_v43 RENAME TO discovered_cars`,
+      `ALTER TABLE discovered_cars_v45 RENAME TO discovered_cars`,
       `CREATE TABLE IF NOT EXISTS discovered_tracks (
          id          INTEGER PRIMARY KEY AUTOINCREMENT,
          game_id     TEXT NOT NULL,
@@ -925,14 +973,14 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
     ],
   },
 
-  // v44: Dynamic source-defined sector times (GitHub #134)
+  // v46: Dynamic source-defined sector times (GitHub #134)
   // Sector count belongs to the session layout. iRacing can publish layouts
   // beyond the old fixed S1/S2/S3 shape, including two-sector ovals and road
   // layouts with more than three timing splits. Replace the three summary
   // columns with one ordered JSON array; no projection or compatibility
   // summary is retained.
   {
-    version: 44,
+    version: 46,
     name: "dynamic source-defined sector times",
     sql: [
       // Both histories can reach this migration: upstream still has S1-S3,
@@ -960,7 +1008,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          ELSE NULL
        END
        WHERE sector_times IS NULL`,
-      `CREATE TABLE laps_v44 (
+      `CREATE TABLE laps_v46 (
          id                         INTEGER PRIMARY KEY AUTOINCREMENT,
          session_id                 INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
          lap_number                 INTEGER NOT NULL,
@@ -983,7 +1031,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          tyre_wear                  REAL,
          created_at                 TEXT NOT NULL DEFAULT (datetime('now'))
        )`,
-      `INSERT INTO laps_v44 (
+      `INSERT INTO laps_v46 (
          id, session_id, lap_number, lap_time, is_valid, invalid_reason,
          notes, profile_id, pi, car_setup, tune_id, sector_times,
          raw_byte_offset, raw_frame_count, experiment_id, experiment_version_id,
@@ -998,7 +1046,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          experiment_excluded_source, fuel_per_lap, tyre_wear, created_at
        FROM laps`,
       `DROP TABLE laps`,
-      `ALTER TABLE laps_v44 RENAME TO laps`,
+      `ALTER TABLE laps_v46 RENAME TO laps`,
       `CREATE INDEX IF NOT EXISTS idx_laps_session ON laps(session_id)`,
       `CREATE INDEX IF NOT EXISTS idx_laps_experiment ON laps(experiment_id)`,
       `CREATE INDEX IF NOT EXISTS idx_laps_experiment_version ON laps(experiment_version_id)`,

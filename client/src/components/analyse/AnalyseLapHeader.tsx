@@ -1,4 +1,5 @@
 import type { LapMeta } from "@shared/types";
+import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { formatLapTime } from "../../lib/format";
@@ -8,6 +9,7 @@ import { DropdownMenu } from "../ui/DropdownMenu";
 import { NoteModal } from "../ui/NoteModal";
 import { SearchSelect } from "../ui/SearchSelect";
 import { DataGuideModal } from "./DataGuideModal";
+import { MotecImportModal } from "./MotecImportModal";
 
 interface Props {
   // Selection state
@@ -77,6 +79,8 @@ export function AnalyseLapHeader({
   onNotesChange,
 }: Props) {
   const [guideOpen, setGuideOpen] = useState(false);
+  const [motecOpen, setMotecOpen] = useState(false);
+  const queryClient = useQueryClient();
   const [noteOpen, setNoteOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
   return (
@@ -243,6 +247,12 @@ export function AnalyseLapHeader({
                 onClick: () => importInputRef.current?.click(),
                 disabled: importingBin,
               },
+              {
+                key: "import-motec",
+                label: "Import MoTeC log",
+                icon: <Upload className="size-3.5" />,
+                onClick: () => setMotecOpen(true),
+              },
             ]}
           />
           {hasTelemetry && (
@@ -255,6 +265,18 @@ export function AnalyseLapHeader({
         </div>
       </div>
       {guideOpen && <DataGuideModal onClose={() => setGuideOpen(false)} />}
+      {motecOpen && (
+        <MotecImportModal
+          onClose={() => setMotecOpen(false)}
+          // The imported laps land under AC Evo, which may not be the game
+          // whose page we're on — invalidate broadly so they show up when the
+          // user navigates there rather than only after a reload.
+          onImported={() => {
+            queryClient.invalidateQueries({ queryKey: ["laps"] });
+            queryClient.invalidateQueries({ queryKey: ["sessions"] });
+          }}
+        />
+      )}
     </>
   );
 }

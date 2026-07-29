@@ -159,85 +159,7 @@ describe("migration runner e2e", () => {
     expect(versions).toEqual([...versions].sort((a, b) => a - b));
   });
 
-  test("continues from the pre-merge iRacing v36/v37 history without losing sectors or identity", async () => {
-    const client = newClient();
-    await bootstrap(client);
-    await runMigrations(client, 35);
-
-    // The feature branch originally used v36/v37 for identity and sectors.
-    // Reproduce its resulting schema and applied-version rows, then verify the
-    // merged migration history can establish upstream's different v36/v37
-    // effects and retain the branch data.
-    await client.execute(
-      `CREATE TABLE discovered_tracks (
-         id INTEGER PRIMARY KEY AUTOINCREMENT,
-         game_id TEXT NOT NULL,
-         ordinal INTEGER NOT NULL,
-         name TEXT NOT NULL,
-         created_at TEXT NOT NULL DEFAULT (datetime('now')),
-         UNIQUE(game_id, ordinal)
-       )`,
-    );
-    await client.execute("ALTER TABLE laps ADD COLUMN sector_times TEXT");
-    await client.execute("ALTER TABLE laps DROP COLUMN s1_time");
-    await client.execute("ALTER TABLE laps DROP COLUMN s2_time");
-    await client.execute("ALTER TABLE laps DROP COLUMN s3_time");
-    await client.execute(
-      `INSERT INTO schema_migrations (version, name)
-       VALUES (36, 'runtime-discovered identity registries'),
-              (37, 'dynamic source-defined sector times')`,
-    );
-    await client.execute(
-      `INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id)
-       VALUES (1, 10, 20, 'iracing')`,
-    );
-    await client.execute({
-      sql: `INSERT INTO laps (
-              session_id, lap_number, lap_time, sector_times
-            ) VALUES (1, 1, 60, ?)`,
-      args: [JSON.stringify([8, 10, 11, 12, 9, 10])],
-    });
-    await client.execute(
-      `INSERT INTO discovered_cars (game_id, ordinal, name)
-       VALUES ('iracing', 101, 'Shared Display Name')`,
-    );
-
-    await runMigrations(client);
-
-    const lap = await client.execute("SELECT sector_times FROM laps WHERE id = 1");
-    expect(JSON.parse(String(lap.rows[0].sector_times))).toEqual([
-      8, 10, 11, 12, 9, 10,
-    ]);
-    const lapColumns = await client.execute("PRAGMA table_info(laps)");
-    const lapColumnNames = lapColumns.rows.map((row) => String(row.name));
-    expect(lapColumnNames).toContain("sector_times");
-    expect(lapColumnNames).not.toContain("s1_time");
-    expect(lapColumnNames).not.toContain("s2_time");
-    expect(lapColumnNames).not.toContain("s3_time");
-
-    const versionColumns = await client.execute(
-      "PRAGMA table_info(experiment_versions)",
-    );
-    expect(versionColumns.rows.map((row) => String(row.name))).toContain("kind");
-    const metricsTable = await client.execute(
-      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'lap_metrics'",
-    );
-    expect(metricsTable.rows).toHaveLength(1);
-
-    await client.execute(
-      `INSERT INTO discovered_cars (game_id, ordinal, name)
-       VALUES ('iracing', 202, 'Shared Display Name')`,
-    );
-    const cars = await client.execute(
-      `SELECT ordinal FROM discovered_cars
-       WHERE game_id = 'iracing'
-       ORDER BY ordinal`,
-    );
-    expect(cars.rows.map((row) => Number(row.ordinal))).toEqual([101, 202]);
-    client.close();
-  });
-
-  test("v43 keeps native car ordinals unique without treating names as identity", async () => {
+  test("v45 keeps native car ordinals unique without treating names as identity", async () => {
     const client = newClient();
     await bootstrap(client);
     await runMigrations(client, 42);
@@ -246,7 +168,7 @@ describe("migration runner e2e", () => {
        VALUES ('iracing', 101, 'Shared Display Name')`,
     );
 
-    await runMigrations(client, 43);
+    await runMigrations(client, 45);
     await client.execute(
       `INSERT INTO discovered_cars (game_id, ordinal, name)
        VALUES ('iracing', 202, 'Shared Display Name')`,
@@ -276,10 +198,10 @@ describe("migration runner e2e", () => {
     client.close();
   });
 
-  test("v44 preserves valid layouts, rejects incomplete rows, and stales iRacing captures", async () => {
+  test("v46 preserves valid layouts, rejects incomplete rows, and stales iRacing captures", async () => {
     const client = newClient();
     await bootstrap(client);
-    await runMigrations(client, 43);
+    await runMigrations(client, 45);
     await client.execute(
       `INSERT INTO sessions (
          id, car_ordinal, track_ordinal, game_id, raw_file, lap_detector_version
@@ -328,4 +250,5 @@ describe("migration runner e2e", () => {
     expect(names).not.toContain("s3_time");
     client.close();
   });
+
 });

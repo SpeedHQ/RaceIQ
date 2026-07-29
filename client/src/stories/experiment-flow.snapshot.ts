@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 /**
  * Render smoke-test for the experiment flow stories (list → workspace →
- * review, setup and driving variants).
+ * review, car- and driver-focus variants).
  *
  * Deliberately NOT a screenshot test. The committed PNG baselines in
  * `__snapshots__` are generated in Docker (`bun run snapshot:docker`) so they
@@ -21,7 +21,7 @@ interface StoryCase {
   name: string;
   id: string;
   /** Text that must be on screen for the story to be considered rendered. */
-  expectText: string;
+  expectText: string | string[];
   /** Text that must NOT appear — the error/empty states these screens fall to. */
   forbidText?: string[];
 }
@@ -49,36 +49,32 @@ const stories: StoryCase[] = [
     forbidText: ["is already in your Setups folder", "isn't in your Setups folder yet"],
   },
   {
-    name: "workspace (setup)",
-    id: "dashboards-experiments-flow--workspace-setup",
-    expectText: "Softer rear ARB",
+    name: "workspace (car focus)",
+    id: "dashboards-experiments-flow--workspace-car-focus",
+    expectText: ["Softer rear ARB", "Race engineer"],
     forbidText: ["Experiment not found"],
   },
   {
-    name: "workspace (driving)",
-    id: "dashboards-experiments-flow--workspace-driving",
-    expectText: "Trail-brake to the apex at Les Combes",
-    forbidText: ["Experiment not found"],
-  },
-  {
-    // A driving-focus experiment renders the same workspace — the difference is
-    // the agent panel's name and the switcher state, not a separate route.
-    name: "workspace (driving focus)",
-    id: "dashboards-experiments-flow--workspace-driving-focus",
-    expectText: "Driver coach",
-    forbidText: ["Experiment not found"],
+    // A driver-focus experiment renders the same workspace — the difference is
+    // the agent panel's name and the switcher state, not a separate route. So
+    // assert both: that the drill arms render, and that the panel is the coach
+    // rather than the engineer.
+    name: "workspace (driver focus)",
+    id: "dashboards-experiments-flow--workspace-driver-focus",
+    expectText: ["Trail-brake to the apex at Les Combes", "Driver coach"],
+    forbidText: ["Experiment not found", "Race engineer"],
   },
   {
     // The review screen leads with the lap list and the driver's own words —
     // the experiment name is not on it, so assert on what actually renders.
-    name: "review (setup)",
-    id: "dashboards-experiments-flow--review-setup",
+    name: "review (car focus)",
+    id: "dashboards-experiments-flow--review-car-focus",
     expectText: "Rotates earlier, no snap. Happier.",
     forbidText: ["Experiment not found"],
   },
   {
-    name: "review (driving)",
-    id: "dashboards-experiments-flow--review-driving",
+    name: "review (driver focus)",
+    id: "dashboards-experiments-flow--review-driver-focus",
     expectText: "Felt slower but the car placed the same every lap.",
     forbidText: ["Experiment not found"],
   },
@@ -143,7 +139,10 @@ for (const story of stories) {
     await page.evaluate(() => document.fonts.ready);
     await page.waitForTimeout(300);
 
-    await expect(page.getByText(story.expectText, { exact: false }).first()).toBeVisible();
+    const expected = Array.isArray(story.expectText) ? story.expectText : [story.expectText];
+    for (const text of expected) {
+      await expect(page.getByText(text, { exact: false }).first()).toBeVisible();
+    }
     for (const forbidden of story.forbidText ?? []) {
       await expect(page.getByText(forbidden, { exact: false })).toHaveCount(0);
     }

@@ -657,6 +657,13 @@ export interface LapMeta {
   // Joined from session
   carOrdinal?: number;
   trackOrdinal?: number;
+  // How the session's telemetry was obtained (migration v43, joined from
+  // sessions.source). null/undefined = recorded live from the game. 'motec' =
+  // transcoded from a MoTeC .ld, where the racing line is dead-reckoned from
+  // speed and yaw rather than logged. Anything reading a POSITION off a lap
+  // must degrade for 'motec'; measured channels (speed, brake, throttle, gear,
+  // steering) are exact and need no caveat. See MOTEC_IMPORT_LIMITATIONS.
+  source?: "motec" | null;
   // Car setup snapshot (JSON string of F1CarSetup)
   carSetup?: string;
   // Tune assignment
@@ -700,6 +707,13 @@ export interface SessionMeta {
   bestLapTime?: number;
   sessionType?: string;
   notes?: string;
+  /**
+   * How the session's telemetry was obtained. `undefined` = recorded live from
+   * the game; `"motec"` = transcoded from a MoTeC export (dead-reckoned line).
+   * Callers must not treat the two as interchangeable when the racing line or
+   * absolute position matters.
+   */
+  source?: string;
   gameId?: GameId;
 }
 

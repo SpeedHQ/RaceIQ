@@ -1,6 +1,6 @@
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, compareAnalyses, profiles, tunes, lineSpreadCache } from "./schema";
+import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, compareAnalyses, profiles, tunes, lineSpreadCache, driverProfiles } from "./schema";
 import type { TelemetryPacket, LapMeta, SessionMeta, GameId } from "../../shared/types";
 import type { Corner } from "../corner-detection";
 import { fillNormSuspension } from "../telemetry-utils";
@@ -441,6 +441,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
       tuneName: tunes.name,
       gameId: sessions.gameId,
       sectorTimes: laps.sectorTimes,
+      source: sessions.source,
       experimentId: laps.experimentId,
       experimentVersionId: laps.experimentVersionId,
       experimentExcluded: laps.experimentExcluded,
@@ -469,12 +470,82 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
     notes: r.notes ?? undefined,
     gameId: r.gameId as GameId,
     sectorTimes: r.sectorTimes ?? undefined,
+    source: (r.source as "motec" | null) ?? null,
     experimentId: r.experimentId ?? null,
     experimentVersionId: r.experimentVersionId ?? null,
     experimentExcluded: Boolean(r.experimentExcluded),
     // Selector (shared/review-laps.ts) only treats a lap as manually excluded
     // when the source is "manual" — must travel with the flag or the client
     // re-ranks the excluded lap into the fastest-N.
+    experimentExcludedSource: (r.experimentExcludedSource as "auto" | "manual" | null) ?? null,
+    fuelPerLap: r.fuelPerLap ?? null,
+    tyreWear: r.tyreWear ?? null,
+  }));
+}
+
+/**
+ * Every lap in a driver-profile scope, newest first — deliberately unlimited.
+ *
+ * The car/track predicate is pushed into SQL rather than applied to a capped
+ * `getLaps()` page: filtering after a LIMIT silently truncates a deep history,
+ * so a "global" profile would quietly stop being global once the driver had
+ * more laps than the page size. These are metadata rows only (no telemetry
+ * decode), so the scan is cheap; the expensive per-lap frame decode is bounded
+ * separately by MAX_PROFILE_LAPS in driver-profile-aggregate.ts.
+ */
+export async function getLapMetaForProfileScope(gameId: GameId, carOrdinal?: number, trackOrdinal?: number): Promise<LapMeta[]> {
+  const filters = [eq(sessions.gameId, gameId)];
+  if (carOrdinal != null) filters.push(eq(sessions.carOrdinal, carOrdinal));
+  if (trackOrdinal != null) filters.push(eq(sessions.trackOrdinal, trackOrdinal));
+
+  const rows = await db
+    .select({
+      id: laps.id,
+      sessionId: laps.sessionId,
+      lapNumber: laps.lapNumber,
+      lapTime: laps.lapTime,
+      isValid: laps.isValid,
+      invalidReason: laps.invalidReason,
+      notes: laps.notes,
+      pi: laps.pi,
+      carSetup: laps.carSetup,
+      createdAt: laps.createdAt,
+      carOrdinal: sessions.carOrdinal,
+      trackOrdinal: sessions.trackOrdinal,
+      tuneId: laps.tuneId,
+      tuneName: tunes.name,
+      gameId: sessions.gameId,
+      sectorTimes: laps.sectorTimes,
+      source: sessions.source,
+      experimentId: laps.experimentId,
+      experimentVersionId: laps.experimentVersionId,
+      experimentExcluded: laps.experimentExcluded,
+      experimentExcludedSource: laps.experimentExcludedSource,
+      fuelPerLap: laps.fuelPerLap,
+      tyreWear: laps.tyreWear,
+    })
+    .from(laps)
+    .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+    .leftJoin(tunes, eq(laps.tuneId, tunes.id))
+    .where(and(...filters))
+    .orderBy(desc(laps.id))
+    .all();
+
+  return rows.map((r) => ({
+    ...r,
+    isValid: Boolean(r.isValid),
+    invalidReason: r.invalidReason ?? undefined,
+    pi: r.pi ?? 0,
+    carSetup: r.carSetup ?? undefined,
+    tuneId: r.tuneId ?? undefined,
+    tuneName: r.tuneName ?? undefined,
+    notes: r.notes ?? undefined,
+    gameId: r.gameId as GameId,
+    sectorTimes: r.sectorTimes ?? undefined,
+    source: (r.source as "motec" | null) ?? null,
+    experimentId: r.experimentId ?? null,
+    experimentVersionId: r.experimentVersionId ?? null,
+    experimentExcluded: Boolean(r.experimentExcluded),
     experimentExcludedSource: (r.experimentExcludedSource as "auto" | "manual" | null) ?? null,
     fuelPerLap: r.fuelPerLap ?? null,
     tyreWear: r.tyreWear ?? null,
@@ -511,6 +582,7 @@ export async function getLapsForExperiment(experimentId: number): Promise<LapMet
       tuneName: tunes.name,
       gameId: sessions.gameId,
       sectorTimes: laps.sectorTimes,
+      source: sessions.source,
       experimentId: laps.experimentId,
       experimentVersionId: laps.experimentVersionId,
       experimentExcluded: laps.experimentExcluded,
@@ -536,6 +608,7 @@ export async function getLapsForExperiment(experimentId: number): Promise<LapMet
     notes: r.notes ?? undefined,
     gameId: r.gameId as GameId,
     sectorTimes: r.sectorTimes ?? undefined,
+    source: (r.source as "motec" | null) ?? null,
     experimentId: r.experimentId ?? null,
     experimentVersionId: r.experimentVersionId ?? null,
     experimentExcluded: Boolean(r.experimentExcluded),
@@ -573,6 +646,7 @@ export async function getLapMetaForExperimentVersion(experimentVersionId: number
       tuneName: tunes.name,
       gameId: sessions.gameId,
       sectorTimes: laps.sectorTimes,
+      source: sessions.source,
       experimentId: laps.experimentId,
       experimentVersionId: laps.experimentVersionId,
       experimentExcluded: laps.experimentExcluded,
@@ -601,6 +675,7 @@ export async function getLapMetaForExperimentVersion(experimentVersionId: number
     notes: r.notes ?? undefined,
     gameId: r.gameId as GameId,
     sectorTimes: r.sectorTimes ?? undefined,
+    source: (r.source as "motec" | null) ?? null,
     experimentId: r.experimentId ?? null,
     experimentVersionId: r.experimentVersionId ?? null,
     experimentExcluded: Boolean(r.experimentExcluded),
@@ -651,6 +726,7 @@ export async function getImportableLapsForExperiment(
       tuneName: tunes.name,
       gameId: sessions.gameId,
       sectorTimes: laps.sectorTimes,
+      source: sessions.source,
       experimentId: laps.experimentId,
       experimentVersionId: laps.experimentVersionId,
       experimentExcluded: laps.experimentExcluded,
@@ -676,6 +752,7 @@ export async function getImportableLapsForExperiment(
     notes: r.notes ?? undefined,
     gameId: r.gameId as GameId,
     sectorTimes: r.sectorTimes ?? undefined,
+    source: (r.source as "motec" | null) ?? null,
     experimentId: r.experimentId ?? null,
     experimentVersionId: r.experimentVersionId ?? null,
     experimentExcluded: Boolean(r.experimentExcluded),
@@ -1617,6 +1694,7 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       gameId: sessions.gameId,
       sessionType: sessions.sessionType,
       notes: sessions.notes,
+      source: sessions.source,
     })
     .from(sessions)
     .orderBy(desc(sessions.id));
@@ -1642,6 +1720,7 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
       bestLapTime,
       sessionType: session.sessionType ?? undefined,
       notes: session.notes ?? undefined,
+      source: session.source ?? undefined,
       gameId: session.gameId as GameId,
     });
   }
@@ -2216,4 +2295,104 @@ export async function getLapCountsByTrack(gameId: GameId): Promise<Map<number, n
     .groupBy(sessions.trackOrdinal)
     .all();
   return new Map(rows.map((r) => [r.trackOrdinal, Number(r.count)]));
+}
+
+// ---------------------------------------------------------------------------
+// Driver profiles (cached improvement plans)
+// ---------------------------------------------------------------------------
+
+export interface DriverProfileScopeKey {
+  gameId: GameId;
+  carOrdinal?: number | null;
+  trackOrdinal?: number | null;
+}
+
+/**
+ * Canonical cache key for a profile scope.
+ *
+ * `*` stands in for an unset ordinal rather than leaning on SQL NULL, because
+ * SQLite treats NULLs as distinct in a UNIQUE index — two global-scope rows
+ * would both insert and the upsert would never replace the one it meant to.
+ */
+export function driverProfileScopeKey(scope: DriverProfileScopeKey): string {
+  const car = scope.carOrdinal ?? "*";
+  const track = scope.trackOrdinal ?? "*";
+  return `${scope.gameId}|${car}|${track}`;
+}
+
+export interface DriverProfileRow {
+  scopeKey: string;
+  poolKey: string;
+  fingerprint: string;
+  plan: string;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  durationMs: number;
+  model: string;
+  createdAt: string;
+}
+
+export async function getDriverProfile(scope: DriverProfileScopeKey): Promise<DriverProfileRow | null> {
+  const row = await db
+    .select({
+      scopeKey: driverProfiles.scopeKey,
+      poolKey: driverProfiles.poolKey,
+      fingerprint: driverProfiles.fingerprint,
+      plan: driverProfiles.plan,
+      inputTokens: driverProfiles.inputTokens,
+      outputTokens: driverProfiles.outputTokens,
+      costUsd: driverProfiles.costUsd,
+      durationMs: driverProfiles.durationMs,
+      model: driverProfiles.model,
+      createdAt: driverProfiles.createdAt,
+    })
+    .from(driverProfiles)
+    .where(eq(driverProfiles.scopeKey, driverProfileScopeKey(scope)))
+    .get();
+  return row ?? null;
+}
+
+/** Save or replace the cached plan for a scope. */
+export async function saveDriverProfile(
+  scope: DriverProfileScopeKey,
+  data: { poolKey: string; fingerprint: string; plan: string; usage: AnalysisUsage },
+): Promise<void> {
+  const scopeKey = driverProfileScopeKey(scope);
+  const values = {
+    poolKey: data.poolKey,
+    fingerprint: data.fingerprint,
+    plan: data.plan,
+    inputTokens: data.usage.inputTokens,
+    outputTokens: data.usage.outputTokens,
+    costUsd: data.usage.costUsd,
+    durationMs: data.usage.durationMs,
+    model: data.usage.model,
+    createdAt: sql`(datetime('now'))`,
+  };
+
+  const existing = await db
+    .select({ id: driverProfiles.id })
+    .from(driverProfiles)
+    .where(eq(driverProfiles.scopeKey, scopeKey))
+    .get();
+
+  if (existing) {
+    await db.update(driverProfiles).set(values).where(eq(driverProfiles.scopeKey, scopeKey)).run();
+  } else {
+    await db
+      .insert(driverProfiles)
+      .values({
+        scopeKey,
+        gameId: scope.gameId,
+        carOrdinal: scope.carOrdinal ?? null,
+        trackOrdinal: scope.trackOrdinal ?? null,
+        ...values,
+      })
+      .run();
+  }
+}
+
+export async function deleteDriverProfile(scope: DriverProfileScopeKey): Promise<void> {
+  await db.delete(driverProfiles).where(eq(driverProfiles.scopeKey, driverProfileScopeKey(scope))).run();
 }

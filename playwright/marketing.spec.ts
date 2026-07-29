@@ -6,13 +6,13 @@ const SCREENSHOT_DIR = "../assets/screenshots";
 
 const PAGES = [
   { name: "home", path: "/" },
-  { name: "lap-analytics", path: "/f125/analyse?track=6&car=41&lap=257&cursor=12000&viz=3d" },
-  { name: "compare", path: "/f125/compare?track=6&carA=41&lapA=258&carB=41&lapB=260", hover: ".u-over" },
+  { name: "lap-analytics", path: "/f125/analyse?track=32&car=41&lap=72&cursor=12000&viz=3d" },
+  { name: "compare", path: "/f125/compare?track=32&carA=41&lapA=72&carB=41&lapB=76", hover: ".u-over" },
   { name: "tracks", path: "/f125/tracks" },
   { name: "car-catalogue-f125-grid", path: "/f125/cars" },
   { name: "car-catalogue-forza", path: "/fm23/cars" },
-  { name: "setups", path: "/f125/tracks?track=3&tab=setups" },
-  { name: "setups-ranges", path: "/f125/tracks?track=3&tab=setups&subtab=ranges" },
+  { name: "setups", path: "/f125/tracks/32/setups" },
+  { name: "setups-ranges", path: "/f125/tracks/32/setups?subtab=ranges" },
   { name: "car-compare-forza", path: "/fm23/cars?compare=1023,1020,3062" },
 ];
 
@@ -44,8 +44,8 @@ test("screenshot: car-catalogue-f125-table", async ({ page: p }) => {
     localStorage.setItem("forza-onboarding-complete", "true"),
   );
   await p.goto("/f125/cars", { waitUntil: "networkidle" });
-  await p.getByRole("button", { name: "Compare" }).waitFor({ state: "visible" });
-  await p.getByRole("button", { name: "Compare" }).click();
+  await p.getByTitle("Table view").waitFor({ state: "visible" });
+  await p.getByTitle("Table view").click();
   await p.waitForTimeout(1500);
   await p.screenshot({
     path: `${SCREENSHOT_DIR}/car-catalogue-f125-table.png`,

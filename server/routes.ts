@@ -5,6 +5,7 @@ import { IS_DEV } from "./env";
 
 import { settingsRoutes } from "./routes/settings-routes";
 import { lapRoutes } from "./routes/lap-routes";
+import { driverRoutes } from "./routes/driver-routes";
 import { chatsRoutes } from "./routes/chats-routes";
 import { chatRunRoutes } from "./routes/chat-run-routes";
 import { sessionRoutes } from "./routes/session-routes";
@@ -41,6 +42,7 @@ const app = new Hono()
   .use("/*", errorLogger())
   .route("/", settingsRoutes)
   .route("/", lapRoutes)
+  .route("/", driverRoutes)
   .route("/", chatsRoutes)
   .route("/", chatRunRoutes)
   .route("/", sessionRoutes)

@@ -9,7 +9,7 @@ import type { Experiment, ExperimentLapMetric, ExperimentVersion } from "../hook
 
 /**
  * The experiment flow end to end — list → workspace → review — in both
- * variants: a SETUP experiment (arms are setup versions) and a DRIVING
+ * variants: a CAR-focus experiment (arms are setup versions) and a DRIVER-focus
  * experiment (arms are drills, no setup file).
  *
  * These stories now describe shipped behaviour rather than a spec. Focus
@@ -19,20 +19,20 @@ import type { Experiment, ExperimentLapMetric, ExperimentVersion } from "../hook
  * which never changes afterwards. So:
  *
  *   - the list badges each row with its current focus (FocusBadge)
- *   - creation offers a starting focus, and a driving experiment needs no
+ *   - creation offers a starting focus, and a driver-focus experiment needs no
  *     base setup file
  *   - the workspace header carries the switcher, and the review dashboard
  *     leads with the metric that arm's kind is actually judged on
  *
- * The driving fixtures below still hand-seed their arms, because the drill-arm
+ * The driver-focus fixtures below still hand-seed their arms, because the drill-arm
  * *authoring* form (issue #120 Phase 3) does not exist yet — the agent writes
  * drills through the chat. What they demonstrate is the read path: lap times
- * barely move between the two driving arms while the SPREAD halves, which is
+ * barely move between the two drill arms while the SPREAD halves, which is
  * the case a best-lap headline cannot express.
  */
 
-const SETUP_ID = 42;
-const DRIVING_ID = 43;
+const CAR_ID = 42;
+const DRIVER_ID = 43;
 
 /** Filename the drop story uploads; also seeded into the Setups listing so the
  *  drop matches an existing file instead of hitting `place-setup`. */
@@ -87,7 +87,7 @@ function version(over: Partial<ExperimentVersion> & { id: number; experimentId: 
 }
 
 /** A stint of laps against one version. `spread` widens the lap-time scatter,
- *  which is the whole signal a driving experiment is measuring. */
+ *  which is the whole signal a driver-focus experiment is measuring. */
 function stint(opts: { startId: number; experimentId: number; versionId: number; count: number; base: number; spread: number; startedMsAgo: number }) {
   const { startId, experimentId, versionId, count, base, spread, startedMsAgo } = opts;
   return Array.from({ length: count }, (_, i) => {
@@ -112,20 +112,20 @@ function stint(opts: { startId: number; experimentId: number; versionId: number;
   });
 }
 
-// ── Setup variant ───────────────────────────────────────────────────────────
+// ── Car-focus variant ───────────────────────────────────────────────────────
 // Two arms, a real applied change between them, and the driver's verdict.
 
-const setupExperiment = experiment({
-  id: SETUP_ID,
+const carExperiment = experiment({
+  id: CAR_ID,
   seq: 7,
   name: "Spa — rear stability on entry",
   baseSetupPath: "C:/setups/spa_race_dry.json",
 });
 
-const setupVersions: ExperimentVersion[] = [
+const carVersions: ExperimentVersion[] = [
   version({
     id: 100,
-    experimentId: SETUP_ID,
+    experimentId: CAR_ID,
     version: 1,
     label: "Base setup",
     setupPath: "C:/setups/spa_race_dry.json",
@@ -135,7 +135,7 @@ const setupVersions: ExperimentVersion[] = [
   }),
   version({
     id: 101,
-    experimentId: SETUP_ID,
+    experimentId: CAR_ID,
     version: 2,
     label: "Softer rear ARB",
     setupPath: "C:/setups/spa_race_dry_v2.json",
@@ -160,30 +160,30 @@ const setupVersions: ExperimentVersion[] = [
   }),
 ];
 
-const setupLaps = [
-  ...stint({ startId: 1000, experimentId: SETUP_ID, versionId: 100, count: 8, base: 138.4, spread: 0.55, startedMsAgo: 7_000_000 }),
-  ...stint({ startId: 1100, experimentId: SETUP_ID, versionId: 101, count: 9, base: 137.98, spread: 0.5, startedMsAgo: 3_400_000 }),
+const carLaps = [
+  ...stint({ startId: 1000, experimentId: CAR_ID, versionId: 100, count: 8, base: 138.4, spread: 0.55, startedMsAgo: 7_000_000 }),
+  ...stint({ startId: 1100, experimentId: CAR_ID, versionId: 101, count: 9, base: 137.98, spread: 0.5, startedMsAgo: 3_400_000 }),
 ];
 
-// ── Driving variant ─────────────────────────────────────────────────────────
+// ── Driver-focus variant ────────────────────────────────────────────────────
 // Same machinery, arms are drills. No setupPath anywhere — that is the point:
 // the schema already allows a version with no setup file behind it.
 //
 // The lap times barely move between arms while the SPREAD halves, which is
 // exactly the case lap time cannot express and `consistencySpreadSec` can.
 
-const drivingExperiment = experiment({
-  id: DRIVING_ID,
+const driverExperiment = experiment({
+  id: DRIVER_ID,
   seq: 8,
   name: "Spa — brake-release consistency",
   carName: "Huracan GT3",
   focus: "driver",
 });
 
-const drivingVersions: ExperimentVersion[] = [
+const driverVersions: ExperimentVersion[] = [
   version({
     id: 200,
-    experimentId: DRIVING_ID,
+    experimentId: DRIVER_ID,
     kind: "drill",
     version: 1,
     label: "Baseline — drive normally",
@@ -193,7 +193,7 @@ const drivingVersions: ExperimentVersion[] = [
   }),
   version({
     id: 201,
-    experimentId: DRIVING_ID,
+    experimentId: DRIVER_ID,
     kind: "drill",
     version: 2,
     label: "Trail-brake to the apex at Les Combes",
@@ -215,12 +215,12 @@ const drivingVersions: ExperimentVersion[] = [
   }),
 ];
 
-const drivingLaps = [
-  ...stint({ startId: 2000, experimentId: DRIVING_ID, versionId: 200, count: 10, base: 138.6, spread: 1.4, startedMsAgo: 7_000_000 }),
-  ...stint({ startId: 2100, experimentId: DRIVING_ID, versionId: 201, count: 11, base: 138.54, spread: 0.6, startedMsAgo: 3_400_000 }),
+const driverLaps = [
+  ...stint({ startId: 2000, experimentId: DRIVER_ID, versionId: 200, count: 10, base: 138.6, spread: 1.4, startedMsAgo: 7_000_000 }),
+  ...stint({ startId: 2100, experimentId: DRIVER_ID, versionId: 201, count: 11, base: 138.54, spread: 0.6, startedMsAgo: 3_400_000 }),
 ];
 
-const allLaps = [...setupLaps, ...drivingLaps];
+const allLaps = [...carLaps, ...driverLaps];
 
 const lapMetrics = (laps: typeof allLaps): ExperimentLapMetric[] =>
   laps.map((l, i) => ({
@@ -231,15 +231,15 @@ const lapMetrics = (laps: typeof allLaps): ExperimentLapMetric[] =>
 
 function seededClient() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: Infinity } } });
-  qc.setQueryData(["experiments", "acc"], [setupExperiment, drivingExperiment]);
-  qc.setQueryData(["experiment", SETUP_ID], setupExperiment);
-  qc.setQueryData(["experiment", DRIVING_ID], drivingExperiment);
-  qc.setQueryData(["experiment-tests", SETUP_ID], setupVersions);
-  qc.setQueryData(["experiment-tests", DRIVING_ID], drivingVersions);
-  qc.setQueryData(["experiment-lap-metrics", SETUP_ID], lapMetrics(setupLaps));
-  qc.setQueryData(["experiment-lap-metrics", DRIVING_ID], lapMetrics(drivingLaps));
-  qc.setQueryData(["experiment-actions", SETUP_ID], []);
-  qc.setQueryData(["experiment-actions", DRIVING_ID], []);
+  qc.setQueryData(["experiments", "acc"], [carExperiment, driverExperiment]);
+  qc.setQueryData(["experiment", CAR_ID], carExperiment);
+  qc.setQueryData(["experiment", DRIVER_ID], driverExperiment);
+  qc.setQueryData(["experiment-tests", CAR_ID], carVersions);
+  qc.setQueryData(["experiment-tests", DRIVER_ID], driverVersions);
+  qc.setQueryData(["experiment-lap-metrics", CAR_ID], lapMetrics(carLaps));
+  qc.setQueryData(["experiment-lap-metrics", DRIVER_ID], lapMetrics(driverLaps));
+  qc.setQueryData(["experiment-actions", CAR_ID], []);
+  qc.setQueryData(["experiment-actions", DRIVER_ID], []);
   qc.setQueryData(["laps", null], allLaps);
   qc.setQueryData(["laps", "acc"], allLaps);
   // The list rows resolve a car's folder name to a display name via
@@ -275,9 +275,9 @@ export default meta;
 
 // ── 1. List ─────────────────────────────────────────────────────────────────
 
-/** Both experiments side by side. Note what is missing: nothing on a row says
- *  whether it is a setup or a driving experiment, because `experiments.kind`
- *  does not exist yet. */
+/** Both experiments side by side, each row badged with its current focus
+ *  (FocusBadge) — the badge tracks `experiments.focus`, so it follows a
+ *  mid-session switch rather than describing how the experiment started. */
 export const ListBothVariants: StoryObj = {
   render: () => <ExperimentList gameId="acc" onOpen={() => {}} />,
   decorators: [(Story) => withProviders(Story)],
@@ -368,47 +368,43 @@ export const NewExperimentDroppedSetup: StoryObj = {
 
 // ── 2. Workspace ────────────────────────────────────────────────────────────
 
-/** Setup variant: two versions, the applied knob change on v2, driver comment. */
-export const WorkspaceSetup: StoryObj = {
-  render: () => <ExperimentWorkspace gameId="acc" experimentId={SETUP_ID} />,
-  decorators: [(Story) => withProviders(Story)],
-};
-
-/** Driving variant: arms are drills with no setup file. The version rows render
- *  the drill's title, target corner and instruction via the same
- *  `AppliedChangesList` the setup variant uses. */
-export const WorkspaceDriving: StoryObj = {
-  render: () => <ExperimentWorkspace gameId="acc" experimentId={DRIVING_ID} />,
+/** Car focus: two setup arms, the applied knob change on v2, driver comment. */
+export const WorkspaceCarFocus: StoryObj = {
+  render: () => <ExperimentWorkspace gameId="acc" experimentId={CAR_ID} />,
   decorators: [(Story) => withProviders(Story)],
 };
 
 /**
- * The workspace of a DRIVING-focus experiment.
+ * The workspace of a DRIVER-focus experiment.
  *
- * Same screen as WorkspaceSetup — the point is what differs without any
- * separate "coaching" route existing: the header switcher reads Driving, and
- * the agent panel is titled Driving coach rather than Setup engineer.
+ * Same screen as WorkspaceCarFocus — the point is what differs without any
+ * separate "coaching" route existing: the header switcher reads Driver, and
+ * the agent panel is titled Driver coach rather than Race engineer.
+ *
+ * Its arms are drills with no setup file, and the version rows render the
+ * drill's title, target corner and instruction via the same
+ * `AppliedChangesList` the car-focus variant uses.
  */
-export const WorkspaceDrivingFocus: StoryObj = {
-  render: () => <ExperimentWorkspace gameId="acc" experimentId={DRIVING_ID} />,
+export const WorkspaceDriverFocus: StoryObj = {
+  render: () => <ExperimentWorkspace gameId="acc" experimentId={DRIVER_ID} />,
   decorators: [(Story) => withProviders(Story)],
 };
 
 // ── 3. Review ───────────────────────────────────────────────────────────────
 
-/** Setup variant, reviewing v2's stint — the arm the change was applied to. */
-export const ReviewSetup: StoryObj = {
-  render: () => <TestReviewPage gameId="acc" experimentId={SETUP_ID} versionId={101} />,
+/** Car focus, reviewing v2's stint — the arm the change was applied to. */
+export const ReviewCarFocus: StoryObj = {
+  render: () => <TestReviewPage gameId="acc" experimentId={CAR_ID} versionId={101} />,
   decorators: [(Story) => withProviders(Story)],
 };
 
 /**
- * Driving variant, reviewing the drill arm. The laps here are ~0.06s apart on
+ * Driver focus, reviewing the drill arm. The laps here are ~0.06s apart on
  * best lap but half the spread of the baseline arm — so a lap-time read says
  * "no change" and the actual result is invisible on this screen today. This is
  * the concrete argument for the outcome-metric selector in Phase 3.
  */
-export const ReviewDriving: StoryObj = {
-  render: () => <TestReviewPage gameId="acc" experimentId={DRIVING_ID} versionId={201} />,
+export const ReviewDriverFocus: StoryObj = {
+  render: () => <TestReviewPage gameId="acc" experimentId={DRIVER_ID} versionId={201} />,
   decorators: [(Story) => withProviders(Story)],
 };

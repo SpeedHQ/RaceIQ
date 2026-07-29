@@ -33,6 +33,8 @@ import {
   IbtImportError,
   stageIbtUpload,
 } from "../import-ibt";
+import { importMotec, resolveMotecTarget } from "../motec/import";
+import { getMotecTargets, initMotecTargets } from "../motec/targets";
 import { analyzeLap } from "../../shared/lib/lap-insights";
 import { downsampleLap, encodeLapTrace, type EncodedLapTrace } from "../../shared/stint-trace";
 import { buildCompareInsightsBlock } from "../ai/insight-format";
@@ -420,6 +422,98 @@ export const lapRoutes = new Hono()
     } catch (err: any) {
       console.error("[Import] Failed:", err?.message);
       return c.json({ error: "Failed to import file", details: String(err?.message ?? err) }, 500);
+    }
+  })
+
+  // ── Games a MoTeC log can be imported for ───────────────────
+  // A transcoder is per game and only exists once someone has checked it
+  // against a real export, so the client asks rather than assumes. Drives the
+  // game picker in the import dialog. See server/motec/targets.ts.
+  .get("/api/motec/targets", (c) => {
+    initMotecTargets();
+    return c.json(
+      getMotecTargets().map((t) => ({
+        gameId: t.gameId,
+        displayName: t.displayName,
+        routePrefix: t.routePrefix,
+        carsEndpoint: t.carsEndpoint,
+        limitations: t.limitations,
+      })),
+    );
+  })
+
+  // ── Import a MoTeC i2 log (.ld, optionally with its .ldx) ───
+  .post("/api/laps/import-motec", async (c) => {
+    const form = await c.req.formData().catch(() => null);
+    const file = form?.get("file");
+    if (!(file instanceof File)) return c.json({ error: "Missing 'file' in multipart body" }, 400);
+    if (!file.name.toLowerCase().endsWith(".ld")) {
+      return c.json({ error: "Expected a MoTeC .ld file" }, 400);
+    }
+
+    // The sidecar carries the lap beacons. Without it the log imports as a
+    // single unsplit stint, which is correct for a standalone hotlap export.
+    const sidecar = form?.get("ldx");
+    const ldxText = sidecar instanceof File ? await sidecar.text() : undefined;
+
+    // Car and track are the user's call, not the log header's — a log filed
+    // against the wrong track gets meaningless sectors and corner names. The
+    // setup is optional: not knowing it costs a label, nothing more.
+    const num = (key: string): number | undefined => {
+      const raw = form?.get(key);
+      if (typeof raw !== "string" || raw.trim() === "") return undefined;
+      const parsed = Number(raw);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
+    const carOrdinal = num("carOrdinal");
+    const trackOrdinal = num("trackOrdinal");
+    if (carOrdinal === undefined || trackOrdinal === undefined) {
+      return c.json({ error: "carOrdinal and trackOrdinal are required" }, 400);
+    }
+
+    // Which sim exported the log. Resolved up front so an unsupported game is a
+    // 400 naming the problem, not a 500 from deep inside the transcoder — and
+    // so the ordinals above are read against the right game's roster.
+    const gameIdRaw = form?.get("gameId");
+    let target;
+    try {
+      target = resolveMotecTarget(typeof gameIdRaw === "string" && gameIdRaw ? gameIdRaw : undefined);
+    } catch (err: any) {
+      return c.json({ error: String(err?.message ?? err) }, 400);
+    }
+
+    // laps.tune_id is a real FK, so an id that doesn't exist would surface as a
+    // constraint failure and a 500. It's user input; say so plainly instead.
+    const tuneId = num("tuneId");
+    if (tuneId !== undefined) {
+      if (!(await getDbTune(tuneId))) {
+        return c.json({ error: `No setup with id ${tuneId}` }, 400);
+      }
+    }
+
+    try {
+      const result = await importMotec(Buffer.from(await file.arrayBuffer()), ldxText, {
+        gameId: target.gameId,
+        carOrdinal,
+        trackOrdinal,
+        tuneId,
+      });
+      if (result.laps.length === 0) {
+        return c.json(
+          { error: "No laps could be detected in this log", meta: result.meta, limitations: result.limitations },
+          400
+        );
+      }
+      return c.json({
+        ...result,
+        ok: true,
+        gameId: target.gameId,
+        routePrefix: target.routePrefix,
+        imported: result.laps.length,
+      });
+    } catch (err: any) {
+      console.error("[MoTeC Import] Failed:", err?.message);
+      return c.json({ error: "Failed to import MoTeC log", details: String(err?.message ?? err) }, 500);
     }
   })
 

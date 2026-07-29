@@ -1,48 +1,22 @@
 import { getAllGames } from "@shared/games/registry";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { createRootRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
-import { Menu, RefreshCw, Settings2, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { createRootRoute, Outlet, useLocation } from "@tanstack/react-router";
+import { Menu, RefreshCw, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { applyLocale } from "@/lib/locale";
 import { m } from "@/paraglide/messages";
 import { getLocale, isLocale } from "@/paraglide/runtime";
-import { ConnectionStatus } from "../components/ConnectionStatus";
+import { AppSidebar } from "../components/AppSidebar";
 import { OnboardingModal } from "../components/Onboarding";
 import { Settings } from "../components/Settings";
 import { UpdateModal } from "../components/UpdateModal";
 import { ThemeProvider } from "../context/theme";
 import { useSettings } from "../hooks/queries";
+import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { queryClient } from "../lib/queryClient";
 import { useTelemetryStore } from "../stores/telemetry";
 import { useUiStore } from "../stores/ui";
-
-// Canonical (English, path-stable) game sub-tab keys. The URL segment is always
-// the lowercased English key; only the *display* label is localized.
-const GAME_SUB_TABS = ["Live", "Sessions", "Compare", "Analyse", "Experiments", "Chats", "Tracks", "Cars", "Setups", "Raw"] as const;
-
-// Sub-tabs only exposed for certain games. Tune is acc/ac-evo/f1-2025 — ACC and
-// AC-Evo use the file-based auto-tune pipeline (saved setup → autotune engine);
-// F1 2025 has no setup file, so it uses the telemetry-capture flow instead
-// (base setup captured from a driven lap, see ExperimentWorkspace).
-const GAME_SUB_TAB_GATE: Partial<Record<(typeof GAME_SUB_TABS)[number], readonly string[]>> = {
-  Experiments: ["/acc", "/ac-evo", "/f125"],
-  Setups: ["/fm23", "/acc", "/ac-evo", "/f125"],
-};
-
-const SUB_TAB_LABELS: Record<(typeof GAME_SUB_TABS)[number], () => string> = {
-  Live: m.tab_live,
-  Sessions: m.label_sessions,
-  Compare: m.label_compare,
-  Analyse: m.label_analyse,
-  Experiments: () => "Experiments",
-  Chats: m.tab_chats,
-  Tracks: m.label_tracks,
-  Cars: m.label_cars,
-  Setups: m.tab_setups,
-  Raw: m.tab_raw,
-};
 
 let _gamePrefixes: string[] | null = null;
 function getGamePrefixes() {
@@ -228,87 +202,37 @@ function AppShell() {
     if (!settingsLoaded || !settingsLanguage || !isLocale(settingsLanguage)) return;
     if (getLocale() !== settingsLanguage) applyLocale(settingsLanguage);
   }, [settingsLoaded, settingsLanguage]);
+
   const connected = useTelemetryStore((s) => s.connected);
   const packetsPerSec = useTelemetryStore((s) => s.packetsPerSec);
   const isRaceOn = useTelemetryStore((s) => s.isRaceOn);
   const updateState = useUpdateCheck();
-
+  const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const { settingsOpen: showSettings, settingsSection, openSettings, closeSettings, onboardingOpen, closeOnboarding } = useUiStore();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [gameMenuOpen, setGameMenuOpen] = useState(false);
-  const gameMenuRef = useRef<HTMLDivElement>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useLocalStorage<boolean>("raceiq-sidebar-collapsed", false);
   const [showUpdateModal, setShowUpdateModal] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.has("update")) {
-      // Clean up the URL
-      params.delete("update");
-      const clean = params.toString();
-      window.history.replaceState({}, "", window.location.pathname + (clean ? `?${clean}` : ""));
-      return true;
-    }
-    return false;
+    if (!params.has("update")) return false;
+    params.delete("update");
+    const clean = params.toString();
+    window.history.replaceState({}, "", window.location.pathname + (clean ? `?${clean}` : ""));
+    return true;
   });
-  const updateProgress = useTelemetryStore((s) => s.updateProgress);
   const location = useLocation();
+  const hiddenGames: string[] = displaySettings.hiddenGames ?? [];
 
   // Close mobile drawer on route change, but keep it open when the user
-  // lands on a bare game root (e.g. /fm23) so they can pick a sub-tab next.
+  // lands on a bare game root (e.g. /fm23) so they can pick a feature next.
   useEffect(() => {
-    const prefixes = getGamePrefixes();
-    const onGameRoot = prefixes.some((p) => location.pathname === p || location.pathname === `${p}/`);
+    const onGameRoot = getGamePrefixes().some((prefix) => location.pathname === prefix || location.pathname === `${prefix}/`);
     if (!onGameRoot) setMobileNavOpen(false);
-    setGameMenuOpen(false);
   }, [location.pathname]);
 
-  useEffect(() => {
-    if (!gameMenuOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (gameMenuRef.current && !gameMenuRef.current.contains(e.target as Node)) setGameMenuOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [gameMenuOpen]);
-
-  // Global nav tabs — filtered by user's hidden games preference
-  const hiddenGames: string[] = displaySettings.hiddenGames ?? [];
-  const hiddenGamesKey = hiddenGames.join(",");
-  const globalTabs = useMemo(
-    () => [
-      { to: "/", label: m.nav_home() },
-      ...getAllGames()
-        .filter((g) => !hiddenGames.includes(g.id))
-        .map((g) => ({ to: `/${g.routePrefix}`, label: g.shortName })),
-      { to: "/dash", label: m.nav_dash() },
-      ...(import.meta.env.DEV ? [{ to: "/dev", label: m.nav_dev() }] : []),
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    ],
-    // uiLocale: recompute labels when the language changes (no reload).
-    [hiddenGamesKey, uiLocale],
-  );
-
-  // Determine which game-specific tabs to show based on current route
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const gameTabs = useMemo(() => {
-    const prefix = getGamePrefixes().find((p) => location.pathname.startsWith(p));
-    if (!prefix) return [];
-    // Setups is hidden for games whose live SDK does not expose writable setup
-    // files or a complete setup snapshot (currently iRacing).
-    return GAME_SUB_TABS.filter((key) => {
-      const gate = GAME_SUB_TAB_GATE[key];
-      return !gate || gate.includes(prefix);
-    }).map((key) => ({ to: `${prefix}/${key.toLowerCase()}`, label: SUB_TAB_LABELS[key]() }));
-  }, [location.pathname, uiLocale]);
-
-  // Active game sub-tab (for the tablet <select> dropdown)
-  const activeGameTab = useMemo(() => {
-    return gameTabs.find((t) => location.pathname.startsWith(t.to))?.to ?? gameTabs[0]?.to ?? "";
-  }, [gameTabs, location.pathname]);
-
-  // Hide nav only on individual dashes (/dash/combo-1 etc.) — the catalogue
-  // at /dash keeps the main app chrome.
+  // Hide navigation only on individual dashboards (/dash/combo-1 etc.) — the
+  // dashboard catalogue at /dash keeps the app shell.
   const isDash = location.pathname.startsWith("/dash/");
 
-  // Block rendering until settings load, then show onboarding if needed
   if (!settingsLoaded) {
     return (
       <ThemeProvider>
@@ -326,7 +250,6 @@ function AppShell() {
     );
   }
 
-  // Minimal-chrome mode for /dash/* routes — no nav, no header.
   if (isDash) {
     return (
       <ThemeProvider>
@@ -339,229 +262,75 @@ function AppShell() {
 
   return (
     <ThemeProvider>
-      <div className="h-screen grid grid-rows-[auto_1fr] bg-app-bg text-app-text">
-        <div className="flex items-stretch justify-between border-b border-app-border min-h-14 lg:min-h-0">
-          <div className="flex items-center min-w-0 flex-1">
-            <ConnectionStatus connected={connected} packetsPerSec={packetsPerSec} forzaReceiving={isRaceOn && packetsPerSec > 0} />
+      <div className="flex h-screen min-h-0 bg-app-bg text-app-text">
+        <aside className="hidden h-full shrink-0 md:block">
+          <AppSidebar
+            collapsed={sidebarCollapsed}
+            connected={connected}
+            driverName={driverName}
+            forzaReceiving={isRaceOn && packetsPerSec > 0}
+            hiddenGames={hiddenGames}
+            mobile={false}
+            onCollapsedChange={setSidebarCollapsed}
+            onOpenSettings={openSettings}
+            onShowUpdate={() => setShowUpdateModal(true)}
+            packetsPerSec={packetsPerSec}
+            updateAvailable={updateState?.updateAvailable ?? false}
+          />
+        </aside>
 
-            <div className="hidden md:block w-px h-4 bg-app-border mx-2" />
-
-            {/* Desktop tabs (global, md+) */}
-            <div className="hidden md:flex items-center gap-0 min-w-0">
-              {globalTabs.map((tab) => (
-                <Link
-                  key={tab.to}
-                  to={tab.to}
-                  activeOptions={{ exact: tab.to === "/" }}
-                  className="px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors"
-                  activeProps={{
-                    className: "px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors border-app-accent text-app-accent",
-                  }}
-                  inactiveProps={{
-                    className: "px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors border-transparent text-app-text-muted hover:text-app-text-secondary",
-                  }}
-                >
-                  {tab.label}
-                </Link>
-              ))}
-
-              {gameTabs.length > 0 && (
-                <>
-                  <div className="w-px h-4 bg-app-border mx-2" />
-
-                  {/* Inline game sub-tabs at lg+ */}
-                  <div className="hidden lg:flex items-center gap-0">
-                    {gameTabs.map((tab) => (
-                      <Link
-                        key={tab.to}
-                        to={tab.to}
-                        activeOptions={{ exact: false }}
-                        className="px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors"
-                        activeProps={{
-                          className: "px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors border-app-accent text-app-accent",
-                        }}
-                        inactiveProps={{
-                          className: "px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 transition-colors border-transparent text-app-text-muted hover:text-app-text-secondary",
-                        }}
-                      >
-                        {tab.label}
-                      </Link>
-                    ))}
-                  </div>
-
-                  {/* Dropdown for game sub-tabs at md-lg */}
-                  <div ref={gameMenuRef} className="lg:hidden relative self-center">
-                    <button
-                      type="button"
-                      onClick={() => setGameMenuOpen((o) => !o)}
-                      className="flex items-center gap-1.5 bg-app-surface border border-app-border rounded px-2 py-1 text-xs font-semibold uppercase tracking-wider text-app-text hover:border-app-accent"
-                    >
-                      <span>{gameTabs.find((t) => t.to === activeGameTab)?.label ?? ""}</span>
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    {gameMenuOpen && (
-                      <div className="absolute left-0 top-full mt-1 w-44 bg-app-surface border border-app-border rounded-lg shadow-lg z-50 overflow-hidden">
-                        {gameTabs.map((tab) => (
-                          <Link
-                            key={tab.to}
-                            to={tab.to}
-                            onClick={() => setGameMenuOpen(false)}
-                            className={`block px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${tab.to === activeGameTab ? "text-app-accent bg-app-accent/10" : "text-app-text hover:bg-app-surface-alt"}`}
-                          >
-                            {tab.label}
-                          </Link>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 mr-2 shrink-0">
-            {updateState?.updateAvailable && (
-              <button
-                type="button"
-                onClick={() => setShowUpdateModal(true)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-yellow-400/15 text-yellow-400 border border-yellow-400/30 hover:bg-yellow-400/25 transition-colors"
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-yellow-400" />
-                <span className="hidden sm:inline">{m.root_update_available()}</span>
-                <span className="sm:hidden">{m.root_update_short()}</span>
-              </button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => (showSettings ? closeSettings() : openSettings())}
-              aria-label={driverName ? `${m.nav_settings()} (${driverName})` : m.nav_settings()}
-              className="hidden md:flex text-app-text-secondary hover:text-app-text items-center gap-1.5"
-            >
-              <span className="hidden sm:inline">{driverName || m.nav_settings()}</span>
-              <Settings2 className="size-3.5 text-app-text-muted" />
-            </Button>
-
-            {/* Hamburger (mobile only, right side) */}
-            <button type="button" onClick={() => setMobileNavOpen(true)} className="md:hidden p-3 text-app-text-secondary hover:text-app-text" aria-label="Open navigation">
+        <div className="flex min-w-0 min-h-0 flex-1 flex-col">
+          <header className="flex min-h-14 items-center justify-between border-b border-app-border px-3 md:hidden">
+            <span className="text-sm font-semibold text-app-text">RaceIQ</span>
+            <button type="button" onClick={() => setMobileNavOpen(true)} className="p-3 text-app-text-secondary hover:text-app-text" aria-label="Open navigation">
               <Menu className="size-6" />
             </button>
-          </div>
+          </header>
+          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+            <Outlet key={uiLocale} />
+          </main>
         </div>
 
-        {/* Mobile nav drawer */}
         {mobileNavOpen && (
-          // biome-ignore lint/a11y/noStaticElementInteractions: Preserve the existing overlay behavior; accessibility changes belong in a separate PR.
-          <div className="md:hidden fixed inset-0 z-50 flex justify-end" onClick={() => setMobileNavOpen(false)}>
-            <div className="absolute inset-0 bg-black/60" />
-            <nav className="relative w-64 max-w-[80vw] h-full bg-app-bg border-l border-app-border flex flex-col overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between px-4 py-3 border-b border-app-border">
-                <span className="text-sm font-semibold text-app-text">{m.nav_navigation()}</span>
-                <button type="button" onClick={() => setMobileNavOpen(false)} className="p-1 text-app-text-muted hover:text-app-text" aria-label="Close navigation">
-                  <X className="size-4" />
-                </button>
-              </div>
-              <div className="py-2">
-                {globalTabs.map((tab) => (
-                  <Link
-                    key={tab.to}
-                    to={tab.to}
-                    activeOptions={{ exact: tab.to === "/" }}
-                    className="block px-4 py-2.5 text-sm font-semibold uppercase tracking-wider border-l-2 transition-colors"
-                    activeProps={{
-                      className: "block px-4 py-2.5 text-sm font-semibold uppercase tracking-wider border-l-2 transition-colors border-app-accent text-app-accent bg-app-accent/10",
-                    }}
-                    inactiveProps={{
-                      className: "block px-4 py-2.5 text-sm font-semibold uppercase tracking-wider border-l-2 transition-colors border-transparent text-app-text-muted hover:text-app-text",
-                    }}
-                  >
-                    {tab.label}
-                  </Link>
-                ))}
-
-                {gameTabs.length > 0 && (
-                  <>
-                    <div className="mx-4 my-2 border-t border-app-border" />
-                    <div className="px-4 py-1 text-[10px] uppercase tracking-wider text-app-text-dim">{m.nav_this_game()}</div>
-                    {gameTabs.map((tab) => (
-                      <Link
-                        key={tab.to}
-                        to={tab.to}
-                        activeOptions={{ exact: false }}
-                        className="block px-4 py-2.5 text-sm font-semibold uppercase tracking-wider border-l-2 transition-colors"
-                        activeProps={{
-                          className: "block px-4 py-2.5 text-sm font-semibold uppercase tracking-wider border-l-2 transition-colors border-app-accent text-app-accent bg-app-accent/10",
-                        }}
-                        inactiveProps={{
-                          className: "block px-4 py-2.5 text-sm font-semibold uppercase tracking-wider border-l-2 transition-colors border-transparent text-app-text-muted hover:text-app-text",
-                        }}
-                      >
-                        {tab.label}
-                      </Link>
-                    ))}
-                  </>
-                )}
-
-                <div className="mx-4 my-2 border-t border-app-border" />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileNavOpen(false);
-                    openSettings();
-                  }}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-semibold uppercase tracking-wider border-l-2 border-transparent text-app-text-muted hover:text-app-text"
-                >
-                  <Settings2 className="size-4" />
-                  <span>{driverName || m.nav_settings()}</span>
-                </button>
-              </div>
-            </nav>
+          <div className="fixed inset-0 z-50 flex justify-end md:hidden">
+            <button type="button" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} className="absolute inset-0 bg-black/60" />
+            <div className="relative h-full">
+              <AppSidebar
+                collapsed={false}
+                connected={connected}
+                driverName={driverName}
+                forzaReceiving={isRaceOn && packetsPerSec > 0}
+                hiddenGames={hiddenGames}
+                mobile
+                onClose={() => setMobileNavOpen(false)}
+                onOpenSettings={openSettings}
+                onShowUpdate={() => setShowUpdateModal(true)}
+                packetsPerSec={packetsPerSec}
+                updateAvailable={updateState?.updateAvailable ?? false}
+              />
+            </div>
           </div>
         )}
 
         {showSettings && (
-          // biome-ignore lint/a11y/noStaticElementInteractions: Preserve the existing overlay behavior; accessibility changes belong in a separate PR.
-          <div
-            className="fixed inset-0 z-50 flex items-stretch md:items-start justify-center md:pt-12 md:pb-12 bg-black/60"
-            onClick={() => {
-              closeSettings();
-            }}
-          >
-            {/* biome-ignore lint/a11y/noStaticElementInteractions: Preserve the existing overlay behavior; accessibility changes belong in a separate PR. */}
-            <div className="w-full md:max-w-2xl h-full md:rounded-lg md:border border-app-border bg-app-bg overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between px-4 py-3 border-b border-app-border bg-app-surface">
+          <div className="fixed inset-0 z-50 flex items-stretch justify-center md:items-start md:pb-12 md:pt-12">
+            <button type="button" aria-label="Close settings" onClick={closeSettings} className="absolute inset-0 bg-black/60" />
+            <div className="relative h-full w-full overflow-hidden bg-app-bg md:max-w-2xl md:rounded-lg md:border md:border-app-border">
+              <div className="flex items-center justify-between border-b border-app-border bg-app-surface px-4 py-3">
                 <h1 className="text-sm font-semibold text-app-text">{m.nav_settings()}</h1>
-                <button
-                  type="button"
-                  onClick={() => {
-                    closeSettings();
-                  }}
-                  className="text-app-text-muted hover:text-app-text text-lg leading-none"
-                >
+                <button type="button" onClick={closeSettings} className="text-lg leading-none text-app-text-muted hover:text-app-text">
                   &times;
                 </button>
               </div>
               <div className="h-[calc(100%-3rem)]">
-                <Settings
-                  initialSection={settingsSection as "games" | "ai" | "updates" | "about" | undefined}
-                  onClose={() => {
-                    closeSettings();
-                  }}
-                />
+                <Settings initialSection={settingsSection as "games" | "ai" | "updates" | "about" | undefined} onClose={closeSettings} />
               </div>
             </div>
           </div>
         )}
 
         {(showUpdateModal || updateProgress) && <UpdateModal version={updateState?.latest ?? "?"} newReleases={updateState?.newReleases ?? []} onClose={() => setShowUpdateModal(false)} />}
-
         {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
-
-        <div className="min-h-0 overflow-y-auto">
-          <Outlet key={uiLocale} />
-        </div>
       </div>
       <StaleLapButton />
     </ThemeProvider>

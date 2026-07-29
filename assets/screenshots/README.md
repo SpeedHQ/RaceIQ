@@ -1,16 +1,76 @@
 # Screenshots
 
-## Home & Dashboards
+### AccLiveDashboard
 
-### Home
+![AccLiveDashboard](AccLiveDashboard.png)
+
+### ComboDash1
+
+![ComboDash1](ComboDash1.png)
+
+### ComboDash2
+
+![ComboDash2](ComboDash2.png)
+
+### F1LiveDashboard
+
+![F1LiveDashboard](F1LiveDashboard.png)
+
+### ForzaLiveDashboard
+
+![ForzaLiveDashboard](ForzaLiveDashboard.png)
+
+### SetupBrowser
+
+![SetupBrowser](SetupBrowser.png)
+
+### SetupBrowserReadOnly
+
+![SetupBrowserReadOnly](SetupBrowserReadOnly.png)
+
+### car catalogue f125 grid
+
+![car catalogue f125 grid](car-catalogue-f125-grid.png)
+
+### car catalogue f125 table
+
+![car catalogue f125 table](car-catalogue-f125-table.png)
+
+### car catalogue forza grid
+
+![car catalogue forza grid](car-catalogue-forza-grid.png)
+
+### car catalogue forza
+
+![car catalogue forza](car-catalogue-forza.png)
+
+### car compare forza
+
+![car compare forza](car-compare-forza.png)
+
+### compare
+
+![compare](compare.png)
+
+### home
 
 ![home](home.png)
 
-### Combo Dashboard
+### lap analytics
 
-![Combo Dashboard 1](ComboDash1.png)
+![lap analytics](lap-analytics.png)
 
-![Combo Dashboard 2](ComboDash2.png)
+### setups ranges
+
+![setups ranges](setups-ranges.png)
+
+### setups
+
+![setups](setups.png)
+
+### tracks
+
+![tracks](tracks.png)
 
 <!-- dashboard-screenshots-start -->
 ### F1 2025 Live Dashboard
@@ -25,51 +85,3 @@
 
 ![Assetto Corsa Competizione Live Dashboard](AccLiveDashboard.png)
 <!-- dashboard-screenshots-end -->
-
-## Lap Analysis
-
-### Lap Analytics
-
-![lap analytics](lap-analytics.png)
-
-### Compare
-
-![compare](compare.png)
-
-## Cars
-
-### Car Catalogue — Forza
-
-![car catalogue forza](car-catalogue-forza.png)
-
-### Car Catalogue — Forza (grid)
-
-![car catalogue forza grid](car-catalogue-forza-grid.png)
-
-### Car Catalogue — F1 2025 (table)
-
-![car catalogue f125 table](car-catalogue-f125-table.png)
-
-### Car Catalogue — F1 2025 (grid)
-
-![car catalogue f125 grid](car-catalogue-f125-grid.png)
-
-### Car Compare — Forza
-
-![car compare forza](car-compare-forza.png)
-
-## Setups
-
-### Setups
-
-![setups](setups.png)
-
-### Setups — Ranges
-
-![setups ranges](setups-ranges.png)
-
-## Tracks
-
-### Tracks
-
-![tracks](tracks.png)
