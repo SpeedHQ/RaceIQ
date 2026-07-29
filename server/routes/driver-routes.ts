@@ -14,7 +14,6 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import type { GameId } from "../../shared/types";
 import { GameIdSchema } from "../../shared/types";
 import {
   getDriverProfile,
