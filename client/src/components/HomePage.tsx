@@ -5,7 +5,8 @@ import { Link } from "@tanstack/react-router";
 import { Settings2 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
-import { useLaps, useSessions, useSettings } from "../hooks/queries";
+import type { DriverFingerprint } from "../../../server/ai/driver-profile-aggregate";
+import { useDriverProfile, useLaps, useSessions, useSettings } from "../hooks/queries";
 import { client } from "../lib/rpc";
 import { getGameRoute, useGameId } from "../stores/game";
 import { useUiStore } from "../stores/ui";
@@ -93,11 +94,116 @@ function formatTimeAgo(date: Date): string {
   if (sec < 604800) return `${Math.floor(sec / 86400)}d ${m.home_days_ago()}`;
   return date.toLocaleDateString();
 }
+export interface DriverProgressCardProps {
+  gameId: string;
+  fingerprint: DriverFingerprint | null;
+  loading?: boolean;
+  error?: string | null;
+  medianLapSec?: number | null;
+}
+
+
+/** Small deterministic snapshot for the game home; the full profile remains on /driver. */
+export function DriverProgressCard({ gameId, fingerprint, loading = false, error = null, medianLapSec = null }: DriverProgressCardProps) {
+  const profileHref = `${getGameRoute(gameId)}/driver`;
+  const analyseHref = `${getGameRoute(gameId)}/analyse`;
+
+  if (loading) {
+    return (
+      <section className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10" aria-live="polite">
+        <h2 className="text-sm font-semibold text-app-text">Driver progress</h2>
+        <p className="mt-2 text-sm text-app-text-muted">Analysing your measured lap history…</p>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="rounded-lg bg-app-surface p-4 ring-1 ring-red-500/20" role="alert">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-app-text">Driver progress</h2>
+          <a href={profileHref} className="rounded px-1 text-xs text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
+            Open profile
+          </a>
+        </div>
+        <p className="mt-2 text-sm text-red-300">Measured profile unavailable: {error}</p>
+      </section>
+    );
+  }
+
+  if (!fingerprint?.ok || fingerprint.laps.analyzed === 0) {
+    return (
+      <section className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-app-text">Driver progress</h2>
+          <a href={profileHref} className="rounded px-1 text-xs text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
+            Open profile
+          </a>
+        </div>
+        <p className="mt-2 text-sm text-app-text-muted">No usable laps yet. Record a few clean laps to build measured progress.</p>
+        <a href={analyseHref} className="mt-3 inline-flex rounded-md bg-app-accent/15 px-3 py-1.5 text-xs font-semibold text-app-accent hover:bg-app-accent/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
+          Go to lap analysis
+        </a>
+      </section>
+    );
+  }
+
+  const topWeakness = fingerprint.weaknesses[0] ?? fingerprint.unquantifiedWeaknesses[0] ?? null;
+  const consistency = fingerprint.pace.consistency;
+  return (
+    <section className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <h2 className="text-sm font-semibold text-app-text">Driver progress</h2>
+          <p className="mt-0.5 text-xs text-app-text-muted">Measured from {fingerprint.laps.analyzed} laps · {fingerprint.confidence} confidence</p>
+        </div>
+        <a href={profileHref} className="rounded px-1 text-xs text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
+          View full profile →
+        </a>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="rounded-md bg-app-surface-alt/30 p-2.5">
+          <div className="text-[10px] uppercase tracking-wider text-app-text-muted">Best</div>
+          <div className="mt-1 font-mono text-base font-bold tabular-nums text-app-text">{fingerprint.pace.bestS != null && Number.isFinite(fingerprint.pace.bestS) ? formatLapTime(fingerprint.pace.bestS) : "—"}</div>
+        </div>
+        <div className="rounded-md bg-app-surface-alt/30 p-2.5">
+          <div className="text-[10px] uppercase tracking-wider text-app-text-muted">Median</div>
+          <div className="mt-1 font-mono text-base font-bold tabular-nums text-app-text">{medianLapSec != null && Number.isFinite(medianLapSec) ? formatLapTime(medianLapSec) : "—"}</div>
+        </div>
+        <div className="rounded-md bg-app-surface-alt/30 p-2.5">
+          <div className="text-[10px] uppercase tracking-wider text-app-text-muted">Consistency</div>
+          <div className="mt-1 font-mono text-base font-bold tabular-nums text-app-text">{consistency != null ? `${Math.round(consistency)}%` : "—"}</div>
+        </div>
+        <div className="rounded-md bg-app-surface-alt/30 p-2.5">
+          <div className="text-[10px] uppercase tracking-wider text-app-text-muted">Confidence</div>
+          <div className="mt-1 text-base font-semibold capitalize text-app-text">{fingerprint.confidence}</div>
+        </div>
+      </div>
+
+      <div className="mt-3 rounded-md border border-amber-400/15 bg-amber-400/5 px-3 py-2">
+        <div className="text-[10px] uppercase tracking-wider text-amber-300/80">Recurring measured weakness</div>
+        <p className="mt-1 text-sm text-app-text">
+          {topWeakness ? (
+            <>
+              {topWeakness.label}
+              <span className="ml-1 text-xs text-app-text-muted">· {(topWeakness.perLapFrequency * 100).toFixed(0)}% of analysed laps</span>
+            </>
+          ) : (
+            "No recurring weakness detected in the measured pool."
+          )}
+        </p>
+      </div>
+    </section>
+  );
+}
+
 
 export function HomePage() {
   const gameId = useGameId();
   const gameAdapter = gameId ? tryGetGame(gameId) : null;
   const { data: allLaps = [] } = useLaps();
+  const driverProfileQuery = useDriverProfile({ gameId });
   const { data: sessions = [] } = useSessions();
   const { displaySettings } = useSettings();
   const { openSettings } = useUiStore();
@@ -120,6 +226,18 @@ export function HomePage() {
         .slice(0, 10),
     [allLaps],
   );
+  const medianLapSec = useMemo(() => {
+    const fingerprint = driverProfileQuery.data?.fingerprint;
+    if (!fingerprint?.ok) return null;
+    const selectedIds = new Set(fingerprint.laps.lapIds);
+    const times = allLaps
+      .filter((lap) => selectedIds.has(lap.id) && lap.isValid && lap.lapTime > 0)
+      .map((lap) => lap.lapTime)
+      .sort((a, b) => a - b);
+    if (times.length === 0) return null;
+    const middle = Math.floor(times.length / 2);
+    return times.length % 2 === 0 ? (times[middle - 1] + times[middle]) / 2 : times[middle];
+  }, [allLaps, driverProfileQuery.data]);
 
   // Per-game stats — fetched from /api/stats per game so counts aren't
   // capped by useLaps()'s 200-row limit (home and /<gameId> used to
@@ -554,6 +672,16 @@ export function HomePage() {
             </Link>
           )}
         </div>
+      )}
+
+      {gameId && (
+        <DriverProgressCard
+          gameId={gameId}
+          fingerprint={driverProfileQuery.data?.fingerprint ?? null}
+          loading={driverProfileQuery.isLoading}
+          error={driverProfileQuery.error instanceof Error ? driverProfileQuery.error.message : driverProfileQuery.error ? String(driverProfileQuery.error) : null}
+          medianLapSec={medianLapSec}
+        />
       )}
 
       {/* Latest session recap. Renders in full here, so there is no modal to open —

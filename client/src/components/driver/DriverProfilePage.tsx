@@ -9,12 +9,12 @@
 
 import { getGame } from "@shared/games/registry";
 import { AlertTriangle, Sparkles, Trash2 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import type { DriverFingerprint } from "../../../../server/ai/driver-profile-aggregate";
 import type { DriverProfileOutput } from "../../../../server/ai/schemas";
-import { useLaps } from "../../hooks/queries";
+import { useDriverProfile, useLaps } from "../../hooks/queries";
 import { useRequiredGameId } from "../../stores/game";
 import { DriverProfileView } from "./DriverProfileView";
 
@@ -83,6 +83,14 @@ export function DriverProfilePage() {
   const [error, setError] = useState<string | null>(null);
 
   const scope = parseScope(scopeValue);
+  const profileQuery = useDriverProfile({ gameId, ...scope });
+
+  // A coached response belongs to one scope. Deterministic data is keyed by
+  // scope in TanStack Query and loads independently of the coach.
+  useEffect(() => {
+    setData(null);
+    setError(null);
+  }, [gameId, scope.carOrdinal, scope.trackOrdinal]);
 
   const run = useCallback(
     async (opts: { regenerate?: boolean; cacheOnly?: boolean } = {}) => {
@@ -151,7 +159,8 @@ export function DriverProfilePage() {
     setData(null);
   }, [gameId, scope.carOrdinal, scope.trackOrdinal]);
 
-  const fp = data?.fingerprint ?? null;
+  const fp = profileQuery.data?.fingerprint ?? data?.fingerprint ?? null;
+  const profileError = profileQuery.error instanceof Error ? profileQuery.error.message : profileQuery.error ? String(profileQuery.error) : null;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
@@ -163,9 +172,9 @@ export function DriverProfilePage() {
         <div className="w-72">
           <SearchSelect value={scopeValue} onChange={setScopeValue} options={scopeOptions} placeholder="Choose scope…" />
         </div>
-        <Button onClick={() => void run({ regenerate: !!data })} disabled={loading}>
+        <Button onClick={() => void run({ regenerate: !!data })} disabled={loading || profileQuery.isLoading || !fp?.ok}>
           <Sparkles className="size-4" />
-          {loading ? "Analysing…" : data ? "Regenerate" : "Build profile"}
+          {loading ? "Analysing…" : data ? "Regenerate" : "Run coach"}
         </Button>
         {data && (
           <Button variant="ghost" onClick={() => void clearCache()} aria-label="Clear cached profile">
@@ -174,20 +183,27 @@ export function DriverProfilePage() {
         )}
       </header>
 
-      {error && (
-        <div className="mb-4 flex items-start gap-2 rounded-lg bg-red-500/10 p-3 text-sm text-red-300 ring-1 ring-red-500/20">
+      {(profileError || error) && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg bg-red-500/10 p-3 text-sm text-red-300 ring-1 ring-red-500/20" role="alert">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-          <span>{error}</span>
+          <span>{profileError ?? error}</span>
         </div>
       )}
 
-      {!data && !loading && !error && (
-        <div className="rounded-lg bg-app-surface p-8 text-center ring-1 ring-white/10">
-          <p className="text-sm text-app-text-muted">Build a profile to see your driving-style measurements and a ranked improvement plan drawn from your lap history.</p>
-        </div>
+      {profileQuery.isLoading && (
+        <div className="rounded-lg bg-app-surface p-8 text-center text-sm text-app-text-muted ring-1 ring-white/10">Loading measured profile…</div>
       )}
 
-      {fp && <DriverProfileView fingerprint={fp} plan={data?.plan ?? null} cached={data?.cached} warnings={data?.warnings} />}
+      {fp && (
+        <DriverProfileView
+          fingerprint={fp}
+          plan={data?.plan ?? null}
+          cached={data?.cached}
+          warnings={data?.warnings}
+          coachStatus={loading ? "running" : error ? "error" : "idle"}
+          coachError={error ?? undefined}
+        />
+      )}
     </div>
   );
 }

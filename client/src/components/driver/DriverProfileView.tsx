@@ -26,6 +26,8 @@ export interface DriverProfileViewProps {
   plan: DriverProfileOutput | null;
   cached?: boolean;
   warnings?: string[];
+  coachStatus?: "idle" | "running" | "error";
+  coachError?: string;
 }
 
 /**
@@ -80,7 +82,7 @@ function FocusArea({ area, rank, detector, defaultOpen }: { area: DriverProfileO
   );
 }
 
-export function DriverProfileView({ fingerprint: fp, plan, cached = false, warnings }: DriverProfileViewProps) {
+export function DriverProfileView({ fingerprint: fp, plan, cached = false, warnings, coachStatus = "idle", coachError }: DriverProfileViewProps) {
   const detectorById = useMemo(() => {
     const map = new Map<string, RankedWeakness>();
     for (const w of [...fp.weaknesses, ...fp.unquantifiedWeaknesses]) map.set(w.id, w);
@@ -218,6 +220,17 @@ export function DriverProfileView({ fingerprint: fp, plan, cached = false, warni
               </p>
             ))}
           </>
+        ) : coachStatus === "running" ? (
+          <div className="rounded-lg bg-app-surface p-6 text-center ring-1 ring-white/10" aria-live="polite">
+            <p className="text-sm text-app-text">The coach is turning these measurements into a practice plan…</p>
+            <p className="mt-1 text-xs text-app-text-muted">Your measured profile stays available while it runs.</p>
+          </div>
+        ) : coachStatus === "error" ? (
+          <div className="rounded-lg bg-red-500/10 p-6 text-center ring-1 ring-red-500/20" role="alert">
+            <p className="text-sm text-red-200">The coach could not finish.</p>
+            {coachError && <p className="mt-1 text-xs text-red-300/80">{coachError}</p>}
+            <p className="mt-2 text-xs text-red-200/70">Your deterministic measurements are still valid. Try the coach again when ready.</p>
+          </div>
         ) : (
           <div className="rounded-lg bg-app-surface p-6 text-center ring-1 ring-white/10">
             <p className="text-sm text-app-text-muted">The measurements on the left are ready. Run the coach to turn them into a ranked plan.</p>
