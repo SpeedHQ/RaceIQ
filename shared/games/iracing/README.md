@@ -4,9 +4,12 @@
 
 `cars.csv` is an offline, minimal projection of an iRacing
 `/data/car/get` response. RaceIQ never asks users for iRacing credentials and
-does not call the Data API at runtime.
+does not call the Data API at runtime. The catalogue's car images are committed
+under `client/public/iracing-car-images`, so installed builds do not require
+iRacing or runtime access to iRacing's static CDN.
 
-Refresh it from the current public test snapshot:
+Refresh the catalogue and its bundled images from the current public test
+snapshot:
 
 ```powershell
 bun run iracing:cars:seed
@@ -18,10 +21,15 @@ Or seed from a `/data/car/get` JSON file exported locally:
 bun run iracing:cars:seed -- --source C:\path\to\get_cars.json
 ```
 
+Use `--skip-images` only when refreshing catalogue metadata while retaining an
+already-complete `client/public/iracing-car-images` directory.
+
 The default public snapshot comes from the MIT-licensed
 [`jasondilworth56/iracingdataapi`](https://github.com/jasondilworth56/iracingdataapi)
-test fixtures. The generator retains only `car_id`, `car_name`, and
-`car_dirpath`, and excludes rows where the API sets `retired: true`.
+test fixtures. The generator retains the car identity, category, and source
+image location needed to produce the committed catalogue, and excludes rows
+where the API sets `retired: true`. The car images themselves are downloaded
+from iRacing's public static image host.
 
 ## Tracks
 
