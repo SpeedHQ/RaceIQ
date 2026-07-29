@@ -5,6 +5,12 @@ export const accAdapter: GameAdapter = {
   displayName: "Assetto Corsa Competizione",
   shortName: "ACC",
   routePrefix: "acc",
+  telemetry: {
+    fuel: { packetUnit: "litre" },
+    tireTemperature: { packetUnit: "celsius" },
+    brakeTemperature: { packetUnit: "celsius" },
+    tirePressure: { packetUnit: "psi" },
+  },
   coordSystem: "standard-xyz",
   nativeSectors: false,
   appendsDelayedFinishFrame: true,

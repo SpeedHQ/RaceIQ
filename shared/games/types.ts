@@ -33,7 +33,31 @@ export interface AnalysisTelemetryModel {
   suspensionCompressionBias: AnalysisTelemetryMetric;
 }
 
+export type PacketUnit =
+  | "fraction"
+  | "litre"
+  | "celsius"
+  | "fahrenheit"
+  | "psi"
+  | "watt"
+  | "newton-metre";
+
+export interface ScalarTelemetrySpec<
+  Unit extends PacketUnit = PacketUnit,
+> {
+  packetUnit: Unit;
+}
+
 export interface TelemetryModel {
+  fuel: ScalarTelemetrySpec<"fraction" | "litre">;
+  tireTemperature: ScalarTelemetrySpec<"celsius" | "fahrenheit">;
+  boost?: ScalarTelemetrySpec<"psi">;
+  power?: ScalarTelemetrySpec<"watt">;
+  torque?: ScalarTelemetrySpec<"newton-metre">;
+  brakeTemperature?: ScalarTelemetrySpec<"celsius" | "fahrenheit">;
+  tirePressure?: ScalarTelemetrySpec<"psi">;
+  ers?: true;
+
   /**
    * Analysis-panel semantics. Omitted fields inherit the current cross-game
    * defaults; adapters override only genuine source or model differences.
@@ -56,7 +80,7 @@ export interface GameAdapter {
   routePrefix: string;
 
   /** Semantic telemetry capabilities and freshness owned by this game. */
-  telemetry?: TelemetryModel;
+  telemetry: TelemetryModel;
 
   /** Coordinate system used for track maps */
   coordSystem: string;

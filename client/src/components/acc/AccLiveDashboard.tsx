@@ -60,7 +60,7 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
             <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.label_pit_window()}</h2>
           </div>
           <div className="p-3">
-            <PitEstimate packet={packet} pit={pit} gameId="acc" />
+            <PitEstimate packet={packet} pit={pit} />
           </div>
         </div>
       </div>

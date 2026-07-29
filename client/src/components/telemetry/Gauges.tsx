@@ -1,3 +1,9 @@
+import { getGame } from "@shared/games/registry";
+import {
+  getFuelAmount,
+  getFuelDisplay,
+  WATTS_PER_HORSEPOWER,
+} from "@shared/games/telemetry";
 import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useRef, useState } from "react";
 import { client } from "@/lib/rpc";
@@ -53,9 +59,11 @@ export function ArcGauge({ value, max, label, unit, color }: { value: number; ma
  * FuelGauge — Tracks fuel consumption per lap to estimate remaining laps.
  * Strategy: records fuel level at each lap start, computes delta on lap boundary,
  * averages last 5 laps for the burn rate estimate. Seeds from server history
- * so estimates survive page refreshes. Filters out impossible values (>100% per lap).
+ * so estimates survive page refreshes. Fraction sources reject impossible
+ * values (>100% per lap); litre sources retain their native burn amount.
  */
 export function FuelGauge({ packet }: { packet: TelemetryPacket }) {
+  const fuelSpec = getGame(packet.gameId).telemetry.fuel;
   const fuelRef = useRef<{
     lapStart: number;
     lastLap: number;
@@ -80,7 +88,14 @@ export function FuelGauge({ packet }: { packet: TelemetryPacket }) {
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           const f = fuelRef.current;
-          f.history = data.map((d) => d.fuelUsed).filter((v) => v > 0 && v < 1);
+          f.history = data
+            .map((d) => d.fuelUsed)
+            .filter(
+              (value) =>
+                Number.isFinite(value) &&
+                value > 0 &&
+                (fuelSpec.packetUnit !== "fraction" || value < 1),
+            );
           if (f.history.length > 0) {
             const recent = f.history.slice(-5);
             f.avgPerLap = recent.reduce((s, v) => s + v, 0) / recent.length;
@@ -89,7 +104,7 @@ export function FuelGauge({ packet }: { packet: TelemetryPacket }) {
         }
       })
       .catch(() => {});
-  }, []);
+  }, [fuelSpec.packetUnit]);
 
   // Track fuel consumption per lap
   useEffect(() => {
@@ -108,41 +123,65 @@ export function FuelGauge({ packet }: { packet: TelemetryPacket }) {
     f.lastLap = packet.LapNumber;
   }, [packet.LapNumber, packet.Fuel]);
 
-  const fuelIsLitres = packet.gameId === "acc" || packet.gameId === "ac-evo" || packet.gameId === "f1-2025" || packet.gameId === "iracing";
-  const pct = fuelIsLitres ? Math.min(100, packet.Fuel) : packet.Fuel * 100;
-  const fuelLabel = fuelIsLitres ? `${packet.Fuel.toFixed(1)}L` : `${pct.toFixed(0)}%`;
-  const fuelColor = fuelIsLitres ? (packet.Fuel < 5 ? "bg-red-500" : packet.Fuel < 15 ? "bg-amber-400" : "bg-emerald-400") : pct < 20 ? "bg-red-500" : pct < 40 ? "bg-amber-400" : "bg-emerald-400";
-  const textColor = fuelIsLitres
-    ? packet.Fuel < 5
-      ? "text-red-400"
-      : packet.Fuel < 15
-        ? "text-amber-400"
-        : "text-emerald-400"
-    : pct < 20
-      ? "text-red-400"
-      : pct < 40
-        ? "text-amber-400"
-        : "text-emerald-400";
+  const fuel = getFuelDisplay(packet, fuelSpec);
+  const fillPct =
+    fuel.fillRatio === undefined ? undefined : fuel.fillRatio * 100;
+  const isCritical =
+    fuel.fillRatio === undefined ? fuel.amount < 5 : fuel.fillRatio < 0.2;
+  const isWarning =
+    !isCritical &&
+    (fuel.fillRatio === undefined ? fuel.amount < 15 : fuel.fillRatio < 0.4);
+  const fuelColor = isCritical
+    ? "bg-red-500"
+    : isWarning
+      ? "bg-amber-400"
+      : "bg-emerald-400";
+  const textColor = isCritical
+    ? "text-red-400"
+    : isWarning
+      ? "text-amber-400"
+      : "text-emerald-400";
   const avg = fuelStats.avgPerLap;
   const lapsRemaining = avg && avg > 0 ? Math.floor(packet.Fuel / avg) : null;
+  const averageDisplay =
+    avg === null ? null : getFuelAmount(avg, fuelSpec);
 
   // Current lap fuel used so far
-  const currentLapPct = (fuelStats.lapStart - packet.Fuel) * 100;
+  const currentLapDisplay = getFuelAmount(
+    fuelStats.lapStart - packet.Fuel,
+    fuelSpec,
+  );
 
   // Delta vs average: positive = using more than avg, negative = saving
   return (
     <div className="flex-1">
       <div className="flex justify-between text-[10px] mb-0.5">
-        <span className={`font-mono font-bold ${textColor}`}>Fuel {fuelLabel}</span>
+        <span className={`font-mono font-bold ${textColor}`}>
+          Fuel {fuel.amount.toFixed(1)}{fuel.unit}
+        </span>
         {lapsRemaining != null && <span className="font-mono text-app-text-secondary">~{lapsRemaining} laps left</span>}
       </div>
-      <div className="h-2 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${fuelColor} ${pct < 20 ? "animate-pulse" : ""}`} style={{ width: `${pct}%` }} />
-      </div>
-      {avg != null && (
+      {fillPct === undefined ? (
+        <div
+          className="h-2 rounded-full border border-dashed border-app-border"
+          title="Fuel capacity unavailable"
+        />
+      ) : (
+        <div className="h-2 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all ${fuelColor} ${isCritical ? "animate-pulse" : ""}`}
+            style={{ width: `${fillPct}%` }}
+          />
+        </div>
+      )}
+      {averageDisplay != null && (
         <div className="flex justify-between text-[9px] font-mono mt-0.5">
-          <span className="text-app-text-muted">{(avg * 100).toFixed(1)}%/lap avg</span>
-          <span className="text-app-text-muted">This lap: {currentLapPct.toFixed(1)}%</span>
+          <span className="text-app-text-muted">
+            {averageDisplay.amount.toFixed(1)}{averageDisplay.unit}/lap avg
+          </span>
+          <span className="text-app-text-muted">
+            This lap: {currentLapDisplay.amount.toFixed(1)}{currentLapDisplay.unit}
+          </span>
         </div>
       )}
     </div>
@@ -150,16 +189,20 @@ export function FuelGauge({ packet }: { packet: TelemetryPacket }) {
 }
 
 export function PowerTorque({ packet }: { packet: TelemetryPacket }) {
-  const hp = packet.Power / 745.7;
+  const telemetryModel = getGame(packet.gameId).telemetry;
+  const showPower = telemetryModel.power !== undefined;
+  const showTorque = telemetryModel.torque !== undefined;
+  if (!showPower && !showTorque) return null;
+
+  const hp = packet.Power / WATTS_PER_HORSEPOWER;
   const nm = packet.Torque;
-  if (hp <= 0 && nm <= 0) return null;
   const maxHp = 1000;
   const maxNm = 1000;
 
   return (
     <div className="flex justify-center gap-2">
-      <ArcGauge value={hp} max={maxHp} label="Power" unit="hp" color="#fb923c" />
-      <ArcGauge value={nm} max={maxNm} label="Torque" unit="Nm" color="#fbbf24" />
+      {showPower && <ArcGauge value={hp} max={maxHp} label="Power" unit="hp" color="#fb923c" />}
+      {showTorque && <ArcGauge value={nm} max={maxNm} label="Torque" unit="Nm" color="#fbbf24" />}
     </div>
   );
 }

@@ -6,6 +6,12 @@ export const f1Adapter: GameAdapter = {
   shortName: "F1 25",
   routePrefix: "f125",
   telemetry: {
+    fuel: { packetUnit: "fraction" },
+    tireTemperature: { packetUnit: "celsius" },
+    power: { packetUnit: "watt" },
+    brakeTemperature: { packetUnit: "celsius" },
+    tirePressure: { packetUnit: "psi" },
+    ers: true,
     analysis: {
       surface: {
         source: "unavailable",
