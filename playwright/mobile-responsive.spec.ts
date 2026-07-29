@@ -61,8 +61,7 @@ for (const viewport of VIEWPORTS) {
       test("nav-drawer-open", async ({ page: p }) => {
         await p.goto("/fm23", { waitUntil: "networkidle" });
         await p.getByLabel("Open navigation").click();
-        // Wait for drawer heading to appear
-        await expect(p.getByText("Navigation", { exact: true })).toBeVisible();
+        await expect(p.getByRole("navigation", { name: "Navigation" })).toBeVisible();
         await p.waitForTimeout(200);
         await p.screenshot({
           path: `${SCREENSHOT_DIR}/${viewport.name}/nav-drawer-open.png`,
@@ -74,7 +73,10 @@ for (const viewport of VIEWPORTS) {
 
     test("settings-modal", async ({ page: p }) => {
       await p.goto("/", { waitUntil: "networkidle" });
-      await p.getByRole("button", { name: "Settings" }).click();
+      if (viewport.width < 768) {
+        await p.getByLabel("Open navigation").click();
+      }
+      await p.getByRole("button", { name: /Settings/ }).click();
       await expect(p.getByRole("heading", { name: "Settings" })).toBeVisible();
       await p.waitForTimeout(200);
       await p.screenshot({

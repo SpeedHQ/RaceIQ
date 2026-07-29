@@ -1,3 +1,4 @@
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { m } from "@/paraglide/messages";
 import { useSettings } from "../hooks/queries";
 import { useTelemetryStore } from "../stores/telemetry";
@@ -7,6 +8,7 @@ interface Props {
   connected: boolean;
   packetsPerSec: number;
   forzaReceiving: boolean;
+  collapsed?: boolean;
 }
 
 const DOT_CLASS: Record<"green" | "red" | "cyan" | "amber" | "dim", string> = {
@@ -17,7 +19,7 @@ const DOT_CLASS: Record<"green" | "red" | "cyan" | "amber" | "dim", string> = {
   dim: "bg-app-text-dim",
 };
 
-export function ConnectionStatus({ connected, packetsPerSec, forzaReceiving }: Props) {
+export function ConnectionStatus({ connected, packetsPerSec, forzaReceiving, collapsed = false }: Props) {
   const detectedGame = useTelemetryStore((s) => s.serverStatus?.detectedGame);
   const { displaySettings } = useSettings();
   const view = deriveConnectionStatusView({ connected, forzaReceiving, detectedGame });
@@ -40,17 +42,39 @@ export function ConnectionStatus({ connected, packetsPerSec, forzaReceiving }: P
       break;
   }
 
+  const packetText = forzaReceiving ? `${packetsPerSec} pkt/s · ${displaySettings.wsRefreshRate ?? 60}Hz` : null;
+  const accessibleLabel = packetText ? `${statusText}. ${packetText}` : statusText;
+
+  if (collapsed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <span
+              role="status"
+              // biome-ignore lint/a11y/noNoninteractiveTabindex: a non-action status needs keyboard focus to reveal its tooltip.
+              tabIndex={0}
+              aria-label={accessibleLabel}
+              className="flex h-9 w-full items-center justify-center rounded outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
+            />
+          }
+        >
+          <span className={`size-2.5 rounded-full ${DOT_CLASS[view.dotColor]}`} />
+        </TooltipTrigger>
+        <TooltipContent side="right" role="tooltip">
+          {accessibleLabel}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
   return (
-    <div className="flex items-center gap-3 px-4 self-stretch bg-app-surface">
-      <div className="flex items-center gap-2 shrink-0">
-        <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${DOT_CLASS[view.dotColor]}`} />
-        <span className="text-sm font-medium text-app-text whitespace-nowrap">{statusText}</span>
+    <div role="status" aria-label={accessibleLabel} className="flex w-full flex-col gap-0.5 px-2 py-2">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className={`size-2.5 shrink-0 rounded-full ${DOT_CLASS[view.dotColor]}`} />
+        <span className="truncate text-xs font-medium text-app-text">{statusText}</span>
       </div>
-      {forzaReceiving && (
-        <span className="text-sm text-app-text-muted font-mono tabular-nums whitespace-nowrap shrink-0">
-          {packetsPerSec} pkt/s · {displaySettings.wsRefreshRate ?? 60}Hz
-        </span>
-      )}
+      {packetText && <span className="pl-[18px] text-xs font-mono tabular-nums text-app-text-muted">{packetText}</span>}
     </div>
   );
 }
