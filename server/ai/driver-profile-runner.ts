@@ -144,7 +144,12 @@ async function runDriverProfileInternal(
   const poolKey = driverProfilePoolKey(candidates.map((lap) => lap.id));
   const existing = await findDriverProfileRunByScopePool(scope, poolKey);
   if (existing && (existing.status === "queued" || existing.status === "running")) {
-    return { status: existing.status, run: existing };
+    if (!options.force) return { status: existing.status, run: existing };
+    await updateDriverProfileRun(existing.id, scopeKey(scope), existing.status, {
+      status: "failed",
+      error: "Superseded by an explicit profile run.",
+      completedAt: now(),
+    });
   }
   if (existing?.status === "succeeded" && !options.force) {
     return { status: "succeeded", run: existing };

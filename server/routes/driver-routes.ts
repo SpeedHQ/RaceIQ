@@ -49,8 +49,14 @@ export const driverRoutes = new Hono()
     if (!parsedGame.success) return c.json({ error: "Missing or unknown X-Game-Id header" }, 400);
 
     const { carOrdinal, trackOrdinal } = c.req.valid("query");
-    const fingerprint = await loadDriverProfile({ gameId: parsedGame.data, carOrdinal, trackOrdinal });
-    return c.json({ fingerprint, ...resolveDriverProfileScopeNames({ gameId: parsedGame.data, carOrdinal, trackOrdinal }) });
+    const scope = { gameId: parsedGame.data, carOrdinal, trackOrdinal };
+    const fingerprint = await loadDriverProfile(scope);
+    const candidates = await getLapMetaForProfileScope(parsedGame.data, carOrdinal, trackOrdinal);
+    const selectedIds = new Set(fingerprint.ok ? fingerprint.laps.lapIds : []);
+    const selectedLapTimes = candidates
+      .filter((lap) => selectedIds.has(lap.id))
+      .map((lap) => ({ id: lap.id, lapTime: lap.lapTime, isValid: lap.isValid }));
+    return c.json({ fingerprint, selectedLapTimes, ...resolveDriverProfileScopeNames(scope) });
   })
 
   // ── Fingerprint + coached plan ──────────────────────────────────────────
