@@ -1,5 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createClient } from "@libsql/client/sqlite3";
@@ -38,6 +37,12 @@ async function counts(dataDir: string): Promise<Record<string, number>> {
   return result;
 }
 
+async function seededGames(dataDir: string): Promise<string[]> {
+  const client = createClient({ url: `file:${join(dataDir, "forza-telemetry.db")}` });
+  const rows = await client.execute("SELECT DISTINCT game_id FROM sessions WHERE notes LIKE '%raceiq-demo-seed-v1%' ORDER BY game_id");
+  return rows.rows.map((row) => String(row.game_id));
+}
+
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
@@ -48,9 +53,10 @@ describe("db:seed", () => {
     const first = await runSeed(dataDir);
     expect(first.code, first.output).toBe(0);
     const initial = await counts(dataDir);
-    expect(initial.sessions).toBeGreaterThanOrEqual(3);
-    expect(initial.laps).toBeGreaterThanOrEqual(10);
-    expect(initial.tunes).toBe(2);
+    expect(initial.sessions).toBeGreaterThanOrEqual(5);
+    expect(initial.laps).toBeGreaterThanOrEqual(14);
+    expect(JSON.parse(readFileSync(join(dataDir, "settings.json"), "utf8")).onboardingComplete).toBe(true);
+    expect(await seededGames(dataDir)).toEqual(["ac-evo", "acc", "f1-2025", "fm-2023", "iracing"]);
     expect(initial.experiments).toBe(1);
     expect(initial.experiment_versions).toBe(2);
     expect(initial.experiment_focus_events).toBe(2);

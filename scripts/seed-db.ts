@@ -7,15 +7,20 @@ import { initServerGameAdapters } from "../server/games/init";
 import { sessions, laps, profiles, tunes, tuneAssignments, experiments, experimentVersions, experimentFocusEvents, lapAnalyses, compareAnalyses } from "../server/db/schema";
 import { eq, inArray, like } from "drizzle-orm";
 import { deleteSession } from "../server/db/queries";
+import { getServerGame } from "../server/games/registry";
+import { readIRacingFrames } from "../server/games/iracing/recorder";
+import { loadSettings, saveSettings } from "../server/settings";
 import type { GameId } from "../shared/types";
 
 const SEED_MARKER = "raceiq-demo-seed-v1";
 const PROFILE_NAME = "RaceIQ Demo Driver";
-const DEFAULT_GAMES: GameId[] = ["fm-2023", "f1-2025", "acc"];
+const DEFAULT_GAMES: GameId[] = ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"];
 const FIXTURES: Record<GameId, string[]> = {
   "fm-2023": ["test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin.gz"],
   "f1-2025": ["test/artifacts/sessions/f1-2025-2026-04-22T11-42-43-029Z.bin.gz"],
   acc: ["test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz"],
+  "ac-evo": ["test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz"],
+  iracing: ["test/artifacts/sessions/iracing-road-america-gt3.bin.gz"],
 };
 
 type SeedOptions = { reset: boolean; force: boolean; games: GameId[] };
@@ -26,7 +31,7 @@ function parseOptions(): SeedOptions {
   const gamesArg = process.argv.find((arg) => arg.startsWith("--games="))?.slice("--games=".length)
     ?? (process.argv.includes("--games") ? process.argv[process.argv.indexOf("--games") + 1] : undefined);
   const games = (gamesArg ? gamesArg.split(",") : DEFAULT_GAMES).filter((game): game is GameId => DEFAULT_GAMES.includes(game as GameId));
-  if (games.length === 0) throw new Error("--games must include at least one of fm-2023,f1-2025,acc");
+  if (games.length === 0) throw new Error("--games must include at least one of fm-2023,f1-2025,acc,ac-evo,iracing");
   return { reset, force, games };
 }
 
@@ -81,10 +86,33 @@ async function removeSeedData(): Promise<void> {
   await db.delete(compareAnalyses).where(like(compareAnalyses.analysis, `%${SEED_MARKER}%`)).run();
 }
 
+async function seedIRacingSession(fixturePath: string): Promise<void> {
+  const adapter = getServerGame("iracing");
+  const state = adapter.createParserState?.() ?? null;
+  const firstPacket = readIRacingFrames(fixturePath)
+    .map((frame) => adapter.tryParse(frame, state))
+    .find((packet) => packet !== null);
+  if (!firstPacket) throw new Error(`No iRacing telemetry found in ${fixturePath}`);
+  await db.insert(sessions).values({
+    carOrdinal: firstPacket.CarOrdinal,
+    trackOrdinal: firstPacket.TrackOrdinal ?? 0,
+    gameId: "iracing",
+    sessionType: "practice",
+    notes: SEED_MARKER,
+    source: "seed",
+  }).run();
+  console.log(`[DB Seed] iracing: telemetry session from ${fixturePath}`);
+}
+
+function markOnboardingComplete(): void {
+  saveSettings({ ...loadSettings(), onboardingComplete: true });
+}
+
 async function insertDemoRows(profileId: number, importedLapIds: number[]): Promise<void> {
   const fmLaps = await db.select({ id: laps.id, carOrdinal: sessions.carOrdinal, trackOrdinal: sessions.trackOrdinal })
     .from(laps).innerJoin(sessions, eq(laps.sessionId, sessions.id)).where(inArray(laps.id, importedLapIds)).all();
   const fm = fmLaps.find((lap) => lap.carOrdinal === 3631);
+  if (!fm) return;
   const secondCar = 3632;
   const tuneA = await db.insert(tunes).values({
     gameId: "fm-2023", name: "Demo Sprint Baseline", author: "RaceIQ Demo", carOrdinal: fm?.carOrdinal ?? 3631,
@@ -130,7 +158,6 @@ async function insertDemoRows(profileId: number, importedLapIds: number[]): Prom
     await db.insert(compareAnalyses).values({ lapAId: Math.min(faster, slower), lapBId: Math.max(faster, slower), kind: "inputs", analysis: `${marker}\n## Demo comparison\nThe seeded laps provide a faster/slower comparison for local development.`, model: "seed", inputTokens: 0, outputTokens: 0, costUsd: 0, durationMs: 0 }).run();
   }
 }
-
 async function main(): Promise<void> {
   const options = parseOptions();
   await initDb();
@@ -139,6 +166,7 @@ async function main(): Promise<void> {
   await assertSafeTarget(options.force);
   if (options.reset) await removeSeedData();
   if (await seedRowCount()) {
+    markOnboardingComplete();
     console.log("[DB Seed] Seed data already exists; nothing to do.");
     return;
   }
@@ -149,6 +177,10 @@ async function main(): Promise<void> {
     for (const fixture of FIXTURES[game]) {
       const fixturePath = resolve(import.meta.dir, "..", fixture);
       if (!existsSync(fixturePath)) throw new Error(`Missing seed fixture: ${fixturePath}`);
+      if (game === "iracing") {
+        await seedIRacingSession(fixturePath);
+        continue;
+      }
       const result = await importSessionBin(readFileSync(fixturePath), game);
       const sessionIds = [...new Set(result.laps.map((lap) => lap.sessionId))];
       await db.update(sessions).set({ notes: SEED_MARKER, source: "seed" }).where(inArray(sessions.id, sessionIds)).run();
@@ -157,6 +189,7 @@ async function main(): Promise<void> {
     }
   }
   if (importedLapIds.length) await insertDemoRows(profile.id, importedLapIds);
+  markOnboardingComplete();
   console.log(`[DB Seed] Complete: ${importedLapIds.length} valid laps, ${options.games.join(", ")}.`);
 }
 

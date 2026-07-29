@@ -111,7 +111,7 @@ From a fresh checkout, populate `DATA_DIR` with real committed telemetry:
 bun run db:seed
 ```
 
-The command imports representative Forza Motorsport, F1 2025, and ACC captures and adds demo tunes, comparisons, cached analyses, and experiments. It is idempotent. Use `bun run db:seed --reset` to regenerate only the seeded rows, or `DATA_DIR=.data-dev bun run db:seed` for a disposable database. The command refuses to mix seed data into a database containing captured user data unless `--force` is explicit.
+The command imports representative Forza Motorsport, F1 2025, ACC, AC Evo, and iRacing captures and adds demo tunes, comparisons, cached analyses, and experiments. It marks onboarding complete so the dashboard opens directly to seeded data. It is idempotent. Use `bun run db:seed --reset` to regenerate only the seeded rows, or `DATA_DIR=.data-dev bun run db:seed` for a disposable database. The command refuses to mix seed data into a database containing captured user data unless `--force` is explicit.
 
 ## AI Coaching Setup
 

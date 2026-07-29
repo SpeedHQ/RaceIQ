@@ -25,7 +25,7 @@ bun test --timeout 60000 test/parser.test.ts   # single test file
 # Database
 bun run db:seed              # populate DATA_DIR with committed real-lap demo data
 bun run db:seed --reset      # remove only seeded rows and regenerate demo data
-bun run db:seed --games fm-2023,acc
+bun run db:seed --games fm-2023,acc,ac-evo,iracing
 bun run db:seed --force      # explicitly allow seeding alongside existing user data
 bun run db:push       # sync Drizzle schema to SQLite (dev introspection only — see note below)
 bun run db:generate   # generate Drizzle migration files (not used at runtime — see note below)
