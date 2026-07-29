@@ -12,7 +12,7 @@ set -euo pipefail
 
 # Keep this in lockstep with @playwright/test in client/package.json and the
 # image tag in .github/workflows/pr-screenshots.yml + update-baselines.yml.
-IMAGE="mcr.microsoft.com/playwright:v1.61.1-jammy"
+IMAGE="mcr.microsoft.com/playwright:v1.62.0-jammy"
 
 # Resolve repo root (this script lives in <repo>/scripts/).
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

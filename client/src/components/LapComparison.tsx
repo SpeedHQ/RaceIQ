@@ -1,5 +1,5 @@
 import type { ComparisonData, LapMeta } from "@shared/types";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLaps, useTrackOutline, useTrackSectors } from "../hooks/queries";
@@ -39,14 +39,23 @@ function useIsPhoneViewport() {
   return isPhone;
 }
 
-export function LapComparison() {
-  const isPhone = useIsPhoneViewport();
-  if (isPhone) return <MobileNotSupported feature={m.lapcompare_feature_name()} />;
-  return <LapComparisonInner />;
+export interface LapComparisonSearch {
+  track?: number;
+  carA?: number;
+  carB?: number;
+  lapA?: number;
+  lapB?: number;
+  cursor?: number;
 }
 
-function LapComparisonInner() {
-  const search = useSearch({ strict: false }) as { track?: number; carA?: number; carB?: number; lapA?: number; lapB?: number; cursor?: number };
+export function LapComparison({ initialSearch }: { initialSearch?: LapComparisonSearch } = {}) {
+  const isPhone = useIsPhoneViewport();
+  if (isPhone) return <MobileNotSupported feature={m.lapcompare_feature_name()} />;
+  return <LapComparisonInner initialSearch={initialSearch} />;
+}
+
+function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSearch }) {
+  const search = initialSearch ?? {};
   const navigate = useNavigate();
   const units = useUnits();
   const gameId = useGameId();

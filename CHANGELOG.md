@@ -11,6 +11,7 @@
 ### Internal
 - Consolidated live dashboard routing across all supported games while preserving game-specific URLs
 - Deterministic iRacing recording and replay coverage through the production parser pipeline
+- Consolidated per-game car, track, and compare routes into shared dynamic game routes
 
 ## v0.13.0 - 2026-07-16
 

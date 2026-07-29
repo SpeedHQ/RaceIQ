@@ -88,6 +88,26 @@ describe("changelog CI check", () => {
       "+- New feature",
     ].join("\n"))).toBe(true);
   });
+  test("accepts an added bullet when Unreleased is outside the diff hunk", () => {
+    expect(hasUnreleasedChangelogChange([
+      "@@ -11,3 +11,4 @@",
+      " ### Internal",
+      "+- Consolidated per-game routes",
+      " ",
+      "## v0.13.0 - 2026-07-16",
+    ].join("\n"), `## Unreleased
+
+### Internal
+- Existing note
+
+## v0.13.0 - 2026-07-16`, `## Unreleased
+
+### Internal
+- Existing note
+- Consolidated per-game routes
+
+## v0.13.0 - 2026-07-16`)).toBe(true);
+  });
 
   test("rejects a changelog change outside Unreleased", () => {
     expect(hasUnreleasedChangelogChange([

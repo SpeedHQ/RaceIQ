@@ -556,10 +556,9 @@ export function SessionsPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    // Route shape is per-game (fm23/compare, f125/compare, …).
+                    // Compare is shared across all game routes.
                     // TanStack Router types don't know about the dynamic gameRoute
-                    // template; the existing per-lap navigate at ~line 121 uses
-                    // the same escape hatch.
+                    // template; use the same escape hatch as the per-lap navigate above.
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const args: any = {
                       to: `${gameRoute}/compare`,
