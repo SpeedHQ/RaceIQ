@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { parseChangelog, renderReleaseBody } from "../shared/changelog";
+import { hasUnreleasedChangelogChange } from "../shared/changelog-ci";
 
 describe("changelog parser", () => {
   test("parses releases and strips Internal from rendered notes", () => {
@@ -42,5 +43,27 @@ describe("changelog parser", () => {
 ### Breaking
 - Migration required
 `)).toBe("### Breaking\n- Migration required\n\n### Features\n- New dashboard");
+  });
+});
+
+
+describe("changelog CI check", () => {
+  test("accepts an added bullet under Unreleased", () => {
+    expect(hasUnreleasedChangelogChange([
+      "@@ -1,2 +1,5 @@",
+      " ## Unreleased",
+      " ",
+      " ### Features",
+      "+- New feature",
+    ].join("\n"))).toBe(true);
+  });
+
+  test("rejects a changelog change outside Unreleased", () => {
+    expect(hasUnreleasedChangelogChange([
+      "@@ -8,2 +8,3 @@",
+      " ## v0.13.0 - 2026-07-16",
+      " ",
+      "+- Backfilled note",
+    ].join("\n"))).toBe(false);
   });
 });
