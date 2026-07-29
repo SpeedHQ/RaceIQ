@@ -1,8 +1,5 @@
 import { create } from "zustand";
-import type { LivePitData, LiveSectorData } from "../../../shared/racing/live/types";
-import type { LapMeta } from "../../../shared/racing/sessions/types";
-import type { TuneIssue } from "../../../shared/racing/tuning/issues";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import { advanceReprocess, beginReprocess, completeReprocess, dismissReprocess, failReprocess, initialReprocessState, type ReprocessState } from "@/lib/reprocess-state";
 import { convertPacket, type DisplayPacket } from "../lib/convert-packet";
 
 export interface DisplaySettings {
@@ -133,8 +130,8 @@ interface TelemetryState {
   /** Race-result reconciliation error, if the latest attempt failed */
   raceResultReprocessError: string | null;
   staleLapDetection: { sessionCount: number; currentVersion: string } | null;
-  /** Active reprocess progress — null when not reprocessing */
-  reprocessProgress: { done: number; total: number } | null;
+  /** Stale-session reprocessing request and dialog state */
+  reprocessState: ReprocessState;
   /** Live Tuning Dashboard: transient per-packet issues from the latest broadcast
    *  (only populated while `POST /api/live-analysis {enabled:true}` is active). */
   liveIssues: TuneIssue[];
@@ -157,7 +154,10 @@ interface TelemetryState {
   setRaceResultReprocessProgress: (progress: { done: number; total: number } | null) => void;
   setRaceResultReprocessError: (error: string | null) => void;
   setStaleLapDetection: (data: { sessionCount: number; currentVersion: string } | null) => void;
-  setReprocessProgress: (progress: { done: number; total: number } | null) => void;
+  beginReprocess: (total: number) => void;
+  completeReprocess: () => void;
+  failReprocess: (message: string) => void;
+  dismissReprocess: () => void;
   incrementReprocessProgress: () => void;
   devState: unknown | null;
   devStatePaused: boolean;
@@ -192,7 +192,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   raceResultReprocessProgress: null,
   raceResultReprocessError: null,
   staleLapDetection: null,
-  reprocessProgress: null,
+  reprocessState: initialReprocessState,
   liveIssues: [],
   lapIssuesFeed: [],
   devState: null,
@@ -249,17 +249,14 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
     set((prev) => (prev.raceResultReprocessProgress ? { raceResultReprocessProgress: { ...prev.raceResultReprocessProgress, done: prev.raceResultReprocessProgress.done + 1 } } : {})),
   setRaceResultReprocessError: (error) => set({ raceResultReprocessError: error }),
   setStaleLapDetection: (data) => set({ staleLapDetection: data }),
-  setReprocessProgress: (progress) => set({ reprocessProgress: progress }),
+  beginReprocess: (total) => set((prev) => ({ reprocessState: beginReprocess(prev.reprocessState, total) })),
+  completeReprocess: () => set((prev) => ({ reprocessState: completeReprocess(prev.reprocessState) })),
+  failReprocess: (message) => set((prev) => ({ reprocessState: failReprocess(prev.reprocessState, message) })),
+  dismissReprocess: () => set((prev) => ({ reprocessState: dismissReprocess(prev.reprocessState) })),
   incrementReprocessProgress: () =>
-    set((prev) => {
-      if (!prev.reprocessProgress) return {};
-      return {
-        reprocessProgress: {
-          ...prev.reprocessProgress,
-          done: prev.reprocessProgress.done + 1,
-        },
-      };
-    }),
+    set((prev) => ({
+      reprocessState: advanceReprocess(prev.reprocessState),
+    })),
   setUpdateProgress: (progress) => set({ updateProgress: progress }),
   setVersionInfo: (info) => set({ versionInfo: info }),
   setDevState: (state) => {

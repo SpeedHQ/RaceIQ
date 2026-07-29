@@ -8,6 +8,7 @@
 - View all release notes since your installed version in the app
 
 ### Fixes
+- Made stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
 
 - Keep iRacing lap replay within saved frame boundaries so telemetry from the following lap is not included
 - Report telemetry freshness from each source's own update time and mark incompatible clock domains as unknown instead of current
