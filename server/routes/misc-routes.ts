@@ -12,7 +12,6 @@ import { wsManager } from "../ws";
 import { USER_TRACKS_DIR, IS_COMPILED, USER_DATA_DIR, ROOT_DIR } from "../paths";
 import { resolveDataDir } from "../data-dir";
 import { getUpdateState, checkForUpdate, applyUpdate } from "../update-check";
-import { embeddedChangelog } from "../generated/changelog";
 import { udpListener } from "../udp";
 import { getRunningGame } from "../games/registry";
 import { getCurrentDetectedGame } from "../parsers";
@@ -312,9 +311,6 @@ export const miscRoutes = new Hono()
   .get("/api/version", (c) => {
     return c.json(getUpdateState());
   })
-
-  // GET /api/changelog — embedded release history, available offline
-  .get("/api/changelog", (c) => c.json(embeddedChangelog))
 
   // GET /api/network/info — local LAN IPv4 addresses + server port so clients
   // can build QR codes for phones/tablets on the same network.

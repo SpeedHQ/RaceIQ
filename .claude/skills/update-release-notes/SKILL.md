@@ -1,6 +1,6 @@
 ---
 name: update-release-notes
-description: Update RaceIQ release notes on a pull-request branch. Use whenever a PR adds, fixes, changes, or removes user-visible behavior, or when asked to update CHANGELOG.md, release notes, or changelog entries. Ensures the note is recorded under Unreleased and validates the embedded changelog output.
+description: Update RaceIQ release notes on a pull-request branch. Use whenever a PR adds, fixes, changes, or removes user-visible behavior, or when asked to update CHANGELOG.md, release notes, or changelog entries. Ensures the note is recorded under Unreleased and validates the release-note artifact workflow.
 ---
 
 # Update release notes
@@ -17,15 +17,14 @@ Use this skill on the PR branch before opening or updating a pull request.
    - `Internal`: implementation, CI, tooling, or maintenance work invisible to users.
 3. Preserve the section order `Breaking`, `Features`, `Fixes`, `Internal`. Create a missing subsection only when needed.
 4. Do not edit a released version section. Do not duplicate an existing bullet.
-5. Run `bun scripts/generate-changelog.ts` so the committed embedded module matches `CHANGELOG.md`.
-6. Run the focused tests (`bun test test/changelog.test.ts --timeout 60000`) and report the changed files.
+5. Run `bun test test/changelog.test.ts --timeout 60000` and report the changed files.
 
 ## Writing rules
 
 - Describe the outcome, not the implementation.
 - Use imperative or concise present tense.
 - Keep one change per bullet; avoid issue/PR metadata in the note.
-- Internal notes are retained in `CHANGELOG.md` but are stripped from published and in-app release bodies.
+- Internal notes are retained in `CHANGELOG.md` but stripped from published release-note artifacts.
 
 ## Pull-request checklist
 
@@ -33,5 +32,5 @@ Before requesting review, confirm:
 
 - `CHANGELOG.md` contains a new bullet under `## Unreleased`.
 - The bullet is in the correct category.
-- `server/generated/changelog.ts` was regenerated.
+- The release workflow will generate `releasenote.md` (current release) and `releasenotes.md` (full public history).
 - Changelog tests pass.
