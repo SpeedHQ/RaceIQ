@@ -216,6 +216,7 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, copied 
   );
 }
 
+
 export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = false }: { sessionId: number; gameId?: GameId | null; linkToAnalyse?: boolean }) {
   const storeGameId = useGameId();
   const gameId = gameIdProp ?? storeGameId;
