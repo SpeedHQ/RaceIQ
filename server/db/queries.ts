@@ -2532,20 +2532,21 @@ export async function getDriverProfileRun(id: number): Promise<DriverProfileRunR
     .from(driverProfileRuns)
     .where(eq(driverProfileRuns.id, id))
     .get();
-  return row ?? null;
+  return row ? { ...row, gameId: row.gameId as GameId } : null;
 }
 
 export async function listDriverProfileRuns(
   scope: DriverProfileScopeKey,
   limit = 50,
 ): Promise<DriverProfileRunRow[]> {
-  return await db
+  const rows = await db
     .select()
     .from(driverProfileRuns)
     .where(eq(driverProfileRuns.scopeKey, driverProfileScopeKey(scope)))
     .orderBy(desc(sql`datetime(${driverProfileRuns.createdAt})`), desc(driverProfileRuns.id))
     .limit(limit)
     .all();
+  return rows.map((row) => ({ ...row, gameId: row.gameId as GameId }));
 }
 
 export async function findDriverProfileRunByScopePool(
@@ -2561,5 +2562,5 @@ export async function findDriverProfileRunByScopePool(
     ))
     .orderBy(desc(sql`datetime(${driverProfileRuns.createdAt})`), desc(driverProfileRuns.id))
     .get();
-  return row ?? null;
+  return row ? { ...row, gameId: row.gameId as GameId } : null;
 }
