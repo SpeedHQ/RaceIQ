@@ -78,7 +78,13 @@ export const carRoutes = new Hono()
       const catalogIds = new Set(catalogCars.map((car) => car.ordinal));
       const discoveredOnly = (await listDiscoveredCars("iracing"))
         .filter((car) => !catalogIds.has(car.ordinal))
-        .map(({ ordinal, name }) => ({ ordinal, name, path: "" }));
+        .map(({ ordinal, name }) => ({
+          ordinal,
+          name,
+          path: "",
+          category: "discovered",
+          imageUrl: "",
+        }));
       const cars = [...catalogCars, ...discoveredOnly];
       cars.sort((a, b) => a.name.localeCompare(b.name));
       return c.json(cars);
