@@ -1,20 +1,21 @@
 import { tryGetGame } from "@shared/games/registry";
-import type { LapMeta } from "@shared/types";
+import type { GameId, LapMeta, SessionMeta, SessionRecap as SessionRecapDto } from "@shared/types";
 import { useQueries } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Settings2 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
 import type { DriverFingerprint } from "../../../server/ai/driver-profile-aggregate";
-import type { DriverProfileRun, DriverProfileState } from "../hooks/queries";
-import { useDriverProfile, useDriverProfileRuns, useLaps, useSessions, useSettings } from "../hooks/queries";
+import type { DriverProfileState } from "../hooks/queries";
+import { useDriverProfile, useDriverProfileRuns, useLaps, useSessionRecap, useSessions, useSettings, useTrackOutline, useTrackSectorBoundaries } from "../hooks/queries";
 import { client } from "../lib/rpc";
 import { getGameRoute, useGameId } from "../stores/game";
 import { useUiStore } from "../stores/ui";
 import { ActivityHeatmap } from "./ActivityHeatmap";
 import { formatLapTime } from "./LiveTelemetry";
-import { SessionRecap } from "./SessionRecap";
+import { buildRecapText, SessionRecapView, type TrackOutlineData, type TrackSectorBounds } from "./SessionRecap";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
+import { balanceReading, controlLossReading, gripMedianReading, reversalsReading, type StyleTone } from "@shared/lib/style-readings";
 
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
@@ -103,125 +104,188 @@ export interface DriverProgressCardProps {
   error?: string | null;
   medianLapSec?: number | null;
   runState?: DriverProfileState;
-  latestRun?: DriverProfileRun | null;
 }
 
+function ProfileMetric({ label, value, detail }: { label: string; value: string; detail?: string }) {
+  return (
+    <div className="rounded-md border border-app-border/70 bg-app-surface-alt/20 px-2.5 py-2">
+      <div className="text-[10px] uppercase tracking-wider text-app-text-muted">{label}</div>
+      <div className="mt-1 font-mono text-sm font-bold tabular-nums text-app-text">{value}</div>
+      {detail && <div className="mt-0.5 text-[10px] text-app-text-muted">{detail}</div>}
+    </div>
+  );
+}
 
-export function DriverProgressCard({ gameId, fingerprint, loading = false, error = null, medianLapSec = null, runState = "not-configured", latestRun = null }: DriverProgressCardProps) {
+const STYLE_TONE_CLASS: Record<StyleTone, string> = {
+  neutral: "bg-blue-500/15 text-blue-300",
+  good: "bg-emerald-500/15 text-emerald-300",
+  warn: "bg-amber-500/15 text-amber-300",
+  bad: "bg-red-500/15 text-red-300",
+};
+
+const STYLE_TONE_LABEL: Record<StyleTone, string> = {
+  neutral: "Neutral",
+  good: "Good",
+  warn: "Watch",
+  bad: "High",
+};
+
+function StyleWidget({ label, value, display, tone }: { label: string; value: number | null; display: string; tone: StyleTone }) {
+  const measured = value != null && Number.isFinite(value);
+  return (
+    <div className="rounded-md border border-app-border/70 bg-app-surface-alt/20 px-2.5 py-2">
+      <div className="text-[10px] uppercase tracking-wider text-app-text-muted">{label}</div>
+      <div className="mt-1 font-mono text-sm font-bold tabular-nums text-app-text">{measured ? display : "Not measured"}</div>
+      <span className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${measured ? STYLE_TONE_CLASS[tone] : "bg-app-surface-alt text-app-text-muted"}`}>
+        {measured ? STYLE_TONE_LABEL[tone] : "Not measured"}
+      </span>
+    </div>
+  );
+}
+
+function aiStateLabel(state: DriverProfileState): string {
+  if (state === "succeeded") return "Plan ready";
+  if (state === "queued") return "Queued";
+  if (state === "running") return "Running";
+  if (state === "failed") return "Failed";
+  if (state === "disabled") return "Disabled";
+  return "Not configured";
+}
+
+/** Compact driver profile glance for the per-game home dashboard. */
+export function DriverProgressCard({
+  gameId,
+  fingerprint,
+  loading = false,
+  error = null,
+  medianLapSec = null,
+  runState = "not-configured",
+}: DriverProgressCardProps) {
   const profileHref = `${getGameRoute(gameId)}/driver`;
   const analyseHref = `${getGameRoute(gameId)}/analyse`;
+  const measured = fingerprint?.ok && fingerprint.laps.analyzed > 0 ? fingerprint : null;
+  const style = measured?.style;
+  const topWeakness = measured?.weaknesses[0] ?? measured?.unquantifiedWeaknesses[0] ?? null;
 
-  if (loading) {
-    return (
-      <section className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10" aria-live="polite">
-        <h2 className="text-sm font-semibold text-app-text">Driver profile</h2>
-        <p className="mt-2 text-sm text-app-text-muted">Analysing your measured lap history…</p>
-      </section>
-    );
-  }
-
-  if (error) {
-    return (
-      <section className="rounded-lg bg-app-surface p-4 ring-1 ring-red-500/20" role="alert">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-app-text">Driver profile</h2>
-          <a href={profileHref} className="rounded px-1 text-xs text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
-            Open profile
-          </a>
-        </div>
-        <p className="mt-2 text-sm text-red-300">Measured profile unavailable: {error}</p>
-      </section>
-    );
-  }
-
-  if (!fingerprint?.ok || fingerprint.laps.analyzed === 0) {
-    return (
-      <section className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-app-text">Driver profile</h2>
-          <a href={profileHref} className="rounded px-1 text-xs text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
-            Open profile
-          </a>
-        </div>
-        <p className="mt-2 text-sm text-app-text-muted">No usable laps yet. Record a few clean laps to build measured progress.</p>
-        <a href={analyseHref} className="mt-3 inline-flex rounded-md bg-app-accent/15 px-3 py-1.5 text-xs font-semibold text-app-accent hover:bg-app-accent/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
-          Go to lap analysis
-        </a>
-      </section>
-    );
-  }
-
-  const topWeakness = fingerprint.weaknesses[0] ?? fingerprint.unquantifiedWeaknesses[0] ?? null;
-  const consistency = fingerprint.pace.consistency;
   return (
-    <section className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
+    <section className="rounded-xl border border-app-border bg-app-surface p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-app-text">Driver profile</h2>
-          <p className="mt-0.5 text-xs text-app-text-muted">Measured from {fingerprint.laps.analyzed} laps · {fingerprint.confidence} confidence</p>
+          <p className="mt-0.5 text-xs text-app-text-muted">
+            {loading ? "Loading measured profile…" : error ? "Profile unavailable" : measured ? `${measured.laps.analyzed} analyzed laps` : "Build your profile from clean laps"}
+          </p>
         </div>
-        <a href={profileHref} className="rounded px-1 text-xs text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
+        <a href={profileHref} className="rounded px-1 text-xs font-semibold text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
           View full profile →
         </a>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <div className="rounded-md bg-app-surface-alt/30 p-2.5">
-          <div className="text-[10px] uppercase tracking-wider text-app-text-muted">Best</div>
-          <div className="mt-1 font-mono text-base font-bold tabular-nums text-app-text">{fingerprint.pace.bestS != null && Number.isFinite(fingerprint.pace.bestS) ? formatLapTime(fingerprint.pace.bestS) : "—"}</div>
-        </div>
-        <div className="rounded-md bg-app-surface-alt/30 p-2.5">
-          <div className="text-[10px] uppercase tracking-wider text-app-text-muted">Median</div>
-          <div className="mt-1 font-mono text-base font-bold tabular-nums text-app-text">{medianLapSec != null && Number.isFinite(medianLapSec) ? formatLapTime(medianLapSec) : "—"}</div>
-        </div>
-        <div className="rounded-md bg-app-surface-alt/30 p-2.5">
-          <div className="text-[10px] uppercase tracking-wider text-app-text-muted">Consistency</div>
-          <div className="mt-1 font-mono text-base font-bold tabular-nums text-app-text">{consistency != null ? `${Math.round(consistency)}%` : "—"}</div>
-        </div>
-        <div className="rounded-md bg-app-surface-alt/30 p-2.5">
-          <div className="text-[10px] uppercase tracking-wider text-app-text-muted">Confidence</div>
-          <div className="mt-1 text-base font-semibold capitalize text-app-text">{fingerprint.confidence}</div>
-        </div>
-      </div>
-
-      <div className="mt-3 rounded-md border border-amber-400/15 bg-amber-400/5 px-3 py-2">
-        <div className="text-[10px] uppercase tracking-wider text-amber-300/80">Recurring measured weakness</div>
-        <p className="mt-1 text-sm text-app-text">
-          {topWeakness ? (
-            <>
-              {topWeakness.label}
-              <span className="ml-1 text-xs text-app-text-muted">· {(topWeakness.perLapFrequency * 100).toFixed(0)}% of analysed laps</span>
-            </>
-          ) : (
-            "No recurring weakness detected in the measured pool."
-          )}
+      {error ? (
+        <p className="mt-3 rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-300" role="alert">
+          {error}
         </p>
-      </div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-app-accent/15 bg-app-accent/5 px-3 py-2.5">
-        <div>
-          <div className="text-[10px] uppercase tracking-wider text-app-accent/80">AI coaching</div>
-          <p className="mt-0.5 text-sm text-app-text">
-            {runState === "succeeded" && latestRun
-              ? `Latest plan ready · ${latestRun.model} · ${formatTimeAgo(new Date(latestRun.completedAt ?? latestRun.createdAt))}`
-              : runState === "running"
-                ? "Analysing your measured profile…"
-                : runState === "queued"
-                  ? "Queued for background analysis"
-                  : runState === "failed"
-                    ? "Last coaching run failed — view details"
-                    : runState === "disabled"
-                      ? "Background coaching is off"
-                      : "Optional coaching is not configured"}
-          </p>
+      ) : !measured ? (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed border-app-border px-3 py-2">
+          <p className="text-xs text-app-text-muted">{loading ? "Measured signals are loading…" : "Record a few clean laps to unlock profile signals."}</p>
+          {!loading && (
+            <a href={analyseHref} className="rounded px-1 text-xs font-semibold text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
+              Analyse laps →
+            </a>
+          )}
         </div>
-        <a href={profileHref} className="shrink-0 rounded px-1 text-xs font-semibold text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
-          Open coaching →
-        </a>
-      </div>
+      ) : (
+        <>
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <ProfileMetric
+              label="Pace"
+              value={`${medianLapSec != null ? formatLapTime(medianLapSec) : "Not measured"} / ${measured.pace.bestS != null ? formatLapTime(measured.pace.bestS) : "Not measured"}`}
+              detail="median / best"
+            />
+            <ProfileMetric label="Consistency" value={measured.pace.consistency != null ? `${Math.round(measured.pace.consistency)} / 100` : "Not measured"} />
+            <ProfileMetric label="Analyzed laps" value={`${measured.laps.analyzed}`} />
+            <ProfileMetric label="Confidence" value={measured.confidence} />
+          </div>
+
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <StyleWidget
+              label="Grip"
+              value={style?.gripUtilMedian ?? null}
+              display={style?.gripUtilMedian == null ? "" : style.gripUtilMedian.toFixed(2)}
+              tone={style?.gripUtilMedian == null ? "neutral" : gripMedianReading(style.gripUtilMedian).tone}
+            />
+            <StyleWidget
+              label="Balance"
+              value={style?.balanceMedianDeg ?? null}
+              display={style?.balanceMedianDeg == null ? "" : `${style.balanceMedianDeg > 0 ? "+" : ""}${style.balanceMedianDeg.toFixed(1)}°`}
+              tone={style?.balanceMedianDeg == null ? "neutral" : balanceReading(style.balanceMedianDeg).tone}
+            />
+            <StyleWidget
+              label="Control loss"
+              value={style?.controlLossFraction ?? null}
+              display={style?.controlLossFraction == null ? "" : `${(style.controlLossFraction * 100).toFixed(1)}%`}
+              tone={style?.controlLossFraction == null ? "neutral" : controlLossReading(style.controlLossFraction).tone}
+            />
+            <StyleWidget
+              label="Steering variability"
+              value={style?.steerReversalsPerS ?? null}
+              display={style?.steerReversalsPerS == null ? "" : `${style.steerReversalsPerS.toFixed(1)} /s`}
+              tone={style?.steerReversalsPerS == null ? "neutral" : reversalsReading(style.steerReversalsPerS).tone}
+            />
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border border-app-border/70 bg-app-surface-alt/20 px-3 py-2 text-xs" aria-live="polite">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <span className="uppercase tracking-wider text-app-text-muted">Focus</span>
+              <span className="truncate font-semibold text-app-text">{topWeakness?.label ?? "No recurring weakness"}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="uppercase tracking-wider text-app-text-muted">Coach</span>
+              <span className={runState === "failed" ? "font-semibold text-red-300" : "font-semibold text-app-text"}>{aiStateLabel(runState)}</span>
+            </div>
+            <a href={profileHref} className="ml-auto rounded px-1 font-semibold text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
+              Details →
+            </a>
+          </div>
+        </>
+      )}
     </section>
   );
 }
 
+type PeriodKey = "today" | "week" | "month" | "year" | "allTime";
+type PeriodStats = Record<PeriodKey, { laps: number; valid: number; best: number; avgTime: number; totalTime: number; tracks: number; cars: number; sessions: number; favCarOrd: number | null; favCarCount: number }>;
+type GameStats = Record<"fm" | "f1" | "acc" | "acEvo" | "iracing", { laps: number; time: string }>;
+export interface HomePageViewProps {
+  gameId: GameId | null;
+  gameDisplayName: string | null;
+  displaySettings: { driverName?: string | null; hiddenGames?: string[] };
+  allLaps: LapMeta[];
+  recentLaps: LapMeta[];
+  carNames: Record<number, string>;
+  trackNames: Record<number, string>;
+  gameStats: GameStats;
+  hiddenGames: string[];
+  latestSession: SessionMeta | null;
+  latestRecap: SessionRecapDto | null | undefined;
+  latestRecapLoading: boolean;
+  latestRecapError: boolean;
+  latestRecapOutline?: TrackOutlineData;
+  latestRecapBounds?: TrackSectorBounds;
+  recapCopied: boolean;
+  onCopyRecap: () => void;
+  onAnalyseRecap: () => void;
+  periodTab: PeriodKey;
+  periodStats: PeriodStats;
+  onPeriodTabChange: (period: PeriodKey) => void;
+  onOpenSettings: () => void;
+  driverGameId: string | null;
+  driverFingerprint: DriverFingerprint | null;
+  driverLoading: boolean;
+  driverError: string | null;
+  medianLapSec: number | null;
+  driverRunState?: DriverProfileState;
+}
 
 export function HomePage() {
   const gameId = useGameId();
@@ -238,6 +302,10 @@ export function HomePage() {
     if (sessions.length === 0) return null;
     return [...sessions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
   }, [sessions]);
+  const { data: latestRecap, isLoading: latestRecapLoading, isError: latestRecapError } = useSessionRecap(latestSession?.id, latestSession?.gameId ?? null);
+  const { data: latestRecapOutline } = useTrackOutline(latestRecap?.trackOrdinal, latestRecap?.gameId ?? latestSession?.gameId ?? null);
+  const { data: latestRecapBounds } = useTrackSectorBoundaries(latestRecap?.trackOrdinal, latestRecap?.gameId ?? latestSession?.gameId ?? null);
+  const [recapCopied, setRecapCopied] = useState(false);
 
   // Resolve car/track names for recent laps
   const [carNames, setCarNames] = useState<Record<number, string>>({});
@@ -368,6 +436,81 @@ export function HomePage() {
     }
   }, [recentLaps, periodStats, gameId]);
 
+  const copyRecap = () => {
+    if (!latestRecap) return;
+    navigator.clipboard.writeText(buildRecapText(latestRecap)).then(() => {
+      setRecapCopied(true);
+      setTimeout(() => setRecapCopied(false), 1500);
+    });
+  };
+  const analyseRecap = () => {
+    if (!latestRecap || latestRecap.bestLapId == null) return;
+    window.location.href = `${getGameRoute(latestRecap.gameId)}/analyse?track=${latestRecap.trackOrdinal}&car=${latestRecap.carOrdinal}&lap=${latestRecap.bestLapId}`;
+  };
+  return (
+    <HomePageView
+      gameId={gameId}
+      gameDisplayName={gameAdapter?.displayName ?? null}
+      displaySettings={displaySettings}
+      allLaps={allLaps}
+      recentLaps={recentLaps}
+      carNames={carNames}
+      trackNames={trackNames}
+      gameStats={gameStats}
+      hiddenGames={hiddenGames}
+      latestSession={latestSession}
+      latestRecap={latestRecap}
+      latestRecapLoading={latestRecapLoading}
+      latestRecapError={latestRecapError}
+      latestRecapOutline={latestRecapOutline}
+      latestRecapBounds={latestRecapBounds}
+      recapCopied={recapCopied}
+      onCopyRecap={copyRecap}
+      onAnalyseRecap={analyseRecap}
+      periodTab={periodTab}
+      periodStats={periodStats}
+      onPeriodTabChange={setPeriodTab}
+      onOpenSettings={() => openSettings("games")}
+      driverGameId={gameId}
+      driverFingerprint={driverProfileQuery.data?.fingerprint ?? null}
+      driverLoading={driverProfileQuery.isLoading}
+      driverError={driverProfileQuery.error instanceof Error ? driverProfileQuery.error.message : driverProfileQuery.error ? String(driverProfileQuery.error) : null}
+      medianLapSec={medianLapSec}
+      driverRunState={driverProfileRunsQuery.data?.state}
+    />
+  );
+}
+
+export function HomePageView({
+  gameId,
+  gameDisplayName,
+  displaySettings,
+  allLaps,
+  recentLaps,
+  carNames,
+  trackNames,
+  gameStats,
+  hiddenGames,
+  latestSession,
+  latestRecap,
+  latestRecapLoading,
+  latestRecapError,
+  latestRecapOutline,
+  latestRecapBounds,
+  recapCopied,
+  onCopyRecap,
+  onAnalyseRecap,
+  periodTab,
+  periodStats,
+  onPeriodTabChange,
+  onOpenSettings,
+  driverGameId,
+  driverFingerprint,
+  driverLoading,
+  driverError,
+  medianLapSec,
+  driverRunState,
+}: HomePageViewProps) {
   return (
     <div className="mx-auto max-w-[1400px] p-4 md:p-6 space-y-6">
       {/* Header */}
@@ -453,7 +596,7 @@ export function HomePage() {
               <div className="relative flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-md flex items-center justify-center shrink-0 bg-white/5 border border-white/10">{t.logo}</div>
-                  <div className="text-base font-bold text-white/90">{gameAdapter?.displayName ?? gameId}</div>
+                  <div className="text-base font-bold text-white/90">{gameDisplayName ?? gameId}</div>
                 </div>
               </div>
             </div>
@@ -467,7 +610,7 @@ export function HomePage() {
           </div>
           <button
             type="button"
-            onClick={() => openSettings("games")}
+            onClick={onOpenSettings}
             className="p-1.5 rounded text-app-text-muted hover:text-app-text hover:bg-app-surface-alt transition-colors"
             title={m.home_manage_games()}
           >
@@ -699,26 +842,83 @@ export function HomePage() {
 
       {gameId ? (
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="min-w-0">
+          <main className="min-w-0 space-y-6">
             <DriverProgressCard
-              gameId={gameId}
-              fingerprint={driverProfileQuery.data?.fingerprint ?? null}
-              loading={driverProfileQuery.isLoading}
-              error={driverProfileQuery.error instanceof Error ? driverProfileQuery.error.message : driverProfileQuery.error ? String(driverProfileQuery.error) : null}
+              gameId={driverGameId ?? gameId}
+              fingerprint={driverFingerprint}
+              loading={driverLoading}
+              error={driverError}
               medianLapSec={medianLapSec}
-              runState={driverProfileRunsQuery.data?.state}
-              latestRun={driverProfileRunsQuery.data?.latest}
+              runState={driverRunState}
             />
-          </div>
+
+            <section>
+              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90-muted">Activity</h2>
+              <ActivityHeatmap laps={allLaps.filter((l) => l.gameId === gameId)} />
+            </section>
+
+            <section>
+              <div className="mb-3 flex flex-wrap items-center gap-1">
+                {(
+                  [
+                    ["today", m.home_period_today()],
+                    ["week", m.home_period_week()],
+                    ["month", m.home_period_month()],
+                    ["year", m.home_period_year()],
+                    ["allTime", m.home_period_all_time()],
+                  ] as const
+                ).map(([key, label]) => (
+                  <button
+                    type="button"
+                    key={key}
+                    onClick={() => onPeriodTabChange(key)}
+                    className={`rounded px-3 py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90-muted hover:text-app-text/90"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {(() => {
+                const data = periodStats[periodTab];
+                const timeSec = data.totalTime;
+                const fmtTime = (s: number) => {
+                  const h = Math.floor(s / 3600);
+                  const m = Math.floor((s % 3600) / 60);
+                  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+                };
+                return (
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                    <StatCard label={m.label_sessions()} value={`${data.sessions}`} />
+                    <StatCard label={m.label_laps()} value={`${data.laps}`} />
+                    <StatCard label={m.label_tracks()} value={`${data.tracks}`} />
+                    <StatCard label={m.label_cars()} value={`${data.cars}`} />
+                    {timeSec > 0 && <StatCard label={m.home_stat_time_driven()} value={fmtTime(timeSec)} color="text-violet-400" />}
+                  </div>
+                );
+              })()}
+            </section>
+
+            <section>
+              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90-muted">{m.home_recent_laps()}</h2>
+              <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} />
+            </section>
+          </main>
+
           <aside className="lg:sticky lg:top-6">
             {latestSession ? (
               <div className="relative overflow-hidden rounded-xl border border-app-border bg-app-bg p-4">
-                <div className="pointer-events-none absolute -top-10 -right-10 h-36 w-36 rounded-full bg-app-accent opacity-15 blur-3xl" />
+                <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-app-accent opacity-15 blur-3xl" />
                 <div className="relative mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-app-accent">
                   <span className="inline-block h-1.5 w-1.5 rounded-full bg-app-accent shadow-[0_0_8px_var(--color-app-accent,#7c5cff)]" />
                   {m.recap_latest_session()}
                 </div>
-                <SessionRecap sessionId={latestSession.id} gameId={latestSession.gameId} linkToAnalyse />
+                {latestRecapLoading ? (
+                  <div className="p-6 text-center text-app-text-dim">{m.common_loading()}</div>
+                ) : latestRecapError || !latestRecap ? (
+                  <div className="p-6 text-center text-red-400">{m.common_error()}</div>
+                ) : (
+                  <SessionRecapView recap={latestRecap} gameId={latestRecap.gameId} linkToAnalyse copied={recapCopied} onCopy={onCopyRecap} onAnalyse={onAnalyseRecap} outlineData={latestRecapOutline} bounds={latestRecapBounds} />
+                )}
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-app-border bg-app-surface p-6 text-center text-xs text-app-text-muted">{m.recap_latest_session()}</div>
@@ -726,66 +926,69 @@ export function HomePage() {
           </aside>
         </div>
       ) : (
-        latestSession && (
-          <div className="rounded-lg border border-app-border bg-app-surface p-4">
-            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider mb-2">{m.recap_latest_session()}</h2>
-            <SessionRecap sessionId={latestSession.id} gameId={latestSession.gameId} linkToAnalyse />
-          </div>
-        )
-      )}
-
-      {/* Activity heatmap */}
-      <ActivityHeatmap laps={gameId ? allLaps.filter((l) => l.gameId === gameId) : allLaps} />
-
-      {/* Period tabs + stats */}
-      <div>
-        <div className="flex items-center flex-wrap gap-1 mb-3">
-          {(
-            [
-              ["today", m.home_period_today()],
-              ["week", m.home_period_week()],
-              ["month", m.home_period_month()],
-              ["year", m.home_period_year()],
-              ["allTime", m.home_period_all_time()],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              type="button"
-              key={key}
-              onClick={() => setPeriodTab(key)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90-muted hover:text-app-text/90"}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        {(() => {
-          const data = periodStats[periodTab];
-          const timeSec = data.totalTime;
-          const fmtTime = (s: number) => {
-            const h = Math.floor(s / 3600);
-            const m = Math.floor((s % 3600) / 60);
-            return h > 0 ? `${h}h ${m}m` : `${m}m`;
-          };
-          return (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              <StatCard label={m.label_sessions()} value={`${data.sessions}`} />
-              <StatCard label={m.label_laps()} value={`${data.laps}`} />
-              <StatCard label={m.label_tracks()} value={`${data.tracks}`} />
-              <StatCard label={m.label_cars()} value={`${data.cars}`} />
-              {timeSec > 0 && <StatCard label={m.home_stat_time_driven()} value={fmtTime(timeSec)} color="text-violet-400" />}
+        <>
+          {latestSession && (
+            <div className="rounded-lg border border-app-border bg-app-surface p-4">
+              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text-muted">{m.recap_latest_session()}</h2>
+              {latestRecapLoading ? (
+                <div className="p-6 text-center text-app-text-dim">{m.common_loading()}</div>
+              ) : latestRecapError || !latestRecap ? (
+                <div className="p-6 text-center text-red-400">{m.common_error()}</div>
+              ) : (
+                <SessionRecapView recap={latestRecap} gameId={latestRecap.gameId} linkToAnalyse copied={recapCopied} onCopy={onCopyRecap} onAnalyse={onAnalyseRecap} outlineData={latestRecapOutline} bounds={latestRecapBounds} />
+              )}
             </div>
-          );
-        })()}
-      </div>
+          )}
 
-      {/* Recent laps */}
-      <div>
-        <div className="mb-2">
-          <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider">{m.home_recent_laps()}</h2>
-        </div>
-        <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} />
-      </div>
+          <ActivityHeatmap laps={allLaps} />
+
+          <div>
+            <div className="mb-3 flex flex-wrap items-center gap-1">
+              {(
+                [
+                  ["today", m.home_period_today()],
+                  ["week", m.home_period_week()],
+                  ["month", m.home_period_month()],
+                  ["year", m.home_period_year()],
+                  ["allTime", m.home_period_all_time()],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  type="button"
+                  key={key}
+                  onClick={() => onPeriodTabChange(key)}
+                  className={`rounded px-3 py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90-muted hover:text-app-text/90"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {(() => {
+              const data = periodStats[periodTab];
+              const timeSec = data.totalTime;
+              const fmtTime = (s: number) => {
+                const h = Math.floor(s / 3600);
+                const m = Math.floor((s % 3600) / 60);
+                return h > 0 ? `${h}h ${m}m` : `${m}m`;
+              };
+              return (
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                  <StatCard label={m.label_sessions()} value={`${data.sessions}`} />
+                  <StatCard label={m.label_laps()} value={`${data.laps}`} />
+                  <StatCard label={m.label_tracks()} value={`${data.tracks}`} />
+                  <StatCard label={m.label_cars()} value={`${data.cars}`} />
+                  {timeSec > 0 && <StatCard label={m.home_stat_time_driven()} value={fmtTime(timeSec)} color="text-violet-400" />}
+                </div>
+              );
+            })()}
+          </div>
+
+          <div>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90-muted">{m.home_recent_laps()}</h2>
+            <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} />
+          </div>
+        </>
+      )}
     </div>
   );
 }
