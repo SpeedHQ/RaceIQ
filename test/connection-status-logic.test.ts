@@ -4,28 +4,32 @@ import { deriveConnectionStatusView } from "../client/src/components/connection-
 const F1 = { id: "f1-2025", name: "F1 25" } as const;
 const FORZA = { id: "fm-2023", name: "Forza Motorsport" } as const;
 
-describe("deriveConnectionStatusView — server label", () => {
-  test("shows 'Server' when connected", () => {
-    const view = deriveConnectionStatusView({ connected: true, forzaReceiving: false, detectedGame: null });
-    expect(view.serverLabel).toBe("Server");
-  });
-
-  test("shows 'Disconnected' when not connected", () => {
+describe("deriveConnectionStatusView — merged connection status", () => {
+  test("shows 'Disconnected' / red when server is not connected", () => {
     const view = deriveConnectionStatusView({ connected: false, forzaReceiving: false, detectedGame: null });
-    expect(view.serverLabel).toBe("Disconnected");
+    expect(view.statusKind).toBe("disconnected");
+    expect(view.gameText).toBe("Disconnected");
+    expect(view.dotColor).toBe("red");
   });
-});
 
-describe("deriveConnectionStatusView — game text", () => {
-  test("no game detected, no packets → 'No Signal' / dim", () => {
+  test("server disconnected overrides cached game detection", () => {
+    const view = deriveConnectionStatusView({ connected: false, forzaReceiving: false, detectedGame: F1 });
+    expect(view.statusKind).toBe("disconnected");
+    expect(view.gameText).toBe("Disconnected");
+    expect(view.dotColor).toBe("red");
+  });
+
+  test("server connected, no game detected → base 'Server' / green", () => {
     const view = deriveConnectionStatusView({ connected: true, forzaReceiving: false, detectedGame: null });
-    expect(view.gameText).toBe("No Signal");
+    expect(view.statusKind).toBe("server");
+    expect(view.gameText).toBe("Server");
     expect(view.gameLabel).toBeNull();
-    expect(view.dotColor).toBe("dim");
+    expect(view.dotColor).toBe("green");
   });
 
   test("game detected but not receiving → '<name> — Waiting' / amber", () => {
     const view = deriveConnectionStatusView({ connected: true, forzaReceiving: false, detectedGame: F1 });
+    expect(view.statusKind).toBe("waiting");
     expect(view.gameText).toBe("F1 25 — Waiting");
     expect(view.gameLabel).toBe("F1 25");
     expect(view.dotColor).toBe("amber");
@@ -33,6 +37,7 @@ describe("deriveConnectionStatusView — game text", () => {
 
   test("game detected AND receiving telemetry → '<name>' / cyan", () => {
     const view = deriveConnectionStatusView({ connected: true, forzaReceiving: true, detectedGame: FORZA });
+    expect(view.statusKind).toBe("receiving");
     expect(view.gameText).toBe("Forza Motorsport");
     expect(view.gameLabel).toBe("Forza Motorsport");
     expect(view.dotColor).toBe("cyan");
@@ -40,6 +45,7 @@ describe("deriveConnectionStatusView — game text", () => {
 
   test("receiving telemetry but no game label → 'Receiving' / cyan", () => {
     const view = deriveConnectionStatusView({ connected: true, forzaReceiving: true, detectedGame: null });
+    expect(view.statusKind).toBe("receiving");
     expect(view.gameText).toBe("Receiving");
     expect(view.gameLabel).toBeNull();
     expect(view.dotColor).toBe("cyan");
@@ -47,24 +53,18 @@ describe("deriveConnectionStatusView — game text", () => {
 });
 
 describe("deriveConnectionStatusView — regressions", () => {
-  test("game exit clears the label (no stale '<name> — Waiting')", () => {
-    // Simulate: was detected → detection cleared. UI must not cling to the old name.
+  test("game exit reverts to base 'Server' status (no stale '<name> — Waiting')", () => {
     const afterExit = deriveConnectionStatusView({ connected: true, forzaReceiving: false, detectedGame: null });
-    expect(afterExit.gameText).toBe("No Signal");
+    expect(afterExit.statusKind).toBe("server");
+    expect(afterExit.gameText).toBe("Server");
     expect(afterExit.gameLabel).toBeNull();
+    expect(afterExit.dotColor).toBe("green");
   });
 
-  test("undefined detectedGame behaves like null", () => {
+  test("undefined detectedGame behaves like null (falls back to base 'Server')", () => {
     const view = deriveConnectionStatusView({ connected: true, forzaReceiving: false, detectedGame: undefined });
-    expect(view.gameText).toBe("No Signal");
-    expect(view.dotColor).toBe("dim");
-  });
-
-  test("disconnected server still reports game detection when server-status cached", () => {
-    // Edge case: server dropped the WS but last known detectedGame was F1.
-    // The game chip is independent of the server chip.
-    const view = deriveConnectionStatusView({ connected: false, forzaReceiving: false, detectedGame: F1 });
-    expect(view.serverLabel).toBe("Disconnected");
-    expect(view.gameText).toBe("F1 25 — Waiting");
+    expect(view.statusKind).toBe("server");
+    expect(view.gameText).toBe("Server");
+    expect(view.dotColor).toBe("green");
   });
 });
