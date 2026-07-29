@@ -6,7 +6,8 @@ import { Settings2 } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
 import type { DriverFingerprint } from "../../../server/ai/driver-profile-aggregate";
-import { useDriverProfile, useLaps, useSessions, useSettings } from "../hooks/queries";
+import type { DriverProfileRun, DriverProfileState } from "../hooks/queries";
+import { useDriverProfile, useDriverProfileRuns, useLaps, useSessions, useSettings } from "../hooks/queries";
 import { client } from "../lib/rpc";
 import { getGameRoute, useGameId } from "../stores/game";
 import { useUiStore } from "../stores/ui";
@@ -94,24 +95,26 @@ function formatTimeAgo(date: Date): string {
   if (sec < 604800) return `${Math.floor(sec / 86400)}d ${m.home_days_ago()}`;
   return date.toLocaleDateString();
 }
+
 export interface DriverProgressCardProps {
   gameId: string;
   fingerprint: DriverFingerprint | null;
   loading?: boolean;
   error?: string | null;
   medianLapSec?: number | null;
+  runState?: DriverProfileState;
+  latestRun?: DriverProfileRun | null;
 }
 
 
-/** Small deterministic snapshot for the game home; the full profile remains on /driver. */
-export function DriverProgressCard({ gameId, fingerprint, loading = false, error = null, medianLapSec = null }: DriverProgressCardProps) {
+export function DriverProgressCard({ gameId, fingerprint, loading = false, error = null, medianLapSec = null, runState = "not-configured", latestRun = null }: DriverProgressCardProps) {
   const profileHref = `${getGameRoute(gameId)}/driver`;
   const analyseHref = `${getGameRoute(gameId)}/analyse`;
 
   if (loading) {
     return (
       <section className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10" aria-live="polite">
-        <h2 className="text-sm font-semibold text-app-text">Driver progress</h2>
+        <h2 className="text-sm font-semibold text-app-text">Driver profile</h2>
         <p className="mt-2 text-sm text-app-text-muted">Analysing your measured lap history…</p>
       </section>
     );
@@ -121,7 +124,7 @@ export function DriverProgressCard({ gameId, fingerprint, loading = false, error
     return (
       <section className="rounded-lg bg-app-surface p-4 ring-1 ring-red-500/20" role="alert">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-app-text">Driver progress</h2>
+          <h2 className="text-sm font-semibold text-app-text">Driver profile</h2>
           <a href={profileHref} className="rounded px-1 text-xs text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
             Open profile
           </a>
@@ -135,7 +138,7 @@ export function DriverProgressCard({ gameId, fingerprint, loading = false, error
     return (
       <section className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold text-app-text">Driver progress</h2>
+          <h2 className="text-sm font-semibold text-app-text">Driver profile</h2>
           <a href={profileHref} className="rounded px-1 text-xs text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
             Open profile
           </a>
@@ -154,7 +157,7 @@ export function DriverProgressCard({ gameId, fingerprint, loading = false, error
     <section className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <h2 className="text-sm font-semibold text-app-text">Driver progress</h2>
+          <h2 className="text-sm font-semibold text-app-text">Driver profile</h2>
           <p className="mt-0.5 text-xs text-app-text-muted">Measured from {fingerprint.laps.analyzed} laps · {fingerprint.confidence} confidence</p>
         </div>
         <a href={profileHref} className="rounded px-1 text-xs text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
@@ -194,6 +197,27 @@ export function DriverProgressCard({ gameId, fingerprint, loading = false, error
           )}
         </p>
       </div>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-app-accent/15 bg-app-accent/5 px-3 py-2.5">
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-app-accent/80">AI coaching</div>
+          <p className="mt-0.5 text-sm text-app-text">
+            {runState === "succeeded" && latestRun
+              ? `Latest plan ready · ${latestRun.model} · ${formatTimeAgo(new Date(latestRun.completedAt ?? latestRun.createdAt))}`
+              : runState === "running"
+                ? "Analysing your measured profile…"
+                : runState === "queued"
+                  ? "Queued for background analysis"
+                  : runState === "failed"
+                    ? "Last coaching run failed — view details"
+                    : runState === "disabled"
+                      ? "Background coaching is off"
+                      : "Optional coaching is not configured"}
+          </p>
+        </div>
+        <a href={profileHref} className="shrink-0 rounded px-1 text-xs font-semibold text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
+          Open coaching →
+        </a>
+      </div>
     </section>
   );
 }
@@ -204,6 +228,7 @@ export function HomePage() {
   const gameAdapter = gameId ? tryGetGame(gameId) : null;
   const { data: allLaps = [] } = useLaps();
   const driverProfileQuery = useDriverProfile({ gameId });
+  const driverProfileRunsQuery = useDriverProfileRuns({ gameId });
   const { data: sessions = [] } = useSessions();
   const { displaySettings } = useSettings();
   const { openSettings } = useUiStore();
@@ -344,7 +369,7 @@ export function HomePage() {
   }, [recentLaps, periodStats, gameId]);
 
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
+    <div className="mx-auto max-w-[1400px] p-4 md:p-6 space-y-6">
       {/* Header */}
       {gameId ? (
         (() => {
@@ -672,24 +697,41 @@ export function HomePage() {
         </div>
       )}
 
-      {gameId && (
-        <DriverProgressCard
-          gameId={gameId}
-          fingerprint={driverProfileQuery.data?.fingerprint ?? null}
-          loading={driverProfileQuery.isLoading}
-          error={driverProfileQuery.error instanceof Error ? driverProfileQuery.error.message : driverProfileQuery.error ? String(driverProfileQuery.error) : null}
-          medianLapSec={medianLapSec}
-        />
-      )}
-
-      {/* Latest session recap. Renders in full here, so there is no modal to open —
-          clicking deep-links to analysing the session's best lap instead. */}
-      {latestSession && (
-        <div className="rounded-lg border border-app-border bg-app-surface p-4">
-          <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider mb-2">{m.recap_latest_session()}</h2>
-          {/* gameId passed explicitly: the global home page has no active-game scope. */}
-          <SessionRecap sessionId={latestSession.id} gameId={latestSession.gameId} linkToAnalyse />
+      {gameId ? (
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="min-w-0">
+            <DriverProgressCard
+              gameId={gameId}
+              fingerprint={driverProfileQuery.data?.fingerprint ?? null}
+              loading={driverProfileQuery.isLoading}
+              error={driverProfileQuery.error instanceof Error ? driverProfileQuery.error.message : driverProfileQuery.error ? String(driverProfileQuery.error) : null}
+              medianLapSec={medianLapSec}
+              runState={driverProfileRunsQuery.data?.state}
+              latestRun={driverProfileRunsQuery.data?.latest}
+            />
+          </div>
+          <aside className="lg:sticky lg:top-6">
+            {latestSession ? (
+              <div className="relative overflow-hidden rounded-xl border border-app-border bg-app-bg p-4">
+                <div className="pointer-events-none absolute -top-10 -right-10 h-36 w-36 rounded-full bg-app-accent opacity-15 blur-3xl" />
+                <div className="relative mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-app-accent">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-app-accent shadow-[0_0_8px_var(--color-app-accent,#7c5cff)]" />
+                  {m.recap_latest_session()}
+                </div>
+                <SessionRecap sessionId={latestSession.id} gameId={latestSession.gameId} linkToAnalyse />
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-app-border bg-app-surface p-6 text-center text-xs text-app-text-muted">{m.recap_latest_session()}</div>
+            )}
+          </aside>
         </div>
+      ) : (
+        latestSession && (
+          <div className="rounded-lg border border-app-border bg-app-surface p-4">
+            <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider mb-2">{m.recap_latest_session()}</h2>
+            <SessionRecap sessionId={latestSession.id} gameId={latestSession.gameId} linkToAnalyse />
+          </div>
+        )
       )}
 
       {/* Activity heatmap */}

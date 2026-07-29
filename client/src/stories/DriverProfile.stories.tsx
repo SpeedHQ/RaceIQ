@@ -250,10 +250,9 @@ export const AutomaticCoaching: Story = {
 export const MeasuredOnly: Story = {
   args: { fingerprint: FINGERPRINT, plan: null },
 };
-
 /** The compact deterministic snapshot shown on an active game's home page. */
 export const ProgressSummary: Story = {
-  render: () => <DriverProgressCard gameId="fm-2023" fingerprint={FINGERPRINT} medianLapSec={138.01} />,
+  render: () => <DriverProgressCard gameId="fm-2023" fingerprint={FINGERPRINT} medianLapSec={138.01} runState="succeeded" latestRun={RUN_HISTORY[0]} />,
 };
 
 /** Empty state with a direct route to record/analyse the first laps. */
