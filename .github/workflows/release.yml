@@ -67,6 +67,10 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Generate release note artifact
+        shell: bash
+        run: bun scripts/generate-release-note.ts "${{ needs.compute-version.outputs.version }}"
+
       - name: Build client
         run: cd client && bun install && bun run build
 
@@ -134,6 +138,13 @@ jobs:
           name: raceiq-v${{ needs.compute-version.outputs.version }}-setup
           path: RaceIQ-Setup-v${{ needs.compute-version.outputs.version }}.exe
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: raceiq-v${{ needs.compute-version.outputs.version }}-release-note
+          path: |
+            releasenote.md
+            releasenotes.md
+
   playwright-test:
     if: github.event_name == 'workflow_dispatch'
     needs: build
@@ -170,7 +181,7 @@ jobs:
           tag_name: v${{ needs.compute-version.outputs.version }}
           name: RaceIQ v${{ needs.compute-version.outputs.version }}
           files: artifacts/**/*
-          generate_release_notes: true
+          body_path: artifacts/raceiq-v${{ needs.compute-version.outputs.version }}-release-note/releasenote.md
           draft: true
 
   # --- Triggered when draft is published: commit version bump + tag ---

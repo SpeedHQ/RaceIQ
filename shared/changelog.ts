@@ -32,6 +32,25 @@ export function renderReleaseBody(markdown: string): string {
     .join("\n\n");
 }
 
+export function renderUnreleasedBody(markdown: string): string {
+  const heading = /^##\s+Unreleased\s*$/m.exec(markdown);
+  if (!heading || heading.index === undefined) return "";
+  const start = heading.index + heading[0].length;
+  const nextHeading = markdown.slice(start).search(/^##\s+/m);
+  const end = nextHeading === -1 ? markdown.length : start + nextHeading;
+  return renderReleaseBody(markdown.slice(start, end));
+}
+
+export function renderAllReleaseNotes(markdown: string): string {
+  const blocks: string[] = [];
+  const unreleased = renderUnreleasedBody(markdown);
+  if (unreleased) blocks.push(`## Unreleased\n\n${unreleased}`);
+  for (const entry of parseChangelog(markdown)) {
+    blocks.push(`## v${entry.version}${entry.date ? ` - ${entry.date}` : ""}\n\n${entry.notes}`);
+  }
+  return blocks.join("\n\n");
+}
+
 export function parseChangelog(markdown: string): ChangelogEntry[] {
   const releases = [...markdown.matchAll(RELEASE_HEADING)];
   return releases.map((release, index) => {

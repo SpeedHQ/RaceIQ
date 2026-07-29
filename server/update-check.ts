@@ -86,11 +86,14 @@ interface GitHubRelease {
   assets: { name: string; browser_download_url: string }[];
 }
 
-/** Strip GitHub auto-generated boilerplate from release notes. */
-function cleanReleaseNotes(body: string): string {
-  return body
-    .replace(/\n*\*\*Full Changelog\*\*:.*$/im, "")
-    .trim();
+/** Fetch the complete curated release note asset attached to a GitHub release. */
+async function fetchReleaseNotes(release: GitHubRelease): Promise<string | null> {
+  const asset = release.assets.find((candidate) => candidate.name.toLowerCase() === "releasenote.md");
+  if (!asset) return null;
+  const response = await fetch(asset.browser_download_url, { headers: GH_HEADERS });
+  if (!response.ok) return null;
+  const notes = (await response.text()).trim();
+  return notes || null;
 }
 
 /** Fetch all releases from GitHub and split into new/current. */
@@ -109,14 +112,13 @@ async function fetchReleases(currentVersion: string): Promise<{
 
   for (const r of releases) {
     const ver = r.tag_name.replace(/^v/, "");
-    const notes = r.body?.trim() ? cleanReleaseNotes(r.body.trim()) : null;
+    if (ver !== currentVersion && !isNewer(ver, currentVersion)) continue;
+    const notes = await fetchReleaseNotes(r);
     if (ver === currentVersion) {
       currentReleaseNotes = notes;
       currentReleaseDate = r.published_at ?? null;
-    } else if (isNewer(ver, currentVersion)) {
-      if (notes) {
-        newReleases.push({ version: ver, notes, date: r.published_at ?? "" });
-      }
+    } else if (notes) {
+      newReleases.push({ version: ver, notes, date: r.published_at ?? "" });
     }
   }
 
