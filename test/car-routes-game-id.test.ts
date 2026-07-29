@@ -31,7 +31,7 @@ describe("GET /api/cars game context", () => {
     });
   });
 
-  test("returns the seeded active iRacing catalogue with native IDs", async () => {
+  test("returns the seeded active iRacing catalogue with images and categories", async () => {
     await registerDiscoveredCar("iracing", CAR_ID, "Future Test Car");
     await registerDiscoveredCar("ac-evo", CAR_ID, "Foreign AC Evo Car");
 
@@ -44,20 +44,43 @@ describe("GET /api/cars game context", () => {
       ordinal: number;
       name: string;
       path: string;
+      category: string;
+      imageUrl: string;
     }>;
     expect(cars).toContainEqual({
       ordinal: 208,
       name: "Porsche 911 Cup (992.2)",
       path: "cars\\porsche9922cup",
+      category: "sports_car",
+      imageUrl:
+        "https://images-static.iracing.com/img/cars/carid_208/porsche9922cup-small.jpg",
     });
     expect(cars).toContainEqual({
       ordinal: CAR_ID,
       name: "Future Test Car",
       path: "",
+      category: "discovered",
+      imageUrl: "",
     });
+    expect(cars).toHaveLength(180);
     expect(cars.some((car) => car.name === "Foreign AC Evo Car")).toBe(false);
-    const catalogPaths = cars.map((car) => car.path).filter(Boolean);
+    const catalogCars = cars.filter((car) => car.ordinal !== CAR_ID);
+    const catalogPaths = catalogCars.map((car) => car.path);
     expect(new Set(catalogPaths).size).toBe(catalogPaths.length);
+    expect(
+      [...new Set(catalogCars.map((car) => car.category))].sort(),
+    ).toEqual([
+      "dirt_oval",
+      "dirt_road",
+      "formula_car",
+      "oval",
+      "sports_car",
+    ]);
+    expect(
+      catalogCars.every((car) =>
+        car.imageUrl.startsWith("https://images-static.iracing.com/img/cars/"),
+      ),
+    ).toBe(true);
   });
 
   test("returns seeded iRacing car details by native ID", async () => {

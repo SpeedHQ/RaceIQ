@@ -8,6 +8,9 @@ interface IRacingDataApiCar {
   car_id?: unknown;
   car_name?: unknown;
   car_dirpath?: unknown;
+  categories?: unknown;
+  folder?: unknown;
+  small_image?: unknown;
   retired?: unknown;
 }
 
@@ -15,6 +18,8 @@ interface SeedCar {
   ordinal: number;
   name: string;
   path: string;
+  category: string;
+  imageUrl: string;
   retired: boolean;
 }
 
@@ -26,6 +31,13 @@ function optionValue(name: string): string | undefined {
 function csvCell(value: string | number | boolean): string {
   const text = String(value);
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+function imageUrl(folder: string, image: string): string {
+  const normalizedFolder = folder.trim().replace(/\/+$/, "");
+  const normalizedImage = image.trim().replace(/^\/+/, "");
+  const slash = normalizedFolder.startsWith("/") ? "" : "/";
+  return `https://images-static.iracing.com${slash}${normalizedFolder}/${normalizedImage}`;
 }
 
 async function readSource(source: string): Promise<unknown> {
@@ -59,14 +71,26 @@ function parseCars(payload: unknown, includeRetired: boolean): SeedCar[] {
       !row.car_name.trim() ||
       typeof row.car_dirpath !== "string" ||
       !row.car_dirpath.trim() ||
+      !Array.isArray(row.categories) ||
+      row.categories.length !== 1 ||
+      typeof row.categories[0] !== "string" ||
+      !row.categories[0].trim() ||
+      typeof row.folder !== "string" ||
+      !row.folder.trim() ||
+      typeof row.small_image !== "string" ||
+      !row.small_image.trim() ||
       typeof row.retired !== "boolean"
     ) {
-      throw new Error(`Invalid /data/car/get row at index ${index}: expected car_id, car_name, car_dirpath, and retired`);
+      throw new Error(
+        `Invalid /data/car/get row at index ${index}: expected car_id, car_name, car_dirpath, one category, folder, small_image, and retired`,
+      );
     }
     return {
       ordinal: row.car_id as number,
       name: row.car_name.trim(),
       path: `cars\\${row.car_dirpath.replaceAll("/", "\\")}`,
+      category: row.categories[0].trim(),
+      imageUrl: imageUrl(row.folder, row.small_image),
       retired: row.retired,
     };
   });
@@ -90,7 +114,18 @@ function parseCars(payload: unknown, includeRetired: boolean): SeedCar[] {
 }
 
 function writeCatalog(output: string, cars: SeedCar[]): void {
-  const lines = ["ordinal,name,path", ...cars.map((car) => [csvCell(car.ordinal), csvCell(car.name), csvCell(car.path)].join(","))];
+  const lines = [
+    "ordinal,name,path,category,imageUrl",
+    ...cars.map((car) =>
+      [
+        csvCell(car.ordinal),
+        csvCell(car.name),
+        csvCell(car.path),
+        csvCell(car.category),
+        csvCell(car.imageUrl),
+      ].join(","),
+    ),
+  ];
   mkdirSync(dirname(output), { recursive: true });
   writeFileSync(output, `${lines.join("\n")}\n`, "utf-8");
 }

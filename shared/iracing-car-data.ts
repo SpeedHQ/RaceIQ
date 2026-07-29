@@ -6,6 +6,8 @@ export interface IRacingCatalogCar {
   ordinal: number;
   name: string;
   path: string;
+  category: string;
+  imageUrl: string;
 }
 
 /**
@@ -42,7 +44,11 @@ const cars = readFileSync(resolve(SHARED_DIR, "games/iracing/cars.csv"), "utf-8"
     const ordinal = Number(fields[0]);
     const name = fields[1]?.trim();
     const path = fields[2]?.trim();
-    return Number.isInteger(ordinal) && name && path ? { ordinal, name, path } : null;
+    const category = fields[3]?.trim();
+    const imageUrl = fields[4]?.trim();
+    return Number.isInteger(ordinal) && name && path && category && imageUrl
+      ? { ordinal, name, path, category, imageUrl }
+      : null;
   })
   .filter((car): car is IRacingCatalogCar => car !== null);
 
