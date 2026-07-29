@@ -7,6 +7,7 @@
 - View all release notes since your installed version in the app
 
 ### Fixes
+- Made stale-session reprocessing recoverable with retry and dismissal actions, accessible progress states, and clear failure feedback
 
 ### Internal
 - Consolidated live dashboard routing across all supported games while preserving game-specific URLs

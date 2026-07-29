@@ -1,5 +1,6 @@
 import type { LapMeta, LivePitData, LiveSectorData, TelemetryPacket, TuneIssue } from "@shared/types";
 import { create } from "zustand";
+import { advanceReprocess, beginReprocess, completeReprocess, dismissReprocess, failReprocess, initialReprocessState, type ReprocessState } from "@/lib/reprocess-state";
 import { convertPacket, type DisplayPacket } from "../lib/convert-packet";
 
 export interface DisplaySettings {
@@ -125,8 +126,8 @@ interface TelemetryState {
   sessionLaps: LapMeta[];
   /** Stale lap detection notification — null if dismissed or no stale sessions */
   staleLapDetection: { sessionCount: number; currentVersion: string } | null;
-  /** Active reprocess progress — null when not reprocessing */
-  reprocessProgress: { done: number; total: number } | null;
+  /** Stale-session reprocessing request and dialog state */
+  reprocessState: ReprocessState;
   /** Live Tuning Dashboard: transient per-packet issues from the latest broadcast
    *  (only populated while `POST /api/live-analysis {enabled:true}` is active). */
   liveIssues: TuneIssue[];
@@ -146,7 +147,10 @@ interface TelemetryState {
   setUpdateProgress: (progress: TelemetryState["updateProgress"]) => void;
   setVersionInfo: (info: VersionInfo) => void;
   setStaleLapDetection: (data: { sessionCount: number; currentVersion: string } | null) => void;
-  setReprocessProgress: (progress: { done: number; total: number } | null) => void;
+  beginReprocess: (total: number) => void;
+  completeReprocess: () => void;
+  failReprocess: (message: string) => void;
+  dismissReprocess: () => void;
   incrementReprocessProgress: () => void;
   devState: unknown | null;
   devStatePaused: boolean;
@@ -178,7 +182,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   versionInfo: null,
   sessionLaps: [],
   staleLapDetection: null,
-  reprocessProgress: null,
+  reprocessState: initialReprocessState,
   liveIssues: [],
   lapIssuesFeed: [],
   devState: null,
@@ -230,17 +234,14 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
     ),
   setUpdateAvailable: (version) => set({ updateAvailable: version }),
   setStaleLapDetection: (data) => set({ staleLapDetection: data }),
-  setReprocessProgress: (progress) => set({ reprocessProgress: progress }),
+  beginReprocess: (total) => set((prev) => ({ reprocessState: beginReprocess(prev.reprocessState, total) })),
+  completeReprocess: () => set((prev) => ({ reprocessState: completeReprocess(prev.reprocessState) })),
+  failReprocess: (message) => set((prev) => ({ reprocessState: failReprocess(prev.reprocessState, message) })),
+  dismissReprocess: () => set((prev) => ({ reprocessState: dismissReprocess(prev.reprocessState) })),
   incrementReprocessProgress: () =>
-    set((prev) => {
-      if (!prev.reprocessProgress) return {};
-      return {
-        reprocessProgress: {
-          ...prev.reprocessProgress,
-          done: prev.reprocessProgress.done + 1,
-        },
-      };
-    }),
+    set((prev) => ({
+      reprocessState: advanceReprocess(prev.reprocessState),
+    })),
   setUpdateProgress: (progress) => set({ updateProgress: progress }),
   setVersionInfo: (info) => set({ versionInfo: info }),
   setDevState: (state) => {

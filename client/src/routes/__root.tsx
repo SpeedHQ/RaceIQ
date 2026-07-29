@@ -1,7 +1,7 @@
 import { getAllGames } from "@shared/games/registry";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createRootRoute, Outlet, useLocation } from "@tanstack/react-router";
-import { Menu, RefreshCw, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { applyLocale } from "@/lib/locale";
 import { m } from "@/paraglide/messages";
@@ -9,6 +9,7 @@ import { getLocale, isLocale } from "@/paraglide/runtime";
 import { AppSidebar } from "../components/AppSidebar";
 import { OnboardingModal } from "../components/Onboarding";
 import { Settings } from "../components/Settings";
+import { StaleLapReprocessing } from "../components/StaleLapReprocessing";
 import { UpdateModal } from "../components/UpdateModal";
 import { ThemeProvider } from "../context/theme";
 import { useSettings } from "../hooks/queries";
@@ -28,85 +29,6 @@ function getGamePrefixes() {
 
 function useUpdateCheck() {
   return useTelemetryStore((s) => s.versionInfo);
-}
-
-function ReprocessProgressModal({ total, done, onClose }: { total: number; done: number; onClose: () => void }) {
-  const percent = total > 0 ? Math.round((done / total) * 100) : 0;
-  const complete = done >= total;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-96 rounded-xl border border-white/10 bg-[#1a1a1a] p-6 shadow-2xl">
-        <div className="flex items-center gap-3 mb-4">
-          <RefreshCw className={`size-5 text-blue-400 ${complete ? "" : "animate-spin"}`} />
-          <h2 className="text-sm font-semibold text-white flex-1">{complete ? m.root_reprocessing_complete() : m.root_reprocessing()}</h2>
-          {complete && (
-            <button type="button" onClick={onClose} className="text-white/40 hover:text-white/70 transition-colors" aria-label="Close">
-              <X className="size-4" />
-            </button>
-          )}
-        </div>
-        <div className="mb-3 h-2 w-full rounded-full bg-white/10 overflow-hidden">
-          <div className="h-full rounded-full bg-blue-500 transition-all duration-300" style={{ width: `${percent}%` }} />
-        </div>
-        <div className="flex justify-between text-xs text-white/40">
-          <span>
-            {done} / {total} sessions
-          </span>
-          <span>{percent}%</span>
-        </div>
-        {complete && <p className="mt-3 text-xs text-green-400 text-center">{m.root_all_sessions_updated()}</p>}
-      </div>
-    </div>
-  );
-}
-
-function StaleLapButton() {
-  const staleLapDetection = useTelemetryStore((s) => s.staleLapDetection);
-  const setStaleLapDetection = useTelemetryStore((s) => s.setStaleLapDetection);
-  const reprocessProgress = useTelemetryStore((s) => s.reprocessProgress);
-  const setReprocessProgress = useTelemetryStore((s) => s.setReprocessProgress);
-
-  if (!staleLapDetection && !reprocessProgress) return null;
-
-  const handleReprocess = async () => {
-    const total = staleLapDetection!.sessionCount;
-    setReprocessProgress({ done: 0, total });
-    setStaleLapDetection(null);
-    try {
-      await fetch("/api/sessions/reprocess-stale", { method: "POST" });
-    } finally {
-      // Modal auto-closes via useEffect when done >= total
-    }
-  };
-
-  const handleDismissModal = () => setReprocessProgress(null);
-
-  return (
-    <>
-      {staleLapDetection && (
-        <div className="fixed bottom-4 right-4 z-50 w-72 rounded-lg bg-app-surface border border-blue-500/30 shadow-xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <RefreshCw className="size-4 text-blue-400 shrink-0" />
-            <span className="text-sm font-semibold text-app-text">{m.root_lap_detection_updated()}</span>
-          </div>
-          <p className="text-xs text-app-text-muted mb-3">
-            {staleLapDetection.sessionCount} session{staleLapDetection.sessionCount !== 1 ? "s were" : " was"} recorded with an older lap detector. Reparsing will improve lap boundaries and timing
-            accuracy.
-          </p>
-          <button
-            type="button"
-            onClick={handleReprocess}
-            className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-300 transition-colors"
-          >
-            <RefreshCw className="size-3" />
-            Reparse {staleLapDetection.sessionCount} session{staleLapDetection.sessionCount !== 1 ? "s" : ""}
-          </button>
-        </div>
-      )}
-      {reprocessProgress && <ReprocessProgressModal total={reprocessProgress.total} done={reprocessProgress.done} onClose={handleDismissModal} />}
-    </>
-  );
 }
 
 export function MobileNotSupported({ feature = m.root_this_view() }: { feature?: string }) {
@@ -332,7 +254,7 @@ function AppShell() {
         {(showUpdateModal || updateProgress) && <UpdateModal version={updateState?.latest ?? "?"} newReleases={updateState?.newReleases ?? []} onClose={() => setShowUpdateModal(false)} />}
         {onboardingOpen && <OnboardingModal onClose={closeOnboarding} />}
       </div>
-      <StaleLapButton />
+      <StaleLapReprocessing />
     </ThemeProvider>
   );
 }

@@ -67,6 +67,14 @@ export default defineConfig({
       },
     },
     {
+      name: "reprocessing",
+      testMatch: "reprocessing.spec.ts",
+      use: {
+        baseURL: `http://localhost:${FRESH_INSTALL_PORT}`,
+        viewport: { width: 1280, height: 900 },
+      },
+    },
+    {
       name: "tunes",
       testMatch: "tunes/*.spec.ts",
       use: {
