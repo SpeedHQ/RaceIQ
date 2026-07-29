@@ -30,11 +30,13 @@ import { SHARED_DIR } from "./resolve-data";
 import type { GameId } from "./types";
 
 export const TRACK_META_DIR = resolve(SHARED_DIR, "tracks", "meta");
-const GAME_DIRS: Record<GameId, string> = {
+const NO_CENTERLINE_DIR = null;
+const GAME_DIRS: Record<GameId, string | typeof NO_CENTERLINE_DIR> = {
   "f1-2025": resolve(SHARED_DIR, "tracks", "f1-2025"),
   acc: resolve(SHARED_DIR, "tracks", "acc"),
   "fm-2023": resolve(SHARED_DIR, "tracks", "fm-2023"),
   "ac-evo": resolve(SHARED_DIR, "tracks", "ac-evo"),
+  iracing: NO_CENTERLINE_DIR,
 };
 
 /** List every track slug that has a meta file, curated or not. */
@@ -77,8 +79,9 @@ export function loadCenterline(filePath: string): { x: number; z: number }[] | n
 /** Find centerline files for a slug per game. FM files embed the ordinal. */
 export function findCenterlines(slug: string, gameFilter?: string): { gameId: GameId; file: string }[] {
   const found: { gameId: GameId; file: string }[] = [];
-  for (const [gameId, dir] of Object.entries(GAME_DIRS) as [GameId, string][]) {
+  for (const [gameId, dir] of Object.entries(GAME_DIRS) as [GameId, string | null][]) {
     if (gameFilter && gameId !== gameFilter) continue;
+    if (dir === NO_CENTERLINE_DIR) continue;
     if (!existsSync(dir)) continue;
     if (gameId === "fm-2023") {
       const re = new RegExp(`^${slug}-\\d+-centerline\\.csv$`);
@@ -332,7 +335,8 @@ export function autoTrackSegments(outline: { x: number; z: number }[]): {
 /** Every centerline file per game (basename without -centerline.csv suffix). */
 export function listAllCenterlines(): { gameId: GameId; slug: string; file: string }[] {
   const found: { gameId: GameId; slug: string; file: string }[] = [];
-  for (const [gameId, dir] of Object.entries(GAME_DIRS) as [GameId, string][]) {
+  for (const [gameId, dir] of Object.entries(GAME_DIRS) as [GameId, string | null][]) {
+    if (dir === NO_CENTERLINE_DIR) continue;
     if (!existsSync(dir)) continue;
     for (const f of readdirSync(dir)) {
       if (!f.endsWith("-centerline.csv")) continue;

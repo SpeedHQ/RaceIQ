@@ -1,3 +1,5 @@
+import { resolveAnalysisTelemetry } from "@shared/games/analysis-telemetry";
+import { tryGetGame } from "@shared/games/registry";
 import type { GameId, TelemetryPacket } from "@shared/types";
 import { Info } from "lucide-react";
 import type { useUnits } from "../../hooks/useUnits";
@@ -12,7 +14,9 @@ interface Props {
 }
 
 export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
-  const isF1 = gameId === "f1-2025";
+  const analysis = resolveAnalysisTelemetry(
+    gameId ? tryGetGame(gameId) : undefined,
+  );
   const ws = allWheelStates(currentPacket);
   const fc = allFrictionCircle(currentPacket);
   const bal = steerBalance(currentPacket);
@@ -20,6 +24,23 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
   const lonG = -currentPacket.AccelerationZ / 9.81;
 
   const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
+  const unavailable = <span className="text-app-text-dim">—</span>;
+  const vehicleSurface = (() => {
+    switch (currentPacket.iracing?.playerTrackSurface) {
+      case -1:
+        return m.analyse_surface_not_in_world();
+      case 0:
+        return m.analyse_surface_off_track();
+      case 1:
+        return m.analyse_surface_pit_stall();
+      case 2:
+        return m.analyse_surface_approaching_pits();
+      case 3:
+        return m.analyse_surface_on_track();
+      default:
+        return m.analyse_surface_unknown();
+    }
+  })();
 
   const states = [
     { l: "FL", ...tireState(ws.fl.state, ws.fl.slipRatio, currentPacket.TireSlipAngleFL), temp: tireTempLabel(units.toTempC(currentPacket.TireTempFL), units.thresholds) },
@@ -66,8 +87,14 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
       <div className="flex justify-between">
         <span className="flex items-center gap-1 group relative text-app-text-muted">
           {m.label_balance()}
-          <Info className="w-3 h-3 text-app-text-dim cursor-help" />
-          <span className="absolute left-0 top-full mt-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2.5 py-2 text-[10px] text-app-text-secondary z-50 pointer-events-none normal-case tracking-normal w-[300px]">
+          {analysis.balance.source === "unavailable" ? (
+            <span className="text-[10px] text-app-text-dim">
+              {m.analyse_unavailable()}
+            </span>
+          ) : (
+            <>
+              <Info className="w-3 h-3 text-app-text-dim cursor-help" />
+              <span className="absolute left-0 top-full mt-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2.5 py-2 text-[10px] text-app-text-secondary z-50 pointer-events-none normal-case tracking-normal w-[300px]">
             <span className="block mb-1">Yaw rate vs path curvature + front/rear slip-angle delta.</span>
             <span className="block mb-2 text-app-text-dim">
               + = understeer (front slip &gt; rear) &nbsp;|&nbsp; − = oversteer (body yawing past Ay/V)
@@ -160,15 +187,21 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
                 </svg>
               );
             })()}
-          </span>
+              </span>
+            </>
+          )}
         </span>
-        <span className="tabular-nums" style={{ color: balanceColor(bal.state) }}>
-          {bal.state === "neutral" ? "Neutral" : bal.state === "understeer" ? "Understeer" : "Oversteer"}
-          <span className="text-app-text-dim ml-1">
-            ({bal.balance > 0 ? "+" : ""}
-            {bal.balance.toFixed(2)})
+        {analysis.balance.source === "unavailable" ? (
+          <span className="text-app-text-dim">{m.analyse_unavailable()}</span>
+        ) : (
+          <span className="tabular-nums" style={{ color: balanceColor(bal.state) }}>
+            {bal.state === "neutral" ? "Neutral" : bal.state === "understeer" ? "Understeer" : "Oversteer"}
+            <span className="text-app-text-dim ml-1">
+              ({bal.balance > 0 ? "+" : ""}
+              {bal.balance.toFixed(2)})
+            </span>
           </span>
-        </span>
+        )}
       </div>
 
       {/* G-Force */}
@@ -195,26 +228,31 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
         rows={[
           {
             label: m.analyse_dynamics_grip_ask(),
-            fl: C(`${(fc.fl * 100).toFixed(0)}%`, frictionUtilColor(fc.fl)),
-            fr: C(`${(fc.fr * 100).toFixed(0)}%`, frictionUtilColor(fc.fr)),
-            rl: C(`${(fc.rl * 100).toFixed(0)}%`, frictionUtilColor(fc.rl)),
-            rr: C(`${(fc.rr * 100).toFixed(0)}%`, frictionUtilColor(fc.rr)),
+            fl: analysis.gripDemand.source === "unavailable" ? unavailable : C(`${(fc.fl * 100).toFixed(0)}%`, frictionUtilColor(fc.fl)),
+            fr: analysis.gripDemand.source === "unavailable" ? unavailable : C(`${(fc.fr * 100).toFixed(0)}%`, frictionUtilColor(fc.fr)),
+            rl: analysis.gripDemand.source === "unavailable" ? unavailable : C(`${(fc.rl * 100).toFixed(0)}%`, frictionUtilColor(fc.rl)),
+            rr: analysis.gripDemand.source === "unavailable" ? unavailable : C(`${(fc.rr * 100).toFixed(0)}%`, frictionUtilColor(fc.rr)),
           },
           {
             label: m.analyse_dynamics_traction(),
-            fl: C(states[0].label, states[0].color),
-            fr: C(states[1].label, states[1].color),
-            rl: C(states[2].label, states[2].color),
-            rr: C(states[3].label, states[3].color),
+            fl: analysis.traction.source === "unavailable" ? unavailable : C(states[0].label, states[0].color),
+            fr: analysis.traction.source === "unavailable" ? unavailable : C(states[1].label, states[1].color),
+            rl: analysis.traction.source === "unavailable" ? unavailable : C(states[2].label, states[2].color),
+            rr: analysis.traction.source === "unavailable" ? unavailable : C(states[3].label, states[3].color),
           },
           {
-            label: m.analyse_dynamics_temp(),
+            label:
+              analysis.tireTemperature.source === "direct" &&
+              analysis.tireTemperature.freshness === "pit-snapshot"
+                ? m.analyse_wheels_pit_temp()
+                : m.analyse_dynamics_temp(),
             fl: C(states[0].temp.label, states[0].temp.color),
             fr: C(states[1].temp.label, states[1].temp.color),
             rl: C(states[2].temp.label, states[2].temp.color),
             rr: C(states[3].temp.label, states[3].temp.color),
           },
-          ...(!isF1
+          ...(analysis.surface.source !== "unavailable" &&
+          analysis.surface.display !== "vehicle"
             ? [
                 {
                   label: m.analyse_dynamics_surface(),
@@ -259,6 +297,15 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
             : []),
         ]}
       />
+      {analysis.surface.source !== "unavailable" &&
+        analysis.surface.display === "vehicle" && (
+          <div className="flex justify-between">
+            <span className="text-app-text-muted">
+              {m.analyse_dynamics_surface()}
+            </span>
+            <span className="text-app-text">{vehicleSurface}</span>
+          </div>
+        )}
 
       {/* Slip */}
       <WheelTable
@@ -267,17 +314,17 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
         rows={[
           {
             label: m.analyse_dynamics_ratio(),
-            fl: C(`${(ws.fl.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.fl.slipRatio)),
-            fr: C(`${(ws.fr.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.fr.slipRatio)),
-            rl: C(`${(ws.rl.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.rl.slipRatio)),
-            rr: C(`${(ws.rr.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.rr.slipRatio)),
+            fl: analysis.slipRatio.source === "unavailable" ? unavailable : C(`${(ws.fl.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.fl.slipRatio)),
+            fr: analysis.slipRatio.source === "unavailable" ? unavailable : C(`${(ws.fr.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.fr.slipRatio)),
+            rl: analysis.slipRatio.source === "unavailable" ? unavailable : C(`${(ws.rl.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.rl.slipRatio)),
+            rr: analysis.slipRatio.source === "unavailable" ? unavailable : C(`${(ws.rr.slipRatio * 100).toFixed(0)}%`, slipRatioColor(ws.rr.slipRatio)),
           },
           {
             label: m.analyse_dynamics_angle(),
-            fl: C(`${fmt(currentPacket.TireSlipAngleFL)}°`, angleColor(currentPacket.TireSlipAngleFL)),
-            fr: C(`${fmt(currentPacket.TireSlipAngleFR)}°`, angleColor(currentPacket.TireSlipAngleFR)),
-            rl: C(`${fmt(currentPacket.TireSlipAngleRL)}°`, angleColor(currentPacket.TireSlipAngleRL)),
-            rr: C(`${fmt(currentPacket.TireSlipAngleRR)}°`, angleColor(currentPacket.TireSlipAngleRR)),
+            fl: analysis.slipAngle.source === "unavailable" ? unavailable : C(`${fmt(currentPacket.TireSlipAngleFL)}°`, angleColor(currentPacket.TireSlipAngleFL)),
+            fr: analysis.slipAngle.source === "unavailable" ? unavailable : C(`${fmt(currentPacket.TireSlipAngleFR)}°`, angleColor(currentPacket.TireSlipAngleFR)),
+            rl: analysis.slipAngle.source === "unavailable" ? unavailable : C(`${fmt(currentPacket.TireSlipAngleRL)}°`, angleColor(currentPacket.TireSlipAngleRL)),
+            rr: analysis.slipAngle.source === "unavailable" ? unavailable : C(`${fmt(currentPacket.TireSlipAngleRR)}°`, angleColor(currentPacket.TireSlipAngleRR)),
           },
         ]}
       />

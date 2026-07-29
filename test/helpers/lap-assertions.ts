@@ -12,7 +12,7 @@ import type { LapSavedNotification } from "../../server/lap-detector";
  */
 export function assertSectorTimesMatchLapTime(lap: CapturedLap, tolerance: number = 0.01): void {
   if (!lap.sectors) return;
-  const sectorSum = lap.sectors.s1 + lap.sectors.s2 + lap.sectors.s3;
+  const sectorSum = lap.sectors.reduce((sum, time) => sum + time, 0);
   expect(Math.abs(sectorSum - lap.lapTime)).toBeLessThan(tolerance);
 }
 
@@ -22,10 +22,9 @@ export function assertSectorTimesMatchLapTime(lap: CapturedLap, tolerance: numbe
  */
 export function assertValidLapHasSectors(lap: CapturedLap, tolerance: number = 0.5): void {
   expect(lap.sectors).not.toBeNull();
-  expect(lap.sectors!.s1).toBeGreaterThan(0);
-  expect(lap.sectors!.s2).toBeGreaterThan(0);
-  expect(lap.sectors!.s3).toBeGreaterThan(0);
-  const sectorSum = lap.sectors!.s1 + lap.sectors!.s2 + lap.sectors!.s3;
+  expect(lap.sectors!.length).toBeGreaterThanOrEqual(2);
+  expect(lap.sectors!.every((time) => time > 0)).toBe(true);
+  const sectorSum = lap.sectors!.reduce((sum, time) => sum + time, 0);
   expect(Math.abs(sectorSum - lap.lapTime)).toBeLessThan(tolerance);
 }
 
@@ -114,9 +113,8 @@ export function assertLapTimesPositive(laps: CapturedLap[]): void {
     if (lap.isValid) {
       expect(lap.lapTime).toBeGreaterThan(0);
       if (lap.sectors) {
-        expect(lap.sectors.s1).toBeGreaterThan(0);
-        expect(lap.sectors.s2).toBeGreaterThan(0);
-        expect(lap.sectors.s3).toBeGreaterThan(0);
+        expect(lap.sectors.length).toBeGreaterThanOrEqual(2);
+        expect(lap.sectors.every((time) => time > 0)).toBe(true);
       }
     }
   }
@@ -140,9 +138,10 @@ export function assertSectorDeltasRealistic(
     // Only check if both laps are valid and have sectors
     if (!prev.isValid || !curr.isValid || !prev.sectors || !curr.sectors) continue;
 
-    expect(Math.abs(curr.sectors.s1 - prev.sectors.s1)).toBeLessThan(maxDeltaSeconds);
-    expect(Math.abs(curr.sectors.s2 - prev.sectors.s2)).toBeLessThan(maxDeltaSeconds);
-    expect(Math.abs(curr.sectors.s3 - prev.sectors.s3)).toBeLessThan(maxDeltaSeconds);
+    if (curr.sectors.length !== prev.sectors.length) continue;
+    for (let sectorIndex = 0; sectorIndex < curr.sectors.length; sectorIndex++) {
+      expect(Math.abs(curr.sectors[sectorIndex] - prev.sectors[sectorIndex])).toBeLessThan(maxDeltaSeconds);
+    }
   }
 }
 

@@ -1,8 +1,8 @@
+import { selectEvaluationLaps } from "@shared/review-laps";
 import type { LapMeta, TelemetryPacket, TuneIssue } from "@shared/types";
 import { useMemo, useState } from "react";
 import { type LineSpreadTrace, type TrackCorner, useLapIssues, useLapTelemetry, useLineSpread, useTrackBoundaries, useTrackCorners, useTrackSectorBoundaries } from "../../../hooks/queries";
 import { useStintTraces } from "../../../hooks/useStintTraces";
-import { selectEvaluationLaps } from "@shared/review-laps";
 import { type LapTrace, stintStats } from "../../../lib/stint-traces";
 import { flipPoints, needsTrackFlip } from "../../../lib/track-coords";
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
@@ -148,7 +148,20 @@ export interface TrackFocusViewInnerProps {
  *  entirely from Storybook fixtures. Owns the local `cursorFrac` (synced
  *  across the map + all lanes) and `activeTab` state; everything else is
  *  passed in already resolved. */
-export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSectorTimes, edges, corners, issues, stats, lineSpread, metaSectors, shownLapCount, totalLapCount }: TrackFocusViewInnerProps) {
+export function TrackFocusViewInner({
+  traces,
+  bestLapId,
+  focusTelemetry,
+  focusSectorTimes,
+  edges,
+  corners,
+  issues,
+  stats,
+  lineSpread,
+  metaSectors,
+  shownLapCount,
+  totalLapCount,
+}: TrackFocusViewInnerProps) {
   const [cursorFrac, setCursorFrac] = useState<number | null>(null);
   const [hoverPoints, setHoverPoints] = useState<{ brake: number[]; throttle: number[] } | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("consistency");
@@ -188,14 +201,13 @@ export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSe
   }, [corners, resolvedTraces, bestLapId]);
 
   // Sector boundary fractions: prefer authoritative track meta, else fall
-  // back to the focus lap's sector split indices (same source the track map
-  // uses to color its S1/S2/S3 segments) so the sector ledger's rows line up
+  // back to the focus lap's source-defined sector split indices so the sector ledger's rows line up
   // with what the map shows.
   const sectorBoundaryFracs = useMemo(() => {
     if (metaSectors) return [metaSectors.s1End, metaSectors.s2End];
     if (!focusTelemetry || focusTelemetry.length < 2 || !focusSectorTimes) return [];
     const last = focusTelemetry.length - 1;
-    return [focusSectorTimes.s1Idx / last, focusSectorTimes.s2Idx / last];
+    return focusSectorTimes.boundaryIndices.map((index) => index / last);
   }, [metaSectors, focusTelemetry, focusSectorTimes]);
 
   // Corners + apex fractions shared by the track map and the corner ledger:
@@ -306,12 +318,26 @@ export function TrackFocusViewInner({ traces, bestLapId, focusTelemetry, focusSe
                 <TiresPanel traces={traces} bestLapId={bestLapId} cornerFracs={cornerFracs} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />
                 <div className="pt-3 mt-1 border-t border-app-border">
                   <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-2">Grip</div>
-                  <GripPanel traces={resolvedTraces} bestLapId={bestLapId} cornerFracs={effectiveCorners.fracs} corners={effectiveCorners.corners} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />
+                  <GripPanel
+                    traces={resolvedTraces}
+                    bestLapId={bestLapId}
+                    cornerFracs={effectiveCorners.fracs}
+                    corners={effectiveCorners.corners}
+                    cursorFrac={cursorFrac}
+                    onCursorFrac={setCursorFrac}
+                  />
                 </div>
               </>
             )}
             {activeTab === "balance" && (
-              <BalanceLanes traces={resolvedTraces} bestLapId={bestLapId} cornerFracs={effectiveCorners.fracs} corners={effectiveCorners.corners} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />
+              <BalanceLanes
+                traces={resolvedTraces}
+                bestLapId={bestLapId}
+                cornerFracs={effectiveCorners.fracs}
+                corners={effectiveCorners.corners}
+                cursorFrac={cursorFrac}
+                onCursorFrac={setCursorFrac}
+              />
             )}
             {activeTab === "suspension" && <SuspensionLanes traces={traces} bestLapId={bestLapId} cornerFracs={cornerFracs} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />}
           </div>

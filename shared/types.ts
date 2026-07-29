@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const KNOWN_GAME_IDS = ["fm-2023", "f1-2025", "acc", "ac-evo"] as const;
+export const KNOWN_GAME_IDS = ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"] as const;
 
 export const GameIdSchema = z.enum(KNOWN_GAME_IDS);
 export type GameId = z.infer<typeof GameIdSchema>;
@@ -379,12 +379,35 @@ export interface AcEvoExtendedData {
   timeOfDaySeconds: number;
 }
 
+/** iRacing-specific values carried alongside the normalized packet. */
+export interface IRacingExtendedData {
+  sessionTick: number;
+  sessionNum: number;
+  driverCarIdx: number;
+  trackLengthM: number;
+  lapDistanceM: number;
+  lapDistancePct: number;
+  /** Native current-lap timer before RaceIQ's physical-line correction. */
+  sdkCurrentLapTime?: number;
+  /** Native session-info sector layout; absent when the SDK did not publish it. */
+  sectorStarts?: number[];
+  onPitRoad: boolean;
+  playerTrackSurface: number;
+  incidents: number;
+  /** Native irsdk_TrackWetness category (0 unknown through 7 extremely wet). */
+  trackWetness: number;
+  carName: string;
+  carClassName: string;
+  trackName: string;
+}
+
 export interface TelemetryPacket {
   gameId: GameId;
   f1?: F1ExtendedData;
   acc?: AccExtendedData;
+  iracing?: IRacingExtendedData;
 
-  // Game session UID (F1 only — used for session boundary detection)
+  // Game session UID (used for reliable session boundary detection)
   sessionUID?: string;
 
   // Race status
@@ -466,6 +489,8 @@ export interface TelemetryPacket {
   // Engine/fuel
   Boost: number;
   Fuel: number;
+  /** Source-provided tank capacity in litres, when available. */
+  FuelCapacity?: number;
 
   // Distance & lap times
   DistanceTraveled: number;
@@ -576,11 +601,12 @@ export interface TelemetryPacket {
 
 /** Server-computed live sector timing, broadcast via WebSocket. */
 export interface LiveSectorData {
+  sectorCount: number;
   currentSector: number;
   currentSectorTime: number;
-  currentTimes: [number, number, number];
-  lastTimes: [number, number, number];
-  bestTimes: [number, number, number];
+  currentTimes: number[];
+  lastTimes: number[];
+  bestTimes: number[];
   lastLapTime: number;
   bestLapTime: number;
   estimatedLap: number;
@@ -643,12 +669,10 @@ export interface LapMeta {
   // Tune assignment
   tuneId?: number;
   tuneName?: string;
-  // Sector times (stored at save time)
-  s1Time?: number;
-  s2Time?: number;
-  s3Time?: number;
+  // Ordered sector times from the session's source-defined layout (#134).
+  sectorTimes?: number[];
   // Explicit experiment link (migration v25). Stamped at insert from the
-  // active tuning session; null for laps recorded outside a tuning session.
+  // active experiment; null for laps recorded outside an experiment.
   experimentId?: number | null;
   // Explicit tuning-test (setup version) link (migration v29). Null when the lap
   // predates head tracking or was driven with no head set.
@@ -724,15 +748,16 @@ export interface SessionRecap {
   /** Pace trend, in lap order. */
   sparkline: { lapNumber: number; lapTimeSec: number; isValid: boolean }[];
 
-  /** Best sectors across valid laps, possibly from different laps. Null when no valid lap has all three. */
+  /** Best sectors across valid laps, possibly from different laps. */
   theoretical: {
-    bestS1: number;
-    bestS2: number;
-    bestS3: number;
+    bestSectorTimes: number[];
     sumSec: number;
     /** bestLapSec - sumSec, clamped >= 0. The time left on the table. */
     deltaToBestSec: number;
   } | null;
+
+  /** Source-defined sector start fractions for this session's layout. */
+  sectorStarts: number[] | null;
 
   /** First valid lap minus best lap, clamped >= 0. Null when fewer than 2 valid laps. */
   improvementSec: number | null;
@@ -754,8 +779,8 @@ export interface SessionRecap {
    */
   sectors:
     | {
-        /** 1, 2 or 3. */
-        index: 1 | 2 | 3;
+        /** One-based sector index in the source-defined layout. */
+        index: number;
         /** This sector's time on the session's BEST lap. */
         bestLapSec: number;
         /** Fastest time in this sector across all valid laps this session (feeds `theoretical`). */

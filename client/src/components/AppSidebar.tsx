@@ -115,16 +115,16 @@ const FEATURE_LINKS: ReadonlyArray<{
   { segment: "sessions", label: m.label_sessions, icon: History },
   { segment: "compare", label: m.label_compare, icon: GitCompareArrows },
   { segment: "analyse", label: m.label_analyse, icon: ChartNoAxesCombined },
-  { segment: "driver", label: m.label_driver, icon: UserRound },
+  { segment: "driver", label: m.label_driver, icon: UserRound, routePrefixes: ["fm23", "f125", "acc", "ac-evo"] },
   { segment: "experiments", label: m.nav_experiments, icon: FlaskConical, routePrefixes: ["acc", "ac-evo", "f125"] },
   { segment: "chats", label: m.tab_chats, icon: MessagesSquare },
   { segment: "tracks", label: m.label_tracks, icon: MapIcon },
   { segment: "cars", label: m.label_cars, icon: Car },
-  { segment: "setups", label: m.tab_setups, icon: SlidersHorizontal },
+  { segment: "setups", label: m.tab_setups, icon: SlidersHorizontal, routePrefixes: ["fm23", "f125", "acc", "ac-evo"] },
   { segment: "raw", label: m.tab_raw, icon: Binary },
 ];
 
-const GAME_LOGO_SRC: Readonly<Record<string, string>> = {
+const GAME_LOGO_SRC: Readonly<Partial<Record<string, string>>> = {
   "fm-2023": "/forza-logo.svg",
   "f1-2025": "/f1-logo.svg",
   acc: "/acc-logo.svg",
@@ -233,7 +233,7 @@ export function AppSidebar({
                 showCollapsed ? "justify-center px-0" : "px-2"
               }`}
             >
-              {activeGame ? (
+              {activeGame && GAME_LOGO_SRC[activeGame.id] ? (
                 <span
                   aria-hidden="true"
                   className="h-4 w-5 shrink-0 bg-app-accent [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain]"

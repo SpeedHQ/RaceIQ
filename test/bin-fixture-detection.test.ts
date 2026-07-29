@@ -29,6 +29,7 @@ import { getAcEvoTrackName } from "../shared/ac-evo-track-data";
 import { getAcEvoCarName } from "../shared/ac-evo-car-data";
 import { readAccPackets, readAcEvoPackets } from "./helpers/parse-dump";
 import { readUdpDump } from "./helpers/recording";
+import { readIRacingFrames } from "../server/games/iracing/recorder";
 import type { GameId, TelemetryPacket } from "../shared/types";
 
 initGameAdapters();
@@ -227,6 +228,29 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     expect(getAcEvoTrackName(last.TrackOrdinal)).toBe("Unknown Track");
     expect(getAcEvoCarName(last.CarOrdinal)).toBe("Porsche 992 GT3 R Rennsport");
   }, { timeout: 60000 });
+
+  test("iracing-road-america-gt3.bin.gz — iRacing recorder fixture", () => {
+    const file = `${DIR}/iracing-road-america-gt3.bin.gz`;
+    // Dump containers intentionally remain separate from the production
+    // length-prefixed session-import format.
+    expect(detectGameIdFromBuffer(readFileSync(file))).toBeNull();
+    expect(hasMetaFrame(gunzip(file))).toBe(false);
+
+    const frames = readIRacingFrames(file);
+    expect(frames).toHaveLength(138);
+    const adapter = getServerGame("iracing");
+    const state = adapter.createParserState?.() ?? null;
+    const first = adapter.tryParse(frames[0], state);
+    expect(first).toMatchObject({
+      gameId: "iracing",
+      CarOrdinal: 42,
+      TrackOrdinal: 99,
+    });
+    expect(first?.iracing).toMatchObject({
+      carName: "GT3 Test Car",
+      trackName: "Road America",
+    });
+  });
 
   test("acc-2026-04-10T02-55-22-777Z.bin.gz — dump-mode, ACC — REGRESSION-BASELINE ONLY", () => {
     const file = `${DIR}/acc-2026-04-10T02-55-22-777Z.bin.gz`;

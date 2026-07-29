@@ -6,6 +6,12 @@ import { resolve } from "path";
 
 import { OrdinalParamSchema, GameIdQuerySchema } from "../../shared/schemas";
 import { carMap, getCarName, getCarSpecs, getTrackName } from "../../shared/car-data";
+import { getAllIRacingCars } from "../../shared/iracing-car-data";
+import { GameIdSchema } from "../../shared/types";
+import {
+  getDiscoveredCarName,
+  listDiscoveredCars,
+} from "../db/discovered-cars";
 import { tryGetServerGame } from "../games/registry";
 
 // ─── Car model config paths ────────────────────────────────────────────────────
@@ -55,8 +61,35 @@ function loadCarModelConfigs(): Record<string, any> {
 
 export const carRoutes = new Hono()
 
-  // GET /api/cars — list all cars
-  .get("/api/cars", (c) => {
+  // GET /api/cars — list cars for the requested game
+  .get("/api/cars", async (c) => {
+    const gameIdResult = GameIdSchema.safeParse(
+      c.req.header("X-Game-Id"),
+    );
+    if (!gameIdResult.success) {
+      return c.json(
+        { error: "Missing or invalid X-Game-Id header" },
+        400,
+      );
+    }
+
+    if (gameIdResult.data === "iracing") {
+      const catalogCars = getAllIRacingCars();
+      const catalogIds = new Set(catalogCars.map((car) => car.ordinal));
+      const discoveredOnly = (await listDiscoveredCars("iracing"))
+        .filter((car) => !catalogIds.has(car.ordinal))
+        .map(({ ordinal, name }) => ({ ordinal, name, path: "" }));
+      const cars = [...catalogCars, ...discoveredOnly];
+      cars.sort((a, b) => a.name.localeCompare(b.name));
+      return c.json(cars);
+    }
+
+    // ACC, AC Evo, and F1 use their own catalogue routes and pages. Do not
+    // leak Forza's static catalogue if this shared route is called for them.
+    if (gameIdResult.data !== "fm-2023") {
+      return c.json([]);
+    }
+
     const cars = Array.from(carMap.entries()).map(([ordinal, car]) => ({
       ordinal,
       name: `${car.year} ${car.make} ${car.model}`,
@@ -67,8 +100,30 @@ export const carRoutes = new Hono()
   })
 
   // GET /api/cars/:ordinal — single car details
-  .get("/api/cars/:ordinal", zValidator("param", OrdinalParamSchema), (c) => {
+  .get("/api/cars/:ordinal", zValidator("param", OrdinalParamSchema), async (c) => {
+    const gameIdResult = GameIdSchema.safeParse(
+      c.req.header("X-Game-Id"),
+    );
+    if (!gameIdResult.success) {
+      return c.json(
+        { error: "Missing or invalid X-Game-Id header" },
+        400,
+      );
+    }
+
     const { ordinal } = c.req.valid("param");
+    if (gameIdResult.data === "iracing") {
+      const name =
+        getAllIRacingCars().find((car) => car.ordinal === ordinal)?.name ??
+        (await getDiscoveredCarName("iracing", ordinal));
+      return name
+        ? c.json({ ordinal, name })
+        : c.json({ error: "Car not found" }, 404);
+    }
+    if (gameIdResult.data !== "fm-2023") {
+      return c.json({ error: "Car not found" }, 404);
+    }
+
     const car = carMap.get(ordinal);
     if (!car) return c.json({ error: "Car not found" }, 404);
     return c.json({

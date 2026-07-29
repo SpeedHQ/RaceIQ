@@ -31,7 +31,7 @@ describe("FM-2023 recording", () => {
         const mins = Math.floor(lap.lapTime / 60);
         const secs = (lap.lapTime % 60).toFixed(3);
         const sectorStr = lap.sectors
-          ? `s1=${lap.sectors.s1.toFixed(3)} s2=${lap.sectors.s2.toFixed(3)} s3=${lap.sectors.s3.toFixed(3)}`
+          ? lap.sectors.map((time, index) => `s${index + 1}=${time.toFixed(3)}`).join(" ")
           : "no sectors";
         console.log(
           `  Lap ${lap.lapNumber}: ${mins}:${secs.padStart(6, "0")} valid=${lap.isValid}${lap.invalidReason ? ` (${lap.invalidReason})` : ""} [${sectorStr}]`
@@ -128,7 +128,7 @@ describe("FM-2023 recording", () => {
         const mins = Math.floor(lap.lapTime / 60);
         const secs = (lap.lapTime % 60).toFixed(3);
         const sectorStr = lap.sectors
-          ? `s1=${lap.sectors.s1.toFixed(3)} s2=${lap.sectors.s2.toFixed(3)} s3=${lap.sectors.s3.toFixed(3)}`
+          ? lap.sectors.map((time, index) => `s${index + 1}=${time.toFixed(3)}`).join(" ")
           : "no sectors";
         console.log(
           `  Lap ${lap.lapNumber}: ${mins}:${secs.padStart(6, "0")} valid=${lap.isValid}${lap.invalidReason ? ` (${lap.invalidReason})` : ""} [${sectorStr}]`

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo } from "react";
 import type { CatalogTune } from "../data/tune-catalog";
+import type { SectorTimeline } from "../lib/lap-sectors";
 import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
 import { useGameId } from "../stores/game";
@@ -82,18 +83,20 @@ export function useLaps(options?: { refetchInterval?: number | false }) {
 }
 
 export function useLapTelemetry(lapId: number | null) {
+  const gameId = useGameId();
   return useQuery({
-    queryKey: ["lap-telemetry", lapId],
+    queryKey: ["lap-telemetry", lapId, gameId ?? null],
     queryFn: async () => {
-      const res = await client.api.laps[":id"].$get({ param: { id: String(lapId!) } });
+      if (!gameId) throw new Error("Missing game context");
+      const res = await client.api.laps[":id"].$get({ param: { id: String(lapId!) } }, { headers: { "X-Game-Id": gameId } });
       if (!res.ok) throw new Error(res.statusText);
       return res.json() as Promise<{
         telemetry: TelemetryPacket[];
-        sectorTimes: { times: [number, number, number]; s1Idx: number; s2Idx: number; firstDist: number; lapDist: number } | null;
+        sectorTimes: SectorTimeline | null;
         [key: string]: any;
       }>;
     },
-    enabled: lapId != null,
+    enabled: lapId != null && gameId != null,
     // A single lap carries 15k–80k packets (~5–50 MB). TanStack Query's
     // default gcTime is 5 minutes — enough to hold a dozen laps in memory
     // and OOM the tab. Release as soon as no component subscribes.
@@ -216,7 +219,16 @@ export function useTrackOutline(ord: number | undefined, gameIdOverride?: GameId
         param: { ordinal: String(ord!) },
         query: { gameId: gameId! },
       });
-      return rpcJson<{ points?: { x: number; z: number }[]; flipX?: boolean } | { x: number; z: number }[]>(res);
+      return rpcJson<
+        | {
+            points?: { x: number; z: number }[];
+            labels?: { text: string; x: number; z: number }[];
+            flipX?: boolean;
+            recorded?: boolean;
+            source?: string;
+          }
+        | { x: number; z: number }[]
+      >(res);
     },
     enabled: ord != null && !!gameId,
   });

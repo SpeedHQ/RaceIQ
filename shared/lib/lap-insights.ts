@@ -1,3 +1,5 @@
+import { getGame } from "../games/registry";
+import type { TelemetryModel } from "../games/types";
 import type { GameId, TelemetryPacket } from "../types";
 import { type AccelReference, accelDeficitLoss, buildAccelReference, frameDt, reportableLoss, speedDeficitLoss, sumLosses } from "./time-loss";
 import { allWheelStates, steerBalance } from "./vehicle-physics";
@@ -112,7 +114,13 @@ function detectSuspensionImbalance(telemetry: TelemetryPacket[]): LapInsight | n
   return null;
 }
 
-function detectTireOverheat(telemetry: TelemetryPacket[], gameId: GameId): LapInsight[] {
+type TireTemperaturePacketUnit =
+  TelemetryModel["tireTemperature"]["packetUnit"];
+
+function detectTireOverheat(
+  telemetry: TelemetryPacket[],
+  packetUnit: TireTemperaturePacketUnit,
+): LapInsight[] {
   const wheels = ["FL", "FR", "RL", "RR"] as const;
   const fields = {
     FL: "TireTempFL",
@@ -121,8 +129,8 @@ function detectTireOverheat(telemetry: TelemetryPacket[], gameId: GameId): LapIn
     RR: "TireTempRR",
   } as const;
 
-  // FM reports °F; F1/ACC/AC Evo report °C.
-  const fahrenheit = gameId === "fm-2023";
+  // Compare in the packet unit declared by the adapter.
+  const fahrenheit = packetUnit === "fahrenheit";
   const warnTemp = fahrenheit ? 250 : 110;
   const critTemp = fahrenheit ? 300 : 130;
   const unit = fahrenheit ? "°F" : "°C";
@@ -783,7 +791,10 @@ function detectThrottleMicroLifts(telemetry: TelemetryPacket[], ctx?: TimeLossCt
   };
 }
 
-function detectTireTempSplit(telemetry: TelemetryPacket[], gameId: GameId): LapInsight | null {
+function detectTireTempSplit(
+  telemetry: TelemetryPacket[],
+  packetUnit: TireTemperaturePacketUnit,
+): LapInsight | null {
   // Persistent front/rear temperature split points at setup balance:
   // hot fronts = understeer-prone, hot rears = oversteer/traction-limited.
   let front = 0;
@@ -800,7 +811,7 @@ function detectTireTempSplit(telemetry: TelemetryPacket[], gameId: GameId): LapI
   rear /= n;
   if (front <= 0 || rear <= 0) return null; // temps not reported
 
-  const fahrenheit = gameId === "fm-2023";
+  const fahrenheit = packetUnit === "fahrenheit";
   const warn = fahrenheit ? 25 : 12;
   const crit = fahrenheit ? 45 : 22;
   const unit = fahrenheit ? "°F" : "°C";
@@ -890,6 +901,8 @@ function detectKerbRiding(telemetry: TelemetryPacket[]): LapInsight | null {
 
 export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId): LapInsight[] {
   if (telemetry.length < 10) return [];
+  const tireTemperatureUnit =
+    getGame(gameId).telemetry.tireTemperature.packetUnit;
 
   const insights: LapInsight[] = [];
 
@@ -905,12 +918,12 @@ export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId): LapIns
   if (imbalance) insights.push(imbalance);
 
   // Tires
-  insights.push(...detectTireOverheat(telemetry, gameId));
+  insights.push(...detectTireOverheat(telemetry, tireTemperatureUnit));
   insights.push(...detectLockups(telemetry));
   insights.push(...detectWheelspin(telemetry));
   const wearImb = detectWearImbalance(telemetry);
   if (wearImb) insights.push(wearImb);
-  const tempSplit = detectTireTempSplit(telemetry, gameId);
+  const tempSplit = detectTireTempSplit(telemetry, tireTemperatureUnit);
   if (tempSplit) insights.push(tempSplit);
   insights.push(...detectInnerOuterTempSpread(telemetry));
 

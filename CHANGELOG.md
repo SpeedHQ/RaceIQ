@@ -1,11 +1,15 @@
 ## Unreleased
 
 ### Features
+- Native iRacing telemetry capture from the iRacing SDK, including live dashboards, lap analysis, imports, and recordings
+- Runtime-discovered iRacing cars and tracks, resolved by the SDK's native identifiers
+- Support for iRacing's source-defined sector layouts, including two-sector ovals and layouts with more than three sectors
 - View all release notes since your installed version in the app
 
 ### Fixes
 
 ### Internal
+- Deterministic iRacing recording and replay coverage through the production parser pipeline
 
 ## v0.13.0 - 2026-07-16
 

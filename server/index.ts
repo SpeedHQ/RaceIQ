@@ -12,7 +12,9 @@ import { initServerGameAdapters } from "./games/init";
 import { initGameAdapters } from "../shared/games/init";
 import { accRecorder } from "./games/acc/recorder";
 import { acEvoRecorder } from "./games/ac-evo/recorder";
+import { iracingRecorder } from "./games/iracing/recorder";
 import { reconcileDiscoveredCars, listDiscoveredCars } from "./db/discovered-cars";
+import { listDiscoveredTracks } from "./db/discovered-tracks";
 import { injectDiscoveredAcEvoCars } from "../shared/ac-evo-car-data";
 
 // Register all game adapters (shared + server)
@@ -64,6 +66,7 @@ if (recordingGameId) {
 // stuck DB fails here, at startup, instead of silently wedging the module graph.
 import { initDb } from "./db/index";
 import { deleteEmptySessions, setCacheMaxBytes } from "./db/queries";
+import { injectDiscoveredIRacingIdentity } from "../shared/games/iracing";
 
 await initDb();
 
@@ -72,6 +75,14 @@ await initDb();
 // getAcEvoCarName()/getCarName() resolve runtime-discovered cars immediately.
 await reconcileDiscoveredCars();
 injectDiscoveredAcEvoCars(await listDiscoveredCars("ac-evo"));
+
+// Rehydrate each distinct native iRacing identity before HTTP routes begin
+// resolving historical sessions.
+const [iracingCars, iracingTracks] = await Promise.all([
+  listDiscoveredCars("iracing"),
+  listDiscoveredTracks("iracing"),
+]);
+injectDiscoveredIRacingIdentity(iracingCars, iracingTracks);
 
 // Detect first run (settings file doesn't exist yet) before loadSettings creates it
 import { isFirstRun } from "./settings";
@@ -214,7 +225,7 @@ if (recordingGameId === "fm-2023" || recordingGameId === "f1-2025") {
 }
 
 // Flush every recorder on Ctrl+C / kill so each .bin has a clean tail. All
-// three recorders buffer via Bun.file().writer() — without this handler the
+// recorders buffer via Bun.file().writer() — without this handler the
 // default SIGINT path exits before the buffer drains and the file ends up
 // zero-length (or missing the tail).
 import { flushSessionRecorder } from "./pipeline";
@@ -227,8 +238,14 @@ const gracefulShutdown = async (signal: NodeJS.Signals) => {
     const tasks: Promise<unknown>[] = [flushSessionRecorder()];
     if (accReader) tasks.push(accReader.stop());
     if (acEvoReader) tasks.push(acEvoReader.stop());
+    if (iracingSource) tasks.push(iracingSource.stop());
     if (recordingGameId) {
-      tasks.push(udpListener.stop(), accRecorder.stop(), acEvoRecorder.stop());
+      tasks.push(
+        udpListener.stop(),
+        accRecorder.stop(),
+        acEvoRecorder.stop(),
+        iracingRecorder.stop(),
+      );
     }
     await Promise.allSettled(tasks);
   } finally {
@@ -256,14 +273,20 @@ import { countStaleSessions } from "./db/queries";
 import { LAP_DETECTOR_ID } from "./lap-detector";
 import { LAP_DETECTOR_V2_ID } from "./lap-detector-acc";
 import { LAP_DETECTOR_AC_EVO_ID } from "./lap-detector-ac-evo";
-const ALL_DETECTOR_IDS = [LAP_DETECTOR_ID, LAP_DETECTOR_V2_ID, LAP_DETECTOR_AC_EVO_ID];
+import { LAP_DETECTOR_IRACING_ID } from "./lap-detector-iracing";
+const ALL_DETECTOR_IDS = [
+  LAP_DETECTOR_ID,
+  LAP_DETECTOR_V2_ID,
+  LAP_DETECTOR_AC_EVO_ID,
+  LAP_DETECTOR_IRACING_ID,
+];
 countStaleSessions(ALL_DETECTOR_IDS).then((count) => {
   if (count > 0) {
     console.log(`[Server] ${count} session(s) recorded with stale lap detector — will prompt user to reprocess`);
     wsManager.setStaleSessionsNotification({
       type: "stale-lap-detection",
       sessionCount: count,
-      currentVersion: `${LAP_DETECTOR_ID},${LAP_DETECTOR_V2_ID}`,
+      currentVersion: ALL_DETECTOR_IDS.join(","),
     });
   }
 }).catch((err) => {
@@ -272,54 +295,45 @@ countStaleSessions(ALL_DETECTOR_IDS).then((count) => {
 
 import { AccSharedMemoryReader } from "./games/acc/shared-memory";
 import { AcEvoSharedMemoryReader } from "./games/ac-evo/shared-memory";
+import { IRacingTelemetrySource } from "./games/iracing/source";
+import { registerLiveIRacingIdentity } from "./games/iracing/identity";
 import { startTray } from "./tray";
 import { isGameRunning } from "./games/registry";
+import { superviseSource } from "./source-supervisor";
 
 // Readers are instantiated + started only when the underlying game process is
 // detected. No idle SHM polling, no process-checker thread running while the
 // game isn't open. Central poll cadence matches per-reader ProcessCheckers (2s).
 export let accReader: AccSharedMemoryReader | null = null;
 export let acEvoReader: AcEvoSharedMemoryReader | null = null;
-
-function superviseReader<R extends { start(): void; stop(): Promise<void> }>(
-  gameId: string,
-  label: string,
-  factory: () => R,
-  getCurrent: () => R | null,
-  setCurrent: (r: R | null) => void,
-): void {
-  const running = isGameRunning(gameId);
-  const current = getCurrent();
-  if (running && !current) {
-    console.log(`[Server] ${label} process detected — starting shared memory reader`);
-    const reader = factory();
-    reader.start();
-    setCurrent(reader);
-  } else if (!running && current) {
-    console.log(`[Server] ${label} process lost — stopping shared memory reader`);
-    current.stop().catch((err) => {
-      console.error(`[Server] ${label} reader stop failed:`, err instanceof Error ? err.message : err);
-    });
-    setCurrent(null);
-  }
-}
+export let iracingSource: IRacingTelemetrySource | null = null;
 
 if (process.platform === "win32") {
-  console.log("[Supervisor] Watching for shared-memory games (acc, ac-evo) — 2s poll");
+  console.log("[Supervisor] Watching for native telemetry games (acc, ac-evo, iracing) — 2s poll");
   setInterval(() => {
-    superviseReader(
-      "acc",
+    superviseSource(
+      isGameRunning("acc"),
       "ACC",
       () => new AccSharedMemoryReader(recordingGameId === "acc"),
       () => accReader,
       (r) => { accReader = r; },
     );
-    superviseReader(
-      "ac-evo",
+    superviseSource(
+      isGameRunning("ac-evo"),
       "AC Evo",
       () => new AcEvoSharedMemoryReader(recordingGameId === "ac-evo"),
       () => acEvoReader,
       (r) => { acEvoReader = r; },
+    );
+    superviseSource(
+      isGameRunning("iracing"),
+      "iRacing",
+      () => new IRacingTelemetrySource({
+        recordingEnabled: recordingGameId === "iracing",
+        registerIdentity: registerLiveIRacingIdentity,
+      }),
+      () => iracingSource,
+      (source) => { iracingSource = source; },
     );
   }, 2000);
 

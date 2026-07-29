@@ -11,6 +11,7 @@ import type { TelemetryPacket } from "../shared/types";
 const SUSPENSION_RANGE_MM: Record<string, { min: number; max: number }> = {
   "acc": { min: 0, max: 50 },
   "f1-2025": { min: 20, max: 80 },
+  "iracing": { min: 0, max: 100 },
 };
 const DEFAULT_SUSPENSION_RANGE_MM = { min: 20, max: 80 };
 

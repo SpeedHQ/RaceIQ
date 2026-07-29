@@ -1,4 +1,5 @@
-import { tryGetGame } from "@shared/games/registry";
+import { getGame, tryGetGame } from "@shared/games/registry";
+import { WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
 import { useEffect, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { useUnits } from "../hooks/useUnits";
@@ -55,7 +56,8 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
   const throttlePct = (packet.Accel / 255) * 100;
   const brakePct = (packet.Brake / 255) * 100;
   const rpmPct = packet.EngineMaxRpm > 0 ? (packet.CurrentEngineRpm / packet.EngineMaxRpm) * 100 : 0;
-  const hp = packet.Power / 745.7;
+  const telemetryModel = getGame(packet.gameId).telemetry;
+  const hp = packet.Power / WATTS_PER_HORSEPOWER;
   const boostVal = packet.Boost;
 
   // ── Shared hero: Speed + Gear + RPM ──────────────────────────
@@ -77,7 +79,7 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
           <span className="text-sm text-app-text-muted font-mono">{units.speedLabel}</span>
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-[10px] text-app-text-dim font-mono">{hp.toFixed(0)}hp</span>
+          {telemetryModel.power && <span className="text-[10px] text-app-text-dim font-mono">{hp.toFixed(0)}hp</span>}
           <span className={`text-5xl font-mono font-black tabular-nums leading-none tracking-tighter ${rpmPct > 90 ? "text-red-400" : "text-app-accent"}`}>
             {packet.Gear === 0 ? "R" : packet.Gear === 11 ? "N" : packet.Gear}
           </span>
@@ -124,7 +126,7 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
             <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.live_pit_window()}</h2>
           </div>
           <div className="p-3">
-            <PitEstimate packet={packet} pit={pit} gameId={gameId} />
+            <PitEstimate packet={packet} pit={pit} />
           </div>
         </div>
       </div>
@@ -153,10 +155,12 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
               </div>
             </div>
           </div>
-          <div className="flex gap-1 shrink-0">
-            <PowerTorque packet={packet} />
-            <ArcGauge value={boostVal} max={30} label={m.live_boost()} unit="psi" color="#22d3ee" />
-          </div>
+          {(telemetryModel.power || telemetryModel.torque || telemetryModel.boost) && (
+            <div className="flex gap-1 shrink-0">
+              <PowerTorque packet={packet} />
+              {telemetryModel.boost && <ArcGauge value={boostVal} max={30} label={m.live_boost()} unit="psi" color="#22d3ee" />}
+            </div>
+          )}
         </div>
       </div>
 

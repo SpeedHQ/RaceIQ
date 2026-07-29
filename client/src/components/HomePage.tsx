@@ -56,9 +56,9 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: { laps: LapMeta
               {showGame && (
                 <TD>
                   <span
-                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${lap.gameId === "f1-2025" ? "bg-red-500/20 text-red-400" : lap.gameId === "acc" ? "bg-orange-500/20 text-orange-400" : lap.gameId === "ac-evo" ? "bg-green-500/20 text-green-400" : "bg-app-accent/20 text-app-accent"}`}
+                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${lap.gameId === "f1-2025" ? "bg-red-500/20 text-red-400" : lap.gameId === "acc" ? "bg-orange-500/20 text-orange-400" : lap.gameId === "ac-evo" ? "bg-green-500/20 text-green-400" : lap.gameId === "iracing" ? "bg-blue-500/20 text-blue-400" : "bg-app-accent/20 text-app-accent"}`}
                   >
-                    {lap.gameId === "f1-2025" ? "F1" : lap.gameId === "acc" ? "ACC" : lap.gameId === "ac-evo" ? "ACE" : "FM"}
+                    {lap.gameId === "f1-2025" ? "F1" : lap.gameId === "acc" ? "ACC" : lap.gameId === "ac-evo" ? "ACE" : lap.gameId === "iracing" ? "iR" : "FM"}
                   </span>
                 </TD>
               )}
@@ -125,7 +125,7 @@ export function HomePage() {
   // capped by useLaps()'s 200-row limit (home and /<gameId> used to
   // disagree when total laps across games exceeded 200).
   const gameQueries = useQueries({
-    queries: (["fm-2023", "f1-2025", "acc", "ac-evo"] as const).map((g) => ({
+    queries: (["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"] as const).map((g) => ({
       queryKey: ["stats", g],
       queryFn: async () => {
         const res = await client.api.stats.$get({ query: { gameId: g } });
@@ -146,7 +146,7 @@ export function HomePage() {
       const d = gameQueries[i].data;
       return { laps: d?.totalLaps ?? 0, time: fmtTime(d?.totalTimeSec ?? 0) };
     };
-    return { fm: pick(0), f1: pick(1), acc: pick(2), acEvo: pick(3) };
+    return { fm: pick(0), f1: pick(1), acc: pick(2), acEvo: pick(3), iracing: pick(4) };
   }, [gameQueries]);
 
   // Period metrics
@@ -283,6 +283,15 @@ export function HomePage() {
               accent: "text-green-400",
               logo: <span className="text-xs font-black text-green-400">ACE</span>,
             },
+            iracing: {
+              bg: "linear-gradient(135deg, #040912 0%, #07172c 40%, #092b52 100%)",
+              border: "border-blue-500/20",
+              glow: "rgba(59,130,246,0.15)",
+              bar: "#3b82f6",
+              line: "#3b82f6",
+              accent: "text-blue-400",
+              logo: <span className="text-xs font-black text-blue-400">iR</span>,
+            },
           };
           const t = themes[gameId] ?? themes["fm-2023"];
           return (
@@ -315,7 +324,12 @@ export function HomePage() {
             <h1 className="text-2xl font-bold text-app-text/90">{displaySettings.driverName ? `${m.home_hello()}, ${displaySettings.driverName}` : "RaceIQ"}</h1>
             <p className="text-sm text-app-text/90-muted mt-0.5">{m.home_dashboard_overview()}</p>
           </div>
-          <button onClick={() => openSettings("games")} className="p-1.5 rounded text-app-text-muted hover:text-app-text hover:bg-app-surface-alt transition-colors" title={m.home_manage_games()}>
+          <button
+            type="button"
+            onClick={() => openSettings("games")}
+            className="p-1.5 rounded text-app-text-muted hover:text-app-text hover:bg-app-surface-alt transition-colors"
+            title={m.home_manage_games()}
+          >
             <Settings2 className="size-4" />
           </button>
         </div>
@@ -502,6 +516,43 @@ export function HomePage() {
               </div>
             </Link>
           )}
+          {!hiddenGames.includes("iracing") && (
+            <Link
+              to="/iracing"
+              className="group md:flex-1 relative overflow-hidden rounded-lg border border-blue-500/12 p-5 transition-all duration-250 ease-out hover:scale-[1.02] hover:border-blue-500/35 hover:shadow-[0_8px_32px_rgba(59,130,246,0.1)]"
+              style={{ background: "linear-gradient(135deg, #040912 0%, #07172c 40%, #092b52 100%)" }}
+            >
+              <div
+                className="absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20"
+                style={{ background: "radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%)" }}
+              />
+              <div
+                className="absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100"
+                style={{ background: "linear-gradient(90deg, #3b82f6 0%, transparent 70%)" }}
+              />
+              <div className="absolute inset-0 overflow-hidden opacity-[0.06] pointer-events-none">
+                <div className="absolute top-[20%] -left-[10%] w-[120%] h-[1.5px] -rotate-[4deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #3b82f6 30%, transparent 100%)" }} />
+                <div className="absolute top-[50%] -left-[10%] w-[120%] h-px -rotate-[3deg]" style={{ background: "linear-gradient(90deg, transparent 0%, #3b82f6 50%, transparent 100%)" }} />
+                <div className="absolute top-[75%] -left-[10%] w-[120%] h-[1.5px] -rotate-[5deg]" style={{ background: "linear-gradient(90deg, transparent 10%, #3b82f6 60%, transparent 100%)" }} />
+              </div>
+              <div className="relative flex items-center gap-2.5 mb-3.5">
+                <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0 bg-blue-500/8 border border-blue-500/10">
+                  <span className="text-xs font-black text-blue-400">iR</span>
+                </div>
+                <span className="text-sm font-bold text-white/90">iRacing</span>
+              </div>
+              <div className="relative flex gap-5">
+                <div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
+                  <div className="text-lg font-extrabold font-mono leading-none text-blue-400">{gameStats.iracing.laps}</div>
+                </div>
+                <div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
+                  <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.iracing.time}</div>
+                </div>
+              </div>
+            </Link>
+          )}
         </div>
       )}
 
@@ -531,6 +582,7 @@ export function HomePage() {
             ] as const
           ).map(([key, label]) => (
             <button
+              type="button"
               key={key}
               onClick={() => setPeriodTab(key)}
               className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90-muted hover:text-app-text/90"}`}

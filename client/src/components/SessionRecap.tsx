@@ -29,7 +29,7 @@ function sectorLabel(status: SectorStatus): string {
   }
 }
 
-function SectorTrackMap({ trackOrdinal, gameId, sectors }: { trackOrdinal: number; gameId: GameId; sectors: NonNullable<SessionRecapDto["sectors"]> }) {
+function SectorTrackMap({ trackOrdinal, gameId, sectors, sourceStarts }: { trackOrdinal: number; gameId: GameId; sectors: NonNullable<SessionRecapDto["sectors"]>; sourceStarts: number[] | null }) {
   const { data: outlineData } = useTrackOutline(trackOrdinal, gameId);
   const { data: bounds } = useTrackSectorBoundaries(trackOrdinal, gameId);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -40,20 +40,23 @@ function SectorTrackMap({ trackOrdinal, gameId, sectors }: { trackOrdinal: numbe
   // Memoised: this is a useEffect dep, and a fresh array each render would redraw
   // the canvas on every render. A sector with no data draws neutral — never red,
   // which would falsely claim time was lost there.
-  const sectorColors = useMemo<[string, string, string]>(() => {
+  const sectorColors = useMemo<string[]>(() => {
     const byIndex = new Map(sectors.map((s) => [s.index, s]));
-    const colorFor = (i: 1 | 2 | 3) => {
-      const status = byIndex.get(i)?.status;
+    return sectors.map((_, index) => {
+      const status = byIndex.get(index + 1)?.status;
       return status ? SECTOR_COLORS[status] : NEUTRAL_SECTOR_COLOR;
-    };
-    return [colorFor(1), colorFor(2), colorFor(3)];
+    });
   }, [sectors]);
 
-  const canDraw = !!points && points.length >= 3 && !!bounds;
+  const sectorStarts = useMemo(
+    () => (sourceStarts?.length === sectors.length ? sourceStarts : sectors.length === 3 && bounds ? [0, bounds.s1End, bounds.s2End] : null),
+    [sourceStarts, sectors.length, bounds],
+  );
+  const canDraw = !!points && points.length >= 3 && !!sectorStarts;
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canDraw || !canvas || !points || !bounds) return;
+    if (!canDraw || !canvas || !points || !sectorStarts) return;
 
     let cancelled = false;
     const tryDraw = () => {
@@ -63,20 +66,18 @@ function SectorTrackMap({ trackOrdinal, gameId, sectors }: { trackOrdinal: numbe
         requestAnimationFrame(tryDraw);
         return;
       }
-      drawTrack(canvas, points, false, null, 1, { x: 0, z: 0 }, { s1End: bounds.s1End, s2End: bounds.s2End }, flipX, sectorColors);
+      drawTrack(canvas, points, false, null, 1, { x: 0, z: 0 }, { starts: sectorStarts }, flipX, sectorColors);
     };
     tryDraw();
     return () => {
       cancelled = true;
     };
-  }, [canDraw, points, bounds, flipX, sectorColors]);
-
-  if (!canDraw) return null;
+  }, [canDraw, points, sectorStarts, flipX, sectorColors]);
 
   return (
     <div>
       <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">{m.recap_sectors()}</div>
-      <canvas ref={canvasRef} className="w-full h-[220px]" aria-label={m.recap_sectors()} />
+      {canDraw && <canvas ref={canvasRef} className="w-full h-[220px]" aria-label={m.recap_sectors()} />}
 
       {/* Sector times from the best lap. Colour repeats the map's status so the two read together. */}
       <div className="mt-2 flex flex-col gap-1">
@@ -274,7 +275,7 @@ export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = fa
 
           {recap.sectors != null && (
             <div className="lg:w-[240px] shrink-0">
-              <SectorTrackMap trackOrdinal={recap.trackOrdinal} gameId={recap.gameId} sectors={recap.sectors} />
+              <SectorTrackMap trackOrdinal={recap.trackOrdinal} gameId={recap.gameId} sectors={recap.sectors} sourceStarts={recap.sectorStarts} />
             </div>
           )}
         </div>

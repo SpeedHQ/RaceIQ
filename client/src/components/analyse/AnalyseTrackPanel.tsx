@@ -4,16 +4,23 @@ import { m } from "../../paraglide/messages";
 import type { AnalysisHighlight } from "../AiPanel";
 import { Compass } from "../Compass";
 import { AnalyseSteeringOverlay } from "./AnalyseSteeringOverlay";
-import { AnalyseTrackMap, type Point, type TrackMapHandle } from "./AnalyseTrackMap";
+import {
+  AnalyseTrackMap,
+  type Point,
+  type SectorBoundaries,
+  type TrackMapLabel,
+  type TrackMapHandle,
+} from "./AnalyseTrackMap";
 import { WeatherWidget } from "./WeatherWidget";
 
 interface AnalyseTrackPanelProps {
   telemetry: TelemetryPacket[];
   cursorIdx: number;
   outline: Point[] | null;
+  mapLabels?: TrackMapLabel[] | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   boundaries: any;
-  sectors: { s1End: number; s2End: number } | null;
+  sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   currentPacket: TelemetryPacket | null;
   containerHeight: number;
@@ -50,6 +57,7 @@ export function AnalyseTrackPanel({
   telemetry,
   cursorIdx,
   outline,
+  mapLabels,
   boundaries,
   sectors,
   segments,
@@ -83,6 +91,7 @@ export function AnalyseTrackPanel({
         telemetry={telemetry}
         cursorIdx={cursorIdx}
         outline={outline}
+        mapLabels={trackOverlay === "segments" ? mapLabels : null}
         boundaries={boundaries}
         sectors={trackOverlay === "sectors" ? sectors : null}
         segments={trackOverlay === "segments" ? segments : null}

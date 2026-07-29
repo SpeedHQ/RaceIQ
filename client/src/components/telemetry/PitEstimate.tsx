@@ -1,4 +1,6 @@
-import type { GameId, LivePitData, TelemetryPacket } from "@shared/types";
+import { getGame } from "@shared/games/registry";
+import { getFuelDisplay } from "@shared/games/telemetry";
+import type { LivePitData, TelemetryPacket } from "@shared/types";
 import { tireHealthBgClass, tireHealthTextClass } from "@/lib/vehicle-dynamics";
 import { m } from "@/paraglide/messages";
 import { PitWindow } from "./PitWindow";
@@ -6,29 +8,32 @@ import { PitWindow } from "./PitWindow";
 interface PitEstimateProps {
   packet: TelemetryPacket;
   pit: LivePitData | null;
-  gameId: GameId | null;
 }
 
 /**
  * PitEstimate — Displays server-computed fuel and tire estimates.
  * All computation happens server-side in PitTracker; this component just renders.
  */
-export function PitEstimate({ packet, pit, gameId }: PitEstimateProps) {
-  // Forza: Fuel is 0..1 fraction → percentage. ACC/AC Evo/F1: Fuel is in litres/kg.
-  const fuelIsLitres = gameId === "acc" || gameId === "ac-evo" || gameId === "f1-2025";
-  const fuelPct = fuelIsLitres ? Math.min(100, packet.Fuel) : packet.Fuel * 100;
-  const fuelDisplay = fuelIsLitres ? `${packet.Fuel.toFixed(1)}L` : `${fuelPct.toFixed(0)}%`;
-  const fuelColor = fuelIsLitres
-    ? packet.Fuel < 5
-      ? "text-red-400"
-      : packet.Fuel < 15
-        ? "text-amber-400"
-        : "text-emerald-400"
-    : fuelPct < 20
-      ? "text-red-400"
-      : fuelPct < 40
-        ? "text-amber-400"
-        : "text-emerald-400";
+export function PitEstimate({ packet, pit }: PitEstimateProps) {
+  const fuelSpec = getGame(packet.gameId).telemetry.fuel;
+  const fuel = getFuelDisplay(packet, fuelSpec);
+  const fuelPct =
+    fuel.fillRatio === undefined ? undefined : fuel.fillRatio * 100;
+  const isFuelCritical =
+    fuel.fillRatio === undefined ? fuel.amount < 5 : fuel.fillRatio < 0.2;
+  const isFuelWarning =
+    !isFuelCritical &&
+    (fuel.fillRatio === undefined ? fuel.amount < 15 : fuel.fillRatio < 0.4);
+  const fuelColor = isFuelCritical
+    ? "text-red-400"
+    : isFuelWarning
+      ? "text-amber-400"
+      : "text-emerald-400";
+  const fuelBarColor = isFuelCritical
+    ? "bg-red-500"
+    : isFuelWarning
+      ? "bg-amber-400"
+      : "bg-emerald-400";
 
   const fuelLaps = pit?.fuelLapsRemaining ?? null;
 
@@ -61,7 +66,7 @@ export function PitEstimate({ packet, pit, gameId }: PitEstimateProps) {
     <div>
       <div className="flex items-center justify-between mb-3">
         {pitBadge ? <span className={`text-xs font-bold px-2 py-0.5 rounded border tracking-widest uppercase ${pitBadge.cls}`}>{pitBadge.label}</span> : <span />}
-        <PitWindow pit={pit} gameId={gameId} />
+        <PitWindow pit={pit} />
       </div>
       <div className="space-y-3">
         {/* Fuel row */}
@@ -71,10 +76,22 @@ export function PitEstimate({ packet, pit, gameId }: PitEstimateProps) {
             <div className={`text-lg font-mono font-bold tabular-nums ${fuelLaps != null ? fuelColor : "text-app-text-dim"}`}>{fuelLaps != null ? `~${fuelLaps.toFixed(1)} laps` : "—"}</div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex-1 h-3 rounded-full overflow-hidden">
-              <div className={`h-full rounded-full ${fuelPct < 20 ? "bg-red-500" : fuelPct < 40 ? "bg-amber-400" : "bg-emerald-400"}`} style={{ width: `${fuelPct}%` }} />
+            {fuelPct === undefined ? (
+              <div
+                className="flex-1 h-3 rounded-full border border-dashed border-app-border"
+                title="Fuel capacity unavailable"
+              />
+            ) : (
+              <div className="flex-1 h-3 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full ${fuelBarColor}`}
+                  style={{ width: `${fuelPct}%` }}
+                />
+              </div>
+            )}
+            <div className={`text-2xl font-mono font-black tabular-nums leading-none ${fuel.unit === "L" ? "w-20" : "w-14"} text-right ${fuelColor}`}>
+              {fuel.amount.toFixed(fuel.unit === "L" ? 1 : 0)}{fuel.unit}
             </div>
-            <div className={`text-2xl font-mono font-black tabular-nums leading-none ${fuelIsLitres ? "w-20" : "w-14"} text-right ${fuelColor}`}>{fuelDisplay}</div>
           </div>
         </div>
 

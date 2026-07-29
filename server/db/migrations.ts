@@ -936,4 +936,124 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS driver_profiles_game_idx ON driver_profiles (game_id)`,
     ],
   },
+
+  // v45: Runtime-discovered identity registries
+  // v23 established discovered_cars for runtime-provided car identity, but its
+  // name constraint incorrectly treated display text as identity. Rebuild it
+  // so native ordinals remain the only per-game key. iRacing also provides
+  // stable track ordinals and names at runtime, so keep the same normalized
+  // mapping for tracks instead of repeating names on session rows.
+  {
+    version: 45,
+    name: "runtime-discovered identity registries",
+    sql: [
+      `CREATE TABLE discovered_cars_v45 (
+         id          INTEGER PRIMARY KEY AUTOINCREMENT,
+         game_id     TEXT NOT NULL,
+         ordinal     INTEGER NOT NULL,
+         name        TEXT NOT NULL,
+         model       TEXT NOT NULL DEFAULT '',
+         created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+         UNIQUE(game_id, ordinal)
+       )`,
+      `INSERT INTO discovered_cars_v45
+         (id, game_id, ordinal, name, model, created_at)
+       SELECT id, game_id, ordinal, name, model, created_at
+       FROM discovered_cars`,
+      `DROP TABLE discovered_cars`,
+      `ALTER TABLE discovered_cars_v45 RENAME TO discovered_cars`,
+      `CREATE TABLE IF NOT EXISTS discovered_tracks (
+         id          INTEGER PRIMARY KEY AUTOINCREMENT,
+         game_id     TEXT NOT NULL,
+         ordinal     INTEGER NOT NULL,
+         name        TEXT NOT NULL,
+         created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+         UNIQUE(game_id, ordinal)
+       )`,
+    ],
+  },
+
+  // v46: Dynamic source-defined sector times (GitHub #134)
+  // Sector count belongs to the session layout. iRacing can publish layouts
+  // beyond the old fixed S1/S2/S3 shape, including two-sector ovals and road
+  // layouts with more than three timing splits. Replace the three summary
+  // columns with one ordered JSON array; no projection or compatibility
+  // summary is retained.
+  {
+    version: 46,
+    name: "dynamic source-defined sector times",
+    sql: [
+      // Both histories can reach this migration: upstream still has S1-S3,
+      // while databases that ran the iRacing branch already have sector_times.
+      // Add whichever source columns are absent, populate only missing arrays,
+      // then rebuild to the single authoritative ordered-array representation.
+      `ALTER TABLE laps ADD COLUMN sector_times TEXT`,
+      `ALTER TABLE laps ADD COLUMN s1_time REAL`,
+      `ALTER TABLE laps ADD COLUMN s2_time REAL`,
+      `ALTER TABLE laps ADD COLUMN s3_time REAL`,
+      `UPDATE laps
+       SET sector_times = CASE
+         WHEN s1_time IS NULL OR s1_time <= 0
+           OR s2_time IS NULL OR s2_time <= 0
+           THEN NULL
+         WHEN s3_time IS NOT NULL AND s3_time > 0
+           THEN json_array(s1_time, s2_time, s3_time)
+         WHEN s3_time = 0 AND EXISTS (
+           SELECT 1
+           FROM sessions
+           WHERE sessions.id = laps.session_id
+             AND sessions.game_id = 'iracing'
+         )
+           THEN json_array(s1_time, s2_time)
+         ELSE NULL
+       END
+       WHERE sector_times IS NULL`,
+      `CREATE TABLE laps_v46 (
+         id                         INTEGER PRIMARY KEY AUTOINCREMENT,
+         session_id                 INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+         lap_number                 INTEGER NOT NULL,
+         lap_time                   REAL NOT NULL,
+         is_valid                   INTEGER NOT NULL DEFAULT 1,
+         invalid_reason             TEXT,
+         notes                      TEXT,
+         profile_id                 INTEGER REFERENCES profiles(id),
+         pi                         INTEGER,
+         car_setup                  TEXT,
+         tune_id                    INTEGER REFERENCES tunes(id) ON DELETE SET NULL,
+         sector_times               TEXT,
+         raw_byte_offset            INTEGER,
+         raw_frame_count            INTEGER,
+         experiment_id              INTEGER,
+         experiment_version_id      INTEGER,
+         experiment_excluded        INTEGER,
+         experiment_excluded_source TEXT,
+         fuel_per_lap               REAL,
+         tyre_wear                  REAL,
+         created_at                 TEXT NOT NULL DEFAULT (datetime('now'))
+       )`,
+      `INSERT INTO laps_v46 (
+         id, session_id, lap_number, lap_time, is_valid, invalid_reason,
+         notes, profile_id, pi, car_setup, tune_id, sector_times,
+         raw_byte_offset, raw_frame_count, experiment_id, experiment_version_id,
+         experiment_excluded, experiment_excluded_source, fuel_per_lap,
+         tyre_wear, created_at
+       )
+       SELECT
+         id, session_id, lap_number, lap_time, is_valid, invalid_reason,
+         notes, profile_id, pi, car_setup, tune_id, sector_times,
+         raw_byte_offset, raw_frame_count, experiment_id,
+         experiment_version_id, experiment_excluded,
+         experiment_excluded_source, fuel_per_lap, tyre_wear, created_at
+       FROM laps`,
+      `DROP TABLE laps`,
+      `ALTER TABLE laps_v46 RENAME TO laps`,
+      `CREATE INDEX IF NOT EXISTS idx_laps_session ON laps(session_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_laps_experiment ON laps(experiment_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_laps_experiment_version ON laps(experiment_version_id)`,
+      `UPDATE sessions
+       SET lap_detector_version = NULL
+       WHERE game_id = 'iracing'
+         AND raw_file IS NOT NULL`,
+    ],
+  },
 ];

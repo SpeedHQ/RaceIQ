@@ -1,15 +1,13 @@
 import type { GameId, SessionRecap } from "../shared/types";
 import { stddevPopulation, consistencyRating } from "./lap-stats";
 
-/** Plain lap data needed to compute a recap. Nullable sectors are legacy laps. */
+/** Plain lap data needed to compute a recap. Null sectors are legacy laps. */
 export interface RecapLapInput {
   id: number;
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
-  s1Time: number | null;
-  s2Time: number | null;
-  s3Time: number | null;
+  sectorTimes: number[] | null;
 }
 
 export interface RecapSessionInput {
@@ -34,10 +32,12 @@ export interface ComputeRecapInput {
    */
   allTimeBestSec: number | null;
   /**
-   * Fastest ever time in each sector for this track + car + game, across all
-   * OTHER sessions. Each field null when no other session has that sector.
+   * Fastest ever time in each source-defined sector for this track + car +
+   * game, across all OTHER sessions.
    */
-  allTimeBestSectors: { s1: number | null; s2: number | null; s3: number | null } | null;
+  allTimeBestSectors: Array<number | null> | null;
+  /** Source-defined sector starts for the session, when telemetry supplies them. */
+  sectorStarts?: number[] | null;
 }
 
 function isValidLap(lap: RecapLapInput): boolean {
@@ -76,48 +76,48 @@ export function computeRecap(input: ComputeRecapInput): SessionRecap {
 
   let theoretical: SessionRecap["theoretical"] = null;
   let sectors: SessionRecap["sectors"] = null;
+  const sectorCount =
+    validLaps.find(
+      (lap) =>
+        lap.sectorTimes != null &&
+        lap.sectorTimes.length >= 2 &&
+        lap.sectorTimes.every((time) => time > 0),
+    )?.sectorTimes?.length ?? 0;
   const completeSectorLaps = validLaps.filter(
-    (l) => l.s1Time !== null && l.s2Time !== null && l.s3Time !== null,
+    (lap) =>
+      lap.sectorTimes?.length === sectorCount &&
+      lap.sectorTimes.every((time) => time > 0),
   );
   if (completeSectorLaps.length > 0 && bestLapSec !== null) {
-    const bestS1 = Math.min(...completeSectorLaps.map((l) => l.s1Time as number));
-    const bestS2 = Math.min(...completeSectorLaps.map((l) => l.s2Time as number));
-    const bestS3 = Math.min(...completeSectorLaps.map((l) => l.s3Time as number));
-    const sumSec = bestS1 + bestS2 + bestS3;
+    const sessionBests = Array.from({ length: sectorCount }, (_, index) =>
+      Math.min(
+        ...completeSectorLaps.map((lap) => lap.sectorTimes![index]),
+      ),
+    );
+    const sumSec = sessionBests.reduce((sum, time) => sum + time, 0);
     theoretical = {
-      bestS1,
-      bestS2,
-      bestS3,
+      bestSectorTimes: sessionBests,
       sumSec,
       deltaToBestSec: Math.max(0, bestLapSec - sumSec),
     };
 
-    const sessionBests = [bestS1, bestS2, bestS3];
     // The best lap may not itself have complete sectors (a different valid lap
     // could own the fastest overall time with gaps in its sector splits). In
     // that case fall back to the session bests for every sector, and never
     // report "lost" since we have no real per-sector time from the best lap.
     const bestLapHasCompleteSectors =
       bestLap !== null &&
-      bestLap.s1Time !== null &&
-      bestLap.s2Time !== null &&
-      bestLap.s3Time !== null;
+      bestLap.sectorTimes?.length === sectorCount &&
+      bestLap.sectorTimes.every((time) => time > 0);
     const bestLapSectors = bestLapHasCompleteSectors
-      ? [bestLap!.s1Time as number, bestLap!.s2Time as number, bestLap!.s3Time as number]
+      ? bestLap!.sectorTimes!
       : sessionBests;
 
     const EPS = 1e-6;
-    const allTimeSectors = [
-      allTimeBestSectors?.s1 ?? null,
-      allTimeBestSectors?.s2 ?? null,
-      allTimeBestSectors?.s3 ?? null,
-    ];
-
-    sectors = ([1, 2, 3] as const).map((index) => {
-      const i = index - 1;
-      const sessionBestSec = sessionBests[i];
+    sectors = sessionBests.map((sessionBestSec, i) => {
+      const index = i + 1;
       const bestLapSectorSec = bestLapSectors[i];
-      const sectorAllTimeBestSec = allTimeSectors[i];
+      const sectorAllTimeBestSec = allTimeBestSectors?.[i] ?? null;
 
       let status: "record" | "session-best" | "lost";
       if (sectorAllTimeBestSec === null || sessionBestSec < sectorAllTimeBestSec) {
@@ -175,6 +175,10 @@ export function computeRecap(input: ComputeRecapInput): SessionRecap {
     timeOnTrackSec,
     distanceM,
     sparkline,
+    sectorStarts:
+      sectors !== null && input.sectorStarts?.length === sectorCount
+        ? [...input.sectorStarts]
+        : null,
     theoretical,
     improvementSec,
     consistency,

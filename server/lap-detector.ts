@@ -13,7 +13,13 @@
 import type { TelemetryPacket, GameId } from "../shared/types";
 import type { DbAdapter } from "./pipeline-adapters";
 import type { ILapDetector, LapDetectorOptions } from "./lap-detector-interface";
-import { extractCurbSegments, recordCurbData } from "../shared/track-data";
+import {
+  extractCurbSegments,
+  recordCurbData,
+  recordLapTrace,
+} from "../shared/track-data";
+import { getIRacingSharedTrackName } from "../shared/iracing-track-data";
+import { lapPath } from "../shared/lib/lap-path";
 import { assessLapRecording } from "./lap-quality";
 import { persistLapMetrics } from "./experiment-lap-metrics";
 import { reconcileAutoExclusionsForLap } from "./experiment-auto-exclude";
@@ -50,7 +56,7 @@ export interface LapSavedEvent {
   lapNumber: number;
   lapTime: number;
   isValid: boolean;
-  sectors: { s1: number; s2: number; s3: number } | null;
+  sectors: number[] | null;
   estimatedBestLapTime: number; // best lap time in session (0 if none yet)
 }
 
@@ -66,7 +72,7 @@ export interface LapCompleteEvent {
   lapDistStart: number;
   lapTime: number;
   isValid: boolean;
-  sectors: { s1: number; s2: number; s3: number } | null;
+  sectors: number[] | null;
 }
 
 export class LapDetector implements ILapDetector {
@@ -299,7 +305,12 @@ export class LapDetector implements ILapDetector {
     const sessionType = packet.f1?.sessionType;
     let sessionId: number;
     try {
-      sessionId = await this.db.insertSession(packet.CarOrdinal, trackOrd, gameId, sessionType);
+      sessionId = await this.db.insertSession(
+        packet.CarOrdinal,
+        trackOrd,
+        gameId,
+        sessionType,
+      );
     } catch (err) {
       console.error(`[LapDetector] Failed to insert session:`, (err as Error).message);
       return;
@@ -416,6 +427,31 @@ export class LapDetector implements ILapDetector {
       const invalidReason = this.invalidReason ?? (!quality.valid ? quality.reason : null);
 
       const sectors = await this.computeLapSectors(this.lapBuffer, lapTime);
+
+      // iRacing exposes heading, speed, and native LapDistPct but no public
+      // world position. Keep RaceIQ's existing recorded-outline fallback warm
+      // for layouts without exact shared geometry (or when the official SVG
+      // cannot be reached). Higher-quality shared/SVG sources still win in the
+      // outline resolver.
+      if (
+        valid &&
+        this.currentSession.gameId === "iracing" &&
+        this.currentSession.trackOrdinal > 0 &&
+        !getIRacingSharedTrackName(this.currentSession.trackOrdinal)
+      ) {
+        const path = lapPath(this.lapBuffer);
+        const trace = path.x.map((x, index) => ({
+          x,
+          z: path.z[index],
+        }));
+        recordLapTrace(
+          this.currentSession.trackOrdinal,
+          trace,
+          trace[0] ?? null,
+          this.lapBuffer[0]?.Yaw ?? null,
+          "iracing",
+        );
+      }
 
       // Update session best lap time
       if (valid && (this.currentSession!.bestLapTime === 0 || lapTime < this.currentSession!.bestLapTime)) {
@@ -615,7 +651,7 @@ export class LapDetector implements ILapDetector {
   private async computeLapSectors(
     packets: TelemetryPacket[],
     lapTime: number
-  ): Promise<{ s1: number; s2: number; s3: number } | null> {
+  ): Promise<number[] | null> {
     if (!this.currentSession) return null;
     const { trackOrdinal, gameId } = this.currentSession;
     const accLiveSectors = this.accS1 > 0 && this.accS2 > 0

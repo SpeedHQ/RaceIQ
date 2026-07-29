@@ -4,9 +4,8 @@ import { useTrackBoundaries } from "../../hooks/queries";
 import { buildGeometry, extractEdges, type ProjPt, VIEW } from "./track-map-geometry";
 
 interface SectorTimes {
-  times: [number, number, number];
-  s1Idx: number;
-  s2Idx: number;
+  times: number[];
+  boundaryIndices: number[];
 }
 
 export interface ReadoutRow {
@@ -18,9 +17,9 @@ export interface ReadoutRow {
 interface SectorMapProps {
   telemetry: TelemetryPacket[];
   sectorTimes: SectorTimes | null;
-  /** When set (0-2), only that sector's segment is lit; the rest are faded. */
+  /** When set, only that sector's segment is lit; the rest are faded. */
   highlight?: number;
-  /** Show the S1/S2/S3 time legend under the map. Default true. */
+  /** Show the source-defined sector time legend under the map. Default true. */
   showTimes?: boolean;
   /** When provided, the track's left/right edges are fetched and drawn faintly. */
   trackOrdinal?: number;
@@ -34,12 +33,11 @@ interface SectorMapProps {
   markFraction?: number | null;
 }
 
-const SECTOR_COLORS = ["#f87171", "#60a5fa", "#facc15"] as const;
-const SECTOR_LABELS = ["S1", "S2", "S3"] as const;
+const SECTOR_COLORS = ["#f87171", "#60a5fa", "#facc15", "#34d399", "#c084fc", "#fb923c"] as const;
 
 /**
  * SectorMap — a static post-lap track map: the lap's path plotted from its
- * stored positions, split into three sector-coloured segments. Track edges are
+ * stored positions, split into source-defined sector-coloured segments. Track edges are
  * drawn faintly when the track has geometry. Hovering scrubs the lap like a
  * chart — a marker follows the cursor and a tooltip shows values at that point.
  */
@@ -121,7 +119,7 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
                 key={seg}
                 points={seg}
                 fill="none"
-                stroke={dim ? "currentColor" : SECTOR_COLORS[i]}
+                stroke={dim ? "currentColor" : SECTOR_COLORS[i % SECTOR_COLORS.length]}
                 className={dim ? "text-app-border" : undefined}
                 strokeWidth={dim ? 2 : 3}
                 opacity={dim ? 0.4 : 1}
@@ -163,10 +161,10 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
         )}
       </div>
       {showTimes && (
-        <div className="mt-2 grid grid-cols-3 gap-2">
-          {SECTOR_LABELS.map((label, i) => (
+        <div className="mt-2 grid gap-2" style={{ gridTemplateColumns: `repeat(${sectorTimes?.times.length ?? 3}, minmax(0, 1fr))` }}>
+          {Array.from({ length: sectorTimes?.times.length ?? 3 }, (_, i) => `S${i + 1}`).map((label, i) => (
             <div key={label} className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: SECTOR_COLORS[i] }} />
+              <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: SECTOR_COLORS[i % SECTOR_COLORS.length] }} />
               <span className="text-[11px] text-app-text-muted">{label}</span>
               <span className="text-xs font-mono tabular-nums text-app-text ml-auto">{sectorTimes && sectorTimes.times[i] > 0 ? sectorTimes.times[i].toFixed(3) : "—"}</span>
             </div>
@@ -176,4 +174,3 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
     </div>
   );
 }
-

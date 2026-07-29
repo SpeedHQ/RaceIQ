@@ -8,6 +8,7 @@ import { initServerGameAdapters } from "../../server/games/init";
 import { getAllServerGames, getServerGame } from "../../server/games/registry";
 import { readUdpDump } from "./recording";
 import { readAccFrames } from "../../server/games/acc/recorder";
+import { readIRacingFrames } from "../../server/games/iracing/recorder";
 import { parseAccBuffers } from "../../server/games/acc/parser";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../../server/games/ac-evo/parser";
 import { readWString } from "../../server/games/acc/utils";
@@ -187,6 +188,22 @@ export async function parseDump(
     carModel = parsed.carModel;
     trackName = parsed.trackName;
     for (const packet of parsed.packets) {
+      await pipeline.processPacket(packet);
+    }
+  } else if (gameId === "iracing") {
+    const serverAdapter = getServerGame(gameId);
+    const parserState = serverAdapter.createParserState?.() ?? null;
+    let frames: Buffer[];
+    try {
+      frames = readIRacingFrames(dumpPath);
+    } catch {
+      frames = [];
+    }
+    for (const frame of frames) {
+      const packet = serverAdapter.tryParse(frame, parserState);
+      if (!packet) continue;
+      carModel ??= packet.iracing?.carName ?? null;
+      trackName ??= packet.iracing?.trackName ?? null;
       await pipeline.processPacket(packet);
     }
   } else {

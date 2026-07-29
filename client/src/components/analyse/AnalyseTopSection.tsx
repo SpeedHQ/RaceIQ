@@ -4,7 +4,12 @@ import type { DisplayPacket } from "../../lib/convert-packet";
 import { m } from "../../paraglide/messages";
 import type { AnalysisHighlight } from "../AiPanel";
 import { AnalyseSegmentList } from "./AnalyseSegmentList";
-import type { Point, TrackMapHandle } from "./AnalyseTrackMap";
+import type {
+  Point,
+  SectorBoundaries,
+  TrackMapLabel,
+  TrackMapHandle,
+} from "./AnalyseTrackMap";
 import { AnalyseTrackPanel } from "./AnalyseTrackPanel";
 import { AnalyseVizPanel } from "./AnalyseVizPanel";
 
@@ -20,9 +25,10 @@ interface AnalyseTopSectionProps {
   telemetry: TelemetryPacket[];
   cursorIdx: number;
   outline: Point[] | null;
+  mapLabels?: TrackMapLabel[] | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   boundaries: any;
-  sectors: { s1End: number; s2End: number } | null;
+  sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   currentPacket: TelemetryPacket | null;
   currentDisplayPacket: DisplayPacket | null;
@@ -62,6 +68,7 @@ export function AnalyseTopSection({
   telemetry,
   cursorIdx,
   outline,
+  mapLabels,
   boundaries,
   sectors,
   segments,
@@ -128,6 +135,7 @@ export function AnalyseTopSection({
           telemetry={telemetry}
           cursorIdx={cursorIdx}
           outline={outline}
+          mapLabels={mapLabels}
           boundaries={boundaries}
           sectors={sectors}
           segments={segments}

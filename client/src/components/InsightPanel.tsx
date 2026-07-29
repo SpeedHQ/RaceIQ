@@ -13,17 +13,24 @@ function InsightRow({ insight, onJump }: { insight: LapInsight; onJump: (idx: nu
   const hasMultiple = insight.frameIndices.length > 1;
 
   return (
-    <button onClick={() => onJump(insight.frameIndices[eventIdx])} className="w-full text-left px-2 py-1.5 rounded hover:bg-app-surface-alt/60 transition-colors group">
-      <div className="flex items-start gap-1.5">
-        <span className="mt-1 w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: SEVERITY_COLOR[insight.severity] }} />
-        <div className="min-w-0 flex-1">
-          <div className="text-[11px] font-mono text-app-text group-hover:text-app-text">{insight.label}</div>
-          <div className="text-[10px] text-app-text-muted">{insight.detail}</div>
+    <div className="w-full rounded hover:bg-app-surface-alt/60 transition-colors group">
+      <button
+        type="button"
+        onClick={() => onJump(insight.frameIndices[eventIdx])}
+        className={`block w-full text-left px-2 ${hasMultiple ? "pt-1.5" : "py-1.5"}`}
+      >
+        <div className="flex items-start gap-1.5">
+          <span className="mt-1 w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: SEVERITY_COLOR[insight.severity] }} />
+          <div className="min-w-0 flex-1">
+            <div className="text-[11px] font-mono text-app-text group-hover:text-app-text">{insight.label}</div>
+            <div className="text-[10px] text-app-text-muted">{insight.detail}</div>
+          </div>
         </div>
-      </div>
+      </button>
       {hasMultiple && (
-        <div className="flex items-center gap-1 mt-1 ml-3">
+        <div className="flex items-center gap-1 mt-1 ml-5 pb-1.5">
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               const prev = (eventIdx - 1 + insight.frameIndices.length) % insight.frameIndices.length;
@@ -38,6 +45,7 @@ function InsightRow({ insight, onJump }: { insight: LapInsight; onJump: (idx: nu
             {eventIdx + 1}/{insight.frameIndices.length}
           </span>
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               const next = (eventIdx + 1) % insight.frameIndices.length;
@@ -50,7 +58,7 @@ function InsightRow({ insight, onJump }: { insight: LapInsight; onJump: (idx: nu
           </button>
         </div>
       )}
-    </button>
+    </div>
   );
 }
 

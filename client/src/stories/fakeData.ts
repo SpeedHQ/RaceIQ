@@ -495,6 +495,7 @@ export const fakeAcEvoDisplayPacket: DisplayPacket = makeDisplayPacket(fakeAcEvo
 // Current lap: S1=29.845 done, S2 running at ~31.8 (on pace for purple)
 
 export const fakeSectors: LiveSectorData = {
+  sectorCount: 3,
   currentSector: 1, // 0-indexed: in sector 2
   currentSectorTime: 31.8, // elapsed time in current sector (S2)
   currentTimes: [29.845, 31.8, 0], // S1 done, S2 in progress
@@ -533,22 +534,23 @@ export const fakePit: LivePitData = {
 // ── Session Laps ─────────────────────────────────────────────────────────────
 
 export const fakeSessionLaps: LapMeta[] = [
-  { id: 1, sessionId: 1, lapNumber: 1, lapTime: 95.42, isValid: true, createdAt: "2026-04-13T10:00:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 30.1, s2Time: 33.5, s3Time: 31.82 },
-  { id: 2, sessionId: 1, lapNumber: 2, lapTime: 93.841, isValid: true, createdAt: "2026-04-13T10:02:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.9, s2Time: 32.6, s3Time: 31.34 },
-  { id: 3, sessionId: 1, lapNumber: 3, lapTime: 93.105, isValid: true, createdAt: "2026-04-13T10:04:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.8, s2Time: 32.4, s3Time: 30.9 },
-  { id: 4, sessionId: 1, lapNumber: 4, lapTime: 92.341, isValid: true, createdAt: "2026-04-13T10:06:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.845, s2Time: 32.21, s3Time: 30.286 },
-  { id: 5, sessionId: 1, lapNumber: 5, lapTime: 92.655, isValid: true, createdAt: "2026-04-13T10:08:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.88, s2Time: 32.34, s3Time: 30.435 },
-  { id: 6, sessionId: 1, lapNumber: 6, lapTime: 92.58, isValid: true, createdAt: "2026-04-13T10:10:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.86, s2Time: 32.31, s3Time: 30.41 },
-  { id: 7, sessionId: 1, lapNumber: 7, lapTime: 93.02, isValid: true, createdAt: "2026-04-13T10:12:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.95, s2Time: 32.55, s3Time: 30.52 },
-  { id: 8, sessionId: 1, lapNumber: 8, lapTime: 92.401, isValid: true, createdAt: "2026-04-13T10:14:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.8, s2Time: 32.22, s3Time: 30.381 },
-  { id: 9, sessionId: 1, lapNumber: 9, lapTime: 92.278, isValid: true, createdAt: "2026-04-13T10:16:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.81, s2Time: 32.19, s3Time: 30.278 },
-  { id: 10, sessionId: 1, lapNumber: 10, lapTime: 91.98, isValid: true, createdAt: "2026-04-13T10:18:00Z", carOrdinal: 42, trackOrdinal: 7, s1Time: 29.68, s2Time: 32.05, s3Time: 30.25 },
+  { id: 1, sessionId: 1, lapNumber: 1, lapTime: 95.42, isValid: true, createdAt: "2026-04-13T10:00:00Z", carOrdinal: 42, trackOrdinal: 7, sectorTimes: [30.1, 33.5, 31.82] },
+  { id: 2, sessionId: 1, lapNumber: 2, lapTime: 93.841, isValid: true, createdAt: "2026-04-13T10:02:00Z", carOrdinal: 42, trackOrdinal: 7, sectorTimes: [29.9, 32.6, 31.34] },
+  { id: 3, sessionId: 1, lapNumber: 3, lapTime: 93.105, isValid: true, createdAt: "2026-04-13T10:04:00Z", carOrdinal: 42, trackOrdinal: 7, sectorTimes: [29.8, 32.4, 30.9] },
+  { id: 4, sessionId: 1, lapNumber: 4, lapTime: 92.341, isValid: true, createdAt: "2026-04-13T10:06:00Z", carOrdinal: 42, trackOrdinal: 7, sectorTimes: [29.845, 32.21, 30.286] },
+  { id: 5, sessionId: 1, lapNumber: 5, lapTime: 92.655, isValid: true, createdAt: "2026-04-13T10:08:00Z", carOrdinal: 42, trackOrdinal: 7, sectorTimes: [29.88, 32.34, 30.435] },
+  { id: 6, sessionId: 1, lapNumber: 6, lapTime: 92.58, isValid: true, createdAt: "2026-04-13T10:10:00Z", carOrdinal: 42, trackOrdinal: 7, sectorTimes: [29.86, 32.31, 30.41] },
+  { id: 7, sessionId: 1, lapNumber: 7, lapTime: 93.02, isValid: true, createdAt: "2026-04-13T10:12:00Z", carOrdinal: 42, trackOrdinal: 7, sectorTimes: [29.95, 32.55, 30.52] },
+  { id: 8, sessionId: 1, lapNumber: 8, lapTime: 92.401, isValid: true, createdAt: "2026-04-13T10:14:00Z", carOrdinal: 42, trackOrdinal: 7, sectorTimes: [29.8, 32.22, 30.381] },
+  { id: 9, sessionId: 1, lapNumber: 9, lapTime: 92.278, isValid: true, createdAt: "2026-04-13T10:16:00Z", carOrdinal: 42, trackOrdinal: 7, sectorTimes: [29.81, 32.19, 30.278] },
+  { id: 10, sessionId: 1, lapNumber: 10, lapTime: 91.98, isValid: true, createdAt: "2026-04-13T10:18:00Z", carOrdinal: 42, trackOrdinal: 7, sectorTimes: [29.68, 32.05, 30.25] },
 ];
 
 // Deterministic PRNG (mulberry32) so generated laps stay stable across renders.
 function mulberry32(seed: number) {
   return () => {
-    let t = (seed += 0x6d2b79f5);
+    seed += 0x6d2b79f5;
+    let t = seed;
     t = Math.imul(t ^ (t >>> 15), t | 1);
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
@@ -578,9 +580,7 @@ export function generateFakeSessionLaps(count: number, seed = 1): LapMeta[] {
       createdAt: new Date(start + i * 120_000).toISOString(),
       carOrdinal: 42,
       trackOrdinal: 7,
-      s1Time: s1,
-      s2Time: s2,
-      s3Time: s3,
+      sectorTimes: [s1, s2, s3],
     });
   }
   return laps;

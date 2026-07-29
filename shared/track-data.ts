@@ -7,6 +7,7 @@ import type { TrackGeometry } from "./track-geometry";
 import { joinSegments } from "./track-join";
 import { GameIdSchema } from "./types";
 import { getF1TrackInfo } from "./f1-track-data";
+import { getIRacingSharedTrackName } from "./iracing-track-data";
 
 import { SHARED_DIR, USER_TRACKS_DIR } from "./resolve-data";
 
@@ -76,6 +77,7 @@ function ensureAcEvoNames() {
 /** Resolve ordinal to bundled file prefix (e.g. f1: 5 → "monaco", fm: 21 → "silverstone-21"). */
 function getBundledTrackName(gameId: string, ordinal: number): string | undefined {
   if (gameId === "f1-2025") return getF1TrackInfo(ordinal)?.commonTrackName || undefined;
+  if (gameId === "iracing") return getIRacingSharedTrackName(ordinal);
   if (gameId === "fm-2023") {
     ensureFmNames();
     return fmOrdinalToFileName.get(ordinal);
@@ -160,11 +162,15 @@ const trackFactsDir = resolve(SHARED_DIR, "tracks", "meta");
 
 /**
  * Games that reuse another game's curated geometry when they ship none of
- * their own. AC Evo and ACC use the same Kunos track meshes, so an ACC
- * geometry file is correct for AC Evo. Classification never needs an alias —
- * there is only ever one set of facts per layout.
+ * their own. AC Evo and ACC use the same Kunos track meshes. iRacing's
+ * `commonTrackName` entries are deliberately limited to exact physical
+ * layouts, so normalized LapDistPct can use the first curated geometry
+ * RaceIQ has for that layout while retaining the shared real-world names.
  */
-const GEOMETRY_ALIAS: Record<string, string> = { "ac-evo": "acc" };
+const GEOMETRY_FALLBACKS: Record<string, string[]> = {
+  "ac-evo": ["acc"],
+  iracing: ["fm-2023", "f1-2025", "acc", "ac-evo"],
+};
 
 const factsCache = new Map<string, TrackFacts | null>();
 const geometryCache = new Map<string, TrackGeometry | null>();
@@ -192,7 +198,7 @@ export function loadTrackFacts(slug: string): TrackFacts | null {
   return parsed;
 }
 
-/** Load one game's segment fractions for a layout, falling back to its alias. */
+/** Load one game's segment fractions for a layout, falling back when compatible. */
 export function loadTrackGeometry(slug: string, gameId: string): TrackGeometry | null {
   if (!slug || !gameId) return null;
   const cacheKey = `${gameId}:${slug}`;
@@ -200,7 +206,10 @@ export function loadTrackGeometry(slug: string, gameId: string): TrackGeometry |
   if (hit !== undefined) return hit;
 
   let parsed: TrackGeometry | null = null;
-  for (const candidate of [gameId, GEOMETRY_ALIAS[gameId]].filter(Boolean)) {
+  for (const candidate of [
+    gameId,
+    ...(GEOMETRY_FALLBACKS[gameId] ?? []),
+  ]) {
     const content = readDataFile(resolve(SHARED_DIR, "tracks", candidate, `${slug}-segments.json`));
     if (!content) continue;
     try {
@@ -217,8 +226,8 @@ export function loadTrackGeometry(slug: string, gameId: string): TrackGeometry |
 /**
  * The one place labelled segments come from: this game's fractions carrying
  * the layout's shared names. Returns [] when the game has no geometry for the
- * layout, so callers fall through to their own auto-detection rather than
- * borrowing another game's fractions.
+ * layout, so callers fall through to their own auto-detection. The only
+ * cross-game fallbacks are the compatible layouts documented above.
  */
 export function loadLabelledSegments(slug: string, gameId: string): NamedSegment[] {
   const facts = loadTrackFacts(slug);
@@ -255,8 +264,9 @@ export function loadSharedOutline(name: string): Point[] | null {
   if (!name) return null;
   const cached = sharedOutlineCache.get(name);
   if (cached !== undefined) return cached;
-  const filePath = resolve(tumftmDir, `${name}.csv`);
-  const content = readDataFile(filePath);
+  const content =
+    readDataFile(resolve(tumftmDir, `${name}.csv`)) ??
+    readDataFile(resolve(tumftmDir, `${name}-centerline.csv`));
   if (!content) { sharedOutlineCache.set(name, null); return null; }
   try {
     const lines = content.split("\n").filter(Boolean);
@@ -277,8 +287,9 @@ export function loadSharedBoundary(name: string): SharedBoundaryData | null {
   if (!name) return null;
   const cached = sharedBoundaryCache.get(name);
   if (cached !== undefined) return cached;
-  const filePath = resolve(tumftmDir, `${name}.json`);
-  const content = readDataFile(filePath);
+  const content =
+    readDataFile(resolve(tumftmDir, `${name}.json`)) ??
+    readDataFile(resolve(tumftmDir, `${name}-boundaries.json`));
   if (!content) { sharedBoundaryCache.set(name, null); return null; }
   try {
     const data = JSON.parse(content);
@@ -619,11 +630,14 @@ let _recordedScanned = false;
 export function scanRecordedFiles(): void {
   _recordedScanned = true;
   recordedOrdinals.clear();
-  for (const gid of ["fm-2023", "f1-2025", "acc"]) {
+  for (const gid of ["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"]) {
     const dir = resolve(userDir, gid);
     if (!existsSync(dir)) continue;
     for (const filePath of listDataFiles(dir, (f) => f.endsWith("-computed-average.csv"))) {
-      const m = filePath.split("/").pop()!.match(/-(\d+)-computed-average\.csv$/);
+      const m = filePath
+        .split("/")
+        .pop()!
+        .match(/(?:^|-)(\d+)-computed-average\.csv$/);
       if (m) recordedOrdinals.add(gk(gid, parseInt(m[1], 10)));
     }
   }
@@ -658,6 +672,15 @@ function loadRecordedOutline(ordinal: number, gameId: string): Point[] | null {
     }
     return null;
   } catch { return null; }
+}
+
+/** Load only a telemetry-generated outline, without bundled/shared fallbacks. */
+export function getRecordedOutlineByOrdinal(
+  ordinal: number,
+  gameId: string,
+): Point[] | null {
+  validateGameId(gameId);
+  return loadRecordedOutline(ordinal, gameId);
 }
 
 export function getTrackOutline(trackName: string): Point[] | null {
@@ -1063,7 +1086,12 @@ function loadBundledPointCsv(ordinal: number, gameId: string, suffix: "centerlin
  */
 export function getTrackOutlineByOrdinal(ordinal: number, gameId: string, sharedName?: string): Point[] | null {
   validateGameId(gameId);
-  return loadBundledPointCsv(ordinal, gameId, "centerline") ?? loadRecordedOutline(ordinal, gameId) ?? loadSharedOutline(sharedName ?? "") ?? getBundledOutlineByOrdinal(ordinal);
+  const resolvedSharedName =
+    sharedName ?? getBundledTrackName(gameId, ordinal);
+  return loadBundledPointCsv(ordinal, gameId, "centerline") ??
+    loadRecordedOutline(ordinal, gameId) ??
+    loadSharedOutline(resolvedSharedName ?? "") ??
+    (gameId === "fm-2023" ? getBundledOutlineByOrdinal(ordinal) : null);
 }
 
 /**

@@ -7,7 +7,7 @@
 <h1 align="center">RaceIQ</h1>
 
 <p align="center">
-  Real-time racing telemetry dashboard, lap analysis and catalogue for <strong>Forza Motorsport 2023</strong>, <strong>F1 2025</strong>, <strong>Assetto Corsa Competizione</strong>, and <strong>Assetto Corsa Evo</strong>.
+  Real-time racing telemetry dashboard, lap analysis and catalogue for <strong>Forza Motorsport 2023</strong>, <strong>F1 2025</strong>, <strong>Assetto Corsa Competizione</strong>, <strong>Assetto Corsa Evo</strong>, and <strong>iRacing</strong>.
 </p>
 
 <p align="center">
@@ -53,17 +53,18 @@ Check out the [demo](https://www.youtube.com/watch?v=hWuIItofivA) and [screensho
 | F1 2025 | Supported | Yes | Yes | No |
 | Assetto Corsa Competizione | Supported | Yes | Yes | No |
 | Forza Motorsport 2023 | Supported | No | No | Yes |
+| iRacing | Supported (Windows native SDK) | No | No | No |
 | Le Mans Ultimate | Blocked — awaiting game key / sponsorship | — | — | — |
-| iRacing | Blocked — awaiting game key / sponsorship | — | — | — |
 
 ### Development priority
 
 Supported games are listed in priority order. Priority is based on ongoing game support and freshness — how actively each title is still being updated by its developer:
 
 1. **Assetto Corsa Evo** — actively developed, frequent content updates.
-2. **F1 2025** — current-season title, actively maintained telemetry spec.
-3. **Assetto Corsa Competizione** — stable and widely raced, but feature-complete upstream.
-4. **Forza Motorsport 2023** — lowest priority; no longer meaningfully updated and its telemetry format is frozen.
+2. **iRacing** — actively developed and read directly through its Windows shared-memory SDK.
+3. **F1 2025** — current-season title, actively maintained telemetry spec.
+4. **Assetto Corsa Competizione** — stable and widely raced, but feature-complete upstream.
+5. **Forza Motorsport 2023** — lowest priority; no longer meaningfully updated and its telemetry format is frozen.
 
 Lower priority means slower turnaround on new features for that title — it does not mean deprecated. All supported games keep working.
 
@@ -76,7 +77,7 @@ Grab the latest installer from the [releases page](https://github.com/SpeedHQ/Ra
 
 ### 2. Run and Connect
 
-Configure your game's telemetry settings to send UDP data to `127.0.0.1:5301`, then start a race — telemetry will appear automatically.
+For Forza and F1, configure the game's telemetry settings to send UDP data to `127.0.0.1:5301`. ACC, AC Evo, and iRacing are detected automatically from their native Windows shared-memory telemetry. Start driving and telemetry will appear automatically.
 
 > **Already forwarding telemetry to a wheel base or other app?** Use [UDP Forwarder](https://github.com/SpeedHQ/udp-forwarder) to send telemetry to multiple destinations at once.
 
@@ -89,7 +90,7 @@ RaceIQ checks for new releases automatically and notifies you when one is availa
 **Game on Windows is recommended.** RaceIQ runs on the same PC as the game for two reasons:
 
 - **UDP reliability** — loopback delivery is lossless and low-latency, avoiding the packet loss and timing jitter of network routing.
-- **Shared memory** — some games (like ACC) expose richer telemetry via shared memory, which requires running on the same machine.
+- **Shared memory** — ACC, AC Evo, and iRacing expose local telemetry through Windows shared memory, which requires running RaceIQ on the same machine.
 
 **Game on Console works.** Just make sure both your windows machine and console is wired ethernet.
 

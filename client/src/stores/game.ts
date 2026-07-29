@@ -8,6 +8,7 @@ const GAME_ROUTES: Record<string, string> = {
   "f1-2025": "/f125",
   acc: "/acc",
   "ac-evo": "/ac-evo",
+  iracing: "/iracing",
 };
 
 interface GameState {
@@ -42,7 +43,7 @@ export function useRequiredGameId(): GameId {
   if (stored) return stored;
   const path = typeof window !== "undefined" ? window.location.pathname : "";
   for (const [id, prefix] of Object.entries(GAME_ROUTES)) {
-    if (path === prefix || path.startsWith(prefix + "/")) return id as GameId;
+    if (path === prefix || path.startsWith(`${prefix}/`)) return id as GameId;
   }
   throw new Error(`useRequiredGameId: no gameId in store and URL (${path}) does not match any game route`);
 }

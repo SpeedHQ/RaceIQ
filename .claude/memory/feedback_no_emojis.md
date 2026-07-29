@@ -1,7 +1,7 @@
 ---
 name: feedback-no-emojis
 description: "Never use emojis in output, commit messages, or PR bodies"
-metadata: 
+metadata:
   node_type: memory
   type: feedback
   originSessionId: d9a5009b-eb60-4a03-b70e-cff7fd245dff

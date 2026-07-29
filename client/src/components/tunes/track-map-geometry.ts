@@ -13,14 +13,13 @@ export interface ProjPt {
 }
 
 export interface SectorTimesLite {
-  times: [number, number, number];
-  s1Idx: number;
-  s2Idx: number;
+  times: number[];
+  boundaryIndices: number[];
 }
 
 export interface Geometry {
   allPoints: string;
-  segments: [string, string, string];
+  segments: string[];
   leftEdge: string | null;
   rightEdge: string | null;
   pts: ProjPt[];
@@ -64,11 +63,7 @@ export function buildStartMarker(pts: ProjPt[] | null | undefined, arrowLen = 14
     y: s.y,
     tipX,
     tipY,
-    head: [
-      `${tipX},${tipY}`,
-      `${tipX - nx * wing * 2 + ny * wing},${tipY - ny * wing * 2 - nx * wing}`,
-      `${tipX - nx * wing * 2 - ny * wing},${tipY - ny * wing * 2 + nx * wing}`,
-    ].join(" "),
+    head: [`${tipX},${tipY}`, `${tipX - nx * wing * 2 + ny * wing},${tipY - ny * wing * 2 - nx * wing}`, `${tipX - nx * wing * 2 - ny * wing},${tipY - ny * wing * 2 + nx * wing}`].join(" "),
   };
 }
 
@@ -83,7 +78,7 @@ export function extractEdges(bounds: any): { left: Pt[]; right: Pt[] } | null {
 
 /**
  * Project a lap's driven line (and optional track edges) into a shared
- * 0..VIEW SVG viewbox, split into three sector-colored polyline segments.
+ * 0..VIEW SVG viewbox, split into source-defined sector polyline segments.
  * Downsamples the driven line to ~TARGET_POINTS while keeping each point's
  * original telemetry index so hover/lookup can find the real frame.
  */
@@ -93,8 +88,6 @@ export function buildGeometry(telemetry: TelemetryPacket[], sectorTimes: SectorT
   const step = Math.max(1, Math.floor(telemetry.length / TARGET_POINTS));
   const line: { p: Pt; idx: number }[] = [];
   for (let i = 0; i < telemetry.length; i += step) line.push({ p: { x: telemetry[i].PositionX, z: telemetry[i].PositionZ }, idx: i });
-  const rawS1 = sectorTimes && sectorTimes.s1Idx > 0 ? Math.floor(sectorTimes.s1Idx / step) : Math.floor(line.length / 3);
-  const rawS2 = sectorTimes && sectorTimes.s2Idx > 0 ? Math.floor(sectorTimes.s2Idx / step) : Math.floor((2 * line.length) / 3);
 
   // Orientation lives in @shared/track-projection so the e2e segment renderer
   // draws the same track the same way up. Do not reintroduce local axis math.
@@ -115,12 +108,23 @@ export function buildGeometry(telemetry: TelemetryPacket[], sectorTimes: SectorT
   const pline = line.map((l) => l.p);
 
   const n = line.length;
-  const s1 = Math.min(Math.max(rawS1, 1), n - 2);
-  const s2 = Math.min(Math.max(rawS2, s1 + 1), n - 1);
+  const sectorCount = sectorTimes?.times.length && sectorTimes.times.length >= 2 ? sectorTimes.times.length : 3;
+  const rawBoundaries =
+    sectorTimes?.boundaryIndices.length === sectorCount - 1
+      ? sectorTimes.boundaryIndices.map((index) => Math.floor(index / step))
+      : Array.from({ length: sectorCount - 1 }, (_, index) => Math.floor(((index + 1) * n) / sectorCount));
+  const boundaries: number[] = [];
+  for (let index = 0; index < rawBoundaries.length; index++) {
+    const previous = boundaries[index - 1] ?? 0;
+    const remaining = rawBoundaries.length - index;
+    boundaries.push(Math.min(Math.max(rawBoundaries[index], previous + 1), n - remaining));
+  }
+  const sliceBounds = [0, ...boundaries, n - 1];
+  const segments = Array.from({ length: sectorCount }, (_, index) => polyline(pline.slice(sliceBounds[index], sliceBounds[index + 1] + 1)));
 
   return {
     allPoints: polyline(pline),
-    segments: [polyline(pline.slice(0, s1 + 1)), polyline(pline.slice(s1, s2 + 1)), polyline(pline.slice(s2))],
+    segments,
     leftEdge: edges ? polyline(edges.left) : null,
     rightEdge: edges ? polyline(edges.right) : null,
     pts: projPts,

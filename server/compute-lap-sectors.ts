@@ -1,8 +1,86 @@
 import type { TelemetryPacket, GameId } from "../shared/types";
+import { getGame } from "../shared/games/registry";
 import { resolveTrack } from "./track-info";
 
+export interface NativeSectorTimeline {
+  sectorCount: number;
+  times: number[];
+  boundaryIndices: number[];
+  sectorStarts: number[];
+}
+
+export type IRacingSectorTimeline = NativeSectorTimeline;
+
+export function computeNativeSectorTimeline(
+  packets: TelemetryPacket[],
+  lapTime: number,
+  getLayout: (packet: TelemetryPacket) => {
+    starts: number[];
+    lapFraction?: number;
+  } | undefined,
+): NativeSectorTimeline | null {
+  const starts = packets
+    .map(getLayout)
+    .find((layout) => layout?.starts.length)?.starts;
+  if (
+    !starts ||
+    starts.length < 2 ||
+    !Number.isFinite(starts[0]) ||
+    starts[0] < 0 ||
+    starts[0] >= 1e-6 ||
+    starts.some(
+      (value, index) =>
+        !Number.isFinite(value) ||
+        value < 0 ||
+        value >= 1 ||
+        (index > 0 && value <= starts[index - 1]),
+    )
+  ) {
+    return null;
+  }
+
+  const boundaryIndices = starts.slice(1).map((boundary) =>
+    packets.findIndex(
+      (packet) => (getLayout(packet)?.lapFraction ?? -1) >= boundary,
+    ),
+  );
+  if (boundaryIndices.some((index) => index <= 0)) return null;
+
+  const startTime = packets[0].CurrentLap;
+  const boundaryTimes = boundaryIndices.map(
+    (index) => packets[index].CurrentLap - startTime,
+  );
+  const times = boundaryTimes.map((time, index) =>
+    time - (index === 0 ? 0 : boundaryTimes[index - 1]),
+  );
+  times.push(lapTime - (boundaryTimes.at(-1) ?? 0));
+  if (times.some((time) => time <= 0)) return null;
+
+  return {
+    sectorCount: starts.length,
+    times,
+    boundaryIndices,
+    sectorStarts: [...starts],
+  };
+}
+
 /**
- * Pure function that computes s1/s2/s3 sector times from a lap's telemetry buffer.
+ * Resolve iRacing sectors exclusively from SplitTimeInfo carried in the native
+ * source frames. A missing or malformed SDK layout deliberately returns null.
+ */
+export function computeIRacingSectorTimeline(
+  packets: TelemetryPacket[],
+  lapTime: number,
+): IRacingSectorTimeline | null {
+  return computeNativeSectorTimeline(packets, lapTime, (packet) => {
+    const starts = packet.iracing?.sectorStarts;
+    if (!starts?.length) return undefined;
+    return { starts, lapFraction: packet.iracing?.lapDistancePct };
+  });
+}
+
+/**
+ * Pure function that computes the source-defined sector times from a lap's telemetry buffer.
  *
  * @param db           DB adapter (for track outline sector boundaries)
  * @param trackOrdinal Track ordinal from the session
@@ -18,8 +96,20 @@ export async function computeLapSectors(
   packets: TelemetryPacket[],
   lapTime: number,
   accLiveSectors?: { s1: number; s2: number },
-): Promise<{ s1: number; s2: number; s3: number } | null> {
+): Promise<number[] | null> {
   if (packets.length < 50) return null;
+
+  const game = getGame(gameId);
+  if (game.nativeSectors) {
+    if (!game.getNativeSectorLayout) return null;
+    const timeline = computeNativeSectorTimeline(
+      packets,
+      lapTime,
+      game.getNativeSectorLayout,
+    );
+    if (!timeline) return null;
+    return timeline.times;
+  }
 
   // Sector boundaries: this game's curated pair, else bundled, else thirds.
   const { s1End, s2End } = resolveTrack(gameId, trackOrdinal).sectors;
@@ -66,7 +156,7 @@ export async function computeLapSectors(
     if (s1 === 0 || s2 === 0) return null;
     const s3 = lapTime - s1 - s2;
     if (s3 <= 0) return null;
-    return { s1, s2, s3 };
+    return [s1, s2, s3];
   }
 
   // ACC: use native sector times tracked live during the lap
@@ -133,7 +223,7 @@ export async function computeLapSectors(
       s1 = 0;
       s2 = 0;
     } else {
-      return { s1, s2, s3 };
+      return [s1, s2, s3];
     }
   }
 
@@ -160,7 +250,7 @@ export async function computeLapSectors(
       if (s1Retry > 0 && s2Retry > 0) {
         const s3 = lapTime - s1Retry - s2Retry;
         if (s3 > 0) {
-          return { s1: s1Retry, s2: s2Retry, s3 };
+          return [s1Retry, s2Retry, s3];
         }
       }
     }

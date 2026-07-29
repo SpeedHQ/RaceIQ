@@ -1,26 +1,23 @@
-import type { GameId, LivePitData } from "@shared/types";
+import type { LivePitData } from "@shared/types";
 import { m } from "@/paraglide/messages";
 
 interface PitWindowProps {
   pit: LivePitData | null;
-  gameId: GameId | null;
 }
 
 /**
  * PitWindow — Pit stop laps remaining + limited by indicator.
- * Pure component; caller supplies pit + gameId.
+ * Pure component; all estimates are already normalized to laps.
  */
-export function PitWindow({ pit, gameId }: PitWindowProps) {
-  const fuelIsLitres = gameId === "acc" || gameId === "ac-evo" || gameId === "f1-2025";
-  const fuelColor = fuelIsLitres
-    ? pit?.fuelLapsRemaining != null
+export function PitWindow({ pit }: PitWindowProps) {
+  const fuelColor =
+    pit?.fuelLapsRemaining != null
       ? pit.fuelLapsRemaining < 5
         ? "text-red-400"
         : pit.fuelLapsRemaining < 15
           ? "text-amber-400"
           : "text-emerald-400"
-      : "text-app-text-dim"
-    : "text-emerald-400";
+      : "text-app-text-dim";
 
   const pitIn = pit?.pitInLaps ?? null;
   const limitedBy = pit?.limitedBy ?? null;

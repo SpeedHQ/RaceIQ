@@ -35,8 +35,8 @@ describe("CapturingDbAdapter", () => {
   test("insertLap captures sectors", async () => {
     const db = new CapturingDbAdapter();
     await db.insertSession(1, 1, "f1-2025");
-    await db.insertLap(1, 1, 90000, true, null, 0, null, null, null, { s1: 30000, s2: 30000, s3: 30000 });
-    expect(db.laps[0].sectors).toEqual({ s1: 30000, s2: 30000, s3: 30000 });
+    await db.insertLap(1, 1, 90000, true, null, 0, null, null, null, [30000, 30000, 30000]);
+    expect(db.laps[0].sectors).toEqual([30000, 30000, 30000]);
   });
 
   test("getLaps returns empty array", async () => {

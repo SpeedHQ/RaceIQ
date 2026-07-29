@@ -107,9 +107,7 @@ function stint(opts: { startId: number; experimentId: number; versionId: number;
       createdAt: ago(startedMsAgo - i * 100_000),
       carOrdinal: 42,
       trackOrdinal: 7,
-      s1Time: 30.1,
-      s2Time: 33.5,
-      s3Time: 30.6,
+      sectorTimes: [30.1, 33.5, 30.6],
     };
   });
 }

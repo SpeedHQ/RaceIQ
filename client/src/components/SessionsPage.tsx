@@ -6,6 +6,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { queryKeys, useDeleteLap, useLaps, useSessions } from "../hooks/queries";
 import { exportLapsZip } from "../lib/lap-export";
+import { storedLapsSectorCount } from "../lib/lap-sectors";
 import { client } from "../lib/rpc";
 import { RotatePrompt } from "../routes/__root";
 import { useGameId, useGameRoute } from "../stores/game";
@@ -80,19 +81,15 @@ function SessionLapTable({
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; lapId: number } | null>(null);
+  const sectorCount = storedLapsSectorCount(laps);
+  const sectorLabels = Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`);
 
   const bestSectors = useMemo(() => {
-    const best = { s1: Infinity, s2: Infinity, s3: Infinity };
-    for (const lap of laps) {
-      const s1 = lap.s1Time ?? 0,
-        s2 = lap.s2Time ?? 0,
-        s3 = lap.s3Time ?? 0;
-      if (s1 > 0 && s1 < best.s1) best.s1 = s1;
-      if (s2 > 0 && s2 < best.s2) best.s2 = s2;
-      if (s3 > 0 && s3 < best.s3) best.s3 = s3;
-    }
-    return best;
-  }, [laps]);
+    return Array.from({ length: sectorCount }, (_, index) => {
+      const times = laps.map((lap) => lap.sectorTimes?.[index] ?? 0).filter((time) => time > 0);
+      return times.length > 0 ? Math.min(...times) : Infinity;
+    });
+  }, [laps, sectorCount]);
 
   const sortedLaps = useMemo(
     () =>
@@ -121,9 +118,9 @@ function SessionLapTable({
               {lapSortKey === f && <span className="ml-0.5">{lapSortDir === "asc" ? "↑" : "↓"}</span>}
             </TH>
           ))}
-          <TH className="text-red-400">S1</TH>
-          <TH className="text-blue-400">S2</TH>
-          <TH className="text-yellow-400">S3</TH>
+          {sectorLabels.map((label) => (
+            <TH key={label}>{label}</TH>
+          ))}
           <TH className="w-[40%]">{m.sessions_col_notes()}</TH>
         </THead>
         <TBody>
@@ -167,10 +164,10 @@ function SessionLapTable({
                     </Button>
                   </div>
                 </TD>
-                {(["s1", "s2", "s3"] as const).map((s) => {
-                  const val = s === "s1" ? (lap.s1Time ?? 0) : s === "s2" ? (lap.s2Time ?? 0) : (lap.s3Time ?? 0);
+                {sectorLabels.map((label, index) => {
+                  const val = lap.sectorTimes?.[index] ?? 0;
                   return (
-                    <TD key={s} className={`font-mono ${sectorColor(val, bestSectors[s])}`}>
+                    <TD key={label} className={`font-mono ${sectorColor(val, bestSectors[index])}`}>
                       {val > 0 ? formatLapTime(val) : "—"}
                     </TD>
                   );

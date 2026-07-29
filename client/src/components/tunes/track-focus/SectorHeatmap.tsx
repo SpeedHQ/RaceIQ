@@ -7,9 +7,6 @@ interface SectorHeatmapProps {
   onFocusLap: (lapId: number) => void;
 }
 
-const SECTOR_KEYS = ["s1Time", "s2Time", "s3Time"] as const;
-const SECTOR_LABELS = ["S1", "S2", "S3"];
-
 function cellColor(delta: number | null): string {
   if (delta == null) return "#334155";
   const a = Math.abs(delta);
@@ -19,22 +16,23 @@ function cellColor(delta: number | null): string {
 }
 
 /**
- * 3-row (sector) x N-column (lap) delta heatmap: each cell is that lap's
+ * Source-defined-sector x N-column (lap) delta heatmap: each cell is that lap's
  * sector time minus the stint's best valid time for that sector. Gray when
  * the lap is invalid or missing the sector. Click a column to focus that lap.
  */
 export function SectorHeatmap({ laps, focusLapId, onFocusLap }: SectorHeatmapProps) {
+  const sectorCount = laps.reduce((count, lap) => Math.max(count, lap.sectorTimes?.length ?? 0), 0);
   const bestBySector = useMemo(() => {
-    return SECTOR_KEYS.map((key) => {
+    return Array.from({ length: sectorCount }, (_, sectorIndex) => {
       let best: number | null = null;
       for (const lap of laps) {
         if (!lap.isValid || lap.experimentExcluded) continue;
-        const v = lap[key];
+        const v = lap.sectorTimes?.[sectorIndex];
         if (v != null && (best == null || v < best)) best = v;
       }
       return best;
     });
-  }, [laps]);
+  }, [laps, sectorCount]);
 
   if (laps.length === 0) {
     return <div className="text-app-text-dim text-sm">No laps to compare.</div>;
@@ -54,11 +52,11 @@ export function SectorHeatmap({ laps, focusLapId, onFocusLap }: SectorHeatmapPro
           </tr>
         </thead>
         <tbody>
-          {SECTOR_KEYS.map((key, si) => (
-            <tr key={key}>
-              <td className="text-app-text-muted font-semibold pr-2 py-0.5 sticky left-0 bg-app-surface">{SECTOR_LABELS[si]}</td>
+          {Array.from({ length: sectorCount }, (_, si) => `S${si + 1}`).map((label, si) => (
+            <tr key={label}>
+              <td className="text-app-text-muted font-semibold pr-2 py-0.5 sticky left-0 bg-app-surface">{label}</td>
               {laps.map((lap) => {
-                const raw = lap[key];
+                const raw = lap.sectorTimes?.[si];
                 const best = bestBySector[si];
                 const delta = lap.isValid && raw != null && best != null ? raw - best : null;
                 const isFocus = lap.id === focusLapId;
@@ -66,7 +64,7 @@ export function SectorHeatmap({ laps, focusLapId, onFocusLap }: SectorHeatmapPro
                   <td key={lap.id} className="p-0.5">
                     <button
                       type="button"
-                      title={`${SECTOR_LABELS[si]} L${lap.lapNumber} ${delta == null ? "n/a" : `${delta >= 0 ? "+" : ""}${delta.toFixed(2)}s`}`}
+                      title={`S${si + 1} L${lap.lapNumber} ${delta == null ? "n/a" : `${delta >= 0 ? "+" : ""}${delta.toFixed(2)}s`}`}
                       onClick={() => onFocusLap(lap.id)}
                       className="w-full h-6 rounded-sm block"
                       style={{

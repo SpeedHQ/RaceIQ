@@ -65,8 +65,16 @@ export function TrackCard({
         </div>
       </div>
       <div className="bg-app-bg relative" style={{ height: 150 }}>
-        {track.hasOutline ? (
+        {outline ? (
           <canvas ref={canvasRef} className="w-full h-full" />
+        ) : track.mapUrl ? (
+          <img
+            src={track.mapUrl}
+            alt={`${track.name} ${track.variant} map`}
+            className="w-full h-full object-contain p-3"
+            loading="lazy"
+            decoding="async"
+          />
         ) : (
           <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">{m.trackcard_no_outline()}</div>
         )}

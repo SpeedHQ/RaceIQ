@@ -34,7 +34,9 @@ interface TuneReviewDashboardProps {
   onOpenLapContextChange?: (text: string | null) => void;
 }
 
-const SECTOR_COLORS = ["#f87171", "#60a5fa", "#facc15"] as const;
+const SECTOR_COLORS = ["#f87171", "#60a5fa", "#facc15", "#34d399", "#c084fc", "#fb923c"] as const;
+type SectorView = `s${number}`;
+type ReviewView = "overview" | "track" | SectorView;
 const SEVERITY_CLASS: Record<TuneIssue["severity"], string> = {
   critical: "text-red-400 border-red-800/60 bg-red-950/30",
   warn: "text-amber-400 border-amber-800/60 bg-amber-950/30",
@@ -43,7 +45,7 @@ const SEVERITY_CLASS: Record<TuneIssue["severity"], string> = {
 
 /**
  * TuneReviewDashboard — post-lap analysis for a finished lap, in the "sector
- * spine" layout: the three sectors are the organising columns (time + where on
+ * spine" layout: the session's sectors are the organising columns (time + where on
  * track), then the lap's detected issues, tyre state, and the Setup Engineer
  * recommendation. Everything is reconstructed from the selected lap's stored
  * telemetry — no live stream.
@@ -53,7 +55,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
 
   // Focus lap lives in the URL (?lap=<id>) so it's linkable/shareable.
   const navigate = useNavigate();
-  const search = useSearch({ strict: false }) as { lap?: number; view?: "overview" | "s1" | "s2" | "s3" | "track" };
+  const search = useSearch({ strict: false }) as { lap?: number; view?: ReviewView };
   const focusLap = validLaps.find((l) => l.id === search.lap) ?? validLaps[0];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const setFocus = (id: number) => navigate({ search: (p: any) => ({ ...p, lap: id }) } as any);
@@ -74,6 +76,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
 
   const telemetry = lapTel?.telemetry ?? [];
   const sectorTimes = lapTel?.sectorTimes ?? null;
+  const sectorCount = sectorTimes?.times.length ?? 3;
   const corners = useMemo(() => tireSnapshot(telemetry), [telemetry]);
   const game = tryGetGame(gameId);
 
@@ -84,18 +87,18 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
   // Bucket detected issues into sectors by their distance fraction. Issues with
   // no position (lap-wide, e.g. average tyre pressure) go to the whole-lap strip.
   const issueGroups = useMemo(() => {
-    const bySector: TuneIssue[][] = [[], [], []];
+    const count = sectorTimes?.times.length ?? 3;
+    const bySector: TuneIssue[][] = Array.from({ length: count }, () => []);
     const wholeLap: TuneIssue[] = [];
     const len = telemetry.length;
-    const s1f = sectorTimes && len > 1 ? sectorTimes.s1Idx / (len - 1) : 1 / 3;
-    const s2f = sectorTimes && len > 1 ? sectorTimes.s2Idx / (len - 1) : 2 / 3;
+    const boundaries = sectorTimes && len > 1 ? sectorTimes.boundaryIndices.map((index) => index / (len - 1)) : Array.from({ length: count - 1 }, (_, index) => (index + 1) / count);
     for (const it of issues ?? []) {
       if (it.distanceFrac == null) {
         wholeLap.push(it);
         continue;
       }
-      const s = it.distanceFrac < s1f ? 0 : it.distanceFrac < s2f ? 1 : 2;
-      bySector[s].push(it);
+      const sector = boundaries.findIndex((boundary) => it.distanceFrac! < boundary);
+      bySector[sector < 0 ? count - 1 : sector].push(it);
     }
     return { bySector, wholeLap };
   }, [issues, telemetry.length, sectorTimes]);
@@ -105,11 +108,13 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
   const [hoverPos, setHoverPos] = useState<{ sector: number; idx: number } | null>(null);
   // An issue's location, marked on its sector map while its list item is hovered.
   const [markedIssue, setMarkedIssue] = useState<{ sector: number; frac: number } | null>(null);
-  // Active view lives in the URL (?view=overview|s1|s2|s3).
+  // Active view lives in the URL (?view=overview|s1..sN|track).
   const view = search.view ?? "overview";
-  const sectorIndex = view === "s1" ? 0 : view === "s2" ? 1 : view === "s3" ? 2 : null;
+  const requestedSector = /^s([1-9]\d*)$/.exec(view)?.[1];
+  const parsedSectorIndex = requestedSector ? Number(requestedSector) - 1 : null;
+  const sectorIndex = parsedSectorIndex != null && parsedSectorIndex < sectorCount ? parsedSectorIndex : null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const setView = (v: "overview" | "s1" | "s2" | "s3" | "track") =>
+  const setView = (v: ReviewView) =>
     // Entering the track view defaults the lap picker to "All" (no ?lap=).
     navigate({ search: (p: any) => ({ ...p, view: v === "overview" ? undefined : v, lap: v === "track" ? undefined : (p.lap ?? focusLap?.id) }) } as any);
   // In the track view, no ?lap= means "All laps"; a stale id also counts as All.
@@ -157,24 +162,23 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
     );
 
     if (sectorTimes) {
-      const bestOf = (sel: (l: LapMeta) => number | undefined) => {
+      const bestOf = (sectorIndex: number) => {
         let best: number | undefined;
         for (const l of laps) {
-          const v = sel(l);
+          const v = l.sectorTimes?.[sectorIndex];
           if (v == null || v <= 0) continue;
           if (best == null || v < best) best = v;
         }
         return best;
       };
-      const bestS = [bestOf((l) => l.s1Time), bestOf((l) => l.s2Time), bestOf((l) => l.s3Time)];
-      const sectorLine = [0, 1, 2]
-        .map((i) => {
-          const t = sectorTimes.times[i];
-          if (!(t > 0)) return `S${i + 1} —`;
-          const best = bestS[i];
-          const delta = best != null ? t - best : null;
+      const bestS = sectorTimes.times.map((_, index) => bestOf(index));
+      const sectorLine = sectorTimes.times
+        .map((time, index) => {
+          if (!(time > 0)) return `S${index + 1} —`;
+          const best = bestS[index];
+          const delta = best != null ? time - best : null;
           const deltaStr = delta == null ? "" : delta <= 0.0005 ? " (best)" : ` (+${delta.toFixed(3)})`;
-          return `S${i + 1} ${t.toFixed(3)}s${deltaStr}`;
+          return `S${index + 1} ${time.toFixed(3)}s${deltaStr}`;
         })
         .join(", ");
       lines.push(`Sectors: ${sectorLine}`);
@@ -263,7 +267,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
             </span>
           )}
           <div className="flex gap-1">
-            {(["overview", "s1", "s2", "s3", "track"] as const).map((v) => (
+            {(["overview", ...Array.from({ length: sectorCount }, (_, index) => `s${index + 1}` as SectorView), "track"] as ReviewView[]).map((v) => (
               <button
                 key={v}
                 type="button"
@@ -317,11 +321,11 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className={`p-3 ${i < 2 ? "sm:border-r border-app-border" : ""} border-t sm:border-t-0 border-app-border first:border-t-0`}>
+            <div className="grid grid-cols-1 sm:grid-flow-col sm:auto-cols-fr">
+              {Array.from({ length: sectorCount }, (_, i) => `S${i + 1}`).map((label, i) => (
+                <div key={label} className={`p-3 ${i < sectorCount - 1 ? "sm:border-r border-app-border" : ""} border-t sm:border-t-0 border-app-border first:border-t-0`}>
                   <div className="flex items-center gap-2">
-                    <span className="w-6 h-1 rounded" style={{ background: SECTOR_COLORS[i] }} />
+                    <span className="w-6 h-1 rounded" style={{ background: SECTOR_COLORS[i % SECTOR_COLORS.length] }} />
                     <span className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Sector {i + 1}</span>
                   </div>
                   <div className="text-xl font-mono tabular-nums text-app-text mt-1.5">{sectorTimes && sectorTimes.times[i] > 0 ? sectorTimes.times[i].toFixed(3) : "—"}</div>
@@ -360,7 +364,14 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
       {/* Detail body — owns its own scroll; the header above stays static. */}
       <div className="flex-1 min-h-0 overflow-y-auto">
         {view === "track" ? (
-          <TrackFocusView gameId={gameId} laps={laps} trackOrdinal={focusLap.trackOrdinal} focusLapId={trackFocusId} onFocusLap={setFocus} experimentId={experimentId ?? test?.experimentId ?? null} />
+          <TrackFocusView
+            gameId={gameId}
+            laps={laps}
+            trackOrdinal={focusLap.trackOrdinal}
+            focusLapId={trackFocusId}
+            onFocusLap={setFocus}
+            experimentId={experimentId ?? test?.experimentId ?? null}
+          />
         ) : sectorIndex != null ? (
           <SectorDetailView telemetry={telemetry} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusLap.trackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
         ) : (
@@ -384,11 +395,11 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
                       </div>
                     </div>
                   )}
-                  <div className="grid grid-cols-1 sm:grid-cols-3">
-                    {[0, 1, 2].map((i) => (
-                      <div key={i} className={`px-3 py-2 ${i < 2 ? "sm:border-r border-app-border" : ""} border-t sm:border-t-0 border-app-border`}>
+                  <div className="grid grid-cols-1 sm:grid-flow-col sm:auto-cols-fr">
+                    {Array.from({ length: sectorCount }, (_, i) => `S${i + 1}`).map((label, i) => (
+                      <div key={label} className={`px-3 py-2 ${i < sectorCount - 1 ? "sm:border-r border-app-border" : ""} border-t sm:border-t-0 border-app-border`}>
                         <div className="flex items-center gap-1.5 mb-1.5">
-                          <span className="w-3 h-1 rounded" style={{ background: SECTOR_COLORS[i] }} />
+                          <span className="w-3 h-1 rounded" style={{ background: SECTOR_COLORS[i % SECTOR_COLORS.length] }} />
                           <span className="text-[10px] text-app-text-muted uppercase tracking-wider">Sector {i + 1}</span>
                         </div>
                         {issueGroups.bySector[i].length === 0 ? (

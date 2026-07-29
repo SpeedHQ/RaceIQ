@@ -121,9 +121,9 @@ describe("computeLapSectors — sector source priority", () => {
     const packets = makeLapPackets(TRACK_LENGTH, LAP_TIME, "f1-2025", { f1Sectors });
     const sectors = await computeLapSectors(3004, "f1-2025", packets, LAP_TIME);
     expect(sectors).not.toBeNull();
-    expect(sectors!.s1).toBeCloseTo(f1Sectors.s1, 3);
-    expect(sectors!.s2).toBeCloseTo(f1Sectors.s2, 3);
-    expect(sectors!.s3).toBeCloseTo(LAP_TIME - f1Sectors.s1 - f1Sectors.s2, 3);
+    expect(sectors![0]).toBeCloseTo(f1Sectors.s1, 3);
+    expect(sectors![1]).toBeCloseTo(f1Sectors.s2, 3);
+    expect(sectors![2]).toBeCloseTo(LAP_TIME - f1Sectors.s1 - f1Sectors.s2, 3);
   });
 
   test("f1-2025 sector times sum to lap time", async () => {
@@ -131,7 +131,7 @@ describe("computeLapSectors — sector source priority", () => {
     const packets = makeLapPackets(TRACK_LENGTH, LAP_TIME, "f1-2025", { f1Sectors });
     const sectors = await computeLapSectors(3004, "f1-2025", packets, LAP_TIME);
     expect(sectors).not.toBeNull();
-    expect(sectors!.s1 + sectors!.s2 + sectors!.s3).toBeCloseTo(LAP_TIME, 3);
+    expect(sectors!.reduce((sum, time) => sum + time, 0)).toBeCloseTo(LAP_TIME, 3);
   });
 
   test("f1-2025 returns null when F1 packets don't carry sector times", async () => {

@@ -107,7 +107,7 @@ export function TuneLiveDashboard({ gameId, trackName, sessionLaps }: TuneLiveDa
         </div>
 
         <div className="border-b border-app-border p-3">
-          <PitEstimate packet={packet} pit={pit} gameId={gameId} />
+          <PitEstimate packet={packet} pit={pit} />
         </div>
 
         <AutoTunePanel gameId={gameId as "acc" | "ac-evo"} laps={sessionLaps} trackName={trackName} liveMode />

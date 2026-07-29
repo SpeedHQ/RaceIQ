@@ -2,6 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { m } from "@/paraglide/messages";
 import { useDeleteLap } from "../hooks/queries";
+import { storedLapsSectorCount } from "../lib/lap-sectors";
 import { useGameRoute } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
 import { Button } from "./ui/button";
@@ -56,28 +57,13 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
 
   const bestLapTime = laps.reduce((best, l) => (l.isValid && l.lapTime < best ? l.lapTime : best), Infinity);
 
-  // Compute best sector times across all laps (from stored s1/s2/s3)
-  const bestSectors = { s1: Infinity, s2: Infinity, s3: Infinity };
-  const avgSectors = { s1: 0, s2: 0, s3: 0, count: 0 };
-  for (const l of laps) {
-    const s1 = l.s1Time ?? 0,
-      s2 = l.s2Time ?? 0,
-      s3 = l.s3Time ?? 0;
-    if (s1 > 0 && s1 < bestSectors.s1) bestSectors.s1 = s1;
-    if (s2 > 0 && s2 < bestSectors.s2) bestSectors.s2 = s2;
-    if (s3 > 0 && s3 < bestSectors.s3) bestSectors.s3 = s3;
-    if (s1 > 0 && s2 > 0 && s3 > 0) {
-      avgSectors.s1 += s1;
-      avgSectors.s2 += s2;
-      avgSectors.s3 += s3;
-      avgSectors.count++;
-    }
-  }
-  if (avgSectors.count > 0) {
-    avgSectors.s1 /= avgSectors.count;
-    avgSectors.s2 /= avgSectors.count;
-    avgSectors.s3 /= avgSectors.count;
-  }
+  const sectorCount = storedLapsSectorCount(laps);
+  const sectorLabels = Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`);
+  const completeSectorLaps = laps.filter((lap) => lap.sectorTimes?.length === sectorCount && lap.sectorTimes.every((time) => time > 0));
+  const bestSectors = Array.from({ length: sectorCount }, (_, index) => (completeSectorLaps.length > 0 ? Math.min(...completeSectorLaps.map((lap) => lap.sectorTimes![index])) : Infinity));
+  const avgSectors = Array.from({ length: sectorCount }, (_, index) =>
+    completeSectorLaps.length > 0 ? completeSectorLaps.reduce((sum, lap) => sum + lap.sectorTimes![index], 0) / completeSectorLaps.length : 0,
+  );
 
   // Color: purple = best, green = on/above pace, yellow = off pace
   function sectorColor(time: number, best: number, avg: number): string {
@@ -100,32 +86,30 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
               {m.label_time()}
               {arrow("time")}
             </th>
-            <th className="text-left p-2">
-              <span className="text-red-400">S1</span>
-            </th>
-            <th className="text-left p-2">
-              <span className="text-blue-400">S2</span>
-            </th>
-            <th className="text-left p-2">
-              <span className="text-yellow-400">S3</span>
-            </th>
+            {sectorLabels.map((label) => (
+              <th key={label} className="text-left p-2">
+                {label}
+              </th>
+            ))}
             <th className="text-center p-2">{m.laps_col_valid()}</th>
             <th className="text-right p-2">{m.label_actions()}</th>
           </tr>
         </thead>
         <tbody>
           {sortedLaps.map((lap) => {
-            const s1 = lap.s1Time ?? 0,
-              s2 = lap.s2Time ?? 0,
-              s3 = lap.s3Time ?? 0;
-            const hasSectors = s1 > 0 && s2 > 0 && s3 > 0;
+            const hasSectors = lap.sectorTimes?.length === sectorCount && lap.sectorTimes.every((time) => time > 0);
             return (
               <tr key={lap.id} className="border-b border-app-border/50 hover:bg-app-surface-alt/30">
                 <td className="p-2 font-mono text-app-text">{lap.lapNumber}</td>
                 <td className={`p-2 font-mono font-bold ${lap.isValid && lap.lapTime === bestLapTime ? "text-purple-400" : "text-app-text"}`}>{formatLapTime(lap.lapTime)}</td>
-                <td className={`p-2 font-mono text-xs font-bold ${hasSectors ? sectorColor(s1, bestSectors.s1, avgSectors.s1) : "text-app-text-secondary"}`}>{hasSectors ? formatLapTime(s1) : "-"}</td>
-                <td className={`p-2 font-mono text-xs font-bold ${hasSectors ? sectorColor(s2, bestSectors.s2, avgSectors.s2) : "text-app-text-secondary"}`}>{hasSectors ? formatLapTime(s2) : "-"}</td>
-                <td className={`p-2 font-mono text-xs font-bold ${hasSectors ? sectorColor(s3, bestSectors.s3, avgSectors.s3) : "text-app-text-secondary"}`}>{hasSectors ? formatLapTime(s3) : "-"}</td>
+                {sectorLabels.map((label, index) => {
+                  const time = lap.sectorTimes?.[index] ?? 0;
+                  return (
+                    <td key={label} className={`p-2 font-mono text-xs font-bold ${hasSectors ? sectorColor(time, bestSectors[index], avgSectors[index]) : "text-app-text-secondary"}`}>
+                      {hasSectors ? formatLapTime(time) : "-"}
+                    </td>
+                  );
+                })}
                 <td className="p-2 text-center">
                   {lap.isValid ? (
                     <span className="text-emerald-400">&#10003;</span>

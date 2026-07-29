@@ -19,11 +19,11 @@ async function bootstrap(client: Client) {
   `);
 }
 
-async function runMigrations(client: Client) {
+async function runMigrations(client: Client, throughVersion = Number.POSITIVE_INFINITY) {
   const appliedRows = await client.execute("SELECT version FROM schema_migrations");
   const applied = new Set(appliedRows.rows.map((r) => Number(r.version)));
   const pending = migrations
-    .filter((m) => !applied.has(m.version))
+    .filter((m) => !applied.has(m.version) && m.version <= throughVersion)
     .sort((a, b) => a.version - b.version);
 
   if (pending.length === 0) return 0;
@@ -158,4 +158,97 @@ describe("migration runner e2e", () => {
     expect(unique.size).toBe(versions.length);
     expect(versions).toEqual([...versions].sort((a, b) => a - b));
   });
+
+  test("v45 keeps native car ordinals unique without treating names as identity", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 42);
+    await client.execute(
+      `INSERT INTO discovered_cars (game_id, ordinal, name)
+       VALUES ('iracing', 101, 'Shared Display Name')`,
+    );
+
+    await runMigrations(client, 45);
+    await client.execute(
+      `INSERT INTO discovered_cars (game_id, ordinal, name)
+       VALUES ('iracing', 202, 'Shared Display Name')`,
+    );
+
+    const rows = await client.execute(
+      `SELECT ordinal, name
+       FROM discovered_cars
+       WHERE game_id = 'iracing'
+       ORDER BY ordinal`,
+    );
+    expect(
+      rows.rows.map((row) => ({
+        ordinal: Number(row.ordinal),
+        name: String(row.name),
+      })),
+    ).toEqual([
+      { ordinal: 101, name: "Shared Display Name" },
+      { ordinal: 202, name: "Shared Display Name" },
+    ]);
+    await expect(
+      client.execute(
+        `INSERT INTO discovered_cars (game_id, ordinal, name)
+         VALUES ('iracing', 202, 'Different Name')`,
+      ),
+    ).rejects.toThrow();
+    client.close();
+  });
+
+  test("v46 preserves valid layouts, rejects incomplete rows, and stales iRacing captures", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 45);
+    await client.execute(
+      `INSERT INTO sessions (
+         id, car_ordinal, track_ordinal, game_id, raw_file, lap_detector_version
+       )
+       VALUES (1, 10, 20, 'iracing', 'capture.bin.gz', 'lapdetector_v1'),
+              (2, 11, 21, 'f1-2025', 'f1-capture.bin.gz', 'lapdetector_v1')`,
+    );
+    await client.execute(
+      `INSERT INTO laps (session_id, lap_number, lap_time, s1_time, s2_time, s3_time)
+       VALUES (1, 1, 60, 30, 30, 0),
+              (1, 2, 90, 30, 31, 29),
+              (1, 3, 60, 30, NULL, NULL),
+              (2, 1, 90, 30, 31, NULL),
+              (2, 2, 90, 30, 31, 29)`,
+    );
+
+    await runMigrations(client);
+
+    const rows = await client.execute(
+      "SELECT sector_times FROM laps ORDER BY session_id, lap_number",
+    );
+    expect(rows.rows.map((row) => JSON.parse(String(row.sector_times)))).toEqual([
+      [30, 30],
+      [30, 31, 29],
+      null,
+      null,
+      [30, 31, 29],
+    ]);
+    const sessionVersions = await client.execute(
+      "SELECT id, lap_detector_version FROM sessions ORDER BY id",
+    );
+    expect(
+      sessionVersions.rows.map((row) => ({
+        id: Number(row.id),
+        version: row.lap_detector_version,
+      })),
+    ).toEqual([
+      { id: 1, version: null },
+      { id: 2, version: "lapdetector_v1" },
+    ]);
+    const columns = await client.execute("PRAGMA table_info(laps)");
+    const names = columns.rows.map((row) => String(row.name));
+    expect(names).toContain("sector_times");
+    expect(names).not.toContain("s1_time");
+    expect(names).not.toContain("s2_time");
+    expect(names).not.toContain("s3_time");
+    client.close();
+  });
+
 });

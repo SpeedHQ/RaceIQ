@@ -129,7 +129,7 @@ describe("AC Evo v0.6 recording", () => {
 		for (const l of laps) {
 			const s = l.sectors;
 			const sectorStr = s
-				? ` s1=${s.s1.toFixed(3)} s2=${s.s2.toFixed(3)} s3=${s.s3.toFixed(3)} Σ=${(s.s1 + s.s2 + s.s3).toFixed(3)}`
+				? ` ${s.map((time, index) => `s${index + 1}=${time.toFixed(3)}`).join(" ")} Σ=${s.reduce((sum, time) => sum + time, 0).toFixed(3)}`
 				: " sectors=null";
 			console.log(
 				`  lap ${l.lapNumber}: ${l.lapTime.toFixed(3)}s ${l.isValid ? "valid" : "invalid"}${l.invalidReason ? ` (${l.invalidReason})` : ""}${sectorStr}`,
@@ -216,7 +216,7 @@ describe("AC Evo v0.6 recording", () => {
 
 			// Strict sum: stored lap time and sector sum both derive from the same
 			// packet timestamps, so they must match at ms precision.
-			const sumMs = Math.round((s.s1 + s.s2 + s.s3) * 1000);
+			const sumMs = Math.round(s.reduce((sum, time) => sum + time, 0) * 1000);
 			const lapMs = Math.round(l.lapTime * 1000);
 			expect(sumMs).toBe(lapMs);
 
@@ -227,8 +227,8 @@ describe("AC Evo v0.6 recording", () => {
 			// lap time when the split is at 31% of distance).
 			const trackOrdinal = l.packets[0].TrackOrdinal ?? 0;
 			const meta = getTrackSectorsByOrdinal(trackOrdinal);
-			const s1Frac = s.s1 / l.lapTime;
-			const s12Frac = (s.s1 + s.s2) / l.lapTime;
+			const s1Frac = s[0] / l.lapTime;
+			const s12Frac = (s[0] + s[1]) / l.lapTime;
 			expect(Math.abs(s1Frac - meta.s1End)).toBeLessThan(0.12);
 			expect(Math.abs(s12Frac - meta.s2End)).toBeLessThan(0.12);
 		}
@@ -236,8 +236,9 @@ describe("AC Evo v0.6 recording", () => {
 		// Consistency across laps: same sector should not vary by more than
 		// 10s (catches a bad boundary/reset on one lap).
 		if (completeLaps.length >= 2) {
-			for (const key of ["s1", "s2", "s3"] as const) {
-				const values = completeLaps.map((l) => l.sectors![key]);
+			const sectorCount = completeLaps[0].sectors!.length;
+			for (let sectorIndex = 0; sectorIndex < sectorCount; sectorIndex++) {
+				const values = completeLaps.map((l) => l.sectors![sectorIndex]);
 				const spread = Math.max(...values) - Math.min(...values);
 				expect(spread).toBeLessThan(10);
 			}

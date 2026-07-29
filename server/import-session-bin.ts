@@ -1,5 +1,7 @@
 import { gunzipSync } from "zlib";
+import { existsSync, unlinkSync } from "fs";
 import { KNOWN_GAME_IDS, type GameId, type LapMeta } from "../shared/types";
+import { deleteSession } from "./db/queries";
 import { getAllServerGames, getServerGame } from "./games/registry";
 import { Pipeline } from "./pipeline";
 import { RealDbAdapter, type DbAdapter, type WsAdapter } from "./pipeline-adapters";
@@ -29,6 +31,10 @@ export interface ImportedLap {
 export class ImportCaptureAdapter implements DbAdapter {
   private readonly _inner = new RealDbAdapter();
   readonly laps: ImportedLap[] = [];
+  readonly sessionIds = new Set<number>();
+  readonly rawFiles = new Set<string>();
+  private readonly _pendingLapWrites = new Set<Promise<number>>();
+  private _lapWriteFailure: unknown;
   private readonly _sessionMeta = new Map<
     number,
     { carOrdinal: number; trackOrdinal: number }
@@ -38,14 +44,20 @@ export class ImportCaptureAdapter implements DbAdapter {
     carOrdinal: number,
     trackOrdinal: number,
     gameId: GameId,
-    sessionType?: string
+    sessionType?: string,
   ): Promise<number> {
-    const id = await this._inner.insertSession(carOrdinal, trackOrdinal, gameId, sessionType);
+    const id = await this._inner.insertSession(
+      carOrdinal,
+      trackOrdinal,
+      gameId,
+      sessionType,
+    );
+    this.sessionIds.add(id);
     this._sessionMeta.set(id, { carOrdinal, trackOrdinal });
     return id;
   }
 
-  async insertLap(
+  insertLap(
     sessionId: number,
     lapNumber: number,
     lapTime: number,
@@ -55,22 +67,32 @@ export class ImportCaptureAdapter implements DbAdapter {
     profileId: number | null,
     tuneId: number | null,
     invalidReason: string | null,
-    sectors: { s1: number; s2: number; s3: number } | null
+    sectors: number[] | null
   ): Promise<number> {
-    const id = await this._inner.insertLap(
+    const pending = this._inner.insertLap(
       sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors
-    );
-    const meta = this._sessionMeta.get(sessionId);
-    this.laps.push({
-      lapId: id,
-      sessionId,
-      lapNumber,
-      lapTime,
-      isValid,
-      carOrdinal: meta?.carOrdinal ?? 0,
-      trackOrdinal: meta?.trackOrdinal ?? 0,
+    ).then((id) => {
+      const meta = this._sessionMeta.get(sessionId);
+      this.laps.push({
+        lapId: id,
+        sessionId,
+        lapNumber,
+        lapTime,
+        isValid,
+        carOrdinal: meta?.carOrdinal ?? 0,
+        trackOrdinal: meta?.trackOrdinal ?? 0,
+      });
+      return id;
     });
-    return id;
+    this._pendingLapWrites.add(pending);
+    void pending.then(
+      () => this._pendingLapWrites.delete(pending),
+      (error) => {
+        this._pendingLapWrites.delete(pending);
+        this._lapWriteFailure ??= error;
+      },
+    );
+    return pending;
   }
 
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
@@ -83,6 +105,7 @@ export class ImportCaptureAdapter implements DbAdapter {
     return this._inner.getTuneAssignment(gameId, carOrdinal, trackOrdinal);
   }
   updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void> {
+    this.rawFiles.add(rawFile);
     return this._inner.updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
   }
   updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
@@ -97,6 +120,27 @@ export class ImportCaptureAdapter implements DbAdapter {
   }
   getLapExperimentScope(lapId: number) {
     return this._inner.getLapExperimentScope(lapId);
+  }
+
+  async waitForPendingLapWrites(): Promise<void> {
+    while (this._pendingLapWrites.size > 0) {
+      await Promise.allSettled([...this._pendingLapWrites]);
+    }
+    if (this._lapWriteFailure) throw this._lapWriteFailure;
+  }
+
+  /**
+   * Best-effort rollback for an isolated file import. The recorder must be
+   * stopped before this runs so no process still owns the canonical capture.
+   */
+  async rollback(): Promise<void> {
+    for (const sessionId of this.sessionIds) {
+      await deleteSession(sessionId);
+    }
+    for (const rawFile of this.rawFiles) {
+      if (existsSync(rawFile)) unlinkSync(rawFile);
+    }
+    this.laps.length = 0;
   }
 }
 
@@ -127,6 +171,75 @@ function* iterateFrames(buf: Buffer): Generator<Buffer> {
     yield buf.subarray(offset, offset + len);
     offset += len;
   }
+}
+
+export type SessionFrameSource =
+  | Iterable<Buffer>
+  | AsyncIterable<Buffer>;
+
+export interface ImportSessionFramesOptions {
+  /** Roll back the imported session and capture when no complete lap exists. */
+  requireLaps?: boolean;
+}
+
+/**
+ * Feed any canonical raw-frame stream through an isolated parser + pipeline.
+ * The normal Pipeline recorder writes the imported source back out as RaceIQ's
+ * standard session `.bin`, so replay/export/reprocessing work identically no
+ * matter which source format supplied the frames.
+ */
+export async function importSessionFrames(
+  frames: SessionFrameSource,
+  gameId: GameId,
+  options: ImportSessionFramesOptions = {},
+): Promise<{
+  packetCount: number;
+  laps: ImportedLap[];
+  sessionIds: number[];
+}> {
+  const serverGame = getServerGame(gameId);
+  const state = serverGame.createParserState?.() ?? null;
+  const db = new ImportCaptureAdapter();
+  const pipeline = new Pipeline(db, new NoopWsAdapter(), {
+    bypassPacketRateFilter: true,
+  });
+
+  let packetCount = 0;
+  let failure: unknown;
+  try {
+    for await (const frame of frames) {
+      const packet = serverGame.tryParse(frame, state);
+      if (!packet) continue;
+      await pipeline.processPacket(packet, frame);
+      packetCount++;
+    }
+
+    await pipeline.flushIncompleteLap();
+    await db.waitForPendingLapWrites();
+  } catch (error) {
+    failure = error;
+  } finally {
+    try {
+      await pipeline.flushSessionRecorder();
+    } catch (error) {
+      failure ??= error;
+    }
+  }
+
+  if (failure) {
+    await db.rollback();
+    throw failure;
+  }
+  if (options.requireLaps && db.laps.length === 0) {
+    await db.rollback();
+    throw new Error("No complete, importable laps were found");
+  }
+
+  return {
+    packetCount,
+    laps: db.laps,
+    sessionIds: [...db.sessionIds],
+  };
 }
 
 /**
@@ -166,24 +279,9 @@ export async function importSessionBin(
   gameId: GameId
 ): Promise<{ packetCount: number; laps: ImportedLap[] }> {
   const buf = decompressIfGz(bytes);
-
-  const serverGame = getServerGame(gameId);
-  const state = serverGame.createParserState?.() ?? null;
-  const db = new ImportCaptureAdapter();
-  const pipeline = new Pipeline(db, new NoopWsAdapter(), { bypassPacketRateFilter: true });
-
-  let packetCount = 0;
-  for (const frame of iterateFrames(buf)) {
-    const packet = serverGame.tryParse(frame, state);
-    if (packet) {
-      await pipeline.processPacket(packet, frame);
-      packetCount++;
-    }
-  }
-
-  await pipeline.flushIncompleteLap();
-  // Lap-detector uses setTimeout(..., 0) for deferred insertLap calls.
-  await new Promise<void>((r) => setTimeout(r, 100));
-
-  return { packetCount, laps: db.laps };
+  const { packetCount, laps } = await importSessionFrames(
+    iterateFrames(buf),
+    gameId,
+  );
+  return { packetCount, laps };
 }

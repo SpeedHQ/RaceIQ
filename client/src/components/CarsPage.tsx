@@ -5,6 +5,8 @@ import { m } from "@/paraglide/messages";
 import { getCarModel, loadCarModelConfigs } from "../data/car-models";
 import { useUnits } from "../hooks/useUnits";
 import { client } from "../lib/rpc";
+import { errorFromResponse } from "../lib/rpc-error";
+import { useRequiredGameId } from "../stores/game";
 import { PI_COLORS, PiBadge, piClass } from "./forza/PiBadge";
 import { AppInput } from "./ui/AppInput";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
@@ -320,6 +322,7 @@ function ColHeader({ k, label, className = "", sort, sortDir, onSort }: { k: Sor
 
 export function CarsPage() {
   const navigate = useNavigate();
+  const gameId = useRequiredGameId();
   const searchParams = useSearch({ strict: false }) as { compare?: string };
   const [configsReady, setConfigsReady] = useState(false);
   useEffect(() => {
@@ -338,8 +341,15 @@ export function CarsPage() {
   }
 
   const { data: cars = [], isLoading } = useQuery<Car[]>({
-    queryKey: ["cars"],
-    queryFn: () => client.api.cars.$get().then((r) => r.json()),
+    queryKey: ["cars", gameId],
+    queryFn: async () => {
+      const response = await client.api.cars.$get(
+        {},
+        { headers: { "X-Game-Id": gameId } },
+      );
+      if (!response.ok) throw await errorFromResponse(response);
+      return response.json() as Promise<Car[]>;
+    },
     staleTime: 60_000,
   });
 

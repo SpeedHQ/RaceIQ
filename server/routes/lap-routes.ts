@@ -27,6 +27,12 @@ import { buildLapsZip, lapsZipFilename, importLapsZip } from "../zip";
 import { recordAction } from "../db/experiment-action-queries";
 import { KNOWN_GAME_IDS } from "../../shared/types";
 import { importSessionBin, detectGameIdFromBuffer } from "../import-session-bin";
+import {
+  cancelStagedIbt,
+  commitStagedIbt,
+  IbtImportError,
+  stageIbtUpload,
+} from "../import-ibt";
 import { importMotec, resolveMotecTarget } from "../motec/import";
 import { getMotecTargets, initMotecTargets } from "../motec/targets";
 import { analyzeLap } from "../../shared/lib/lap-insights";
@@ -35,7 +41,6 @@ import { buildCompareInsightsBlock } from "../ai/insight-format";
 import { assessLapRecording } from "../lap-quality";
 
 // Toggle: set true to use native ACC lastSectorTime transitions in recheck instead of distance-fraction
-const USE_NATIVE_ACC_SECTORS = false;
 import { getTuneById as getDbTune } from "../db/tune-queries";
 import { generateExport } from "../export";
 import { compareLaps } from "../comparison";
@@ -46,7 +51,10 @@ import type { GameId } from "../../shared/types";
 import { loadSettings } from "../settings";
 import { buildAnalystPrompt } from "../ai/analyst-prompt";
 import { resolveTrack } from "../track-info";
-import { computeLapSectors } from "../compute-lap-sectors";
+import {
+  computeNativeSectorTimeline,
+  computeLapSectors,
+} from "../compute-lap-sectors";
 import { getAnalystJsonSchema } from "../ai/schemas";
 import {
   getChatMemory,
@@ -139,6 +147,10 @@ const BulkDeleteSchema = z.object({
   ids: z.array(z.number().int()),
 });
 
+const IbtImportTokenSchema = z.object({
+  token: z.string().uuid(),
+});
+
 /** Comma-separated id list in a query string → number[] (ignores junk/empties). */
 const IdListSchema = z
   .string()
@@ -222,21 +234,49 @@ export const lapRoutes = new Hono()
 
   // ── Get single lap ──────────────────────────────────────────
   .get("/api/laps/:id", zValidator("param", IdParamSchema), async (c) => {
+    const gameIdResult = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
+    if (!gameIdResult.success) {
+      return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
+    }
+    const gameId = gameIdResult.data;
     const { id } = c.req.valid("param");
     const lap = await getLapById(id);
-    if (!lap) return c.json({ error: "Lap not found" }, 404);
+    if (!lap || lap.gameId !== gameId) {
+      return c.json({ error: "Lap not found" }, 404);
+    }
 
     // Compute sector times server-side
-    let sectorTimes: { times: [number, number, number]; s1Idx: number; s2Idx: number; firstDist: number; lapDist: number } | null = null;
+    let sectorTimes: {
+      times: number[];
+      sectorCount: number;
+      boundaryIndices: number[];
+      sectorStarts: number[];
+      firstDist: number;
+      lapDist: number;
+    } | null = null;
     const packets = lap.telemetry;
     if (packets.length >= 10 && lap.trackOrdinal != null) {
-      const gameId = c.req.header("x-game-id") as GameId | undefined;
-      const sectors = resolveTrack(gameId, lap.trackOrdinal).sectors;
-      if (sectors?.s1End && sectors?.s2End) {
-        const firstDist = packets[0].DistanceTraveled;
-        const lastDist = packets[packets.length - 1].DistanceTraveled;
-        const lapDist = lastDist - firstDist;
-        if (lapDist > 0) {
+      const game = getGame(gameId);
+      const firstDist = packets[0].DistanceTraveled;
+      const lastDist = packets[packets.length - 1].DistanceTraveled;
+      const lapDist = lastDist - firstDist;
+
+      if (game.nativeSectors && game.getNativeSectorLayout) {
+        const nativeTimeline = computeNativeSectorTimeline(
+          packets,
+          lap.lapTime,
+          game.getNativeSectorLayout,
+        );
+        if (nativeTimeline && lapDist > 0) {
+          sectorTimes = {
+            ...nativeTimeline,
+            firstDist,
+            lapDist,
+          };
+        }
+      } else {
+        const sectors = resolveTrack(gameId, lap.trackOrdinal).sectors;
+        if (sectors?.s1End && sectors?.s2End && lapDist > 0) {
           // Determine the best time source: CurrentLap if it progresses, else TimestampMS
           const lapProgression = packets[packets.length - 1].CurrentLap - packets[0].CurrentLap;
           const useTimestamp = lapProgression < 1; // CurrentLap unreliable (e.g. ACC with invalid iCurrentTime)
@@ -261,14 +301,21 @@ export const lapRoutes = new Hono()
             lap.lapTime || (useTimestamp ? (packets[packets.length - 1].TimestampMS - packets[0].TimestampMS) / 1000 : packets[packets.length - 1].CurrentLap - packets[0].CurrentLap);
           let s3Time = totalLapTime - s1Time - s2Time;
           if (s3Time < 0) s3Time = 0;
-          sectorTimes = { times: [s1Time, s2Time, s3Time], s1Idx, s2Idx, firstDist, lapDist };
+          sectorTimes = {
+            times: [s1Time, s2Time, s3Time],
+            sectorCount: 3,
+            boundaryIndices: [s1Idx, s2Idx],
+            sectorStarts: [0, sectors.s1End, sectors.s2End],
+            firstDist,
+            lapDist,
+          };
         }
       }
     }
 
     // Precomputed lap insights — server-side so the client gets them in the
     // initial fetch instead of re-deriving on every render
-    const insights = lap.gameId ? analyzeLap(packets, lap.gameId) : [];
+    const insights = analyzeLap(packets, gameId);
 
     return c.json({ ...lap, sectorTimes, insights });
   })
@@ -471,6 +518,84 @@ export const lapRoutes = new Hono()
   })
 
   // ── AI analysis ─────────────────────────────────────────────
+  // Preview + commit an iRacing disk telemetry capture (.ibt). The raw
+  // request body is streamed to a short-lived staging file, avoiding the
+  // multipart/arrayBuffer path used by small canonical .bin captures.
+  // Preview never writes sessions or laps. Commit feeds canonical iRacing
+  // source frames into the same isolated Pipeline used by .bin imports.
+  .post("/api/laps/import-ibt/preview", async (c) => {
+    const uploadName =
+      c.req.header("x-file-name") ?? "session.ibt";
+    if (!uploadName.toLowerCase().endsWith(".ibt")) {
+      return c.json({ error: "Expected an .ibt file" }, 400);
+    }
+    const declaredHeader =
+      c.req.header("x-file-size") ?? c.req.header("content-length");
+    const declaredBytes = declaredHeader
+      ? Number(declaredHeader)
+      : undefined;
+
+    try {
+      const result = await stageIbtUpload(
+        c.req.raw.body,
+        uploadName,
+        declaredBytes,
+      );
+      return c.json(result);
+    } catch (error) {
+      const status =
+        error instanceof IbtImportError ? error.status : 400;
+      const message =
+        error instanceof Error ? error.message : String(error);
+      console.error("[IBT Import] Preview failed:", message);
+      return c.json(
+        { error: `Failed to preview IBT: ${message}` },
+        status,
+      );
+    }
+  })
+
+  .post(
+    "/api/laps/import-ibt/commit",
+    zValidator("json", IbtImportTokenSchema),
+    async (c) => {
+      const { token } = c.req.valid("json");
+      try {
+        const { packetCount, laps, preview } =
+          await commitStagedIbt(token);
+        return c.json({
+          ok: true,
+          gameId: "iracing" as const,
+          routePrefix: getGame("iracing").routePrefix,
+          packetCount,
+          imported: laps.length,
+          laps,
+          preview,
+        });
+      } catch (error) {
+        const status =
+          error instanceof IbtImportError ? error.status : 500;
+        const message =
+          error instanceof Error ? error.message : String(error);
+        console.error("[IBT Import] Commit failed:", message);
+        return c.json(
+          { error: `Failed to import IBT: ${message}` },
+          status,
+        );
+      }
+    },
+  )
+
+  .post(
+    "/api/laps/import-ibt/cancel",
+    zValidator("json", IbtImportTokenSchema),
+    (c) => {
+      const { token } = c.req.valid("json");
+      cancelStagedIbt(token);
+      return c.json({ ok: true });
+    },
+  )
+
   .post("/api/laps/:id/analyse", zValidator("param", IdParamSchema), zValidator("query", AnalyseQuerySchema), async (c) => {
     const { id } = c.req.valid("param");
     const { regenerate, cacheOnly } = c.req.valid("query");
@@ -562,11 +687,40 @@ export const lapRoutes = new Hono()
 
     // Sector times, split on those boundaries, so the model can attribute a
     // slow sector to the corners it actually covers.
-    let sectors: { times: { s1: number; s2: number; s3: number }; s1End: number; s2End: number } | undefined;
-    if (track.sectors.s1End && track.sectors.s2End && lap.gameId && lap.trackOrdinal != null) {
+    let sectors: { times: number[]; sectorStarts: number[] } | undefined;
+    if (lap.gameId && lap.trackOrdinal != null) {
       try {
-        const times = await computeLapSectors(lap.trackOrdinal, lap.gameId as GameId, lap.telemetry, lap.lapTime);
-        if (times) sectors = { times, s1End: track.sectors.s1End, s2End: track.sectors.s2End };
+        const game = getGame(lap.gameId);
+        if (game.nativeSectors && game.getNativeSectorLayout) {
+          const timeline = computeNativeSectorTimeline(
+            lap.telemetry,
+            lap.lapTime,
+            game.getNativeSectorLayout,
+          );
+          if (timeline) {
+            sectors = {
+              times: timeline.times,
+              sectorStarts: timeline.sectorStarts,
+            };
+          }
+        } else if (track.sectors.s1End && track.sectors.s2End) {
+          const times = await computeLapSectors(
+            lap.trackOrdinal,
+            lap.gameId as GameId,
+            lap.telemetry,
+            lap.lapTime,
+          );
+          if (times) {
+            sectors = {
+              times,
+              sectorStarts: [
+                0,
+                track.sectors.s1End,
+                track.sectors.s2End,
+              ],
+            };
+          }
+        }
       } catch {
         /* sector times are optional context */
       }
@@ -896,56 +1050,14 @@ export const lapRoutes = new Hono()
 
     // Recompute sector times
     const packets = lap.telemetry;
-    let sectors: { s1: number; s2: number; s3: number } | null = null;
-    if (packets.length >= 50) {
-      const startDist = packets[0].DistanceTraveled;
-      const lapDist = packets[packets.length - 1].DistanceTraveled - startDist;
-      if (lapDist >= 100) {
-        const gameId = lap.gameId as GameId | undefined;
-        let s1 = 0,
-          s2 = 0;
-
-        if (USE_NATIVE_ACC_SECTORS && gameId === "acc") {
-          // Replay native sector transitions from stored packets (mirrors live tracker)
-          let prevIdx = packets[0].acc?.currentSectorIndex ?? 0;
-          for (const p of packets) {
-            if (!p.acc) continue;
-            const idx = p.acc.currentSectorIndex;
-            const t = p.acc.lastSectorTime / 1000;
-            if (idx !== prevIdx && t > 0) {
-              if (prevIdx === 0) s1 = t;
-              else if (prevIdx === 1) s2 = t;
-              prevIdx = idx;
-            }
-          }
-        }
-
-        if (s1 === 0 || s2 === 0) {
-          const _gameId = c.req.header("x-game-id") as GameId | undefined;
-          const { s1End, s2End } = resolveTrack(_gameId, lap.trackOrdinal).sectors;
-
-          let sector = 0,
-            sectorStart = packets[0].CurrentLap;
-          s1 = 0;
-          s2 = 0;
-          for (const p of packets) {
-            const frac = (p.DistanceTraveled - startDist) / lapDist;
-            const expected = frac < s1End ? 0 : frac < s2End ? 1 : 2;
-            if (expected > sector) {
-              const t = p.CurrentLap - sectorStart;
-              if (sector === 0) s1 = t;
-              else if (sector === 1) s2 = t;
-              sectorStart = p.CurrentLap;
-              sector = expected;
-            }
-          }
-        }
-
-        if (s1 > 0 && s2 > 0) {
-          const s3 = lap.lapTime - s1 - s2;
-          if (s3 > 0) sectors = { s1, s2, s3 };
-        }
-      }
+    let sectors: number[] | null = null;
+    if (packets.length >= 50 && lap.gameId && lap.trackOrdinal != null) {
+      sectors = await computeLapSectors(
+        lap.trackOrdinal,
+        lap.gameId as GameId,
+        packets,
+        lap.lapTime,
+      );
     }
 
     await updateLapValidity(id, quality.valid, quality.valid ? null : quality.reason, sectors);

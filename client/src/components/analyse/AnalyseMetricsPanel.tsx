@@ -1,15 +1,27 @@
-import type { GameId, TelemetryPacket } from "@shared/types";
+import { getGame } from "@shared/games/registry";
+import {
+  getFuelAmount,
+  getFuelDisplay,
+  WATTS_PER_HORSEPOWER,
+} from "@shared/games/telemetry";
+import type { TelemetryPacket } from "@shared/types";
 import { useUnits } from "../../hooks/useUnits";
 import { m } from "../../paraglide/messages";
 import { getSteeringLock } from "../Settings";
 
-export function MetricsPanel({ pkt, startFuel, gameId }: { pkt: TelemetryPacket & { DisplaySpeed?: number }; startFuel?: number; gameId?: GameId }) {
+export function MetricsPanel({ pkt, startFuel }: { pkt: TelemetryPacket & { DisplaySpeed?: number }; startFuel?: number }) {
   const units = useUnits();
+  const telemetryModel = getGame(pkt.gameId).telemetry;
   const speed = pkt.DisplaySpeed ?? units.speed(pkt.Speed);
   const throttlePct = ((pkt.Accel / 255) * 100).toFixed(0);
   const brakePct = ((pkt.Brake / 255) * 100).toFixed(0);
   const lock = getSteeringLock();
   const steerDeg = (pkt.Steer / 127) * (lock / 2);
+  const fuel = getFuelDisplay(pkt, telemetryModel.fuel);
+  const fuelUsed =
+    startFuel === undefined
+      ? null
+      : getFuelAmount(startFuel - pkt.Fuel, telemetryModel.fuel);
 
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs font-mono">
@@ -19,15 +31,15 @@ export function MetricsPanel({ pkt, startFuel, gameId }: { pkt: TelemetryPacket 
       <MetricRow label={m.dataguide_throttle()} value={`${throttlePct}%`} color={Number(throttlePct) > 0 ? "#34d399" : undefined} />
       <MetricRow label={m.dataguide_brake()} value={`${brakePct}%`} color={Number(brakePct) > 0 ? "#ef4444" : undefined} />
       <MetricRow label={m.dataguide_steer()} value={`${steerDeg > 0 ? "+" : ""}${steerDeg.toFixed(0)}°`} />
-      {(gameId === "fm-2023" || pkt.Boost > 0) && <MetricRow label={m.dataguide_boost()} value={`${pkt.Boost.toFixed(1)} psi`} />}
-      {(gameId === "fm-2023" || pkt.Power > 0) && <MetricRow label={m.dataguide_power()} value={`${(pkt.Power / 745.7).toFixed(0)} hp`} />}
-      {(gameId === "fm-2023" || pkt.Torque > 0) && <MetricRow label={m.dataguide_torque()} value={`${pkt.Torque.toFixed(0)} Nm`} />}
+      {telemetryModel.boost && <MetricRow label={m.dataguide_boost()} value={`${pkt.Boost.toFixed(1)} psi`} />}
+      {telemetryModel.power && <MetricRow label={m.dataguide_power()} value={`${(pkt.Power / WATTS_PER_HORSEPOWER).toFixed(0)} hp`} />}
+      {telemetryModel.torque && <MetricRow label={m.dataguide_torque()} value={`${pkt.Torque.toFixed(0)} Nm`} />}
       <div className="col-span-2 flex justify-between">
         <span className="text-app-text-muted">{m.dataguide_fuel()}</span>
         <span className="tabular-nums">
-          <span className="text-amber-400">{startFuel != null ? ((startFuel - pkt.Fuel) * 100).toFixed(1) : "?"}</span>
+          <span className="text-amber-400">{fuelUsed ? `${fuelUsed.amount.toFixed(1)}${fuelUsed.unit}` : "?"}</span>
           <span className="text-app-text-dim"> used </span>
-          <span className="text-app-text">{(pkt.Fuel * 100).toFixed(1)}%</span>
+          <span className="text-app-text">{fuel.amount.toFixed(1)}{fuel.unit}</span>
           <span className="text-app-text-dim"> left</span>
         </span>
       </div>

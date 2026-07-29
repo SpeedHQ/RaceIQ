@@ -3,7 +3,8 @@ import { memo, type RefObject, useMemo } from "react";
 import { formatLapTime } from "@/lib/format";
 
 interface SectorTimesData {
-  times: [number, number, number];
+  times: number[];
+  sectorCount: number;
   cursorSector: number;
 }
 
@@ -73,16 +74,16 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
         <span className="text-2xl font-mono font-bold tabular-nums text-app-accent">{formatLapTime(currentTime)}</span>
         <span className="text-sm font-mono tabular-nums text-app-text-secondary">/ {formatLapTime(totalTime)}</span>
         {sectorTimes &&
-          (["S1", "S2", "S3"] as const).map((name, i) => {
-            const colors = ["#ef4444", "#3b82f6", "#eab308"];
+          Array.from({ length: sectorTimes.sectorCount }, (_, index) => `S${index + 1}`).map((name, i) => {
+            const colors = ["#ef4444", "#3b82f6", "#eab308", "#22c55e", "#a855f7", "#f97316"];
             const isActive = sectorTimes.cursorSector === i;
             return (
               <div
                 key={name}
                 className={`flex items-center gap-1.5 px-2 py-1 rounded ${isActive ? "bg-app-surface-alt ring-1" : "bg-app-surface-alt/30"}`}
-                style={isActive ? { boxShadow: `inset 0 0 0 1px ${colors[i]}40` } : {}}
+                style={isActive ? { boxShadow: `inset 0 0 0 1px ${colors[i % colors.length]}40` } : {}}
               >
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors[i] }} />
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors[i % colors.length] }} />
                 <span className="text-[10px] font-semibold text-app-text-muted">{name}</span>
                 <span className={`text-xs font-mono font-bold tabular-nums ${isActive ? "text-app-text" : "text-app-text-secondary"}`}>{formatLapTime(sectorTimes.times[i])}</span>
               </div>
@@ -94,6 +95,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
       </div>
       <div className="flex items-center gap-3">
         <button
+          type="button"
           onClick={onTogglePlay}
           className="text-lg w-8 h-8 flex items-center justify-center rounded bg-app-surface-alt hover:bg-app-border-input text-app-text transition-colors"
           title={playing ? "Pause (Space)" : "Play (Space)"}
@@ -103,6 +105,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
         <div className="flex gap-1">
           {[0.1, 0.25, 0.5, 1, 1.5, 2, 2.5].map((s) => (
             <button
+              type="button"
               key={s}
               onClick={() => onSpeedChange(s)}
               className={`px-1.5 py-0.5 text-[10px] font-mono rounded transition-colors ${
@@ -114,7 +117,20 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
           ))}
         </div>
         <div
+          role="slider"
+          tabIndex={0}
+          aria-label="Lap timeline"
+          aria-valuemin={0}
+          aria-valuemax={Math.max(0, totalPackets - 1)}
+          aria-valuenow={cursorIdx}
           className="flex-1 relative h-4 flex items-center group cursor-pointer"
+          onKeyDown={(event) => {
+            if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+              event.preventDefault();
+              const direction = event.key === "ArrowLeft" ? -1 : 1;
+              onSeek(Math.max(0, Math.min(totalPackets - 1, cursorIdx + direction)));
+            }
+          }}
           onMouseDown={(e) => {
             const bar = e.currentTarget;
             const seek = (clientX: number) => {
@@ -151,8 +167,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
           <div className="absolute inset-x-0 h-2 bg-app-border-input rounded-full">
             {/* Gap highlights */}
             {timelineData?.timeFracs &&
-              timelineData.times &&
-              timelineData.times.map((t, i) => {
+              timelineData.times?.map((t, i) => {
                 if (i === 0) return null;
                 const dt = t - timelineData.times[i - 1];
                 if (dt <= 0.1) return null;
@@ -160,7 +175,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
                 const right = timelineData.timeFracs[i] * 100;
                 return (
                   <div
-                    key={i}
+                    key={`${timelineData.timeFracs[i - 1]}-${timelineData.timeFracs[i]}`}
                     className="absolute top-0 h-full bg-red-500/30 border-x border-red-500/50"
                     style={{ left: `${left}%`, width: `${Math.max(0.3, right - left)}%` }}
                     title={`${dt.toFixed(2)}s gap`}

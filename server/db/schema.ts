@@ -61,9 +61,25 @@ export const discoveredCars = sqliteTable(
 		model: text("model").notNull().default(""),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 	},
+	(table) => [unique().on(table.gameId, table.ordinal)],
+);
+
+/**
+ * Tracks whose identity is supplied by runtime telemetry rather than a bundled
+ * catalogue. The native ordinal is the durable identity; names are hydrated
+ * into the relevant game adapter at startup.
+ */
+export const discoveredTracks = sqliteTable(
+	"discovered_tracks",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		gameId: text("game_id").notNull(),
+		ordinal: integer("ordinal").notNull(),
+		name: text("name").notNull(),
+		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+	},
 	(table) => [
 		unique().on(table.gameId, table.ordinal),
-		unique().on(table.gameId, table.name),
 	],
 );
 
@@ -101,9 +117,9 @@ export const laps = sqliteTable(
 		tuneId: integer("tune_id").references(() => tunes.id, {
 			onDelete: "set null",
 		}),
-		s1Time: real("s1_time"),
-		s2Time: real("s2_time"),
-		s3Time: real("s3_time"),
+		// Ordered, source-defined sector times. Sector count is session/layout
+		// data and is deliberately not constrained to three (GitHub #134).
+		sectorTimes: text("sector_times", { mode: "json" }).$type<number[]>(),
 		rawByteOffset: integer("raw_byte_offset"),
 		rawFrameCount: integer("raw_frame_count"),
 		// Explicit experiment link (migration v25). Stamped at insert from the

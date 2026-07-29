@@ -65,13 +65,14 @@ function makeGraphicsBuf(overrides: Record<string, number> = {}): Buffer {
 }
 
 /** Helper: create a minimal static buffer */
-function makeStaticBuf(overrides: { carModel?: string; track?: string; maxRpm?: number } = {}): Buffer {
+function makeStaticBuf(overrides: { carModel?: string; track?: string; maxRpm?: number; maxFuel?: number } = {}): Buffer {
   const buf = Buffer.alloc(STATIC.SIZE);
   const carModel = overrides.carModel ?? "bmw_m4_gt3";
   buf.write(carModel, STATIC.carModel.offset, "utf16le");
   const track = overrides.track ?? "monza";
   buf.write(track, STATIC.track.offset, "utf16le");
   buf.writeInt32LE(overrides.maxRpm ?? 9000, STATIC.maxRpm.offset);
+  buf.writeFloatLE(overrides.maxFuel ?? 120, STATIC.maxFuel.offset);
   return buf;
 }
 
@@ -125,9 +126,10 @@ describe("ACC parser", () => {
     const packet = parseAccBuffers(
       makePhysicsBuf({ fuel: 25.5 }),
       makeGraphicsBuf(),
-      makeStaticBuf()
+      makeStaticBuf({ maxFuel: 120 })
     );
     expect(packet!.Fuel).toBeCloseTo(25.5);
+    expect(packet!.FuelCapacity).toBeCloseTo(120);
   });
 
   test("parseAccBuffers maps lap times from ms to seconds", () => {

@@ -23,6 +23,14 @@ import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { META_FRAME_MAGIC } from "../server/udp-recorder";
 import { buildLapsZip, LAPS_ZIP_VERSION, type LapsZipManifest } from "../server/zip";
+import {
+  createIRacingSourceDecoderState,
+  decodeIRacingSourceFrame,
+  IRacingSourceFrameEncoder,
+  isIRacingSessionFrame,
+  type IRacingSourceFrameV2,
+} from "../server/games/iracing/source-frame";
+import type { GameId } from "../shared/types";
 
 initGameAdapters();
 initServerGameAdapters();
@@ -85,10 +93,13 @@ describe("buildLapsZip", () => {
     tmpFiles.length = 0;
   });
 
-  async function insertSession(rawFile: string | null): Promise<number> {
+  async function insertSession(
+    rawFile: string | null,
+    gameId: GameId = "fm-2023",
+  ): Promise<number> {
     const row = await db
       .insert(sessions)
-      .values({ carOrdinal: 3000, trackOrdinal: 434343, gameId: "fm-2023", rawFile })
+      .values({ carOrdinal: 3000, trackOrdinal: 434343, gameId, rawFile })
       .returning({ id: sessions.id })
       .get();
     sessionIds.push(row!.id);
@@ -164,6 +175,75 @@ describe("buildLapsZip", () => {
     const { lapIds } = await fixture();
     const { bytes, manifest } = await buildLapsZip([lapIds[0]]);
     expect(readManifest(bytes)).toEqual(JSON.parse(JSON.stringify(manifest)));
+  });
+
+  test("iRacing later-lap slices carry the preceding session frame", async () => {
+    const encoder = new IRacingSourceFrameEncoder();
+    const base: IRacingSourceFrameV2 = {
+      schemaVersion: 2,
+      session: {
+        sessionId: 1,
+        subSessionId: 2,
+        sessionNum: 0,
+        driverCarIdx: 0,
+        trackId: 434343,
+        trackName: "Packed Test Track",
+        trackLengthM: 5000,
+        sectorStarts: [0, 0.5],
+        carId: 3000,
+        carName: "Packed Test Car",
+        carClassId: 1,
+        carClassName: "Test",
+        engineIdleRpm: 900,
+        engineRedlineRpm: 8000,
+        engineCylinderCount: 8,
+      },
+      values: { SessionTick: 0 },
+    };
+    const frames = [0, 1, 2, 3].map((tick) =>
+      encoder.encode({
+        ...base,
+        values: { SessionTick: tick },
+      }),
+    );
+    const offsets: number[] = [];
+    let offset = META;
+    const records = frames.map((frame) => {
+      offsets.push(offset);
+      const record = Buffer.allocUnsafe(4 + frame.length);
+      record.writeUInt32LE(frame.length, 0);
+      frame.copy(record, 4);
+      offset += record.length;
+      return record;
+    });
+    const meta = makeCapture(0).subarray(0, META);
+    const path = `${process.env.DATA_DIR ?? "."}/zip-test-iracing-${Date.now()}.bin`;
+    await Bun.write(path, Buffer.concat([meta, ...records]));
+    tmpFiles.push(path);
+
+    const sid = await insertSession(path, "iracing");
+    const lapId = await insertLap(sid, 2, offsets[2]!, 1);
+    const { bytes, manifest } = await buildLapsZip([lapId]);
+    const slice = readEntry(bytes, manifest.entries[0]!.file);
+
+    const exportedFrames: Buffer[] = [];
+    let at = META;
+    while (at + 4 <= slice.length) {
+      const length = slice.readUInt32LE(at);
+      if (length <= 0 || at + 4 + length > slice.length) break;
+      exportedFrames.push(slice.subarray(at + 4, at + 4 + length));
+      at += 4 + length;
+    }
+    expect(exportedFrames).toHaveLength(3);
+    expect(isIRacingSessionFrame(exportedFrames[0]!)).toBe(true);
+
+    const decoder = createIRacingSourceDecoderState();
+    expect(
+      exportedFrames.map(
+        (frame) =>
+          decodeIRacingSourceFrame(frame, decoder)?.values.SessionTick,
+      ),
+    ).toEqual([0, 2, 3]);
   });
 
   test("unknown lap ids are rejected", async () => {

@@ -22,4 +22,4 @@ export const SHARED_DIR = IS_COMPILED
  */
 export const USER_TRACKS_DIR = IS_COMPILED
   ? join(process.env.APPDATA ?? homedir(), "RaceIQ", "userdata")
-  : resolve(_raw, "..", "data", "userdata");
+  : resolve(process.env.DATA_DIR ?? resolve(_raw, "..", "data"), "userdata");

@@ -14,7 +14,14 @@ type IdxInfo = { name: string; sql: string | null };
 function applyMigrations(db: Database) {
   for (const m of migrations) {
     for (const sql of m.sql) {
-      db.exec(sql);
+      try {
+        db.exec(sql);
+      } catch (error) {
+        // Match the production runner: repeated ADD COLUMN statements are
+        // intentionally tolerated so the merged v36/v37 histories converge.
+        const message = error instanceof Error ? error.message : String(error);
+        if (!message.includes("duplicate column name")) throw error;
+      }
     }
   }
 }
