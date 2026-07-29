@@ -1,5 +1,46 @@
 import type { GameId, TelemetryPacket } from "../types";
 
+export type AnalysisTelemetryMetric =
+  | {
+      source: "direct";
+      freshness: "continuous" | "pit-snapshot" | "static";
+      display?: "per-wheel" | "vehicle" | "normalized" | "millimeters" | "cold-pressure";
+    }
+  | {
+      source: "derived";
+      confidence: "exact" | "high";
+      display?: "per-wheel" | "compression-bias";
+    }
+  | {
+      source: "unavailable";
+      reason: "source-limitation" | "missing-model";
+    };
+
+export interface AnalysisTelemetryModel {
+  balance: AnalysisTelemetryMetric;
+  gForce: AnalysisTelemetryMetric;
+  gripDemand: AnalysisTelemetryMetric;
+  traction: AnalysisTelemetryMetric;
+  tireTemperature: AnalysisTelemetryMetric;
+  surface: AnalysisTelemetryMetric;
+  slipRatio: AnalysisTelemetryMetric;
+  slipAngle: AnalysisTelemetryMetric;
+  wheelRotation: AnalysisTelemetryMetric;
+  tireHealth: AnalysisTelemetryMetric;
+  tireWearRate: AnalysisTelemetryMetric;
+  tirePressure: AnalysisTelemetryMetric;
+  suspensionTravel: AnalysisTelemetryMetric;
+  suspensionCompressionBias: AnalysisTelemetryMetric;
+}
+
+export interface TelemetryModel {
+  /**
+   * Analysis-panel semantics. Omitted fields inherit the current cross-game
+   * defaults; adapters override only genuine source or model differences.
+   */
+  analysis?: Partial<AnalysisTelemetryModel>;
+}
+
 /** Configuration that every game must provide. Shared between server and client. */
 export interface GameAdapter {
   /** Unique identifier, e.g. "fm-2023", "f1-2025" */
@@ -13,6 +54,9 @@ export interface GameAdapter {
 
   /** Route prefix (no leading slash), e.g. "fm23", "f125" */
   routePrefix: string;
+
+  /** Semantic telemetry capabilities and freshness owned by this game. */
+  telemetry?: TelemetryModel;
 
   /** Coordinate system used for track maps */
   coordSystem: string;

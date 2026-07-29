@@ -61,10 +61,12 @@ import {
 import { getF1Tracks } from "../../shared/f1-track-data";
 import { getAccTracks } from "../../shared/acc-track-data";
 import { getAcEvoTracks } from "../../shared/ac-evo-track-data";
+import { getAllIRacingTracks } from "../../shared/iracing-track-data";
 import { tryGetServerGame } from "../games/registry";
 import { tryGetGame } from "../../shared/games/registry";
 import { GameIdSchema, type GameId } from "../../shared/types";
 import { computeLapSectors } from "../compute-lap-sectors";
+import { listDiscoveredTracks } from "../db/discovered-tracks";
 
 // ─── Param schemas ──────────────────────────────────────────────────────────
 
@@ -99,6 +101,10 @@ function computeOutlineLength(outline: { x: number; z: number }[] | null | undef
  *  Returns the shared outline file name (e.g. "silverstone") or undefined. */
 function getSharedTrackName(ordinal: number, gameId?: string): string | undefined {
   if (gameId) {
+    const serverAdapter = tryGetServerGame(gameId);
+    if (serverAdapter?.getSharedTrackName) {
+      return serverAdapter.getSharedTrackName(ordinal);
+    }
     const adapter = tryGetGame(gameId);
     if (adapter?.getSharedTrackName) return adapter.getSharedTrackName(ordinal);
   }
@@ -451,6 +457,68 @@ export const trackRoutes = new Hono()
           };
         });
         tracks.sort((a, b) => a.name.localeCompare(b.name));
+        return c.json(tracks);
+      }
+
+      if (gameId === "iracing") {
+        const lapCounts = await getLapCountsByTrack("iracing");
+        const catalogTracks = getAllIRacingTracks();
+        const catalogIds = new Set(
+          catalogTracks.map((track) => track.ordinal),
+        );
+        const catalogEntries = catalogTracks.map((info) => {
+          const hasBundled = !!getTrackOutlineByOrdinal(
+            info.ordinal,
+            "iracing",
+            info.commonTrackName || undefined,
+          );
+          return {
+            ordinal: info.ordinal,
+            name: info.name,
+            location: info.location,
+            country: info.country,
+            variant: info.variant,
+            lengthKm: info.lengthKm,
+            category: info.category,
+            hasOutline: hasBundled,
+            hasMap: hasBundled || !!info.mapUrl,
+            mapUrl: info.mapUrl || null,
+            outlineSource: hasBundled
+              ? "shared"
+              : info.mapUrl
+                ? "official-svg"
+                : null,
+            commonTrackName: info.commonTrackName || null,
+            createdAt: null,
+            lapCount: lapCounts.get(info.ordinal) ?? 0,
+          };
+        });
+        const discoveredOnly = (await listDiscoveredTracks("iracing"))
+          .filter((track) => !catalogIds.has(track.ordinal))
+          .map((track) => ({
+            ordinal: track.ordinal,
+            name: track.name,
+            location: "",
+            country: "",
+            variant: "",
+            lengthKm: 0,
+            category: "",
+            hasOutline: false,
+            hasMap: false,
+            mapUrl: null,
+            outlineSource: null,
+            commonTrackName: null,
+            createdAt: track.createdAt,
+            lapCount: lapCounts.get(track.ordinal) ?? 0,
+          }));
+        const tracks = [...catalogEntries, ...discoveredOnly];
+        tracks.sort((a, b) => {
+          if (a.hasOutline !== b.hasOutline) {
+            return a.hasOutline ? -1 : 1;
+          }
+          return a.name.localeCompare(b.name) ||
+            a.variant.localeCompare(b.variant);
+        });
         return c.json(tracks);
       }
 

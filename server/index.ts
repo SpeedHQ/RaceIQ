@@ -76,8 +76,8 @@ await initDb();
 await reconcileDiscoveredCars();
 injectDiscoveredAcEvoCars(await listDiscoveredCars("ac-evo"));
 
-// iRacing has no bundled identity catalogue. Rehydrate each distinct native
-// ordinal before HTTP routes begin resolving historical sessions.
+// Rehydrate each distinct native iRacing identity before HTTP routes begin
+// resolving historical sessions.
 const [iracingCars, iracingTracks] = await Promise.all([
   listDiscoveredCars("iracing"),
   listDiscoveredTracks("iracing"),

@@ -5,6 +5,14 @@ export const f1Adapter: GameAdapter = {
   displayName: "F1 2025",
   shortName: "F1 25",
   routePrefix: "f125",
+  telemetry: {
+    analysis: {
+      surface: {
+        source: "unavailable",
+        reason: "source-limitation",
+      },
+    },
+  },
   coordSystem: "f1-2025",
   nativeSectors: false,
   appendsDelayedFinishFrame: true,

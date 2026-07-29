@@ -5,6 +5,8 @@ import { useCallback, useState } from "react";
 import { m } from "@/paraglide/messages";
 import type { TuneSettings } from "../../data/tune-catalog";
 import { client } from "../../lib/rpc";
+import { errorFromResponse } from "../../lib/rpc-error";
+import { useRequiredGameId } from "../../stores/game";
 import { ALL_CATEGORIES, CATEGORY_LABELS } from "./tune-constants.tsx";
 
 // ── Default settings for new tune ───────────────────────────────────────────
@@ -91,6 +93,7 @@ export function TuneFormDialog({
   title: string;
   isSubmitting: boolean;
 }) {
+  const gameId = useRequiredGameId();
   const [name, setName] = useState(initialData?.name ?? "");
   const [author, setAuthor] = useState(initialData?.author ?? "Me");
   const [carOrdinal, setCarOrdinal] = useState(initialData?.carOrdinal ?? 2860);
@@ -104,8 +107,15 @@ export function TuneFormDialog({
   const [carSearchQuery, setCarSearchQuery] = useState("");
   const [carDropOpen, setCarDropOpen] = useState(false);
   const { data: allCars = [] } = useQuery<{ ordinal: number; name: string }[]>({
-    queryKey: ["all-cars"],
-    queryFn: () => client.api.cars.$get().then((r) => r.json()),
+    queryKey: ["all-cars", gameId],
+    queryFn: async () => {
+      const response = await client.api.cars.$get(
+        {},
+        { headers: { "X-Game-Id": gameId } },
+      );
+      if (!response.ok) throw await errorFromResponse(response);
+      return response.json();
+    },
     staleTime: Infinity,
   });
   const filteredFormCars = carSearchQuery ? allCars.filter((c) => c.name.toLowerCase().includes(carSearchQuery.toLowerCase())).slice(0, 20) : allCars.slice(0, 20);

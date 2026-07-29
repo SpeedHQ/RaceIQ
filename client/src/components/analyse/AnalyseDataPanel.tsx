@@ -1,3 +1,5 @@
+import { resolveAnalysisTelemetry } from "@shared/games/analysis-telemetry";
+import { tryGetGame } from "@shared/games/registry";
 import type { GameId, TelemetryPacket } from "@shared/types";
 import { Check, Copy } from "lucide-react";
 import { useCallback, useState } from "react";
@@ -35,6 +37,7 @@ interface Props {
 
 export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket, currentDisplayPacket, startFuel, gameId, units, wearRate, lapInsights, onJumpToFrame }: Props) {
   const [copied, setCopied] = useState(false);
+  const analysis = resolveAnalysisTelemetry(tryGetGame(gameId));
   const handleCopyValues = useCallback(() => {
     if (!currentPacket) return;
     const pkt = currentPacket;
@@ -61,32 +64,50 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
 
     // Dynamics
     lines.push("", "--- Dynamics ---");
-    lines.push(`G-Force Lat: ${pkt.AccelerationX.toFixed(2)}g`);
-    lines.push(`G-Force Lon: ${pkt.AccelerationZ.toFixed(2)}g`);
+    lines.push(`G-Force Lat: ${(-pkt.AccelerationX / 9.81).toFixed(2)}g`);
+    lines.push(`G-Force Lon: ${(-pkt.AccelerationZ / 9.81).toFixed(2)}g`);
 
     // Tire temps
     const tFL = dp?.DisplayTireTempFL ?? pkt.TireTempFL;
     const tFR = dp?.DisplayTireTempFR ?? pkt.TireTempFR;
     const tRL = dp?.DisplayTireTempRL ?? pkt.TireTempRL;
     const tRR = dp?.DisplayTireTempRR ?? pkt.TireTempRR;
-    lines.push("", "--- Tire Temps ---");
+    const tireTemperatureHeading =
+      analysis.tireTemperature.source === "direct" &&
+      analysis.tireTemperature.freshness === "pit-snapshot"
+        ? "Last Pit Tire Temps"
+        : "Tire Temps";
+    lines.push("", `--- ${tireTemperatureHeading} ---`);
     lines.push(`FL: ${tFL.toFixed(0)}  FR: ${tFR.toFixed(0)}`);
     lines.push(`RL: ${tRL.toFixed(0)}  RR: ${tRR.toFixed(0)}`);
 
     // Tire wear
-    lines.push("", "--- Tire Wear ---");
+    const tireHealthHeading =
+      analysis.tireHealth.source === "direct" &&
+      analysis.tireHealth.freshness === "pit-snapshot"
+        ? "Last Pit Tire Health"
+        : "Tire Health";
+    lines.push("", `--- ${tireHealthHeading} ---`);
     lines.push(`FL: ${((1 - pkt.TireWearFL) * 100).toFixed(1)}%  FR: ${((1 - pkt.TireWearFR) * 100).toFixed(1)}%`);
     lines.push(`RL: ${((1 - pkt.TireWearRL) * 100).toFixed(1)}%  RR: ${((1 - pkt.TireWearRR) * 100).toFixed(1)}%`);
 
     // Suspension
     lines.push("", "--- Suspension Travel ---");
-    lines.push(`FL: ${(pkt.NormSuspensionTravelFL * 100).toFixed(0)}%  FR: ${(pkt.NormSuspensionTravelFR * 100).toFixed(0)}%`);
-    lines.push(`RL: ${(pkt.NormSuspensionTravelRL * 100).toFixed(0)}%  RR: ${(pkt.NormSuspensionTravelRR * 100).toFixed(0)}%`);
+    if (
+      analysis.suspensionTravel.source !== "unavailable" &&
+      analysis.suspensionTravel.display === "millimeters"
+    ) {
+      lines.push(`FL: ${(pkt.SuspensionTravelMFL * 1000).toFixed(0)}mm  FR: ${(pkt.SuspensionTravelMFR * 1000).toFixed(0)}mm`);
+      lines.push(`RL: ${(pkt.SuspensionTravelMRL * 1000).toFixed(0)}mm  RR: ${(pkt.SuspensionTravelMRR * 1000).toFixed(0)}mm`);
+    } else {
+      lines.push(`FL: ${(pkt.NormSuspensionTravelFL * 100).toFixed(0)}%  FR: ${(pkt.NormSuspensionTravelFR * 100).toFixed(0)}%`);
+      lines.push(`RL: ${(pkt.NormSuspensionTravelRL * 100).toFixed(0)}%  RR: ${(pkt.NormSuspensionTravelRR * 100).toFixed(0)}%`);
+    }
 
     navigator.clipboard.writeText(lines.join("\n"));
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
-  }, [currentPacket, currentDisplayPacket, gameId, units]);
+  }, [analysis, currentPacket, currentDisplayPacket, gameId, units]);
 
   return (
     <div className="w-[22rem] h-full shrink-0 border-l border-app-border bg-app-surface/50 flex flex-col overflow-hidden">

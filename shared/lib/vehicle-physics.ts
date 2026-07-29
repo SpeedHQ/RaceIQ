@@ -209,21 +209,20 @@ export function steerBalance(pkt: TelemetryPacket): SteerBalance {
   };
 }
 
-// ── Tire Load Estimation ───────────────────────────────────────────
-// Approximate vertical load from normalized suspension travel.
-// Higher suspension compression = more load on that wheel.
-// Useful for detecting weight transfer during braking/cornering.
+// ── Suspension Compression Distribution ────────────────────────────
+// Share of the current normalized shock compression. This can show chassis
+// movement, but it is not a measured or estimated tire load.
 
-export interface TireLoads {
+export interface SuspensionCompression {
   fl: number;
   fr: number;
   rl: number;
   rr: number;
-  frontBias: number; // 0-1: 0.5 = balanced, >0.5 = front-heavy (braking)
-  leftBias: number; // 0-1: 0.5 = balanced, >0.5 = left-heavy (right turn)
+  frontBias: number; // 0-1: share of compression at the front axle
+  leftBias: number; // 0-1: share of compression on the left side
 }
 
-export function tireLoads(pkt: TelemetryPacket): TireLoads {
+export function suspensionCompression(pkt: TelemetryPacket): SuspensionCompression {
   const fl = pkt.NormSuspensionTravelFL;
   const fr = pkt.NormSuspensionTravelFR;
   const rl = pkt.NormSuspensionTravelRL;

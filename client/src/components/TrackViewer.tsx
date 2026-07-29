@@ -14,7 +14,7 @@ import { AppInput } from "./ui/AppInput";
 
 type SortKey = "name" | "laps";
 
-/** TrackViewer — Gallery view of all known tracks, split into "with outlines" and "without". */
+/** TrackViewer — Gallery view of all known tracks, split into "with maps" and "without". */
 export function TrackViewer() {
   const navigate = useNavigate();
 
@@ -96,8 +96,8 @@ export function TrackViewer() {
     return a.name.localeCompare(b.name);
   });
 
-  const withOutline = sorted.filter((t) => t.hasOutline);
-  const withoutOutline = sorted.filter((t) => !t.hasOutline);
+  const withOutline = sorted.filter((t) => t.hasOutline || t.hasMap);
+  const withoutOutline = sorted.filter((t) => !t.hasOutline && !t.hasMap);
 
   return (
     <div className="p-4 overflow-auto h-full">

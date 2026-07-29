@@ -41,6 +41,8 @@
     "laps:export": "bun scripts/export-laps.ts",
     "laps:import": "bun scripts/import-laps.ts",
     "ibt:probe": "bun scripts/probe-ibt.ts",
+    "iracing:cars:seed": "bun scripts/seed-iracing-cars.ts",
+    "iracing:tracks:seed": "bun scripts/seed-iracing-tracks.ts",
     "gzip:recording": "bun scripts/gzip-recording.ts",
     "fixtures:iracing": "bun scripts/generate-iracing-recording-fixture.ts",
     "build:installer": "bun scripts/build-installer.ts",

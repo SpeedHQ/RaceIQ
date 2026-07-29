@@ -1,4 +1,9 @@
 import { iracingAdapter } from "../../../shared/games/iracing";
+import {
+  getIRacingSharedTrackName,
+  getIRacingTrackName,
+  getIRacingTrackOrdinalByName,
+} from "../../../shared/iracing-track-data";
 import type { TelemetryPacket } from "../../../shared/types";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 import { LapDetectorIRacing } from "../../lap-detector-iracing";
@@ -32,6 +37,18 @@ export const iracingServerAdapter: ServerGameAdapter = {
     "iRacingSim64DX11",
     "iRacingSim.exe",
   ],
+
+  getTrackName(ordinal: number): string {
+    return getIRacingTrackName(ordinal);
+  },
+
+  getSharedTrackName(ordinal: number): string | undefined {
+    return getIRacingSharedTrackName(ordinal);
+  },
+
+  getTrackOrdinalByName(name: string): number | undefined {
+    return getIRacingTrackOrdinalByName(name);
+  },
 
   canHandle(buf: Buffer): boolean {
     return canHandleIRacingSourceFrame(buf);

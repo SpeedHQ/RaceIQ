@@ -5,6 +5,15 @@ export const acEvoAdapter: GameAdapter = {
   displayName: "Assetto Corsa Evo",
   shortName: "AC Evo",
   routePrefix: "ac-evo",
+  telemetry: {
+    analysis: {
+      suspensionTravel: {
+        source: "direct",
+        freshness: "continuous",
+        display: "millimeters",
+      },
+    },
+  },
   coordSystem: "standard-xyz",
   nativeSectors: false,
   appendsDelayedFinishFrame: true,

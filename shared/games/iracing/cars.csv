@@ -1,0 +1,180 @@
+ordinal,name,path
+1,Skip Barber Formula 2000,cars\rt2000
+2,Modified - SK,cars\skmodified
+3,Pontiac Solstice,cars\solstice
+4,[Legacy] Pro Mazda,cars\formulamazda
+5,Legends Ford '34 Coupe,cars\legends\ford34c
+10,Pontiac Solstice - Rookie,cars\solstice\rookie
+13,Radical SR8,cars\radical\sr8
+18,Silver Crown,cars\silvercrown
+20,[Legacy] NASCAR Truck Chevrolet Silverado - 2008,cars\trucks\silverado
+21,[Legacy] Riley MkXX Daytona Prototype - 2008,cars\rileydp
+22,[Legacy] NASCAR Cup Chevrolet Impala COT - 2009,cars\stockcars\impala
+23,SCCA Spec Racer Ford,cars\specracer
+24,[Legacy] ARCA Menards Chevrolet Impala,cars\stockcars2\chevy
+25,Lotus 79,cars\lotus79
+26,Chevrolet Corvette C6.R GT1,cars\c6r
+27,VW Jetta TDI Cup,cars\jettatdi
+28,[Legacy] V8 Supercar Ford Falcon - 2009,cars\fordv8sc
+29,[Legacy] Dallara IR-05,cars\dallara
+30,Ford Mustang FR500S,cars\fr500s
+31,Modified - NASCAR Whelen Tour,cars\skmodified\tour
+33,Williams-Toyota FW31,cars\williamsfw31
+34,[Legacy] Mazda MX-5 Cup - 2010,cars\mx5\cup
+35,[Legacy] Mazda MX-5 Roadster - 2010,cars\mx5\roadster
+36,Street Stock - Panther C1,cars\streetstock
+37,Sprint Car,cars\sprint
+38,[Legacy] NASCAR Nationwide Chevrolet Impala - 2012,cars\stockcars2\chevy\cot
+39,HPD ARX-01c,cars\hpdarx01c
+40,Ford GT GT2,cars\fordgt
+41,Cadillac CTS-V Racecar,cars\cadillacctsvr
+42,Lotus 49,cars\lotus49
+43,[Legacy] McLaren MP4-12C GT3,cars\mclarenmp4
+44,Kia Optima,cars\kiaoptima
+45,[Legacy] NASCAR Cup Chevrolet SS - 2013,cars\stockcars\chevyss
+46,[Legacy] NASCAR Cup Ford Fusion - 2016,cars\stockcars\fordfusion
+48,Ruf RT 12R AWD,cars\rufrt12r\awd
+49,Ruf RT 12R RWD,cars\rufrt12r\rwd
+50,Ruf RT 12R Track,cars\rufrt12r\track
+51,[Legacy] NASCAR Xfinity Ford Mustang - 2016,cars\stockcars2\nwford2013
+52,Ruf RT 12R C-Spec,cars\rufrt12r\track\cspec
+54,Super Late Model,cars\superlatemodel
+55,[Legacy] BMW Z4 GT3,cars\bmwz4gt3
+56,NASCAR Cup Series Toyota Camry,cars\stockcars\toyotacamry
+57,[Legacy] Dallara DW12,cars\dallaradw12
+58,[Legacy] NASCAR Xfinity Chevrolet Camaro - 2014,cars\stockcars2\nwcamaro2014
+59,Ford GT GT3,cars\fordgt\gt3
+60,[Legacy] V8 Supercar Holden VF Commodore - 2014,cars\v8supercars\holden2014
+61,[Legacy] V8 Supercar Ford FG Falcon - 2014,cars\v8supercars\ford2014
+64,Aston Martin DBR9 GT1,cars\astonmartin\dbr9
+67,Global Mazda MX-5 Cup,cars\mx5\mx52016
+69,[Legacy] NASCAR Xfinity Toyota Camry - 2015,cars\stockcars2\camry2015
+70,Chevrolet Corvette C7 Daytona Prototype,cars\c7vettedp
+71,McLaren MP4-30,cars\mclarenmp430
+72,[Legacy] Mercedes-AMG GT3,cars\mercedesamggt3
+73,[Legacy] Audi R8 LMS GT3,cars\audir8gt3
+74,Formula Renault 2.0,cars\formularenault20
+76,Audi 90 GTO,cars\audi90gto
+77,Nissan GTP ZX-T,cars\nissangtpzxt
+78,Dirt Late Model - Limited,cars\dirtlatemodel\350
+79,Dirt Street Stock,cars\dirtstreetstock
+80,Dirt Sprint Car - 305,cars\dirtsprint\winged\305
+81,Ford Fiesta RS WRC,cars\fordfiestarswrc
+82,Dirt Legends Ford '34 Coupe,cars\legends\dirtford34c
+83,Dirt Late Model - Pro,cars\dirtlatemodel\358
+84,Dirt Late Model - Super,cars\dirtlatemodel\438
+85,Dirt Sprint Car - 360,cars\dirtsprint\winged\360
+86,Dirt Sprint Car - 410,cars\dirtsprint\winged\410
+87,Dirt Sprint Car - 360 Non-Winged,cars\dirtsprint\nonwinged\360
+88,[Legacy] Porsche 911 GT3 Cup (991),cars\porsche911cup
+89,Dirt Sprint Car - 410 Non-Winged,cars\dirtsprint\nonwinged\410
+91,VW Beetle,cars\vwbeetlegrc
+92,Ford GTE,cars\fordgt2017
+93,Ferrari 488 GTE,cars\ferrari488gte
+94,[Legacy] Ferrari 488 GT3,cars\ferrari488gt3
+95,Dirt UMP Modified,cars\dirtumpmod
+96,Dirt Midget,cars\dirtmidget
+98,Audi R18,cars\audir18
+99,Dallara IR18,cars\dallarair18
+100,Porsche 919,cars\porsche919
+101,Subaru WRX STI,cars\subaruwrxsti
+102,Porsche 911 RSR,cars\porsche991rsr
+103,NASCAR Cup Series Chevrolet Camaro ZL1,cars\stockcars\camarozl12018
+104,Lucas Oil Off Road Pro 2 Truck,cars\protrucks\pro2truck
+105,Formula Renault 3.5,cars\formularenault35
+106,Dallara F3,cars\dallaraf3
+107,Lucas Oil Off Road Pro 4 Truck,cars\protrucks\pro4truck
+109,BMW M8 GTE,cars\bmwm8gte
+110,NASCAR Cup Series Ford Mustang,cars\stockcars\fordmustang2019
+111,NASCAR Truck Chevrolet Silverado,cars\trucks\silverado2019
+112,Audi RS 3 LMS TCR,cars\audirs3lms
+113,Lucas Oil Off Road Pro 2 Lite,cars\protrucks\pro2lite
+114,NASCAR XFINITY Chevrolet Camaro,cars\stockcars2\camaro2019
+115,NASCAR XFINITY Ford Mustang,cars\stockcars2\mustang2019
+116,NASCAR XFINITY Toyota Supra,cars\stockcars2\supra2019
+117,[Legacy] Supercars Holden ZB Commodore,cars\v8supercars\holden2019
+118,[Legacy] Supercars Ford Mustang GT,cars\v8supercars\fordmustanggt
+119,Porsche 718 Cayman GT4 Clubsport MR,cars\porsche718gt4
+120,Indy Pro 2000 PM-18,cars\indypropm18
+121,USF 2000,cars\usf2000usf17
+122,BMW M4 F82 GT4 - 2018,cars\bmwm4gt4
+123,NASCAR Truck Ford F150,cars\trucks\fordf150
+124,NASCAR Legends Chevrolet Monte Carlo - 1987,cars\stockcars\chevymontecarlo87
+125,NASCAR Legends Ford Thunderbird - 1987,cars\stockcars\fordthunderbird87
+127,Chevrolet Corvette C8.R GTE,cars\c8rvettegte
+128,Dallara P217,cars\dallarap217
+129,Dallara iR-01,cars\dallarair01
+131,Dirt Big Block Modified,cars\dirtmodified\bigblock
+132,BMW M4 GT3 EVO,cars\bmwm4gt3
+133,Lamborghini Huracán GT3 EVO,cars\lamborghinievogt3
+134,Dirt 358 Modified,cars\dirtmodified\358
+135,McLaren 570S GT4,cars\mclaren570sgt4
+137,[Legacy] Porsche 911 GT3 R,cars\porsche911rgt3
+138,VW Beetle - Lite,cars\vwbeetlegrc\lite
+139,NASCAR Cup Series Next Gen Chevrolet Camaro ZL1,cars\stockcars\chevycamarozl12022
+140,NASCAR Cup Series Next Gen Ford Mustang,cars\stockcars\fordmustang2022
+141,NASCAR Cup Series Next Gen Toyota Camry,cars\stockcars\toyotacamry2022
+142,Formula Vee,cars\formulavee
+143,[Legacy] Porsche 911 GT3 Cup (992.1),cars\porsche992cup
+144,Ferrari 488 GT3 Evo 2020,cars\ferrarievogt3
+145,Mercedes-AMG W12 E Performance,cars\mercedesw12
+146,Hyundai Elantra N TCR,cars\hyundaielantracn7
+147,Honda Civic Type R TCR,cars\hondacivictyper
+148,FIA F4,cars\formulair04
+149,Radical SR10,cars\radicalsr10
+150,Aston Martin Vantage GT4,cars\amvantagegt4
+151,Stock Car Brasil Chevrolet Cruze,cars\stockcarbrasil\cruze
+152,Stock Car Brasil Toyota Corolla,cars\stockcarbrasil\corolla
+153,Hyundai Veloster N TCR,cars\hyundaivelostern
+154,NASCAR Legends Buick LeSabre - 1987,cars\stockcars\buicklesabre87
+155,NASCAR Truck Toyota Tundra TRD Pro,cars\trucks\toyotatundra2022
+156,Mercedes-AMG GT3 2020,cars\mercedesamgevogt3
+157,Mercedes-AMG GT4,cars\mercedesamggt4
+158,Porsche Mission R,cars\porschemissionr
+159,BMW M Hybrid V8,cars\bmwlmdh
+160,Toyota GR86,cars\toyotagr86
+161,Mercedes-AMG W13 E Performance,cars\mercedesw13
+162,Renault Clio,cars\renaultcliocup
+163,Ray FF1600,cars\raygr22
+164,Late Model Stock,cars\latemodel2023
+165,Ligier JS P320,cars\ligierjsp320
+167,[Legacy] Gen 4 Cup,cars\stockcars2\chevy\gen4cup
+168,Cadillac V-Series.R GTP,cars\cadillacvseriesrgtp
+169,Porsche 911 GT3 R (992),cars\porsche992rgt3
+170,Acura ARX-06 GTP,cars\acuraarx06gtp
+171,Super Formula SF23 - Toyota,cars\superformulasf23\toyota
+172,Super Formula SF23 - Honda,cars\superformulasf23\honda
+173,Ferrari 296 GT3,cars\ferrari296gt3
+174,Porsche 963 GTP,cars\porsche963gtp
+175,NASCAR Legends Pontiac Grand Prix - 1987,cars\stockcars\pontiacgrandprix87
+176,Audi R8 LMS EVO II GT3,cars\audir8lmsevo2gt3
+178,Super Formula Lights,cars\superformulalights324
+179,SRX,cars\srx
+180,Dirt Micro Sprint Car - Winged,cars\dirtmicrosprint\winged
+181,Dirt Micro Sprint Car - Non-Winged,cars\dirtmicrosprint\nonwinged
+182,Dirt Outlaw Micro Sprint Car - Winged,cars\dirtmicrosprint\winged\outlaw
+183,Dirt Outlaw Micro Sprint Car - Non-Winged,cars\dirtmicrosprint\nonwinged\outlaw
+184,Chevrolet Corvette Z06 GT3.R,cars\chevyvettez06rgt3
+185,Ford Mustang GT3,cars\fordmustanggt3
+186,Street Stock - Casino M2,cars\streetstock\streetstock2
+187,Street Stock - Eagle T3,cars\streetstock\streetstock3
+188,McLaren 720S GT3 EVO,cars\mclaren720sgt3
+189,BMW M4 G82 GT4 Evo,cars\bmwm4evogt4
+190,Supercars Ford Mustang Gen 3,cars\supercars\fordmustanggen3
+191,Mini Stock,cars\ministock
+192,Supercars Chevrolet Camaro Gen 3,cars\supercars\chevycamarogen3
+193,Dirt Mini Stock,cars\dirtministock
+194,Acura NSX GT3 EVO 22,cars\acuransxevo22gt3
+195,BMW M2 CS Racing,cars\bmwm2csr
+196,Ferrari 499P,cars\ferrari499p
+198,ARCA Chevrolet SS,cars\stockcars2\arcachevy25
+199,ARCA Ford Mustang,cars\stockcars2\arcaford25
+200,ARCA Toyota Camry,cars\stockcars2\arcatoyota25
+201,Gen 4 Chevrolet Monte Carlo - 2003,cars\stockcars\chevymontecarlo03
+202,Gen 4 Ford Taurus - 2003,cars\stockcars\fordtaurus03
+203,Ferrari 296 Challenge,cars\ferrari296challenge
+204,Ford Mustang GT4,cars\fordmustanggt4
+205,Dallara IL-15,cars\dallarail15
+206,Aston Martin Vantage GT3 EVO,cars\amvantageevogt3
+207,FIA Cross Car,cars\crosscartn11
+208,Porsche 911 Cup (992.2),cars\porsche9922cup

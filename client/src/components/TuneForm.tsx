@@ -5,12 +5,15 @@ import { m } from "@/paraglide/messages";
 import type { TuneSettings } from "../data/tune-catalog";
 import { useSettings } from "../hooks/queries";
 import { client } from "../lib/rpc";
+import { errorFromResponse } from "../lib/rpc-error";
+import { useRequiredGameId } from "../stores/game";
 import { GearRatioChart } from "./tune/GearRatioChart";
 import { Button } from "./ui/button";
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useAllCars() {
+  const gameId = useRequiredGameId();
   return useQuery<
     {
       ordinal: number;
@@ -29,8 +32,15 @@ export function useAllCars() {
       };
     }[]
   >({
-    queryKey: ["all-cars"],
-    queryFn: () => client.api.cars.$get().then((r) => r.json()),
+    queryKey: ["all-cars", gameId],
+    queryFn: async () => {
+      const response = await client.api.cars.$get(
+        {},
+        { headers: { "X-Game-Id": gameId } },
+      );
+      if (!response.ok) throw await errorFromResponse(response);
+      return response.json();
+    },
     staleTime: Infinity,
   });
 }

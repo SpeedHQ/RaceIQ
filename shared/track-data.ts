@@ -7,6 +7,7 @@ import type { TrackGeometry } from "./track-geometry";
 import { joinSegments } from "./track-join";
 import { GameIdSchema } from "./types";
 import { getF1TrackInfo } from "./f1-track-data";
+import { getIRacingSharedTrackName } from "./iracing-track-data";
 
 import { SHARED_DIR, USER_TRACKS_DIR } from "./resolve-data";
 
@@ -76,6 +77,7 @@ function ensureAcEvoNames() {
 /** Resolve ordinal to bundled file prefix (e.g. f1: 5 → "monaco", fm: 21 → "silverstone-21"). */
 function getBundledTrackName(gameId: string, ordinal: number): string | undefined {
   if (gameId === "f1-2025") return getF1TrackInfo(ordinal)?.commonTrackName || undefined;
+  if (gameId === "iracing") return getIRacingSharedTrackName(ordinal);
   if (gameId === "fm-2023") {
     ensureFmNames();
     return fmOrdinalToFileName.get(ordinal);
@@ -255,8 +257,9 @@ export function loadSharedOutline(name: string): Point[] | null {
   if (!name) return null;
   const cached = sharedOutlineCache.get(name);
   if (cached !== undefined) return cached;
-  const filePath = resolve(tumftmDir, `${name}.csv`);
-  const content = readDataFile(filePath);
+  const content =
+    readDataFile(resolve(tumftmDir, `${name}.csv`)) ??
+    readDataFile(resolve(tumftmDir, `${name}-centerline.csv`));
   if (!content) { sharedOutlineCache.set(name, null); return null; }
   try {
     const lines = content.split("\n").filter(Boolean);
@@ -277,8 +280,9 @@ export function loadSharedBoundary(name: string): SharedBoundaryData | null {
   if (!name) return null;
   const cached = sharedBoundaryCache.get(name);
   if (cached !== undefined) return cached;
-  const filePath = resolve(tumftmDir, `${name}.json`);
-  const content = readDataFile(filePath);
+  const content =
+    readDataFile(resolve(tumftmDir, `${name}.json`)) ??
+    readDataFile(resolve(tumftmDir, `${name}-boundaries.json`));
   if (!content) { sharedBoundaryCache.set(name, null); return null; }
   try {
     const data = JSON.parse(content);
@@ -1063,7 +1067,12 @@ function loadBundledPointCsv(ordinal: number, gameId: string, suffix: "centerlin
  */
 export function getTrackOutlineByOrdinal(ordinal: number, gameId: string, sharedName?: string): Point[] | null {
   validateGameId(gameId);
-  return loadBundledPointCsv(ordinal, gameId, "centerline") ?? loadRecordedOutline(ordinal, gameId) ?? loadSharedOutline(sharedName ?? "") ?? getBundledOutlineByOrdinal(ordinal);
+  const resolvedSharedName =
+    sharedName ?? getBundledTrackName(gameId, ordinal);
+  return loadBundledPointCsv(ordinal, gameId, "centerline") ??
+    loadRecordedOutline(ordinal, gameId) ??
+    loadSharedOutline(resolvedSharedName ?? "") ??
+    (gameId === "fm-2023" ? getBundledOutlineByOrdinal(ordinal) : null);
 }
 
 /**

@@ -6,6 +6,11 @@ export interface TrackInfo {
   variant: string;
   lengthKm: number;
   hasOutline: boolean;
+  /** Any drawable map, including an official static SVG. */
+  hasMap?: boolean;
+  /** Public static map for layouts without RaceIQ centerline points. */
+  mapUrl?: string | null;
+  category?: string;
   createdAt: string | null;
   lapCount?: number;
 }

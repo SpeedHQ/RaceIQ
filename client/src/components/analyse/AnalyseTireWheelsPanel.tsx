@@ -1,3 +1,4 @@
+import { resolveAnalysisTelemetry } from "@shared/games/analysis-telemetry";
 import { tryGetGame } from "@shared/games/registry";
 import type { GameId, TelemetryPacket } from "@shared/types";
 import { useTirePressureOptimal } from "../../hooks/queries";
@@ -31,6 +32,7 @@ export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, ga
   const speeds = [currentPacket.WheelRotationSpeedFL, currentPacket.WheelRotationSpeedFR, currentPacket.WheelRotationSpeedRL, currentPacket.WheelRotationSpeedRR];
   const wearRates = (["FL", "FR", "RL", "RR"] as const).map((w) => (wearRate ? wearRate[w] * 100 : null));
   const adapter = tryGetGame(gameId);
+  const analysis = resolveAnalysisTelemetry(adapter);
   const hThresh = adapter?.tireHealthThresholds ?? { green: 0.7, yellow: 0.4 };
   const pressureOptimal = useTirePressureOptimal(gameId, currentPacket.CarOrdinal);
 
@@ -52,30 +54,58 @@ export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, ga
   // writing real values.
 
   const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
+  const unavailable = <span className="text-app-text-dim">—</span>;
+  const pitTemperature =
+    analysis.tireTemperature.source === "direct" &&
+    analysis.tireTemperature.freshness === "pit-snapshot";
+  const pitHealth =
+    analysis.tireHealth.source === "direct" &&
+    analysis.tireHealth.freshness === "pit-snapshot";
+  const coldPressure =
+    analysis.tirePressure.source !== "unavailable" &&
+    analysis.tirePressure.display === "cold-pressure";
+  const pressureColor = (pressure: number) =>
+    coldPressure
+      ? "#e5e7eb"
+      : COLORS[tirePressureColor(pressure, pressureOptimal)];
 
   const rows = [
-    { label: m.analyse_wheels_rotation_s(), fl: speeds[0].toFixed(1), fr: speeds[1].toFixed(1), rl: speeds[2].toFixed(1), rr: speeds[3].toFixed(1) },
     {
-      label: m.analyse_wheels_temp(),
+      label: m.analyse_wheels_rotation_s(),
+      fl: analysis.wheelRotation.source === "unavailable" ? unavailable : speeds[0].toFixed(1),
+      fr: analysis.wheelRotation.source === "unavailable" ? unavailable : speeds[1].toFixed(1),
+      rl: analysis.wheelRotation.source === "unavailable" ? unavailable : speeds[2].toFixed(1),
+      rr: analysis.wheelRotation.source === "unavailable" ? unavailable : speeds[3].toFixed(1),
+    },
+    {
+      label: pitTemperature
+        ? m.analyse_wheels_pit_temp()
+        : m.analyse_wheels_temp(),
       fl: C(`${fl.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempFL), units.thresholds)),
       fr: C(`${fr.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempFR), units.thresholds)),
       rl: C(`${rl.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempRL), units.thresholds)),
       rr: C(`${rr.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempRR), units.thresholds)),
     },
     {
-      label: m.analyse_wheels_health(),
+      label: pitHealth
+        ? m.analyse_wheels_pit_health()
+        : m.analyse_wheels_health(),
       fl: C(`${((1 - healths[0]) * 100).toFixed(1)}%`, tireHealthColor(healths[0], hThresh)),
       fr: C(`${((1 - healths[1]) * 100).toFixed(1)}%`, tireHealthColor(healths[1], hThresh)),
       rl: C(`${((1 - healths[2]) * 100).toFixed(1)}%`, tireHealthColor(healths[2], hThresh)),
       rr: C(`${((1 - healths[3]) * 100).toFixed(1)}%`, tireHealthColor(healths[3], hThresh)),
     },
-    {
-      label: m.analyse_wheels_wear_s(),
-      fl: C(wearRates[0] != null ? wearRates[0].toFixed(3) + "%" : "—", wearRateColor(wearRates[0])),
-      fr: C(wearRates[1] != null ? wearRates[1].toFixed(3) + "%" : "—", wearRateColor(wearRates[1])),
-      rl: C(wearRates[2] != null ? wearRates[2].toFixed(3) + "%" : "—", wearRateColor(wearRates[2])),
-      rr: C(wearRates[3] != null ? wearRates[3].toFixed(3) + "%" : "—", wearRateColor(wearRates[3])),
-    },
+    ...(analysis.tireWearRate.source !== "unavailable"
+      ? [
+          {
+            label: m.analyse_wheels_wear_s(),
+            fl: C(wearRates[0] != null ? `${wearRates[0].toFixed(3)}%` : "—", wearRateColor(wearRates[0])),
+            fr: C(wearRates[1] != null ? `${wearRates[1].toFixed(3)}%` : "—", wearRateColor(wearRates[1])),
+            rl: C(wearRates[2] != null ? `${wearRates[2].toFixed(3)}%` : "—", wearRateColor(wearRates[2])),
+            rr: C(wearRates[3] != null ? `${wearRates[3].toFixed(3)}%` : "—", wearRateColor(wearRates[3])),
+          },
+        ]
+      : []),
     ...(hasBrakes
       ? [
           {
@@ -87,14 +117,16 @@ export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, ga
           },
         ]
       : []),
-    ...(hasPressure
+    ...(hasPressure && analysis.tirePressure.source !== "unavailable"
       ? [
           {
-            label: m.analyse_wheels_pressure(),
-            fl: C(`${pressFL.toFixed(1)} psi`, COLORS[tirePressureColor(pressFL, pressureOptimal)]),
-            fr: C(`${pressFR.toFixed(1)} psi`, COLORS[tirePressureColor(pressFR, pressureOptimal)]),
-            rl: C(`${pressRL.toFixed(1)} psi`, COLORS[tirePressureColor(pressRL, pressureOptimal)]),
-            rr: C(`${pressRR.toFixed(1)} psi`, COLORS[tirePressureColor(pressRR, pressureOptimal)]),
+            label: coldPressure
+              ? m.analyse_wheels_cold_pressure()
+              : m.analyse_wheels_pressure(),
+            fl: C(`${pressFL.toFixed(1)} psi`, pressureColor(pressFL)),
+            fr: C(`${pressFR.toFixed(1)} psi`, pressureColor(pressFR)),
+            rl: C(`${pressRL.toFixed(1)} psi`, pressureColor(pressRL)),
+            rr: C(`${pressRR.toFixed(1)} psi`, pressureColor(pressRR)),
           },
         ]
       : []),

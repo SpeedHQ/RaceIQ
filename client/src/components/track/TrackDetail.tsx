@@ -1277,10 +1277,17 @@ export function TrackDetail({
                         dragging.current = null;
                       }}
                     />
+                  ) : track.mapUrl ? (
+                    <img
+                      src={track.mapUrl}
+                      alt={`${track.name} ${track.variant} map`}
+                      className="w-full h-full object-contain p-5"
+                    />
                   ) : (
                     <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">{m.trackdetail_no_outline_available()}</div>
                   )}
-                  <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
+                  {track.hasOutline && (
+                    <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
                     <button
                       type="button"
                       onClick={() => setZoom((z) => Math.min(z + 0.25, 4))}
@@ -1324,7 +1331,8 @@ export function TrackDetail({
                         </button>
                       </>
                     )}
-                  </div>
+                    </div>
+                  )}
                   {/* Track info overlay — bottom left */}
                   <div className="absolute bottom-2 left-2 flex items-center gap-2.5 text-[10px] font-mono text-app-text-dim bg-app-surface/70 backdrop-blur-sm rounded px-2 py-1 pointer-events-none">
                     {track.lengthKm > 0 && <span>{track.lengthKm} km</span>}
