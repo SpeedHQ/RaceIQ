@@ -18,7 +18,7 @@ jobs:
     # Same pinned image as the PR render job, so the baselines committed here
     # match exactly what PRs (and local `bun run snapshot:docker`) produce.
     container:
-      image: mcr.microsoft.com/playwright:v1.61.1-jammy
+      image: mcr.microsoft.com/playwright:v1.62.0-jammy
     permissions:
       contents: write
     steps:
