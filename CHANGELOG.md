@@ -3,6 +3,10 @@
 ### Features
 - View all release notes since your installed version in the app
 
+### Fixes
+
+### Internal
+
 ## v0.13.0 - 2026-07-16
 
 ### Features

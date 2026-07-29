@@ -16,8 +16,9 @@ Use this skill on the PR branch before opening or updating a pull request.
    - `Fixes`: corrected user-visible behavior.
    - `Internal`: implementation, CI, tooling, or maintenance work invisible to users.
 3. Preserve the section order `Breaking`, `Features`, `Fixes`, `Internal`. Create a missing subsection only when needed.
-4. Do not edit a released version section. Do not duplicate an existing bullet.
-5. Run `bun test test/changelog.test.ts --timeout 60000` and report the changed files.
+4. Keep `### Fixes` and `### Internal` headings in `## Unreleased` even when they have no bullets.
+5. Do not edit a released version section. Do not duplicate an existing bullet.
+6. Run `bun test test/changelog.test.ts --timeout 60000` and report the changed files.
 
 ## Writing rules
 
