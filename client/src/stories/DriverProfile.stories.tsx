@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import type { DriverFingerprint, RankedWeakness, StyleAxes } from "../../../server/ai/driver-profile-aggregate";
 import type { DriverProfileOutput } from "../../../server/ai/schemas";
+import type { DriverProfileRun } from "../hooks/queries";
 import { DriverProgressCard } from "../components/HomePage";
 import { DriverProfileView } from "../components/driver/DriverProfileView";
 
@@ -160,6 +161,49 @@ const PLAN: DriverProfileOutput = {
   ],
 };
 
+const RUN_HISTORY: DriverProfileRun[] = [
+  {
+    id: 42,
+    scopeKey: "fm-2023|2860|7",
+    gameId: "fm-2023",
+    carOrdinal: 2860,
+    trackOrdinal: 7,
+    poolKey: "pool-20260729",
+    status: "succeeded",
+    fingerprint: JSON.stringify(FINGERPRINT),
+    plan: JSON.stringify(PLAN),
+    error: null,
+    inputTokens: 4280,
+    outputTokens: 910,
+    costUsd: 0.021,
+    durationMs: 8400,
+    model: "gemini-3-flash",
+    createdAt: "2026-07-29T13:58:00.000Z",
+    startedAt: "2026-07-29T13:58:01.000Z",
+    completedAt: "2026-07-29T13:58:09.000Z",
+  },
+  {
+    id: 41,
+    scopeKey: "fm-2023|2860|7",
+    gameId: "fm-2023",
+    carOrdinal: 2860,
+    trackOrdinal: 7,
+    poolKey: "pool-20260728",
+    status: "failed",
+    fingerprint: null,
+    plan: null,
+    error: "Provider timeout after 30 seconds.",
+    inputTokens: 0,
+    outputTokens: 0,
+    costUsd: 0,
+    durationMs: 30000,
+    model: "gemini-3-flash",
+    createdAt: "2026-07-28T18:20:00.000Z",
+    startedAt: "2026-07-28T18:20:01.000Z",
+    completedAt: "2026-07-28T18:20:31.000Z",
+  },
+];
+
 const meta = {
   title: "Driver/Profile",
   component: DriverProfileView,
@@ -183,6 +227,20 @@ type Story = StoryObj<typeof meta>;
 /** The full thing: measurements plus a generated plan. */
 export const Full: Story = {
   args: { fingerprint: FINGERPRINT, plan: PLAN, cached: false },
+};
+
+/** Automatic coaching enabled with a successful latest run and auditable history. */
+export const AutomaticCoaching: Story = {
+  args: {
+    fingerprint: FINGERPRINT,
+    plan: PLAN,
+    cached: true,
+    runState: "succeeded",
+    latestRun: RUN_HISTORY[0],
+    runHistory: RUN_HISTORY,
+    onRunNow: () => undefined,
+    onRetry: () => undefined,
+  },
 };
 
 /**
