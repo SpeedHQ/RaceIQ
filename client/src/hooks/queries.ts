@@ -153,10 +153,16 @@ export function useDriverProfileRuns(scope?: DriverProfileRunScope) {
     queryKey: queryKeys.driverProfileRuns(gameId, carOrdinal, trackOrdinal),
     queryFn: async () => {
       if (!gameId) throw new Error("Missing game context");
-      const params = new URLSearchParams({ limit: "50" });
-      if (carOrdinal != null) params.set("carOrdinal", String(carOrdinal));
-      if (trackOrdinal != null) params.set("trackOrdinal", String(trackOrdinal));
-      const res = await fetch(`/api/drivers/profile/runs?${params}`, { headers: { "X-Game-Id": gameId } });
+      const res = await client.api.drivers.profile.runs.$get(
+        {
+          query: {
+            limit: "50",
+            carOrdinal: carOrdinal == null ? undefined : String(carOrdinal),
+            trackOrdinal: trackOrdinal == null ? undefined : String(trackOrdinal),
+          },
+        },
+        { headers: { "X-Game-Id": gameId } },
+      );
       return rpcJson<DriverProfileRunsResponse>(res);
     },
     enabled: !!gameId,
@@ -172,10 +178,17 @@ export function useRunDriverProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ gameId, carOrdinal, trackOrdinal, retry = false }: { gameId: GameId; carOrdinal?: number; trackOrdinal?: number; retry?: boolean }) => {
-      const params = new URLSearchParams({ [retry ? "retry" : "runNow"]: "true" });
-      if (carOrdinal != null) params.set("carOrdinal", String(carOrdinal));
-      if (trackOrdinal != null) params.set("trackOrdinal", String(trackOrdinal));
-      const res = await fetch(`/api/drivers/profile/runs?${params}`, { method: "POST", headers: { "X-Game-Id": gameId } });
+      const res = await client.api.drivers.profile.runs.$post(
+        {
+          query: {
+            runNow: retry ? undefined : "true",
+            retry: retry ? "true" : undefined,
+            carOrdinal: carOrdinal == null ? undefined : String(carOrdinal),
+            trackOrdinal: trackOrdinal == null ? undefined : String(trackOrdinal),
+          },
+        },
+        { headers: { "X-Game-Id": gameId } },
+      );
       return rpcJson<DriverProfileRunMutationResponse>(res);
     },
     onSettled: (_data, _error, variables) => {
