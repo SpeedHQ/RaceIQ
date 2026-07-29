@@ -42,6 +42,7 @@ import { Route as AccTracksRouteImport } from './routes/acc/tracks'
 import { Route as DashIndexRouteImport } from './routes/dash.index'
 import { Route as DashCombo1RouteImport } from './routes/dash.combo-1'
 import { Route as DashCombo2RouteImport } from './routes/dash.combo-2'
+import { Route as DevOpenRouteImport } from './routes/dev_.open'
 import { Route as F125IndexRouteImport } from './routes/f125/index'
 import { Route as F125AnalyseRouteImport } from './routes/f125/analyse'
 import { Route as F125CarsRouteImport } from './routes/f125/cars'
@@ -283,6 +284,11 @@ const DashCombo1Route = DashCombo1RouteImport.update({
 const DashCombo2Route = DashCombo2RouteImport.update({
   id: '/dash/combo-2',
   path: '/dash/combo-2',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevOpenRoute = DevOpenRouteImport.update({
+  id: '/dev_/open',
+  path: '/dev/open',
   getParentRoute: () => rootRouteImport,
 } as any)
 const F125IndexRoute = F125IndexRouteImport.update({
@@ -719,6 +725,7 @@ export interface FileRoutesByFullPath {
   '/acc/tracks': typeof AccTracksRouteWithChildren
   '/dash/combo-1': typeof DashCombo1Route
   '/dash/combo-2': typeof DashCombo2Route
+  '/dev/open': typeof DevOpenRoute
   '/f125/analyse': typeof F125AnalyseRoute
   '/f125/cars': typeof F125CarsRoute
   '/f125/chats': typeof F125ChatsRoute
@@ -820,6 +827,7 @@ export interface FileRoutesByTo {
   '/acc/sessions': typeof AccSessionsRoute
   '/dash/combo-1': typeof DashCombo1Route
   '/dash/combo-2': typeof DashCombo2Route
+  '/dev/open': typeof DevOpenRoute
   '/f125/analyse': typeof F125AnalyseRoute
   '/f125/cars': typeof F125CarsRoute
   '/f125/chats': typeof F125ChatsRoute
@@ -926,6 +934,7 @@ export interface FileRoutesById {
   '/acc/tracks': typeof AccTracksRouteWithChildren
   '/dash/combo-1': typeof DashCombo1Route
   '/dash/combo-2': typeof DashCombo2Route
+  '/dev_/open': typeof DevOpenRoute
   '/f125/analyse': typeof F125AnalyseRoute
   '/f125/cars': typeof F125CarsRoute
   '/f125/chats': typeof F125ChatsRoute
@@ -1040,6 +1049,7 @@ export interface FileRouteTypes {
     | '/acc/tracks'
     | '/dash/combo-1'
     | '/dash/combo-2'
+    | '/dev/open'
     | '/f125/analyse'
     | '/f125/cars'
     | '/f125/chats'
@@ -1141,6 +1151,7 @@ export interface FileRouteTypes {
     | '/acc/sessions'
     | '/dash/combo-1'
     | '/dash/combo-2'
+    | '/dev/open'
     | '/f125/analyse'
     | '/f125/cars'
     | '/f125/chats'
@@ -1246,6 +1257,7 @@ export interface FileRouteTypes {
     | '/acc/tracks'
     | '/dash/combo-1'
     | '/dash/combo-2'
+    | '/dev_/open'
     | '/f125/analyse'
     | '/f125/cars'
     | '/f125/chats'
@@ -1339,6 +1351,7 @@ export interface RootRouteChildren {
   GameLiveRoute: typeof GameLiveRoute
   DashCombo1Route: typeof DashCombo1Route
   DashCombo2Route: typeof DashCombo2Route
+  DevOpenRoute: typeof DevOpenRoute
   DashIndexRoute: typeof DashIndexRoute
 }
 
@@ -1573,6 +1586,13 @@ declare module '@tanstack/react-router' {
       path: '/dash/combo-2'
       fullPath: '/dash/combo-2'
       preLoaderRoute: typeof DashCombo2RouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev_/open': {
+      id: '/dev_/open'
+      path: '/dev/open'
+      fullPath: '/dev/open'
+      preLoaderRoute: typeof DevOpenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/f125/': {
@@ -2518,6 +2538,7 @@ const rootRouteChildren: RootRouteChildren = {
   GameLiveRoute: GameLiveRoute,
   DashCombo1Route: DashCombo1Route,
   DashCombo2Route: DashCombo2Route,
+  DevOpenRoute: DevOpenRoute,
   DashIndexRoute: DashIndexRoute,
 }
 export const routeTree = rootRouteImport

@@ -62,6 +62,21 @@ bun run lighthouse             # run Lighthouse audit on local dev server
 | `UDP_PORT` | `5300` | Game telemetry UDP listen port |
 | `DATA_DIR` | `./data` | Database and settings directory |
 
+### Development Navigation Handler
+
+When the Vite development server is running, open `/dev/open?to=<path>` to mark
+onboarding complete for that browser tab and go directly to a RaceIQ page. For
+example:
+
+```text
+http://raceiq.localhost:1355/dev/open?to=/iracing/cars
+```
+
+The completed-onboarding override is development-only and stored in
+`sessionStorage`; all client settings consumers see `onboardingComplete: true`
+without changing persisted settings or production onboarding. Use `?welcome`
+on any page to force the Setup Wizard when testing onboarding.
+
 ## Architecture
 
 ### Three-layer monorepo: `server/`, `client/`, `shared/`
