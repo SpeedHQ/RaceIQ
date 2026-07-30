@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
+import { loadSettings } from "../server/settings";
+import { getConfiguredAiProvider } from "../server/ai/provider-runtime";
 import { AI_FEATURES } from "../server/ai/ai-features";
-
 describe("AI feature registry", () => {
   test("maps all supported features to their settings", () => {
     expect(AI_FEATURES).toEqual({
@@ -43,5 +44,21 @@ describe("AI feature registry", () => {
   test("reuses chat settings for compaction", () => {
     expect(AI_FEATURES.compaction).toEqual(AI_FEATURES.chat);
     expect(Object.values(AI_FEATURES).map((config) => config.providerSetting)).not.toContain("compactionProvider");
+  });
+  test("resolves compaction from chat settings", async () => {
+    const settings = {
+      ...loadSettings(),
+      aiProvider: "openai" as const,
+      aiModel: "analysis-model",
+      chatProvider: "codex" as const,
+      chatModel: "chat-model",
+      chatThinkingBudget: 123,
+    };
+
+    const resolved = await getConfiguredAiProvider("compaction", settings);
+
+    expect(resolved.provider).toBe("codex");
+    expect(resolved.model).toBe("chat-model");
+    expect(resolved.thinkingBudget).toBe(123);
   });
 });
