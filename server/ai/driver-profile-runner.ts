@@ -7,7 +7,11 @@ import { getSecret } from "../keystore";
 import { toClientAiError, type ClientAiError } from "./provider-error";
 import { driverProfilerAgent } from "./agents";
 import { buildDriverProfilerPrompt } from "./driver-profiler-prompt";
-import { getDriverProfileJsonSchema, parseDriverProfileOutput, type DriverProfileOutput } from "./schemas";
+import {
+  getDriverProfileSummaryJsonSchema,
+  parseDriverProfileSummary,
+  type DriverProfileSummary,
+} from "./schemas";
 import { buildGoogleProviderOptions } from "./google-provider-options";
 import { loadDriverProfile, type DriverFingerprint } from "./driver-profile-aggregate";
 import {
@@ -25,16 +29,15 @@ import {
   type DriverProfileScopeKey,
 } from "../db/queries";
 
-export type DriverProfileScope = DriverProfileScopeKey;
+export type DriverProfileScope = Pick<DriverProfileScopeKey, "gameId">;
 export type DriverProfileState = DriverProfileRunStatus | "disabled" | "not-configured";
 
 export interface DriverProfileRunResult {
   status: DriverProfileState;
   run: DriverProfileRunRow | null;
-  plan?: DriverProfileOutput;
+  summary?: DriverProfileSummary;
   fingerprint?: DriverFingerprint;
   usage?: AnalysisUsage;
-  warnings?: string[];
   error?: string;
 }
 
@@ -50,35 +53,20 @@ const activeRuns = new Map<string, Promise<DriverProfileRunResult>>();
 
 export function driverProfilePoolKey(lapIds: number[]): string {
   return createHash("sha1")
-    .update(lapIds.slice().sort((a, b) => a - b).join(","))
+    .update(`driver-trend-summary-v1|${lapIds.slice(0, 60).sort((a, b) => a - b).join(",")}`)
     .digest("hex")
     .slice(0, 16);
 }
 
 function scopeKey(scope: DriverProfileScope): string {
-  return `${scope.gameId}|${scope.carOrdinal ?? "*"}|${scope.trackOrdinal ?? "*"}`;
+  return `${scope.gameId}|*|*`;
 }
-
-export function resolveDriverProfileScopeNames(scope: DriverProfileScope): { gameName: string; carName?: string; trackName?: string } {
+export function resolveDriverProfileScopeNames(scope: DriverProfileScope): { gameName: string } {
   const game = tryGetGame(scope.gameId);
-  if (!game) return { gameName: scope.gameId };
-  return {
-    gameName: game.displayName,
-    carName: scope.carOrdinal != null ? game.getCarName(scope.carOrdinal) : undefined,
-    trackName: scope.trackOrdinal != null ? game.getTrackName(scope.trackOrdinal) : undefined,
-  };
+  return { gameName: game?.displayName ?? scope.gameId };
 }
 
-function pruneUnknownFocusAreas(plan: DriverProfileOutput, fingerprint: DriverFingerprint): string[] {
-  const known = new Set(fingerprint.detectors.map((detector) => detector.id));
-  const dropped: string[] = [];
-  plan.focusAreas = plan.focusAreas.filter((focus) => {
-    if (known.has(focus.detectorId)) return true;
-    dropped.push(focus.detectorId);
-    return false;
-  });
-  return dropped;
-}
+
 
 function now(): string {
   return new Date().toISOString();
@@ -126,11 +114,10 @@ export async function getDriverProfileConfiguration(): Promise<{
   reason?: string;
 }> {
   const settings = loadSettings();
-  if (!settings.driverProfileBackgroundEnabled) return { enabled: false, configured: false, reason: "Background profiling is disabled." };
   const config = await providerConfiguration();
   return config.ok
-    ? { enabled: true, configured: true }
-    : { enabled: true, configured: false, reason: config.reason };
+    ? { enabled: settings.driverProfileBackgroundEnabled, configured: true }
+    : { enabled: settings.driverProfileBackgroundEnabled, configured: false, reason: config.reason };
 }
 
 async function runDriverProfileInternal(
@@ -140,7 +127,7 @@ async function runDriverProfileInternal(
   const config = await providerConfiguration();
   if (!config.ok) return { status: "not-configured", run: null, error: config.reason };
 
-  const candidates = await getLapMetaForProfileScope(scope.gameId, scope.carOrdinal ?? undefined, scope.trackOrdinal ?? undefined);
+  const candidates = await getLapMetaForProfileScope(scope.gameId);
   const poolKey = driverProfilePoolKey(candidates.map((lap) => lap.id));
   const existing = await findDriverProfileRunByScopePool(scope, poolKey);
   if (existing && (existing.status === "queued" || existing.status === "running")) {
@@ -161,11 +148,7 @@ async function runDriverProfileInternal(
   const startedAt = Date.now();
   let fingerprint: DriverFingerprint | null = null;
   try {
-    fingerprint = await loadDriverProfile({
-      gameId: scope.gameId,
-      carOrdinal: scope.carOrdinal ?? undefined,
-      trackOrdinal: scope.trackOrdinal ?? undefined,
-    });
+    fingerprint = await loadDriverProfile({ gameId: scope.gameId });
     if (!fingerprint.ok) {
       const error = "Not enough valid laps to build a driver profile.";
       await updateDriverProfileRun(runId, scopeKey(scope), "running", {
@@ -180,33 +163,32 @@ async function runDriverProfileInternal(
 
     const prompt = buildDriverProfilerPrompt({
       fingerprint,
-      ...resolveDriverProfileScopeNames(scope),
       language: loadSettings().language,
     });
     const result = await driverProfilerAgent.generate(prompt, {
-      modelSettings: { maxOutputTokens: 6144, temperature: 0 },
+      modelSettings: { maxOutputTokens: 512, temperature: 0 },
       providerOptions: {
         openai: {
           responseFormat: {
             type: "json_schema",
             jsonSchema: {
-              name: "driver_profile_output",
+              name: "driver_profile_summary",
               strict: true,
-              schema: getDriverProfileJsonSchema() as Record<string, never>,
+              schema: getDriverProfileSummaryJsonSchema() as Record<string, never>,
             },
           },
         } as never,
         google: buildGoogleProviderOptions(
           config.model,
-          getDriverProfileJsonSchema() as Record<string, unknown>,
+          getDriverProfileSummaryJsonSchema() as Record<string, unknown>,
           config.thinkingBudget,
         ) as never,
       },
     });
 
-    const parsed = parseDriverProfileOutput(typeof result.text === "string" ? result.text : "");
+    const parsed = parseDriverProfileSummary(typeof result.text === "string" ? result.text : "");
     if (!parsed.success) {
-      const error = "Model produced output that did not match the expected driver profile shape.";
+      const error = "Model produced output that did not match the expected driver profile summary shape.";
       await updateDriverProfileRun(runId, scopeKey(scope), "running", {
         status: "failed",
         error,
@@ -217,8 +199,7 @@ async function runDriverProfileInternal(
       return { status: "failed", run: await getDriverProfileRun(runId), fingerprint, error };
     }
 
-    const plan = parsed.data;
-    const dropped = pruneUnknownFocusAreas(plan, fingerprint);
+    const summary = parsed.data;
     const rawUsage = (result.usage ?? {}) as Record<string, unknown>;
     const number = (key: string): number => (typeof rawUsage[key] === "number" ? (rawUsage[key] as number) : 0);
     const usage: AnalysisUsage = {
@@ -231,10 +212,16 @@ async function runDriverProfileInternal(
 
     // A background generation can finish after more laps arrive. Never let it
     // replace a cache or successful run produced for the newer pool.
-    const latestCandidates = await getLapMetaForProfileScope(scope.gameId, scope.carOrdinal ?? undefined, scope.trackOrdinal ?? undefined);
+    const latestCandidates = await getLapMetaForProfileScope(scope.gameId);
     if (driverProfilePoolKey(latestCandidates.map((lap) => lap.id)) !== poolKey) {
       const error = "Profile data changed while generation was running; stale result discarded.";
-      await updateDriverProfileRun(runId, scopeKey(scope), "running", { status: "failed", error, fingerprint: JSON.stringify(fingerprint), durationMs: usage.durationMs, completedAt: now() });
+      await updateDriverProfileRun(runId, scopeKey(scope), "running", {
+        status: "failed",
+        error,
+        fingerprint: JSON.stringify(fingerprint),
+        durationMs: usage.durationMs,
+        completedAt: now(),
+      });
       return { status: "failed", run: await getDriverProfileRun(runId), fingerprint, error };
     }
     const priorCache = await getDriverProfile(scope);
@@ -253,13 +240,13 @@ async function runDriverProfileInternal(
     await saveDriverProfile(scope, {
       poolKey,
       fingerprint: JSON.stringify(fingerprint),
-      plan: JSON.stringify(plan),
+      plan: JSON.stringify(summary),
       usage,
     });
     await updateDriverProfileRun(runId, scopeKey(scope), "running", {
       status: "succeeded",
       fingerprint: JSON.stringify(fingerprint),
-      plan: JSON.stringify(plan),
+      plan: JSON.stringify(summary),
       inputTokens: usage.inputTokens,
       outputTokens: usage.outputTokens,
       costUsd: usage.costUsd,
@@ -270,10 +257,9 @@ async function runDriverProfileInternal(
     return {
       status: "succeeded",
       run: await getDriverProfileRun(runId),
-      plan,
+      summary,
       fingerprint,
       usage,
-      ...(dropped.length > 0 ? { warnings: [`Ignored ${dropped.length} focus area(s) citing faults not in the profile.`] } : {}),
     };
   } catch (err) {
     const normalized = normalizedError(err);
@@ -315,21 +301,19 @@ function scheduleScope(scope: DriverProfileScope, poolKey: string): void {
 }
 
 /**
- * Non-blocking notification boundary called after a valid lap is persisted.
+ * Non-blocking notification boundary called after any lap is persisted.
  * It intentionally does no work when background profiling is disabled.
  */
-export function notifyDriverProfileLap(gameId: GameId, carOrdinal: number, trackOrdinal: number): void {
+export function notifyDriverProfileLap(gameId: GameId): void {
   const settings = loadSettings();
   if (!settings.driverProfileBackgroundEnabled) return;
-  void Promise.all([
-    getLapMetaForProfileScope(gameId),
-    getLapMetaForProfileScope(gameId, carOrdinal, trackOrdinal),
-  ]).then(([globalLaps, exactLaps]) => {
-    scheduleScope({ gameId }, driverProfilePoolKey(globalLaps.map((lap) => lap.id)));
-    scheduleScope({ gameId, carOrdinal, trackOrdinal }, driverProfilePoolKey(exactLaps.map((lap) => lap.id)));
-  }).catch((err) => {
-    console.error("[AI] Failed to schedule background driver profile:", err);
-  });
+  void getLapMetaForProfileScope(gameId)
+    .then((globalLaps) => {
+      scheduleScope({ gameId }, driverProfilePoolKey(globalLaps.map((lap) => lap.id)));
+    })
+    .catch((err) => {
+      console.error("[AI] Failed to schedule background driver profile:", err);
+    });
 }
 
 export async function getDriverProfileRunStatus(scope: DriverProfileScope, limit = 50): Promise<{
@@ -344,9 +328,9 @@ export async function getDriverProfileRunStatus(scope: DriverProfileScope, limit
   const config = await getDriverProfileConfiguration();
   const latest = runs[0] ?? null;
   return {
-    state: !config.enabled ? "disabled" : !config.configured ? "not-configured" : latest?.status ?? "succeeded",
     enabled: config.enabled,
     configured: config.configured,
+    state: !config.configured ? "not-configured" : latest?.status ?? (!config.enabled ? "disabled" : "succeeded"),
     reason: config.reason,
     latest,
     runs,

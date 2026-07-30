@@ -4,17 +4,14 @@ import { join } from "node:path";
 import {
   ALL_DETECTOR_IDS,
   buildDriverFingerprint,
-  computePace,
+  buildDriverTrend,
   computeStyleAxes,
-  findStrengths,
-  MAX_PROFILE_LAPS,
+  DRIVER_TREND_WINDOW_LAPS,
   MIN_LAPS_FOR_STYLE,
   rankWeaknesses,
   rollUpDetectors,
-  sampleProfileLaps,
   type ProfileScope,
 } from "../server/ai/driver-profile-aggregate";
-import { selectCleanLaps } from "../server/ai/clean-lap-aggregate";
 import type { LapStyleSummary } from "../shared/lib/driving-style";
 import type { LapInsight } from "../shared/lib/lap-insights";
 import type { LapMeta } from "../shared/types";
@@ -192,7 +189,6 @@ describe("low-data honesty", () => {
     expect(fp.style).toBeNull();
     expect(fp.confidence).toBe("very-low");
     expect(fp.notes.join(" ")).toContain("too few to characterise a driving style");
-    expect(fp.strengths).toEqual([]);
   });
 
   test("2 laps still suppress style; 3 laps produce it", () => {
@@ -222,14 +218,11 @@ describe("determinism", () => {
     expect(build()).toEqual(build());
   });
 
-  test("lap ordering does not affect the fingerprint", () => {
-    const habit = [insight("driving-coasting", { timeLossS: 0.2 })];
-    const forward = habitualDriver(6, habit);
-    const reversed = {
-      laps: [...forward.laps].reverse(),
-      perLapInsights: [...forward.perLapInsights].reverse(),
-    };
-    expect(buildDriverFingerprint({ scope: SCOPE, ...reversed })).toEqual(buildDriverFingerprint({ scope: SCOPE, ...forward }));
+  test("trend follows explicit newest-first ordering", () => {
+    const forward = habitualDriver(6, [insight("driving-coasting", { timeLossS: 0.2 })]);
+    const first = buildDriverFingerprint({ scope: SCOPE, ...forward });
+    const second = buildDriverFingerprint({ scope: SCOPE, ...forward });
+    expect(second).toEqual(first);
   });
 
   test("detector table is id-sorted", () => {
@@ -263,9 +256,6 @@ describe("empty and degenerate input", () => {
     expect(fp.style?.controlLossFraction).toBeNull();
     expect(fp.style?.physicsLaps).toBe(0);
     expect(fp.notes.join(" ")).toContain("No lap had enough cornering telemetry");
-    // Every driver fault is a strength when none of them ever fired.
-    expect(fp.strengths.every((s) => s.basis === "absent")).toBe(true);
-    expect(fp.strengths.length).toBeGreaterThan(15);
   });
 
   test("rollUpDetectors on an empty pool", () => {
@@ -372,118 +362,143 @@ describe("style axes", () => {
   });
 });
 
-describe("strengths", () => {
-  test("require enough laps to mean anything", () => {
-    expect(findStrengths([], MIN_LAPS_FOR_STYLE - 1)).toEqual([]);
-    expect(findStrengths([], MIN_LAPS_FOR_STYLE).length).toBeGreaterThan(0);
+
+
+
+
+describe("normalized driver trend", () => {
+  test("uses newest-first 70-lap slices and leaves oldest laps for benchmarks", () => {
+    const laps = Array.from({ length: 70 }, (_, i) => lap(70 - i, { lapTime: 100 + (70 - i) / 100 }));
+    const trend = buildDriverTrend(laps);
+    expect(DRIVER_TREND_WINDOW_LAPS).toBe(30);
+    expect(trend.recent.laps.map((x) => x.id)).toEqual(Array.from({ length: 30 }, (_, i) => 41 + i));
+    expect(trend.previous.laps.map((x) => x.id)).toEqual(Array.from({ length: 30 }, (_, i) => 11 + i));
+    expect(trend.recent.total).toBe(30);
+    expect(trend.previous.total).toBe(30);
+    expect(trend.recent.normalized).toBe(30);
+    expect(trend.previous.normalized).toBe(30);
+    expect(trend.recent.laps.find((x) => x.id === 70)?.relativePacePct).toBeCloseTo((100.7 / 100.01 - 1) * 100, 8);
   });
 
-  test("a frequent fault is not a strength; a rare info-only one is", () => {
-    const laps = Array.from({ length: 10 }, (_, i) => lap(i + 1));
-    const perLapInsights = laps.map((_, i) => [
-      insight("driving-coasting", { severity: "warning" }),
-      ...(i === 0 ? [insight("driving-kerb-riding", { severity: "info" })] : []),
-    ]);
-    const fp = buildDriverFingerprint({ scope: SCOPE, laps, perLapInsights });
-    const ids = fp.strengths.map((s) => s.id);
-    expect(ids).not.toContain("driving-coasting");
-    expect(ids).toContain("driving-kerb-riding");
-    expect(fp.strengths.find((s) => s.id === "driving-kerb-riding")!.basis).toBe("rare");
+  test("keeps dirty laps, lowers clean rate, and includes them in normalized spread", () => {
+    const clean = Array.from({ length: 60 }, (_, i) => lap(60 - i, { lapTime: 100 }));
+    for (let i = 0; i < 16; i++) {
+      clean[i].isValid = false;
+      clean[i].lapTime = 130;
+    }
+    const trend = buildDriverTrend(clean);
+    expect(trend.recent.laps.map((x) => x.id)).toContain(60);
+    expect(trend.recent.dirty).toBe(16);
+    expect(trend.recent.cleanRate).toBeCloseTo(14 / 30, 8);
+    expect(trend.recent.normalized).toBe(30);
+    expect(trend.recent.medianPacePct).toBeGreaterThan(0);
+    expect(trend.recent.spreadPct).toBeGreaterThan(0);
+    expect(trend.recent.consistency).toBeLessThan(100);
   });
 
-  test("setup symptoms are not credited as driver strengths", () => {
-    const fp = buildDriverFingerprint({ scope: SCOPE, ...habitualDriver(6, []) });
-    const ids = fp.strengths.map((s) => s.id);
-    expect(ids.some((id) => id.startsWith("susp-"))).toBe(false);
-    expect(ids.some((id) => id.startsWith("mech-"))).toBe(false);
-    expect(ids).toContain("tire-lockup-FL");
-  });
-});
-
-describe("pace", () => {
-  test("single car+track context keeps seconds-valued stats", () => {
-    const laps = [lap(1, { lapTime: 90 }), lap(2, { lapTime: 90.5 }), lap(3, { lapTime: 91 }), lap(4, { lapTime: 91.5 })];
-    const pace = computePace(laps);
-    expect(pace.basis).toBe("single-context");
-    expect(pace.contexts).toBe(1);
-    expect(pace.n).toBe(4);
-    expect(pace.bestS).toBe(90);
-    expect(pace.degSlopeSPerLap).toBeCloseTo(0.5, 6);
-  });
-
-  test("multi-context pools drop incomparable seconds and median the unitless stats", () => {
+  test("invalid shortcut faster than valid benchmark clamps relative pace at zero", () => {
     const laps = [
-      lap(1, { trackOrdinal: 1, lapTime: 90, lapNumber: 1 }),
-      lap(2, { trackOrdinal: 1, lapTime: 90.5, lapNumber: 2 }),
-      lap(3, { trackOrdinal: 1, lapTime: 91, lapNumber: 3 }),
-      lap(4, { trackOrdinal: 2, lapTime: 200, lapNumber: 1 }),
-      lap(5, { trackOrdinal: 2, lapTime: 201, lapNumber: 2 }),
-      lap(6, { trackOrdinal: 2, lapTime: 202, lapNumber: 3 }),
+      lap(3, { lapTime: 90, isValid: false }),
+      lap(2, { lapTime: 100, isValid: true }),
+      lap(1, { lapTime: 110, isValid: true }),
     ];
-    const pace = computePace(laps);
-    expect(pace.basis).toBe("median-of-contexts");
-    expect(pace.contexts).toBe(2);
-    expect(pace.meanS).toBeNull();
-    expect(pace.bestS).toBeNull();
-    expect(pace.sdS).toBeNull();
-    expect(pace.consistency).not.toBeNull();
-    expect(pace.n).toBe(6);
+    const trend = buildDriverTrend(laps);
+    expect(trend.recent.laps.find((x) => x.id === 3)?.relativePacePct).toBe(0);
+    expect(trend.recent.medianPacePct).toBe(0);
   });
 
-  test("out-lap is not dropped — the pool is already curated", () => {
-    const laps = [lap(1, { lapNumber: 1, lapTime: 90 }), lap(2, { lapNumber: 2, lapTime: 91 })];
-    expect(computePace(laps).n).toBe(2);
+  test("normalizes mixed 90-second and 200-second contexts to percentages", () => {
+    const laps = [
+      ...Array.from({ length: 3 }, (_, i) => lap(6 - i, { trackOrdinal: 1, lapTime: 90 + i })),
+      ...Array.from({ length: 3 }, (_, i) => lap(3 - i, { trackOrdinal: 2, lapTime: 200 + i })),
+    ];
+    const trend = buildDriverTrend(laps);
+    expect(trend.recent.contexts).toBe(2);
+    expect(trend.recent.medianPacePct).toBeGreaterThanOrEqual(0);
+    expect(trend.recent.spreadPct).toBeLessThan(5);
+    expect(JSON.stringify(trend)).not.toContain("90");
+    expect(JSON.stringify(trend)).not.toContain("200");
+  });
+
+  test("benchmarks stay isolated per game context", () => {
+    const trend = buildDriverTrend([
+      lap(4, { gameId: "fm-2023", lapTime: 90, isValid: false }),
+      lap(3, { gameId: "fm-2023", lapTime: 100 }),
+      lap(2, { gameId: "acc", lapTime: 190, isValid: false }),
+      lap(1, { gameId: "acc", lapTime: 200 }),
+    ]);
+    expect(trend.recent.contexts).toBe(2);
+    expect(trend.recent.laps.find((x) => x.id === 4)?.relativePacePct).toBe(0);
+    expect(trend.recent.laps.find((x) => x.id === 2)?.relativePacePct).toBe(0);
+  });
+
+  test("missing valid benchmark keeps lap totals and produces null pace", () => {
+    const laps = [lap(2, { trackOrdinal: 99, lapTime: 90, isValid: false }), lap(1, { trackOrdinal: 1, lapTime: 100 })];
+    const trend = buildDriverTrend(laps);
+    expect(trend.recent.total).toBe(2);
+    expect(trend.recent.dirty).toBe(1);
+    expect(trend.recent.laps.find((x) => x.id === 2)?.relativePacePct).toBeNull();
+    expect(trend.recent.normalized).toBe(1);
+  });
+  test("builds baseline when each window has only one normalized lap", () => {
+    const recentPadding = Array.from({ length: 29 }, (_, i) => lap(100 + i, { trackOrdinal: 900 + i, isValid: false, lapTime: 90 }));
+    const trend = buildDriverTrend([
+      lap(2, { lapTime: 100 }),
+      ...recentPadding,
+      lap(1, { lapTime: 100 }),
+    ]);
+    expect(trend.recent.normalized).toBe(1);
+    expect(trend.previous.normalized).toBe(1);
+    expect(trend.recent.consistency).toBeNull();
+    expect(trend.previous.consistency).toBeNull();
+    expect(trend.advice[0].id).toBe("build-baseline");
+  });
+
+  test("direction boundaries are inclusive and advice covers every branch", () => {
+    const make = (recentPace: number, previousPace: number, recentSpread: number, previousSpread: number, recentValid = true, previousValid = true) => {
+      const recent = Array.from({ length: 30 }, (_, i) => lap(60 - i, { lapTime: recentPace + (i === 0 ? recentSpread : 0), isValid: recentValid }));
+      const previous = Array.from({ length: 30 }, (_, i) => lap(30 - i, { lapTime: previousPace + (i === 0 ? previousSpread : 0), isValid: previousValid }));
+      return buildDriverTrend([...recent, ...previous]);
+    };
+    const improving = make(90, 90.225, 0, 10);
+    expect(improving.paceDirection).toBe("improving");
+    const declining = make(90.225, 90, 0, 0);
+    expect(declining.paceDirection).toBe("declining");
+    const steady = make(90.1, 90, 0, 0);
+    expect(steady.paceDirection).toBe("steady");
+    expect(buildDriverTrend([]).advice[0].id).toBe("build-baseline");
+    expect(improving.advice[0].id).toBe("keep-approach");
+    expect(make(90, 90.3, 10, 0).advice[0].id).toBe("stabilize-pace");
+    expect(make(90.1, 90, 0, 10).advice[0].id).toBe("add-pace");
+    expect(make(90.2, 90, 10, 0).advice[0].id).toBe("reset-baseline");
+    expect(steady.advice[0].id).toBe("hold-steady");
+    expect(make(90, 90, 0, 0, false, true).advice.map((a) => a.id)).toContain("protect-validity");
   });
 });
-
-describe("sampleProfileLaps", () => {
-  test("passes small pools through, id-ascending", () => {
-    const laps = [lap(3), lap(1), lap(2)];
-    const { selected, droppedByCap } = sampleProfileLaps(laps);
-    expect(selected.map((l) => l.id)).toEqual([1, 2, 3]);
-    expect(droppedByCap).toBe(0);
+  test("dirty telemetry contributes evidence; missing telemetry changes provenance only", () => {
+    const metadata = [lap(2, { isValid: false, lapTime: 110 }), lap(1, { lapTime: 100 })];
+    const trend = buildDriverTrend(metadata);
+    const withDirtyTelemetry = buildDriverFingerprint({
+      scope: GLOBAL_SCOPE,
+      laps: [metadata[0]],
+      perLapInsights: [[insight("driving-coasting")]],
+      trend,
+      pool: { candidates: 2, droppedNoTelemetry: 1 },
+    });
+    const withoutTelemetry = buildDriverFingerprint({
+      scope: GLOBAL_SCOPE,
+      laps: [],
+      perLapInsights: [],
+      trend,
+      pool: { candidates: 2, droppedNoTelemetry: 2 },
+    });
+    expect(withDirtyTelemetry.detectors.map((d) => d.id)).toContain("driving-coasting");
+    expect(withDirtyTelemetry.trend).toEqual(withoutTelemetry.trend);
+    expect(withDirtyTelemetry.laps.droppedNoTelemetry).toBe(1);
+    expect(withoutTelemetry.laps.droppedNoTelemetry).toBe(2);
+    expect(withoutTelemetry.ok).toBe(true);
   });
 
-  test("caps large pools, keeping both the fastest and the most recent", () => {
-    // Lap 1 is by far the fastest; laps 900+ are the most recent.
-    const laps = Array.from({ length: 200 }, (_, i) => lap(i + 1, { lapTime: 100 - (i === 0 ? 50 : 0) + i * 0.01 }));
-    const { selected, droppedByCap } = sampleProfileLaps(laps);
-    expect(selected.length).toBe(MAX_PROFILE_LAPS);
-    expect(droppedByCap).toBe(200 - MAX_PROFILE_LAPS);
-    expect(selected.map((l) => l.id)).toContain(1); // fastest
-    expect(selected.map((l) => l.id)).toContain(200); // most recent
-    expect([...selected].sort((a, b) => a.id - b.id).map((l) => l.id)).toEqual(selected.map((l) => l.id));
-  });
-
-  test("selection is independent of input order", () => {
-    const laps = Array.from({ length: 120 }, (_, i) => lap(i + 1, { lapTime: 90 + ((i * 7) % 13) * 0.1 }));
-    const a = sampleProfileLaps(laps).selected.map((l) => l.id);
-    const b = sampleProfileLaps([...laps].reverse()).selected.map((l) => l.id);
-    expect(a).toEqual(b);
-  });
-});
-
-describe("selectCleanLaps user-exclusion opt-out", () => {
-  const pool: LapMeta[] = [lap(1, { lapTime: 90 }), lap(2, { lapTime: 90.2, experimentExcluded: true }), lap(3, { lapTime: 90.4 })];
-
-  test("default behaviour is unchanged — excluded laps are dropped", () => {
-    const { clean, breakdown } = selectCleanLaps(pool);
-    expect(clean.map((l) => l.id)).toEqual([1, 3]);
-    expect(breakdown.find((r) => r.lapId === 2)!.reason).toBe("user-excluded");
-  });
-
-  test("applyUserExclusions: false keeps laps the driver actually drove", () => {
-    const { clean, breakdown } = selectCleanLaps(pool, { applyUserExclusions: false });
-    expect(clean.map((l) => l.id)).toEqual([1, 2, 3]);
-    expect(breakdown.every((r) => r.reason !== "user-excluded")).toBe(true);
-  });
-
-  test("invalid laps are still dropped either way", () => {
-    const withInvalid = [...pool, lap(4, { isValid: false })];
-    const { clean } = selectCleanLaps(withInvalid, { applyUserExclusions: false });
-    expect(clean.map((l) => l.id)).not.toContain(4);
-  });
-});
 
 describe("detector universe stays in lockstep with lap-insights", () => {
   test("ALL_DETECTOR_IDS covers every id analyzeLap can emit", () => {

@@ -1,12 +1,12 @@
 import type { LapMeta, SessionMeta, SessionRecap } from "@shared/types";
-import type { DriverFingerprint } from "../../../server/ai/driver-profile-aggregate";
+import type { DriverFingerprint, DriverTrend } from "../../../server/ai/driver-profile-aggregate";
 import type { DriverProfileRun } from "../hooks/queries";
 import hakoneClubCenterlineCsv from "../../../shared/tracks/fm-2023/hakone-s-1641-centerline.csv?raw";
 
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
-import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { HomePageContainer } from "../components/HomePageContainer";
 import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
 import { GameStoryScope } from "./GameStoryScope";
@@ -100,10 +100,17 @@ const recap: SessionRecap = {
   ],
 };
 
+const DRIVER_TREND: DriverTrend = {
+  recent: { laps: laps.map((item) => ({ id: item.id, createdAt: item.createdAt, isValid: item.isValid, relativePacePct: item.isValid ? (item.lapTime / 95.844 - 1) * 100 : null })), total: 12, valid: 11, dirty: 1, cleanRate: 11 / 12, normalized: 11, consistency: 86, medianPacePct: 1.1, spreadPct: 2.4, contexts: 1 },
+  previous: { laps: [], total: 0, valid: 0, dirty: 0, cleanRate: null, normalized: 0, consistency: null, medianPacePct: null, spreadPct: null, contexts: 0 },
+  consistencyDelta: null, paceDeltaPct: null, spreadDeltaPct: null, cleanRateDelta: null,
+  consistencyDirection: "unavailable", paceDirection: "unavailable", validityDirection: "unavailable",
+  advice: [{ id: "build-baseline", tone: "neutral", title: "Build a comparable baseline", detail: "Keep recording comparable laps to make this trend reliable." }],
+};
 const DRIVER_FINGERPRINT: DriverFingerprint = {
   ok: true,
   scope: { kind: "car-track", gameId: GAME_ID, carOrdinal: 201, trackOrdinal: TRACK_ORDINAL },
-  laps: { lapIds: laps.map((lap) => lap.id), analyzed: 12, candidates: 12, droppedInvalid: 1, droppedOutlier: 0, droppedByCap: 0, droppedNoTelemetry: 0 },
+  laps: { lapIds: laps.map((lap) => lap.id), analyzed: 12, candidates: 12, droppedNoTelemetry: 0 },
   confidence: "high",
   style: {
     gripUtilMedian: 0.78,
@@ -118,7 +125,7 @@ const DRIVER_FINGERPRINT: DriverFingerprint = {
     consistency: 86,
     physicsLaps: 12,
   },
-  pace: { consistency: 86, sdS: 0.64, bestS: 95.844, meanS: 96.82, degSlopeSPerLap: -0.12, n: 12, basis: "single-context", contexts: 1 },
+  trend: DRIVER_TREND,
   weaknesses: [
     {
       id: "driving-early-braking",
@@ -136,7 +143,6 @@ const DRIVER_FINGERPRINT: DriverFingerprint = {
     },
   ],
   unquantifiedWeaknesses: [],
-  strengths: [{ id: "driving-late-braking-overshoot", label: "Stable braking", perLapFrequency: 0.08, basis: "rare" }],
   detectors: [],
   notes: ["Fixed Storybook fixture."],
 };
@@ -171,32 +177,14 @@ function createQueryClient() {
   queryClient.setQueryData(["sessions", GAME_ID], sessions);
   queryClient.setQueryData(["settings"], { ...DEFAULT_DISPLAY_SETTINGS, driverName: "Alex", hiddenGames: [] });
   queryClient.setQueryData(["session-recap", SESSION_ID, GAME_ID], recap);
-  queryClient.setQueryData(["driver-profile", GAME_ID, null, null], {
-    fingerprint: DRIVER_FINGERPRINT,
-    gameName: "Forza Motorsport 2023",
-    carName: "2023 Cadillac V-Series.R",
-    trackName: "Hakone Club",
-    selectedLapTimes: laps.map((lap) => ({ id: lap.id, lapTime: lap.lapTime, isValid: lap.isValid })),
-  });
-  queryClient.setQueryData(["driver-profile-runs", GAME_ID, null, null], {
-    scope: { gameId: GAME_ID },
-    state: "succeeded",
-    enabled: true,
-    configured: true,
-    latest: PROFILE_RUN,
-    runs: [PROFILE_RUN],
+  queryClient.setQueryData(["driver-profile", GAME_ID], { fingerprint: DRIVER_FINGERPRINT, gameName: "Forza Motorsport 2023" });
+  queryClient.setQueryData(["driver-profile-runs", GAME_ID], {
+    scope: { gameId: GAME_ID }, gameName: "Forza Motorsport 2023", state: "succeeded", enabled: true, configured: true, latest: PROFILE_RUN, runs: [PROFILE_RUN],
   });
 
   for (const [gameId, totalLaps, totalTimeSec] of [
-    ["fm-2023", 128, 12_480],
-    ["f1-2025", 74, 7_215],
-    ["acc", 52, 5_086],
-    ["ac-evo", 31, 3_042],
-    ["iracing", 18, 1_764],
-  ] as const) {
-    queryClient.setQueryData(["stats", gameId], { totalLaps, totalTimeSec });
-  }
-
+    ["fm-2023", 128, 12_480], ["f1-2025", 74, 7_215], ["acc", 52, 5_086], ["ac-evo", 31, 3_042], ["iracing", 18, 1_764],
+  ] as const) queryClient.setQueryData(["stats", gameId], { totalLaps, totalTimeSec });
   return queryClient;
 }
 
@@ -213,7 +201,11 @@ function jsonResponse(body: unknown): Promise<Response> {
   );
 }
 
-function mockHomeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+function mockHomeFetch(
+  input: RequestInfo | URL,
+  init: RequestInit | undefined,
+  fallbackFetch: typeof window.fetch = originalFetch,
+): Promise<Response> {
   const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
   const parsedUrl = new URL(url, window.location.origin);
   const carMatch = parsedUrl.pathname.match(/\/api\/car-name\/(\d+)/);
@@ -228,18 +220,17 @@ function mockHomeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Re
       return jsonResponse({ s1End: 1 / 3, s2End: 2 / 3, trackLength: HAKONE_CLUB_TRACK_LENGTH });
     }
   }
-  return originalFetch(input, init);
+  return fallbackFetch(input, init);
 }
 
 /** Installs deterministic API fixtures used by HomePageContainer. */
 function MockHomeApi({ children }: { children: ReactNode }) {
-  const restored = useRef(false);
-  if (!restored.current) {
-    window.fetch = mockHomeFetch;
-    restored.current = true;
-  }
-  useEffect(() => () => {
-    window.fetch = originalFetch;
+  useEffect(() => {
+    const previousFetch = window.fetch;
+    window.fetch = (input, init) => mockHomeFetch(input, init, previousFetch);
+    return () => {
+      window.fetch = previousFetch;
+    };
   }, []);
   return children;
 }

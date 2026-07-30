@@ -113,10 +113,8 @@ export class RealDbAdapter implements DbAdapter {
 
   async insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null): Promise<number> {
     const lapId = await insertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors);
-    if (isValid) {
-      const scope = this.sessionScopes.get(sessionId);
-      if (scope) notifyDriverProfileLap(scope.gameId, scope.carOrdinal, scope.trackOrdinal);
-    }
+    const scope = this.sessionScopes.get(sessionId);
+    if (scope) notifyDriverProfileLap(scope.gameId);
     return lapId;
   }
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
