@@ -23,7 +23,6 @@ import { useUnits } from "../hooks/useUnits";
 import { buildExportCsv } from "../lib/lap-export";
 import { client } from "../lib/rpc";
 import { m } from "../paraglide/messages";
-import { MobileNotSupported } from "../routes/__root";
 import { useRequiredGameId } from "../stores/game";
 import type { AiPanelHandle, AnalysisHighlight } from "./AiPanel";
 import { AnalyseAiSidebar } from "./analyse/AnalyseAiSidebar";
@@ -32,12 +31,7 @@ import { AnalyseDataPanel } from "./analyse/AnalyseDataPanel";
 import { AnalyseLapHeader } from "./analyse/AnalyseLapHeader";
 import { AnalyseTimelineScrubber } from "./analyse/AnalyseTimelineScrubber";
 import { AnalyseTopSection } from "./analyse/AnalyseTopSection";
-import type {
-  Point,
-  SectorBoundaries,
-  TrackMapHandle,
-  TrackMapLabel,
-} from "./analyse/AnalyseTrackMap";
+import type { Point, SectorBoundaries, TrackMapHandle, TrackMapLabel } from "./analyse/AnalyseTrackMap";
 import { F1SetupModal } from "./analyse/F1SetupModal";
 import { type IbtImportPreview, IbtImportPreviewModal } from "./analyse/IbtImportPreviewModal";
 import { ImportResultModal } from "./analyse/ImportResultModal";
@@ -58,23 +52,7 @@ interface ImportedLap {
 
 // ── Main Component ───────────────────────────────────────────────────
 
-function useIsPhoneViewport() {
-  const [isPhone, setIsPhone] = useState(() => typeof window !== "undefined" && Math.min(window.innerWidth, window.innerHeight) <= 768);
-  useEffect(() => {
-    const check = () => setIsPhone(Math.min(window.innerWidth, window.innerHeight) <= 768);
-    window.addEventListener("resize", check);
-    window.addEventListener("orientationchange", check);
-    return () => {
-      window.removeEventListener("resize", check);
-      window.removeEventListener("orientationchange", check);
-    };
-  }, []);
-  return isPhone;
-}
-
 export function LapAnalyse() {
-  const isPhone = useIsPhoneViewport();
-  if (isPhone) return <MobileNotSupported feature={m.lapanalyse_feature_name()} />;
   return <LapAnalyseInner />;
 }
 
@@ -665,7 +643,7 @@ function LapAnalyseInner() {
   }, [ibtPreview, queryClient, gameId]);
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div data-testid="lap-analyse-workspace" className="flex min-h-full min-w-0 flex-col @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:overflow-hidden">
       {/* Header: cascading selectors + export */}
       <AnalyseLapHeader
         selectedTrack={selectedTrack}
@@ -717,9 +695,9 @@ function LapAnalyseInner() {
       )}
 
       {telemetry.length > 0 && (
-        <div className="flex flex-1 overflow-hidden">
+        <div className="relative flex flex-none flex-col overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:flex-row @5xl/workspace:overflow-hidden">
           {/* Left: main content (map, charts, scrubber) */}
-          <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden">
+          <div className="flex min-w-0 flex-none flex-col overflow-visible @5xl/workspace:h-full @5xl/workspace:flex-1 @5xl/workspace:overflow-hidden">
             {/* Top section: Track Map + Metrics */}
             <AnalyseTopSection
               topHeight={topHeight}
@@ -761,7 +739,7 @@ function LapAnalyseInner() {
               aria-valuemax={800}
               aria-valuenow={topHeight}
               tabIndex={0}
-              className="h-3 cursor-row-resize border-y border-app-border bg-app-surface-alt/80 hover:bg-app-accent/30 transition-colors shrink-0 flex items-center justify-center"
+              className="hidden h-3 shrink-0 cursor-row-resize items-center justify-center border-y border-app-border bg-app-surface-alt/80 transition-colors hover:bg-app-accent/30 @5xl/workspace:flex"
               onKeyDown={(event) => {
                 if (event.key === "ArrowUp") {
                   event.preventDefault();

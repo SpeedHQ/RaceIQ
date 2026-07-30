@@ -8,7 +8,6 @@ import { queryKeys, useDeleteLap, useLaps, useSessions } from "../hooks/queries"
 import { exportLapsZip } from "../lib/lap-export";
 import { storedLapsSectorCount } from "../lib/lap-sectors";
 import { client } from "../lib/rpc";
-import { RotatePrompt } from "../routes/__root";
 import { useGameId, useGameRoute } from "../stores/game";
 import { MotecImportModal } from "./analyse/MotecImportModal";
 import { formatLapTime } from "./LiveTelemetry";
@@ -494,7 +493,6 @@ export function SessionsPage() {
   return (
     <div className="h-full flex flex-col p-4 gap-3">
       {recapSessionId != null && <SessionRecapModal sessionId={recapSessionId} onClose={() => setRecapSessionId(null)} />}
-      <RotatePrompt />
       {importOpen && (
         <MotecImportModal
           onClose={() => setImportOpen(false)}

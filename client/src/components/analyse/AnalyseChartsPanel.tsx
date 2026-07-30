@@ -1,6 +1,6 @@
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
-import { WHEEL_COLOR_VARS } from "@/lib/colors";
 import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef } from "react";
+import { WHEEL_COLOR_VARS } from "@/lib/colors";
+import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import type { DisplayPacket } from "../../lib/convert-packet";
 import { m } from "../../paraglide/messages";
 import { TelemetryChart } from "./AnalyseTelemetryChart";
@@ -219,7 +219,7 @@ export const AnalyseChartsPanel = memo(
     };
 
     return (
-      <div className="flex-1 min-h-0 overflow-y-auto relative" ref={scrollRef}>
+      <div className="relative flex-none overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:overflow-y-auto" ref={scrollRef}>
         <canvas ref={cursorOverlayRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 10 }} />
         <div className="p-3 space-y-2">
           <TelemetryChart series={[{ data: chartData.speed, color: "var(--telemetry-speed)", label: `${m.label_speed()} (${speedLabel})` }]} {...common} height={100} />

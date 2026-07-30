@@ -10,6 +10,7 @@ interface SearchSelectOption {
 }
 
 interface SearchSelectProps {
+  id?: string;
   value: string;
   onChange: (value: string) => void;
   options: SearchSelectOption[];
@@ -20,7 +21,7 @@ interface SearchSelectProps {
   fallbackLabel?: string; // shown when value is set but no option matches
 }
 
-export function SearchSelect({ value, onChange, options, placeholder = "Search...", disabled = false, className = "", focusColor, fallbackLabel }: SearchSelectProps) {
+export function SearchSelect({ id, value, onChange, options, placeholder = "Search...", disabled = false, className = "", focusColor, fallbackLabel }: SearchSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -103,6 +104,7 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       <input
+        id={id}
         ref={inputRef}
         type="text"
         value={open ? search : selectedLabel}

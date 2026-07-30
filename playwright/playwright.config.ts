@@ -34,7 +34,7 @@ export default defineConfig({
   projects: [
     {
       name: "fresh-install",
-      testMatch: "fresh-install.spec.ts",
+      testMatch: ["fresh-install.spec.ts", "responsive-workspaces.spec.ts"],
       use: {
         baseURL: `http://localhost:${E2E_DEV_SERVER ? FRESH_INSTALL_CLIENT_PORT : FRESH_INSTALL_PORT}`,
         viewport: { width: 1280, height: 900 },

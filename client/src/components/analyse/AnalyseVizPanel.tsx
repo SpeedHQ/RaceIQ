@@ -11,7 +11,6 @@ import type { Point } from "./AnalyseTrackMap";
 interface Props {
   vizMode: "2d" | "3d";
   onVizModeChange: (mode: "2d" | "3d") => void;
-  width: number;
   currentPacket: TelemetryPacket | null;
   currentDisplayPacket: DisplayPacket | null;
   displayTelemetry: DisplayPacket[];
@@ -24,22 +23,9 @@ interface Props {
   units: ReturnType<typeof useUnits>;
 }
 
-export function AnalyseVizPanel({
-  vizMode,
-  onVizModeChange,
-  width,
-  currentPacket,
-  currentDisplayPacket,
-  displayTelemetry,
-  cursorRef,
-  displayTelemetryRef,
-  cursorIdx,
-  lapLine,
-  boundaries,
-  units,
-}: Props) {
+export function AnalyseVizPanel({ vizMode, onVizModeChange, currentPacket, currentDisplayPacket, displayTelemetry, cursorRef, displayTelemetryRef, cursorIdx, lapLine, boundaries, units }: Props) {
   return (
-    <div className="border-r border-app-border flex flex-col items-center justify-start overflow-y-auto shrink-0" style={{ width }}>
+    <div className="flex h-[30rem] w-full shrink-0 flex-col items-center justify-start overflow-y-auto border-b border-app-border @5xl/workspace:h-full @5xl/workspace:w-(--analyse-right-width) @5xl/workspace:border-r @5xl/workspace:border-b-0">
       {/* Wheel panel tabs */}
       <div className="flex w-full border-b border-app-border shrink-0">
         <button
@@ -64,9 +50,7 @@ export function AnalyseVizPanel({
 
       <div className="p-2 flex flex-col items-center gap-2 w-full flex-1 min-h-0">
         {vizMode === "2d" ? (
-          <>
-            <Vitals2D packet={currentPacket} />
-          </>
+          <Vitals2D packet={currentPacket} />
         ) : (
           <div className="w-full flex-1 min-h-0 relative">
             {currentDisplayPacket && (
