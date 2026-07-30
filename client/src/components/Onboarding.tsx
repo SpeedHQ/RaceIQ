@@ -128,7 +128,7 @@ function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
   if (!packet) return null;
 
   return (
-    <div className="w-full h-48 rounded-lg overflow-hidden border border-app-border bg-black">
+    <div className="w-full h-48 rounded-lg overflow-hidden border border-app-border bg-app-bg">
       <CarWireframe
         gameId="fm-2023"
         packet={packet}
@@ -216,9 +216,9 @@ export function StepWelcome() {
             />
             <defs>
               <linearGradient id="accentGrad" x1="0" y1="0" x2="260" y2="0">
-                <stop offset="0%" stopColor="var(--color-app-accent, #22d3ee)" stopOpacity="0.4" />
-                <stop offset="50%" stopColor="var(--color-app-accent, #22d3ee)" stopOpacity="1" />
-                <stop offset="100%" stopColor="var(--color-app-accent, #22d3ee)" stopOpacity="0.6" />
+                <stop offset="0%" stopColor="var(--app-accent)" stopOpacity="0.4" />
+                <stop offset="50%" stopColor="var(--app-accent)" stopOpacity="1" />
+                <stop offset="100%" stopColor="var(--app-accent)" stopOpacity="0.6" />
               </linearGradient>
             </defs>
           </svg>
@@ -343,7 +343,7 @@ export function StepWheel() {
             key={w.id}
             onClick={() => select(w.src)}
             className={`relative rounded-lg border p-3 text-left transition-all ${
-              currentSrc === w.src ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30" : "border-app-border bg-app-surface-alt hover:border-app-border-input"
+              currentSrc === w.src ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30" : "border-app-border bg-app-surface-alt hover:border-app-border-hover"
             }`}
           >
             <div className="text-sm font-medium text-app-text truncate">{w.name}</div>
@@ -392,7 +392,7 @@ export function StepUnits() {
           type="button"
           onClick={() => selectUnit("imperial")}
           className={`rounded-lg border p-4 text-left transition-all ${
-            unitSystem === "imperial" ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30" : "border-app-border bg-app-surface-alt hover:border-app-border-input"
+            unitSystem === "imperial" ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30" : "border-app-border bg-app-surface-alt hover:border-app-border-hover"
           }`}
         >
           <div className="text-sm font-medium text-app-text">{m.ob_units_imperial()}</div>
@@ -402,7 +402,7 @@ export function StepUnits() {
           type="button"
           onClick={() => selectUnit("metric")}
           className={`rounded-lg border p-4 text-left transition-all ${
-            unitSystem === "metric" ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30" : "border-app-border bg-app-surface-alt hover:border-app-border-input"
+            unitSystem === "metric" ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30" : "border-app-border bg-app-surface-alt hover:border-app-border-hover"
           }`}
         >
           <div className="text-sm font-medium text-app-text">{m.ob_units_metric()}</div>
@@ -419,7 +419,7 @@ export function StepUnits() {
             type="button"
             onClick={() => selectTemperatureUnit("F")}
             className={`rounded-lg border px-4 py-2 text-sm transition-all ${
-              temperatureUnit === "F" ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30" : "border-app-border bg-app-surface-alt hover:border-app-border-input"
+              temperatureUnit === "F" ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30" : "border-app-border bg-app-surface-alt hover:border-app-border-hover"
             }`}
           >
             °F
@@ -428,7 +428,7 @@ export function StepUnits() {
             type="button"
             onClick={() => selectTemperatureUnit("C")}
             className={`rounded-lg border px-4 py-2 text-sm transition-all ${
-              temperatureUnit === "C" ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30" : "border-app-border bg-app-surface-alt hover:border-app-border-input"
+              temperatureUnit === "C" ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30" : "border-app-border bg-app-surface-alt hover:border-app-border-hover"
             }`}
           >
             °C
@@ -513,7 +513,7 @@ export function StepSound() {
                 setVolume(v);
                 setSoundVolume(v);
               }}
-              className="w-64 accent-cyan-500"
+              className="w-64 accent-app-accent"
             />
           </div>
 
@@ -554,7 +554,7 @@ export function StepStartup() {
           }`}
         >
           <span
-            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition-transform ${
+            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-app-text shadow-lg ring-0 transition-transform ${
               displaySettings.launchOnLogin ? "translate-x-4" : "translate-x-0"
             }`}
           />
@@ -620,7 +620,7 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
                           i === step
                             ? "border-app-accent bg-app-accent/15 text-app-accent"
                             : i < step
-                              ? "border-emerald-500 bg-emerald-500/15 text-emerald-400"
+                              ? "border-status-success bg-status-success/15 text-status-success"
                               : "border-app-border bg-app-surface-alt text-app-text-muted/50"
                         }`}
                       >
@@ -634,7 +634,7 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
                       </span>
                       {s.label()}
                     </button>
-                    {idx < MODAL_STEPS.length - 2 && <div className={`w-8 h-px ${i < step ? "bg-emerald-500/50" : "bg-app-border"}`} />}
+                    {idx < MODAL_STEPS.length - 2 && <div className={`w-8 h-px ${i < step ? "bg-status-success/50" : "bg-app-border"}`} />}
                   </div>
                 );
               })}
@@ -756,14 +756,14 @@ export function StepConnection() {
               setPortSaved(false);
             }}
             onKeyDown={(e) => e.key === "Enter" && handleSavePort()}
-            className="glass-input border bg-app-surface-alt border-app-border-input text-app-text font-mono mt-1 w-28"
+            className="border bg-app-surface-alt border-app-border-input text-app-text font-mono mt-1 w-28"
           />
         </div>
         <Button size="sm" onClick={handleSavePort}>
           {portSaved ? m.common_saved() : m.common_save()}
         </Button>
       </div>
-      {portError && <p className="text-red-400 text-xs mb-3">{portError}</p>}
+      {portError && <p className="text-status-danger text-xs mb-3">{portError}</p>}
 
       <details className="mb-4 group">
         <summary className="text-xs text-app-accent cursor-pointer hover:text-app-accent/80 transition-colors">{m.settings_forza_guide_toggle()}</summary>
@@ -781,7 +781,7 @@ export function StepConnection() {
             </li>
             <li>{m.ob_packet_format_car_dash()}</li>
           </ol>
-          <p className="mt-2 text-[10px] text-app-text-muted/70">{m.ob_connection_forza_note()}</p>
+          <p className="mt-2 text-app-caption text-app-text-muted/70">{m.ob_connection_forza_note()}</p>
         </div>
       </details>
 
@@ -802,18 +802,18 @@ export function StepConnection() {
             <li>{m.ob_udp_send_rate_short()}</li>
             <li>{m.setupguide_udp_format()}</li>
           </ol>
-          <p className="mt-2 text-[10px] text-app-text-muted/70">{m.ob_connection_f1_note()}</p>
+          <p className="mt-2 text-app-caption text-app-text-muted/70">{m.ob_connection_f1_note()}</p>
         </div>
       </details>
 
-      <div className={`rounded-lg border p-4 transition-colors ${receiving ? "border-emerald-500/50 bg-emerald-500/5" : "border-app-border bg-app-surface-alt"}`}>
+      <div className={`rounded-lg border p-4 transition-colors ${receiving ? "border-status-success/50 bg-status-success/5" : "border-app-border bg-app-surface-alt"}`}>
         <div className="flex items-center gap-3">
-          <div className={`relative w-3 h-3 rounded-full ${receiving ? "bg-emerald-400" : "bg-app-text-muted/30"}`}>
-            {receiving && <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-40" />}
+          <div className={`relative w-3 h-3 rounded-full ${receiving ? "bg-status-success" : "bg-app-text-muted/30"}`}>
+            {receiving && <span className="absolute inset-0 rounded-full bg-status-success animate-ping opacity-40" />}
             {!receiving && <span className="absolute inset-0 rounded-full bg-app-text-muted/30 animate-ping opacity-40" />}
           </div>
           <div>
-            <p className={`text-sm font-medium ${receiving ? "text-emerald-400" : "text-app-text-muted"}`}>
+            <p className={`text-sm font-medium ${receiving ? "text-status-success" : "text-app-text-muted"}`}>
               {receiving ? (packetsPerSec > 0 ? m.ob_connection_status_receiving() : m.ob_connection_status_connected_waiting()) : m.ob_connection_status_waiting()}
             </p>
             <p className="text-xs text-app-text-muted mt-0.5">

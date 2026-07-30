@@ -35,8 +35,8 @@ const PAGE_SIZE = 10;
 // Active-tab colouring per source.
 const TAB_ACTIVE: Record<string, string> = {
   all: "border-app-accent text-app-accent",
-  community: "border-pink-400 text-pink-400",
-  user: "border-emerald-400 text-emerald-400",
+  community: "border-(--tune-source-community) text-(--tune-source-community)",
+  user: "border-(--tune-source-user) text-(--tune-source-user)",
 };
 
 export function SetupBrowser(props: SetupBrowserProps) {
@@ -111,7 +111,7 @@ export function SetupBrowser(props: SetupBrowserProps) {
             />
             <button
               type="button"
-              className="text-[11px] font-semibold uppercase tracking-wide border border-app-border text-app-text-secondary hover:text-app-text px-3.5 py-2 rounded disabled:opacity-50"
+              className="text-app-compact font-semibold uppercase tracking-wide border border-app-border text-app-text-secondary hover:text-app-text px-3.5 py-2 rounded disabled:opacity-50"
               onClick={() => importInputRef.current?.click()}
               disabled={props.importing}
             >
@@ -120,7 +120,7 @@ export function SetupBrowser(props: SetupBrowserProps) {
           </>
         )}
         {props.onNewTune && (
-          <button type="button" className="text-[11px] font-bold uppercase tracking-wide bg-app-accent text-app-bg px-3.5 py-2 rounded" onClick={props.onNewTune}>
+          <button type="button" className="text-app-compact font-bold uppercase tracking-wide bg-app-accent text-app-on-filled px-3.5 py-2 rounded" onClick={props.onNewTune}>
             {m.setup_new_tune()}
           </button>
         )}
@@ -137,7 +137,7 @@ export function SetupBrowser(props: SetupBrowserProps) {
           <button
             type="button"
             key={s.key}
-            className={`text-[10px] uppercase tracking-wide px-2.5 py-1.5 rounded border ${source === s.key ? (TAB_ACTIVE[s.key] ?? TAB_ACTIVE.all) : "border-app-border text-app-text-muted hover:text-app-text-secondary"}`}
+            className={`text-app-caption uppercase tracking-wide px-2.5 py-1.5 rounded border ${source === s.key ? (TAB_ACTIVE[s.key] ?? TAB_ACTIVE.all) : "border-app-border text-app-text-muted hover:text-app-text-secondary"}`}
             onClick={() => pickSource(s.key)}
           >
             {s.label}
@@ -148,13 +148,13 @@ export function SetupBrowser(props: SetupBrowserProps) {
           value={author}
           placeholder={m.setup_search_author()}
           onChange={(e) => pickAuthor(e.target.value)}
-          className="text-[11px] bg-app-bg border border-app-border-input rounded px-2.5 py-1.5 text-app-text placeholder:text-app-text-dim outline-none focus:border-app-accent w-40"
+          className="text-app-compact bg-app-bg border border-app-border-input rounded px-2.5 py-1.5 text-app-text placeholder:text-app-text-dim outline-none focus:border-app-accent w-40"
         />
         <div className="flex-1" />
         {props.onRefresh && (
           <button
             type="button"
-            className="text-[10px] uppercase tracking-wide text-app-text-muted hover:text-app-text-secondary disabled:opacity-50"
+            className="text-app-caption uppercase tracking-wide text-app-text-muted hover:text-app-text-secondary disabled:opacity-50"
             onClick={props.onRefresh}
             disabled={props.refreshing}
           >
@@ -164,7 +164,7 @@ export function SetupBrowser(props: SetupBrowserProps) {
       </div>
 
       <div className="border border-app-border rounded-b-lg overflow-hidden">
-        <div className={`${TUNE_GRID} px-3 py-2.5 bg-app-bg text-[9px] uppercase tracking-wider text-app-text-dim`}>
+        <div className={`${TUNE_GRID} px-3 py-2.5 bg-app-bg text-app-micro uppercase tracking-wider text-app-text-dim`}>
           <span>{m.setup_table_rank()}</span>
           <span>{m.setup_table_tune()}</span>
           <span className="hidden sm:block">{m.label_car()}</span>
@@ -172,7 +172,7 @@ export function SetupBrowser(props: SetupBrowserProps) {
           <span className="hidden sm:block">{m.label_category()}</span>
           <span className="hidden sm:block">{m.label_author()}</span>
           <button type="button" className="justify-self-end uppercase tracking-wider text-app-accent inline-flex items-center gap-1" onClick={() => setSortAsc((a) => !a)}>
-            {m.label_lap_time()} <span className="text-[8px]">{sortAsc ? "▲" : "▼"}</span>
+            {m.label_lap_time()} <span className="text-app-nano">{sortAsc ? "▲" : "▼"}</span>
           </button>
           <span className="hidden sm:block" />
         </div>
@@ -201,18 +201,18 @@ export function SetupBrowser(props: SetupBrowserProps) {
         <div className="flex items-center justify-center gap-3.5 mt-3.5">
           <button
             type="button"
-            className="font-mono text-[11px] uppercase tracking-wide bg-app-surface border border-app-border rounded-md px-3.5 py-2 hover:border-app-accent hover:text-app-accent disabled:opacity-40 disabled:cursor-not-allowed"
+            className="font-mono text-app-compact uppercase tracking-wide bg-app-surface border border-app-border rounded-md px-3.5 py-2 hover:border-app-accent hover:text-app-accent disabled:opacity-40 disabled:cursor-not-allowed"
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={safePage === 0}
           >
             {m.setup_prev_button()}
           </button>
-          <span className="font-mono text-[11px] text-app-text-muted tabular-nums">
+          <span className="font-mono text-app-compact text-app-text-muted tabular-nums">
             {safePage * PAGE_SIZE + 1}–{Math.min(visible.length, (safePage + 1) * PAGE_SIZE)} of {visible.length} · page {safePage + 1}/{totalPages}
           </span>
           <button
             type="button"
-            className="font-mono text-[11px] uppercase tracking-wide bg-app-surface border border-app-border rounded-md px-3.5 py-2 hover:border-app-accent hover:text-app-accent disabled:opacity-40 disabled:cursor-not-allowed"
+            className="font-mono text-app-compact uppercase tracking-wide bg-app-surface border border-app-border rounded-md px-3.5 py-2 hover:border-app-accent hover:text-app-accent disabled:opacity-40 disabled:cursor-not-allowed"
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
             disabled={safePage >= totalPages - 1}
           >
@@ -220,7 +220,7 @@ export function SetupBrowser(props: SetupBrowserProps) {
           </button>
         </div>
       )}
-      <p className="text-[10px] text-app-text-dim mt-2.5">{m.setup_sort_info()}</p>
+      <p className="text-app-caption text-app-text-dim mt-2.5">{m.setup_sort_info()}</p>
     </div>
   );
 }

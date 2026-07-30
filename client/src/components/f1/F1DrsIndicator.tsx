@@ -6,21 +6,21 @@ export function F1DrsIndicator({ f1 }: { f1: F1ExtendedData }) {
   const approaching = f1.drsZoneApproaching;
 
   let label = "DRS";
-  let bg = "bg-zinc-800";
-  let text = "text-zinc-500";
+  let bg = "bg-app-surface-alt";
+  let text = "text-app-text-dim";
 
   if (active) {
     label = "DRS OPEN";
-    bg = "bg-green-600";
-    text = "text-white";
+    bg = "bg-(--telemetry-drs)";
+    text = "text-app-on-filled";
   } else if (allowed) {
     label = "DRS READY";
-    bg = "bg-green-900";
-    text = "text-green-300";
+    bg = "bg-(--telemetry-drs)/20";
+    text = "text-(--telemetry-drs)";
   } else if (approaching) {
     label = "DRS ZONE";
-    bg = "bg-yellow-900";
-    text = "text-yellow-300";
+    bg = "bg-status-warning/20";
+    text = "text-status-warning";
   }
 
   return <div className={`rounded-lg px-4 py-2 text-center font-bold text-sm ${bg} ${text} transition-colors`}>{label}</div>;

@@ -13,15 +13,15 @@ export function PitWindow({ pit }: PitWindowProps) {
   const fuelColor =
     pit?.fuelLapsRemaining != null
       ? pit.fuelLapsRemaining < 5
-        ? "text-red-400"
+      ? "text-(--severity-critical)"
         : pit.fuelLapsRemaining < 15
-          ? "text-amber-400"
-          : "text-emerald-400"
+        ? "text-(--severity-caution)"
+        : "text-(--severity-nominal)"
       : "text-app-text-dim";
 
   const pitIn = pit?.pitInLaps ?? null;
   const limitedBy = pit?.limitedBy ?? null;
-  const urgentColor = pitIn != null ? (pitIn <= 3 ? "text-red-400" : pitIn <= 6 ? "text-amber-400" : "text-emerald-400") : "text-app-text-muted";
+  const urgentColor = pitIn != null ? (pitIn <= 3 ? "text-(--severity-critical)" : pitIn <= 6 ? "text-(--severity-caution)" : "text-(--severity-nominal)") : "text-app-text-muted";
 
   return (
     <div className="flex items-baseline gap-2 shrink-0">

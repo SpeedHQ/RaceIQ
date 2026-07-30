@@ -5,10 +5,10 @@ function SuspBarStandard({ norm, thresholds }: { norm: number; thresholds: numbe
   const pct = Math.min(norm * 100, 100);
   return (
     <div className="flex flex-col items-center gap-0.5">
-      <div className="w-4 h-16 bg-slate-800/80 border border-slate-600/50 rounded-sm overflow-hidden relative">
-        <div className={`absolute top-0 w-full rounded-sm ${suspColor(norm, thresholds)}`} style={{ height: `${pct}%` }} />
+      <div className="w-4 h-16 bg-app-surface-alt/80 border border-app-border/50 rounded-sm overflow-hidden relative">
+        <div className="absolute top-0 w-full rounded-sm" style={{ backgroundColor: suspColor(norm, thresholds), height: `${pct}%` }} />
       </div>
-      <span className="text-[10px] font-mono text-app-text-muted tabular-nums w-7 text-center">{pct.toFixed(0)}%</span>
+      <span className="text-app-caption font-mono text-app-text-muted tabular-nums w-7 text-center">{pct.toFixed(0)}%</span>
     </div>
   );
 }
@@ -26,15 +26,15 @@ function SuspBarCentered({ norm, thresholds, mmTravel }: { norm: number; thresho
   const label = mmRounded >= 0 ? `+${mmRounded}` : `${mmRounded}`;
   return (
     <div className="flex flex-col items-center gap-0.5">
-      <div className="w-4 h-16 bg-slate-800/80 border border-slate-600/50 rounded-sm overflow-hidden relative">
+      <div className="w-4 h-16 bg-app-surface-alt/80 border border-app-border/50 rounded-sm overflow-hidden relative">
         {/* Rest-position centre line */}
-        <div className="absolute top-1/2 w-full h-px bg-slate-500 z-10" />
+        <div className="absolute top-1/2 w-full h-px bg-app-text-dim z-10" />
         {/* Compression fill — upward from centre */}
-        {compressedFrac > 0 && <div className={`absolute w-full ${suspColor(compressionNorm, thresholds)}`} style={{ bottom: "50%", height: `${compressedFrac * 50}%` }} />}
+        {compressedFrac > 0 && <div className="absolute w-full" style={{ backgroundColor: suspColor(compressionNorm, thresholds), bottom: "50%", height: `${compressedFrac * 50}%` }} />}
         {/* Extension fill — downward from centre */}
-        {extendedFrac > 0 && <div className="absolute w-full bg-blue-500/70" style={{ top: "50%", height: `${extendedFrac * 50}%` }} />}
+        {extendedFrac > 0 && <div className="absolute w-full opacity-70" style={{ backgroundColor: "var(--operating-cold)", top: "50%", height: `${extendedFrac * 50}%` }} />}
       </div>
-      <span className="text-[10px] font-mono text-app-text-muted tabular-nums w-7 text-center">{label}</span>
+      <span className="text-app-caption font-mono text-app-text-muted tabular-nums w-7 text-center">{label}</span>
     </div>
   );
 }

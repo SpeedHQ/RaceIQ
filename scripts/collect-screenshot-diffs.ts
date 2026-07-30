@@ -1,7 +1,9 @@
 #!/usr/bin/env bun
 import { existsSync, mkdirSync, readdirSync } from "fs";
 import { join, relative, sep } from "path";
+import pixelmatch from "pixelmatch";
 import sharp from "sharp";
+import { VISUAL_DIFF_COLOR_THRESHOLD, VISUAL_DIFF_MAX_PIXEL_RATIO } from "./visual-diff-config";
 
 type ChangeStatus = "added" | "changed" | "removed";
 
@@ -37,28 +39,14 @@ async function decode(path: string): Promise<DecodedImage> {
   return { data, width: info.width, height: info.height };
 }
 
-const CHANNEL_TOLERANCE = 1;
-const MAX_TOLERATED_DIFF_RATIO = 0.0001;
-
 function imagesMatch(base: DecodedImage, current: DecodedImage): boolean {
   if (base.width !== current.width || base.height !== current.height) return false;
 
-  let differingPixels = 0;
   const pixelCount = base.width * base.height;
-
-  for (let offset = 0; offset < base.data.length; offset += 4) {
-    const channelDelta = Math.max(
-      Math.abs(base.data[offset] - current.data[offset]),
-      Math.abs(base.data[offset + 1] - current.data[offset + 1]),
-      Math.abs(base.data[offset + 2] - current.data[offset + 2]),
-      Math.abs(base.data[offset + 3] - current.data[offset + 3]),
-    );
-
-    if (channelDelta > CHANNEL_TOLERANCE) return false;
-    if (channelDelta > 0) differingPixels += 1;
-  }
-
-  return differingPixels / pixelCount <= MAX_TOLERATED_DIFF_RATIO;
+  const differingPixels = pixelmatch(base.data, current.data, null, base.width, base.height, {
+    threshold: VISUAL_DIFF_COLOR_THRESHOLD,
+  });
+  return differingPixels / pixelCount <= VISUAL_DIFF_MAX_PIXEL_RATIO;
 }
 
 function placeholder(width: number, height: number, label: string): Promise<Buffer> {

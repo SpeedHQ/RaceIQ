@@ -1,0 +1,467 @@
+/*
+ * RaceIQ theme contract
+ *
+ * This file owns every theme-controlled color: app chrome, typography,
+ * UI status, telemetry, and visualization roles. Product, manufacturer,
+ * and team identity lives in branding.css because those colors do not change
+ * with the app theme. Components consume semantic names and do not own palettes.
+ *
+ * RaceIQ currently ships one visual theme: Morph. If another theme is added,
+ * add its complete token set here and apply its selector to documentElement so
+ * Canvas and Three.js resolve the same inherited values as DOM content.
+ */
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* shadcn base tokens. RaceIQ has one dark visual contract. */
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.809 0.105 251.813);
+  --chart-2: oklch(0.623 0.214 259.815);
+  --chart-3: oklch(0.546 0.245 262.881);
+  --chart-4: oklch(0.488 0.243 264.376);
+  --chart-5: oklch(0.424 0.199 265.638);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+
+  /* Morph app chrome */
+  --app-bg: #000000;
+  --app-surface: #0d0d0d;
+  --app-surface-alt: #141414;
+  --app-surface-hover: #1e1e1e;
+  --app-progress-track: #1a1a1a;
+  --app-dropdown: #141414;
+  --app-border: #2a2a2a;
+  --app-border-input: #333333;
+  --app-border-hover: #444444;
+  --app-text: #f5f5f5;
+  --app-text-secondary: #aaaaaa;
+  --app-text-muted: #999999;
+  --app-text-dim: #7b7b7b;
+  --app-on-filled: #000000;
+  --app-accent: #22d3ee;
+  --app-accent-hover: #67e8f9;
+  --app-highlight: #06b6d4;
+  --ai-accent: var(--color-amber-500);
+  --ai-accent-hover: var(--color-amber-400);
+
+  --app-scrollbar-track: rgba(255, 255, 255, 0.05);
+  --app-scrollbar-thumb: rgba(255, 255, 255, 0.25);
+  --app-scrollbar-thumb-hover: rgba(255, 255, 255, 0.4);
+  --app-glow-accent: 0 0 6px color-mix(in srgb, var(--app-accent) 50%, transparent);
+
+  /* UI state. Do not use these to encode telemetry values. */
+  --status-success: #34d399;
+  --status-success-hover: var(--color-emerald-300);
+  --status-warning: #fbbf24;
+  --status-danger: #ef4444;
+  --status-danger-hover: var(--color-red-400);
+  --status-info: #22d3ee;
+  --status-unavailable: #7b7b7b;
+
+  /* Ordered telemetry scale. Runtime code selects a level, never a hue. */
+  --severity-nominal: #34d399;
+  --severity-caution: #fbbf24;
+  --severity-warning: #fb923c;
+  --severity-critical: #ef4444;
+  --operating-cold: #3b82f6;
+
+  /* Distinct vehicle-state roles that do not fit the shared scale. */
+  --tire-temperature-hot: var(--color-amber-500);
+
+  /* Driver input channels. */
+  --ch-throttle: #059669;
+  --ch-brake: #ef4444;
+  --ch-steer: #0891b2;
+
+  /* Stable chart and comparison identities. */
+  --comparison-lap-a: var(--color-orange-500);
+  --comparison-lap-b: var(--color-blue-500);
+  --telemetry-speed: var(--color-cyan-400);
+  --telemetry-rpm: var(--color-purple-500);
+  --telemetry-drs: var(--color-green-500);
+  --telemetry-steering: var(--color-amber-400);
+  --telemetry-ers-store: var(--color-blue-500);
+  --telemetry-ers-deployed: var(--color-amber-500);
+  --telemetry-ers-mode-none: var(--color-slate-400);
+  --telemetry-ers-mode-medium: var(--color-blue-400);
+  --telemetry-ers-mode-hotlap: var(--color-purple-400);
+  --telemetry-ers-mode-overtake: var(--color-red-400);
+  --telemetry-power: var(--color-orange-400);
+  --telemetry-torque: var(--color-amber-400);
+  --metric-tire-temperature: var(--color-emerald-400);
+  --metric-brake-temperature: var(--color-orange-400);
+  --metric-pressure: var(--color-cyan-400);
+  --metric-wear: var(--color-amber-400);
+  --metric-fuel: var(--color-amber-400);
+  --metric-rain: var(--color-blue-400);
+  --metric-track-temperature: var(--color-orange-400);
+  --metric-air-temperature: var(--color-cyan-400);
+
+  /* Ordered visualization series. Renderers import the order; the theme owns the colors. */
+  --visualization-series-1: var(--color-red-400);
+  --visualization-series-2: var(--color-blue-400);
+  --visualization-series-3: var(--color-emerald-400);
+  --visualization-series-4: var(--color-amber-400);
+  --visualization-series-5: var(--color-purple-400);
+  --visualization-series-6: var(--color-pink-400);
+  --visualization-series-7: var(--color-teal-400);
+  --visualization-series-8: var(--color-orange-400);
+
+  /* Shared visualization roles. */
+  --activity-fill: var(--color-violet-500);
+  --attitude-sky: var(--color-blue-500);
+  --attitude-ground: var(--color-amber-700);
+  --attitude-indicator: var(--color-amber-400);
+  --compass-north: var(--color-red-500);
+  --compass-marker: var(--color-slate-400);
+  --lap-record: var(--color-purple-400);
+  --lap-pace-best: var(--color-purple-500);
+  --lap-pace-average: var(--color-amber-400);
+  --lap-pace-on-target: var(--color-emerald-400);
+  --lap-pace-off-target: var(--color-orange-400);
+  --telemetry-wear: var(--color-orange-500);
+  --delta-gain: var(--color-emerald-400);
+  --delta-loss: var(--color-red-500);
+  --delta-focus: var(--color-amber-500);
+  --tune-current: var(--color-cyan-400);
+  --tune-target: var(--color-amber-400);
+  --balance-positive: var(--color-blue-500);
+  --balance-neutral: var(--color-emerald-400);
+  --balance-negative: var(--color-red-500);
+  --surface-curb: var(--color-orange-400);
+  --surface-wet: var(--color-blue-500);
+  --dimension-secondary: var(--color-blue-500);
+  --map-highlight: var(--color-amber-400);
+  --storage-compressed: var(--color-blue-500);
+  --setup-range-limit: var(--color-rose-400);
+  --setup-range-median: var(--color-amber-400);
+  --setup-range-selected: var(--color-emerald-400);
+  --input-device-wheel: var(--color-purple-300);
+  --input-device-controller: var(--color-orange-300);
+  --review-drill: var(--color-sky-300);
+  --review-setup: var(--color-purple-300);
+  --focus-driver: var(--color-sky-300);
+  --focus-setup: var(--color-purple-300);
+  --tune-condition-dry: var(--color-amber-400);
+  --tune-condition-wet: var(--color-cyan-400);
+  --tune-category-circuit: var(--color-blue-400);
+  --tune-category-wet: var(--color-cyan-400);
+  --tune-category-low-drag: var(--color-red-400);
+  --tune-category-stable: var(--color-green-400);
+  --tune-category-track-specific: var(--color-orange-400);
+  --tune-source-community: var(--color-pink-400);
+  --tune-source-user: var(--color-emerald-400);
+  --wireframe-structure: var(--color-slate-400);
+  --wireframe-alert: var(--color-red-500);
+  --load-distribution: var(--color-red-500);
+
+  /* Sector and vehicle-corner identities. */
+  --sector-1: var(--color-red-400);
+  --sector-2: var(--color-blue-400);
+  --sector-3: var(--color-yellow-400);
+  --sector-4: var(--color-emerald-400);
+  --sector-5: var(--color-purple-400);
+  --sector-6: var(--color-orange-400);
+  --wheel-fl: var(--color-sky-400);
+  --wheel-fr: var(--color-pink-400);
+  --wheel-rl: var(--color-yellow-400);
+  --wheel-rr: var(--color-emerald-400);
+
+  /* Track-map identities. */
+  --track-start: var(--color-emerald-500);
+  --track-surface: var(--color-slate-700);
+  --track-edge: var(--color-slate-500);
+  --track-outline: var(--color-slate-700);
+  --track-outline-strong: var(--color-slate-600);
+  --track-label-background: var(--color-slate-900);
+  --track-label-text: var(--color-slate-50);
+  --track-muted: var(--color-slate-400);
+  --track-centerline: var(--color-slate-400);
+  --track-boundary-left: var(--color-red-400);
+  --track-boundary-right: var(--color-blue-400);
+  --track-pit-lane: var(--color-cyan-400);
+  --track-curb-left: var(--color-red-400);
+  --track-curb-right: var(--color-orange-400);
+  --track-curb-unknown: var(--color-amber-400);
+  --track-corner-marker: var(--color-amber-400);
+  --track-straight-marker: var(--color-slate-400);
+  --track-corner-overlay: var(--color-red-500);
+  --track-straight-overlay: var(--color-blue-500);
+  --track-corner-series-1: var(--color-red-400);
+  --track-corner-series-2: var(--color-blue-400);
+  --track-corner-series-3: var(--color-emerald-400);
+  --track-corner-series-4: var(--color-amber-400);
+  --track-straight-series-1: var(--color-purple-400);
+  --track-straight-series-2: var(--color-pink-400);
+  --track-straight-series-3: var(--color-teal-400);
+  --track-straight-series-4: var(--color-orange-400);
+  --track-speed-low: var(--color-blue-500);
+  --track-speed-mid: var(--color-emerald-400);
+  --track-speed-high: var(--color-red-500);
+
+  /* Instrument-only encodings. */
+  --rev-normal: #22d172;
+  --rev-high: #ffd400;
+  --rev-warning: #ff6a00;
+  --rev-limit: #ff2d2d;
+  --rev-shift: #3b82f6;
+  --brake-warm: #ff9933;
+  --brake-hot: #cc0000;
+}
+
+.input-device-badge,
+.review-kind-badge,
+.catalog-category,
+.catalog-category-badge,
+.pi-class-badge,
+.setup-variant-badge {
+  --badge-color: var(--app-text-dim);
+  --badge-background-strength: 20%;
+  color: var(--badge-color);
+  background: color-mix(in srgb, var(--badge-color) var(--badge-background-strength), transparent);
+}
+
+.input-device-badge[data-input-device="wheel"] {
+  --badge-color: var(--input-device-wheel);
+}
+
+.input-device-badge[data-input-device="controller"] {
+  --badge-color: var(--input-device-controller);
+}
+
+.review-kind-badge,
+.catalog-category,
+.setup-variant-badge {
+  --badge-background-strength: 15%;
+}
+
+.review-kind-badge[data-review-kind="drill"] {
+  --badge-color: var(--review-drill);
+}
+
+.review-kind-badge[data-review-kind="setup"] {
+  --badge-color: var(--review-setup);
+}
+
+.weather-wet-badge {
+  color: var(--surface-wet);
+  background: color-mix(in srgb, var(--surface-wet) 20%, transparent);
+}
+
+.map-sectors-active {
+  color: var(--map-highlight);
+  background: color-mix(in srgb, var(--map-highlight) 20%, transparent);
+  border-color: color-mix(in srgb, var(--map-highlight) 60%, transparent);
+}
+
+.catalog-category-badge {
+  border-color: color-mix(in srgb, var(--badge-color) 30%, transparent);
+}
+
+[data-catalog-category="GT3"],
+[data-catalog-category="sports_car"] {
+  --badge-color: var(--visualization-series-2);
+}
+
+[data-catalog-category="GT4"],
+[data-catalog-category="Road"],
+[data-catalog-category="dirt_road"] {
+  --badge-color: var(--visualization-series-3);
+}
+
+[data-catalog-category="GTC"],
+[data-catalog-category="oval"] {
+  --badge-color: var(--visualization-series-4);
+}
+
+[data-catalog-category="TCX"],
+[data-catalog-category="formula_car"] {
+  --badge-color: var(--visualization-series-5);
+}
+
+[data-catalog-category="dirt_oval"] {
+  --badge-color: var(--visualization-series-8);
+}
+
+[data-pi-class] { --badge-color: var(--app-text-dim); }
+[data-pi-class="C"] { --badge-color: var(--visualization-series-3); }
+[data-pi-class="B"] { --badge-color: var(--visualization-series-2); }
+[data-pi-class="A"] { --badge-color: var(--visualization-series-5); }
+[data-pi-class="S"] { --badge-color: var(--visualization-series-4); }
+[data-pi-class="R"] { --badge-color: var(--visualization-series-8); }
+[data-pi-class="P"] { --badge-color: var(--visualization-series-1); }
+[data-pi-class="X"] { --badge-color: var(--visualization-series-6); }
+
+.setup-variant-badge {
+  border-color: color-mix(in srgb, var(--badge-color) 40%, transparent);
+}
+
+[data-setup-variant="race"] { --badge-color: var(--status-info); }
+[data-setup-variant="qualifying"] { --badge-color: var(--review-setup); }
+[data-setup-variant="safe"] { --badge-color: var(--status-warning); }
+[data-setup-variant="wet"] { --badge-color: var(--surface-wet); }
+[data-setup-variant="file"] { --badge-color: var(--status-success); }
+
+/*
+ * Tailwind-native typography contract. These are the runtime variables used by
+ * font-sans, font-mono, and text-app-* utilities, so another theme can override
+ * them directly without maintaining a second set of aliases.
+ */
+@theme {
+  --font-sans: "Geist Variable", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  --text-app-title: 1.125rem;
+  --text-app-heading: 1rem;
+  --text-app-body: 0.9375rem;
+  --text-app-subtext: 0.875rem;
+  --text-app-detail: 0.8125rem;
+  --text-app-label: 0.75rem;
+  --text-app-compact: 0.6875rem;
+  --text-app-caption: 0.625rem;
+  --text-app-micro: 0.5625rem;
+  --text-app-nano: 0.5rem;
+  --text-app-glyph: 0.4375rem;
+  --text-app-visualization-value: 1.375rem;
+  --text-app-visualization-emphasis: 1.75rem;
+  --text-app-instrument-value: 2.5rem;
+  --text-app-instrument-secondary: clamp(2.5rem, 13vh, 7rem);
+  --text-app-instrument-primary: clamp(3rem, 14vh, 8rem);
+
+  --tracking-app-label: 0.15em;
+}
+
+@theme inline {
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  --color-app-bg: var(--app-bg);
+  --color-app-surface: var(--app-surface);
+  --color-app-surface-alt: var(--app-surface-alt);
+  --color-app-surface-hover: var(--app-surface-hover);
+  --color-app-progress-track: var(--app-progress-track);
+  --color-app-border: var(--app-border);
+  --color-app-border-input: var(--app-border-input);
+  --color-app-border-hover: var(--app-border-hover);
+  --color-app-text: var(--app-text);
+  --color-app-text-secondary: var(--app-text-secondary);
+  --color-app-text-muted: var(--app-text-muted);
+  --color-app-text-dim: var(--app-text-dim);
+  --color-app-on-filled: var(--app-on-filled);
+  --color-app-accent: var(--app-accent);
+  --color-app-accent-hover: var(--app-accent-hover);
+  --color-app-highlight: var(--app-highlight);
+  --color-app-dropdown: var(--app-dropdown);
+  --color-ai-accent: var(--ai-accent);
+  --color-ai-accent-hover: var(--ai-accent-hover);
+
+  --color-status-success: var(--status-success);
+  --color-status-success-hover: var(--status-success-hover);
+  --color-status-warning: var(--status-warning);
+  --color-status-danger: var(--status-danger);
+  --color-status-danger-hover: var(--status-danger-hover);
+  --color-status-info: var(--status-info);
+  --color-status-unavailable: var(--status-unavailable);
+
+  @keyframes collapsible-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto));
+    }
+  }
+
+  @keyframes collapsible-up {
+    from {
+      height: var(--radix-collapsible-content-height, var(--collapsible-panel-height, auto));
+    }
+    to {
+      height: 0;
+    }
+  }
+}
+
+.status-dot-success {
+  background: var(--status-success);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--status-success) 50%, transparent);
+}
+
+.status-dot-danger {
+  background: var(--status-danger);
+}
+
+.status-dot-info {
+  background: var(--status-info);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--status-info) 50%, transparent);
+}
+
+.status-dot-warning {
+  background: var(--status-warning);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--status-warning) 30%, transparent);
+}
+
+.status-dot-unavailable {
+  background: var(--status-unavailable);
+}

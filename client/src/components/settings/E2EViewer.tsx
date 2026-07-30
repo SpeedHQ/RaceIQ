@@ -28,7 +28,7 @@ function generateTrackSVG(
   boundPackets?: Array<{ x: number; y: number }>, // Use these packets for bounds calculation
 ): string {
   if (packets.length === 0) {
-    return '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><text x="10" y="30" fill="#999">No packets</text></svg>';
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><text x="10" y="30" fill="var(--app-text-muted)">No packets</text></svg>';
   }
 
   // Calculate bounds from specified packets (or all packets if not provided)
@@ -70,11 +70,11 @@ function generateTrackSVG(
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet" style="width: 100%; height: 100%; max-width: 100%; max-height: 100%;">
   <style>
-    .track { stroke: #4a90e2; stroke-width: 2; fill: none; }
-    .start { fill: #4a90e2; }
-    .current { fill: #e24a4a; }
+    .track { stroke: var(--app-accent); stroke-width: 2; fill: none; }
+    .start { fill: var(--track-start); }
+    .current { fill: var(--status-danger); }
   </style>
-  <rect width="800" height="600" fill="#1a1a1a"/>
+  <rect width="800" height="600" fill="var(--app-surface-alt)"/>
   <path class="track" d="${pathData}"/>
   <circle cx="${startX}" cy="${startY}" r="5" class="start" opacity="0.6"/>
   <circle cx="${currentX}" cy="${currentY}" r="4" class="current" opacity="0.9"/>
@@ -238,7 +238,7 @@ export function E2EViewer() {
                   key={file.name}
                   onClick={() => handleSelectFile(file.name)}
                   className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
-                    selectedFile === file.name ? "bg-app-accent text-app-surface" : "bg-app-surface text-app-text hover:bg-app-surface-alt"
+                    selectedFile === file.name ? "bg-app-accent text-app-on-filled" : "bg-app-surface text-app-text hover:bg-app-surface-hover"
                   }`}
                 >
                   <div className="font-mono truncate">{file.name}</div>
@@ -333,7 +333,7 @@ export function E2EViewer() {
                     <button
                       onClick={() => setSelectedLap(null)}
                       className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                        selectedLap === null ? "bg-app-accent text-app-surface" : "bg-app-surface text-app-text hover:bg-app-surface-alt border border-app-border"
+                        selectedLap === null ? "bg-app-accent text-app-on-filled" : "bg-app-surface text-app-text hover:bg-app-surface-hover border border-app-border"
                       }`}
                     >
                       Raw
@@ -343,7 +343,7 @@ export function E2EViewer() {
                         key={lap.lapNumber}
                         onClick={() => handleSelectLap(lap)}
                         className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
-                          selectedLap?.lapNumber === lap.lapNumber ? "bg-app-accent text-app-surface" : "bg-app-surface text-app-text hover:bg-app-surface-alt border border-app-border"
+                          selectedLap?.lapNumber === lap.lapNumber ? "bg-app-accent text-app-on-filled" : "bg-app-surface text-app-text hover:bg-app-surface-hover border border-app-border"
                         } ${!lap.isValid ? "opacity-60" : ""}`}
                         title={`Lap ${lap.lapNumber}: ${lap.lapTime.toFixed(2)}s`}
                       >

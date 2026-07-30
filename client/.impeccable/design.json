@@ -3,33 +3,63 @@
   "name": "RaceIQ",
   "extensions": {
     "colorMeta": {
-      "app-accent": { "hover": "#67e8f9", "emphasis": "#06b6d4" },
-      "surfaceRamp": ["#020617", "#0f172a", "#1e293b"],
-      "textRamp": ["#f1f5f9", "#b8c5d4", "#a0b0c0", "#7a8ea0"],
-      "dynamicsRamp": {
-        "green": "#34d399",
-        "yellow": "#fbbf24",
-        "amber": "#f59e0b",
-        "orange": "#fb923c",
-        "red": "#ef4444",
-        "blue": "#3b82f6",
-        "gray": "#94a3b8"
-      }
+      "app-accent": { "hover": "var(--app-accent-hover)", "emphasis": "var(--app-highlight)" },
+      "surfaceRamp": ["var(--app-bg)", "var(--app-surface)", "var(--app-surface-alt)"],
+      "interactionColors": {
+        "surfaceHover": "var(--app-surface-hover)",
+        "borderHover": "var(--app-border-hover)",
+        "filledText": "var(--app-on-filled)"
+      },
+      "utilitySurfaces": {
+        "dropdown": "var(--app-dropdown)",
+        "progressTrack": "var(--app-progress-track)"
+      },
+      "textRamp": ["var(--app-text)", "var(--app-text-secondary)", "var(--app-text-muted)", "var(--app-text-dim)"],
+      "statusPalette": {
+        "success": "var(--status-success)",
+        "warning": "var(--status-warning)",
+        "danger": "var(--status-danger)",
+        "info": "var(--status-info)",
+        "unavailable": "var(--status-unavailable)"
+      },
+      "statusInteractions": {
+        "successHover": "var(--status-success-hover)",
+        "dangerHover": "var(--status-danger-hover)"
+      },
+      "severityRamp": {
+        "nominal": "var(--severity-nominal)",
+        "caution": "var(--severity-caution)",
+        "warning": "var(--severity-warning)",
+        "critical": "var(--severity-critical)"
+      },
+      "operatingCold": "var(--operating-cold)"
     },
     "typographyMeta": {
-      "fontFamily": "Geist Variable, sans-serif",
+      "fontFamily": "var(--font-sans)",
+      "monoFamily": "var(--font-mono)",
+      "labelTracking": "var(--tracking-app-label)",
       "scale": {
-        "title": "1.125rem",
-        "heading": "1rem",
-        "body": "0.9375rem",
-        "subtext": "0.875rem",
-        "label": "0.75rem",
-        "unit": "0.6875rem"
+        "title": "var(--text-app-title)",
+        "heading": "var(--text-app-heading)",
+        "body": "var(--text-app-body)",
+        "subtext": "var(--text-app-subtext)",
+        "detail": "var(--text-app-detail)",
+        "label": "var(--text-app-label)",
+        "compact": "var(--text-app-compact)",
+        "caption": "var(--text-app-caption)",
+        "micro": "var(--text-app-micro)",
+        "nano": "var(--text-app-nano)",
+        "glyph": "var(--text-app-glyph)",
+        "visualization-value": "var(--text-app-visualization-value)",
+        "visualization-emphasis": "var(--text-app-visualization-emphasis)",
+        "instrument-value": "var(--text-app-instrument-value)",
+        "instrument-secondary": "var(--text-app-instrument-secondary)",
+        "instrument-primary": "var(--text-app-instrument-primary)"
       }
     },
     "shadows": {
       "policy": "none",
-      "note": "Flat elevation by design; depth via tonal surface stepping only, --app-glass-blur pinned to 0px"
+      "note": "Flat elevation by design; depth uses tonal surface stepping only"
     },
     "interactionMeta": {
       "activePress": "translate-y-px",
@@ -46,32 +76,32 @@
     {
       "name": "button-app-primary",
       "html": "<button class=\"ds-btn ds-btn-primary\">Analyze Lap</button>",
-      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:8px;font-family:'Geist Variable',sans-serif;font-size:0.8rem;font-weight:500;white-space:nowrap;transition:all 150ms;border:1px solid transparent;padding:6px 10px;}.ds-btn:active{transform:translateY(1px);}.ds-btn-primary{background:#22d3ee;color:#ffffff;}.ds-btn-primary:hover{background:rgba(34,211,238,0.8);}.ds-btn-primary:disabled{background:rgba(34,211,238,0.4);opacity:1;pointer-events:none;}"
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:8px;font-family:var(--font-sans);font-size:var(--text-app-detail);font-weight:var(--font-weight-medium);white-space:nowrap;transition:all 150ms;border:1px solid transparent;padding:6px 10px;}.ds-btn:active{transform:translateY(1px);}.ds-btn-primary{background:var(--app-accent);color:var(--app-on-filled);}.ds-btn-primary:hover{background:var(--app-accent-hover);}.ds-btn-primary:disabled{background:color-mix(in srgb,var(--app-accent) 40%,transparent);opacity:1;pointer-events:none;}"
     },
     {
       "name": "button-app-outline",
       "html": "<button class=\"ds-btn ds-btn-outline\">Cancel</button>",
-      "css": ".ds-btn-outline{background:transparent;color:#b8c5d4;border-color:#404040;}.ds-btn-outline:hover{color:#f1f5f9;}"
+      "css": ".ds-btn-outline{background:transparent;color:var(--app-text-secondary);border-color:var(--app-border-input);}.ds-btn-outline:hover{color:var(--app-text);border-color:var(--app-border-hover);}"
     },
     {
       "name": "button-app-ghost",
       "html": "<button class=\"ds-btn ds-btn-ghost\">Dismiss</button>",
-      "css": ".ds-btn-ghost{background:transparent;color:#b8c5d4;border-color:transparent;}.ds-btn-ghost:hover{color:#f1f5f9;}"
+      "css": ".ds-btn-ghost{background:transparent;color:var(--app-text-secondary);border-color:transparent;}.ds-btn-ghost:hover{color:var(--app-text);}"
     },
     {
       "name": "button-app-danger",
       "html": "<button class=\"ds-btn ds-btn-danger\">Delete Session</button>",
-      "css": ".ds-btn-danger{background:#dc2626;color:#ffffff;}.ds-btn-danger:hover{background:#ef4444;}"
+      "css": ".ds-btn-danger{background:var(--status-danger);color:var(--app-on-filled);}.ds-btn-danger:hover{background:color-mix(in srgb,var(--status-danger) 85%,var(--app-text));}"
     },
     {
       "name": "card",
       "html": "<div class=\"ds-card\"><div class=\"ds-card-header\">Sector Times</div><div class=\"ds-card-body\">Corner-by-corner breakdown</div></div>",
-      "css": ".ds-card{background:#0f172a;border:1px solid #1e293b;border-radius:8px;}.ds-card:hover{background:#1e293b;}.ds-card-header{font-family:'Geist Variable',sans-serif;font-size:1rem;font-weight:600;color:#f1f5f9;padding:12px 16px;border-bottom:1px solid #1e293b;}.ds-card-body{font-family:'Geist Variable',sans-serif;font-size:0.875rem;color:#b8c5d4;padding:12px 16px;}"
+      "css": ".ds-card{background:var(--app-surface);border:1px solid var(--app-border);border-radius:8px;}.ds-card:hover{background:var(--app-surface-hover);}.ds-card-header{font-family:var(--font-sans);font-size:var(--text-app-heading);font-weight:var(--font-weight-semibold);color:var(--app-text);padding:12px 16px;border-bottom:1px solid var(--app-border);}.ds-card-body{font-family:var(--font-sans);font-size:var(--text-app-subtext);color:var(--app-text-secondary);padding:12px 16px;}"
     },
     {
       "name": "input",
       "html": "<input class=\"ds-input\" placeholder=\"Search laps\" />",
-      "css": ".ds-input{background:#0f172a;border:1px solid #334155;border-radius:8px;color:#f1f5f9;font-family:'Geist Variable',sans-serif;font-size:0.875rem;padding:6px 10px;}.ds-input:focus{outline:none;border-color:#22d3ee;box-shadow:0 0 0 3px rgba(34,211,238,0.2);}.ds-input::placeholder{color:#7a8ea0;}"
+      "css": ".ds-input{background:var(--app-surface-alt);border:1px solid var(--app-border-input);border-radius:8px;color:var(--app-text);font-family:var(--font-sans);font-size:var(--text-app-subtext);padding:6px 10px;}.ds-input:focus{outline:none;border-color:var(--app-accent);}.ds-input::placeholder{color:var(--app-text-dim);}"
     }
   ],
   "narrative": {
@@ -80,19 +110,19 @@
     "keyCharacteristics": [
       "Near-black base with a single cyan signal color, not a rainbow of accents",
       "Flat, tonally-layered surfaces — no shadows, no glass",
-      "A dedicated dynamics-* palette reserved for telemetry state encoding, never used for UI chrome",
-      "Compact, utilitarian type scale (11px-18px) built for data density",
+      "A semantic severity scale reserved for telemetry state encoding, never used for UI chrome",
+      "Compact, utilitarian type scale built for data density, with dedicated visualization and instrument readout roles",
       "Tactile, confident interactive states: visible hover shifts, no timid opacity fades"
     ],
     "rules": [
-      "The One Signal Rule: cyan is the only interface accent; dynamics-* colors never leak into chrome",
-      "The Compact Scale Rule: never introduce a type size above 18px outside a genuine new page-level heading need",
+      "The One Signal Rule: cyan is the only interface accent; telemetry severity colors never leak into chrome",
+      "The Compact Scale Rule: use the shared text-app-* scale; reserve caption, micro, nano, and glyph for dense telemetry, and larger roles for visualization or instrument readouts",
       "The Flat-By-Default Rule: no drop shadows, no glassmorphism, no blur; elevation is tonal stepping only"
     ],
     "dos": [
       "Keep cyan as the only interface accent",
       "Convey elevation with bg → surface → surface-alt tonal steps",
-      "Keep type scale within 11px-18px",
+      "Use the shared semantic type scale instead of one-off pixel sizes",
       "Use translate-y-px active-press shift for tactile feel",
       "Pack real data into every surface"
     ],
@@ -100,7 +130,7 @@
       "Gradient hero-metric tiles, glassmorphism, cutesy rounded card grids",
       "Ugly, uncalibrated raw sim-overlay density",
       "box-shadow anywhere",
-      "dynamics-* colors on buttons, nav, or chrome",
+      "Telemetry severity colors on buttons, nav, or chrome",
       "A second accent color to solve a hierarchy problem"
     ]
   }

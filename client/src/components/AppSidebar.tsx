@@ -60,7 +60,7 @@ type SidebarLinkProps = {
 function SidebarLink({ collapsed, exact = false, icon: Icon, label, onClick, to }: SidebarLinkProps) {
   const className = `flex min-h-9 items-center gap-2 border-l-2 px-3 text-xs font-semibold uppercase tracking-wider transition-colors ${collapsed ? "justify-center px-0" : ""}`;
   const activeProps = { className: `${className} border-app-accent bg-app-surface-alt text-app-accent` };
-  const inactiveProps = { className: `${className} border-transparent text-app-text-muted hover:bg-app-surface-alt hover:text-app-text-secondary` };
+  const inactiveProps = { className: `${className} border-transparent text-app-text-muted hover:bg-app-surface-hover hover:text-app-text-secondary` };
   const content = (
     <>
       <Icon className="size-4 shrink-0" />

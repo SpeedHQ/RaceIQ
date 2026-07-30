@@ -41,9 +41,9 @@ function fmt(bytes: number): string {
 
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
-      <span className="text-sm text-white/60">{label}</span>
-      <span className="text-sm font-medium text-white">{value}</span>
+    <div className="flex items-center justify-between py-2 border-b border-app-border/50 last:border-0">
+      <span className="text-sm text-app-text-secondary">{label}</span>
+      <span className="text-sm font-medium text-app-text">{value}</span>
     </div>
   );
 }
@@ -66,35 +66,36 @@ function DonutChart({ binCount, gzCount }: { binCount: number; gzCount: number }
   return (
     <div className="flex items-center gap-6">
       <svg width="120" height="120" viewBox="0 0 120 120">
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#3b82f6" strokeWidth="16" strokeDasharray={`${gzDash} ${circumference - gzDash}`} strokeDashoffset={circumference / 4} strokeLinecap="butt" />
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--storage-compressed)" strokeWidth="16" strokeDasharray={`${gzDash} ${circumference - gzDash}`} strokeDashoffset={circumference / 4} strokeLinecap="butt" />
         <circle
           cx={cx}
           cy={cy}
           r={r}
           fill="none"
-          stroke="#ffffff22"
+          stroke="var(--app-text)"
+          strokeOpacity={0.13}
           strokeWidth="16"
           strokeDasharray={`${binDash} ${circumference - binDash}`}
           strokeDashoffset={circumference / 4 + binOffset}
           strokeLinecap="butt"
         />
-        <text x={cx} y={cy - 6} textAnchor="middle" fill="white" fontSize="18" fontWeight="600">
+        <text x={cx} y={cy - 6} textAnchor="middle" fill="var(--app-text)" fontSize="18" fontWeight="var(--font-weight-semibold)">
           {total}
         </text>
-        <text x={cx} y={cy + 10} textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="10">
+        <text x={cx} y={cy + 10} textAnchor="middle" fill="var(--app-text)" fillOpacity={0.4} fontSize="10">
           {m.storage_files()}
         </text>
       </svg>
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <span className="size-3 rounded-sm bg-blue-500 flex-shrink-0" />
-          <span className="text-xs text-white/70">{m.storage_compressed()}</span>
-          <span className="text-xs font-medium text-white ml-auto pl-4">{gzCount}</span>
+          <span className="size-3 rounded-sm flex-shrink-0" style={{ backgroundColor: "var(--storage-compressed)" }} />
+          <span className="text-xs text-app-text-secondary">{m.storage_compressed()}</span>
+          <span className="text-xs font-medium text-app-text ml-auto pl-4">{gzCount}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="size-3 rounded-sm bg-white/20 flex-shrink-0" />
-          <span className="text-xs text-white/70">{m.storage_uncompressed()}</span>
-          <span className="text-xs font-medium text-white ml-auto pl-4">{binCount}</span>
+          <span className="size-3 rounded-sm bg-app-text/20 flex-shrink-0" />
+          <span className="text-xs text-app-text-secondary">{m.storage_uncompressed()}</span>
+          <span className="text-xs font-medium text-app-text ml-auto pl-4">{binCount}</span>
         </div>
       </div>
     </div>
@@ -105,26 +106,26 @@ function GameBreakdown({ gameId, stats }: { gameId: string; stats: GameStorageSt
   const total = stats.binCount + stats.gzCount;
   const totalBytes = stats.binBytes + stats.gzBytes;
   return (
-    <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3 space-y-1">
+    <div className="rounded-lg border border-app-border bg-app-surface-alt/50 px-4 py-3 space-y-1">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold text-white uppercase tracking-wide">{gameId}</span>
-        <span className="text-xs text-white/40">
+        <span className="text-xs font-semibold text-app-text uppercase tracking-wide">{gameId}</span>
+        <span className="text-xs text-app-text-dim">
           {total} {m.storage_file_count()} — {fmt(totalBytes)}
         </span>
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-xs text-white/50 flex items-center gap-1.5">
-          <span className="size-2 rounded-sm bg-white/20 inline-block" />
+        <span className="text-xs text-app-text-muted flex items-center gap-1.5">
+          <span className="size-2 rounded-sm bg-app-text/20 inline-block" />
           {m.storage_uncompressed()}
         </span>
-        <span className="text-xs text-white/70">{stats.binCount > 0 ? `${stats.binCount} — ${fmt(stats.binBytes)}` : "—"}</span>
+        <span className="text-xs text-app-text-secondary">{stats.binCount > 0 ? `${stats.binCount} — ${fmt(stats.binBytes)}` : "—"}</span>
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-xs text-white/50 flex items-center gap-1.5">
-          <span className="size-2 rounded-sm bg-blue-500 inline-block" />
+        <span className="text-xs text-app-text-muted flex items-center gap-1.5">
+          <span className="size-2 rounded-sm inline-block" style={{ backgroundColor: "var(--storage-compressed)" }} />
           {m.storage_compressed()}
         </span>
-        <span className="text-xs text-white/70">{stats.gzCount > 0 ? `${stats.gzCount} — ${fmt(stats.gzBytes)}` : "—"}</span>
+        <span className="text-xs text-app-text-secondary">{stats.gzCount > 0 ? `${stats.gzCount} — ${fmt(stats.gzBytes)}` : "—"}</span>
       </div>
     </div>
   );
@@ -176,24 +177,24 @@ function CacheSection() {
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
-        <Database className="size-4 text-white/40" />
+      <h3 className="text-sm font-semibold text-app-text mb-1 flex items-center gap-2">
+        <Database className="size-4 text-app-text-dim" />
         {m.storage_cache_title()}
       </h3>
-      <p className="text-xs text-white/40 mb-4">{m.storage_cache_desc()}</p>
+      <p className="text-xs text-app-text-dim mb-4">{m.storage_cache_desc()}</p>
 
       {cache && (
-        <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3 mb-4 space-y-3">
+        <div className="rounded-lg border border-app-border bg-app-surface-alt/50 px-4 py-3 mb-4 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-white/60">{m.storage_used()}</span>
-            <span className="text-sm font-medium text-white">
-              {fmt(cache.bytesUsed)} / {fmt(cache.maxBytes)} <span className="text-white/40">({usedPct}%)</span>
+            <span className="text-sm text-app-text-secondary">{m.storage_used()}</span>
+            <span className="text-sm font-medium text-app-text">
+              {fmt(cache.bytesUsed)} / {fmt(cache.maxBytes)} <span className="text-app-text-dim">({usedPct}%)</span>
             </span>
           </div>
-          <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-            <div className="h-full bg-blue-500 transition-all" style={{ width: `${usedFraction * 100}%` }} />
+          <div className="h-2 rounded-full bg-app-text/10 overflow-hidden">
+            <div className="h-full transition-all" style={{ backgroundColor: "var(--storage-compressed)", width: `${usedFraction * 100}%` }} />
           </div>
-          <div className="flex items-center justify-between pt-1 text-xs text-white/50">
+          <div className="flex items-center justify-between pt-1 text-xs text-app-text-muted">
             <span>
               {cache.entries} {m.storage_cached_laps()}
             </span>
@@ -209,9 +210,9 @@ function CacheSection() {
             {status === "saving" ? m.common_saving() : m.common_save()}
           </Button>
         </div>
-        {status === "saved" && <p className="text-xs text-green-400 mt-2">{m.storage_saved()}</p>}
-        {status === "error" && <p className="text-xs text-red-400 mt-2">{errorMsg}</p>}
-        <p className="text-xs text-white/40 mt-2">{m.storage_cache_range_hint()}</p>
+        {status === "saved" && <p className="text-xs text-status-success mt-2">{m.storage_saved()}</p>}
+        {status === "error" && <p className="text-xs text-status-danger mt-2">{errorMsg}</p>}
+        <p className="text-xs text-app-text-dim mt-2">{m.storage_cache_range_hint()}</p>
       </div>
     </div>
   );
@@ -235,22 +236,22 @@ export function StorageSection() {
     <section className="space-y-6">
       <CacheSection />
       <div>
-        <h3 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
-          <HardDrive className="size-4 text-white/40" />
+        <h3 className="text-sm font-semibold text-app-text mb-1 flex items-center gap-2">
+          <HardDrive className="size-4 text-app-text-dim" />
           {m.storage_recording_files_title()}
         </h3>
-        <p className="text-xs text-white/40 mb-4">
+        <p className="text-xs text-app-text-dim mb-4">
           {m.storage_recording_files_desc_prefix()} <code className="font-mono">data/sessions/</code>. {m.storage_recording_files_desc_suffix()}
         </p>
-        {isLoading && <p className="text-sm text-white/40">{m.common_loading()}</p>}
-        {isError && <p className="text-sm text-red-400">{m.storage_load_failed()}</p>}
+        {isLoading && <p className="text-sm text-app-text-dim">{m.common_loading()}</p>}
+        {isError && <p className="text-sm text-status-danger">{m.storage_load_failed()}</p>}
         {data && data.total > 0 && (
           <div className="mb-5">
             <DonutChart binCount={data.binCount} gzCount={data.gzCount} />
           </div>
         )}
         {data && (
-          <div className="rounded-lg border border-white/10 bg-white/5 px-4 divide-y divide-white/5 mb-4">
+          <div className="rounded-lg border border-app-border bg-app-surface-alt/50 px-4 divide-y divide-app-border/50 mb-4">
             <StatRow label={m.storage_total_size()} value={fmt(data.totalBytes)} />
             <StatRow label={m.storage_uncompressed_bin()} value={data.binCount > 0 ? `${data.binCount} ${m.storage_file_count()} — ${fmt(data.binBytes)}` : m.label_none()} />
             <StatRow label={m.storage_compressed_gz()} value={data.gzCount > 0 ? `${data.gzCount} ${m.storage_file_count()} — ${fmt(data.gzBytes)}` : m.label_none()} />
@@ -265,24 +266,24 @@ export function StorageSection() {
         )}
         {gameEntries.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-medium text-white/40 uppercase tracking-wide">{m.storage_by_game()}</p>
+            <p className="text-xs font-medium text-app-text-dim uppercase tracking-wide">{m.storage_by_game()}</p>
             {gameEntries.map(([gameId, stats]) => (
               <GameBreakdown key={gameId} gameId={gameId} stats={stats} />
             ))}
           </div>
         )}
-        {data && data.total === 0 && <p className="text-sm text-white/40">{m.storage_no_files()}</p>}
+        {data && data.total === 0 && <p className="text-sm text-app-text-dim">{m.storage_no_files()}</p>}
         {data && data.binCount > 0 && (
           <div className="mt-4">
             <button
               onClick={() => compress.mutate()}
               disabled={compress.isPending}
-              className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md bg-white/10 hover:bg-white/15 text-white disabled:opacity-50 transition-colors"
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md bg-app-surface-alt hover:bg-app-surface-hover/60 text-app-text disabled:opacity-50 transition-colors"
             >
               {compress.isPending && <Loader2 className="size-3 animate-spin" />}
               {m.storage_compress_now()}
             </button>
-            {compress.isSuccess && <p className="text-xs text-white/40 mt-2">{m.storage_compress_complete()}</p>}
+            {compress.isSuccess && <p className="text-xs text-status-success mt-2">{m.storage_compress_complete()}</p>}
           </div>
         )}
       </div>

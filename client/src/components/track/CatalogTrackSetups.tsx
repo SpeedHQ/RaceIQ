@@ -23,11 +23,11 @@ interface SetupRow {
 
 // Category → short badge shown in the list row and detail header.
 const CATEGORY_BADGE: Record<string, { label: string; cls: string }> = {
-  circuit: { label: "CIR", cls: "bg-blue-500/20 text-blue-300" },
-  wet: { label: "WET", cls: "bg-cyan-500/20 text-cyan-300" },
-  "low-drag": { label: "LD", cls: "bg-red-500/20 text-red-300" },
-  stable: { label: "STB", cls: "bg-green-500/20 text-green-300" },
-  "track-specific": { label: "TRK", cls: "bg-amber-500/20 text-amber-300" },
+  circuit: { label: "CIR", cls: "bg-(--tune-category-circuit)/20 text-(--tune-category-circuit)" },
+  wet: { label: "WET", cls: "bg-(--tune-category-wet)/20 text-(--tune-category-wet)" },
+  "low-drag": { label: "LD", cls: "bg-(--tune-category-low-drag)/20 text-(--tune-category-low-drag)" },
+  stable: { label: "STB", cls: "bg-(--tune-category-stable)/20 text-(--tune-category-stable)" },
+  "track-specific": { label: "TRK", cls: "bg-(--tune-category-track-specific)/20 text-(--tune-category-track-specific)" },
 };
 const DEFAULT_BADGE = { label: "SET", cls: "bg-app-surface-alt text-app-text-muted" };
 
@@ -233,9 +233,9 @@ export function CatalogTrackSetups({ gameId, trackName, trackVariant, trackOrdin
 
         <div className="flex-1 min-h-0 overflow-y-auto rounded-lg border border-app-border/20">
           <div className="flex items-center gap-1.5 px-2 py-1 bg-app-surface-alt/50 border-b border-app-border/20 sticky top-0 z-10">
-            <span className="text-[9px] text-app-text-dim uppercase w-4 text-right shrink-0">#</span>
-            <span className="text-[9px] text-app-text-dim uppercase flex-1">{m.catalogtracksetups_name_car()}</span>
-            <span className="text-[9px] text-app-text-dim uppercase text-center">Cat</span>
+            <span className="text-app-micro text-app-text-dim uppercase w-4 text-right shrink-0">#</span>
+            <span className="text-app-micro text-app-text-dim uppercase flex-1">{m.catalogtracksetups_name_car()}</span>
+            <span className="text-app-micro text-app-text-dim uppercase text-center">Cat</span>
           </div>
           {setups.map((t, i) => {
             const badge = CATEGORY_BADGE[t.category] ?? DEFAULT_BADGE;
@@ -245,15 +245,15 @@ export function CatalogTrackSetups({ gameId, trackName, trackVariant, trackOrdin
                 type="button"
                 onClick={() => selectSetup(t.id)}
                 className={`w-full text-left flex items-center gap-1.5 px-2 py-1.5 cursor-pointer border-b border-app-border/10 transition-colors ${
-                  selected?.id === t.id ? "bg-app-accent/10" : "hover:bg-app-surface-alt/30"
+                  selected?.id === t.id ? "bg-app-accent/10" : "hover:bg-app-surface-hover/30"
                 }`}
               >
-                <span className="text-app-unit text-app-text-dim font-mono w-4 text-right shrink-0">{i + 1}</span>
+                <span className="text-app-compact text-app-text-dim font-mono w-4 text-right shrink-0">{i + 1}</span>
                 <div className="flex-1 min-w-0 flex items-center gap-1">
-                  <span className="text-app-unit font-medium text-app-text truncate">{t.name}</span>
-                  <span className="text-[9px] text-app-text-dim truncate">({carName(t.carOrdinal)})</span>
+                  <span className="text-app-compact font-medium text-app-text truncate">{t.name}</span>
+                  <span className="text-app-micro text-app-text-dim truncate">({carName(t.carOrdinal)})</span>
                 </div>
-                <span className={`text-[8px] px-1 py-0.5 rounded font-bold shrink-0 ${badge.cls}`} title={t.category}>
+                <span className={`text-app-nano px-1 py-0.5 rounded font-bold shrink-0 ${badge.cls}`} title={t.category}>
                   {badge.label}
                 </span>
               </button>
@@ -267,7 +267,7 @@ export function CatalogTrackSetups({ gameId, trackName, trackVariant, trackOrdin
         <div className="flex-1 min-w-0 overflow-y-auto space-y-3">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-app-body font-bold text-app-text">{selected.name}</span>
-            <span className="text-app-unit text-app-text-secondary">
+            <span className="text-app-compact text-app-text-secondary">
               {carName(selected.carOrdinal)}
               {selected.sourceLabel && ` · ${selected.sourceLabel}`}
             </span>

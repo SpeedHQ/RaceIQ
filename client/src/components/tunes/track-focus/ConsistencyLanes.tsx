@@ -1,5 +1,6 @@
 import type { TuneIssue } from "@shared/types";
 import { useMemo } from "react";
+import { severityRangeColor } from "@/lib/colors";
 import type { LineSpreadTrace, TrackCorner } from "../../../hooks/queries";
 import { consistencyAt, type LapTrace, sampleAt } from "../../../lib/stint-traces";
 import { ChartTooltip } from "./ChartTooltip";
@@ -26,16 +27,12 @@ interface ConsistencyLanesProps {
 const LINE_SPREAD_THRESHOLD_M = 1.5;
 
 function spreadColor(spreadM: number): string {
-  if (spreadM > LINE_SPREAD_THRESHOLD_M * 2) return "var(--color-dynamics-red, #ef4444)";
-  if (spreadM > LINE_SPREAD_THRESHOLD_M) return "var(--color-dynamics-amber, #f59e0b)";
-  return "var(--color-dynamics-green, #34d399)";
+  return severityRangeColor(spreadM, [LINE_SPREAD_THRESHOLD_M, LINE_SPREAD_THRESHOLD_M * 2]);
 }
 
-/** Same green/amber/red banding as the lap-time consistency readout. */
+/** Same theme-owned severity banding as the lap-time consistency readout. */
 function scoreColor(score: number): string {
-  if (score > 80) return "var(--color-dynamics-green, #34d399)";
-  if (score > 60) return "var(--color-dynamics-amber, #f59e0b)";
-  return "var(--color-dynamics-red, #ef4444)";
+  return severityRangeColor(100 - score, [20, 40]);
 }
 
 function spreadPolyline(trace: LineSpreadTrace, x: (f: number) => number, y: (v: number) => number): string {
@@ -67,9 +64,9 @@ function spreadValueAt(trace: LineSpreadTrace, f: number): number {
 }
 
 const CHANNELS = [
-  { key: "steer" as const, label: "Steering", domain: [-1.05, 1.05] as [number, number], color: "var(--color-ch-steer, #0891b2)", issueKinds: new Set(["oversteer", "understeer"]) },
-  { key: "brake" as const, label: "Brake", domain: [0, 1.05] as [number, number], color: "var(--color-ch-brake, #ef4444)", issueKinds: new Set(["brake-lockup", "bottoming"]) },
-  { key: "throttle" as const, label: "Throttle", domain: [0, 1.05] as [number, number], color: "var(--color-ch-throttle, #059669)", issueKinds: new Set<string>() },
+  { key: "steer" as const, label: "Steering", domain: [-1.05, 1.05] as [number, number], color: "var(--ch-steer)", issueKinds: new Set(["oversteer", "understeer"]) },
+  { key: "brake" as const, label: "Brake", domain: [0, 1.05] as [number, number], color: "var(--ch-brake)", issueKinds: new Set(["brake-lockup", "bottoming"]) },
+  { key: "throttle" as const, label: "Throttle", domain: [0, 1.05] as [number, number], color: "var(--ch-throttle)", issueKinds: new Set<string>() },
 ];
 
 /** Maps a lap's ordered points to an SVG polyline `points` string for a
@@ -159,7 +156,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
         const laneIssues = issues.filter((it) => it.distanceFrac != null && ch.issueKinds.has(it.kind));
         return (
           <div key={ch.key}>
-            <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">{ch.label}</div>
+            <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">{ch.label}</div>
             <Lane
               bgFill="transparent"
               height={100}
@@ -169,14 +166,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
               onCursorFrac={ch.key === "brake" || ch.key === "throttle" ? zoomCursor : onCursorFrac}
               tooltip={(f) => {
                 const score = consistencyAt(traces, f, ch.key);
-                const scoreColor =
-                  score == null
-                    ? "var(--color-app-text-dim, #7a8ea0)"
-                    : score > 80
-                      ? "var(--color-dynamics-green, #34d399)"
-                      : score > 60
-                        ? "var(--color-dynamics-amber, #f59e0b)"
-                        : "var(--color-dynamics-red, #ef4444)";
+                const scoreColorValue = score == null ? "var(--app-text-dim)" : scoreColor(score);
                 const cornerLabel = nearestCornerLabel(corners, cornerFracs, f);
                 // Overview only — per-lap rows are noise here (the lanes
                 // themselves already show every lap's trace). Aggregate the
@@ -203,11 +193,11 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
                     <ChartTooltip frac={f} cornerLabel={cornerLabel} rows={[]} />
                     <div className="font-mono tabular-nums text-app-text-dim space-y-0.5">
                       <div>
-                        consistency: <span style={{ color: scoreColor }}>{score == null ? "—" : score.toFixed(0)}</span>
+                        consistency: <span style={{ color: scoreColorValue }}>{score == null ? "—" : score.toFixed(0)}</span>
                       </div>
                       <div>
                         Δ worst:{" "}
-                        <span className={worstDelta != null && worstDelta > 0 ? "text-amber-400" : "text-emerald-400"}>
+                        <span style={{ color: worstDelta != null && worstDelta > 0 ? "var(--delta-loss)" : "var(--delta-gain)" }}>
                           {worstDelta != null ? `${worstDelta >= 0 ? "+" : ""}${worstDelta.toFixed(3)}s` : "—"}
                         </span>
                       </div>
@@ -228,20 +218,20 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
                         key={t.lapId}
                         points={tracePolyline(t, ch.key, x, y)}
                         fill="none"
-                        stroke={t.isValid ? "var(--color-app-text-dim, #7a8ea0)" : "var(--color-dynamics-red, #ef4444)"}
+                        stroke={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"}
                         strokeWidth={1}
                         opacity={t.isValid ? 0.35 : 0.55}
                       />
                     ))}
-                  {bestTrace && <polyline points={tracePolyline(bestTrace, ch.key, x, y)} fill="none" stroke="var(--color-app-accent, #22d3ee)" strokeWidth={1.8} opacity={1} />}
+                  {bestTrace && <polyline points={tracePolyline(bestTrace, ch.key, x, y)} fill="none" stroke="var(--app-accent)" strokeWidth={1.8} opacity={1} />}
                   {laneIssues.map((it) => (
                     <circle
                       key={`${it.kind}-${it.corner ?? ""}-${it.detail}`}
                       cx={x(it.distanceFrac!)}
                       cy={12}
                       r={3}
-                      fill={it.severity === "critical" ? "var(--color-dynamics-red, #ef4444)" : it.severity === "warn" ? "var(--color-dynamics-amber, #f59e0b)" : "#38bdf8"}
-                      stroke="#020617"
+                      fill={it.severity === "critical" ? "var(--status-danger)" : it.severity === "warn" ? "var(--status-warning)" : "var(--status-info)"}
+                      stroke="var(--app-bg)"
                       strokeWidth={1}
                     />
                   ))}
@@ -252,7 +242,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
         );
       })}
       <div>
-        <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Speed (km/h)</div>
+        <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Speed (km/h)</div>
         <Lane
           bgFill="transparent"
           height={120}
@@ -300,18 +290,18 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
                     key={t.lapId}
                     points={tracePolyline2(t, t.speedKmh, x, y)}
                     fill="none"
-                    stroke={t.isValid ? "var(--color-app-text-dim, #7a8ea0)" : "var(--color-dynamics-red, #ef4444)"}
+                    stroke={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"}
                     strokeWidth={1}
                     opacity={t.isValid ? 0.35 : 0.55}
                   />
                 ))}
-              {bestTrace && <polyline points={tracePolyline2(bestTrace, bestTrace.speedKmh, x, y)} fill="none" stroke="var(--color-app-accent, #22d3ee)" strokeWidth={1.8} />}
+              {bestTrace && <polyline points={tracePolyline2(bestTrace, bestTrace.speedKmh, x, y)} fill="none" stroke="var(--app-accent)" strokeWidth={1.8} />}
             </>
           )}
         </Lane>
       </div>
       <div>
-        <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Δ time vs best (s, cumulative)</div>
+        <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Δ time vs best (s, cumulative)</div>
         <Lane
           bgFill="transparent"
           height={100}
@@ -337,10 +327,10 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
                 <ChartTooltip frac={f} cornerLabel={cornerLabel} rows={[]} />
                 <div className="font-mono tabular-nums text-app-text-dim space-y-0.5">
                   <div>
-                    Δ worst: <span className={worst != null && worst > 0 ? "text-amber-400" : "text-emerald-400"}>{worst != null ? `${worst >= 0 ? "+" : ""}${worst.toFixed(3)}s` : "—"}</span>
+                    Δ worst: <span style={{ color: worst != null && worst > 0 ? "var(--delta-loss)" : "var(--delta-gain)" }}>{worst != null ? `${worst >= 0 ? "+" : ""}${worst.toFixed(3)}s` : "—"}</span>
                   </div>
                   <div>
-                    Δ avg: <span className={avg > 0 ? "text-amber-400" : "text-emerald-400"}>{`${avg >= 0 ? "+" : ""}${avg.toFixed(3)}s`}</span>
+                    Δ avg: <span style={{ color: avg > 0 ? "var(--delta-loss)" : "var(--delta-gain)" }}>{`${avg >= 0 ? "+" : ""}${avg.toFixed(3)}s`}</span>
                   </div>
                 </div>
               </div>
@@ -349,7 +339,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
         >
           {({ x, y }) => (
             <>
-              <line x1={x(0)} x2={x(1)} y1={y(0)} y2={y(0)} stroke="var(--color-app-accent, #22d3ee)" strokeWidth={1} opacity={0.6} strokeDasharray="4 3" />
+              <line x1={x(0)} x2={x(1)} y1={y(0)} y2={y(0)} stroke="var(--app-accent)" strokeWidth={1} opacity={0.6} strokeDasharray="4 3" />
               {traces
                 .filter((t) => deltas.has(t.lapId))
                 .map((t) => (
@@ -357,7 +347,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
                     key={t.lapId}
                     points={tracePolyline2(t, deltas.get(t.lapId)!, x, y)}
                     fill="none"
-                    stroke={t.isValid ? "var(--color-dynamics-amber, #f59e0b)" : "var(--color-dynamics-red, #ef4444)"}
+                    stroke={t.isValid ? "var(--delta-focus)" : "var(--status-danger)"}
                     strokeWidth={1}
                     opacity={t.isValid ? 0.5 : 0.55}
                   />
@@ -367,7 +357,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
         </Lane>
       </div>
       <div>
-        <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1 flex items-center gap-1.5">
+        <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1 flex items-center gap-1.5">
           Race line spread (m)
           {hasLineSpread && (
             <span
@@ -380,7 +370,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
           )}
           {hasLineSpread && lineSpread!.lowTrust && (
             <span
-              className="px-1 py-px rounded text-[9px] font-normal normal-case tracking-normal bg-app-surface-alt border border-app-border text-app-text-dim"
+              className="px-1 py-px rounded text-app-micro font-normal normal-case tracking-normal bg-app-surface-alt border border-app-border text-app-text-dim"
               title={`Average racing-line spread exceeds ${LINE_SPREAD_THRESHOLD_M}m — the line varies notably lap-to-lap.`}
             >
               inconsistent line
@@ -418,17 +408,17 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
                   x2={x(1)}
                   y1={y(LINE_SPREAD_THRESHOLD_M)}
                   y2={y(LINE_SPREAD_THRESHOLD_M)}
-                  stroke="var(--color-dynamics-amber, #f59e0b)"
+                  stroke="var(--delta-focus)"
                   strokeWidth={1}
                   opacity={0.5}
                   strokeDasharray="4 3"
                 />
-                <polyline points={spreadPolyline(lineSpread!, x, y)} fill="none" stroke="var(--color-app-accent, #22d3ee)" strokeWidth={1.8} opacity={0.9} />
+                <polyline points={spreadPolyline(lineSpread!, x, y)} fill="none" stroke="var(--app-accent)" strokeWidth={1.8} opacity={0.9} />
               </>
             )}
           </Lane>
         ) : (
-          <div className="h-[90px] flex items-center justify-center rounded bg-app-surface border border-app-border text-[11px] text-app-text-dim">Need 3+ valid laps</div>
+          <div className="h-[90px] flex items-center justify-center rounded bg-app-surface border border-app-border text-app-compact text-app-text-dim">Need 3+ valid laps</div>
         )}
       </div>
     </div>

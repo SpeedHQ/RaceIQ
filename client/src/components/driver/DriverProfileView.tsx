@@ -45,7 +45,7 @@ function AiStatus({ state, reason }: { state?: DriverProfileState; reason?: stri
     <article className="rounded-xl border border-app-border bg-app-surface p-4">
       <div className="flex items-center justify-between gap-3">
         <b className="text-sm text-app-text">AI summary</b>
-        <span className="rounded-full bg-app-surface-alt px-2 py-1 text-[10px] text-app-text-muted">{label}</span>
+        <span className="rounded-full bg-app-surface-alt px-2 py-1 text-app-caption text-app-text-muted">{label}</span>
       </div>
       <p className="mt-3 text-xs text-app-text-muted">{reason ?? "Automatically refreshes after enough new laps; manual refresh remains available."}</p>
     </article>

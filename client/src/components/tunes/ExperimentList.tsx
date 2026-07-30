@@ -39,7 +39,7 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
           <h1 className="text-lg font-semibold text-app-text">Experiments</h1>
           <p className="text-xs text-app-text-dim mt-0.5">An experiment tracks one car + track as you iterate setups — base setup, stints driven, and (soon) versions with lap deltas.</p>
         </div>
-        <button type="button" onClick={() => setCreating(true)} className="self-start px-3 py-1.5 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold">
+        <button type="button" onClick={() => setCreating(true)} className="self-start px-3 py-1.5 text-xs rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled font-semibold">
           + New experiment
         </button>
       </div>
@@ -74,7 +74,7 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
  *  read, and a row's focus decides how its arms should be judged. */
 export function FocusBadge({ focus }: { focus: ExperimentFocus }) {
   return (
-    <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap ${focus === "driver" ? "bg-sky-500/15 text-sky-300" : "bg-purple-500/15 text-purple-300"}`}>
+    <span className={`inline-block rounded-full px-2 py-0.5 text-app-caption font-medium whitespace-nowrap ${focus === "driver" ? "bg-(--focus-driver)/15 text-(--focus-driver)" : "bg-(--focus-setup)/15 text-(--focus-setup)"}`}>
       {EXPERIMENT_FOCUS_LABELS[focus]}
     </span>
   );
@@ -87,7 +87,7 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
     <div className="overflow-x-auto border border-app-border rounded-lg">
       <table className="w-full text-sm border-collapse">
         <thead>
-          <tr className="text-left text-[11px] uppercase tracking-wider text-app-text-muted border-b border-app-border">
+          <tr className="text-left text-app-compact uppercase tracking-wider text-app-text-muted border-b border-app-border">
             <th className="px-3 py-2 font-medium w-12 text-right">#</th>
             <th className="px-3 py-2 font-medium">Session</th>
             <th className="px-3 py-2 font-medium">Varying</th>
@@ -109,7 +109,7 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
           {sessions.map((s) => {
             const base = s.baseSetupPath?.split(/[\\/]/).pop() ?? "—";
             return (
-              <tr key={s.id} onClick={() => onOpen(s.id)} className="border-b border-app-border/60 last:border-0 hover:bg-app-panel/60 cursor-pointer">
+              <tr key={s.id} onClick={() => onOpen(s.id)} className="border-b border-app-border/60 last:border-0 hover:bg-app-surface-hover/60 cursor-pointer">
                 <td className="px-3 py-2 text-right font-mono text-app-text-dim tabular-nums">{s.seq}</td>
                 <td className="px-3 py-2 font-medium text-app-text">{s.name}</td>
                 <td className="px-3 py-2">
@@ -122,7 +122,7 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
                 </td>
                 <td className="px-3 py-2 text-app-text-dim whitespace-nowrap">{new Date(s.updatedAt).toLocaleDateString()}</td>
                 <td className="px-3 py-2 text-right">
-                  <span className="text-purple-400 text-xs font-semibold">Resume →</span>
+                  <span className="text-app-accent text-xs font-semibold">Resume →</span>
                 </td>
               </tr>
             );
@@ -390,7 +390,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -436,7 +436,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
           onDrop={handleDrop}
           className={`w-full rounded-lg border border-dashed px-3 text-center text-xs transition-colors ${
             pendingDrop ? "py-4" : "py-8"
-          } ${dragging ? "border-purple-500 bg-purple-500/10 text-app-text" : "border-app-border text-app-text-dim hover:border-purple-500/60"}`}
+          } ${dragging ? "border-app-accent bg-app-accent/10 text-app-text" : "border-app-border text-app-text-dim hover:border-app-accent/60"}`}
         >
           {pendingDrop ? (
             <>
@@ -451,8 +451,10 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
         </button>
         {notice && (
           <div
-            className={`flex items-start gap-2 rounded-md border px-2.5 py-2 text-[11px] ${
-              notice.tone === "error" ? "border-red-500/40 bg-red-500/10 text-red-300" : "border-amber-500/40 bg-amber-500/10 text-amber-300"
+            className={`flex items-start gap-2 rounded-md border px-2.5 py-2 text-app-compact ${
+                notice.tone === "error"
+                  ? "border-status-danger/40 bg-status-danger/10 text-status-danger"
+                  : "border-status-warning/40 bg-status-warning/10 text-status-warning"
             }`}
           >
             <span aria-hidden className="leading-none">
@@ -470,19 +472,19 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
         {pendingDrop && !placing && (
           <div className="rounded-lg border border-app-border bg-app-bg/40 p-3">
             <div className="flex items-start gap-3">
-              <span className="shrink-0 rounded bg-app-border/40 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-app-text-dim">{setupFileFormat(gameId).extension.slice(1)}</span>
+              <span className="shrink-0 rounded bg-app-border/40 px-1.5 py-0.5 font-mono text-app-caption uppercase tracking-wider text-app-text-dim">{setupFileFormat(gameId).extension.slice(1)}</span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono text-xs text-app-text truncate" title={pendingDrop.fileName}>
                     {pendingDrop.fileName}
                   </span>
                   {dropStatus && (
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${dropStatus === "placed" ? "bg-emerald-500/15 text-emerald-300" : "bg-app-border/50 text-app-text-dim"}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-app-caption font-medium ${dropStatus === "placed" ? "bg-status-success/15 text-status-success" : "bg-app-border/50 text-app-text-dim"}`}>
                       {dropStatus === "placed" ? "Copied to Setups" : dropStatus === "existing" ? "Already saved there" : "Found in Setups"}
                     </span>
                   )}
                 </div>
-                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-app-text-dim">
+                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-app-compact text-app-text-dim">
                   <span>
                     Car <span className="text-app-text">{allPlaceCars.find((c) => c.value === car)?.label ?? car ?? "—"}</span>
                   </span>
@@ -499,7 +501,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
                     setPlaceTrack("");
                     setNotice(null);
                   }}
-                  className="px-2 py-1 text-[11px] rounded border border-app-border text-app-text hover:bg-app-border/30"
+                  className="px-2 py-1 text-app-compact rounded border border-app-border text-app-text hover:bg-app-surface-hover/30"
                 >
                   Copy to another track
                 </button>
@@ -515,17 +517,17 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
             from the file's carName; the driver names the track (ACC setup JSON
             has no track). Writes it under Setups/<car>/<track>/ so it's usable. */}
         {pendingDrop && placing && (
-          <div className="rounded-lg border border-purple-500/40 bg-purple-500/5 p-3 space-y-2">
+          <div className="rounded-lg border border-app-accent/40 bg-app-accent/5 p-3 space-y-2">
             {/* Two ways in: a file that was never in Setups, and an existing
                 one the driver chose to copy to a second circuit. Saying "isn't
                 in your Setups folder yet" in the second case is simply false. */}
-            <div className="text-[11px] text-app-text">
+            <div className="text-app-compact text-app-text">
               <span className="font-mono">{pendingDrop.fileName}</span>{" "}
               {dropStatus == null ? "isn't in your Setups folder yet — add it and pick its track:" : "will be copied into the track folder you pick — the existing copy stays where it is:"}
             </div>
             <div className="flex flex-wrap items-end gap-2">
               <label className="flex flex-col gap-1">
-                <span className="text-[10px] text-app-text-muted uppercase tracking-wider">Car folder</span>
+                <span className="text-app-caption text-app-text-muted uppercase tracking-wider">Car folder</span>
                 {/* A picker, not free text: when the file names its own car
                     this is already selected, but a .carsetup saved without a
                     preset id carries no car at all — and nobody should have to
@@ -542,7 +544,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
                 </div>
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-[10px] text-app-text-muted uppercase tracking-wider">Track</span>
+                <span className="text-app-caption text-app-text-muted uppercase tracking-wider">Track</span>
                 <div className="w-[180px]">
                   <SearchSelect
                     value={placeTrack}
@@ -558,7 +560,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
                 type="button"
                 onClick={doPlace}
                 disabled={place.isPending || !placeCar.trim() || !placeTrack.trim()}
-                className="px-3 py-1.5 text-xs rounded bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-semibold"
+                className="px-3 py-1.5 text-xs rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 text-app-on-filled font-semibold"
               >
                 {place.isPending ? "Placing…" : "Add to Setups & use"}
               </button>
@@ -572,7 +574,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
         {/* A driving experiment still needs car + track (an experiment is always
             one car at one circuit) but the setup file is optional there. */}
         {focus === "driver" && (
-          <p className="-mb-2 text-[11px] text-app-text-dim">Pick the car and track you're driving. A base setup is optional for driving work — leave it blank to just log drills.</p>
+          <p className="-mb-2 text-app-compact text-app-text-dim">Pick the car and track you're driving. A base setup is optional for driving work — leave it blank to just log drills.</p>
         )}
 
         {/* Cascading searchable pickers */}
@@ -587,7 +589,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
         />
 
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Session name</span>
+          <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Session name</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -601,16 +603,16 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
             above already states car + track, and saying it twice was half of
             what made this modal read as a pile of status lines. */}
         {car && track && baseSetupPath && !pendingDrop && (
-          <div className="text-[11px] text-app-text-dim">
+          <div className="text-app-compact text-app-text-dim">
             Pinned to <span className="text-app-text font-medium">{car}</span> · <span className="text-app-text font-medium">{track}</span> — each session is one car + track.
           </div>
         )}
         {noFiles && (
-          <div className="text-[11px] text-amber-400">
+          <div className="text-app-compact text-status-warning">
             No saved setups found. In-game, open <span className="font-mono">Setup → Save</span> (even the default) so it appears here.
           </div>
         )}
-        {error && <div className="text-xs text-red-400">{error}</div>}
+        {error && <div className="text-xs text-status-danger">{error}</div>}
 
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs rounded border border-app-border text-app-text-dim hover:text-app-text">
@@ -621,7 +623,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
             onClick={submit}
             disabled={create.isPending || !canCreate}
             title={!canCreate ? "Pick car, track, and a base setup" : undefined}
-            className="px-3 py-1.5 text-xs rounded bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-semibold"
+            className="px-3 py-1.5 text-xs rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 text-app-on-filled font-semibold"
           >
             {create.isPending ? "Creating…" : "Create session"}
           </button>
@@ -698,7 +700,7 @@ function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onC
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -719,22 +721,22 @@ function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onC
         <FocusPicker value={focus} onChange={setFocus} />
 
         {focus === "car" && (
-          <p className="text-[11px] text-app-text-dim">F1 setups are read from telemetry — your base setup will be captured from your first lap, or via "Capture current setup" in the session.</p>
+          <p className="text-app-compact text-app-text-dim">F1 setups are read from telemetry — your base setup will be captured from your first lap, or via "Capture current setup" in the session.</p>
         )}
 
         <div className="flex gap-2">
           <label className="flex flex-col gap-1 flex-1">
-            <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Car (optional)</span>
+            <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Car (optional)</span>
             <input value={car} onChange={(e) => setCar(e.target.value)} placeholder="Car name" maxLength={200} className="bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs" />
           </label>
           <label className="flex flex-col gap-1 flex-1">
-            <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Track</span>
+            <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Track</span>
             <SearchSelect value={track} onChange={setTrack} options={trackOptions} placeholder="Search tracks…" focusColor="purple-500" />
           </label>
         </div>
 
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Session name</span>
+          <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Session name</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -744,7 +746,7 @@ function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onC
           />
         </label>
 
-        {error && <div className="text-xs text-red-400">{error}</div>}
+        {error && <div className="text-xs text-status-danger">{error}</div>}
 
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs rounded border border-app-border text-app-text-dim hover:text-app-text">
@@ -755,7 +757,7 @@ function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onC
             onClick={submit}
             disabled={create.isPending || !canCreate}
             title={!canCreate ? "Pick a track" : undefined}
-            className="px-3 py-1.5 text-xs rounded bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-semibold"
+            className="px-3 py-1.5 text-xs rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 text-app-on-filled font-semibold"
           >
             {create.isPending ? "Creating…" : "Create session"}
           </button>

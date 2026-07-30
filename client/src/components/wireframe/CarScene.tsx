@@ -7,6 +7,7 @@ import type { CarModelEnrichment } from "../../data/car-models";
 import { useTirePressureOptimal } from "../../hooks/queries";
 import { allWheelStates, tireState } from "../../lib/vehicle-dynamics";
 import type { ViewPreset, ViewToggles } from "../../lib/wireframe-data";
+import { THREE_COLORS } from "../../lib/wireframe-utils";
 import { AutoChaseCamera, CameraController } from "./CameraControllers";
 import { CarBody } from "./CarBody";
 import { CurbMarkers } from "./CurbMarkers";
@@ -189,7 +190,7 @@ export function CarScene({
       camber: cambFL,
       susp: packet.NormSuspensionTravelFL,
       drop: dropFL,
-      traction: tireState(ws.fl.state, ws.fl.slipRatio, packet.TireSlipAngleFL).hex,
+      traction: tireState(ws.fl.state, ws.fl.slipRatio, packet.TireSlipAngleFL).color,
       rimColor: colorFL,
       brakeTemp: packet.BrakeTempFrontLeft ?? packet.f1?.brakeTempFL ?? 0,
       pressure: pressFL,
@@ -207,7 +208,7 @@ export function CarScene({
       camber: cambFR,
       susp: packet.NormSuspensionTravelFR,
       drop: dropFR,
-      traction: tireState(ws.fr.state, ws.fr.slipRatio, packet.TireSlipAngleFR).hex,
+      traction: tireState(ws.fr.state, ws.fr.slipRatio, packet.TireSlipAngleFR).color,
       rimColor: colorFR,
       brakeTemp: packet.BrakeTempFrontRight ?? packet.f1?.brakeTempFR ?? 0,
       pressure: pressFR,
@@ -225,7 +226,7 @@ export function CarScene({
       camber: cambRL,
       susp: packet.NormSuspensionTravelRL,
       drop: dropRL,
-      traction: tireState(ws.rl.state, ws.rl.slipRatio, packet.TireSlipAngleRL).hex,
+      traction: tireState(ws.rl.state, ws.rl.slipRatio, packet.TireSlipAngleRL).color,
       rimColor: colorRL,
       brakeTemp: packet.BrakeTempRearLeft ?? packet.f1?.brakeTempRL ?? 0,
       pressure: pressRL,
@@ -243,7 +244,7 @@ export function CarScene({
       camber: cambRR,
       susp: packet.NormSuspensionTravelRR,
       drop: dropRR,
-      traction: tireState(ws.rr.state, ws.rr.slipRatio, packet.TireSlipAngleRR).hex,
+      traction: tireState(ws.rr.state, ws.rr.slipRatio, packet.TireSlipAngleRR).color,
       rimColor: colorRR,
       brakeTemp: packet.BrakeTempRearRight ?? packet.f1?.brakeTempRR ?? 0,
       pressure: pressRR,
@@ -264,7 +265,7 @@ export function CarScene({
     const xz = computeLoadDotXZ([suspFL, suspFR, suspRL, suspRR], wb, ft, rt);
     if (!xz) return null;
     const springZMax = Math.max(ft - 0.35, rt - 0.35);
-    return { x: xz.x, z: xz.z, y: 0.23 + bodyDrop, color: "#ef4444", springZMax };
+    return { x: xz.x, z: xz.z, y: 0.23 + bodyDrop, color: THREE_COLORS.loadDistribution, springZMax };
   })();
 
   // Derive load-dot trail from the last 1s of lap time walked back from
@@ -313,10 +314,10 @@ export function CarScene({
               position={[-(gLocalX % 2), -0.45, -(gLocalZ % 2)]}
               cellSize={0.5}
               cellThickness={0.5}
-              cellColor="#1e293b"
+              cellColor={THREE_COLORS.appSurfaceAlt}
               sectionSize={2}
               sectionThickness={1}
-              sectionColor="#334155"
+              sectionColor={THREE_COLORS.appBorder}
               fadeDistance={8}
               infiniteGrid
             />
@@ -372,7 +373,7 @@ export function CarScene({
                 [-wb, loadDot.y, 0],
                 [wb, loadDot.y, 0],
               ]}
-              color="#475569"
+              color={THREE_COLORS.appBorder}
               lineWidth={0.5}
             />
             <Line
@@ -380,7 +381,7 @@ export function CarScene({
                 [0, loadDot.y, -loadDot.springZMax],
                 [0, loadDot.y, loadDot.springZMax],
               ]}
-              color="#475569"
+              color={THREE_COLORS.appBorder}
               lineWidth={0.5}
             />
             {/* 1 second trail — derived from packet history */}
@@ -402,7 +403,7 @@ export function CarScene({
                 [wb, 0, -ft],
                 [wb, 0, ft],
               ]}
-              color="#64748b"
+              color={THREE_COLORS.appTextDim}
               lineWidth={2}
             />
             {/* Rear axle */}
@@ -411,7 +412,7 @@ export function CarScene({
                 [-wb, 0, -rt],
                 [-wb, 0, rt],
               ]}
-              color="#64748b"
+              color={THREE_COLORS.appTextDim}
               lineWidth={2}
             />
             {/* Driveshaft */}
@@ -420,17 +421,17 @@ export function CarScene({
                 [wb, 0, 0],
                 [-wb, 0, 0],
               ]}
-              color="#94a3b8"
+              color={THREE_COLORS.wireframeStructure}
               lineWidth={1.5}
             />
             {/* Differential housings */}
             <mesh position={[wb, 0, 0]}>
               <boxGeometry args={[0.15, 0.12, 0.2]} />
-              <meshBasicMaterial color="#64748b" wireframe />
+              <meshBasicMaterial color={THREE_COLORS.appTextDim} wireframe />
             </mesh>
             <mesh position={[-wb, 0, 0]}>
               <boxGeometry args={[0.15, 0.12, 0.2]} />
-              <meshBasicMaterial color="#64748b" wireframe />
+              <meshBasicMaterial color={THREE_COLORS.appTextDim} wireframe />
             </mesh>
           </>
         )}

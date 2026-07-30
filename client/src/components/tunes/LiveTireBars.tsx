@@ -18,13 +18,13 @@ export function LiveTireBars({ telemetry }: { telemetry: TelemetryPacket[] }) {
       {models.map(({ metric, model }) => (
         <div key={metric.key} className="min-w-0">
           <div className="flex items-baseline justify-between mb-1">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-app-text-muted">{metric.label}</span>
-            <span className="text-[9px] text-app-text-dim">{metric.unit}</span>
+            <span className="text-app-caption font-semibold uppercase tracking-wider text-app-text-muted">{metric.label}</span>
+            <span className="text-app-micro text-app-text-dim">{metric.unit}</span>
           </div>
           {model ? (
             <CornerBars ranges={model.ranges} domain={model.domain} metric={metric} height={64} />
           ) : (
-            <div className="h-[64px] flex items-center justify-center text-[10px] text-app-text-dim">—</div>
+            <div className="h-[64px] flex items-center justify-center text-app-caption text-app-text-dim">—</div>
           )}
         </div>
       ))}

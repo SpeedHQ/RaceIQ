@@ -4,7 +4,7 @@ import type { GameId, TelemetryPacket } from "@shared/types";
 import { useTirePressureOptimal } from "../../hooks/queries";
 import type { useUnits } from "../../hooks/useUnits";
 import type { DisplayPacket } from "../../lib/convert-packet";
-import { brakeTempColor, COLORS, tireHealthColor, tirePressureColor, tireTempColor, wearRateColor } from "../../lib/vehicle-dynamics";
+import { brakeTempColor, tireHealthColor, tirePressureColor, tireTempColor, wearRateColor } from "../../lib/vehicle-dynamics";
 import { m } from "../../paraglide/messages";
 import { WheelTable } from "./WheelTable";
 
@@ -66,8 +66,8 @@ export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, ga
     analysis.tirePressure.display === "cold-pressure";
   const pressureColor = (pressure: number) =>
     coldPressure
-      ? "#e5e7eb"
-      : COLORS[tirePressureColor(pressure, pressureOptimal)];
+      ? "var(--app-text)"
+      : tirePressureColor(pressure, pressureOptimal);
 
   const rows = [
     {
@@ -110,10 +110,10 @@ export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, ga
       ? [
           {
             label: m.analyse_wheels_brake(),
-            fl: C(`${brakeFL.toFixed(0)}°C`, COLORS[brakeTempColor(brakeFL, false)]),
-            fr: C(`${brakeFR.toFixed(0)}°C`, COLORS[brakeTempColor(brakeFR, false)]),
-            rl: C(`${brakeRL.toFixed(0)}°C`, COLORS[brakeTempColor(brakeRL, true)]),
-            rr: C(`${brakeRR.toFixed(0)}°C`, COLORS[brakeTempColor(brakeRR, true)]),
+            fl: C(`${brakeFL.toFixed(0)}°C`, brakeTempColor(brakeFL, false)),
+            fr: C(`${brakeFR.toFixed(0)}°C`, brakeTempColor(brakeFR, false)),
+            rl: C(`${brakeRL.toFixed(0)}°C`, brakeTempColor(brakeRL, true)),
+            rr: C(`${brakeRR.toFixed(0)}°C`, brakeTempColor(brakeRR, true)),
           },
         ]
       : []),
@@ -133,7 +133,7 @@ export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, ga
   ];
 
   return (
-    <div className="text-[11px] font-mono">
+    <div className="text-app-compact font-mono">
       <WheelTable title={m.analyse_wheels_wheels()} borderTop rows={rows} />
     </div>
   );

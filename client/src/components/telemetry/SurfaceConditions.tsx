@@ -21,12 +21,12 @@ export function SurfaceConditions({ packet }: { packet: DisplayPacket | Telemetr
         {wheels.map((w) => (
           <div
             key={w.label}
-            className={`flex items-center justify-between px-2 py-1 rounded text-[10px] font-mono border ${
-              w.rumble ? "border-orange-500/50 bg-orange-950/30" : w.puddle > 0 ? "border-blue-500/50 bg-blue-950/30" : "border-app-border"
+            className={`flex items-center justify-between px-2 py-1 rounded text-app-caption font-mono border ${
+            w.rumble ? "border-(--surface-curb)/50 bg-(--surface-curb)/10" : w.puddle > 0 ? "border-(--surface-wet)/50 bg-(--surface-wet)/10" : "border-app-border"
             }`}
           >
             <span className="text-app-text-muted font-bold">{w.label}</span>
-            <span className={`font-bold ${w.rumble ? "text-orange-400" : w.puddle > 0 ? "text-blue-400" : "text-app-text-dim"}`}>
+          <span className={`font-bold ${w.rumble ? "text-(--surface-curb)" : w.puddle > 0 ? "text-(--surface-wet)" : "text-app-text-dim"}`}>
               {w.rumble ? m.surface_curb() : w.puddle > 0 ? `${m.surface_wet()} ${(w.puddle * 100).toFixed(0)}%` : "—"}
             </span>
           </div>

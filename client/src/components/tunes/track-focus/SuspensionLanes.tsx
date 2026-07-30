@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { WHEEL_COLOR_VARS } from "@/lib/colors";
 import type { LapTrace, TireAverages } from "../../../lib/stint-traces";
 import { indexAtFrac } from "../../../lib/stint-traces";
 import { Lane } from "./Lane";
@@ -13,10 +14,10 @@ interface SuspensionLanesProps {
 }
 
 const CORNERS: { key: keyof TireAverages; label: string; color: string }[] = [
-  { key: "FL", label: "FL", color: "#38bdf8" },
-  { key: "FR", label: "FR", color: "#f472b6" },
-  { key: "RL", label: "RL", color: "#facc15" },
-  { key: "RR", label: "RR", color: "#34d399" },
+  { key: "FL", label: "FL", color: WHEEL_COLOR_VARS[0] },
+  { key: "FR", label: "FR", color: WHEEL_COLOR_VARS[1] },
+  { key: "RL", label: "RL", color: WHEEL_COLOR_VARS[2] },
+  { key: "RR", label: "RR", color: WHEEL_COLOR_VARS[3] },
 ];
 
 function suspPolyline(t: LapTrace, arr: Float32Array, x: (f: number) => number, y: (v: number) => number): string {
@@ -56,21 +57,21 @@ export function SuspensionLanes({ traces, bestLapId = null, cornerFracs = [], cu
   if (lapsWithTrace.length === 0) {
     return (
       <div>
-        <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Suspension travel</div>
-        <div className="h-[100px] flex items-center justify-center rounded bg-app-surface border border-app-border text-[11px] text-app-text-dim">No suspension travel data for this game</div>
+        <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Suspension travel</div>
+        <div className="h-[100px] flex items-center justify-center rounded bg-app-surface border border-app-border text-app-compact text-app-text-dim">No suspension travel data for this game</div>
       </div>
     );
   }
 
   return (
     <div className="space-y-2">
-      <p className="text-[11px] text-app-text-dim">
+      <p className="text-app-compact text-app-text-dim">
         Normalized 0–1 suspension travel. ACC reports absolute compression (0 = full droop); AC Evo is centred at 0.5 (neutral ride height) — "more" means something different per game, but
         lap-to-lap variation is comparable either way.
       </p>
       {CORNERS.map((c) => (
         <div key={c.key} className="space-y-1">
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-app-text-dim">
+          <div className="flex items-center gap-2 text-app-caption uppercase tracking-wider text-app-text-dim">
             <span className="w-2.5 h-1.5 rounded-sm inline-block" style={{ background: c.color }} />
             {c.label} — travel per lap
           </div>
@@ -101,7 +102,7 @@ export function SuspensionLanes({ traces, bestLapId = null, cornerFracs = [], cu
                       key={t.lapId}
                       points={suspPolyline(t, t.suspTravel![c.key], lx, ly)}
                       fill="none"
-                      stroke={t.isValid ? "var(--color-app-text-dim, #7a8ea0)" : "var(--color-dynamics-red, #ef4444)"}
+                      stroke={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"}
                       strokeWidth={1}
                       opacity={t.isValid ? 0.35 : 0.55}
                     />

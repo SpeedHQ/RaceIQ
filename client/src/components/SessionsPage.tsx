@@ -43,10 +43,10 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
           setOpen(true);
         }}
       >
-        <span className={`text-xs break-words whitespace-pre-wrap transition-opacity group-hover:opacity-30 ${value ? "text-app-text/90" : "text-app-text/90-dim italic"}`}>
+        <span className={`text-xs break-words whitespace-pre-wrap transition-opacity group-hover:opacity-30 ${value ? "text-app-text/90" : "text-app-text/90 italic"}`}>
           {value || m.sessions_add_note()}
         </span>
-        <span className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity text-app-text/90 text-[10px] font-medium">
+        <span className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity text-app-text/90 text-app-caption font-medium">
           <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
@@ -102,7 +102,7 @@ function SessionLapTable({
 
   function sectorColor(time: number, best: number): string {
     if (best === Infinity || time <= 0) return "text-app-text/90";
-    if (time <= best * 1.001) return "text-purple-400 font-bold";
+    if (time <= best * 1.001) return "text-(--lap-pace-best) font-bold";
     return "text-app-text/90";
   }
 
@@ -136,24 +136,24 @@ function SessionLapTable({
                 }}
               >
                 <TD className="px-2 text-center">
-                  <input type="checkbox" checked={selectedLaps.has(lap.id)} onChange={() => toggleLapSelection(lap.id)} className="accent-cyan-400 w-4 h-4" />
+                  <input type="checkbox" checked={selectedLaps.has(lap.id)} onChange={() => toggleLapSelection(lap.id)} className="accent-app-accent w-4 h-4" />
                 </TD>
                 <TD />
                 <TD className="font-mono text-app-text/90">{lap.lapNumber}</TD>
                 <TD>
                   <div className="flex items-center gap-2">
-                    <span className={`font-mono tabular-nums ${isBest ? "text-purple-400 font-bold" : "text-app-text/90"}`}>{formatLapTime(lap.lapTime)}</span>
+                    <span className={`font-mono tabular-nums ${isBest ? "text-(--lap-pace-best) font-bold" : "text-app-text/90"}`}>{formatLapTime(lap.lapTime)}</span>
                     {lap.isValid ? (
-                      <span className="text-emerald-400 text-sm">&#10003;</span>
+                      <span className="text-status-success text-sm">&#10003;</span>
                     ) : (
-                      <span className="text-red-400 text-sm" title={lap.invalidReason}>
+                      <span className="text-status-danger text-sm" title={lap.invalidReason}>
                         &#10007;
                       </span>
                     )}
                     <Button
                       variant="app-outline"
                       size="app-sm"
-                      className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
+                      className="bg-app-accent/15 !border-app-accent/40 text-app-accent hover:bg-app-accent/25"
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       onClick={(e) => {
                         e.stopPropagation();
@@ -203,7 +203,7 @@ function SessionLapTable({
           <div className="fixed z-50 bg-app-surface border border-app-border rounded shadow-lg py-1 text-sm" style={{ left: contextMenu.x, top: contextMenu.y }}>
             <button
               type="button"
-              className="w-full px-3 py-1.5 text-left hover:bg-app-surface-alt text-app-text"
+              className="w-full px-3 py-1.5 text-left hover:bg-app-surface-hover text-app-text"
               onClick={async () => {
                 const res = await fetch(`/api/laps/${contextMenu.lapId}/recheck`, { method: "POST" });
                 const data = await res.json();
@@ -216,7 +216,7 @@ function SessionLapTable({
             </button>
             <button
               type="button"
-              className="w-full px-3 py-1.5 text-left hover:bg-app-surface-alt text-app-text"
+              className="w-full px-3 py-1.5 text-left hover:bg-app-surface-hover text-app-text"
               onClick={async () => {
                 const lapId = contextMenu.lapId;
                 setContextMenu(null);
@@ -518,7 +518,7 @@ export function SessionsPage() {
                   setSelectedSessions(new Set());
                   setSelectedLaps(new Set());
                 }}
-                className={`px-3 py-1.5 text-sm font-semibold transition-colors ${tab === t ? "bg-app-accent text-white" : "text-app-text/90-muted hover:text-app-text/90"}`}
+                className={`px-3 py-1.5 text-sm font-semibold transition-colors ${tab === t ? "bg-app-accent text-app-on-filled" : "text-app-text/90 hover:text-app-text"}`}
               >
                 {t === "recorded" ? m.sessions_tab_recorded() : m.sessions_tab_imported()}
               </button>
@@ -529,7 +529,7 @@ export function SessionsPage() {
         <h1 className="text-sm font-semibold text-app-text/90 shrink-0">
           {m.label_sessions()}
           {!isLoading && (
-            <span className="text-app-text/90-muted font-normal ml-2">
+            <span className="text-app-text/90 font-normal ml-2">
               {filtered.length === sessions.length ? `${sessions.length} ${m.sessions_total()}` : `${filtered.length} ${m.sessions_filtered_count()} ${sessions.length}`}
             </span>
           )}
@@ -572,14 +572,14 @@ export function SessionsPage() {
                     };
                     navigate(args);
                   }}
-                  className="px-3 py-1.5 text-sm rounded bg-cyan-600 hover:bg-cyan-500 text-white font-semibold transition-colors"
+                  className="px-3 py-1.5 text-sm rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled font-semibold transition-colors"
                 >
                   {m.sessions_compare_two()}
                 </button>
               );
             })()}
           {(selectedSessions.size > 0 || selectedLaps.size > 0) && (
-            <button type="button" onClick={deleteSelected} className="px-3 py-1.5 text-sm rounded bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors">
+            <button type="button" onClick={deleteSelected} className="px-3 py-1.5 text-sm rounded bg-status-danger hover:bg-status-danger-hover text-app-on-filled font-semibold transition-colors">
               {m.common_delete()} {selectedSessions.size > 0 ? `${selectedSessions.size} ${m.sessions_count_sessions()}` : ""}
               {selectedSessions.size > 0 && selectedLaps.size > 0 ? " + " : ""}
               {selectedLaps.size > 0 ? `${selectedLaps.size} ${m.sessions_count_laps()}` : ""}
@@ -591,9 +591,9 @@ export function SessionsPage() {
       {/* Mobile card list */}
       <div className="md:hidden flex-1 overflow-auto flex flex-col gap-2">
         {isLoading ? (
-          <div className="px-3 py-8 text-center text-app-text/90-muted">{m.common_loading()}</div>
+          <div className="px-3 py-8 text-center text-app-text/90">{m.common_loading()}</div>
         ) : pageItems.length === 0 ? (
-          <div className="px-3 py-8 text-center text-app-text/90-muted">{tab === "imported" ? m.sessions_none_imported() : m.sessions_none()}</div>
+          <div className="px-3 py-8 text-center text-app-text/90">{tab === "imported" ? m.sessions_none_imported() : m.sessions_none()}</div>
         ) : (
           pageItems.map((session) => {
             const isExpanded = expandedSessions.has(session.id);
@@ -624,13 +624,13 @@ export function SessionsPage() {
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     onChange={(e) => toggleSessionSelection(session.id, e as any)}
                     onClick={(e) => e.stopPropagation()}
-                    className="accent-cyan-400 w-5 h-5 mt-0.5 shrink-0"
+                    className="accent-app-accent w-5 h-5 mt-0.5 shrink-0"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline justify-between gap-2">
                       <div className="text-sm font-semibold text-app-text truncate">{trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}</div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <div className="text-[11px] text-app-text/90-dim">
+                        <div className="text-app-compact text-app-text/90">
                           {new Date(session.createdAt).toLocaleDateString()} {new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </div>
                         <Button
@@ -657,18 +657,18 @@ export function SessionsPage() {
                         </Button>
                       </div>
                     </div>
-                    <div className="text-xs text-app-text/90-muted truncate mt-0.5">
+                    <div className="text-xs text-app-text/90 truncate mt-0.5">
                       {carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}
                       {isF1 && session.sessionType && session.sessionType !== "unknown" && <> · {formatSessionType(session.sessionType)}</>}
                     </div>
                     <div className="flex items-center gap-4 mt-2 text-xs">
-                      <span className="text-app-text/90-muted">
+                      <span className="text-app-text/90">
                         {m.label_laps()} <span className="text-app-text font-mono tabular-nums">{session.lapCount ?? 0}</span>
                       </span>
-                      <span className="text-app-text/90-muted">
+                      <span className="text-app-text/90">
                         {m.label_best()} <span className="text-app-text font-mono tabular-nums">{bestTime ? formatLapTime(bestTime) : "—"}</span>
                       </span>
-                      <span className="ml-auto text-app-text/90-dim">{isExpanded ? "▾" : "▸"}</span>
+                      <span className="ml-auto text-app-text/90">{isExpanded ? "▾" : "▸"}</span>
                     </div>
                     {/* Contains the note button and its modal; keeps their
                         clicks from reaching the card's expand toggle. */}
@@ -720,7 +720,7 @@ export function SessionsPage() {
                   return next;
                 });
               }}
-              className="accent-cyan-400 w-4 h-4"
+              className="accent-app-accent w-4 h-4"
             />
           </TH>
           <SortHeader label={m.sessions_col_date()} field="date" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
@@ -734,13 +734,13 @@ export function SessionsPage() {
         <TBody>
           {isLoading ? (
             <tr>
-              <td colSpan={colCount} className="px-3 py-8 text-center text-app-text/90-muted">
+              <td colSpan={colCount} className="px-3 py-8 text-center text-app-text/90">
                 {m.common_loading()}
               </td>
             </tr>
           ) : pageItems.length === 0 ? (
             <tr>
-              <td colSpan={colCount} className="px-3 py-8 text-center text-app-text/90-muted">
+              <td colSpan={colCount} className="px-3 py-8 text-center text-app-text/90">
                 {tab === "imported" ? m.sessions_none_imported() : m.sessions_none()}
               </td>
             </tr>
@@ -764,14 +764,14 @@ export function SessionsPage() {
                         checked={selectedSessions.has(session.id)}
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         onChange={(e) => toggleSessionSelection(session.id, e as any)}
-                        className="accent-cyan-400 w-4 h-4"
+                        className="accent-app-accent w-4 h-4"
                       />
                     </TD>
                     <TD className="text-app-text/90 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <span>
                           {new Date(session.createdAt).toLocaleDateString()}{" "}
-                          <span className="text-app-text/90-dim">{new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                          <span className="text-app-text/90">{new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                         </span>
                         <Button
                           variant="app-outline"
@@ -842,7 +842,7 @@ export function SessionsPage() {
       </Table>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-xs text-app-text/90-muted">
+        <div className="flex items-center justify-between text-xs text-app-text/90">
           <span>
             {m.sessions_showing_prefix()} {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} {m.sessions_showing_of()} {filtered.length}
           </span>

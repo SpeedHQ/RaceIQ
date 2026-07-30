@@ -1,3 +1,5 @@
+import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import { WHEEL_COLOR_VARS } from "@/lib/colors";
 import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import type { DisplayPacket } from "../../lib/convert-packet";
 import { m } from "../../paraglide/messages";
@@ -151,7 +153,7 @@ export const AnalyseChartsPanel = memo(
         overlay.height = h * dpr;
         overlay.style.width = `${w}px`;
         overlay.style.height = `${h}px`;
-        const ctx = overlay.getContext("2d");
+        const ctx = getSemanticCanvasContext(overlay);
         if (!ctx) return;
         ctx.scale(dpr, dpr);
         ctx.clearRect(0, 0, w, h);
@@ -177,7 +179,7 @@ export const AnalyseChartsPanel = memo(
         const cx = Math.max(rawCx, leftPad + MIN_INSET);
 
         // Draw a single vertical line spanning the full scroll height
-        ctx.strokeStyle = "rgba(255,255,255,0.5)";
+        ctx.strokeStyle = "color-mix(in srgb, var(--app-text) 50%, transparent)";
         ctx.lineWidth = 1;
         ctx.setLineDash([3, 3]);
         ctx.beginPath();
@@ -220,23 +222,23 @@ export const AnalyseChartsPanel = memo(
       <div className="flex-1 min-h-0 overflow-y-auto relative" ref={scrollRef}>
         <canvas ref={cursorOverlayRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 10 }} />
         <div className="p-3 space-y-2">
-          <TelemetryChart series={[{ data: chartData.speed, color: "#22d3ee", label: `${m.label_speed()} (${speedLabel})` }]} {...common} height={100} />
+          <TelemetryChart series={[{ data: chartData.speed, color: "var(--telemetry-speed)", label: `${m.label_speed()} (${speedLabel})` }]} {...common} height={100} />
           <TelemetryChart
             series={[
-              { data: chartData.throttle, color: "#34d399", label: "Throttle %" },
-              { data: chartData.brake, color: "#ef4444", label: "Brake %" },
+              { data: chartData.throttle, color: "var(--ch-throttle)", label: "Throttle %" },
+              { data: chartData.brake, color: "var(--ch-brake)", label: "Brake %" },
             ]}
             {...common}
             height={100}
           />
-          <TelemetryChart series={[{ data: chartData.rpm, color: "#a855f7", label: m.dataguide_rpm() }]} {...common} height={100} />
-          <TelemetryChart series={[{ data: chartData.steering, color: "#fbbf24", label: "Steering" }]} {...common} height={80} />
-          {chartData.drs && <TelemetryChart series={[{ data: chartData.drs, color: "#22c55e", label: "DRS" }]} {...common} height={40} />}
+          <TelemetryChart series={[{ data: chartData.rpm, color: "var(--telemetry-rpm)", label: m.dataguide_rpm() }]} {...common} height={100} />
+          <TelemetryChart series={[{ data: chartData.steering, color: "var(--telemetry-steering)", label: "Steering" }]} {...common} height={80} />
+          {chartData.drs && <TelemetryChart series={[{ data: chartData.drs, color: "var(--telemetry-drs)", label: "DRS" }]} {...common} height={40} />}
           {chartData.ersStore && chartData.ersDeployed && (
             <TelemetryChart
               series={[
-                { data: chartData.ersStore, color: "#3b82f6", label: "ERS Store %" },
-                { data: chartData.ersDeployed, color: "#f59e0b", label: "ERS Deployed %" },
+                { data: chartData.ersStore, color: "var(--telemetry-ers-store)", label: "ERS Store %" },
+                { data: chartData.ersDeployed, color: "var(--telemetry-ers-deployed)", label: "ERS Deployed %" },
               ]}
               {...common}
               height={80}
@@ -244,10 +246,10 @@ export const AnalyseChartsPanel = memo(
           )}
           <TelemetryChart
             series={[
-              { data: chartData.tireTempFL, color: "#ef4444", label: `Tire FL ${tempLabel}` },
-              { data: chartData.tireTempFR, color: "#f59e0b", label: `Tire FR ${tempLabel}` },
-              { data: chartData.tireTempRL, color: "#3b82f6", label: `Tire RL ${tempLabel}` },
-              { data: chartData.tireTempRR, color: "#22d3ee", label: `Tire RR ${tempLabel}` },
+              { data: chartData.tireTempFL, color: WHEEL_COLOR_VARS[0], label: `Tire FL ${tempLabel}` },
+              { data: chartData.tireTempFR, color: WHEEL_COLOR_VARS[1], label: `Tire FR ${tempLabel}` },
+              { data: chartData.tireTempRL, color: WHEEL_COLOR_VARS[2], label: `Tire RL ${tempLabel}` },
+              { data: chartData.tireTempRR, color: WHEEL_COLOR_VARS[3], label: `Tire RR ${tempLabel}` },
             ]}
             {...common}
             height={80}
@@ -255,10 +257,10 @@ export const AnalyseChartsPanel = memo(
           {chartData.brakeTempFL && chartData.brakeTempFR && chartData.brakeTempRL && chartData.brakeTempRR && (
             <TelemetryChart
               series={[
-                { data: chartData.brakeTempFL, color: "#ef4444", label: "Brake FL °C" },
-                { data: chartData.brakeTempFR, color: "#f59e0b", label: "Brake FR °C" },
-                { data: chartData.brakeTempRL, color: "#3b82f6", label: "Brake RL °C" },
-                { data: chartData.brakeTempRR, color: "#22d3ee", label: "Brake RR °C" },
+                { data: chartData.brakeTempFL, color: WHEEL_COLOR_VARS[0], label: "Brake FL °C" },
+                { data: chartData.brakeTempFR, color: WHEEL_COLOR_VARS[1], label: "Brake FR °C" },
+                { data: chartData.brakeTempRL, color: WHEEL_COLOR_VARS[2], label: "Brake RL °C" },
+                { data: chartData.brakeTempRR, color: WHEEL_COLOR_VARS[3], label: "Brake RR °C" },
               ]}
               {...common}
               height={80}

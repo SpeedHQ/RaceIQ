@@ -3,11 +3,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { initGameAdapters } from "../../shared/games/init";
 import { FuelGauge, PowerTorque } from "../src/components/telemetry/Gauges";
-import {
-  fakeAccPacket,
-  fakeF1Packet,
-  fakeForzaPacket,
-} from "../src/stories/fakeData";
+import { PitEstimate } from "../src/components/telemetry/PitEstimate";
+import { fakeAccPacket, fakeF1Packet, fakeForzaPacket, fakePit } from "../src/stories/fakeData";
 
 initGameAdapters();
 
@@ -66,5 +63,32 @@ describe("telemetry capability UI", () => {
 
     expect(markup).toContain("Fuel 40.0L");
     expect(markup).toContain("width:40%");
+  });
+
+  test("renders the ACC live dashboard fuel fill from fixture capacity", () => {
+    const markup = renderToStaticMarkup(
+      createElement(PitEstimate, {
+        packet: fakeAccPacket,
+        pit: fakePit,
+      }),
+    );
+
+    expect(fakeAccPacket.FuelCapacity).toBe(120);
+    expect(markup).not.toContain("Fuel capacity unavailable");
+    expect(markup).toContain(`width:${(fakeAccPacket.Fuel / fakeAccPacket.FuelCapacity) * 100}%`);
+  });
+
+  test("keeps F1 dashboard fixture fuel normalized to a tank fraction", () => {
+    const markup = renderToStaticMarkup(
+      createElement(PitEstimate, {
+        packet: fakeF1Packet,
+        pit: fakePit,
+      }),
+    );
+
+    expect(fakeF1Packet.Fuel).toBeGreaterThan(0);
+    expect(fakeF1Packet.Fuel).toBeLessThanOrEqual(1);
+    expect(markup).toContain("39%");
+    expect(markup).not.toContain("4250%");
   });
 });

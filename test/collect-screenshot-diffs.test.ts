@@ -31,6 +31,11 @@ async function writePng(
     .toFile(path);
 }
 
+async function writeRawPng(path: string, pixels: Buffer, width: number, height: number): Promise<void> {
+  mkdirSync(join(path, ".."), { recursive: true });
+  await sharp(pixels, { raw: { width, height, channels: 4 } }).png().toFile(path);
+}
+
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
@@ -147,7 +152,34 @@ describe("collect-screenshot-diffs", () => {
     expect(readdirSync(out)).toEqual([]);
   });
 
-  test("keeps reporting substantial one-level changes", async () => {
+  test("ignores an isolated material-color pixel within the allowed ratio", async () => {
+    const root = makeTempDir();
+    const base = join(root, "base");
+    const current = join(root, "current");
+    const out = join(root, "out");
+    const width = 100;
+    const height = 100;
+    const pixels = Buffer.alloc(width * height * 4, 20);
+
+    for (let offset = 3; offset < pixels.length; offset += 4) pixels[offset] = 255;
+    const currentPixels = Buffer.from(pixels);
+    currentPixels[0] = 255;
+    currentPixels[1] = 255;
+    currentPixels[2] = 255;
+
+    await writeRawPng(join(base, "desktop", "isolated.png"), pixels, width, height);
+    await writeRawPng(join(current, "desktop", "isolated.png"), currentPixels, width, height);
+
+    const proc = Bun.spawn(
+      ["bun", "scripts/collect-screenshot-diffs.ts", "--base", base, "--current", current, "--out", out, "--prefix", "responsive"],
+      { cwd: process.cwd(), stdout: "pipe", stderr: "pipe" },
+    );
+
+    expect(await proc.exited).toBe(0);
+    expect(readdirSync(out)).toEqual([]);
+  });
+
+  test("keeps reporting material changes beyond the allowed ratio", async () => {
     const root = makeTempDir();
     const base = join(root, "base");
     const current = join(root, "current");
@@ -164,20 +196,17 @@ describe("collect-screenshot-diffs", () => {
     }
 
     const currentPixels = Buffer.from(pixels);
-    for (let offset = 0; offset < currentPixels.length; offset += 4) {
-      currentPixels[offset] += 1;
-      currentPixels[offset + 1] += 1;
-      currentPixels[offset + 2] += 1;
+    for (let y = 0; y < 20; y++) {
+      for (let x = 0; x < 20; x++) {
+        const offset = (y * width + x) * 4;
+        currentPixels[offset] = 255;
+        currentPixels[offset + 1] = 255;
+        currentPixels[offset + 2] = 255;
+      }
     }
 
-    await mkdirSync(join(base, "desktop"), { recursive: true });
-    await mkdirSync(join(current, "desktop"), { recursive: true });
-    await sharp(pixels, { raw: { width, height, channels: 4 } })
-      .png()
-      .toFile(join(base, "desktop", "changed.png"));
-    await sharp(currentPixels, { raw: { width, height, channels: 4 } })
-      .png()
-      .toFile(join(current, "desktop", "changed.png"));
+    await writeRawPng(join(base, "desktop", "changed.png"), pixels, width, height);
+    await writeRawPng(join(current, "desktop", "changed.png"), currentPixels, width, height);
 
     const proc = Bun.spawn(
       ["bun", "scripts/collect-screenshot-diffs.ts", "--base", base, "--current", current, "--out", out, "--prefix", "responsive"],
@@ -186,5 +215,23 @@ describe("collect-screenshot-diffs", () => {
 
     expect(await proc.exited).toBe(0);
     expect(existsSync(join(out, "changed--responsive--desktop--changed-diff.png"))).toBe(true);
+  });
+
+  test("reports same-path dimension changes", async () => {
+    const root = makeTempDir();
+    const base = join(root, "base");
+    const current = join(root, "current");
+    const out = join(root, "out");
+
+    await writePng(join(base, "desktop", "resized.png"), { r: 20, g: 20, b: 20 }, 100, 100);
+    await writePng(join(current, "desktop", "resized.png"), { r: 20, g: 20, b: 20 }, 101, 100);
+
+    const proc = Bun.spawn(
+      ["bun", "scripts/collect-screenshot-diffs.ts", "--base", base, "--current", current, "--out", out, "--prefix", "responsive"],
+      { cwd: process.cwd(), stdout: "pipe", stderr: "pipe" },
+    );
+
+    expect(await proc.exited).toBe(0);
+    expect(existsSync(join(out, "changed--responsive--desktop--resized-diff.png"))).toBe(true);
   });
 });

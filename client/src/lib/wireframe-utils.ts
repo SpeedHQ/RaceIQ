@@ -1,5 +1,7 @@
 import * as THREE from "three";
-import { COLORS_HEX, tireState } from "./vehicle-dynamics";
+import { resolveCssColor } from "./rendering/css-values";
+import { operatingRangeColor, severityRangeColor } from "./colors";
+import { tireState } from "./vehicle-dynamics";
 
 // ── Geometry ──────────────────────────────────────────────────────────
 
@@ -18,18 +20,69 @@ export function makeWheelGeometries(radius: number, width: number) {
 
 // ── Color helpers ─────────────────────────────────────────────────────
 
-// Pre-allocated color objects to avoid GC pressure
-export const SLIP_GREEN = new THREE.Color("#34d399");
-export const SLIP_AMBER = new THREE.Color("#fbbf24");
-export const SLIP_RED = new THREE.Color("#ef4444");
-export const BRAKE_MIN = new THREE.Color("#ff9933");
-export const BRAKE_MAX = new THREE.Color("#cc0000");
+const threeColorCache = new Map<string, THREE.Color>();
+
+/** Resolve CSS-owned colors once at the Three.js renderer boundary. */
+export function threeColor(color: string): THREE.Color {
+  const resolved = resolveCssColor(color);
+  if (resolved.includes("var(") || resolved.includes("color-mix(")) return new THREE.Color();
+
+  const cached = threeColorCache.get(resolved);
+  if (cached) return cached;
+
+  const value = new THREE.Color(resolved);
+  threeColorCache.set(resolved, value);
+  return value;
+}
+
+export const THREE_COLORS = {
+  get appText() {
+    return threeColor("var(--app-text)");
+  },
+  get appTextDim() {
+    return threeColor("var(--app-text-dim)");
+  },
+  get appSurfaceAlt() {
+    return threeColor("var(--app-surface-alt)");
+  },
+  get appBorder() {
+    return threeColor("var(--app-border)");
+  },
+  get appAccent() {
+    return threeColor("var(--app-accent)");
+  },
+  get wireframeStructure() {
+    return threeColor("var(--wireframe-structure)");
+  },
+  get wireframeAlert() {
+    return threeColor("var(--wireframe-alert)");
+  },
+  get dimensionSecondary() {
+    return threeColor("var(--dimension-secondary)");
+  },
+  get surfaceContact() {
+    return threeColor("var(--surface-curb)");
+  },
+  get surfaceWet() {
+    return threeColor("var(--surface-wet)");
+  },
+  get trackCurbLeft() {
+    return threeColor("var(--track-curb-left)");
+  },
+  get trackCurbRight() {
+    return threeColor("var(--track-curb-right)");
+  },
+  get loadDistribution() {
+    return threeColor("var(--load-distribution)");
+  },
+} as const;
+
 const _brakeTemp = new THREE.Color();
 
 export function brakeColor(brake: number): THREE.Color {
-  // Smooth lerp from light orange (10) to deep red (255)
+  // Smooth lerp between the theme's warm and hot brake endpoints.
   const t = Math.min(1, Math.max(0, (brake - 10) / 245));
-  return _brakeTemp.copy(BRAKE_MIN).lerp(BRAKE_MAX, t).clone();
+  return _brakeTemp.copy(threeColor("var(--brake-warm)")).lerp(threeColor("var(--brake-hot)"), t).clone();
 }
 
 export function trailColorObj(slip: number, brake: number, isSmallScale?: boolean): THREE.Color {
@@ -37,39 +90,16 @@ export function trailColorObj(slip: number, brake: number, isSmallScale?: boolea
   if (brake > 10) return brakeColor(brake);
   const warn = isSmallScale ? 0.03 : 0.3;
   const crit = isSmallScale ? 0.08 : 0.8;
-  if (slip < warn) return SLIP_GREEN;
-  if (slip < crit) return SLIP_AMBER;
-  return SLIP_RED;
+  return threeColor(severityRangeColor(slip, [warn, crit]));
 }
 
-// Pre-allocated THREE.Color objects keyed by hex — sourced from vehicle-dynamics COLORS_HEX.
-// No threshold logic here: that lives solely in tireState() in vehicle-dynamics.ts.
-const TRACTION_COLORS = new Map<string, THREE.Color>([
-  [COLORS_HEX.green, new THREE.Color(COLORS_HEX.green)],
-  [COLORS_HEX.yellow, new THREE.Color(COLORS_HEX.yellow)],
-  [COLORS_HEX.orange, new THREE.Color(COLORS_HEX.orange)],
-  [COLORS_HEX.red, new THREE.Color(COLORS_HEX.red)],
-  [COLORS_HEX.gray, new THREE.Color(COLORS_HEX.gray)],
-]);
-
-/** Returns a pre-allocated THREE.Color driven by tireState() — single source of truth. */
+/** Returns a cached THREE.Color driven by tireState() — single source of truth. */
 export function trailColorFromState(wheelStateLabel: string, slipRatio: number, slipAngleRad: number): THREE.Color {
-  return TRACTION_COLORS.get(tireState(wheelStateLabel, slipRatio, slipAngleRad).hex) ?? TRACTION_COLORS.get(COLORS_HEX.green)!;
+  return threeColor(tireState(wheelStateLabel, slipRatio, slipAngleRad).color);
 }
 
-// ── Input overlay colors ─────────────────────────────────────────────
-
-export const THROTTLE_COLOR = new THREE.Color("#34d399").convertSRGBToLinear(); // emerald-400 sRGB → linear
-export const BRAKE_COLOR = new THREE.Color("#ef4444").convertSRGBToLinear(); // red-500 sRGB → linear
-
-export const SUSP_HEX_COLORS = ["#3b82f6", "#34d399", "#facc15", "#ef4444"];
-
-export function suspHexColor(suspTravel: number, thresholds: number[]): string {
-  const pct = suspTravel * 100;
-  for (let i = 0; i < thresholds.length; i++) {
-    if (pct < thresholds[i]) return SUSP_HEX_COLORS[i] ?? SUSP_HEX_COLORS[0];
-  }
-  return SUSP_HEX_COLORS[thresholds.length] ?? SUSP_HEX_COLORS[SUSP_HEX_COLORS.length - 1];
+export function suspensionColor(suspTravel: number, thresholds: number[]): string {
+  return operatingRangeColor(suspTravel * 100, thresholds);
 }
 
 // ── Geometry filtering ────────────────────────────────────────────────

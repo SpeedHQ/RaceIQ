@@ -12,9 +12,9 @@ interface DriverTrendOverviewProps {
 }
 
 function directionTone(direction: TrendDirection): string {
-  if (direction === "improving") return "text-dynamics-green";
-  if (direction === "declining") return "text-dynamics-red";
-  if (direction === "steady") return "text-dynamics-yellow";
+  if (direction === "improving") return "text-severity-nominal";
+  if (direction === "declining") return "text-severity-critical";
+  if (direction === "steady") return "text-severity-caution";
   return "text-app-text-dim";
 }
 function signed(value: number | null, digits = 1, suffix = ""): string {
@@ -60,12 +60,12 @@ function SummaryChart({ previous, recent }: { previous: DriverTrendWindow; recen
     <div className="mt-4">
       <svg className="h-28 w-full" viewBox="0 0 580 112" preserveAspectRatio="none" role="img" aria-label="Previous and latest normalized pace trend">
         {[28, 56, 84].map((y) => (
-          <line key={y} x1="0" y1={y} x2="580" y2={y} stroke="var(--color-app-border)" strokeWidth="1" />
+          <line key={y} x1="0" y1={y} x2="580" y2={y} stroke="var(--app-border)" strokeWidth="1" />
         ))}
-        {linePoints(previous) && <polyline points={linePoints(previous)} fill="none" stroke="var(--color-app-text-dim)" strokeWidth="2" strokeDasharray="5 5" />}
-        {linePoints(recent) && <polyline points={linePoints(recent)} fill="none" stroke="var(--color-app-accent)" strokeWidth="2.5" />}
+        {linePoints(previous) && <polyline points={linePoints(previous)} fill="none" stroke="var(--app-text-dim)" strokeWidth="2" strokeDasharray="5 5" />}
+        {linePoints(recent) && <polyline points={linePoints(recent)} fill="none" stroke="var(--app-accent)" strokeWidth="2.5" />}
       </svg>
-      <div className="mt-1 flex flex-wrap gap-3 text-[10px] text-app-text-muted">
+      <div className="mt-1 flex flex-wrap gap-3 text-app-caption text-app-text-muted">
         <span>
           <i className="mr-1 inline-block size-2 rounded-full bg-app-text-dim" />
           previous {previous.total}
@@ -90,7 +90,7 @@ function movementText(kind: "pace" | "consistency" | "validity", direction: Tren
 function MovementRow({ label, direction, kind }: { label: string; direction: TrendDirection; kind: "pace" | "consistency" | "validity" }) {
   return (
     <div className="flex items-center gap-2 border-t border-app-border py-2.5 first:border-t-0">
-      <i className={`size-1.5 shrink-0 rounded-full ${kind === "validity" ? "bg-dynamics-yellow" : "bg-app-accent"}`} />
+      <i className={`size-1.5 shrink-0 rounded-full ${kind === "validity" ? "bg-severity-caution" : "bg-app-accent"}`} />
       <div className="min-w-0 flex-1">
         <b className="text-sm text-app-text">{label}</b>
         <div className="text-xs text-app-text-muted">{movementText(kind, direction)}</div>
@@ -126,26 +126,26 @@ function TrendBars({ window }: { window: DriverTrendWindow }) {
               key={lap.id}
               role="img"
               title={lapLabel(lap, index + 1, laps.length)}
-              className={`relative min-w-0 flex-1 rounded-t-sm ${pace === null ? "border border-dashed border-app-text-dim" : lap.isValid ? "bg-app-accent" : "bg-dynamics-red"}`}
+              className={`relative min-w-0 flex-1 rounded-t-sm ${pace === null ? "border border-dashed border-app-text-dim" : lap.isValid ? "bg-app-accent" : "bg-status-danger"}`}
               style={{ height: `${height}%`, minWidth: "4px" }}
               aria-label={lapLabel(lap, index + 1, laps.length)}
             >
-              {!lap.isValid && <b className="absolute -top-4 left-1/2 -translate-x-1/2 text-[10px] text-dynamics-red">×</b>}
+              {!lap.isValid && <b className="absolute -top-4 left-1/2 -translate-x-1/2 text-app-caption text-status-danger">×</b>}
             </span>
           );
         })}
       </div>
-      <div className="mt-2 flex flex-wrap gap-3 text-[10px] text-app-text-muted">
+      <div className="mt-2 flex flex-wrap gap-3 text-app-caption text-app-text-muted">
         <span>
           <i className="mr-1 inline-block size-2 rounded-sm bg-app-accent" />
           completed
         </span>
         <span>
-          <i className="mr-1 inline-block size-2 rounded-sm bg-dynamics-red" />
+          <i className="mr-1 inline-block size-2 rounded-sm bg-status-danger" />
           dirty
         </span>
         <span>
-          <i className="mr-1 inline-block size-2 rounded-sm bg-dynamics-green" />
+          <i className="mr-1 inline-block size-2 rounded-sm bg-severity-nominal" />
           best relative pace
         </span>
       </div>
@@ -173,7 +173,7 @@ export function DriverTrendOverview({ trend, summary = null, runState, onRefresh
     <>
       <div className="grid gap-3 lg:grid-cols-[1.15fr_1fr]">
         <article className="rounded-xl border border-app-border bg-app-surface p-4">
-          <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-app-text-muted">
+          <div className="text-app-caption font-medium uppercase tracking-app-label text-app-text-muted">
             Latest {recent.total} laps vs previous {previous.total} · dirty laps count
           </div>
           <div className="mt-2 flex items-end justify-between gap-3">
@@ -187,22 +187,22 @@ export function DriverTrendOverview({ trend, summary = null, runState, onRefresh
           <SummaryChart previous={previous} recent={recent} />
         </article>
         <article className="rounded-xl border border-app-border bg-app-surface p-4">
-          <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-app-text-muted">General movement</div>
+          <div className="text-app-caption font-medium uppercase tracking-app-label text-app-text-muted">General movement</div>
           <div className="mt-2 grid gap-1.5 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
             <div className="rounded-lg border border-app-border bg-app-surface-alt/40 p-2">
-              <span className="block text-[10px] text-app-text-muted">Relative pace</span>
-              <b className="text-sm text-dynamics-green">{paceMovement(trend.paceDeltaPct)}</b>
+              <span className="block text-app-caption text-app-text-muted">Relative pace</span>
+              <b className={`text-sm ${directionTone(trend.paceDirection)}`}>{paceMovement(trend.paceDeltaPct)}</b>
             </div>
             <div className="rounded-lg border border-app-border bg-app-surface-alt/40 p-2">
-              <span className="block text-[10px] text-app-text-muted">Spread</span>
-              <b className="text-sm text-dynamics-green">{signed(trend.spreadDeltaPct, 1, " pts")}</b>
+              <span className="block text-app-caption text-app-text-muted">Spread</span>
+              <b className={`text-sm ${directionTone(trend.consistencyDirection)}`}>{signed(trend.spreadDeltaPct, 1, " pts")}</b>
             </div>
             <div className="rounded-lg border border-app-border bg-app-surface-alt/40 p-2">
-              <span className="block text-[10px] text-app-text-muted">Clean rate</span>
+              <span className="block text-app-caption text-app-text-muted">Clean rate</span>
               <b className="text-sm text-app-text">
                 {recent.valid} / {recent.total}
               </b>
-              <small className="block text-[10px] text-dynamics-yellow">{percent(trend.cleanRateDelta)}</small>
+              <small className={`block text-app-caption ${directionTone(validityDirection)}`}>{percent(trend.cleanRateDelta)}</small>
             </div>
           </div>
           <div className="mt-2">
@@ -219,12 +219,12 @@ export function DriverTrendOverview({ trend, summary = null, runState, onRefresh
       </p>
       <div className="mt-3 grid gap-3 lg:grid-cols-1 xl:grid-cols-2">
         <article className="rounded-xl border border-app-border bg-app-surface p-4">
-          <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-app-text-muted">Immediate measured advice</div>
+          <div className="text-app-caption font-medium uppercase tracking-app-label text-app-text-muted">Immediate measured advice</div>
           <div className="mt-2 space-y-3">
             {trend.advice.map((item) => (
               <div key={item.id} className="flex gap-2">
                 <i
-                  className={`grid size-5 shrink-0 place-items-center rounded-full text-xs ${item.tone === "positive" ? "bg-dynamics-green/20 text-dynamics-green" : "bg-dynamics-yellow/20 text-dynamics-yellow"}`}
+                  className={`grid size-5 shrink-0 place-items-center rounded-full text-xs ${item.tone === "positive" ? "bg-severity-nominal/20 text-severity-nominal" : "bg-severity-caution/20 text-severity-caution"}`}
                 >
                   {item.tone === "positive" ? "✓" : "!"}
                 </i>
@@ -237,7 +237,7 @@ export function DriverTrendOverview({ trend, summary = null, runState, onRefresh
           </div>
         </article>
         <article className="rounded-xl border border-app-accent/50 bg-app-accent/5 p-4">
-          <div className="text-[10px] font-medium uppercase tracking-[0.16em] text-app-accent">AI-enriched summary</div>
+          <div className="text-app-caption font-medium uppercase tracking-app-label text-app-accent">AI-enriched summary</div>
           {summary ? (
             <>
               <h2 className="mt-2 text-base font-semibold text-app-text">{summary.headline}</h2>
@@ -249,7 +249,7 @@ export function DriverTrendOverview({ trend, summary = null, runState, onRefresh
               <p className="mt-2 text-sm text-app-text-muted">Deterministic trend is ready. Refresh AI summary when you want a concise explanation of its evidence.</p>
             </>
           )}
-          <p className="mt-3 text-[11px] text-app-text-muted">AI may explain measured direction. It cannot add lap, corner, car, track, or session-specific advice.</p>
+          <p className="mt-3 text-app-compact text-app-text-muted">AI may explain measured direction. It cannot add lap, corner, car, track, or session-specific advice.</p>
           {onRefresh && (
             <Button className="mt-3" type="button" variant="outline" onClick={onRefresh} disabled={runPending}>
               {runPending ? "Refreshing…" : "Refresh AI summary"}

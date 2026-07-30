@@ -43,13 +43,13 @@ export function Compass({ yaw }: Props) {
     <div className="flex flex-col items-center w-full">
       <svg viewBox="0 0 100 28" className="w-full" style={{ maxWidth: 160 }}>
         {/* Track background */}
-        <rect x="2" y="4" width="96" height="16" rx="2" fill="#0f172a" fillOpacity="0.5" stroke="#334155" strokeWidth="0.5" />
+        <rect x="2" y="4" width="96" height="16" rx="2" fill="var(--app-surface)" fillOpacity="0.5" stroke="var(--app-border)" strokeWidth="0.5" />
 
         {/* Ticks — skip where cardinals are */}
         {ticks
           .filter((t) => !visibleMarkers.some((m) => Math.abs(toX(m.offset) - toX(t.offset)) < 4))
           .map((t) => (
-            <line key={t.deg} x1={toX(t.offset)} y1={t.major ? 6 : 8} x2={toX(t.offset)} y2={t.major ? 18 : 16} stroke={t.major ? "#64748b" : "#334155"} strokeWidth={t.major ? 0.8 : 0.4} />
+            <line key={t.deg} x1={toX(t.offset)} y1={t.major ? 6 : 8} x2={toX(t.offset)} y2={t.major ? 18 : 16} stroke={t.major ? "var(--app-text-dim)" : "var(--app-border)"} strokeWidth={t.major ? 0.8 : 0.4} />
           ))}
 
         {/* Cardinal labels */}
@@ -60,20 +60,20 @@ export function Compass({ yaw }: Props) {
             y={13.5}
             textAnchor="middle"
             dominantBaseline="central"
-            fill={label === "N" ? "#ef4444" : "#94a3b8"}
+            fill={label === "N" ? "var(--compass-north)" : "var(--compass-marker)"}
             fontSize={label === "N" ? 8 : 7}
-            fontWeight="bold"
-            fontFamily="monospace"
+            fontWeight="var(--font-weight-bold)"
+            fontFamily="var(--font-mono)"
           >
             {label}
           </text>
         ))}
 
         {/* Center indicator */}
-        <polygon points="50,3 48,0 52,0" fill="#22d3ee" />
-        <line x1="50" y1="3" x2="50" y2="5" stroke="#22d3ee" strokeWidth="1" />
+        <polygon points="50,3 48,0 52,0" fill="var(--app-accent)" />
+        <line x1="50" y1="3" x2="50" y2="5" stroke="var(--app-accent)" strokeWidth="1" />
       </svg>
-      <div className="text-[10px] font-mono text-app-text-secondary tabular-nums -mt-0.5">{headingDeg.toFixed(0)}°</div>
+      <div className="text-app-caption font-mono text-app-text-secondary tabular-nums -mt-0.5">{headingDeg.toFixed(0)}°</div>
     </div>
   );
 }

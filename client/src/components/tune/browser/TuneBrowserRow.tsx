@@ -40,22 +40,22 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
       <button type="button" className={`${TUNE_GRID} w-full text-left px-3 py-3`} onClick={onToggle}>
         <span className={`text-sm font-bold text-center ${rank === 1 && hasTime ? "text-app-accent" : "text-app-text-muted"}`}>{rank}</span>
         <span className="min-w-0">
-          <span className="block text-[15px] font-semibold truncate">{row.name}</span>
-          <span className="block text-[10px] text-app-text-muted mt-1">{SOURCE_LABEL[row.source]()}</span>
+          <span className="block text-app-body font-semibold truncate">{row.name}</span>
+          <span className="block text-app-caption text-app-text-muted mt-1">{SOURCE_LABEL[row.source]()}</span>
         </span>
-        <span className="hidden sm:block text-[13px] text-app-text-secondary min-w-0 truncate">{carName}</span>
-        <span className={`hidden sm:block text-[13px] min-w-0 truncate ${trackName ? "text-app-accent" : "text-app-text-dim"}`}>{trackName ?? "—"}</span>
+        <span className="hidden sm:block text-app-detail text-app-text-secondary min-w-0 truncate">{carName}</span>
+        <span className={`hidden sm:block text-app-detail min-w-0 truncate ${trackName ? "text-app-accent" : "text-app-text-dim"}`}>{trackName ?? "—"}</span>
         <span className="hidden sm:block min-w-0">
           {row.category && (
-            <span className={`inline-block text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded truncate ${CATEGORY_COLORS[row.category] ?? "bg-app-surface-alt text-app-text-muted"}`}>
+            <span className={`inline-block text-app-caption font-semibold uppercase px-1.5 py-0.5 rounded truncate ${CATEGORY_COLORS[row.category] ?? "bg-app-surface-alt text-app-text-muted"}`}>
               {catLabel}
             </span>
           )}
         </span>
-        <span className="hidden sm:block text-[13px] min-w-0 truncate">{row.author}</span>
-        <span className={`justify-self-end font-mono text-[13px] tabular-nums text-right ${hasTime ? "text-amber-400" : "text-app-text-dim"}`}>
+        <span className="hidden sm:block text-app-detail min-w-0 truncate">{row.author}</span>
+        <span className={`justify-self-end font-mono text-app-detail tabular-nums text-right ${hasTime ? "text-(--lap-pace-average)" : "text-app-text-dim"}`}>
           {hasTime ? row.lapTimeRaw : "—"}
-          <span className="hidden sm:block text-[8px] uppercase tracking-wide text-app-text-dim mt-0.5">{hasTime ? (row.lapTimeTrack ?? m.browser_lap_label()) : m.browser_no_time()}</span>
+          <span className="hidden sm:block text-app-nano uppercase tracking-wide text-app-text-dim mt-0.5">{hasTime ? (row.lapTimeTrack ?? m.browser_lap_label()) : m.browser_no_time()}</span>
         </span>
         <span className={`hidden sm:block text-center text-app-text-dim transition-transform ${isOpen ? "rotate-90 text-app-accent" : ""}`}>›</span>
       </button>
@@ -67,13 +67,13 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
             <div className="flex gap-2 mt-3.5">
               {isUser ? (
                 <>
-                  <button type="button" className="text-[11px] uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-bg font-bold" onClick={() => onEdit?.(row)}>
+                  <button type="button" className="text-app-compact uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-on-filled font-bold" onClick={() => onEdit?.(row)}>
                     {m.common_edit()}
                   </button>
                   {onDuplicate && (
                     <button
                       type="button"
-                      className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-purple-400 disabled:opacity-50"
+                      className="text-app-compact uppercase tracking-wide px-4 py-2 rounded border border-app-border text-app-accent disabled:opacity-50"
                       onClick={() => onDuplicate(row)}
                       disabled={isDuplicating}
                     >
@@ -81,23 +81,23 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
                     </button>
                   )}
                   {!confirmDelete ? (
-                    <button type="button" className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-pink-400" onClick={() => setConfirmDelete(true)}>
+                    <button type="button" className="text-app-compact uppercase tracking-wide px-4 py-2 rounded border border-app-border text-status-danger" onClick={() => setConfirmDelete(true)}>
                       {m.common_delete()}
                     </button>
                   ) : (
                     <span className="flex items-center gap-1.5">
-                      <span className="text-[11px] text-pink-400 uppercase">{m.browser_confirm_delete()}</span>
-                      <button type="button" className="text-[11px] uppercase tracking-wide px-3 py-2 rounded bg-pink-500/20 text-pink-300" onClick={() => onDelete?.(row)}>
+                      <span className="text-app-compact text-status-danger uppercase">{m.browser_confirm_delete()}</span>
+                      <button type="button" className="text-app-compact uppercase tracking-wide px-3 py-2 rounded bg-status-danger/20 text-status-danger" onClick={() => onDelete?.(row)}>
                         {m.tune_yes()}
                       </button>
-                      <button type="button" className="text-[11px] uppercase tracking-wide px-3 py-2 rounded text-app-text-muted hover:text-app-text" onClick={() => setConfirmDelete(false)}>
+                      <button type="button" className="text-app-compact uppercase tracking-wide px-3 py-2 rounded text-app-text-muted hover:text-app-text" onClick={() => setConfirmDelete(false)}>
                         {m.browser_no()}
                       </button>
                     </span>
                   )}
                 </>
               ) : (
-                <button type="button" className="text-[11px] uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-bg font-bold" onClick={() => onClone?.(row)}>
+                <button type="button" className="text-app-compact uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-on-filled font-bold" onClick={() => onClone?.(row)}>
                   {m.browser_clone_garage()}
                 </button>
               )}

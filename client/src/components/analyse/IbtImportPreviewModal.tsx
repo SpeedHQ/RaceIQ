@@ -52,7 +52,7 @@ function formatSize(bytes: number): string {
 
 export function IbtImportPreviewModal({ token, preview, importing, onImport, onClose }: Props) {
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60">
       <div className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[520px] max-w-[90vw] flex flex-col gap-4 p-4">
         <div>
           <p className="text-xs font-medium text-app-text/90 uppercase tracking-wider">iRacing IBT import preview</p>
@@ -83,7 +83,7 @@ export function IbtImportPreviewModal({ token, preview, importing, onImport, onC
 
         {preview.missingRaceIQVariables.length > 0 && preview.missingRequiredVariables.length === 0 && <IbtTelemetryWarning missingVariables={preview.missingRaceIQVariables} />}
 
-        {!preview.canImport && <p className="rounded border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{preview.reason ?? "This recording cannot be imported."}</p>}
+      {!preview.canImport && <p className="rounded border border-status-danger/30 bg-status-danger/10 px-3 py-2 text-sm text-status-danger">{preview.reason ?? "This recording cannot be imported."}</p>}
 
         <p className="text-xs text-app-text-muted">Import creates a normal RaceIQ iRacing session and canonical .bin capture. The original .ibt file is not copied into session storage.</p>
 

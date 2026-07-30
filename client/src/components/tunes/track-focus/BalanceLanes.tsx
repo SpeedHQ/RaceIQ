@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { severityRangeColor } from "@/lib/colors";
 import type { TrackCorner } from "../../../hooks/queries";
 import type { LapTrace } from "../../../lib/stint-traces";
 import { ChartTooltip } from "./ChartTooltip";
@@ -14,15 +15,13 @@ interface BalanceLanesProps {
   onCursorFrac: (f: number | null) => void;
 }
 
-/** Magnitude thresholds (degrees) for the green/amber/red banding — tuned to
+/** Magnitude thresholds (degrees) for the severity banding — tuned to
  *  typical GT3-class axle slip deltas rather than a formal spec. */
 const BAND_AMBER_DEG = 3;
 const BAND_RED_DEG = 6;
 
 function magnitudeColor(absDeg: number): string {
-  if (absDeg > BAND_RED_DEG) return "var(--color-dynamics-red, #ef4444)";
-  if (absDeg > BAND_AMBER_DEG) return "var(--color-dynamics-amber, #f59e0b)";
-  return "var(--color-dynamics-green, #34d399)";
+  return severityRangeColor(absDeg, [BAND_AMBER_DEG, BAND_RED_DEG]);
 }
 
 function verdict(deg: number): string {
@@ -85,15 +84,15 @@ export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], cur
   if (withBalance.length === 0) {
     return (
       <div>
-        <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Balance (understeer / oversteer)</div>
-        <div className="h-[100px] flex items-center justify-center rounded bg-app-surface border border-app-border text-[11px] text-app-text-dim">No slip-angle data for this game</div>
+        <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Balance (understeer / oversteer)</div>
+        <div className="h-[100px] flex items-center justify-center rounded bg-app-surface border border-app-border text-app-compact text-app-text-dim">No slip-angle data for this game</div>
       </div>
     );
   }
 
   return (
     <div className="space-y-1">
-      <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Balance (° axle slip delta, + understeer / − oversteer)</div>
+      <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Balance (° axle slip delta, + understeer / − oversteer)</div>
       <Lane
         bgFill="transparent"
         height={120}
@@ -132,7 +131,7 @@ export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], cur
       >
         {({ x, y }) => (
           <>
-            <line x1={x(0)} x2={x(1)} y1={y(0)} y2={y(0)} stroke="var(--color-app-accent, #22d3ee)" strokeWidth={1} opacity={0.5} strokeDasharray="4 3" />
+            <line x1={x(0)} x2={x(1)} y1={y(0)} y2={y(0)} stroke="var(--app-accent)" strokeWidth={1} opacity={0.5} strokeDasharray="4 3" />
             {withBalance
               .filter((t) => t.lapId !== bestLapId)
               .map((t) => (
@@ -140,12 +139,12 @@ export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], cur
                   key={t.lapId}
                   points={balancePolyline(t, x, y)}
                   fill="none"
-                  stroke={t.isValid ? "var(--color-app-text-dim, #7a8ea0)" : "var(--color-dynamics-red, #ef4444)"}
+                  stroke={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"}
                   strokeWidth={1}
                   opacity={t.isValid ? 0.35 : 0.55}
                 />
               ))}
-            {bestTrace && <polyline points={balancePolyline(bestTrace, x, y)} fill="none" stroke="var(--color-app-accent, #22d3ee)" strokeWidth={1.8} opacity={1} />}
+            {bestTrace && <polyline points={balancePolyline(bestTrace, x, y)} fill="none" stroke="var(--app-accent)" strokeWidth={1.8} opacity={1} />}
           </>
         )}
       </Lane>

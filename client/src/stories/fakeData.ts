@@ -51,7 +51,7 @@ const basePacket = {
   SurfaceRumbleRR_2: 0,
   TireSlipCombinedFL_2: 0,
   Boost: 0.6,
-  Fuel: 42.5, // litres remaining (F1/ACC treat as litres; Forza overrides below)
+  Fuel: 42.5, // litres remaining for litre-native fixtures
   DistanceTraveled: 3240,
   BestLap: 92.341,
   LastLap: 92.341, // lap 4
@@ -107,6 +107,8 @@ const basePacket = {
 export const fakeF1Packet: TelemetryPacket = {
   ...basePacket,
   gameId: "f1-2025",
+  Fuel: 42.5 / 110, // F1 parser normalizes fuel to tank fraction
+  FuelCapacity: 110,
   CurrentEngineRpm: 14200,
   EngineMaxRpm: 15000,
   EngineIdleRpm: 4000,
@@ -410,6 +412,7 @@ export const fakeAccPacket: TelemetryPacket = {
   Accel: 200,
   Brake: 0,
   Fuel: 38.2, // ACC: litres remaining
+  FuelCapacity: 120, // ACC static shared-memory maxFuel
   LapNumber: 8,
   RacePosition: 2,
   TireWearFL: 0.25,

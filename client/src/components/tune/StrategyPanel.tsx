@@ -16,7 +16,7 @@ export function StrategyPanel({ strategies, tuneId }: { strategies: RaceStrategy
             <button
               key={`${tuneId}-${s.condition}`}
               onClick={() => setActiveCondition(s.condition)}
-              className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded transition-colors ${
+              className={`text-app-caption font-semibold uppercase px-2 py-0.5 rounded transition-colors ${
                 activeCondition === s.condition ? CONDITION_COLORS[s.condition] : "text-app-text-muted hover:text-app-text-secondary"
               }`}
             >
@@ -28,19 +28,19 @@ export function StrategyPanel({ strategies, tuneId }: { strategies: RaceStrategy
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-2">
         <div className="text-center">
           <div className="text-sm font-bold text-app-text font-mono leading-tight">{strategy.totalLaps}</div>
-          <div className="text-[10px] text-app-text-muted uppercase leading-tight">{m.label_laps()}</div>
+          <div className="text-app-caption text-app-text-muted uppercase leading-tight">{m.label_laps()}</div>
         </div>
         <div className="text-center">
           <div className="text-sm font-bold text-app-text font-mono leading-tight">{strategy.fuelLoadPercent}%</div>
-          <div className="text-[10px] text-app-text-muted uppercase leading-tight">{m.tune_fuel_load()}</div>
+          <div className="text-app-caption text-app-text-muted uppercase leading-tight">{m.tune_fuel_load()}</div>
         </div>
         <div className="text-center">
           <div className="text-sm font-bold text-app-text font-mono leading-tight">{strategy.pitStops}</div>
-          <div className="text-[10px] text-app-text-muted uppercase leading-tight">{m.tune_pit_stops()}</div>
+          <div className="text-app-caption text-app-text-muted uppercase leading-tight">{m.tune_pit_stops()}</div>
         </div>
         <div className="text-center">
           <div className="text-sm font-bold text-app-text font-mono leading-tight">{strategy.tireCompound}</div>
-          <div className="text-[10px] text-app-text-muted uppercase leading-tight">{m.tune_tire()}</div>
+          <div className="text-app-caption text-app-text-muted uppercase leading-tight">{m.tune_tire()}</div>
         </div>
       </div>
       {strategy.pitLaps && strategy.pitLaps.length > 0 && (

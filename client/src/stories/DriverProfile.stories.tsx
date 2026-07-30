@@ -143,7 +143,7 @@ const meta = {
             <button type="button" className="rounded-md border border-app-border bg-app-surface px-3 py-2 text-xs text-app-text">
               All Forza Motorsport laps
             </button>
-            <button type="button" className="rounded-md bg-app-accent px-3 py-2 text-xs font-medium text-app-bg">
+            <button type="button" className="rounded-md bg-app-accent px-3 py-2 text-xs font-medium text-app-on-filled hover:bg-app-accent-hover">
               Refresh AI summary
             </button>
           </div>

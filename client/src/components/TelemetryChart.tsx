@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
+import { resolveCssColor, resolveCssFont } from "../lib/rendering/css-values";
 
 interface Props {
   data: {
@@ -47,11 +48,20 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
         { label: "Distance (m)" },
         ...data.labels.map((label, i) => ({
           label,
-          stroke: data.colors[i],
+          stroke: resolveCssColor(data.colors[i]),
           width: 1.5,
-          fill: fillColors?.[i] ?? undefined,
+          fill: fillColors?.[i] ? resolveCssColor(fillColors[i]!) : undefined,
         })),
       ];
+      const axisStroke = resolveCssColor("var(--app-text-dim)");
+      const gridStroke = resolveCssColor("color-mix(in srgb, var(--app-text-dim) 15%, transparent)");
+      const tickStroke = resolveCssColor("color-mix(in srgb, var(--app-text-dim) 30%, transparent)");
+      const axis = (): uPlot.Axis => ({
+        stroke: axisStroke,
+        grid: { stroke: gridStroke, width: 1 },
+        ticks: { stroke: tickStroke, width: 1 },
+        font: resolveCssFont("var(--text-app-compact) var(--font-mono)"),
+      });
 
       const opts: uPlot.Options = {
         width,
@@ -69,20 +79,7 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
         scales: {
           x: { time: false },
         },
-        axes: [
-          {
-            stroke: "#64748b",
-            grid: { stroke: "rgba(100, 116, 139, 0.15)", width: 1 },
-            ticks: { stroke: "rgba(100, 116, 139, 0.3)", width: 1 },
-            font: "11px ui-monospace, monospace",
-          },
-          {
-            stroke: "#64748b",
-            grid: { stroke: "rgba(100, 116, 139, 0.15)", width: 1 },
-            ticks: { stroke: "rgba(100, 116, 139, 0.3)", width: 1 },
-            font: "11px ui-monospace, monospace",
-          },
-        ],
+        axes: [axis(), axis()],
         series,
         hooks: {
           ready: [
@@ -90,12 +87,12 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
               // Style title and legend via direct DOM (reliable across Tailwind versions)
               const titleEl = upl.root.querySelector(".u-title") as HTMLElement | null;
               if (titleEl) {
-                titleEl.style.fontSize = "10px";
-                titleEl.style.fontWeight = "600";
+                titleEl.style.fontSize = "var(--text-app-caption)";
+                titleEl.style.fontWeight = "var(--font-weight-semibold)";
               }
 
               const legendEl = upl.root.querySelector(".u-legend") as HTMLElement | null;
-              if (legendEl) legendEl.style.fontSize = "10px";
+              if (legendEl) legendEl.style.fontSize = "var(--text-app-caption)";
 
               // Drag start line overlay
               const over = upl.over;
@@ -195,15 +192,15 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
     <div className="w-full">
       {title && (
         <div className="relative flex items-center justify-center px-1 pb-0.5">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-app-text-secondary">{title}</span>
-          <span className="absolute right-1 text-[10px] text-app-text-dim">Click &amp; drag to zoom · Double-click to reset</span>
+          <span className="text-app-caption font-semibold uppercase tracking-wider text-app-text-secondary">{title}</span>
+          <span className="absolute right-1 text-app-caption text-app-text-dim">Click &amp; drag to zoom · Double-click to reset</span>
         </div>
       )}
       <div ref={outerRef} className="relative w-full">
         <div ref={containerRef} className="w-full" />
         {dragSel && (
           <div
-            className="absolute pointer-events-none w-px bg-slate-400/70"
+            className="absolute pointer-events-none w-px bg-app-text-secondary/70"
             style={{
               left: dragSel.overLeft + dragSel.startPx,
               top: dragSel.overTop,

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { WHEEL_COLOR_VARS } from "@/lib/colors";
 import type { TrackCorner } from "../../../hooks/queries";
 import type { LapTrace, TireAverages } from "../../../lib/stint-traces";
 import { ChartTooltip } from "./ChartTooltip";
@@ -16,10 +17,10 @@ interface GripPanelProps {
 }
 
 const SLIP_CORNERS: { key: keyof TireAverages; label: string; color: string }[] = [
-  { key: "FL", label: "FL", color: "#38bdf8" },
-  { key: "FR", label: "FR", color: "#f472b6" },
-  { key: "RL", label: "RL", color: "#facc15" },
-  { key: "RR", label: "RR", color: "#34d399" },
+  { key: "FL", label: "FL", color: WHEEL_COLOR_VARS[0] },
+  { key: "FR", label: "FR", color: WHEEL_COLOR_VARS[1] },
+  { key: "RL", label: "RL", color: WHEEL_COLOR_VARS[2] },
+  { key: "RR", label: "RR", color: WHEEL_COLOR_VARS[3] },
 ];
 
 /** Linear-interpolate an arbitrary per-frame value series at fraction `f`,
@@ -108,12 +109,12 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
     <div className="space-y-3">
       {withLatG.length === 0 ? (
         <div>
-          <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Lateral g</div>
-          <div className="h-[100px] flex items-center justify-center rounded bg-app-surface border border-app-border text-[11px] text-app-text-dim">No acceleration data for this game</div>
+          <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Lateral g</div>
+          <div className="h-[100px] flex items-center justify-center rounded bg-app-surface border border-app-border text-app-compact text-app-text-dim">No acceleration data for this game</div>
         </div>
       ) : (
         <div>
-          <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Lateral g</div>
+          <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Lateral g</div>
           <Lane
             bgFill="transparent"
             height={100}
@@ -141,12 +142,12 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
                       key={t.lapId}
                       points={gPolyline(t, t.latG!, x, y)}
                       fill="none"
-                      stroke={t.isValid ? "var(--color-app-text-dim, #7a8ea0)" : "var(--color-dynamics-red, #ef4444)"}
+                      stroke={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"}
                       strokeWidth={1}
                       opacity={t.isValid ? 0.35 : 0.55}
                     />
                   ))}
-                {bestLatG && <polyline points={gPolyline(bestLatG, bestLatG.latG!, x, y)} fill="none" stroke="var(--color-app-accent, #22d3ee)" strokeWidth={1.8} />}
+                {bestLatG && <polyline points={gPolyline(bestLatG, bestLatG.latG!, x, y)} fill="none" stroke="var(--app-accent)" strokeWidth={1.8} />}
               </>
             )}
           </Lane>
@@ -155,12 +156,12 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
 
       {withLongG.length === 0 ? (
         <div>
-          <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Longitudinal g</div>
-          <div className="h-[100px] flex items-center justify-center rounded bg-app-surface border border-app-border text-[11px] text-app-text-dim">No acceleration data for this game</div>
+          <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Longitudinal g</div>
+          <div className="h-[100px] flex items-center justify-center rounded bg-app-surface border border-app-border text-app-compact text-app-text-dim">No acceleration data for this game</div>
         </div>
       ) : (
         <div>
-          <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Longitudinal g (+ accel / − brake)</div>
+          <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Longitudinal g (+ accel / − brake)</div>
           <Lane
             bgFill="transparent"
             height={100}
@@ -188,12 +189,12 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
                       key={t.lapId}
                       points={gPolyline(t, t.longG!, x, y)}
                       fill="none"
-                      stroke={t.isValid ? "var(--color-app-text-dim, #7a8ea0)" : "var(--color-dynamics-red, #ef4444)"}
+                      stroke={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"}
                       strokeWidth={1}
                       opacity={t.isValid ? 0.35 : 0.55}
                     />
                   ))}
-                {bestLongG && <polyline points={gPolyline(bestLongG, bestLongG.longG!, x, y)} fill="none" stroke="var(--color-app-accent, #22d3ee)" strokeWidth={1.8} />}
+                {bestLongG && <polyline points={gPolyline(bestLongG, bestLongG.longG!, x, y)} fill="none" stroke="var(--app-accent)" strokeWidth={1.8} />}
               </>
             )}
           </Lane>
@@ -202,12 +203,12 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
 
       {withSlip.length === 0 ? (
         <div>
-          <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Combined tyre slip</div>
-          <div className="h-[100px] flex items-center justify-center rounded bg-app-surface border border-app-border text-[11px] text-app-text-dim">No combined-slip data for this game</div>
+          <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Combined tyre slip</div>
+          <div className="h-[100px] flex items-center justify-center rounded bg-app-surface border border-app-border text-app-compact text-app-text-dim">No combined-slip data for this game</div>
         </div>
       ) : (
         <div className="space-y-1">
-          <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Combined tyre slip</div>
+          <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Combined tyre slip</div>
           <Lane
             bgFill="transparent"
             height={100}
@@ -240,7 +241,7 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
               </>
             )}
           </Lane>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-app-text-dim">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-app-compact text-app-text-dim">
             {SLIP_CORNERS.map((c) => (
               <span key={c.key} className="inline-flex items-center gap-1.5">
                 <span className="w-2.5 h-1.5 rounded-sm inline-block" style={{ background: c.color }} />

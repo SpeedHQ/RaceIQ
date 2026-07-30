@@ -22,8 +22,8 @@ export function AnalyseAiSidebar({ lapId, carName, trackName, segments, aiPanelR
     <div className="w-[22rem] h-full shrink-0 border-l border-app-border bg-app-surface/50 flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-3 py-2 border-b border-app-border shrink-0">
         <div className="flex items-center gap-1.5">
-          <Sparkles className="size-3 text-amber-400" />
-          <span className="text-[10px] uppercase tracking-wider font-semibold text-app-text">{m.analyse_ai_analysis()}</span>
+        <Sparkles className="size-3 text-ai-accent" />
+          <span className="text-app-caption uppercase tracking-wider font-semibold text-app-text">{m.analyse_ai_analysis()}</span>
         </div>
         <div className="flex items-center gap-2">
           <AiPanelMenu onClearChat={() => aiPanelRef.current?.clearChat()} onClearAnalysis={() => aiPanelRef.current?.clearAnalysis()} onClearAll={() => aiPanelRef.current?.clearAll()} />

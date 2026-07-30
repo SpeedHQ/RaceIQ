@@ -177,52 +177,52 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
         <div className="flex-1 min-h-0 overflow-y-auto rounded-lg border border-app-border/20">
           {/* Header */}
           <div className="flex items-center gap-1.5 px-2 py-1 bg-app-surface-alt/50 border-b border-app-border/20 sticky top-0">
-            <span className="text-[9px] text-app-text-dim uppercase w-4 text-right shrink-0">#</span>
-            <span className="text-[9px] text-app-text-dim uppercase flex-1">{m.label_author_car()}</span>
-            <span className="text-[9px] text-app-text-dim uppercase text-center">{m.label_type()}</span>
-            <span className="text-[9px] text-app-text-dim uppercase w-16 text-right">{m.label_time()}</span>
+            <span className="text-app-micro text-app-text-dim uppercase w-4 text-right shrink-0">#</span>
+            <span className="text-app-micro text-app-text-dim uppercase flex-1">{m.label_author_car()}</span>
+            <span className="text-app-micro text-app-text-dim uppercase text-center">{m.label_type()}</span>
+            <span className="text-app-micro text-app-text-dim uppercase w-16 text-right">{m.label_time()}</span>
           </div>
           {filteredSetups.map((s, i) => (
             <div
               key={setupId(s)}
               onClick={() => selectSetup(i)}
               className={`flex items-center gap-1.5 px-2 py-1.5 cursor-pointer border-b border-app-border/10 transition-colors ${
-                selectedIdx === i ? "bg-app-accent/10" : "hover:bg-app-surface-alt/30"
+                selectedIdx === i ? "bg-app-accent/10" : "hover:bg-app-surface-hover/30"
               }`}
             >
-              <span className="text-app-unit text-app-text-dim font-mono w-4 text-right shrink-0">{i + 1}</span>
+              <span className="text-app-compact text-app-text-dim font-mono w-4 text-right shrink-0">{i + 1}</span>
               <div className="flex-1 min-w-0 flex items-center gap-1">
-                <span className="text-app-unit font-medium text-app-text truncate">{s.author || "Unknown"}</span>
-                <span className="text-[9px] text-app-text-dim truncate">({carNameMap.get(s.carModel) ?? s.carModel})</span>
+                <span className="text-app-compact font-medium text-app-text truncate">{s.author || "Unknown"}</span>
+                <span className="text-app-micro text-app-text-dim truncate">({carNameMap.get(s.carModel) ?? s.carModel})</span>
               </div>
               <div className="flex items-center gap-0.5 shrink-0 justify-center">
                 {s.hasRace && (
-                  <span className="text-[8px] px-1 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold" title={m.accsetup_setup_type_race_title()}>
+                  <span className="setup-variant-badge text-app-nano px-1 py-0.5 rounded font-bold" data-setup-variant="race" title={m.accsetup_setup_type_race_title()}>
                     R
                   </span>
                 )}
                 {s.hasQuali && (
-                  <span className="text-[8px] px-1 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold" title={m.accsetup_setup_type_qualifying_title()}>
+                  <span className="setup-variant-badge text-app-nano px-1 py-0.5 rounded font-bold" data-setup-variant="qualifying" title={m.accsetup_setup_type_qualifying_title()}>
                     Q
                   </span>
                 )}
                 {s.hasWet && (
-                  <span className="text-[8px] px-1 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-bold" title={m.accsetup_setup_type_wet_title()}>
+                  <span className="setup-variant-badge text-app-nano px-1 py-0.5 rounded font-bold" data-setup-variant="wet" title={m.accsetup_setup_type_wet_title()}>
                     W
                   </span>
                 )}
                 {s.videoUrl && (
-                  <span className="text-[9px] text-red-400 ml-0.5" title={m.accsetup_setup_type_has_video_title()}>
+                  <span className="text-app-micro ml-0.5" style={{ color: "var(--brand-provider-youtube)" }} title={m.accsetup_setup_type_has_video_title()}>
                     ▶
                   </span>
                 )}
                 {(s.downloadUrl || s.setupFile) && (
-                  <span className="text-[8px] px-1 py-0.5 rounded bg-green-500/20 text-green-300 font-bold" title={m.accsetup_setup_type_has_file_title()}>
+                  <span className="setup-variant-badge text-app-nano px-1 py-0.5 rounded font-bold" data-setup-variant="file" title={m.accsetup_setup_type_has_file_title()}>
                     {m.accsetup_file()}
                   </span>
                 )}
               </div>
-              <span className="text-app-unit font-mono text-emerald-400 shrink-0 w-16 text-right">{s.lapTime || "—"}</span>
+              <span className="text-app-compact font-mono text-(--lap-pace-on-target) shrink-0 w-16 text-right">{s.lapTime || "—"}</span>
             </div>
           ))}
         </div>
@@ -236,7 +236,7 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
             {/* Header */}
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-app-body font-bold text-app-text">{setup.author || "Unknown"}</span>
-              <span className="text-app-unit text-app-text-secondary">
+              <span className="text-app-compact text-app-text-secondary">
                 {carNameMap.get(setup.carModel) ?? setup.carModel}
                 {setup.lapTime && ` · ${setup.lapTime}`}
                 {setup.date && ` · ${setup.date}`}
@@ -252,10 +252,10 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
             {/* Variant tags */}
             {(setup.hasRace || setup.hasQuali || setup.hasSafe || setup.hasWet) && (
               <div className="flex items-center gap-1.5 flex-wrap">
-                {setup.hasRace && <span className="text-[10px] px-2 py-0.5 rounded-full border border-blue-500/40 bg-blue-500/10 text-blue-300 font-medium">{m.label_race()}</span>}
-                {setup.hasQuali && <span className="text-[10px] px-2 py-0.5 rounded-full border border-purple-500/40 bg-purple-500/10 text-purple-300 font-medium">{m.accsetup_badge_qualify()}</span>}
-                {setup.hasSafe && <span className="text-[10px] px-2 py-0.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 font-medium">{m.accsetup_badge_safe()}</span>}
-                {setup.hasWet && <span className="text-[10px] px-2 py-0.5 rounded-full border border-cyan-500/40 bg-cyan-500/10 text-cyan-300 font-medium">{m.accsetup_badge_wet()}</span>}
+                {setup.hasRace && <span className="setup-variant-badge text-app-caption px-2 py-0.5 rounded-full border font-medium" data-setup-variant="race">{m.label_race()}</span>}
+                {setup.hasQuali && <span className="setup-variant-badge text-app-caption px-2 py-0.5 rounded-full border font-medium" data-setup-variant="qualifying">{m.accsetup_badge_qualify()}</span>}
+                {setup.hasSafe && <span className="setup-variant-badge text-app-caption px-2 py-0.5 rounded-full border font-medium" data-setup-variant="safe">{m.accsetup_badge_safe()}</span>}
+                {setup.hasWet && <span className="setup-variant-badge text-app-caption px-2 py-0.5 rounded-full border font-medium" data-setup-variant="wet">{m.accsetup_badge_wet()}</span>}
               </div>
             )}
 
@@ -271,7 +271,8 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
                     href={dlUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`flex items-center gap-1.5 px-3 py-1.5 text-app-unit font-semibold rounded transition-colors ${isVideo ? "bg-red-500/15 text-red-400 hover:bg-red-500/25" : "bg-blue-500/15 text-blue-400 hover:bg-blue-500/25"}`}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-app-compact font-semibold rounded transition-colors ${isVideo ? "provider-badge hover:opacity-80" : "bg-app-accent/15 text-app-accent hover:bg-app-accent/25"}`}
+                    data-provider-brand={isVideo ? "youtube" : undefined}
                   >
                     <PlatformIcon platform={platform} />
                     {PLATFORM_LABEL[platform]}
@@ -282,7 +283,7 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
                 <button
                   onClick={() => installMutation.mutate(setup)}
                   disabled={installMutation.isPending}
-                  className="px-3 py-1.5 text-app-unit font-semibold bg-emerald-500/15 text-emerald-400 rounded hover:bg-emerald-500/25 transition-colors disabled:opacity-50"
+                  className="px-3 py-1.5 text-app-compact font-semibold bg-status-success/15 text-status-success rounded hover:bg-status-success/25 transition-colors disabled:opacity-50"
                 >
                   {installMutation.isPending ? "Installing..." : installMutation.isSuccess ? "Installed" : "Install to ACC"}
                 </button>
@@ -292,7 +293,8 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
                   href={setup.videoUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-app-unit font-semibold bg-red-500/15 text-red-400 rounded hover:bg-red-500/25 transition-colors"
+                  className="provider-badge flex items-center gap-1.5 px-3 py-1.5 text-app-compact font-semibold rounded hover:opacity-80 transition-colors"
+                  data-provider-brand="youtube"
                 >
                   <PlatformIcon platform="youtube" />
                   {m.label_hotlap()}
@@ -303,7 +305,7 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
                   href={setup.pageUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-3 py-1.5 text-app-unit font-semibold bg-app-surface-alt text-app-text-secondary rounded hover:text-app-text transition-colors border border-app-border"
+                  className="px-3 py-1.5 text-app-compact font-semibold bg-app-surface-alt text-app-text-secondary rounded hover:text-app-text transition-colors border border-app-border"
                 >
                   accsetups.com
                 </a>

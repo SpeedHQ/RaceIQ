@@ -34,7 +34,8 @@ function fmtDuration(sec: number): string {
   return `${s}s`;
 }
 
-const LEVEL_COLORS = ["var(--color-app-surface-alt, #1a1d26)", "rgba(139, 92, 246, 0.25)", "rgba(139, 92, 246, 0.5)", "rgba(139, 92, 246, 0.75)", "rgba(139, 92, 246, 1)"];
+const activityFill = (level: number) => (level === 0 ? "var(--app-surface-alt)" : "var(--activity-fill)");
+const activityOpacity = (level: number) => (level === 0 ? 1 : level / 4);
 
 export function ActivityHeatmap({ laps, showTitle = true }: { laps: LapMeta[]; showTitle?: boolean }) {
   const [hover, setHover] = useState<{ date: string; seconds: number; x: number; y: number } | null>(null);
@@ -129,8 +130,8 @@ export function ActivityHeatmap({ laps, showTitle = true }: { laps: LapMeta[]; s
     <div>
       {showTitle && (
         <div className="flex items-baseline justify-between mb-2">
-          <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider">{m.heatmap_title()}</h2>
-          <div className="text-[11px] text-app-text/90-dim">
+          <h2 className="text-xs font-semibold text-app-text/90 uppercase tracking-wider">{m.heatmap_title()}</h2>
+          <div className="text-app-compact text-app-text/90">
             {fmtDuration(totalSeconds)} · {totalDays} {m.heatmap_active_days()} · {m.heatmap_longest_streak()} {longestStreak} {m.heatmap_days_word()} · {m.heatmap_longest_day()}{" "}
             {fmtDuration(bestDaySeconds)}
           </div>
@@ -138,7 +139,7 @@ export function ActivityHeatmap({ laps, showTitle = true }: { laps: LapMeta[]; s
       )}
       <div ref={scrollRef} className="rounded-lg p-4 overflow-x-auto relative">
         <div className="flex gap-2 w-max mx-auto">
-          <div className="flex flex-col justify-between py-[14px] pr-1 text-[9px] text-app-text/90-dim leading-none select-none">
+          <div className="flex flex-col justify-between py-[14px] pr-1 text-app-micro text-app-text/90 leading-none select-none">
             {dayLabels.map((l, i) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: static ordered weekday labels, never reordered
               <div key={i} style={{ height: CELL }}>
@@ -149,7 +150,7 @@ export function ActivityHeatmap({ laps, showTitle = true }: { laps: LapMeta[]; s
           <div>
             <div className="relative" style={{ height: 14, width }}>
               {monthMarkers.map((m) => (
-                <div key={`${m.label}-${m.week}`} className="absolute text-[9px] text-app-text/90-dim uppercase tracking-wider" style={{ left: m.week * (CELL + GAP) }}>
+                <div key={`${m.label}-${m.week}`} className="absolute text-app-micro text-app-text/90 uppercase tracking-wider" style={{ left: m.week * (CELL + GAP) }}>
                   {m.label}
                 </div>
               ))}
@@ -161,7 +162,8 @@ export function ActivityHeatmap({ laps, showTitle = true }: { laps: LapMeta[]; s
                   const lvl = intensity(seconds, max);
                   const isToday = key === todayKey;
                   const isBestDay = key === bestDayKey;
-                  const stroke = isBestDay ? "rgba(34, 211, 238, 1)" : isToday ? "rgba(139, 92, 246, 0.9)" : "rgba(255,255,255,0.04)";
+                  const stroke = isBestDay ? "var(--app-accent)" : isToday ? "var(--activity-fill)" : "var(--app-text)";
+                  const strokeOpacity = isBestDay ? 1 : isToday ? 0.9 : 0.04;
                   const strokeWidth = isBestDay ? 1.5 : isToday ? 1 : 0.5;
                   return (
                     // biome-ignore lint/a11y/noStaticElementInteractions: hover-only tooltip on decorative SVG cell; data available in legend/stats
@@ -172,8 +174,10 @@ export function ActivityHeatmap({ laps, showTitle = true }: { laps: LapMeta[]; s
                       width={CELL}
                       height={CELL}
                       rx={2}
-                      fill={future ? "transparent" : LEVEL_COLORS[lvl]}
+                      fill={future ? "transparent" : activityFill(lvl)}
+                      fillOpacity={future ? 1 : activityOpacity(lvl)}
                       stroke={stroke}
+                      strokeOpacity={strokeOpacity}
                       strokeWidth={strokeWidth}
                       onMouseEnter={(e) => {
                         if (future) return;
@@ -193,34 +197,43 @@ export function ActivityHeatmap({ laps, showTitle = true }: { laps: LapMeta[]; s
             </svg>
           </div>
         </div>
-        <div className="sticky left-0 right-0 flex flex-wrap items-center justify-end gap-3 mt-2 px-1 text-[10px] text-app-text/90-dim">
+        <div className="sticky left-0 right-0 flex flex-wrap items-center justify-end gap-3 mt-2 px-1 text-app-caption text-app-text/90">
           <span className="flex items-center gap-1.5">
             <span
               className="inline-block rounded-sm"
               style={{
                 width: CELL,
                 height: CELL,
-                background: LEVEL_COLORS[4],
-                border: "1.5px solid rgba(34, 211, 238, 1)",
+                background: activityFill(4),
+                border: "1.5px solid var(--app-accent)",
               }}
             />
             {m.heatmap_longest_day()}
           </span>
           <div className="flex items-center gap-1.5">
             <span>{m.heatmap_less()}</span>
-            {LEVEL_COLORS.map((c) => (
-              <span key={c} className="inline-block rounded-sm" style={{ width: CELL, height: CELL, background: c, border: "0.5px solid rgba(255,255,255,0.04)" }} />
+            {Array.from({ length: 5 }, (_, level) => (
+              <span
+                key={level}
+                className="inline-block rounded-sm border border-app-text/5"
+                style={{
+                  width: CELL,
+                  height: CELL,
+                  background: activityFill(level),
+                  opacity: activityOpacity(level),
+                }}
+              />
             ))}
             <span>{m.heatmap_more()}</span>
           </div>
         </div>
         {hover && (
           <div
-            className="fixed z-50 pointer-events-none px-2 py-1 rounded bg-app-surface border border-app-border text-[11px] text-app-text shadow-lg"
+            className="fixed z-50 pointer-events-none px-2 py-1 rounded bg-app-surface border border-app-border text-app-compact text-app-text shadow-lg"
             style={{ left: hover.x, top: hover.y - 8, transform: "translate(-50%, -100%)" }}
           >
             <div className="font-mono font-bold">{hover.seconds > 0 ? fmtDuration(hover.seconds) : m.heatmap_no_activity()}</div>
-            <div className="text-app-text/90-dim">{hover.date}</div>
+            <div className="text-app-text/90">{hover.date}</div>
           </div>
         )}
       </div>

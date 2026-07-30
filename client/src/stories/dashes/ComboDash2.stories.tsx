@@ -56,7 +56,7 @@ function render({ game, lapCount }: Args) {
           position: "relative",
           width: "100%",
           aspectRatio: "19.5 / 9",
-          background: "#000",
+          background: "var(--app-bg)",
           overflow: "hidden",
           transform: "translateZ(0)",
         }}
@@ -101,7 +101,7 @@ export const ACEvo: Story = { name: "AC Evo", args: { game: "ac-evo" }, render }
 
 export const NoData: Story = {
   render: () => (
-    <div style={{ width: "100vw", height: "100vh", background: "#000" }}>
+    <div style={{ width: "100vw", height: "100vh", background: "var(--app-bg)" }}>
       <ComboDash2 rawPacket={null} sessionLaps={[]} />
     </div>
   ),

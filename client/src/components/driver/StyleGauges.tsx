@@ -9,7 +9,7 @@ interface CompactGaugeProps {
 }
 
 function CompactGauge({ label, value, display, width, tone = "accent" }: CompactGaugeProps) {
-  const fill = tone === "good" ? "bg-dynamics-green" : tone === "warn" ? "bg-dynamics-yellow" : "bg-app-accent";
+  const fill = tone === "good" ? "bg-severity-nominal" : tone === "warn" ? "bg-severity-caution" : "bg-app-accent";
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_2.5rem] items-center gap-x-2 gap-y-1">
       <span className="text-xs text-app-text-muted">{label}</span>

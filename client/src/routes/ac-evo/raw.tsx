@@ -45,8 +45,8 @@ function HexViewer({ bytes, prev, page }: { bytes: Uint8Array; prev: Uint8Array 
       const changed = prev && b !== pb;
       const nonZero = b !== 0;
       let cls = "inline-block w-6 text-center tabular-nums ";
-      if (changed) cls += "bg-yellow-500/40 text-yellow-100";
-      else if (nonZero) cls += "text-green-400";
+      if (changed) cls += "bg-status-warning/40 text-status-warning";
+      else if (nonZero) cls += "text-status-success";
       else cls += "text-app-text-muted/30";
       cells.push(
         <span key={j} className={cls}>
@@ -62,7 +62,7 @@ function HexViewer({ bytes, prev, page }: { bytes: Uint8Array; prev: Uint8Array 
       const b = bytes[idx];
       const ch = b >= 0x20 && b <= 0x7e ? String.fromCharCode(b) : ".";
       asciiChars.push(
-        <span key={j} className={b !== 0 ? "text-green-400" : "text-app-text-muted/30"}>
+        <span key={j} className={b !== 0 ? "text-status-success" : "text-app-text-muted/30"}>
           {ch}
         </span>,
       );
@@ -82,7 +82,7 @@ function HexViewer({ bytes, prev, page }: { bytes: Uint8Array; prev: Uint8Array 
       <div className="text-xs text-app-text-muted mb-2">
         {page}: {bytes.length} bytes — {nonZeroCount} non-zero, {changedCount} changed since last poll
       </div>
-      <div className="overflow-auto max-h-[60vh] border border-app-border rounded bg-black/40 p-2">{rows}</div>
+      <div className="overflow-auto max-h-[60vh] border border-app-border rounded bg-app-bg/40 p-2">{rows}</div>
     </div>
   );
 }
@@ -169,22 +169,22 @@ function RawPage() {
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
       <div className="flex gap-2 p-2 border-b border-app-border items-center">
-        <button className={`px-3 py-1 rounded text-xs ${view === "parsed" ? "bg-app-accent text-white" : "bg-app-surface"}`} onClick={() => setView("parsed")}>
+        <button className={`px-3 py-1 rounded text-xs ${view === "parsed" ? "bg-app-accent text-app-on-filled" : "bg-app-surface"}`} onClick={() => setView("parsed")}>
           {m.dev_parsed_packet()}
         </button>
-        <button className={`px-3 py-1 rounded text-xs ${view === "fields" ? "bg-app-accent text-white" : "bg-app-surface"}`} onClick={() => setView("fields")}>
+        <button className={`px-3 py-1 rounded text-xs ${view === "fields" ? "bg-app-accent text-app-on-filled" : "bg-app-surface"}`} onClick={() => setView("fields")}>
           {m.dev_struct_fields()}
         </button>
-        <button className={`px-3 py-1 rounded text-xs ${view === "verify" ? "bg-app-accent text-white" : "bg-app-surface"}`} onClick={() => setView("verify")}>
+        <button className={`px-3 py-1 rounded text-xs ${view === "verify" ? "bg-app-accent text-app-on-filled" : "bg-app-surface"}`} onClick={() => setView("verify")}>
           {m.dev_verify_fields()}
         </button>
-        <button className={`px-3 py-1 rounded text-xs ${view === "hex" ? "bg-app-accent text-white" : "bg-app-surface"}`} onClick={() => setView("hex")}>
+        <button className={`px-3 py-1 rounded text-xs ${view === "hex" ? "bg-app-accent text-app-on-filled" : "bg-app-surface"}`} onClick={() => setView("hex")}>
           {m.dev_raw_hex()}
         </button>
         {view === "hex" && (
           <div className="flex gap-1 ml-4">
             {(["physics", "graphics", "staticData"] as PageKey[]).map((p) => (
-              <button key={p} className={`px-2 py-1 rounded text-xs ${page === p ? "bg-app-surface-hover" : "bg-app-surface"}`} onClick={() => setPage(p)}>
+              <button key={p} className={`px-2 py-1 rounded text-xs ${page === p ? "bg-app-surface-alt" : "bg-app-surface"}`} onClick={() => setPage(p)}>
                 {p}
               </button>
             ))}
@@ -194,7 +194,7 @@ function RawPage() {
           {view === "parsed" ? m.dev_websocket_source() : lastPollAt == null ? m.dev_no_poll_yet() : `polls: ${pollCount} · last ${pollAgeMs}ms ago (${new Date(lastPollAt).toLocaleTimeString()})`}
         </div>
       </div>
-      {err && <div className="p-2 text-red-400 text-xs">Error: {err}</div>}
+      {err && <div className="p-2 text-status-danger text-xs">Error: {err}</div>}
       {view === "parsed" && (
         <div className="flex-1 overflow-hidden">
           <RawTelemetry packet={packet} />
@@ -247,11 +247,11 @@ function VerifyTable({ title, rows }: { title: string; rows: VerifyRow[] }) {
           const valueZero = typeof r.value === "number" ? r.value === 0 : r.value === "";
           const mismatch = hexNonZero && valueZero;
           return (
-            <div key={`${r.offset}-${r.field}`} className={`grid grid-cols-[50px_1fr_60px_220px_1fr] gap-x-2 py-0.5 border-b border-app-border/30 ${mismatch ? "bg-red-900/30" : ""}`}>
+            <div key={`${r.offset}-${r.field}`} className={`grid grid-cols-[50px_1fr_60px_220px_1fr] gap-x-2 py-0.5 border-b border-app-border/30 ${mismatch ? "bg-status-danger/20" : ""}`}>
               <span className="text-app-text-muted">{r.offset}</span>
               <span className="text-app-text-secondary truncate">{r.field}</span>
               <span className="text-app-text-muted">{r.type}</span>
-              <span className={hexNonZero ? "text-green-400" : "text-app-text-muted/50"}>{r.hex || "—"}</span>
+              <span className={hexNonZero ? "text-status-success" : "text-app-text-muted/50"}>{r.hex || "—"}</span>
               <span className={valueZero ? "text-app-text-muted/50" : "text-app-text"}>
                 {typeof r.value === "number" ? (Number.isInteger(r.value) ? r.value : r.value.toFixed(3)) : `"${r.value}"`}
               </span>

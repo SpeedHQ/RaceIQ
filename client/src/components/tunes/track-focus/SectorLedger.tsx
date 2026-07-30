@@ -90,9 +90,9 @@ function buildRows(traces: LapTrace[], bestLapId: number | null, sectors: Sector
 
 function deltaColor(dv: number | null): string {
   if (dv == null) return "text-app-text-dim";
-  if (dv > 0.3) return "text-red-400";
-  if (dv > 0.1) return "text-amber-400";
-  return "text-emerald-400";
+    if (dv > 0.3) return "text-(--severity-critical)";
+    if (dv > 0.1) return "text-(--severity-caution)";
+    return "text-(--severity-nominal)";
 }
 
 /**
@@ -111,13 +111,13 @@ export function SectorLedger({ traces, bestLapId, sectorBoundaryFracs, cursorFra
 
   return (
     <div className="space-y-2">
-      <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Sector Ledger</div>
+      <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Sector Ledger</div>
       <div className="rounded border border-app-border overflow-x-auto">
-        <table className="w-full text-[13px] border-collapse">
+        <table className="w-full text-app-detail border-collapse">
           <thead>
             <tr>
               {["Sector", "Best time", "Speed range", "Δ worst"].map((h) => (
-                <th key={h} className="text-left text-[10.5px] uppercase tracking-wider text-app-text-dim px-2.5 py-1.5 border-b border-app-border whitespace-nowrap">
+                <th key={h} className="text-left text-app-caption uppercase tracking-wider text-app-text-dim px-2.5 py-1.5 border-b border-app-border whitespace-nowrap">
                   {h}
                 </th>
               ))}
@@ -130,7 +130,7 @@ export function SectorLedger({ traces, bestLapId, sectorBoundaryFracs, cursorFra
                 <tr
                   key={r.sector.index}
                   onClick={() => onCursorFrac(r.sector.midFrac)}
-                  className={`cursor-pointer border-b border-app-border last:border-0 hover:bg-app-surface-alt ${isActive ? "bg-app-surface-alt" : ""}`}
+                  className={`cursor-pointer border-b border-app-border last:border-0 hover:bg-app-surface-hover ${isActive ? "bg-app-surface-alt" : ""}`}
                 >
                   <td className="text-left px-2.5 py-1.5 whitespace-nowrap">
                     <span className="font-semibold text-app-text">{r.sector.label}</span>
@@ -146,11 +146,11 @@ export function SectorLedger({ traces, bestLapId, sectorBoundaryFracs, cursorFra
                   >
                     {r.minSpeedBest != null && r.medianSpeedBest != null && r.topSpeedBest != null ? (
                       <div className="flex items-center gap-2">
-                        <span className="w-8 text-right font-mono tabular-nums text-[10.5px] text-app-text-dim shrink-0">{r.minSpeedBest.toFixed(0)}</span>
+                        <span className="w-8 text-right font-mono tabular-nums text-app-caption text-app-text-dim shrink-0">{r.minSpeedBest.toFixed(0)}</span>
                         <div className="w-32 shrink-0">
                           <SetupRangeBar min={r.minSpeedBest} max={r.topSpeedBest} median={r.medianSpeedBest} values={[r.minSpeedBest, r.medianSpeedBest, r.topSpeedBest]} showMedianLabel />
                         </div>
-                        <span className="w-14 text-left font-mono tabular-nums text-[10.5px] text-app-text-dim shrink-0">{r.topSpeedBest.toFixed(0)} km/h</span>
+                        <span className="w-14 text-left font-mono tabular-nums text-app-caption text-app-text-dim shrink-0">{r.topSpeedBest.toFixed(0)} km/h</span>
                       </div>
                     ) : (
                       <span className="font-mono text-app-text">—</span>

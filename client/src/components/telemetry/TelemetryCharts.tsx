@@ -105,8 +105,8 @@ export function TelemetryCharts({ packet }: { packet: DisplayPacket }) {
       <FourLineChart data={chartData.slipAngle} label="Slip Angle" unit="°" />
       <FourLineChart data={chartData.slipRatio} label="Slip Ratio" />
       <FourLineChart data={chartData.suspension} label="Suspension" maxY={1} />
-      <SingleLineChart data={chartData.speed} label="Speed" color="#22d3ee" />
-      <DualLineChart data1={chartData.throttle} data2={chartData.brake} label1="Throttle" label2="Brake" color1="#34d399" color2="#ef4444" label="Throttle / Brake" maxY={100} />
+      <SingleLineChart data={chartData.speed} label="Speed" color="var(--app-accent)" />
+      <DualLineChart data1={chartData.throttle} data2={chartData.brake} label1="Throttle" label2="Brake" color1="var(--ch-throttle)" color2="var(--ch-brake)" label="Throttle / Brake" maxY={100} />
     </div>
   );
 }

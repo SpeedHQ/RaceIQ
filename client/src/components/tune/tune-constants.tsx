@@ -2,8 +2,8 @@ import type { TuneCategory } from "@shared/types";
 import type React from "react";
 
 export const CONDITION_COLORS: Record<string, string> = {
-  Dry: "bg-amber-500/20 text-amber-400",
-  Wet: "bg-cyan-500/20 text-cyan-400",
+  Dry: "bg-(--tune-condition-dry)/20 text-(--tune-condition-dry)",
+  Wet: "bg-(--tune-condition-wet)/20 text-(--tune-condition-wet)",
 };
 
 export const CATEGORY_ICONS: Record<string, React.ReactNode> = {
@@ -45,11 +45,11 @@ export const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export const CATEGORY_COLORS: Record<string, string> = {
-  circuit: "bg-blue-500/20 text-blue-400",
-  wet: "bg-cyan-500/20 text-cyan-400",
-  "low-drag": "bg-red-500/20 text-red-400",
-  stable: "bg-green-500/20 text-green-400",
-  "track-specific": "bg-orange-500/20 text-orange-400",
+  circuit: "bg-(--tune-category-circuit)/20 text-(--tune-category-circuit)",
+  wet: "bg-(--tune-category-wet)/20 text-(--tune-category-wet)",
+  "low-drag": "bg-(--tune-category-low-drag)/20 text-(--tune-category-low-drag)",
+  stable: "bg-(--tune-category-stable)/20 text-(--tune-category-stable)",
+  "track-specific": "bg-(--tune-category-track-specific)/20 text-(--tune-category-track-specific)",
 };
 
 export const ALL_CATEGORIES: TuneCategory[] = ["circuit", "wet", "low-drag", "stable", "track-specific"];

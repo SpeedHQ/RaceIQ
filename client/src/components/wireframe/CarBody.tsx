@@ -2,6 +2,7 @@ import { useGLTF } from "@react-three/drei";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 import type { CarModelEnrichment } from "../../data/car-models";
+import { THREE_COLORS } from "../../lib/wireframe-utils";
 import { classifyMesh, DEFAULT_HIDDEN_MESHES } from "./classify-mesh";
 
 // Re-export so existing importers don't break.
@@ -32,14 +33,14 @@ export function CarBody({
           toRemove.push(mesh);
         } else if (action === "solid") {
           mesh.material = new THREE.MeshStandardMaterial({
-            color: "#4a6a8a",
+            color: THREE_COLORS.appTextDim,
             metalness: 0.7,
             roughness: 0.25,
             side: THREE.DoubleSide,
           });
         } else {
           mesh.material = new THREE.MeshBasicMaterial({
-            color: "#94a3b8",
+            color: THREE_COLORS.wireframeStructure,
             wireframe: true,
             transparent: true,
             opacity: 0.03,
@@ -103,7 +104,7 @@ export function CarBody({
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         if (mesh.name === highlightedMesh) {
-          mesh.material = new THREE.MeshBasicMaterial({ color: "#ff4444", wireframe: false, transparent: true, opacity: 0.6 });
+          mesh.material = new THREE.MeshBasicMaterial({ color: THREE_COLORS.wireframeAlert, wireframe: false, transparent: true, opacity: 0.6 });
         }
       }
     });

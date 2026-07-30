@@ -7,9 +7,9 @@ interface IssuesListProps {
 }
 
 const SEV_COLOR: Record<string, string> = {
-  critical: "var(--color-dynamics-red, #ef4444)",
-  warn: "var(--color-dynamics-amber, #f59e0b)",
-  info: "#38bdf8",
+  critical: "var(--status-danger)",
+  warn: "var(--status-warning)",
+  info: "var(--status-info)",
 };
 
 /** Issues grouped by corner (falling back to "General" for lap-wide ones). */
@@ -36,7 +36,7 @@ export function IssuesList({ issues, onIssueClick }: IssuesListProps) {
     <div className="space-y-3">
       {groups.map(([corner, items]) => (
         <div key={corner}>
-          <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">{corner}</div>
+          <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">{corner}</div>
           <ul className="space-y-1">
             {items.map((it) => {
               const clickable = it.distanceFrac != null;

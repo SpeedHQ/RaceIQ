@@ -1,5 +1,5 @@
 import type { WheelState } from "@/lib/vehicle-dynamics";
-import { slipAngleColor, tireState, tireTempColor } from "@/lib/vehicle-dynamics";
+import { brakeTempColor, slipAngleColor, tireState, tireTempColor } from "@/lib/vehicle-dynamics";
 
 /**
  * WheelCard — SVG tire visualization for a single wheel.
@@ -49,7 +49,8 @@ export function WheelCard({
   // Use canonical wheel state from vehicle-dynamics
   const isLockup = wheelState.state === "lockup";
   const isSpin = wheelState.state === "spin";
-  const spinColor = isLockup ? "#ef4444" : isSpin ? "#fb923c" : null;
+  const visualState = tireState(wheelState.state, wheelState.slipRatio, (slipAngle * Math.PI) / 180);
+  const spinColor = isLockup || isSpin ? visualState.color : null;
   const spinLabel = isLockup ? "LOCK" : isSpin ? "SPIN" : null;
   const spinPct = wheelState.slipRatio * 100;
 
@@ -64,7 +65,7 @@ export function WheelCard({
     <div className="flex flex-col items-center">
       <svg viewBox="0 0 80 145" width={80} height={145}>
         {/* Label */}
-        <text x={cx} y={8} textAnchor="middle" fill="#94a3b8" fontSize={8} fontWeight="bold" fontFamily="monospace">
+        <text x={cx} y={8} textAnchor="middle" fill="var(--app-text-muted)" fontSize={8} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
           {label}
         </text>
 
@@ -77,7 +78,7 @@ export function WheelCard({
 
         {/* Tire outline — rotates with steering for front wheels */}
         <g transform={steerAngle !== 0 ? `rotate(${Math.max(-20, Math.min(20, steerAngle))}, ${cx}, ${cy})` : undefined}>
-          <rect x={cx - tW / 2} y={cy - tH / 2} width={tW} height={tH} rx={6} fill="rgba(15,23,42,0.6)" stroke={spinColor ?? stroke} strokeWidth={2} />
+          <rect x={cx - tW / 2} y={cy - tH / 2} width={tW} height={tH} rx={6} fill="var(--app-bg)" fillOpacity={0.6} stroke={spinColor ?? stroke} strokeWidth={2} />
 
           {/* Wear fill (from bottom) */}
           <clipPath id={`wear-${label}`}>
@@ -124,7 +125,7 @@ export function WheelCard({
           strokeDasharray="3 2"
           opacity={0.8}
         />
-        <line x1={cx} y1={cy} x2={cx} y2={cy - 35} stroke="rgba(100,116,139,0.2)" strokeWidth={0.8} />
+        <line x1={cx} y1={cy} x2={cx} y2={cy - 35} stroke="var(--app-text-dim)" strokeOpacity={0.2} strokeWidth={0.8} />
 
         {/* Slip angle value — outer side */}
         <text
@@ -133,8 +134,8 @@ export function WheelCard({
           textAnchor={outerSide === "left" ? "end" : "start"}
           fill={slipCol}
           fontSize={7}
-          fontWeight="bold"
-          fontFamily="monospace"
+          fontWeight="var(--font-weight-bold)"
+          fontFamily="var(--font-mono)"
         >
           {slipAngle.toFixed(1)}°
         </text>
@@ -144,10 +145,10 @@ export function WheelCard({
           x={outerSide === "left" ? cx - tW / 2 - 4 : cx + tW / 2 + 4}
           y={cy + 13}
           textAnchor={outerSide === "left" ? "end" : "start"}
-          fill={spinColor ?? "#64748b"}
+          fill={spinColor ?? "var(--app-text-dim)"}
           fontSize={6}
-          fontWeight={spinLabel ? "bold" : "normal"}
-          fontFamily="monospace"
+          fontWeight={spinLabel ? "var(--font-weight-bold)" : "var(--font-weight-normal)"}
+          fontFamily="var(--font-mono)"
         >
           {spinLabel ? `${spinLabel} ` : ""}
           {spinPct > 0 ? "+" : ""}
@@ -155,16 +156,16 @@ export function WheelCard({
         </text>
 
         {/* Below tire: temp, wear, traction */}
-        <text x={cx} y={93} textAnchor="middle" fill={stroke} fontSize={9} fontWeight="bold" fontFamily="monospace">
+        <text x={cx} y={93} textAnchor="middle" fill={stroke} fontSize={9} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
           {tempFn(temp).toFixed(0)}°{tempUnit}
         </text>
-        <text x={cx} y={105} textAnchor="middle" fill="#94a3b8" fontSize={9} fontFamily="monospace">
+        <text x={cx} y={105} textAnchor="middle" fill="var(--app-text-muted)" fontSize={9} fontFamily="var(--font-mono)">
           Health {((1 - wearPct) * 100).toFixed(0)}%
         </text>
         {(() => {
           const ts = tireState(wheelState.state, wheelState.slipRatio, (slipAngle * Math.PI) / 180);
           return (
-            <text x={cx} y={117} textAnchor="middle" fill={ts.color} fontSize={8} fontWeight="bold" fontFamily="monospace">
+            <text x={cx} y={117} textAnchor="middle" fill={ts.color} fontSize={8} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
               {ts.label}
             </text>
           );
@@ -172,19 +173,19 @@ export function WheelCard({
 
         {/* Brake temp */}
         {brakeTemp != null && brakeTemp > 0 && (
-          <text x={cx} y={127} textAnchor="middle" fill={brakeTemp > 600 ? "#ef4444" : brakeTemp > 400 ? "#fb923c" : brakeTemp > 200 ? "#facc15" : "#94a3b8"} fontSize={8} fontFamily="monospace">
+          <text x={cx} y={127} textAnchor="middle" fill={brakeTempColor(brakeTemp, label.startsWith("R"))} fontSize={8} fontFamily="var(--font-mono)">
             BRK {tempFn(brakeTemp).toFixed(0)}°
           </text>
         )}
 
-        {/* Surface indicators: curb (orange) / puddle (blue) */}
+        {/* Theme-owned curb and puddle surface indicators */}
         {onRumble && (
-          <text x={cx} y={brakeTemp != null && brakeTemp > 0 ? 137 : 127} textAnchor="middle" fill="#ff8800" fontSize={7} fontWeight="bold" fontFamily="monospace">
+          <text x={cx} y={brakeTemp != null && brakeTemp > 0 ? 137 : 127} textAnchor="middle" fill="var(--track-curb-right)" fontSize={7} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
             CURB
           </text>
         )}
         {puddleDepth > 0 && (
-          <text x={cx} y={(brakeTemp != null && brakeTemp > 0 ? 137 : 127) + (onRumble ? 9 : 0)} textAnchor="middle" fill="#3b82f6" fontSize={7} fontWeight="bold" fontFamily="monospace">
+          <text x={cx} y={(brakeTemp != null && brakeTemp > 0 ? 137 : 127) + (onRumble ? 9 : 0)} textAnchor="middle" fill="var(--surface-wet)" fontSize={7} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
             WET {(puddleDepth * 100).toFixed(0)}%
           </text>
         )}

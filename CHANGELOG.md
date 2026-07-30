@@ -11,12 +11,17 @@
 - Show all registered games in storage settings, including games with no recording files
 
 ### Internal
+- Stabilized Storybook dashboard capture readiness, aligned PR preview comparison with Playwright's material-diff policy, and restricted baseline writes to the pinned Linux renderer
+- Made Storybook snapshots own an exact-port server and retry cold preview preparation
+- Restored the ACC live-dashboard fuel bar in fixture-backed previews
 - Consolidated live dashboard routing across all supported games while preserving game-specific URLs
 - Deterministic iRacing recording and replay coverage through the production parser pipeline
 - Consolidated per-game car, track, and compare routes into shared dynamic game routes
 - Added a disposable development database seed from committed telemetry fixtures
 - Consolidated shared sessions, chats, analysis, driver, and experiment routes across all supported games
 - Tolerate sparse screenshot antialiasing differences while preserving substantial visual regression reporting
+- Centralized theme-overridable frontend colors, typography, tracking, surfaces, semantic states, telemetry, game branding, manufacturer, and team design tokens
+- Added focused CSS resolution adapters for Canvas and uPlot renderers, backed by theme contract and Storybook snapshot coverage
 - Updated workspace dependencies and regenerated root Bun lockfile
 - Use `import.meta.dirname` in Vite config for native config-loader compatibility
 - Avoid initializing Mastra observability during standalone database seeding

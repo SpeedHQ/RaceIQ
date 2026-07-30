@@ -45,14 +45,14 @@ export function F1ExtractionSection() {
       <h2 className="text-lg font-semibold text-app-text mb-4">{m.extraction_f1_title()}</h2>
 
       {!status?.installed && (
-        <div className="rounded-md bg-yellow-500/10 border border-yellow-500/30 p-3 mb-4">
-          <p className="text-sm text-yellow-300">{m.extraction_f1_not_detected()}</p>
+        <div className="rounded-md bg-status-warning/10 border border-status-warning/30 p-3 mb-4">
+          <p className="text-sm text-status-warning">{m.extraction_f1_not_detected()}</p>
         </div>
       )}
 
       {isDone && status.extracted > 0 && (
-        <div className="rounded-md bg-green-500/10 border border-green-500/30 p-3 mb-4">
-          <p className="text-sm text-green-300">
+        <div className="rounded-md bg-status-success/10 border border-status-success/30 p-3 mb-4">
+          <p className="text-sm text-status-success">
             {status.extracted} track outlines extracted
             {status.failed > 0 && <span className="text-app-text-muted"> ({status.failed} skipped)</span>}
           </p>
@@ -60,8 +60,8 @@ export function F1ExtractionSection() {
       )}
 
       {status?.status === "error" && (
-        <div className="rounded-md bg-red-500/10 border border-red-500/30 p-3 mb-4">
-          <p className="text-sm text-red-300">{status.error}</p>
+        <div className="rounded-md bg-status-danger/10 border border-status-danger/30 p-3 mb-4">
+          <p className="text-sm text-status-danger">{status.error}</p>
         </div>
       )}
 
@@ -86,7 +86,7 @@ export function F1ExtractionSection() {
         {isDone && status.extracted > 0 && (
           <Button
             variant="outline"
-            className="text-red-400 border-red-500/30 hover:bg-red-500/10"
+            className="text-status-danger border-status-danger/30 hover:bg-status-danger/10"
             onClick={async () => {
               await client.api.extraction.f1.data.$delete();
               fetchStatus();

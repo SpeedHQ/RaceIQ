@@ -1,5 +1,6 @@
 import type { LapMeta } from "@shared/types";
 import { useMemo } from "react";
+import { severityRangeColor } from "@/lib/colors";
 
 interface SectorHeatmapProps {
   laps: LapMeta[];
@@ -8,11 +9,8 @@ interface SectorHeatmapProps {
 }
 
 function cellColor(delta: number | null): string {
-  if (delta == null) return "#334155";
-  const a = Math.abs(delta);
-  if (a < 0.15) return "var(--color-dynamics-green, #34d399)";
-  if (a < 0.4) return "var(--color-dynamics-amber, #f59e0b)";
-  return "var(--color-dynamics-red, #ef4444)";
+  if (delta == null) return "var(--app-border)";
+  return severityRangeColor(Math.abs(delta), [0.15, 0.4]);
 }
 
 /**
@@ -40,7 +38,7 @@ export function SectorHeatmap({ laps, focusLapId, onFocusLap }: SectorHeatmapPro
 
   return (
     <div className="overflow-x-auto">
-      <table className="border-collapse w-full text-[11px]">
+      <table className="border-collapse w-full text-app-compact">
         <thead>
           <tr>
             <th className="text-left text-app-text-muted font-semibold pr-2 pb-1 sticky left-0 bg-app-surface">Lap</th>
@@ -70,7 +68,7 @@ export function SectorHeatmap({ laps, focusLapId, onFocusLap }: SectorHeatmapPro
                       style={{
                         background: cellColor(delta),
                         opacity: delta == null ? 0.3 : 0.85,
-                        outline: isFocus ? "2px solid var(--color-app-accent, #22d3ee)" : "none",
+                        outline: isFocus ? "2px solid var(--app-accent)" : "none",
                         outlineOffset: -2,
                       }}
                     />

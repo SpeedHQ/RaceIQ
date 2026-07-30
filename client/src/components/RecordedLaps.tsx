@@ -41,9 +41,9 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
 
   const sectorColor = (time: number, bestTime: number) => {
     if (time <= 0) return "text-app-text-dim";
-    if (bestTime > 0 && time <= bestTime) return "text-purple-400";
-    if (bestTime > 0 && time - bestTime < 0.3) return "text-emerald-400";
-    if (bestTime > 0 && time - bestTime < 1.0) return "text-yellow-400";
+    if (bestTime > 0 && time <= bestTime) return "text-(--lap-pace-best)";
+    if (bestTime > 0 && time - bestTime < 0.3) return "text-(--lap-pace-on-target)";
+    if (bestTime > 0 && time - bestTime < 1.0) return "text-(--lap-pace-average)";
     return "text-app-text-secondary";
   };
 
@@ -71,14 +71,15 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
             {sorted.map((l) => {
               const delta = l.lapTime - best;
               const isBest = delta === 0;
-              const timeColor = isBest ? "text-purple-400" : delta < 0.5 ? "text-emerald-400" : delta < 1.5 ? "text-app-text" : "text-red-400";
+              const timeColor =
+                isBest ? "text-(--lap-pace-best)" : delta < 0.5 ? "text-(--lap-pace-on-target)" : delta < 1.5 ? "text-app-text" : "text-(--lap-pace-off-target)";
               return (
                 <div key={l.id} className="grid gap-x-2 px-3 py-1.5 items-center" style={{ gridTemplateColumns }}>
                   <span
-                    className={`text-xs font-mono w-10 flex items-center gap-1 ${l.isValid ? "text-app-text-muted" : "text-red-400"}`}
+                    className={`text-xs font-mono w-10 flex items-center gap-1 ${l.isValid ? "text-app-text-muted" : "text-status-danger"}`}
                     title={!l.isValid ? (l.invalidReason ?? "invalid") : undefined}
                   >
-                    {!l.isValid && <span className="text-red-400 leading-none">✕</span>}
+                    {!l.isValid && <span className="text-status-danger leading-none">✕</span>}
                     {l.lapNumber}
                   </span>
                   {sectorLabels.map((label, index) => {
@@ -96,11 +97,11 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
                       type="button"
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       onClick={() => navigate({ to: `${gameRoute}/analyse` as any, search: { track: l.trackOrdinal, car: l.carOrdinal, lap: l.id } as any })}
-                      className="px-1.5 py-0.5 text-[10px] rounded bg-purple-600 hover:bg-purple-500 text-white"
+                      className="px-1.5 py-0.5 text-app-caption rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled"
                     >
                       {m.label_analyse()}
                     </button>
-                    <button type="button" onClick={() => deleteLap.mutate(l.id)} className="px-1 py-0.5 text-[10px] rounded bg-slate-700 hover:bg-red-600 text-app-text">
+                    <button type="button" onClick={() => deleteLap.mutate(l.id)} className="px-1 py-0.5 text-app-caption rounded bg-app-border-input text-app-text hover:bg-status-danger hover:text-app-on-filled">
                       ×
                     </button>
                   </div>

@@ -29,11 +29,11 @@ export function CornerTable({ corners }: Props) {
           {corners.map((c) => {
             const isGaining = c.deltaSeconds < 0;
             const isNeutral = Math.abs(c.deltaSeconds) < 0.005;
-            const colorClass = isNeutral ? "text-app-text-secondary" : isGaining ? "text-emerald-400" : "text-red-400";
+            const colorClass = isNeutral ? "text-app-text-secondary" : isGaining ? "text-(--delta-gain)" : "text-(--delta-loss)";
             const sign = c.deltaSeconds > 0 ? "+" : "";
 
             return (
-              <tr key={c.label} className="border-b border-app-border/50 hover:bg-app-surface-alt/30">
+              <tr key={c.label} className="border-b border-app-border/50 hover:bg-app-surface-hover/30">
                 <td className="p-2 font-mono text-app-text">{c.label}</td>
                 <td className={`p-2 font-mono text-right ${colorClass}`}>
                   {sign}

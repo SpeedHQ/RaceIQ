@@ -58,7 +58,7 @@ export function SpeedDeltaLanes({ bestTrace, focusTrace, cornerFracs, corners = 
   return (
     <div className="space-y-3">
       <div>
-        <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Speed (km/h)</div>
+        <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Speed (km/h)</div>
         <Lane
           height={150}
           domain={speedDomain}
@@ -70,9 +70,9 @@ export function SpeedDeltaLanes({ bestTrace, focusTrace, cornerFracs, corners = 
               ? (f) => {
                   const cornerLabel = nearestCornerLabel(corners, cornerFracs, f);
                   const rows = [
-                    { lapNumber: focusTrace.lapNumber, color: "var(--color-app-accent, #22d3ee)", isBest: focusTrace.lapId === bestTrace?.lapId, speedKmh: sampleAt(focusTrace, "speedKmh", f) },
+                    { lapNumber: focusTrace.lapNumber, color: "var(--app-accent)", isBest: focusTrace.lapId === bestTrace?.lapId, speedKmh: sampleAt(focusTrace, "speedKmh", f) },
                     ...(bestTrace && bestTrace.lapId !== focusTrace.lapId
-                      ? [{ lapNumber: bestTrace.lapNumber, color: "var(--color-app-text-dim, #7a8ea0)", isBest: true, speedKmh: sampleAt(bestTrace, "speedKmh", f) }]
+                      ? [{ lapNumber: bestTrace.lapNumber, color: "var(--app-text-dim)", isBest: true, speedKmh: sampleAt(bestTrace, "speedKmh", f) }]
                       : []),
                   ];
                   return <ChartTooltip frac={f} cornerLabel={cornerLabel} rows={rows} />;
@@ -82,14 +82,14 @@ export function SpeedDeltaLanes({ bestTrace, focusTrace, cornerFracs, corners = 
         >
           {({ x, y }) => (
             <>
-              {bestTrace && <polyline points={polyline(bestTrace, bestTrace.speedKmh, x, y)} fill="none" stroke="var(--color-app-text-dim, #7a8ea0)" strokeWidth={1} />}
-              {focusTrace && <polyline points={polyline(focusTrace, focusTrace.speedKmh, x, y)} fill="none" stroke="var(--color-app-accent, #22d3ee)" strokeWidth={1.6} />}
+              {bestTrace && <polyline points={polyline(bestTrace, bestTrace.speedKmh, x, y)} fill="none" stroke="var(--app-text-dim)" strokeWidth={1} />}
+              {focusTrace && <polyline points={polyline(focusTrace, focusTrace.speedKmh, x, y)} fill="none" stroke="var(--app-accent)" strokeWidth={1.6} />}
             </>
           )}
         </Lane>
       </div>
       <div>
-        <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Δ time vs best (s, cumulative)</div>
+        <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Δ time vs best (s, cumulative)</div>
         <Lane
           height={110}
           domain={deltaDomain}
@@ -101,13 +101,13 @@ export function SpeedDeltaLanes({ bestTrace, focusTrace, cornerFracs, corners = 
               ? (f) => {
                   const i = indexAtFrac(focusTrace, f);
                   const cornerLabel = nearestCornerLabel(corners, cornerFracs, f);
-                  const rows = [{ lapNumber: focusTrace.lapNumber, color: "var(--color-dynamics-amber, #f59e0b)", deltaS: delta[i] }];
+                  const rows = [{ lapNumber: focusTrace.lapNumber, color: "var(--delta-focus)", deltaS: delta[i] }];
                   return <ChartTooltip frac={f} cornerLabel={cornerLabel} rows={rows} />;
                 }
               : undefined
           }
         >
-          {({ x, y }) => delta && focusTrace && <polyline points={polyline(focusTrace, delta, x, y)} fill="none" stroke="var(--color-dynamics-amber, #f59e0b)" strokeWidth={1.6} />}
+          {({ x, y }) => delta && focusTrace && <polyline points={polyline(focusTrace, delta, x, y)} fill="none" stroke="var(--delta-focus)" strokeWidth={1.6} />}
         </Lane>
       </div>
     </div>

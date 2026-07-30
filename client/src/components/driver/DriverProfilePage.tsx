@@ -51,7 +51,7 @@ export function DriverProfilePage() {
           </button>
           <button
             type="button"
-            className="rounded-md bg-app-accent px-3 py-2 text-xs font-medium text-app-bg disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-md bg-app-accent px-3 py-2 text-xs font-medium text-app-on-filled hover:bg-app-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
             onClick={refresh}
             disabled={!canRefresh || runPending}
           >
@@ -61,7 +61,7 @@ export function DriverProfilePage() {
       </header>
 
       {(profileError || runError) && (
-        <div className="mb-4 rounded-lg bg-dynamics-red/10 p-3 text-sm text-dynamics-red ring-1 ring-dynamics-red/20" role="alert">
+        <div className="mb-4 rounded-lg bg-status-danger/10 p-3 text-sm text-status-danger ring-1 ring-status-danger/20" role="alert">
           {profileError ?? runError}
         </div>
       )}

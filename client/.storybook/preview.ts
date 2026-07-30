@@ -5,10 +5,8 @@ import { initGameAdapters } from "../../shared/games/init";
 // Initialize game adapter registry so tryGetGame() works in stories
 initGameAdapters();
 
-// Apply dark mode class and app theme to Storybook's iframe <html> element
-// so CSS variables (--app-bg, --app-border etc) resolve correctly
+// Match the app shell's dark shadcn mode in the Storybook iframe.
 document.documentElement.classList.add("dark");
-document.documentElement.setAttribute("data-theme", "morph");
 
 // The app's global CSS (imported above) locks `html, body, #root` to
 // `height: 100%; overflow: hidden` so in-app scroll containers work. That
@@ -34,11 +32,8 @@ const preview: Preview = {
       },
     },
     backgrounds: {
-      default: "dark",
-      values: [
-        { name: "dark", value: "#0a0a0a" },
-        { name: "light", value: "#ffffff" },
-      ],
+      default: "RaceIQ",
+      values: [{ name: "RaceIQ", value: "var(--color-app-bg)" }],
     },
     viewport: {
       options: {

@@ -1,7 +1,7 @@
 import type { TelemetryPacket } from "@shared/types";
 
-export const COLOR_A = "#f97316"; // orange
-export const COLOR_B = "#3b82f6"; // blue
+export const COLOR_A = "var(--comparison-lap-a)";
+export const COLOR_B = "var(--comparison-lap-b)";
 
 export interface Point {
   x: number;
@@ -124,7 +124,7 @@ export function drawTrackCanvas(
         ctx.lineTo(rx, ry);
       }
       ctx.closePath();
-      ctx.fillStyle = "rgba(51, 65, 85, 0.18)";
+      ctx.fillStyle = "color-mix(in srgb, var(--track-surface) 18%, transparent)";
       ctx.fill();
     }
 
@@ -138,7 +138,7 @@ export function drawTrackCanvas(
         const [px, py] = toCanvas(edge[i].x, edge[i].z);
         ctx.lineTo(px, py);
       }
-      ctx.strokeStyle = "rgba(100, 116, 139, 0.3)";
+      ctx.strokeStyle = "color-mix(in srgb, var(--track-edge) 30%, transparent)";
       ctx.lineWidth = zoom ? 1.5 : 1;
       ctx.stroke();
     };
@@ -171,7 +171,7 @@ export function drawTrackCanvas(
   if (!hideOutline) {
     // Outline thick
     ctx.beginPath();
-    ctx.strokeStyle = "#334155";
+    ctx.strokeStyle = "var(--track-outline)";
     ctx.lineWidth = zoom ? 6 : 5;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -180,7 +180,7 @@ export function drawTrackCanvas(
 
     // Outline thin
     ctx.beginPath();
-    ctx.strokeStyle = "#475569";
+    ctx.strokeStyle = "var(--track-outline-strong)";
     ctx.lineWidth = zoom ? 3 : 2;
     drawOutlinePath();
     ctx.stroke();
@@ -189,9 +189,9 @@ export function drawTrackCanvas(
     const [sx, sy] = toCanvas(outline[0].x, outline[0].z);
     ctx.beginPath();
     ctx.arc(sx, sy, zoom ? 5 : 4, 0, Math.PI * 2);
-    ctx.fillStyle = "#10b981";
+    ctx.fillStyle = "var(--track-start)";
     ctx.fill();
-    ctx.strokeStyle = "#0f172a";
+    ctx.strokeStyle = "var(--track-label-background)";
     ctx.lineWidth = 1.5;
     ctx.stroke();
   }
@@ -236,13 +236,16 @@ export function drawTrackCanvas(
       const [cx, cy] = toCanvas(telX!(p.PositionX), p.PositionZ);
       ctx.beginPath();
       ctx.arc(cx, cy, glowSize, 0, Math.PI * 2);
-      ctx.fillStyle = color + "33";
+      ctx.save();
+      ctx.globalAlpha = 0.2;
+      ctx.fillStyle = color;
       ctx.fill();
+      ctx.restore();
       ctx.beginPath();
       ctx.arc(cx, cy, dotSize, 0, Math.PI * 2);
       ctx.fillStyle = color;
       ctx.fill();
-      ctx.strokeStyle = "#0f172a";
+      ctx.strokeStyle = "var(--track-label-background)";
       ctx.lineWidth = 1.5;
       ctx.stroke();
       // Direction line from Yaw (heading)
@@ -255,7 +258,7 @@ export function drawTrackCanvas(
         ctx.beginPath();
         ctx.moveTo(cx, cy);
         ctx.lineTo(cx + dx, cy + dy);
-        ctx.strokeStyle = "#ffffff";
+        ctx.strokeStyle = "var(--app-text)";
         ctx.lineWidth = 2.5;
         ctx.lineCap = "round";
         ctx.stroke();
@@ -271,9 +274,9 @@ export function drawTrackCanvas(
       const [px, py] = toCanvas(sp.x, sp.z);
       ctx.beginPath();
       ctx.arc(px, py, 3.5, 0, Math.PI * 2);
-      ctx.fillStyle = sp.type === "corner" ? "#fbbf24" : "#94a3b8";
+      ctx.fillStyle = sp.type === "corner" ? "var(--track-corner-marker)" : "var(--track-straight-marker)";
       ctx.fill();
-      ctx.strokeStyle = "#0f172a";
+      ctx.strokeStyle = "var(--track-label-background)";
       ctx.lineWidth = 1;
       ctx.stroke();
     }
@@ -298,16 +301,16 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
   // Semi-transparent backdrop
   const totalW = (barW * 2 + barGap) * 2 + wheelR * 2 * 2 + sectionGap * 4;
   const bx0 = (w - totalW) / 2;
-  ctx.fillStyle = "rgba(15, 23, 42, 0.75)";
+  ctx.fillStyle = "color-mix(in srgb, var(--track-label-background) 75%, transparent)";
   ctx.beginPath();
   ctx.roundRect(bx0 - 8, y0 - 14, totalW + 16, hudH + 18, 8);
   ctx.fill();
 
   let cx = bx0;
 
-  // --- Brake bars (A orange, B blue) ---
+  // --- Brake bars for laps A and B ---
   const drawBar = (x: number, frac: number, color: string, borderColor: string) => {
-    ctx.fillStyle = "#1e293b";
+    ctx.fillStyle = "var(--app-surface-alt)";
     ctx.fillRect(x, y0, barW, barH);
     ctx.fillStyle = color;
     ctx.fillRect(x, y0 + barH * (1 - frac), barW, barH * frac);
@@ -318,14 +321,14 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
 
   const brakeA = pA ? pA.Brake / 255 : 0;
   const brakeB = pB ? pB.Brake / 255 : 0;
-  drawBar(cx, brakeA, "#ef4444", COLOR_A);
+  drawBar(cx, brakeA, "var(--ch-brake)", COLOR_A);
   cx += barW + barGap;
-  drawBar(cx, brakeB, "#ef4444", COLOR_B);
+  drawBar(cx, brakeB, "var(--ch-brake)", COLOR_B);
   cx += barW + sectionGap;
 
   // Label
-  ctx.font = "10px ui-monospace, monospace";
-  ctx.fillStyle = "#64748b";
+  ctx.font = "var(--text-app-caption) var(--font-mono)";
+  ctx.fillStyle = "var(--app-text-dim)";
   ctx.textAlign = "center";
   ctx.fillText("Brake", bx0 + barW + barGap / 2, y0 + barH + 14);
 
@@ -334,7 +337,7 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
     // Outer ring
     ctx.beginPath();
     ctx.arc(wcx, wcy, wheelR, 0, Math.PI * 2);
-    ctx.strokeStyle = "#334155";
+    ctx.strokeStyle = "var(--app-border)";
     ctx.lineWidth = 4;
     ctx.stroke();
 
@@ -353,14 +356,14 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
     ctx.beginPath();
     ctx.moveTo(wcx + Math.cos(angle) * 6, wcy + Math.sin(angle) * 6);
     ctx.lineTo(wcx + Math.cos(angle) * (wheelR - 3), wcy + Math.sin(angle) * (wheelR - 3));
-    ctx.strokeStyle = "#e2e8f0";
+    ctx.strokeStyle = "var(--app-text)";
     ctx.lineWidth = 2.5;
     ctx.lineCap = "round";
     ctx.stroke();
 
     // Gear number in center
-    ctx.font = "bold 20px ui-monospace, monospace";
-    ctx.fillStyle = "#e2e8f0";
+    ctx.font = "var(--font-weight-bold) var(--text-xl) var(--font-mono)";
+    ctx.fillStyle = "var(--app-text)";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(gear > 0 ? String(gear) : gear === 0 ? "N" : "R", wcx, wcy);
@@ -383,20 +386,20 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
   cx += wheelR * 2 + sectionGap;
 
   // Center label
-  ctx.font = "10px ui-monospace, monospace";
-  ctx.fillStyle = "#64748b";
+  ctx.font = "var(--text-app-caption) var(--font-mono)";
+  ctx.fillStyle = "var(--app-text-dim)";
   ctx.textAlign = "center";
   ctx.fillText("Steering / Gear", (wheelAcx + wheelBcx) / 2, y0 + barH + 14);
 
-  // --- Throttle bars (A orange, B blue) ---
+  // --- Throttle bars for laps A and B ---
   const throttleA = pA ? pA.Accel / 255 : 0;
   const throttleB = pB ? pB.Accel / 255 : 0;
-  drawBar(cx, throttleA, "#22c55e", COLOR_A);
+  drawBar(cx, throttleA, "var(--ch-throttle)", COLOR_A);
   cx += barW + barGap;
-  drawBar(cx, throttleB, "#22c55e", COLOR_B);
+  drawBar(cx, throttleB, "var(--ch-throttle)", COLOR_B);
 
-  ctx.font = "10px ui-monospace, monospace";
-  ctx.fillStyle = "#64748b";
+  ctx.font = "var(--text-app-caption) var(--font-mono)";
+  ctx.fillStyle = "var(--app-text-dim)";
   ctx.textAlign = "center";
   ctx.fillText("Throttle", cx - barGap / 2, y0 + barH + 14);
 }

@@ -23,7 +23,7 @@ interface WheelTableProps {
 export function WheelTable({ title, showHeaders = true, borderTop = false, rows }: WheelTableProps) {
   const borderCls = borderTop ? "pt-2 border-t border-app-border" : "";
   return (
-    <table className="w-full tabular-nums table-fixed text-[11px] font-mono">
+    <table className="w-full tabular-nums table-fixed text-app-compact font-mono">
       <colgroup>
         <col className="w-[85px]" />
         <col />
@@ -34,7 +34,7 @@ export function WheelTable({ title, showHeaders = true, borderTop = false, rows 
       {showHeaders && (
         <thead>
           <tr className="text-app-text-muted">
-            <th className={`font-semibold text-left text-[10px] uppercase tracking-wider ${borderCls}`}>{title}</th>
+            <th className={`font-semibold text-left text-app-caption uppercase tracking-wider ${borderCls}`}>{title}</th>
             <th className={`font-normal text-right ${borderCls}`}>FL</th>
             <th className={`font-normal text-right ${borderCls}`}>FR</th>
             <th className={`font-normal text-right ${borderCls}`}>RL</th>

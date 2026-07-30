@@ -96,7 +96,7 @@ const getLabel: Record<string, () => string> = {
 
 export function F1SetupModal({ setup, onClose }: { setup: F1CarSetup; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60" onClick={onClose}>
       <div className="bg-app-surface border border-app-border rounded-xl w-full max-w-md max-h-[80vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-3 border-b border-app-border">
           <h2 className="text-sm font-semibold text-app-text">{m.f1setupmodal_section_car_setup()}</h2>

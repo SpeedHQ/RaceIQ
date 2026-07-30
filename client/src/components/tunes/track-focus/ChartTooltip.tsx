@@ -34,17 +34,17 @@ export function ChartTooltip({ frac, cornerLabel, rows }: ChartTooltipProps) {
       </div>
       {rows.map((r) => (
         <div key={r.lapNumber} className="flex items-center gap-1.5 whitespace-nowrap">
-          <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ background: r.isInvalid ? "var(--color-dynamics-red, #ef4444)" : r.color }} />
+          <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ background: r.isInvalid ? "var(--status-danger)" : r.color }} />
           <span className={r.isBest ? "text-app-accent" : "text-app-text"}>
             L{r.lapNumber}
             {r.isBest ? "*" : ""}
           </span>
           {r.speedKmh != null && <span className="text-app-text-muted">{r.speedKmh.toFixed(0)}km/h</span>}
-          {r.throttlePct != null && <span className="text-emerald-400">{r.throttlePct.toFixed(0)}%T</span>}
-          {r.brakePct != null && <span className="text-red-400">{r.brakePct.toFixed(0)}%B</span>}
-          {r.steerPct != null && <span className="text-cyan-400">{r.steerPct.toFixed(0)}%S</span>}
+          {r.throttlePct != null && <span style={{ color: "var(--ch-throttle)" }}>{r.throttlePct.toFixed(0)}%T</span>}
+          {r.brakePct != null && <span style={{ color: "var(--ch-brake)" }}>{r.brakePct.toFixed(0)}%B</span>}
+          {r.steerPct != null && <span style={{ color: "var(--ch-steer)" }}>{r.steerPct.toFixed(0)}%S</span>}
           {r.deltaS != null && (
-            <span className={r.deltaS >= 0 ? "text-amber-400" : "text-emerald-400"}>
+            <span style={{ color: r.deltaS >= 0 ? "var(--delta-focus)" : "var(--delta-gain)" }}>
               {r.deltaS >= 0 ? "+" : ""}
               {r.deltaS.toFixed(3)}s
             </span>

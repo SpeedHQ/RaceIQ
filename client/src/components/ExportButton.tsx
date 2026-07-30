@@ -22,7 +22,7 @@ export function ExportButton({ lapId }: Props) {
   }
 
   return (
-    <button onClick={handleExport} disabled={status === "copying"} className="px-2 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white disabled:opacity-50 transition-colors">
+      <button onClick={handleExport} disabled={status === "copying"} className="px-2 py-1 text-xs rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled disabled:opacity-50 transition-colors">
       {status === "copied" ? "Copied!" : "Export"}
     </button>
   );

@@ -2,9 +2,9 @@ import type { LapMeta, TuneIssue } from "@shared/types";
 import { useLapIssues } from "../../hooks/queries";
 
 const SEVERITY_CLASS: Record<TuneIssue["severity"], string> = {
-  critical: "text-red-400 border-red-800/60 bg-red-950/30",
-  warn: "text-amber-400 border-amber-800/60 bg-amber-950/30",
-  info: "text-sky-400 border-sky-800/60 bg-sky-950/30",
+  critical: "text-status-danger border-status-danger/30 bg-status-danger/10",
+  warn: "text-status-warning border-status-warning/30 bg-status-warning/10",
+  info: "text-status-info border-status-info/30 bg-status-info/10",
 };
 
 /**
@@ -37,7 +37,7 @@ function LapIssuesEntry({ lap }: { lap: LapMeta }) {
 
   return (
     <div className="border border-app-border rounded p-2">
-      <div className="text-[11px] text-app-text-muted uppercase tracking-wider mb-1">
+      <div className="text-app-compact text-app-text-muted uppercase tracking-wider mb-1">
         Lap {lap.lapNumber} — {lap.lapTime.toFixed(3)}s
       </div>
       {isLoading ? (

@@ -6,6 +6,7 @@ import {
 } from "@shared/games/telemetry";
 import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useRef, useState } from "react";
+import { severityColor } from "@/lib/colors";
 import { client } from "@/lib/rpc";
 
 /**
@@ -38,19 +39,19 @@ export function ArcGauge({ value, max, label, unit, color }: { value: number; ma
     <div className="flex flex-col items-center">
       <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size}>
         {/* Background arc */}
-        <path d={arcPath(startAngle, endAngle)} fill="none" stroke="rgba(100,116,139,0.15)" strokeWidth={5} strokeLinecap="round" />
+        <path d={arcPath(startAngle, endAngle)} fill="none" stroke="var(--app-text-dim)" strokeOpacity={0.15} strokeWidth={5} strokeLinecap="round" />
         {/* Value arc */}
         {pct > 0.01 && <path d={arcPath(startAngle, valAngle)} fill="none" stroke={color} strokeWidth={5} strokeLinecap="round" />}
         {/* Value text */}
-        <text x={cx} y={cy - 1} textAnchor="middle" fill={color} fontSize={12} fontWeight="bold" fontFamily="monospace">
+        <text x={cx} y={cy - 1} textAnchor="middle" fill={color} fontSize={12} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
           {value.toFixed(0)}
         </text>
         {/* Unit */}
-        <text x={cx} y={cy + 10} textAnchor="middle" fill="#64748b" fontSize={7} fontFamily="monospace">
+        <text x={cx} y={cy + 10} textAnchor="middle" fill="var(--app-text-dim)" fontSize={7} fontFamily="var(--font-mono)">
           {unit}
         </text>
       </svg>
-      <span className="text-[9px] text-app-text-muted -mt-1">{label}</span>
+      <span className="text-app-micro text-app-text-muted -mt-1">{label}</span>
     </div>
   );
 }
@@ -131,16 +132,7 @@ export function FuelGauge({ packet }: { packet: TelemetryPacket }) {
   const isWarning =
     !isCritical &&
     (fuel.fillRatio === undefined ? fuel.amount < 15 : fuel.fillRatio < 0.4);
-  const fuelColor = isCritical
-    ? "bg-red-500"
-    : isWarning
-      ? "bg-amber-400"
-      : "bg-emerald-400";
-  const textColor = isCritical
-    ? "text-red-400"
-    : isWarning
-      ? "text-amber-400"
-      : "text-emerald-400";
+  const fuelColor = severityColor(isCritical ? 3 : isWarning ? 1 : 0);
   const avg = fuelStats.avgPerLap;
   const lapsRemaining = avg && avg > 0 ? Math.floor(packet.Fuel / avg) : null;
   const averageDisplay =
@@ -155,8 +147,8 @@ export function FuelGauge({ packet }: { packet: TelemetryPacket }) {
   // Delta vs average: positive = using more than avg, negative = saving
   return (
     <div className="flex-1">
-      <div className="flex justify-between text-[10px] mb-0.5">
-        <span className={`font-mono font-bold ${textColor}`}>
+      <div className="flex justify-between text-app-caption mb-0.5">
+        <span className="font-mono font-bold" style={{ color: fuelColor }}>
           Fuel {fuel.amount.toFixed(1)}{fuel.unit}
         </span>
         {lapsRemaining != null && <span className="font-mono text-app-text-secondary">~{lapsRemaining} laps left</span>}
@@ -169,13 +161,13 @@ export function FuelGauge({ packet }: { packet: TelemetryPacket }) {
       ) : (
         <div className="h-2 rounded-full overflow-hidden">
           <div
-            className={`h-full rounded-full transition-all ${fuelColor} ${isCritical ? "animate-pulse" : ""}`}
-            style={{ width: `${fillPct}%` }}
+            className={`h-full rounded-full transition-all ${isCritical ? "animate-pulse" : ""}`}
+            style={{ backgroundColor: fuelColor, width: `${fillPct}%` }}
           />
         </div>
       )}
       {averageDisplay != null && (
-        <div className="flex justify-between text-[9px] font-mono mt-0.5">
+        <div className="flex justify-between text-app-micro font-mono mt-0.5">
           <span className="text-app-text-muted">
             {averageDisplay.amount.toFixed(1)}{averageDisplay.unit}/lap avg
           </span>
@@ -201,8 +193,8 @@ export function PowerTorque({ packet }: { packet: TelemetryPacket }) {
 
   return (
     <div className="flex justify-center gap-2">
-      {showPower && <ArcGauge value={hp} max={maxHp} label="Power" unit="hp" color="#fb923c" />}
-      {showTorque && <ArcGauge value={nm} max={maxNm} label="Torque" unit="Nm" color="#fbbf24" />}
+      {showPower && <ArcGauge value={hp} max={maxHp} label="Power" unit="hp" color="var(--telemetry-power)" />}
+      {showTorque && <ArcGauge value={nm} max={maxNm} label="Torque" unit="Nm" color="var(--telemetry-torque)" />}
     </div>
   );
 }

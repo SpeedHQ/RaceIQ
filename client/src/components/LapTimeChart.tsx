@@ -1,5 +1,7 @@
 import type { LapMeta } from "@shared/types";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { lapPaceColor } from "@/lib/colors";
+import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { m } from "../paraglide/messages";
 import { formatLapTime } from "./LiveTelemetry";
 
@@ -7,7 +9,7 @@ import { formatLapTime } from "./LiveTelemetry";
  * LapTimeChart — Canvas-drawn lap time trend with pace reference lines.
  * "Optimum" = median of top 5 laps (robust to single-flier best laps).
  * "Avg" = mean of last 4 laps (recent rolling pace).
- * Dots are colored: purple=best, green=on pace (<=optimum), orange=off pace.
+ * Dot colors come from the theme's best/on-target/off-target lap roles.
  *
  * Data source: sessionLaps from Zustand (server-pushed via WS).
  */
@@ -50,7 +52,8 @@ export function LapTimeChart({
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container || laps.length < 1) return;
-    const ctx = canvas.getContext("2d");
+    canvas.dataset.visualReady = "pending";
+    const ctx = getSemanticCanvasContext(canvas);
     if (!ctx) return;
 
     const width = canvas.clientWidth;
@@ -90,15 +93,15 @@ export function LapTimeChart({
 
     const chartW = width - leftPad - rightPad;
 
-    ctx.font = "13px monospace";
-    ctx.fillStyle = "#94a3b8";
+    ctx.font = "var(--text-app-detail) var(--font-mono)";
+    ctx.fillStyle = "var(--app-text-muted)";
     ctx.textAlign = "right";
     const tickCount = yTicks;
     for (let i = 0; i <= tickCount; i++) {
       const val = minY + (yRange * i) / tickCount;
       const y = topPad + plotH - (i / tickCount) * plotH;
       ctx.fillText(formatLapTime(val), leftPad - 6, y + 5);
-      ctx.strokeStyle = "rgba(100,116,139,0.08)";
+      ctx.strokeStyle = "color-mix(in srgb, var(--app-text-dim) 8%, transparent)";
       ctx.lineWidth = 0.5;
       ctx.beginPath();
       ctx.moveTo(leftPad, y);
@@ -107,25 +110,25 @@ export function LapTimeChart({
     }
 
     ctx.setLineDash([4, 3]);
-    ctx.strokeStyle = "#a855f7";
+    ctx.strokeStyle = "var(--telemetry-rpm)";
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(leftPad, optimumY);
     ctx.lineTo(width - rightPad, optimumY);
     ctx.stroke();
 
-    ctx.strokeStyle = "#fbbf24";
+    ctx.strokeStyle = "var(--lap-pace-average)";
     ctx.beginPath();
     ctx.moveTo(leftPad, avgY);
     ctx.lineTo(width - rightPad, avgY);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    ctx.font = "12px monospace";
+    ctx.font = "var(--text-app-label) var(--font-mono)";
     ctx.textAlign = "right";
-    ctx.fillStyle = "#a855f7";
+    ctx.fillStyle = "var(--telemetry-rpm)";
     ctx.fillText(`optimum`, width - rightPad - 2, optimumY - 5);
-    ctx.fillStyle = "#fbbf24";
+    ctx.fillStyle = "var(--lap-pace-average)";
     ctx.fillText(`avg`, width - rightPad - 2, avgY - 5);
 
     const denom = Math.max(1, maxLaps - 1);
@@ -138,7 +141,7 @@ export function LapTimeChart({
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
-    ctx.strokeStyle = "rgba(34,211,238,0.8)";
+    ctx.strokeStyle = "color-mix(in srgb, var(--app-accent) 80%, transparent)";
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
@@ -149,16 +152,17 @@ export function LapTimeChart({
       const isBest = laps[i].time === best;
       ctx.beginPath();
       ctx.arc(x, y, isBest ? dotR + 1 : dotR, 0, Math.PI * 2);
-      ctx.fillStyle = isBest ? "#a855f7" : laps[i].time <= optimum ? "#34d399" : "#fb923c";
+      ctx.fillStyle = lapPaceColor(isBest, laps[i].time <= optimum);
       ctx.fill();
 
       if (i % labelEvery === 0 || i === laps.length - 1) {
-        ctx.fillStyle = "#94a3b8";
-        ctx.font = "12px monospace";
+        ctx.fillStyle = "var(--app-text-muted)";
+        ctx.font = "var(--text-app-label) var(--font-mono)";
         ctx.textAlign = "center";
         ctx.fillText(`${laps[i].lap}`, x, topPad + plotH + 14);
       }
     }
+    canvas.dataset.visualReady = "ready";
   }, [laps, yTicks, maxLaps, resizeTick]);
 
   return (
@@ -170,6 +174,7 @@ export function LapTimeChart({
         {laps.length === 0 && <div className="absolute inset-2 flex items-center justify-center rounded bg-app-surface/40 text-app-text-dim text-sm">{m.laptime_empty_state()}</div>}
         <canvas
           ref={canvasRef}
+          data-visual-ready={laps.length > 0 ? "pending" : "ready"}
           style={{
             position: "absolute",
             inset: 8,
@@ -183,27 +188,27 @@ export function LapTimeChart({
       <div className="shrink-0 p-2 border-t border-app-border/50">
         <div className="flex gap-3 flex-wrap">
           <div className="flex items-center gap-1">
-            <div className="w-3 h-0.5 bg-cyan-400 rounded" />
+            <div className="w-3 h-0.5 rounded" style={{ backgroundColor: "var(--app-accent)" }} />
             <span className="text-xs text-app-text-muted">{m.label_lap_time()}</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-3 h-0.5 bg-purple-500 rounded border-dashed" style={{ borderTop: "1px dashed #a855f7", height: 0 }} />
+            <div className="w-3 h-0.5 rounded border-dashed" style={{ borderTop: "1px dashed var(--telemetry-rpm)", height: 0 }} />
             <span className="text-xs text-app-text-muted">{m.laptime_legend_optimum()}</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-3" style={{ borderTop: "1px dashed #fbbf24", height: 0 }} />
+            <div className="w-3" style={{ borderTop: "1px dashed var(--lap-pace-average)", height: 0 }} />
             <span className="text-xs text-app-text-muted">{m.laptime_legend_avg()}</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-purple-500" />
+            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--lap-pace-best)" }} />
             <span className="text-xs text-app-text-muted">{m.label_best()}</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-emerald-400" />
+            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--lap-pace-on-target)" }} />
             <span className="text-xs text-app-text-muted">{m.laptime_legend_on_pace()}</span>
           </div>
           <div className="flex items-center gap-1">
-            <div className="w-2 h-2 rounded-full bg-orange-400" />
+            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--lap-pace-off-target)" }} />
             <span className="text-xs text-app-text-muted">{m.laptime_legend_off_pace()}</span>
           </div>
         </div>

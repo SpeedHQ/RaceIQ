@@ -78,9 +78,13 @@ export interface AnalysisUsage {
   model: string;
 }
 
-export const ASSESSMENT_COLORS = { good: "text-emerald-400", warning: "text-amber-400", critical: "text-red-400" } as const;
-export const ASSESSMENT_BG = { good: "bg-emerald-400/10 border-emerald-400/20", warning: "bg-amber-400/10 border-amber-400/20", critical: "bg-red-400/10 border-red-400/20" } as const;
-export const SEVERITY_COLORS = { minor: "bg-app-text-dim", moderate: "bg-amber-500", major: "bg-red-500" } as const;
+export const ASSESSMENT_COLORS = { good: "text-(--severity-nominal)", warning: "text-(--severity-caution)", critical: "text-(--severity-critical)" } as const;
+export const ASSESSMENT_BG = {
+  good: "bg-(--severity-nominal)/10 border-(--severity-nominal)/20",
+  warning: "bg-(--severity-caution)/10 border-(--severity-caution)/20",
+  critical: "bg-(--severity-critical)/10 border-(--severity-critical)/20",
+} as const;
+export const SEVERITY_COLORS = { minor: "bg-app-text-dim", moderate: "bg-(--severity-caution)", major: "bg-(--severity-critical)" } as const;
 
 /** Find a segment whose name matches any of the search strings. */
 export function findSegment(segments: Segment[] | null | undefined, ...texts: string[]): Segment | null {
@@ -113,10 +117,10 @@ export function MetricCard({ item }: { item: PaceItem | HandlingItem }) {
   return (
     <div className={`rounded-lg border px-2.5 py-1.5 ${ASSESSMENT_BG[item.assessment]}`}>
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[10px] text-app-text-secondary uppercase tracking-wide">{humanizeLabel(item.label)}</span>
-        <span className={`text-[11px] font-mono font-semibold ${ASSESSMENT_COLORS[item.assessment]}`}>{item.value}</span>
+        <span className="text-app-caption text-app-text-secondary uppercase tracking-wide">{humanizeLabel(item.label)}</span>
+        <span className={`text-app-compact font-mono font-semibold ${ASSESSMENT_COLORS[item.assessment]}`}>{item.value}</span>
       </div>
-      <p className="text-[10px] text-app-text-secondary mt-0.5 leading-relaxed">{item.detail}</p>
+      <p className="text-app-caption text-app-text-secondary mt-0.5 leading-relaxed">{item.detail}</p>
     </div>
   );
 }
@@ -194,12 +198,15 @@ export function TuneBar({ current, target, component }: { current: number; targe
   return (
     <div className="relative h-3 mt-1 mb-0.5">
       <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 bg-app-border-input/50 rounded-full" />
-      <div className="absolute top-1/2 -translate-y-1/2 h-1 bg-amber-400/20 rounded-full" style={{ left: `${Math.min(currentPct, targetPct)}%`, width: `${Math.abs(targetPct - currentPct)}%` }} />
+      <div
+        className="absolute top-1/2 -translate-y-1/2 h-1 bg-(--tune-target)/20 rounded-full"
+        style={{ left: `${Math.min(currentPct, targetPct)}%`, width: `${Math.abs(targetPct - currentPct)}%` }}
+      />
       <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2" style={{ left: `${currentPct}%` }}>
-        <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[6px] border-l-transparent border-r-transparent border-t-cyan-400" />
+        <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[6px] border-l-transparent border-r-transparent border-t-(--tune-current)" />
       </div>
       <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2" style={{ left: `${targetPct}%` }}>
-        <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[6px] border-l-transparent border-r-transparent border-b-amber-400" />
+        <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[6px] border-l-transparent border-r-transparent border-b-(--tune-target)" />
       </div>
     </div>
   );
@@ -253,7 +260,7 @@ export function SectionHeader({ icon, title }: { icon: ReactNode; title: string 
   return (
     <div className="flex items-center gap-1.5 mb-2">
       <span className="text-app-text-secondary">{icon}</span>
-      <h3 className="text-[10px] font-semibold text-app-text uppercase tracking-wider">{title}</h3>
+      <h3 className="text-app-caption font-semibold text-app-text uppercase tracking-wider">{title}</h3>
     </div>
   );
 }
@@ -278,7 +285,7 @@ export function SetupList({
 }) {
   return (
     <div className="space-y-2">
-      {!hasTune && <p className="text-[10px] text-amber-400/70 leading-snug">{m.aidisplay_no_tune_linked()}</p>}
+      {!hasTune && <p className="text-app-caption text-ai-accent/70 leading-snug">{m.aidisplay_no_tune_linked()}</p>}
       {setup.map((item) => {
         const extractNum = (s?: string) => {
           const match = s?.match(/-?\d+\.?\d*/);
@@ -296,20 +303,24 @@ export function SetupList({
             onHighlightsChange={onHighlightsChange}
             className="bg-app-surface-alt/40 border border-app-border-input/40 rounded-lg px-3 py-2.5"
           >
-            <span className="text-[12px] font-semibold text-app-text block mb-1">{item.component}</span>
+            <span className="text-app-label font-semibold text-app-text block mb-1">{item.component}</span>
             <span
-              className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-                item.direction === "increase" ? "bg-emerald-400/10 text-emerald-400" : item.direction === "decrease" ? "bg-red-400/10 text-red-400" : "bg-amber-400/10 text-amber-400"
+              className={`text-app-caption font-mono px-1.5 py-0.5 rounded ${
+                item.direction === "increase"
+                  ? "bg-(--delta-gain)/10 text-(--delta-gain)"
+                  : item.direction === "decrease"
+                    ? "bg-(--delta-loss)/10 text-(--delta-loss)"
+                    : "bg-(--delta-focus)/10 text-(--delta-focus)"
               }`}
             >
               {item.current} → {item.target}
             </span>
             {hasBoth && <TuneBar current={currentNum} target={targetNum} component={item.component} />}
-            <p className="text-[11px] text-app-text-secondary mt-1.5">
-              <span className="text-red-400/70">{m.aidisplay_symptom()}</span> {item.symptom}
+            <p className="text-app-compact text-app-text-secondary mt-1.5">
+              <span className="text-(--delta-loss)/70">{m.aidisplay_symptom()}</span> {item.symptom}
             </p>
-            <p className="text-[11px] text-app-text-secondary mt-0.5">
-              <span className="text-emerald-400/70">{m.aidisplay_fix()}</span> {item.fix}
+            <p className="text-app-compact text-app-text-secondary mt-0.5">
+              <span className="text-(--delta-gain)/70">{m.aidisplay_fix()}</span> {item.fix}
             </p>
           </TrackCard>
         );
@@ -355,7 +366,7 @@ export function AnalysisDisplay({
   return (
     <div ref={ref} className="max-w-full rounded-lg px-2.5 py-2 bg-app-surface-alt/60 border border-app-border-input/40 text-app-text-secondary space-y-3">
       {/* Verdict */}
-      <p className="text-[11px] text-app-text leading-relaxed">{analysis.verdict}</p>
+      <p className="text-app-compact text-app-text leading-relaxed">{analysis.verdict}</p>
 
       {/* Pace */}
       {analysis.pace?.length > 0 && (
@@ -397,10 +408,10 @@ export function AnalysisDisplay({
               >
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <span className={`size-1.5 rounded-full ${SEVERITY_COLORS[corner.severity]}`} />
-                  <span className="text-[11px] font-semibold text-app-text">{corner.name}</span>
+                  <span className="text-app-compact font-semibold text-app-text">{corner.name}</span>
                 </div>
-                <p className="text-[10px] text-app-text-secondary">{corner.issue}</p>
-                <p className="text-[10px] text-emerald-400/80 mt-0.5">{corner.fix}</p>
+                <p className="text-app-caption text-app-text-secondary">{corner.issue}</p>
+                <p className="text-app-caption text-(--delta-gain)/80 mt-0.5">{corner.fix}</p>
               </TrackCard>
             ))}
           </div>
@@ -422,10 +433,10 @@ export function AnalysisDisplay({
                 className={`rounded-lg border px-2.5 py-1.5 ${ASSESSMENT_BG[item.assessment]}`}
               >
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-[11px] font-semibold text-app-text">{item.corner}</span>
-                  <span className={`text-[10px] font-mono ${ASSESSMENT_COLORS[item.assessment]}`}>{item.brakePoint}</span>
+                  <span className="text-app-compact font-semibold text-app-text">{item.corner}</span>
+                  <span className={`text-app-caption font-mono ${ASSESSMENT_COLORS[item.assessment]}`}>{item.brakePoint}</span>
                 </div>
-                <p className="text-[10px] text-app-text-secondary mt-0.5">{item.detail}</p>
+                <p className="text-app-caption text-app-text-secondary mt-0.5">{item.detail}</p>
               </TrackCard>
             ))}
           </div>
@@ -447,10 +458,10 @@ export function AnalysisDisplay({
                 className={`rounded-lg border px-2.5 py-1.5 ${ASSESSMENT_BG[item.assessment]}`}
               >
                 <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-[11px] font-semibold text-app-text">{item.corner}</span>
-                  <span className={`text-[10px] font-mono ${ASSESSMENT_COLORS[item.assessment]}`}>{item.throttlePoint}</span>
+                  <span className="text-app-compact font-semibold text-app-text">{item.corner}</span>
+                  <span className={`text-app-caption font-mono ${ASSESSMENT_COLORS[item.assessment]}`}>{item.throttlePoint}</span>
                 </div>
-                <p className="text-[10px] text-app-text-secondary mt-0.5">{item.detail}</p>
+                <p className="text-app-caption text-app-text-secondary mt-0.5">{item.detail}</p>
               </TrackCard>
             ))}
           </div>
@@ -464,10 +475,12 @@ export function AnalysisDisplay({
           <div className="space-y-1.5">
             {analysis.coaching.map((item, i) => (
               <TrackCard key={item.tip} seg={findSegment(lookupSegs, item.tip, item.detail)} color="warning" onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} className="flex gap-2">
-                <span className="text-amber-400/60 text-[10px] font-mono mt-0.5">{i + 1}.</span>
+                <span className="text-ai-accent/60 text-app-caption font-mono mt-0.5">
+                  {i + 1}.
+                </span>
                 <div>
-                  <span className="text-[11px] font-medium text-app-text">{item.tip}</span>
-                  <p className="text-[10px] text-app-text-secondary mt-0.5">{item.detail}</p>
+                  <span className="text-app-compact font-medium text-app-text">{item.tip}</span>
+                  <p className="text-app-caption text-app-text-secondary mt-0.5">{item.detail}</p>
                 </div>
               </TrackCard>
             ))}
@@ -481,7 +494,7 @@ export function AnalysisDisplay({
       {(usage || onExport || onRegenerate || onClear) && (
         <div className="flex items-center gap-1.5 pt-1.5 border-t border-app-border-input/30">
           {usage && (
-            <span className="text-[9px] text-app-text-muted font-mono mr-auto">
+            <span className="text-app-micro text-app-text-muted font-mono mr-auto">
               {usage.inputTokens.toLocaleString()}↓ {usage.outputTokens.toLocaleString()}↑ ${usage.costUsd.toFixed(4)} {(usage.durationMs / 1000).toFixed(1)}s
             </span>
           )}
@@ -489,7 +502,7 @@ export function AnalysisDisplay({
             <button
               type="button"
               onClick={onExport}
-              className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
+              className="flex items-center gap-1 text-app-micro text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-hover transition-colors"
               title={m.label_export_as_image()}
             >
               <Download className="size-3" /> {m.label_export()}
@@ -500,7 +513,7 @@ export function AnalysisDisplay({
               type="button"
               onClick={onRegenerate}
               disabled={loading}
-              className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors disabled:opacity-50"
+              className="flex items-center gap-1 text-app-micro text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-hover transition-colors disabled:opacity-50"
               title={m.aidisplay_regenerate()}
             >
               <RefreshCw className="size-3" /> {m.label_regenerate()}
@@ -510,7 +523,7 @@ export function AnalysisDisplay({
             <button
               type="button"
               onClick={onClear}
-              className="flex items-center gap-1 text-[9px] text-app-text-muted hover:text-red-400 px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-input transition-colors"
+              className="flex items-center gap-1 text-app-micro text-app-text-muted hover:text-status-danger px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-hover transition-colors"
               title={m.aipanel_clear_title()}
             >
               <Trash2 className="size-3" /> {m.label_clear()}

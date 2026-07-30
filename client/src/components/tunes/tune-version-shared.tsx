@@ -37,23 +37,23 @@ export function AppliedChangesList({ json, comment }: { json: string | null; com
   if (changes.length === 0 && !comment) return null;
   return (
     <div className="px-3 py-2 border-b border-app-border/40 space-y-1">
-      <div className="text-[10px] uppercase tracking-wider text-app-text-muted">Tweaks</div>
+      <div className="text-app-caption uppercase tracking-wider text-app-text-muted">Tweaks</div>
       {changes.length === 0 ? (
-        <div className="text-[11px] text-app-text-dim">Base setup — no changes applied.</div>
+        <div className="text-app-compact text-app-text-dim">Base setup — no changes applied.</div>
       ) : (
         <ul className="space-y-0.5">
           {changes.map((c, i) =>
             c.kind === "drill" ? (
               // biome-ignore lint/suspicious/noArrayIndexKey: change rows are a frozen snapshot of one version's tweaks, never reordered; index disambiguates repeated components
-              <li key={`drill-${c.title}-${i}`} className="text-[11px] text-app-text">
-                <span className="font-mono text-amber-400">{c.title}</span>
+              <li key={`drill-${c.title}-${i}`} className="text-app-compact text-app-text">
+                <span className="font-mono text-status-warning">{c.title}</span>
                 {c.corners.length > 0 && <span className="tabular-nums text-app-text-dim"> · {c.corners.join(", ")}</span>}
                 {c.instruction && <div className="text-app-text-dim">{c.instruction}</div>}
               </li>
             ) : (
               // biome-ignore lint/suspicious/noArrayIndexKey: same frozen snapshot; index disambiguates repeated components
-              <li key={`${c.component}-${i}`} className="text-[11px] text-app-text">
-                <span className="font-mono text-purple-400">{c.component}</span>{" "}
+              <li key={`${c.component}-${i}`} className="text-app-compact text-app-text">
+                <span className="font-mono text-(--focus-setup)">{c.component}</span>{" "}
                 <span className="tabular-nums text-app-text-dim">
                   {c.from} → {c.to}
                 </span>
@@ -63,7 +63,7 @@ export function AppliedChangesList({ json, comment }: { json: string | null; com
           )}
         </ul>
       )}
-      {comment && <div className="text-[11px] text-app-text-dim italic">Driver: “{comment}”</div>}
+      {comment && <div className="text-app-compact text-app-text-dim italic">Driver: “{comment}”</div>}
     </div>
   );
 }
@@ -197,7 +197,7 @@ export function LapBreakdown({
   return (
     <table className="w-full text-xs">
       <thead>
-        <tr className="text-[10px] uppercase tracking-wider text-app-text-muted">
+        <tr className="text-app-caption uppercase tracking-wider text-app-text-muted">
           <th className="px-3 py-1 font-medium text-left">
             <button type="button" onClick={() => toggleSort("lap")} className={`uppercase tracking-wider hover:text-app-text ${sort.key === "lap" ? "text-app-text" : ""}`} title="Sort by lap">
               Lap
@@ -245,7 +245,7 @@ export function LapBreakdown({
           const strike = excluded ? "line-through decoration-app-text-dim/60 opacity-60" : "";
           return (
             <tr key={l.id}>
-              <td className={`px-3 py-1 font-mono ${strike} ${l.isValid ? "text-app-text-muted" : "text-red-400"}`} title={!l.isValid ? (l.invalidReason ?? "invalid") : undefined}>
+              <td className={`px-3 py-1 font-mono ${strike} ${l.isValid ? "text-app-text-muted" : "text-status-danger"}`} title={!l.isValid ? (l.invalidReason ?? "invalid") : undefined}>
                 {showSession && (
                   <span className="text-app-text-dim mr-1" title={`Imported from session ${l.sessionId}`}>
                     S{l.sessionId}·
@@ -261,7 +261,7 @@ export function LapBreakdown({
                   <span className="w-[130px] shrink-0 flex items-center gap-2">
                     {status && (
                       <span
-                        className={`text-[10px] uppercase tracking-wider truncate ${excluded ? "text-app-text-dim" : isPitStatus ? "text-amber-400" : "text-red-400"}`}
+                        className={`text-app-caption uppercase tracking-wider truncate ${excluded ? "text-app-text-dim" : isPitStatus ? "text-status-warning" : "text-status-danger"}`}
                         title={excluded ? "Excluded from the tuning aggregate by you" : (l.invalidReason ?? undefined)}
                       >
                         {status}
@@ -274,12 +274,12 @@ export function LapBreakdown({
                     status of the lap too, so they sit with the status text and
                     not next to the exclude control. */}
                     {reason === "chosen" && (
-                      <span className="text-[10px] uppercase tracking-wider text-emerald-400" title={`Used for evaluation — one of the fastest ${REVIEW_LAP_CAP} clean laps this analysis reads`}>
+                      <span className="text-app-caption uppercase tracking-wider text-status-success" title={`Used for evaluation — one of the fastest ${REVIEW_LAP_CAP} clean laps this analysis reads`}>
                         Eval
                       </span>
                     )}
                     {reason === "slower-than-cap" && (
-                      <span className="text-[10px] uppercase tracking-wider text-app-text-dim" title={`Clean lap, but outside the fastest ${REVIEW_LAP_CAP} — not used for evaluation`}>
+                      <span className="text-app-caption uppercase tracking-wider text-app-text-dim" title={`Clean lap, but outside the fastest ${REVIEW_LAP_CAP} — not used for evaluation`}>
                         Outside top {REVIEW_LAP_CAP}
                       </span>
                     )}
@@ -293,8 +293,8 @@ export function LapBreakdown({
                       onClick={() => setExcluded.mutate({ lapId: l.id, excluded: !excluded, experimentId })}
                       disabled={setExcluded.isPending}
                       title={excluded ? "Include this lap in the tuning aggregate again" : "Exclude this lap from the tuning aggregate (blunder, off-track, spin)"}
-                      className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border disabled:opacity-50 disabled:pointer-events-none ${
-                        excluded ? "border-app-border text-app-text-dim opacity-60" : "border-app-border text-app-text hover:bg-app-border/30"
+                      className={`text-app-caption uppercase tracking-wider px-1.5 py-0.5 rounded border disabled:opacity-50 disabled:pointer-events-none ${
+                        excluded ? "border-app-border text-app-text-dim opacity-60" : "border-app-border text-app-text hover:bg-app-surface-hover/30"
                       }`}
                     >
                       {excluded ? "Excluded" : "Exclude"}
@@ -303,7 +303,7 @@ export function LapBreakdown({
                 </div>
               </td>
               {/* Fastest lap is marked by colouring the time itself purple. */}
-              <td className={`px-3 py-1 text-right font-mono tabular-nums ${isFastest ? "text-purple-400" : "text-app-text/90"} ${strike}`}>{formatLapTime(l.lapTime)}</td>
+              <td className={`px-3 py-1 text-right font-mono tabular-nums ${isFastest ? "text-(--lap-pace-best)" : "text-app-text/90"} ${strike}`}>{formatLapTime(l.lapTime)}</td>
               <td className={`px-3 py-1 text-right font-mono tabular-nums text-app-text/90 ${strike}`}>{fuel != null ? `${fuel.toFixed(2)} L` : <span className="text-app-text-dim">—</span>}</td>
               <td className={`px-3 py-1 text-right font-mono tabular-nums text-app-text/90 ${strike}`}>{wear != null ? `${wear.toFixed(0)}%` : <span className="text-app-text-dim">—</span>}</td>
             </tr>

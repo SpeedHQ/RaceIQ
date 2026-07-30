@@ -30,6 +30,7 @@ docker run --rm --ipc=host \
     apt-get update -qq && apt-get install -y -qq --no-install-recommends unzip
     curl -fsSL https://bun.sh/install | bash
     export PATH="$HOME/.bun/bin:$PATH"
+    export RACEIQ_CANONICAL_SNAPSHOT_ENV=1
     bun install --ignore-scripts
     cd client && bun install --ignore-scripts && bun run snapshot
   '

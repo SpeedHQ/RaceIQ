@@ -42,7 +42,7 @@ export function F125Leaderboard({ trackOrdinal }: { trackOrdinal: number }) {
     <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
       <div className="flex items-center gap-2 mb-2 shrink-0">
         <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.f125lb_f1laps_leaderboard()}</div>
-        <a href={`https://www.f1laps.com/f1-25/leaderboard/${trackSlug}/`} target="_blank" rel="noopener noreferrer" className="text-app-unit hover:underline">
+        <a href={`https://www.f1laps.com/f1-25/leaderboard/${trackSlug}/`} target="_blank" rel="noopener noreferrer" className="text-app-compact hover:underline">
           {m.f125lb_view_full()}
         </a>
       </div>

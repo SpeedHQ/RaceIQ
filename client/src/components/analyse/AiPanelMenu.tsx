@@ -35,7 +35,7 @@ export function AiPanelMenu({ onClearChat, onClearAnalysis, onClearAll }: AiPane
               onClearChat();
               setOpen(false);
             }}
-            className="w-full text-left px-3 py-1.5 text-[11px] text-app-text-secondary hover:text-app-text hover:bg-app-surface-alt transition-colors"
+            className="w-full text-left px-3 py-1.5 text-app-compact text-app-text-secondary hover:text-app-text hover:bg-app-surface-hover transition-colors"
           >
             {m.aipanel_clear_chat_only()}
           </button>
@@ -44,7 +44,7 @@ export function AiPanelMenu({ onClearChat, onClearAnalysis, onClearAll }: AiPane
               onClearAnalysis();
               setOpen(false);
             }}
-            className="w-full text-left px-3 py-1.5 text-[11px] text-app-text-secondary hover:text-app-text hover:bg-app-surface-alt transition-colors"
+            className="w-full text-left px-3 py-1.5 text-app-compact text-app-text-secondary hover:text-app-text hover:bg-app-surface-hover transition-colors"
           >
             {m.aipanel_clear_analysis_keep_chat()}
           </button>
@@ -54,7 +54,7 @@ export function AiPanelMenu({ onClearChat, onClearAnalysis, onClearAll }: AiPane
               onClearAll();
               setOpen(false);
             }}
-            className="w-full text-left px-3 py-1.5 text-[11px] text-red-400 hover:text-red-300 hover:bg-app-surface-alt transition-colors"
+          className="w-full text-left px-3 py-1.5 text-app-compact text-status-danger hover:text-status-danger/80 hover:bg-app-surface-hover transition-colors"
           >
             {m.aipanel_clear_all()}
           </button>

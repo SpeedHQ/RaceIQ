@@ -14,14 +14,14 @@ export function AnalysisSummaryRow({ title, detail, onView }: { title?: string; 
     <button
       type="button"
       onClick={onView}
-      className="w-full flex items-center gap-2 px-2 py-1.5 rounded bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/15 transition-colors text-left"
+      className="w-full flex items-center gap-2 px-2 py-1.5 rounded bg-status-success/10 border border-status-success/30 hover:bg-status-success/15 transition-colors text-left"
     >
-      <Sparkles className="size-3 text-emerald-400 shrink-0" />
+      <Sparkles className="size-3 text-status-success shrink-0" />
       <div className="flex-1 min-w-0">
-        <div className="text-[10px] font-semibold text-emerald-300 uppercase tracking-wider">{title ?? m.compare_analysis_complete()}</div>
-        <div className="text-[9px] text-app-text-muted font-mono">{detail}</div>
+        <div className="text-app-caption font-semibold text-status-success uppercase tracking-wider">{title ?? m.compare_analysis_complete()}</div>
+        <div className="text-app-micro text-app-text-muted font-mono">{detail}</div>
       </div>
-      <span className="flex items-center gap-1 text-[10px] text-app-text-secondary shrink-0">
+      <span className="flex items-center gap-1 text-app-caption text-app-text-secondary shrink-0">
         <Eye className="size-3" /> {m.label_view()}
       </span>
     </button>
@@ -61,7 +61,7 @@ export function AnalysisModalShell({
   return createPortal(
     // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60 p-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -71,7 +71,7 @@ export function AnalysisModalShell({
             active tab reads as a plain heading, so there is no second copy of
             "AI Analysis" below it. */}
         <div className="flex items-center gap-2 px-4 py-2.5 border-b border-app-border shrink-0">
-          <Sparkles className="size-3.5 text-amber-400 shrink-0" />
+          <Sparkles className="size-3.5 text-ai-accent shrink-0" />
           {(tabs?.length ? tabs : [{ key: "__title", label: m.label_ai_analysis() } as AnalysisModalTab]).map((tab) => {
             const active = !tabs?.length || tab.key === activeTab;
             const interactive = (tabs?.length ?? 0) > 1;
@@ -81,17 +81,17 @@ export function AnalysisModalShell({
                 type="button"
                 disabled={!interactive}
                 onClick={() => onTabChange?.(tab.key)}
-                className={`flex items-center gap-1.5 rounded px-2 py-1 text-[11px] font-semibold uppercase tracking-wider transition-colors ${
+                className={`flex items-center gap-1.5 rounded px-2 py-1 text-app-compact font-semibold uppercase tracking-wider transition-colors ${
                   active ? "text-app-text" : "text-app-text-muted hover:text-app-text-secondary"
-                } ${interactive ? (active ? "bg-app-border-input/30" : "hover:bg-app-border-input/20") : "px-0"}`}
+                } ${interactive ? (active ? "bg-app-border-input/30" : "hover:bg-app-surface-hover/20") : "px-0"}`}
               >
                 {tab.label}
-                {tab.badge !== undefined && <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-app-border-input/30 text-app-text-secondary">{tab.badge}</span>}
-                {tab.flag && <span className="text-[8px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-400/15 text-amber-400 border border-amber-400/20">{tab.flag}</span>}
+                {tab.badge !== undefined && <span className="text-app-micro font-mono px-1.5 py-0.5 rounded bg-app-border-input/30 text-app-text-secondary">{tab.badge}</span>}
+                {tab.flag && <span className="text-app-nano font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-ai-accent/15 text-ai-accent border border-ai-accent/20">{tab.flag}</span>}
               </button>
             );
           })}
-          {subtitle && <span className="text-[11px] text-app-text-secondary truncate ml-2">{subtitle}</span>}
+          {subtitle && <span className="text-app-compact text-app-text-secondary truncate ml-2">{subtitle}</span>}
           <button type="button" onClick={onClose} className="ml-auto pl-2 text-app-text-muted hover:text-app-text shrink-0">
             <X className="size-4" />
           </button>

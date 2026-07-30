@@ -21,11 +21,13 @@ export type TrackSectorBounds = { s1End: number; s2End: number } | null;
 type SectorStatus = "record" | "session-best" | "lost";
 
 const SECTOR_COLORS: Record<SectorStatus, string> = {
-  record: "#c084fc",
-  "session-best": "#34d399",
-  lost: "#f87171",
+  record: "var(--lap-record)",
+  "session-best": "var(--lap-pace-on-target)",
+  lost: "var(--lap-pace-off-target)",
 };
-const NEUTRAL_SECTOR_COLOR = "#64748b";
+
+/** Drawn for a sector we have no status for — must not imply time was lost there. */
+const NEUTRAL_SECTOR_COLOR = "var(--app-text-dim)";
 
 function sectorLabel(status: SectorStatus): string {
   switch (status) {
@@ -84,7 +86,7 @@ function SectorTrackMap({
   }, [canDraw, points, sectorStarts, flipX, sectorColors]);
   return (
     <div className="@container">
-      <div className="mb-1 text-[10px] uppercase tracking-wider text-app-text-muted">{m.recap_sectors()}</div>
+      <div className="mb-1 text-app-caption uppercase tracking-wider text-app-text-muted">{m.recap_sectors()}</div>
       <div className="grid items-center gap-3 @md:grid-cols-[minmax(0,1fr)_minmax(180px,0.7fr)]">
         {canDraw && <canvas ref={canvasRef} className="h-[220px] w-full" aria-label={m.recap_sectors()} />}
         <div className="flex flex-col gap-1">
@@ -95,7 +97,7 @@ function SectorTrackMap({
                 <span className="font-medium text-app-text-muted">S{s.index}</span>
               </span>
               <span className="whitespace-nowrap font-mono tabular-nums text-app-text/90">{s.bestLapSec.toFixed(3)}</span>
-              <span className="whitespace-nowrap text-right text-[10px] text-app-text-dim">{sectorLabel(s.status)}</span>
+              <span className="whitespace-nowrap text-right text-app-caption text-app-text-dim">{sectorLabel(s.status)}</span>
             </div>
           ))}
         </div>
@@ -107,9 +109,11 @@ function SectorTrackMap({
 function Tile({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
     <div className="min-w-0 overflow-hidden rounded-lg bg-app-surface-alt/30 p-3">
-      <div className="mb-1 min-h-7 break-normal text-[10px] uppercase leading-tight tracking-wider text-app-text-muted">{label}</div>
-      <div className={`min-w-0 whitespace-nowrap text-xl font-mono font-black tabular-nums leading-none ${color ?? "text-app-text/90"}`}>{value}</div>
-      {sub && <div className="mt-1 text-[11px] leading-tight text-app-text-dim">{sub}</div>}
+      <div className="mb-1 min-h-7 break-normal text-app-caption uppercase leading-tight tracking-wider text-app-text-muted">{label}</div>
+      <div className={`min-w-0 whitespace-nowrap text-xl font-mono font-black tabular-nums leading-none ${color ? "" : "text-app-text/90"}`} style={color ? { color } : undefined}>
+        {value}
+      </div>
+      {sub && <div className="mt-1 text-app-compact leading-tight text-app-text-dim">{sub}</div>}
     </div>
   );
 }
@@ -150,7 +154,7 @@ function Sparkline({ laps }: { laps: SessionRecapDto["sparkline"] }) {
       <title>{m.recap_pace()}</title>
       <path d={path} fill="none" stroke="currentColor" className="text-app-accent/50" strokeWidth={1.5} />
       {points.map((p) => (
-        <circle key={p.lap.lapNumber} cx={p.x} cy={p.y} r={p.lap.isValid ? 2 : 2.5} className={p.lap.isValid ? "fill-app-accent" : "fill-red-400"} />
+        <circle key={p.lap.lapNumber} cx={p.x} cy={p.y} r={p.lap.isValid ? 2 : 2.5} className={p.lap.isValid ? "fill-app-accent" : "fill-status-danger"} />
       ))}
     </svg>
   );
@@ -219,7 +223,7 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, copied 
               <Tile
                 label={m.recap_best_lap()}
                 value={formatLapTime(recap.bestLapSec)}
-                color="text-emerald-400"
+                color="var(--lap-record)"
                 sub={
                   recap.personalBest?.isNew
                     ? recap.personalBest.previousBestSec != null
@@ -242,7 +246,7 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, copied 
 
           {recap.sparkline.length >= 2 && (
             <div>
-              <div className="mb-1 text-[10px] uppercase tracking-wider text-app-text-muted">{m.recap_pace()}</div>
+              <div className="mb-1 text-app-caption uppercase tracking-wider text-app-text-muted">{m.recap_pace()}</div>
               <Sparkline laps={recap.sparkline} />
             </div>
           )}
@@ -260,7 +264,7 @@ export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = fa
   const { data: bounds } = useTrackSectorBoundaries(recap?.trackOrdinal, recap?.gameId ?? gameId);
   const [copied, setCopied] = useState(false);
   if (isLoading) return <div className="p-6 text-center text-app-text-dim">{m.common_loading()}</div>;
-  if (isError || !recap) return <div className="p-6 text-center text-red-400">{m.common_error()}</div>;
+  if (isError || !recap) return <div className="p-6 text-center text-status-danger">{m.common_error()}</div>;
   const copy = () => {
     navigator.clipboard.writeText(buildRecapText(recap)).then(() => {
       setCopied(true);

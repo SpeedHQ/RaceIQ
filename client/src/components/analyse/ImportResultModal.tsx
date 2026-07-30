@@ -23,7 +23,7 @@ interface Props {
 export function ImportResultModal({ fileName, packetCount, laps, sameGame, gameLabel, onGoToSession, onClose }: Props) {
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -41,7 +41,7 @@ export function ImportResultModal({ fileName, packetCount, laps, sameGame, gameL
               <div key={lap.lapId} className="flex items-center justify-between px-3 py-1.5 text-sm border-b border-app-border-input last:border-b-0">
                 <span className="text-app-text">Lap {lap.lapNumber}</span>
                 <span className="text-app-text-muted">{formatLapTime(lap.lapTime)}</span>
-                {!lap.isValid && <span className="text-xs text-red-400">{m.analyse_import_invalid_badge()}</span>}
+                {!lap.isValid && <span className="text-xs text-status-danger">{m.analyse_import_invalid_badge()}</span>}
               </div>
             ))}
           </div>
@@ -52,7 +52,7 @@ export function ImportResultModal({ fileName, packetCount, laps, sameGame, gameL
             {m.common_close()}
           </Button>
           {laps.length > 0 && onGoToSession && (
-            <Button variant="app-outline" size="app-sm" className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70" onClick={onGoToSession}>
+            <Button variant="app-outline" size="app-sm" className="bg-app-accent/15 !border-app-accent/40 text-app-accent hover:bg-app-accent/25" onClick={onGoToSession}>
               {sameGame ? m.analyse_import_view_session() : m.analyse_import_go_to_game({ game: gameLabel })}
             </Button>
           )}

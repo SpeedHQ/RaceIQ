@@ -95,7 +95,7 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
   const showSetupWarning = (gameId === "acc" || gameId === "ac-evo") && selected.size > 0;
 
   const renderLapRow = (lap: ImportableLap) => (
-    <label key={lap.id} className="flex items-center gap-2 px-3 py-1.5 text-xs cursor-pointer hover:bg-app-bg/60">
+    <label key={lap.id} className="flex items-center gap-2 px-3 py-1.5 text-xs cursor-pointer hover:bg-app-surface-hover/60">
       <input type="checkbox" checked={selected.has(lap.id)} onChange={() => toggle(lap.id)} />
       <span className="text-app-text tabular-nums">{fmtLapTime(lap.lapTime)}</span>
       <span className="text-app-text-dim">{lap.isValid ? "Valid" : "Invalid"}</span>
@@ -106,7 +106,7 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -131,7 +131,7 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
           </div>
         ) : (
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Attach to</span>
+            <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Attach to</span>
             <select value={targetTestId} onChange={(e) => setTargetTestId(e.target.value)} className="bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs">
               <option value="">Session baseline (no specific version)</option>
               {tests.map((t) => (
@@ -144,13 +144,13 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
         )}
 
         {showSetupWarning && (
-          <div className="text-xs text-amber-400 bg-amber-950/30 border border-amber-900/60 rounded px-3 py-2">
+          <div className="text-xs text-status-warning bg-status-warning/10 border border-status-warning/30 rounded px-3 py-2">
             These laps were driven under whatever setup was saved at the time, which may not match the target version's setup file. Review them for consistency before relying on them for tuning
             advice.
           </div>
         )}
 
-        <div className="flex items-center justify-between text-[11px] text-app-text-muted uppercase tracking-wider">
+        <div className="flex items-center justify-between text-app-compact text-app-text-muted uppercase tracking-wider">
           <span>Importable laps ({laps.length})</span>
           <div className="flex items-center gap-3 normal-case">
             {isF1 && (
@@ -174,7 +174,7 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
                 const groupSelected = g.laps.every((l) => selected.has(l.id));
                 return (
                   <div key={g.key}>
-                    <label className="flex items-center gap-2 px-3 py-1.5 text-xs bg-app-bg/40 cursor-pointer hover:bg-app-bg/60 font-medium">
+                    <label className="flex items-center gap-2 px-3 py-1.5 text-xs bg-app-bg/40 cursor-pointer hover:bg-app-surface-hover/60 font-medium">
                       <input type="checkbox" checked={groupSelected} onChange={() => toggleGroup(g.laps)} />
                       <span className="text-app-text truncate">{g.summary}</span>
                       <span className="ml-auto text-app-text-muted">
@@ -188,7 +188,7 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
             : laps.map((lap) => renderLapRow(lap))}
         </div>
 
-        {error && <div className="text-xs text-red-400">{error}</div>}
+        {error && <div className="text-xs text-status-danger">{error}</div>}
 
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs rounded border border-app-border text-app-text-dim hover:text-app-text">
@@ -199,7 +199,7 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
             onClick={submit}
             disabled={importLaps.isPending || selected.size === 0}
             title={selected.size === 0 ? "Select at least one lap" : undefined}
-            className="px-3 py-1.5 text-xs rounded bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-semibold"
+          className="px-3 py-1.5 text-xs rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 text-app-on-filled font-semibold"
           >
             {importLaps.isPending ? "Importing…" : `Import ${selected.size || ""} lap${selected.size === 1 ? "" : "s"}`}
           </button>

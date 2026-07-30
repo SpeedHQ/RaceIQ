@@ -37,11 +37,11 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
       <DialogContent className="flex h-[60vh] w-[min(94vw,720px)] flex-col sm:max-w-[720px]">
         <DialogHeader className="min-w-0 pr-8">
           <DialogTitle className="truncate">{data?.fileName ?? fileName}</DialogTitle>
-          {data?.presetId && <DialogDescription className="truncate text-[11px]">Preset {data.presetId}</DialogDescription>}
+          {data?.presetId && <DialogDescription className="truncate text-app-compact">Preset {data.presetId}</DialogDescription>}
         </DialogHeader>
         <div className="min-h-0 flex-1 overflow-auto">
           {isLoading && <div className="text-sm text-muted-foreground">Loading…</div>}
-          {(error || data?.error) && <div className="text-sm text-red-400">{data?.error ?? "Couldn't read the setup file."}</div>}
+          {(error || data?.error) && <div className="text-sm text-status-danger">{data?.error ?? "Couldn't read the setup file."}</div>}
           {sections && (
             <div className="space-y-4">
               {/* Tabbed view: corner sections (FL/FR/RL/RR) mix tyre, suspension
@@ -86,14 +86,14 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
                               with a real extracted per-car min/max from the server. */}
                           {r.num != null && r.min != null && r.max != null && r.max > r.min && (
                             <div className="mt-1 flex items-center gap-2">
-                              <span className="text-[10px] font-mono tabular-nums text-muted-foreground">{r.min}</span>
+                              <span className="text-app-caption font-mono tabular-nums text-muted-foreground">{r.min}</span>
                               <div className="relative h-1 flex-1 rounded bg-muted">
                                 <span
-                                  className="absolute top-1/2 h-2.5 w-0.5 -translate-y-1/2 rounded bg-purple-400"
+                                  className="absolute top-1/2 h-2.5 w-0.5 -translate-y-1/2 rounded bg-(--focus-setup)"
                                   style={{ left: `${Math.min(100, Math.max(0, ((r.num - r.min) / (r.max - r.min)) * 100))}%` }}
                                 />
                               </div>
-                              <span className="text-[10px] font-mono tabular-nums text-muted-foreground">{r.max}</span>
+                              <span className="text-app-caption font-mono tabular-nums text-muted-foreground">{r.max}</span>
                             </div>
                           )}
                         </div>
@@ -109,7 +109,7 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
                           key={t}
                           type="button"
                           onClick={() => setActiveTab(t)}
-                          className={`rounded px-2 py-1 text-[11px] ${
+                          className={`rounded px-2 py-1 text-app-compact ${
                             t === tab ? "bg-app-bg font-semibold text-app-accent" : "text-app-text-muted hover:text-app-text"
                           }`}
                         >
@@ -153,7 +153,7 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
               })()}
             </div>
           )}
-          {!sections && body && <pre className="text-[12px] leading-relaxed whitespace-pre-wrap font-mono">{body}</pre>}
+          {!sections && body && <pre className="text-app-label leading-relaxed whitespace-pre-wrap font-mono">{body}</pre>}
         </div>
       </DialogContent>
     </Dialog>
@@ -267,7 +267,7 @@ export function SetupFilePicker({
     <div className="grid grid-cols-1 gap-3">
       {!lockedCar && (
         <div className="flex flex-col gap-1">
-          <span className="text-[11px] text-app-text-muted uppercase tracking-wider">{labels.car ?? "Car"}</span>
+          <span className="text-app-compact text-app-text-muted uppercase tracking-wider">{labels.car ?? "Car"}</span>
           <SearchSelect
             value={value.car}
             onChange={(v) => onChange({ car: v, track: "", setupPath: "" })}
@@ -279,7 +279,7 @@ export function SetupFilePicker({
         </div>
       )}
       <div className="flex flex-col gap-1">
-        <span className="text-[11px] text-app-text-muted uppercase tracking-wider">{labels.track ?? "Track"}</span>
+        <span className="text-app-compact text-app-text-muted uppercase tracking-wider">{labels.track ?? "Track"}</span>
         <SearchSelect
           value={value.track}
           onChange={(v) => onChange({ ...value, track: v, setupPath: "" })}
@@ -295,14 +295,14 @@ export function SetupFilePicker({
       </div>
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] text-app-text-muted uppercase tracking-wider">{labels.setup ?? "Base setup"}</span>
+          <span className="text-app-compact text-app-text-muted uppercase tracking-wider">{labels.setup ?? "Base setup"}</span>
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => refetch()}
               disabled={isFetching}
               title="Rescan the Setups folder for new files"
-              className="text-[11px] text-app-text-muted hover:text-app-text disabled:opacity-50 flex items-center gap-1"
+              className="text-app-compact text-app-text-muted hover:text-app-text disabled:opacity-50 flex items-center gap-1"
             >
               <span className={isFetching ? "animate-spin inline-block" : "inline-block"}>⟳</span>
               Refresh

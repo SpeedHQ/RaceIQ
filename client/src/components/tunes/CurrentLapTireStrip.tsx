@@ -36,22 +36,22 @@ export function CurrentLapTireStrip({ telemetry }: { telemetry: TelemetryPacket[
       {models.map(({ metric, model }) => (
         <div key={metric.key} className="flex-1 min-w-0">
           <div className="flex items-baseline justify-between mb-1">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-app-text-muted">{metric.label}</span>
-            <span className="text-[9px] text-app-text-dim">{metric.unit}</span>
+            <span className="text-app-caption font-semibold uppercase tracking-wider text-app-text-muted">{metric.label}</span>
+            <span className="text-app-micro text-app-text-dim">{metric.unit}</span>
           </div>
           {model ? (
             <CornerBars ranges={model.ranges} domain={model.domain} metric={metric} height={64} />
           ) : (
-            <div className="h-[64px] flex items-center justify-center text-[10px] text-app-text-dim">—</div>
+            <div className="h-[64px] flex items-center justify-center text-app-caption text-app-text-dim">—</div>
           )}
         </div>
       ))}
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline justify-between mb-1">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-app-text-muted">Fuel</span>
-          <span className="text-[9px] text-app-text-dim">L</span>
+          <span className="text-app-caption font-semibold uppercase tracking-wider text-app-text-muted">Fuel</span>
+          <span className="text-app-micro text-app-text-dim">L</span>
         </div>
-        {fuel ? <FuelCell min={fuel.min} avg={fuel.avg} max={fuel.max} domain={fuel.domain} /> : <div className="h-[64px] flex items-center justify-center text-[10px] text-app-text-dim">—</div>}
+        {fuel ? <FuelCell min={fuel.min} avg={fuel.avg} max={fuel.max} domain={fuel.domain} /> : <div className="h-[64px] flex items-center justify-center text-app-caption text-app-text-dim">—</div>}
       </div>
     </div>
   );
@@ -63,18 +63,18 @@ function FuelCell({ min, avg, max, domain }: { min: number; avg: number; max: nu
   const [lo, hi] = domain;
   const span = hi - lo || 1;
   const pct = (v: number) => Math.min(100, Math.max(0, ((v - lo) / span) * 100));
-  const color = "#22d3ee";
+  const color = "var(--app-accent)";
   return (
     <div className="flex items-end justify-between gap-1">
       <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
-        <div className="relative w-full max-w-[15px] rounded bg-app-panel border border-app-border" style={{ height: 64 }}>
+        <div className="relative w-full max-w-[15px] rounded bg-app-progress-track border border-app-border" style={{ height: 64 }}>
           <div className="absolute left-0 right-0 rounded opacity-30" style={{ background: color, bottom: `${pct(min)}%`, top: `${100 - pct(max)}%` }} />
           <div className="absolute left-[-2px] right-[-2px] h-[2px]" style={{ background: color, bottom: `${pct(avg)}%` }} />
         </div>
-        <span className="text-[10px] font-mono tabular-nums" style={{ color }}>
+        <span className="text-app-caption font-mono tabular-nums" style={{ color }}>
           {Math.round(avg)}
         </span>
-        <span className="text-[9px] text-app-text-dim uppercase">L</span>
+        <span className="text-app-micro text-app-text-dim uppercase">L</span>
       </div>
     </div>
   );

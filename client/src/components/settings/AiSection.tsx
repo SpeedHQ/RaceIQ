@@ -488,7 +488,7 @@ export function AiSection() {
                 <button
                   onClick={() => clearKey(PROVIDER_KEY_MAP[provider])}
                   title={m.ai_clear_key_title()}
-                  className="shrink-0 p-1.5 rounded text-app-text-muted hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                  className="shrink-0 p-1.5 rounded text-app-text-muted hover:text-status-danger hover:bg-status-danger/10 transition-colors"
                 >
                   <X className="size-3.5" />
                 </button>
@@ -496,7 +496,7 @@ export function AiSection() {
             </div>
             <p className="text-xs text-app-text-muted mt-1">
               {keyInfo.helpText}{" "}
-              <a href={keyInfo.helpUrl} target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">
+              <a href={keyInfo.helpUrl} target="_blank" rel="noreferrer" className="text-app-accent hover:underline">
                 {new URL(keyInfo.helpUrl).hostname}
               </a>
             </p>
@@ -510,13 +510,13 @@ export function AiSection() {
                 type="button"
                 onClick={() => refreshModels.mutate()}
                 disabled={aiModelsFetching || modelsRefreshing || isSaving}
-                className="inline-flex items-center gap-1 text-[11px] text-app-text-muted hover:text-app-text disabled:opacity-50"
+                className="inline-flex items-center gap-1 text-app-compact text-app-text-muted hover:text-app-text disabled:opacity-50"
                 title={m.ai_refresh_models_title()}
               >
                 <RefreshCw className={`size-3 ${aiModelsFetching || modelsRefreshing ? "animate-spin" : ""}`} />
                 {m.ai_refresh()}
               </button>
-              {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-[11px] text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
+              {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-app-compact text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
             </div>
             <select
               value={model}
@@ -566,15 +566,15 @@ export function AiSection() {
             </button>
           </div>
         )}
-        {provider !== "" && hasProviderKey && (providerModelError || aiModelsError) && <p className="text-xs text-red-400">{providerModelError || m.ai_load_models_failed()}</p>}
+        {provider !== "" && hasProviderKey && (providerModelError || aiModelsError) && <p className="text-xs text-status-danger">{providerModelError || m.ai_load_models_failed()}</p>}
         <button
           onClick={handleSave}
           disabled={isSaving || !canSaveAnalysis}
-          className="text-sm px-3 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 disabled:opacity-60 disabled:cursor-not-allowed text-white transition-colors"
+          className="text-sm px-3 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-60 disabled:cursor-not-allowed text-app-on-filled transition-colors"
         >
           {isSaving ? m.common_saving() : m.common_save()}
         </button>
-        {saveError && <p className="text-xs text-red-400">{saveError}</p>}
+        {saveError && <p className="text-xs text-status-danger">{saveError}</p>}
       </div>
 
       {/* Chat provider */}
@@ -615,7 +615,7 @@ export function AiSection() {
                 <button
                   onClick={() => clearKey(PROVIDER_KEY_MAP[chatProvider])}
                   title={m.ai_clear_key_title()}
-                  className="shrink-0 p-1.5 rounded text-app-text-muted hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                  className="shrink-0 p-1.5 rounded text-app-text-muted hover:text-status-danger hover:bg-status-danger/10 transition-colors"
                 >
                   <X className="size-3.5" />
                 </button>
@@ -623,7 +623,7 @@ export function AiSection() {
             </div>
             <p className="text-xs text-app-text-muted mt-1">
               {PROVIDER_KEY_LABELS[chatProvider].helpText}{" "}
-              <a href={PROVIDER_KEY_LABELS[chatProvider].helpUrl} target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">
+              <a href={PROVIDER_KEY_LABELS[chatProvider].helpUrl} target="_blank" rel="noreferrer" className="text-app-accent hover:underline">
                 {new URL(PROVIDER_KEY_LABELS[chatProvider].helpUrl).hostname}
               </a>
             </p>
@@ -637,13 +637,13 @@ export function AiSection() {
                 type="button"
                 onClick={() => refreshModels.mutate()}
                 disabled={aiModelsFetching || modelsRefreshing || isSaving}
-                className="inline-flex items-center gap-1 text-[11px] text-app-text-muted hover:text-app-text disabled:opacity-50"
+                className="inline-flex items-center gap-1 text-app-compact text-app-text-muted hover:text-app-text disabled:opacity-50"
                 title={m.ai_refresh_models_title()}
               >
                 <RefreshCw className={`size-3 ${aiModelsFetching || modelsRefreshing ? "animate-spin" : ""}`} />
                 {m.ai_refresh()}
               </button>
-              {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-[11px] text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
+              {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-app-compact text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
             </div>
             <select
               value={chatModel}
@@ -693,7 +693,7 @@ export function AiSection() {
             </button>
           </div>
         )}
-        {chatProvider !== "" && hasChatProviderKey && (chatProviderModelError || aiModelsError) && <p className="text-xs text-red-400">{chatProviderModelError || m.ai_load_models_failed()}</p>}
+        {chatProvider !== "" && hasChatProviderKey && (chatProviderModelError || aiModelsError) && <p className="text-xs text-status-danger">{chatProviderModelError || m.ai_load_models_failed()}</p>}
         <button
           onClick={async () => {
             setChatSaveError(null);
@@ -729,11 +729,11 @@ export function AiSection() {
             }
           }}
           disabled={isSaving || !canSaveChat}
-          className="text-sm px-3 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 disabled:opacity-60 disabled:cursor-not-allowed text-white transition-colors"
+          className="text-sm px-3 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-60 disabled:cursor-not-allowed text-app-on-filled transition-colors"
         >
           {isSaving ? m.common_saving() : m.common_save()}
         </button>
-        {chatSaveError && <p className="text-xs text-red-400">{chatSaveError}</p>}
+        {chatSaveError && <p className="text-xs text-status-danger">{chatSaveError}</p>}
       </div>
 
       {/* Auto-tune provider */}
@@ -770,9 +770,9 @@ export function AiSection() {
                 className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full font-mono"
               />
             </div>
-            <p className="text-[11px] text-app-text-muted mt-1">
+            <p className="text-app-compact text-app-text-muted mt-1">
               {PROVIDER_KEY_LABELS[autoTuneProvider].helpText}{" "}
-              <a href={PROVIDER_KEY_LABELS[autoTuneProvider].helpUrl} target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">
+              <a href={PROVIDER_KEY_LABELS[autoTuneProvider].helpUrl} target="_blank" rel="noreferrer" className="text-app-accent hover:underline">
                 {new URL(PROVIDER_KEY_LABELS[autoTuneProvider].helpUrl).hostname}
               </a>
             </p>
@@ -786,12 +786,12 @@ export function AiSection() {
                 type="button"
                 onClick={() => refreshModels.mutate()}
                 disabled={aiModelsFetching || modelsRefreshing || isSaving}
-                className="inline-flex items-center gap-1 text-[11px] text-app-text-muted hover:text-app-text disabled:opacity-50"
+                className="inline-flex items-center gap-1 text-app-compact text-app-text-muted hover:text-app-text disabled:opacity-50"
               >
                 <RefreshCw className={`size-3 ${aiModelsFetching || modelsRefreshing ? "animate-spin" : ""}`} />
                 {m.ai_refresh()}
               </button>
-              {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-[11px] text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
+              {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-app-compact text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
             </div>
             <select
               value={autoTuneModel}
@@ -818,7 +818,7 @@ export function AiSection() {
           </div>
         )}
         {autoTuneProvider !== "" && hasAutoTuneProviderKey && (autoTuneProviderModelError || aiModelsError) && (
-          <p className="text-xs text-red-400">{autoTuneProviderModelError || m.ai_load_models_failed()}</p>
+          <p className="text-xs text-status-danger">{autoTuneProviderModelError || m.ai_load_models_failed()}</p>
         )}
         <button
           onClick={async () => {
@@ -851,11 +851,11 @@ export function AiSection() {
             }
           }}
           disabled={isSaving || !canSaveAutoTune}
-          className="text-sm px-3 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 disabled:opacity-60 disabled:cursor-not-allowed text-white transition-colors"
+          className="text-sm px-3 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-60 disabled:cursor-not-allowed text-app-on-filled transition-colors"
         >
           {isSaving ? m.common_saving() : m.common_save()}
         </button>
-        {autoTuneSaveError && <p className="text-xs text-red-400">{autoTuneSaveError}</p>}
+        {autoTuneSaveError && <p className="text-xs text-status-danger">{autoTuneSaveError}</p>}
       </div>
 
       {/* Driver Profile provider */}
@@ -868,7 +868,7 @@ export function AiSection() {
               type="checkbox"
               checked={driverProfileBackgroundEnabled}
               onChange={(e) => setDriverProfileBackgroundEnabled(e.target.checked)}
-              className="mt-0.5 accent-cyan-500"
+              className="mt-0.5 accent-app-accent"
             />
             <span>
               <span className="block">{m.ai_driver_profile_background_label()}</span>
@@ -910,7 +910,7 @@ export function AiSection() {
                 <button
                   onClick={() => clearDriverProfileKey(PROVIDER_KEY_MAP[driverProfileProvider])}
                   title={m.ai_clear_key_title()}
-                  className="shrink-0 p-1.5 rounded text-app-text-muted hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                  className="shrink-0 p-1.5 rounded text-app-text-muted hover:text-status-danger hover:bg-status-danger/10 transition-colors"
                 >
                   <X className="size-3.5" />
                 </button>
@@ -918,7 +918,7 @@ export function AiSection() {
             </div>
             <p className="text-xs text-app-text-muted mt-1">
               {driverProfileKeyInfo.helpText}{" "}
-              <a href={driverProfileKeyInfo.helpUrl} target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">
+              <a href={driverProfileKeyInfo.helpUrl} target="_blank" rel="noreferrer" className="text-app-accent hover:text-app-accent-hover hover:underline">
                 {new URL(driverProfileKeyInfo.helpUrl).hostname}
               </a>
             </p>
@@ -932,13 +932,13 @@ export function AiSection() {
                 type="button"
                 onClick={() => refreshModels.mutate()}
                 disabled={aiModelsFetching || modelsRefreshing || isSaving}
-                className="inline-flex items-center gap-1 text-[11px] text-app-text-muted hover:text-app-text disabled:opacity-50"
+                className="inline-flex items-center gap-1 text-app-compact text-app-text-muted hover:text-app-text disabled:opacity-50"
                 title={m.ai_refresh_models_title()}
               >
                 <RefreshCw className={`size-3 ${aiModelsFetching || modelsRefreshing ? "animate-spin" : ""}`} />
                 {m.ai_refresh()}
               </button>
-              {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-[11px] text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
+              {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-app-compact text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
             </div>
             <select
               value={driverProfileModel}
@@ -989,16 +989,16 @@ export function AiSection() {
           </div>
         )}
         {driverProfileProvider !== "" && hasDriverProfileProviderKey && (driverProfileProviderModelError || aiModelsError) && (
-          <p className="text-xs text-red-400">{driverProfileProviderModelError || m.ai_load_models_failed()}</p>
+          <p className="text-xs text-status-danger">{driverProfileProviderModelError || m.ai_load_models_failed()}</p>
         )}
         <button
           onClick={handleDriverProfileSave}
           disabled={isSaving || !canSaveDriverProfile}
-          className="text-sm px-3 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 disabled:opacity-60 disabled:cursor-not-allowed text-white transition-colors"
+          className="text-sm px-3 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-60 disabled:cursor-not-allowed text-app-on-filled transition-colors"
         >
           {isSaving ? m.common_saving() : m.common_save()}
         </button>
-        {driverProfileSaveError && <p className="text-xs text-red-400">{driverProfileSaveError}</p>}
+        {driverProfileSaveError && <p className="text-xs text-status-danger">{driverProfileSaveError}</p>}
       </div>
     </section>
   );

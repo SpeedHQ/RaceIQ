@@ -18,22 +18,22 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
 
         // App design-token variants (use app-* CSS vars)
-        "app-outline": "!border-neutral-700 text-app-text-secondary hover:text-app-text rounded",
-        "app-primary": "bg-app-accent text-white hover:bg-app-accent/80 rounded disabled:bg-app-accent/40 disabled:opacity-100",
+        "app-outline": "!border-app-border-input text-app-text-secondary hover:text-app-text rounded",
+        "app-primary": "bg-app-accent text-app-on-filled hover:bg-app-accent-hover rounded disabled:bg-app-accent/40 disabled:opacity-100",
         "app-ghost": "text-app-text-secondary hover:text-app-text rounded",
-        "app-danger": "bg-red-600 text-white hover:bg-red-500 rounded",
+        "app-danger": "bg-status-danger text-app-on-filled hover:bg-status-danger-hover rounded",
       },
       size: {
         default: "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
         xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
+        sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-app-detail in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
         lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
         icon: "size-8",
         "icon-xs": "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
         "icon-lg": "size-9",
         // App sizes (no fixed height — padding-driven like existing header buttons)
-        "app-sm": "px-2 py-0.5 text-[10px] gap-1 [&_svg:not([class*='size-'])]:size-3",
+        "app-sm": "px-2 py-0.5 text-app-caption gap-1 [&_svg:not([class*='size-'])]:size-3",
         "app-md": "px-3 py-1.5 text-xs gap-1.5",
         "app-lg": "px-4 py-2 text-sm gap-1.5",
       },

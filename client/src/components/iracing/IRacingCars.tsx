@@ -13,34 +13,6 @@ interface IRacingCatalogCar {
   imageUrl: string;
 }
 
-const CATEGORY_COLORS: Record<string, { active: string; badge: string }> = {
-  sports_car: {
-    active: "bg-blue-500/15 text-blue-400",
-    badge: "bg-blue-500/20 text-blue-300 border-blue-500/30",
-  },
-  formula_car: {
-    active: "bg-purple-500/15 text-purple-400",
-    badge: "bg-purple-500/20 text-purple-300 border-purple-500/30",
-  },
-  oval: {
-    active: "bg-amber-500/15 text-amber-400",
-    badge: "bg-amber-500/20 text-amber-300 border-amber-500/30",
-  },
-  dirt_oval: {
-    active: "bg-orange-500/15 text-orange-400",
-    badge: "bg-orange-500/20 text-orange-300 border-orange-500/30",
-  },
-  dirt_road: {
-    active: "bg-emerald-500/15 text-emerald-400",
-    badge: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
-  },
-};
-
-const DEFAULT_CATEGORY_COLOR = {
-  active: "bg-app-surface-alt text-app-text-secondary",
-  badge: "bg-app-surface-alt/80 text-app-text-secondary border-app-border",
-};
-
 function categoryLabel(category: string): string {
   switch (category) {
     case "sports_car":
@@ -90,7 +62,7 @@ export function IRacingCars() {
       <div className="flex items-center gap-3 flex-wrap">
         <AppInput value={search} onChange={(event) => setSearch(event.target.value)} placeholder={m.cars_search_placeholder()} className="w-full sm:w-72" />
         {!isLoading && (
-          <span className="text-xs text-app-text/90-muted whitespace-nowrap">
+          <span className="text-xs text-app-text/90 whitespace-nowrap">
             {filtered.length} / {cars.length}
           </span>
         )}
@@ -109,14 +81,14 @@ export function IRacingCars() {
             {m.iracingcars_all_categories()} ({cars.length})
           </button>
           {categories.map((category) => {
-            const colors = CATEGORY_COLORS[category] ?? DEFAULT_CATEGORY_COLOR;
             const count = cars.filter((car) => car.category === category).length;
             return (
               <button
                 type="button"
                 key={category}
+                data-catalog-category={category}
                 aria-pressed={filterCategory === category}
-                className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${filterCategory === category ? colors.active : "text-app-text-muted hover:text-app-text-secondary"}`}
+                className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${filterCategory === category ? "catalog-category" : "text-app-text-muted hover:text-app-text-secondary"}`}
                 onClick={() => setFilterCategory(filterCategory === category ? null : category)}
               >
                 {categoryLabel(category)} ({count})
@@ -127,16 +99,15 @@ export function IRacingCars() {
       )}
 
       {isLoading ? (
-        <div className="text-center py-16 text-app-text/90-muted text-sm">{m.cars_loading()}</div>
+        <div className="text-center py-16 text-app-text/90 text-sm">{m.cars_loading()}</div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-12 text-app-text/90-muted text-sm">{m.cars_no_match()}</div>
+        <div className="text-center py-12 text-app-text/90 text-sm">{m.cars_no_match()}</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {filtered.map((car) => {
-            const colors = CATEGORY_COLORS[car.category] ?? DEFAULT_CATEGORY_COLOR;
             return (
-              <article key={car.ordinal} className="group overflow-hidden rounded-lg border border-app-border/10 bg-app-surface-alt/20 transition-colors hover:border-app-border/30">
-                <div className="relative h-40 overflow-hidden bg-gradient-to-br from-white/10 via-app-surface-alt/20 to-black/20">
+              <article key={car.ordinal} className="group overflow-hidden rounded-lg border border-app-border/10 bg-app-surface-alt/20 transition-colors hover:border-app-border-hover/30">
+                <div className="relative h-40 overflow-hidden bg-gradient-to-br from-app-text/10 via-app-surface-alt/20 to-app-bg/20">
                   <div className="absolute inset-0 flex items-center justify-center text-3xl font-black italic text-app-text/10">iR</div>
                   {car.imageUrl && (
                     <img
@@ -149,7 +120,7 @@ export function IRacingCars() {
                       }}
                     />
                   )}
-                  <span className={`absolute bottom-2 right-2 rounded border px-2 py-0.5 text-[10px] font-bold shadow-sm backdrop-blur-sm ${colors.badge}`}>{categoryLabel(car.category)}</span>
+                  <span className="catalog-category-badge absolute bottom-2 right-2 rounded border px-2 py-0.5 text-app-caption font-bold shadow-sm backdrop-blur-sm" data-catalog-category={car.category}>{categoryLabel(car.category)}</span>
                 </div>
                 <div className="p-3">
                   <h2 className="text-sm font-semibold leading-tight text-app-text">{car.name}</h2>

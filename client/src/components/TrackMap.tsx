@@ -1,3 +1,6 @@
+import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import { mixCssColors } from "@/lib/rendering/css-values";
+import { TRACK_SPEED_COLOR_VARS } from "@/lib/colors";
 import { hasWorldPositions, lapPath } from "@shared/lib/lap-path";
 import type { TelemetryPacket } from "@shared/types";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -32,12 +35,12 @@ function getSpeedMph(p: TelemetryPacket): number {
 }
 
 function speedToColor(speed: number, minSpeed: number, maxSpeed: number): string {
-  const t = maxSpeed > minSpeed ? (speed - minSpeed) / (maxSpeed - minSpeed) : 0;
-  // blue (slow) -> cyan -> green -> yellow -> red (fast)
-  const r = Math.round(t < 0.5 ? 0 : (t - 0.5) * 2 * 255);
-  const g = Math.round(t < 0.5 ? t * 2 * 255 : (1 - t) * 2 * 255);
-  const b = Math.round(t < 0.5 ? (1 - t * 2) * 255 : 0);
-  return `rgb(${r},${g},${b})`;
+  const t = Math.min(1, Math.max(0, maxSpeed > minSpeed ? (speed - minSpeed) / (maxSpeed - minSpeed) : 0));
+  const [from, to, amount] =
+    t < 0.5
+      ? [TRACK_SPEED_COLOR_VARS[0], TRACK_SPEED_COLOR_VARS[1], t * 2]
+      : [TRACK_SPEED_COLOR_VARS[1], TRACK_SPEED_COLOR_VARS[2], (t - 0.5) * 2];
+  return mixCssColors(from, to, amount);
 }
 
 function channelToColor(value: number, min: number, max: number): string {
@@ -76,7 +79,7 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
     canvas.style.width = `${rect.width}px`;
     canvas.style.height = `${rect.height}px`;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = getSemanticCanvasContext(canvas);
     if (!ctx) return;
     ctx.scale(dpr, dpr);
 
@@ -138,11 +141,11 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
         ctx.lineTo(toScreenX(right[i].x), toScreenZ(right[i].z));
       }
       ctx.closePath();
-      ctx.fillStyle = "rgba(51, 65, 85, 0.25)";
+      ctx.fillStyle = "color-mix(in srgb, var(--track-surface) 25%, transparent)";
       ctx.fill();
 
       // Edge lines
-      ctx.strokeStyle = "rgba(100, 116, 139, 0.35)";
+      ctx.strokeStyle = "color-mix(in srgb, var(--track-edge) 35%, transparent)";
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(toScreenX(left[0].x), toScreenZ(left[0].z));
@@ -156,7 +159,7 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
       // Center-line (faint)
       if (boundaries!.centerLine?.length > 2) {
         ctx.beginPath();
-        ctx.strokeStyle = "rgba(148, 163, 184, 0.3)";
+        ctx.strokeStyle = "color-mix(in srgb, var(--track-muted) 30%, transparent)";
         ctx.lineWidth = 1;
         ctx.moveTo(toScreenX(boundaries!.centerLine[0].x), toScreenZ(boundaries!.centerLine[0].z));
         for (let i = 1; i < boundaries!.centerLine.length; i++) {
@@ -209,9 +212,9 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
       }
       ctx.beginPath();
       ctx.arc(toScreenX(x[closestIdx]), toScreenZ(z[closestIdx]), 6, 0, Math.PI * 2);
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = "var(--app-text)";
       ctx.fill();
-      ctx.strokeStyle = "#000000";
+      ctx.strokeStyle = "var(--app-bg)";
       ctx.lineWidth = 2;
       ctx.stroke();
     }
@@ -220,7 +223,7 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
     if (x.length > 0) {
       ctx.beginPath();
       ctx.arc(toScreenX(x[0]), toScreenZ(z[0]), 4, 0, Math.PI * 2);
-      ctx.fillStyle = "#22c55e";
+      ctx.fillStyle = "var(--track-start)";
       ctx.fill();
     }
   }, [telemetry, colorBy, highlightDistance, lineColor, boundaries]);

@@ -66,11 +66,11 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
       {carName && (
         <div className="flex items-center gap-2 mb-2">
           <span className="text-xs font-semibold text-app-text truncate">{carName}</span>
-          <span className="text-[10px] font-mono font-semibold px-1.5 py-px rounded text-app-accent shrink-0">
+          <span className="text-app-caption font-mono font-semibold px-1.5 py-px rounded text-app-accent shrink-0">
             {(gameId && tryGetGame(gameId)?.carClassNames?.[packet.CarClass]) ?? "?"}
             {packet.CarPerformanceIndex}
           </span>
-          <span className="text-[10px] text-app-text-dim shrink-0">{(gameId && tryGetGame(gameId)?.drivetrainNames?.[packet.DrivetrainType]) ?? "?"}</span>
+          <span className="text-app-caption text-app-text-dim shrink-0">{(gameId && tryGetGame(gameId)?.drivetrainNames?.[packet.DrivetrainType]) ?? "?"}</span>
         </div>
       )}
       <div className="flex items-end justify-between mb-1">
@@ -79,8 +79,8 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
           <span className="text-sm text-app-text-muted font-mono">{units.speedLabel}</span>
         </div>
         <div className="flex items-baseline gap-2">
-          {telemetryModel.power && <span className="text-[10px] text-app-text-dim font-mono">{hp.toFixed(0)}hp</span>}
-          <span className={`text-5xl font-mono font-black tabular-nums leading-none tracking-tighter ${rpmPct > 90 ? "text-red-400" : "text-app-accent"}`}>
+          {telemetryModel.power && <span className="text-app-caption text-app-text-dim font-mono">{hp.toFixed(0)}hp</span>}
+          <span className="text-5xl font-mono font-black tabular-nums leading-none tracking-tighter" style={{ color: rpmPct > 90 ? "var(--rev-limit)" : "var(--app-accent)" }}>
             {packet.Gear === 0 ? "R" : packet.Gear === 11 ? "N" : packet.Gear}
           </span>
         </div>
@@ -89,14 +89,17 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
         {Array.from({ length: 30 }, (_, i) => {
           const segPct = ((i + 1) / 30) * 100;
           const lit = rpmPct >= segPct;
-          let color: string;
-          if (segPct <= 60) color = lit ? "bg-cyan-400" : "bg-cyan-400/8";
-          else if (segPct <= 80) color = lit ? "bg-amber-400" : "bg-amber-400/8";
-          else color = lit ? "bg-red-500" : "bg-red-500/8";
-          return <div key={i} className={`flex-1 h-4 rounded-sm ${color} ${lit && segPct > 90 ? "animate-pulse" : ""}`} />;
+          const color = segPct <= 60 ? "var(--rev-normal)" : segPct <= 80 ? "var(--rev-high)" : "var(--rev-limit)";
+          return (
+            <div
+              key={i}
+              className={`flex-1 h-4 rounded-sm ${lit && segPct > 90 ? "animate-pulse" : ""}`}
+              style={{ backgroundColor: color, opacity: lit ? 1 : 0.08 }}
+            />
+          );
         })}
       </div>
-      <div className="flex justify-between text-[9px] text-app-text-dim font-mono tabular-nums">
+      <div className="flex justify-between text-app-micro text-app-text-dim font-mono tabular-nums">
         <span>{packet.EngineIdleRpm.toFixed(0)}</span>
         <span>{packet.CurrentEngineRpm.toFixed(0)} rpm</span>
         <span>{packet.EngineMaxRpm.toFixed(0)}</span>
@@ -143,22 +146,26 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
         <div className="flex gap-3 items-center">
           <div className="flex-1 space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-[9px] font-mono text-emerald-400 font-bold w-6 text-right tabular-nums">{throttlePct.toFixed(0)}</span>
+              <span className="text-app-micro font-mono font-bold w-6 text-right tabular-nums" style={{ color: "var(--ch-throttle)" }}>
+                {throttlePct.toFixed(0)}
+              </span>
               <div className="flex-1 h-3 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-400 rounded-full transition-all" style={{ width: `${throttlePct}%` }} />
+                <div className="h-full rounded-full transition-all" style={{ backgroundColor: "var(--ch-throttle)", width: `${throttlePct}%` }} />
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[9px] font-mono text-red-400 font-bold w-6 text-right tabular-nums">{brakePct.toFixed(0)}</span>
+              <span className="text-app-micro font-mono font-bold w-6 text-right tabular-nums" style={{ color: "var(--ch-brake)" }}>
+                {brakePct.toFixed(0)}
+              </span>
               <div className="flex-1 h-3 rounded-full overflow-hidden">
-                <div className="h-full bg-red-500 rounded-full transition-all" style={{ width: `${brakePct}%` }} />
+                <div className="h-full rounded-full transition-all" style={{ backgroundColor: "var(--ch-brake)", width: `${brakePct}%` }} />
               </div>
             </div>
           </div>
           {(telemetryModel.power || telemetryModel.torque || telemetryModel.boost) && (
             <div className="flex gap-1 shrink-0">
               <PowerTorque packet={packet} />
-              {telemetryModel.boost && <ArcGauge value={boostVal} max={30} label={m.live_boost()} unit="psi" color="#22d3ee" />}
+              {telemetryModel.boost && <ArcGauge value={boostVal} max={30} label={m.live_boost()} unit="psi" color="var(--app-accent)" />}
             </div>
           )}
         </div>
@@ -177,7 +184,7 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
 
       {/* Full tire diagram with suspension */}
       <div className="px-3 py-2 border-b border-app-border/50">
-        <div className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.label_tires()}</div>
+        <div className="text-app-caption text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.label_tires()}</div>
         <TireDiagram packet={packet} />
       </div>
 
@@ -188,13 +195,13 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
 
       {/* Grip history */}
       <div className="px-3 py-2 border-b border-app-border/50">
-        <div className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.live_grip()} (60s)</div>
+        <div className="text-app-caption text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.live_grip()} (60s)</div>
         <GripHistory packet={packet} />
       </div>
 
       {/* Telemetry charts */}
       <div className="px-3 py-2">
-        <div className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.live_telemetry()} (60s)</div>
+        <div className="text-app-caption text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.live_telemetry()} (60s)</div>
         <TelemetryCharts packet={packet} />
       </div>
     </div>

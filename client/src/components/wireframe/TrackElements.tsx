@@ -2,7 +2,7 @@ import { Line } from "@react-three/drei";
 import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
-import { buildTrackIndex, createWallGeometry, DIST_AHEAD, filterByDistanceIndexed, updateWallGeometry } from "../../lib/wireframe-utils";
+import { buildTrackIndex, createWallGeometry, DIST_AHEAD, filterByDistanceIndexed, THREE_COLORS, updateWallGeometry } from "../../lib/wireframe-utils";
 
 export function TrackOutline({ outline, packet, distAhead }: { outline: { x: number; z: number }[]; packet: TelemetryPacket; distAhead?: number }) {
   const ahead = distAhead ?? DIST_AHEAD;
@@ -16,7 +16,7 @@ export function TrackOutline({ outline, packet, distAhead }: { outline: { x: num
   return (
     <>
       {segments.map((seg, i) => (
-        <Line key={i} points={seg} color="#ffffff" lineWidth={3} opacity={0.6} transparent />
+        <Line key={i} points={seg} color={THREE_COLORS.appText} lineWidth={3} opacity={0.6} transparent />
       ))}
     </>
   );
@@ -77,10 +77,10 @@ export function TrackBoundaryEdges({
   return (
     <>
       <mesh geometry={leftGeom}>
-        <meshBasicMaterial color="#ef4444" opacity={0.5} transparent side={THREE.DoubleSide} />
+        <meshBasicMaterial color={THREE_COLORS.trackCurbLeft} opacity={0.5} transparent side={THREE.DoubleSide} />
       </mesh>
       <mesh geometry={rightGeom}>
-        <meshBasicMaterial color="#3b82f6" opacity={0.5} transparent side={THREE.DoubleSide} />
+        <meshBasicMaterial color={THREE_COLORS.trackCurbRight} opacity={0.5} transparent side={THREE.DoubleSide} />
       </mesh>
     </>
   );

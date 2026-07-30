@@ -1,4 +1,6 @@
+import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import type { Point, TrackSectors } from "@/components/track/types";
+import { SECTOR_COLOR_VARS, TRACK_CORNER_COLOR_VARS, TRACK_STRAIGHT_COLOR_VARS } from "@/lib/colors";
 import { segmentDisplayNames, segmentGroupLabels } from "@/lib/segment-label";
 
 interface LabelCandidate {
@@ -36,7 +38,9 @@ function overlaps(a: Rect, b: Rect): boolean {
  * inside, before giving up.
  */
 function placeLabels(ctx: CanvasRenderingContext2D, labels: LabelCandidate[], large: boolean, w: number, h: number) {
-  ctx.font = large ? "bold 9px monospace" : "bold 7px monospace";
+  ctx.font = large
+    ? "var(--font-weight-bold) var(--text-app-micro) var(--font-mono)"
+    : "var(--font-weight-bold) var(--text-app-glyph) var(--font-mono)";
   ctx.textAlign = "center";
   const offDist = large ? 14 : 8;
   const padX = 3;
@@ -64,7 +68,7 @@ function placeLabels(ctx: CanvasRenderingContext2D, labels: LabelCandidate[], la
     taken.push(placed.rect);
 
     ctx.globalAlpha = large ? 0.85 : 0.6;
-    ctx.fillStyle = "#0f172a";
+    ctx.fillStyle = "var(--track-label-background)";
     ctx.beginPath();
     ctx.roundRect(placed.rect.x, placed.rect.y, rw, rh, 3);
     ctx.fill();
@@ -110,7 +114,7 @@ export function drawTrack(
   /** Debug editing: label every segment individually instead of once per group. */
   perSegmentLabels?: boolean,
 ) {
-  const ctx = canvas.getContext("2d");
+  const ctx = getSemanticCanvasContext(canvas);
   if (!ctx || outline.length < 2) return;
 
   const rect = canvas.getBoundingClientRect();
@@ -147,7 +151,7 @@ export function drawTrack(
 
   // Track outline
   ctx.beginPath();
-  ctx.strokeStyle = large ? "#475569" : "#334155";
+  ctx.strokeStyle = large ? "var(--track-outline-strong)" : "var(--track-outline)";
   ctx.lineWidth = large ? 4 : 2.5;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
@@ -163,7 +167,7 @@ export function drawTrack(
   // Sector override mode: draw source-defined sector bands, suppressing segment coloring.
   if (sectorOverride) {
     const n = outline.length;
-    const palette = sectorColors ?? ["#ef4444", "#3b82f6", "#eab308", "#22c55e", "#a855f7", "#f97316"];
+    const palette = sectorColors ?? SECTOR_COLOR_VARS;
     const sectorDefs = sectorOverride.starts.map((start, index) => ({
       label: `S${index + 1}`,
       color: palette[index % palette.length],
@@ -212,7 +216,7 @@ export function drawTrack(
         ctx.arc(fx, fy, 5, 0, Math.PI * 2);
         ctx.fillStyle = sec.color;
         ctx.fill();
-        ctx.strokeStyle = "#0f172a";
+        ctx.strokeStyle = "var(--track-label-background)";
         ctx.lineWidth = 1.5;
         ctx.stroke();
       }
@@ -229,11 +233,11 @@ export function drawTrack(
       const offDist = 16;
       const lx = mx + (-dz2 / len2) * offDist;
       const ly = my + (dx2 / len2) * offDist;
-      ctx.font = "bold 11px monospace";
+      ctx.font = "var(--font-weight-bold) var(--text-app-compact) var(--font-mono)";
       ctx.textAlign = "center";
       const textWidth = ctx.measureText(sec.label).width;
       ctx.globalAlpha = 0.9;
-      ctx.fillStyle = "#0f172a";
+      ctx.fillStyle = "var(--track-label-background)";
       ctx.beginPath();
       ctx.roundRect(lx - textWidth / 2 - 4, ly - 9, textWidth + 8, 13, 3);
       ctx.fill();
@@ -244,10 +248,7 @@ export function drawTrack(
   }
 
   // Inner line — color-coded by segment type. startFrac/endFrac map [0,1] to outline indices.
-  // Alternating color palettes for distinct segment visibility
-  const cornerColors = ["#ef4444", "#f97316", "#ec4899", "#f59e0b", "#e11d48", "#d946ef"];
-  const straightColors = ["#3b82f6", "#06b6d4", "#8b5cf6", "#2dd4bf", "#6366f1", "#0ea5e9"];
-
+  // Rotate one theme-owned series so adjacent corner/straight groups remain distinct.
   if (!sectorOverride && sectors && sectors.segments.length > 0) {
     const n = outline.length;
     let cornerIdx = 0,
@@ -273,7 +274,10 @@ export function drawTrack(
       const labelText = labelTexts[segIdx++];
       const start = Math.round(seg.startFrac * n);
       const end = Math.min(Math.round(seg.endFrac * n), n - 1);
-      const color = seg.type === "corner" ? cornerColors[cornerIdx++ % cornerColors.length] : straightColors[straightIdx++ % straightColors.length];
+      const color =
+        seg.type === "corner"
+          ? TRACK_CORNER_COLOR_VARS[cornerIdx++ % TRACK_CORNER_COLOR_VARS.length]
+          : TRACK_STRAIGHT_COLOR_VARS[straightIdx++ % TRACK_STRAIGHT_COLOR_VARS.length];
 
       ctx.beginPath();
       ctx.strokeStyle = color;
@@ -295,7 +299,7 @@ export function drawTrack(
         ctx.arc(fx, fy, 3, 0, Math.PI * 2);
         ctx.fillStyle = color;
         ctx.fill();
-        ctx.strokeStyle = "#0f172a";
+        ctx.strokeStyle = "var(--track-label-background)";
         ctx.lineWidth = 1;
         ctx.stroke();
       }
@@ -331,7 +335,7 @@ export function drawTrack(
     placeLabels(ctx, labels, large, w, h);
   } else if (!sectorOverride) {
     ctx.beginPath();
-    ctx.strokeStyle = large ? "#94a3b8" : "#64748b";
+    ctx.strokeStyle = large ? "var(--track-muted)" : "var(--track-edge)";
     ctx.lineWidth = large ? 2 : 1.5;
     ctx.moveTo(sx, sy);
     for (let i = 1; i < outline.length; i++) {
@@ -345,7 +349,7 @@ export function drawTrack(
   // Start marker
   ctx.beginPath();
   ctx.arc(sx, sy, large ? 5 : 3, 0, Math.PI * 2);
-  ctx.fillStyle = "#10b981";
+  ctx.fillStyle = "var(--track-start)";
   ctx.fill();
 
   // Direction arrow from start point — use ~0.5% of outline (just a few meters ahead)
@@ -366,7 +370,7 @@ export function drawTrack(
       ctx.beginPath();
       ctx.moveTo(sx, sy);
       ctx.lineTo(tipX, tipY);
-      ctx.strokeStyle = "#10b981";
+      ctx.strokeStyle = "var(--track-start)";
       ctx.lineWidth = large ? 2 : 1.5;
       ctx.stroke();
 
@@ -375,7 +379,7 @@ export function drawTrack(
       ctx.lineTo(tipX - nx * wingLen * 2 + ny * wingLen, tipY - ny * wingLen * 2 - nx * wingLen);
       ctx.lineTo(tipX - nx * wingLen * 2 - ny * wingLen, tipY - ny * wingLen * 2 + nx * wingLen);
       ctx.closePath();
-      ctx.fillStyle = "#10b981";
+      ctx.fillStyle = "var(--track-start)";
       ctx.fill();
     }
   }

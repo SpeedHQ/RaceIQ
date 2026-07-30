@@ -17,13 +17,13 @@ import { type ExperimentVersion, useExperimentFocusHistory } from "../../hooks/q
 export function FocusTimeline({ experimentId, versions = [] }: { experimentId: number; versions?: ExperimentVersion[] }) {
   const { data: events = [], isLoading } = useExperimentFocusHistory(experimentId);
 
-  if (isLoading) return <div className="text-[11px] text-app-text-dim">Loading focus history…</div>;
+  if (isLoading) return <div className="text-app-compact text-app-text-dim">Loading focus history…</div>;
   // One entry means the experiment opened on a focus and never moved — a
   // timeline of one is noise, so say the plain fact instead.
   if (events.length <= 1) {
     const only = events[0];
     return (
-      <div className="text-[11px] text-app-text-dim">
+      <div className="text-app-compact text-app-text-dim">
         {only ? `Worked on the ${EXPERIMENT_FOCUS_LABELS[only.focus].toLowerCase()} throughout — focus never switched.` : "No focus history recorded."}
       </div>
     );
@@ -36,10 +36,10 @@ export function FocusTimeline({ experimentId, versions = [] }: { experimentId: n
       {events.map((e, i) => {
         const at = labelFor(e.fromVersionId);
         return (
-          <li key={e.id} className="flex items-start gap-2 text-[11px]">
+          <li key={e.id} className="flex items-start gap-2 text-app-compact">
             <span
-              className={`mt-px rounded-full px-1.5 py-px text-[10px] font-medium shrink-0 ${
-                e.focus === "driver" ? "bg-sky-500/15 text-sky-300" : "bg-purple-500/15 text-purple-300"
+              className={`mt-px rounded-full px-1.5 py-px text-app-caption font-medium shrink-0 ${
+              e.focus === "driver" ? "bg-(--focus-driver)/15 text-(--focus-driver)" : "bg-(--focus-setup)/15 text-(--focus-setup)"
               }`}
             >
               {EXPERIMENT_FOCUS_LABELS[e.focus]}

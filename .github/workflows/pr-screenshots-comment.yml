@@ -88,7 +88,7 @@ jobs:
             echo "$marker"
             echo "## 🖼️ App UI changes"
             echo
-            echo "Current PR screenshots compared with main. Added and removed screenshots are included."
+            echo "Current PR screenshots compared with main. Storybook render-vs-committed-baseline failures are listed separately from committed PR-baseline-vs-main changes."
             echo
             for after in pr-preview/*-after.png; do
               name=$(basename "$after" -after.png)

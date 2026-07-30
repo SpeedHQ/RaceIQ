@@ -123,26 +123,26 @@ export function ImportDumpPanel() {
           type="button"
           onClick={handleImport}
           disabled={!file || importing}
-          className="flex-1 px-4 py-2 rounded bg-app-accent text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+          className="flex-1 px-4 py-2 rounded bg-app-accent text-app-on-filled font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
         >
           {importing ? m.label_importing() : m.dev_import_button()}
         </button>
         {file && !importing && (
-          <button type="button" onClick={() => handleSelect(null)} className="px-4 py-2 rounded bg-app-surface-alt text-app-text hover:bg-app-surface transition-colors">
+          <button type="button" onClick={() => handleSelect(null)} className="px-4 py-2 rounded bg-app-surface-alt text-app-text hover:bg-app-surface-hover transition-colors">
             {m.common_clear()}
           </button>
         )}
       </div>
 
       {error && (
-        <div className="mt-4 p-3 rounded bg-red-950/40 border border-red-800 text-red-300 text-sm">
+        <div className="mt-4 p-3 rounded bg-status-danger/10 border border-status-danger/30 text-status-danger text-sm">
           <div className="font-medium">{m.dev_import_failed()}</div>
           <div className="mt-1 text-xs break-words">{error}</div>
         </div>
       )}
 
       {result && (
-        <div className="mt-4 p-3 rounded bg-green-950/40 border border-green-800 text-green-300 text-sm">
+        <div className="mt-4 p-3 rounded bg-status-success/10 border border-status-success/30 text-status-success text-sm">
           <div className="font-medium">{m.dev_import_complete()}</div>
           <div className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs font-mono">
             <div className="text-app-text-muted">File</div>
@@ -170,16 +170,16 @@ export function ImportDumpPanel() {
           </div>
 
           {result.laps.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-green-800/50">
+          <div className="mt-3 pt-3 border-t border-status-success/30">
               <div className="text-xs text-app-text-muted mb-2">{m.dev_imported_laps()}</div>
               <div className="space-y-1">
                 {result.laps.map((lap) => (
                   <div key={lap.lapId} className="flex items-center gap-2 px-2 py-1.5 rounded bg-app-surface-alt text-app-text">
                     <div className="flex-1 min-w-0 text-xs font-mono">
                       <span className="text-app-text-muted">#{lap.lapNumber}</span> <span>{formatLapTime(lap.lapTime)}</span>
-                      {!lap.isValid && <span className="ml-2 px-1.5 py-0.5 rounded bg-red-950 text-red-400 text-[10px]">invalid</span>}
+                    {!lap.isValid && <span className="ml-2 px-1.5 py-0.5 rounded bg-status-danger/15 text-status-danger text-app-caption">invalid</span>}
                     </div>
-                    <button type="button" onClick={() => openInAnalyse(lap)} className="px-2.5 py-1 text-xs rounded bg-app-accent text-white hover:opacity-90 transition-opacity">
+                    <button type="button" onClick={() => openInAnalyse(lap)} className="px-2.5 py-1 text-xs rounded bg-app-accent text-app-on-filled hover:opacity-90 transition-opacity">
                       {m.dev_open_analyse()}
                     </button>
                   </div>

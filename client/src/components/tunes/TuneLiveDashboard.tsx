@@ -13,9 +13,9 @@ import { AutoTunePanel } from "./AutoTunePanel";
 
 const SEVERITY_ORDER: Record<TuneIssue["severity"], number> = { critical: 0, warn: 1, info: 2 };
 const SEVERITY_CLASS: Record<TuneIssue["severity"], string> = {
-  critical: "text-red-400 border-red-800/60 bg-red-950/30",
-  warn: "text-amber-400 border-amber-800/60 bg-amber-950/30",
-  info: "text-sky-400 border-sky-800/60 bg-sky-950/30",
+  critical: "text-status-danger border-status-danger/30 bg-status-danger/10",
+  warn: "text-status-warning border-status-warning/30 bg-status-warning/10",
+  info: "text-status-info border-status-info/30 bg-status-info/10",
 };
 
 /** How long a transient issue keeps showing after it stops being re-emitted
@@ -145,7 +145,7 @@ export function TuneLiveDashboard({ gameId, trackName, sessionLaps }: TuneLiveDa
               <div className="space-y-2">
                 {lapIssuesFeed.slice(0, 5).map((entry) => (
                   <div key={entry.lapId} className="border border-app-border rounded p-2">
-                    <div className="text-[11px] text-app-text-muted uppercase tracking-wider mb-1">Lap {entry.lapNumber}</div>
+                    <div className="text-app-compact text-app-text-muted uppercase tracking-wider mb-1">Lap {entry.lapNumber}</div>
                     {entry.issues.length === 0 ? (
                       <div className="text-xs text-app-text-dim">No issues.</div>
                     ) : (

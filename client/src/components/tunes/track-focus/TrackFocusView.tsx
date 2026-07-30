@@ -264,7 +264,7 @@ export function TrackFocusViewInner({
             )}
           </div>
           <div className="flex-1 min-h-0 flex flex-col">
-            <div className="flex-none text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Issues</div>
+            <div className="flex-none text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Issues</div>
             <div className="flex-1 min-h-0 overflow-y-auto">
               <IssuesList issues={issues} onIssueClick={setCursorFrac} />
             </div>
@@ -317,7 +317,7 @@ export function TrackFocusViewInner({
               <>
                 <TiresPanel traces={traces} bestLapId={bestLapId} cornerFracs={cornerFracs} cursorFrac={cursorFrac} onCursorFrac={setCursorFrac} />
                 <div className="pt-3 mt-1 border-t border-app-border">
-                  <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-2">Grip</div>
+                  <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-2">Grip</div>
                   <GripPanel
                     traces={resolvedTraces}
                     bestLapId={bestLapId}
@@ -350,10 +350,10 @@ export function TrackFocusViewInner({
 function StatCell({ label, value, unit }: { label: string; value: string; unit?: string }) {
   return (
     <div className="rounded bg-app-surface border border-app-border px-3 py-2">
-      <div className="text-[10px] uppercase tracking-wider text-app-text-dim">{label}</div>
+      <div className="text-app-caption uppercase tracking-wider text-app-text-dim">{label}</div>
       <div className="text-base font-mono tabular-nums text-app-text">
         {value}
-        {unit && <span className="text-[10px] text-app-text-dim ml-1">{unit}</span>}
+        {unit && <span className="text-app-caption text-app-text-dim ml-1">{unit}</span>}
       </div>
     </div>
   );

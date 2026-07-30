@@ -8,7 +8,7 @@ interface DashShellProps {
 export function DashShell({ children, className = "" }: DashShellProps) {
   return (
     <div
-      className={`fixed inset-0 bg-black text-white overflow-hidden select-none ${className}`}
+      className={`fixed inset-0 bg-app-bg text-app-text overflow-hidden select-none ${className}`}
       style={{
         paddingTop: "env(safe-area-inset-top)",
         paddingBottom: "env(safe-area-inset-bottom)",

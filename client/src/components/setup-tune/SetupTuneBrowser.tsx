@@ -98,7 +98,7 @@ export function SetupTuneBrowser({ gameId, routePrefix, cars }: { gameId: GameId
       headerExtra={
         <Link
           to={`${routePrefix}/setups/import` as string}
-          className="text-[11px] font-semibold uppercase tracking-wide border border-app-border text-app-text-secondary hover:text-app-text px-3.5 py-2 rounded no-underline"
+          className="text-app-compact font-semibold uppercase tracking-wide border border-app-border text-app-text-secondary hover:text-app-text px-3.5 py-2 rounded no-underline"
         >
           {m.setuptune_import_from_file()}
         </Link>

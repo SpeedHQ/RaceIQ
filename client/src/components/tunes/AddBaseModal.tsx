@@ -42,7 +42,7 @@ export function AddBaseModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -66,7 +66,7 @@ export function AddBaseModal({
         <SetupFilePicker gameId={gameId} value={picked} onChange={setPicked} lockedCar={lockedCar} />
 
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Label (optional)</span>
+          <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Label (optional)</span>
           <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="base" maxLength={200} className="bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs" />
         </label>
 
@@ -75,7 +75,7 @@ export function AddBaseModal({
           Switch to it as the current head
         </label>
 
-        {error && <div className="text-xs text-red-400">{error}</div>}
+        {error && <div className="text-xs text-status-danger">{error}</div>}
 
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs rounded border border-app-border text-app-text-dim hover:text-app-text">
@@ -86,7 +86,7 @@ export function AddBaseModal({
             onClick={submit}
             disabled={addBase.isPending || !picked.setupPath}
             title={!picked.setupPath ? "Pick a setup file" : undefined}
-            className="px-3 py-1.5 text-xs rounded bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-semibold"
+          className="px-3 py-1.5 text-xs rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 text-app-on-filled font-semibold"
           >
             {addBase.isPending ? "Adding…" : "Add base"}
           </button>
