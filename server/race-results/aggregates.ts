@@ -1,10 +1,26 @@
-import { getSessionResult, getSessions } from "../db/queries";
+import { getSessionResult } from "../db/queries";
+import { reconcileSessionResult } from "./reconcile";
 import type { RaceResult } from "../../shared/race-results";
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import type { GameId } from "../../shared/types";
 import type { RaceResultAggregate } from "../../shared/race-results";
 import { db } from "../db";
 import { pitEvents, sessionResults, sessions } from "../db/schema";
+
+async function reconcileMissingResults(scope: ResultAggregateScope): Promise<void> {
+  const filters = [eq(sessions.gameId, scope.gameId), isNull(sessionResults.id)];
+  if (scope.carOrdinal != null) filters.push(eq(sessions.carOrdinal, scope.carOrdinal));
+  if (scope.trackOrdinal != null) filters.push(eq(sessions.trackOrdinal, scope.trackOrdinal));
+  const missing = await db
+    .select({ sessionId: sessions.id })
+    .from(sessions)
+    .leftJoin(sessionResults, eq(sessionResults.sessionId, sessions.id))
+    .where(and(...filters))
+    .all();
+  for (const { sessionId } of missing) {
+    await reconcileSessionResult(sessionId, scope.gameId);
+  }
+}
 
 export interface ResultAggregateScope {
   gameId: GameId;
@@ -13,6 +29,7 @@ export interface ResultAggregateScope {
 }
 
 export async function getRaceResultAggregate(scope: ResultAggregateScope): Promise<RaceResultAggregate> {
+  await reconcileMissingResults(scope);
   const filters = [eq(sessions.gameId, scope.gameId)];
   if (scope.carOrdinal != null) filters.push(eq(sessions.carOrdinal, scope.carOrdinal));
   if (scope.trackOrdinal != null) filters.push(eq(sessions.trackOrdinal, scope.trackOrdinal));
@@ -61,12 +78,20 @@ export async function getRaceResultAggregate(scope: ResultAggregateScope): Promi
 }
 
 export async function getRecentRaceResults(gameId: GameId, limit = 10): Promise<RaceResult[]> {
-  const sessions = (await getSessions(gameId)).slice(0, Math.max(1, Math.min(50, Math.trunc(limit))));
+  await reconcileMissingResults({ gameId });
+  const boundedLimit = Math.max(1, Math.min(50, Math.trunc(limit)));
+  const rows = await db
+    .select({ sessionId: sessionResults.sessionId })
+    .from(sessionResults)
+    .innerJoin(sessions, eq(sessionResults.sessionId, sessions.id))
+    .where(eq(sessions.gameId, gameId))
+    .orderBy(desc(sessions.id))
+    .limit(boundedLimit)
+    .all();
   const results: RaceResult[] = [];
-  for (const session of sessions) {
-    const result = await getSessionResult(session.id, gameId);
-    if (!result) continue;
-    results.push(result as RaceResult);
+  for (const row of rows) {
+    const result = await getSessionResult(row.sessionId, gameId);
+    if (result) results.push(result as RaceResult);
   }
   return results;
 }
