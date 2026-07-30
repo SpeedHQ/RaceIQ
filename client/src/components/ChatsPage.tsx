@@ -147,17 +147,19 @@ export function ChatsPage() {
       )}
 
       {!loading && rows.length > 0 && (
-        <div className="flex-1 min-h-0 overflow-auto border border-app-border bg-app-surface">
-          <Table fit>
-            <TableHeader>
-              <TableHead>{m.label_type()}</TableHead>
-              <TableHead>{m.label_track()}</TableHead>
-              <TableHead>{m.chats_col_cars()}</TableHead>
-              <TableHead>{m.chats_col_laps()}</TableHead>
-              <TableHead>{m.chats_col_updated()}</TableHead>
-              <TableHead align="end">{m.label_actions()}</TableHead>
-            </TableHeader>
-            <TableBody>
+        <div className="flex-1 min-h-0 overflow-auto rounded-lg border border-app-border bg-app-surface">
+          <table className="w-full min-w-max text-app-label @3xl/workspace:min-w-0">
+            <thead className="sticky top-0 bg-app-surface-alt/80 backdrop-blur z-10 border-b border-app-border">
+              <tr className="text-left text-app-caption uppercase tracking-wider text-app-text-muted">
+                <th className="px-3 py-2 font-semibold">{m.label_type()}</th>
+                <th className="px-3 py-2 font-semibold">{m.label_track()}</th>
+                <th className="px-3 py-2 font-semibold">{m.chats_col_cars()}</th>
+                <th className="px-3 py-2 font-semibold">{m.chats_col_laps()}</th>
+                <th className="px-3 py-2 font-semibold">{m.chats_col_updated()}</th>
+                <th className="px-3 py-2 font-semibold text-right">{m.label_actions()}</th>
+              </tr>
+            </thead>
+            <tbody>
               {rows.map((row) => (
                 <TableRow key={row.threadId}>
                   <TableCell>
@@ -179,7 +181,7 @@ export function ChatsPage() {
                       <span className="truncate max-w-[180px] block">{row.tune.carName || "—"}</span>
                     ) : (
                       row.laps.map((l, i) => (
-                        <div key={i} className="flex items-center gap-1.5">
+                        <div key={l.id} className="flex items-center gap-1.5">
                           {row.type === "compare" && <span className={`w-1.5 h-1.5 rounded-full ${i === 0 ? "bg-(--comparison-lap-a)" : "bg-(--comparison-lap-b)"}`} />}
                           <span className="truncate max-w-[180px]">{l.carName}</span>
                         </div>
@@ -192,8 +194,8 @@ export function ChatsPage() {
                         #{row.tune.seq} — {row.tune.name}
                       </span>
                     ) : (
-                      row.laps.map((l, i) => (
-                        <div key={i}>
+                      row.laps.map((l) => (
+                        <div key={l.id}>
                           {m.chats_lap_number()} {l.lapNumber} — {formatLapTime(l.lapTime)}
                           {!l.isValid && <span className="text-status-danger ml-1">(inv)</span>}
                         </div>
@@ -203,14 +205,16 @@ export function ChatsPage() {
                   <TableCell tone="muted">{formatRelative(row.updatedAt)}</TableCell>
                   <TableCell align="end">
                     <div className="flex items-center justify-end gap-1">
-                      <Button
+                      <button
+                        type="button"
                         onClick={() => handleOpen(row)}
                         className="inline-flex items-center gap-1 text-app-compact px-2 py-1 rounded hover:bg-app-surface-hover text-app-text-secondary hover:text-app-text"
                         title={m.chats_open()}
                       >
                         <ExternalLink className="size-3" /> {m.chats_open()}
-                      </Button>
-                      <Button
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => handleDelete(row.threadId)}
                         className="inline-flex items-center gap-1 text-app-compact px-2 py-1 rounded hover:bg-status-danger/15 text-app-text-muted hover:text-status-danger"
                         title={m.chats_delete_title()}

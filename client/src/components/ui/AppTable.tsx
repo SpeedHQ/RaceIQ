@@ -99,21 +99,8 @@ export function Table(inputProps: TableProps) {
   } as const;
 
   return (
-    <div data-slot="table-container" className={cn("rounded-lg", variantClasses[variant], fit ? "" : "overflow-x-auto")}>
-      <table
-        {...props}
-        data-density={density}
-        data-slot="table"
-        data-variant={variant}
-        className={cn(
-          "w-full text-app-detail [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-app-surface [&_thead>tr]:border-b [&_thead>tr]:border-app-border [&_thead>tr]:text-app-label [&_thead>tr]:uppercase [&_thead>tr]:tracking-wider [&_thead>tr]:text-app-text-muted [&_tbody]:divide-y [&_tbody]:divide-app-border/40",
-          fit ? "min-w-0" : "min-w-max md:min-w-0",
-          layout === "fixed" && "table-fixed",
-          densityClasses[density],
-        )}
-      >
-        {children}
-      </table>
+    <div className={`rounded-lg ${fit ? "" : "overflow-x-auto"} ${className}`}>
+      <table className={`w-full text-sm ${fit ? "min-w-0" : "min-w-max @3xl/workspace:min-w-0"}`}>{children}</table>
     </div>
   );
 }

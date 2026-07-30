@@ -95,9 +95,9 @@ export function AccCars() {
       {/* Filters & Sort */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex gap-1">
-          <Button
-            variant={filterClass ? "app-ghost" : "selected-toggle"}
-            size="app-sm"
+          <button
+            type="button"
+            className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${!filterClass ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
             onClick={() => setFilterClass(null)}
           >
             {m.acccars_all_classes()}
@@ -105,7 +105,8 @@ export function AccCars() {
           {classes.map((cls) => {
             const count = cars.filter((car) => car.class === cls).length;
             return (
-              <Button
+              <button
+                type="button"
                 key={cls}
                 variant={filterClass === cls ? "selected-toggle" : "app-ghost"}
                 size="app-sm"
@@ -124,14 +125,14 @@ export function AccCars() {
         return (
           <div key={cls}>
             <div className="flex items-center gap-2 mb-3">
-              <Badge variant="catalog-category" size="default" data-catalog-category={cls}>
+              <span className="catalog-category text-xs font-bold px-2 py-0.5 rounded" data-catalog-category={cls}>
                 {cls}
-              </Badge>
+              </span>
               <span className="text-xs text-app-text-dim">
                 {classCars.length} {m.acccars_car_count_label()}
               </span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 @3xl/workspace:grid-cols-2 @5xl/workspace:grid-cols-3">
               {classCars.map((car) => {
                 const brand = getManufacturer(car.name);
                 const specs = car.specs;

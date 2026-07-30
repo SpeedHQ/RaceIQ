@@ -224,7 +224,7 @@ export function TrackFocusViewInner({
   return (
     <div className="flex flex-col h-full min-h-0 p-4 gap-4">
       {/* Stat strip */}
-      <div className="flex-none grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+      <div className="grid flex-none grid-cols-2 gap-2 @3xl/workspace:grid-cols-3 @5xl/workspace:grid-cols-6">
         <StatCell label="Consistency" value={stats.consistency != null ? stats.consistency.toFixed(0) : "—"} unit={stats.consistency != null ? "%" : undefined} />
         <StatCell label="Std dev" value={stats.sdS != null ? stats.sdS.toFixed(3) : "—"} unit={stats.sdS != null ? "s" : undefined} />
         <StatCell label="Best" value={stats.bestS != null ? stats.bestS.toFixed(3) : "—"} unit={stats.bestS != null ? "s" : undefined} />
@@ -243,7 +243,7 @@ export function TrackFocusViewInner({
         </p>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[460px_minmax(0,1fr)] gap-4 flex-1 min-h-0 min-w-0">
+      <div className="grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-4 @5xl/workspace:grid-cols-[460px_minmax(0,1fr)]">
         {/* Left column: track map (static) + issues list (own scroll). */}
         <div className="flex flex-col gap-3 min-h-0 min-w-0">
           <div className="flex-none">

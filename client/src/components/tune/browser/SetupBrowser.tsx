@@ -153,9 +153,57 @@ export function SetupBrowser(props: SetupBrowserProps) {
             {m.setup_new_tune()}
           </Button>
         )}
-        <div className="ml-auto flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          <SearchSelect className="w-full sm:w-48" value={track} options={trackOptions} onChange={pickTrack} placeholder={m.setup_any_track()} />
-          <SearchSelect className="w-full sm:w-48" value={car} options={carOptions} onChange={pickCar} placeholder={m.setup_any_car()} />
+      </div>
+
+      <div className="flex items-end gap-2.5 mb-3">
+        <ComboBox label={m.setup_track_label()} variant="track" value={track} options={trackOptions} onChange={pickTrack} placeholder={m.setup_any_track()} />
+        <span className="hidden pb-3 text-app-text-dim @3xl/workspace:block">{m.setup_arrow()}</span>
+        <ComboBox label={m.setup_car_label()} variant="car" value={car} options={carOptions} onChange={pickCar} placeholder={m.setup_any_car()} />
+      </div>
+
+      <div className="flex gap-1.5 items-center flex-wrap px-2.5 py-2 bg-app-surface border border-b-0 border-app-border rounded-t-lg">
+        {sources.map((s) => (
+          <button
+            type="button"
+            key={s.key}
+            className={`text-app-caption uppercase tracking-wide px-2.5 py-1.5 rounded border ${source === s.key ? (TAB_ACTIVE[s.key] ?? TAB_ACTIVE.all) : "border-app-border text-app-text-muted hover:text-app-text-secondary"}`}
+            onClick={() => pickSource(s.key)}
+          >
+            {s.label}
+          </button>
+        ))}
+        <input
+          type="text"
+          value={author}
+          placeholder={m.setup_search_author()}
+          onChange={(e) => pickAuthor(e.target.value)}
+          className="text-app-compact bg-app-bg border border-app-border-input rounded px-2.5 py-1.5 text-app-text placeholder:text-app-text-dim outline-none focus:border-app-accent w-40"
+        />
+        <div className="flex-1" />
+        {props.onRefresh && (
+          <button
+            type="button"
+            className="text-app-caption uppercase tracking-wide text-app-text-muted hover:text-app-text-secondary disabled:opacity-50"
+            onClick={props.onRefresh}
+            disabled={props.refreshing}
+          >
+            {props.refreshing ? m.setup_refreshing() : m.setup_refresh_button()}
+          </button>
+        )}
+      </div>
+
+      <div className="border border-app-border rounded-b-lg overflow-hidden">
+        <div className={`${TUNE_GRID} px-3 py-2.5 bg-app-bg text-app-micro uppercase tracking-wider text-app-text-dim`}>
+          <span>{m.setup_table_rank()}</span>
+          <span>{m.setup_table_tune()}</span>
+          <span className="hidden @3xl/workspace:block">{m.label_car()}</span>
+          <span className="hidden @3xl/workspace:block">{m.label_track()}</span>
+          <span className="hidden @3xl/workspace:block">{m.label_category()}</span>
+          <span className="hidden @3xl/workspace:block">{m.label_author()}</span>
+          <button type="button" className="justify-self-end uppercase tracking-wider text-app-accent inline-flex items-center gap-1" onClick={() => setSortAsc((a) => !a)}>
+            {m.label_lap_time()} <span className="text-app-nano">{sortAsc ? "▲" : "▼"}</span>
+          </button>
+          <span className="hidden @3xl/workspace:block" />
         </div>
       </div>
 

@@ -542,8 +542,14 @@ export function SessionsPage() {
             ))}
           </div>
         )}
-        <AppInput type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={m.sessions_search_placeholder()} className="flex-1 min-w-[200px] sm:flex-none sm:w-64" />
-        <h1 className="text-app-title font-semibold text-app-text/90 shrink-0">
+        <AppInput
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={m.sessions_search_placeholder()}
+          className="min-w-[200px] flex-1 @3xl/workspace:w-64 @3xl/workspace:flex-none"
+        />
+        <h1 className="text-sm font-semibold text-app-text/90 shrink-0">
           {m.label_sessions()}
           {!isLoading && (
             <span className="text-app-subtext text-app-text/90 font-normal ml-2">
@@ -606,7 +612,7 @@ export function SessionsPage() {
       </div>
 
       {/* Mobile card list */}
-      <div className="md:hidden flex-1 overflow-auto flex flex-col gap-2">
+      <div className="flex flex-1 flex-col gap-2 overflow-auto @3xl/workspace:hidden">
         {isLoading ? (
           <div className="px-3 py-8 text-center text-app-text/90">{m.common_loading()}</div>
         ) : pageItems.length === 0 ? (
@@ -725,66 +731,21 @@ export function SessionsPage() {
         )}
       </div>
 
-      <div className="hidden md:block flex-1 overflow-auto">
-        <Table fit>
-          <THead>
-            <TH>
-              <input
-                type="checkbox"
-                checked={pageItems.length > 0 && pageItems.every((s) => selectedSessions.has(s.id))}
-                onChange={() => {
-                  const allSelected = pageItems.every((s) => selectedSessions.has(s.id));
-                  setSelectedSessions((prev) => {
-                    const next = new Set(prev);
-                    for (const s of pageItems) {
-                      if (allSelected) next.delete(s.id);
-                      else next.add(s.id);
-                    }
-                    return next;
-                  });
-                }}
-                className="accent-app-accent w-4 h-4"
-              />
-            </TH>
-            {(
-              [
-                ["date", m.sessions_col_date()],
-                ["laps", m.label_laps()],
-                ["best", m.sessions_col_best_lap()],
-                ["track", m.label_track()],
-                ["car", m.label_car()],
-                ["result", "Result"],
-              ] as const
-            ).map(([field, label]) => (
-              <SortableTH key={field} direction={sortKey === field ? (sortDir === "asc" ? "ascending" : "descending") : undefined} onSort={() => toggleSort(field)}>
-                {label}
-              </SortableTH>
-            ))}
-            <TH>{m.sessions_col_notes()}</TH>
-          </THead>
-          <TBody>
-            {isLoading ? (
-              <TRow variant="separator">
-                <TD align="center" colSpan={colCount} tone="primary">
-                  <div className="py-6">{m.common_loading()}</div>
-                </TD>
-              </TRow>
-            ) : pageItems.length === 0 ? (
-              <TRow variant="separator">
-                <TD align="center" colSpan={colCount} tone="primary">
-                  <div className="py-6">{tab === "imported" ? m.sessions_none_imported() : m.sessions_none()}</div>
-                </TD>
-              </TRow>
-            ) : (
-              pageItems.map((session) => {
-                const isExpanded = expandedSessions.has(session.id);
-                const sessionLaps = lapsBySession.get(session.id) ?? [];
-                const sortedLaps = [...sessionLaps].sort((a, b) => {
-                  let cmp = 0;
-                  if (lapSortKey === "lap") cmp = a.lapNumber - b.lapNumber;
-                  else if (lapSortKey === "time") cmp = a.lapTime - b.lapTime;
-                  else if (lapSortKey === "valid") cmp = (b.isValid ? 1 : 0) - (a.isValid ? 1 : 0);
-                  return lapSortDir === "asc" ? cmp : -cmp;
+      <Table className="hidden flex-1 overflow-auto @3xl/workspace:table">
+        <THead>
+          <TH className="w-10 px-2">
+            <input
+              type="checkbox"
+              checked={pageItems.length > 0 && pageItems.every((s) => selectedSessions.has(s.id))}
+              onChange={() => {
+                const allSelected = pageItems.every((s) => selectedSessions.has(s.id));
+                setSelectedSessions((prev) => {
+                  const next = new Set(prev);
+                  for (const s of pageItems) {
+                    if (allSelected) next.delete(s.id);
+                    else next.add(s.id);
+                  }
+                  return next;
                 });
                 return (
                   <Fragment key={session.id}>

@@ -10,7 +10,7 @@
 ### Fixes
 
 - Show all registered games in storage settings, including games with no recording files
-- Make lap analysis and comparison reflow across phone, tablet, odd-shaped, and desktop windows without blocking device or rotation gates
+- Make every app workspace reflow across phone, tablet, odd-shaped, and desktop windows without blocking device or rotation gates
 
 ### Internal
 - Added complete telemetry-first semantic catalog with units, descriptions, per-game fidelity mappings, full parser/setup source inventories, stable iRacing SessionInfo setup leaves, detailed sector relationships, and persisted detailed tire temperatures

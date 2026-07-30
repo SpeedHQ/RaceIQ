@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { SECTOR_COLOR_VARS, TRACK_CORNER_COLOR_VARS, TRACK_STRAIGHT_COLOR_VARS, VISUALIZATION_COLOR_VARS } from "@/lib/colors";
+import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { client } from "@/lib/rpc";
 import { segmentDisplayNames } from "@/lib/segment-label";
 import { useGameId } from "@/stores/game";
@@ -413,7 +413,7 @@ export function TrackDebugPanel({
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 h-[calc(100vh-160px)]">
+    <div className="grid h-auto grid-cols-1 gap-4 @5xl/workspace:h-[calc(100vh-160px)] @5xl/workspace:grid-cols-[1fr_280px]">
       {/* Canvas */}
       <div className="bg-app-bg rounded-lg border border-app-border relative min-h-0">
         <canvas
@@ -437,33 +437,37 @@ export function TrackDebugPanel({
         />
         {/* Zoom controls */}
         <div className="absolute top-2 right-2 flex flex-col gap-1">
-          <Button
+          <button
+            type="button"
             onClick={() => setZoom((z) => Math.min(z + 0.25, 8))}
             className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
           >
             +
-          </Button>
-          <Button
+          </button>
+          <button
+            type="button"
             onClick={() => setZoom((z) => Math.max(z - 0.25, 0.5))}
             className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
           >
             -
           </Button>
           {zoom !== 1 && (
-            <Button
+            <button
+              type="button"
               onClick={() => {
                 setZoom(1);
                 setPan({ x: 0, z: 0 });
               }}
               className="w-7 h-7 text-app-compact bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
             >
-              {zoom % 1 === 0 ? `${zoom}x` : zoom.toFixed(1) + "x"}
-            </Button>
+              {zoom % 1 === 0 ? `${zoom}x` : `${zoom.toFixed(1)}x`}
+            </button>
           )}
           {(displaySectors || sectorBounds) && (
             <>
               <div className="h-px" />
-              <Button
+              <button
+                type="button"
                 onClick={() => setOverlayMode((m) => (m === "segments" ? "sectors" : "segments"))}
                 className={`px-1.5 py-1 text-app-micro font-mono rounded border transition-colors ${
                   overlayMode === "sectors" ? "map-sectors-active" : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"

@@ -68,7 +68,7 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
       {/* Same two-column shape as the workspace: review dashboard left, the
           persistent Setup Engineer chat right — the chat is never hidden.
           `items-start` lets the sticky chat column pin instead of stretching. */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-3 items-start">
+      <div className="grid grid-cols-1 items-start gap-3 @5xl/workspace:grid-cols-[1fr_360px]">
         <div className="border border-app-border rounded-lg">
           {/* TuneReviewDashboard's gameId union is ACC/AC-Evo (setup-engineer
               panels); F1 rides the ACC path — it never reaches ACC-specific
@@ -85,12 +85,12 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
         </div>
         {/* Sticky, viewport-tall chat: pins under the app header (top-0 of the
             scroll container) and scrolls its own message list internally. */}
-        <div className="flex flex-col border border-app-border rounded-lg overflow-hidden h-[70vh] lg:sticky lg:top-0 lg:h-[calc(100vh-5.5rem)]">
+        <div className="flex h-[70vh] flex-col overflow-hidden rounded-lg border border-app-border @5xl/workspace:sticky @5xl/workspace:top-0 @5xl/workspace:h-[calc(100vh-5.5rem)]">
           <div className="shrink-0 px-3 py-2 border-b border-app-border flex items-center justify-between">
             {/* Named after the experiment's current focus, same as the
                 workspace panel — one agent, two modes. */}
             <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{EXPERIMENT_FOCUS_AGENT_LABELS[session?.focus ?? DEFAULT_EXPERIMENT_FOCUS]}</span>
-            <Button variant="app-primary" size="app-sm" onClick={backToWorkspace}>
+            <button type="button" onClick={backToWorkspace} className="px-3 py-1 text-xs rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled font-semibold">
               Session
             </Button>
           </div>

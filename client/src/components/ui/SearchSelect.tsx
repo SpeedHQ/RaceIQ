@@ -75,11 +75,13 @@ export function SearchSelect({ id, value, onChange, options, placeholder = "Sear
       setPanelRect({ top: above ? rect.top : rect.bottom, left, width: rect.width, above });
     };
     updateRect();
+    const resizeObserver = new ResizeObserver(updateRect);
+    resizeObserver.observe(document.documentElement);
+    if (inputRef.current) resizeObserver.observe(inputRef.current);
     window.addEventListener("scroll", updateRect, true);
-    window.addEventListener("resize", updateRect);
     return () => {
+      resizeObserver.disconnect();
       window.removeEventListener("scroll", updateRect, true);
-      window.removeEventListener("resize", updateRect);
     };
   }, [open]);
 

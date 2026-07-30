@@ -26,7 +26,7 @@ export function RaceInfo({
 }) {
   return (
     <div className="border-b border-app-border">
-      <div className={showTrackMap ? "grid grid-cols-1 xl:grid-cols-[1fr_220px]" : ""}>
+      <div className={showTrackMap ? "grid grid-cols-1 @7xl/workspace:grid-cols-[1fr_220px]" : ""}>
         {/* Race timing */}
         <div className={showTrackMap ? "border-r border-app-border" : ""}>
           <div className="p-2 border-b border-app-border flex items-center justify-between">

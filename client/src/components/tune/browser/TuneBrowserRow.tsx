@@ -11,6 +11,9 @@ const SOURCE_LABEL: Record<TuneRow["source"], () => string> = {
   user: () => m.tune_source_yours(),
 };
 
+// Shared responsive grid: mobile shows #, name, lap, chevron; sm+ adds car + track + category + author.
+export const TUNE_GRID = "grid grid-cols-[26px_1fr_66px_26px] items-center gap-2.5 @3xl/workspace:grid-cols-[34px_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,0.9fr)_88px_minmax(90px,120px)_84px_30px]";
+
 export interface TuneBrowserRowProps {
   row: TuneRow;
   rank: number;
@@ -40,82 +43,56 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
   };
 
   return (
-    <>
-      <TRow aria-expanded={isOpen} onClick={onToggle} onKeyDown={handleKeyDown} tabIndex={0}>
-        <TD align="center" numeric tone={rank === 1 && hasTime ? "accent" : "muted"}>
-          <span className="text-sm font-bold">{rank}</span>
-        </TD>
-        <TD tone="primary">
-          <span className="block min-w-0">
-            <span className="block text-app-body font-semibold truncate">{row.name}</span>
-            <span className="block text-app-caption text-app-text-muted mt-1">{SOURCE_LABEL[row.source]()}</span>
-          </span>
-        </TD>
-        <TD showFrom="sm" truncate="wide">
-          {carName}
-        </TD>
-        <TD showFrom="sm" tone={trackName ? "default" : "dim"} truncate="wide">
-          {trackName ?? "—"}
-        </TD>
-        <TD showFrom="sm">
+    <div className={`border-b border-app-border ${isOpen ? "bg-app-surface-alt" : "bg-app-surface even:bg-app-surface-alt"}`}>
+      <button type="button" className={`${TUNE_GRID} w-full text-left px-3 py-3`} onClick={onToggle}>
+        <span className={`text-sm font-bold text-center ${rank === 1 && hasTime ? "text-app-accent" : "text-app-text-muted"}`}>{rank}</span>
+        <span className="min-w-0">
+          <span className="block text-app-body font-semibold truncate">{row.name}</span>
+          <span className="block text-app-caption text-app-text-muted mt-1">{SOURCE_LABEL[row.source]()}</span>
+        </span>
+        <span className="hidden min-w-0 truncate text-app-detail text-app-text-secondary @3xl/workspace:block">{carName}</span>
+        <span className={`hidden min-w-0 truncate text-app-detail @3xl/workspace:block ${trackName ? "text-app-accent" : "text-app-text-dim"}`}>{trackName ?? "—"}</span>
+        <span className="hidden min-w-0 @3xl/workspace:block">
           {row.category && (
             <span className={`inline-block text-app-caption font-semibold uppercase px-1.5 py-0.5 rounded truncate ${CATEGORY_COLORS[row.category] ?? "bg-app-surface-alt text-app-text-muted"}`}>
               {catLabel}
             </span>
           )}
-        </TD>
-        <TD showFrom="sm" truncate="wide">
-          {row.author}
-        </TD>
-        <TD align="end" numeric tone={hasTime ? "primary" : "dim"}>
-          <span className={hasTime ? "text-(--lap-pace-average)" : undefined}>
-            {hasTime ? row.lapTimeRaw : "—"}
-            <span className="hidden sm:block text-app-nano uppercase tracking-wide text-app-text-dim mt-0.5">{hasTime ? (row.lapTimeTrack ?? m.browser_lap_label()) : m.browser_no_time()}</span>
+        </span>
+        <span className="hidden min-w-0 truncate text-app-detail @3xl/workspace:block">{row.author}</span>
+        <span className={`justify-self-end font-mono text-app-detail tabular-nums text-right ${hasTime ? "text-(--lap-pace-average)" : "text-app-text-dim"}`}>
+          {hasTime ? row.lapTimeRaw : "—"}
+          <span className="mt-0.5 hidden text-app-nano text-app-text-dim uppercase tracking-wide @3xl/workspace:block">
+            {hasTime ? (row.lapTimeTrack ?? m.browser_lap_label()) : m.browser_no_time()}
           </span>
-        </TD>
-        <TD align="center" showFrom="sm" tone={isOpen ? "accent" : "dim"}>
-          <span className={`inline-block transition-transform ${isOpen ? "rotate-90" : ""}`}>›</span>
-        </TD>
-      </TRow>
+        </span>
+        <span className={`hidden text-center text-app-text-dim transition-transform @3xl/workspace:block ${isOpen ? "rotate-90 text-app-accent" : ""}`}>›</span>
+      </button>
       {isOpen && (
-        <TRow variant="static">
-          <TD colSpan={8} tone="primary">
-            <div className="px-1 sm:px-8 pb-2 pt-1">
-              {row.description && <p className="text-xs text-app-text-muted leading-relaxed whitespace-pre-line mb-3.5 max-w-[70ch]">{row.description}</p>}
-              {renderSettings(row)}
-              {!readOnly && (
-                <div className="flex gap-2 mt-3.5">
-                  {isUser ? (
-                    <>
-                      <Button type="button" className="text-app-compact uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-on-filled font-bold" onClick={() => onEdit?.(row)}>
-                        {m.common_edit()}
-                      </Button>
-                      {onDuplicate && (
-                        <Button
-                          type="button"
-                          className="text-app-compact uppercase tracking-wide px-4 py-2 rounded border border-app-border text-app-accent disabled:opacity-50"
-                          onClick={() => onDuplicate(row)}
-                          disabled={isDuplicating}
-                        >
-                          {isDuplicating ? "…" : m.tune_duplicate()}
-                        </Button>
-                      )}
-                      {!confirmDelete ? (
-                        <Button type="button" className="text-app-compact uppercase tracking-wide px-4 py-2 rounded border border-app-border text-status-danger" onClick={() => setConfirmDelete(true)}>
-                          {m.common_delete()}
-                        </Button>
-                      ) : (
-                        <span className="flex items-center gap-1.5">
-                          <span className="text-app-compact text-status-danger uppercase">{m.browser_confirm_delete()}</span>
-                          <Button type="button" className="text-app-compact uppercase tracking-wide px-3 py-2 rounded bg-status-danger/20 text-status-danger" onClick={() => onDelete?.(row)}>
-                            {m.tune_yes()}
-                          </Button>
-                          <Button type="button" className="text-app-compact uppercase tracking-wide px-3 py-2 rounded text-app-text-muted hover:text-app-text" onClick={() => setConfirmDelete(false)}>
-                            {m.browser_no()}
-                          </Button>
-                        </span>
-                      )}
-                    </>
+        <div className="px-4 pt-1 pb-4 @3xl/workspace:pl-14">
+          {row.description && <p className="text-xs text-app-text-muted leading-relaxed whitespace-pre-line mb-3.5 max-w-[70ch]">{row.description}</p>}
+          {renderSettings(row)}
+          {!readOnly && (
+            <div className="flex gap-2 mt-3.5">
+              {isUser ? (
+                <>
+                  <button type="button" className="text-app-compact uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-on-filled font-bold" onClick={() => onEdit?.(row)}>
+                    {m.common_edit()}
+                  </button>
+                  {onDuplicate && (
+                    <button
+                      type="button"
+                      className="text-app-compact uppercase tracking-wide px-4 py-2 rounded border border-app-border text-app-accent disabled:opacity-50"
+                      onClick={() => onDuplicate(row)}
+                      disabled={isDuplicating}
+                    >
+                      {isDuplicating ? "…" : m.tune_duplicate()}
+                    </button>
+                  )}
+                  {!confirmDelete ? (
+                    <button type="button" className="text-app-compact uppercase tracking-wide px-4 py-2 rounded border border-app-border text-status-danger" onClick={() => setConfirmDelete(true)}>
+                      {m.common_delete()}
+                    </button>
                   ) : (
                     <Button type="button" variant="app-primary" size="app-md" onClick={() => onClone?.(row)}>
                       {m.browser_clone_garage()}

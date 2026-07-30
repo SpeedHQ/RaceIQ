@@ -170,22 +170,22 @@ function RawPage() {
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
       <div className="flex gap-2 p-2 border-b border-app-border items-center">
-        <Button className={`px-3 py-1 rounded text-xs ${view === "parsed" ? "bg-app-accent text-app-on-filled" : "bg-app-surface"}`} onClick={() => setView("parsed")}>
+        <button type="button" className={`px-3 py-1 rounded text-xs ${view === "parsed" ? "bg-app-accent text-app-on-filled" : "bg-app-surface"}`} onClick={() => setView("parsed")}>
           {m.dev_parsed_packet()}
-        </Button>
-        <Button className={`px-3 py-1 rounded text-xs ${view === "fields" ? "bg-app-accent text-app-on-filled" : "bg-app-surface"}`} onClick={() => setView("fields")}>
+        </button>
+        <button type="button" className={`px-3 py-1 rounded text-xs ${view === "fields" ? "bg-app-accent text-app-on-filled" : "bg-app-surface"}`} onClick={() => setView("fields")}>
           {m.dev_struct_fields()}
-        </Button>
-        <Button className={`px-3 py-1 rounded text-xs ${view === "verify" ? "bg-app-accent text-app-on-filled" : "bg-app-surface"}`} onClick={() => setView("verify")}>
+        </button>
+        <button type="button" className={`px-3 py-1 rounded text-xs ${view === "verify" ? "bg-app-accent text-app-on-filled" : "bg-app-surface"}`} onClick={() => setView("verify")}>
           {m.dev_verify_fields()}
-        </Button>
-        <Button className={`px-3 py-1 rounded text-xs ${view === "hex" ? "bg-app-accent text-app-on-filled" : "bg-app-surface"}`} onClick={() => setView("hex")}>
+        </button>
+        <button type="button" className={`px-3 py-1 rounded text-xs ${view === "hex" ? "bg-app-accent text-app-on-filled" : "bg-app-surface"}`} onClick={() => setView("hex")}>
           {m.dev_raw_hex()}
         </Button>
         {view === "hex" && (
           <div className="flex gap-1 ml-4">
             {(["physics", "graphics", "staticData"] as PageKey[]).map((p) => (
-              <Button key={p} className={`px-2 py-1 rounded text-xs ${page === p ? "bg-app-surface-alt" : "bg-app-surface"}`} onClick={() => setPage(p)}>
+              <button type="button" key={p} className={`px-2 py-1 rounded text-xs ${page === p ? "bg-app-surface-alt" : "bg-app-surface"}`} onClick={() => setPage(p)}>
                 {p}
               </Button>
             ))}
@@ -235,8 +235,8 @@ function VerifyTable({ title, rows }: { title: string; rows: VerifyRow[] }) {
   return (
     <div className="mb-6">
       <div className="text-sm font-semibold mb-2">{title}</div>
-      <div className="font-mono text-xs">
-        <div className="grid grid-cols-[50px_1fr_60px_220px_1fr] gap-x-2 py-1 border-b border-app-border text-app-text-muted uppercase">
+      <div className="overflow-x-auto font-mono text-xs">
+        <div className="grid min-w-[620px] grid-cols-[50px_1fr_60px_220px_1fr] gap-x-2 border-b border-app-border py-1 text-app-text-muted uppercase">
           <span>off</span>
           <span>field</span>
           <span>type</span>
@@ -248,7 +248,10 @@ function VerifyTable({ title, rows }: { title: string; rows: VerifyRow[] }) {
           const valueZero = typeof r.value === "number" ? r.value === 0 : r.value === "";
           const mismatch = hexNonZero && valueZero;
           return (
-            <div key={`${r.offset}-${r.field}`} className={`grid grid-cols-[50px_1fr_60px_220px_1fr] gap-x-2 py-0.5 border-b border-app-border/30 ${mismatch ? "bg-status-danger/20" : ""}`}>
+            <div
+              key={`${r.offset}-${r.field}`}
+              className={`grid min-w-[620px] grid-cols-[50px_1fr_60px_220px_1fr] gap-x-2 border-b border-app-border/30 py-0.5 ${mismatch ? "bg-status-danger/20" : ""}`}
+            >
               <span className="text-app-text-muted">{r.offset}</span>
               <span className="text-app-text-secondary truncate">{r.field}</span>
               <span className="text-app-text-muted">{r.type}</span>

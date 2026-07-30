@@ -66,7 +66,7 @@ export function F1LiveDashboard() {
   }
 
   return (
-    <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0 h-full">
+    <div className="grid h-auto flex-1 grid-cols-1 gap-0 @5xl/workspace:h-full @5xl/workspace:grid-cols-2">
       {/* Left column: Core telemetry + pit info */}
       <div className="border-r border-app-border overflow-auto">
         {/* Weather | Electronics side-by-side */}

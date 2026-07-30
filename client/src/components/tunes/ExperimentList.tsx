@@ -36,7 +36,7 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
   const [creating, setCreating] = useState(false);
 
   return (
-    <div className="flex-1 space-y-4 overflow-y-auto p-4">
+    <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto p-3 @3xl/workspace:p-4">
       <div className="space-y-2">
         <div>
           <h1 className="text-app-title font-semibold text-app-text">Experiments</h1>
@@ -76,10 +76,8 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
  * varied, sky = the driver is. */
 export function FocusBadge({ focus }: { focus: ExperimentFocus }) {
   return (
-    <Badge
-      variant="neutral"
-      size="default"
-      className={focus === "driver" ? "border-(--focus-driver)/30 bg-(--focus-driver)/15 text-(--focus-driver)" : "border-(--focus-setup)/30 bg-(--focus-setup)/15 text-(--focus-setup)"}
+    <span
+      className={`inline-block rounded-full px-2 py-0.5 text-app-caption font-medium whitespace-nowrap ${focus === "driver" ? "bg-(--focus-driver)/15 text-(--focus-driver)" : "bg-(--focus-setup)/15 text-(--focus-setup)"}`}
     >
       {EXPERIMENT_FOCUS_LABELS[focus]}
     </Badge>
@@ -91,19 +89,21 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
   const carName = (n: string | null | undefined) => (gameId === "acc" ? accCarName(n) : n) ?? "—";
 
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <THead>
-          <TH align="end">#</TH>
-          <TH>Session</TH>
-          <TH>Focus</TH>
-          <TH>Car</TH>
-          <TH>Track</TH>
-          <TH>Base setup</TH>
-          <TH>Last active</TH>
-          <TH visuallyHidden>Actions</TH>
-        </THead>
-        <TBody>
+    <div className="min-w-0 max-w-full overflow-hidden rounded-lg border border-app-border">
+      <table className="w-full table-fixed border-collapse text-sm">
+        <thead>
+          <tr className="text-left text-app-compact uppercase tracking-wider text-app-text-muted border-b border-app-border">
+            <th className="hidden w-12 px-3 py-2 text-right font-medium @sm/workspace:table-cell">#</th>
+            <th className="px-3 py-2 font-medium">Session</th>
+            <th className="hidden px-3 py-2 font-medium @3xl/workspace:table-cell">Varying</th>
+            <th className="hidden px-3 py-2 font-medium @3xl/workspace:table-cell">Car</th>
+            <th className="hidden px-3 py-2 font-medium @5xl/workspace:table-cell">Track</th>
+            <th className="hidden px-3 py-2 font-medium @5xl/workspace:table-cell">Base setup</th>
+            <th className="hidden whitespace-nowrap px-3 py-2 font-medium @7xl/workspace:table-cell">Last active</th>
+            <th className="w-20 px-3 py-2 font-medium sr-only">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
           {sessions.length === 0 && (
             <TRow variant="separator">
               <TD align="center" colSpan={8} tone="dim">
@@ -114,28 +114,22 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
           {sessions.map((s) => {
             const base = s.baseSetupPath?.split(/[\\/]/).pop() ?? "—";
             return (
-              <TRow key={s.id} onClick={() => onOpen(s.id)}>
-                <TD align="end" numeric tone="dim">
-                  {s.seq}
-                </TD>
-                <TD emphasis tone="primary">
-                  {s.name}
-                </TD>
-                <TD>
+              <tr key={s.id} onClick={() => onOpen(s.id)} className="border-b border-app-border/60 last:border-0 hover:bg-app-surface-hover/60 cursor-pointer">
+                <td className="hidden px-3 py-2 text-right font-mono text-app-text-dim tabular-nums @sm/workspace:table-cell">{s.seq}</td>
+                <td className="truncate px-3 py-2 font-medium text-app-text">{s.name}</td>
+                <td className="hidden px-3 py-2 @3xl/workspace:table-cell">
                   <FocusBadge focus={s.focus} />
-                </TD>
-                <TD tone="dim">{carName(s.carName)}</TD>
-                <TD tone="dim">{s.trackName ?? "—"}</TD>
-                <TD numeric tone="dim" truncate="wide" title={s.baseSetupPath ?? undefined}>
+                </td>
+                <td className="hidden truncate px-3 py-2 text-app-text-dim @3xl/workspace:table-cell">{carName(s.carName)}</td>
+                <td className="hidden truncate px-3 py-2 text-app-text-dim @5xl/workspace:table-cell">{s.trackName ?? "—"}</td>
+                <td className="hidden max-w-[220px] truncate px-3 py-2 font-mono text-xs text-app-text-dim @5xl/workspace:table-cell" title={s.baseSetupPath ?? undefined}>
                   {base}
-                </TD>
-                <TD nowrap tone="dim">
-                  {new Date(s.updatedAt).toLocaleDateString()}
-                </TD>
-                <TD align="end">
-                  <span className="text-xs font-semibold text-app-accent">Resume →</span>
-                </TD>
-              </TRow>
+                </td>
+                <td className="hidden whitespace-nowrap px-3 py-2 text-app-text-dim @7xl/workspace:table-cell">{new Date(s.updatedAt).toLocaleDateString()}</td>
+                <td className="w-20 px-3 py-2 text-right">
+                  <span className="text-app-accent text-xs font-semibold">Resume →</span>
+                </td>
+              </tr>
             );
           })}
         </TBody>
@@ -399,12 +393,26 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
     }
   };
 
-  return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="lg" layout="scrollable" className="flex w-[680px] max-w-[94vw] flex-col">
-        <DialogHeader className="flex flex-row items-center justify-between">
-          <DialogTitle className="text-sm font-semibold">New experiment</DialogTitle>
-          <Button variant="app-ghost" size="icon-sm" onClick={onClose} className="text-xl leading-none text-app-text-dim hover:text-app-text" aria-label="Close">
+  return createPortal(
+    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop closes only when pointer targets backdrop itself
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[680px] max-w-[94vw] flex flex-col gap-4 p-5"
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
+      >
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-app-text">New experiment</p>
+          <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">
             ×
           </Button>
         </DialogHeader>
@@ -480,7 +488,9 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
                     {pendingDrop.fileName}
                   </span>
                   {dropStatus && (
-                    <Badge variant={dropStatus === "placed" ? "success" : "neutral"} size="compact">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-app-caption font-medium ${dropStatus === "placed" ? "bg-status-success/15 text-status-success" : "bg-app-border/50 text-app-text-dim"}`}
+                    >
                       {dropStatus === "placed" ? "Copied to Setups" : dropStatus === "existing" ? "Already saved there" : "Found in Setups"}
                     </Badge>
                   )}
@@ -527,7 +537,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
               {dropStatus == null ? "isn't in your Setups folder yet — add it and pick its track:" : "will be copied into the track folder you pick — the existing copy stays where it is:"}
             </div>
             <div className="flex flex-wrap items-end gap-2">
-              <label className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1">
                 <span className="text-app-caption text-app-text-muted uppercase tracking-wider">Car folder</span>
                 {/* A picker, not free text: when the file names its own car
                     this is already selected, but a .carsetup saved without a
@@ -543,8 +553,8 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
                     focusColor="purple-500"
                   />
                 </div>
-              </label>
-              <label className="flex flex-col gap-1">
+              </div>
+              <div className="flex flex-col gap-1">
                 <span className="text-app-caption text-app-text-muted uppercase tracking-wider">Track</span>
                 <div className="w-[180px]">
                   <SearchSelect
@@ -556,8 +566,13 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
                     focusColor="purple-500"
                   />
                 </div>
-              </label>
-              <Button variant="app-primary" size="app-md" onClick={doPlace} disabled={place.isPending || !placeCar.trim() || !placeTrack.trim()}>
+              </div>
+              <button
+                type="button"
+                onClick={doPlace}
+                disabled={place.isPending || !placeCar.trim() || !placeTrack.trim()}
+                className="px-3 py-1.5 text-xs rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 text-app-on-filled font-semibold"
+              >
                 {place.isPending ? "Placing…" : "Add to Setups & use"}
               </Button>
               <Button variant="app-ghost" size="app-sm" onClick={() => setPlacing(false)}>
@@ -687,12 +702,26 @@ function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onC
     }
   };
 
-  return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="md" layout="scrollable" className="flex w-[480px] max-w-[94vw] flex-col">
-        <DialogHeader className="flex flex-row items-center justify-between">
-          <DialogTitle className="text-sm font-semibold">New experiment</DialogTitle>
-          <Button variant="app-ghost" size="icon-sm" onClick={onClose} className="text-xl leading-none text-app-text-dim hover:text-app-text" aria-label="Close">
+  return createPortal(
+    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop closes only when pointer targets backdrop itself
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[480px] max-w-[94vw] flex flex-col gap-4 p-5"
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
+      >
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-app-text">New experiment</p>
+          <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">
             ×
           </Button>
         </DialogHeader>
@@ -708,10 +737,10 @@ function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onC
             <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Car (optional)</span>
             <input value={car} onChange={(e) => setCar(e.target.value)} placeholder="Car name" maxLength={200} className="bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs" />
           </label>
-          <label className="flex flex-col gap-1 flex-1">
+          <div className="flex flex-col gap-1 flex-1">
             <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Track</span>
             <SearchSelect value={track} onChange={setTrack} options={trackOptions} placeholder="Search tracks…" focusColor="purple-500" />
-          </label>
+          </div>
         </div>
 
         <label className="flex flex-col gap-1">

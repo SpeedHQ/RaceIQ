@@ -8,7 +8,7 @@ import { m } from "@/paraglide/messages";
 import { getLocale, isLocale } from "@/paraglide/runtime";
 import { AppSidebar } from "../components/AppSidebar";
 import { OnboardingModal } from "../components/Onboarding";
-import { RaceResultStatus } from "../components/RaceResultStatus";
+import { ResponsiveWorkspace } from "../components/ResponsiveWorkspace";
 import { Settings } from "../components/Settings";
 import { UpdateModal } from "../components/UpdateModal";
 import { Button } from "../components/ui/button";
@@ -38,9 +38,9 @@ function ReprocessProgressModal({ total, done, onClose }: { total: number; done:
   const complete = done >= total;
 
   return (
-    <Dialog open onOpenChange={(open) => !open && complete && onClose()}>
-      <DialogContent size="sm" showCloseButton={false} overlayClassName="bg-app-bg/60" className="w-96">
-        <DialogHeader className="mb-4 flex flex-row items-center gap-3">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60 backdrop-blur-sm">
+      <div className="w-[calc(100%-2rem)] max-w-96 rounded-xl border border-app-border bg-app-surface p-6 shadow-2xl">
+        <div className="flex items-center gap-3 mb-4">
           <RefreshCw className={`size-5 text-status-info ${complete ? "" : "animate-spin"}`} />
           <DialogTitle className="flex-1 text-sm font-semibold text-app-text">{complete ? m.root_reprocessing_complete() : m.root_reprocessing()}</DialogTitle>
           {complete && (
@@ -170,15 +170,17 @@ function AppShell() {
   if (isDash) {
     return (
       <div className="h-screen bg-app-bg text-app-text">
-        <Outlet key={uiLocale} />
+        <ResponsiveWorkspace className="overflow-hidden">
+          <Outlet key={uiLocale} />
+        </ResponsiveWorkspace>
       </div>
     );
   }
 
   return (
     <>
-      <div className="flex h-screen min-h-0 bg-app-bg text-app-text">
-        <aside className="hidden h-full shrink-0 md:block">
+      <div className="@container/shell flex h-screen min-h-0 bg-app-bg text-app-text">
+        <aside className="hidden h-full shrink-0 @3xl/shell:block">
           <AppSidebar
             collapsed={sidebarCollapsed}
             connected={connected}
@@ -196,22 +198,22 @@ function AppShell() {
         </aside>
 
         <div className="flex min-w-0 min-h-0 flex-1 flex-col">
-          <header className="flex min-h-14 items-center justify-between border-b border-app-border px-3 md:hidden">
-            <Link to="/" className="text-sm font-semibold text-app-text transition-colors hover:text-app-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
-              RaceIQ
-            </Link>
-            <Button type="button" onClick={() => setMobileNavOpen(true)} className="p-3 text-app-text-secondary hover:text-app-text" aria-label="Open navigation">
+          <header className="flex min-h-14 items-center justify-between border-b border-app-border px-3 @3xl/shell:hidden">
+            <span className="text-sm font-semibold text-app-text">RaceIQ</span>
+            <button type="button" onClick={() => setMobileNavOpen(true)} className="p-3 text-app-text-secondary hover:text-app-text" aria-label="Open navigation">
               <Menu className="size-6" />
             </Button>
           </header>
-          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-            <Outlet key={uiLocale} />
+          <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
+            <ResponsiveWorkspace>
+              <Outlet key={uiLocale} />
+            </ResponsiveWorkspace>
           </main>
         </div>
 
         {mobileNavOpen && (
-          <div className="fixed inset-0 z-50 flex justify-end md:hidden">
-            <Button type="button" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} className="absolute inset-0 bg-app-bg/60" />
+          <div className="fixed inset-0 z-50 flex justify-end @3xl/shell:hidden">
+            <button type="button" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} className="absolute inset-0 bg-app-bg/60" />
             <div className="relative h-full">
               <AppSidebar
                 collapsed={false}
@@ -232,9 +234,9 @@ function AppShell() {
         )}
 
         {showSettings && (
-          <div className="fixed inset-0 z-50 flex items-stretch justify-center md:items-start md:pb-12 md:pt-12">
-            <Button type="button" size="content" aria-label="Close settings" onClick={closeSettings} className="absolute inset-0 bg-app-bg/60" />
-            <div className="relative h-full w-full overflow-hidden bg-app-bg md:max-w-2xl md:rounded-lg md:border md:border-app-border">
+          <div className="fixed inset-0 z-50 flex items-stretch justify-center @3xl/shell:items-start @3xl/shell:py-12">
+            <button type="button" aria-label="Close settings" onClick={closeSettings} className="absolute inset-0 bg-app-bg/60" />
+            <div className="relative h-full w-full overflow-hidden bg-app-bg @3xl/shell:max-w-2xl @3xl/shell:rounded-lg @3xl/shell:border @3xl/shell:border-app-border">
               <div className="flex items-center justify-between border-b border-app-border bg-app-surface px-4 py-3">
                 <h1 className="text-app-heading font-semibold text-app-text">{m.nav_settings()}</h1>
                 <Button type="button" onClick={closeSettings} className="text-app-heading leading-none text-app-text-muted hover:text-app-text">
