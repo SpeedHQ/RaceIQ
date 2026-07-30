@@ -184,7 +184,6 @@ export async function updateSession(
 
 export type SessionResultInput = {
   sessionId: number;
-  processorVersion?: string;
   sessionType: string;
   classification: string;
   finishingPosition: number | null;
@@ -200,7 +199,6 @@ export type SessionResultInput = {
 
 export type PitEventInput = {
   sequence: number;
-  eventType?: string;
   lapNumber: number | null;
   elapsedSeconds: number | null;
   durationSeconds: number | null;
@@ -209,8 +207,6 @@ export type PitEventInput = {
   fuelAdded: number | null;
   fuelBefore: number | null;
   fuelAfter: number | null;
-  positionBefore?: number | null;
-  positionAfter?: number | null;
   linkage: string;
   source: unknown;
 };
@@ -223,7 +219,6 @@ export async function upsertSessionResult(input: SessionResultInput): Promise<{ 
     .get();
   const values = {
     sessionId: input.sessionId,
-    processorVersion: input.processorVersion ?? RACE_RESULT_PROCESSOR_ID,
     sessionType: input.sessionType,
     classification: input.classification,
     finishingPosition: input.finishingPosition,
@@ -269,30 +264,6 @@ export async function getSessionResult(sessionId: number, gameId: GameId) {
     .orderBy(pitEvents.sequence)
     .all();
   return { ...row.result, gameId: row.gameId as GameId, events };
-}
-/**
- * Count persisted race results produced by an older processor implementation.
- */
-export async function countStaleRaceResults(currentProcessorVersion: string): Promise<number> {
-  const rows = await db
-    .select({ sessionId: sessionResults.sessionId })
-    .from(sessionResults)
-    .where(not(eq(sessionResults.processorVersion, currentProcessorVersion)))
-    .all();
-  return rows.length;
-}
-
-/**
- * Get sessions whose persisted race result needs reconciliation.
- */
-export async function getStaleRaceResultSessionIds(currentProcessorVersion: string): Promise<number[]> {
-  const rows = await db
-    .select({ sessionId: sessionResults.sessionId })
-    .from(sessionResults)
-    .where(not(eq(sessionResults.processorVersion, currentProcessorVersion)))
-    .orderBy(sessionResults.sessionId)
-    .all();
-  return rows.map((row) => row.sessionId);
 }
 
 export async function updateLapNotes(id: number, notes: string | null): Promise<void> {

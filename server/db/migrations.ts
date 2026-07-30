@@ -1133,22 +1133,4 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS idx_pit_events_result ON pit_events(result_id, sequence)`,
     ],
   },
-  // v49: Version normalized race-result derivation for future reconciliation.
-  {
-    version: 49,
-    name: "version race result processor",
-    sql: [
-      `ALTER TABLE session_results ADD COLUMN processor_version TEXT NOT NULL DEFAULT 'race-result-v1'`,
-    ],
-  },
-  // v50: Persist race timeline event types and position transitions.
-  {
-    version: 50,
-    name: "persist race timeline positions",
-    sql: [
-      `ALTER TABLE pit_events ADD COLUMN event_type TEXT NOT NULL DEFAULT 'pit'`,
-      `ALTER TABLE pit_events ADD COLUMN position_before INTEGER`,
-      `ALTER TABLE pit_events ADD COLUMN position_after INTEGER`,
-    ],
-  },
 ];
