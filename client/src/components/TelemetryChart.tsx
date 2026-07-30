@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
-import { resolveCssColor, resolveCssFont } from "../lib/css-color";
+import { resolveCssColor, resolveCssFont } from "../lib/rendering/css-values";
 
 interface Props {
   data: {

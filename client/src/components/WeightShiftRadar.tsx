@@ -1,4 +1,4 @@
-import { getSemanticCanvasContext } from "@/lib/css-color";
+import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { severityRangeColor } from "@/lib/colors";
 import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useRef } from "react";

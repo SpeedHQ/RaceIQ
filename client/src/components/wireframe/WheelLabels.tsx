@@ -1,7 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import { getSemanticCanvasContext } from "../../lib/css-color";
+import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
 import { severityRangeColor } from "../../lib/colors";
 import { brakeTempColor, tirePressureColor } from "../../lib/vehicle-dynamics";
 

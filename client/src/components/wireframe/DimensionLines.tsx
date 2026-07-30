@@ -2,7 +2,7 @@ import { Line } from "@react-three/drei";
 import { useMemo } from "react";
 import * as THREE from "three";
 import type { CarModelEnrichment } from "../../data/car-models";
-import { getSemanticCanvasContext } from "../../lib/css-color";
+import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
 import { THREE_COLORS } from "../../lib/wireframe-utils";
 
 function DimensionLabel({ position, text, color }: { position: [number, number, number]; text: string; color: string }) {

@@ -220,9 +220,10 @@ describe("frontend theme contract", () => {
   });
 
   test("keeps raw palette values in CSS and adapts imperative renderers centrally", () => {
-    const adapterPath = resolve(SOURCE_DIR, "lib/css-color.ts");
+    const canvasAdapterPath = resolve(SOURCE_DIR, "lib/rendering/css-canvas.ts");
+    const cssValuesPath = resolve(SOURCE_DIR, "lib/rendering/css-values.ts");
     const runtimeFiles = [
-      ...sourceFiles.filter((path) => [".ts", ".tsx"].includes(extname(path)) && path !== adapterPath),
+      ...sourceFiles.filter((path) => [".ts", ".tsx"].includes(extname(path)) && path !== canvasAdapterPath),
       resolve(CLIENT_DIR, ".storybook/preview.ts"),
     ];
     const rawColors = runtimeFiles.flatMap((path) => {
@@ -271,10 +272,14 @@ describe("frontend theme contract", () => {
       /\b(?:hover|group-hover):(?:bg-app-(?:bg|surface-alt|surface|border|border-input|text)|border-app-(?:border|border-input|text-dim))(?:\/(?:\d+|\[[^\]]+\]))?(?=["'`\s}])/,
     );
 
-    const adapterSource = readFileSync(adapterPath, "utf8");
-    expect(adapterSource).toContain('canvas.getContext("2d")');
-    expect(adapterSource).toContain('property === "font"');
-    expect(adapterSource).toContain("resolveCssFont(value)");
+    const canvasAdapterSource = readFileSync(canvasAdapterPath, "utf8");
+    const cssValuesSource = readFileSync(cssValuesPath, "utf8");
+    expect(canvasAdapterSource).toContain('canvas.getContext("2d")');
+    expect(canvasAdapterSource).toContain('property === "font"');
+    expect(canvasAdapterSource).toContain("resolveCssFont(value)");
+    expect(canvasAdapterSource).not.toMatch(/\bcanvas:\s*OffscreenCanvas\b/);
+    expect(canvasAdapterSource).not.toContain("OffscreenCanvasRenderingContext2D");
+    expect(cssValuesSource).toContain("getComputedStyle(");
   });
 
   test("keeps product, manufacturer, and team color values out of React", () => {

@@ -105,6 +105,12 @@ components:
 
 > The CSS contracts are the source of truth: `src/styles/theme.css` owns every theme-controlled app, status, telemetry, and visualization role, while `src/styles/branding.css` owns product, manufacturer, and team identity that must not change with the app theme. Tooling metadata references those CSS variables instead of copying their palette values.
 
+### Imperative rendering boundary
+
+DOM and SVG code consume theme variables directly. Main-thread renderers that require concrete browser values use `src/lib/rendering/css-values.ts`, which resolves the CSS contract with native `getComputedStyle()`. HTML Canvas drawing uses the focused proxy in `src/lib/rendering/css-canvas.ts`; uPlot, Three.js, and image export use the value bridge directly. Neither module is a Tailwind theme layer or a general color library.
+
+The bridge is deliberately DOM-bound. `OffscreenCanvas` worker code cannot read the document theme and must receive already-resolved theme values from the main thread.
+
 ## 1. Overview
 
 **Creative North Star: "The Cockpit Display"**

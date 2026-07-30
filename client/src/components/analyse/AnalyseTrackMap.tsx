@@ -1,4 +1,4 @@
-import { getSemanticCanvasContext } from "@/lib/css-color";
+import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { tryGetGame } from "@shared/games/registry";
 import { lapPath } from "@shared/lib/lap-path";
@@ -75,8 +75,8 @@ export const AnalyseTrackMap = forwardRef<
     offW: number;
     offH: number;
   } | null>(null);
-  // Offscreen canvas caching the static track drawing (boundaries, segments, sectors, labels)
-  const offscreenRef = useRef<OffscreenCanvas | null>(null);
+  // Detached canvas caching the static track drawing (boundaries, segments, sectors, labels)
+  const bufferCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const resolvedPositions = useMemo(() => {
     const path = lapPath(telemetry, outline);
     return telemetry.map((_, index) => ({
@@ -110,7 +110,7 @@ export const AnalyseTrackMap = forwardRef<
 
     if (displayOutline.length < 2) {
       transformRef.current = null;
-      offscreenRef.current = null;
+      bufferCanvasRef.current = null;
       return;
     }
 
@@ -155,9 +155,12 @@ export const AnalyseTrackMap = forwardRef<
       return [offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
     }
 
-    // Create offscreen canvas large enough for the full track at zoom scale
-    const offscreen = new OffscreenCanvas(offW * dpr, offH * dpr);
-    const ctx = getSemanticCanvasContext(offscreen)!;
+    // A detached HTML canvas keeps buffered drawing on the DOM main thread,
+    // where theme variables can be resolved with getComputedStyle.
+    const bufferCanvas = document.createElement("canvas");
+    bufferCanvas.width = offW * dpr;
+    bufferCanvas.height = offH * dpr;
+    const ctx = getSemanticCanvasContext(bufferCanvas)!;
     ctx.scale(dpr, dpr);
 
     // Draw track boundary surface
@@ -487,7 +490,7 @@ export const AnalyseTrackMap = forwardRef<
       }
     }
 
-    offscreenRef.current = offscreen;
+    bufferCanvasRef.current = bufferCanvas;
 
     // Immediately blit to visible canvas (fixed view only — car view uses compositeTrack with rotation)
     if (!rotateWithCar) {
@@ -499,7 +502,7 @@ export const AnalyseTrackMap = forwardRef<
         mainCtx.restore();
         mainCtx.save();
         mainCtx.scale(dpr, dpr);
-        mainCtx.drawImage(offscreen, 0, 0, w, h);
+        mainCtx.drawImage(bufferCanvas, 0, 0, w, h);
         mainCtx.restore();
       }
     }
@@ -518,13 +521,13 @@ export const AnalyseTrackMap = forwardRef<
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [telemetry, resolvedPositions, outline, mapLabels, boundaries, sectors, segments, rotateWithCar, zoom, highlights, showInputs, showTrace, containerHeight]);
 
-  // Composite the cached offscreen track onto the main canvas with rotation for follow view.
+  // Composite the cached track buffer onto the main canvas with rotation for follow view.
   const compositeTrack = useCallback(
     (idx: number) => {
       const canvas = canvasRef.current;
-      const offscreen = offscreenRef.current;
+      const bufferCanvas = bufferCanvasRef.current;
       const t = transformRef.current;
-      if (!canvas || !offscreen || !t) return;
+      if (!canvas || !bufferCanvas || !t) return;
 
       const ctx = getSemanticCanvasContext(canvas);
       if (!ctx) return;
@@ -547,7 +550,7 @@ export const AnalyseTrackMap = forwardRef<
         ctx.translate(-carCx, -carCy);
       }
 
-      ctx.drawImage(offscreen, 0, 0, t.offW, t.offH);
+      ctx.drawImage(bufferCanvas, 0, 0, t.offW, t.offH);
 
       const pkt2 = telemetry[idx];
       const position2 = resolvedPositions[idx];

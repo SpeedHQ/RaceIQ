@@ -1,4 +1,4 @@
-import { getSemanticCanvasContext } from "@/lib/css-color";
+import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import type { Point, TrackSectors } from "@/components/track/types";
 import { SECTOR_COLOR_VARS, TRACK_CORNER_COLOR_VARS, TRACK_STRAIGHT_COLOR_VARS } from "@/lib/colors";
 import { segmentDisplayNames, segmentGroupLabels } from "@/lib/segment-label";

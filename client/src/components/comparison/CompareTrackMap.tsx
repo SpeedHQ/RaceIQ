@@ -1,6 +1,6 @@
 import type { GameId, TelemetryPacket } from "@shared/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getSemanticCanvasContext } from "../../lib/css-color";
+import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
 import { deltaColor } from "../../lib/colors";
 import { type BoundaryData, COLOR_A, COLOR_B, computeZoom, drawInputsHUD, drawTrackCanvas, findTelemetryAtDistance, formatSectionTime, type Point } from "../../lib/comparison-utils";
 import { client } from "../../lib/rpc";

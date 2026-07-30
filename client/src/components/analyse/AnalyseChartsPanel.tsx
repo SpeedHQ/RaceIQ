@@ -1,4 +1,4 @@
-import { getSemanticCanvasContext } from "@/lib/css-color";
+import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { WHEEL_COLOR_VARS } from "@/lib/colors";
 import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import type { DisplayPacket } from "../../lib/convert-packet";

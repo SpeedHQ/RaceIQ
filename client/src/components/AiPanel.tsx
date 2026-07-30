@@ -5,7 +5,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import { m } from "@/paraglide/messages";
 import { useSettings } from "../hooks/queries";
 import { type ChatStreamError, type ChatStreamStatus, readChatStream } from "../lib/chat-stream";
-import { resolveCssColor } from "../lib/css-color";
+import { resolveCssColor } from "../lib/rendering/css-values";
 import { isAiConfigured } from "../lib/is-ai-configured";
 import { client } from "../lib/rpc";
 import { useUiStore } from "../stores/ui";

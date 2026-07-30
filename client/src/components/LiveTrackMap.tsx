@@ -1,4 +1,4 @@
-import { getSemanticCanvasContext } from "@/lib/css-color";
+import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import {
   deadReckonIRacingPosition,

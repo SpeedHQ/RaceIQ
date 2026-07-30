@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { resolveCssColor } from "./css-color";
+import { resolveCssColor } from "./rendering/css-values";
 import { operatingRangeColor, severityRangeColor } from "./colors";
 import { tireState } from "./vehicle-dynamics";
 

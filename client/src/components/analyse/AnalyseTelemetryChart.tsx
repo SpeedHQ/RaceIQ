@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { getSemanticCanvasContext } from "../../lib/css-color";
+import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
 
 export interface ChartSeries {
   data: number[];

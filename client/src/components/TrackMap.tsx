@@ -1,4 +1,5 @@
-import { getSemanticCanvasContext, mixCssColors } from "@/lib/css-color";
+import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import { mixCssColors } from "@/lib/rendering/css-values";
 import { TRACK_SPEED_COLOR_VARS } from "@/lib/colors";
 import { hasWorldPositions, lapPath } from "@shared/lib/lap-path";
 import type { TelemetryPacket } from "@shared/types";

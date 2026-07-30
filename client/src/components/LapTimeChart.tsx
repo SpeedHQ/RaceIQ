@@ -1,4 +1,4 @@
-import { getSemanticCanvasContext } from "@/lib/css-color";
+import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { lapPaceColor } from "@/lib/colors";
 import type { LapMeta } from "@shared/types";
 import { useEffect, useMemo, useRef, useState } from "react";
