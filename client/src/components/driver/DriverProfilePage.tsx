@@ -36,14 +36,27 @@ export function DriverProfilePage() {
     runMutation.mutate({ gameId, retry: runState === "failed" });
   };
   const profileError = profileQuery.error instanceof Error ? profileQuery.error.message : profileQuery.error ? String(profileQuery.error) : null;
-  const runError = runMutation.error instanceof Error ? runMutation.error.message : runMutation.error ? String(runMutation.error) : latestRun?.error ?? null;
+  const runError = runMutation.error instanceof Error ? runMutation.error.message : runMutation.error ? String(runMutation.error) : (latestRun?.error ?? null);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
-      <header className="mb-5 flex flex-wrap items-center gap-3">
-        <div className="min-w-0 flex-1">
+      <header className="mb-5 flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
           <h1 className="text-lg font-semibold text-app-text">Driver Profile</h1>
-          <p className="text-sm text-app-text-muted">Your global trend for {profileQuery.data?.gameName ?? "this game"}.</p>
+          <p className="text-sm text-app-text-muted">How your driving is changing</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className="rounded-md border border-app-border bg-app-surface px-3 py-2 text-xs text-app-text">
+            All {profileQuery.data?.gameName ?? "Forza Motorsport"} laps
+          </button>
+          <button
+            type="button"
+            className="rounded-md bg-app-accent px-3 py-2 text-xs font-medium text-app-bg disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={refresh}
+            disabled={!canRefresh || runPending}
+          >
+            {runPending ? "Refreshing…" : "Refresh AI summary"}
+          </button>
         </div>
       </header>
 
@@ -57,16 +70,7 @@ export function DriverProfilePage() {
       {profileQuery.isError && !fingerprint && <div className="rounded-lg bg-app-surface p-8 text-center text-sm text-app-text-muted ring-1 ring-app-border">Measured profile unavailable.</div>}
 
       {fingerprint && (
-        <DriverProfileView
-          fingerprint={fingerprint}
-          plan={previousPlan}
-          runState={runState}
-          runReason={runsQuery.data?.reason}
-          latestRun={latestRun}
-          runHistory={runs}
-          onRefresh={canRefresh ? refresh : undefined}
-          runPending={runPending}
-        />
+        <DriverProfileView fingerprint={fingerprint} plan={previousPlan} runState={runState} runReason={runsQuery.data?.reason} latestRun={latestRun} runHistory={runs} runPending={runPending} />
       )}
     </div>
   );
