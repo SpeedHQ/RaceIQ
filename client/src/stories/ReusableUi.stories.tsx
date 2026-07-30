@@ -63,7 +63,7 @@ export const ButtonVariants: Story = {
     const primary = canvas.getByRole("button", { name: "Start session" });
     await userEvent.tab();
     await expect(primary).toHaveFocus();
-    await expect(primary).toHaveClass("focus-visible:ring-3");
+    await expect(getComputedStyle(primary).boxShadow).toContain("3px");
   },
 };
 
