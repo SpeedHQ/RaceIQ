@@ -184,7 +184,7 @@ export function DriverProgressCard({ gameId, fingerprint, loading = false, error
   const topWeakness = measured?.weaknesses[0] ?? measured?.unquantifiedWeaknesses[0] ?? null;
 
   return (
-    <section className="rounded-xl border border-app-border bg-app-surface p-4">
+    <section className="min-w-0">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold text-app-text">Driver profile</h2>
@@ -346,6 +346,7 @@ export function HomePageView({
   driverRunState,
 }: HomePageViewProps) {
   return (
+    <div className="min-h-full bg-black">
     <div className="mx-auto max-w-[1400px] p-4 md:p-6 space-y-6">
       {/* Header */}
       {gameId ? (
@@ -675,7 +676,6 @@ export function HomePageView({
             <DriverProgressCard gameId={driverGameId ?? gameId} fingerprint={driverFingerprint} loading={driverLoading} error={driverError} medianLapSec={medianLapSec} runState={driverRunState} />
 
             <section>
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90-muted">Activity</h2>
               <ActivityHeatmap laps={allLaps.filter((l) => l.gameId === gameId)} />
             </section>
 
@@ -829,6 +829,7 @@ export function HomePageView({
           </div>
         </>
       )}
+    </div>
     </div>
   );
 }
