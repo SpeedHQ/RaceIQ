@@ -8,6 +8,8 @@
 
 ### Fixes
 
+- Show all registered games in storage settings, including games with no recording files
+
 ### Internal
 - Consolidated live dashboard routing across all supported games while preserving game-specific URLs
 - Deterministic iRacing recording and replay coverage through the production parser pipeline
