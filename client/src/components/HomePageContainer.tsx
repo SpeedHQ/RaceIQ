@@ -2,7 +2,7 @@ import { tryGetGame } from "@shared/games/registry";
 import type { LapMeta } from "@shared/types";
 import { useQueries } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { useDriverProfile, useDriverProfileRuns, useLaps, useSessionRecap, useSessions, useSettings, useTrackOutline, useTrackSectorBoundaries } from "../hooks/queries";
+import { useLaps, useSessionRecap, useSessions, useSettings, useTrackOutline, useTrackSectorBoundaries } from "../hooks/queries";
 import { client } from "../lib/rpc";
 import { getGameRoute, useGameId } from "../stores/game";
 import { useUiStore } from "../stores/ui";
@@ -13,8 +13,6 @@ export function HomePageContainer() {
   const gameId = useGameId();
   const gameAdapter = gameId ? tryGetGame(gameId) : null;
   const { data: allLaps = [], isLoading: lapsLoading, isError: lapsError } = useLaps();
-  const driverProfileQuery = useDriverProfile({ gameId });
-  const driverProfileRunsQuery = useDriverProfileRuns({ gameId });
   const { data: sessions = [], isLoading: sessionsLoading, isError: sessionsError } = useSessions();
   const { displaySettings } = useSettings();
   const { openSettings } = useUiStore();
@@ -41,16 +39,6 @@ export function HomePageContainer() {
     [allLaps],
   );
 
-  const medianLapSec = useMemo(() => {
-    const selectedLapTimes = driverProfileQuery.data?.selectedLapTimes ?? [];
-    const times = selectedLapTimes
-      .filter((lap) => lap.isValid && lap.lapTime > 0)
-      .map((lap) => lap.lapTime)
-      .sort((a, b) => a - b);
-    if (times.length === 0) return null;
-    const middle = Math.floor(times.length / 2);
-    return times.length % 2 === 0 ? (times[middle - 1] + times[middle]) / 2 : times[middle];
-  }, [driverProfileQuery.data]);
 
   const gameQueries = useQueries({
     queries: (["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"] as const).map((g) => ({
@@ -185,12 +173,6 @@ export function HomePageContainer() {
       periodStats={periodStats}
       onPeriodTabChange={setPeriodTab}
       onOpenSettings={() => openSettings("games")}
-      driverGameId={gameId}
-      driverFingerprint={driverProfileQuery.data?.fingerprint ?? null}
-      driverLoading={driverProfileQuery.isLoading}
-      driverError={driverProfileQuery.error instanceof Error ? driverProfileQuery.error.message : driverProfileQuery.error ? String(driverProfileQuery.error) : null}
-      medianLapSec={medianLapSec}
-      driverRunState={driverProfileRunsQuery.data?.state}
       lapsLoading={lapsLoading}
       lapsError={lapsError}
       sessionsLoading={sessionsLoading}

@@ -1,12 +1,8 @@
-import { balanceReading, controlLossReading, gripMedianReading, reversalsReading, type StyleTone } from "@shared/lib/style-readings";
 import type { GameId, LapMeta, SessionMeta, SessionRecap as SessionRecapDto } from "@shared/types";
 import { Link } from "@tanstack/react-router";
 import { Settings2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { m } from "@/paraglide/messages";
-import type { DriverFingerprint } from "../../../server/ai/driver-profile-aggregate";
-import type { DriverProfileState } from "../hooks/queries";
-import { getGameRoute } from "../stores/game";
 import { ActivityHeatmap } from "./ActivityHeatmap";
 import { formatLapTime } from "./LiveTelemetry";
 import { SessionRecapView, type TrackOutlineData, type TrackSectorBounds } from "./SessionRecap";
@@ -120,163 +116,6 @@ export type PeriodStats = Record<
 >;
 export type GameStats = Record<"fm" | "f1" | "acc" | "acEvo" | "iracing", { laps: number; time: string }>;
 
-export interface DriverProgressCardProps {
-  gameId: string;
-  fingerprint: DriverFingerprint | null;
-  loading?: boolean;
-  error?: string | null;
-  medianLapSec?: number | null;
-  runState?: DriverProfileState;
-}
-
-function ProfileMetric({ label, value, detail }: { label: string; value: string; detail?: string }) {
-  return (
-    <div className="rounded-md border border-app-border/70 bg-app-surface-alt/20 px-2.5 py-2">
-      <div className="text-[10px] uppercase tracking-wider text-app-text-muted">{label}</div>
-      <div className="mt-1 font-mono text-sm font-bold tabular-nums text-app-text">{value}</div>
-      {detail && <div className="mt-0.5 text-[10px] text-app-text-muted">{detail}</div>}
-    </div>
-  );
-}
-
-const STYLE_TONE_CLASS: Record<StyleTone, string> = {
-  neutral: "bg-blue-500/15 text-blue-300",
-  good: "bg-emerald-500/15 text-emerald-300",
-  warn: "bg-amber-500/15 text-amber-300",
-  bad: "bg-red-500/15 text-red-300",
-};
-
-const STYLE_TONE_LABEL: Record<StyleTone, string> = {
-  neutral: "Neutral",
-  good: "Good",
-  warn: "Watch",
-  bad: "High",
-};
-
-function StyleWidget({ label, value, display, tone }: { label: string; value: number | null; display: string; tone: StyleTone }) {
-  const measured = value != null && Number.isFinite(value);
-  return (
-    <div className="rounded-md border border-app-border/70 bg-app-surface-alt/20 px-2.5 py-2">
-      <div className="text-[10px] uppercase tracking-wider text-app-text-muted">{label}</div>
-      <div className="mt-1 font-mono text-sm font-bold tabular-nums text-app-text">{measured ? display : "Not measured"}</div>
-      <span className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${measured ? STYLE_TONE_CLASS[tone] : "bg-app-surface-alt text-app-text-muted"}`}>
-        {measured ? STYLE_TONE_LABEL[tone] : "Not measured"}
-      </span>
-    </div>
-  );
-}
-
-function aiStateLabel(state: DriverProfileState): string {
-  if (state === "succeeded") return "Plan ready";
-  if (state === "queued") return "Queued";
-  if (state === "running") return "Running";
-  if (state === "failed") return "Failed";
-  if (state === "disabled") return "Disabled";
-  return "Not configured";
-}
-
-/** Compact driver profile glance for the per-game home dashboard. */
-export function DriverProgressCard({ gameId, fingerprint, loading = false, error = null, medianLapSec = null, runState = "not-configured" }: DriverProgressCardProps) {
-  const profileHref = `${getGameRoute(gameId)}/driver`;
-  const analyseHref = `${getGameRoute(gameId)}/analyse`;
-  const measured = fingerprint?.ok && fingerprint.laps.analyzed > 0 ? fingerprint : null;
-  const style = measured?.style;
-  const topWeakness = measured?.weaknesses[0] ?? measured?.unquantifiedWeaknesses[0] ?? null;
-
-  return (
-    <section className="min-w-0">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-sm font-semibold text-app-text">Driver profile</h2>
-          <p className="mt-0.5 text-xs text-app-text-muted">
-            {loading ? "Loading measured profile…" : error ? "Profile unavailable" : measured ? `${measured.laps.analyzed} analyzed laps` : "Build your profile from clean laps"}
-          </p>
-        </div>
-        <a
-          href={profileHref}
-          className="rounded px-1 text-xs font-semibold text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
-        >
-          View full profile →
-        </a>
-      </div>
-
-      {error ? (
-        <p className="mt-3 rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-300" role="alert">
-          {error}
-        </p>
-      ) : !measured ? (
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-dashed border-app-border px-3 py-2">
-          <p className="text-xs text-app-text-muted">{loading ? "Measured signals are loading…" : "Record a few clean laps to unlock profile signals."}</p>
-          {!loading && (
-            <a
-              href={analyseHref}
-              className="rounded px-1 text-xs font-semibold text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
-            >
-              Analyse laps →
-            </a>
-          )}
-        </div>
-      ) : (
-        <>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <ProfileMetric
-              label="Pace"
-              value={`${medianLapSec != null ? formatLapTime(medianLapSec) : "Not measured"} / ${measured.pace.bestS != null ? formatLapTime(measured.pace.bestS) : "Not measured"}`}
-              detail="median / best"
-            />
-            <ProfileMetric label="Consistency" value={measured.pace.consistency != null ? `${Math.round(measured.pace.consistency)} / 100` : "Not measured"} />
-            <ProfileMetric label="Analyzed laps" value={`${measured.laps.analyzed}`} />
-            <ProfileMetric label="Confidence" value={measured.confidence} />
-          </div>
-
-          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <StyleWidget
-              label="Grip"
-              value={style?.gripUtilMedian ?? null}
-              display={style?.gripUtilMedian == null ? "" : style.gripUtilMedian.toFixed(2)}
-              tone={style?.gripUtilMedian == null ? "neutral" : gripMedianReading(style.gripUtilMedian).tone}
-            />
-            <StyleWidget
-              label="Balance"
-              value={style?.balanceMedianDeg ?? null}
-              display={style?.balanceMedianDeg == null ? "" : `${style.balanceMedianDeg > 0 ? "+" : ""}${style.balanceMedianDeg.toFixed(1)}°`}
-              tone={style?.balanceMedianDeg == null ? "neutral" : balanceReading(style.balanceMedianDeg).tone}
-            />
-            <StyleWidget
-              label="Control loss"
-              value={style?.controlLossFraction ?? null}
-              display={style?.controlLossFraction == null ? "" : `${(style.controlLossFraction * 100).toFixed(1)}%`}
-              tone={style?.controlLossFraction == null ? "neutral" : controlLossReading(style.controlLossFraction).tone}
-            />
-            <StyleWidget
-              label="Steering variability"
-              value={style?.steerReversalsPerS ?? null}
-              display={style?.steerReversalsPerS == null ? "" : `${style.steerReversalsPerS.toFixed(1)} /s`}
-              tone={style?.steerReversalsPerS == null ? "neutral" : reversalsReading(style.steerReversalsPerS).tone}
-            />
-          </div>
-
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-md border border-app-border/70 bg-app-surface-alt/20 px-3 py-2 text-xs" aria-live="polite">
-            <div className="flex min-w-0 items-center gap-1.5">
-              <span className="uppercase tracking-wider text-app-text-muted">Focus</span>
-              <span className="truncate font-semibold text-app-text">{topWeakness?.label ?? "No recurring weakness"}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="uppercase tracking-wider text-app-text-muted">Coach</span>
-              <span className={runState === "failed" ? "font-semibold text-red-300" : "font-semibold text-app-text"}>{aiStateLabel(runState)}</span>
-            </div>
-            <a
-              href={profileHref}
-              className="ml-auto rounded px-1 font-semibold text-app-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
-            >
-              Details →
-            </a>
-          </div>
-        </>
-      )}
-    </section>
-  );
-}
 
 export interface HomePageViewProps {
   gameId: GameId | null;
@@ -306,12 +145,6 @@ export interface HomePageViewProps {
   periodStats: PeriodStats;
   onPeriodTabChange: (period: PeriodKey) => void;
   onOpenSettings: () => void;
-  driverGameId: string | null;
-  driverFingerprint: DriverFingerprint | null;
-  driverLoading: boolean;
-  driverError: string | null;
-  medianLapSec: number | null;
-  driverRunState?: DriverProfileState;
 }
 
 export function HomePageView({
@@ -338,12 +171,6 @@ export function HomePageView({
   periodStats,
   onPeriodTabChange,
   onOpenSettings,
-  driverGameId,
-  driverFingerprint,
-  driverLoading,
-  driverError,
-  medianLapSec,
-  driverRunState,
 }: HomePageViewProps) {
   return (
     <div className="min-h-full bg-black">
@@ -673,7 +500,6 @@ export function HomePageView({
       {gameId ? (
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
           <main className="min-w-0 space-y-6">
-            <DriverProgressCard gameId={driverGameId ?? gameId} fingerprint={driverFingerprint} loading={driverLoading} error={driverError} medianLapSec={medianLapSec} runState={driverRunState} />
 
             <section>
               <ActivityHeatmap laps={allLaps.filter((l) => l.gameId === gameId)} />
