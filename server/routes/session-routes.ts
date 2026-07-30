@@ -14,8 +14,8 @@ import { wsManager } from "../ws";
 import { computeRecap } from "../recap";
 import { tryGetGame } from "../../shared/games/registry";
 import { getCarName, getTrackName } from "../../shared/car-data";
-import { backfillRaceResults } from "../race-results/reconcile";
-import { getRaceResultAggregate } from "../race-results/aggregates";
+import { backfillRaceResults, reconcileSessionResult } from "../race-results/reconcile";
+import { getRaceResultAggregate, getRecentRaceResults } from "../race-results/aggregates";
 
 const ALL_DETECTOR_IDS = [
   LAP_DETECTOR_ID,
@@ -72,7 +72,11 @@ export const sessionRoutes = new Hono()
       const { id } = c.req.valid("param");
       const { gameId } = c.req.valid("query");
       if (!gameId) return c.json({ error: "gameId is required" }, 400);
-      const result = await getSessionResult(id, gameId);
+      let result = await getSessionResult(id, gameId);
+      if (!result) {
+        await reconcileSessionResult(id, gameId);
+        result = await getSessionResult(id, gameId);
+      }
       if (!result) return c.json({ error: "Session result not found" }, 404);
       return c.json(result);
     },
@@ -102,6 +106,12 @@ export const sessionRoutes = new Hono()
   )
 
 
+  // GET /api/race-results/recent
+  .get(
+    "/api/race-results/recent",
+    zValidator("query", z.object({ gameId: GameIdSchema, limit: z.coerce.number().int().min(1).max(50).default(10) })),
+    async (c) => c.json(await getRecentRaceResults(c.req.valid("query").gameId, c.req.valid("query").limit)),
+  )
   // PATCH /api/sessions/:id/notes
   .patch(
     "/api/sessions/:id/notes",

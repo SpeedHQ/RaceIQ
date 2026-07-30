@@ -1,3 +1,5 @@
+import { getSessionResult, getSessions } from "../db/queries";
+import type { RaceResult } from "../../shared/race-results";
 import { and, eq, sql } from "drizzle-orm";
 import type { GameId } from "../../shared/types";
 import type { RaceResultAggregate } from "../../shared/race-results";
@@ -56,4 +58,15 @@ export async function getRaceResultAggregate(scope: ResultAggregateScope): Promi
     tyreStrategyAvailable: value(row?.tyreAvailable) > 0,
     fuelStrategyAvailable: value(row?.fuelAvailable) > 0,
   };
+}
+
+export async function getRecentRaceResults(gameId: GameId, limit = 10): Promise<RaceResult[]> {
+  const sessions = (await getSessions(gameId)).slice(0, Math.max(1, Math.min(50, Math.trunc(limit))));
+  const results: RaceResult[] = [];
+  for (const session of sessions) {
+    const result = await getSessionResult(session.id, gameId);
+    if (!result) continue;
+    results.push(result as RaceResult);
+  }
+  return results;
 }
