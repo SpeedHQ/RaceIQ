@@ -1,5 +1,5 @@
 import type { DriverFingerprint } from "../../../server/ai/driver-profile-aggregate";
-import type { DriverProfileOutput } from "../../../server/ai/schemas";
+import type { DriverProfileSummary } from "../../../server/ai/schemas";
 import type { ExperimentFocus, VersionKind } from "@shared/experiment-focus";
 import { tryGetGame } from "@shared/games/registry";
 import type { GameId, LapMeta, SessionMeta, SessionRecap, TelemetryPacket, TuneIssue } from "@shared/types";
@@ -31,8 +31,8 @@ export const queryKeys = {
   userTunes: ["user-tunes"] as const,
   catalogTunes: ["catalog-tunes"] as const,
   tuneAssignments: ["tune-assignments"] as const,
-  driverProfile: (gameId: GameId | null, carOrdinal?: number, trackOrdinal?: number) => ["driver-profile", gameId, carOrdinal ?? null, trackOrdinal ?? null] as const,
-  driverProfileRuns: (gameId: GameId | null, carOrdinal?: number, trackOrdinal?: number) => ["driver-profile-runs", gameId, carOrdinal ?? null, trackOrdinal ?? null] as const,
+  driverProfile: (gameId: GameId | null) => ["driver-profile", gameId] as const,
+  driverProfileRuns: (gameId: GameId | null) => ["driver-profile-runs", gameId] as const,
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -89,9 +89,6 @@ export function useLaps(options?: { refetchInterval?: number | false }) {
 export interface DriverProfileResponse {
   fingerprint: DriverFingerprint;
   gameName: string;
-  carName?: string;
-  trackName?: string;
-  selectedLapTimes: Array<{ id: number; lapTime: number; isValid: boolean }>;
 }
 export type DriverProfileRunStatus = "queued" | "running" | "succeeded" | "failed";
 export type DriverProfileState = DriverProfileRunStatus | "disabled" | "not-configured";
@@ -118,7 +115,8 @@ export interface DriverProfileRun {
 }
 
 export interface DriverProfileRunsResponse {
-  scope: { gameId: GameId; carOrdinal?: number; trackOrdinal?: number };
+  scope: { gameId: GameId };
+  gameName: string;
   state: DriverProfileState;
   enabled: boolean;
   configured: boolean;
@@ -129,39 +127,29 @@ export interface DriverProfileRunsResponse {
 
 export interface DriverProfileRunMutationResponse {
   scope: DriverProfileRunsResponse["scope"];
+  gameName: string;
   state: DriverProfileState;
   run: DriverProfileRun | null;
-  plan?: DriverProfileOutput;
+  summary?: DriverProfileSummary;
   fingerprint?: DriverFingerprint;
   usage?: { inputTokens: number; outputTokens: number; costUsd: number; durationMs: number; model: string };
-  warnings?: string[];
   error?: string;
 }
 
 export interface DriverProfileRunScope {
   gameId?: GameId | null;
-  carOrdinal?: number;
-  trackOrdinal?: number;
 }
 
-/** Tracked driver-profile status and history for one stable game/scope key. */
+/** Tracked driver-profile status and history for one stable game key. */
 export function useDriverProfileRuns(scope?: DriverProfileRunScope) {
   const storeGameId = useGameId();
   const gameId = scope?.gameId ?? storeGameId;
-  const carOrdinal = scope?.carOrdinal;
-  const trackOrdinal = scope?.trackOrdinal;
   return useQuery({
-    queryKey: queryKeys.driverProfileRuns(gameId, carOrdinal, trackOrdinal),
+    queryKey: queryKeys.driverProfileRuns(gameId),
     queryFn: async () => {
       if (!gameId) throw new Error("Missing game context");
       const res = await client.api.drivers.profile.runs.$get(
-        {
-          query: {
-            limit: "50",
-            carOrdinal: carOrdinal == null ? undefined : String(carOrdinal),
-            trackOrdinal: trackOrdinal == null ? undefined : String(trackOrdinal),
-          },
-        },
+        { query: { limit: "50" } },
         { headers: { "X-Game-Id": gameId } },
       );
       return rpcJson<DriverProfileRunsResponse>(res);
@@ -178,40 +166,30 @@ export function useDriverProfileRuns(scope?: DriverProfileRunScope) {
 export function useRunDriverProfile() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ gameId, carOrdinal, trackOrdinal, retry = false }: { gameId: GameId; carOrdinal?: number; trackOrdinal?: number; retry?: boolean }) => {
+    mutationFn: async ({ gameId, retry = false }: { gameId: GameId; retry?: boolean }) => {
       const res = await client.api.drivers.profile.runs.$post(
-        {
-          query: {
-            runNow: retry ? undefined : "true",
-            retry: retry ? "true" : undefined,
-            carOrdinal: carOrdinal == null ? undefined : String(carOrdinal),
-            trackOrdinal: trackOrdinal == null ? undefined : String(trackOrdinal),
-          },
-        },
+        { query: { runNow: retry ? undefined : "true", retry: retry ? "true" : undefined } },
         { headers: { "X-Game-Id": gameId } },
       );
       return rpcJson<DriverProfileRunMutationResponse>(res);
     },
     onSettled: (_data, _error, variables) => {
-      void qc.invalidateQueries({ queryKey: queryKeys.driverProfileRuns(variables.gameId, variables.carOrdinal, variables.trackOrdinal) });
-      void qc.invalidateQueries({ queryKey: queryKeys.driverProfile(variables.gameId, variables.carOrdinal, variables.trackOrdinal) });
+      void qc.invalidateQueries({ queryKey: queryKeys.driverProfileRuns(variables.gameId) });
+      void qc.invalidateQueries({ queryKey: queryKeys.driverProfile(variables.gameId) });
     },
   });
 }
 
-
 /** Deterministic driver fingerprint; does not invoke an AI provider. */
-export function useDriverProfile(scope?: { gameId?: GameId | null; carOrdinal?: number; trackOrdinal?: number }) {
+export function useDriverProfile(scope?: { gameId?: GameId | null }) {
   const storeGameId = useGameId();
   const gameId = scope?.gameId ?? storeGameId;
-  const carOrdinal = scope?.carOrdinal;
-  const trackOrdinal = scope?.trackOrdinal;
   return useQuery({
-    queryKey: queryKeys.driverProfile(gameId, carOrdinal, trackOrdinal),
+    queryKey: queryKeys.driverProfile(gameId),
     queryFn: async () => {
       if (!gameId) throw new Error("Missing game context");
       const res = await client.api.drivers.profile.$get(
-        { query: { carOrdinal: carOrdinal == null ? undefined : String(carOrdinal), trackOrdinal: trackOrdinal == null ? undefined : String(trackOrdinal) } },
+        { query: {} },
         { headers: { "X-Game-Id": gameId } },
       );
       return rpcJson<DriverProfileResponse>(res);
@@ -219,6 +197,8 @@ export function useDriverProfile(scope?: { gameId?: GameId | null; carOrdinal?: 
     enabled: !!gameId,
   });
 }
+
+
 
 export function useLapTelemetry(lapId: number | null) {
   const gameId = useGameId();

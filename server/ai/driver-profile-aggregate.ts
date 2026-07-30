@@ -1,8 +1,8 @@
 /**
  * driver-profile-aggregate — the deterministic half of the Driver Profiler
  * (issue #118). Reduces a pool of the driver's laps to a single
- * `DriverFingerprint`: normalised style axes, ranked weaknesses, strengths and
- * pace stats.
+ * `DriverFingerprint`: normalised style axes, ranked weaknesses and a global
+ * recent normalized trend.
  *
  * Everything here is pure arithmetic over `analyzeLap()`'s per-lap insights —
  * no LLM, no clock, no randomness. The same laps in always produce a deeply
@@ -21,22 +21,17 @@
  */
 import { aggregateLapStyles, summariseLapStyle, type LapStyleSummary } from "../../shared/lib/driving-style";
 import { analyzeLap, type InsightCategory, type InsightSeverity, type LapInsight } from "../../shared/lib/lap-insights";
-import { stintStats } from "../../shared/lib/stint-stats";
+import { repeatabilityStats } from "../../shared/lib/stint-stats";
 import { clamp } from "../../shared/stint-trace";
 import type { GameId, LapMeta } from "../../shared/types";
 import { getLapMetaForProfileScope, getLapsByIds } from "../db/queries";
-import { selectCleanLaps, type Confidence } from "./clean-lap-aggregate";
+import type { Confidence } from "./clean-lap-aggregate";
 
 // ---------------------------------------------------------------------------
 // Tuning constants
 // ---------------------------------------------------------------------------
+export const DRIVER_TREND_WINDOW_LAPS = 30;
 
-/**
- * Hard cap on how many laps are decoded and analysed for one profile. Global
- * scope can match thousands of laps; decoding them all would take minutes for a
- * fingerprint that stops moving long before lap 40.
- */
-export const MAX_PROFILE_LAPS = 40;
 
 /** Below this, the style axes are noise and are reported as null rather than as a driving style. */
 export const MIN_LAPS_FOR_STYLE = 3;
@@ -99,15 +94,6 @@ export const ALL_DETECTOR_IDS: readonly string[] = [
  */
 const DESCRIPTIVE_IDS = new Set(["mech-peak-power", "mech-fuel", "driving-trail-brake"]);
 
-/**
- * Detectors whose absence is genuinely to the driver's credit. Deliberately
- * excludes setup/car symptoms (`susp-*`, `tire-overheat-*`, `tire-edge-temp-*`,
- * `mech-*`): never bottoming the suspension says more about ride height than
- * about the person holding the wheel.
- */
-const DRIVER_FAULT_IDS: readonly string[] = ALL_DETECTOR_IDS.filter(
-  (id) => !DESCRIPTIVE_IDS.has(id) && (id.startsWith("driving-") || id.startsWith("tire-lockup-") || id.startsWith("tire-spin-")),
-);
 
 // ---------------------------------------------------------------------------
 // Public shapes
@@ -160,13 +146,6 @@ export interface RankedWeakness extends DetectorStat {
   timeLossKnown: boolean;
 }
 
-export interface Strength {
-  id: string;
-  label: string;
-  perLapFrequency: number;
-  /** "absent" = never fired across the pool; "rare" = fired seldom and only at "info". */
-  basis: "absent" | "rare";
-}
 
 /**
  * Driving-style axes.
@@ -259,69 +238,76 @@ export interface StyleAxes {
    */
   brakingStyle: number;
   /**
-   * 0–100 lap-time repeatability, straight from `stintStats().consistency`.
-   * Null when fewer than 2 laps make it into a comparable context.
+   * 0–100 repeatability from the recent normalized trend window.
+   * Null when fewer than 2 comparable normalized laps exist.
    */
   consistency: number | null;
   /** Laps whose telemetry produced a usable physics summary (see MIN_CORNERING_FRAMES). */
   physicsLaps: number;
 }
 
-export interface PaceProfile {
-  /** 0–100 repeatability. For global scope, the median of the per-context values. */
+export type TrendDirection = "improving" | "steady" | "declining" | "unavailable";
+
+export interface DriverTrendLap {
+  id: number;
+  createdAt: string;
+  isValid: boolean;
+  relativePacePct: number | null;
+}
+
+export interface DriverTrendWindow {
+  laps: DriverTrendLap[];
+  total: number;
+  valid: number;
+  dirty: number;
+  cleanRate: number | null;
+  normalized: number;
   consistency: number | null;
-  /** Seconds. Only meaningful within one car+track context — null for global scope. */
-  sdS: number | null;
-  bestS: number | null;
-  meanS: number | null;
-  /** Seconds/lap OLS slope. For global scope, the median across contexts with >= 3 laps. */
-  degSlopeSPerLap: number | null;
-  /** Laps backing these numbers. */
-  n: number;
-  /**
-   * "single-context" — one car+track, so seconds-valued stats mean something.
-   * "median-of-contexts" — the pool spans car/track combinations, so only the
-   * unitless stats survive; averaging a Monza lap with a Spa lap would be
-   * arithmetic on incomparable quantities.
-   */
-  basis: "single-context" | "median-of-contexts";
-  /** Distinct game+car+track combinations in the pool. */
+  medianPacePct: number | null;
+  spreadPct: number | null;
   contexts: number;
 }
 
+export interface DriverTrendAdvice {
+  id: "build-baseline" | "keep-approach" | "stabilize-pace" | "add-pace" | "reset-baseline" | "hold-steady" | "protect-validity";
+  tone: "positive" | "neutral" | "caution";
+  title: string;
+  detail: string;
+}
+
+export interface DriverTrend {
+  recent: DriverTrendWindow;
+  previous: DriverTrendWindow;
+  consistencyDelta: number | null;
+  paceDeltaPct: number | null;
+  spreadDeltaPct: number | null;
+  cleanRateDelta: number | null;
+  consistencyDirection: TrendDirection;
+  paceDirection: TrendDirection;
+  validityDirection: TrendDirection;
+  advice: DriverTrendAdvice[];
+}
+
 export interface LapPoolReport {
-  /** Laps whose insights back this fingerprint, ascending. */
   lapIds: number[];
   analyzed: number;
-  /** Laps matching the scope before any filtering. */
   candidates: number;
-  droppedInvalid: number;
-  droppedOutlier: number;
-  /** Dropped by MAX_PROFILE_LAPS. */
-  droppedByCap: number;
-  /** Selected but unusable (missing/short telemetry, decode error). */
   droppedNoTelemetry: number;
 }
 
 export interface DriverFingerprint {
-  /** False when no lap survived — every other field is empty/neutral. */
   ok: boolean;
   scope: ProfileScope;
   laps: LapPoolReport;
   confidence: Confidence;
-  /** Null below MIN_LAPS_FOR_STYLE laps: too little data to call it a style. */
   style: StyleAxes | null;
-  pace: PaceProfile;
-  /** Weaknesses with a defensible seconds-per-lap cost, worst first. */
+  trend: DriverTrend;
   weaknesses: RankedWeakness[];
-  /** Weaknesses whose cost `analyzeLap` does not quantify, most frequent/severe first. */
   unquantifiedWeaknesses: RankedWeakness[];
-  strengths: Strength[];
-  /** Full per-detector table, id-ascending — the raw material for the prompt. */
   detectors: DetectorStat[];
-  /** Human-readable record of what was dropped, capped or suppressed. */
   notes: string[];
 }
+
 
 // ---------------------------------------------------------------------------
 // Small pure helpers
@@ -338,12 +324,105 @@ function median(values: number[]): number | null {
 function round4(v: number): number {
   return Math.round(v * 1e4) / 1e4;
 }
+function trendContextKey(lap: LapMeta): string {
+  return `${lap.gameId ?? "?"}|${lap.carOrdinal ?? "?"}|${lap.trackOrdinal ?? "?"}`;
+}
+
+function direction(delta: number | null, improveAt: number, declineAt: number): TrendDirection {
+  if (delta === null) return "unavailable";
+  if (delta >= improveAt) return "improving";
+  if (delta <= declineAt) return "declining";
+  return "steady";
+}
+
+function trendWindow(laps: readonly LapMeta[], benchmarks: ReadonlyMap<string, number>): DriverTrendWindow {
+  const chartLaps = [...laps].reverse().map((lap) => {
+    const benchmark = benchmarks.get(trendContextKey(lap));
+    const relativePacePct =
+      benchmark !== undefined && Number.isFinite(lap.lapTime) && lap.lapTime > 0 ? Math.max(0, (lap.lapTime / benchmark - 1) * 100) : null;
+    return { id: lap.id, createdAt: lap.createdAt, isValid: lap.isValid, relativePacePct };
+  });
+  const paceValues = chartLaps.flatMap((lap) => (lap.relativePacePct === null ? [] : [lap.relativePacePct]));
+  const repeatability = repeatabilityStats(paceValues.map((pace) => 1 + pace / 100));
+  const contextValues = laps.filter((lap) => benchmarks.has(trendContextKey(lap))).map(trendContextKey);
+  return {
+    laps: chartLaps,
+    total: laps.length,
+    valid: laps.filter((lap) => lap.isValid).length,
+    dirty: laps.filter((lap) => !lap.isValid).length,
+    cleanRate: laps.length === 0 ? null : laps.filter((lap) => lap.isValid).length / laps.length,
+    normalized: repeatability.n,
+    consistency: repeatability.consistency === null ? null : round4(repeatability.consistency),
+    medianPacePct: median(paceValues.map((pace) => round4(pace))),
+    spreadPct: repeatability.sd === null ? null : round4(repeatability.sd * 100),
+    contexts: new Set(contextValues).size,
+  };
+}
+
+function adviceFor(recent: DriverTrendWindow, previous: DriverTrendWindow, paceDirection: TrendDirection, consistencyDirection: TrendDirection): DriverTrendAdvice[] {
+  const missingMetric =
+    recent.normalized < 2 ||
+    previous.normalized < 2 ||
+    recent.consistency === null ||
+    previous.consistency === null ||
+    recent.medianPacePct === null ||
+    previous.medianPacePct === null;
+  let primary: DriverTrendAdvice;
+  if (missingMetric) {
+    primary = { id: "build-baseline", tone: "neutral", title: "Keep building the baseline", detail: "A trend needs both recent and previous windows to contain comparable pace data." };
+  } else if (paceDirection === "improving" && consistencyDirection === "improving") {
+    primary = { id: "keep-approach", tone: "positive", title: "Your improvement looks repeatable", detail: "Pace and consistency moved together. Keep the approach stable instead of chasing a larger change." };
+  } else if (paceDirection === "improving" && consistencyDirection === "declining") {
+    primary = { id: "stabilize-pace", tone: "caution", title: "Consolidate the new speed", detail: "Pace improved while repeatability fell. Hold the current pace until consistency returns." };
+  } else if (consistencyDirection === "improving" && (paceDirection === "steady" || paceDirection === "declining")) {
+    primary = { id: "add-pace", tone: "positive", title: "Use the stable base to add pace", detail: "Your laps are becoming more repeatable. Preserve that rhythm and add speed gradually." };
+  } else if (consistencyDirection === "declining" && paceDirection !== "improving") {
+    primary = { id: "reset-baseline", tone: "caution", title: "Reset to a repeatable baseline", detail: "Pace and repeatability are not moving together. Reduce variation before pushing again." };
+  } else {
+    primary = { id: "hold-steady", tone: "neutral", title: "Performance is stable", detail: "Neither pace nor consistency moved enough to call a trend. Change one thing at a time and keep building evidence." };
+  }
+  const advice = [primary];
+  if (recent.cleanRate !== null && previous.cleanRate !== null && recent.cleanRate - previous.cleanRate <= -0.05) {
+    advice.push({ id: "protect-validity", tone: "caution", title: "Protect validity before pushing harder", detail: "Dirty-lap rate worsened. Keep the current pace inside the valid-lap envelope before adding more risk." });
+  }
+  return advice;
+}
+
+export function buildDriverTrend(candidatesNewestFirst: readonly LapMeta[]): DriverTrend {
+  const benchmarks = new Map<string, number>();
+  for (const lap of candidatesNewestFirst) {
+    if (!lap.isValid || !Number.isFinite(lap.lapTime) || lap.lapTime <= 0) continue;
+    const key = trendContextKey(lap);
+    const current = benchmarks.get(key);
+    if (current === undefined || lap.lapTime < current) benchmarks.set(key, lap.lapTime);
+  }
+  const recent = trendWindow(candidatesNewestFirst.slice(0, DRIVER_TREND_WINDOW_LAPS), benchmarks);
+  const previous = trendWindow(candidatesNewestFirst.slice(DRIVER_TREND_WINDOW_LAPS, DRIVER_TREND_WINDOW_LAPS * 2), benchmarks);
+  const consistencyDelta = recent.consistency !== null && previous.consistency !== null ? round4(recent.consistency - previous.consistency) : null;
+  const paceDeltaPct = recent.medianPacePct !== null && previous.medianPacePct !== null ? round4(recent.medianPacePct - previous.medianPacePct) : null;
+  const spreadDeltaPct = recent.spreadPct !== null && previous.spreadPct !== null ? round4(recent.spreadPct - previous.spreadPct) : null;
+  const cleanRateDelta = recent.cleanRate !== null && previous.cleanRate !== null ? round4(recent.cleanRate - previous.cleanRate) : null;
+  const consistencyDirection = direction(consistencyDelta, 2, -2);
+  const paceDirection: TrendDirection = paceDeltaPct === null ? "unavailable" : paceDeltaPct <= -0.25 ? "improving" : paceDeltaPct >= 0.25 ? "declining" : "steady";
+  const validityDirection = direction(cleanRateDelta, 0.05, -0.05);
+  return {
+    recent,
+    previous,
+    consistencyDelta,
+    paceDeltaPct,
+    spreadDeltaPct,
+    cleanRateDelta,
+    consistencyDirection,
+    paceDirection,
+    validityDirection,
+    advice: adviceFor(recent, previous, paceDirection, consistencyDirection),
+  };
+}
 
 function severityRank(s: InsightSeverity): number {
   return SEVERITY_WEIGHT[s];
 }
 
-// ---------------------------------------------------------------------------
 // Detector rollup
 // ---------------------------------------------------------------------------
 
@@ -520,125 +599,7 @@ export function rankWeaknesses(detectors: DetectorStat[]): { weaknesses: RankedW
   return { weaknesses, unquantifiedWeaknesses };
 }
 
-/**
- * Driver faults that never fired, or fired seldom and only mildly.
- *
- * Requires MIN_LAPS_FOR_STYLE laps: over one or two laps an absence is luck,
- * not a strength, and telling a driver they "never lock a brake" on that
- * evidence is exactly the noise-as-insight failure this module exists to avoid.
- */
-export function findStrengths(detectors: DetectorStat[], lapCount: number): Strength[] {
-  if (lapCount < MIN_LAPS_FOR_STYLE) return [];
-  const byId = new Map(detectors.map((d) => [d.id, d]));
-  const strengths: Strength[] = [];
 
-  for (const id of DRIVER_FAULT_IDS) {
-    const d = byId.get(id);
-    if (!d) {
-      strengths.push({ id, label: FAULT_LABELS[id] ?? id, perLapFrequency: 0, basis: "absent" });
-    } else if (d.perLapFrequency <= 0.2 && d.peakSeverity === "info") {
-      strengths.push({ id, label: d.label, perLapFrequency: d.perLapFrequency, basis: "rare" });
-    }
-  }
-  strengths.sort((a, b) => a.perLapFrequency - b.perLapFrequency || (a.id < b.id ? -1 : 1));
-  return strengths;
-}
-
-/**
- * Display labels for detectors that never fired (so have no insight to read a
- * label from). Mirrors the `label` fields in shared/lib/lap-insights.ts.
- */
-const FAULT_LABELS: Record<string, string> = {
-  "driving-brake-traction-loss": "Brake Traction Loss",
-  "driving-rev-limiter": "Rev Limiter",
-  "driving-coasting": "Coasting",
-  "driving-counter-steer": "Counter-Steer",
-  "driving-early-braking": "Early Braking",
-  "driving-over-slowing": "Over-Slowed Corner",
-  "driving-throttle-traction-loss": "Throttle Traction Loss",
-  "driving-early-throttle": "Early Throttle",
-  "driving-binary-throttle": "Binary Throttle",
-  "driving-brake-drag": "Brake Drag",
-  "driving-downshift-over-rev": "Aggressive Downshifts",
-  "driving-late-braking-overshoot": "Late Braking Overshoot",
-  "driving-understeer-scrub": "Understeer Scrub",
-  "driving-steering-sawing": "Steering Sawing",
-  "driving-throttle-micro-lifts": "Throttle Micro-Lifts",
-  "driving-kerb-riding": "Hard Kerb Strikes",
-  "tire-lockup-FL": "Wheel Lockup",
-  "tire-lockup-FR": "Wheel Lockup",
-  "tire-lockup-RL": "Wheel Lockup",
-  "tire-lockup-RR": "Wheel Lockup",
-  "tire-spin-FL": "Wheelspin",
-  "tire-spin-FR": "Wheelspin",
-  "tire-spin-RL": "Wheelspin",
-  "tire-spin-RR": "Wheelspin",
-};
-
-// ---------------------------------------------------------------------------
-// Pace
-// ---------------------------------------------------------------------------
-
-function contextKey(lap: LapMeta): string {
-  return `${lap.gameId ?? "?"}|${lap.carOrdinal ?? "?"}|${lap.trackOrdinal ?? "?"}`;
-}
-
-/**
- * Pace stats over the analysed pool.
- *
- * `dropOutLap: false` throughout — the pool is already curated (invalid laps and
- * blunders removed), so stintStats' default "drop the lowest lap number" would
- * throw away a legitimate lap and make `n` disagree with `laps.analyzed`.
- *
- * A pool spanning several car/track combinations has no meaningful mean lap
- * time — averaging Monza with Spa is arithmetic on incomparable units. So for
- * multi-context pools only the unitless stats survive, as the median of the
- * per-context values (each computed on its own comparable laps).
- */
-export function computePace(laps: LapMeta[]): PaceProfile {
-  const groups = new Map<string, LapMeta[]>();
-  for (const lap of laps) {
-    const key = contextKey(lap);
-    const g = groups.get(key);
-    if (g) g.push(lap);
-    else groups.set(key, [lap]);
-  }
-  const contexts = groups.size;
-
-  if (contexts <= 1) {
-    const s = stintStats(laps, { dropOutLap: false });
-    return {
-      consistency: s.consistency ?? null,
-      sdS: s.sdS ?? null,
-      bestS: s.bestS ?? null,
-      meanS: s.meanS ?? null,
-      degSlopeSPerLap: s.degSlopeSPerLap ?? null,
-      n: s.n,
-      basis: "single-context",
-      contexts,
-    };
-  }
-
-  const consistencies: number[] = [];
-  const slopes: number[] = [];
-  for (const key of [...groups.keys()].sort()) {
-    const s = stintStats(groups.get(key) ?? [], { dropOutLap: false });
-    if (s.consistency !== undefined) consistencies.push(s.consistency);
-    if (s.degSlopeSPerLap !== undefined) slopes.push(s.degSlopeSPerLap);
-  }
-  const c = median(consistencies);
-  const slope = median(slopes);
-  return {
-    consistency: c === null ? null : round4(c),
-    sdS: null,
-    bestS: null,
-    meanS: null,
-    degSlopeSPerLap: slope === null ? null : round4(slope),
-    n: laps.length,
-    basis: "median-of-contexts",
-    contexts,
-  };
-}
 
 // ---------------------------------------------------------------------------
 // Fingerprint assembly
@@ -651,26 +612,16 @@ function confidenceFor(lapCount: number): Confidence {
   return "very-low";
 }
 
-export function emptyFingerprint(scope: ProfileScope, laps?: Partial<LapPoolReport>, notes: string[] = []): DriverFingerprint {
+export function emptyFingerprint(scope: ProfileScope, laps: Partial<LapPoolReport> = {}, notes: string[] = [], trend: DriverTrend = buildDriverTrend([])): DriverFingerprint {
   return {
-    ok: false,
+    ok: trend.recent.total > 0,
     scope,
-    laps: {
-      lapIds: [],
-      analyzed: 0,
-      candidates: 0,
-      droppedInvalid: 0,
-      droppedOutlier: 0,
-      droppedByCap: 0,
-      droppedNoTelemetry: 0,
-      ...laps,
-    },
+    laps: { lapIds: [], analyzed: 0, candidates: 0, droppedNoTelemetry: 0, ...laps },
     confidence: "very-low",
     style: null,
-    pace: { consistency: null, sdS: null, bestS: null, meanS: null, degSlopeSPerLap: null, n: 0, basis: "single-context", contexts: 0 },
+    trend,
     weaknesses: [],
     unquantifiedWeaknesses: [],
-    strengths: [],
     detectors: [],
     notes,
   };
@@ -684,162 +635,75 @@ export function buildDriverFingerprint(input: {
   scope: ProfileScope;
   laps: LapMeta[];
   perLapInsights: LapInsight[][];
-  /**
-   * Continuous per-lap physics summaries, parallel to `laps`. Optional so the
-   * detector half stays testable without synthesising telemetry; when absent the
-   * physics axes report null rather than a fabricated zero.
-   */
   perLapStyle?: (LapStyleSummary | undefined)[];
+  trend?: DriverTrend;
   pool?: Partial<LapPoolReport>;
   notes?: string[];
 }): DriverFingerprint {
   const { scope } = input;
   const notes = [...(input.notes ?? [])];
-  // Analyse laps in a fixed order so nothing downstream can depend on the
-  // caller's fetch ordering.
+  const trend = input.trend ?? buildDriverTrend(input.laps);
   const paired = input.laps
     .map((lap, i) => ({ lap, insights: input.perLapInsights[i] ?? [], style: input.perLapStyle?.[i] }))
     .sort((a, b) => a.lap.id - b.lap.id);
-
   const laps = paired.map((p) => p.lap);
   const perLapInsights = paired.map((p) => p.insights);
   const styleSummaries = paired.map((p) => p.style).filter((s): s is LapStyleSummary => s !== undefined);
   const lapCount = laps.length;
-
-  if (lapCount === 0) {
-    return emptyFingerprint(scope, input.pool, [...notes, "No usable laps for this scope."]);
-  }
-
-  const lapIds = laps.map((l) => l.id);
+  const lapIds = laps.map((lap) => lap.id);
   const detectors = rollUpDetectors(perLapInsights, lapIds);
-  const pace = computePace(laps);
   const { weaknesses, unquantifiedWeaknesses } = rankWeaknesses(detectors);
-  const strengths = findStrengths(detectors, lapCount);
 
   let style: StyleAxes | null = null;
   if (lapCount >= MIN_LAPS_FOR_STYLE) {
-    style = computeStyleAxes(detectors, pace.consistency, styleSummaries);
-    // The physics axes need their own quorum: a pool can have plenty of laps
-    // while few of them contain enough cornering to measure (in-laps, safety-car
-    // laps, an oval). Say so instead of letting one lap speak for the driver.
+    style = computeStyleAxes(detectors, trend.recent.consistency, styleSummaries);
     if (style.physicsLaps > 0 && style.physicsLaps < MIN_LAPS_FOR_STYLE) {
       notes.push(`Only ${style.physicsLaps} lap${style.physicsLaps === 1 ? "" : "s"} had enough cornering to measure driving style from vehicle physics.`);
     } else if (style.physicsLaps === 0) {
       notes.push("No lap had enough cornering telemetry to measure driving style from vehicle physics.");
     }
-  } else {
+  } else if (lapCount > 0) {
     notes.push(`Only ${lapCount} lap${lapCount === 1 ? "" : "s"} available — too few to characterise a driving style (need ${MIN_LAPS_FOR_STYLE}).`);
   }
 
   const pool = input.pool ?? {};
-  if (pool.droppedByCap) notes.push(`${pool.droppedByCap} further clean lap${pool.droppedByCap === 1 ? "" : "s"} not analysed (capped at ${MAX_PROFILE_LAPS}).`);
-  if (pool.droppedOutlier) notes.push(`${pool.droppedOutlier} lap${pool.droppedOutlier === 1 ? "" : "s"} dropped as statistical outliers.`);
-  if (pool.droppedInvalid) notes.push(`${pool.droppedInvalid} invalid lap${pool.droppedInvalid === 1 ? "" : "s"} excluded.`);
   if (pool.droppedNoTelemetry) notes.push(`${pool.droppedNoTelemetry} lap${pool.droppedNoTelemetry === 1 ? "" : "s"} had no usable telemetry.`);
-
   return {
-    ok: true,
+    ok: trend.recent.total > 0,
     scope,
-    laps: {
-      lapIds,
-      analyzed: lapCount,
-      candidates: pool.candidates ?? lapCount,
-      droppedInvalid: pool.droppedInvalid ?? 0,
-      droppedOutlier: pool.droppedOutlier ?? 0,
-      droppedByCap: pool.droppedByCap ?? 0,
-      droppedNoTelemetry: pool.droppedNoTelemetry ?? 0,
-    },
+    laps: { lapIds, analyzed: lapCount, candidates: pool.candidates ?? trend.recent.total, droppedNoTelemetry: pool.droppedNoTelemetry ?? 0 },
     confidence: confidenceFor(lapCount),
     style,
-    pace,
+    trend,
     weaknesses,
     unquantifiedWeaknesses,
-    strengths,
     detectors,
-    notes,
+    notes: lapCount === 0 ? [...notes, "No usable laps for this scope."] : notes,
   };
 }
 
-/**
- * Pick at most `cap` laps: the fastest half and the most recent half.
- *
- * Fastest-only would profile the driver at their best and miss the habits that
- * cost them time; recent-only would over-weight one bad session. Returns lap ids
- * ascending. Pure and order-independent (input order does not affect the result).
- */
-export function sampleProfileLaps(laps: LapMeta[], cap: number = MAX_PROFILE_LAPS): { selected: LapMeta[]; droppedByCap: number } {
-  if (laps.length <= cap) {
-    return { selected: [...laps].sort((a, b) => a.id - b.id), droppedByCap: 0 };
-  }
-  const byTime = [...laps].sort((a, b) => a.lapTime - b.lapTime || a.id - b.id);
-  const byRecency = [...laps].sort((a, b) => b.id - a.id);
-
-  const chosen = new Map<number, LapMeta>();
-  const fastestQuota = Math.floor(cap / 2);
-  for (const lap of byTime) {
-    if (chosen.size >= fastestQuota) break;
-    chosen.set(lap.id, lap);
-  }
-  for (const lap of byRecency) {
-    if (chosen.size >= cap) break;
-    chosen.set(lap.id, lap);
-  }
-  // The recency pass can hit laps already taken by the fastest pass; top up from
-  // the remaining fastest so the cap is always filled.
-  for (const lap of byTime) {
-    if (chosen.size >= cap) break;
-    chosen.set(lap.id, lap);
-  }
-
-  return { selected: [...chosen.values()].sort((a, b) => a.id - b.id), droppedByCap: laps.length - chosen.size };
-}
 
 // ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 
 /**
- * Load and reduce the driver's laps to a fingerprint.
- *
- * Pass both `carOrdinal` and `trackOrdinal` for a car+track profile; pass
- * neither for the global driver profile. (Passing exactly one is accepted and
- * filters on it, but is still reported as "global" — there is no third scope.)
+ * Load and reduce all of the driver's laps for one selected game to a
+ * global fingerprint.
  */
-export async function loadDriverProfile(opts: { gameId: GameId; carOrdinal?: number; trackOrdinal?: number }): Promise<DriverFingerprint> {
-  const scope: ProfileScope = {
-    kind: opts.carOrdinal != null && opts.trackOrdinal != null ? "car-track" : "global",
-    gameId: opts.gameId,
-    carOrdinal: opts.carOrdinal ?? null,
-    trackOrdinal: opts.trackOrdinal ?? null,
-  };
+export async function loadDriverProfile(opts: { gameId: GameId }): Promise<DriverFingerprint> {
+  const scope: ProfileScope = { kind: "global", gameId: opts.gameId, carOrdinal: null, trackOrdinal: null };
+  const pool = await getLapMetaForProfileScope(opts.gameId);
+  const trend = buildDriverTrend(pool);
+  if (pool.length === 0) return emptyFingerprint(scope, { candidates: 0 }, ["No laps recorded for this scope."], trend);
 
-  // Unlimited by design: the scope predicate runs in SQL, so a deep history is
-  // never truncated before the profile sees it. Decode cost stays bounded by
-  // MAX_PROFILE_LAPS below, which is the expensive step.
-  const pool = await getLapMetaForProfileScope(opts.gameId, opts.carOrdinal, opts.trackOrdinal);
-
-  if (pool.length === 0) {
-    return emptyFingerprint(scope, { candidates: 0 }, ["No laps recorded for this scope."]);
-  }
-
-  // User exclusions are deliberately NOT applied: a lap excluded from a tuning
-  // comparison is still a lap the driver drove. See selectCleanLaps' doc.
-  const { clean, breakdown } = selectCleanLaps(pool, { applyUserExclusions: false });
-  const droppedInvalid = breakdown.filter((r) => r.reason === "invalid").length;
-  const droppedOutlier = breakdown.filter((r) => r.reason === "auto-outlier").length;
-
-  const { selected, droppedByCap } = sampleProfileLaps(clean);
-  if (selected.length === 0) {
-    return emptyFingerprint(scope, { candidates: pool.length, droppedInvalid, droppedOutlier }, ["No clean laps for this scope."]);
-  }
-
-  const loaded = await getLapsByIds(selected.map((l) => l.id));
-  const metaById = new Map(selected.map((l) => [l.id, l]));
-
+  const selected = pool.slice(0, DRIVER_TREND_WINDOW_LAPS);
+  const loaded = await getLapsByIds(selected.map((lap) => lap.id));
+  const metaById = new Map(selected.map((lap) => [lap.id, lap]));
   const laps: LapMeta[] = [];
   const perLapInsights: LapInsight[][] = [];
   const perLapStyle: LapStyleSummary[] = [];
-  let droppedNoTelemetry = 0;
+  let droppedNoTelemetry = selected.length - loaded.length;
 
   for (const lap of loaded) {
     const meta = metaById.get(lap.id);
@@ -852,13 +716,13 @@ export async function loadDriverProfile(opts: { gameId: GameId; carOrdinal?: num
     perLapInsights.push(analyzeLap(lap.telemetry, lapGame));
     perLapStyle.push(summariseLapStyle(lap.telemetry, lapGame));
   }
-  droppedNoTelemetry += selected.length - loaded.length;
 
   return buildDriverFingerprint({
     scope,
     laps,
     perLapInsights,
     perLapStyle,
-    pool: { candidates: pool.length, droppedInvalid, droppedOutlier, droppedByCap, droppedNoTelemetry },
+    trend,
+    pool: { candidates: pool.length, droppedNoTelemetry },
   });
 }

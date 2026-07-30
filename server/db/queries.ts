@@ -2298,7 +2298,7 @@ export async function getLapCountsByTrack(gameId: GameId): Promise<Map<number, n
 }
 
 // ---------------------------------------------------------------------------
-// Driver profiles (cached improvement plans)
+// Driver profiles (cached summary snapshots)
 // ---------------------------------------------------------------------------
 
 export interface DriverProfileScopeKey {
@@ -2353,7 +2353,7 @@ export async function getDriverProfile(scope: DriverProfileScopeKey): Promise<Dr
   return row ?? null;
 }
 
-/** Save or replace the cached plan for a scope. */
+/** Save or replace the cached DriverProfileSummary snapshot for a scope. */
 export async function saveDriverProfile(
   scope: DriverProfileScopeKey,
   data: { poolKey: string; fingerprint: string; plan: string; usage: AnalysisUsage },
@@ -2393,9 +2393,6 @@ export async function saveDriverProfile(
   }
 }
 
-export async function deleteDriverProfile(scope: DriverProfileScopeKey): Promise<void> {
-  await db.delete(driverProfiles).where(eq(driverProfiles.scopeKey, driverProfileScopeKey(scope))).run();
-}
 
 export type DriverProfileRunStatus = "queued" | "running" | "succeeded" | "failed";
 export interface DriverProfileRunRow {

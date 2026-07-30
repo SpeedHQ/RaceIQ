@@ -492,24 +492,18 @@ export const lapMetrics = sqliteTable("lap_metrics", {
 });
 
 /**
- * Cached driver improvement plans, one row per profile scope.
+ * Cached Driver Profile summary snapshots, one row per profile scope.
  *
  * `scopeKey` (`gameId|carOrdinal|trackOrdinal`, with `*` for an unset ordinal)
  * carries the uniqueness rather than a composite index over the three columns,
- * because SQLite treats NULLs as distinct in a UNIQUE index — a global-scope
- * profile (both ordinals NULL) could otherwise be inserted twice and the second
- * write would never replace the first. The individual columns are kept
- * alongside it so a scope can still be queried or purged by game.
+ * because SQLite's UNIQUE constraint treats NULLs as distinct.
  *
- * `poolKey` is a digest of the candidate lap ids the plan was built from. It is
- * the staleness check: driving another lap in scope changes the digest, so the
- * cached plan stops being served without needing to re-decode any telemetry to
- * find that out. Comparing lap *counts* would miss a deletion that coincides
- * with a new lap.
+ * `poolKey` is a digest of the newest candidate lap ids the summary was built
+ * from. It is the staleness check: driving another lap in scope changes the
+ * digest without decoding telemetry.
  *
  * `fingerprint` is the deterministic aggregator output, stored beside the
- * model's `plan` so the numbers the plan was written against can be shown (and
- * audited) later, even if the aggregator's behaviour changes underneath.
+ * model's DriverProfileSummary `plan` snapshot for auditing.
  */
 export const driverProfiles = sqliteTable(
 	"driver_profiles",
@@ -522,7 +516,7 @@ export const driverProfiles = sqliteTable(
 		poolKey: text("pool_key").notNull(),
 		/** JSON — DriverFingerprint from server/ai/driver-profile-aggregate.ts. */
 		fingerprint: text("fingerprint").notNull(),
-		/** JSON — DriverProfileOutput from the Driver Profiler agent. */
+		/** JSON — DriverProfileSummary snapshot from the Driver Profiler agent. */
 		plan: text("plan").notNull(),
 		inputTokens: integer("input_tokens").notNull().default(0),
 		outputTokens: integer("output_tokens").notNull().default(0),
@@ -547,7 +541,7 @@ export const driverProfileRuns = sqliteTable(
 		status: text("status", { enum: ["queued", "running", "succeeded", "failed"] }).notNull().default("queued"),
 		/** JSON — deterministic DriverFingerprint snapshot, when available. */
 		fingerprint: text("fingerprint"),
-		/** JSON — generated DriverProfileOutput snapshot, when available. */
+		/** JSON — generated DriverProfileSummary snapshot, when available. */
 		plan: text("plan"),
 		error: text("error"),
 		inputTokens: integer("input_tokens").notNull().default(0),

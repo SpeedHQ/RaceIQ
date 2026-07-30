@@ -191,85 +191,38 @@ export function parseTuneIntents(raw: unknown): ReturnType<typeof TuneIntentsSch
   }
 }
 
-// ─── Driver profile / improvement plan ──────────────────────────────────────
+// ─── Driver profile trend summary ──────────────────────────────────────────
 
 /**
- * Output shape for the Driver Profiler agent (POST /api/drivers/profile).
+ * Summary-only output for the Driver Profiler agent.
  *
- * Deliberately narrower than the analyst schema. The coach is not re-analysing
- * telemetry — the deterministic aggregator has already done that and handed it
- * a ranked list. Its job is to explain *why* the top faults happen and what to
- * practise, so every field here is prose keyed to a detector the aggregator
- * actually reported.
+ * The trend and advice are deterministic. The model may only explain their
+ * credibility in a short, general summary; it must not add a plan or claims
+ * about specific telemetry.
  */
-const FocusArea = z.object({
-  /** Detector id from the fingerprint. Pins the prose to a measured fault. */
-  detectorId: z.string(),
-  title: z.string(),
-  /** What the driver is doing, in their terms. */
-  whatHappens: z.string(),
-  /** Why it costs time — the mechanism, not a restatement of the number. */
-  whyItCosts: z.string(),
-  /** A concrete practice drill with a way to tell it worked. */
-  drill: z.string(),
-  /**
-   * Verbatim from the fingerprint when the aggregator quantified a cost, and
-   * omitted when it did not. The model must not invent one: an unquantified
-   * fault is "cost not measured", never "costs nothing".
-   */
-  estimatedGainS: z.number().optional(),
-});
+export const DriverProfileSummarySchema = z
+  .object({
+    headline: z.string().min(1).max(80),
+    summary: z.string().min(1).max(600),
+  })
+  .strict();
 
-const ProfileStrength = z.object({
-  title: z.string(),
-  detail: z.string(),
-});
+export type DriverProfileSummary = z.infer<typeof DriverProfileSummarySchema>;
 
-export const DriverProfileOutputSchema = z.object({
-  /** 2–3 sentences: the driver's style in plain language, then the headline. */
-  summary: z.string(),
-  /** One short phrase naming the style, e.g. "committed but inconsistent on entry". */
-  styleLabel: z.string(),
-  strengths: z.array(ProfileStrength),
-  /** Ranked, most valuable first. Mirrors the aggregator's ordering. */
-  focusAreas: z.array(FocusArea),
-  /** What to actually do in the next session, in order. */
-  sessionPlan: z.array(z.string()),
-});
-
-export type DriverProfileOutput = z.infer<typeof DriverProfileOutputSchema>;
-
-export function getDriverProfileJsonSchema(): Record<string, unknown> {
-  return z.toJSONSchema(DriverProfileOutputSchema) as Record<string, unknown>;
+export function getDriverProfileSummaryJsonSchema(): Record<string, unknown> {
+  return z.toJSONSchema(DriverProfileSummarySchema) as Record<string, unknown>;
 }
 
-/** JSON skeleton for embedding in the coach system prompt. */
-export function renderDriverProfileSchemaForPrompt(): string {
+/** JSON skeleton for embedding in the summary-only profiler prompt. */
+export function renderDriverProfileSummarySchemaForPrompt(): string {
   return `{
-  "summary": "2-3 sentences: how this driver drives, then the single biggest opportunity.",
-  "styleLabel": "short phrase naming the style, e.g. 'committed but loose on entry'",
-  "strengths": [
-    { "title": "short phrase", "detail": "1 sentence, referencing the measured evidence" }
-  ],
-  "focusAreas": [
-    {
-      "detectorId": "exact id from the FOCUS AREAS table — never invented",
-      "title": "short imperative phrase",
-      "whatHappens": "1-2 sentences describing the driver's actual input pattern",
-      "whyItCosts": "1-2 sentences on the mechanism — why this loses time",
-      "drill": "a concrete practice exercise plus how to tell it worked",
-      "estimatedGainS": 0.25
-    }
-  ],
-  "sessionPlan": [
-    "one instruction for the next session, in the order to do them"
-  ]
-}
-Omit "estimatedGainS" entirely for any focus area whose table row says the cost was not measured. Do not write 0.`;
+  "headline": "short trend headline (1-80 characters)",
+  "summary": "2-3 sentences explaining the credibility of this driver's global trend from the supplied counts and normalized pace only (1-600 characters)"
+}`;
 }
 
-export function parseDriverProfileOutput(raw: unknown): ReturnType<typeof DriverProfileOutputSchema.safeParse> {
-  if (typeof raw !== "string") return DriverProfileOutputSchema.safeParse(raw);
+export function parseDriverProfileSummary(raw: unknown): ReturnType<typeof DriverProfileSummarySchema.safeParse> {
+  if (typeof raw !== "string") return DriverProfileSummarySchema.safeParse(raw);
 
   const fenceStripped = raw
     .trim()
@@ -282,8 +235,8 @@ export function parseDriverProfileOutput(raw: unknown): ReturnType<typeof Driver
     firstBrace >= 0 && lastBrace > firstBrace ? fenceStripped.slice(firstBrace, lastBrace + 1) : fenceStripped;
 
   try {
-    return DriverProfileOutputSchema.safeParse(JSON.parse(jsonSlice));
+    return DriverProfileSummarySchema.safeParse(JSON.parse(jsonSlice));
   } catch {
-    return DriverProfileOutputSchema.safeParse(raw);
+    return DriverProfileSummarySchema.safeParse(raw);
   }
 }

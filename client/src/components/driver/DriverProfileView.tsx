@@ -1,99 +1,27 @@
-/**
- * Presentational half of the driver profile.
- *
- * Split from `DriverProfilePage` (which owns the scope, the fetch and the NDJSON
- * stream) so the layout can be rendered from fixed props — in Storybook, and in
- * tests. The states that matter most here are the awkward ones: a fingerprint
- * with no plan yet, axes that came back null, faults with no measured cost. Those
- * are exactly the states a live fetch makes hard to reach on demand.
- *
- * Two halves with different provenance, kept visually apart on purpose. The left
- * column is measured — it comes from the deterministic aggregator and is true
- * whether or not anyone ever calls a model. The right column is written by the
- * Driver Profiler agent from those measurements. Presented as one continuous
- * document, model prose would borrow the authority of the telemetry.
- */
 import { ChevronDown } from "lucide-react";
-import { useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { DriverFingerprint, RankedWeakness } from "../../../../server/ai/driver-profile-aggregate";
-import type { DriverProfileOutput } from "../../../../server/ai/schemas";
+import type { DriverProfileSummary } from "../../../../server/ai/schemas";
 import type { DriverProfileRun, DriverProfileState } from "../../hooks/queries";
+import { DriverTrendOverview } from "./DriverTrendOverview";
 import { StyleGauges } from "./StyleGauges";
+
 export interface DriverProfileViewProps {
   fingerprint: DriverFingerprint;
-  /** Null when only the deterministic half has been built. */
-  plan?: DriverProfileOutput | null;
-  cached?: boolean;
-  warnings?: string[];
-  coachStatus?: "idle" | "running" | "error";
-  coachError?: string;
+  plan?: DriverProfileSummary | null;
   runReason?: string;
   runState?: DriverProfileState;
   latestRun?: DriverProfileRun | null;
   runHistory?: DriverProfileRun[];
-  onRunNow?: () => void;
-  onRetry?: () => void;
+  onRefresh?: () => void;
   runPending?: boolean;
 }
 
-/**
- * The ranking already answered "what should I do first", so only the top item
- * opens. Showing every card expanded puts five equally-weighted walls of text on
- * screen and quietly undoes that ordering.
- */
-function FocusArea({ area, rank, detector, defaultOpen }: { area: DriverProfileOutput["focusAreas"][number]; rank: number; detector: RankedWeakness | undefined; defaultOpen: boolean }) {
-  const [open, setOpen] = useState(defaultOpen);
-
-  return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="rounded-lg bg-app-surface ring-1 ring-white/10">
-        <CollapsibleTrigger className="flex w-full items-start gap-3 p-3 text-left">
-          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-[11px] font-semibold tabular-nums text-app-text">{rank}</span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-medium text-app-text">{area.title}</span>
-            <span className="mt-0.5 block text-xs text-app-text-muted">{detector ? `Seen on ${(detector.perLapFrequency * 100).toFixed(0)}% of laps` : "From your profile"}</span>
-          </span>
-          {/* Absent means the aggregator could not defend a number — deliberately
-              blank rather than "0.00 s", which would read as "costs nothing". */}
-          {area.estimatedGainS !== undefined && (
-            <span className="shrink-0 rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-medium tabular-nums text-green-400">~{area.estimatedGainS.toFixed(2)}s</span>
-          )}
-          <ChevronDown className={`mt-0.5 size-4 shrink-0 text-app-text-muted transition-transform ${open ? "rotate-180" : ""}`} />
-        </CollapsibleTrigger>
-
-        <CollapsibleContent>
-          <div className="space-y-3 border-t border-white/5 px-3 pb-3 pt-3 text-sm">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-app-text-muted">What happens</p>
-              <p className="mt-1 text-app-text">{area.whatHappens}</p>
-            </div>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-app-text-muted">Why it costs</p>
-              <p className="mt-1 text-app-text">{area.whyItCosts}</p>
-            </div>
-            <div className="rounded-md bg-blue-500/10 p-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-blue-400">Drill</p>
-              <p className="mt-1 text-app-text">{area.drill}</p>
-            </div>
-            {detector && (
-              <p className="text-xs text-app-text-muted">
-                Measured: {detector.label} · {detector.lapsAffected} lap{detector.lapsAffected === 1 ? "" : "s"} · peak severity {detector.peakSeverity}
-                {detector.medianTimeLossS === null && " · cost not measured"}
-              </p>
-            )}
-          </div>
-        </CollapsibleContent>
-      </div>
-    </Collapsible>
-  );
-}
-
 const RUN_STATE_LABELS: Record<DriverProfileState | "idle", string> = {
-  idle: "Ready",
-  disabled: "Disabled",
-  "not-configured": "Not configured",
+  idle: "Not run",
+  disabled: "Background disabled",
+  "not-configured": "Provider not configured",
   queued: "Queued",
   running: "Running",
   succeeded: "Succeeded",
@@ -106,275 +34,94 @@ function formatRunDate(value: string | null | undefined): string | null {
   return Number.isNaN(date.valueOf()) ? value : date.toLocaleString();
 }
 
-function CoachingStatusCard({
-  state,
-  latestRun,
-  runHistory = [],
-  reason,
-  coachError,
-  onRunNow,
-  onRetry,
-  runPending = false,
-}: {
-  state?: DriverProfileState;
-  latestRun?: DriverProfileRun | null;
-  runHistory?: DriverProfileRun[];
-  reason?: string;
-  coachError?: string;
-  onRunNow?: () => void;
-  onRetry?: () => void;
-  runPending?: boolean;
-}) {
+function WeaknessList({ title, description, weaknesses }: { title: string; description: string; weaknesses: RankedWeakness[] }) {
+  if (weaknesses.length === 0) return null;
+  return (
+    <section className="min-w-0 rounded-lg bg-app-surface p-4 ring-1 ring-app-border">
+      <h2 className="text-sm font-semibold text-app-text">{title}</h2>
+      <p className="mt-1 text-xs text-app-text-muted">{description}</p>
+      <ul className="mt-3 space-y-2">
+        {weaknesses.slice(0, 6).map((weakness) => (
+          <li key={weakness.id} className="flex min-w-0 items-baseline justify-between gap-3 text-sm">
+            <span className="min-w-0 truncate text-app-text">{weakness.label}</span>
+            <span className="shrink-0 text-xs tabular-nums text-app-text-muted">{(weakness.perLapFrequency * 100).toFixed(0)}% of laps · peak {weakness.peakSeverity}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function RunStatus({ state, latestRun, runHistory = [], reason }: { state?: DriverProfileState; latestRun?: DriverProfileRun | null; runHistory?: DriverProfileRun[]; reason?: string }) {
   const [historyOpen, setHistoryOpen] = useState(false);
-  const effectiveState: DriverProfileState | "idle" = state ?? "idle";
-  const active = effectiveState === "queued" || effectiveState === "running" || runPending;
-  const canRun = effectiveState !== "disabled" && effectiveState !== "not-configured" && !active;
+  const effectiveState = state ?? "idle";
   const message =
     effectiveState === "disabled"
-      ? "Background coaching is disabled. Your measured profile remains available."
+      ? "Background summaries are disabled; measured trend remains available."
       : effectiveState === "not-configured"
-        ? reason ?? "Choose an AI provider in settings to generate a practice plan."
+        ? reason ?? "Choose an AI provider in settings to generate a summary."
         : effectiveState === "queued"
-          ? "The coach is queued and will start shortly."
+          ? "Summary run is queued."
           : effectiveState === "running"
-            ? "The coach is turning these measurements into a practice plan."
+            ? "Summary run is in progress."
             : effectiveState === "failed"
-              ? "The coach could not finish. Your measurements and previous successful plan remain available."
+              ? "Latest summary failed; measured trend remains available."
               : effectiveState === "succeeded"
-                ? "Your latest practice plan is ready."
-                : "Your measurements are ready for coaching.";
-  const tone = effectiveState === "failed" ? "bg-red-500/10 ring-red-500/20" : "bg-app-surface ring-white/10";
+                ? "Latest summary succeeded."
+                : "No summary run yet.";
 
   return (
-    <div className={`rounded-lg p-4 ring-1 ${tone}`} aria-live={active ? "polite" : undefined}>
+    <section className={`rounded-lg p-4 ring-1 ${effectiveState === "failed" ? "bg-dynamics-red/10 ring-dynamics-red/20" : "bg-app-surface ring-app-border"}`} aria-live="polite">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-app-text">AI coaching</h2>
-        <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-medium text-app-text">{RUN_STATE_LABELS[effectiveState]}</span>
+        <div>
+          <h2 className="text-sm font-semibold text-app-text">AI run status</h2>
+          <p className="mt-1 text-sm text-app-text-muted">{message}</p>
+        </div>
+        <span className="rounded-full bg-app-surface-alt px-2 py-1 text-xs font-medium text-app-text">{RUN_STATE_LABELS[effectiveState]}</span>
       </div>
-      <p className="mt-2 text-sm text-app-text-muted">{message}</p>
-      {(reason || coachError || latestRun?.error) && (
-        <p className="mt-2 text-xs text-red-300" role={effectiveState === "failed" ? "alert" : undefined}>
-          {coachError ?? latestRun?.error ?? reason}
-        </p>
-      )}
-
+      {(reason || latestRun?.error) && <p className="mt-2 text-xs text-dynamics-red" role={effectiveState === "failed" ? "alert" : undefined}>{latestRun?.error ?? reason}</p>}
       {latestRun && (
         <dl className="mt-3 grid gap-x-4 gap-y-1 text-xs text-app-text-muted sm:grid-cols-2">
           <div><dt className="inline font-medium text-app-text">Created: </dt><dd className="inline">{formatRunDate(latestRun.createdAt) ?? "Unknown"}</dd></div>
           {latestRun.completedAt && <div><dt className="inline font-medium text-app-text">Completed: </dt><dd className="inline">{formatRunDate(latestRun.completedAt)}</dd></div>}
           <div><dt className="inline font-medium text-app-text">Model: </dt><dd className="inline">{latestRun.model || "Unknown"}</dd></div>
-          {latestRun.durationMs > 0 && <div><dt className="inline font-medium text-app-text">Duration: </dt><dd className="inline">{(latestRun.durationMs / 1000).toFixed(1)}s</dd></div>}
-          {(latestRun.inputTokens > 0 || latestRun.outputTokens > 0) && (
-            <div className="sm:col-span-2"><dt className="inline font-medium text-app-text">Tokens: </dt><dd className="inline">{latestRun.inputTokens.toLocaleString()} in · {latestRun.outputTokens.toLocaleString()} out</dd></div>
-          )}
         </dl>
       )}
-
-      {canRun && (onRunNow || (effectiveState === "failed" && onRetry)) && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {onRunNow && <Button type="button" onClick={onRunNow} disabled={runPending}>Run now</Button>}
-          {effectiveState === "failed" && onRetry && <Button type="button" variant="outline" onClick={onRetry} disabled={runPending}>Retry</Button>}
-        </div>
-      )}
-
       {runHistory.length > 0 && (
-        <Collapsible open={historyOpen} onOpenChange={setHistoryOpen} className="mt-4 border-t border-white/10 pt-3">
-          <CollapsibleTrigger className="flex w-full items-center justify-between text-left text-xs font-medium text-app-text-muted">
-            <span>Run history ({runHistory.length})</span>
-            <ChevronDown className={`size-4 transition-transform ${historyOpen ? "rotate-180" : ""}`} />
-          </CollapsibleTrigger>
+        <Collapsible open={historyOpen} onOpenChange={setHistoryOpen} className="mt-4 border-t border-app-border pt-3">
+          <CollapsibleTrigger className="flex w-full items-center justify-between text-left text-xs font-medium text-app-text-muted"><span>Run history ({runHistory.length})</span><ChevronDown className={`size-4 transition-transform ${historyOpen ? "rotate-180" : ""}`} /></CollapsibleTrigger>
           <CollapsibleContent>
             <ol className="mt-2 space-y-2">
-              {runHistory.map((run) => (
-                <li key={run.id} className="rounded-md bg-black/10 p-2 text-xs text-app-text-muted">
-                  <div className="flex flex-wrap justify-between gap-2">
-                    <span className="font-medium text-app-text">{RUN_STATE_LABELS[run.status]}</span>
-                    <span>{formatRunDate(run.createdAt) ?? "Unknown"}</span>
-                  </div>
-                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
-                    <span>{run.model || "Unknown model"}</span>
-                    {run.durationMs > 0 && <span>{(run.durationMs / 1000).toFixed(1)}s</span>}
-                    {run.error && <span className="text-red-300">{run.error}</span>}
-                  </div>
-                </li>
-              ))}
+              {runHistory.map((run) => <li key={run.id} className="rounded-md bg-app-surface-alt/50 p-2 text-xs text-app-text-muted"><div className="flex flex-wrap justify-between gap-2"><span className="font-medium text-app-text">{RUN_STATE_LABELS[run.status]}</span><span>{formatRunDate(run.createdAt) ?? "Unknown"}</span></div>{run.error && <p className="mt-1 text-dynamics-red">{run.error}</p>}</li>)}
             </ol>
           </CollapsibleContent>
         </Collapsible>
       )}
-    </div>
+    </section>
   );
 }
 
-export function DriverProfileView({
-  fingerprint: fp,
-  plan = null,
-  cached = false,
-  warnings,
-  coachStatus = "idle",
-  coachError,
-  runReason,
-  runState,
-  latestRun,
-  runHistory,
-  onRunNow,
-  onRetry,
-  runPending = false,
-}: DriverProfileViewProps) {
-  const detectorById = useMemo(() => {
-    const map = new Map<string, RankedWeakness>();
-    for (const w of [...fp.weaknesses, ...fp.unquantifiedWeaknesses]) map.set(w.id, w);
-    return map;
-  }, [fp]);
-  const effectiveRunState = runState ?? (coachStatus === "running" ? "running" : coachStatus === "error" ? "failed" : undefined);
-
+export function DriverProfileView({ fingerprint: fp, plan = null, runReason, runState, latestRun, runHistory, onRefresh, runPending = false }: DriverProfileViewProps) {
   return (
-    <div className="grid gap-5 lg:grid-cols-2">
-      {/* ── Measured ───────────────────────────────────────────────────── */}
-      <section className="space-y-4">
-        <div className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10">
-          <div className="mb-1 flex items-baseline justify-between">
-            <h2 className="text-sm font-semibold text-app-text">Driving style</h2>
-            <span className="text-xs text-app-text-muted">
-              {fp.laps.analyzed} lap{fp.laps.analyzed === 1 ? "" : "s"} · {fp.confidence} confidence
-            </span>
-          </div>
-          <p className="mb-2 text-xs text-app-text-muted">Measured from telemetry — these hold whether or not you run the coach.</p>
-          {fp.style ? <StyleGauges style={fp.style} /> : <p className="py-4 text-sm text-app-text-muted">Not enough laps to characterise a style yet. Drive a few more and rebuild.</p>}
+    <div className="min-w-0 space-y-5">
+      <DriverTrendOverview trend={fp.trend} summary={plan} runState={runState} latestRun={latestRun} onRefresh={onRefresh} runPending={runPending} />
+
+      <section className="min-w-0 rounded-lg bg-app-surface p-4 ring-1 ring-app-border">
+        <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-sm font-semibold text-app-text">Driving style</h2>
+          <span className="text-xs text-app-text-muted">{fp.laps.analyzed} lap{fp.laps.analyzed === 1 ? "" : "s"} · {fp.confidence} confidence</span>
         </div>
-
-        {fp.strengths.length > 0 && (
-          <div className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10">
-            <h2 className="mb-1 text-sm font-semibold text-app-text">Faults you don't have</h2>
-            <p className="mb-2 text-xs text-app-text-muted">Things the analyser looks for and never found. Never detected is weaker than proven — but it's still a good sign.</p>
-            <ul className="space-y-1.5">
-              {fp.strengths.map((s) => (
-                <li key={s.id} className="flex items-baseline gap-2 text-sm text-app-text">
-                  <span className="text-green-400">✓</span>
-                  <span>
-                    {s.label}
-                    <span className="ml-1 text-xs text-app-text-muted">{s.basis === "absent" ? "never fired" : `only ${(s.perLapFrequency * 100).toFixed(0)}% of laps, info only`}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Recurring faults the aggregator could not cost. They get their own
-            block rather than a "0.00s" row in the ranked list: unmeasured is
-            not free, and a zero would read as "ignore this one". */}
-        {fp.unquantifiedWeaknesses.length > 0 && (
-          <div className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10">
-            <h2 className="mb-1 text-sm font-semibold text-app-text">Recurring, cost not measured</h2>
-            <p className="mb-2 text-xs text-app-text-muted">
-              These happen often enough to matter, but the analyser can't put a defensible number on what they cost — usually because a fault above already counts it.
-            </p>
-            <ul className="space-y-1.5">
-              {fp.unquantifiedWeaknesses.slice(0, 5).map((w) => (
-                <li key={w.id} className="text-sm text-app-text">
-                  {w.label}
-                  <span className="ml-1 text-xs text-app-text-muted">
-                    {(w.perLapFrequency * 100).toFixed(0)}% of laps · peak {w.peakSeverity}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {fp.notes.length > 0 && (
-          <div className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10">
-            <h2 className="mb-2 text-sm font-semibold text-app-text">Data caveats</h2>
-            <ul className="space-y-1 text-xs text-app-text-muted">
-              {fp.notes.map((n) => (
-                <li key={n}>· {n}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+        <p className="mb-2 text-xs text-app-text-muted">Measured from telemetry; independent of AI summaries.</p>
+        {fp.style ? <StyleGauges style={fp.style} recentNormalizedCount={fp.trend.recent.normalized} /> : <p className="py-4 text-sm text-app-text-muted">Not enough laps to characterise a style yet. Drive a few more and rebuild.</p>}
       </section>
 
-      {/* ── Coached ────────────────────────────────────────────────────── */}
-      <section className="space-y-4">
-        <CoachingStatusCard
-          state={effectiveRunState}
-          latestRun={latestRun}
-          runHistory={runHistory}
-          reason={runReason}
-          coachError={coachError}
-          onRunNow={onRunNow}
-          onRetry={onRetry}
-          runPending={runPending}
-        />
-        {plan ? (
-          <>
-            <div className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10">
-              <div className="mb-1 flex items-baseline justify-between gap-2">
-                <h2 className="text-sm font-semibold text-app-text">{plan.styleLabel}</h2>
-                {cached && <span className="text-xs text-app-text-muted">cached</span>}
-              </div>
-              <p className="text-sm text-app-text">{plan.summary}</p>
-            </div>
+      <div className="grid min-w-0 gap-5 lg:grid-cols-2">
+        <WeaknessList title="Recurring weaknesses" description="Quantified patterns ranked by measured impact." weaknesses={fp.weaknesses} />
+        <WeaknessList title="Recurring patterns, cost not measured" description="Frequent patterns without a defensible time estimate." weaknesses={fp.unquantifiedWeaknesses} />
+      </div>
 
-            <div>
-              <h2 className="mb-2 text-sm font-semibold text-app-text">
-                Work on this, in order
-                <span className="ml-2 text-xs font-normal text-app-text-muted">most to gain first</span>
-              </h2>
-              <div className="space-y-2">
-                {plan.focusAreas.map((area, i) => (
-                  <FocusArea key={area.detectorId} area={area} rank={i + 1} detector={detectorById.get(area.detectorId)} defaultOpen={i === 0} />
-                ))}
-              </div>
-              {/* The per-fault seconds are within-window estimates over
-                  overlapping windows, so a total would be double-counted
-                  fiction. Say so where someone would be tempted to add up. */}
-              {plan.focusAreas.some((a) => a.estimatedGainS !== undefined) && (
-                <p className="mt-2 text-[11px] text-app-text-muted/70">Time estimates are conservative and measured separately for each fault. They overlap, so don't add them up.</p>
-              )}
-            </div>
-
-            {plan.sessionPlan.length > 0 && (
-              <div className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10">
-                <h2 className="mb-2 text-sm font-semibold text-app-text">Next session</h2>
-                <ol className="space-y-1.5">
-                  {plan.sessionPlan.map((step, i) => (
-                    <li key={step} className="flex gap-2 text-sm text-app-text">
-                      <span className="text-app-text-muted tabular-nums">{i + 1}.</span>
-                      <span>{step}</span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            )}
-
-            {plan.strengths.length > 0 && (
-              <div className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10">
-                <h2 className="mb-2 text-sm font-semibold text-app-text">What's working</h2>
-                <ul className="space-y-2">
-                  {plan.strengths.map((s) => (
-                    <li key={s.title} className="text-sm">
-                      <span className="font-medium text-app-text">{s.title}</span>
-                      <span className="block text-xs text-app-text-muted">{s.detail}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {warnings?.map((w) => (
-              <p key={w} className="text-xs text-amber-400/80">
-                {w}
-              </p>
-            ))}
-          </>
-        ) : (
-          <div className="rounded-lg bg-app-surface p-6 text-center ring-1 ring-white/10">
-            <p className="text-sm text-app-text-muted">The measurements on the left are ready. Run the coach to turn them into a ranked plan.</p>
-          </div>
-        )}
-      </section>
+      {fp.notes.length > 0 && <section className="rounded-lg bg-app-surface p-4 ring-1 ring-app-border"><h2 className="text-sm font-semibold text-app-text">Data caveats</h2><ul className="mt-2 space-y-1 text-xs text-app-text-muted">{fp.notes.map((note) => <li key={note}>· {note}</li>)}</ul></section>}
+      <RunStatus state={runState} latestRun={latestRun} runHistory={runHistory} reason={runReason} />
     </div>
   );
 }
