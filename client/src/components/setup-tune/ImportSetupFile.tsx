@@ -105,7 +105,7 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars }: { game
                         if (!name) setName(f.fileName.replace(/\.json$/i, ""));
                       }}
                       className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${
-                        selectedPath === f.absolutePath ? "bg-app-accent/20 text-app-accent" : "text-app-text hover:bg-app-surface"
+                        selectedPath === f.absolutePath ? "bg-app-accent/20 text-app-accent" : "text-app-text hover:bg-app-surface-hover"
                       }`}
                     >
                       <div className="truncate">{f.fileName}</div>
@@ -170,7 +170,7 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars }: { game
                     ))}
                   </select>
                 </label>
-                {importMut.error && <div className="text-[10px] text-red-400">{(importMut.error as Error).message}</div>}
+                {importMut.error && <div className="text-[10px] text-status-danger">{(importMut.error as Error).message}</div>}
                 <div className="flex justify-end pt-2">
                   <Button type="button" variant="app-primary" size="app-sm" onClick={doImport} disabled={!selectedPath || importMut.isPending}>
                     {importMut.isPending ? m.label_importing() : m.import_import_setup()}

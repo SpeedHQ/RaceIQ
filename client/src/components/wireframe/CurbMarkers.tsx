@@ -2,7 +2,7 @@ import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { CarModelEnrichment } from "../../data/car-models";
-import { buildTrackIndex, filterByDistanceIndexed } from "../../lib/wireframe-utils";
+import { buildTrackIndex, filterByDistanceIndexed, THREE_COLORS } from "../../lib/wireframe-utils";
 
 export function CurbMarkers({ telemetry, packet, carModel }: { telemetry: TelemetryPacket[]; cursorIdx?: number; packet: TelemetryPacket; carModel: CarModelEnrichment }) {
   // Wheel offsets in car-local frame: [forward, right] in meters
@@ -140,13 +140,13 @@ export function CurbMarkers({ telemetry, packet, carModel }: { telemetry: Teleme
       {allCurb.length > 0 && (
         <instancedMesh ref={curbRef} args={[undefined, undefined, curbCap]}>
           <sphereGeometry args={[0.02, 6, 6]} />
-          <meshBasicMaterial color="#ff8800" transparent opacity={0.9} />
+          <meshBasicMaterial color={THREE_COLORS.surfaceContact} transparent opacity={0.9} />
         </instancedMesh>
       )}
       {puddlePoints.length > 0 && (
         <instancedMesh ref={puddleRef} args={[undefined, undefined, puddleCap]}>
           <sphereGeometry args={[0.1, 6, 6]} />
-          <meshBasicMaterial color="#3b82f6" transparent opacity={0.5} />
+          <meshBasicMaterial color={THREE_COLORS.surfaceWet} transparent opacity={0.5} />
         </instancedMesh>
       )}
     </>

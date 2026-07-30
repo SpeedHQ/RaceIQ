@@ -90,18 +90,18 @@ function DashCatalogue() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white p-8">
+    <div className="min-h-screen bg-app-bg text-app-text p-8">
       <RotatePrompt />
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-black tracking-tight">{m.dash_page_title()}</h1>
-          <p className="mt-2 text-white/60 text-sm">{m.dash_page_intro()}</p>
+          <p className="mt-2 text-app-text/60 text-sm">{m.dash_page_intro()}</p>
           {lanIp && port ? (
-            <p className="mt-2 text-xs text-white/40 font-mono">
+            <p className="mt-2 text-xs text-app-text/40 font-mono">
               {m.dash_serving_at()} http://{lanIp}:{port}
             </p>
           ) : (
-            <p className="mt-2 text-xs text-red-400/70 font-mono">{m.dash_lan_unavailable()}</p>
+            <p className="mt-2 text-xs text-status-danger/70 font-mono">{m.dash_lan_unavailable()}</p>
           )}
         </div>
 
@@ -109,10 +109,10 @@ function DashCatalogue() {
           {DASH_META.map((d) => {
             const url = lanIp && port ? `http://${lanIp}:${port}${d.href}` : null;
             return (
-              <li key={d.slug} className="rounded-lg border border-white/10 bg-white/[0.03] overflow-hidden">
+              <li key={d.slug} className="rounded-lg border border-app-text/10 bg-app-text/[0.03] overflow-hidden">
                 <Link to={d.href} className="block group">
                   <div
-                    className="relative bg-black border-b border-white/10 overflow-hidden mx-auto"
+                    className="relative bg-app-bg border-b border-app-text/10 overflow-hidden mx-auto"
                     style={{
                       aspectRatio: previewAspect,
                       width: previewWidth,
@@ -120,7 +120,7 @@ function DashCatalogue() {
                     }}
                   >
                     <div className="absolute inset-0 pointer-events-none">{previewFor(d.slug)}</div>
-                    <div className="absolute inset-0 transition-colors group-hover:bg-white/[0.04]" />
+                    <div className="absolute inset-0 transition-colors group-hover:bg-app-surface-hover/50" />
                   </div>
                 </Link>
                 <div className="p-5 flex gap-4 items-start">
@@ -128,11 +128,11 @@ function DashCatalogue() {
                     <Link to={d.href}>
                       <div className="text-lg font-bold mb-1 hover:text-app-accent">{dashTitle(d.slug)}</div>
                     </Link>
-                    <div className="text-sm text-white/60 leading-relaxed">{dashDesc(d.slug)}</div>
-                    <div className="mt-3 text-xs font-mono tracking-wider text-white/40 break-all">{url ?? d.href}</div>
+                    <div className="text-sm text-app-text/60 leading-relaxed">{dashDesc(d.slug)}</div>
+                    <div className="mt-3 text-xs font-mono tracking-wider text-app-text/40 break-all">{url ?? d.href}</div>
                   </div>
                   {url && (
-                    <div className="shrink-0 rounded bg-white p-2 hidden lg:block">
+                    <div className="shrink-0 rounded bg-app-text p-2 hidden lg:block">
                       <QRCodeSVG value={url} size={96} />
                     </div>
                   )}

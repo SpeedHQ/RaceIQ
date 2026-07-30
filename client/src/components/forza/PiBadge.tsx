@@ -11,22 +11,10 @@ export function piClass(pi: number): string {
   return "E";
 }
 
-export const PI_COLORS: Record<string, string> = {
-  E: "bg-stone-500/20 text-stone-400",
-  D: "bg-gray-500/20 text-gray-400",
-  C: "bg-green-500/20 text-green-400",
-  B: "bg-blue-500/20 text-blue-400",
-  A: "bg-purple-500/20 text-purple-400",
-  S: "bg-amber-500/20 text-amber-400",
-  R: "bg-orange-500/20 text-orange-400",
-  P: "bg-red-500/20 text-red-400",
-  X: "bg-pink-500/20 text-pink-400",
-};
-
 export function PiBadge({ pi, showNumber = true }: { pi: number; showNumber?: boolean }) {
   const cls = piClass(pi);
   return (
-    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${PI_COLORS[cls] ?? "bg-app-surface text-app-text-muted"}`}>
+    <span className="pi-class-badge text-[10px] font-bold px-1.5 py-0.5 rounded" data-pi-class={cls}>
       {cls}
       {showNumber ? pi : ""}
     </span>

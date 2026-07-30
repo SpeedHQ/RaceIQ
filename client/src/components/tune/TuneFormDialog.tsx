@@ -65,7 +65,7 @@ function NumberField({ label, value, onChange, step }: { label: string; value: n
 function SettingsSection({ title, isOpen, onToggle, children }: { title: string; isOpen: boolean; onToggle: () => void; children: React.ReactNode }) {
   return (
     <div className="rounded-lg ring-1 ring-app-border overflow-hidden">
-      <button type="button" onClick={onToggle} className="w-full text-left px-3 py-2 flex items-center justify-between bg-app-surface/85 hover:bg-app-surface transition-colors">
+      <button type="button" onClick={onToggle} className="w-full text-left px-3 py-2 flex items-center justify-between bg-app-surface/85 hover:bg-app-surface-hover transition-colors">
         <span className="text-xs font-semibold uppercase tracking-wider text-app-accent">{title}</span>
         <svg className={`w-3 h-3 text-app-text-muted transition-transform ${isOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -189,7 +189,7 @@ export function TuneFormDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 pb-8">
-      <div className="absolute inset-0 bg-black/70" onClick={onClose} />
+      <div className="absolute inset-0 bg-app-bg/70" onClick={onClose} />
       <div className="relative bg-app-surface rounded-xl ring-1 ring-app-border shadow-2xl w-full max-w-lg max-h-[calc(100vh-4rem)] overflow-auto mx-4">
         <form onSubmit={handleSubmit}>
           <div className="sticky top-0 bg-app-surface px-4 py-3 border-b border-app-border flex items-center justify-between z-10">
@@ -311,7 +311,7 @@ export function TuneFormDialog({
                   rows={10}
                   className="w-full bg-app-bg/85 border border-app-border rounded px-2 py-1.5 text-xs text-app-text font-mono focus:outline-none focus:ring-1 focus:ring-app-accent resize-y"
                 />
-                {jsonError && <p className="text-xs text-red-400">{jsonError}</p>}
+                {jsonError && <p className="text-xs text-status-danger">{jsonError}</p>}
                 <button type="button" onClick={handleJsonParse} className="text-xs px-3 py-1.5 rounded bg-app-accent/20 text-app-accent hover:bg-app-accent/30 transition-colors">
                   {m.tune_parse_populate()}
                 </button>
@@ -391,7 +391,7 @@ export function TuneFormDialog({
             <button
               type="submit"
               disabled={!name || isSubmitting}
-              className="text-xs px-3 py-1.5 rounded bg-app-accent text-white hover:bg-app-accent/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="text-xs px-3 py-1.5 rounded bg-app-accent text-app-on-filled hover:bg-app-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isSubmitting ? m.common_saving() : m.common_save()}
             </button>

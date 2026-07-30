@@ -2,13 +2,15 @@ import { Line } from "@react-three/drei";
 import { useMemo } from "react";
 import * as THREE from "three";
 import type { CarModelEnrichment } from "../../data/car-models";
+import { getSemanticCanvasContext } from "../../lib/css-color";
+import { THREE_COLORS } from "../../lib/wireframe-utils";
 
 function DimensionLabel({ position, text, color }: { position: [number, number, number]; text: string; color: string }) {
   const texture = useMemo(() => {
     const canvas = document.createElement("canvas");
     canvas.width = 256;
     canvas.height = 64;
-    const ctx = canvas.getContext("2d")!;
+    const ctx = getSemanticCanvasContext(canvas)!;
     ctx.clearRect(0, 0, 256, 64);
     ctx.font = "bold 36px monospace";
     ctx.textAlign = "center";
@@ -41,7 +43,7 @@ export function DimensionLines({ carModel }: { carModel: CarModelEnrichment }) {
           [wb, y, -ft],
           [wb, y, ft],
         ]}
-        color="#22d3ee"
+        color={THREE_COLORS.appAccent}
         lineWidth={2}
       />
       <Line
@@ -49,7 +51,7 @@ export function DimensionLines({ carModel }: { carModel: CarModelEnrichment }) {
           [wb, y - 0.05, -ft],
           [wb, y + 0.05, -ft],
         ]}
-        color="#22d3ee"
+        color={THREE_COLORS.appAccent}
         lineWidth={2}
       />
       <Line
@@ -57,7 +59,7 @@ export function DimensionLines({ carModel }: { carModel: CarModelEnrichment }) {
           [wb, y - 0.05, ft],
           [wb, y + 0.05, ft],
         ]}
-        color="#22d3ee"
+        color={THREE_COLORS.appAccent}
         lineWidth={2}
       />
 
@@ -67,7 +69,7 @@ export function DimensionLines({ carModel }: { carModel: CarModelEnrichment }) {
           [-wb, y, -rt],
           [-wb, y, rt],
         ]}
-        color="#22d3ee"
+        color={THREE_COLORS.appAccent}
         lineWidth={2}
       />
       <Line
@@ -75,7 +77,7 @@ export function DimensionLines({ carModel }: { carModel: CarModelEnrichment }) {
           [-wb, y - 0.05, -rt],
           [-wb, y + 0.05, -rt],
         ]}
-        color="#22d3ee"
+        color={THREE_COLORS.appAccent}
         lineWidth={2}
       />
       <Line
@@ -83,7 +85,7 @@ export function DimensionLines({ carModel }: { carModel: CarModelEnrichment }) {
           [-wb, y - 0.05, rt],
           [-wb, y + 0.05, rt],
         ]}
-        color="#22d3ee"
+        color={THREE_COLORS.appAccent}
         lineWidth={2}
       />
 
@@ -93,7 +95,7 @@ export function DimensionLines({ carModel }: { carModel: CarModelEnrichment }) {
           [wb, y, -ft],
           [-wb, y, -rt],
         ]}
-        color="#a78bfa"
+        color={THREE_COLORS.dimensionSecondary}
         lineWidth={2}
       />
       <Line
@@ -101,7 +103,7 @@ export function DimensionLines({ carModel }: { carModel: CarModelEnrichment }) {
           [wb, y - 0.05, -ft],
           [wb, y + 0.05, -ft],
         ]}
-        color="#a78bfa"
+        color={THREE_COLORS.dimensionSecondary}
         lineWidth={2}
       />
       <Line
@@ -109,14 +111,14 @@ export function DimensionLines({ carModel }: { carModel: CarModelEnrichment }) {
           [-wb, y - 0.05, -rt],
           [-wb, y + 0.05, -rt],
         ]}
-        color="#a78bfa"
+        color={THREE_COLORS.dimensionSecondary}
         lineWidth={2}
       />
 
       {/* Labels using sprite-based text */}
-      <DimensionLabel position={[wb, y + 0.15, 0]} text={`${(ft * 2 * 1000).toFixed(0)}mm`} color="#22d3ee" />
-      <DimensionLabel position={[-wb, y + 0.15, 0]} text={`${(rt * 2 * 1000).toFixed(0)}mm`} color="#22d3ee" />
-      <DimensionLabel position={[0, y + 0.15, -(ft + rt) / 2]} text={`${(wb * 2 * 1000).toFixed(0)}mm`} color="#a78bfa" />
+      <DimensionLabel position={[wb, y + 0.15, 0]} text={`${(ft * 2 * 1000).toFixed(0)}mm`} color="var(--app-accent)" />
+      <DimensionLabel position={[-wb, y + 0.15, 0]} text={`${(rt * 2 * 1000).toFixed(0)}mm`} color="var(--app-accent)" />
+      <DimensionLabel position={[0, y + 0.15, -(ft + rt) / 2]} text={`${(wb * 2 * 1000).toFixed(0)}mm`} color="var(--dimension-secondary)" />
     </group>
   );
 }

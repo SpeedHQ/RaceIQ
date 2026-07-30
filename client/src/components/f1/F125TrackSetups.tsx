@@ -54,8 +54,8 @@ interface F125TrackSummary {
 }
 
 function ProviderBadge({ provider }: { provider: string }) {
-  if (provider === "f1laps") return <span className="px-1 py-0.5 text-[8px] font-bold uppercase rounded bg-blue-500/20 text-blue-400 shrink-0">F1L</span>;
-  if (provider === "simracingsetup") return <span className="px-1 py-0.5 text-[8px] font-bold uppercase rounded bg-red-500/20 text-red-400 shrink-0">SRS</span>;
+  if (provider === "f1laps") return <span className="provider-badge px-1 py-0.5 text-[8px] font-bold uppercase rounded shrink-0" data-provider-brand="f1laps">F1L</span>;
+  if (provider === "simracingsetup") return <span className="provider-badge px-1 py-0.5 text-[8px] font-bold uppercase rounded shrink-0" data-provider-brand="simracingsetup">SRS</span>;
   return null;
 }
 
@@ -171,13 +171,13 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
                 setMobileView("detail");
               }}
               className={`text-left px-2 py-2 rounded border transition-colors ${
-                isActive ? "border-app-accent/40 bg-app-accent/10" : "border-app-border hover:border-app-border-hover bg-app-surface-alt/30 hover:bg-app-surface-alt"
+                isActive ? "border-app-accent/40 bg-app-accent/10" : "border-app-border hover:border-app-border-hover bg-app-surface-alt/30 hover:bg-app-surface-hover"
               }`}
             >
               <div className="flex items-center gap-1.5 mb-1">
                 <span className={`text-sm font-medium ${isActive ? "text-app-accent" : "text-app-text"}`}>{sourceDisplayName(g.source)}</span>
-                {sectionCount > 0 && <span className="px-1 py-0.5 text-[8px] font-bold uppercase rounded bg-blue-500/20 text-blue-400">{m.label_text()}</span>}
-                {g.videoUrl && <span className="px-1 py-0.5 text-[8px] font-bold uppercase rounded bg-red-500/20 text-red-400">YT</span>}
+                {sectionCount > 0 && <span className="px-1 py-0.5 text-[8px] font-bold uppercase rounded bg-status-info/20 text-status-info">{m.label_text()}</span>}
+                {g.videoUrl && <span className="provider-badge px-1 py-0.5 text-[8px] font-bold uppercase rounded" data-provider-brand="youtube">YT</span>}
               </div>
               <table className="w-full text-xs text-app-text-secondary">
                 <tbody>
@@ -394,7 +394,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
               key={i}
               onClick={() => selectSetup(i)}
               className={`flex items-center gap-1.5 px-2 py-1.5 cursor-pointer border-b border-app-border/10 transition-colors ${
-                selectedIdx === i ? "bg-app-accent/10" : "hover:bg-app-surface-alt/30"
+                selectedIdx === i ? "bg-app-accent/10" : "hover:bg-app-surface-hover/30"
               }`}
             >
               <span className="text-app-unit text-app-text-dim font-mono w-4 text-right shrink-0">{i + 1}</span>
@@ -404,18 +404,18 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
                 {s.team && <span className="text-[9px] text-app-text-dim truncate">({s.team})</span>}
               </div>
               <div className="shrink-0 w-8 text-center">
-                {s.inputDevice === "wheel" && <span className="text-[8px] px-1 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold">WHL</span>}
-                {s.inputDevice === "controller" && <span className="text-[8px] px-1 py-0.5 rounded bg-orange-500/20 text-orange-300 font-bold">PAD</span>}
+                {s.inputDevice === "wheel" && <span className="input-device-badge text-[8px] px-1 py-0.5 rounded font-bold" data-input-device="wheel">WHL</span>}
+                {s.inputDevice === "controller" && <span className="input-device-badge text-[8px] px-1 py-0.5 rounded font-bold" data-input-device="controller">PAD</span>}
               </div>
               <div className="flex items-center gap-1 shrink-0 w-12 justify-center">
                 {s.videoUrl && (
-                  <span className="text-[9px] text-red-400" title={m.accsetup_setup_type_has_video_title()}>
+                  <span className="text-[9px]" style={{ color: "var(--brand-provider-youtube)" }} title={m.accsetup_setup_type_has_video_title()}>
                     ▶
                   </span>
                 )}
-                {s.weather === "Wet" && <span className="text-[8px] px-1 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold">WET</span>}
+                {s.weather === "Wet" && <span className="weather-wet-badge text-[8px] px-1 py-0.5 rounded font-bold">WET</span>}
               </div>
-              <span className="text-app-unit font-mono text-emerald-400 shrink-0 w-16 text-right">{s.lapTime || "—"}</span>
+              <span className="text-app-unit font-mono shrink-0 w-16 text-right" style={{ color: "var(--lap-record)" }}>{s.lapTime || "—"}</span>
             </div>
           ))}
         </div>
@@ -442,7 +442,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
                 {setup.sessionType && ` · ${setup.sessionType}`}
               </span>
               {setup.source && (
-                <a href={setup.source} target="_blank" rel="noopener noreferrer" className="px-2 py-1 text-app-unit bg-blue-500/15 text-blue-400 rounded hover:bg-blue-500/25 transition-colors">
+                <a href={setup.source} target="_blank" rel="noopener noreferrer" className="px-2 py-1 text-app-unit bg-app-accent/15 text-app-accent rounded hover:bg-app-accent/25 transition-colors">
                   {m.f1setup_view_source()}
                 </a>
               )}
@@ -673,8 +673,8 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
           <div className="flex items-center gap-2 mb-1 px-1">
             {dragRange.size > 0 || pickedSetup ? (
               <>
-                {dragRange.size > 0 && <span className="text-[10px] text-cyan-400">{dragRange.size} in range</span>}
-                {pickedSetup && <span className="text-[10px] text-emerald-400">{pickedSetup.author || "Selected"}</span>}
+                {dragRange.size > 0 && <span className="text-[10px] text-app-accent">{dragRange.size} in range</span>}
+                {pickedSetup && <span className="text-[10px] text-status-success">{pickedSetup.author || "Selected"}</span>}
                 <button
                   onClick={() => {
                     setDragRange(new Set());
@@ -760,7 +760,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
                     }}
                     onClick={() => handleClick(i)}
                     className={`flex items-center gap-1.5 px-2 py-1.5 cursor-pointer border-b border-app-border/10 transition-colors ${
-                      isPicked ? "bg-emerald-500/15" : inRange && dragRange.size > 0 ? "bg-cyan-500/8" : "hover:bg-app-surface-alt/30"
+                      isPicked ? "bg-status-success/15" : inRange && dragRange.size > 0 ? "bg-app-accent/8" : "hover:bg-app-surface-hover/30"
                     } ${!inRange ? "opacity-40" : ""}`}
                   >
                     <span className="text-app-unit text-app-text-dim font-mono w-4 text-right shrink-0">{i + 1}</span>
@@ -770,18 +770,18 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
                       {s.team && <span className="text-[9px] text-app-text-dim truncate">({s.team})</span>}
                     </div>
                     <div className="shrink-0 w-8 text-center">
-                      {s.inputDevice === "wheel" && <span className="text-[8px] px-1 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold">WHL</span>}
-                      {s.inputDevice === "controller" && <span className="text-[8px] px-1 py-0.5 rounded bg-orange-500/20 text-orange-300 font-bold">PAD</span>}
+                      {s.inputDevice === "wheel" && <span className="input-device-badge text-[8px] px-1 py-0.5 rounded font-bold" data-input-device="wheel">WHL</span>}
+                      {s.inputDevice === "controller" && <span className="input-device-badge text-[8px] px-1 py-0.5 rounded font-bold" data-input-device="controller">PAD</span>}
                     </div>
                     <div className="flex items-center gap-1 shrink-0 w-12 justify-center">
                       {s.videoUrl && (
-                        <span className="text-[9px] text-red-400" title={m.accsetup_setup_type_has_video_title()}>
+                        <span className="text-[9px]" style={{ color: "var(--brand-provider-youtube)" }} title={m.accsetup_setup_type_has_video_title()}>
                           ▶
                         </span>
                       )}
-                      {s.weather === "Wet" && <span className="text-[8px] px-1 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold">WET</span>}
+                      {s.weather === "Wet" && <span className="weather-wet-badge text-[8px] px-1 py-0.5 rounded font-bold">WET</span>}
                     </div>
-                    <span className="text-app-unit font-mono text-emerald-400 shrink-0 w-16 text-right">{s.lapTime || "—"}</span>
+                    <span className="text-app-unit font-mono shrink-0 w-16 text-right" style={{ color: "var(--lap-record)" }}>{s.lapTime || "—"}</span>
                   </div>
                 );
               })
@@ -794,20 +794,23 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
           {/* Legend — matches filter row height */}
           <div className="flex items-center gap-3 mb-1.5 text-[10px] text-app-text-secondary" style={{ minHeight: "1.625rem" }}>
             <span className="flex items-center gap-1">
-              <span className="inline-block w-[2px] h-3 bg-rose-400 rounded-full" />
+              <span className="inline-block w-[2px] h-3 rounded-full" style={{ backgroundColor: "var(--setup-range-limit)" }} />
               {m.f1setup_min_max()}
             </span>
             <span className="flex items-center gap-1">
-              <span className="inline-block w-12 h-2.5 rounded-sm" style={{ background: "linear-gradient(to right, rgba(34,211,238,0), rgba(34,211,238,1))" }} />
+              <span
+                className="inline-block w-12 h-2.5 rounded-sm"
+                style={{ background: "linear-gradient(to right, transparent, var(--app-accent))" }}
+              />
               {m.f1setup_popularity()}
             </span>
             <span className="flex items-center gap-1">
-              <span className="inline-block w-2 h-2 bg-amber-400 rotate-45 rounded-[1px]" />
+              <span className="inline-block w-2 h-2 rotate-45 rounded-[1px]" style={{ backgroundColor: "var(--setup-range-median)" }} />
               {m.f1setup_median()}
             </span>
             {pickedSetup && (
               <span className="flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-full bg-emerald-400" />
+                <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: "var(--setup-range-selected)" }} />
                 {pickedSetup.author || "Selected"}
               </span>
             )}
@@ -828,17 +831,17 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
                           <div className="flex items-center justify-between mb-0">
                             <span className="text-app-label font-semibold text-app-text">{f.label}</span>
                             <div className="flex items-center gap-2 text-app-label font-mono">
-                              <span className="text-rose-400">
+                              <span style={{ color: "var(--setup-range-limit)" }}>
                                 {f.min}
                                 {f.unit}
                               </span>
                               <span className="text-app-text-dim">—</span>
-                              <span className="text-amber-400 font-bold">
+                              <span className="font-bold" style={{ color: "var(--setup-range-median)" }}>
                                 {f.median}
                                 {f.unit}
                               </span>
                               <span className="text-app-text-dim">—</span>
-                              <span className="text-rose-400">
+                              <span style={{ color: "var(--setup-range-limit)" }}>
                                 {f.max}
                                 {f.unit}
                               </span>

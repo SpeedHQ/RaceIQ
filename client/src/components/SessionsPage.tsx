@@ -102,7 +102,7 @@ function SessionLapTable({
 
   function sectorColor(time: number, best: number): string {
     if (best === Infinity || time <= 0) return "text-app-text/90";
-    if (time <= best * 1.001) return "text-purple-400 font-bold";
+    if (time <= best * 1.001) return "text-(--lap-pace-best) font-bold";
     return "text-app-text/90";
   }
 
@@ -136,24 +136,24 @@ function SessionLapTable({
                 }}
               >
                 <TD className="px-2 text-center">
-                  <input type="checkbox" checked={selectedLaps.has(lap.id)} onChange={() => toggleLapSelection(lap.id)} className="accent-cyan-400 w-4 h-4" />
+                  <input type="checkbox" checked={selectedLaps.has(lap.id)} onChange={() => toggleLapSelection(lap.id)} className="accent-app-accent w-4 h-4" />
                 </TD>
                 <TD />
                 <TD className="font-mono text-app-text/90">{lap.lapNumber}</TD>
                 <TD>
                   <div className="flex items-center gap-2">
-                    <span className={`font-mono tabular-nums ${isBest ? "text-purple-400 font-bold" : "text-app-text/90"}`}>{formatLapTime(lap.lapTime)}</span>
+                    <span className={`font-mono tabular-nums ${isBest ? "text-(--lap-pace-best) font-bold" : "text-app-text/90"}`}>{formatLapTime(lap.lapTime)}</span>
                     {lap.isValid ? (
-                      <span className="text-emerald-400 text-sm">&#10003;</span>
+                      <span className="text-status-success text-sm">&#10003;</span>
                     ) : (
-                      <span className="text-red-400 text-sm" title={lap.invalidReason}>
+                      <span className="text-status-danger text-sm" title={lap.invalidReason}>
                         &#10007;
                       </span>
                     )}
                     <Button
                       variant="app-outline"
                       size="app-sm"
-                      className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
+                      className="bg-app-accent/15 !border-app-accent/40 text-app-accent hover:bg-app-accent/25"
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       onClick={(e) => {
                         e.stopPropagation();
@@ -203,7 +203,7 @@ function SessionLapTable({
           <div className="fixed z-50 bg-app-surface border border-app-border rounded shadow-lg py-1 text-sm" style={{ left: contextMenu.x, top: contextMenu.y }}>
             <button
               type="button"
-              className="w-full px-3 py-1.5 text-left hover:bg-app-surface-alt text-app-text"
+              className="w-full px-3 py-1.5 text-left hover:bg-app-surface-hover text-app-text"
               onClick={async () => {
                 const res = await fetch(`/api/laps/${contextMenu.lapId}/recheck`, { method: "POST" });
                 const data = await res.json();
@@ -216,7 +216,7 @@ function SessionLapTable({
             </button>
             <button
               type="button"
-              className="w-full px-3 py-1.5 text-left hover:bg-app-surface-alt text-app-text"
+              className="w-full px-3 py-1.5 text-left hover:bg-app-surface-hover text-app-text"
               onClick={async () => {
                 const lapId = contextMenu.lapId;
                 setContextMenu(null);
@@ -518,7 +518,7 @@ export function SessionsPage() {
                   setSelectedSessions(new Set());
                   setSelectedLaps(new Set());
                 }}
-                className={`px-3 py-1.5 text-sm font-semibold transition-colors ${tab === t ? "bg-app-accent text-white" : "text-app-text-muted hover:text-app-text/90"}`}
+                className={`px-3 py-1.5 text-sm font-semibold transition-colors ${tab === t ? "bg-app-accent text-app-on-filled" : "text-app-text-muted hover:text-app-text/90"}`}
               >
                 {t === "recorded" ? m.sessions_tab_recorded() : m.sessions_tab_imported()}
               </button>
@@ -572,14 +572,14 @@ export function SessionsPage() {
                     };
                     navigate(args);
                   }}
-                  className="px-3 py-1.5 text-sm rounded bg-cyan-600 hover:bg-cyan-500 text-white font-semibold transition-colors"
+                  className="px-3 py-1.5 text-sm rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled font-semibold transition-colors"
                 >
                   {m.sessions_compare_two()}
                 </button>
               );
             })()}
           {(selectedSessions.size > 0 || selectedLaps.size > 0) && (
-            <button type="button" onClick={deleteSelected} className="px-3 py-1.5 text-sm rounded bg-red-600 hover:bg-red-500 text-white font-semibold transition-colors">
+            <button type="button" onClick={deleteSelected} className="px-3 py-1.5 text-sm rounded bg-status-danger hover:bg-status-danger-hover text-app-on-filled font-semibold transition-colors">
               {m.common_delete()} {selectedSessions.size > 0 ? `${selectedSessions.size} ${m.sessions_count_sessions()}` : ""}
               {selectedSessions.size > 0 && selectedLaps.size > 0 ? " + " : ""}
               {selectedLaps.size > 0 ? `${selectedLaps.size} ${m.sessions_count_laps()}` : ""}
@@ -624,7 +624,7 @@ export function SessionsPage() {
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     onChange={(e) => toggleSessionSelection(session.id, e as any)}
                     onClick={(e) => e.stopPropagation()}
-                    className="accent-cyan-400 w-5 h-5 mt-0.5 shrink-0"
+                    className="accent-app-accent w-5 h-5 mt-0.5 shrink-0"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-baseline justify-between gap-2">
@@ -720,7 +720,7 @@ export function SessionsPage() {
                   return next;
                 });
               }}
-              className="accent-cyan-400 w-4 h-4"
+              className="accent-app-accent w-4 h-4"
             />
           </TH>
           <SortHeader label={m.sessions_col_date()} field="date" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
@@ -764,7 +764,7 @@ export function SessionsPage() {
                         checked={selectedSessions.has(session.id)}
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         onChange={(e) => toggleSessionSelection(session.id, e as any)}
-                        className="accent-cyan-400 w-4 h-4"
+                        className="accent-app-accent w-4 h-4"
                       />
                     </TD>
                     <TD className="text-app-text/90 whitespace-nowrap">

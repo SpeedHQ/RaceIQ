@@ -29,7 +29,7 @@ function ThemeContract() {
           <div className="mt-3 flex flex-wrap gap-3">
             <button
               type="button"
-              className="rounded border border-app-border bg-app-surface-alt px-3 py-2 text-app-subtext text-app-text-muted transition-colors hover:border-app-border-input hover:text-app-text"
+              className="rounded border border-app-border bg-app-surface-alt px-3 py-2 text-app-subtext text-app-text-muted transition-colors hover:border-app-border-hover hover:bg-app-surface-hover hover:text-app-text"
             >
               Hover state
             </button>

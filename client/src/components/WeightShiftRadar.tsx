@@ -1,3 +1,5 @@
+import { getSemanticCanvasContext } from "@/lib/css-color";
+import { severityRangeColor } from "@/lib/colors";
 import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useRef } from "react";
 import { m } from "@/paraglide/messages";
@@ -15,7 +17,7 @@ export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = getSemanticCanvasContext(canvas);
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
@@ -29,7 +31,7 @@ export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
     const r = size / 2 - 6;
 
     // Background: car outline (rounded rect)
-    ctx.strokeStyle = "rgba(148,163,184,0.8)";
+    ctx.strokeStyle = "color-mix(in srgb, var(--app-text-muted) 80%, transparent)";
     ctx.lineWidth = 1.5;
     const carW = r * 1.2;
     const carH = r * 1.6;
@@ -49,7 +51,7 @@ export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
     for (const c of corners) {
       ctx.beginPath();
       ctx.arc(c.x, c.y, 1.5, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(148,163,184,0.85)";
+      ctx.fillStyle = "color-mix(in srgb, var(--app-text-muted) 85%, transparent)";
       ctx.fill();
     }
 
@@ -59,7 +61,7 @@ export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
     ctx.lineTo(cx + r * 0.5, cy);
     ctx.moveTo(cx, cy - r * 0.6);
     ctx.lineTo(cx, cy + r * 0.6);
-    ctx.strokeStyle = "rgba(100,116,139,0.1)";
+    ctx.strokeStyle = "color-mix(in srgb, var(--app-text-dim) 10%, transparent)";
     ctx.stroke();
 
     // Suspension loads (0-1 normalized, higher = more compressed = more load)
@@ -93,7 +95,7 @@ export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
     const dy = dotY - cy;
     const maxDist = Math.sqrt((carW / 2) ** 2 + (carH / 2) ** 2);
     const magnitude = Math.min(1, (Math.sqrt(dx * dx + dy * dy) / maxDist) * 2);
-    const dotColor = magnitude < 0.3 ? "#34d399" : magnitude < 0.6 ? "#facc15" : magnitude < 0.85 ? "#fb923c" : "#ef4444";
+    const dotColor = severityRangeColor(magnitude, [0.3, 0.6, 0.85]);
 
     // Weight dot
     ctx.beginPath();
@@ -104,9 +106,10 @@ export function WeightShiftRadar({ packet }: { packet: TelemetryPacket }) {
     // Subtle glow
     ctx.beginPath();
     ctx.arc(dotX, dotY, 7, 0, Math.PI * 2);
-    const glowColor = dotColor + "26"; // ~15% opacity hex
-    ctx.fillStyle = glowColor;
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = dotColor;
     ctx.fill();
+    ctx.globalAlpha = 1;
   }, [packet]);
 
   return (

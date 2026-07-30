@@ -190,7 +190,7 @@ export function AnalyseLapHeader({
             </Button>
           )}
           {selectedLapId != null && (
-            <Button variant="app-outline" size="app-md" onClick={onDeleteLap} className="text-red-400 border-red-400/30 hover:bg-red-400/10">
+            <Button variant="app-outline" size="app-md" onClick={onDeleteLap} className="text-status-danger border-status-danger/30 hover:bg-status-danger/10">
               <Trash2 className="size-3.5" />
               {m.common_delete()}
             </Button>

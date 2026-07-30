@@ -141,7 +141,7 @@ function CarModelPage() {
       <div className="flex items-center gap-3 p-3 border-b border-app-border shrink-0">
         <button
           onClick={() => navigate({ to: "/$gameid/cars", params: { gameid: "fm23" } })}
-          className="text-app-label text-app-text-secondary hover:text-app-text px-2 py-1 rounded bg-app-surface-alt hover:bg-app-border-input transition-colors"
+          className="text-app-label text-app-text-secondary hover:text-app-text px-2 py-1 rounded bg-app-surface-alt hover:bg-app-surface-hover transition-colors"
         >
           &larr; Cars
         </button>

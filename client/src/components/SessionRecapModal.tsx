@@ -5,7 +5,7 @@ import { SessionRecap } from "./SessionRecap";
 export function SessionRecapModal({ sessionId, gameId, onClose }: { sessionId: number; gameId?: GameId | null; onClose: () => void }) {
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60 p-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}

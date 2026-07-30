@@ -18,10 +18,10 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
 
         // App design-token variants (use app-* CSS vars)
-        "app-outline": "!border-neutral-700 text-app-text-secondary hover:text-app-text rounded",
-        "app-primary": "bg-app-accent text-white hover:bg-app-accent/80 rounded disabled:bg-app-accent/40 disabled:opacity-100",
+        "app-outline": "!border-app-border-input text-app-text-secondary hover:text-app-text rounded",
+        "app-primary": "bg-app-accent text-app-on-filled hover:bg-app-accent-hover rounded disabled:bg-app-accent/40 disabled:opacity-100",
         "app-ghost": "text-app-text-secondary hover:text-app-text rounded",
-        "app-danger": "bg-red-600 text-white hover:bg-red-500 rounded",
+        "app-danger": "bg-status-danger text-app-on-filled hover:bg-status-danger-hover rounded",
       },
       size: {
         default: "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",

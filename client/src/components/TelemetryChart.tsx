@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
+import { resolveCssColor } from "../lib/css-color";
 
 interface Props {
   data: {
@@ -47,11 +48,20 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
         { label: "Distance (m)" },
         ...data.labels.map((label, i) => ({
           label,
-          stroke: data.colors[i],
+          stroke: resolveCssColor(data.colors[i]),
           width: 1.5,
-          fill: fillColors?.[i] ?? undefined,
+          fill: fillColors?.[i] ? resolveCssColor(fillColors[i]!) : undefined,
         })),
       ];
+      const axisStroke = resolveCssColor("var(--app-text-dim)");
+      const gridStroke = resolveCssColor("color-mix(in srgb, var(--app-text-dim) 15%, transparent)");
+      const tickStroke = resolveCssColor("color-mix(in srgb, var(--app-text-dim) 30%, transparent)");
+      const axis = (): uPlot.Axis => ({
+        stroke: axisStroke,
+        grid: { stroke: gridStroke, width: 1 },
+        ticks: { stroke: tickStroke, width: 1 },
+        font: "11px ui-monospace, monospace",
+      });
 
       const opts: uPlot.Options = {
         width,
@@ -69,20 +79,7 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
         scales: {
           x: { time: false },
         },
-        axes: [
-          {
-            stroke: "#64748b",
-            grid: { stroke: "rgba(100, 116, 139, 0.15)", width: 1 },
-            ticks: { stroke: "rgba(100, 116, 139, 0.3)", width: 1 },
-            font: "11px ui-monospace, monospace",
-          },
-          {
-            stroke: "#64748b",
-            grid: { stroke: "rgba(100, 116, 139, 0.15)", width: 1 },
-            ticks: { stroke: "rgba(100, 116, 139, 0.3)", width: 1 },
-            font: "11px ui-monospace, monospace",
-          },
-        ],
+        axes: [axis(), axis()],
         series,
         hooks: {
           ready: [
@@ -203,7 +200,7 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
         <div ref={containerRef} className="w-full" />
         {dragSel && (
           <div
-            className="absolute pointer-events-none w-px bg-slate-400/70"
+            className="absolute pointer-events-none w-px bg-app-text-secondary/70"
             style={{
               left: dragSel.overLeft + dragSel.startPx,
               top: dragSel.overTop,

@@ -1,5 +1,7 @@
 import type { GameId, TelemetryPacket } from "@shared/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getSemanticCanvasContext } from "../../lib/css-color";
+import { deltaColor } from "../../lib/colors";
 import { type BoundaryData, COLOR_A, COLOR_B, computeZoom, drawInputsHUD, drawTrackCanvas, findTelemetryAtDistance, formatSectionTime, type Point } from "../../lib/comparison-utils";
 import { client } from "../../lib/rpc";
 import { flipBoundaries, flipPoints, needsTrackFlip } from "../../lib/track-coords";
@@ -271,7 +273,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
       oc.height = rect.height * dpr;
       oc.style.width = `${rect.width}px`;
       oc.style.height = `${rect.height}px`;
-      const ctx = oc.getContext("2d");
+      const ctx = getSemanticCanvasContext(oc);
       if (ctx) {
         ctx.scale(dpr, dpr);
         const segPts =
@@ -298,7 +300,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
       zc.height = rect.height * dpr;
       zc.style.width = `${rect.width}px`;
       zc.style.height = `${rect.height}px`;
-      const ctx = zc.getContext("2d");
+      const ctx = getSemanticCanvasContext(zc);
       if (ctx) {
         ctx.scale(dpr, dpr);
         const zoom = hd != null ? computeZoom(telemetryA, telemetryB, hd, trackRange, telXFn) : null;
@@ -325,10 +327,10 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
       if (activeIdx !== prevActiveSegRef.current) {
         const rows = segmentTableRef.current.children;
         if (prevActiveSegRef.current >= 0 && prevActiveSegRef.current < rows.length) {
-          (rows[prevActiveSegRef.current] as HTMLElement).style.backgroundColor = "";
+          (rows[prevActiveSegRef.current] as HTMLElement).classList.remove("bg-app-surface-alt/60");
         }
         if (activeIdx >= 0 && activeIdx < rows.length) {
-          (rows[activeIdx] as HTMLElement).style.backgroundColor = "rgba(148, 163, 184, 0.15)";
+          (rows[activeIdx] as HTMLElement).classList.add("bg-app-surface-alt/60");
           (rows[activeIdx] as HTMLElement).scrollIntoView({ block: "nearest" });
         }
         prevActiveSegRef.current = activeIdx;
@@ -374,7 +376,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
             drawBoth();
           }}
           className={`absolute top-2 right-2 z-10 px-2 py-1 text-[10px] rounded border transition-colors ${
-            followCar ? "bg-cyan-900/50 border-cyan-700 text-cyan-400" : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
+            followCar ? "bg-status-info/20 border-status-info/50 text-status-info" : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
           }`}
         >
           {followCar ? m.compare_follow_view() : m.compare_fixed_view()}
@@ -389,7 +391,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
       {segments.length > 0 ? (
         <div className="overflow-auto flex-1 min-h-0">
           <table className="w-full text-xs">
-            <thead className="sticky top-0 z-10 bg-[#0f172a]">
+            <thead className="sticky top-0 z-10 bg-[var(--app-surface)]">
               <tr className="text-[10px] text-app-text-muted uppercase tracking-wider border-b border-app-border">
                 <th className="text-left px-2 py-1.5">{m.compare_segment()}</th>
                 <th className="text-right px-2 py-1.5" style={{ color: COLOR_A }}>
@@ -407,14 +409,20 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
                 const fasterB = s.timeA > 0 && s.timeB > 0 && s.timeB < s.timeA;
                 const delta = s.timeA - s.timeB;
                 const isNeutral = Math.abs(delta) < 0.005;
-                const deltaColor = isNeutral ? "text-app-text-secondary" : delta < 0 ? "text-emerald-400" : "text-red-400";
+                const segmentDeltaColor = isNeutral ? "var(--app-text-secondary)" : deltaColor(delta);
                 const sign = delta > 0 ? "+" : "";
                 return (
-                  <tr key={s.name} className="border-b border-app-border/50 hover:bg-app-surface-alt/30">
+                  <tr key={s.name} className="border-b border-app-border/50 hover:bg-app-surface-hover/30">
                     <td className="px-2 py-1 font-mono text-app-text whitespace-nowrap">{s.name}</td>
-                    <td className={`px-2 py-1 font-mono text-right ${fasterA ? "text-emerald-400" : "text-app-text-secondary"}`}>{formatSectionTime(s.timeA)}</td>
-                    <td className={`px-2 py-1 font-mono text-right ${fasterB ? "text-emerald-400" : "text-app-text-secondary"}`}>{formatSectionTime(s.timeB)}</td>
-                    <td className={`px-2 py-1 font-mono text-right ${deltaColor}`}>{s.timeA > 0 && s.timeB > 0 ? `${sign}${delta.toFixed(3)}` : "-"}</td>
+                    <td className="px-2 py-1 font-mono text-right" style={{ color: fasterA ? "var(--delta-gain)" : "var(--app-text-secondary)" }}>
+                      {formatSectionTime(s.timeA)}
+                    </td>
+                    <td className="px-2 py-1 font-mono text-right" style={{ color: fasterB ? "var(--delta-gain)" : "var(--app-text-secondary)" }}>
+                      {formatSectionTime(s.timeB)}
+                    </td>
+                    <td className="px-2 py-1 font-mono text-right" style={{ color: segmentDeltaColor }}>
+                      {s.timeA > 0 && s.timeB > 0 ? `${sign}${delta.toFixed(3)}` : "-"}
+                    </td>
                   </tr>
                 );
               })}

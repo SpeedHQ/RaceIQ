@@ -4,6 +4,7 @@ import type { TelemetryPacket } from "@shared/types";
 import { Suspense, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { m } from "@/paraglide/messages";
+import { THREE_COLORS } from "@/lib/wireframe-utils";
 
 const MODEL_PATH = "/models/f1_2025_mclaren_mcl39.glb";
 
@@ -17,7 +18,7 @@ function F1CarBody({ packet }: { packet: TelemetryPacket }) {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh;
         mesh.material = new THREE.MeshBasicMaterial({
-          color: "#94a3b8",
+          color: THREE_COLORS.wireframeStructure,
           wireframe: true,
           transparent: true,
           opacity: 0.4,
@@ -84,7 +85,7 @@ export function F1CarWireframeSection({ packet }: { packet: TelemetryPacket }) {
             <F1CarBody packet={packet} />
           </Suspense>
           <OrbitControls enablePan={false} enableZoom={true} />
-          <gridHelper args={[10, 10, "#1e293b", "#1e293b"]} position={[0, -1.5, 0]} />
+          <gridHelper args={[10, 10, THREE_COLORS.appSurfaceAlt, THREE_COLORS.appSurfaceAlt]} position={[0, -1.5, 0]} />
         </Canvas>
       </div>
     </div>

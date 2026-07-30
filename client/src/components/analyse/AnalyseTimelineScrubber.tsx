@@ -1,5 +1,6 @@
 import type { TelemetryPacket } from "@shared/types";
 import { memo, type RefObject, useMemo } from "react";
+import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { formatLapTime } from "@/lib/format";
 
 interface SectorTimesData {
@@ -75,15 +76,14 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
         <span className="text-sm font-mono tabular-nums text-app-text-secondary">/ {formatLapTime(totalTime)}</span>
         {sectorTimes &&
           Array.from({ length: sectorTimes.sectorCount }, (_, index) => `S${index + 1}`).map((name, i) => {
-            const colors = ["#ef4444", "#3b82f6", "#eab308", "#22c55e", "#a855f7", "#f97316"];
             const isActive = sectorTimes.cursorSector === i;
             return (
               <div
                 key={name}
-                className={`flex items-center gap-1.5 px-2 py-1 rounded ${isActive ? "bg-app-surface-alt ring-1" : "bg-app-surface-alt/30"}`}
-                style={isActive ? { boxShadow: `inset 0 0 0 1px ${colors[i % colors.length]}40` } : {}}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded ${isActive ? "bg-app-surface-alt ring-1 ring-inset ring-(--local-sector-color)/25" : "bg-app-surface-alt/30"}`}
+                style={{ ["--local-sector-color" as string]: SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length] }}
               >
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors[i % colors.length] }} />
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length] }} />
                 <span className="text-[10px] font-semibold text-app-text-muted">{name}</span>
                 <span className={`text-xs font-mono font-bold tabular-nums ${isActive ? "text-app-text" : "text-app-text-secondary"}`}>{formatLapTime(sectorTimes.times[i])}</span>
               </div>
@@ -97,7 +97,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
         <button
           type="button"
           onClick={onTogglePlay}
-          className="text-lg w-8 h-8 flex items-center justify-center rounded bg-app-surface-alt hover:bg-app-border-input text-app-text transition-colors"
+          className="text-lg w-8 h-8 flex items-center justify-center rounded bg-app-surface-alt hover:bg-app-surface-hover text-app-text transition-colors"
           title={playing ? "Pause (Space)" : "Play (Space)"}
         >
           {playing ? "\u275A\u275A" : "\u25B6"}
@@ -109,7 +109,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
               key={s}
               onClick={() => onSpeedChange(s)}
               className={`px-1.5 py-0.5 text-[10px] font-mono rounded transition-colors ${
-                playbackSpeed === s ? "bg-cyan-600 text-white" : "bg-app-surface-alt text-app-text-secondary hover:bg-app-border-input hover:text-app-text"
+                playbackSpeed === s ? "bg-app-accent text-app-on-filled" : "bg-app-surface-alt text-app-text-secondary hover:bg-app-surface-hover hover:text-app-text"
               }`}
             >
               {s}x
@@ -176,19 +176,26 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
                 return (
                   <div
                     key={`${timelineData.timeFracs[i - 1]}-${timelineData.timeFracs[i]}`}
-                    className="absolute top-0 h-full bg-red-500/30 border-x border-red-500/50"
-                    style={{ left: `${left}%`, width: `${Math.max(0.3, right - left)}%` }}
+                    className="absolute top-0 h-full border-x bg-status-danger/30 border-status-danger/50"
+                    style={{
+                      left: `${left}%`,
+                      width: `${Math.max(0.3, right - left)}%`,
+                    }}
                     title={`${dt.toFixed(2)}s gap`}
                   />
                 );
               })}
             {/* Progress fill */}
-            <div ref={progressRef} className="absolute top-0 h-full bg-cyan-500/40 rounded-full" style={{ width: `${cursorPct}%` }} />
+            <div
+              ref={progressRef}
+              className="absolute top-0 h-full rounded-full bg-app-accent/40"
+              style={{ width: `${cursorPct}%` }}
+            />
           </div>
           {/* Thumb */}
           <div
             ref={thumbRef}
-            className="absolute w-3 h-3 bg-cyan-400 rounded-full shadow-[0_0_6px_rgba(34,211,238,0.5)] -translate-x-1/2 group-hover:scale-125 transition-transform"
+            className="absolute w-3 h-3 bg-app-accent rounded-full shadow-[var(--app-glow-accent)] -translate-x-1/2 group-hover:scale-125 transition-transform"
             style={{ left: `${cursorPct}%` }}
           />
         </div>

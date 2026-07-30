@@ -188,7 +188,7 @@ function AccSetupPanel({ setup }: { setup: AccSetup }) {
         {setup.setupFile && (
           <button
             type="button"
-            className="text-[11px] uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-bg font-bold disabled:opacity-50"
+            className="text-[11px] uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-on-filled font-bold disabled:opacity-50"
             onClick={() => install.mutate()}
             disabled={install.isPending || install.isSuccess}
           >
@@ -219,7 +219,7 @@ function AccSetupPanel({ setup }: { setup: AccSetup }) {
             href={videoUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-red-400 hover:text-red-300 no-underline"
+            className="text-[11px] uppercase tracking-wide px-4 py-2 rounded border border-app-border text-status-danger hover:text-status-danger/80 no-underline"
           >
             ▶ {m.browser_video()}
           </a>

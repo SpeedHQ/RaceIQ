@@ -90,9 +90,9 @@ function buildRows(traces: LapTrace[], bestLapId: number | null, sectors: Sector
 
 function deltaColor(dv: number | null): string {
   if (dv == null) return "text-app-text-dim";
-  if (dv > 0.3) return "text-red-400";
-  if (dv > 0.1) return "text-amber-400";
-  return "text-emerald-400";
+    if (dv > 0.3) return "text-(--severity-critical)";
+    if (dv > 0.1) return "text-(--severity-caution)";
+    return "text-(--severity-nominal)";
 }
 
 /**
@@ -130,7 +130,7 @@ export function SectorLedger({ traces, bestLapId, sectorBoundaryFracs, cursorFra
                 <tr
                   key={r.sector.index}
                   onClick={() => onCursorFrac(r.sector.midFrac)}
-                  className={`cursor-pointer border-b border-app-border last:border-0 hover:bg-app-surface-alt ${isActive ? "bg-app-surface-alt" : ""}`}
+                  className={`cursor-pointer border-b border-app-border last:border-0 hover:bg-app-surface-hover ${isActive ? "bg-app-surface-alt" : ""}`}
                 >
                   <td className="text-left px-2.5 py-1.5 whitespace-nowrap">
                     <span className="font-semibold text-app-text">{r.sector.label}</span>

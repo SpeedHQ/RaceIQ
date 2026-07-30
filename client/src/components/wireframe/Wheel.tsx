@@ -1,8 +1,8 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import { brakeTempColor, COLORS_HEX } from "../../lib/vehicle-dynamics";
-import { makeWheelGeometries } from "../../lib/wireframe-utils";
+import { brakeTempColor } from "../../lib/vehicle-dynamics";
+import { makeWheelGeometries, threeColor, THREE_COLORS } from "../../lib/wireframe-utils";
 import { WheelInfoCard } from "./WheelLabels";
 
 const useWheelGeometries = (radius = 0.34, width = 0.3) => useMemo(() => makeWheelGeometries(radius, width), [radius, width]);
@@ -66,10 +66,10 @@ export function Wheel({
         <group rotation={[camberAngle, 0, 0]}>
           <group ref={spinRef}>
             <mesh geometry={tire} renderOrder={10}>
-              <meshBasicMaterial color={gripColor} wireframe depthTest={false} transparent />
+              <meshBasicMaterial color={threeColor(gripColor)} wireframe depthTest={false} transparent />
             </mesh>
             <mesh geometry={rim} renderOrder={10}>
-              <meshBasicMaterial color={rimColor} transparent opacity={0.85} side={THREE.DoubleSide} depthTest={false} />
+              <meshBasicMaterial color={threeColor(rimColor)} transparent opacity={0.85} side={THREE.DoubleSide} depthTest={false} />
             </mesh>
           </group>
         </group>
@@ -77,7 +77,7 @@ export function Wheel({
         {brakeTemp > 0 && (
           <mesh position={[0, 0, side === "left" ? tireWidth * 0.6 : -tireWidth * 0.6]} rotation={[Math.PI / 2, 0, 0]} renderOrder={10}>
             <cylinderGeometry args={[tireRadius * 0.5, tireRadius * 0.5, 0.02, 24]} />
-            <meshBasicMaterial color={COLORS_HEX[brakeTempColor(brakeTemp, isRear)]} transparent opacity={0.7} side={THREE.DoubleSide} depthTest={false} />
+            <meshBasicMaterial color={threeColor(brakeTempColor(brakeTemp, isRear))} transparent opacity={0.7} side={THREE.DoubleSide} depthTest={false} />
           </mesh>
         )}
       </group>
@@ -95,18 +95,18 @@ export function Wheel({
           isRear={isRear}
         />
       )}
-      {/* Curb indicator — orange ring under tire when on rumble strip */}
+      {/* Theme-owned curb indicator ring under the tire */}
       {onCurb && (
         <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, -tireRadius, 0]}>
           <ringGeometry args={[tireRadius + 0.02, tireRadius + 0.1, 16]} />
-          <meshBasicMaterial color="#ff8800" transparent opacity={0.7} side={THREE.DoubleSide} />
+          <meshBasicMaterial color={THREE_COLORS.surfaceContact} transparent opacity={0.7} side={THREE.DoubleSide} />
         </mesh>
       )}
-      {/* Puddle indicator — blue disc under tire scaled by depth */}
+      {/* Theme-owned puddle indicator disc scaled by depth */}
       {puddleDepth > 0 && (
         <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, -tireRadius, 0]}>
           <circleGeometry args={[tireRadius + 0.04 + puddleDepth * 0.15, 16]} />
-          <meshBasicMaterial color="#3b82f6" transparent opacity={0.3 + puddleDepth * 0.4} side={THREE.DoubleSide} />
+          <meshBasicMaterial color={THREE_COLORS.surfaceWet} transparent opacity={0.3 + puddleDepth * 0.4} side={THREE.DoubleSide} />
         </mesh>
       )}
     </group>

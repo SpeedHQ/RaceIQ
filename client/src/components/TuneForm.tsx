@@ -8,6 +8,7 @@ import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
 import { useRequiredGameId } from "../stores/game";
 import { GearRatioChart } from "./tune/GearRatioChart";
+import { ALL_CATEGORIES, CATEGORY_COLORS, CATEGORY_LABELS } from "./tune/tune-constants";
 import { Button } from "./ui/button";
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
@@ -46,24 +47,6 @@ export function useAllCars() {
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
-
-export const CATEGORY_LABELS: Record<string, string> = {
-  circuit: "Circuit",
-  wet: "Wet",
-  "low-drag": "Low Drag",
-  stable: "Stable",
-  "track-specific": "Track Specific",
-};
-
-export const CATEGORY_COLORS: Record<string, string> = {
-  circuit: "bg-blue-500/20 text-blue-400",
-  wet: "bg-cyan-500/20 text-cyan-400",
-  "low-drag": "bg-red-500/20 text-red-400",
-  stable: "bg-green-500/20 text-green-400",
-  "track-specific": "bg-orange-500/20 text-orange-400",
-};
-
-export const ALL_CATEGORIES: TuneCategory[] = ["circuit", "wet", "low-drag", "stable", "track-specific"];
 
 // ── Unit conversion ──────────────────────────────────────────────────────────
 
@@ -379,18 +362,18 @@ export function UserTuneCard({
 
   return (
     <div className="rounded-xl bg-app-surface ring-1 ring-app-border overflow-hidden">
-      <button onClick={onToggle} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-app-surface transition-colors">
+      <button onClick={onToggle} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-app-surface-hover transition-colors">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-app-text">{tune.name}</span>
             <span className="text-[10px] font-mono text-app-text-muted">{carName ?? `Car #${tune.carOrdinal}`}</span>
-            <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${CATEGORY_COLORS[tune.category] ?? "bg-gray-500/20 text-gray-400"}`}>
+            <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${CATEGORY_COLORS[tune.category] ?? "bg-app-text-dim/20 text-app-text-muted"}`}>
               {CATEGORY_LABELS[tune.category] ?? tune.category}
             </span>
             <span className="text-[10px] text-app-text-muted">
               by {tune.author} &middot; {tune.source === "catalog-clone" ? "cloned from catalog" : "user created"}
             </span>
-            {tune.source === "catalog-clone" && <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">{m.tuneform_cloned()}</span>}
+            {tune.source === "catalog-clone" && <span className="text-[10px] px-1.5 py-0.5 rounded bg-app-accent/20 text-app-accent">{m.tuneform_cloned()}</span>}
           </div>
           <p className={`text-xs text-app-text-muted mt-0.5 ${isExpanded ? "" : "line-clamp-1"}`}>{tune.description}</p>
         </div>
@@ -407,7 +390,7 @@ export function UserTuneCard({
                 e.stopPropagation();
                 onEdit();
               }}
-              className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
+              className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-status-info/20 text-status-info hover:bg-status-info/30 transition-colors"
             >
               {m.common_edit()}
             </button>
@@ -418,7 +401,7 @@ export function UserTuneCard({
                   onDuplicate();
                 }}
                 disabled={isDuplicating}
-                className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 disabled:opacity-50 transition-colors"
+                className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-app-accent/20 text-app-accent hover:bg-app-accent/30 disabled:opacity-50 transition-colors"
               >
                 {isDuplicating ? "..." : m.common_duplicate()}
               </button>
@@ -429,7 +412,7 @@ export function UserTuneCard({
                   e.stopPropagation();
                   setShareOpen((v) => !v);
                 }}
-                className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 transition-colors"
+                className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-status-success/20 text-status-success hover:bg-status-success/30 transition-colors"
               >
                 {shareStatus === "copied" ? "Copied" : "Share"}
               </button>
@@ -450,20 +433,20 @@ export function UserTuneCard({
                   e.stopPropagation();
                   setConfirmDelete(true);
                 }}
-                className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+                className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-status-danger/20 text-status-danger hover:bg-status-danger/30 transition-colors"
               >
                 {m.common_delete()}
               </button>
             ) : (
               <span className="flex items-center gap-1">
-                <span className="text-[10px] text-red-400">Sure?</span>
+                <span className="text-[10px] text-status-danger">Sure?</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onDelete();
                   }}
                   disabled={isDeleting}
-                  className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-red-600/30 text-red-300 hover:bg-red-600/50 disabled:opacity-50 transition-colors"
+                  className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-status-danger/30 text-status-danger hover:bg-status-danger/50 disabled:opacity-50 transition-colors"
                 >
                   {isDeleting ? "..." : "Yes"}
                 </button>
@@ -833,7 +816,7 @@ export function TuneForm({
                   <img
                     src={s.imageUrl}
                     alt={carData.name}
-                    className="w-full object-contain bg-black"
+                    className="w-full object-contain bg-app-bg"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = "none";
                     }}
@@ -878,7 +861,7 @@ export function TuneForm({
           {jsonMode ? (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <label className="text-xs px-3 py-1.5 rounded bg-app-surface ring-1 ring-app-border text-app-text cursor-pointer hover:bg-app-surface-alt transition-colors">
+                <label className="text-xs px-3 py-1.5 rounded bg-app-surface ring-1 ring-app-border text-app-text cursor-pointer hover:bg-app-surface-hover transition-colors">
                   {m.tuneform_import_json_file()}
                   <input type="file" accept=".json,application/json" onChange={handleJsonFileImport} className="hidden" />
                 </label>
@@ -893,7 +876,7 @@ export function TuneForm({
                 rows={10}
                 className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs text-app-text font-mono focus:outline-none focus:ring-1 focus:ring-app-accent resize-y"
               />
-              {jsonError && <p className="text-xs text-red-400">{jsonError}</p>}
+              {jsonError && <p className="text-xs text-status-danger">{jsonError}</p>}
               <button type="button" onClick={handleJsonParse} className="text-xs px-3 py-1.5 rounded bg-app-accent/20 text-app-accent hover:bg-app-accent/30 transition-colors">
                 {m.tune_parse_populate()}
               </button>

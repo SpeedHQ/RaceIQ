@@ -49,7 +49,7 @@ export function TrackCard({
 
   return (
     <div
-      className="border border-app-border rounded-lg overflow-hidden cursor-pointer transition-all bg-app-surface/50 hover:border-app-border-input hover:bg-app-surface-alt/50"
+      className="border border-app-border rounded-lg overflow-hidden cursor-pointer transition-all bg-app-surface/50 hover:border-app-border-hover hover:bg-app-surface-hover/50"
       onClick={() => onSelect(track)}
     >
       <div className="p-3">
@@ -83,7 +83,7 @@ export function TrackCard({
             {setupCount !== undefined && (
               <span
                 className={`text-[10px] px-1.5 py-0.5 rounded border font-mono leading-none ${
-                  setupCount > 0 ? "bg-green-900/70 border-green-700/50 text-green-300" : "bg-app-surface-alt/70 border-app-border text-app-text-dim"
+                  setupCount > 0 ? "bg-status-success/15 border-status-success/50 text-status-success" : "bg-app-surface-alt/70 border-app-border text-app-text-dim"
                 }`}
               >
                 {setupCount} {setupCount === 1 ? m.trackcard_setup_count() : m.trackcard_setup_counts()}
@@ -92,7 +92,7 @@ export function TrackCard({
             {guideCount !== undefined && (
               <span
                 className={`text-[10px] px-1.5 py-0.5 rounded border font-mono leading-none ${
-                  guideCount > 0 ? "bg-orange-900/70 border-orange-700/50 text-orange-300" : "bg-app-surface-alt/70 border-app-border text-app-text-dim"
+                  guideCount > 0 ? "bg-status-warning/15 border-status-warning/50 text-status-warning" : "bg-app-surface-alt/70 border-app-border text-app-text-dim"
                 }`}
               >
                 {guideCount} {guideCount === 1 ? m.trackcard_guide_count() : m.trackcard_guide_counts()}

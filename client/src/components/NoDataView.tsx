@@ -24,8 +24,8 @@ function ForzaSetupGuide({ port }: { port: string }) {
         </li>
         <li>{m.setupguide_data_out_packet_format()}</li>
       </ol>
-      <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2">
-        <p className="text-xs text-amber-400">
+        <div className="mt-4 rounded-md border border-status-warning/30 bg-status-warning/5 px-3 py-2">
+          <p className="text-xs text-status-warning">
           <span className="font-semibold">{m.setupguide_note_label()}</span> {m.setupguide_forza_note()}
         </p>
       </div>
@@ -54,8 +54,8 @@ function F1SetupGuide({ port }: { port: string }) {
         <li>{m.setupguide_udp_send_rate()}</li>
         <li>{m.setupguide_udp_format()}</li>
       </ol>
-      <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2">
-        <p className="text-xs text-amber-400">
+        <div className="mt-4 rounded-md border border-status-warning/30 bg-status-warning/5 px-3 py-2">
+          <p className="text-xs text-status-warning">
           <span className="font-semibold">{m.setupguide_note_label()}</span> {m.setupguide_f1_note()}
         </p>
       </div>
@@ -78,8 +78,8 @@ function AccSetupGuide() {
           {m.setupguide_acc_step3_prefix()} <span className="text-app-text">{m.setupguide_acc_practice_session()}</span> {m.setupguide_acc_step3_suffix()}
         </li>
       </ol>
-      <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2">
-        <p className="text-xs text-amber-400">
+        <div className="mt-4 rounded-md border border-status-warning/30 bg-status-warning/5 px-3 py-2">
+          <p className="text-xs text-status-warning">
           <span className="font-semibold">{m.setupguide_note_label()}</span> {m.setupguide_acc_note()}
         </p>
       </div>

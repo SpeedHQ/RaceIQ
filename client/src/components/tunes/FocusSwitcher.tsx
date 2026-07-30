@@ -68,9 +68,9 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
                 className={`px-2.5 py-1 text-xs transition-colors ${
                   active
                     ? f === "driver"
-                      ? "bg-sky-500/20 text-sky-200 font-semibold"
-                      : "bg-purple-500/20 text-purple-200 font-semibold"
-                    : "text-app-text-dim hover:text-app-text hover:bg-app-border/30"
+                      ? "bg-(--focus-driver)/20 text-(--focus-driver) font-semibold"
+                      : "bg-(--focus-setup)/20 text-(--focus-setup) font-semibold"
+                    : "text-app-text-dim hover:text-app-text hover:bg-app-surface-hover/30"
                 }`}
               >
                 {EXPERIMENT_FOCUS_LABELS[f]}
@@ -99,7 +99,7 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
             ref={noteRef}
             className="mt-2 w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs"
           />
-          {error && <div className="mt-1.5 text-[11px] text-red-400">{error}</div>}
+          {error && <div className="mt-1.5 text-[11px] text-status-danger">{error}</div>}
           <div className="mt-2 flex justify-end gap-2">
             <button type="button" onClick={() => setPending(null)} className="px-2 py-1 text-[11px] rounded border border-app-border text-app-text-dim hover:text-app-text">
               Cancel
@@ -108,7 +108,7 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
               type="button"
               onClick={() => void commit()}
               disabled={setFocus.isPending}
-              className="px-2.5 py-1 text-[11px] rounded bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-semibold"
+              className="px-2.5 py-1 text-[11px] rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 text-app-on-filled font-semibold"
             >
               {setFocus.isPending ? "Switching…" : "Switch"}
             </button>

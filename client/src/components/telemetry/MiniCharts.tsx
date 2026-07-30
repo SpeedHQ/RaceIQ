@@ -1,8 +1,10 @@
+import { getSemanticCanvasContext } from "@/lib/css-color";
+import { WHEEL_COLOR_VARS } from "@/lib/colors";
 import { useEffect, useRef, useState } from "react";
 import { GRIP_MAX_SAMPLES } from "./GripSparkline";
 
-// Consistent color coding across all per-wheel charts: FL=cyan, FR=purple, RL=amber, RR=emerald
-export const TIRE_COLORS = ["#22d3ee", "#a855f7", "#fbbf24", "#34d399"];
+// Stable FL/FR/RL/RR identities; the theme owns the actual colors.
+export const TIRE_COLORS = WHEEL_COLOR_VARS;
 export const TIRE_LABELS = ["FL", "FR", "RL", "RR"];
 
 /**
@@ -37,7 +39,7 @@ export function FourLineChart({
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = getSemanticCanvasContext(canvas);
     if (!ctx) return;
 
     const width = container.clientWidth;
@@ -60,7 +62,7 @@ export function FourLineChart({
 
     // Y axis: min/max labels
     ctx.font = "7px monospace";
-    ctx.fillStyle = "#475569";
+    ctx.fillStyle = "var(--app-text-dim)";
     ctx.textAlign = "left";
     ctx.fillText(`${computedMax.toFixed(0)}${unit ?? ""}`, 1, 8);
     ctx.fillText(`${computedMin.toFixed(0)}${unit ?? ""}`, 1, height - 2);
@@ -134,7 +136,7 @@ export function SingleLineChart({ data, label, color, maxY, height = 50 }: { dat
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container || data.length < 2) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = getSemanticCanvasContext(canvas);
     if (!ctx) return;
 
     const width = container.clientWidth;
@@ -222,7 +224,7 @@ export function DualLineChart({
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container || data1.length < 2) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = getSemanticCanvasContext(canvas);
     if (!ctx) return;
 
     const width = container.clientWidth;

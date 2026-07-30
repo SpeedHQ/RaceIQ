@@ -5,6 +5,7 @@ import {
   WATTS_PER_HORSEPOWER,
 } from "@shared/games/telemetry";
 import type { TelemetryPacket } from "@shared/types";
+import { operatingRangeColor, severityRangeColor } from "../../lib/colors";
 import { useUnits } from "../../hooks/useUnits";
 import { m } from "../../paraglide/messages";
 import { getSteeringLock } from "../Settings";
@@ -28,8 +29,8 @@ export function MetricsPanel({ pkt, startFuel }: { pkt: TelemetryPacket & { Disp
       <MetricRow label={m.dataguide_speed()} value={`${speed.toFixed(0)} ${units.speedLabel}`} />
       <MetricRow label={m.dataguide_rpm()} value={`${pkt.CurrentEngineRpm.toFixed(0)}`} />
       <MetricRow label={m.dataguide_gear()} value={`${pkt.Gear}`} />
-      <MetricRow label={m.dataguide_throttle()} value={`${throttlePct}%`} color={Number(throttlePct) > 0 ? "#34d399" : undefined} />
-      <MetricRow label={m.dataguide_brake()} value={`${brakePct}%`} color={Number(brakePct) > 0 ? "#ef4444" : undefined} />
+      <MetricRow label={m.dataguide_throttle()} value={`${throttlePct}%`} color={Number(throttlePct) > 0 ? "var(--ch-throttle)" : undefined} />
+      <MetricRow label={m.dataguide_brake()} value={`${brakePct}%`} color={Number(brakePct) > 0 ? "var(--ch-brake)" : undefined} />
       <MetricRow label={m.dataguide_steer()} value={`${steerDeg > 0 ? "+" : ""}${steerDeg.toFixed(0)}°`} />
       {telemetryModel.boost && <MetricRow label={m.dataguide_boost()} value={`${pkt.Boost.toFixed(1)} psi`} />}
       {telemetryModel.power && <MetricRow label={m.dataguide_power()} value={`${(pkt.Power / WATTS_PER_HORSEPOWER).toFixed(0)} hp`} />}
@@ -37,7 +38,7 @@ export function MetricsPanel({ pkt, startFuel }: { pkt: TelemetryPacket & { Disp
       <div className="col-span-2 flex justify-between">
         <span className="text-app-text-muted">{m.dataguide_fuel()}</span>
         <span className="tabular-nums">
-          <span className="text-amber-400">{fuelUsed ? `${fuelUsed.amount.toFixed(1)}${fuelUsed.unit}` : "?"}</span>
+          <span style={{ color: "var(--metric-fuel)" }}>{fuelUsed ? `${fuelUsed.amount.toFixed(1)}${fuelUsed.unit}` : "?"}</span>
           <span className="text-app-text-dim"> used </span>
           <span className="text-app-text">{fuel.amount.toFixed(1)}{fuel.unit}</span>
           <span className="text-app-text-dim"> left</span>
@@ -61,7 +62,7 @@ export function MetricRow({ label, value, color }: { label: string; value: strin
 export function WearValue({ label, value }: { label: string; value: number }) {
   const health = 1 - value;
   const pct = (health * 100).toFixed(1);
-  const color = health > 0.7 ? "#34d399" : health > 0.4 ? "#fbbf24" : "#ef4444";
+  const color = severityRangeColor(1 - health, [0.3, 0.6]);
   return (
     <span className="text-app-text-secondary">
       {label}:{" "}
@@ -73,7 +74,7 @@ export function WearValue({ label, value }: { label: string; value: number }) {
 }
 
 export function SlipValue({ label, value }: { label: string; value: number }) {
-  const color = Math.abs(value) < 0.5 ? "#34d399" : Math.abs(value) < 1.5 ? "#fbbf24" : "#ef4444";
+  const color = severityRangeColor(Math.abs(value), [0.5, 1.5]);
   return (
     <span className="text-app-text-secondary">
       {label}:{" "}
@@ -89,10 +90,10 @@ export function SlipAngleValue({ label, value, speedMph }: { label: string; valu
   const a = Math.abs(deg);
   // Scale thresholds by speed — high slip angles are normal at low speed
   const speedFactor = speedMph != null ? Math.max(0.3, Math.min(1, speedMph / 80)) : 1;
-  const t1 = 4 / speedFactor; // green->yellow: 4° at 80mph, ~13° at 25mph
-  const t2 = 8 / speedFactor; // yellow->orange
-  const t3 = 14 / speedFactor; // orange->red
-  const color = a < t1 ? "#34d399" : a < t2 ? "#fbbf24" : a < t3 ? "#fb923c" : "#ef4444";
+  const t1 = 4 / speedFactor; // nominal -> caution: 4° at 80mph, ~13° at 25mph
+  const t2 = 8 / speedFactor; // caution -> warning
+  const t3 = 14 / speedFactor; // warning -> critical
+  const color = severityRangeColor(a, [t1, t2, t3]);
   return (
     <span className="text-app-text-secondary">
       {label}:{" "}
@@ -113,16 +114,12 @@ export function WheelSpeedValue({ label, value }: { label: string; value: number
 
 export function brakeBarColor(brake: number): string {
   const t = Math.min(1, Math.max(0, brake / 255));
-  // Lerp from #ff9933 to #cc0000
-  const r = Math.round(0xff + (0xcc - 0xff) * t);
-  const g = Math.round(0x99 * (1 - t));
-  const b = Math.round(0x33 * (1 - t));
-  return `rgb(${r},${g},${b})`;
+  return `color-mix(in srgb, var(--brake-warm) ${(1 - t) * 100}%, var(--brake-hot))`;
 }
 
 export function SuspValue({ label, value }: { label: string; value: number }) {
   const pct = (value * 100).toFixed(0);
-  const color = value < 0.25 ? "#3b82f6" : value < 0.65 ? "#34d399" : value < 0.85 ? "#fbbf24" : "#ef4444";
+  const color = operatingRangeColor(value, [0.25, 0.65, 0.85]);
   return (
     <span className="text-app-text-secondary">
       {label}:{" "}

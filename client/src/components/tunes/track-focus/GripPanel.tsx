@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { WHEEL_COLOR_VARS } from "@/lib/colors";
 import type { TrackCorner } from "../../../hooks/queries";
 import type { LapTrace, TireAverages } from "../../../lib/stint-traces";
 import { ChartTooltip } from "./ChartTooltip";
@@ -16,10 +17,10 @@ interface GripPanelProps {
 }
 
 const SLIP_CORNERS: { key: keyof TireAverages; label: string; color: string }[] = [
-  { key: "FL", label: "FL", color: "#38bdf8" },
-  { key: "FR", label: "FR", color: "#f472b6" },
-  { key: "RL", label: "RL", color: "#facc15" },
-  { key: "RR", label: "RR", color: "#34d399" },
+  { key: "FL", label: "FL", color: WHEEL_COLOR_VARS[0] },
+  { key: "FR", label: "FR", color: WHEEL_COLOR_VARS[1] },
+  { key: "RL", label: "RL", color: WHEEL_COLOR_VARS[2] },
+  { key: "RR", label: "RR", color: WHEEL_COLOR_VARS[3] },
 ];
 
 /** Linear-interpolate an arbitrary per-frame value series at fraction `f`,
@@ -141,12 +142,12 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
                       key={t.lapId}
                       points={gPolyline(t, t.latG!, x, y)}
                       fill="none"
-                      stroke={t.isValid ? "var(--color-app-text-dim, #7a8ea0)" : "var(--color-dynamics-red, #ef4444)"}
+                      stroke={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"}
                       strokeWidth={1}
                       opacity={t.isValid ? 0.35 : 0.55}
                     />
                   ))}
-                {bestLatG && <polyline points={gPolyline(bestLatG, bestLatG.latG!, x, y)} fill="none" stroke="var(--color-app-accent, #22d3ee)" strokeWidth={1.8} />}
+                {bestLatG && <polyline points={gPolyline(bestLatG, bestLatG.latG!, x, y)} fill="none" stroke="var(--app-accent)" strokeWidth={1.8} />}
               </>
             )}
           </Lane>
@@ -188,12 +189,12 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
                       key={t.lapId}
                       points={gPolyline(t, t.longG!, x, y)}
                       fill="none"
-                      stroke={t.isValid ? "var(--color-app-text-dim, #7a8ea0)" : "var(--color-dynamics-red, #ef4444)"}
+                      stroke={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"}
                       strokeWidth={1}
                       opacity={t.isValid ? 0.35 : 0.55}
                     />
                   ))}
-                {bestLongG && <polyline points={gPolyline(bestLongG, bestLongG.longG!, x, y)} fill="none" stroke="var(--color-app-accent, #22d3ee)" strokeWidth={1.8} />}
+                {bestLongG && <polyline points={gPolyline(bestLongG, bestLongG.longG!, x, y)} fill="none" stroke="var(--app-accent)" strokeWidth={1.8} />}
               </>
             )}
           </Lane>

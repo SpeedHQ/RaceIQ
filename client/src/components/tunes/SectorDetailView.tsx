@@ -1,5 +1,6 @@
 import type { TelemetryPacket, TuneIssue } from "@shared/types";
 import { useState } from "react";
+import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { SectorMap } from "./SectorMap";
 import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS } from "./SectorRangeBreakdown";
 
@@ -16,11 +17,10 @@ interface SectorDetailViewProps {
   issues: TuneIssue[];
 }
 
-const SECTOR_COLORS = ["#f87171", "#60a5fa", "#facc15", "#34d399", "#c084fc", "#fb923c"] as const;
 const SEVERITY_CLASS: Record<TuneIssue["severity"], string> = {
-  critical: "text-red-400 border-red-800/60 bg-red-950/30",
-  warn: "text-amber-400 border-amber-800/60 bg-amber-950/30",
-  info: "text-sky-400 border-sky-800/60 bg-sky-950/30",
+  critical: "text-status-danger border-status-danger/60 bg-status-danger/10",
+  warn: "text-status-warning border-status-warning/60 bg-status-warning/10",
+  info: "text-status-info border-status-info/60 bg-status-info/10",
 };
 
 /**
@@ -59,7 +59,7 @@ export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrd
       <div className="lg:border-r border-app-border">
         <div className="flex items-center justify-between px-4 py-2 border-b border-app-border">
           <div className="flex items-center gap-2">
-            <span className="w-6 h-1 rounded" style={{ background: SECTOR_COLORS[sectorIndex % SECTOR_COLORS.length] }} />
+            <span className="w-6 h-1 rounded" style={{ background: SECTOR_COLOR_VARS[sectorIndex % SECTOR_COLOR_VARS.length] }} />
             <span className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Sector {sectorIndex + 1}</span>
           </div>
           <span className="text-lg font-mono tabular-nums text-app-text">{sectorTime}</span>

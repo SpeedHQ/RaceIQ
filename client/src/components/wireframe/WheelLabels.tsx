@@ -1,7 +1,9 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
-import { brakeTempColor, COLORS_HEX, tirePressureColor } from "../../lib/vehicle-dynamics";
+import { getSemanticCanvasContext } from "../../lib/css-color";
+import { severityRangeColor } from "../../lib/colors";
+import { brakeTempColor, tirePressureColor } from "../../lib/vehicle-dynamics";
 
 const _tmpVec = new THREE.Vector3();
 const REF_DIST = 4;
@@ -93,9 +95,9 @@ export function WheelInfoCard({
   const { texture, cardH } = useMemo(() => {
     const health = 1 - wear;
     const pct = (health * 100).toFixed(0);
-    const healthColor = health > 0.7 ? "#34d399" : health > 0.4 ? "#fbbf24" : "#ef4444";
-    const brakeCol = COLORS_HEX[brakeTempColor(brakeTemp, isRear)];
-    const pressureCol = COLORS_HEX[tirePressureColor(pressurePsi, pressureOptimal)];
+    const healthColor = severityRangeColor(1 - health, [0.3, 0.6]);
+    const brakeCol = brakeTempColor(brakeTemp, isRear);
+    const pressureCol = tirePressureColor(pressurePsi, pressureOptimal);
 
     const rows: Row[] = [
       { kind: "health", pct, color: healthColor },
@@ -109,14 +111,14 @@ export function WheelInfoCard({
     const canvas = document.createElement("canvas");
     canvas.width = CARD_W;
     canvas.height = h;
-    const ctx = canvas.getContext("2d")!;
+    const ctx = getSemanticCanvasContext(canvas)!;
     ctx.clearRect(0, 0, CARD_W, h);
 
     // Background card — subtle, high-contrast, rounded
     drawRoundedRect(ctx, 4, 4, CARD_W - 8, h - 8, 16);
-    ctx.fillStyle = "rgba(15, 23, 42, 0.78)";
+    ctx.fillStyle = "color-mix(in srgb, var(--app-surface) 78%, transparent)";
     ctx.fill();
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
+    ctx.strokeStyle = "color-mix(in srgb, var(--app-text) 18%, transparent)";
     ctx.lineWidth = 2;
     ctx.stroke();
 
@@ -158,7 +160,7 @@ export function WheelInfoCard({
         ctx.fillText(row.text, CARD_W / 2, y);
       } else if (row.kind === "wear") {
         ctx.font = "bold 20px monospace";
-        ctx.fillStyle = "#f97316";
+        ctx.fillStyle = "var(--telemetry-wear)";
         ctx.fillText(row.text, CARD_W / 2, y);
       }
     });

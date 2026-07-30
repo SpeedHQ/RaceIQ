@@ -261,7 +261,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                     <button
                       type="button"
                       onClick={() => setShowImportLaps(true)}
-                      className="text-[10px] px-2 py-1 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim"
+                      className="text-[10px] px-2 py-1 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-border-hover"
                     >
                       Add laps from history
                     </button>
@@ -269,7 +269,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                       <button
                         type="button"
                         onClick={() => setShowAddBase(true)}
-                        className="text-[10px] px-2 py-1 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim"
+                        className="text-[10px] px-2 py-1 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-border-hover"
                       >
                         + Add base
                       </button>
@@ -277,7 +277,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                     <button
                       type="button"
                       onClick={() => setShowHistory(true)}
-                      className="text-[10px] px-2 py-1 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim"
+                      className="text-[10px] px-2 py-1 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-border-hover"
                     >
                       History
                     </button>
@@ -313,7 +313,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                 <div className="shrink-0 flex items-center justify-between gap-3 flex-wrap px-3 py-2 border-b border-app-border">
                   <div className="flex items-baseline gap-2">
                     <span className="text-[10px] uppercase tracking-wider text-app-text-muted">Current stint</span>
-                    <span className={`text-xs ${lapsDone < lapTarget ? "text-amber-400" : "text-app-text-dim"}`}>
+                    <span className={`text-xs ${lapsDone < lapTarget ? "text-status-warning" : "text-app-text-dim"}`}>
                       {lapsDone === 0
                         ? `No live laps yet — run ${lapTarget} clean laps this run for a reliable recommendation.`
                         : lapsDone < lapTarget
@@ -338,7 +338,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                           // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         } as any);
                       }}
-                      className="px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold"
+                      className="px-3 py-1 text-xs rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled font-semibold"
                     >
                       Review laps
                     </button>
@@ -367,7 +367,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                   engineer talking about my braking" and an obvious mode. */}
               <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{EXPERIMENT_FOCUS_AGENT_LABELS[session.focus]}</span>
               <div className="flex items-center gap-3">
-                <button type="button" onClick={() => setTestPhase("live")} className="px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold">
+                <button type="button" onClick={() => setTestPhase("live")} className="px-3 py-1 text-xs rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled font-semibold">
                   Dashboard
                 </button>
                 <CopyChatJsonButton sessionId={session.id} />
@@ -423,7 +423,7 @@ function CopyChatJsonButton({ sessionId }: { sessionId: number }) {
       title="Copy chat JSON (debug)"
       className="flex items-center gap-1 text-app-text-muted hover:text-app-text"
     >
-      {copied ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3" />}
+      {copied ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
       <span className="text-[9px] uppercase tracking-wider">{copied ? "Copied" : "JSON"}</span>
     </button>
   );

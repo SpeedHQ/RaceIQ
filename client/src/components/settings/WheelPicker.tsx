@@ -28,7 +28,7 @@ export function WheelPicker({ value, onChange }: { value: string; onChange: (v: 
           key={w.id}
           onClick={() => onChange(w.src)}
           className={`relative rounded-lg border p-3 text-left transition-all ${
-            currentSrc === w.src ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30" : "border-app-border bg-app-surface-alt hover:border-app-border-input"
+            currentSrc === w.src ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30" : "border-app-border bg-app-surface-alt hover:border-app-border-hover"
           }`}
         >
           <div className="text-sm font-medium text-app-text truncate">{w.name}</div>

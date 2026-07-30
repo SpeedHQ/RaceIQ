@@ -10,13 +10,13 @@ import { Button } from "./ui/button";
 type SectorStatus = "record" | "session-best" | "lost";
 
 const SECTOR_COLORS: Record<SectorStatus, string> = {
-  record: "#c084fc",
-  "session-best": "#34d399",
-  lost: "#f87171",
+  record: "var(--lap-record)",
+  "session-best": "var(--lap-pace-on-target)",
+  lost: "var(--lap-pace-off-target)",
 };
 
 /** Drawn for a sector we have no status for — must not imply time was lost there. */
-const NEUTRAL_SECTOR_COLOR = "#64748b";
+const NEUTRAL_SECTOR_COLOR = "var(--app-text-dim)";
 
 function sectorLabel(status: SectorStatus): string {
   switch (status) {
@@ -100,7 +100,9 @@ function Tile({ label, value, sub, color }: { label: string; value: string; sub?
   return (
     <div className="bg-app-surface-alt/30 rounded-lg p-3">
       <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">{label}</div>
-      <div className={`text-xl font-mono font-black tabular-nums leading-none ${color ?? "text-app-text/90"}`}>{value}</div>
+      <div className={`text-xl font-mono font-black tabular-nums leading-none ${color ? "" : "text-app-text/90"}`} style={color ? { color } : undefined}>
+        {value}
+      </div>
       {sub && <div className="text-[11px] text-app-text-dim mt-1">{sub}</div>}
     </div>
   );
@@ -145,7 +147,7 @@ function Sparkline({ laps }: { laps: SessionRecapDto["sparkline"] }) {
       <title>{m.recap_pace()}</title>
       <path d={path} fill="none" stroke="currentColor" className="text-app-accent/50" strokeWidth={1.5} />
       {points.map((p) => (
-        <circle key={p.lap.lapNumber} cx={p.x} cy={p.y} r={p.lap.isValid ? 2 : 2.5} className={p.lap.isValid ? "fill-app-accent" : "fill-red-400"} />
+        <circle key={p.lap.lapNumber} cx={p.x} cy={p.y} r={p.lap.isValid ? 2 : 2.5} fill={p.lap.isValid ? "var(--app-accent)" : "var(--status-danger)"} />
       ))}
     </svg>
   );
@@ -195,7 +197,7 @@ export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = fa
     return <div className="p-6 text-center text-app-text-dim">{m.common_loading()}</div>;
   }
   if (isError || !recap) {
-    return <div className="p-6 text-center text-red-400">{m.common_error()}</div>;
+    return <div className="p-6 text-center text-status-danger">{m.common_error()}</div>;
   }
 
   const copy = () => {
@@ -246,7 +248,7 @@ export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = fa
                 <Tile
                   label={m.recap_best_lap()}
                   value={formatLapTime(recap.bestLapSec)}
-                  color="text-emerald-400"
+                  color="var(--lap-record)"
                   sub={
                     recap.personalBest?.isNew
                       ? recap.personalBest.previousBestSec != null

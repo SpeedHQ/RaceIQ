@@ -41,7 +41,7 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
         </DialogHeader>
         <div className="min-h-0 flex-1 overflow-auto">
           {isLoading && <div className="text-sm text-muted-foreground">Loading…</div>}
-          {(error || data?.error) && <div className="text-sm text-red-400">{data?.error ?? "Couldn't read the setup file."}</div>}
+          {(error || data?.error) && <div className="text-sm text-status-danger">{data?.error ?? "Couldn't read the setup file."}</div>}
           {sections && (
             <div className="space-y-4">
               {/* Tabbed view: corner sections (FL/FR/RL/RR) mix tyre, suspension
@@ -89,7 +89,7 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
                               <span className="text-[10px] font-mono tabular-nums text-muted-foreground">{r.min}</span>
                               <div className="relative h-1 flex-1 rounded bg-muted">
                                 <span
-                                  className="absolute top-1/2 h-2.5 w-0.5 -translate-y-1/2 rounded bg-purple-400"
+                                  className="absolute top-1/2 h-2.5 w-0.5 -translate-y-1/2 rounded bg-(--focus-setup)"
                                   style={{ left: `${Math.min(100, Math.max(0, ((r.num - r.min) / (r.max - r.min)) * 100))}%` }}
                                 />
                               </div>

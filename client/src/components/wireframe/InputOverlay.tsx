@@ -2,10 +2,13 @@ import { Line } from "@react-three/drei";
 import type { TelemetryPacket } from "@shared/types";
 import { useMemo } from "react";
 import * as THREE from "three";
-import { BRAKE_COLOR, THROTTLE_COLOR } from "../../lib/wireframe-utils";
+import { threeColor } from "../../lib/wireframe-utils";
 
 export function InputOverlay({ telemetry, packet }: { telemetry: TelemetryPacket[]; packet: TelemetryPacket }) {
   const data = useMemo(() => {
+    const throttleColor = threeColor("var(--ch-throttle)").clone().convertSRGBToLinear();
+    const brakeColor = threeColor("var(--ch-brake)").clone().convertSRGBToLinear();
+    const inactiveColor = threeColor("var(--app-bg)").clone().convertSRGBToLinear();
     const cx = packet.PositionX;
     const cz = packet.PositionZ;
     const yaw = packet.Yaw;
@@ -80,13 +83,13 @@ export function InputOverlay({ telemetry, packet }: { telemetry: TelemetryPacket
         const p = pts[i];
         if (p.throttle > EPS) {
           tBufP.push(tPos[i]);
-          tBufC.push(new THREE.Color(0, 0, 0).lerp(THROTTLE_COLOR, p.throttle));
+          tBufC.push(inactiveColor.clone().lerp(throttleColor, p.throttle));
         } else if (tBufP.length > 0) {
           flush(throttleRuns, tBufP, tBufC);
         }
         if (p.brake > EPS) {
           bBufP.push(bPos[i]);
-          bBufC.push(new THREE.Color(0, 0, 0).lerp(BRAKE_COLOR, p.brake));
+          bBufC.push(inactiveColor.clone().lerp(brakeColor, p.brake));
         } else if (bBufP.length > 0) {
           flush(brakeRuns, bBufP, bBufC);
         }

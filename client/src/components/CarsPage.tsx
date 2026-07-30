@@ -7,7 +7,7 @@ import { useUnits } from "../hooks/useUnits";
 import { client } from "../lib/rpc";
 import { errorFromResponse } from "../lib/rpc-error";
 import { useRequiredGameId } from "../stores/game";
-import { PI_COLORS, PiBadge, piClass } from "./forza/PiBadge";
+import { PiBadge, piClass } from "./forza/PiBadge";
 import { AppInput } from "./ui/AppInput";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 
@@ -66,8 +66,6 @@ type SortKey =
 
 const PI_CLASSES = ["D", "C", "B", "A", "S", "R", "P", "X"];
 const DRIVETRAINS = ["FWD", "RWD", "AWD"];
-
-// piClass, PI_COLORS, PiBadge imported from ../components/PiBadge
 
 function RatingBar({ value, max = 10 }: { value: number; max?: number }) {
   const pct = Math.min((value / max) * 100, 100);
@@ -249,7 +247,7 @@ function CompareModal({
   const colWidth = Math.max(180, Math.floor(560 / cars.length));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 pt-8 pb-4 px-4 overflow-auto" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-app-bg/70 pt-8 pb-4 px-4 overflow-auto" onClick={onClose}>
       <div
         className="bg-app-bg border border-app-border rounded-xl shadow-2xl w-full overflow-auto"
         style={{ maxWidth: 160 + colWidth * cars.length, maxHeight: "90vh" }}
@@ -291,7 +289,7 @@ function CompareModal({
                       const val = car.specs ? row.getValue(car.specs) : "—";
                       const isBest = bestIdxs.includes(ci);
                       return (
-                        <td key={car.ordinal} className={`px-3 py-1.5 text-center tabular-nums ${isBest ? "text-green-400 font-semibold" : "text-app-text/90"}`}>
+                      <td key={car.ordinal} className={`px-3 py-1.5 text-center tabular-nums ${isBest ? "text-status-success font-semibold" : "text-app-text/90"}`}>
                           {val}
                         </td>
                       );
@@ -515,7 +513,7 @@ export function CarsPage() {
                             e.stopPropagation();
                             navigate({ to: "/fm23/cars/$carOrdinal", params: { carOrdinal: String(car.ordinal) } });
                           }}
-                          className="absolute top-2 right-2 px-1.5 py-0.5 text-[9px] font-bold rounded bg-cyan-600/80 hover:bg-cyan-500 text-white border border-cyan-400/30 transition-colors"
+                          className="absolute top-2 right-2 px-1.5 py-0.5 text-[9px] font-bold rounded bg-app-accent/80 hover:bg-app-accent-hover text-app-on-filled border border-app-accent/30 transition-colors"
                           title={m.cars_view_3d_model()}
                         >
                           3D
@@ -528,7 +526,9 @@ export function CarsPage() {
                       <div>
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {s.pi > 0 && <PiBadge showNumber={false} pi={s.pi} />}
-                          <span className={`text-[10px] font-semibold ${PI_COLORS[piClass(s.pi)]?.split(" ")[1] ?? "text-app-text-muted"}`}>{s.pi || ""}</span>
+                          <span className="text-[10px] font-semibold text-(--badge-color)" data-pi-class={piClass(s.pi)}>
+                            {s.pi || ""}
+                          </span>
                         </div>
                         <div className="text-xs font-semibold text-app-text/90 leading-tight mt-0.5 line-clamp-2">{car.name}</div>
                         <div className="text-[10px] text-app-text-muted mt-0.5">
@@ -600,7 +600,7 @@ export function CarsPage() {
 
           {/* Card detail modal */}
           {detailCar && (
-            <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70 pt-12 pb-4 px-4 overflow-auto" onClick={() => setDetailCar(null)}>
+            <div className="fixed inset-0 z-50 flex items-start justify-center bg-app-bg/70 pt-12 pb-4 px-4 overflow-auto" onClick={() => setDetailCar(null)}>
               <div className="bg-app-bg border border-app-border rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-4 py-3 border-b border-app-border">
                   <div className="flex items-center gap-2">
@@ -696,7 +696,9 @@ export function CarsPage() {
                     <TD className="tabular-nums text-xs text-app-text/90">
                       {car.specs?.pi ? (
                         <>
-                          <span className={PI_COLORS[piClass(car.specs.pi)]?.split(" ")[1] ?? "text-app-text-muted"}>{piClass(car.specs.pi)}&nbsp;</span>
+                          <span className="text-(--badge-color)" data-pi-class={piClass(car.specs.pi)}>
+                            {piClass(car.specs.pi)}&nbsp;
+                          </span>
                           {car.specs.pi}
                         </>
                       ) : (

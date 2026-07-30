@@ -1,4 +1,5 @@
 import type { TelemetryPacket } from "@shared/types";
+import { deltaColor as colorForDelta, SECTOR_COLOR_VARS } from "@/lib/colors";
 import { m } from "../paraglide/messages";
 import { useTelemetryStore } from "../stores/telemetry";
 
@@ -12,8 +13,6 @@ function formatLapTime(seconds: number): string {
   const s = seconds - m * 60;
   return `${m}:${s.toFixed(3).padStart(6, "0")}`;
 }
-
-const SECTOR_COLORS = ["#ef4444", "#3b82f6", "#eab308", "#22c55e", "#a855f7", "#f97316"];
 
 export function CurrentLapStats({ packet }: Props) {
   const sectors = useTelemetryStore((state) => state.sectors);
@@ -43,7 +42,7 @@ export function CurrentLapStats({ packet }: Props) {
             const last = sectors.lastTimes[i] ?? 0;
             const isActive = i === sectors.currentSector;
             const isDone = i < sectors.currentSector && (sectors.currentTimes[i] ?? 0) > 0;
-            const color = SECTOR_COLORS[i % SECTOR_COLORS.length];
+            const color = SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length];
 
             // Delta vs best
             let delta = "";
@@ -51,14 +50,14 @@ export function CurrentLapStats({ packet }: Props) {
             if (isDone && best > 0) {
               const diff = sectors.currentTimes[i] - best;
               delta = diff >= 0 ? `+${diff.toFixed(3)}` : diff.toFixed(3);
-              deltaColor = diff <= 0 ? "#34d399" : "#ef4444";
+              deltaColor = colorForDelta(diff);
             }
 
             return (
               <div
                 key={name}
-                className={`rounded px-2 py-1.5 ${isActive ? "bg-app-surface-alt/80 ring-1 ring-inset" : "bg-app-surface-alt/30"}`}
-                style={isActive ? { boxShadow: `inset 0 0 0 1px ${color}40` } : {}}
+                className={`rounded px-2 py-1.5 ${isActive ? "bg-app-surface-alt/80 ring-1 ring-inset ring-(--local-sector-color)/25" : "bg-app-surface-alt/30"}`}
+                style={{ ["--local-sector-color" as string]: color }}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
@@ -72,7 +71,7 @@ export function CurrentLapStats({ packet }: Props) {
                     <span className="text-[9px] text-app-text-muted">
                       {m.telemetry_last()} <span className="font-mono text-app-text-secondary">{last > 0 ? formatLapTime(last) : "-"}</span>
                     </span>
-                    <span className="text-[9px] text-purple-400">
+                    <span className="text-[9px]" style={{ color: "var(--lap-record)" }}>
                       {m.label_best()} <span className="font-mono">{best > 0 ? formatLapTime(best) : "-"}</span>
                     </span>
                   </div>
@@ -91,7 +90,7 @@ export function CurrentLapStats({ packet }: Props) {
             <span className="text-[9px] text-app-text-muted">
               {m.telemetry_last()} <span className="font-mono text-app-text-secondary">{sectors.lastLapTime > 0 ? formatLapTime(sectors.lastLapTime) : "-"}</span>
             </span>
-            <span className="text-[9px] text-purple-400">
+            <span className="text-[9px]" style={{ color: "var(--lap-record)" }}>
               {m.label_best()} <span className="font-mono">{theoreticalBest > 0 ? formatLapTime(theoreticalBest) : "-"}</span>
             </span>
           </div>

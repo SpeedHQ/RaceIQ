@@ -3,6 +3,7 @@ import { tryGetGame } from "@shared/games/registry";
 import type { GameId, TelemetryPacket } from "@shared/types";
 import { Info } from "lucide-react";
 import type { useUnits } from "../../hooks/useUnits";
+import { severityRangeColor, signedBalanceColor } from "../../lib/colors";
 import { allFrictionCircle, allWheelStates, balanceColor, frictionUtilColor, slipRatioColor, steerBalance, tireState, tireTempLabel } from "../../lib/vehicle-dynamics";
 import { m } from "../../paraglide/messages";
 import { WheelTable } from "./WheelTable";
@@ -53,10 +54,7 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
   const angleColor = (rad: number) => {
     const deg = Math.abs(rad * (180 / Math.PI));
     const sf = Math.max(0.3, Math.min(1, speedMph / 80));
-    if (deg < 4 / sf) return "#34d399";
-    if (deg < 8 / sf) return "#fbbf24";
-    if (deg < 14 / sf) return "#fb923c";
-    return "#ef4444";
+    return severityRangeColor(deg, [4 / sf, 8 / sf, 14 / sf]);
   };
   const fmt = (rad: number) => (rad * (180 / Math.PI)).toFixed(1);
 
@@ -108,11 +106,11 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
               const sigX = (u: number) => Math.max(2, Math.min(198, 100 + (Math.max(-SIG_RANGE, Math.min(SIG_RANGE, u)) / SIG_RANGE) * 98));
               const slipX = sigX(bal.uSlip);
               const yawX = sigX(bal.uYaw);
-              const slipColor = bal.uSlip > 0.05 ? "#3b82f6" : bal.uSlip < -0.05 ? "#ef4444" : "#34d399";
+              const slipColor = signedBalanceColor(bal.uSlip, 0.05);
               // Yaw signal becomes unreliable at high speed (yawRatePath → 0).
               // Fade it out proportionally so the user can see why it's discounted.
               const yawReliability = Math.min(1, bal.yawRatePath / 0.15);
-              const yawColor = bal.uYaw > 0.05 ? "#3b82f6" : bal.uYaw < -0.05 ? "#ef4444" : "#34d399";
+              const yawColor = signedBalanceColor(bal.uYaw, 0.05);
               return (
                 <svg viewBox="0 0 200 110" className="w-full h-auto mb-1">
                   {/* ── Signal rows ── */}
@@ -132,13 +130,13 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
                         {label}
                       </text>
                       <rect x="0" y={y} width="200" height="10" rx="1" fill="currentColor" opacity="0.06" />
-                      <rect x="0" y={y} width={thrLeftX} height="10" fill="#ef4444" opacity="0.12" />
-                      <rect x={thrLeftX} y={y} width={thrRightX - thrLeftX} height="10" fill="#34d399" opacity="0.12" />
-                      <rect x={thrRightX} y={y} width={200 - thrRightX} height="10" fill="#3b82f6" opacity="0.12" />
+                      <rect x="0" y={y} width={thrLeftX} height="10" fill="var(--balance-negative)" opacity="0.12" />
+                      <rect x={thrLeftX} y={y} width={thrRightX - thrLeftX} height="10" fill="var(--balance-neutral)" opacity="0.12" />
+                      <rect x={thrRightX} y={y} width={200 - thrRightX} height="10" fill="var(--balance-positive)" opacity="0.12" />
                       <line x1="100" y1={y} x2="100" y2={y + 10} stroke="currentColor" opacity="0.2" />
                       <line x1={thrLeftX} y1={y} x2={thrLeftX} y2={y + 10} stroke="currentColor" opacity="0.3" strokeDasharray="2,1" />
                       <line x1={thrRightX} y1={y} x2={thrRightX} y2={y + 10} stroke="currentColor" opacity="0.3" strokeDasharray="2,1" />
-                      <circle cx={x} cy={y + 5} r="4" fill={color} stroke="#0f172a" strokeWidth="1" />
+                      <circle cx={x} cy={y + 5} r="4" fill={color} stroke="var(--app-surface)" strokeWidth="1" />
                       <text x="0" y={y + 20} fill="currentColor" opacity="0.35" fontSize="6">
                         {desc}
                       </text>
@@ -147,18 +145,18 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
 
                   {/* Yaw low-reliability warning */}
                   {yawReliability < 0.6 && (
-                    <text x="200" y="44" textAnchor="end" fill="#fbbf24" fontSize="6.5" opacity="0.8">
+                    <text x="200" y="44" textAnchor="end" fill="var(--status-warning)" fontSize="6.5" opacity="0.8">
                       {`↓ unreliable at ${(currentPacket.Speed * 3.6).toFixed(0)} km/h`}
                     </text>
                   )}
 
                   {/* Conflict / agree badge */}
                   {bal.signalsAgree ? (
-                    <text x="100" y="70" textAnchor="middle" fill="#34d399" fontSize="7" fontWeight="600">
+                    <text x="100" y="70" textAnchor="middle" fill="var(--status-success)" fontSize="7" fontWeight="600">
                       SIGNALS AGREE — blended 50/50
                     </text>
                   ) : (
-                    <text x="100" y="70" textAnchor="middle" fill="#fbbf24" fontSize="7" fontWeight="600">
+                    <text x="100" y="70" textAnchor="middle" fill="var(--status-warning)" fontSize="7" fontWeight="600">
                       CONFLICT — slip angle used alone
                     </text>
                   )}
@@ -168,20 +166,20 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
                     {m.label_combined()}
                   </text>
                   <rect x="0" y="82" width="200" height="10" rx="1" fill="currentColor" opacity="0.06" />
-                  <rect x="0" y="82" width={thrLeftX} height="10" fill="#ef4444" opacity="0.18" />
-                  <rect x={thrLeftX} y="82" width={thrRightX - thrLeftX} height="10" fill="#34d399" opacity="0.18" />
-                  <rect x={thrRightX} y="82" width={200 - thrRightX} height="10" fill="#3b82f6" opacity="0.18" />
+                  <rect x="0" y="82" width={thrLeftX} height="10" fill="var(--balance-negative)" opacity="0.18" />
+                  <rect x={thrLeftX} y="82" width={thrRightX - thrLeftX} height="10" fill="var(--balance-neutral)" opacity="0.18" />
+                  <rect x={thrRightX} y="82" width={200 - thrRightX} height="10" fill="var(--balance-positive)" opacity="0.18" />
                   <line x1="100" y1="82" x2="100" y2="92" stroke="currentColor" opacity="0.25" />
                   <line x1={thrLeftX} y1="78" x2={thrLeftX} y2="96" stroke="currentColor" opacity="0.4" strokeDasharray="2,2" />
                   <line x1={thrRightX} y1="78" x2={thrRightX} y2="96" stroke="currentColor" opacity="0.4" strokeDasharray="2,2" />
-                  <circle cx={currentX} cy="87" r="4" fill={balanceColor(bal.state)} stroke="#0f172a" strokeWidth="1.2" />
-                  <text x={thrLeftX / 2} y="106" textAnchor="middle" fill="#ef4444" fontSize="7" fontWeight="600">
+                  <circle cx={currentX} cy="87" r="4" fill={balanceColor(bal.state)} stroke="var(--app-surface)" strokeWidth="1.2" />
+                  <text x={thrLeftX / 2} y="106" textAnchor="middle" fill="var(--balance-negative)" fontSize="7" fontWeight="600">
                     {m.dynamics_over()}
                   </text>
-                  <text x="100" y="106" textAnchor="middle" fill="#34d399" fontSize="7" fontWeight="600">
+                  <text x="100" y="106" textAnchor="middle" fill="var(--balance-neutral)" fontSize="7" fontWeight="600">
                     {m.dynamics_neutral()}
                   </text>
-                  <text x={(thrRightX + 200) / 2} y="106" textAnchor="middle" fill="#3b82f6" fontSize="7" fontWeight="600">
+                  <text x={(thrRightX + 200) / 2} y="106" textAnchor="middle" fill="var(--balance-positive)" fontSize="7" fontWeight="600">
                     {m.dynamics_under()}
                   </text>
                 </svg>
@@ -259,36 +257,36 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
                   fl: (
                     <span className="text-app-text-dim">
                       {currentPacket.WheelOnRumbleStripFL !== 0
-                        ? C(m.analyse_dynamics_curb(), "#fb923c")
+                        ? C(m.analyse_dynamics_curb(), "var(--surface-curb)")
                         : currentPacket.WheelInPuddleDepthFL > 0
-                          ? C(`${m.analyse_dynamics_wet()} ${(currentPacket.WheelInPuddleDepthFL * 100).toFixed(0)}%`, "#3b82f6")
+                          ? C(`${m.analyse_dynamics_wet()} ${(currentPacket.WheelInPuddleDepthFL * 100).toFixed(0)}%`, "var(--surface-wet)")
                           : "—"}
                     </span>
                   ),
                   fr: (
                     <span className="text-app-text-dim">
                       {currentPacket.WheelOnRumbleStripFR !== 0
-                        ? C(m.analyse_dynamics_curb(), "#fb923c")
+                        ? C(m.analyse_dynamics_curb(), "var(--surface-curb)")
                         : currentPacket.WheelInPuddleDepthFR > 0
-                          ? C(`${m.analyse_dynamics_wet()} ${(currentPacket.WheelInPuddleDepthFR * 100).toFixed(0)}%`, "#3b82f6")
+                          ? C(`${m.analyse_dynamics_wet()} ${(currentPacket.WheelInPuddleDepthFR * 100).toFixed(0)}%`, "var(--surface-wet)")
                           : "—"}
                     </span>
                   ),
                   rl: (
                     <span className="text-app-text-dim">
                       {currentPacket.WheelOnRumbleStripRL !== 0
-                        ? C(m.analyse_dynamics_curb(), "#fb923c")
+                        ? C(m.analyse_dynamics_curb(), "var(--surface-curb)")
                         : currentPacket.WheelInPuddleDepthRL > 0
-                          ? C(`${m.analyse_dynamics_wet()} ${(currentPacket.WheelInPuddleDepthRL * 100).toFixed(0)}%`, "#3b82f6")
+                          ? C(`${m.analyse_dynamics_wet()} ${(currentPacket.WheelInPuddleDepthRL * 100).toFixed(0)}%`, "var(--surface-wet)")
                           : "—"}
                     </span>
                   ),
                   rr: (
                     <span className="text-app-text-dim">
                       {currentPacket.WheelOnRumbleStripRR !== 0
-                        ? C(m.analyse_dynamics_curb(), "#fb923c")
+                        ? C(m.analyse_dynamics_curb(), "var(--surface-curb)")
                         : currentPacket.WheelInPuddleDepthRR > 0
-                          ? C(`${m.analyse_dynamics_wet()} ${(currentPacket.WheelInPuddleDepthRR * 100).toFixed(0)}%`, "#3b82f6")
+                          ? C(`${m.analyse_dynamics_wet()} ${(currentPacket.WheelInPuddleDepthRR * 100).toFixed(0)}%`, "var(--surface-wet)")
                           : "—"}
                     </span>
                   ),

@@ -261,7 +261,7 @@ export function SetupTuneForm({
           >
             {m.setupform_paste_json()}
           </button>
-          {jsonError && <span className="text-[10px] text-red-400 ml-2">{jsonError}</span>}
+          {jsonError && <span className="text-[10px] text-status-danger ml-2">{jsonError}</span>}
         </div>
 
         <label className="col-span-2 space-y-1">
@@ -341,7 +341,7 @@ export function SetupTuneForm({
           <label className="col-span-2 space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-app-text-muted">{m.setupform_setup_json()}</span>
-              {jsonError && <span className="text-[10px] text-red-400">{jsonError}</span>}
+              {jsonError && <span className="text-[10px] text-status-danger">{jsonError}</span>}
             </div>
             <textarea
               value={jsonText}

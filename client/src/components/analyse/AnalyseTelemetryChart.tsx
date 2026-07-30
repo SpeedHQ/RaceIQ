@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import { getSemanticCanvasContext } from "../../lib/css-color";
 
 export interface ChartSeries {
   data: number[];
@@ -37,7 +38,7 @@ export function TelemetryChart({
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = getSemanticCanvasContext(canvas);
     if (!ctx) return;
 
     const w = container.clientWidth;
@@ -75,13 +76,13 @@ export function TelemetryChart({
 
     // Y axis ticks (3)
     ctx.font = "9px monospace";
-    ctx.fillStyle = "#475569";
+    ctx.fillStyle = "var(--app-border)";
     ctx.textAlign = "right";
     for (let i = 0; i <= 2; i++) {
       const val = gMin + (range * i) / 2;
       const y = topPad + chartH - (i / 2) * chartH;
       ctx.fillText(val.toFixed(0), leftPad - 4, y + 3);
-      ctx.strokeStyle = "rgba(100,116,139,0.08)";
+      ctx.strokeStyle = "color-mix(in srgb, var(--app-text-dim) 8%, transparent)";
       ctx.lineWidth = 0.5;
       ctx.beginPath();
       ctx.moveTo(leftPad, y);
@@ -91,7 +92,7 @@ export function TelemetryChart({
 
     // Draw gap highlights first (behind data lines)
     if (times && timeFracs) {
-      ctx.fillStyle = "rgba(239, 68, 68, 0.08)";
+      ctx.fillStyle = "color-mix(in srgb, var(--status-danger) 8%, transparent)";
       for (let i = 1; i < times.length; i++) {
         if (times[i] - times[i - 1] > 0.1) {
           const x1 = leftPad + timeFracs[i - 1] * chartW;

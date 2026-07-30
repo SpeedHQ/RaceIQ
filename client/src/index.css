@@ -4,7 +4,6 @@
 @import "@fontsource-variable/geist";
 @import "tw-shimmer";
 @import "./styles/theme.css";
-@import "./styles/telemetry.css";
 @import "./styles/branding.css";
 @plugin "@tailwindcss/typography";
 
@@ -64,30 +63,6 @@
 
   html {
     @apply font-sans;
-  }
-}
-
-/* ─── Glassmorphism utility classes ─── */
-@layer utilities {
-  .glass-panel {
-    background: var(--app-glass-surface);
-    backdrop-filter: blur(var(--app-glass-blur));
-    -webkit-backdrop-filter: blur(var(--app-glass-blur));
-    border-color: var(--app-glass-border);
-  }
-
-  .glass-card {
-    background: var(--app-glass-card);
-    backdrop-filter: blur(var(--app-glass-blur));
-    -webkit-backdrop-filter: blur(var(--app-glass-blur));
-    border-color: var(--app-glass-border);
-  }
-
-  .glass-input {
-    background: var(--app-glass-surface-alt);
-    backdrop-filter: blur(var(--app-glass-blur));
-    -webkit-backdrop-filter: blur(var(--app-glass-blur));
-    border-color: var(--app-glass-border);
   }
 }
 

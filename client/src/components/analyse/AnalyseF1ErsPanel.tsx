@@ -9,7 +9,7 @@ interface Props {
 
 export function AnalyseF1ErsPanel({ currentPacket }: Props) {
   const ersPct = ((currentPacket.ErsStoreEnergy ?? 0) / 4_000_000) * 100;
-  const ersBarColor = ersPct < 20 ? "bg-red-500" : ersPct < 50 ? "bg-yellow-500" : "bg-green-500";
+  const ersBarColor = ersPct < 20 ? "bg-(--severity-critical)" : ersPct < 50 ? "bg-(--severity-caution)" : "bg-(--severity-nominal)";
 
   return (
     <>
@@ -17,12 +17,12 @@ export function AnalyseF1ErsPanel({ currentPacket }: Props) {
       <div className="text-[11px] font-mono space-y-1.5 mb-3">
         <div className="flex justify-between">
           <span className="text-app-text-muted">{m.analyse_drs()}</span>
-          <span className={`font-bold ${currentPacket.DrsActive ? "text-green-400" : "text-app-text-dim"}`}>{currentPacket.DrsActive ? "OPEN" : "OFF"}</span>
+          <span className={`font-bold ${currentPacket.DrsActive ? "text-(--telemetry-drs)" : "text-app-text-dim"}`}>{currentPacket.DrsActive ? "OPEN" : "OFF"}</span>
         </div>
         <div>
           <div className="flex justify-between mb-0.5">
             <span className="text-app-text-muted">{m.analyse_ers_store()}</span>
-            <span className="tabular-nums text-blue-400">{ersPct.toFixed(1)}%</span>
+          <span className="tabular-nums text-(--telemetry-ers-store)">{ersPct.toFixed(1)}%</span>
           </div>
           <div className="h-1.5 bg-app-surface-alt rounded-full overflow-hidden">
             <div className={`h-full rounded-full transition-all ${ersBarColor}`} style={{ width: `${ersPct}%` }} />
@@ -30,11 +30,11 @@ export function AnalyseF1ErsPanel({ currentPacket }: Props) {
         </div>
         <div className="flex justify-between">
           <span className="text-app-text-muted">{m.analyse_deployed()}</span>
-          <span className="tabular-nums text-amber-400">{(((currentPacket.ErsDeployed ?? 0) / 4_000_000) * 100).toFixed(1)}%</span>
+          <span className="tabular-nums text-(--telemetry-ers-deployed)">{(((currentPacket.ErsDeployed ?? 0) / 4_000_000) * 100).toFixed(1)}%</span>
         </div>
         <div className="flex justify-between">
           <span className="text-app-text-muted">{m.analyse_harvested()}</span>
-          <span className="tabular-nums text-emerald-400">{(((currentPacket.ErsHarvested ?? 0) / 4_000_000) * 100).toFixed(1)}%</span>
+          <span className="tabular-nums text-(--severity-nominal)">{(((currentPacket.ErsHarvested ?? 0) / 4_000_000) * 100).toFixed(1)}%</span>
         </div>
         <div className="flex justify-between">
           <span className="text-app-text-muted">{m.analyse_mode()}</span>

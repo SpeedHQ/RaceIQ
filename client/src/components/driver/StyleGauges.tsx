@@ -50,10 +50,10 @@ interface GaugeProps {
 }
 
 const TONE_FILL: Record<StyleTone, string> = {
-  neutral: "bg-blue-500",
-  good: "bg-green-500",
-  warn: "bg-amber-500",
-  bad: "bg-red-500",
+  neutral: "bg-status-info",
+  good: "bg-status-success",
+  warn: "bg-status-warning",
+  bad: "bg-status-danger",
 };
 
 function pos(v: number, min: number, max: number): number {
@@ -84,8 +84,8 @@ function Gauge({ label, value, display, reading, min, max, markers = [], band, b
         <span className="text-sm font-medium tabular-nums text-app-text">{display}</span>
       </div>
 
-      <div className="relative mt-1.5 h-2 w-full rounded-full bg-white/8">
-        {band && <div className="absolute inset-y-0 rounded-full bg-white/10" style={{ left: `${pos(band.from, min, max)}%`, width: `${pos(band.to, min, max) - pos(band.from, min, max)}%` }} />}
+      <div className="relative mt-1.5 h-2 w-full rounded-full bg-app-text/8">
+        {band && <div className="absolute inset-y-0 rounded-full bg-app-text/10" style={{ left: `${pos(band.from, min, max)}%`, width: `${pos(band.to, min, max) - pos(band.from, min, max)}%` }} />}
         {bipolar ? (
           <div className={`absolute inset-y-0 rounded-full ${TONE_FILL[tone]}`} style={{ left: `${Math.min(zero, p)}%`, width: `${Math.abs(p - zero)}%`, minWidth: "2px" }} />
         ) : (
@@ -123,7 +123,7 @@ export function StyleGauges({ style }: { style: StyleAxes }) {
   const cons = style.consistency;
 
   return (
-    <div className="divide-y divide-white/5">
+    <div className="divide-y divide-app-text/5">
       <Gauge
         label="Grip usage (median)"
         value={gm}

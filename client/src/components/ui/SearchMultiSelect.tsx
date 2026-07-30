@@ -102,12 +102,12 @@ export function SearchMultiSelect<K extends string | number>({
                 <button
                   key={opt.key}
                   onClick={() => handleSelect(opt.key)}
-                  className={`w-full text-left flex items-center gap-2 px-3 py-2.5 md:py-1.5 text-sm md:text-app-label transition-colors hover:bg-app-surface ${selected ? "text-app-text" : "text-app-text-secondary"}`}
+                  className={`w-full text-left flex items-center gap-2 px-3 py-2.5 md:py-1.5 text-sm md:text-app-label transition-colors hover:bg-app-surface-hover ${selected ? "text-app-text" : "text-app-text-secondary"}`}
                 >
                   {mode === "multi" && (
                     <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 ${selected ? "bg-app-accent border-app-accent" : "border-app-border-input"}`}>
                       {selected && (
-                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <svg className="w-2.5 h-2.5 text-app-text" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
                       )}

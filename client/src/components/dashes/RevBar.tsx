@@ -9,10 +9,10 @@ interface RevBarProps {
 }
 
 function barColor(pct: number): string {
-  if (pct >= 0.97) return "#ff2d2d";
-  if (pct >= 0.9) return "#ff6a00";
-  if (pct >= 0.75) return "#ffd400";
-  return "#22d172";
+  if (pct >= 0.97) return "var(--rev-limit)";
+  if (pct >= 0.9) return "var(--rev-warning)";
+  if (pct >= 0.75) return "var(--rev-high)";
+  return "var(--rev-normal)";
 }
 
 function prefersReducedMotion(): boolean {
@@ -45,9 +45,9 @@ export function RevBar({ rpm, idle, max, segments = 100, className = "" }: RevBa
 
   const baseColor = barColor(pct);
   // While redlining, alternate between red and orange instead of blinking off.
-  const color = redlining && !strobeOn ? "#ff6a00" : baseColor;
+  const color = redlining && !strobeOn ? "var(--rev-warning)" : baseColor;
   const litBg = color;
-  const litShadow = `0 0 8px ${color}66`;
+  const litShadow = `0 0 8px color-mix(in srgb, ${color} 40%, transparent)`;
 
   return (
     <div className={`flex h-full w-full gap-[1px] ${className}`}>
@@ -59,9 +59,9 @@ export function RevBar({ rpm, idle, max, segments = 100, className = "" }: RevBa
             key={i}
             className="flex-1 rounded-[2px] transition-colors duration-75"
             style={{
-              background: lit ? litBg : "rgba(255,255,255,0.06)",
+              background: lit ? litBg : "var(--app-text)",
               boxShadow: lit ? litShadow : "none",
-              opacity: lit ? 1 : 0.6,
+              opacity: lit ? 1 : 0.06,
             }}
           />
         );

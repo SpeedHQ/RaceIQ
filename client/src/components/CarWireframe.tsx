@@ -11,7 +11,7 @@ import { useUnits } from "../hooks/useUnits";
 import { recordGpuSnapshot } from "../lib/crash-diagnostics";
 import { client } from "../lib/rpc";
 import { flipBoundaries, needsTrackFlip } from "../lib/track-coords";
-import { tireTempColorHex } from "../lib/vehicle-dynamics";
+import { tireTempColor } from "../lib/vehicle-dynamics";
 import { DEFAULT_TOGGLES, VIEW_PRESETS, type ViewPreset, type ViewToggles } from "../lib/wireframe-data";
 import { useGameId } from "../stores/game";
 import { CarScene } from "./wireframe/CarScene";
@@ -189,10 +189,10 @@ export const CarWireframe = React.memo(function CarWireframe({
           suspThresholds={suspThresholds}
           autoOrbit={autoOrbit}
           tireColors={[
-            tireTempColorHex(units.toTempC(packet.TireTempFL), units.thresholds),
-            tireTempColorHex(units.toTempC(packet.TireTempFR), units.thresholds),
-            tireTempColorHex(units.toTempC(packet.TireTempRL), units.thresholds),
-            tireTempColorHex(units.toTempC(packet.TireTempRR), units.thresholds),
+            tireTempColor(units.toTempC(packet.TireTempFL), units.thresholds),
+            tireTempColor(units.toTempC(packet.TireTempFR), units.thresholds),
+            tireTempColor(units.toTempC(packet.TireTempRL), units.thresholds),
+            tireTempColor(units.toTempC(packet.TireTempRR), units.thresholds),
           ]}
         />
       </Canvas>
@@ -272,7 +272,9 @@ export const CarWireframe = React.memo(function CarWireframe({
                   }
                 }}
                 className={`px-1.5 py-0.5 rounded border transition-colors ${
-                  saveStatus === "saved" ? "bg-green-600 text-white border-green-400" : "bg-green-700/80 hover:bg-green-600 text-white border-green-500/30"
+                  saveStatus === "saved"
+                    ? "bg-status-success text-app-on-filled border-status-success"
+                    : "bg-status-success/80 hover:bg-status-success text-app-on-filled border-status-success/30"
                 }`}
               >
                 {saveStatus === "saving" ? "..." : saveStatus === "saved" ? m.carwire_saved() : "Save"}

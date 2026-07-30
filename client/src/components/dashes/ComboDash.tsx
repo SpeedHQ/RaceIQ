@@ -56,7 +56,7 @@ export function ComboDash({ rawPacket, packet, sectors, pit, unitSystem, tireHea
           <div className="flex-1 h-full">
             <RevBar rpm={rpm} idle={idle} max={max} segments={80} />
           </div>
-          <div className="text-white/90 font-mono text-sm tabular-nums whitespace-nowrap">{Math.round(rpm).toLocaleString()} RPM</div>
+          <div className="text-app-text/90 font-mono text-sm tabular-nums whitespace-nowrap">{Math.round(rpm).toLocaleString()} RPM</div>
         </div>
 
         <div className="row-span-2 min-h-0">
@@ -66,13 +66,13 @@ export function ComboDash({ rawPacket, packet, sectors, pit, unitSystem, tireHea
                 label="FUEL"
                 value={fuelLaps != null ? fuelLaps.toFixed(1) : "—"}
                 suffix="laps"
-                color={fuelLaps == null ? "text-white/40" : fuelLaps < 3 ? "text-red-400" : fuelLaps < 8 ? "text-amber-400" : "text-emerald-400"}
+                color={fuelLaps == null ? "text-app-text/40" : fuelLaps < 3 ? "text-(--severity-critical)" : fuelLaps < 8 ? "text-(--severity-caution)" : "text-(--severity-nominal)"}
               />
               <PitRow
                 label={weakestLabel ? `TYRE (${weakestLabel})` : "TYRE"}
                 value={weakestLaps != null ? weakestLaps.toFixed(1) : "—"}
                 suffix="laps"
-                color={weakestLaps == null ? "text-white/40" : weakestLaps < 3 ? "text-red-400" : weakestLaps < 8 ? "text-amber-400" : "text-emerald-400"}
+                color={weakestLaps == null ? "text-app-text/40" : weakestLaps < 3 ? "text-(--severity-critical)" : weakestLaps < 8 ? "text-(--severity-caution)" : "text-(--severity-nominal)"}
               />
             </div>
           </Tile>
@@ -97,14 +97,14 @@ export function ComboDash({ rawPacket, packet, sectors, pit, unitSystem, tireHea
             <Tile label="LAP">
               <div className="font-black leading-none tabular-nums" style={{ fontSize: "clamp(2.5rem, 13vh, 7rem)" }}>
                 {lapNumber > 0 ? lapNumber : "-"}
-                {totalLaps && totalLaps > 0 ? <span className="text-white/40">/{totalLaps}</span> : null}
+                {totalLaps && totalLaps > 0 ? <span className="text-app-text/40">/{totalLaps}</span> : null}
               </div>
             </Tile>
           </div>
         </div>
 
         <div className="col-span-2 min-h-0 flex gap-3">
-          <div className="flex-[3] min-w-0 min-h-0 rounded-md border border-white/10 bg-white/[0.02] overflow-hidden">
+          <div className="flex-[3] min-w-0 min-h-0 rounded-md border border-app-text/10 bg-app-text/[0.02] overflow-hidden">
             {rawPacket ? (
               <FitToViewport padding={12} alignX="start" alignY="center">
                 <div style={{ width: 560 }} className="space-y-3">
@@ -113,11 +113,11 @@ export function ComboDash({ rawPacket, packet, sectors, pit, unitSystem, tireHea
                 </div>
               </FitToViewport>
             ) : (
-              <div className="h-full flex items-center justify-center text-white/40 text-sm tracking-widest uppercase">Waiting for lap data…</div>
+              <div className="h-full flex items-center justify-center text-app-text/40 text-sm tracking-widest uppercase">Waiting for lap data…</div>
             )}
           </div>
 
-          <div className="flex-[2] min-w-0 min-h-0 rounded-md border border-white/10 bg-white/[0.02] overflow-hidden">
+          <div className="flex-[2] min-w-0 min-h-0 rounded-md border border-app-text/10 bg-app-text/[0.02] overflow-hidden">
             {rawPacket ? (
               <FitToViewport padding={4} maxScale={5}>
                 <div style={{ width: 400 }} className="[&>div>:first-child]:hidden">
@@ -152,7 +152,7 @@ export function ComboDash({ rawPacket, packet, sectors, pit, unitSystem, tireHea
                 </div>
               </FitToViewport>
             ) : (
-              <div className="h-full flex items-center justify-center text-white/40 text-sm tracking-widest uppercase">Waiting for tire data…</div>
+              <div className="h-full flex items-center justify-center text-app-text/40 text-sm tracking-widest uppercase">Waiting for tire data…</div>
             )}
           </div>
         </div>
@@ -164,10 +164,10 @@ export function ComboDash({ rawPacket, packet, sectors, pit, unitSystem, tireHea
 function PitRow({ label, value, suffix, color }: { label: string; value: string; suffix: string; color: string }) {
   return (
     <div>
-      <div className="text-white/40 text-xs tracking-widest uppercase">{label}</div>
+      <div className="text-app-text/40 text-xs tracking-widest uppercase">{label}</div>
       <div className={`font-black leading-none tabular-nums ${color}`} style={{ fontSize: "2.5rem" }}>
         {value}
-        <span className="text-white/40 text-base font-semibold ml-2">{suffix}</span>
+        <span className="text-app-text/40 text-base font-semibold ml-2">{suffix}</span>
       </div>
     </div>
   );
@@ -175,8 +175,8 @@ function PitRow({ label, value, suffix, color }: { label: string; value: string;
 
 function Tile({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="relative rounded-md border border-white/10 bg-white/[0.02] flex flex-col overflow-hidden min-w-0 min-h-0 h-full">
-      <div className="shrink-0 text-white/40 text-xs tracking-widest uppercase px-3 pt-2">{label}</div>
+    <div className="relative rounded-md border border-app-text/10 bg-app-text/[0.02] flex flex-col overflow-hidden min-w-0 min-h-0 h-full">
+      <div className="shrink-0 text-app-text/40 text-xs tracking-widest uppercase px-3 pt-2">{label}</div>
       <div className="flex-1 min-h-0">
         <FitToViewport padding={6}>{children}</FitToViewport>
       </div>

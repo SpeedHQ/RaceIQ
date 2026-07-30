@@ -3,9 +3,9 @@ import { m } from "@/paraglide/messages";
 import type { InsightCategory, LapInsight } from "../lib/lap-insights";
 
 const SEVERITY_COLOR: Record<string, string> = {
-  info: "#94a3b8",
-  warning: "#fbbf24",
-  critical: "#ef4444",
+  info: "var(--app-text-dim)",
+  warning: "var(--status-warning)",
+  critical: "var(--status-danger)",
 };
 
 function InsightRow({ insight, onJump }: { insight: LapInsight; onJump: (idx: number) => void }) {
@@ -13,7 +13,7 @@ function InsightRow({ insight, onJump }: { insight: LapInsight; onJump: (idx: nu
   const hasMultiple = insight.frameIndices.length > 1;
 
   return (
-    <div className="w-full rounded hover:bg-app-surface-alt/60 transition-colors group">
+    <div className="w-full rounded hover:bg-app-surface-hover/60 transition-colors group">
       <button
         type="button"
         onClick={() => onJump(insight.frameIndices[eventIdx])}

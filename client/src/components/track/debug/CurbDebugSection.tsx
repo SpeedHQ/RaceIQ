@@ -81,7 +81,7 @@ export function CurbDebugSection({
       <button
         onClick={handleExtract}
         disabled={extracting}
-        className="mt-2 w-full px-2 py-1.5 text-app-label uppercase tracking-wider font-semibold rounded border transition-colors bg-orange-900/40 border-orange-700/50 text-orange-400 hover:bg-orange-800/50 disabled:opacity-50"
+          className="mt-2 w-full px-2 py-1.5 text-app-label uppercase tracking-wider font-semibold rounded border transition-colors bg-(--surface-curb)/15 border-(--surface-curb)/50 text-(--surface-curb) hover:bg-(--surface-curb)/25 disabled:opacity-50"
       >
         {extracting ? "Extracting..." : "Extract Curbs from Laps"}
       </button>
@@ -93,13 +93,13 @@ export function CurbDebugSection({
             Laps scanned: <span className="text-app-text">{result.lapsScanned}</span>
           </div>
           <div>
-            Laps with curbs: <span className="text-orange-400">{result.lapsWithCurbs}</span>
+            Laps with curbs: <span className="text-(--surface-curb)">{result.lapsWithCurbs}</span>
           </div>
           <div>
-            Curb segments: <span className="text-orange-400">{result.curbSegments}</span>
+            Curb segments: <span className="text-(--surface-curb)">{result.curbSegments}</span>
           </div>
           <div>
-            Calibrated: <span className={result.calibrated ? "text-green-400" : "text-amber-400"}>{result.calibrated ? "Yes" : "No"}</span>
+            Calibrated: <span className={result.calibrated ? "text-status-success" : "text-status-warning"}>{result.calibrated ? "Yes" : "No"}</span>
           </div>
         </div>
       )}

@@ -2,9 +2,9 @@ import type { TuneIssue } from "@shared/types";
 import { useTelemetryStore } from "../../stores/telemetry";
 
 const SEVERITY_DOT: Record<TuneIssue["severity"], string> = {
-  critical: "bg-red-500",
-  warn: "bg-amber-400",
-  info: "bg-sky-400",
+  critical: "bg-status-danger",
+  warn: "bg-status-warning",
+  info: "bg-status-info",
 };
 
 /**

@@ -1,5 +1,6 @@
 import type { TelemetryPacket, TuneIssue } from "@shared/types";
 import { useMemo, useRef } from "react";
+import { SECTOR_COLOR_VARS, severityColor, severityRangeColor } from "@/lib/colors";
 import type { LineSpreadTrace, TrackCorner } from "../../../hooks/queries";
 import { buildGeometry, buildStartMarker, type Pt, projectPoint, type SectorTimesLite, VIEW } from "../track-map-geometry";
 import { nearestCornerLabel } from "./detect-corners";
@@ -8,9 +9,7 @@ import { nearestCornerLabel } from "./detect-corners";
 const LINE_SPREAD_THRESHOLD_M = 1.5;
 
 function spreadColor(spreadM: number): string {
-  if (spreadM > LINE_SPREAD_THRESHOLD_M * 2) return "var(--color-dynamics-red, #ef4444)";
-  if (spreadM > LINE_SPREAD_THRESHOLD_M) return "var(--color-dynamics-amber, #f59e0b)";
-  return "var(--color-dynamics-green, #34d399)";
+  return severityRangeColor(spreadM, [LINE_SPREAD_THRESHOLD_M, LINE_SPREAD_THRESHOLD_M * 2]);
 }
 
 /** Linear-interpolate `spreadM` at fraction `f` along the trace's own fracs array. */
@@ -55,9 +54,9 @@ interface TrackFocusMapProps {
 }
 
 const SEV_COLOR: Record<string, string> = {
-  critical: "var(--color-dynamics-red, #ef4444)",
-  warn: "var(--color-dynamics-amber, #f59e0b)",
-  info: "#38bdf8",
+  critical: "var(--status-danger)",
+  warn: "var(--status-warning)",
+  info: "var(--status-info)",
 };
 
 /**
@@ -216,22 +215,22 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
           onMouseLeave={() => onCursorFrac(null)}
         >
           {!geometry && (
-            <text x={VIEW / 2} y={VIEW / 2} textAnchor="middle" fontSize={10} fill="var(--color-app-text-dim, #7a8ea0)">
+            <text x={VIEW / 2} y={VIEW / 2} textAnchor="middle" fontSize={10} fill="var(--app-text-dim)">
               No telemetry
             </text>
           )}
-          {geometry?.leftEdge && <polyline points={geometry.leftEdge} fill="none" stroke="var(--color-app-border, #2a2a2a)" strokeWidth={1} />}
-          {geometry?.rightEdge && <polyline points={geometry.rightEdge} fill="none" stroke="var(--color-app-border, #2a2a2a)" strokeWidth={1} />}
+          {geometry?.leftEdge && <polyline points={geometry.leftEdge} fill="none" stroke="var(--app-border)" strokeWidth={1} />}
+          {geometry?.rightEdge && <polyline points={geometry.rightEdge} fill="none" stroke="var(--app-border)" strokeWidth={1} />}
           {heatSegments
             ? heatSegments.map((s, i) => <line key={i} x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} stroke={s.color} strokeWidth={2.5} strokeLinecap="round" />)
             : (["s1", "s2", "s3"] as const).map((segKey, i) => (
-                <polyline key={segKey} points={geometry?.segments[i]} fill="none" stroke={["#f87171", "#60a5fa", "#facc15"][i]} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
+                <polyline key={segKey} points={geometry?.segments[i]} fill="none" stroke={SECTOR_COLOR_VARS[i]} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
               ))}
           {startMarker && (
             <g>
-              <line x1={startMarker.x} y1={startMarker.y} x2={startMarker.tipX} y2={startMarker.tipY} stroke="#10b981" strokeWidth={1.5} />
-              <polygon points={startMarker.head} fill="#10b981" />
-              <circle cx={startMarker.x} cy={startMarker.y} r={3} fill="#10b981" />
+              <line x1={startMarker.x} y1={startMarker.y} x2={startMarker.tipX} y2={startMarker.tipY} stroke="var(--track-start)" strokeWidth={1.5} />
+              <polygon points={startMarker.head} fill="var(--track-start)" />
+              <circle cx={startMarker.x} cy={startMarker.y} r={3} fill="var(--track-start)" />
             </g>
           )}
           {!overlayPoints &&
@@ -251,10 +250,10 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
                 ox = (dx / len) * 10;
                 oy = (dy / len) * 10;
               }
-              const color = isActive ? "var(--color-app-accent, #22d3ee)" : "var(--color-app-text-dim, #7a8ea0)";
+              const color = isActive ? "var(--app-accent)" : "var(--app-text-dim)";
               return (
                 <g key={c.index}>
-                  <circle cx={pt.x} cy={pt.y} r={isActive ? 3.5 : 2.5} fill={color} stroke="#020617" strokeWidth={0.75} />
+                  <circle cx={pt.x} cy={pt.y} r={isActive ? 3.5 : 2.5} fill={color} stroke="var(--app-bg)" strokeWidth={0.75} />
                   <text x={pt.x + ox} y={pt.y + oy} textAnchor="middle" fontFamily="var(--font-mono, monospace)" fontSize={isActive ? 8.5 : 7.5} fontWeight={isActive ? 700 : 400} fill={color}>
                     {c.label}
                   </text>
@@ -270,21 +269,21 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
               return (
                 <g key={`${it.kind}-${it.corner ?? ""}-${it.distanceFrac}-${it.detail}`}>
                   {it.severity === "critical" && <circle cx={pt.x} cy={pt.y} r={6} fill={color} opacity={0.25} />}
-                  <circle cx={pt.x} cy={pt.y} r={3} fill={color} stroke="#020617" strokeWidth={1} />
+                  <circle cx={pt.x} cy={pt.y} r={3} fill={color} stroke="var(--app-bg)" strokeWidth={1} />
                 </g>
               );
             })}
           {overlayPoints?.brake.map((f, i) => {
             const tk = fracToTick(f);
             if (!tk) return null;
-            return <line key={`ob-${i}`} x1={tk.x1} y1={tk.y1} x2={tk.x2} y2={tk.y2} stroke="var(--color-ch-brake, #ef4444)" strokeWidth={1.5} strokeLinecap="round" />;
+            return <line key={`ob-${i}`} x1={tk.x1} y1={tk.y1} x2={tk.x2} y2={tk.y2} stroke="var(--ch-brake)" strokeWidth={1.5} strokeLinecap="round" />;
           })}
           {overlayPoints?.throttle.map((f, i) => {
             const tk = fracToTick(f);
             if (!tk) return null;
-            return <line key={`ot-${i}`} x1={tk.x1} y1={tk.y1} x2={tk.x2} y2={tk.y2} stroke="var(--color-ch-throttle, #059669)" strokeWidth={1.5} strokeLinecap="round" />;
+            return <line key={`ot-${i}`} x1={tk.x1} y1={tk.y1} x2={tk.x2} y2={tk.y2} stroke="var(--ch-throttle)" strokeWidth={1.5} strokeLinecap="round" />;
           })}
-          {cursorPt && <circle cx={cursorPt.x} cy={cursorPt.y} r={4} fill="var(--color-app-accent, #22d3ee)" stroke="#020617" strokeWidth={1.2} />}
+          {cursorPt && <circle cx={cursorPt.x} cy={cursorPt.y} r={4} fill="var(--app-accent)" stroke="var(--app-bg)" strokeWidth={1.2} />}
         </svg>
         {cursorFrac != null && cursorPt ? (
           (() => {
@@ -313,25 +312,25 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
         {heatSegments ? (
           <>
             <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: "var(--color-dynamics-green, #34d399)" }} /> tight line
+              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: severityColor(0) }} /> tight line
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: "var(--color-dynamics-amber, #f59e0b)" }} /> ~1-2x spread
+              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: severityColor(1) }} /> ~1-2x spread
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: "var(--color-dynamics-red, #ef4444)" }} /> {`>2x spread`}
+              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: severityColor(3) }} /> {`>2x spread`}
             </span>
           </>
         ) : (
           <>
             <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: "#f87171" }} /> S1
+              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: SECTOR_COLOR_VARS[0] }} /> S1
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: "#60a5fa" }} /> S2
+              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: SECTOR_COLOR_VARS[1] }} /> S2
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: "#facc15" }} /> S3
+              <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: SECTOR_COLOR_VARS[2] }} /> S3
             </span>
           </>
         )}

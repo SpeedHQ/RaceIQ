@@ -6,9 +6,9 @@ const DEFAULT_RADIUS_M = 30;
 /** Above this 0..1 activation a channel counts as "on". */
 const INPUT_ON = 0.08;
 
-const COLOR_BRAKE = "var(--color-ch-brake, #ef4444)";
-const COLOR_THROTTLE = "var(--color-ch-throttle, #059669)";
-const COLOR_COAST = "var(--color-app-text-dim, #7a8ea0)";
+const COLOR_BRAKE = "var(--ch-brake)";
+const COLOR_THROTTLE = "var(--ch-throttle)";
+const COLOR_COAST = "var(--app-text-dim)";
 
 export type InputState = "brake" | "throttle" | "coast";
 
@@ -207,8 +207,8 @@ export function TrackFocusZoom({ lapLines, bestLapId, cursorFrac, radiusM = DEFA
   return (
     <div className="relative">
       <svg viewBox={`0 0 ${VIEW} ${VIEW}`} width="100%" height="100%" className="aspect-square">
-        {windowedEdges && windowedEdges.left.length > 1 && <polyline points={edgePolyline(windowedEdges.left)} fill="none" stroke="var(--color-app-border, #2a2a2a)" strokeWidth={1} />}
-        {windowedEdges && windowedEdges.right.length > 1 && <polyline points={edgePolyline(windowedEdges.right)} fill="none" stroke="var(--color-app-border, #2a2a2a)" strokeWidth={1} />}
+        {windowedEdges && windowedEdges.left.length > 1 && <polyline points={edgePolyline(windowedEdges.left)} fill="none" stroke="var(--app-border)" strokeWidth={1} />}
+        {windowedEdges && windowedEdges.right.length > 1 && <polyline points={edgePolyline(windowedEdges.right)} fill="none" stroke="var(--app-border)" strokeWidth={1} />}
         {inWindow.map((l) => {
           const isBest = l.lapId === bestLapId;
           const w = isBest ? 1.6 : 0.8;
@@ -224,7 +224,7 @@ export function TrackFocusZoom({ lapLines, bestLapId, cursorFrac, radiusM = DEFA
           }));
           return segments.map(({ key, p, q, color }) => <line key={key} x1={px(p.x)} y1={py(p.z)} x2={px(q.x)} y2={py(q.z)} stroke={color} strokeWidth={w} strokeLinecap="round" opacity={op} />);
         })}
-        <circle cx={dotPx} cy={dotPy} r={4} fill="var(--color-app-accent, #22d3ee)" stroke="#020617" strokeWidth={1.2} />
+        <circle cx={dotPx} cy={dotPy} r={4} fill="var(--app-accent)" stroke="var(--app-bg)" strokeWidth={1.2} />
       </svg>
       <div className="absolute top-1 right-1 text-[10px] font-mono tabular-nums bg-app-surface/80 border border-app-border rounded px-1.5 py-0.5 text-app-text-muted">±{radiusM}m</div>
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-app-text-dim">

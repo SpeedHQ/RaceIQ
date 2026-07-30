@@ -7,7 +7,7 @@ function Delta({ value }: { value: number }) {
   if (!value) return null;
   const ahead = value < 0;
   return (
-    <span className={`text-xs font-mono font-bold ${ahead ? "text-emerald-400" : "text-orange-400"}`}>
+      <span className={`text-xs font-mono font-bold ${ahead ? "text-(--delta-gain)" : "text-(--delta-loss)"}`}>
       {ahead ? "" : "+"}
       {value.toFixed(3)}
     </span>
@@ -47,8 +47,8 @@ export function LiveLapInfo({ sectors, currentLap, totalLaps }: { sectors: LiveS
           <div className="text-sm font-mono font-bold tabular-nums text-app-text-secondary">{sectors && sectors.lastLapTime > 0 ? formatLapTime(sectors.lastLapTime) : "-"}</div>
         </div>
         <div className="rounded bg-app-surface-alt/40 px-2.5 py-1.5">
-          <div className="text-[10px] text-purple-400">Best</div>
-          <div className="text-sm font-mono font-bold tabular-nums text-purple-400">{sectors && sectors.bestLapTime > 0 ? formatLapTime(sectors.bestLapTime) : "-"}</div>
+          <div className="text-[10px] text-(--lap-pace-best)">Best</div>
+          <div className="text-sm font-mono font-bold tabular-nums text-(--lap-pace-best)">{sectors && sectors.bestLapTime > 0 ? formatLapTime(sectors.bestLapTime) : "-"}</div>
         </div>
       </div>
 

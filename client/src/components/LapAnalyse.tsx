@@ -705,7 +705,7 @@ function LapAnalyseInner() {
             <span>{m.analyse_loading_telemetry()}</span>
           ) : parseError ? (
             <div className="flex flex-col items-center gap-2 max-w-xl text-center">
-              <span className="text-app-danger font-medium">{m.analyse_parse_error()}</span>
+              <span className="text-status-danger font-medium">{m.analyse_parse_error()}</span>
               <code className="text-xs text-app-text-muted whitespace-pre-wrap break-words">{parseError}</code>
             </div>
           ) : selectedLapId ? (

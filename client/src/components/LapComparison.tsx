@@ -341,7 +341,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
         {/* Car A */}
         <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[220px]">
           <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "var(--comparison-lap-a)" }} />
             <label className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.compare_car_a()}</label>
           </div>
           <SearchSelect
@@ -370,7 +370,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
         {/* Car B */}
         <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[220px]">
           <div className="flex items-center gap-1.5">
-            <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "var(--comparison-lap-b)" }} />
             <label className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.compare_car_b()}</label>
           </div>
           <SearchSelect
@@ -416,7 +416,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
       {(loading || error) && (
         <div className="shrink-0">
           {loading && <div className="text-app-text-muted text-sm">{m.compare_loading()}</div>}
-          {error && <div className="text-red-400 text-sm">{error}</div>}
+          {error && <div className="text-status-danger text-sm">{error}</div>}
         </div>
       )}
 
@@ -478,7 +478,12 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
                       distance: comparison.traces.distance,
                       values: [comparison.traces.throttleA, comparison.traces.throttleB, comparison.traces.brakeA, comparison.traces.brakeB],
                       labels: [m.compare_chart_throttle_a(), m.compare_chart_throttle_b(), m.compare_chart_brake_a(), m.compare_chart_brake_b()],
-                      colors: [COLOR_A, COLOR_B, "#f97316aa", "#3b82f6aa"],
+                      colors: [
+                        COLOR_A,
+                        COLOR_B,
+                        "color-mix(in srgb, var(--comparison-lap-a) 67%, transparent)",
+                        "color-mix(in srgb, var(--comparison-lap-b) 67%, transparent)",
+                      ],
                     }}
                     syncKey={SYNC_KEY}
                     height={180}

@@ -148,16 +148,16 @@ function buildRows(traces: LapTrace[], bestLapId: number | null, cornerFracs: nu
 
 function deltaColor(dv: number | null): string {
   if (dv == null) return "text-app-text-dim";
-  if (dv < -4) return "text-red-400";
-  if (dv < -1.5) return "text-amber-400";
-  return "text-emerald-400";
+  if (dv < -4) return "text-(--severity-critical)";
+  if (dv < -1.5) return "text-(--severity-caution)";
+  return "text-(--severity-nominal)";
 }
 
 function brakeVarColor(v: number | null): string {
   if (v == null) return "text-app-text-dim";
-  if (v > 1.2) return "text-red-400";
-  if (v > 0.6) return "text-amber-400";
-  return "text-emerald-400";
+  if (v > 1.2) return "text-(--severity-critical)";
+  if (v > 0.6) return "text-(--severity-caution)";
+  return "text-(--severity-nominal)";
 }
 
 /**
@@ -184,10 +184,10 @@ function Verdict({ brakeVarPct, throttleVarPct }: { brakeVarPct: number | null; 
   }
   const tone =
     score >= 80
-      ? "border-emerald-900 bg-emerald-950/40 text-emerald-300"
+      ? "border-(--severity-nominal)/30 bg-(--severity-nominal)/10 text-(--severity-nominal)"
       : score >= 55
-        ? "border-amber-900 bg-amber-950/40 text-amber-300"
-        : "border-red-900 bg-red-950/40 text-red-300";
+        ? "border-(--severity-caution)/30 bg-(--severity-caution)/10 text-(--severity-caution)"
+        : "border-(--severity-critical)/30 bg-(--severity-critical)/10 text-(--severity-critical)";
   return <span className={`text-[10.5px] px-1.5 py-0.5 rounded-full border font-mono tabular-nums ${tone}`}>{score.toFixed(0)}</span>;
 }
 
@@ -251,7 +251,7 @@ export function CornerLedger({ traces, bestLapId, cornerFracs, corners, cursorFr
                   }}
                   onMouseEnter={() => onHoverPoints?.({ brake: r.brakeOnsets, throttle: r.throttleOnsets })}
                   onMouseLeave={() => onHoverPoints?.(pinnedFrac == null ? null : pointsFor(pinnedFrac))}
-                  className={`cursor-pointer border-b border-app-border last:border-0 hover:bg-app-surface-alt ${pinnedFrac === r.frac ? "bg-app-accent/10 ring-1 ring-inset ring-app-accent/40" : isActive ? "bg-app-surface-alt" : ""}`}
+                  className={`cursor-pointer border-b border-app-border last:border-0 hover:bg-app-surface-hover ${pinnedFrac === r.frac ? "bg-app-accent/10 ring-1 ring-inset ring-app-accent/40" : isActive ? "bg-app-surface-alt" : ""}`}
                 >
                   <td className="text-left px-2.5 py-1.5 whitespace-nowrap">
                     <span className="font-semibold text-app-text">{r.corner.label}</span>

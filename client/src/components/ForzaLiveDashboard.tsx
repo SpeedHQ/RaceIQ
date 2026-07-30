@@ -44,7 +44,7 @@ function PageHeader({ dashMode, demo }: { dashMode: DashboardMode; demo: ReturnT
           disabled={demo.loading}
           className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded border transition-colors ${
             demo.active
-              ? "bg-amber-500/20 border-amber-500/50 text-amber-400 hover:bg-amber-500/30"
+              ? "bg-status-warning/20 border-status-warning/50 text-status-warning hover:bg-status-warning/30"
               : demo.loading
                 ? "border-app-border text-app-text-dim cursor-wait"
                 : "border-app-border text-app-text-muted hover:text-app-text hover:border-app-border-hover"

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { getSemanticCanvasContext } from "@/lib/css-color";
+import { SECTOR_COLOR_VARS, TRACK_CORNER_COLOR_VARS, TRACK_STRAIGHT_COLOR_VARS, VISUALIZATION_COLOR_VARS } from "@/lib/colors";
 import { client } from "@/lib/rpc";
 import { segmentDisplayNames } from "@/lib/segment-label";
 import { useGameId } from "@/stores/game";
@@ -115,7 +117,7 @@ export function TrackDebugPanel({
     const canvas = canvasRef.current;
     if (!canvas || !outline || outline.length < 2) return;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = getSemanticCanvasContext(canvas);
     if (!ctx) return;
 
     const rect = canvas.getBoundingClientRect();
@@ -173,11 +175,10 @@ export function TrackDebugPanel({
         ctx.lineTo(rx, ry);
       }
       ctx.closePath();
-      ctx.fillStyle = "rgba(51, 65, 85, 0.3)";
+      ctx.fillStyle = "color-mix(in srgb, var(--app-border) 30%, transparent)";
       ctx.fill();
 
       // Edge lines — color each edge span by the segment it belongs to.
-      const SEG_COLORS = ["#f87171", "#60a5fa", "#34d399", "#fbbf24", "#a78bfa", "#f472b6", "#2dd4bf", "#fb923c"];
       const segList = overlayMode === "segments" && displaySectors?.segments.length ? displaySectors.segments : null;
       const drawEdge = (edge: Point[]) => {
         if (!segList) {
@@ -188,7 +189,7 @@ export function TrackDebugPanel({
             const [ex, ey] = toCanvas(edge[i].x, edge[i].z);
             ctx.lineTo(ex, ey);
           }
-          ctx.strokeStyle = "#64748b";
+          ctx.strokeStyle = "var(--app-text-dim)";
           ctx.lineWidth = 1.5;
           ctx.stroke();
           return;
@@ -206,7 +207,7 @@ export function TrackDebugPanel({
             const [ex, ey] = toCanvas(edge[i].x, edge[i].z);
             ctx.lineTo(ex, ey);
           }
-          ctx.strokeStyle = SEG_COLORS[s % SEG_COLORS.length];
+          ctx.strokeStyle = VISUALIZATION_COLOR_VARS[s % VISUALIZATION_COLOR_VARS.length];
           ctx.lineWidth = 2;
           ctx.stroke();
         }
@@ -225,7 +226,7 @@ export function TrackDebugPanel({
           const [px, py] = toCanvas(boundaries.pitLane[i].x, boundaries.pitLane[i].z);
           ctx.lineTo(px, py);
         }
-        ctx.strokeStyle = "#22d3ee";
+        ctx.strokeStyle = "var(--app-accent)";
         ctx.lineWidth = 2;
         ctx.setLineDash([6, 4]);
         ctx.globalAlpha = 0.6;
@@ -252,7 +253,7 @@ export function TrackDebugPanel({
     // define the corridor and the segment overlays sit on top.
     if (!boundaries?.leftEdge?.length || !boundaries?.rightEdge?.length) {
       ctx.beginPath();
-      ctx.strokeStyle = "#e2e8f0";
+      ctx.strokeStyle = "var(--app-text)";
       ctx.lineWidth = 2.5;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -286,7 +287,7 @@ export function TrackDebugPanel({
             const [px, py] = toCanvas(centerPts[i].x, centerPts[i].z);
             ctx.lineTo(px, py);
           }
-          ctx.strokeStyle = seg.type === "corner" ? "rgba(239,68,68,0.7)" : "rgba(59,130,246,0.6)";
+          ctx.strokeStyle = seg.type === "corner" ? "color-mix(in srgb, var(--track-corner-overlay) 70%, transparent)" : "color-mix(in srgb, var(--track-straight-overlay) 60%, transparent)";
           ctx.lineWidth = 4;
           ctx.globalAlpha = 0.8;
           ctx.stroke();
@@ -299,15 +300,15 @@ export function TrackDebugPanel({
         ctx.font = "bold 10px monospace";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillStyle = "#0f172a";
+        ctx.fillStyle = "var(--app-surface)";
         ctx.fillRect(lx - ctx.measureText(label).width / 2 - 2, ly - 7, ctx.measureText(label).width + 4, 14);
-        ctx.fillStyle = seg.type === "corner" ? "#fca5a5" : "#93c5fd";
+        ctx.fillStyle = seg.type === "corner" ? TRACK_CORNER_COLOR_VARS[0] : TRACK_STRAIGHT_COLOR_VARS[0];
         ctx.fillText(label, lx, ly);
       }
       // Draw perpendicular separator ticks at every segment boundary
       const TICK_HALF = 12;
       ctx.lineWidth = 2;
-      ctx.strokeStyle = "rgba(255,255,255,0.85)";
+      ctx.strokeStyle = "color-mix(in srgb, var(--app-text) 85%, transparent)";
       ctx.setLineDash([3, 2]);
       for (const seg of displaySectors.segments) {
         const idx = Math.floor(seg.startFrac * n);
@@ -333,12 +334,10 @@ export function TrackDebugPanel({
       const n = centerPts.length;
       const s1 = Math.floor(sectorBounds.s1End * n);
       const s2 = Math.floor(sectorBounds.s2End * n);
-      const sectorDefs = [
-        { from: 0, to: s1, color: "rgba(239,68,68,0.7)" },
-        { from: s1, to: s2, color: "rgba(59,130,246,0.6)" },
-        { from: s2, to: n - 1, color: "rgba(234,179,8,0.6)" },
-      ];
-      for (const { from, to, color } of sectorDefs) {
+      const sectorBoundaries = [0, s1, s2, n - 1];
+      for (let sectorIndex = 0; sectorIndex < sectorBoundaries.length - 1; sectorIndex++) {
+        const from = sectorBoundaries[sectorIndex];
+        const to = sectorBoundaries[sectorIndex + 1];
         if (from >= to) continue;
         ctx.beginPath();
         const [sx0, sy0] = toCanvas(centerPts[from].x, centerPts[from].z);
@@ -347,9 +346,9 @@ export function TrackDebugPanel({
           const [px, py] = toCanvas(centerPts[i].x, centerPts[i].z);
           ctx.lineTo(px, py);
         }
-        ctx.strokeStyle = color;
+        ctx.strokeStyle = SECTOR_COLOR_VARS[sectorIndex];
         ctx.lineWidth = 4;
-        ctx.globalAlpha = 0.8;
+        ctx.globalAlpha = 0.65;
         ctx.stroke();
         ctx.globalAlpha = 1;
       }
@@ -359,7 +358,7 @@ export function TrackDebugPanel({
     // Draw curbs as dots
     if (curbs && curbs.length > 0) {
       for (const seg of curbs) {
-        const color = seg.side === "left" ? "#ef4444" : seg.side === "right" ? "#f97316" : "#eab308";
+        const color = seg.side === "left" ? "var(--track-curb-left)" : seg.side === "right" ? "var(--track-curb-right)" : "var(--track-curb-unknown)";
         for (const pt of seg.points) {
           const [cx, cy] = toCanvas(pt.x, pt.z);
           ctx.beginPath();
@@ -375,9 +374,9 @@ export function TrackDebugPanel({
     // Start/finish marker
     ctx.beginPath();
     ctx.arc(sx, sy, 5, 0, Math.PI * 2);
-    ctx.fillStyle = "#10b981";
+    ctx.fillStyle = "var(--track-start)";
     ctx.fill();
-    ctx.strokeStyle = "#0f172a";
+    ctx.strokeStyle = "var(--app-surface)";
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
@@ -385,24 +384,24 @@ export function TrackDebugPanel({
     ctx.font = "11px monospace";
     ctx.textAlign = "left";
     const legendY = h - 10;
-    ctx.fillStyle = "#94a3b8";
+    ctx.fillStyle = "var(--track-centerline)";
     ctx.fillRect(10, legendY - 5, 14, 2);
     ctx.fillText("Center", 28, legendY);
     if (boundaries) {
-      ctx.fillStyle = "#ef4444";
+      ctx.fillStyle = "var(--track-boundary-left)";
       ctx.fillRect(82, legendY - 5, 14, 2);
       ctx.fillText("Left edge", 100, legendY);
-      ctx.fillStyle = "#3b82f6";
+      ctx.fillStyle = "var(--track-boundary-right)";
       ctx.fillRect(172, legendY - 5, 14, 2);
       ctx.fillText("Right edge", 190, legendY);
     }
     if (curbs && curbs.length > 0) {
-      ctx.fillStyle = "#f97316";
+      ctx.fillStyle = "var(--track-curb-right)";
       ctx.fillRect(272, legendY - 5, 14, 2);
       ctx.fillText("Curbs", 290, legendY);
     }
     if (boundaries?.pitLane) {
-      ctx.fillStyle = "#22d3ee";
+      ctx.fillStyle = "var(--track-pit-lane)";
       ctx.fillRect(340, legendY - 5, 14, 2);
       ctx.fillText("Pit lane", 358, legendY);
     }
@@ -466,7 +465,7 @@ export function TrackDebugPanel({
               <button
                 onClick={() => setOverlayMode((m) => (m === "segments" ? "sectors" : "segments"))}
                 className={`px-1.5 py-1 text-[9px] font-mono rounded border transition-colors ${
-                  overlayMode === "sectors" ? "bg-amber-900/50 border-amber-700 text-amber-400" : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
+                  overlayMode === "sectors" ? "map-sectors-active" : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
                 }`}
               >
                 {overlayMode === "sectors" ? "Sectors" : "Segments"}
@@ -516,7 +515,7 @@ export function TrackDebugPanel({
           <div className="space-y-1 text-app-body">
             <div className="flex justify-between">
               <span className="text-app-text-muted">Available</span>
-              <span className={`font-mono ${boundaries ? "text-green-400" : "text-red-400"}`}>{boundaries ? "Yes" : "No"}</span>
+              <span className={`font-mono ${boundaries ? "text-status-success" : "text-status-danger"}`}>{boundaries ? "Yes" : "No"}</span>
             </div>
             {boundaries && (
               <>
@@ -534,7 +533,7 @@ export function TrackDebugPanel({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-app-text-muted">Pit lane</span>
-                  <span className={`font-mono ${boundaries.pitLane ? "text-green-400" : "text-app-text-dim"}`}>{boundaries.pitLane ? `${boundaries.pitLane.length} pts` : "None"}</span>
+                  <span className={`font-mono ${boundaries.pitLane ? "text-status-success" : "text-app-text-dim"}`}>{boundaries.pitLane ? `${boundaries.pitLane.length} pts` : "None"}</span>
                 </div>
               </>
             )}

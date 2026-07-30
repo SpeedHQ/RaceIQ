@@ -70,7 +70,7 @@ export function ComboBox({ label, value, options, onChange, placeholder, variant
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => choose(o.value)}
-              className={`flex items-center gap-2.5 w-full text-left px-3.5 py-2.5 border-t border-app-border ${i === hi ? "bg-app-surface-alt" : "hover:bg-app-surface-alt"}`}
+              className={`flex items-center gap-2.5 w-full text-left px-3.5 py-2.5 border-t border-app-border ${i === hi ? "bg-app-surface-alt" : "hover:bg-app-surface-hover"}`}
             >
               <span className={`flex-1 truncate text-sm font-semibold ${o.value === value ? "text-app-accent" : "text-app-text"}`}>{o.label}</span>
               {o.count != null && (

@@ -1,5 +1,5 @@
 import { useUnits } from "@/hooks/useUnits";
-import { BRAKE_COLOR_CLASSES, type BrakeTempThresholds, brakeTempColor } from "@/lib/vehicle-dynamics";
+import { type BrakeTempThresholds, brakeTempColor, tireHealthColor, tirePressureColor, tireTempColor } from "@/lib/vehicle-dynamics";
 import { m } from "@/paraglide/messages";
 
 const PAD_NEW_MM = 29; // ACC: pads start at 29mm when new
@@ -27,17 +27,19 @@ interface TireGridProps {
   pressureOptimal?: { min: number; max: number }; // psi
   brakeTempThresholds?: BrakeTempThresholds;
   compound?: string;
-  compoundStyle?: { bg: string; text: string };
 }
 
-export function TireGrid({ corners, fl, fr, rl, rr, healthThresholds, tempThresholds, pressureOptimal, brakeTempThresholds, compound, compoundStyle }: TireGridProps) {
+export function TireGrid({ corners, fl, fr, rl, rr, healthThresholds, tempThresholds, pressureOptimal, brakeTempThresholds, compound }: TireGridProps) {
   const flData = corners?.FL ?? fl!;
   const frData = corners?.FR ?? fr!;
   const rlData = corners?.RL ?? rl!;
   const rrData = corners?.RR ?? rr!;
   const units = useUnits();
-  const greenPct = healthThresholds.green * 100;
-  const yellowPct = healthThresholds.yellow * 100;
+  const normalizedTempThresholds = {
+    cold: tempThresholds.blue,
+    warm: tempThresholds.orange,
+    hot: tempThresholds.red,
+  };
 
   const wheels = [
     { label: "FL", ...flData },
@@ -49,33 +51,22 @@ export function TireGrid({ corners, fl, fr, rl, rr, healthThresholds, tempThresh
   const hasBrake = wheels.some((w) => w.brakeTemp !== undefined);
   const hasPressure = wheels.some((w) => w.pressure !== undefined);
 
-  const tempColor = (c: number) => {
-    if (c > tempThresholds.red) return "text-red-400";
-    if (c > tempThresholds.orange) return "text-orange-400";
-    if (c < tempThresholds.blue) return "text-blue-400";
-    return "text-emerald-400";
-  };
-
-  const tempBg = (c: number) => {
-    if (c > tempThresholds.red) return "bg-red-500";
-    if (c > tempThresholds.orange) return "bg-orange-400";
-    if (c < tempThresholds.blue) return "bg-blue-500";
-    return "bg-emerald-500";
-  };
-
   return (
     <div>
       <div className="p-2 border-b border-app-border flex items-center justify-between">
         <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.label_tires()}</h2>
         {compound && (
-          <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded ${compoundStyle ? `${compoundStyle.bg} ${compoundStyle.text}` : "bg-slate-700 text-slate-200"}`}>{compound}</span>
+          <span className="tire-compound-badge text-xs font-bold uppercase px-2 py-0.5 rounded" data-tire-compound={compound.toLowerCase()}>
+            {compound}
+          </span>
         )}
       </div>
       <div className="p-3">
         <div className="grid grid-cols-2 gap-x-6 gap-y-3">
           {wheels.map((w) => {
             const h = Math.max(0, (1 - w.wear) * 100);
-            const hTextColor = h > greenPct ? "text-emerald-400" : h > yellowPct ? "text-yellow-400" : "text-red-400";
+            const healthColor = tireHealthColor(w.wear, healthThresholds);
+            const temperatureColor = tireTempColor(w.tempC, normalizedTempThresholds);
             const tempDisplay = units.tempUnit === "F" ? Math.round((w.tempC * 9) / 5 + 32) : Math.round(w.tempC);
 
             const isLeft = w.label.endsWith("L");
@@ -86,20 +77,18 @@ export function TireGrid({ corners, fl, fr, rl, rr, healthThresholds, tempThresh
               <div key={w.label} className={`flex items-center gap-2 ${isRight ? "flex-row-reverse" : ""}`}>
                 {/* Tire text — outside edge */}
                 <div className={`flex-1 min-w-0 ${isLeft ? "text-right" : ""}`}>
-                  <div className={`text-xl font-mono font-bold tabular-nums leading-none ${tempColor(w.tempC)}`}>
+                  <div className="text-xl font-mono font-bold tabular-nums leading-none" style={{ color: temperatureColor }}>
                     {tempDisplay}
                     {units.tempLabel}
                   </div>
                   <div className="mt-1">
-                    <span className={`text-xs font-mono font-bold tabular-nums ${hTextColor}`}>{h.toFixed(0)}%</span>
+                    <span className="text-xs font-mono font-bold tabular-nums" style={{ color: healthColor }}>
+                      {h.toFixed(0)}%
+                    </span>
                   </div>
                   {hasPressure && w.pressure !== undefined && (
                     <div className="mt-1 text-sm font-mono font-bold tabular-nums leading-none">
-                      <span
-                        className={
-                          pressureOptimal ? (w.pressure < pressureOptimal.min ? "text-blue-400" : w.pressure > pressureOptimal.max ? "text-orange-400" : "text-emerald-400") : "text-app-text-muted"
-                        }
-                      >
+                      <span style={{ color: pressureOptimal ? tirePressureColor(w.pressure, pressureOptimal) : "var(--app-text-muted)" }}>
                         {w.pressure.toFixed(1)}psi
                       </span>
                     </div>
@@ -107,8 +96,8 @@ export function TireGrid({ corners, fl, fr, rl, rr, healthThresholds, tempThresh
                 </div>
 
                 {/* Wheel bar — fill height = health, color = temp */}
-                <div className="relative w-6 h-12 rounded-sm overflow-hidden bg-slate-700/50 shrink-0">
-                  <div className={`absolute bottom-0 left-0 right-0 ${tempBg(w.tempC)}`} style={{ height: `${h}%` }} />
+                <div className="relative w-6 h-12 rounded-sm overflow-hidden bg-app-surface-alt/50 shrink-0">
+                  <div className="absolute bottom-0 left-0 right-0" style={{ backgroundColor: temperatureColor, height: `${h}%` }} />
                 </div>
 
                 {/* Brake group — center of car */}
@@ -118,8 +107,8 @@ export function TireGrid({ corners, fl, fr, rl, rr, healthThresholds, tempThresh
                       const pct = w.brakePadMm !== undefined ? Math.max(0, Math.min(100, (w.brakePadMm / PAD_NEW_MM) * 100)) : 100;
                       const color = brakeTempColor(w.brakeTemp ?? 0, isRear, brakeTempThresholds);
                       return (
-                        <div className="relative w-2 h-12 overflow-hidden bg-slate-700/50 shrink-0">
-                          <div className={`absolute bottom-0 left-0 right-0 ${BRAKE_COLOR_CLASSES[color].bg}`} style={{ height: `${pct}%` }} />
+                        <div className="relative w-2 h-12 overflow-hidden bg-app-surface-alt/50 shrink-0">
+                          <div className="absolute bottom-0 left-0 right-0" style={{ backgroundColor: color, height: `${pct}%` }} />
                         </div>
                       );
                     })()}
@@ -127,13 +116,13 @@ export function TireGrid({ corners, fl, fr, rl, rr, healthThresholds, tempThresh
                       {w.brakeTemp !== undefined &&
                         (() => {
                           const color = brakeTempColor(w.brakeTemp, isRear, brakeTempThresholds);
-                          return <span className={BRAKE_COLOR_CLASSES[color].text}>B:{Math.round(w.brakeTemp)}&deg;C</span>;
+                          return <span style={{ color }}>B:{Math.round(w.brakeTemp)}&deg;C</span>;
                         })()}
                       {w.brakePadMm !== undefined &&
                         (() => {
                           const pct = Math.max(0, Math.min(100, (w.brakePadMm / PAD_NEW_MM) * 100));
-                          const cls = pct > 60 ? "text-emerald-400" : pct > 30 ? "text-yellow-400" : "text-red-400";
-                          return <span className={cls}>{pct.toFixed(0)}%</span>;
+                          const color = tireHealthColor(1 - pct / 100, { green: 0.6, yellow: 0.3 });
+                          return <span style={{ color }}>{pct.toFixed(0)}%</span>;
                         })()}
                     </div>
                   </div>

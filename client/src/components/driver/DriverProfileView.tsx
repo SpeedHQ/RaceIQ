@@ -38,9 +38,9 @@ function FocusArea({ area, rank, detector, defaultOpen }: { area: DriverProfileO
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="rounded-lg bg-app-surface ring-1 ring-white/10">
+      <div className="rounded-lg bg-app-surface ring-1 ring-app-text/10">
         <CollapsibleTrigger className="flex w-full items-start gap-3 p-3 text-left">
-          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-[11px] font-semibold tabular-nums text-app-text">{rank}</span>
+          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-app-text/10 text-[11px] font-semibold tabular-nums text-app-text">{rank}</span>
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-medium text-app-text">{area.title}</span>
             <span className="mt-0.5 block text-xs text-app-text-muted">{detector ? `Seen on ${(detector.perLapFrequency * 100).toFixed(0)}% of laps` : "From your profile"}</span>
@@ -48,13 +48,13 @@ function FocusArea({ area, rank, detector, defaultOpen }: { area: DriverProfileO
           {/* Absent means the aggregator could not defend a number — deliberately
               blank rather than "0.00 s", which would read as "costs nothing". */}
           {area.estimatedGainS !== undefined && (
-            <span className="shrink-0 rounded-full bg-green-500/15 px-2 py-0.5 text-xs font-medium tabular-nums text-green-400">~{area.estimatedGainS.toFixed(2)}s</span>
+            <span className="shrink-0 rounded-full bg-(--delta-gain)/15 px-2 py-0.5 text-xs font-medium tabular-nums text-(--delta-gain)">~{area.estimatedGainS.toFixed(2)}s</span>
           )}
           <ChevronDown className={`mt-0.5 size-4 shrink-0 text-app-text-muted transition-transform ${open ? "rotate-180" : ""}`} />
         </CollapsibleTrigger>
 
         <CollapsibleContent>
-          <div className="space-y-3 border-t border-white/5 px-3 pb-3 pt-3 text-sm">
+          <div className="space-y-3 border-t border-app-text/5 px-3 pb-3 pt-3 text-sm">
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-app-text-muted">What happens</p>
               <p className="mt-1 text-app-text">{area.whatHappens}</p>
@@ -63,8 +63,8 @@ function FocusArea({ area, rank, detector, defaultOpen }: { area: DriverProfileO
               <p className="text-xs font-medium uppercase tracking-wide text-app-text-muted">Why it costs</p>
               <p className="mt-1 text-app-text">{area.whyItCosts}</p>
             </div>
-            <div className="rounded-md bg-blue-500/10 p-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-blue-400">Drill</p>
+            <div className="rounded-md bg-(--focus-driver)/10 p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-(--focus-driver)">Drill</p>
               <p className="mt-1 text-app-text">{area.drill}</p>
             </div>
             {detector && (
@@ -91,7 +91,7 @@ export function DriverProfileView({ fingerprint: fp, plan, cached = false, warni
     <div className="grid gap-5 lg:grid-cols-2">
       {/* ── Measured ───────────────────────────────────────────────────── */}
       <section className="space-y-4">
-        <div className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10">
+        <div className="rounded-lg bg-app-surface p-4 ring-1 ring-app-text/10">
           <div className="mb-1 flex items-baseline justify-between">
             <h2 className="text-sm font-semibold text-app-text">Driving style</h2>
             <span className="text-xs text-app-text-muted">
@@ -103,13 +103,13 @@ export function DriverProfileView({ fingerprint: fp, plan, cached = false, warni
         </div>
 
         {fp.strengths.length > 0 && (
-          <div className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10">
+          <div className="rounded-lg bg-app-surface p-4 ring-1 ring-app-text/10">
             <h2 className="mb-1 text-sm font-semibold text-app-text">Faults you don't have</h2>
             <p className="mb-2 text-xs text-app-text-muted">Things the analyser looks for and never found. Never detected is weaker than proven — but it's still a good sign.</p>
             <ul className="space-y-1.5">
               {fp.strengths.map((s) => (
                 <li key={s.id} className="flex items-baseline gap-2 text-sm text-app-text">
-                  <span className="text-green-400">✓</span>
+                  <span className="text-status-success">✓</span>
                   <span>
                     {s.label}
                     <span className="ml-1 text-xs text-app-text-muted">{s.basis === "absent" ? "never fired" : `only ${(s.perLapFrequency * 100).toFixed(0)}% of laps, info only`}</span>
@@ -124,7 +124,7 @@ export function DriverProfileView({ fingerprint: fp, plan, cached = false, warni
             block rather than a "0.00s" row in the ranked list: unmeasured is
             not free, and a zero would read as "ignore this one". */}
         {fp.unquantifiedWeaknesses.length > 0 && (
-          <div className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10">
+          <div className="rounded-lg bg-app-surface p-4 ring-1 ring-app-text/10">
             <h2 className="mb-1 text-sm font-semibold text-app-text">Recurring, cost not measured</h2>
             <p className="mb-2 text-xs text-app-text-muted">
               These happen often enough to matter, but the analyser can't put a defensible number on what they cost — usually because a fault above already counts it.
@@ -143,7 +143,7 @@ export function DriverProfileView({ fingerprint: fp, plan, cached = false, warni
         )}
 
         {fp.notes.length > 0 && (
-          <div className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10">
+          <div className="rounded-lg bg-app-surface p-4 ring-1 ring-app-text/10">
             <h2 className="mb-2 text-sm font-semibold text-app-text">Data caveats</h2>
             <ul className="space-y-1 text-xs text-app-text-muted">
               {fp.notes.map((n) => (
@@ -158,7 +158,7 @@ export function DriverProfileView({ fingerprint: fp, plan, cached = false, warni
       <section className="space-y-4">
         {plan ? (
           <>
-            <div className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10">
+            <div className="rounded-lg bg-app-surface p-4 ring-1 ring-app-text/10">
               <div className="mb-1 flex items-baseline justify-between gap-2">
                 <h2 className="text-sm font-semibold text-app-text">{plan.styleLabel}</h2>
                 {cached && <span className="text-xs text-app-text-muted">cached</span>}
@@ -185,7 +185,7 @@ export function DriverProfileView({ fingerprint: fp, plan, cached = false, warni
             </div>
 
             {plan.sessionPlan.length > 0 && (
-              <div className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10">
+              <div className="rounded-lg bg-app-surface p-4 ring-1 ring-app-text/10">
                 <h2 className="mb-2 text-sm font-semibold text-app-text">Next session</h2>
                 <ol className="space-y-1.5">
                   {plan.sessionPlan.map((step, i) => (
@@ -199,7 +199,7 @@ export function DriverProfileView({ fingerprint: fp, plan, cached = false, warni
             )}
 
             {plan.strengths.length > 0 && (
-              <div className="rounded-lg bg-app-surface p-4 ring-1 ring-white/10">
+              <div className="rounded-lg bg-app-surface p-4 ring-1 ring-app-text/10">
                 <h2 className="mb-2 text-sm font-semibold text-app-text">What's working</h2>
                 <ul className="space-y-2">
                   {plan.strengths.map((s) => (
@@ -213,13 +213,13 @@ export function DriverProfileView({ fingerprint: fp, plan, cached = false, warni
             )}
 
             {warnings?.map((w) => (
-              <p key={w} className="text-xs text-amber-400/80">
+              <p key={w} className="text-xs text-status-warning/80">
                 {w}
               </p>
             ))}
           </>
         ) : (
-          <div className="rounded-lg bg-app-surface p-6 text-center ring-1 ring-white/10">
+          <div className="rounded-lg bg-app-surface p-6 text-center ring-1 ring-app-text/10">
             <p className="text-sm text-app-text-muted">The measurements on the left are ready. Run the coach to turn them into a ranked plan.</p>
           </div>
         )}

@@ -71,14 +71,14 @@ export function UpdatesSection() {
               <p className="text-sm font-medium text-app-accent">
                 {m.updates_downloading()} {percent}%
               </p>
-              <div className="h-2 rounded-full bg-app-surface-2 overflow-hidden">
+              <div className="h-2 rounded-full bg-app-progress-track overflow-hidden">
                 <div className="h-full rounded-full bg-app-accent transition-all duration-300" style={{ width: `${percent}%` }} />
               </div>
             </>
           )}
           {stage === "installing" && <p className="text-sm font-medium text-app-accent animate-pulse">{m.label_running_installer()}</p>}
           {stage === "reconnecting" && <p className="text-sm font-medium text-app-accent animate-pulse">{m.updates_reconnecting()}</p>}
-          {stage === "complete" && <p className="text-sm font-medium text-green-400">{m.updates_complete()}</p>}
+          {stage === "complete" && <p className="text-sm font-medium text-status-success">{m.updates_complete()}</p>}
         </div>
       )}
 
@@ -88,7 +88,7 @@ export function UpdatesSection() {
           <p className="text-sm font-medium text-app-accent">
             {m.updates_available()} v{latestVersion}
           </p>
-          <Button onClick={handleInstall} className="bg-app-accent text-black hover:bg-app-accent/90">
+          <Button onClick={handleInstall} className="bg-app-accent text-app-on-filled hover:bg-app-accent-hover">
             {m.label_install_update()}
           </Button>
         </div>

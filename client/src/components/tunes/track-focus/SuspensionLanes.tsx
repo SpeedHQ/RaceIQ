@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { WHEEL_COLOR_VARS } from "@/lib/colors";
 import type { LapTrace, TireAverages } from "../../../lib/stint-traces";
 import { indexAtFrac } from "../../../lib/stint-traces";
 import { Lane } from "./Lane";
@@ -13,10 +14,10 @@ interface SuspensionLanesProps {
 }
 
 const CORNERS: { key: keyof TireAverages; label: string; color: string }[] = [
-  { key: "FL", label: "FL", color: "#38bdf8" },
-  { key: "FR", label: "FR", color: "#f472b6" },
-  { key: "RL", label: "RL", color: "#facc15" },
-  { key: "RR", label: "RR", color: "#34d399" },
+  { key: "FL", label: "FL", color: WHEEL_COLOR_VARS[0] },
+  { key: "FR", label: "FR", color: WHEEL_COLOR_VARS[1] },
+  { key: "RL", label: "RL", color: WHEEL_COLOR_VARS[2] },
+  { key: "RR", label: "RR", color: WHEEL_COLOR_VARS[3] },
 ];
 
 function suspPolyline(t: LapTrace, arr: Float32Array, x: (f: number) => number, y: (v: number) => number): string {
@@ -101,7 +102,7 @@ export function SuspensionLanes({ traces, bestLapId = null, cornerFracs = [], cu
                       key={t.lapId}
                       points={suspPolyline(t, t.suspTravel![c.key], lx, ly)}
                       fill="none"
-                      stroke={t.isValid ? "var(--color-app-text-dim, #7a8ea0)" : "var(--color-dynamics-red, #ef4444)"}
+                      stroke={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"}
                       strokeWidth={1}
                       opacity={t.isValid ? 0.35 : 0.55}
                     />

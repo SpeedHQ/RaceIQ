@@ -32,9 +32,9 @@ export function AboutSection() {
             <span className="text-sm text-app-text font-mono">{!versionInfo?.checked ? m.label_checking() : versionInfo.latest ? `v${versionInfo.latest}` : m.about_unknown()}</span>
           </div>
           {versionInfo?.updateAvailable && (
-            <div className="flex items-center justify-between py-3 px-4 rounded-lg bg-yellow-400/10 border border-yellow-400/30">
-              <span className="text-sm text-yellow-400">{m.about_update_available()}</span>
-              <a href="https://github.com/SpeedHQ/RaceIQ/releases/latest" target="_blank" rel="noreferrer" className="text-xs text-yellow-400 underline underline-offset-2">
+            <div className="flex items-center justify-between py-3 px-4 rounded-lg bg-status-warning/10 border border-status-warning/30">
+              <span className="text-sm text-status-warning">{m.about_update_available()}</span>
+              <a href="https://github.com/SpeedHQ/RaceIQ/releases/latest" target="_blank" rel="noreferrer" className="text-xs text-status-warning underline underline-offset-2">
                 {m.label_download()} v{versionInfo.latest}
               </a>
             </div>

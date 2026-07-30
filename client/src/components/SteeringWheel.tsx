@@ -33,11 +33,11 @@ export function SteeringWheel({ steer, rpm, maxRpm, size = 160 }: Props) {
               const segPct = ((i + 1) / 30) * 100;
               const lit = rpmPct >= segPct;
               let bg: string;
-              if (segPct <= 40) bg = lit ? "bg-green-400" : "bg-green-400/10";
-              else if (segPct <= 60) bg = lit ? "bg-green-400" : "bg-green-400/10";
-              else if (segPct <= 75) bg = lit ? "bg-amber-400" : "bg-amber-400/10";
-              else if (segPct <= 90) bg = lit ? "bg-red-500" : "bg-red-500/10";
-              else bg = lit ? "bg-blue-500 animate-pulse" : "bg-blue-500/10";
+              if (segPct <= 40) bg = lit ? "bg-(--rev-normal)" : "bg-(--rev-normal)/10";
+              else if (segPct <= 60) bg = lit ? "bg-(--rev-normal)" : "bg-(--rev-normal)/10";
+              else if (segPct <= 75) bg = lit ? "bg-(--rev-high)" : "bg-(--rev-high)/10";
+              else if (segPct <= 90) bg = lit ? "bg-(--rev-limit)" : "bg-(--rev-limit)/10";
+              else bg = lit ? "bg-(--rev-shift) animate-pulse" : "bg-(--rev-shift)/10";
               return <div key={i} className={`flex-1 h-3 ${bg}`} />;
             })}
           </div>

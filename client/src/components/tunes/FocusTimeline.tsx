@@ -39,7 +39,7 @@ export function FocusTimeline({ experimentId, versions = [] }: { experimentId: n
           <li key={e.id} className="flex items-start gap-2 text-[11px]">
             <span
               className={`mt-px rounded-full px-1.5 py-px text-[10px] font-medium shrink-0 ${
-                e.focus === "driver" ? "bg-sky-500/15 text-sky-300" : "bg-purple-500/15 text-purple-300"
+              e.focus === "driver" ? "bg-(--focus-driver)/15 text-(--focus-driver)" : "bg-(--focus-setup)/15 text-(--focus-setup)"
               }`}
             >
               {EXPERIMENT_FOCUS_LABELS[e.focus]}

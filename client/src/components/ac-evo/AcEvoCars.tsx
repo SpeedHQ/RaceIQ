@@ -9,15 +9,6 @@ interface AcEvoCar {
   class: string;
 }
 
-const CLASS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  GT3: { bg: "bg-blue-500/15", text: "text-blue-400", border: "border-blue-500/20" },
-  Road: { bg: "bg-emerald-500/15", text: "text-emerald-400", border: "border-emerald-500/20" },
-};
-
-function classColor(cls: string) {
-  return CLASS_COLORS[cls] ?? { bg: "bg-app-surface-alt/20", text: "text-app-text-dim", border: "border-app-border" };
-}
-
 function getManufacturer(name: string): string {
   if (name.startsWith("Alfa Romeo")) return "Alfa Romeo";
   if (name.startsWith("Mercedes-AMG")) return "Mercedes-AMG";
@@ -69,12 +60,12 @@ export function AcEvoCars() {
             {m.acevocars_filter_all()}
           </button>
           {classes.map((cls) => {
-            const c = classColor(cls);
             const count = cars.filter((car) => car.class === cls).length;
             return (
               <button
                 key={cls}
-                className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${filterClass === cls ? `${c.bg} ${c.text}` : "text-app-text-muted hover:text-app-text-secondary"}`}
+                data-catalog-category={cls}
+                className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${filterClass === cls ? "catalog-category" : "text-app-text-muted hover:text-app-text-secondary"}`}
                 onClick={() => setFilterClass(filterClass === cls ? null : cls)}
               >
                 {cls} ({count})
@@ -86,11 +77,10 @@ export function AcEvoCars() {
 
       {/* Car grid by class */}
       {Array.from(grouped.entries()).map(([cls, classCars]) => {
-        const c = classColor(cls);
         return (
           <div key={cls}>
             <div className="flex items-center gap-2 mb-3">
-              <span className={`text-xs font-bold px-2 py-0.5 rounded ${c.bg} ${c.text}`}>{cls}</span>
+              <span className="catalog-category text-xs font-bold px-2 py-0.5 rounded" data-catalog-category={cls}>{cls}</span>
               <span className="text-xs text-app-text-dim">{classCars.length} cars</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -100,16 +90,18 @@ export function AcEvoCars() {
                   <div
                     key={car.id}
                     data-car-brand={brand}
-                    className="group relative bg-app-surface-alt/20 rounded-lg border border-app-border/10 overflow-hidden hover:border-app-border/30 transition-all"
+                    className="group relative bg-app-surface-alt/20 rounded-lg border border-app-border/10 overflow-hidden hover:border-app-border-hover/30 transition-all"
                   >
                     <div className="brand-color-strip h-0.5" />
                     <div className="p-3">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <div className="text-sm font-semibold text-app-text-primary leading-tight">{car.name}</div>
+                          <div className="text-sm font-semibold text-app-text leading-tight">{car.name}</div>
                           <div className="text-xs text-app-text-muted mt-0.5">{brand}</div>
                         </div>
-                        <span className={`shrink-0 text-xs font-bold px-1.5 py-0.5 rounded ${c.bg} ${c.text}`}>{cls}</span>
+                        <span className="catalog-category shrink-0 text-xs font-bold px-1.5 py-0.5 rounded" data-catalog-category={cls}>
+                          {cls}
+                        </span>
                       </div>
                     </div>
                   </div>

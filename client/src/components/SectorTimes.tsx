@@ -1,5 +1,6 @@
 import type { LiveSectorData } from "@shared/types";
 import { useEffect, useRef } from "react";
+import { lapPaceColor, SECTOR_COLOR_VARS } from "@/lib/colors";
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
 import { getSoundEnabled, getSoundType, getSoundUrl, getSoundVolume } from "./Settings";
@@ -119,8 +120,6 @@ export function SectorTimes({ sectors }: { sectors: LiveSectorData | null }) {
 
   const translatedNames = [m.sectortimes_s1(), m.sectortimes_s2(), m.sectortimes_s3()];
   const sectorNames = Array.from({ length: sectors.sectorCount }, (_, index) => translatedNames[index] ?? `S${index + 1}`);
-  const sectorColors = ["#ef4444", "#3b82f6", "#eab308", "#22c55e", "#a855f7", "#f97316"];
-
   return (
     <div className="border-t border-app-border/50 pt-3">
       <div
@@ -139,21 +138,22 @@ export function SectorTimes({ sectors }: { sectors: LiveSectorData | null }) {
           const showDelta = isDone && best > 0;
           const delta = showDelta ? sectors.currentTimes[i] - best : 0;
 
-          let timeColor = "text-app-text";
+          let timeColor = "var(--app-text)";
           if (isDone && best > 0) {
-            if (sectors.currentTimes[i] <= best * 1.001) timeColor = "text-purple-400";
-            else if (delta <= 0.3) timeColor = "text-emerald-400";
-            else timeColor = "text-orange-400";
+            if (sectors.currentTimes[i] <= best * 1.001) timeColor = lapPaceColor(true, true);
+            else timeColor = lapPaceColor(false, delta <= 0.3);
           }
 
           return (
-            <div key={name} className={`rounded p-2.5 ${isActive ? "ring-1" : ""}`} style={isActive ? ({ "--tw-ring-color": sectorColors[i % sectorColors.length] } as React.CSSProperties) : {}}>
+            <div key={name} className={`rounded p-2.5 ${isActive ? "ring-1" : ""}`} style={isActive ? ({ "--tw-ring-color": SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length] } as React.CSSProperties) : {}}>
               <div className="flex items-center gap-1.5 mb-1.5">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: sectorColors[i % sectorColors.length] }} />
+                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length] }} />
                 <span className="text-xs font-bold text-app-text-secondary">{name}</span>
-                <span className={`text-xl font-mono font-bold tabular-nums leading-none ml-auto ${timeColor}`}>{current > 0 ? formatLapTime(current) : "--:--.---"}</span>
+                <span className="text-xl font-mono font-bold tabular-nums leading-none ml-auto" style={{ color: timeColor }}>
+                  {current > 0 ? formatLapTime(current) : "--:--.---"}
+                </span>
                 {showDelta && (
-                  <span className={`text-xs font-mono font-bold ${delta <= 0 ? "text-emerald-400" : "text-orange-400"}`}>
+                  <span className="text-xs font-mono font-bold" style={{ color: lapPaceColor(false, delta <= 0) }}>
                     {delta <= 0 ? "" : "+"}
                     {delta.toFixed(3)}
                   </span>
@@ -164,8 +164,8 @@ export function SectorTimes({ sectors }: { sectors: LiveSectorData | null }) {
                 <span className="text-sm font-mono font-bold text-app-text-secondary tabular-nums">{last > 0 ? formatLapTime(last) : "-"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[10px] text-purple-400">{m.label_best()}</span>
-                <span className="text-sm font-mono font-bold text-purple-400 tabular-nums">{best > 0 ? formatLapTime(best) : "-"}</span>
+                <span className="text-[10px]" style={{ color: "var(--lap-record)" }}>{m.label_best()}</span>
+                <span className="text-sm font-mono font-bold tabular-nums" style={{ color: "var(--lap-record)" }}>{best > 0 ? formatLapTime(best) : "-"}</span>
               </div>
             </div>
           );

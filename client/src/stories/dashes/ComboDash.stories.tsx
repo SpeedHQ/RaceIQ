@@ -103,7 +103,7 @@ function render({ game, rpm, gear, unitSystem }: Args) {
           position: "relative",
           width: "100%",
           aspectRatio: "19.5 / 9",
-          background: "#000",
+          background: "var(--app-bg)",
           overflow: "hidden",
           transform: "translateZ(0)",
         }}
@@ -181,7 +181,7 @@ export const ACEvo: Story = {
 export const NoData: Story = {
   render: () => (
     <QueryClientProvider client={queryClient}>
-      <div style={{ width: "100vw", height: "100vh", background: "#000" }}>
+      <div style={{ width: "100vw", height: "100vh", background: "var(--app-bg)" }}>
         <ComboDash rawPacket={null} packet={null} sectors={null} pit={null} unitSystem="metric" toTempC={fToC} />
       </div>
     </QueryClientProvider>

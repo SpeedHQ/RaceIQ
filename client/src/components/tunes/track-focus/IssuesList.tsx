@@ -7,9 +7,9 @@ interface IssuesListProps {
 }
 
 const SEV_COLOR: Record<string, string> = {
-  critical: "var(--color-dynamics-red, #ef4444)",
-  warn: "var(--color-dynamics-amber, #f59e0b)",
-  info: "#38bdf8",
+  critical: "var(--status-danger)",
+  warn: "var(--status-warning)",
+  info: "var(--status-info)",
 };
 
 /** Issues grouped by corner (falling back to "General" for lap-wide ones). */

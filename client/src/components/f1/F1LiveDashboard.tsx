@@ -1,6 +1,7 @@
 import { tryGetGame } from "@shared/games/registry";
 import type { F1ExtendedData } from "@shared/types";
 import { useState } from "react";
+import { severityColor, severityRangeColor } from "@/lib/colors";
 import { m } from "@/paraglide/messages";
 import { useCarName, useTrackName } from "../../hooks/queries";
 import { useTelemetryStore } from "../../stores/telemetry";
@@ -26,31 +27,13 @@ const WEATHER_LABELS: Record<number, string> = {
   5: m.f1live_weather_storm(),
 };
 
-const COMPOUND_COLORS: Record<string, { bg: string; text: string }> = {
-  soft: { bg: "bg-red-600", text: "text-white" },
-  medium: { bg: "bg-yellow-500", text: "text-black" },
-  hard: { bg: "bg-white", text: "text-black" },
-  inter: { bg: "bg-green-500", text: "text-white" },
-  wet: { bg: "bg-blue-500", text: "text-white" },
-  unknown: { bg: "", text: "text-app-text-muted" },
-};
-
-const COMPOUND_DOT: Record<string, string> = {
-  soft: "bg-red-500",
-  medium: "bg-yellow-400",
-  hard: "bg-white",
-  inter: "bg-green-500",
-  wet: "bg-blue-500",
-  unknown: "bg-app-text-dim",
-};
-
 const ERS_MAX_ENERGY = 4_000_000;
 
 const DEPLOY_MODES: Record<number, { label: string; color: string }> = {
-  0: { label: m.f1live_ers_mode_none(), color: "text-app-text-muted" },
-  1: { label: m.f1live_ers_mode_medium(), color: "text-blue-400" },
-  2: { label: m.f1live_ers_mode_hotlap(), color: "text-purple-400" },
-  3: { label: m.f1live_ers_mode_overtake(), color: "text-red-400" },
+  0: { label: m.f1live_ers_mode_none(), color: "var(--telemetry-ers-mode-none)" },
+  1: { label: m.f1live_ers_mode_medium(), color: "var(--telemetry-ers-mode-medium)" },
+  2: { label: m.f1live_ers_mode_hotlap(), color: "var(--telemetry-ers-mode-hotlap)" },
+  3: { label: m.f1live_ers_mode_overtake(), color: "var(--telemetry-ers-mode-overtake)" },
 };
 
 function formatGap(gap: number): string {
@@ -109,7 +92,6 @@ export function F1LiveDashboard() {
               healthThresholds={tryGetGame("f1-2025")?.tireHealthThresholds ?? { green: 0.7, yellow: 0.5 }}
               tempThresholds={{ blue: 80, orange: 105, red: 115 }}
               compound={rawPacket!.f1?.tyreCompound ?? "unknown"}
-              compoundStyle={COMPOUND_COLORS[rawPacket!.f1?.tyreCompound ?? "unknown"] ?? COMPOUND_COLORS.unknown}
             />
           </div>
         </div>
@@ -142,23 +124,20 @@ export function F1LiveDashboard() {
 // ── DRS Indicator ────────────────────────────────────────────────────────────
 
 function DrsIndicator({ f1 }: { f1: F1ExtendedData }) {
-  let bg = "bg-zinc-700";
-  let text = "text-app-text-muted";
+  let stateClasses = "bg-app-surface-alt text-app-text-muted";
   let label = m.f1live_drs_closed();
 
   if (f1.drsActivated) {
-    bg = "bg-green-600";
-    text = "text-white";
+    stateClasses = "bg-(--telemetry-drs) text-app-on-filled";
     label = m.f1live_drs_open();
   } else if (f1.drsAllowed) {
-    bg = "bg-green-900";
-    text = "text-green-300";
+    stateClasses = "bg-(--telemetry-drs)/20 text-(--telemetry-drs)";
     label = m.f1live_drs_ready();
   }
 
   return (
     <div className="flex justify-center">
-      <span className={`text-sm font-bold px-3 py-1 rounded ${bg} ${text}`}>{label}</span>
+      <span className={`text-sm font-bold px-3 py-1 rounded ${stateClasses}`}>{label}</span>
     </div>
   );
 }
@@ -176,14 +155,13 @@ function CarDamageSection({ f1 }: { f1: F1ExtendedData }) {
   ];
 
   const hasDamage = parts.some((p) => p.value > 0);
-  const dmgColor = (v: number) => (v === 0 ? "#22c55e" : v < 30 ? "#eab308" : v < 60 ? "#f97316" : "#ef4444");
-  const dmgText = (v: number) => (v === 0 ? "text-emerald-400" : v < 30 ? "text-yellow-400" : v < 60 ? "text-orange-400" : "text-red-400");
+  const dmgColor = (value: number) => severityRangeColor(value, [1, 30, 60]);
 
   return (
     <div className="border-b border-app-border">
       <div className="h-8 px-2 border-b border-app-border flex items-center justify-between">
         <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.f1live_section_damage()}</h2>
-        {!hasDamage && <span className="text-xs text-emerald-400">{m.f1live_damage_all_clear()}</span>}
+        {!hasDamage && <span className="text-xs text-status-success">{m.f1live_damage_all_clear()}</span>}
       </div>
       <div className="p-3 flex items-center gap-4">
         {/* SVG top-down F1 car */}
@@ -191,8 +169,8 @@ function CarDamageSection({ f1 }: { f1: F1ExtendedData }) {
           {/* Body */}
           <path
             d="M40,30 L35,15 L40,5 L60,5 L65,15 L60,30 L62,50 L65,70 L65,140 L62,160 L60,175 L58,190 L42,190 L40,175 L38,160 L35,140 L35,70 L38,50 Z"
-            fill="#1e293b"
-            stroke="#475569"
+            fill="var(--app-surface-alt)"
+            stroke="var(--app-border)"
             strokeWidth="1.5"
           />
           {/* Front wing */}
@@ -208,15 +186,15 @@ function CarDamageSection({ f1 }: { f1: F1ExtendedData }) {
           <rect x="28" y="70" width="6" height="30" rx="2" fill={dmgColor(f1.sidepodDamage)} opacity="0.7" />
           <rect x="66" y="70" width="6" height="30" rx="2" fill={dmgColor(f1.sidepodDamage)} opacity="0.7" />
           {/* Front wheels */}
-          <rect x="20" y="20" width="12" height="24" rx="3" fill="#334155" stroke="#475569" strokeWidth="1" />
-          <rect x="68" y="20" width="12" height="24" rx="3" fill="#334155" stroke="#475569" strokeWidth="1" />
+          <rect x="20" y="20" width="12" height="24" rx="3" fill="var(--app-surface)" stroke="var(--app-border)" strokeWidth="1" />
+          <rect x="68" y="20" width="12" height="24" rx="3" fill="var(--app-surface)" stroke="var(--app-border)" strokeWidth="1" />
           {/* Rear wheels */}
-          <rect x="18" y="140" width="14" height="28" rx="3" fill="#334155" stroke="#475569" strokeWidth="1" />
-          <rect x="68" y="140" width="14" height="28" rx="3" fill="#334155" stroke="#475569" strokeWidth="1" />
+          <rect x="18" y="140" width="14" height="28" rx="3" fill="var(--app-surface)" stroke="var(--app-border)" strokeWidth="1" />
+          <rect x="68" y="140" width="14" height="28" rx="3" fill="var(--app-surface)" stroke="var(--app-border)" strokeWidth="1" />
           {/* Cockpit */}
-          <ellipse cx="50" cy="65" rx="8" ry="12" fill="#0f172a" stroke="#475569" strokeWidth="1" />
+          <ellipse cx="50" cy="65" rx="8" ry="12" fill="var(--app-bg)" stroke="var(--app-border)" strokeWidth="1" />
           {/* Halo */}
-          <path d="M44,58 Q50,50 56,58" fill="none" stroke="#64748b" strokeWidth="2" />
+          <path d="M44,58 Q50,50 56,58" fill="none" stroke="var(--app-text-dim)" strokeWidth="2" />
         </svg>
 
         {/* Damage values */}
@@ -224,7 +202,9 @@ function CarDamageSection({ f1 }: { f1: F1ExtendedData }) {
           {parts.map((p) => (
             <div key={p.label} className="flex items-center justify-between">
               <span className="text-xs text-app-text-muted">{p.label}</span>
-              <span className={`text-sm font-mono font-bold tabular-nums ${dmgText(p.value)}`}>{p.value === 0 ? m.f1live_damage_ok() : `${p.value}%`}</span>
+              <span className="text-sm font-mono font-bold tabular-nums" style={{ color: dmgColor(p.value) }}>
+                {p.value === 0 ? m.f1live_damage_ok() : `${p.value}%`}
+              </span>
             </div>
           ))}
         </div>
@@ -243,15 +223,7 @@ function ErsSection({ f1 }: { f1: F1ExtendedData }) {
   const deployedPct = Math.min(100, (f1.ersDeployedThisLap / ERS_MAX_ENERGY) * 100);
   const harvestedPct = Math.min(100, (f1.ersHarvestedThisLap / ERS_MAX_ENERGY) * 100);
 
-  let barColor = "bg-green-500";
-  let barTextColor = "text-green-500";
-  if (pct < 20) {
-    barColor = "bg-red-500";
-    barTextColor = "text-red-500";
-  } else if (pct < 50) {
-    barColor = "bg-yellow-500";
-    barTextColor = "text-yellow-500";
-  }
+  const chargeColor = severityColor(pct < 20 ? 3 : pct < 50 ? 1 : 0);
 
   return (
     <div>
@@ -263,12 +235,16 @@ function ErsSection({ f1 }: { f1: F1ExtendedData }) {
         <div className="flex items-center justify-between gap-2 mt-1">
           <span className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.f1live_ers_label()}</span>
           <div className="flex items-center gap-1.5">
-            <span className={`text-sm font-bold px-2 py-0.5 rounded bg-zinc-700 tabular-nums ${barTextColor}`}>{pct.toFixed(0)}%</span>
-            <span className={`text-sm font-bold px-2 py-0.5 rounded bg-zinc-700 ${mode.color}`}>{mode.label}</span>
+            <span className="text-sm font-bold px-2 py-0.5 rounded bg-app-surface-alt tabular-nums" style={{ color: chargeColor }}>
+              {pct.toFixed(0)}%
+            </span>
+            <span className="text-sm font-bold px-2 py-0.5 rounded bg-app-surface-alt" style={{ color: mode.color }}>
+              {mode.label}
+            </span>
           </div>
         </div>
         <div className="h-2 rounded-full overflow-hidden">
-          <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+          <div className="h-full rounded-full transition-all" style={{ backgroundColor: chargeColor, width: `${pct}%` }} />
         </div>
         <div className="flex justify-between text-[10px] text-app-text-muted font-mono tabular-nums">
           <span>↓ {deployedPct.toFixed(0)}%</span>
@@ -304,19 +280,25 @@ function WeatherWidget({ f1 }: { f1: F1ExtendedData }) {
       {hasRain && (
         <div className="flex items-center gap-1">
           <div className="h-1.5 flex-1 rounded-full overflow-hidden">
-            <div className="h-full rounded-full bg-blue-400" style={{ width: `${f1.rainPercentage}%` }} />
+            <div className="h-full rounded-full" style={{ backgroundColor: "var(--metric-rain)", width: `${f1.rainPercentage}%` }} />
           </div>
-          <span className="text-xs font-mono font-bold text-blue-400 tabular-nums leading-none">{f1.rainPercentage}%</span>
+          <span className="text-xs font-mono font-bold tabular-nums leading-none" style={{ color: "var(--metric-rain)" }}>
+            {f1.rainPercentage}%
+          </span>
         </div>
       )}
       <div className="flex gap-3">
         <div>
           <div className="text-[9px] text-app-text-muted uppercase">{m.label_track()}</div>
-          <div className="text-base font-mono font-bold text-orange-400 tabular-nums leading-none">{f1.trackTemperature}&deg;</div>
+          <div className="text-base font-mono font-bold tabular-nums leading-none" style={{ color: "var(--metric-track-temperature)" }}>
+            {f1.trackTemperature}&deg;
+          </div>
         </div>
         <div>
           <div className="text-[9px] text-app-text-muted uppercase">{m.f1live_weather_air()}</div>
-          <div className="text-base font-mono font-bold text-cyan-400 tabular-nums leading-none">{f1.airTemperature}&deg;</div>
+          <div className="text-base font-mono font-bold tabular-nums leading-none" style={{ color: "var(--metric-air-temperature)" }}>
+            {f1.airTemperature}&deg;
+          </div>
         </div>
       </div>
     </div>
@@ -399,7 +381,6 @@ function GridSection({ f1, playerPosition }: { f1: F1ExtendedData; playerPositio
                 );
               }
               const isPlayer = entry.position === playerPosition;
-              const dotColor = COMPOUND_DOT[entry.tyreCompound] ?? COMPOUND_DOT.unknown;
               return (
                 <tr key={entry.position} className={`border-b border-app-border/50 ${isPlayer ? "bg-app-accent/10" : ""}`}>
                   <td className="px-2 py-1.5 font-bold text-app-text tabular-nums">{entry.position}</td>
@@ -412,14 +393,14 @@ function GridSection({ f1, playerPosition }: { f1: F1ExtendedData; playerPositio
                   <td className="px-2 py-1.5 text-right text-app-text-muted tabular-nums font-mono">{entry.position === 1 ? m.f1grid_leader() : formatGap(entry.gapToLeader)}</td>
                   <td className="px-2 py-1.5 text-right text-app-text-muted tabular-nums font-mono">{formatGap(entry.gapToCarAhead)}</td>
                   <td className="px-2 py-1.5 text-center">
-                    <span className={`inline-block w-2.5 h-2.5 rounded-full ${dotColor}`} />
+                    <span className="tire-compound-dot inline-block w-2.5 h-2.5 rounded-full" data-tire-compound={(entry.tyreCompound || "unknown").toLowerCase()} />
                   </td>
                   <td className="px-2 py-1.5 text-right text-app-text-muted tabular-nums font-mono">{entry.tyreAge}</td>
                   <td className="px-2 py-1.5 text-center text-app-text-muted">
                     {entry.pitStatus === 1 ? (
-                      <span className="text-yellow-400 font-bold">IN</span>
+                      <span className="text-status-warning font-bold">IN</span>
                     ) : entry.pitStatus === 2 ? (
-                      <span className="text-yellow-400">PIT</span>
+                      <span className="text-status-warning">PIT</span>
                     ) : entry.numPitStops > 0 ? (
                       entry.numPitStops
                     ) : (

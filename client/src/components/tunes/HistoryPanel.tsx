@@ -18,7 +18,7 @@ export function HistoryPanel({ sessionId, onClose }: { sessionId: number; onClos
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -42,7 +42,7 @@ export function HistoryPanel({ sessionId, onClose }: { sessionId: number; onClos
             type="button"
             onClick={() => undo.mutate({ sessionId })}
             disabled={!nextPending || undo.isPending}
-            className="shrink-0 px-3 py-1.5 text-xs rounded bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white font-semibold"
+            className="shrink-0 px-3 py-1.5 text-xs rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 text-app-on-filled font-semibold"
           >
             {undo.isPending ? "Undoing…" : "Undo last"}
           </button>
@@ -56,8 +56,8 @@ export function HistoryPanel({ sessionId, onClose }: { sessionId: number; onClos
           <FocusTimeline experimentId={sessionId} versions={versions} />
         </div>
 
-        {undo.data?.warning && <div className="text-xs text-amber-400">{undo.data.warning}</div>}
-        {undo.isError && <div className="text-xs text-red-400">{(undo.error as Error)?.message ?? "Undo failed"}</div>}
+        {undo.data?.warning && <div className="text-xs text-status-warning">{undo.data.warning}</div>}
+        {undo.isError && <div className="text-xs text-status-danger">{(undo.error as Error)?.message ?? "Undo failed"}</div>}
 
         <div className="flex-1 min-h-0 overflow-y-auto border border-app-border rounded">
           {isLoading ? (

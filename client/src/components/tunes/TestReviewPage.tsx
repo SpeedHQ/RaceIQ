@@ -52,7 +52,7 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
         <div className="text-sm text-app-text-muted max-w-md">
           This experiment (#{experimentId}) no longer exists — it may have been deleted, or removed when the database was reset. The laps it referenced may still be in your history.
         </div>
-        <button type="button" onClick={backToExperimentList} className="mt-2 px-4 py-2 text-sm rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold">
+        <button type="button" onClick={backToExperimentList} className="mt-2 px-4 py-2 text-sm rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled font-semibold">
           Back to experiments
         </button>
       </div>
@@ -89,7 +89,7 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
             {/* Named after the experiment's current focus, same as the
                 workspace panel — one agent, two modes. */}
             <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{EXPERIMENT_FOCUS_AGENT_LABELS[session?.focus ?? DEFAULT_EXPERIMENT_FOCUS]}</span>
-            <button type="button" onClick={backToWorkspace} className="px-3 py-1 text-xs rounded bg-purple-600 hover:bg-purple-500 text-white font-semibold">
+          <button type="button" onClick={backToWorkspace} className="px-3 py-1 text-xs rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled font-semibold">
               Session
             </button>
           </div>

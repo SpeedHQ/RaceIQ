@@ -1,3 +1,5 @@
+import { getSemanticCanvasContext } from "@/lib/css-color";
+import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import {
   deadReckonIRacingPosition,
   pointAtLapFraction,
@@ -16,9 +18,9 @@ interface Props {
 }
 
 const ISSUE_COLORS: Record<TuneIssue["severity"], string> = {
-  info: "#38bdf8",
-  warn: "#f59e0b",
-  critical: "#ef4444",
+  info: "var(--status-info)",
+  warn: "var(--status-warning)",
+  critical: "var(--status-danger)",
 };
 
 interface Point {
@@ -30,7 +32,7 @@ interface Point {
  * LiveTrackMap — Renders the car's position on a 2D track outline.
  * Two modes: (1) pre-made outline fetched by track ordinal, or (2) live trace
  * built in real-time from position data when no outline exists.
- * Track is colored by sector (S1=red, S2=blue, S3=yellow).
+ * Track sectors use stable theme-owned identities.
  * Coordinates use Forza's world-space X/Z (Y is vertical/ignored).
  */
 interface TrackBoundaryData {
@@ -242,7 +244,7 @@ export function LiveTrackMap({ packet, issues }: Props) {
   function draw() {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = getSemanticCanvasContext(canvas);
     if (!ctx) return;
 
     const rect = canvas.getBoundingClientRect();
@@ -262,7 +264,7 @@ export function LiveTrackMap({ packet, issues }: Props) {
 
     if (!displayOutline || displayOutline.length < 2) {
       if (noOutline) {
-        ctx.fillStyle = "#475569";
+        ctx.fillStyle = "var(--app-text-dim)";
         ctx.font = "12px system-ui";
         ctx.textAlign = "center";
         ctx.fillText("Drive to map track...", w / 2, h / 2);
@@ -339,11 +341,11 @@ export function LiveTrackMap({ packet, issues }: Props) {
         ctx.lineTo(rx, ry);
       }
       ctx.closePath();
-      ctx.fillStyle = "rgba(51, 65, 85, 0.25)";
+      ctx.fillStyle = "color-mix(in srgb, var(--track-surface) 25%, transparent)";
       ctx.fill();
 
       // Stroke edges
-      ctx.strokeStyle = "rgba(100, 116, 139, 0.35)";
+      ctx.strokeStyle = "color-mix(in srgb, var(--track-edge) 35%, transparent)";
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(lx0, ly0);
@@ -367,7 +369,7 @@ export function LiveTrackMap({ packet, issues }: Props) {
     if (isLiveTrace || !sectors) {
       // No sectors: draw uniform outline
       ctx.beginPath();
-      ctx.strokeStyle = isLiveTrace ? "#1e3a5f" : "#334155";
+      ctx.strokeStyle = isLiveTrace ? "color-mix(in srgb, var(--app-accent) 25%, var(--app-surface))" : "var(--track-outline)";
       ctx.lineWidth = isLiveTrace ? 3 : 4;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -382,7 +384,7 @@ export function LiveTrackMap({ packet, issues }: Props) {
 
       // Thinner highlight
       ctx.beginPath();
-      ctx.strokeStyle = isLiveTrace ? "#22d3ee" : "#64748b";
+      ctx.strokeStyle = isLiveTrace ? "var(--app-accent)" : "var(--track-edge)";
       ctx.lineWidth = isLiveTrace ? 1.5 : 2;
       ctx.globalAlpha = isLiveTrace ? 0.6 : 1;
       ctx.moveTo(sx, sy);
@@ -395,9 +397,9 @@ export function LiveTrackMap({ packet, issues }: Props) {
       ctx.stroke();
       ctx.globalAlpha = 1;
     } else {
-      // Sector-colored track: S1=red, S2=blue, S3=yellow
-      const sectorColors = ["#ef4444", "#3b82f6", "#eab308"];
-      const sectorBgColors = ["#7f1d1d", "#1e3a5f", "#713f12"];
+      // Sector-colored track using the theme-owned ordered identities.
+      const sectorColors = SECTOR_COLOR_VARS;
+      const sectorBgColors = sectorColors.slice(0, 3).map((color) => `color-mix(in srgb, ${color} 25%, var(--app-surface))`);
       const n = displayOutline.length;
       const s1Idx = Math.round(sectors.s1End * (n - 1));
       const s2Idx = Math.round(sectors.s2End * (n - 1));
@@ -472,9 +474,9 @@ export function LiveTrackMap({ packet, issues }: Props) {
     if (!isLiveTrace) {
       ctx.beginPath();
       ctx.arc(sx, sy, 5, 0, Math.PI * 2);
-      ctx.fillStyle = "#10b981";
+      ctx.fillStyle = "var(--track-start)";
       ctx.fill();
-      ctx.strokeStyle = "#0f172a";
+      ctx.strokeStyle = "var(--track-label-background)";
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
@@ -521,7 +523,7 @@ export function LiveTrackMap({ packet, issues }: Props) {
         ctx.beginPath();
         ctx.moveTo(sx, sy);
         ctx.lineTo(tipX, tipY);
-        ctx.strokeStyle = "#10b981";
+        ctx.strokeStyle = "var(--track-start)";
         ctx.lineWidth = 2;
         ctx.stroke();
 
@@ -530,14 +532,13 @@ export function LiveTrackMap({ packet, issues }: Props) {
         ctx.lineTo(tipX - nx * wl * 2 + ny * wl, tipY - ny * wl * 2 - nx * wl);
         ctx.lineTo(tipX - nx * wl * 2 - ny * wl, tipY - ny * wl * 2 + nx * wl);
         ctx.closePath();
-        ctx.fillStyle = "#10b981";
+        ctx.fillStyle = "var(--track-start)";
         ctx.fill();
       }
     }
 
     // Sector boundary markers on the outline
     if (!isLiveTrace && sectors && displayOutline.length > 10) {
-      const sectorColors = ["#ef4444", "#3b82f6", "#eab308"];
       const sectorFracs = [sectors.s1End, sectors.s2End];
 
       for (let si = 0; si < sectorFracs.length; si++) {
@@ -561,7 +562,7 @@ export function LiveTrackMap({ packet, issues }: Props) {
           ctx.beginPath();
           ctx.moveTo(mx - nx * tickLen, my + nz * tickLen);
           ctx.lineTo(mx + nx * tickLen, my - nz * tickLen);
-          ctx.strokeStyle = sectorColors[si];
+          ctx.strokeStyle = SECTOR_COLOR_VARS[si];
           ctx.lineWidth = 2;
           ctx.stroke();
         }
@@ -569,9 +570,9 @@ export function LiveTrackMap({ packet, issues }: Props) {
         // Small dot at sector boundary
         ctx.beginPath();
         ctx.arc(mx, my, 3, 0, Math.PI * 2);
-        ctx.fillStyle = sectorColors[si];
+        ctx.fillStyle = SECTOR_COLOR_VARS[si];
         ctx.fill();
-        ctx.strokeStyle = "#0f172a";
+        ctx.strokeStyle = "var(--track-label-background)";
         ctx.lineWidth = 1;
         ctx.stroke();
       }
@@ -591,7 +592,7 @@ export function LiveTrackMap({ packet, issues }: Props) {
         ctx.globalAlpha = 0.85;
         ctx.fill();
         ctx.globalAlpha = 1;
-        ctx.strokeStyle = "#0f172a";
+        ctx.strokeStyle = "var(--track-label-background)";
         ctx.lineWidth = 1.5;
         ctx.stroke();
       }
@@ -599,7 +600,7 @@ export function LiveTrackMap({ packet, issues }: Props) {
 
     // "Building map..." label for live trace
     if (isLiveTrace) {
-      ctx.fillStyle = "#475569";
+      ctx.fillStyle = "var(--app-text-dim)";
       ctx.font = "10px system-ui";
       ctx.textAlign = "left";
       ctx.fillText(`Mapping... ${displayOutline.length} pts`, 8, h - 8);
@@ -660,7 +661,7 @@ export function LiveTrackMap({ packet, issues }: Props) {
           }
         } else {
           [cx, cy] = [0, 0];
-          ctx.fillStyle = "#475569";
+          ctx.fillStyle = "var(--app-text-dim)";
           ctx.font = "9px system-ui";
           ctx.textAlign = "left";
           ctx.fillText("Complete a lap to track position", 8, h - 8);
@@ -671,14 +672,14 @@ export function LiveTrackMap({ packet, issues }: Props) {
         // Glow
         ctx.beginPath();
         ctx.arc(cx, cy, 10, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(34, 211, 238, 0.2)";
+        ctx.fillStyle = "color-mix(in srgb, var(--app-accent) 20%, transparent)";
         ctx.fill();
         // Dot
         ctx.beginPath();
         ctx.arc(cx, cy, 5, 0, Math.PI * 2);
-        ctx.fillStyle = "#22d3ee";
+        ctx.fillStyle = "var(--app-accent)";
         ctx.fill();
-        ctx.strokeStyle = "#0f172a";
+        ctx.strokeStyle = "var(--track-label-background)";
         ctx.lineWidth = 1.5;
         ctx.stroke();
       }
@@ -709,7 +710,7 @@ export function LiveTrackMap({ packet, issues }: Props) {
         <button
           type="button"
           onClick={handleDeleteMap}
-          className="absolute top-2 right-2 px-2 py-1 text-xs hover:bg-red-900/80 text-app-text-secondary hover:text-red-300 rounded border border-app-border-input hover:border-red-700 transition-colors"
+          className="absolute top-2 right-2 px-2 py-1 text-xs text-app-text-secondary hover:text-status-danger rounded border border-app-border-input hover:border-status-danger/60 hover:bg-status-danger/10 transition-colors"
           title="Delete recorded track map and re-record from driving"
         >
           {m.label_reset_map()}

@@ -67,15 +67,23 @@ export function GearRatioChart({ ratios, finalDrive, topSpeedKph, topSpeedMph, m
         }).join(" ");
         return (
           <g key={`${index}-${ratio}`}>
-            <polyline points={points} fill="none" stroke="white" strokeWidth="1.5" strokeOpacity="0.7" clipPath={`url(#${clipId})`} />
-            <text x={pad.left + sx(toKph(maxRpm, ratio)) + 2} y={pad.top + sy(maxRpm) - 3} textAnchor="middle" fontSize="7" fill="white" fillOpacity="0.6" fontWeight="600">
+            <polyline points={points} fill="none" stroke="var(--app-text)" strokeWidth="1.5" strokeOpacity="0.7" clipPath={`url(#${clipId})`} />
+            <text
+              x={pad.left + sx(toKph(maxRpm, ratio)) + 2}
+              y={pad.top + sy(maxRpm) - 3}
+              textAnchor="middle"
+              fontSize="7"
+              fill="var(--app-text)"
+              fillOpacity="0.6"
+              fontWeight="600"
+            >
               {index + 1}
             </text>
           </g>
         );
       })}
 
-      <line x1={pad.left} y1={redlineY} x2={pad.left + chartWidth} y2={redlineY} stroke="#ef4444" strokeWidth="1" strokeOpacity="0.8" strokeDasharray="3 2" />
+      <line x1={pad.left} y1={redlineY} x2={pad.left + chartWidth} y2={redlineY} stroke="var(--rev-limit)" strokeWidth="1" strokeOpacity="0.8" strokeDasharray="3 2" />
       <rect x={pad.left} y={pad.top} width={chartWidth} height={chartHeight} fill="none" stroke="currentColor" strokeOpacity="0.15" />
     </svg>
   );

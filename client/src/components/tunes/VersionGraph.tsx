@@ -102,7 +102,7 @@ function NodeTextEditor({
           >
             Cancel
           </button>
-          {error != null && <span className="text-[10px] text-red-400">{(error as Error).message}</span>}
+        {error != null && <span className="text-[10px] text-status-danger">{(error as Error).message}</span>}
         </div>
       )}
     </div>
@@ -147,7 +147,7 @@ function NotesModal({ sessionId, test, onClose }: { sessionId: number; test: Exp
   return createPortal(
     // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -306,7 +306,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
           <div className="relative w-6 shrink-0 flex flex-col items-center">
             {depth > 0 && <div className="absolute -left-3 top-[15px] w-[24px] h-px bg-app-border" />}
             {(!isLastSibling || hasChildren) && <div className="absolute top-3 bottom-0 w-px bg-app-border" />}
-            <div className={`z-10 mt-[10px] size-2.5 rounded-full border-2 ${isHead ? "bg-purple-400 border-purple-400" : "bg-app-surface border-app-text-dim"}`} title={isHead ? "HEAD" : undefined} />
+                        <div className={`z-10 mt-[10px] size-2.5 rounded-full border-2 ${isHead ? "bg-app-accent border-app-accent" : "bg-app-surface border-app-text-dim"}`} title={isHead ? "HEAD" : undefined} />
           </div>
 
           <div className="flex-1 min-w-0 pb-2">
@@ -321,7 +321,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                   toggle(t.id);
                 }
               }}
-              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left cursor-pointer hover:bg-app-surface-alt/40"
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left cursor-pointer hover:bg-app-surface-hover/40"
             >
               <span className="text-app-text-dim text-xs w-3">{isOpen ? "▾" : "▸"}</span>
               <span className="font-mono text-xs text-app-text shrink-0">{t.label}</span>
@@ -329,7 +329,9 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                 <span
                   title={`Focus switched to ${EXPERIMENT_FOCUS_LABELS[focusEraByVersionId.get(t.id)!]} here`}
                   className={`text-[9px] uppercase tracking-wider rounded px-1 py-px shrink-0 ${
-                    focusEraByVersionId.get(t.id) === "driver" ? "text-sky-300 border border-sky-400/40" : "text-purple-300 border border-purple-400/40"
+                                focusEraByVersionId.get(t.id) === "driver"
+                                  ? "text-(--focus-driver) border border-(--focus-driver)/40"
+                                  : "text-(--focus-setup) border border-(--focus-setup)/40"
                   }`}
                 >
                   → {EXPERIMENT_FOCUS_LABELS[focusEraByVersionId.get(t.id)!]}
@@ -338,7 +340,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
               <span className="text-[11px] text-app-text-muted truncate min-w-0">
                 {t.notes || (summarizeAppliedChanges(t.appliedChanges) ?? (t.parentVersionId == null ? (t.setupPath?.split(/[\\/]/).pop() ?? "Base setup") : "no changes recorded"))}
               </span>
-              {isHead && <span className="text-[9px] uppercase tracking-wider text-purple-400 border border-purple-400/40 rounded px-1 py-px shrink-0">HEAD</span>}
+                          {isHead && <span className="text-[9px] uppercase tracking-wider text-app-accent border border-app-accent/40 rounded px-1 py-px shrink-0">HEAD</span>}
               {!isHead && (
                 <button
                   type="button"
@@ -347,7 +349,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                     setHead.mutate({ sessionId, versionId: t.id });
                   }}
                   disabled={setHead.isPending}
-                  className="normal-case tracking-normal font-sans text-[10px] px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim disabled:opacity-50 disabled:pointer-events-none shrink-0"
+                  className="normal-case tracking-normal font-sans text-[10px] px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-border-hover disabled:opacity-50 disabled:pointer-events-none shrink-0"
                 >
                   Checkout
                 </button>
@@ -373,7 +375,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                     e.stopPropagation();
                     onOpenReview(t);
                   }}
-                  className="normal-case tracking-normal font-sans text-[10px] px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim disabled:opacity-50 disabled:pointer-events-none shrink-0"
+                  className="normal-case tracking-normal font-sans text-[10px] px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-border-hover disabled:opacity-50 disabled:pointer-events-none shrink-0"
                 >
                   Review
                 </button>
@@ -385,7 +387,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                   setNotesForId(t.id);
                 }}
                 title={t.driverComment || t.notes ? "View / edit notes" : "Add notes"}
-                className="normal-case tracking-normal font-sans text-[10px] px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-text-dim shrink-0 inline-flex items-center gap-1"
+                className="normal-case tracking-normal font-sans text-[10px] px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-border-hover shrink-0 inline-flex items-center gap-1"
               >
                 Notes
                 {(t.driverComment || t.notes) && <span className="size-1.5 rounded-full bg-app-accent" />}
@@ -400,7 +402,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                 }}
                 disabled={deleteVersion.isPending}
                 title={hasChildren ? "Trash this version and its whole branch (reversible)" : "Trash this version (reversible)"}
-                className="normal-case tracking-normal font-sans text-[10px] px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-red-400 hover:border-red-400/40 disabled:opacity-50 disabled:pointer-events-none shrink-0"
+                          className="normal-case tracking-normal font-sans text-[10px] px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-status-danger hover:border-status-danger/40 disabled:opacity-50 disabled:pointer-events-none shrink-0"
               >
                 Delete branch
               </button>
@@ -411,7 +413,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                 {/* The whole row is eval-only, not "all laps recorded against
                     this version" — say so once here rather than qualifying
                     every stat label. */}
-                <span className="text-[8px] uppercase tracking-wider text-emerald-400/70 whitespace-nowrap self-end leading-tight">eval laps</span>
+                          <span className="text-[8px] uppercase tracking-wider text-status-success/70 whitespace-nowrap self-end leading-tight">eval laps</span>
                 {/* eval/total: every other stat on this row is eval-only, so
                     show both counts rather than a bare total that doesn't
                     match the numbers next to it. */}
@@ -447,7 +449,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
         <SetupContentModal gameId={gameId} path={setupTest.setupPath} fileName={setupTest.setupPath.split(/[\\/]/).pop() ?? setupTest.label} onClose={() => setSetupForId(null)} />
       )}
       {gameId === "f1-2025" && setupSnapshot && <F1SetupModal setup={setupSnapshot} onClose={() => setSetupForId(null)} />}
-      {actionError && <div className="mx-2 mb-1 rounded-md border border-red-400/40 bg-red-400/10 px-2 py-1 text-[11px] text-red-300">{(actionError as Error).message}</div>}
+      {actionError && <div className="mx-2 mb-1 rounded-md border border-status-danger/40 bg-status-danger/10 px-2 py-1 text-[11px] text-status-danger">{(actionError as Error).message}</div>}
       {roots.map((t, i) => renderNode(t, 0, i === roots.length - 1))}
     </div>
   );

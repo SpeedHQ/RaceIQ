@@ -3,6 +3,7 @@ import { tryGetGame } from "@shared/games/registry";
 import { suspensionCompression } from "@shared/lib/vehicle-physics";
 import type { TelemetryPacket } from "@shared/types";
 import { Info } from "lucide-react";
+import { operatingRangeColor } from "../../lib/colors";
 import { m } from "../../paraglide/messages";
 import { WheelTable } from "./WheelTable";
 
@@ -13,7 +14,7 @@ interface Props {
 export function AnalyseSuspensionPanel({ currentPacket }: Props) {
   const analysis = resolveAnalysisTelemetry(tryGetGame(currentPacket.gameId));
   const suspValues = [currentPacket.NormSuspensionTravelFL, currentPacket.NormSuspensionTravelFR, currentPacket.NormSuspensionTravelRL, currentPacket.NormSuspensionTravelRR];
-  const suspColor = (v: number) => (v < 0.25 ? "#3b82f6" : v < 0.65 ? "#34d399" : v < 0.85 ? "#fbbf24" : "#ef4444");
+  const suspColor = (value: number) => operatingRangeColor(value, [0.25, 0.65, 0.85]);
   const compression = suspensionCompression(currentPacket);
   const frontCompression = (compression.frontBias * 100).toFixed(0);
   const leftCompression = (compression.leftBias * 100).toFixed(0);
@@ -44,10 +45,10 @@ export function AnalyseSuspensionPanel({ currentPacket }: Props) {
       rows={[
         {
           label: m.dataguide_travel(),
-          fl: mmValues ? C(fmtMm(mmValues[0]), "#e5e7eb") : C(`${(suspValues[0] * 100).toFixed(0)}%`, suspColor(suspValues[0])),
-          fr: mmValues ? C(fmtMm(mmValues[1]), "#e5e7eb") : C(`${(suspValues[1] * 100).toFixed(0)}%`, suspColor(suspValues[1])),
-          rl: mmValues ? C(fmtMm(mmValues[2]), "#e5e7eb") : C(`${(suspValues[2] * 100).toFixed(0)}%`, suspColor(suspValues[2])),
-          rr: mmValues ? C(fmtMm(mmValues[3]), "#e5e7eb") : C(`${(suspValues[3] * 100).toFixed(0)}%`, suspColor(suspValues[3])),
+          fl: mmValues ? C(fmtMm(mmValues[0]), "var(--app-text)") : C(`${(suspValues[0] * 100).toFixed(0)}%`, suspColor(suspValues[0])),
+          fr: mmValues ? C(fmtMm(mmValues[1]), "var(--app-text)") : C(`${(suspValues[1] * 100).toFixed(0)}%`, suspColor(suspValues[1])),
+          rl: mmValues ? C(fmtMm(mmValues[2]), "var(--app-text)") : C(`${(suspValues[2] * 100).toFixed(0)}%`, suspColor(suspValues[2])),
+          rr: mmValues ? C(fmtMm(mmValues[3]), "var(--app-text)") : C(`${(suspValues[3] * 100).toFixed(0)}%`, suspColor(suspValues[3])),
         },
         {
           label: m.analyse_suspension_compression_bias(),

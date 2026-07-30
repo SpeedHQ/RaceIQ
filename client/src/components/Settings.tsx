@@ -178,7 +178,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             className={`shrink-0 md:w-full text-left px-4 py-2 text-sm whitespace-nowrap transition-colors ${
               activeSection === item.id
                 ? "text-app-accent bg-app-accent/10 border-b-2 md:border-b-0 md:border-r-2 border-app-accent"
-                : "text-app-text-muted hover:text-app-text hover:bg-app-surface-alt"
+                : "text-app-text-muted hover:text-app-text hover:bg-app-surface-hover"
             }`}
           >
             {(NAV_LABELS[item.id] ?? (() => item.label))()}
@@ -187,7 +187,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
         <div className="hidden md:block mt-auto pt-2 border-t border-app-border mx-2">
           <button
             type="button"
-            className="w-full text-left px-4 py-2 text-sm text-app-text-muted hover:text-app-text hover:bg-app-surface-alt transition-colors"
+            className="w-full text-left px-4 py-2 text-sm text-app-text-muted hover:text-app-text hover:bg-app-surface-hover transition-colors"
             onClick={() => {
               onClose?.();
               openOnboarding();
@@ -253,7 +253,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                   }`}
                 >
                   <span
-                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition-transform ${
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-app-text shadow-lg ring-0 transition-transform ${
                       displaySettings.launchOnLogin ? "translate-x-4" : "translate-x-0"
                     }`}
                   />
@@ -290,7 +290,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                     setStatus("idle");
                   }}
                   onKeyDown={(e) => e.key === "Enter" && handleSave()}
-                  className="glass-input border bg-app-surface-alt border-app-border-input text-app-text font-mono mt-1.5"
+                  className="border bg-app-surface-alt border-app-border-input text-app-text font-mono mt-1.5"
                   placeholder="5301"
                 />
               </div>
@@ -298,7 +298,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                 {status === "saving" ? m.common_saving() : status === "saved" ? m.common_saved() : m.common_save()}
               </Button>
             </div>
-            {status === "error" && <p className="text-red-400 text-sm mt-2">{errorMsg}</p>}
+            {status === "error" && <p className="text-status-danger text-sm mt-2">{errorMsg}</p>}
             {savedPort && (
               <p className="text-app-text-muted text-xs mt-3">
                 {m.settings_listening_on()} 0.0.0.0:{savedPort}
@@ -367,8 +367,8 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                     <li>{m.setupguide_data_out_packet_format()}</li>
                   </ol>
 
-                  <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2">
-                    <p className="text-xs text-amber-400">
+                  <div className="mt-4 rounded-md border border-status-warning/30 bg-status-warning/5 px-3 py-2">
+                    <p className="text-xs text-status-warning">
                       <span className="font-semibold">{m.setupguide_note_label()}</span> {m.settingsguide_forza_note()}
                     </p>
                   </div>
@@ -405,8 +405,8 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                     <li>{m.setupguide_udp_format()}</li>
                   </ol>
 
-                  <div className="mt-4 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2">
-                    <p className="text-xs text-amber-400">
+                  <div className="mt-4 rounded-md border border-status-warning/30 bg-status-warning/5 px-3 py-2">
+                    <p className="text-xs text-status-warning">
                       <span className="font-semibold">{m.setupguide_note_label()}</span> {m.settingsguide_f1_note()}
                     </p>
                   </div>
@@ -450,7 +450,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                       localStorage.setItem(STEER_LOCK_KEY, String(val));
                     }
                   }}
-                  className="glass-input border bg-app-surface-alt border-app-border-input text-app-text font-mono w-24"
+                  className="border bg-app-surface-alt border-app-border-input text-app-text font-mono w-24"
                 />
                 <span className="text-xs text-app-text-muted mb-2">°</span>
               </div>
@@ -494,7 +494,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
               </Button>
             </div>
 
-            {unitStatus === "error" && <p className="text-red-400 text-sm mt-2">{unitError}</p>}
+            {unitStatus === "error" && <p className="text-status-danger text-sm mt-2">{unitError}</p>}
           </section>
         )}
 
@@ -585,7 +585,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                   setSoundVolumeState(v);
                   setSoundVolume(v);
                 }}
-                className="w-64 accent-cyan-500"
+                className="w-64 accent-app-accent"
               />
             </div>
 

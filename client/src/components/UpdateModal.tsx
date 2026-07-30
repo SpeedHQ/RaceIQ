@@ -25,12 +25,12 @@ function StepIndicator({ step, current }: { step: (typeof STEPS)[number]; curren
     <div className="flex items-center gap-2">
       <div
         className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
-          isDone ? "bg-green-500 text-black" : isActive ? "bg-app-accent text-black" : "bg-app-surface-2 text-app-text-muted"
+          isDone ? "bg-status-success text-app-on-filled" : isActive ? "bg-app-accent text-app-on-filled" : "bg-app-surface-alt text-app-text-muted"
         }`}
       >
         {isDone ? "✓" : thisIdx + 1}
       </div>
-      <span className={`text-xs font-medium ${isActive ? "text-app-text" : isDone ? "text-green-400" : "text-app-text-muted"}`}>{labels[step]}</span>
+      <span className={`text-xs font-medium ${isActive ? "text-app-text" : isDone ? "text-status-success" : "text-app-text-muted"}`}>{labels[step]}</span>
     </div>
   );
 }
@@ -80,13 +80,13 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
   const isUpdating = stage !== null && stage !== "complete";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={isUpdating ? undefined : onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60 p-4" onClick={isUpdating ? undefined : onClose}>
       <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-lg border border-app-border bg-app-bg shadow-2xl" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-app-border">
           <h2 className="text-sm font-semibold text-app-text">{stage === "complete" ? m.update_title_complete() : stage ? m.update_title_updating() : m.update_title_available()}</h2>
           {!isUpdating && (
-            <button onClick={onClose} className="p-1.5 rounded hover:bg-app-surface-alt transition-colors text-app-text-muted hover:text-app-text">
+            <button onClick={onClose} className="p-1.5 rounded hover:bg-app-surface-hover transition-colors text-app-text-muted hover:text-app-text">
               <X className="size-4" />
             </button>
           )}
@@ -133,7 +133,7 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
                   );
                 })()}
               <div className="flex justify-end gap-3">
-                <Button onClick={handleInstall} className="bg-app-accent text-black hover:bg-app-accent/90">
+                <Button onClick={handleInstall} className="bg-app-accent text-app-on-filled hover:bg-app-accent-hover">
                   {m.label_install_update()}
                 </Button>
                 <Button variant="outline" onClick={onClose}>
@@ -146,9 +146,9 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
           {/* Error state */}
           {error && (
             <>
-              <p className="text-sm text-red-400">{error}</p>
+              <p className="text-sm text-status-danger">{error}</p>
               <div className="flex justify-end gap-3">
-                <Button onClick={handleInstall} className="bg-app-accent text-black hover:bg-app-accent/90">
+                <Button onClick={handleInstall} className="bg-app-accent text-app-on-filled hover:bg-app-accent-hover">
                   {m.label_retry()}
                 </Button>
                 <Button variant="outline" onClick={onClose}>
@@ -166,7 +166,7 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
                 {STEPS.map((s, i) => (
                   <div key={s} className="flex items-center">
                     <StepIndicator step={s} current={stage} />
-                    {i < STEPS.length - 1 && <div className={`w-8 h-px mx-2 ${STEPS.indexOf(stage) > i ? "bg-green-500" : "bg-app-border"}`} />}
+                    {i < STEPS.length - 1 && <div className={`w-8 h-px mx-2 ${STEPS.indexOf(stage) > i ? "bg-status-success" : "bg-app-border"}`} />}
                   </div>
                 ))}
               </div>
@@ -174,7 +174,7 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
               {/* Download progress bar */}
               {stage === "downloading" && (
                 <div className="space-y-2">
-                  <div className="h-2 rounded-full bg-app-surface-2 overflow-hidden">
+                  <div className="h-2 rounded-full bg-app-progress-track overflow-hidden">
                     <div className="h-full rounded-full bg-app-accent transition-all duration-300" style={{ width: `${percent}%` }} />
                   </div>
                   <p className="text-xs text-app-text-muted text-center">
@@ -192,7 +192,7 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
               {/* Complete */}
               {stage === "complete" && (
                 <div className="text-center space-y-2">
-                  <p className="text-sm text-green-400 font-medium">{m.updates_complete()}</p>
+                  <p className="text-sm text-status-success font-medium">{m.updates_complete()}</p>
                   <p className="text-xs text-app-text-muted">
                     {m.update_refreshing()} {countdown ?? 0}s...
                   </p>

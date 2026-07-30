@@ -77,7 +77,7 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: { laps: LapMeta
               <TD className="font-mono font-bold text-app-text/90 tabular-nums whitespace-nowrap">
                 <span className="flex items-center gap-1">
                   {formatLapTime(lap.lapTime)}
-                  <span className={`text-sm ${lap.isValid ? "text-emerald-400" : "text-red-400"}`}>{lap.isValid ? "\u2713" : "\u2717"}</span>
+                  <span className={`text-sm ${lap.isValid ? "text-status-success" : "text-status-danger"}`}>{lap.isValid ? "\u2713" : "\u2717"}</span>
                 </span>
               </TD>
 
@@ -252,7 +252,7 @@ export function HomePage() {
               <div className="game-brand-icon w-9 h-9 rounded-md border flex items-center justify-center shrink-0">
                 <GameBrandLogo gameId={gameId} className="w-6 h-6" />
               </div>
-              <div className="text-base font-bold text-white/90">{gameAdapter?.displayName ?? gameId}</div>
+              <div className="text-base font-bold text-app-text/90">{gameAdapter?.displayName ?? gameId}</div>
             </div>
           </div>
         </div>
@@ -265,7 +265,7 @@ export function HomePage() {
           <button
             type="button"
             onClick={() => openSettings("games")}
-            className="p-1.5 rounded text-app-text-muted hover:text-app-text hover:bg-app-surface-alt transition-colors"
+            className="p-1.5 rounded text-app-text-muted hover:text-app-text hover:bg-app-surface-hover transition-colors"
             title={m.home_manage_games()}
           >
             <Settings2 className="size-4" />
@@ -297,17 +297,17 @@ export function HomePage() {
                 <div className="game-brand-icon w-8 h-8 rounded-md border flex items-center justify-center shrink-0">
                   <GameBrandLogo gameId="fm-2023" />
                 </div>
-                <span className="text-sm font-bold text-white/90">Forza Motorsport</span>
+                <span className="text-sm font-bold text-app-text/90">Forza Motorsport</span>
               </div>
               {/* Stats */}
               <div className="relative flex gap-5">
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-app-text/60 mb-0.5">{m.label_laps()}</div>
                   <div className="game-brand-accent text-lg font-extrabold font-mono leading-none">{gameStats.fm.laps}</div>
                 </div>
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
-                  <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.fm.time}</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-app-text/60 mb-0.5">{m.label_time()}</div>
+                  <div className="text-lg font-extrabold font-mono leading-none text-app-text/70">{gameStats.fm.time}</div>
                 </div>
               </div>
             </Link>
@@ -333,17 +333,17 @@ export function HomePage() {
                 <div className="game-brand-icon w-8 h-8 rounded-md border flex items-center justify-center shrink-0">
                   <GameBrandLogo gameId="f1-2025" />
                 </div>
-                <span className="text-sm font-bold text-white/90">F1 2025</span>
+                <span className="text-sm font-bold text-app-text/90">F1 2025</span>
               </div>
               {/* Stats */}
               <div className="relative flex gap-5">
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-app-text/60 mb-0.5">{m.label_laps()}</div>
                   <div className="game-brand-accent text-lg font-extrabold font-mono leading-none">{gameStats.f1.laps}</div>
                 </div>
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
-                  <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.f1.time}</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-app-text/60 mb-0.5">{m.label_time()}</div>
+                  <div className="text-lg font-extrabold font-mono leading-none text-app-text/70">{gameStats.f1.time}</div>
                 </div>
               </div>
             </Link>
@@ -369,17 +369,17 @@ export function HomePage() {
                 <div className="game-brand-icon w-8 h-8 rounded-md border flex items-center justify-center shrink-0">
                   <GameBrandLogo gameId="acc" />
                 </div>
-                <span className="text-sm font-bold text-white/90">Assetto Corsa Competizione</span>
+                <span className="text-sm font-bold text-app-text/90">Assetto Corsa Competizione</span>
               </div>
               {/* Stats */}
               <div className="relative flex gap-5">
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-app-text/60 mb-0.5">{m.label_laps()}</div>
                   <div className="game-brand-accent text-lg font-extrabold font-mono leading-none">{gameStats.acc.laps}</div>
                 </div>
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
-                  <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.acc.time}</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-app-text/60 mb-0.5">{m.label_time()}</div>
+                  <div className="text-lg font-extrabold font-mono leading-none text-app-text/70">{gameStats.acc.time}</div>
                 </div>
               </div>
             </Link>
@@ -405,17 +405,17 @@ export function HomePage() {
                 <div className="game-brand-icon w-8 h-8 rounded-md border flex items-center justify-center shrink-0">
                   <GameBrandLogo gameId="ac-evo" />
                 </div>
-                <span className="text-sm font-bold text-white/90">Assetto Corsa Evo</span>
+                <span className="text-sm font-bold text-app-text/90">Assetto Corsa Evo</span>
               </div>
               {/* Stats */}
               <div className="relative flex gap-5">
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-app-text/60 mb-0.5">{m.label_laps()}</div>
                   <div className="game-brand-accent text-lg font-extrabold font-mono leading-none">{gameStats.acEvo.laps}</div>
                 </div>
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
-                  <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.acEvo.time}</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-app-text/60 mb-0.5">{m.label_time()}</div>
+                  <div className="text-lg font-extrabold font-mono leading-none text-app-text/70">{gameStats.acEvo.time}</div>
                 </div>
               </div>
             </Link>
@@ -437,16 +437,16 @@ export function HomePage() {
                 <div className="game-brand-icon w-8 h-8 rounded-md border flex items-center justify-center shrink-0">
                   <GameBrandLogo gameId="iracing" />
                 </div>
-                <span className="text-sm font-bold text-white/90">iRacing</span>
+                <span className="text-sm font-bold text-app-text/90">iRacing</span>
               </div>
               <div className="relative flex gap-5">
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_laps()}</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-app-text/60 mb-0.5">{m.label_laps()}</div>
                   <div className="game-brand-accent text-lg font-extrabold font-mono leading-none">{gameStats.iracing.laps}</div>
                 </div>
                 <div>
-                  <div className="text-[9px] uppercase tracking-[1.5px] text-white/60 mb-0.5">{m.label_time()}</div>
-                  <div className="text-lg font-extrabold font-mono leading-none text-white/70">{gameStats.iracing.time}</div>
+                  <div className="text-[9px] uppercase tracking-[1.5px] text-app-text/60 mb-0.5">{m.label_time()}</div>
+                  <div className="text-lg font-extrabold font-mono leading-none text-app-text/70">{gameStats.iracing.time}</div>
                 </div>
               </div>
             </Link>
@@ -503,7 +503,7 @@ export function HomePage() {
               <StatCard label={m.label_laps()} value={`${data.laps}`} />
               <StatCard label={m.label_tracks()} value={`${data.tracks}`} />
               <StatCard label={m.label_cars()} value={`${data.cars}`} />
-              {timeSec > 0 && <StatCard label={m.home_stat_time_driven()} value={fmtTime(timeSec)} color="text-violet-400" />}
+              {timeSec > 0 && <StatCard label={m.home_stat_time_driven()} value={fmtTime(timeSec)} color="text-app-accent" />}
             </div>
           );
         })()}

@@ -24,7 +24,7 @@ export function SetupRangeBar({
       <div className="relative h-5 mt-1 mb-0.5">
         <div className="absolute inset-x-0 top-2 h-[3px] bg-app-border-input/25 rounded-full" />
         <div className="absolute top-[5px] -translate-x-1/2 left-1/2">
-          <div className="w-2.5 h-2.5 rounded-full bg-cyan-400" />
+          <div className="w-2.5 h-2.5 rounded-full bg-app-accent" />
         </div>
       </div>
     );
@@ -61,36 +61,39 @@ export function SetupRangeBar({
         style={{
           left: `${minPct}%`,
           width: `${barWidth}%`,
-          background: `linear-gradient(to right, rgba(34,211,238,0) 0%, rgba(34,211,238,0.01) ${q1Rel * 0.6}%, rgba(34,211,238,0.06) ${q1Rel}%, rgba(34,211,238,1) ${medRel}%, rgba(34,211,238,0.06) ${q3Rel}%, rgba(34,211,238,0.01) ${100 - (100 - q3Rel) * 0.6}%, rgba(34,211,238,0) 100%)`,
+          background: `linear-gradient(to right, transparent 0%, color-mix(in srgb, var(--app-accent) 1%, transparent) ${q1Rel * 0.6}%, color-mix(in srgb, var(--app-accent) 6%, transparent) ${q1Rel}%, var(--app-accent) ${medRel}%, color-mix(in srgb, var(--app-accent) 6%, transparent) ${q3Rel}%, color-mix(in srgb, var(--app-accent) 1%, transparent) ${100 - (100 - q3Rel) * 0.6}%, transparent 100%)`,
         }}
       />
       {/* Individual setup dots — skip if at min or max */}
       {values.map((v, i) =>
         v === min || v === max ? null : (
           <div key={i} className="absolute top-[7px] -translate-x-1/2" style={{ left: `${pct(v)}%` }}>
-            <div className="w-1 h-1 rounded-full bg-white/40" />
+            <div className="w-1 h-1 rounded-full bg-app-text/40" />
           </div>
         ),
       )}
       {/* Min marker — vertical line */}
-      <div className="absolute top-0.5 -translate-x-1/2 w-[2px] h-3 bg-rose-400 rounded-full" style={{ left: `${minPct}%` }} />
+      <div className="absolute top-0.5 -translate-x-1/2 w-[2px] h-3 rounded-full" style={{ backgroundColor: "var(--setup-range-limit)", left: `${minPct}%` }} />
       {/* Max marker — vertical line */}
-      <div className="absolute top-0.5 -translate-x-1/2 w-[2px] h-3 bg-rose-400 rounded-full" style={{ left: `${maxPct}%` }} />
-      {/* Median marker (amber diamond) */}
+      <div className="absolute top-0.5 -translate-x-1/2 w-[2px] h-3 rounded-full" style={{ backgroundColor: "var(--setup-range-limit)", left: `${maxPct}%` }} />
+      {/* Median marker */}
       <div className="absolute top-[5px] -translate-x-1/2" style={{ left: `${medPct}%` }}>
-        <div className="w-2 h-2 bg-amber-400 rotate-45 rounded-[1px] ring-2 ring-black" />
+        <div className="w-2 h-2 rotate-45 rounded-[1px] ring-2 ring-app-bg" style={{ backgroundColor: "var(--setup-range-median)" }} />
       </div>
       {/* Median value label above the bar */}
       {showMedianLabel && (
-        <span className="absolute -top-2.5 -translate-x-1/2 text-[10px] font-mono leading-none text-amber-400 whitespace-nowrap" style={{ left: `${medPct}%` }}>
+        <span className="absolute -top-2.5 -translate-x-1/2 text-[10px] font-mono leading-none whitespace-nowrap" style={{ color: "var(--setup-range-median)", left: `${medPct}%` }}>
           {Math.round(median)}
         </span>
       )}
       {/* Selected setup — arrow pointing up + value label beneath the bar */}
       {selected != null && (
         <div className="absolute top-[16px] -translate-x-1/2 z-10 flex flex-col items-center" style={{ left: `${pct(selected)}%` }}>
-          <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[6px] border-l-transparent border-r-transparent border-b-emerald-400" />
-          <span className="text-[11px] font-mono font-bold text-emerald-400 leading-none mt-0.5 whitespace-nowrap">
+          <div
+            className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[6px] border-l-transparent border-r-transparent"
+            style={{ borderBottomColor: "var(--setup-range-selected)" }}
+          />
+          <span className="text-[11px] font-mono font-bold leading-none mt-0.5 whitespace-nowrap" style={{ color: "var(--setup-range-selected)" }}>
             {selected}
             {unit ?? ""}
           </span>

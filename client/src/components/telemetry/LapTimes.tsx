@@ -18,7 +18,7 @@ export function LapTimes({ packet, sectors }: LapTimesProps) {
     deltaToBest = packet.LastLap - packet.BestLap;
   }
 
-  const deltaColor = deltaToBest <= 0 ? "text-emerald-400" : deltaToBest < 1 ? "text-orange-400" : "text-red-400";
+  const deltaColor = deltaToBest <= 0 ? "text-(--delta-gain)" : deltaToBest < 1 ? "text-(--delta-focus)" : "text-(--delta-loss)";
 
   return (
     <div className="space-y-1">
@@ -45,7 +45,7 @@ export function LapTimes({ packet, sectors }: LapTimesProps) {
         </div>
         <div className="w-fit">
           <div className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.label_best()}</div>
-          <div className="text-xl font-mono font-bold text-purple-400 tabular-nums leading-none">{formatLapTime(packet.BestLap)}</div>
+        <div className="text-xl font-mono font-bold text-(--lap-pace-best) tabular-nums leading-none">{formatLapTime(packet.BestLap)}</div>
         </div>
       </div>
     </div>

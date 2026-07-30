@@ -68,27 +68,27 @@ export function GgScatter({ traces, bestLapId, cursorFrac }: GgScatterProps) {
     <div ref={wrapRef} className="space-y-1">
       <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">G-G friction circle (lat vs long)</div>
       <svg viewBox={`0 0 ${bw} ${H}`} width="100%" height={H}>
-        <rect x={0} y={0} width={bw} height={H} fill="rgba(30,41,59,0.35)" rx={4} />
+        <rect x={0} y={0} width={bw} height={H} fill="var(--app-surface-alt)" fillOpacity={0.35} rx={4} />
         {RINGS.map((g) => (
-          <circle key={g} cx={cx} cy={cy} r={g * r} fill="none" stroke="var(--color-app-border, #2a2a2a)" strokeDasharray="2 4" />
+          <circle key={g} cx={cx} cy={cy} r={g * r} fill="none" stroke="var(--app-border)" strokeDasharray="2 4" />
         ))}
         {RINGS.map((g) => (
-          <text key={`label-${g}`} x={cx + g * r + 2} y={cy - 2} fontSize={9} fill="var(--color-app-text-dim, #7a8ea0)">
+          <text key={`label-${g}`} x={cx + g * r + 2} y={cy - 2} fontSize={9} fill="var(--app-text-dim)">
             {g}g
           </text>
         ))}
-        <line x1={0} x2={bw} y1={cy} y2={cy} stroke="var(--color-app-border, #2a2a2a)" strokeWidth={1} />
-        <line x1={cx} x2={cx} y1={0} y2={H} stroke="var(--color-app-border, #2a2a2a)" strokeWidth={1} />
-        <text x={bw - 30} y={cy - 4} fontSize={9} fill="var(--color-app-text-dim, #7a8ea0)">
+        <line x1={0} x2={bw} y1={cy} y2={cy} stroke="var(--app-border)" strokeWidth={1} />
+        <line x1={cx} x2={cx} y1={0} y2={H} stroke="var(--app-border)" strokeWidth={1} />
+        <text x={bw - 30} y={cy - 4} fontSize={9} fill="var(--app-text-dim)">
           right
         </text>
-        <text x={4} y={cy - 4} fontSize={9} fill="var(--color-app-text-dim, #7a8ea0)">
+        <text x={4} y={cy - 4} fontSize={9} fill="var(--app-text-dim)">
           left
         </text>
-        <text x={cx + 4} y={12} fontSize={9} fill="var(--color-app-text-dim, #7a8ea0)">
+        <text x={cx + 4} y={12} fontSize={9} fill="var(--app-text-dim)">
           accel
         </text>
-        <text x={cx + 4} y={H - 4} fontSize={9} fill="var(--color-app-text-dim, #7a8ea0)">
+        <text x={cx + 4} y={H - 4} fontSize={9} fill="var(--app-text-dim)">
           brake
         </text>
 
@@ -97,7 +97,7 @@ export function GgScatter({ traces, bestLapId, cursorFrac }: GgScatterProps) {
           .map((t) => (
             <g key={t.lapId} opacity={t.isValid ? 0.3 : 0.45}>
               {Array.from({ length: t.n }, (_, i) => (
-                <circle key={i} cx={px(t.latG![i])} cy={py(t.longG![i])} r={1.1} fill={t.isValid ? "var(--color-app-text-dim, #7a8ea0)" : "var(--color-dynamics-red, #ef4444)"} />
+                <circle key={i} cx={px(t.latG![i])} cy={py(t.longG![i])} r={1.1} fill={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"} />
               ))}
             </g>
           ))}
@@ -106,7 +106,7 @@ export function GgScatter({ traces, bestLapId, cursorFrac }: GgScatterProps) {
           .map((t) => (
             <g key={t.lapId} opacity={0.85}>
               {Array.from({ length: t.n }, (_, i) => (
-                <circle key={i} cx={px(t.latG![i])} cy={py(t.longG![i])} r={1.3} fill="var(--color-app-accent, #22d3ee)" />
+                <circle key={i} cx={px(t.latG![i])} cy={py(t.longG![i])} r={1.3} fill="var(--app-accent)" />
               ))}
             </g>
           ))}
@@ -121,7 +121,7 @@ export function GgScatter({ traces, bestLapId, cursorFrac }: GgScatterProps) {
                 cy={py(t.longG![idx])}
                 r={4}
                 fill="none"
-                stroke={t.lapId === bestLapId ? "var(--color-app-accent, #22d3ee)" : "#fff"}
+                stroke={t.lapId === bestLapId ? "var(--app-accent)" : "var(--app-text)"}
                 strokeWidth={1.5}
               />
             );

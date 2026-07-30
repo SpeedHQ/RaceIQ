@@ -63,11 +63,11 @@ function FuelCell({ min, avg, max, domain }: { min: number; avg: number; max: nu
   const [lo, hi] = domain;
   const span = hi - lo || 1;
   const pct = (v: number) => Math.min(100, Math.max(0, ((v - lo) / span) * 100));
-  const color = "#22d3ee";
+  const color = "var(--app-accent)";
   return (
     <div className="flex items-end justify-between gap-1">
       <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
-        <div className="relative w-full max-w-[15px] rounded bg-app-panel border border-app-border" style={{ height: 64 }}>
+        <div className="relative w-full max-w-[15px] rounded bg-app-progress-track border border-app-border" style={{ height: 64 }}>
           <div className="absolute left-0 right-0 rounded opacity-30" style={{ background: color, bottom: `${pct(min)}%`, top: `${100 - pct(max)}%` }} />
           <div className="absolute left-[-2px] right-[-2px] h-[2px]" style={{ background: color, bottom: `${pct(avg)}%` }} />
         </div>

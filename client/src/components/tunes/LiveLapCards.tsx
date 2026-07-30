@@ -37,11 +37,19 @@ export function LiveLapCards({ laps, trackOrdinal, sectors, currentLapNumber, ma
         sorted.map((l) => {
           const delta = l.lapTime - best;
           const isBest = delta === 0;
-          const timeColor = !l.isValid ? "text-red-400" : isBest ? "text-purple-400" : delta < 0.5 ? "text-emerald-400" : delta < 1.5 ? "text-app-text" : "text-orange-400";
+          const timeColor = !l.isValid
+            ? "text-status-danger"
+            : isBest
+              ? "text-(--lap-pace-best)"
+              : delta < 0.5
+                ? "text-(--lap-pace-on-target)"
+                : delta < 1.5
+                  ? "text-app-text"
+                  : "text-(--lap-pace-off-target)";
           return (
             <div key={l.id} className="shrink-0 w-24 rounded border border-app-border bg-app-surface-alt/40 px-2.5 py-1.5" title={!l.isValid ? (l.invalidReason ?? "invalid") : undefined}>
               <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-app-text-muted">
-                {!l.isValid && <span className="text-red-400 leading-none">✕</span>}
+                {!l.isValid && <span className="text-status-danger leading-none">✕</span>}
                 Lap {l.lapNumber}
               </div>
               <div className={`text-sm font-mono font-bold tabular-nums mt-0.5 ${timeColor}`}>{formatLapTime(l.lapTime)}</div>

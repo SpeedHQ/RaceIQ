@@ -103,7 +103,7 @@ function SectionCard({
       <button type="button" onClick={() => setOpen((o) => !o)} className="w-full flex items-center justify-between px-3 py-2 text-left">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-app-text">{section.label}</span>
-          <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded ${hasData ? "bg-emerald-500/20 text-emerald-400" : "bg-app-bg text-app-text-muted"}`}>
+          <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded ${hasData ? "bg-status-success/20 text-status-success" : "bg-app-bg text-app-text-muted"}`}>
             {hasData ? "set" : "—"}
           </span>
         </div>
@@ -158,11 +158,11 @@ export function FillForm({ sections, settings, onChange }: { sections: SectionDe
               aria-selected={i === active}
               onClick={() => setActive(i)}
               className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                i === active ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text hover:bg-app-bg"
+                i === active ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text hover:bg-app-surface-hover"
               }`}
             >
               {t.label}
-              {hasData && <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 align-middle" />}
+              {hasData && <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-status-success align-middle" />}
             </button>
           );
         })}

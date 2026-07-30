@@ -11,7 +11,7 @@ export function TuneViewModal({ tuneId, onClose }: { tuneId: number; onClose: ()
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60" onClick={onClose}>
       <div className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[600px] max-h-[80vh] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
         {isLoading ? (
           <p className="text-app-text-muted text-sm">{m.tuneview_loading()}</p>
@@ -33,7 +33,7 @@ export function TuneViewModal({ tuneId, onClose }: { tuneId: number; onClose: ()
               </Button>
             </div>
 
-            {tune.category && <span className="inline-block px-2 py-0.5 text-xs rounded mb-3 bg-cyan-900/30 text-app-accent">{tune.category}</span>}
+            {tune.category && <span className="inline-block px-2 py-0.5 text-xs rounded mb-3 bg-app-accent/15 text-app-accent">{tune.category}</span>}
 
             {tune.description && <p className="text-sm text-app-text-muted mb-4">{tune.description}</p>}
 

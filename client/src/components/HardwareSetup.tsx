@@ -172,7 +172,7 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
               </svg>
             </button>
             <h1 className="text-app-title font-bold text-app-text">{m.hw_setup_title()}</h1>
-            <span className="text-app-unit font-semibold uppercase px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400">{profile.wheelBase.maxTorque}</span>
+          <span className="text-app-unit font-semibold uppercase px-1.5 py-0.5 rounded bg-app-accent/20 text-app-accent">{profile.wheelBase.maxTorque}</span>
           </div>
           <p className="text-app-subtext text-app-text-muted">{profile.description}</p>
         </div>

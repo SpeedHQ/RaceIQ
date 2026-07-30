@@ -83,7 +83,7 @@ function reportPreviousCrash(): void {
     const heap = localStorage.getItem(LAST_HEAP_KEY);
     const gpu = localStorage.getItem(LAST_GPU_KEY);
     if (err || rej || heap || gpu) {
-      console.group("%c[RaceIQ] Crash diagnostics from previous session", "color:#f59e0b;font-weight:bold");
+      console.group("[RaceIQ] Crash diagnostics from previous session");
       if (err) console.warn("last error:", JSON.parse(err));
       if (rej) console.warn("last rejection:", JSON.parse(rej));
       if (heap) console.warn("last heap sample (before tab died):", JSON.parse(heap));

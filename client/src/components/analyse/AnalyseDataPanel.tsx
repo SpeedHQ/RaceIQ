@@ -145,7 +145,7 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
           <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-0 font-semibold">{m.analyse_metrics_at_cursor()}</h3>
           {currentPacket && (
             <button type="button" onClick={handleCopyValues} title={m.analyse_copy_values_tooltip()} className="text-app-text-muted hover:text-app-text transition-colors">
-              {copied ? <Check className="size-3.5 text-green-400" /> : <Copy className="size-3.5" />}
+              {copied ? <Check className="size-3.5 text-status-success" /> : <Copy className="size-3.5" />}
             </button>
           )}
         </div>

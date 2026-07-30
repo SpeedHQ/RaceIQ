@@ -19,6 +19,19 @@
   --brand-game-f1-surface-mid: #1a0808;
   --brand-game-f1-surface-end: #2d0a0a;
   --brand-game-f1-logo-filter: brightness(0) saturate(100%) invert(28%) sepia(67%) saturate(5839%) hue-rotate(350deg) brightness(100%) contrast(107%);
+  --brand-f1-compound-soft: #dc2626;
+  --brand-f1-compound-soft-contrast: #ffffff;
+  --brand-f1-compound-medium: #eab308;
+  --brand-f1-compound-medium-contrast: #000000;
+  --brand-f1-compound-hard: #ffffff;
+  --brand-f1-compound-hard-contrast: #000000;
+  --brand-f1-compound-inter: #22c55e;
+  --brand-f1-compound-inter-contrast: #ffffff;
+  --brand-f1-compound-wet: #3b82f6;
+  --brand-f1-compound-wet-contrast: #ffffff;
+  --brand-provider-f1laps: #3b82f6;
+  --brand-provider-simracingsetup: #ef4444;
+  --brand-provider-youtube: #ef4444;
 
   --brand-game-acc: #ff8c00;
   --brand-game-acc-surface-start: #0e0a04;
@@ -221,4 +234,61 @@
   color: var(--brand-color);
   background: color-mix(in srgb, var(--brand-color) 12.5%, transparent);
   border-color: color-mix(in srgb, var(--brand-color) 25%, transparent);
+}
+
+[data-tire-compound="soft"] {
+  --brand-tire-compound: var(--brand-f1-compound-soft);
+  --brand-tire-compound-contrast: var(--brand-f1-compound-soft-contrast);
+}
+
+[data-tire-compound="medium"] {
+  --brand-tire-compound: var(--brand-f1-compound-medium);
+  --brand-tire-compound-contrast: var(--brand-f1-compound-medium-contrast);
+}
+
+[data-tire-compound="hard"] {
+  --brand-tire-compound: var(--brand-f1-compound-hard);
+  --brand-tire-compound-contrast: var(--brand-f1-compound-hard-contrast);
+}
+
+[data-tire-compound="inter"] {
+  --brand-tire-compound: var(--brand-f1-compound-inter);
+  --brand-tire-compound-contrast: var(--brand-f1-compound-inter-contrast);
+}
+
+[data-tire-compound="wet"] {
+  --brand-tire-compound: var(--brand-f1-compound-wet);
+  --brand-tire-compound-contrast: var(--brand-f1-compound-wet-contrast);
+}
+
+.tire-compound-badge {
+  color: var(--brand-tire-compound-contrast, var(--app-text-muted));
+  background: var(--brand-tire-compound, var(--app-surface-alt));
+}
+
+.tire-compound-dot {
+  background: var(--brand-tire-compound, var(--app-text-dim));
+}
+
+.tire-compound-wheel {
+  color: var(--brand-tire-compound-contrast, var(--app-text-muted));
+  background: var(--brand-tire-compound, var(--app-surface-alt));
+  border-color: var(--brand-tire-compound, var(--app-border-input));
+}
+
+.provider-badge[data-provider-brand="f1laps"] {
+  --brand-provider: var(--brand-provider-f1laps);
+}
+
+.provider-badge[data-provider-brand="simracingsetup"] {
+  --brand-provider: var(--brand-provider-simracingsetup);
+}
+
+.provider-badge[data-provider-brand="youtube"] {
+  --brand-provider: var(--brand-provider-youtube);
+}
+
+.provider-badge {
+  color: var(--brand-provider, var(--app-text-dim));
+  background: color-mix(in srgb, var(--brand-provider, var(--app-text-dim)) 20%, transparent);
 }

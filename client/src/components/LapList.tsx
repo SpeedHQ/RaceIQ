@@ -68,9 +68,9 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
   // Color: purple = best, green = on/above pace, yellow = off pace
   function sectorColor(time: number, best: number, avg: number): string {
     if (best === Infinity || time <= 0) return "text-app-text-secondary";
-    if (time <= best * 1.001) return "text-purple-400"; // best
-    if (time <= avg) return "text-emerald-400"; // on pace
-    return "text-orange-400"; // off pace
+    if (time <= best * 1.001) return "text-(--lap-pace-best)"; // best
+    if (time <= avg) return "text-(--lap-pace-on-target)"; // on pace
+    return "text-(--lap-pace-off-target)"; // off pace
   }
 
   return (
@@ -99,9 +99,11 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
           {sortedLaps.map((lap) => {
             const hasSectors = lap.sectorTimes?.length === sectorCount && lap.sectorTimes.every((time) => time > 0);
             return (
-              <tr key={lap.id} className="border-b border-app-border/50 hover:bg-app-surface-alt/30">
+              <tr key={lap.id} className="border-b border-app-border/50 hover:bg-app-surface-hover/30">
                 <td className="p-2 font-mono text-app-text">{lap.lapNumber}</td>
-                <td className={`p-2 font-mono font-bold ${lap.isValid && lap.lapTime === bestLapTime ? "text-purple-400" : "text-app-text"}`}>{formatLapTime(lap.lapTime)}</td>
+                <td className={`p-2 font-mono font-bold ${lap.isValid && lap.lapTime === bestLapTime ? "text-(--lap-pace-best)" : "text-app-text"}`}>
+                  {formatLapTime(lap.lapTime)}
+                </td>
                 {sectorLabels.map((label, index) => {
                   const time = lap.sectorTimes?.[index] ?? 0;
                   return (
@@ -112,9 +114,9 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
                 })}
                 <td className="p-2 text-center">
                   {lap.isValid ? (
-                    <span className="text-emerald-400">&#10003;</span>
+                    <span className="text-status-success">&#10003;</span>
                   ) : (
-                    <span className="text-red-400 cursor-help" title={lap.invalidReason || m.laps_invalid()}>
+                    <span className="text-status-danger cursor-help" title={lap.invalidReason || m.laps_invalid()}>
                       &#10007;
                     </span>
                   )}
@@ -124,7 +126,7 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
                     <Button
                       variant="app-outline"
                       size="app-sm"
-                      className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
+                      className="bg-app-accent/15 !border-app-accent/40 text-app-accent hover:bg-app-accent/25"
                       onClick={() => {
                         const prefix = gameRoute;
                         navigate({
@@ -139,7 +141,7 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
                     >
                       {m.label_analyse()}
                     </Button>
-                    <Button variant="app-ghost" size="app-sm" className="hover:text-red-400" onClick={() => deleteLap.mutate(lap.id)}>
+                    <Button variant="app-ghost" size="app-sm" className="hover:text-status-danger" onClick={() => deleteLap.mutate(lap.id)}>
                       {m.common_delete()}
                     </Button>
                   </div>

@@ -10,6 +10,7 @@ import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { SearchMultiSelect } from "@/components/ui/SearchMultiSelect";
 import { useBulkDeleteLaps } from "@/hooks/queries";
 import { drawTrack } from "@/lib/canvas/draw-track";
+import { SECTOR_COLOR_VARS, VISUALIZATION_COLOR_VARS } from "@/lib/colors";
 import { countryName } from "@/lib/country-names";
 import { isDevelopment } from "@/lib/env";
 import { formatLapTime } from "@/lib/format";
@@ -40,6 +41,21 @@ interface TrackLap {
   invalidReason?: string | null;
   division?: string | null;
   notes?: string | null;
+}
+
+const CAR_CLASS_ORDER = ["X", "P", "R", "S", "A", "B", "C", "D", "E"] as const;
+
+function carClassColor(carClass: string): string {
+  const index = CAR_CLASS_ORDER.indexOf(carClass as (typeof CAR_CLASS_ORDER)[number]);
+  return index < 0 ? "var(--app-text-secondary)" : VISUALIZATION_COLOR_VARS[index % VISUALIZATION_COLOR_VARS.length];
+}
+
+function rangeBandGradient(p25Pct: number, p75Pct: number, baseOpacity: number, edgeOpacity: number, centerOpacity: number): string {
+  const midpoint = (p25Pct + p75Pct) / 2;
+  const fadedText = `color-mix(in srgb, var(--app-text) ${baseOpacity}%, transparent)`;
+  const bandEdge = `color-mix(in srgb, var(--lap-pace-on-target) ${edgeOpacity}%, transparent)`;
+  const bandCenter = `color-mix(in srgb, var(--lap-pace-on-target) ${centerOpacity}%, transparent)`;
+  return `linear-gradient(to right, ${fadedText} 0%, ${fadedText} ${p25Pct}%, ${bandEdge} ${p25Pct}%, ${bandCenter} ${midpoint}%, ${bandEdge} ${p75Pct}%, ${fadedText} ${p75Pct}%, ${fadedText} 100%)`;
 }
 
 function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLap[]; sectorCount: number; showSessionFilter?: boolean }) {
@@ -108,6 +124,7 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
   const trendDelta = avgLast - avgFirst; // negative = getting faster
   const trendThreshold = avgFirst * 0.005; // 0.5% of avg lap time
   const trendDir = chronoLaps.length >= 4 ? (trendDelta < -trendThreshold ? "faster" : trendDelta > trendThreshold ? "slower" : "neutral") : "neutral";
+  const trendStroke = trendDir === "faster" ? "var(--lap-pace-on-target)" : trendDir === "slower" ? "var(--lap-pace-off-target)" : "var(--app-text)";
 
   const vbW = 400;
   const vbH = 120;
@@ -221,8 +238,8 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
                   className={`px-2 py-1 transition-colors capitalize ${
                     lapFilter === f
                       ? f === "race"
-                        ? "bg-emerald-900/60 text-emerald-400 border-r border-app-border"
-                        : "bg-amber-900/60 text-amber-400"
+                        ? "bg-status-success/15 text-status-success border-r border-app-border"
+                        : "bg-status-warning/15 text-status-warning"
                       : `text-app-text-dim hover:text-app-text-secondary${f === "race" ? " border-r border-app-border" : ""}`
                   }`}
                 >
@@ -238,13 +255,15 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
       <div className="flex-1 md:overflow-y-auto p-3 flex flex-col gap-3">
         <div className="flex flex-wrap gap-x-4 gap-y-1">
           {[
-            { key: "best", label: m.label_best(), value: minT, color: "text-purple-400" },
-            { key: "median", label: m.track_detail_median(), value: medT, color: "text-app-text" },
-            { key: "worst", label: m.track_detail_worst(), value: maxT, color: "text-app-text" },
+            { key: "best", label: m.label_best(), value: minT, color: "var(--lap-record)" },
+            { key: "median", label: m.track_detail_median(), value: medT, color: "var(--app-text)" },
+            { key: "worst", label: m.track_detail_worst(), value: maxT, color: "var(--app-text)" },
           ].map(({ key, label, value, color }) => (
             <div key={key} className="flex items-baseline gap-1.5">
               <div className="text-xs text-app-text-dim uppercase tracking-wider">{label}</div>
-              <div className={`font-mono text-app-body tabular-nums ${color}`}>{formatLapTime(value)}</div>
+              <div className="font-mono text-app-body tabular-nums" style={{ color }}>
+                {formatLapTime(value)}
+              </div>
             </div>
           ))}
         </div>
@@ -254,15 +273,15 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
             <div
               className="absolute inset-0 rounded-full"
               style={{
-                background: `linear-gradient(to right, rgb(255 255 255 / 0.08) 0%, rgb(255 255 255 / 0.08) ${p25Pct}%, rgb(52 211 153 / 0.25) ${p25Pct}%, rgb(52 211 153 / 0.65) ${(p25Pct + p75Pct) / 2}%, rgb(52 211 153 / 0.25) ${p75Pct}%, rgb(255 255 255 / 0.08) ${p75Pct}%, rgb(255 255 255 / 0.08) 100%)`,
+                background: rangeBandGradient(p25Pct, p75Pct, 8, 25, 65),
               }}
             />
-            <div className="absolute top-1/2 -translate-y-1/2 w-2 h-3 bg-white/80 rounded-sm shadow" style={{ left: `calc(${medPct}% - 4px)` }} />
+            <div className="absolute top-1/2 -translate-y-1/2 w-2 h-3 rounded-sm shadow" style={{ left: `calc(${medPct}% - 4px)`, background: "var(--app-text)", opacity: 0.8 }} />
           </div>
           <div className="flex justify-between items-center text-[11px] text-app-text-secondary font-mono">
             <span>{formatLapTime(minT)}</span>
             <span className="flex items-center gap-1 text-[10px] text-app-text-dim font-sans">
-              <span className="inline-block w-2.5 h-1.5 rounded-sm bg-emerald-300/70" />
+              <span className="inline-block w-2.5 h-1.5 rounded-sm" style={{ background: "var(--lap-pace-on-target)", opacity: 0.7 }} />
               {m.track_detail_typical_range()}
             </span>
             <span>{formatLapTime(maxT)}</span>
@@ -273,8 +292,16 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
           <div className="flex flex-col gap-0.5 border-t border-app-border pt-2.5">
             <div className="flex items-center gap-1.5 mb-1">
               <div className="text-xs text-app-text-dim uppercase tracking-wider">{m.trackdetail_trend()}</div>
-              {trendDir === "faster" && <span className="text-xs text-emerald-400 font-medium">↓ {m.trackdetail_faster()}</span>}
-              {trendDir === "slower" && <span className="text-xs text-red-400 font-medium">↑ {m.trackdetail_slower()}</span>}
+              {trendDir === "faster" && (
+                <span className="text-xs font-medium" style={{ color: "var(--lap-pace-on-target)" }}>
+                  ↓ {m.trackdetail_faster()}
+                </span>
+              )}
+              {trendDir === "slower" && (
+                <span className="text-xs font-medium" style={{ color: "var(--lap-pace-off-target)" }}>
+                  ↑ {m.trackdetail_slower()}
+                </span>
+              )}
               {trendDir === "neutral" && chronoLaps.length >= 4 && <span className="text-xs text-app-text-secondary font-medium">→ {m.trackdetail_keeping_pace()}</span>}
             </div>
             <div className="relative">
@@ -300,23 +327,23 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
               >
                 <defs>
                   <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={trendDir === "faster" ? "rgb(52 211 153)" : trendDir === "slower" ? "rgb(248 113 113)" : "rgb(255 255 255)"} stopOpacity="0.15" />
-                    <stop offset="100%" stopColor={trendDir === "faster" ? "rgb(52 211 153)" : trendDir === "slower" ? "rgb(248 113 113)" : "rgb(255 255 255)"} stopOpacity="0" />
+                    <stop offset="0%" stopColor={trendStroke} stopOpacity="0.15" />
+                    <stop offset="100%" stopColor={trendStroke} stopOpacity="0" />
                   </linearGradient>
                 </defs>
                 {/* Grid lines */}
-                <line x1={padL} y1={padT} x2={padL + plotW} y2={padT} stroke="rgb(255 255 255 / 0.06)" strokeWidth="0.5" />
-                <line x1={padL} y1={padT + plotH} x2={padL + plotW} y2={padT + plotH} stroke="rgb(255 255 255 / 0.06)" strokeWidth="0.5" />
+                <line x1={padL} y1={padT} x2={padL + plotW} y2={padT} stroke="var(--app-text)" strokeOpacity={0.06} strokeWidth="0.5" />
+                <line x1={padL} y1={padT + plotH} x2={padL + plotW} y2={padT + plotH} stroke="var(--app-text)" strokeOpacity={0.06} strokeWidth="0.5" />
                 {/* Axis lines */}
-                <line x1={padL} y1={padT} x2={padL} y2={padT + plotH} stroke="rgb(255 255 255 / 0.08)" strokeWidth="0.5" />
-                <line x1={padL} y1={padT + plotH} x2={padL + plotW} y2={padT + plotH} stroke="rgb(255 255 255 / 0.08)" strokeWidth="0.5" />
+                <line x1={padL} y1={padT} x2={padL} y2={padT + plotH} stroke="var(--app-text)" strokeOpacity={0.08} strokeWidth="0.5" />
+                <line x1={padL} y1={padT + plotH} x2={padL + plotW} y2={padT + plotH} stroke="var(--app-text)" strokeOpacity={0.08} strokeWidth="0.5" />
                 {/* Area fill */}
                 <polygon points={`${polyline} ${(padL + plotW).toFixed(1)},${(padT + plotH).toFixed(1)} ${padL},${(padT + plotH).toFixed(1)}`} fill="url(#areaFill)" />
                 {/* Axis labels */}
-                <text x={padL} y={vbH - 2} fontSize="8" fill="rgb(255 255 255 / 0.3)" fontFamily="sans-serif">
+                <text x={padL} y={vbH - 2} fontSize="8" fill="var(--app-text)" fillOpacity={0.3} fontFamily="sans-serif">
                   {m.trackdetail_older()}
                 </text>
-                <text x={padL + plotW - 30} y={vbH - 2} fontSize="8" fill="rgb(255 255 255 / 0.3)" fontFamily="sans-serif">
+                <text x={padL + plotW - 30} y={vbH - 2} fontSize="8" fill="var(--app-text)" fillOpacity={0.3} fontFamily="sans-serif">
                   {lastDate}
                 </text>
                 {/* Trend line */}
@@ -325,12 +352,13 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
                   y1={trendY1.toFixed(1)}
                   x2={trendX2.toFixed(1)}
                   y2={trendY2.toFixed(1)}
-                  stroke={trendDir === "faster" ? "rgb(52 211 153 / 0.6)" : trendDir === "slower" ? "rgb(248 113 113 / 0.6)" : "rgb(255 255 255 / 0.2)"}
+                  stroke={trendStroke}
+                  strokeOpacity={trendDir === "neutral" ? 0.2 : 0.6}
                   strokeWidth="1"
                   strokeDasharray="3 2"
                 />
                 {/* Sparkline */}
-                <polyline points={polyline} fill="none" stroke="rgb(192 132 252 / 0.5)" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+                <polyline points={polyline} fill="none" stroke="var(--lap-record)" strokeOpacity={0.5} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
                 {/* Visible dots */}
                 {sparkPoints.map((p, i) => (
                   <circle
@@ -338,18 +366,20 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
                     cx={p.x}
                     cy={p.y}
                     r={hoveredIdx === i ? 3 : 1.5}
-                    fill={hoveredIdx === i ? "rgb(255 255 255)" : "rgb(192 132 252 / 0.4)"}
+                    fill={hoveredIdx === i ? "var(--app-text)" : "var(--lap-record)"}
+                    fillOpacity={hoveredIdx === i ? 1 : 0.4}
                     style={{ pointerEvents: "none" }}
                   />
                 ))}
                 {/* Worst point */}
-                <circle cx={worstPoint.x} cy={worstPoint.y} r="4" fill="rgb(248 113 113 / 0.7)" style={{ pointerEvents: "none" }} />
-                <line x1={worstPoint.x} y1={worstPoint.y - 4} x2={worstPoint.x} y2={worstPoint.y - 14} stroke="rgb(248 113 113 / 0.5)" strokeWidth="0.5" />
+                <circle cx={worstPoint.x} cy={worstPoint.y} r="4" fill="var(--lap-pace-off-target)" fillOpacity={0.7} style={{ pointerEvents: "none" }} />
+                <line x1={worstPoint.x} y1={worstPoint.y - 4} x2={worstPoint.x} y2={worstPoint.y - 14} stroke="var(--lap-pace-off-target)" strokeOpacity={0.5} strokeWidth="0.5" />
                 <text
                   x={worstPoint.x > vbW / 2 ? worstPoint.x - 4 : worstPoint.x + 4}
                   y={worstPoint.y - 16}
                   fontSize="8"
-                  fill="rgb(248 113 113 / 0.8)"
+                  fill="var(--lap-pace-off-target)"
+                  fillOpacity={0.8}
                   fontFamily="sans-serif"
                   textAnchor={worstPoint.x > vbW / 2 ? "end" : "start"}
                   style={{ pointerEvents: "none" }}
@@ -357,13 +387,13 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
                   {m.trackdetail_worst_point()}
                 </text>
                 {/* Best point + callout */}
-                <circle cx={bestPoint.x} cy={bestPoint.y} r="4" fill="rgb(192 132 252)" style={{ pointerEvents: "none" }} />
-                <line x1={bestPoint.x} y1={bestPoint.y - 4} x2={bestPoint.x} y2={bestPoint.y - 14} stroke="rgb(192 132 252 / 0.5)" strokeWidth="0.5" />
+                <circle cx={bestPoint.x} cy={bestPoint.y} r="4" fill="var(--lap-record)" style={{ pointerEvents: "none" }} />
+                <line x1={bestPoint.x} y1={bestPoint.y - 4} x2={bestPoint.x} y2={bestPoint.y - 14} stroke="var(--lap-record)" strokeOpacity={0.5} strokeWidth="0.5" />
                 <text
                   x={bestPoint.x > vbW / 2 ? bestPoint.x - 4 : bestPoint.x + 4}
                   y={bestPoint.y - 16}
                   fontSize="8"
-                  fill="rgb(192 132 252)"
+                  fill="var(--lap-record)"
                   fontFamily="sans-serif"
                   textAnchor={bestPoint.x > vbW / 2 ? "end" : "start"}
                   style={{ pointerEvents: "none" }}
@@ -377,7 +407,8 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
                     y1={padT}
                     x2={sparkPoints[hoveredIdx].x}
                     y2={padT + plotH}
-                    stroke="rgb(255 255 255 / 0.15)"
+                    stroke="var(--app-text)"
+                    strokeOpacity={0.15}
                     strokeWidth="0.5"
                     strokeDasharray="2 2"
                     style={{ pointerEvents: "none" }}
@@ -399,7 +430,7 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
                         transform: "translate(-50%, -120%)",
                       }}
                     >
-                      <div className="text-purple-400">{formatLapTime(lap.lapTime)}</div>
+                      <div style={{ color: "var(--lap-record)" }}>{formatLapTime(lap.lapTime)}</div>
                       {lap.createdAt && <div className="text-app-text-dim">{new Date(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}</div>}
                     </div>
                   );
@@ -418,11 +449,11 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
               </div>
               {theoretical != null && (
                 <div className="flex items-baseline gap-2 text-[11px] font-mono tabular-nums">
-                  <span className="text-cyan-400">{formatLapTime(theoretical)}</span>
+                  <span style={{ color: "var(--app-accent)" }}>{formatLapTime(theoretical)}</span>
                   {sectorGap != null && sectorGap > 0.001 && (
                     <>
                       <span className="text-app-text-dim">·</span>
-                      <span className="text-amber-400">+{formatLapTime(sectorGap)}</span>
+                      <span style={{ color: "var(--delta-focus)" }}>+{formatLapTime(sectorGap)}</span>
                     </>
                   )}
                 </div>
@@ -443,7 +474,9 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
                           {pctOfTheoretical && <span className="text-[10px] text-app-text-muted">{pctOfTheoretical}%</span>}
                           {isWorstVariance && (
                             <span className="group/tip relative inline-flex items-center shrink-0 cursor-help">
-                              <span className="text-[9px] text-amber-400/80">↔</span>
+                              <span className="text-[9px]" style={{ color: "var(--status-warning)", opacity: 0.8 }}>
+                                ↔
+                              </span>
                               <span className="absolute left-0 top-full mt-2 w-max max-w-[200px] hidden group-hover/tip:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-[10px] text-app-text-secondary z-50 pointer-events-none leading-relaxed">
                                 {m.trackdetail_most_variance_tooltip()}
                               </span>
@@ -451,7 +484,7 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
                           )}
                         </div>
                         <div className="flex items-baseline gap-2 text-[11px] font-mono tabular-nums">
-                          <span className="text-purple-400">{formatLapTime(min)}</span>
+                          <span style={{ color: "var(--lap-record)" }}>{formatLapTime(min)}</span>
                           <span className="text-app-text-dim">·</span>
                           <span className="text-app-text-secondary">{formatLapTime(med)}</span>
                           <span className="text-app-text-dim">·</span>
@@ -462,10 +495,10 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
                         <div
                           className="absolute inset-0 rounded-full"
                           style={{
-                            background: `linear-gradient(to right, rgb(255 255 255 / 0.06) 0%, rgb(255 255 255 / 0.06) ${p25Pct}%, rgb(52 211 153 / 0.2) ${p25Pct}%, rgb(52 211 153 / 0.55) ${(p25Pct + p75Pct) / 2}%, rgb(52 211 153 / 0.2) ${p75Pct}%, rgb(255 255 255 / 0.06) ${p75Pct}%, rgb(255 255 255 / 0.06) 100%)`,
+                            background: rangeBandGradient(p25Pct, p75Pct, 6, 20, 55),
                           }}
                         />
-                        <div className="absolute top-1/2 -translate-y-1/2 w-1.5 h-2.5 bg-white/70 rounded-sm shadow" style={{ left: `calc(${medPct}% - 3px)` }} />
+                        <div className="absolute top-1/2 -translate-y-1/2 w-1.5 h-2.5 rounded-sm shadow" style={{ left: `calc(${medPct}% - 3px)`, background: "var(--app-text)", opacity: 0.7 }} />
                       </div>
                     </div>
                   );
@@ -486,10 +519,12 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
                     <span className="text-xs text-app-text truncate max-w-[160px]" title={car.carName}>
                       {car.carName}
                     </span>
-                    <span className={`font-mono text-xs tabular-nums ${i === 0 ? "text-purple-400" : "text-app-text"}`}>{formatLapTime(car.bestTime)}</span>
+                    <span className="font-mono text-xs tabular-nums" style={{ color: i === 0 ? "var(--lap-record)" : "var(--app-text)" }}>
+                      {formatLapTime(car.bestTime)}
+                    </span>
                   </div>
                   <div className="h-1 bg-app-surface-alt rounded-full overflow-hidden">
-                    <div className="h-full bg-cyan-400/40 rounded-full" style={{ width: `${barPct}%` }} />
+                    <div className="h-full rounded-full" style={{ width: `${barPct}%`, background: "var(--app-accent)", opacity: 0.4 }} />
                   </div>
                 </div>
               );
@@ -508,9 +543,11 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
                 <div key={lapNum} className="flex items-center gap-2">
                   <span className="text-xs text-app-text-secondary font-mono w-6 shrink-0 text-right">#{lapNum}</span>
                   <div className="flex-1 h-1.5 bg-app-surface-alt rounded-full overflow-hidden">
-                    <div className="h-full bg-cyan-400/40 rounded-full" style={{ width: `${barPct}%` }} />
+                    <div className="h-full rounded-full" style={{ width: `${barPct}%`, background: "var(--app-accent)", opacity: 0.4 }} />
                   </div>
-                  <span className={`font-mono text-xs tabular-nums shrink-0 ${isFastest ? "text-purple-400" : "text-app-text"}`}>{formatLapTime(bestTime)}</span>
+                  <span className="font-mono text-xs tabular-nums shrink-0" style={{ color: isFastest ? "var(--lap-record)" : "var(--app-text)" }}>
+                    {formatLapTime(bestTime)}
+                  </span>
                   <span className="text-[11px] text-app-text-secondary shrink-0">×{count}</span>
                 </div>
               );
@@ -939,18 +976,6 @@ export function TrackDetail({
     [sortBy],
   );
 
-  const classTextColors: Record<string, string> = {
-    X: "text-green-700",
-    P: "text-green-400",
-    R: "text-blue-400",
-    S: "text-purple-400",
-    A: "text-red-400",
-    B: "text-orange-400",
-    C: "text-yellow-400",
-    D: "text-cyan-400",
-    E: "text-pink-400",
-  };
-
   return (
     <div className="p-4 overflow-auto h-full">
       {/* Header */}
@@ -959,7 +984,7 @@ export function TrackDetail({
           <button
             type="button"
             onClick={onBack}
-            className="shrink-0 text-app-label text-app-text-secondary hover:text-app-text px-2 py-1 rounded bg-app-surface-alt hover:bg-app-border-input transition-colors"
+            className="shrink-0 text-app-label text-app-text-secondary hover:text-app-text px-2 py-1 rounded bg-app-surface-alt hover:bg-app-surface-hover transition-colors"
           >
             &larr; {m.common_back()}
           </button>
@@ -981,9 +1006,9 @@ export function TrackDetail({
               className={`text-app-label uppercase tracking-wider px-3 py-1.5 rounded transition-colors ${
                 activeTab === tab
                   ? tab === "debug"
-                    ? "bg-amber-500/15 text-amber-500"
+                    ? "bg-status-warning/15 text-status-warning"
                     : "bg-app-accent/15 text-app-accent"
-                  : "text-app-text-muted hover:text-app-text-secondary hover:bg-app-surface-alt"
+                  : "text-app-text-muted hover:text-app-text-secondary hover:bg-app-surface-hover"
               }`}
             >
               {tab === "laps" && trackLaps.length > 0
@@ -1031,7 +1056,7 @@ export function TrackDetail({
                   </div>
                   {isDevelopment &&
                     (!editing ? (
-                      <button type="button" onClick={startEditing} className="text-app-unit text-cyan-400 hover:text-cyan-300 px-2 py-0.5 rounded bg-cyan-900/30 border border-cyan-800/50">
+                      <button type="button" onClick={startEditing} className="text-app-unit text-app-accent hover:text-app-accent-hover px-2 py-0.5 rounded bg-app-accent/10 border border-app-accent/30">
                         {m.common_edit()}
                       </button>
                     ) : (
@@ -1040,7 +1065,7 @@ export function TrackDetail({
                           type="button"
                           onClick={saveSegments}
                           disabled={saving}
-                          className="text-app-unit text-emerald-400 hover:text-emerald-300 px-2 py-0.5 rounded bg-emerald-900/30 border border-emerald-800/50 disabled:opacity-50"
+                          className="text-app-unit text-status-success px-2 py-0.5 rounded bg-status-success/10 border border-status-success/30 hover:bg-status-success/20 disabled:opacity-50"
                         >
                           {saving ? "..." : m.common_save()}
                         </button>
@@ -1058,13 +1083,13 @@ export function TrackDetail({
                   {(editing ? editSegments : displaySectors.segments).map((seg, i) => {
                     const pct = ((seg.endFrac - seg.startFrac) * 100).toFixed(1);
                     const isCorner = seg.type === "corner";
-                    const color = isCorner ? "text-red-400" : "text-blue-400";
-                    const bg = isCorner ? "bg-red-500/10" : "bg-blue-500/10";
+                    const color = isCorner ? "var(--track-corner-overlay)" : "var(--track-straight-overlay)";
+                    const colorStyle = { ["--segment-color" as string]: color };
                     if (!editing) {
                       return (
-                        <div key={`${seg.startFrac}-${seg.endFrac}`} className={`flex items-center justify-between px-2 py-1 rounded ${bg}`}>
+                        <div key={`${seg.startFrac}-${seg.endFrac}`} className="flex items-center justify-between px-2 py-1 rounded bg-(--segment-color)/10" style={colorStyle}>
                           <div className="flex items-center gap-2">
-                            <span className={`text-app-label font-mono font-bold ${color}`}>{segDisplayNames[i]}</span>
+                            <span className="text-app-label font-mono font-bold text-(--segment-color)">{segDisplayNames[i]}</span>
                             <span className="text-app-label text-app-text-muted capitalize">{seg.type}</span>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1075,16 +1100,16 @@ export function TrackDetail({
                       );
                     }
                     return (
-                      <div key={`${seg.startFrac}-${seg.endFrac}`} className={`px-2 py-1.5 rounded ${bg} space-y-1`}>
+                      <div key={`${seg.startFrac}-${seg.endFrac}`} className="px-2 py-1.5 rounded space-y-1 bg-(--segment-color)/10" style={colorStyle}>
                         <div className="flex items-center gap-1">
                           <button
                             type="button"
                             onClick={() => toggleSegType(i)}
-                            className={`shrink-0 text-app-unit font-bold px-1 rounded ${isCorner ? "bg-red-500/20 text-red-400" : "bg-blue-500/20 text-blue-400"}`}
+                            className="shrink-0 text-app-unit font-bold px-1 rounded bg-(--segment-color)/20 text-(--segment-color)"
                           >
                             {isCorner ? "T" : "S"}
                           </button>
-                          <span className={`flex-1 min-w-0 truncate text-app-label font-mono font-bold ${color}`} title={m.trackdetail_segment_name_readonly()}>
+                          <span className="flex-1 min-w-0 truncate text-app-label font-mono font-bold text-(--segment-color)" title={m.trackdetail_segment_name_readonly()}>
                             {segDisplayNames[i]}
                           </span>
                           <button
@@ -1099,7 +1124,7 @@ export function TrackDetail({
                             type="button"
                             onClick={() => removeSegment(i)}
                             disabled={(editing ? editSegments : displaySectors.segments).length <= 1}
-                            className="shrink-0 w-5 h-5 flex items-center justify-center text-app-unit rounded bg-red-900/30 border border-red-800/50 text-red-400 hover:bg-red-900/60 hover:text-red-300 disabled:opacity-30"
+                            className="shrink-0 w-5 h-5 flex items-center justify-center text-app-unit rounded bg-status-danger/10 border border-status-danger/30 text-status-danger hover:bg-status-danger/20 disabled:opacity-30"
                             title={m.trackdetail_remove_segment()}
                           >
                             ×
@@ -1143,7 +1168,7 @@ export function TrackDetail({
                       type="button"
                       onClick={startEditingSectors}
                       disabled={!sectorBounds}
-                      className="text-app-unit text-cyan-400 hover:text-cyan-300 px-2 py-0.5 rounded bg-cyan-900/30 border border-cyan-800/50 disabled:opacity-50"
+                      className="text-app-unit text-app-accent hover:text-app-accent-hover px-2 py-0.5 rounded bg-app-accent/10 border border-app-accent/30 disabled:opacity-50"
                     >
                       {m.common_edit()}
                     </button>
@@ -1153,7 +1178,7 @@ export function TrackDetail({
                         type="button"
                         onClick={saveSectorBounds}
                         disabled={savingSectors}
-                        className="text-app-unit text-emerald-400 hover:text-emerald-300 px-2 py-0.5 rounded bg-emerald-900/30 border border-emerald-800/50 disabled:opacity-50"
+                        className="text-app-unit text-status-success px-2 py-0.5 rounded bg-status-success/10 border border-status-success/30 hover:bg-status-success/20 disabled:opacity-50"
                       >
                         {savingSectors ? "..." : m.common_save()}
                       </button>
@@ -1171,7 +1196,7 @@ export function TrackDetail({
                 editingSectors ? (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-red-500" />
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLOR_VARS[0] }} />
                       <span className="text-app-label text-app-text-muted w-16">{m.trackdetail_s1_end()}</span>
                       <input
                         type="number"
@@ -1185,7 +1210,7 @@ export function TrackDetail({
                       <span className="text-app-label text-app-text-dim">%</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-blue-500" />
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLOR_VARS[1] }} />
                       <span className="text-app-label text-app-text-muted w-16">{m.trackdetail_s2_end()}</span>
                       <input
                         type="number"
@@ -1199,35 +1224,47 @@ export function TrackDetail({
                       <span className="text-app-label text-app-text-dim">%</span>
                     </div>
                     <div className="flex items-center gap-2 mt-1">
-                      <div className="w-2 h-2 rounded-full bg-yellow-500" />
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLOR_VARS[2] }} />
                       <span className="text-app-label text-app-text-muted w-16">{m.trackdetail_s3_end()}</span>
                       <span className="text-app-label font-mono text-app-text-secondary">100.0</span>
                       <span className="text-app-label text-app-text-dim">% ({m.trackdetail_finish()})</span>
                     </div>
                     <div className="flex h-2 rounded overflow-hidden mt-1">
-                      <div className="bg-red-500/60" style={{ width: `${editS1}%` }} />
-                      <div className="bg-blue-500/60" style={{ width: `${editS2 - editS1}%` }} />
-                      <div className="bg-yellow-500/60" style={{ width: `${100 - editS2}%` }} />
+                      <div style={{ backgroundColor: SECTOR_COLOR_VARS[0], opacity: 0.6, width: `${editS1}%` }} />
+                      <div style={{ backgroundColor: SECTOR_COLOR_VARS[1], opacity: 0.6, width: `${editS2 - editS1}%` }} />
+                      <div style={{ backgroundColor: SECTOR_COLOR_VARS[2], opacity: 0.6, width: `${100 - editS2}%` }} />
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-1">
                     {[
-                      { name: "S1", color: "bg-red-500", frac: sectorBounds.s1End },
-                      { name: "S2", color: "bg-blue-500", frac: sectorBounds.s2End - sectorBounds.s1End },
-                      { name: "S3", color: "bg-yellow-500", frac: 1 - sectorBounds.s2End },
+                      { name: "S1", color: SECTOR_COLOR_VARS[0], frac: sectorBounds.s1End },
+                      { name: "S2", color: SECTOR_COLOR_VARS[1], frac: sectorBounds.s2End - sectorBounds.s1End },
+                      { name: "S3", color: SECTOR_COLOR_VARS[2], frac: 1 - sectorBounds.s2End },
                     ].map((s) => (
                       <div key={s.name} className="flex items-center gap-2 px-2 py-1 rounded bg-app-surface-alt/30">
-                        <div className={`w-2 h-2 rounded-full ${s.color}`} />
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
                         <span className="text-app-label font-mono font-bold text-app-text">{s.name}</span>
                         {track.lengthKm > 0 && <span className="text-app-label font-mono text-app-text-dim">{(s.frac * track.lengthKm).toFixed(2)} km</span>}
                         <span className="text-app-label font-mono text-app-text-secondary ml-auto">{(s.frac * 100).toFixed(1)}%</span>
                       </div>
                     ))}
                     <div className="flex h-2 rounded overflow-hidden mt-1">
-                      <div className="bg-red-500/60" style={{ width: `${sectorBounds.s1End * 100}%` }} />
-                      <div className="bg-blue-500/60" style={{ width: `${(sectorBounds.s2End - sectorBounds.s1End) * 100}%` }} />
-                      <div className="bg-yellow-500/60" style={{ width: `${(1 - sectorBounds.s2End) * 100}%` }} />
+                      <div style={{ backgroundColor: SECTOR_COLOR_VARS[0], opacity: 0.6, width: `${sectorBounds.s1End * 100}%` }} />
+                      <div
+                        style={{
+                          backgroundColor: SECTOR_COLOR_VARS[1],
+                          opacity: 0.6,
+                          width: `${(sectorBounds.s2End - sectorBounds.s1End) * 100}%`,
+                        }}
+                      />
+                      <div
+                        style={{
+                          backgroundColor: SECTOR_COLOR_VARS[2],
+                          opacity: 0.6,
+                          width: `${(1 - sectorBounds.s2End) * 100}%`,
+                        }}
+                      />
                     </div>
                   </div>
                 )
@@ -1322,7 +1359,7 @@ export function TrackDetail({
                           onClick={() => setMapDisplayMode((m) => (m === "segments" ? "sectors" : "segments"))}
                           className={`px-1.5 py-1 text-[9px] font-mono rounded border transition-colors ${
                             mapDisplayMode === "sectors"
-                              ? "bg-amber-900/50 border-amber-700 text-amber-400"
+                              ? "map-sectors-active"
                               : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
                           }`}
                           title={mapDisplayMode === "sectors" ? m.track_detail_show_segments() : m.track_detail_show_sectors()}
@@ -1431,7 +1468,7 @@ export function TrackDetail({
                                 return (
                                   <>
                                     {!hideClassCol && car && (
-                                      <span className={`font-bold font-mono text-[10px] flex-shrink-0 ${classTextColors[car.carClass] ?? "text-app-text-secondary"}`}>{car.carClass}</span>
+                                      <span className="font-bold font-mono text-[10px] flex-shrink-0" style={{ color: carClassColor(car.carClass) }}>{car.carClass}</span>
                                     )}
                                     <span className="truncate">{opt.label}</span>
                                   </>
@@ -1462,24 +1499,24 @@ export function TrackDetail({
                                             },
                                           })
                                         }
-                                        className="text-app-unit px-2 py-0.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-medium"
+                                        className="text-app-unit px-2 py-0.5 rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled font-medium"
                                       >
                                         {m.trackdetail_compare()}
                                       </button>
                                     );
                                   })()}
                                 {!confirmDelete ? (
-                                  <button type="button" onClick={() => setConfirmDelete(true)} className="text-app-unit px-2 py-0.5 rounded bg-red-600/80 hover:bg-red-600 text-white font-medium">
+                                  <button type="button" onClick={() => setConfirmDelete(true)} className="text-app-unit px-2 py-0.5 rounded bg-status-danger/80 hover:bg-status-danger text-app-on-filled font-medium">
                                     {m.trackdetail_delete()} ({selectedLaps.size})
                                   </button>
                                 ) : (
                                   <div className="flex items-center gap-1">
-                                    <span className="text-app-unit text-red-400">{m.trackdetail_confirm()}</span>
+                                    <span className="text-app-unit text-status-danger">{m.trackdetail_confirm()}</span>
                                     <button
                                       type="button"
                                       onClick={handleBulkDelete}
                                       disabled={deleting}
-                                      className="text-app-unit px-2 py-0.5 rounded bg-red-600 hover:bg-red-500 text-white font-medium disabled:opacity-50"
+                                      className="text-app-unit px-2 py-0.5 rounded bg-status-danger hover:bg-status-danger-hover text-app-on-filled font-medium disabled:opacity-50"
                                     >
                                       {deleting ? "..." : m.trackdetail_yes()}
                                     </button>
@@ -1535,9 +1572,9 @@ export function TrackDetail({
                                       const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false;
                                       const selected = selectedLaps.has(lap.lapId);
                                       return (
-                                        <div key={lap.lapId} className={`rounded-lg border border-app-border p-3 ${selected ? "bg-cyan-500/5 border-cyan-500/30" : ""}`}>
+                                        <div key={lap.lapId} className={`rounded-lg border border-app-border p-3 ${selected ? "bg-app-accent/5 border-app-accent/30" : ""}`}>
                                           <div className="flex items-start gap-3">
-                                            <input type="checkbox" checked={selected} onChange={() => toggleLapSelect(lap.lapId)} className="accent-cyan-400 w-5 h-5 mt-0.5 shrink-0" />
+                                            <input type="checkbox" checked={selected} onChange={() => toggleLapSelect(lap.lapId)} className="accent-app-accent w-5 h-5 mt-0.5 shrink-0" />
                                             <div className="flex-1 min-w-0">
                                               <div className="flex items-start justify-between gap-3">
                                                 <div className="min-w-0 flex-1">
@@ -1545,7 +1582,7 @@ export function TrackDetail({
                                                   <div className="mt-0.5 flex items-center gap-2 text-xs text-app-text-muted">
                                                     {!hideClassCol && (
                                                       <span>
-                                                        <span className={`font-bold font-mono ${classTextColors[lap.carClass] ?? "text-app-text-secondary"}`}>{lap.carClass}</span>
+                                                        <span className="font-bold font-mono" style={{ color: carClassColor(lap.carClass) }}>{lap.carClass}</span>
                                                         <span className="ml-1">PI {lap.pi}</span>
                                                       </span>
                                                     )}
@@ -1553,9 +1590,9 @@ export function TrackDetail({
                                                     {hasSessionTypes &&
                                                       lap.sessionId != null &&
                                                       ((sessionLapCounts.get(lap.sessionId) ?? 0) > 1 ? (
-                                                        <span className="text-[10px] text-emerald-400 font-medium">{m.track_detail_race()}</span>
+                                                        <span className="text-[10px] text-status-success font-medium">{m.track_detail_race()}</span>
                                                       ) : (
-                                                        <span className="text-[10px] text-amber-400 font-medium">{m.track_detail_quali()}</span>
+                                                        <span className="text-[10px] text-status-warning font-medium">{m.track_detail_quali()}</span>
                                                       ))}
                                                   </div>
                                                   {lap.createdAt && (
@@ -1568,13 +1605,13 @@ export function TrackDetail({
                                                 </div>
                                                 <div className="shrink-0 flex flex-col items-end gap-1 font-mono tabular-nums text-sm leading-tight">
                                                   <div className="flex items-center gap-1">
-                                                    <span className={isFastest ? "text-purple-400 font-bold" : "text-app-text"}>{formatLapTime(lap.lapTime)}</span>
+                                                    <span className={isFastest ? "font-bold" : undefined} style={{ color: isFastest ? "var(--lap-record)" : "var(--app-text)" }}>{formatLapTime(lap.lapTime)}</span>
                                                     {lap.isValid === false ? (
-                                                      <span className="text-red-400 w-6 text-center" title={lap.invalidReason ?? m.trackdetail_invalid_lap()}>
+                                                      <span className="text-status-danger w-6 text-center" title={lap.invalidReason ?? m.trackdetail_invalid_lap()}>
                                                         ✕
                                                       </span>
                                                     ) : (
-                                                      <span className="text-emerald-400 w-6 text-center">✓</span>
+                                                      <span className="text-status-success w-6 text-center">✓</span>
                                                     )}
                                                   </div>
                                                   {Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`).map((label, index) => (
@@ -1603,7 +1640,7 @@ export function TrackDetail({
                                 <Table>
                                   <THead>
                                     <TH className="w-8 px-3">
-                                      <input type="checkbox" checked={selectedLaps.size === filteredLaps.length && filteredLaps.length > 0} onChange={toggleAllLaps} className="accent-cyan-400" />
+                                      <input type="checkbox" checked={selectedLaps.size === filteredLaps.length && filteredLaps.length > 0} onChange={toggleAllLaps} className="accent-app-accent" />
                                     </TH>
                                     <TH>{m.label_car()}</TH>
                                     {!hideClassCol && <TH>{m.track_detail_class()}</TH>}
@@ -1630,39 +1667,39 @@ export function TrackDetail({
                                       return filteredLaps.map((lap) => {
                                         const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false;
                                         return (
-                                          <TRow key={lap.lapId} className={selectedLaps.has(lap.lapId) ? "bg-cyan-500/5" : ""}>
+                                          <TRow key={lap.lapId} className={selectedLaps.has(lap.lapId) ? "bg-app-accent/5" : ""}>
                                             <TD className="px-3">
-                                              <input type="checkbox" checked={selectedLaps.has(lap.lapId)} onChange={() => toggleLapSelect(lap.lapId)} className="accent-cyan-400" />
+                                              <input type="checkbox" checked={selectedLaps.has(lap.lapId)} onChange={() => toggleLapSelect(lap.lapId)} className="accent-app-accent" />
                                             </TD>
                                             <TD className="truncate max-w-[200px]">{lap.carName}</TD>
                                             {!hideClassCol && (
                                               <TD>
-                                                <span className={`font-bold font-mono ${classTextColors[lap.carClass] ?? "text-app-text-secondary"}`}>{lap.carClass}</span>
+                                                <span className="font-bold font-mono" style={{ color: carClassColor(lap.carClass) }}>{lap.carClass}</span>
                                                 <span className="text-app-text-secondary ml-1">PI {lap.pi}</span>
                                               </TD>
                                             )}
                                             {hasSessionTypes && (
                                               <TD>
                                                 {lap.sessionId != null && (sessionLapCounts.get(lap.sessionId) ?? 0) > 1 ? (
-                                                  <span className="text-[10px] text-emerald-400 font-medium">{m.track_detail_race()}</span>
+                                                  <span className="text-[10px] text-status-success font-medium">{m.track_detail_race()}</span>
                                                 ) : (
-                                                  <span className="text-[10px] text-amber-400 font-medium">{m.track_detail_quali()}</span>
+                                                  <span className="text-[10px] text-status-warning font-medium">{m.track_detail_quali()}</span>
                                                 )}
                                               </TD>
                                             )}
                                             <TD className="font-mono text-app-text-secondary whitespace-nowrap">{lap.lapNumber}</TD>
                                             <TD className="text-right whitespace-nowrap">
                                               <div className="flex items-center justify-end gap-1">
-                                                <span className={`font-mono tabular-nums ${isFastest ? "text-purple-400 font-bold" : ""}`}>{formatLapTime(lap.lapTime)}</span>
+                                                <span className={`font-mono tabular-nums ${isFastest ? "font-bold" : ""}`} style={{ color: isFastest ? "var(--lap-record)" : undefined }}>{formatLapTime(lap.lapTime)}</span>
                                                 {lap.isValid === false ? (
-                                                  <span className="group/inv relative text-sm text-red-400 cursor-default">
+                                                  <span className="group/inv relative text-sm text-status-danger cursor-default">
                                                     ✕
                                                     <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/inv:block w-max max-w-[200px] bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary z-50 pointer-events-none leading-relaxed">
                                                       {lap.invalidReason ?? m.trackdetail_invalid_lap()}
                                                     </span>
                                                   </span>
                                                 ) : (
-                                                  <span className="text-sm text-emerald-400">✓</span>
+                                                  <span className="text-sm text-status-success">✓</span>
                                                 )}
                                               </div>
                                             </TD>
@@ -1670,7 +1707,7 @@ export function TrackDetail({
                                               <Button
                                                 variant="app-outline"
                                                 size="app-sm"
-                                                className="bg-cyan-900/50 !border-cyan-700 text-app-accent hover:bg-cyan-900/70"
+                                                className="bg-app-accent/10 !border-app-accent/40 text-app-accent hover:bg-app-accent/20"
                                                 onClick={() => {
                                                   if (!gameId) return;
                                                   navTo({ to: `${getGameRoute(gameId)}/analyse`, search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } } as never);

@@ -39,7 +39,7 @@ export function TRow({
 }) {
   return (
     <tr
-      className={`group/row relative hover:bg-app-surface/50 transition-colors ${onClick ? "cursor-pointer" : ""} ${className}`}
+      className={`group/row relative hover:bg-app-surface-hover/50 transition-colors ${onClick ? "cursor-pointer" : ""} ${className}`}
       onClick={onClick}
       title={title}
       style={style}

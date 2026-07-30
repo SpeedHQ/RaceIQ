@@ -35,7 +35,7 @@ export function FocusPicker({
             onClick={() => onChange(f)}
             aria-pressed={value === f}
             className={`rounded-lg border px-3 py-2 text-left transition-colors ${
-              value === f ? "border-purple-500 bg-purple-500/10" : "border-app-border hover:border-purple-500/50"
+              value === f ? "border-app-accent bg-app-accent/10" : "border-app-border hover:border-app-accent/50"
             }`}
           >
             <div className="text-xs font-semibold text-app-text">{EXPERIMENT_FOCUS_LABELS[f]}</div>

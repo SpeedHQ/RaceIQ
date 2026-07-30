@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { operatingColor, severityColor } from "../../lib/colors";
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
 
@@ -29,10 +30,30 @@ function ColorDot({ color }: { color: string }) {
   return <span className="inline-block w-2 h-2 rounded-full mr-1 align-middle" style={{ background: color }} />;
 }
 
+function SeverityDot({ level }: { level: 0 | 1 | 2 | 3 }) {
+  return <ColorDot color={severityColor(level)} />;
+}
+
+function OperatingDot({ level }: { level: 0 | 1 | 2 | 3 }) {
+  return <ColorDot color={operatingColor(level)} />;
+}
+
+function TireTemperatureDot({ state }: { state: "cold" | "optimal" | "hot" | "critical" }) {
+  if (state === "cold") return <OperatingDot level={0} />;
+  if (state === "optimal") return <SeverityDot level={0} />;
+  if (state === "hot") return <ColorDot color="var(--tire-temperature-hot)" />;
+  return <SeverityDot level={3} />;
+}
+
+function BrakeTemperatureDot({ state }: { state: "cold" | "working" | "hot" }) {
+  if (state === "cold") return <OperatingDot level={0} />;
+  return <SeverityDot level={state === "working" ? 2 : 3} />;
+}
+
 export function DataGuideModal({ onClose }: { onClose: () => void }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -89,27 +110,27 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
               desc={
                 <span className="space-y-0.5 block">
                   <span className="block">
-                    <ColorDot color="#34d399" />
+                    <SeverityDot level={0} />
                     GRIP — within grip budget (Grip Ask &lt; 90%)
                   </span>
                   <span className="block">
-                    <ColorDot color="#fbbf24" />
+                    <SeverityDot level={1} />
                     SLIP — at the edge (Grip Ask 90–100%)
                   </span>
                   <span className="block">
-                    <ColorDot color="#f97316" />
+                    <SeverityDot level={2} />
                     SPIN — past peak, longitudinal axis dominant
                   </span>
                   <span className="block">
-                    <ColorDot color="#ef4444" />
+                    <SeverityDot level={3} />
                     SLIDE — past peak, lateral axis dominant
                   </span>
                   <span className="block">
-                    <ColorDot color="#ef4444" />
+                    <SeverityDot level={3} />
                     LOCK — wheel stopped or dragging under braking
                   </span>
                   <span className="block">
-                    <ColorDot color="#6b7280" />
+                    <ColorDot color="var(--app-text-dim)" />
                     IDLE — stationary
                   </span>
                 </span>
@@ -119,10 +140,10 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
               label={m.dataguide_temp()}
               desc={
                 <>
-                  Tire surface temperature zone: <ColorDot color="#3b82f6" />
-                  cold · <ColorDot color="#34d399" />
-                  optimal · <ColorDot color="#fbbf24" />
-                  hot · <ColorDot color="#ef4444" />
+                  Tire surface temperature zone: <TireTemperatureDot state="cold" />
+                  cold · <TireTemperatureDot state="optimal" />
+                  optimal · <TireTemperatureDot state="hot" />
+                  hot · <TireTemperatureDot state="critical" />
                   critical
                 </>
               }
@@ -139,7 +160,7 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
 
           {/* Slip */}
           <Section title={m.dataguide_slip()}>
-            <Row label={m.dataguide_ratio()} desc="Wheel speed vs ground speed. High ratio = wheelspin/lockup. Colour: green &lt;10% · amber &lt;30% · red beyond." />
+            <Row label={m.dataguide_ratio()} desc="Wheel speed vs ground speed. High ratio = wheelspin/lockup. State: nominal &lt;10% · caution &lt;30% · critical beyond." />
             <Row
               label={m.dataguide_angle()}
               desc="Angle between wheel heading and direction of travel. Peak mechanical grip is typically 6–12° (speed-dependent). Thresholds scale down at low speed."
@@ -153,10 +174,10 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
               label={m.dataguide_temp()}
               desc={
                 <>
-                  {m.dataguide_surface_temp()} <ColorDot color="#3b82f6" />
-                  cold · <ColorDot color="#34d399" />
-                  optimal · <ColorDot color="#fbbf24" />
-                  hot · <ColorDot color="#ef4444" />
+                  {m.dataguide_surface_temp()} <TireTemperatureDot state="cold" />
+                  cold · <TireTemperatureDot state="optimal" />
+                  optimal · <TireTemperatureDot state="hot" />
+                  hot · <TireTemperatureDot state="critical" />
                   critical
                 </>
               }
@@ -165,9 +186,9 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
               label={m.dataguide_health()}
               desc={
                 <>
-                  {m.dataguide_tire_wear_remaining()} <span className="text-app-text">100%</span> = new. <ColorDot color="#34d399" />
-                  &gt;70% · <ColorDot color="#fbbf24" />
-                  &gt;40% · <ColorDot color="#ef4444" />
+                  {m.dataguide_tire_wear_remaining()} <span className="text-app-text">100%</span> = new. <SeverityDot level={0} />
+                  &gt;70% · <SeverityDot level={1} />
+                  &gt;40% · <SeverityDot level={3} />
                   below
                 </>
               }
@@ -177,10 +198,9 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
               label={m.dataguide_brake()}
               desc={
                 <>
-                  {m.dataguide_brake_disc_temp()} <ColorDot color="#3b82f6" />
-                  cold · <ColorDot color="#34d399" />
-                  working range · <ColorDot color="#fbbf24" />
-                  hot · <ColorDot color="#ef4444" />
+                  {m.dataguide_brake_disc_temp()} <BrakeTemperatureDot state="cold" />
+                  cold · <BrakeTemperatureDot state="working" />
+                  working range · <BrakeTemperatureDot state="hot" />
                   overheating
                 </>
               }
@@ -193,10 +213,10 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
               label={m.dataguide_travel()}
               desc={
                 <>
-                  Normalised suspension travel (0–100%). <ColorDot color="#3b82f6" />
-                  compressed · <ColorDot color="#34d399" />
-                  mid-range · <ColorDot color="#fbbf24" />
-                  extended · <ColorDot color="#ef4444" />
+                  Normalised suspension travel (0–100%). <OperatingDot level={0} />
+                  compressed · <OperatingDot level={1} />
+                  mid-range · <OperatingDot level={2} />
+                  extended · <OperatingDot level={3} />
                   near limit
                 </>
               }

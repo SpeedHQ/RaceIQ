@@ -1,4 +1,5 @@
 import type { TelemetryPacket } from "@shared/types";
+import { tireTempColor } from "@/lib/vehicle-dynamics";
 
 interface SectorTimes {
   times: number[];
@@ -23,7 +24,7 @@ export const METRICS: MetricDef[] = [
     key: "tyreTemp",
     label: "Tyre temp",
     unit: "°C",
-    accent: "#34d399",
+    accent: "var(--metric-tire-temperature)",
     semantic: true,
     sel: { FL: (p) => p.TireTempFL, FR: (p) => p.TireTempFR, RL: (p) => p.TireTempRL, RR: (p) => p.TireTempRR },
   },
@@ -31,21 +32,21 @@ export const METRICS: MetricDef[] = [
     key: "brakeTemp",
     label: "Brake temp",
     unit: "°C",
-    accent: "#fb923c",
+    accent: "var(--metric-brake-temperature)",
     sel: { FL: (p) => p.BrakeTempFrontLeft, FR: (p) => p.BrakeTempFrontRight, RL: (p) => p.BrakeTempRearLeft, RR: (p) => p.BrakeTempRearRight },
   },
   {
     key: "pressure",
     label: "Pressure",
     unit: "psi",
-    accent: "#22d3ee",
+    accent: "var(--metric-pressure)",
     sel: { FL: (p) => p.TirePressureFrontLeft, FR: (p) => p.TirePressureFrontRight, RL: (p) => p.TirePressureRearLeft, RR: (p) => p.TirePressureRearRight },
   },
   {
     key: "wear",
     label: "Wear",
     unit: "%",
-    accent: "#fbbf24",
+    accent: "var(--metric-wear)",
     sel: { FL: (p) => p.TireWearFL, FR: (p) => p.TireWearFR, RL: (p) => p.TireWearRL, RR: (p) => p.TireWearRR },
   },
 ];
@@ -157,12 +158,15 @@ export function CornerBars({
               )}
               {hasCursor && (
                 <div
-                  className="absolute left-[-3px] right-[-3px] h-[2px] rounded"
-                  style={{ background: "var(--color-app-accent, #22d3ee)", bottom: `${pct(cv!)}%`, boxShadow: "0 0 0 1px rgba(0,0,0,0.4)" }}
+                  className="absolute left-[-3px] right-[-3px] h-[2px] rounded ring-1 ring-app-bg/40"
+                  style={{
+                    background: "var(--app-accent)",
+                    bottom: `${pct(cv!)}%`,
+                  }}
                 />
               )}
             </div>
-            <span className="text-[10px] font-mono tabular-nums" style={{ color: hasCursor ? "var(--color-app-accent, #22d3ee)" : empty ? "#6b7480" : color }}>
+            <span className="text-[10px] font-mono tabular-nums" style={{ color: hasCursor ? "var(--app-accent)" : empty ? "var(--app-text-dim)" : color }}>
               {hasCursor ? Math.round(cv!) : empty ? "—" : Math.round(r.avg)}
             </span>
             <span className="text-[9px] text-app-text-dim uppercase">{c}</span>
@@ -175,10 +179,7 @@ export function CornerBars({
 
 /** Tyre-temp hot/cold bands (°C). */
 export function bandColor(t: number): string {
-  if (t >= 110) return "#f87171";
-  if (t >= 100) return "#fb923c";
-  if (t < 70) return "#60a5fa";
-  return "#34d399";
+  return tireTempColor(t, { cold: 70, warm: 100, hot: 110 });
 }
 
 function rangeOf(frames: TelemetryPacket[], sel: (p: TelemetryPacket) => number | undefined, skipZero: boolean): Range {

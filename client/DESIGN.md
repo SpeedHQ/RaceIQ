@@ -2,30 +2,35 @@
 name: RaceIQ
 description: Multi-game racing telemetry dashboard with AI-powered lap coaching
 colors:
-  app-bg: "#000000"
-  app-surface: "#0d0d0d"
-  app-surface-alt: "#141414"
-  app-border: "#2a2a2a"
-  app-border-input: "#333333"
-  app-text: "#f5f5f5"
-  app-text-secondary: "#aaaaaa"
-  app-text-muted: "#999999"
-  app-text-dim: "#777777"
-  app-accent: "#22d3ee"
-  app-accent-hover: "#67e8f9"
-  app-highlight: "#06b6d4"
-  status-success: "#34d399"
-  status-warning: "#fbbf24"
-  status-danger: "#ef4444"
-  status-info: "#22d3ee"
-  status-unavailable: "#777777"
-  dynamics-green: "#34d399"
-  dynamics-yellow: "#fbbf24"
-  dynamics-amber: "#f59e0b"
-  dynamics-orange: "#fb923c"
-  dynamics-red: "#ef4444"
-  dynamics-blue: "#3b82f6"
-  dynamics-gray: "#94a3b8"
+  app-bg: "var(--app-bg)"
+  app-surface: "var(--app-surface)"
+  app-surface-alt: "var(--app-surface-alt)"
+  app-surface-hover: "var(--app-surface-hover)"
+  app-progress-track: "var(--app-progress-track)"
+  app-dropdown: "var(--app-dropdown)"
+  app-border: "var(--app-border)"
+  app-border-input: "var(--app-border-input)"
+  app-border-hover: "var(--app-border-hover)"
+  app-text: "var(--app-text)"
+  app-text-secondary: "var(--app-text-secondary)"
+  app-text-muted: "var(--app-text-muted)"
+  app-text-dim: "var(--app-text-dim)"
+  app-on-filled: "var(--app-on-filled)"
+  app-accent: "var(--app-accent)"
+  app-accent-hover: "var(--app-accent-hover)"
+  app-highlight: "var(--app-highlight)"
+  status-success: "var(--status-success)"
+  status-success-hover: "var(--status-success-hover)"
+  status-warning: "var(--status-warning)"
+  status-danger: "var(--status-danger)"
+  status-danger-hover: "var(--status-danger-hover)"
+  status-info: "var(--status-info)"
+  status-unavailable: "var(--status-unavailable)"
+  severity-nominal: "var(--severity-nominal)"
+  severity-caution: "var(--severity-caution)"
+  severity-warning: "var(--severity-warning)"
+  severity-critical: "var(--severity-critical)"
+  operating-cold: "var(--operating-cold)"
 typography:
   title:
     fontFamily: "Geist Variable, sans-serif"
@@ -51,7 +56,7 @@ rounded:
 components:
   button-app-primary:
     backgroundColor: "{colors.app-accent}"
-    textColor: "#ffffff"
+    textColor: "{colors.app-on-filled}"
     rounded: "{rounded.sm}"
     padding: "8px 12px"
   button-app-primary-hover:
@@ -68,7 +73,7 @@ components:
 
 # Design System: RaceIQ
 
-> The CSS contracts are the source of truth: `src/styles/theme.css` owns app chrome and UI status, `src/styles/telemetry.css` owns measured-data encoding, and `src/styles/branding.css` owns product, manufacturer, and team identity. The frontmatter above is a tooling mirror checked by `test/theme-contract.test.ts`; change the owning CSS contract first and update the mirror in the same change.
+> The CSS contracts are the source of truth: `src/styles/theme.css` owns every theme-controlled app, status, telemetry, and visualization role, while `src/styles/branding.css` owns product, manufacturer, and team identity that must not change with the app theme. Tooling metadata references those CSS variables instead of copying their palette values.
 
 ## 1. Overview
 
@@ -81,7 +86,7 @@ This system explicitly rejects the generic SaaS look — no gradient hero-metric
 **Key Characteristics:**
 - Near-black base with a single cyan signal color, not a rainbow of accents
 - Flat, tonally-layered surfaces — no shadows, no glass
-- A dedicated `dynamics-*` palette (green/yellow/amber/orange/red/blue/gray) reserved for telemetry state encoding (tire temps, G-forces, damage) — never used for UI chrome
+- A semantic severity scale (`severity-nominal` → `severity-critical`) plus `operating-cold` for telemetry state encoding — never used for UI chrome
 - Compact, utilitarian type scale (11px–18px) built for data density
 - Tactile, confident interactive states: visible hover shifts, no timid opacity fades
 
@@ -95,26 +100,29 @@ A near-black instrument-panel base with one cyan accent doing all the signaling;
 ### Neutral
 - **App Background** (`app-bg`): The base canvas — near-black, the "cockpit bezel."
 - **App Surface** (`app-surface`): Primary card/panel background, one tonal step up from the bezel.
-- **App Surface Alt** (`app-surface-alt`): Secondary elevation — nested panels, hovers, dropdowns.
-- **App Border / App Border Input** (`app-border` / `app-border-input`): Hairline dividers and input strokes; input borders sit one step lighter for legibility against surfaces.
+- **App Surface Alt** (`app-surface-alt`): Nested or inset content, including input wells and secondary panels.
+- **App Surface Hover** (`app-surface-hover`): Neutral interactive hover feedback. It is a state role, not another elevation level.
+- **App Dropdown / App Progress Track** (`app-dropdown` / `app-progress-track`): Specialized utility surfaces that a theme may tune independently from nested content.
+- **App Border / App Border Input / App Border Hover** (`app-border` / `app-border-input` / `app-border-hover`): Hairline dividers, input strokes, and neutral interactive border feedback.
 - **App Text** (`app-text`): Primary reading text, near-white.
 - **App Text Secondary** (`app-text-secondary`): Secondary copy, labels with real content.
 - **App Text Muted** (`app-text-muted`): De-emphasized supporting text.
 - **App Text Dim** (`app-text-dim`): Fine print, units, the lowest-priority readable tier.
+- **App On Filled** (`app-on-filled`): Contrast text/icons placed on solid accent or status fills; it is independent of the page background.
 
 ### Telemetry Encoding Palette (data only, never UI chrome)
-- **Dynamics Green/Yellow/Amber/Orange/Red** (`dynamics-green` → `dynamics-red`): A severity ramp for telemetry values — tire temp, slip, brake bias, damage state. Reads left-to-right as "nominal → critical."
-- **Dynamics Blue** (`dynamics-blue`): Neutral/informational telemetry marker distinct from the UI's cyan accent — used so a data point never gets mistaken for an interactive control.
-- **Dynamics Gray** (`dynamics-gray`): Inactive/no-data telemetry state.
+- **Severity scale** (`severity-nominal` → `severity-critical`): An ordered telemetry ramp for tire health, slip, brake temperature, damage, and similar measurements. Runtime code selects a semantic level, never a hue.
+- **Operating Cold** (`operating-cold`): The low/cold endpoint for operating-range measurements. Optimal, caution, and critical reuse the ordered severity levels.
+- **Unavailable telemetry** uses `app-text-dim`; it is absence of data, not another severity.
 
 ### UI Status Palette
-- **Success / Warning / Danger / Info / Unavailable** (`status-*`): Semantic application state such as connection health, operation outcome, and unavailable data. These describe UI state; they do not encode measured telemetry.
+- **Success / Warning / Danger / Info / Unavailable** (`status-*`): Semantic application state such as connection health, operation outcome, and unavailable data. Solid success and danger controls use their corresponding `*-hover` roles; these describe UI state and do not encode measured telemetry.
 
 ### Branding Palette
 - Product, vehicle-manufacturer, and F1-team colors are editable in `src/styles/branding.css`. Components select identity with `data-game-brand`, `data-car-brand`, or `data-team-brand`; React and game adapters do not own brand color values.
 
 ### Named Rules
-**The One Signal Rule.** The interface itself has exactly one accent color: cyan. If a UI element needs a second color to stand out, it's competing with the accent — fix the hierarchy, don't add a color. The `dynamics-*` ramp exists solely to encode telemetry values and must never leak into buttons, nav, or chrome.
+**The One Signal Rule.** The interface itself has exactly one accent color: cyan. If a UI element needs a second color to stand out, it's competing with the accent — fix the hierarchy, don't add a color. The telemetry severity scale exists solely to encode measured values and must never leak into buttons, nav, or chrome.
 
 ## 3. Typography
 
@@ -137,7 +145,7 @@ A near-black instrument-panel base with one cyan accent doing all the signaling;
 
 ## 4. Elevation
 
-RaceIQ is flat by design — no `box-shadow` tokens exist in the system (`--app-glass-blur` is pinned to `0px`). Depth is conveyed entirely through tonal layering: background → surface → surface-alt, each one step lighter. A panel doesn't lift off the page; it sits on a shelf one shade brighter than what's behind it.
+RaceIQ is flat by design. Depth is conveyed entirely through tonal layering: background → surface → surface-alt, each one step lighter. A panel doesn't lift off the page; it sits on a shelf one shade brighter than what's behind it.
 
 ### Named Rules
 **The Flat-By-Default Rule.** No drop shadows, no glassmorphism, no blur. If a component needs to read as "above" another, move it one step up the surface ramp (bg → surface → surface-alt); don't reach for a shadow.
@@ -148,21 +156,21 @@ Tactile and confident: interactive elements shift color decisively on hover/acti
 
 ### Buttons
 - **Shape:** Small rounded corners (6-8px, `rounded-sm`/`rounded` via `--radius-md`), consistent across all app-* variants.
-- **Primary (`app-primary`):** Solid cyan accent background, white text, hover lightens toward `app-accent-hover`; disabled drops to 40% opacity accent with `disabled:opacity-100` to avoid double-fading.
-- **Outline (`app-outline`):** Transparent background, neutral-700 border, secondary text color that brightens to full `app-text` on hover.
+- **Primary (`app-primary`):** Solid `app-accent` background with `app-on-filled` contrast text; hover moves to `app-accent-hover`, while disabled uses a reduced-strength accent.
+- **Outline (`app-outline`):** Transparent background, `app-border-input` stroke, and secondary text; neutral hover feedback uses `app-border-hover`.
 - **Ghost (`app-ghost`):** Transparent, no border, text-only with the same secondary-to-full-text hover shift.
-- **Danger (`app-danger`):** Solid red-600, hover to red-500 — reserved for destructive actions only (delete session, clear data).
+- **Danger (`app-danger`):** Solid `status-danger` with `app-on-filled` contrast text, reserved for destructive actions only.
 - **Sizing:** Compact, padding-driven (`app-sm` 8px/2px, `app-md` 12px/6px, `app-lg` 16px/8px) rather than fixed heights — built to sit inline in dense header/toolbar rows.
 - **Active state:** `translate-y-px` on press — a physical "button depressed" micro-shift instead of an opacity or color change.
 
 ### Cards / Containers
 - **Corner Style:** Same compact radius as buttons (6-8px).
-- **Background:** `app-surface`, stepping to `app-surface-alt` for nested/hover panels.
-- **Shadow Strategy:** None — see Elevation. Separation comes from the surface-alt step and the hairline `app-border`.
-- **Border:** 1px `app-border`, brightening to `app-border-input` where the element accepts focus/input.
+- **Background:** `app-surface`, stepping to `app-surface-alt` for nested or inset panels; interactive cards use `app-surface-hover` only while hovered.
+- **Shadow Strategy:** None — see Elevation. Separation comes from the structural surface step and the hairline `app-border`.
+- **Border:** 1px `app-border`; inputs use `app-border-input`, while neutral interactive feedback uses `app-border-hover`.
 
 ### Inputs / Fields
-- **Style:** `app-surface` background, 1px `app-border-input` stroke, matching button radius.
+- **Style:** `app-surface-alt` background, 1px `app-border-input` stroke, matching button radius.
 - **Focus:** Border brightens; no glow or ring beyond the shadcn-token `ring` variants used on the base `Input` component.
 
 ### Navigation
@@ -171,7 +179,7 @@ Tactile and confident: interactive elements shift color decisively on hover/acti
 ## 6. Do's and Don'ts
 
 ### Do:
-- **Do** keep `app-accent` as the only interface accent — telemetry data can use the full `dynamics-*` ramp, chrome cannot.
+- **Do** keep `app-accent` as the only interface accent — telemetry data can use the semantic severity scale, chrome cannot.
 - **Do** convey elevation with the bg → surface → surface-alt tonal steps, never a shadow.
 - **Do** keep the type scale within 11px–18px; this is a cockpit, not a marketing page.
 - **Do** use the `translate-y-px` active-press shift on interactive elements to keep the "tactile and confident" feel.
@@ -180,6 +188,6 @@ Tactile and confident: interactive elements shift color decisively on hover/acti
 ### Don't:
 - **Don't** use gradient hero-metric tiles, glassmorphism, or cutesy rounded card grids — the generic SaaS look this system explicitly rejects.
 - **Don't** let the raw sim-racing-overlay failure mode in either — dense is fine, uncalibrated and ugly is not.
-- **Don't** add `box-shadow` anywhere; `--app-glass-blur` stays `0px` by design.
-- **Don't** use `dynamics-*` colors on buttons, nav, or any UI chrome — they're reserved for telemetry values only.
+- **Don't** add decorative `box-shadow`; use the tonal surface scale for elevation.
+- **Don't** use telemetry severity colors on buttons, nav, or any UI chrome — they're reserved for measured values only.
 - **Don't** introduce a second accent color to solve a hierarchy problem — fix the hierarchy instead.

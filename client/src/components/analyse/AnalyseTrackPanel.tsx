@@ -110,7 +110,7 @@ export function AnalyseTrackPanel({
         <button
           onClick={onRotateWithCarToggle}
           className={`px-2 py-1 text-[9px] uppercase tracking-wider font-semibold rounded border transition-colors ${
-            rotateWithCar ? "bg-cyan-900/50 border-cyan-700 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
+              rotateWithCar ? "bg-app-accent/15 border-app-accent/40 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
           }`}
         >
           {rotateWithCar ? m.overlay_follow() : m.overlay_fixed()}
@@ -119,7 +119,7 @@ export function AnalyseTrackPanel({
           <button
             onClick={onTrackOverlayCycle}
             className={`px-2 py-1 text-[9px] uppercase tracking-wider font-semibold rounded border transition-colors ${
-              trackOverlay !== "none" ? "bg-cyan-900/50 border-cyan-700 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
+              trackOverlay !== "none" ? "bg-app-accent/15 border-app-accent/40 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
             }`}
           >
             {trackOverlay === "none" ? m.overlay_overlay() : trackOverlay === "inputs" ? m.overlay_inputs() : trackOverlay === "segments" ? m.overlay_segments() : m.overlay_sectors()}

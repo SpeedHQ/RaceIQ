@@ -139,7 +139,7 @@ export function TrackViewer() {
           <div className="text-app-label text-app-text-muted uppercase tracking-wider mb-3 mt-4">{m.trackviewer_without_outlines_title()}</div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
             {withoutOutline.map((t) => (
-              <div key={t.ordinal} className="border border-app-border rounded-lg p-3 bg-app-surface/30 cursor-pointer hover:border-app-border-input" onClick={() => handleSelectTrack(t)}>
+              <div key={t.ordinal} className="border border-app-border rounded-lg p-3 bg-app-surface/30 cursor-pointer hover:border-app-border-hover" onClick={() => handleSelectTrack(t)}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-app-body text-app-text-secondary">{t.name}</div>
                   <span className="shrink-0 text-app-label px-1.5 py-0.5 rounded bg-app-surface-alt border border-app-border text-app-text-muted">

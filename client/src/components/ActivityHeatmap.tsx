@@ -34,7 +34,8 @@ function fmtDuration(sec: number): string {
   return `${s}s`;
 }
 
-const LEVEL_COLORS = ["var(--color-app-surface-alt, #1a1d26)", "rgba(139, 92, 246, 0.25)", "rgba(139, 92, 246, 0.5)", "rgba(139, 92, 246, 0.75)", "rgba(139, 92, 246, 1)"];
+const activityFill = (level: number) => (level === 0 ? "var(--app-surface-alt)" : "var(--activity-fill)");
+const activityOpacity = (level: number) => (level === 0 ? 1 : level / 4);
 
 export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
   const [hover, setHover] = useState<{ date: string; seconds: number; x: number; y: number } | null>(null);
@@ -159,7 +160,8 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
                   const lvl = intensity(seconds, max);
                   const isToday = key === todayKey;
                   const isBestDay = key === bestDayKey;
-                  const stroke = isBestDay ? "rgba(34, 211, 238, 1)" : isToday ? "rgba(139, 92, 246, 0.9)" : "rgba(255,255,255,0.04)";
+                  const stroke = isBestDay ? "var(--app-accent)" : isToday ? "var(--activity-fill)" : "var(--app-text)";
+                  const strokeOpacity = isBestDay ? 1 : isToday ? 0.9 : 0.04;
                   const strokeWidth = isBestDay ? 1.5 : isToday ? 1 : 0.5;
                   return (
                     // biome-ignore lint/a11y/noStaticElementInteractions: hover-only tooltip on decorative SVG cell; data available in legend/stats
@@ -170,8 +172,10 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
                       width={CELL}
                       height={CELL}
                       rx={2}
-                      fill={future ? "transparent" : LEVEL_COLORS[lvl]}
+                      fill={future ? "transparent" : activityFill(lvl)}
+                      fillOpacity={future ? 1 : activityOpacity(lvl)}
                       stroke={stroke}
+                      strokeOpacity={strokeOpacity}
                       strokeWidth={strokeWidth}
                       onMouseEnter={(e) => {
                         if (future) return;
@@ -198,16 +202,25 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
               style={{
                 width: CELL,
                 height: CELL,
-                background: LEVEL_COLORS[4],
-                border: "1.5px solid rgba(34, 211, 238, 1)",
+                background: activityFill(4),
+                border: "1.5px solid var(--app-accent)",
               }}
             />
             {m.heatmap_longest_day()}
           </span>
           <div className="flex items-center gap-1.5">
             <span>{m.heatmap_less()}</span>
-            {LEVEL_COLORS.map((c) => (
-              <span key={c} className="inline-block rounded-sm" style={{ width: CELL, height: CELL, background: c, border: "0.5px solid rgba(255,255,255,0.04)" }} />
+            {Array.from({ length: 5 }, (_, level) => (
+              <span
+                key={level}
+                className="inline-block rounded-sm border border-app-text/5"
+                style={{
+                  width: CELL,
+                  height: CELL,
+                  background: activityFill(level),
+                  opacity: activityOpacity(level),
+                }}
+              />
             ))}
             <span>{m.heatmap_more()}</span>
           </div>

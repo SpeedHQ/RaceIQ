@@ -118,9 +118,9 @@ export function MotecImportModal({ onClose, onImported }: { onClose: () => void;
 
   return createPortal(
     // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-app-bg/60 p-4" onMouseDown={onClose}>
       {/* biome-ignore lint/a11y/noStaticElementInteractions: swallows backdrop click inside the panel */}
-      <div className="w-full max-w-xl max-h-[85vh] overflow-y-auto rounded-lg border border-app-border bg-app-panel p-5 shadow-xl" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-xl max-h-[85vh] overflow-y-auto rounded-lg border border-app-border bg-app-surface p-5 shadow-xl" onMouseDown={(e) => e.stopPropagation()}>
         <h2 className="text-sm font-semibold uppercase tracking-wide text-app-text">Import MoTeC log</h2>
 
         {result ? (
@@ -137,8 +137,8 @@ export function MotecImportModal({ onClose, onImported }: { onClose: () => void;
                 </li>
               ))}
             </ul>
-            <div className="rounded border border-amber-500/30 bg-amber-500/5 p-3">
-              <div className="mb-1 font-semibold text-amber-400">What this data can and can't tell you</div>
+          <div className="rounded border border-status-warning/30 bg-status-warning/5 p-3">
+            <div className="mb-1 font-semibold text-status-warning">What this data can and can't tell you</div>
               <ul className="list-disc space-y-1 pl-4">
                 {result.limitations.map((l) => (
                   <li key={l}>{l}</li>
@@ -217,7 +217,7 @@ export function MotecImportModal({ onClose, onImported }: { onClose: () => void;
               </p>
             </div>
 
-            {error && <div className="rounded border border-red-500/30 bg-red-500/5 p-2 text-red-400">{error}</div>}
+          {error && <div className="rounded border border-status-danger/30 bg-status-danger/5 p-2 text-status-danger">{error}</div>}
 
             <div className="flex justify-end gap-2">
               <Button variant="app-outline" size="app-md" onClick={onClose} disabled={busy}>

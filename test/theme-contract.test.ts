@@ -5,9 +5,10 @@ import { extname, resolve } from "node:path";
 const CLIENT_DIR = resolve(import.meta.dir, "../client");
 const SOURCE_DIR = resolve(CLIENT_DIR, "src");
 const THEME_PATH = resolve(SOURCE_DIR, "styles/theme.css");
-const TELEMETRY_PATH = resolve(SOURCE_DIR, "styles/telemetry.css");
 const BRANDING_PATH = resolve(SOURCE_DIR, "styles/branding.css");
 const OWNED_EXTENSIONS = new Set([".css", ".ts", ".tsx"]);
+const CONTRACT_PREFIXES =
+  "app|ai|status|severity|operating|tire|ch|comparison|telemetry|metric|visualization|activity|attitude|compass|lap|load|delta|balance|surface|dimension|map|storage|setup|input|review|focus|tune|wireframe|sector|wheel|track|rev|brake|brand";
 
 function ownedSourceFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -19,88 +20,161 @@ function ownedSourceFiles(dir: string): string[] {
 
 const sourceFiles = ownedSourceFiles(SOURCE_DIR);
 const themeCss = readFileSync(THEME_PATH, "utf8");
-const telemetryCss = readFileSync(TELEMETRY_PATH, "utf8");
 const brandingCss = readFileSync(BRANDING_PATH, "utf8");
-const contractCss = [themeCss, telemetryCss, brandingCss].join("\n");
+const contractCss = [themeCss, brandingCss].join("\n");
 
 describe("frontend theme contract", () => {
-  test("keeps theme, telemetry, and branding tokens in their owning CSS files", () => {
-    const definitionPattern = /^\s*(--(?:app|status|dynamics|ch|brand)-[\w-]+)\s*:/gm;
+  test("keeps theme-controlled tokens together and branding tokens separate", () => {
+    const definitionPattern = new RegExp(`^\\s*(--(?:${CONTRACT_PREFIXES})-[\\w-]+)\\s*:`, "gm");
     const misplacedDefinitions = sourceFiles.flatMap((path) =>
       [...readFileSync(path, "utf8").matchAll(definitionPattern)]
         .filter((match) => {
           const token = match[1];
-          const owner =
-            token.startsWith("--app-") || token.startsWith("--status-")
-              ? THEME_PATH
-              : token.startsWith("--dynamics-") || token.startsWith("--ch-")
-                ? TELEMETRY_PATH
-                : BRANDING_PATH;
+          const owner = token.startsWith("--brand-") ? BRANDING_PATH : THEME_PATH;
           return path !== owner;
         })
         .map((match) => `${path}:${match[0].trim()}`),
     );
 
     expect(misplacedDefinitions).toEqual([]);
-    expect(themeCss).toContain("--app-bg: #000000;");
-    expect(themeCss).toContain("--app-text-muted: #999999;");
-    expect(themeCss).toContain("--app-text-dim: #777777;");
-    expect(themeCss).toContain("--status-success: #34d399;");
+    for (const token of [
+      "--app-bg",
+      "--app-surface",
+      "--app-surface-alt",
+      "--app-surface-hover",
+      "--app-progress-track",
+      "--app-text-muted",
+      "--app-text-dim",
+      "--app-on-filled",
+      "--status-success",
+      "--status-success-hover",
+      "--status-danger-hover",
+      "--severity-nominal",
+      "--operating-cold",
+      "--ch-throttle",
+      "--comparison-lap-a",
+      "--visualization-series-8",
+    ]) {
+      expect(themeCss).toMatch(new RegExp(`^\\s*${token}:`, "m"));
+    }
     expect(themeCss).toContain("--color-app-text-muted: var(--app-text-muted);");
     expect(themeCss).toContain("--color-app-text-dim: var(--app-text-dim);");
-    expect(telemetryCss).toContain("--ch-throttle: #059669;");
-    expect(brandingCss).toContain("--brand-game-forza: #00d4ff;");
-    expect(brandingCss).toContain("--brand-team-mclaren: #ff8000;");
+    expect(themeCss).not.toContain("--app-surface-2");
+    expect(themeCss).not.toContain("--app-panel");
+    expect(themeCss).not.toContain("--dynamics-");
+    expect(brandingCss).toMatch(/^\s*--brand-game-forza:/m);
+    expect(brandingCss).toMatch(/^\s*--brand-team-mclaren:/m);
 
     const indexCss = readFileSync(resolve(SOURCE_DIR, "index.css"), "utf8");
-    for (const file of ["theme", "telemetry", "branding"]) {
+    for (const file of ["theme", "branding"]) {
       expect(indexCss.match(new RegExp(`@import "\\./styles/${file}\\.css";`, "g"))).toHaveLength(1);
     }
+    expect(indexCss).not.toContain("telemetry.css");
+
+    const roleAliasPattern = new RegExp(`^\\s*(--(?:${CONTRACT_PREFIXES})-[\\w-]+)\\s*:\\s*var\\((--(?!color-)[\\w-]+)\\);`, "gm");
+    expect([...themeCss.matchAll(roleAliasPattern)].map((match) => `${match[1]} -> ${match[2]}`)).toEqual([]);
   });
 
   test("defines every directly consumed theme, telemetry, and branding variable", () => {
-    const definitions = new Set([...contractCss.matchAll(/^\s*(--(?:app|status|dynamics|ch|brand)-[\w-]+)\s*:/gm)].map((match) => match[1]));
+    const definitionPattern = new RegExp(`^\\s*(--(?:${CONTRACT_PREFIXES})-[\\w-]+)\\s*:`, "gm");
+    const usagePattern = new RegExp(`(?:var\\(|-\\()((?:--)(?:${CONTRACT_PREFIXES})-[\\w-]+)`, "g");
+    const definitions = new Set([...contractCss.matchAll(definitionPattern)].map((match) => match[1]));
     const usages = new Set(
-      sourceFiles.flatMap((path) => [...readFileSync(path, "utf8").matchAll(/var\((--(?:app|status|dynamics|ch|brand)-[\w-]+)/g)].map((match) => match[1])),
+      sourceFiles.flatMap((path) => [...readFileSync(path, "utf8").matchAll(usagePattern)].map((match) => match[1])),
     );
 
     expect([...usages].filter((token) => !definitions.has(token)).sort()).toEqual([]);
   });
 
   test("keeps design-tool mirrors aligned with the runtime contract", () => {
-    const runtimeColors = new Map([...contractCss.matchAll(/^\s*(--(?:app|status|dynamics|ch)-[\w-]+)\s*:\s*(#[\da-f]+);/gim)].map((match) => [match[1], match[2].toLowerCase()]));
     const designMarkdown = readFileSync(resolve(CLIENT_DIR, "DESIGN.md"), "utf8");
-    const documentedColors = [...designMarkdown.matchAll(/^  ([\w-]+): "(#[\da-f]+)"$/gim)];
+    const documentedColors = [...designMarkdown.matchAll(/^  ([\w-]+): "var\((--[\w-]+)\)"$/gim)];
 
     expect(documentedColors.length).toBeGreaterThan(0);
-    for (const [, name, value] of documentedColors) {
-      expect(runtimeColors.get(`--${name}`)).toBe(value.toLowerCase());
+    for (const [, name, token] of documentedColors) {
+      expect(token).toBe(`--${name}`);
+      expect(contractCss).toMatch(new RegExp(`^\\s*${token}:`, "m"));
     }
 
     const designMetadata = JSON.parse(readFileSync(resolve(CLIENT_DIR, ".impeccable/design.json"), "utf8")) as {
       extensions: { colorMeta: { surfaceRamp: string[]; textRamp: string[]; statusPalette: Record<string, string> } };
       components: { css: string }[];
     };
-    expect(designMetadata.extensions.colorMeta.surfaceRamp).toEqual(["--app-bg", "--app-surface", "--app-surface-alt"].map((token) => runtimeColors.get(token)));
+    expect(designMetadata.extensions.colorMeta.surfaceRamp).toEqual(["--app-bg", "--app-surface", "--app-surface-alt"].map((token) => `var(${token})`));
     expect(designMetadata.extensions.colorMeta.textRamp).toEqual(
-      ["--app-text", "--app-text-secondary", "--app-text-muted", "--app-text-dim"].map((token) => runtimeColors.get(token)),
+      ["--app-text", "--app-text-secondary", "--app-text-muted", "--app-text-dim"].map((token) => `var(${token})`),
     );
     expect(designMetadata.extensions.colorMeta.statusPalette).toEqual(
-      Object.fromEntries(["success", "warning", "danger", "info", "unavailable"].map((name) => [name, runtimeColors.get(`--status-${name}`)])),
+      Object.fromEntries(["success", "warning", "danger", "info", "unavailable"].map((name) => [name, `var(--status-${name})`])),
     );
     expect(designMetadata.components.map((component) => component.css).join("\n")).not.toMatch(/#(?:020617|0f172a|1e293b|334155|f1f5f9|b8c5d4|a0b0c0|7a8ea0)/i);
+    expect(designMetadata.components.map((component) => component.css).join("\n")).not.toContain(":hover{background:var(--app-surface-alt)");
   });
 
-  test("rejects malformed semantic utilities and the removed one-theme selector", () => {
+  test("rejects malformed semantic utilities", () => {
     const frontendSources = [
       ...sourceFiles.map((path) => readFileSync(path, "utf8")),
       readFileSync(resolve(CLIENT_DIR, ".storybook/preview.ts"), "utf8"),
     ].join("\n");
 
     expect(frontendSources).not.toMatch(/text-app-text\/90-(?:muted|dim)/);
-    expect(frontendSources).not.toContain("data-theme");
     expect(frontendSources).not.toContain("forza-theme");
-    expect(frontendSources).not.toContain("ThemeProvider");
+  });
+
+  test("keeps raw palette values in CSS and adapts imperative renderers centrally", () => {
+    const adapterPath = resolve(SOURCE_DIR, "lib/css-color.ts");
+    const runtimeFiles = [
+      ...sourceFiles.filter((path) => [".ts", ".tsx"].includes(extname(path)) && path !== adapterPath),
+      resolve(CLIENT_DIR, ".storybook/preview.ts"),
+    ];
+    const rawColors = runtimeFiles.flatMap((path) => {
+      const source = readFileSync(path, "utf8");
+      const quotedHex = [...source.matchAll(/["'`][^"'`\r\n]*(?<!&)#[\da-f]{3,8}\b/gi)].map((match) => match[0]);
+      const colorFunctions = [...source.matchAll(/\b(?:rgb|rgba|hsl|hsla)\s*\(/gi)].map((match) => match[0]);
+      const namedColors = [
+        ...source.matchAll(
+          /\b(?:color|backgroundColor|borderColor|fill|stroke|fillStyle|strokeStyle|shadowColor)\s*(?:=|:)\s*["'`](?:white|black|red|orange|yellow|green|blue|purple|gray|grey)["'`]/gi,
+        ),
+      ].map((match) => match[0]);
+      return [...quotedHex, ...colorFunctions, ...namedColors].map((match) => `${path}:${match}`);
+    });
+
+    expect(rawColors).toEqual([]);
+
+    const rawCssColors = sourceFiles
+      .filter((path) => extname(path) === ".css" && path !== THEME_PATH && path !== BRANDING_PATH)
+      .flatMap((path) => {
+        const source = readFileSync(path, "utf8");
+        return [...source.matchAll(/#[\da-f]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch)\s*\(/gi)].map((match) => `${path}:${match[0]}`);
+      });
+    expect(rawCssColors).toEqual([]);
+
+    const runtimeSource = runtimeFiles.map((path) => readFileSync(path, "utf8")).join("\n");
+    expect(runtimeSource).not.toMatch(/\.getContext\(\s*["']2d["']\s*\)/);
+    expect(runtimeSource).not.toMatch(/\bnew\s+THREE\.Color\(\s*(?:0x[\da-f]+|\d+(?:\.\d+)?\s*,)/i);
+    expect(runtimeSource).not.toMatch(/<(?:Line|Grid|gridHelper|mesh\w*Material)\b[^>\r\n]*(?:color|args)=\{?[^>\r\n]*["'`]var\(--/);
+    expect(runtimeSource).not.toMatch(/var\(--[\w-]+,\s*(?:#[\da-f]{3,8}|rgba?|hsla?)\b/i);
+    expect(runtimeSource).not.toMatch(
+      /var\(--color-(?:slate|gray|red|orange|amber|yellow|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|white|black)(?:-\d+)?\)/i,
+    );
+    expect(runtimeSource).not.toMatch(
+      /\b(?:text|bg|border|ring|stroke|fill|outline|decoration|shadow|from|via|to|accent|divide|placeholder|caret)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|white|black)(?:-\d+)?(?:\/\d+)?\b/i,
+    );
+    expect(runtimeSource).not.toMatch(/var\(--dynamics-(?:green|yellow|amber|orange|red|blue|gray)\)/i);
+    expect(runtimeSource).not.toMatch(/\b(?:text|bg|border|ring|stroke|fill)-dynamics-(?:green|yellow|amber|orange|red|blue|gray)\b/i);
+    expect(runtimeSource).not.toMatch(/\bCOLOR_VARS\b/);
+    expect(runtimeSource).not.toContain("COLORS_HEX");
+    expect(runtimeSource).not.toContain("tireTempColorHex");
+    expect(runtimeSource).not.toMatch(/\btext-app-(?:bg|surface)\b/);
+    expect(runtimeSource).not.toMatch(
+      /\bbg-(?:app-accent|status-(?:success|danger|warning|info))(?![\/\w-])[^"'`\r\n]*\btext-app-(?:text|bg|surface)\b/,
+    );
+    expect(runtimeSource).not.toMatch(
+      /\b(?:hover|group-hover):(?:bg-app-(?:bg|surface-alt|surface|border|border-input|text)|border-app-(?:border|border-input|text-dim))(?:\/(?:\d+|\[[^\]]+\]))?(?=["'`\s}])/,
+    );
+
+    const adapterSource = readFileSync(adapterPath, "utf8");
+    expect(adapterSource).toContain('canvas.getContext("2d")');
   });
 
   test("keeps product, manufacturer, and team color values out of React", () => {

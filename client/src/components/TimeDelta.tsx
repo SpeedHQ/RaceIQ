@@ -1,3 +1,4 @@
+import { DELTA_COLOR_VARS } from "@/lib/colors";
 import { TelemetryChart } from "./TelemetryChart";
 
 interface Props {
@@ -9,7 +10,7 @@ interface Props {
 }
 
 export function TimeDelta({ distances, timeDelta, syncKey, height = 160, onCursorMove }: Props) {
-  // Split into positive (losing time = red) and negative (gaining time = green) for fill
+  // Split positive (losing) and negative (gaining) values for theme-owned fills.
   const gaining = timeDelta.map((d) => (d <= 0 ? d : 0));
   const losing = timeDelta.map((d) => (d > 0 ? d : 0));
 
@@ -19,9 +20,9 @@ export function TimeDelta({ distances, timeDelta, syncKey, height = 160, onCurso
         distance: distances,
         values: [gaining, losing],
         labels: ["Gaining", "Losing"],
-        colors: ["#22c55e", "#ef4444"],
+        colors: [...DELTA_COLOR_VARS],
       }}
-      fillColors={["rgba(34, 197, 94, 0.2)", "rgba(239, 68, 68, 0.2)"]}
+      fillColors={DELTA_COLOR_VARS.map((color) => `color-mix(in srgb, ${color} 20%, transparent)`)}
       syncKey={syncKey}
       height={height}
       title="Time Delta"

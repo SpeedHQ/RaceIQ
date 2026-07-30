@@ -35,8 +35,8 @@ const PAGE_SIZE = 10;
 // Active-tab colouring per source.
 const TAB_ACTIVE: Record<string, string> = {
   all: "border-app-accent text-app-accent",
-  community: "border-pink-400 text-pink-400",
-  user: "border-emerald-400 text-emerald-400",
+  community: "border-(--tune-source-community) text-(--tune-source-community)",
+  user: "border-(--tune-source-user) text-(--tune-source-user)",
 };
 
 export function SetupBrowser(props: SetupBrowserProps) {
@@ -120,7 +120,7 @@ export function SetupBrowser(props: SetupBrowserProps) {
           </>
         )}
         {props.onNewTune && (
-          <button type="button" className="text-[11px] font-bold uppercase tracking-wide bg-app-accent text-app-bg px-3.5 py-2 rounded" onClick={props.onNewTune}>
+          <button type="button" className="text-[11px] font-bold uppercase tracking-wide bg-app-accent text-app-on-filled px-3.5 py-2 rounded" onClick={props.onNewTune}>
             {m.setup_new_tune()}
           </button>
         )}

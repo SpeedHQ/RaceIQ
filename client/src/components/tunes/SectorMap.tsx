@@ -1,5 +1,6 @@
 import type { TelemetryPacket } from "@shared/types";
 import { useMemo, useRef, useState } from "react";
+import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { useTrackBoundaries } from "../../hooks/queries";
 import { buildGeometry, extractEdges, type ProjPt, VIEW } from "./track-map-geometry";
 
@@ -32,8 +33,6 @@ interface SectorMapProps {
    *  location, highlighted when its list item is hovered. */
   markFraction?: number | null;
 }
-
-const SECTOR_COLORS = ["#f87171", "#60a5fa", "#facc15", "#34d399", "#c084fc", "#fb923c"] as const;
 
 /**
  * SectorMap — a static post-lap track map: the lap's path plotted from its
@@ -119,7 +118,7 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
                 key={seg}
                 points={seg}
                 fill="none"
-                stroke={dim ? "currentColor" : SECTOR_COLORS[i % SECTOR_COLORS.length]}
+                stroke={dim ? "currentColor" : SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length]}
                 className={dim ? "text-app-border" : undefined}
                 strokeWidth={dim ? 2 : 3}
                 opacity={dim ? 0.4 : 1}
@@ -130,14 +129,14 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
           })}
           {markPt && (
             <>
-              <circle cx={markPt.x} cy={markPt.y} r={7} fill="none" stroke="#fbbf24" strokeWidth={2} />
-              <circle cx={markPt.x} cy={markPt.y} r={3} fill="#fbbf24" />
+              <circle cx={markPt.x} cy={markPt.y} r={7} fill="none" stroke="var(--map-highlight)" strokeWidth={2} />
+              <circle cx={markPt.x} cy={markPt.y} r={3} fill="var(--map-highlight)" />
             </>
           )}
           {hover && (
             <>
-              <circle cx={hover.x} cy={hover.y} r={5.5} fill="none" stroke="var(--color-app-accent, #22d3ee)" strokeWidth={1.5} />
-              <circle cx={hover.x} cy={hover.y} r={2.5} fill="var(--color-app-accent, #22d3ee)" />
+              <circle cx={hover.x} cy={hover.y} r={5.5} fill="none" stroke="var(--app-accent)" strokeWidth={1.5} />
+              <circle cx={hover.x} cy={hover.y} r={2.5} fill="var(--app-accent)" />
             </>
           )}
         </svg>
@@ -154,7 +153,7 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
             {rows.map((r) => (
               <div key={r.label} className="flex items-center justify-between gap-3 text-[11px] font-mono tabular-nums">
                 <span className="text-app-text-muted">{r.label}</span>
-                <span style={{ color: r.color ?? "var(--color-app-text, #e6edf3)" }}>{r.value}</span>
+                <span style={{ color: r.color ?? "var(--app-text)" }}>{r.value}</span>
               </div>
             ))}
           </div>
@@ -164,7 +163,7 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
         <div className="mt-2 grid gap-2" style={{ gridTemplateColumns: `repeat(${sectorTimes?.times.length ?? 3}, minmax(0, 1fr))` }}>
           {Array.from({ length: sectorTimes?.times.length ?? 3 }, (_, i) => `S${i + 1}`).map((label, i) => (
             <div key={label} className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: SECTOR_COLORS[i % SECTOR_COLORS.length] }} />
+              <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length] }} />
               <span className="text-[11px] text-app-text-muted">{label}</span>
               <span className="text-xs font-mono tabular-nums text-app-text ml-auto">{sectorTimes && sectorTimes.times[i] > 0 ? sectorTimes.times[i].toFixed(3) : "—"}</span>
             </div>

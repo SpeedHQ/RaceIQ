@@ -1,3 +1,5 @@
+import { getSemanticCanvasContext } from "@/lib/css-color";
+import { severityRangeColor } from "@/lib/colors";
 import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useRef } from "react";
 import { m } from "@/paraglide/messages";
@@ -16,7 +18,7 @@ export function GForceCircle({ packet }: { packet: TelemetryPacket }) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = getSemanticCanvasContext(canvas);
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
@@ -33,7 +35,7 @@ export function GForceCircle({ packet }: { packet: TelemetryPacket }) {
     for (let i = 1; i <= 3; i++) {
       ctx.beginPath();
       ctx.arc(cx, cy, (r / 3) * i, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(100,116,139,0.15)";
+      ctx.strokeStyle = "color-mix(in srgb, var(--app-text-dim) 15%, transparent)";
       ctx.lineWidth = 1;
       ctx.stroke();
     }
@@ -44,7 +46,7 @@ export function GForceCircle({ packet }: { packet: TelemetryPacket }) {
     ctx.lineTo(cx + r, cy);
     ctx.moveTo(cx, cy - r);
     ctx.lineTo(cx, cy + r);
-    ctx.strokeStyle = "rgba(100,116,139,0.1)";
+    ctx.strokeStyle = "color-mix(in srgb, var(--app-text-dim) 10%, transparent)";
     ctx.stroke();
 
     // Forza acceleration values are inverted relative to felt G-force:
@@ -55,7 +57,7 @@ export function GForceCircle({ packet }: { packet: TelemetryPacket }) {
     const dotY = cy - (lonG / maxG) * r;
 
     const totalG = Math.sqrt(latG * latG + lonG * lonG);
-    const dotColor = totalG < 0.5 ? "#34d399" : totalG < 1.0 ? "#facc15" : totalG < 1.5 ? "#fb923c" : "#ef4444";
+    const dotColor = severityRangeColor(totalG, [0.5, 1, 1.5]);
 
     ctx.beginPath();
     ctx.arc(dotX, dotY, 4, 0, Math.PI * 2);

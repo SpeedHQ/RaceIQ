@@ -1,3 +1,5 @@
+import { getSemanticCanvasContext } from "@/lib/css-color";
+import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { tryGetGame } from "@shared/games/registry";
 import { lapPath } from "@shared/lib/lap-path";
 import type { TelemetryPacket } from "@shared/types";
@@ -30,9 +32,9 @@ export interface TrackHighlight {
 }
 
 const HIGHLIGHT_COLORS = {
-  good: { stroke: "rgba(52, 211, 153, 0.7)", width: 6 }, // green
-  warning: { stroke: "rgba(251, 191, 36, 0.7)", width: 6 }, // amber
-  critical: { stroke: "rgba(239, 68, 68, 0.7)", width: 6 }, // red
+  good: { stroke: "color-mix(in srgb, var(--severity-nominal) 70%, transparent)", width: 6 },
+  warning: { stroke: "color-mix(in srgb, var(--severity-caution) 70%, transparent)", width: 6 },
+  critical: { stroke: "color-mix(in srgb, var(--severity-critical) 70%, transparent)", width: 6 },
 };
 
 export const AnalyseTrackMap = forwardRef<
@@ -155,7 +157,7 @@ export const AnalyseTrackMap = forwardRef<
 
     // Create offscreen canvas large enough for the full track at zoom scale
     const offscreen = new OffscreenCanvas(offW * dpr, offH * dpr);
-    const ctx = offscreen.getContext("2d")!;
+    const ctx = getSemanticCanvasContext(offscreen)!;
     ctx.scale(dpr, dpr);
 
     // Draw track boundary surface
@@ -174,9 +176,9 @@ export const AnalyseTrackMap = forwardRef<
         ctx.lineTo(rx, ry);
       }
       ctx.closePath();
-      ctx.fillStyle = "rgba(51, 65, 85, 0.25)";
+      ctx.fillStyle = "color-mix(in srgb, var(--track-surface) 25%, transparent)";
       ctx.fill();
-      ctx.strokeStyle = "rgba(100, 116, 139, 0.35)";
+      ctx.strokeStyle = "color-mix(in srgb, var(--track-edge) 35%, transparent)";
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(lx0, ly0);
@@ -190,7 +192,7 @@ export const AnalyseTrackMap = forwardRef<
 
     // Draw track outline
     ctx.beginPath();
-    ctx.strokeStyle = showInputs ? "#475569" : "#334155";
+    ctx.strokeStyle = showInputs ? "var(--track-outline-strong)" : "var(--track-outline)";
     ctx.lineWidth = showInputs ? 0.75 : 4;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -226,14 +228,13 @@ export const AnalyseTrackMap = forwardRef<
 
     // Sector-colored driving line. Native games may define any count (#134).
     if (sectors && displayOutline.length > 10 && !showInputs) {
-      const sectorLineColors = ["#ef4444", "#3b82f6", "#eab308", "#22c55e", "#a855f7", "#f97316"];
       const sectorBoundaries = [...sectors.sectorStarts, 1];
       for (let si = 0; si < sectors.sectorCount; si++) {
         const startIdx = fracToIdx(sectorBoundaries[si]);
         const endIdx = fracToIdx(sectorBoundaries[si + 1]);
         if (startIdx >= endIdx) continue;
         ctx.beginPath();
-        ctx.strokeStyle = sectorLineColors[si % sectorLineColors.length];
+        ctx.strokeStyle = SECTOR_COLOR_VARS[si % SECTOR_COLOR_VARS.length];
         ctx.lineWidth = 2.5;
         ctx.lineCap = "round";
         const [mx, my] = toCanvas(displayOutline[startIdx].x, displayOutline[startIdx].z);
@@ -259,7 +260,7 @@ export const AnalyseTrackMap = forwardRef<
         const endIdx = fracToIdx(seg.endFrac);
         if (startIdx >= endIdx) continue;
         ctx.beginPath();
-        ctx.strokeStyle = seg.type === "corner" ? "#f59e0b" : "#3b82f6";
+        ctx.strokeStyle = seg.type === "corner" ? "var(--track-corner-marker)" : "var(--track-straight-marker)";
         ctx.lineWidth = 2.5;
         ctx.lineCap = "round";
         const [mx, my] = toCanvas(displayOutline[startIdx].x, displayOutline[startIdx].z);
@@ -322,16 +323,16 @@ export const AnalyseTrackMap = forwardRef<
           continue;
         }
         occupied.push(rect);
-        ctx.fillStyle = "rgba(15, 23, 42, 0.88)";
+        ctx.fillStyle = "color-mix(in srgb, var(--track-label-background) 88%, transparent)";
         ctx.beginPath();
         ctx.roundRect(rect.x, rect.y, rect.w, rect.h, 3);
         ctx.fill();
-        ctx.fillStyle = "#f8fafc";
+        ctx.fillStyle = "var(--track-label-text)";
         ctx.fillText(label.text, label.x, label.y);
       }
     } else {
       ctx.beginPath();
-      ctx.strokeStyle = "#64748b";
+      ctx.strokeStyle = "var(--track-edge)";
       ctx.lineWidth = 2;
       ctx.moveTo(sx, sy);
       for (let i = 1; i < displayOutline.length; i++) {
@@ -350,11 +351,11 @@ export const AnalyseTrackMap = forwardRef<
       for (const label of mapLabels) {
         const [labelX, labelY] = toCanvas(label.x, label.z);
         const width = ctx.measureText(label.text).width + 6;
-        ctx.fillStyle = "rgba(15, 23, 42, 0.82)";
+        ctx.fillStyle = "color-mix(in srgb, var(--track-label-background) 82%, transparent)";
         ctx.beginPath();
         ctx.roundRect(labelX - width / 2, labelY - 10, width, 13, 3);
         ctx.fill();
-        ctx.fillStyle = "#f8fafc";
+        ctx.fillStyle = "var(--track-label-text)";
         ctx.fillText(label.text, labelX, labelY);
       }
     }
@@ -401,16 +402,15 @@ export const AnalyseTrackMap = forwardRef<
       const [sfCx, sfCy] = toCanvas(sfX, sfZ);
       ctx.beginPath();
       ctx.arc(sfCx, sfCy, 5, 0, Math.PI * 2);
-      ctx.fillStyle = "#10b981";
+      ctx.fillStyle = "var(--track-start)";
       ctx.fill();
-      ctx.strokeStyle = "#0f172a";
+      ctx.strokeStyle = "var(--track-label-background)";
       ctx.lineWidth = 1.5;
       ctx.stroke();
     }
 
     // Sector boundary markers
     if (sectors && displayOutline.length > 10) {
-      const sectorColors = ["#ef4444", "#3b82f6", "#eab308", "#22c55e", "#a855f7", "#f97316"];
       const sectorFracs = sectors.sectorStarts.slice(1);
       for (let si = 0; si < sectorFracs.length; si++) {
         const sIdx = fracToIdx(sectorFracs[si]);
@@ -429,15 +429,15 @@ export const AnalyseTrackMap = forwardRef<
           ctx.beginPath();
           ctx.moveTo(mx - nx * tickLen, my + nz * tickLen);
           ctx.lineTo(mx + nx * tickLen, my - nz * tickLen);
-          ctx.strokeStyle = sectorColors[si % sectorColors.length];
+          ctx.strokeStyle = SECTOR_COLOR_VARS[si % SECTOR_COLOR_VARS.length];
           ctx.lineWidth = 2;
           ctx.stroke();
         }
         ctx.beginPath();
         ctx.arc(mx, my, 3, 0, Math.PI * 2);
-        ctx.fillStyle = sectorColors[si];
+        ctx.fillStyle = SECTOR_COLOR_VARS[si % SECTOR_COLOR_VARS.length];
         ctx.fill();
-        ctx.strokeStyle = "#0f172a";
+        ctx.strokeStyle = "var(--track-label-background)";
         ctx.lineWidth = 1;
         ctx.stroke();
       }
@@ -467,18 +467,22 @@ export const AnalyseTrackMap = forwardRef<
           ctx.beginPath();
           ctx.moveTo(x0 + nx * offsetPx, y0 + ny * offsetPx);
           ctx.lineTo(x1 + nx * offsetPx, y1 + ny * offsetPx);
-          ctx.strokeStyle = `rgba(52, 211, 153, ${throttle})`;
+          ctx.globalAlpha = throttle;
+          ctx.strokeStyle = "var(--ch-throttle)";
           ctx.lineWidth = 2;
           ctx.stroke();
+          ctx.globalAlpha = 1;
         }
         // Brake line (offset right) — only when input active
         if (brake > 0) {
           ctx.beginPath();
           ctx.moveTo(x0 - nx * offsetPx, y0 - ny * offsetPx);
           ctx.lineTo(x1 - nx * offsetPx, y1 - ny * offsetPx);
-          ctx.strokeStyle = `rgba(239, 68, 68, ${brake})`;
+          ctx.globalAlpha = brake;
+          ctx.strokeStyle = "var(--ch-brake)";
           ctx.lineWidth = 2;
           ctx.stroke();
+          ctx.globalAlpha = 1;
         }
       }
     }
@@ -487,7 +491,7 @@ export const AnalyseTrackMap = forwardRef<
 
     // Immediately blit to visible canvas (fixed view only — car view uses compositeTrack with rotation)
     if (!rotateWithCar) {
-      const mainCtx = canvas.getContext("2d");
+      const mainCtx = getSemanticCanvasContext(canvas);
       if (mainCtx) {
         mainCtx.save();
         mainCtx.setTransform(1, 0, 0, 1, 0, 0);
@@ -504,7 +508,7 @@ export const AnalyseTrackMap = forwardRef<
     if (rotateWithCar) {
       const carCanvas = carCanvasRef.current;
       if (carCanvas) {
-        const carCtx = carCanvas.getContext("2d");
+        const carCtx = getSemanticCanvasContext(carCanvas);
         if (carCtx) {
           carCtx.clearRect(0, 0, carCanvas.width, carCanvas.height);
         }
@@ -522,7 +526,7 @@ export const AnalyseTrackMap = forwardRef<
       const t = transformRef.current;
       if (!canvas || !offscreen || !t) return;
 
-      const ctx = canvas.getContext("2d");
+      const ctx = getSemanticCanvasContext(canvas);
       if (!ctx) return;
       const dpr = window.devicePixelRatio || 1;
       ctx.save();
@@ -565,9 +569,9 @@ export const AnalyseTrackMap = forwardRef<
         ctx.lineTo(-triSize * 0.6, -triSize * 0.6);
         ctx.lineTo(-triSize * 0.6, triSize * 0.6);
         ctx.closePath();
-        ctx.fillStyle = "#22d3ee";
+        ctx.fillStyle = "var(--app-accent)";
         ctx.fill();
-        ctx.strokeStyle = "#0f172a";
+        ctx.strokeStyle = "var(--track-label-background)";
         ctx.lineWidth = 1.5;
         ctx.stroke();
         ctx.restore();
@@ -590,7 +594,7 @@ export const AnalyseTrackMap = forwardRef<
       carCanvas.height = t.h * dpr;
       carCanvas.style.width = `${t.w}px`;
       carCanvas.style.height = `${t.h}px`;
-      const ctx = carCanvas.getContext("2d");
+      const ctx = getSemanticCanvasContext(carCanvas);
       if (!ctx) return;
       ctx.scale(dpr, dpr);
       ctx.clearRect(0, 0, t.w, t.h);
@@ -625,9 +629,9 @@ export const AnalyseTrackMap = forwardRef<
       ctx.lineTo(-triSize * 0.6, -triSize * 0.6);
       ctx.lineTo(-triSize * 0.6, triSize * 0.6);
       ctx.closePath();
-      ctx.fillStyle = "#22d3ee";
+      ctx.fillStyle = "var(--app-accent)";
       ctx.fill();
-      ctx.strokeStyle = "#0f172a";
+      ctx.strokeStyle = "var(--track-label-background)";
       ctx.lineWidth = 1.5;
       ctx.stroke();
       ctx.restore();
@@ -701,7 +705,7 @@ export const AnalyseTrackMap = forwardRef<
     let animId: number;
     const draw = () => {
       const pos = carPosRef.current;
-      const ctx2 = pulse.getContext("2d");
+      const ctx2 = getSemanticCanvasContext(pulse);
       if (!ctx2 || !pos) {
         animId = requestAnimationFrame(draw);
         return;
@@ -731,7 +735,8 @@ export const AnalyseTrackMap = forwardRef<
       ctx2.lineTo(-s * 0.6, -s * 0.6);
       ctx2.lineTo(-s * 0.6, s * 0.6);
       ctx2.closePath();
-      ctx2.strokeStyle = `rgba(34, 211, 238, ${opacity})`;
+      ctx2.globalAlpha = opacity;
+      ctx2.strokeStyle = "var(--app-accent)";
       ctx2.lineWidth = 2;
       ctx2.stroke();
       ctx2.restore();

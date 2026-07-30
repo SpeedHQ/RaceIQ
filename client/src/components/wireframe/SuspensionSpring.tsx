@@ -1,6 +1,6 @@
 import { Line } from "@react-three/drei";
 import { useMemo } from "react";
-import { suspHexColor } from "../../lib/wireframe-utils";
+import { suspensionColor, threeColor, THREE_COLORS } from "../../lib/wireframe-utils";
 
 export function SuspensionSpring({
   bodyPos,
@@ -32,7 +32,7 @@ export function SuspensionSpring({
     return pts;
   }, [botY, height, bodyPos[0], bodyPos[2]]);
 
-  const color = suspHexColor(suspTravel, suspThresholds);
+  const color = threeColor(suspensionColor(suspTravel, suspThresholds));
 
   return (
     <group>
@@ -44,7 +44,7 @@ export function SuspensionSpring({
           [bodyPos[0], topY + 0.05, bodyPos[2]],
           [bodyPos[0], botY - 0.05, bodyPos[2]],
         ]}
-        color="#64748b"
+        color={THREE_COLORS.appTextDim}
         lineWidth={1}
         depthTest={false}
         renderOrder={10}

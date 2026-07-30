@@ -312,10 +312,10 @@ function teamBrand(team: F1Team): string {
 }
 
 function getRatingColor(value: number): string {
-  if (value >= 93) return "text-emerald-400";
-  if (value >= 88) return "text-cyan-400";
-  if (value >= 83) return "text-yellow-400";
-  return "text-orange-400";
+  if (value >= 93) return "text-(--severity-nominal)";
+  if (value >= 88) return "text-status-info";
+  if (value >= 83) return "text-(--severity-caution)";
+  return "text-(--severity-warning)";
 }
 
 export function F1Cars() {

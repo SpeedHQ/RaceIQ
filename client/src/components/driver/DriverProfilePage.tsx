@@ -175,14 +175,14 @@ export function DriverProfilePage() {
       </header>
 
       {error && (
-        <div className="mb-4 flex items-start gap-2 rounded-lg bg-red-500/10 p-3 text-sm text-red-300 ring-1 ring-red-500/20">
+        <div className="mb-4 flex items-start gap-2 rounded-lg bg-status-danger/10 p-3 text-sm text-status-danger ring-1 ring-status-danger/20">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {!data && !loading && !error && (
-        <div className="rounded-lg bg-app-surface p-8 text-center ring-1 ring-white/10">
+        <div className="rounded-lg bg-app-surface p-8 text-center ring-1 ring-app-text/10">
           <p className="text-sm text-app-text-muted">Build a profile to see your driving-style measurements and a ranked improvement plan drawn from your lap history.</p>
         </div>
       )}
