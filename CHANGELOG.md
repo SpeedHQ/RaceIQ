@@ -8,6 +8,8 @@
 
 ### Fixes
 
+- Show all registered games in storage settings, including games with no recording files
+
 ### Internal
 - Consolidated live dashboard routing across all supported games while preserving game-specific URLs
 - Deterministic iRacing recording and replay coverage through the production parser pipeline
@@ -19,6 +21,7 @@
 - Added focused CSS resolution adapters for Canvas and uPlot renderers, backed by theme contract and Storybook snapshot coverage
 - Updated workspace dependencies and regenerated root Bun lockfile
 - Use `import.meta.dirname` in Vite config for native config-loader compatibility
+- Avoid initializing Mastra observability during standalone database seeding
 
 ## v0.13.0 - 2026-07-16
 

@@ -55,8 +55,14 @@ let compareChatAgent: CompareChatAgent = rawCompareChatAgent;
 let setupEngineerAgent: SetupEngineerAgent = rawSetupEngineerAgent;
 let driverProfilerAgent: DriverProfilerAgent = rawDriverProfilerAgent;
 let driverCoachAgent: DriverCoachAgent = rawDriverCoachAgent;
+export function shouldUseMastraRuntime(
+  nodeEnv = process.env.NODE_ENV,
+  argv = process.argv,
+): boolean {
+  return nodeEnv !== "production" && argv.some((arg) => /(?:^|[\\/])server[\\/]index\.ts$/.test(arg));
+}
 
-if (process.env.NODE_ENV !== "production") {
+if (shouldUseMastraRuntime()) {
   try {
     const { mastra } = await import("../../mastra");
     lapAnalystAgent = mastra.getAgent("lap-analyst") as unknown as LapAnalystAgent;
