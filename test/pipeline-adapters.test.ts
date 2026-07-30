@@ -1,6 +1,7 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect, spyOn } from "bun:test";
 import type { TelemetryPacket } from "../shared/types";
-import { CapturingDbAdapter, NullWsAdapter } from "../server/pipeline-adapters";
+import { RealDbAdapter, CapturingDbAdapter, NullWsAdapter } from "../server/pipeline-adapters";
+import * as DriverProfileRunner from "../server/ai/driver-profile-runner";
 
 describe("CapturingDbAdapter", () => {
   test("insertSession captures data and returns incrementing IDs", async () => {
@@ -48,6 +49,20 @@ describe("CapturingDbAdapter", () => {
     const db = new CapturingDbAdapter();
     expect(await db.getTuneAssignment("f1-2025", 1, 1)).toBeNull();
   });
+});
+
+test("RealDbAdapter notifies global profile after valid and dirty persisted laps", async () => {
+  const notify = spyOn(DriverProfileRunner, "notifyDriverProfileLap").mockImplementation(() => {});
+  try {
+    const db = new RealDbAdapter();
+    const sessionId = await db.insertSession(1, 1, "f1-2025");
+    await db.insertLap(sessionId, 1, 90000, true, null, 0, null, null, null, null);
+    await db.insertLap(sessionId, 2, 91000, false, null, 0, null, null, "dirty", null);
+    expect(notify).toHaveBeenNthCalledWith(1, "f1-2025");
+    expect(notify).toHaveBeenNthCalledWith(2, "f1-2025");
+  } finally {
+    notify.mockRestore();
+  }
 });
 
 describe("NullWsAdapter", () => {

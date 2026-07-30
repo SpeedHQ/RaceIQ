@@ -29,6 +29,7 @@ concurrency:
 
 jobs:
   render:
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: blacksmith-2vcpu-ubuntu-2204
     # Pin the render environment so responsive screenshots are reproducible:
     # the Playwright image ships the exact Chromium + system fonts, and

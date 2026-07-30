@@ -36,7 +36,7 @@ function fmtDuration(sec: number): string {
 
 const LEVEL_COLORS = ["var(--color-app-surface-alt, #1a1d26)", "rgba(139, 92, 246, 0.25)", "rgba(139, 92, 246, 0.5)", "rgba(139, 92, 246, 0.75)", "rgba(139, 92, 246, 1)"];
 
-export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
+export function ActivityHeatmap({ laps, showTitle = true }: { laps: LapMeta[]; showTitle?: boolean }) {
   const [hover, setHover] = useState<{ date: string; seconds: number; x: number; y: number } | null>(null);
 
   // Localized weekday abbreviations for the Mon/Wed/Fri rows (Nov 2021 starts
@@ -127,13 +127,15 @@ export function ActivityHeatmap({ laps }: { laps: LapMeta[] }) {
 
   return (
     <div>
-      <div className="flex items-baseline justify-between mb-2">
-        <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider">{m.heatmap_title()}</h2>
-        <div className="text-[11px] text-app-text/90-dim">
-          {fmtDuration(totalSeconds)} · {totalDays} {m.heatmap_active_days()} · {m.heatmap_longest_streak()} {longestStreak} {m.heatmap_days_word()} · {m.heatmap_longest_day()}{" "}
-          {fmtDuration(bestDaySeconds)}
+      {showTitle && (
+        <div className="flex items-baseline justify-between mb-2">
+          <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider">{m.heatmap_title()}</h2>
+          <div className="text-[11px] text-app-text/90-dim">
+            {fmtDuration(totalSeconds)} · {totalDays} {m.heatmap_active_days()} · {m.heatmap_longest_streak()} {longestStreak} {m.heatmap_days_word()} · {m.heatmap_longest_day()}{" "}
+            {fmtDuration(bestDaySeconds)}
+          </div>
         </div>
-      </div>
+      )}
       <div ref={scrollRef} className="rounded-lg p-4 overflow-x-auto relative">
         <div className="flex gap-2 w-max mx-auto">
           <div className="flex flex-col justify-between py-[14px] pr-1 text-[9px] text-app-text/90-dim leading-none select-none">

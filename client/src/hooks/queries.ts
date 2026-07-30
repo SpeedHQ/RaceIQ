@@ -1,3 +1,5 @@
+import type { DriverFingerprint } from "../../../server/ai/driver-profile-aggregate";
+import type { DriverProfileSummary } from "../../../server/ai/schemas";
 import type { ExperimentFocus, VersionKind } from "@shared/experiment-focus";
 import { tryGetGame } from "@shared/games/registry";
 import type { GameId, LapMeta, SessionMeta, SessionRecap, TelemetryPacket, TuneIssue } from "@shared/types";
@@ -29,6 +31,8 @@ export const queryKeys = {
   userTunes: ["user-tunes"] as const,
   catalogTunes: ["catalog-tunes"] as const,
   tuneAssignments: ["tune-assignments"] as const,
+  driverProfile: (gameId: GameId | null) => ["driver-profile", gameId] as const,
+  driverProfileRuns: (gameId: GameId | null) => ["driver-profile-runs", gameId] as const,
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -81,6 +85,120 @@ export function useLaps(options?: { refetchInterval?: number | false }) {
     ...options,
   });
 }
+
+export interface DriverProfileResponse {
+  fingerprint: DriverFingerprint;
+  gameName: string;
+}
+export type DriverProfileRunStatus = "queued" | "running" | "succeeded" | "failed";
+export type DriverProfileState = DriverProfileRunStatus | "disabled" | "not-configured";
+
+export interface DriverProfileRun {
+  id: number;
+  scopeKey: string;
+  gameId: GameId;
+  carOrdinal: number | null;
+  trackOrdinal: number | null;
+  poolKey: string;
+  status: DriverProfileRunStatus;
+  fingerprint: string | null;
+  plan: string | null;
+  error: string | null;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  durationMs: number;
+  model: string;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface DriverProfileRunsResponse {
+  scope: { gameId: GameId };
+  gameName: string;
+  state: DriverProfileState;
+  enabled: boolean;
+  configured: boolean;
+  reason?: string;
+  latest: DriverProfileRun | null;
+  runs: DriverProfileRun[];
+}
+
+export interface DriverProfileRunMutationResponse {
+  scope: DriverProfileRunsResponse["scope"];
+  gameName: string;
+  state: DriverProfileState;
+  run: DriverProfileRun | null;
+  summary?: DriverProfileSummary;
+  fingerprint?: DriverFingerprint;
+  usage?: { inputTokens: number; outputTokens: number; costUsd: number; durationMs: number; model: string };
+  error?: string;
+}
+
+export interface DriverProfileRunScope {
+  gameId?: GameId | null;
+}
+
+/** Tracked driver-profile status and history for one stable game key. */
+export function useDriverProfileRuns(scope?: DriverProfileRunScope) {
+  const storeGameId = useGameId();
+  const gameId = scope?.gameId ?? storeGameId;
+  return useQuery({
+    queryKey: queryKeys.driverProfileRuns(gameId),
+    queryFn: async () => {
+      if (!gameId) throw new Error("Missing game context");
+      const res = await client.api.drivers.profile.runs.$get(
+        { query: { limit: "50" } },
+        { headers: { "X-Game-Id": gameId } },
+      );
+      return rpcJson<DriverProfileRunsResponse>(res);
+    },
+    enabled: !!gameId,
+    refetchInterval: (query) => {
+      const status = query.state.data?.latest?.status;
+      return status === "queued" || status === "running" ? 2_000 : false;
+    },
+  });
+}
+
+/** Run the tracked profile endpoint and refresh both deterministic and status data. */
+export function useRunDriverProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ gameId, retry = false }: { gameId: GameId; retry?: boolean }) => {
+      const res = await client.api.drivers.profile.runs.$post(
+        { query: { runNow: retry ? undefined : "true", retry: retry ? "true" : undefined } },
+        { headers: { "X-Game-Id": gameId } },
+      );
+      return rpcJson<DriverProfileRunMutationResponse>(res);
+    },
+    onSettled: (_data, _error, variables) => {
+      void qc.invalidateQueries({ queryKey: queryKeys.driverProfileRuns(variables.gameId) });
+      void qc.invalidateQueries({ queryKey: queryKeys.driverProfile(variables.gameId) });
+    },
+  });
+}
+
+/** Deterministic driver fingerprint; does not invoke an AI provider. */
+export function useDriverProfile(scope?: { gameId?: GameId | null }) {
+  const storeGameId = useGameId();
+  const gameId = scope?.gameId ?? storeGameId;
+  return useQuery({
+    queryKey: queryKeys.driverProfile(gameId),
+    queryFn: async () => {
+      if (!gameId) throw new Error("Missing game context");
+      const res = await client.api.drivers.profile.$get(
+        { query: {} },
+        { headers: { "X-Game-Id": gameId } },
+      );
+      return rpcJson<DriverProfileResponse>(res);
+    },
+    enabled: !!gameId,
+  });
+}
+
+
 
 export function useLapTelemetry(lapId: number | null) {
   const gameId = useGameId();
