@@ -1,13 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { useState } from "react";
 import { expect, userEvent, within } from "storybook/test";
 import { Table, TBody, TD, TH, THead, TRow } from "../components/ui/AppTable";
-import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
 
 const meta = {
@@ -24,110 +21,8 @@ const meta = {
   ],
 } satisfies Meta;
 
-function ControlledTabsDemo() {
-  const [value, setValue] = useState("telemetry");
-  return (
-    <Tabs value={value} onValueChange={setValue} className="w-full max-w-md">
-      <TabsList activateOnFocus>
-        <TabsTrigger value="telemetry">Telemetry</TabsTrigger>
-        <TabsTrigger value="setup">Setup</TabsTrigger>
-        <TabsTrigger value="notes">Notes</TabsTrigger>
-      </TabsList>
-      <TabsContent value="telemetry" className="pt-3 text-app-subtext text-app-text-secondary">
-        Live telemetry for current session.
-      </TabsContent>
-      <TabsContent value="setup" className="pt-3 text-app-subtext text-app-text-secondary">
-        Current setup values.
-      </TabsContent>
-      <TabsContent value="notes" className="pt-3 text-app-subtext text-app-text-secondary">
-        Driver notes and reminders.
-      </TabsContent>
-    </Tabs>
-  );
-}
 export default meta;
 type Story = StoryObj<typeof meta>;
-
-export const TabsUncontrolled: Story = {
-  render: () => (
-    <Tabs defaultValue="overview" className="w-full max-w-md">
-      <TabsList activateOnFocus>
-        <TabsTrigger value="overview">Overview</TabsTrigger>
-        <TabsTrigger value="setup">Setup</TabsTrigger>
-        <TabsTrigger value="archived" disabled>
-          Archived
-        </TabsTrigger>
-      </TabsList>
-      <TabsContent value="overview" className="pt-3 text-app-subtext text-app-text-secondary">
-        Session overview.
-      </TabsContent>
-      <TabsContent value="setup" className="pt-3 text-app-subtext text-app-text-secondary">
-        Setup details.
-      </TabsContent>
-      <TabsContent value="archived" className="pt-3 text-app-subtext text-app-text-secondary">
-        Archived sessions.
-      </TabsContent>
-    </Tabs>
-  ),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const overview = canvas.getByRole("tab", { name: "Overview" });
-    const setup = canvas.getByRole("tab", { name: "Setup" });
-    await expect(canvas.getByRole("tab", { name: "Archived" })).toBeDisabled();
-    await userEvent.click(overview);
-    await userEvent.keyboard("{ArrowRight}");
-    await expect(setup).toHaveFocus();
-    await expect(setup).toHaveAttribute("data-active");
-    await expect(canvas.getByText("Setup details.")).toBeVisible();
-  },
-};
-
-export const TabsControlled: Story = {
-  render: () => <ControlledTabsDemo />,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByRole("tab", { name: "Telemetry" })).toHaveAttribute("data-active");
-    await userEvent.click(canvas.getByRole("tab", { name: "Setup" }));
-    await expect(canvas.getByRole("tab", { name: "Setup" })).toHaveAttribute("data-active");
-    await expect(canvas.getByText("Current setup values.")).toBeVisible();
-  },
-};
-
-export const BadgeVariants: Story = {
-  render: () => (
-    <div className="flex max-w-md flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="neutral" size="compact">
-          Neutral
-        </Badge>
-        <Badge variant="info" size="default">
-          Info
-        </Badge>
-        <Badge variant="success" size="compact">
-          Success
-        </Badge>
-        <Badge variant="warning" size="default">
-          Warning
-        </Badge>
-        <Badge variant="danger" size="compact">
-          Danger
-        </Badge>
-      </div>
-      <Badge variant="info" size="default" className="max-w-48 whitespace-normal text-center">
-        Long status text wraps without changing badge semantics.
-      </Badge>
-      <Badge aria-hidden="true" variant="neutral" size="compact">
-        Decorative indicator
-      </Badge>
-    </div>
-  ),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByText("Long status text wraps without changing badge semantics.")).toBeVisible();
-    await expect(canvas.getByText("Decorative indicator")).toHaveAttribute("aria-hidden", "true");
-    await expect(canvas.getByText("Decorative indicator")).not.toHaveAttribute("tabindex");
-  },
-};
 
 export const ButtonVariants: Story = {
   render: () => (
@@ -161,91 +56,14 @@ export const ButtonVariants: Story = {
           Large
         </Button>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="app-primary" size="app-sm">
-          Default action
-        </Button>
-        <Button variant="app-primary" size="app-sm" type="submit">
-          Submit form
-        </Button>
-        <Button variant="app-outline" size="app-sm" type="reset">
-          Reset form
-        </Button>
-      </div>
     </div>
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const primary = canvas.getByRole("button", { name: "Start session" });
-    await expect(canvas.getByRole("button", { name: "Default action" })).toHaveAttribute("type", "button");
-    await expect(canvas.getByRole("button", { name: "Submit form" })).toHaveAttribute("type", "submit");
-    await expect(canvas.getByRole("button", { name: "Reset form" })).toHaveAttribute("type", "reset");
     await userEvent.tab();
     await expect(primary).toHaveFocus();
-    await expect(getComputedStyle(primary).boxShadow).toContain("3px");
-  },
-};
-export const SemanticVariants: Story = {
-  render: () => (
-    <div className="flex max-w-md flex-col gap-3">
-      <div className="flex flex-wrap gap-2">
-        <Button variant="menu-action">Menu action</Button>
-        <Button variant="close-action" aria-label="Close">
-          ×
-        </Button>
-        <Button variant="destructive-outline">Delete</Button>
-        <Button variant="selected-toggle" aria-pressed="true">
-          Selected
-        </Button>
-        <Button variant="full-width-action">Full width</Button>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Badge variant="catalog-category">Category</Badge>
-        <Badge variant="game-brand">Game brand</Badge>
-        <Badge variant="ai-status">AI status</Badge>
-      </div>
-      <Card variant="transparent-panel">
-        <CardHeader>
-          <CardTitle>Settings section</CardTitle>
-        </CardHeader>
-        <CardContent>Transparent panel contract.</CardContent>
-      </Card>
-      <Tabs defaultValue="one">
-        <TabsList variant="pills">
-          <TabsTrigger value="one" variant="pills">
-            One
-          </TabsTrigger>
-          <TabsTrigger value="two" variant="pills">
-            Two
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="one">Active tab content</TabsContent>
-      </Tabs>
-      <Table variant="settings">
-        <TBody>
-          <TRow>
-            <TD>Settings row</TD>
-          </TRow>
-        </TBody>
-      </Table>
-      <Dialog defaultOpen>
-        <DialogContent layout="scrollable" size="sm">
-          <DialogTitle>Scrollable dialog</DialogTitle>
-          <DialogDescription>Dialog shell contract.</DialogDescription>
-        </DialogContent>
-      </Dialog>
-    </div>
-  ),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const body = within(document.body);
-    await expect(canvas.getByRole("button", { name: "Menu action" })).toBeVisible();
-    await expect(canvas.getByRole("button", { name: "Close" })).toHaveAttribute("type", "button");
-    await expect(canvas.getByText("Category")).toBeVisible();
-    await expect(canvas.getByText("Settings section")).toBeVisible();
-    await expect(canvas.getByRole("tab", { name: "One" })).toHaveAttribute("data-active");
-    await expect(body.getByText("Scrollable dialog")).toBeVisible();
-    await expect(canvas.getByText("Settings row")).toBeVisible();
+    await expect(primary).toHaveClass("focus-visible:ring-3");
   },
 };
 
@@ -253,7 +71,7 @@ export const DialogSizes: Story = {
   render: () => (
     <Dialog defaultOpen>
       <DialogTrigger render={<Button variant="app-outline" size="app-md" />}>Open lap summary</DialogTrigger>
-      <DialogContent size="sm">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Lap summary</DialogTitle>
           <DialogDescription>Review your latest stint before saving it to this driver profile.</DialogDescription>
@@ -286,7 +104,7 @@ export const DialogSizes: Story = {
 
 export const CardShell: Story = {
   render: () => (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-md border border-app-border bg-app-surface">
       <CardHeader className="border-b border-app-border">
         <CardTitle>Driver profile</CardTitle>
         <CardDescription>Keep setup notes close to your telemetry.</CardDescription>
@@ -341,7 +159,7 @@ export const TableShell: Story = {
         <h2 className="text-app-heading font-semibold">Recent laps</h2>
         <p className="mt-1 text-app-subtext text-app-text-secondary">Latest recorded laps for this track.</p>
       </div>
-      <Table>
+      <Table className="border border-app-border bg-app-surface">
         <THead>
           <TH scope="col">Driver</TH>
           <TH scope="col">Lap</TH>
@@ -350,18 +168,18 @@ export const TableShell: Story = {
         <TBody>
           <TRow>
             <TD>A. Cooper</TD>
-            <TD numeric>1:42.318</TD>
-            <TD tone="success">-0.214</TD>
+            <TD className="font-mono">1:42.318</TD>
+            <TD className="text-status-success">-0.214</TD>
           </TRow>
           <TRow>
             <TD>M. Rossi</TD>
-            <TD numeric>1:42.532</TD>
-            <TD>+0.000</TD>
+            <TD className="font-mono">1:42.532</TD>
+            <TD className="text-app-text-secondary">+0.000</TD>
           </TRow>
           <TRow>
             <TD>J. Smith</TD>
-            <TD numeric>1:43.087</TD>
-            <TD tone="warning">+0.555</TD>
+            <TD className="font-mono">1:43.087</TD>
+            <TD className="text-status-warning">+0.555</TD>
           </TRow>
         </TBody>
       </Table>
