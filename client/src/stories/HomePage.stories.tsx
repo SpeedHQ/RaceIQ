@@ -1,17 +1,31 @@
 import type { LapMeta, SessionMeta, SessionRecap } from "@shared/types";
 import type { DriverFingerprint } from "../../../server/ai/driver-profile-aggregate";
 import type { DriverProfileRun } from "../hooks/queries";
+import hakoneClubCenterlineCsv from "../../../shared/tracks/fm-2023/hakone-s-1641-centerline.csv?raw";
 
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from "react";
-import { HomePage } from "../components/HomePage";
+import { HomePageContainer } from "../components/HomePageContainer";
 import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
-import { useGameStore } from "../stores/game";
+import { GameStoryScope } from "./GameStoryScope";
 
 const GAME_ID = "fm-2023" as const;
 const SESSION_ID = 9001;
+const TRACK_ORDINAL = 1641;
+const HAKONE_CLUB_OUTLINE = hakoneClubCenterlineCsv
+  .trim()
+  .split("\n")
+  .slice(1)
+  .map((line) => {
+    const [x, z] = line.split(",").map(Number);
+    return { x, z };
+  });
+const HAKONE_CLUB_TRACK_LENGTH = HAKONE_CLUB_OUTLINE.slice(1).reduce((length, point, index) => {
+  const previous = HAKONE_CLUB_OUTLINE[index];
+  return length + Math.hypot(point.x - previous.x, point.z - previous.z);
+}, 0);
 
 function makeLap(id: number, day: number, lapNumber: number, lapTime: number, isValid = true): LapMeta {
   return {
@@ -23,7 +37,7 @@ function makeLap(id: number, day: number, lapNumber: number, lapTime: number, is
     createdAt: `2026-07-${String(day).padStart(2, "0")}T18:2${lapNumber}:00.000Z`,
     gameId: GAME_ID,
     carOrdinal: 201,
-    trackOrdinal: 42,
+    trackOrdinal: TRACK_ORDINAL,
   };
 }
 
@@ -46,7 +60,7 @@ const sessions: SessionMeta[] = [
   {
     id: SESSION_ID,
     carOrdinal: 201,
-    trackOrdinal: 42,
+    trackOrdinal: TRACK_ORDINAL,
     createdAt: "2026-07-28T18:45:00.000Z",
     lapCount: laps.length,
     bestLapTime: 95.844,
@@ -61,7 +75,7 @@ const recap: SessionRecap = {
   carName: "2023 Cadillac V-Series.R",
   trackName: "Hakone Club",
   carOrdinal: 201,
-  trackOrdinal: 42,
+  trackOrdinal: TRACK_ORDINAL,
   createdAt: "2026-07-28T18:45:00.000Z",
   lapsValid: 11,
   lapsTotal: 12,
@@ -75,16 +89,20 @@ const recap: SessionRecap = {
     sumSec: 95.637,
     deltaToBestSec: 0.207,
   },
-  sectorStarts: null,
+  sectorStarts: [0, 1 / 3, 2 / 3],
   improvementSec: 2.898,
   consistency: { stdDevSec: 0.642, rating: 4 },
   personalBest: { isNew: true, previousBestSec: 96.201 },
-  sectors: null,
+  sectors: [
+    { index: 1, bestLapSec: 31.9, sessionBestSec: 31.781, allTimeBestSec: 31.84, status: "record" },
+    { index: 2, bestLapSec: 32.044, sessionBestSec: 32.044, allTimeBestSec: 31.98, status: "session-best" },
+    { index: 3, bestLapSec: 31.9, sessionBestSec: 31.812, allTimeBestSec: 31.75, status: "lost" },
+  ],
 };
 
 const DRIVER_FINGERPRINT: DriverFingerprint = {
   ok: true,
-  scope: { kind: "car-track", gameId: GAME_ID, carOrdinal: 201, trackOrdinal: 42 },
+  scope: { kind: "car-track", gameId: GAME_ID, carOrdinal: 201, trackOrdinal: TRACK_ORDINAL },
   laps: { lapIds: laps.map((lap) => lap.id), analyzed: 12, candidates: 12, droppedInvalid: 1, droppedOutlier: 0, droppedByCap: 0, droppedNoTelemetry: 0 },
   confidence: "high",
   style: {
@@ -184,22 +202,40 @@ function createQueryClient() {
 
 const originalFetch = window.fetch.bind(window);
 const carNames: Record<string, string> = { "201": "2023 Cadillac V-Series.R" };
-const trackNames: Record<string, string> = { "42": "Hakone Club" };
+const trackNames: Record<string, string> = { [TRACK_ORDINAL]: "Hakone Club" };
 
-function mockNameFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+function jsonResponse(body: unknown): Promise<Response> {
+  return Promise.resolve(
+    new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }),
+  );
+}
+
+function mockHomeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-  const carMatch = url.match(/\/api\/car-name\/(\d+)/);
+  const parsedUrl = new URL(url, window.location.origin);
+  const carMatch = parsedUrl.pathname.match(/\/api\/car-name\/(\d+)/);
   if (carMatch) return Promise.resolve(new Response(carNames[carMatch[1]] ?? "Unknown car", { status: 200 }));
-  const trackMatch = url.match(/\/api\/track-name\/(\d+)/);
+  const trackMatch = parsedUrl.pathname.match(/\/api\/track-name\/(\d+)/);
   if (trackMatch) return Promise.resolve(new Response(trackNames[trackMatch[1]] ?? "Unknown track", { status: 200 }));
+  if (parsedUrl.searchParams.get("gameId") === GAME_ID) {
+    if (parsedUrl.pathname === `/api/track-outline/${TRACK_ORDINAL}`) {
+      return jsonResponse({ points: HAKONE_CLUB_OUTLINE, source: "storybook", startYaw: null, flipX: false });
+    }
+    if (parsedUrl.pathname === `/api/track-sector-boundaries/${TRACK_ORDINAL}` || parsedUrl.pathname === "/api/track-sector-boundaries/42") {
+      return jsonResponse({ s1End: 1 / 3, s2End: 2 / 3, trackLength: HAKONE_CLUB_TRACK_LENGTH });
+    }
+  }
   return originalFetch(input, init);
 }
 
-/** Installs only the two name endpoints HomePage resolves outside TanStack Query. */
+/** Installs deterministic API fixtures used by HomePageContainer. */
 function MockHomeApi({ children }: { children: ReactNode }) {
   const restored = useRef(false);
   if (!restored.current) {
-    window.fetch = mockNameFetch;
+    window.fetch = mockHomeFetch;
     restored.current = true;
   }
   useEffect(() => () => {
@@ -209,20 +245,19 @@ function MockHomeApi({ children }: { children: ReactNode }) {
 }
 
 function StoryProviders({ Story }: { Story: ComponentType }) {
-  // Set the active game while the provider tree is rendering so HomePage's
-  // first query/render is scoped to the deterministic Forza fixture.
-  useGameStore.getState().setGameId(GAME_ID);
   const [queryClient] = useState(createQueryClient);
   const [router] = useState(() => {
     const rootRoute = createRootRoute({ component: Story });
     return createRouter({ routeTree: rootRoute, history: createMemoryHistory({ initialEntries: ["/fm23"] }) });
   });
   return (
-    <MockHomeApi>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
-    </MockHomeApi>
+    <GameStoryScope gameId={GAME_ID}>
+      <MockHomeApi>
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </MockHomeApi>
+    </GameStoryScope>
   );
 }
 
@@ -232,10 +267,10 @@ function withProviders(Story: ComponentType) {
 
 const meta = {
   title: "Dashboards/Home Dashboard",
-  component: HomePage,
+  component: HomePageContainer,
   decorators: [(Story) => withProviders(Story)],
   parameters: { layout: "fullscreen" },
-} satisfies Meta<typeof HomePage>;
+} satisfies Meta<typeof HomePageContainer>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
