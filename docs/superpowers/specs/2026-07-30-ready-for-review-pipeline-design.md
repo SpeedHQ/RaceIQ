@@ -18,16 +18,16 @@ Use explicit activity types:
 - `reopened`
 - `ready_for_review`
 
-Keep each workflow's existing `!draft` job guard. Draft PRs continue to avoid CI; converting to ready creates a fresh run that executes the same pipeline. No duplicate workflow or new dispatch mechanism is needed.
+Keep the existing draft guard in `build-test.yml`. The screenshot workflow has no draft guard on `main`; adding `ready_for_review` lets its existing eligible render path also run when a draft becomes ready. No duplicate workflow or new dispatch mechanism is needed.
 
 ## Behavior
 
-- Opening a draft: workflow run may exist but jobs remain skipped.
-- Pushing to a draft: jobs remain skipped.
-- Marking draft ready: new workflow run starts and jobs execute.
+- Opening a draft: `build-test` may run but its jobs are skipped; screenshot behavior remains unchanged.
+- Pushing to a draft: `build-test` jobs remain skipped; screenshot behavior remains unchanged.
+- Marking draft ready: both workflows receive a new `ready_for_review` run.
 - Reopening or updating a ready PR: existing CI behavior remains unchanged.
 - Screenshot comment handling remains in `pr-screenshots-comment.yml` and continues to accept non-draft workflow runs.
 
 ## Verification
 
-Validate YAML syntax and inspect the resulting trigger expressions. Confirm both modified workflows include `ready_for_review` alongside the existing default PR activities and retain draft guards. No application runtime behavior changes.
+Validate YAML syntax and inspect the resulting trigger expressions. Confirm both modified workflows include `ready_for_review`, retain existing PR activity types, and preserve the build/test draft guards. No application runtime behavior changes.
