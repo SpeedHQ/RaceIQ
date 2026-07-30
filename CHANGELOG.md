@@ -17,6 +17,7 @@
 - Tolerate sparse screenshot antialiasing differences while preserving substantial visual regression reporting
 - Updated workspace dependencies and regenerated root Bun lockfile
 - Use `import.meta.dirname` in Vite config for native config-loader compatibility
+- Avoid initializing Mastra observability during standalone database seeding
 
 ## v0.13.0 - 2026-07-16
 
