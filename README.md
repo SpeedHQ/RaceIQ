@@ -1,24 +1,29 @@
 
 
-<p align="center">
+<div align="center">
   <img src="assets/raceiq-icon.png" alt="RaceIQ" width="200">
-</p>
+</div>
 
 <h1 align="center">RaceIQ</h1>
 
 <p align="center">
-  Real-time racing telemetry dashboard, lap analysis and catalogue for <strong>Forza Motorsport 2023</strong>, <strong>F1 2025</strong>, <strong>Assetto Corsa Competizione</strong>, <strong>Assetto Corsa Evo</strong>, and <strong>iRacing</strong>.
+  Free, open-source sim racing telemetry and driver improvement software for <strong>Forza Motorsport 2023</strong>, <strong>F1 2025</strong>, <strong>Assetto Corsa Competizione</strong>, <strong>Assetto Corsa Evo</strong>, and <strong>iRacing</strong>.
 </p>
 
 <p align="center">
+  RaceIQ helps you turn every session into measurable progress: drive, review, understand where time is lost, make a change, and see whether you got faster.
+</p>
+
+<div align="center">
   <a href="https://github.com/SpeedHQ/RaceIQ/releases/latest"><img src="https://img.shields.io/github/downloads/SpeedHQ/RaceIQ/total?style=for-the-badge&color=blue&label=downloads" alt="Downloads"></a>
   <a href="https://github.com/SpeedHQ/RaceIQ/blob/main/LICENSE"><img src="https://img.shields.io/github/license/SpeedHQ/RaceIQ?style=for-the-badge&color=blue" alt="License"></a>
   <a href="https://deepwiki.com/SpeedHQ/RaceIQ"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
-</p>
+</div>
 
-<p align="center">
-  <a href="https://github.com/SpeedHQ/RaceIQ/releases/latest">Download for Windows</a> · <a href="assets/screenshots/">Screenshots</a> · <a href="https://discord.gg/ZNXKyYPumT">Discord</a>
-</p>
+<div align="center">
+  <a href="assets/screenshots/"><img src="https://img.shields.io/badge/Screenshots-View-6B5B95?style=for-the-badge&logo=googlephotos&logoColor=white" alt="View RaceIQ screenshots"></a>
+  <a href="https://discord.gg/ZNXKyYPumT"><img src="https://img.shields.io/badge/Discord-22%20members-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Join RaceIQ on Discord — 22 members"></a>
+</div>
 
 > **Alpha software** — expect bugs, rough edges, and AI analysis that's still being fine-tuned for accuracy. Some features aren't obvious yet, so poke around and join the [Discord](https://discord.gg/ZNXKyYPumT) if you get stuck.
 
@@ -27,25 +32,55 @@
 </p>
 
 ---
+## A Free Alternative to Paid Sim Racing Telemetry Apps
 
-A free, open-source alternative to [Track Titan](https://tracktitan.io/), [Coach Dave Delta](https://coachdaveacademy.com/delta/), [Sim Racing Telemetry](https://www.simracingtelemetry.com/) and [Racing View](https://www.racingview.app/).
+RaceIQ is a free, open-source alternative to [Track Titan](https://tracktitan.io/), [Coach Dave Delta](https://coachdaveacademy.com/delta/), [MoTeC i2](https://www.motec.com.au/products/I2), [Sim Racing Telemetry](https://www.simracingtelemetry.com/), and [Racing View](https://www.racingview.app/). Looking for a **Track Titan alternative**, **Coach Dave Delta alternative**, or **MoTeC alternative**? RaceIQ combines multi-sim telemetry, lap comparison, AI coaching, setup analysis, driver progress, MoTeC import, and hotlap benchmarking in one local-first app.
 
-RaceIQ is the most advanced sim racing telemetry app available to the public — and it's completely free. Whether you're chasing lap records, finding fast tunes, or just trying to understand why you're slow through turn 3, RaceIQ gives you tools that simply aren't available anywhere else.
+RaceIQ is a **sim racing improvement app**, not just an analysis tool. It gives you a repeatable way to improve your pace across practice sessions, cars, tracks, and supported sims.
 
-It captures telemetry from your racing games, provides a live dashboard, records every lap to a local database, and gives you lap analysis and comparison (with optional AI coaching) and 3D visualizations — all running locally on your PC. It also includes a car and setup catalogue so you can browse and compare setups across tracks.
+Most telemetry tools answer, “What happened on this lap?” RaceIQ helps you answer the next questions:
+
+- **Where am I losing time?** Compare laps, sectors, corners, racing lines, speed, braking, throttle, and time delta.
+- **Why am I losing it?** Inspect the telemetry behind each mistake and use optional AI coaching for technique, setup, and tire feedback.
+- **What should I change?** Save tunes, compare setup experiments, and connect laps to the setups you actually drove.
+- **Did the change work?** Keep every lap and session in a local history, then use driver profiles, trends, activity, and recaps to track improvement over time.
+
+The result is a complete loop: **drive → capture → review → change → measure → repeat**.
+
+RaceIQ is free, open source, multi-sim, and local-first. Your telemetry, laps, analyses, conversations, tunes, experiments, and driver history stay on your machine. No cloud account is required.
+
+It captures telemetry from your racing games, provides a live dashboard, records every lap to a local database, and gives you lap analysis, comparison, session recaps, driver trends, AI coaching, and 3D visualizations. It also includes car, track, tune, and setup tools so you can understand both driving technique and vehicle changes.
 
 Check out the [demo](https://www.youtube.com/watch?v=hWuIItofivA) and [screenshots](assets/screenshots/) to see it in action.
+
+## Why RaceIQ
+
+RaceIQ combines the parts of a serious sim racing training workflow that are usually split across several tools:
+
+- **Progress tracking, not one-off telemetry** — every session contributes to your driver history, trends, activity, and improvement story.
+- **Actionable lap analysis** — find the corners and sectors that matter instead of staring at raw charts.
+- **Driving and setup in one workflow** — associate laps with tunes, inspect setup ranges, run experiments, and compare the result.
+- **MoTeC import** — bring `.ld` logs into RaceIQ so external sessions can join your analysis and comparison history.
+- **Benchmark against hotlaps** — compare your pace with community reference lap times and study linked YouTube hotlaps for braking, lines, and technique.
+- **Optional AI coaching** — ask for technique, setup, and tire feedback without sending telemetry through an intermediary server.
+- **One app across your sims** — use the same improvement workflow in Forza Motorsport, F1 2025, ACC, AC Evo, and iRacing.
+- **Free and local-first** — no subscription, no mandatory account, and no required cloud service.
+
 
 ## Features
 
 - **Live telemetry** — real-time dashboard with speed, inputs, tires, suspension, G-forces, and 3D car visualization
-- **Track mapping** — includes track outlines with live car position and automatic track mapping for tracks that havent been included in the software
-- **Lap analysis** — automatic lap and corner detection, side-by-side comparison with time deltas
-- **AI coaching** — send any lap for AI-powered technique, setup, and tire feedback
-- **Vehicle setup** — tune catalog, car browser with performance data
-- **Tune analysis** — compare the fastest tunes/setups and see popular setting ranges across the community
+- **Lap and corner analysis** — automatic lap and corner detection, side-by-side comparison, sector timing, time deltas, and telemetry charts
+- **Driver progress** — session recaps, driver profiles, rolling trends, activity history, and improvement metrics
+- **AI coaching** — optional AI-powered technique, setup, and tire feedback with persistent analysis conversations
+- **MoTeC log import** — import compatible MoTeC `.ld` logs and analyse them alongside recorded sessions
+- **Hotlap benchmarks** — compare against community reference lap times and open linked YouTube hotlaps from supported setup and track pages
+- **Setup experiments** — save tunes, associate them with laps, compare setup changes, and inspect tune performance
+- **Track mapping** — included track outlines with live car position plus automatic mapping for tracks not yet included
+- **Car and track catalogue** — browse supported cars, tracks, performance data, guides, and setup information
 
 ## Supported Games
+
 
 | Game | Status | Public Tunes | Public Guides | Tune Creator |
 |------|--------|--------------|---------------|--------------|
@@ -103,15 +138,6 @@ All data stays on your machine in `%APPDATA%/raceiq`:
 
 The database is created automatically on first run. No cloud account or external service required.
 
-### Seed a disposable development database
-
-From a fresh checkout, populate `DATA_DIR` with real committed telemetry:
-
-```bash
-bun run db:seed
-```
-
-The command imports representative Forza Motorsport, F1 2025, ACC, AC Evo, and iRacing captures and adds demo tunes, comparisons, cached analyses, and experiments. It marks onboarding complete so the dashboard opens directly to seeded data. It is idempotent. Use `bun run db:seed --reset` to regenerate only the seeded rows, or `DATA_DIR=.data-dev bun run db:seed` for a disposable database. The command refuses to mix seed data into a database containing captured user data unless `--force` is explicit.
 
 ## AI Coaching Setup
 
