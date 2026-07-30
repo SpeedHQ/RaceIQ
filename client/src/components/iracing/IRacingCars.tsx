@@ -62,7 +62,7 @@ export function IRacingCars() {
       <div className="flex items-center gap-3 flex-wrap">
         <AppInput value={search} onChange={(event) => setSearch(event.target.value)} placeholder={m.cars_search_placeholder()} className="w-full sm:w-72" />
         {!isLoading && (
-          <span className="text-xs text-app-text-muted whitespace-nowrap">
+          <span className="text-xs text-app-text/90 whitespace-nowrap">
             {filtered.length} / {cars.length}
           </span>
         )}
@@ -99,9 +99,9 @@ export function IRacingCars() {
       )}
 
       {isLoading ? (
-        <div className="text-center py-16 text-app-text-muted text-sm">{m.cars_loading()}</div>
+        <div className="text-center py-16 text-app-text/90 text-sm">{m.cars_loading()}</div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-12 text-app-text-muted text-sm">{m.cars_no_match()}</div>
+        <div className="text-center py-12 text-app-text/90 text-sm">{m.cars_no_match()}</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {filtered.map((car) => {

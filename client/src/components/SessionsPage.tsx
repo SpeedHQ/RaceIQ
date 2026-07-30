@@ -43,7 +43,7 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
           setOpen(true);
         }}
       >
-        <span className={`text-xs break-words whitespace-pre-wrap transition-opacity group-hover:opacity-30 ${value ? "text-app-text/90" : "text-app-text-dim italic"}`}>
+        <span className={`text-xs break-words whitespace-pre-wrap transition-opacity group-hover:opacity-30 ${value ? "text-app-text/90" : "text-app-text/90 italic"}`}>
           {value || m.sessions_add_note()}
         </span>
         <span className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity text-app-text/90 text-app-caption font-medium">
@@ -518,7 +518,7 @@ export function SessionsPage() {
                   setSelectedSessions(new Set());
                   setSelectedLaps(new Set());
                 }}
-                className={`px-3 py-1.5 text-sm font-semibold transition-colors ${tab === t ? "bg-app-accent text-app-on-filled" : "text-app-text-muted hover:text-app-text/90"}`}
+                className={`px-3 py-1.5 text-sm font-semibold transition-colors ${tab === t ? "bg-app-accent text-app-on-filled" : "text-app-text/90 hover:text-app-text"}`}
               >
                 {t === "recorded" ? m.sessions_tab_recorded() : m.sessions_tab_imported()}
               </button>
@@ -529,7 +529,7 @@ export function SessionsPage() {
         <h1 className="text-sm font-semibold text-app-text/90 shrink-0">
           {m.label_sessions()}
           {!isLoading && (
-            <span className="text-app-text-muted font-normal ml-2">
+            <span className="text-app-text/90 font-normal ml-2">
               {filtered.length === sessions.length ? `${sessions.length} ${m.sessions_total()}` : `${filtered.length} ${m.sessions_filtered_count()} ${sessions.length}`}
             </span>
           )}
@@ -591,9 +591,9 @@ export function SessionsPage() {
       {/* Mobile card list */}
       <div className="md:hidden flex-1 overflow-auto flex flex-col gap-2">
         {isLoading ? (
-          <div className="px-3 py-8 text-center text-app-text-muted">{m.common_loading()}</div>
+          <div className="px-3 py-8 text-center text-app-text/90">{m.common_loading()}</div>
         ) : pageItems.length === 0 ? (
-          <div className="px-3 py-8 text-center text-app-text-muted">{tab === "imported" ? m.sessions_none_imported() : m.sessions_none()}</div>
+          <div className="px-3 py-8 text-center text-app-text/90">{tab === "imported" ? m.sessions_none_imported() : m.sessions_none()}</div>
         ) : (
           pageItems.map((session) => {
             const isExpanded = expandedSessions.has(session.id);
@@ -630,7 +630,7 @@ export function SessionsPage() {
                     <div className="flex items-baseline justify-between gap-2">
                       <div className="text-sm font-semibold text-app-text truncate">{trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}</div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <div className="text-app-compact text-app-text-dim">
+                        <div className="text-app-compact text-app-text/90">
                           {new Date(session.createdAt).toLocaleDateString()} {new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </div>
                         <Button
@@ -657,18 +657,18 @@ export function SessionsPage() {
                         </Button>
                       </div>
                     </div>
-                    <div className="text-xs text-app-text-muted truncate mt-0.5">
+                    <div className="text-xs text-app-text/90 truncate mt-0.5">
                       {carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}
                       {isF1 && session.sessionType && session.sessionType !== "unknown" && <> · {formatSessionType(session.sessionType)}</>}
                     </div>
                     <div className="flex items-center gap-4 mt-2 text-xs">
-                      <span className="text-app-text-muted">
+                      <span className="text-app-text/90">
                         {m.label_laps()} <span className="text-app-text font-mono tabular-nums">{session.lapCount ?? 0}</span>
                       </span>
-                      <span className="text-app-text-muted">
+                      <span className="text-app-text/90">
                         {m.label_best()} <span className="text-app-text font-mono tabular-nums">{bestTime ? formatLapTime(bestTime) : "—"}</span>
                       </span>
-                      <span className="ml-auto text-app-text-dim">{isExpanded ? "▾" : "▸"}</span>
+                      <span className="ml-auto text-app-text/90">{isExpanded ? "▾" : "▸"}</span>
                     </div>
                     {/* Contains the note button and its modal; keeps their
                         clicks from reaching the card's expand toggle. */}
@@ -734,13 +734,13 @@ export function SessionsPage() {
         <TBody>
           {isLoading ? (
             <tr>
-              <td colSpan={colCount} className="px-3 py-8 text-center text-app-text-muted">
+              <td colSpan={colCount} className="px-3 py-8 text-center text-app-text/90">
                 {m.common_loading()}
               </td>
             </tr>
           ) : pageItems.length === 0 ? (
             <tr>
-              <td colSpan={colCount} className="px-3 py-8 text-center text-app-text-muted">
+              <td colSpan={colCount} className="px-3 py-8 text-center text-app-text/90">
                 {tab === "imported" ? m.sessions_none_imported() : m.sessions_none()}
               </td>
             </tr>
@@ -771,7 +771,7 @@ export function SessionsPage() {
                       <div className="flex items-center gap-2">
                         <span>
                           {new Date(session.createdAt).toLocaleDateString()}{" "}
-                          <span className="text-app-text-dim">{new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                          <span className="text-app-text/90">{new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                         </span>
                         <Button
                           variant="app-outline"
@@ -842,7 +842,7 @@ export function SessionsPage() {
       </Table>
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-xs text-app-text-muted">
+        <div className="flex items-center justify-between text-xs text-app-text/90">
           <span>
             {m.sessions_showing_prefix()} {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} {m.sessions_showing_of()} {filtered.length}
           </span>

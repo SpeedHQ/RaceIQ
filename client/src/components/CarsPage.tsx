@@ -74,7 +74,7 @@ function RatingBar({ value, max = 10 }: { value: number; max?: number }) {
       <div className="w-16 h-1 bg-app-border rounded-full overflow-hidden">
         <div className="h-full bg-app-accent rounded-full" style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-app-caption tabular-nums text-app-text-muted w-5">{value.toFixed(1)}</span>
+      <span className="text-app-caption tabular-nums text-app-text/90 w-5">{value.toFixed(1)}</span>
     </div>
   );
 }
@@ -93,7 +93,7 @@ function CarDetail({
   isMetric: boolean;
 }) {
   const s = car.specs;
-  if (!s) return <div className="px-4 py-3 text-xs text-app-text-muted">{m.cars_no_stats()}</div>;
+  if (!s) return <div className="px-4 py-3 text-xs text-app-text/90">{m.cars_no_stats()}</div>;
 
   return (
     <div className="px-4 py-3 grid grid-cols-1 md:grid-cols-[200px_1fr] gap-4 bg-app-bg border-t border-app-border">
@@ -102,9 +102,9 @@ function CarDetail({
         {s.imageUrl ? (
           <img src={s.imageUrl} alt={car.name} loading="lazy" className="w-full rounded object-contain bg-app-surface p-2" style={{ maxHeight: 120 }} />
         ) : (
-          <div className="w-full h-24 rounded bg-app-surface flex items-center justify-center text-xs text-app-text-muted">{m.common_no_image()}</div>
+          <div className="w-full h-24 rounded bg-app-surface flex items-center justify-center text-xs text-app-text/90">{m.common_no_image()}</div>
         )}
-        {s.synopsis && <p className="text-app-compact text-app-text-muted leading-relaxed line-clamp-4">{s.synopsis}</p>}
+        {s.synopsis && <p className="text-app-compact text-app-text/90 leading-relaxed line-clamp-4">{s.synopsis}</p>}
         {s.wikiUrl && (
           <a href={s.wikiUrl} target="_blank" rel="noopener noreferrer" className="text-app-caption text-app-accent hover:underline" onClick={(e) => e.stopPropagation()}>
             {m.cars_forza_wiki()}
@@ -116,7 +116,7 @@ function CarDetail({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2 text-xs">
         {/* Engine */}
         <div className="space-y-1">
-          <div className="text-app-caption uppercase tracking-wider text-app-text-muted font-semibold">{m.cars_engine()}</div>
+          <div className="text-app-caption uppercase tracking-wider text-app-text/90 font-semibold">{m.cars_engine()}</div>
           <div className="text-app-text/90">
             {s.engine || "—"} {s.displacement > 0 ? `${s.displacement}L` : ""}
           </div>
@@ -134,53 +134,53 @@ function CarDetail({
 
         {/* Performance */}
         <div className="space-y-1">
-          <div className="text-app-caption uppercase tracking-wider text-app-text-muted font-semibold">{m.cars_performance()}</div>
+          <div className="text-app-caption uppercase tracking-wider text-app-text/90 font-semibold">{m.cars_performance()}</div>
           <div className="flex justify-between">
-            <span className="text-app-text-muted">{m.cars_top_speed()}</span>
+            <span className="text-app-text/90">{m.cars_top_speed()}</span>
             <span className="text-app-text/90 tabular-nums">{fmtSpeed(s.topSpeedMph)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-app-text-muted">{isMetric ? m.cars_accel_metric_short() : m.cars_accel_imperial_short()}</span>
+            <span className="text-app-text/90">{isMetric ? m.cars_accel_metric_short() : m.cars_accel_imperial_short()}</span>
             <span className="text-app-text/90 tabular-nums">{s.zeroToSixty > 0 ? `${s.zeroToSixty}s` : "—"}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-app-text-muted">{isMetric ? m.cars_accel_metric_long() : m.cars_accel_imperial_long()}</span>
+            <span className="text-app-text/90">{isMetric ? m.cars_accel_metric_long() : m.cars_accel_imperial_long()}</span>
             <span className="text-app-text/90 tabular-nums">{s.zeroToHundred > 0 ? `${s.zeroToHundred}s` : "—"}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-app-text-muted">{m.cars_quarter_mile()}</span>
+            <span className="text-app-text/90">{m.cars_quarter_mile()}</span>
             <span className="text-app-text/90 tabular-nums">{s.quarterMile > 0 ? `${s.quarterMile}s` : "—"}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-app-text-muted">{m.cars_brake_60()}</span>
+            <span className="text-app-text/90">{m.cars_brake_60()}</span>
             <span className="text-app-text/90 tabular-nums">{fmtBrake(s.braking60)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-app-text-muted">{m.cars_lateral_g()}</span>
+            <span className="text-app-text/90">{m.cars_lateral_g()}</span>
             <span className="text-app-text/90 tabular-nums">{s.lateralG60 > 0 ? `${s.lateralG60}g` : "—"}</span>
           </div>
         </div>
 
         {/* Ratings */}
         <div className="space-y-1">
-          <div className="text-app-caption uppercase tracking-wider text-app-text-muted font-semibold">{m.cars_ratings()}</div>
+          <div className="text-app-caption uppercase tracking-wider text-app-text/90 font-semibold">{m.cars_ratings()}</div>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-app-text-muted w-16">{m.label_speed()}</span>
+            <span className="text-app-text/90 w-16">{m.label_speed()}</span>
             <RatingBar value={s.speedRating} />
           </div>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-app-text-muted w-16">{m.label_braking()}</span>
+            <span className="text-app-text/90 w-16">{m.label_braking()}</span>
             <RatingBar value={s.brakingRating} />
           </div>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-app-text-muted w-16">{m.label_handling()}</span>
+            <span className="text-app-text/90 w-16">{m.label_handling()}</span>
             <RatingBar value={s.handlingRating} />
           </div>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-app-text-muted w-16">{m.cars_rating_accel()}</span>
+            <span className="text-app-text/90 w-16">{m.cars_rating_accel()}</span>
             <RatingBar value={s.accelRating} />
           </div>
-          <div className="mt-1 text-app-caption text-app-text-muted">
+          <div className="mt-1 text-app-caption text-app-text/90">
             {s.division && <span className="mr-2">{s.division}</span>}
             {s.price > 0 && <span>{s.price.toLocaleString()} CR</span>}
           </div>
@@ -256,7 +256,7 @@ function CompareModal({
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-app-border sticky top-0 bg-app-bg z-10">
           <h2 className="text-sm font-bold text-app-text/90">{m.cars_compare_modal_title()}</h2>
-          <button onClick={onClose} className="text-app-text-muted hover:text-app-text/90 text-lg leading-none">
+          <button onClick={onClose} className="text-app-text/90 hover:text-app-text text-lg leading-none">
             ×
           </button>
         </div>
@@ -265,7 +265,7 @@ function CompareModal({
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="border-b border-app-border">
-                <th className="text-left px-4 py-2 text-app-text-muted font-medium sticky left-0 bg-app-bg" style={{ minWidth: 160 }}>
+                <th className="text-left px-4 py-2 text-app-text/90 font-medium sticky left-0 bg-app-bg" style={{ minWidth: 160 }}>
                   {m.cars_stat_column()}
                 </th>
                 {cars.map((car) => (
@@ -282,7 +282,7 @@ function CompareModal({
                 const bestIdxs = getBestIdx(row);
                 return (
                   <tr key={ri} className={ri % 2 === 0 ? "bg-app-surface/30" : ""}>
-                    <td className="px-4 py-1.5 text-app-text-muted sticky left-0 bg-inherit font-medium" style={{ minWidth: 160 }}>
+                    <td className="px-4 py-1.5 text-app-text/90 sticky left-0 bg-inherit font-medium" style={{ minWidth: 160 }}>
                       {row.label}
                     </td>
                     {cars.map((car, ci) => {
@@ -310,7 +310,7 @@ function ColHeader({ k, label, className = "", sort, sortDir, onSort }: { k: Sor
   return (
     <button
       onClick={() => onSort(k)}
-      className={`text-left text-app-caption uppercase tracking-wider font-semibold transition-colors ${active ? "text-app-accent" : "text-app-text-muted hover:text-app-text/90"} ${className}`}
+      className={`text-left text-app-caption uppercase tracking-wider font-semibold transition-colors ${active ? "text-app-accent" : "text-app-text/90 hover:text-app-text"} ${className}`}
     >
       {label}
       {active ? (sortDir === 1 ? " ↑" : " ↓") : ""}
@@ -429,7 +429,7 @@ export function CarsPage() {
           <button
             onClick={() => setViewMode("table")}
             title={m.label_table_view()}
-            className={`px-2.5 py-1.5 transition-colors ${viewMode === "table" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text-muted hover:text-app-text/90"}`}
+            className={`px-2.5 py-1.5 transition-colors ${viewMode === "table" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text"}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -439,7 +439,7 @@ export function CarsPage() {
           <button
             onClick={() => setViewMode("grid")}
             title={m.label_grid_view()}
-            className={`px-2.5 py-1.5 transition-colors ${viewMode === "grid" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text-muted hover:text-app-text/90"}`}
+            className={`px-2.5 py-1.5 transition-colors ${viewMode === "grid" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text"}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="7" height="7" />
@@ -457,7 +457,7 @@ export function CarsPage() {
             <button
               key={cls}
               onClick={() => setClassFilter(classFilter === cls ? null : cls)}
-              className={`text-xs font-bold px-3 py-1.5 rounded transition-colors ${classFilter === cls ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text-muted hover:text-app-text/90 border border-app-border"}`}
+              className={`text-xs font-bold px-3 py-1.5 rounded transition-colors ${classFilter === cls ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text border border-app-border"}`}
             >
               {cls}
             </button>
@@ -469,7 +469,7 @@ export function CarsPage() {
             <button
               key={d}
               onClick={() => setDriveFilter(driveFilter === d ? null : d)}
-              className={`text-xs font-semibold px-3 py-1.5 rounded transition-colors ${driveFilter === d ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text-muted hover:text-app-text/90 border border-app-border"}`}
+              className={`text-xs font-semibold px-3 py-1.5 rounded transition-colors ${driveFilter === d ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text border border-app-border"}`}
             >
               {d}
             </button>
@@ -479,11 +479,11 @@ export function CarsPage() {
 
       {/* Table / Grid */}
       {isLoading ? (
-        <div className="text-center py-16 text-app-text-muted text-sm">{m.cars_loading()}</div>
+        <div className="text-center py-16 text-app-text/90 text-sm">{m.cars_loading()}</div>
       ) : viewMode === "grid" ? (
         <>
           {filtered.length === 0 ? (
-            <div className="text-center py-12 text-app-text-muted text-sm">{m.cars_no_match()}</div>
+            <div className="text-center py-12 text-app-text/90 text-sm">{m.cars_no_match()}</div>
           ) : (
             <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
               {filtered.map((car) => {
@@ -505,7 +505,7 @@ export function CarsPage() {
                       {s.imageUrl ? (
                         <img src={s.imageUrl} alt={car.name} loading="lazy" className="h-full w-full object-contain" />
                       ) : (
-                        <div className="text-xs text-app-text-muted">{m.cars_no_image()}</div>
+                        <div className="text-xs text-app-text/90">{m.cars_no_image()}</div>
                       )}
                       {configsReady && getCarModel(car.ordinal).hasModel && (
                         <button
@@ -531,34 +531,34 @@ export function CarsPage() {
                           </span>
                         </div>
                         <div className="text-xs font-semibold text-app-text/90 leading-tight mt-0.5 line-clamp-2">{car.name}</div>
-                        <div className="text-app-caption text-app-text-muted mt-0.5">
+                        <div className="text-app-caption text-app-text/90 mt-0.5">
                           {s.division || "—"} · {s.drivetrain || "—"}
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-app-caption">
                         <div className="flex justify-between">
-                          <span className="text-app-text-muted">HP</span>
+                          <span className="text-app-text/90">HP</span>
                           <span className="tabular-nums text-app-text/90">{s.hp || "—"}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-app-text-muted">{m.cars_torque_label()}</span>
+                          <span className="text-app-text/90">{m.cars_torque_label()}</span>
                           <span className="tabular-nums text-app-text/90">{s.torque || "—"}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-app-text-muted">{m.cars_top_spd_label()}</span>
+                          <span className="text-app-text/90">{m.cars_top_spd_label()}</span>
                           <span className="tabular-nums text-app-text/90">{fmtSpeed(s.topSpeedMph)}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-app-text-muted">0–60</span>
+                          <span className="text-app-text/90">0–60</span>
                           <span className="tabular-nums text-app-text/90">{s.zeroToSixty ? `${s.zeroToSixty}s` : "—"}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-app-text-muted">{m.cars_weight_label()}</span>
+                          <span className="text-app-text/90">{m.cars_weight_label()}</span>
                           <span className="tabular-nums text-app-text/90">{fmtWeight(s.weightKg, s.weightLbs)}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-app-text-muted">{m.cars_brake_60_label()}</span>
+                          <span className="text-app-text/90">{m.cars_brake_60_label()}</span>
                           <span className="tabular-nums text-app-text/90">{fmtBrake(s.braking60)}</span>
                         </div>
                       </div>
@@ -567,25 +567,25 @@ export function CarsPage() {
                         <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
                           {s.speedRating > 0 && (
                             <div className="flex items-center gap-1">
-                              <span className="text-app-micro text-app-text-muted w-6">Spd</span>
+                              <span className="text-app-micro text-app-text/90 w-6">Spd</span>
                               <RatingBar value={s.speedRating} />
                             </div>
                           )}
                           {s.handlingRating > 0 && (
                             <div className="flex items-center gap-1">
-                              <span className="text-app-micro text-app-text-muted w-6">Hdl</span>
+                              <span className="text-app-micro text-app-text/90 w-6">Hdl</span>
                               <RatingBar value={s.handlingRating} />
                             </div>
                           )}
                           {s.accelRating > 0 && (
                             <div className="flex items-center gap-1">
-                              <span className="text-app-micro text-app-text-muted w-6">Acc</span>
+                              <span className="text-app-micro text-app-text/90 w-6">Acc</span>
                               <RatingBar value={s.accelRating} />
                             </div>
                           )}
                           {s.brakingRating > 0 && (
                             <div className="flex items-center gap-1">
-                              <span className="text-app-micro text-app-text-muted w-6">Brk</span>
+                              <span className="text-app-micro text-app-text/90 w-6">Brk</span>
                               <RatingBar value={s.brakingRating} />
                             </div>
                           )}
@@ -607,7 +607,7 @@ export function CarsPage() {
                     {detailCar.specs?.pi && <PiBadge showNumber={false} pi={detailCar.specs.pi} />}
                     <span className="text-sm font-bold text-app-text/90">{detailCar.name}</span>
                   </div>
-                  <button onClick={() => setDetailCar(null)} className="text-app-text-muted hover:text-app-text/90 text-lg leading-none">
+                  <button onClick={() => setDetailCar(null)} className="text-app-text/90 hover:text-app-text text-lg leading-none">
                     ×
                   </button>
                 </div>
@@ -667,7 +667,7 @@ export function CarsPage() {
           <TBody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={16} className="text-center py-12 text-app-text-muted text-sm">
+                <td colSpan={16} className="text-center py-12 text-app-text/90 text-sm">
                   {m.cars_no_match()}
                 </td>
               </tr>
@@ -717,7 +717,7 @@ export function CarsPage() {
                     <TD className="tabular-nums text-xs text-app-text/90">{car.specs?.brakingRating || "—"}</TD>
                     <TD className="tabular-nums text-xs text-app-text/90">{car.specs?.handlingRating || "—"}</TD>
                     <TD className="tabular-nums text-xs text-app-text/90">{car.specs?.accelRating || "—"}</TD>
-                    <TD className="text-xs text-app-text-muted truncate">{car.specs?.division || "—"}</TD>
+                    <TD className="text-xs text-app-text/90 truncate">{car.specs?.division || "—"}</TD>
                   </TRow>
                   {expanded.has(car.ordinal) && (
                     <tr>
@@ -736,7 +736,7 @@ export function CarsPage() {
       {/* Floating compare bar */}
       {selected.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-app-surface border border-app-border rounded-full px-4 py-2 shadow-xl">
-          <span className="text-xs text-app-text-muted">
+          <span className="text-xs text-app-text/90">
             {selected.size} {m.cars_selected()}
           </span>
           <button
@@ -746,7 +746,7 @@ export function CarsPage() {
           >
             {m.cars_compare_button()} ({selected.size})
           </button>
-          <button onClick={() => setSelected(new Set())} className="text-xs text-app-text-muted hover:text-app-text/90 transition-colors">
+          <button onClick={() => setSelected(new Set())} className="text-xs text-app-text/90 hover:text-app-text transition-colors">
             {m.common_clear()}
           </button>
         </div>

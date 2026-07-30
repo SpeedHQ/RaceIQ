@@ -328,7 +328,7 @@ export function F1Cars() {
           <button
             onClick={() => setView("table")}
             title={m.label_table_view()}
-            className={`px-2.5 py-1.5 transition-colors ${view === "table" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text-muted hover:text-app-text/90"}`}
+            className={`px-2.5 py-1.5 transition-colors ${view === "table" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text"}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -338,7 +338,7 @@ export function F1Cars() {
           <button
             onClick={() => setView("grid")}
             title={m.label_grid_view()}
-            className={`px-2.5 py-1.5 transition-colors ${view === "grid" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text-muted hover:text-app-text/90"}`}
+            className={`px-2.5 py-1.5 transition-colors ${view === "grid" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text"}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="7" height="7" />
@@ -358,7 +358,7 @@ export function F1Cars() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {Object.entries(regulations).map(([key, value]) => (
             <div key={key} className="bg-app-surface-alt/20 rounded-lg p-3">
-              <div className="text-app-caption text-app-text-dim uppercase tracking-wider mb-1">{key.replace(/([A-Z])/g, " $1").trim()}</div>
+              <div className="text-app-caption text-app-text/90 uppercase tracking-wider mb-1">{key.replace(/([A-Z])/g, " $1").trim()}</div>
               <div className="text-xs text-app-text/90 font-medium">{value}</div>
             </div>
           ))}
@@ -414,7 +414,7 @@ function TeamCard({ team }: { team: F1Team }) {
               <div className="text-base font-semibold text-app-text/90">{team.name}</div>
               <span className={`text-sm font-mono font-bold ${getRatingColor(team.stats.overallRating)}`}>{team.stats.overallRating}</span>
             </div>
-            <div className="text-xs text-app-text-dim">{team.fullName}</div>
+            <div className="text-xs text-app-text/90">{team.fullName}</div>
           </div>
           <div className="brand-color-badge text-xs font-mono px-2 py-0.5 rounded">{team.chassis}</div>
         </div>
@@ -432,7 +432,7 @@ function TeamCard({ team }: { team: F1Team }) {
                 <span className="brand-color-text text-lg font-mono font-bold leading-none">{driver.number}</span>
                 <div>
                   <div className="text-sm font-medium text-app-text/90 leading-tight">{driver.name}</div>
-                  <div className="text-app-caption text-app-text-dim uppercase">{driver.nationality}</div>
+                  <div className="text-app-caption text-app-text/90 uppercase">{driver.nationality}</div>
                 </div>
               </div>
             </div>
@@ -446,7 +446,7 @@ function TeamCard({ team }: { team: F1Team }) {
             .map(({ key, label }) => (
               <div key={key} className="text-center">
                 <div className={`text-base font-mono font-bold leading-none ${getRatingColor(team.stats[key])}`}>{team.stats[key]}</div>
-                <div className="text-app-micro text-app-text-dim uppercase tracking-wider mt-1">{label}</div>
+                <div className="text-app-micro text-app-text/90 uppercase tracking-wider mt-1">{label}</div>
               </div>
             ))}
         </div>
@@ -454,15 +454,15 @@ function TeamCard({ team }: { team: F1Team }) {
         {/* Info row */}
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs border-t border-app-border/30 pt-2">
           <div className="flex justify-between">
-            <span className="text-app-text-dim">{m.label_power_unit()}</span>
+            <span className="text-app-text/90">{m.label_power_unit()}</span>
             <span className="text-app-text/90">{team.powerUnit}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-app-text-dim">{m.label_base()}</span>
+            <span className="text-app-text/90">{m.label_base()}</span>
             <span className="text-app-text/90">{team.base}</span>
           </div>
           <div className="flex justify-between col-span-2">
-            <span className="text-app-text-dim">{m.label_team_principal()}</span>
+            <span className="text-app-text/90">{m.label_team_principal()}</span>
             <span className="text-app-text/90">{team.teamPrincipal}</span>
           </div>
         </div>

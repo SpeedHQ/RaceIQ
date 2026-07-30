@@ -17,9 +17,9 @@ function GameBrandLogo({ gameId, className = "w-5 h-5" }: { gameId: string; clas
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
     <div className="bg-app-surface-alt/30 rounded-lg p-4">
-      <div className="text-app-caption text-app-text-muted uppercase tracking-wider mb-1">{label}</div>
+      <div className="text-app-caption text-app-text/90 uppercase tracking-wider mb-1">{label}</div>
       <div className={`text-3xl font-mono font-black tabular-nums leading-none ${color ?? "text-app-text/90"}`}>{value}</div>
-      {sub && <div className="text-xs text-app-text-dim mt-1">{sub}</div>}
+      {sub && <div className="text-xs text-app-text/90 mt-1">{sub}</div>}
     </div>
   );
 }
@@ -39,7 +39,7 @@ function RecentLapsTable({
 }) {
   const showGame = !gameId; // show game column on global homepage
   if (laps.length === 0) {
-    return <div className="p-6 text-center text-app-text-dim">{m.home_no_laps()}</div>;
+    return <div className="p-6 text-center text-app-text/90">{m.home_no_laps()}</div>;
   }
 
   return (
@@ -202,7 +202,7 @@ export function HomePageView({
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-app-text/90">{displaySettings.driverName ? `${m.home_hello()}, ${displaySettings.driverName}` : "RaceIQ"}</h1>
-            <p className="text-sm text-app-text-muted mt-0.5">{m.home_dashboard_overview()}</p>
+            <p className="text-sm text-app-text/90 mt-0.5">{m.home_dashboard_overview()}</p>
           </div>
           <button type="button" onClick={onOpenSettings} className="p-1.5 rounded text-app-text-muted hover:text-app-text hover:bg-app-surface-hover transition-colors" title={m.home_manage_games()}>
             <Settings2 className="size-4" />
@@ -414,7 +414,7 @@ export function HomePageView({
                     type="button"
                     key={key}
                     onClick={() => onPeriodTabChange(key)}
-                    className={`rounded px-3 py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text/90"}`}
+                    className={`rounded px-3 py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90 hover:text-app-text"}`}
                   >
                     {label}
                   </button>
@@ -441,7 +441,7 @@ export function HomePageView({
             </section>
 
             <section>
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text-muted">{m.home_recent_laps()}</h2>
+              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90">{m.home_recent_laps()}</h2>
               <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseLap={onAnalyseLap} />
             </section>
           </main>
@@ -517,7 +517,7 @@ export function HomePageView({
                   type="button"
                   key={key}
                   onClick={() => onPeriodTabChange(key)}
-                  className={`rounded px-3 py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text/90"}`}
+                  className={`rounded px-3 py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90 hover:text-app-text"}`}
                 >
                   {label}
                 </button>
@@ -544,7 +544,7 @@ export function HomePageView({
           </div>
 
           <div>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text-muted">{m.home_recent_laps()}</h2>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90">{m.home_recent_laps()}</h2>
             <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseLap={onAnalyseLap} />
           </div>
         </>
