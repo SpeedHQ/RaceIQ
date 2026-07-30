@@ -410,6 +410,7 @@ export const fakeAccPacket: TelemetryPacket = {
   Accel: 200,
   Brake: 0,
   Fuel: 38.2, // ACC: litres remaining
+  FuelCapacity: 120, // ACC static shared-memory maxFuel
   LapNumber: 8,
   RacePosition: 2,
   TireWearFL: 0.25,
