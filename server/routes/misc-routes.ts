@@ -34,6 +34,7 @@ import {
   decompressForzaLZX,
 } from "../../shared/lib/forza-lzx";
 import { scanRecordedFiles } from "../../shared/track-data";
+import { getAllGames } from "../../shared/games/registry";
 
 // ---------------------------------------------------------------------------
 // FM2023 extraction state
@@ -733,11 +734,14 @@ export const miscRoutes = new Hono()
   // GET /api/storage/sessions — recording file stats
   .get("/api/storage/sessions", async (c) => {
     const sessionsDir = resolve(resolveDataDir(), "sessions");
+    const byGame: Record<string, { binCount: number; gzCount: number; binBytes: number; gzBytes: number }> = {};
+    for (const game of getAllGames()) {
+      byGame[game.id] = { binCount: 0, gzCount: 0, binBytes: 0, gzBytes: 0 };
+    }
     if (!existsSync(sessionsDir)) {
-      return c.json({ total: 0, binCount: 0, gzCount: 0, totalBytes: 0, binBytes: 0, gzBytes: 0, byGame: {}, diskTotal: 0, diskFree: 0 });
+      return c.json({ total: 0, binCount: 0, gzCount: 0, totalBytes: 0, binBytes: 0, gzBytes: 0, byGame, diskTotal: 0, diskFree: 0 });
     }
     let binCount = 0, gzCount = 0, binBytes = 0, gzBytes = 0;
-    const byGame: Record<string, { binCount: number; gzCount: number; binBytes: number; gzBytes: number }> = {};
 
     function tally(gameId: string, file: string, size: number) {
       const g = byGame[gameId] ??= { binCount: 0, gzCount: 0, binBytes: 0, gzBytes: 0 };
