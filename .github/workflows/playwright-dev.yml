@@ -1,0 +1,33 @@
+name: Playwright E2E (dev server)
+
+on:
+  workflow_call:
+
+jobs:
+  playwright-dev:
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - name: Install workspace dependencies
+        run: bun install
+
+      - name: Install Chromium
+        working-directory: playwright
+        run: bunx playwright install chromium
+
+      - name: Run fresh-install + tunes E2E tests
+        working-directory: playwright
+        env:
+          E2E_SERVER_MODE: dev
+        run: bunx playwright test --project=fresh-install --project=tunes
+
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-dev-traces
+          path: playwright/test-results/
+          retention-days: 7

@@ -35,6 +35,12 @@ const AppSettingsSchema = z.object({
   // model. Reuses the same stored API keys as the analysis section.
   autoTuneProvider: AiProviderSchema.default(""),
   autoTuneModel: z.string().default(""),
+  // Driver profiling keeps its provider/model independent from other AI
+  // features. Background coaching is opt-in and disabled on fresh installs.
+  driverProfileBackgroundEnabled: z.boolean().default(false),
+  driverProfileProvider: AiProviderSchema.default(""),
+  driverProfileModel: z.string().default(""),
+  driverProfileThinkingBudget: z.number().int().min(0).nullable().default(null),
   localEndpoint: z.string().default("http://localhost:1234/v1"),
   wsRefreshRate: z.enum(["60", "50", "40", "30"]).default("60"),
   // Max render rate for the 3D wireframe Canvas. Throttles gl.render

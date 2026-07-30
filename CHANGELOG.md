@@ -1,7 +1,7 @@
 ## Unreleased
 
 ### Features
-- Native iRacing telemetry capture from the iRacing SDK, including live dashboards, lap analysis, imports, and recordings
+- Automatic driver profile metrics with optional, configurable background AI coaching and auditable run history
 - Runtime-discovered iRacing cars and tracks, resolved by the SDK's native identifiers
 - Support for iRacing's source-defined sector layouts, including two-sector ovals and layouts with more than three sectors
 - View all release notes since your installed version in the app
@@ -16,6 +16,8 @@
 - Consolidated shared sessions, chats, analysis, driver, and experiment routes across all supported games
 - Tolerate sparse screenshot antialiasing differences while preserving substantial visual regression reporting
 - Centralized frontend theme, telemetry, product, manufacturer, and team color contracts with semantic regression coverage
+- Updated workspace dependencies and regenerated root Bun lockfile
+- Use `import.meta.dirname` in Vite config for native config-loader compatibility
 
 ## v0.13.0 - 2026-07-16
 

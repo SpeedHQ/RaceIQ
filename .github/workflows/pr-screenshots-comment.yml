@@ -23,7 +23,7 @@ permissions:
 
 jobs:
   comment:
-    if: github.event.workflow_run.event == 'pull_request' || github.event.workflow_run.event == 'workflow_dispatch'
+    if: github.event.workflow_run.event == 'workflow_dispatch' || (github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.pull_requests[0].draft != true)
     runs-on: ubuntu-latest
     env:
       REPO: ${{ github.repository }}
@@ -111,7 +111,12 @@ jobs:
             echo "<sub>Rendered from Storybook and responsive app screenshot tests against current main.</sub>"
           } > body.md
 
-          # Keep each UI-diff report as a new comment for a visible run history.
+          # Replace previous UI-diff reports so each PR has one current comment.
+          gh api --paginate "repos/${REPO}/issues/${PR}/comments" \
+            --jq '.[] | select(.body | contains("<!-- app-screenshot-diff -->")) | .id' |
+            while read -r comment_id; do
+              gh api --method DELETE "repos/${REPO}/issues/comments/${comment_id}"
+            done
           gh api "repos/${REPO}/issues/${PR}/comments" -F body=@body.md
 
       - name: Label PR as a UI change

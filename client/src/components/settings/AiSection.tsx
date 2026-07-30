@@ -36,11 +36,18 @@ type ModelsResponse = {
 
 type SavedAnalysisBaseline = { provider: string; model: string; thinkingBudget: number | null; localEndpoint: string };
 type SavedChatBaseline = { provider: string; model: string; thinkingBudget: number | null };
+type DriverProfileSettings = {
+  driverProfileBackgroundEnabled?: boolean;
+  driverProfileProvider?: string;
+  driverProfileModel?: string;
+  driverProfileThinkingBudget?: number | null;
+};
 
 export function AiSection() {
   const { displaySettings, settingsLoaded } = useSettings();
   const saveSettings = useSaveSettings();
   const qc = useQueryClient();
+  const driverProfileSettings = displaySettings as typeof displaySettings & DriverProfileSettings;
   const [provider, setProvider] = useState<string>(displaySettings.aiProvider ?? "");
   const [model, setModel] = useState(displaySettings.aiModel ?? "");
   const [thinkingBudget, setThinkingBudget] = useState<number | null>(displaySettings.aiThinkingBudget ?? null);
@@ -128,6 +135,49 @@ export function AiSection() {
     setAutoTuneBaseline({ provider: nextProvider, model: nextModel });
   }, [settingsLoaded, displaySettings.autoTuneProvider, displaySettings.autoTuneModel]);
 
+  // Driver Profile settings
+  const [driverProfileBackgroundEnabled, setDriverProfileBackgroundEnabled] = useState(Boolean(driverProfileSettings.driverProfileBackgroundEnabled ?? false));
+  const [driverProfileProvider, setDriverProfileProvider] = useState<string>(driverProfileSettings.driverProfileProvider ?? "");
+  const [driverProfileModel, setDriverProfileModel] = useState(driverProfileSettings.driverProfileModel ?? "");
+  const [driverProfileThinkingBudget, setDriverProfileThinkingBudget] = useState<number | null>(driverProfileSettings.driverProfileThinkingBudget ?? null);
+  const [driverProfileApiKey, setDriverProfileApiKey] = useState("");
+  const [driverProfileSaveError, setDriverProfileSaveError] = useState<string | null>(null);
+  const [driverProfileBaseline, setDriverProfileBaseline] = useState(() => ({
+    backgroundEnabled: Boolean(driverProfileSettings.driverProfileBackgroundEnabled ?? false),
+    provider: driverProfileSettings.driverProfileProvider ?? "",
+    model: driverProfileSettings.driverProfileModel ?? "",
+    thinkingBudget: (driverProfileSettings.driverProfileProvider ?? "") === "gemini" ? (driverProfileSettings.driverProfileThinkingBudget ?? null) : null,
+  }));
+
+  const driverProfileSynced = useRef(false);
+  useEffect(() => {
+    if (driverProfileSynced.current || !settingsLoaded) return;
+    driverProfileSynced.current = true;
+    const nextBackgroundEnabled = Boolean(driverProfileSettings.driverProfileBackgroundEnabled ?? false);
+    const nextProvider = driverProfileSettings.driverProfileProvider ?? "";
+    const nextModel = driverProfileSettings.driverProfileModel ?? "";
+    const nextThinkingBudget = nextProvider === "gemini" ? (driverProfileSettings.driverProfileThinkingBudget ?? null) : null;
+    setDriverProfileBackgroundEnabled(nextBackgroundEnabled);
+    setDriverProfileProvider(nextProvider);
+    setDriverProfileModel(nextModel);
+    setDriverProfileThinkingBudget(nextThinkingBudget);
+    setDriverProfileBaseline({
+      backgroundEnabled: nextBackgroundEnabled,
+      provider: nextProvider,
+      model: nextModel,
+      thinkingBudget: nextThinkingBudget,
+    });
+  }, [
+    settingsLoaded,
+    driverProfileSettings.driverProfileBackgroundEnabled,
+    driverProfileSettings.driverProfileProvider,
+    driverProfileSettings.driverProfileModel,
+    driverProfileSettings.driverProfileThinkingBudget,
+  ]);
+
+  const selectedProviders = Array.from(
+    new Set([provider, chatProvider, autoTuneProvider, driverProfileProvider].filter((p) => p === "gemini" || p === "openai" || p === "local")),
+  );
   const keyStatus: Record<string, boolean> = {
     gemini: !!displaySettings.geminiApiKeySet,
     openai: !!displaySettings.openaiApiKeySet,
@@ -147,7 +197,6 @@ export function AiSection() {
     });
   };
 
-  const selectedProviders = Array.from(new Set([provider, chatProvider, autoTuneProvider].filter((p) => p === "gemini" || p === "openai" || p === "local")));
   const selectedProvidersForFetch = selectedProviders.filter((p) => p === "local" || p === "openai" || Boolean(keyStatus[p]));
   const selectedProvidersCsv = selectedProvidersForFetch.join(",");
 
@@ -217,6 +266,18 @@ export function AiSection() {
   const hasAutoTuneProviderKey = autoTuneProvider === "local" || (keyStatus[autoTuneProvider] ?? false);
   const canShowAutoTuneModelPicker = autoTuneProvider !== "" && hasAutoTuneProviderKey && autoTuneModels.length > 0;
   const autoTuneProviderModelError = autoTuneProvider === "gemini" || autoTuneProvider === "openai" || autoTuneProvider === "local" ? (modelErrors[autoTuneProvider] ?? null) : null;
+  const driverProfileModels =
+    driverProfileProvider === "gemini" || driverProfileProvider === "openai" || driverProfileProvider === "local" ? (aiModels?.[driverProfileProvider] ?? []) : [];
+  const hasDriverProfileProviderKey = driverProfileProvider === "local" || (keyStatus[driverProfileProvider] ?? false);
+  const canShowDriverProfileModelPicker = driverProfileProvider !== "" && hasDriverProfileProviderKey && driverProfileModels.length > 0;
+  const effectiveDriverProfileGeminiModel = driverProfileModel || "gemini-flash-latest";
+  const driverProfileModelSupportsThinking =
+    driverProfileProvider === "gemini" && supportsGeminiThinkingBudget(effectiveDriverProfileGeminiModel);
+  const effectiveDriverProfileThinkingBudget = driverProfileModelSupportsThinking ? driverProfileThinkingBudget : null;
+  const driverProfileProviderModelError =
+    driverProfileProvider === "gemini" || driverProfileProvider === "openai" || driverProfileProvider === "local"
+      ? (modelErrors[driverProfileProvider] ?? null)
+      : null;
 
   const initialProvider = analysisBaseline.provider;
   const initialModel = analysisBaseline.model;
@@ -238,6 +299,14 @@ export function AiSection() {
 
   const autoTuneConfigDirty = autoTuneProvider !== autoTuneBaseline.provider || autoTuneModel !== autoTuneBaseline.model;
   const hasPendingAutoTuneApiKey = autoTuneApiKey.trim().length > 0;
+  const nextDriverProfileThinkingBudget = driverProfileProvider === "gemini" ? effectiveDriverProfileThinkingBudget : null;
+  const driverProfileConfigDirty =
+    driverProfileBackgroundEnabled !== driverProfileBaseline.backgroundEnabled ||
+    driverProfileProvider !== driverProfileBaseline.provider ||
+    driverProfileModel !== driverProfileBaseline.model ||
+    nextDriverProfileThinkingBudget !== driverProfileBaseline.thinkingBudget;
+  const hasPendingDriverProfileApiKey = driverProfileApiKey.trim().length > 0;
+  const canSaveDriverProfile = driverProfileConfigDirty || hasPendingDriverProfileApiKey;
   const canSaveAutoTune = autoTuneConfigDirty || hasPendingAutoTuneApiKey;
 
   const saveApiKey = useMutation({
@@ -292,7 +361,61 @@ export function AiSection() {
     }
   };
 
+  const handleDriverProfileSave = async () => {
+    setDriverProfileSaveError(null);
+    const startedAt = performance.now();
+    try {
+      const providerKeyId = PROVIDER_KEY_MAP[driverProfileProvider];
+      const keyPromise =
+        driverProfileApiKey && providerKeyId ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey: driverProfileApiKey }) : null;
+      const updates: Record<string, unknown> = {
+        driverProfileBackgroundEnabled,
+        driverProfileProvider,
+        driverProfileModel,
+        driverProfileThinkingBudget: nextDriverProfileThinkingBudget,
+      };
+
+      updateSettingsInCache(updates);
+      await saveSettings.mutateAsync(updates);
+      if (keyPromise) {
+        keyPromise
+          .then(() => {
+            updateKeyStatusInSettingsCache(providerKeyId, true);
+            setDriverProfileApiKey("");
+          })
+          .catch((err: unknown) => {
+            setDriverProfileSaveError(err instanceof Error ? err.message : m.ai_save_key_failed());
+          });
+      }
+      qc.invalidateQueries({ queryKey: ["settings"] });
+      setDriverProfileBaseline({
+        backgroundEnabled: driverProfileBackgroundEnabled,
+        provider: driverProfileProvider,
+        model: driverProfileModel,
+        thinkingBudget: nextDriverProfileThinkingBudget,
+      });
+      const durationMs = Math.round(performance.now() - startedAt);
+      console.info(`[AI Settings] driver profile save completed in ${durationMs}ms`);
+    } catch (err) {
+      const durationMs = Math.round(performance.now() - startedAt);
+      console.error(`[AI Settings] driver profile save failed in ${durationMs}ms`, err instanceof Error ? err.message : String(err));
+      setDriverProfileSaveError(err instanceof Error ? err.message : m.ai_save_settings_failed());
+    }
+  };
+
+  const clearDriverProfileKey = async (providerKeyId: string) => {
+    setDriverProfileSaveError(null);
+    try {
+      await saveApiKey.mutateAsync({ provider: providerKeyId, apiKey: "" });
+      updateKeyStatusInSettingsCache(providerKeyId, false);
+      qc.invalidateQueries({ queryKey: ["settings"] });
+    } catch (err) {
+      setDriverProfileSaveError(err instanceof Error ? err.message : m.ai_clear_key_failed());
+    }
+  };
+
   const keyInfo = PROVIDER_KEY_LABELS[provider];
+  const driverProfileKeyInfo = PROVIDER_KEY_LABELS[driverProfileProvider];
 
   const clearKey = async (providerKeyId: string) => {
     setSaveError(null);
@@ -733,6 +856,149 @@ export function AiSection() {
           {isSaving ? m.common_saving() : m.common_save()}
         </button>
         {autoTuneSaveError && <p className="text-xs text-status-danger">{autoTuneSaveError}</p>}
+      </div>
+
+      {/* Driver Profile provider */}
+      <h2 className="text-sm font-semibold text-app-text mb-4 mt-8">{m.ai_driver_profile_title()}</h2>
+      <p className="text-xs text-app-text-muted mb-4">{m.ai_driver_profile_desc()}</p>
+      <div className="space-y-4">
+        <div className="rounded border border-app-border-input bg-app-surface px-3 py-2">
+          <label className="flex items-start gap-2 text-sm text-app-text">
+            <input
+              type="checkbox"
+              checked={driverProfileBackgroundEnabled}
+              onChange={(e) => setDriverProfileBackgroundEnabled(e.target.checked)}
+              className="mt-0.5 accent-app-accent"
+            />
+            <span>
+              <span className="block">{m.ai_driver_profile_background_label()}</span>
+              <span className="mt-1 block text-xs text-app-text-muted">{m.ai_driver_profile_background_desc()}</span>
+            </span>
+          </label>
+        </div>
+        <div>
+          <label className="block text-xs text-app-text-muted mb-1">{m.ai_provider_label()}</label>
+          <select
+            value={driverProfileProvider}
+            onChange={(e) => {
+              setDriverProfileProvider(e.target.value);
+              setDriverProfileModel("");
+              setDriverProfileThinkingBudget(null);
+            }}
+            className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
+          >
+            <option value="">{m.ai_provider_none()}</option>
+            {(aiProviders ?? []).map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        {driverProfileKeyInfo && (
+          <div>
+            <label className="block text-xs text-app-text-muted mb-1">{driverProfileKeyInfo.label}</label>
+            <div className="flex items-center gap-1.5 max-w-xs">
+              <input
+                type="password"
+                value={driverProfileApiKey}
+                onChange={(e) => setDriverProfileApiKey(e.target.value)}
+                placeholder={(keyStatus[driverProfileProvider] ?? false) ? m.ai_key_stored_placeholder() : driverProfileKeyInfo.placeholder}
+                className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full font-mono"
+              />
+              {(keyStatus[driverProfileProvider] ?? false) && (
+                <button
+                  onClick={() => clearDriverProfileKey(PROVIDER_KEY_MAP[driverProfileProvider])}
+                  title={m.ai_clear_key_title()}
+                  className="shrink-0 p-1.5 rounded text-app-text-muted hover:text-status-danger hover:bg-status-danger/10 transition-colors"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-app-text-muted mt-1">
+              {driverProfileKeyInfo.helpText}{" "}
+              <a href={driverProfileKeyInfo.helpUrl} target="_blank" rel="noreferrer" className="text-app-accent hover:text-app-accent-hover hover:underline">
+                {new URL(driverProfileKeyInfo.helpUrl).hostname}
+              </a>
+            </p>
+          </div>
+        )}
+        {canShowDriverProfileModelPicker && (
+          <div>
+            <div className="mb-1 flex items-center gap-2 whitespace-nowrap">
+              <label className="block text-xs text-app-text-muted">{m.ai_model_label()}</label>
+              <button
+                type="button"
+                onClick={() => refreshModels.mutate()}
+                disabled={aiModelsFetching || modelsRefreshing || isSaving}
+                className="inline-flex items-center gap-1 text-app-compact text-app-text-muted hover:text-app-text disabled:opacity-50"
+                title={m.ai_refresh_models_title()}
+              >
+                <RefreshCw className={`size-3 ${aiModelsFetching || modelsRefreshing ? "animate-spin" : ""}`} />
+                {m.ai_refresh()}
+              </button>
+              {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-app-compact text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
+            </div>
+            <select
+              value={driverProfileModel}
+              onChange={(e) => {
+                setDriverProfileModel(e.target.value);
+                setDriverProfileThinkingBudget(null);
+              }}
+              className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
+            >
+              <option value="">{m.ai_model_default()}</option>
+              {driverProfileModels.map((mm: { id: string; name: string }) => (
+                <option key={mm.id} value={mm.id}>
+                  {mm.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+        {driverProfileProvider === "gemini" && canShowDriverProfileModelPicker && (
+          <div>
+            <label className="block text-xs text-app-text-muted mb-1">{m.ai_thinking_label()}</label>
+            {driverProfileModelSupportsThinking ? (
+              <select
+                value={effectiveDriverProfileThinkingBudget == null ? "" : String(effectiveDriverProfileThinkingBudget)}
+                onChange={(e) => setDriverProfileThinkingBudget(e.target.value ? Number(e.target.value) : null)}
+                className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
+              >
+                <option value="">{m.label_none()}</option>
+                {GEMINI_THINKING_BUDGET_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="text-xs text-app-text-muted max-w-xs rounded border border-app-border-input px-3 py-2">{m.ai_thinking_unsupported()}</div>
+            )}
+          </div>
+        )}
+        {driverProfileProvider !== "" && !hasDriverProfileProviderKey && <p className="text-xs text-app-text-muted">{m.ai_add_key_hint()}</p>}
+        {driverProfileProvider !== "" && hasDriverProfileProviderKey && !aiModelsFetching && driverProfileModels.length === 0 && (
+          <div className="flex items-center gap-2 text-xs text-app-text-muted">
+            <span>{m.ai_no_models()}</span>
+            <button type="button" onClick={() => refreshModels.mutate()} disabled={modelsRefreshing || isSaving} className="inline-flex items-center gap-1 hover:text-app-text disabled:opacity-50">
+              <RefreshCw className="size-3" />
+              {m.ai_refresh()}
+            </button>
+          </div>
+        )}
+        {driverProfileProvider !== "" && hasDriverProfileProviderKey && (driverProfileProviderModelError || aiModelsError) && (
+          <p className="text-xs text-status-danger">{driverProfileProviderModelError || m.ai_load_models_failed()}</p>
+        )}
+        <button
+          onClick={handleDriverProfileSave}
+          disabled={isSaving || !canSaveDriverProfile}
+          className="text-sm px-3 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-60 disabled:cursor-not-allowed text-app-on-filled transition-colors"
+        >
+          {isSaving ? m.common_saving() : m.common_save()}
+        </button>
+        {driverProfileSaveError && <p className="text-xs text-status-danger">{driverProfileSaveError}</p>}
       </div>
     </section>
   );

@@ -2,6 +2,7 @@ import { resolve } from "path";
 import { mkdirSync } from "fs";
 import type { LapMeta, LiveSectorData, LivePitData, GameId, TelemetryPacket, TuneIssue } from "../shared/types";
 import { insertSession, insertLap, setLapMetrics, getLaps, updateSessionRawFile, updateSessionCarTrack, getLapsForExclusionScope, setLapAutoExclusion, getLapExperimentScope } from "./db/queries";
+import { notifyDriverProfileLap } from "./ai/driver-profile-runner";
 import type { ExclusionScopeLap } from "./experiment-auto-exclude";
 import { getTuneAssignment } from "./db/tune-queries";
 import { wsManager } from "./ws";
@@ -102,11 +103,19 @@ export interface WsAdapter {
 
 /** Delegates to the real query functions. Used in production. */
 export class RealDbAdapter implements DbAdapter {
-  insertSession(carOrdinal: number, trackOrdinal: number, gameId: GameId, sessionType?: string): Promise<number> {
-    return insertSession(carOrdinal, trackOrdinal, gameId, sessionType);
+  private readonly sessionScopes = new Map<number, { gameId: GameId; carOrdinal: number; trackOrdinal: number }>();
+
+  async insertSession(carOrdinal: number, trackOrdinal: number, gameId: GameId, sessionType?: string): Promise<number> {
+    const sessionId = await insertSession(carOrdinal, trackOrdinal, gameId, sessionType);
+    this.sessionScopes.set(sessionId, { gameId, carOrdinal, trackOrdinal });
+    return sessionId;
   }
-  insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null): Promise<number> {
-    return insertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors);
+
+  async insertLap(sessionId: number, lapNumber: number, lapTime: number, isValid: boolean, rawByteOffset: number | null, rawFrameCount: number, profileId: number | null, tuneId: number | null, invalidReason: string | null, sectors: number[] | null): Promise<number> {
+    const lapId = await insertLap(sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors);
+    const scope = this.sessionScopes.get(sessionId);
+    if (scope) notifyDriverProfileLap(scope.gameId);
+    return lapId;
   }
   setLapMetrics(lapId: number, fuelPerLap: number | null, tyreWear: number | null): Promise<void> {
     return setLapMetrics(lapId, fuelPerLap, tyreWear);
@@ -117,8 +126,10 @@ export class RealDbAdapter implements DbAdapter {
   updateSessionRawFile(sessionId: number, rawFile: string, lapDetectorVersion: string): Promise<void> {
     return updateSessionRawFile(sessionId, rawFile, lapDetectorVersion);
   }
-  updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
-    return updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal);
+  async updateSessionCarTrack(sessionId: number, carOrdinal: number, trackOrdinal: number): Promise<void> {
+    await updateSessionCarTrack(sessionId, carOrdinal, trackOrdinal);
+    const existing = this.sessionScopes.get(sessionId);
+    if (existing) this.sessionScopes.set(sessionId, { ...existing, carOrdinal, trackOrdinal });
   }
   getTuneAssignment(gameId: GameId, carOrdinal: number, trackOrdinal: number): Promise<{ carOrdinal: number; trackOrdinal: number; tuneId: number; tuneName: string } | null> {
     return getTuneAssignment(gameId, carOrdinal, trackOrdinal);
