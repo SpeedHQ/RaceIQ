@@ -1,4 +1,4 @@
-import type { RaceResultAggregate, RaceResultStatus } from "@shared/race-results";
+import type { RaceResult, RaceResultAggregate, RaceResultStatus } from "@shared/race-results";
 import type { GameId } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
 import { client } from "../../lib/rpc";
@@ -51,6 +51,16 @@ export function RaceResultSummary({ gameId, title = "Race results", trackOrdinal
       return response.json() as Promise<RaceResultAggregate>;
     },
   });
+  const recentQuery = useQuery({
+    queryKey: ["race-result-recent", gameId],
+    enabled: gameId != null && trackOrdinal == null,
+    queryFn: async () => {
+      if (!gameId) return [] as RaceResult[];
+      const response = await client.api["race-results"].recent.$get({ query: { gameId, limit: "5" } });
+      if (!response.ok) throw new Error(response.statusText);
+      return response.json() as Promise<RaceResult[]>;
+    },
+  });
   if (!gameId || query.isLoading) return null;
   if (query.isError || !query.data || query.data.sessions === 0) {
     return (
@@ -64,6 +74,21 @@ export function RaceResultSummary({ gameId, title = "Race results", trackOrdinal
     <section className="rounded-lg border border-border/60 p-4">
       <h2 className="mb-3 font-medium">{title}</h2>
       <ResultAggregateGrid aggregate={query.data} />
+      {recentQuery.data && recentQuery.data.length > 0 && (
+        <div className="mt-4 space-y-2">
+          <h3 className="text-sm font-medium">Recent sessions</h3>
+          {recentQuery.data.map((result) => (
+            <div key={result.id} className="flex items-center justify-between gap-2 text-sm">
+              <span>Session {result.sessionId}</span>
+              <span className="flex items-center gap-2">
+                <ResultStatusBadge status={result.classification} />
+                {result.isPodium && <span className="text-xs text-muted-foreground">Podium</span>}
+                {result.isFastestLap && <span className="text-xs text-muted-foreground">Fastest lap</span>}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
