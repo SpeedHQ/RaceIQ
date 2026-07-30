@@ -10,6 +10,14 @@ const resolvedColorCache = new Map<string, string>();
 const resolvedFontCache = new Map<string, string>();
 let themeObserverInstalled = false;
 
+function referencedRootVariablesAreReady(value: string): boolean {
+  const variableNames = Array.from(value.matchAll(/var\(\s*(--[\w-]+)/g), (match) => match[1]);
+  if (variableNames.length === 0) return true;
+
+  const rootStyle = getComputedStyle(document.documentElement);
+  return variableNames.every((variableName) => rootStyle.getPropertyValue(variableName).trim().length > 0);
+}
+
 /** Clear resolved renderer values after changing theme variables programmatically. */
 export function invalidateCssValueCaches(): void {
   resolvedColorCache.clear();
@@ -33,6 +41,11 @@ export function resolveCssColor(color: string): string {
   const cached = resolvedColorCache.get(color);
   if (cached) return cached;
   if (typeof document === "undefined" || typeof getComputedStyle === "undefined") return color;
+  // Storybook can mount React before its theme stylesheet has finished
+  // resolving. In that window, a probe reports the browser's inherited black
+  // fallback. Never cache that transient value; the next renderer pass must
+  // retry once the root variables exist.
+  if (!referencedRootVariablesAreReady(color)) return color;
 
   const probe = document.createElement("span");
   probe.style.color = color;
@@ -58,6 +71,7 @@ export function resolveCssFont(font: string): string {
   const cached = resolvedFontCache.get(font);
   if (cached) return cached;
   if (typeof document === "undefined" || typeof getComputedStyle === "undefined") return font;
+  if (!referencedRootVariablesAreReady(font)) return font;
 
   const probe = document.createElement("span");
   probe.style.font = font;
