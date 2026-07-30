@@ -15,6 +15,7 @@
 - Added a disposable development database seed from committed telemetry fixtures
 - Consolidated shared sessions, chats, analysis, driver, and experiment routes across all supported games
 - Tolerate sparse screenshot antialiasing differences while preserving substantial visual regression reporting
+- Updated workspace dependencies and regenerated root Bun lockfile
 
 ## v0.13.0 - 2026-07-16
 
