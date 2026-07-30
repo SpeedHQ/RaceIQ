@@ -1,22 +1,7 @@
 ## Unreleased
 
 ### Features
-- Persisted cross-game race results with qualifying, podium, fastest-lap, pit, strategy, and position-timeline summaries, plus idempotent historical backfill
-
-### Fixes
-- Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
-
-## v0.14.0 - 2026-08-05
-
-### Features
-- Analyze recent driving trends across up to 30 laps, with measured style, consistency, time-loss, and optional AI coaching
-- Run versioned tuning and driving experiments in ACC and AC Evo, with setup changes, coaching drills, lap review, and car-or-driver focus
-- Import MoTeC logs as normal sessions for analysis, comparison, and experiments
-- Export and import individual laps or complete sessions as portable compressed captures
-- View release history in Settings and see the installed version in the sidebar
-- Move app navigation from the top bar into a left-hand sidebar, with a responsive mobile navigation drawer
-- Copy AI Compare conversations as JSON and resume or regenerate analysis chats with complete persisted history
-- Generate detailed, sector-aware lap-analysis results with consistent provider and settings handling
+- Persisted cross-game race results, qualifying/podium/fastest-lap flags, pit ledgers, strategy availability, and idempotent historical backfill
 - Automatic driver profile metrics with optional, configurable background AI coaching and auditable run history
 - Runtime-discovered iRacing cars and tracks, resolved by the SDK's native identifiers
 - Support for iRacing's source-defined sector layouts, including two-sector ovals and layouts with more than three sectors
