@@ -25,9 +25,9 @@ export default defineConfig({
     reducedMotion: "reduce",
   },
   webServer: {
-    command: "bun run storybook",
-    url: "http://localhost:6006",
-    reuseExistingServer: !process.env.CI,
+    command: "bun run storybook -- --ci --no-open --exact-port",
+    url: "http://localhost:6006/index.json",
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 });

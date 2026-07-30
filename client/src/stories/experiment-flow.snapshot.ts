@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openStory, warmStorybook } from "./storybook-ready";
 
 /**
  * Render smoke-test for the experiment flow stories (list → workspace →
@@ -92,28 +93,7 @@ const stories: StoryCase[] = [
  */
 test.beforeAll(async ({ browser }) => {
   test.setTimeout(360_000);
-  const page = await browser.newPage();
-  try {
-    // The FIRST navigation after Storybook boots reliably sticks on
-    // `sb-preparing-story` forever — the preview iframe asks for the story
-    // before the dev server's index is ready and never retries. A reload always
-    // resolves it, so retry rather than wait: waiting is what turns this into a
-    // timeout blamed on whichever story sorted first.
-    for (let attempt = 0; attempt < 5; attempt++) {
-      await page.goto(`/iframe.html?id=${stories[0].id}&viewMode=story`, { waitUntil: "domcontentloaded" });
-      try {
-        await page.waitForFunction(() => (document.body.innerText ?? "").trim().length > 0, null, { timeout: 60_000 });
-        return;
-      } catch {
-        // Fall through and reload. Budget is deliberately large (5 x 60s): a
-        // COLD preview build genuinely takes minutes on this graph, and it is
-        // paid once per run here rather than by whichever story sorts first.
-      }
-    }
-    throw new Error("Storybook never rendered a story — is the dev server healthy?");
-  } finally {
-    await page.close();
-  }
+  await warmStorybook(browser, `/iframe.html?id=${stories[0].id}&viewMode=story`, { attempts: 18, attemptTimeoutMs: 15_000 });
 });
 
 for (const story of stories) {
@@ -129,13 +109,7 @@ for (const story of stories) {
     const errors: string[] = [];
     page.on("pageerror", (err) => errors.push(err.message));
 
-    await page.goto(`/iframe.html?id=${story.id}&viewMode=story`);
-    // Wait on rendered content, not on a class name. `dashboards.snapshot.ts`
-    // waits for `[class*='border']`, which happens to hold for the panelled
-    // dashboards but not for the plain table the experiment list renders.
-    // Generous timeout: whichever story runs first pays Storybook's cold Vite
-    // compile and sits on Storybook's spinner until it finishes.
-    await page.waitForFunction(() => (document.body.innerText ?? "").trim().length > 0, null, { timeout: 90_000 });
+    await openStory(page, `/iframe.html?id=${story.id}&viewMode=story`, 90_000);
     await page.evaluate(() => document.fonts.ready);
     await page.waitForTimeout(300);
 

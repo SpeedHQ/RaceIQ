@@ -1,6 +1,7 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { StorybookConfig } from "@storybook/react-vite";
-import path from "path";
-import { fileURLToPath } from "url";
+import { mergeConfig } from "vite";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -11,8 +12,7 @@ const config: StorybookConfig = {
     name: "@storybook/react-vite",
     options: {},
   },
-  async viteFinal(config) {
-    const { mergeConfig } = await import("vite");
+  viteFinal(config) {
     return mergeConfig(config, {
       resolve: {
         alias: {

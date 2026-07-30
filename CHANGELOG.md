@@ -11,6 +11,7 @@
 - Show all registered games in storage settings, including games with no recording files
 
 ### Internal
+- Made Storybook snapshots own an exact-port server and retry cold preview preparation
 - Restored the ACC live-dashboard fuel bar in fixture-backed previews
 - Consolidated live dashboard routing across all supported games while preserving game-specific URLs
 - Deterministic iRacing recording and replay coverage through the production parser pipeline
