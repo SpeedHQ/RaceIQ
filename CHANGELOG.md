@@ -11,7 +11,7 @@
 - Show all registered games in storage settings, including games with no recording files
 
 ### Internal
-- Stabilized Storybook dashboard capture readiness and aligned PR preview comparison with Playwright's material-diff policy
+- Stabilized Storybook dashboard capture readiness, aligned PR preview comparison with Playwright's material-diff policy, and restricted baseline writes to the pinned Linux renderer
 - Made Storybook snapshots own an exact-port server and retry cold preview preparation
 - Restored the ACC live-dashboard fuel bar in fixture-backed previews
 - Consolidated live dashboard routing across all supported games while preserving game-specific URLs

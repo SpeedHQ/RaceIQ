@@ -44,6 +44,8 @@ jobs:
 
       - name: Regenerate baselines
         working-directory: client
+        env:
+          RACEIQ_CANONICAL_SNAPSHOT_ENV: "1"
         # snapshot = playwright test --update-snapshots && copy to assets/screenshots
         run: bun run snapshot
 

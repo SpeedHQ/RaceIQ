@@ -121,5 +121,5 @@ jobs:
       - name: Fail when committed snapshots do not match
         if: steps.storybook-render.outcome == 'failure'
         run: |
-          echo "::error::Committed Storybook snapshots do not match the current render. Run 'bun run snapshot' to update them."
+          echo "::error::Committed Storybook snapshots do not match the current render. Run 'bun run snapshot:docker' from client/ to update them in the pinned renderer."
           exit 1
