@@ -8,6 +8,7 @@ import { m } from "@/paraglide/messages";
 const PROVIDER_KEY_MAP: Record<string, string> = {
   gemini: "gemini",
   openai: "openai",
+  codex: "codex",
 };
 
 const PROVIDER_KEY_LABELS: Record<string, { label: string; placeholder: string; helpText: string; helpUrl: string }> = {
@@ -27,10 +28,11 @@ function supportsGeminiThinkingBudget(modelId: string): boolean {
   return !model.startsWith("gemma-") && !model.includes("/gemma-");
 }
 
-type ProviderId = "gemini" | "openai" | "local";
+type ProviderId = "gemini" | "openai" | "codex" | "local";
 type ModelsResponse = {
   gemini: { id: string; name: string }[];
   openai: { id: string; name: string }[];
+  codex: { id: string; name: string }[];
   local: { id: string; name: string }[];
   _errors?: Partial<Record<ProviderId, string | null>>;
 };
@@ -229,7 +231,7 @@ export function AiSection() {
   const refreshModels = useMutation({
     mutationFn: async () => {
       if (!selectedProvidersCsv) {
-        return { gemini: [], openai: [], local: [], _errors: { gemini: null, openai: null, local: null } } as ModelsResponse;
+        return { gemini: [], openai: [], codex: [], local: [], _errors: { gemini: null, openai: null, codex: null, local: null } } as ModelsResponse;
       }
       const base = `/api/ai-models?providers=${encodeURIComponent(selectedProvidersCsv)}&refresh=1`;
       const res = await fetch(base);

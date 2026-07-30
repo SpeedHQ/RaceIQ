@@ -13,7 +13,8 @@ import {
   generationThreadId,
 } from "./chat-agent";
 import { loadSettings } from "../settings";
-import { getSecret } from "../keystore";
+import { getConfiguredAiProvider } from "./provider-runtime";
+import { runCodexCli } from "./providers";
 
 export const MIN_COMPACT_MESSAGES = 6;
 export const COMPACT_SUMMARY_PREFIX = "🗜️ **Conversation compacted.**\n\n";
@@ -41,27 +42,16 @@ export interface CompactDeps {
 
 async function defaultSummarize(transcript: string): Promise<string> {
   const s = loadSettings();
-  // Bridge provider env the same way the chat routes do — Mastra resolves
-  // `openai/...` model ids from process.env, so without this a compact with
-  // a local/OpenAI provider fails with "Could not find API key
-  // process.env.OPENAI_API_KEY".
-  if (s.chatProvider === "gemini") {
-    const key = await getSecret("gemini-api-key");
-    if (key) process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
-    delete process.env.OPENAI_BASE_URL;
-  } else if (s.chatProvider === "openai") {
-    const key = await getSecret("openai-api-key");
-    if (key) process.env.OPENAI_API_KEY = key;
-    delete process.env.OPENAI_BASE_URL;
-  } else if (s.chatProvider === "local") {
-    process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
-    process.env.OPENAI_BASE_URL = s.localEndpoint || "http://localhost:1234/v1";
+  const runtime = await getConfiguredAiProvider("chat", s);
+  if (runtime.provider === "codex") {
+    const result = await runCodexCli(`${SUMMARY_SYSTEM}\n\n${transcript}`, runtime.model);
+    return result.analysis;
   }
   const compactor = new Agent({
     id: "compactor",
     name: "Compactor",
     instructions: SUMMARY_SYSTEM,
-    model: () => getMastraModelId(s.chatProvider, s.chatModel),
+    model: () => getMastraModelId(runtime.provider, runtime.model),
   });
   const result = await compactor.generate(transcript, {
     modelSettings: { maxOutputTokens: 900, temperature: 0 },

@@ -9,9 +9,8 @@
  * helpers directly since we want a single structured turn, not a chat agent.
  */
 import type { GameId } from "../../shared/types";
-import { loadSettings } from "../settings";
-import { getSecret } from "../keystore";
-import { runGemini, runOpenAi } from "./providers";
+import { runCodexCli, runGemini, runOpenAi } from "./providers";
+import { getConfiguredAiProvider } from "./provider-runtime";
 import {
   getTuneIntentJsonSchema,
   parseTuneIntents,
@@ -151,30 +150,25 @@ async function runTuneIntentProvider(
   prompt: string,
   schema: object,
 ): Promise<{ raw: string; model: string }> {
-  const settings = loadSettings();
-
-  // Auto-tune has its own provider/model so the user can point it at a
-  // different model than lap analysis. Fall back to the shared analysis
-  // provider for settings written before auto-tune had its own entry.
-  const provider = settings.autoTuneProvider || settings.aiProvider;
-  const tuneModel = settings.autoTuneModel || settings.aiModel;
+  const runtime = await getConfiguredAiProvider("autoTune");
+  const provider = runtime.provider;
+  const tuneModel = runtime.model;
 
   switch (provider) {
+    case "codex": {
+      const r = await runCodexCli(prompt, tuneModel);
+      return { raw: r.analysis, model: r.usage.model };
+    }
     case "openai": {
-      const key = await getSecret("openai-api-key");
-      const r = await runOpenAi(prompt, key, tuneModel, schema, "tune_intents");
+      const r = await runOpenAi(prompt, runtime.apiKey ?? "", tuneModel, schema, "tune_intents");
       return { raw: r.analysis, model: r.usage.model };
     }
     case "local": {
-      // Local OpenAI-compatible endpoint (LM Studio / Ollama).
-      const base = settings.localEndpoint || "http://localhost:1234/v1";
-      const r = await runOpenAiLocal(prompt, base, tuneModel, schema);
+      const r = await runOpenAiLocal(prompt, runtime.localEndpoint, tuneModel, schema);
       return { raw: r.analysis, model: r.usage.model };
     }
-    default: {
-      // gemini (and legacy default)
-      const key = await getSecret("gemini-api-key");
-      const r = await runGemini(prompt, key, tuneModel, schema);
+    case "gemini": {
+      const r = await runGemini(prompt, runtime.apiKey ?? "", tuneModel, schema);
       return { raw: r.analysis, model: r.usage.model };
     }
   }

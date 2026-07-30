@@ -2,6 +2,7 @@
 
 ### Features
 - Automatic driver profile metrics with optional, configurable background AI coaching and auditable run history
+- OpenAI Codex CLI provider using authenticated ChatGPT subscription access for AI analysis and chat
 - Runtime-discovered iRacing cars and tracks, resolved by the SDK's native identifiers
 - Support for iRacing's source-defined sector layouts, including two-sector ovals and layouts with more than three sectors
 - View all release notes since your installed version in the app

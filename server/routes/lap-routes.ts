@@ -65,7 +65,6 @@ import {
   generationThreadId,
   listThreadGenerations,
 } from "../ai/chat-agent";
-import { getSecret } from "../keystore";
 import { deleteAnalysis as deleteAnalysisQuery } from "../db/queries";
 import { tryGetGame } from "../../shared/games/registry";
 import { gzip } from "zlib";
@@ -86,6 +85,9 @@ import { lapAnalystAgent, lapChatAgent, compareEngineerAgent, compareChatAgent }
 import { buildGoogleProviderOptions, buildGoogleThinkingProviderOptions } from "../ai/google-provider-options";
 import { toClientAiError } from "../ai/provider-error";
 import { extractJson } from "../ai/extract-json";
+import { runCodexCli } from "../ai/providers";
+import { getConfiguredAiProvider } from "../ai/provider-runtime";
+import { createCodexChatResponse } from "../ai/codex-chat-stream";
 import { resolveLapF1Setup } from "../ai/f1-setup-identity";
 
 /**
@@ -731,35 +733,25 @@ export const lapRoutes = new Hono()
       prompt += buildF1SetupReferenceBlock(lap.carSetup, lap.telemetry, lap.trackOrdinal ?? -1);
     }
 
-    // Bridge keystore secret → env var so Mastra / AI SDK providers can resolve it.
-    // The Mastra lap-analyst agent reads the provider from settings via `getMastraModelId`.
-    const analystProvider = settings.aiProvider;
-    if (!analystProvider) {
-      return c.json({ error: "No AI provider selected. Choose one in Settings → AI Analysis." }, 400);
+    let runtime;
+    try {
+      runtime = await getConfiguredAiProvider("analysis", settings);
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
     }
-    if (analystProvider === "openai") {
-      const key = await getSecret("openai-api-key");
-      if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Analysis." }, 400);
-      process.env.OPENAI_API_KEY = key;
-    } else if (analystProvider === "local") {
-      process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
-      process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
-    } else {
-      const key = await getSecret("gemini-api-key");
-      if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Analysis." }, 400);
-      process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
-    }
+    const analystProvider = runtime.provider;
 
     // Analyse returns a heartbeat-style NDJSON stream: `ping` every ~200s
     // to keep Bun's 255s idleTimeout alive for slow local models, then a
     // single `result` (or `error`) event at the end. The client doesn't
-    // render intermediate status — it just waits for the result.
     const modelLabel = settings.aiModel
       || (analystProvider === "openai"
         ? "gpt-4o-mini"
-        : analystProvider === "local"
-          ? "local-model"
-          : "gemini-flash-latest");
+        : analystProvider === "codex"
+          ? "codex"
+          : analystProvider === "local"
+            ? "local-model"
+            : "gemini-flash-latest");
     const startedAt = Date.now();
     const encoder = new TextEncoder();
     const writeEvent = (c: ReadableStreamDefaultController, obj: unknown) => {
@@ -777,25 +769,28 @@ export const lapRoutes = new Hono()
           writeEvent(controller, { type: "ping" });
         }, 200_000);
         try {
-          const result = await lapAnalystAgent.generate(prompt, {
-            maxSteps: 5,
-            ...(hideTools ? { activeTools: [] as never[] } : {}),
-            modelSettings: { maxOutputTokens: 8192, temperature: 0 },
-            providerOptions: {
-              openai: {
-                reasoningEffort: "medium",
-                responseFormat: {
-                  type: "json_schema",
-                  jsonSchema: {
-                    name: "analyst_output",
-                    strict: true,
-                    schema: getAnalystJsonSchema() as Record<string, never>,
+          const codexResult = analystProvider === "codex" ? await runCodexCli(prompt, settings.aiModel) : null;
+          const result = codexResult
+            ? { text: codexResult.analysis, usage: codexResult.usage }
+            : await lapAnalystAgent.generate(prompt, {
+                maxSteps: 5,
+                ...(hideTools ? { activeTools: [] as never[] } : {}),
+                modelSettings: { maxOutputTokens: 8192, temperature: 0 },
+                providerOptions: {
+                  openai: {
+                    reasoningEffort: "medium",
+                    responseFormat: {
+                      type: "json_schema",
+                      jsonSchema: {
+                        name: "analyst_output",
+                        strict: true,
+                        schema: getAnalystJsonSchema() as Record<string, never>,
+                      },
+                    } as never,
                   },
-                } as never,
-              },
-              google: buildGoogleProviderOptions(modelLabel, getAnalystJsonSchema() as Record<string, unknown>, settings.aiThinkingBudget) as never,
-            },
-          });
+                  google: buildGoogleProviderOptions(modelLabel, getAnalystJsonSchema() as Record<string, unknown>, settings.aiThinkingBudget) as never,
+                },
+              });
           const rawText = typeof result.text === "string" ? result.text : "";
           let text = rawText;
           const durationMs = Date.now() - startedAt;
@@ -930,23 +925,20 @@ export const lapRoutes = new Hono()
     // helper (removed, was the NDJSON transport's shared provider setup)
     // since this route now speaks the AI SDK v5 UI-message-stream
     // protocol instead).
-    const chatProvider = settings.chatProvider;
-    if (!chatProvider) {
-      return c.json({ error: "No AI provider selected. Choose one in Settings → AI Chat." }, 400);
+    let chatRuntime;
+    try {
+      chatRuntime = await getConfiguredAiProvider("chat", settings);
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
     }
-    if (chatProvider === "gemini") {
-      const key = await getSecret("gemini-api-key");
-      if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
-      process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
-      delete process.env.OPENAI_BASE_URL;
-    } else if (chatProvider === "openai") {
-      const key = await getSecret("openai-api-key");
-      if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Chat." }, 400);
-      process.env.OPENAI_API_KEY = key;
-      delete process.env.OPENAI_BASE_URL;
-    } else if (chatProvider === "local") {
-      process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
-      process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
+    const chatProvider = chatRuntime.provider;
+    if (chatProvider === "codex") {
+      try {
+        return await createCodexChatResponse({ systemPrompt, messages, model: chatRuntime.model });
+      } catch (err) {
+        console.error("[Chat] Codex CLI failed:", err);
+        return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
+      }
     }
 
     const chatModelLabel = settings.chatModel
@@ -1228,20 +1220,14 @@ export const lapRoutes = new Hono()
 
     // Set provider env vars before calling Mastra (the dynamic model resolver
     // reads settings at request time but env-based API keys must be in scope).
-    if (!settings.aiProvider) {
-      return c.json({ error: "No AI provider selected. Choose one in Settings → AI Analysis." }, 400);
+    let analysisRuntime;
+    try {
+      analysisRuntime = await getConfiguredAiProvider("analysis", settings);
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
     }
-    if (settings.aiProvider === "openai") {
-      const key = await getSecret("openai-api-key");
-      if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Analysis." }, 400);
-      process.env.OPENAI_API_KEY = key;
-    } else if (settings.aiProvider === "local") {
-      process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
-      process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
-    } else {
-      const key = await getSecret("gemini-api-key");
-      if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Analysis." }, 400);
-      process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
+    if (analysisRuntime.provider === "codex") {
+      return c.json({ error: "Codex CLI is not supported for comparison analysis yet." }, 400);
     }
 
     try {
@@ -1407,23 +1393,20 @@ export const lapRoutes = new Hono()
         buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
     );
 
-    const chatProvider = settings.chatProvider;
-    if (!chatProvider) {
-      return c.json({ error: "No AI provider selected. Choose one in Settings → AI Chat." }, 400);
+    let chatRuntime;
+    try {
+      chatRuntime = await getConfiguredAiProvider("chat", settings);
+    } catch (err) {
+      return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
     }
-    if (chatProvider === "gemini") {
-      const key = await getSecret("gemini-api-key");
-      if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
-      process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
-      delete process.env.OPENAI_BASE_URL;
-    } else if (chatProvider === "openai") {
-      const key = await getSecret("openai-api-key");
-      if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Chat." }, 400);
-      process.env.OPENAI_API_KEY = key;
-      delete process.env.OPENAI_BASE_URL;
-    } else if (chatProvider === "local") {
-      process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
-      process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
+    const chatProvider = chatRuntime.provider;
+    if (chatProvider === "codex") {
+      try {
+        return await createCodexChatResponse({ systemPrompt, messages, model: chatRuntime.model });
+      } catch (err) {
+        console.error("[CompareChat] Codex CLI failed:", err);
+        return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
+      }
     }
 
     const chatModelLabel = settings.chatModel

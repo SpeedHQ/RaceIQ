@@ -79,7 +79,7 @@ export const settingsRoutes = new Hono()
       (c.req.query("providers") ?? "")
         .split(",")
         .map((p) => p.trim())
-        .filter((p) => p === "gemini" || p === "openai" || p === "local"),
+        .filter((p) => p === "gemini" || p === "openai" || p === "codex" || p === "local"),
     );
     const useRequestedProviders = requestedProviders.size > 0;
     const shouldFetchGemini = useRequestedProviders
@@ -159,8 +159,9 @@ export const settingsRoutes = new Hono()
     return c.json({
       "gemini": geminiModels,
       "openai": getOpenAiModels(),
+      "codex": [],
       "local": localModels,
-      "_errors": { gemini: geminiError, openai: null, local: localError },
+      "_errors": { gemini: geminiError, openai: null, codex: null, local: localError },
     });
   })
 

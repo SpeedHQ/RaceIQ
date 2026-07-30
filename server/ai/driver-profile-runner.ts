@@ -3,8 +3,9 @@ import { createHash } from "crypto";
 import type { GameId } from "../../shared/types";
 import { tryGetGame } from "../../shared/games/registry";
 import { loadSettings } from "../settings";
-import { getSecret } from "../keystore";
 import { toClientAiError, type ClientAiError } from "./provider-error";
+import { runCodexCli } from "./providers";
+import { getConfiguredAiProvider } from "./provider-runtime";
 import { driverProfilerAgent } from "./agents";
 import { buildDriverProfilerPrompt } from "./driver-profiler-prompt";
 import {
@@ -78,34 +79,15 @@ function normalizedError(err: unknown): { message: string; details: ClientAiErro
 }
 
 async function providerConfiguration(): Promise<
-  | { ok: true; provider: "gemini" | "openai" | "local"; model: string; thinkingBudget: number | null }
+  | { ok: true; provider: "gemini" | "openai" | "codex" | "local"; model: string; thinkingBudget: number | null }
   | { ok: false; reason: string }
 > {
-  const settings = loadSettings();
-  const provider = settings.driverProfileProvider;
-  if (!provider) return { ok: false, reason: "No driver-profile AI provider is configured." };
-
-  if (provider === "openai") {
-    const key = await getSecret("openai-api-key");
-    if (!key) return { ok: false, reason: "OpenAI API key is not configured for driver profiling." };
-    process.env.OPENAI_API_KEY = key;
-  } else if (provider === "local") {
-    process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
-    process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
-  } else {
-    const key = await getSecret("gemini-api-key");
-    if (!key) return { ok: false, reason: "Gemini API key is not configured for driver profiling." };
-    process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
+  try {
+    const runtime = await getConfiguredAiProvider("driverProfile");
+    return { ok: true, provider: runtime.provider, model: runtime.model || (runtime.provider === "codex" ? "codex" : runtime.provider === "local" ? "local-model" : runtime.provider === "openai" ? "gpt-4o-mini" : "gemini-flash-latest"), thinkingBudget: runtime.thinkingBudget };
+  } catch (err) {
+    return { ok: false, reason: err instanceof Error ? err.message : String(err) };
   }
-
-  return {
-    ok: true,
-    provider,
-    model:
-      settings.driverProfileModel ||
-      (provider === "openai" ? "gpt-4o-mini" : provider === "local" ? "local-model" : "gemini-flash-latest"),
-    thinkingBudget: settings.driverProfileThinkingBudget,
-  };
 }
 
 export async function getDriverProfileConfiguration(): Promise<{
@@ -165,26 +147,29 @@ async function runDriverProfileInternal(
       fingerprint,
       language: loadSettings().language,
     });
-    const result = await driverProfilerAgent.generate(prompt, {
-      modelSettings: { maxOutputTokens: 512, temperature: 0 },
-      providerOptions: {
-        openai: {
-          responseFormat: {
-            type: "json_schema",
-            jsonSchema: {
-              name: "driver_profile_summary",
-              strict: true,
-              schema: getDriverProfileSummaryJsonSchema() as Record<string, never>,
-            },
+    const codexResult = config.provider === "codex" ? await runCodexCli(prompt, config.model) : null;
+    const result = codexResult
+      ? { text: codexResult.analysis, usage: codexResult.usage }
+      : await driverProfilerAgent.generate(prompt, {
+          modelSettings: { maxOutputTokens: 512, temperature: 0 },
+          providerOptions: {
+            openai: {
+              responseFormat: {
+                type: "json_schema",
+                jsonSchema: {
+                  name: "driver_profile_summary",
+                  strict: true,
+                  schema: getDriverProfileSummaryJsonSchema() as Record<string, never>,
+                },
+              },
+            } as never,
+            google: buildGoogleProviderOptions(
+              config.model,
+              getDriverProfileSummaryJsonSchema() as Record<string, unknown>,
+              config.thinkingBudget,
+            ) as never,
           },
-        } as never,
-        google: buildGoogleProviderOptions(
-          config.model,
-          getDriverProfileSummaryJsonSchema() as Record<string, unknown>,
-          config.thinkingBudget,
-        ) as never,
-      },
-    });
+        });
 
     const parsed = parseDriverProfileSummary(typeof result.text === "string" ? result.text : "");
     if (!parsed.success) {

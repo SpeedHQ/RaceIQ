@@ -1,4 +1,4 @@
-type AiProvider = "" | "gemini" | "openai" | "local";
+type AiProvider = "" | "gemini" | "openai" | "codex" | "local";
 
 export interface AiConfigSettings {
   aiProvider?: AiProvider;
@@ -9,7 +9,7 @@ export interface AiConfigSettings {
 
 export function isAiConfigured(settings: AiConfigSettings): boolean {
   const provider = settings.aiProvider ?? "gemini";
-  if (provider === "local") return true;
+  if (provider === "local" || provider === "codex") return true;
   if (provider === "openai") return !!settings.openaiApiKeySet;
   return !!settings.geminiApiKeySet;
 }

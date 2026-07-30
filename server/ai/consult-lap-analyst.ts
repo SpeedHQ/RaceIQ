@@ -15,8 +15,9 @@
 import type { GameId } from "../../shared/types";
 import { getCorners } from "../db/queries";
 import { detectCorners } from "../corner-detection";
-import { getSecret } from "../keystore";
 import { loadSettings } from "../settings";
+import { runCodexCli } from "./providers";
+import { getConfiguredAiProvider } from "./provider-runtime";
 import { buildAnalystPrompt } from "./analyst-prompt";
 import { resolveTrack } from "../track-info";
 // Import the raw Lap Analyst agent directly (not via ./agents) to avoid a module
@@ -53,20 +54,12 @@ export async function consultLapAnalystForSession(sessionId: number): Promise<La
     settings.language,
   );
 
-  // Bridge the Lap Analyst's provider secret → env. It reads `aiProvider`
-  // (default gemini), independent of the setup-engineer chat provider.
-  const provider = settings.aiProvider;
-  if (provider === "openai") {
-    const key = await getSecret("openai-api-key");
-    if (!key) return { available: false, summary: "Lap Analyst unavailable — OpenAI API key not set (Settings → AI Analysis)." };
-    process.env.OPENAI_API_KEY = key;
-  } else if (provider === "local") {
-    process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
-    process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
-  } else {
-    const key = await getSecret("gemini-api-key");
-    if (!key) return { available: false, summary: "Lap Analyst unavailable — Gemini API key not set (Settings → AI Analysis)." };
-    process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
+  const runtime = await getConfiguredAiProvider("analysis", settings);
+  const provider = runtime.provider;
+  if (provider === "codex") {
+    const result = await runCodexCli(prompt, runtime.model);
+    const text = result.analysis.trim();
+    return { available: true, summary: text || "Lap Analyst returned no content." };
   }
 
   const hideTools = provider === "local";

@@ -14,11 +14,12 @@ export interface AiResult {
   };
 }
 
-export type AiProvider = "gemini" | "openai" | "local";
+export type AiProvider = "gemini" | "openai" | "local" | "codex";
 
 const AI_PROVIDERS = [
   { id: "gemini", name: "Google Gemini" },
   { id: "openai", name: "OpenAI" },
+  { id: "codex", name: "OpenAI Codex (ChatGPT subscription)" },
   { id: "local", name: "Local (LM Studio / Ollama)" },
 ];
 
@@ -30,6 +31,92 @@ export type ModelListResult = {
   models: { id: string; name: string; contextLength?: number }[];
   error: string | null;
 };
+
+export type CodexResult = {
+  text: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+};
+
+export function parseCodexJsonl(raw: string): CodexResult {
+  let text = "";
+  let inputTokens = 0;
+  let outputTokens = 0;
+
+  for (const line of raw.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    let event: Record<string, unknown>;
+    try {
+      const parsed: unknown = JSON.parse(line);
+      if (!parsed || typeof parsed !== "object") continue;
+      event = parsed as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    const item = event.item;
+    if (
+      event.type === "item.completed"
+      && item
+      && typeof item === "object"
+      && "type" in item
+      && item.type === "agent_message"
+      && "text" in item
+      && typeof item.text === "string"
+    ) {
+      text = item.text;
+    }
+    const usage = event.usage;
+    if (event.type === "turn.completed" && usage && typeof usage === "object") {
+      const input = "input_tokens" in usage ? usage.input_tokens : 0;
+      const output = "output_tokens" in usage ? usage.output_tokens : 0;
+      inputTokens = typeof input === "number" ? input : 0;
+      outputTokens = typeof output === "number" ? output : 0;
+    }
+  }
+
+  if (!text.trim()) throw new Error("Codex returned empty response");
+  return { text, model: "codex", inputTokens, outputTokens };
+}
+
+export async function runCodexCli(prompt: string, model?: string): Promise<AiResult> {
+  const args = ["codex", "exec", "--json", "--ephemeral", "--skip-git-repo-check"];
+  if (model?.trim()) args.push("--model", model.trim());
+  args.push("-");
+  const proc = Bun.spawn(args, { stdin: "pipe", stdout: "pipe", stderr: "pipe" });
+  proc.stdin.write(prompt);
+  proc.stdin.end();
+
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    proc.kill();
+  }, 90_000);
+  const [exitCode, stdout, stderr] = await Promise.all([
+    proc.exited,
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+  ]);
+  clearTimeout(timeout);
+
+  if (timedOut) throw new Error("Codex timed out after 90 seconds");
+  if (exitCode !== 0) {
+    const detail = stderr.trim().replace(/\s+/g, " ").slice(0, 240);
+    throw new Error(`Codex CLI failed. Run \`codex login\` to authenticate.${detail ? ` ${detail}` : ""}`);
+  }
+  const result = parseCodexJsonl(stdout);
+  return {
+    analysis: result.text,
+    usage: {
+      inputTokens: result.inputTokens,
+      outputTokens: result.outputTokens,
+      costUsd: 0,
+      durationMs: 0,
+      model: model?.trim() || result.model,
+    },
+  };
+}
+
 
 /** Fetch available Gemini models from the API. Filters to generateContent-capable models. */
 /** Fetch available Gemini models from the API. Filters to generateContent-capable models. */
