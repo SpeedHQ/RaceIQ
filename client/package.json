@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.45",
-    "@assistant-ui/react": "^0.14.29",
+    "@assistant-ui/react": "^0.15.1",
     "@assistant-ui/react-ai-sdk": "^1.4.2",
     "@assistant-ui/react-markdown": "^0.14.8",
     "@base-ui/react": "^1.6.0",
