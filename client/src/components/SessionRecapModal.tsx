@@ -1,19 +1,15 @@
 import type { GameId } from "@shared/types";
-import { createPortal } from "react-dom";
+import { m } from "@/paraglide/messages";
 import { SessionRecap } from "./SessionRecap";
+import { Dialog, DialogContent, DialogTitle } from "./ui/dialog";
 
 export function SessionRecapModal({ sessionId, gameId, onClose }: { sessionId: number; gameId?: GameId | null; onClose: () => void }) {
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60 p-4"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[560px] max-w-full max-h-[85vh] overflow-y-auto p-4">
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="md" showCloseButton={false}>
+        <DialogTitle className="sr-only">{m.recap_latest_session()}</DialogTitle>
         <SessionRecap sessionId={sessionId} gameId={gameId} />
-      </div>
-    </div>,
-    document.body,
+      </DialogContent>
+    </Dialog>
   );
 }

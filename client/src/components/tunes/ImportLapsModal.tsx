@@ -1,7 +1,7 @@
 import type { GameId } from "@shared/types";
 import { useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import { type ImportableLap, type ExperimentVersion, useImportableLaps, useImportLaps } from "../../hooks/queries";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 
 function fmtLapTime(ms: number | null | undefined): string {
   if (ms == null || ms <= 0) return "—";
@@ -104,26 +104,15 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
     </label>
   );
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[720px] max-w-[94vw] max-h-[86vh] flex flex-col gap-4 p-5"
-        onKeyDown={(e) => {
-          if (e.key === "Escape") onClose();
-        }}
-      >
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-app-text">Add laps from history</p>
-          <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">
-            ×
-          </button>
-        </div>
-        <p className="text-xs text-app-text-dim -mt-2">Attach laps already recorded for this car and track to this session, instead of driving fresh ones.</p>
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="wide" showCloseButton={false} className="max-h-[86vh] p-5">
+        <DialogHeader>
+          <DialogTitle className="text-sm font-semibold text-app-text">Add laps from history</DialogTitle>
+          <DialogDescription className="text-xs text-app-text-dim">
+            Attach laps already recorded for this car and track to this session, instead of driving fresh ones.
+          </DialogDescription>
+        </DialogHeader>
 
         {isF1 ? (
           <div className="text-xs text-app-text-dim bg-app-bg/60 border border-app-border rounded px-3 py-2">
@@ -190,7 +179,7 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
 
         {error && <div className="text-xs text-status-danger">{error}</div>}
 
-        <div className="flex justify-end gap-2 pt-1">
+        <DialogFooter className="border-0 bg-transparent p-0 -mx-0 -mb-0">
           <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs rounded border border-app-border text-app-text-dim hover:text-app-text">
             Cancel
           </button>
@@ -199,13 +188,12 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
             onClick={submit}
             disabled={importLaps.isPending || selected.size === 0}
             title={selected.size === 0 ? "Select at least one lap" : undefined}
-          className="px-3 py-1.5 text-xs rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 text-app-on-filled font-semibold"
+            className="px-3 py-1.5 text-xs rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 text-app-on-filled font-semibold"
           >
             {importLaps.isPending ? "Importing…" : `Import ${selected.size || ""} lap${selected.size === 1 ? "" : "s"}`}
           </button>
-        </div>
-      </div>
-    </div>,
-    document.body,
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

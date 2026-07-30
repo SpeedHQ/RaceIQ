@@ -2,10 +2,10 @@ import { EXPERIMENT_FOCUS_LABELS, type ExperimentFocus } from "@shared/experimen
 import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/review-laps";
 import type { F1CarSetup, LapMeta } from "@shared/types";
 import { useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import { type ExperimentLapMetric, type ExperimentVersion, useDeleteVersion, useExperimentFocusHistory, useSetHead, useSetTestNote } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { F1SetupModal } from "../analyse/F1SetupModal";
 import { SetupContentModal } from "./SetupFilePicker";
 import { AppliedChangesList, LapBreakdown, summarizeAppliedChanges } from "./tune-version-shared";
@@ -144,36 +144,20 @@ function EngineerNotesView({ notes }: { notes: string | null }) {
 /** Modal wrapping both per-node comment editors, opened from a node's "Notes"
  *  button. Closes on backdrop click, the × button, or Escape. */
 function NotesModal({ sessionId, test, onClose }: { sessionId: number; test: ExperimentVersion; onClose: () => void }) {
-  return createPortal(
-    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: Escape-to-close container */}
-      <div
-        className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[820px] max-w-[94vw] max-h-[90vh] overflow-y-auto flex flex-col p-5"
-        onKeyDown={(e) => {
-          if (e.key === "Escape") onClose();
-        }}
-      >
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold text-app-text">
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="wide" showCloseButton={false} className="max-h-[90vh] overflow-y-auto p-5">
+        <DialogHeader>
+          <DialogTitle className="text-sm font-semibold text-app-text">
             <span className="font-mono">{test.label}</span> — notes
-          </p>
-          <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">
-            ×
-          </button>
-        </div>
+          </DialogTitle>
+        </DialogHeader>
         <div className="grid grid-cols-2 divide-x divide-app-border/60 border border-app-border/60 rounded-md overflow-hidden bg-app-surface/40">
           <DriverCommentEditor sessionId={sessionId} versionId={test.id} note={test.driverComment} rows={8} />
           <EngineerNotesView notes={test.notes} />
         </div>
-      </div>
-    </div>,
-    document.body,
+      </DialogContent>
+    </Dialog>
   );
 }
 

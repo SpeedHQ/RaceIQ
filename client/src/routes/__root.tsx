@@ -10,6 +10,7 @@ import { AppSidebar } from "../components/AppSidebar";
 import { OnboardingModal } from "../components/Onboarding";
 import { Settings } from "../components/Settings";
 import { UpdateModal } from "../components/UpdateModal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { useSettings } from "../hooks/queries";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useWebSocket } from "../hooks/useWebSocket";
@@ -34,17 +35,17 @@ function ReprocessProgressModal({ total, done, onClose }: { total: number; done:
   const complete = done >= total;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60 backdrop-blur-sm">
-      <div className="w-96 rounded-xl border border-app-border bg-app-surface p-6 shadow-2xl">
-        <div className="flex items-center gap-3 mb-4">
+    <Dialog open onOpenChange={(open) => !open && complete && onClose()}>
+      <DialogContent size="sm" showCloseButton={false} className="w-96 p-6">
+        <DialogHeader className="mb-4 flex flex-row items-center gap-3">
           <RefreshCw className={`size-5 text-status-info ${complete ? "" : "animate-spin"}`} />
-          <h2 className="text-sm font-semibold text-app-text flex-1">{complete ? m.root_reprocessing_complete() : m.root_reprocessing()}</h2>
+          <DialogTitle className="flex-1 text-sm font-semibold text-app-text">{complete ? m.root_reprocessing_complete() : m.root_reprocessing()}</DialogTitle>
           {complete && (
             <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text-secondary transition-colors" aria-label="Close">
               <X className="size-4" />
             </button>
           )}
-        </div>
+        </DialogHeader>
         <div className="mb-3 h-2 w-full rounded-full bg-app-text/10 overflow-hidden">
           <div className="h-full rounded-full bg-status-info transition-all duration-300" style={{ width: `${percent}%` }} />
         </div>
@@ -55,8 +56,8 @@ function ReprocessProgressModal({ total, done, onClose }: { total: number; done:
           <span>{percent}%</span>
         </div>
         {complete && <p className="mt-3 text-xs text-status-success text-center">{m.root_all_sessions_updated()}</p>}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

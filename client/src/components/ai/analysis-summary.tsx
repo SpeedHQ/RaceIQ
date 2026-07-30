@@ -1,7 +1,7 @@
 import { Eye, Sparkles, X } from "lucide-react";
 import type { ReactNode } from "react";
-import { createPortal } from "react-dom";
 import { m } from "@/paraglide/messages";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 /**
  * Collapsed representation of a finished analysis: one row with a headline and
@@ -58,20 +58,12 @@ export function AnalysisModalShell({
   onTabChange?: (key: string) => void;
   children: ReactNode;
 }) {
-  return createPortal(
-    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60 p-4"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[640px] max-w-[95vw] max-h-[85vh] flex flex-col overflow-hidden">
-        {/* One header row: the tabs are the title. With a single section the
-            active tab reads as a plain heading, so there is no second copy of
-            "AI Analysis" below it. */}
-        <div className="flex items-center gap-2 px-4 py-2.5 border-b border-app-border shrink-0">
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="lg" showCloseButton={false} className="max-h-[85vh] flex flex-col overflow-hidden p-0">
+        <DialogHeader className="flex shrink-0 flex-row items-center gap-2 border-b border-app-border px-4 py-2.5">
           <Sparkles className="size-3.5 text-ai-accent shrink-0" />
+          <DialogTitle className="sr-only">{m.label_ai_analysis()}</DialogTitle>
           {(tabs?.length ? tabs : [{ key: "__title", label: m.label_ai_analysis() } as AnalysisModalTab]).map((tab) => {
             const active = !tabs?.length || tab.key === activeTab;
             const interactive = (tabs?.length ?? 0) > 1;
@@ -92,13 +84,12 @@ export function AnalysisModalShell({
             );
           })}
           {subtitle && <span className="text-app-compact text-app-text-secondary truncate ml-2">{subtitle}</span>}
-          <button type="button" onClick={onClose} className="ml-auto pl-2 text-app-text-muted hover:text-app-text shrink-0">
+          <button type="button" onClick={onClose} className="ml-auto pl-2 text-app-text-muted hover:text-app-text shrink-0" aria-label={m.common_close()}>
             <X className="size-4" />
           </button>
-        </div>
+        </DialogHeader>
         <div className="flex-1 overflow-y-auto px-4 py-3">{children}</div>
-      </div>
-    </div>,
-    document.body,
+      </DialogContent>
+    </Dialog>
   );
 }

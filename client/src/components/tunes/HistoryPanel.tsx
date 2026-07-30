@@ -1,7 +1,6 @@
-import { createPortal } from "react-dom";
 import { type ExperimentActionRow, useExperimentHistory, useExperimentVersions, useUndo } from "../../hooks/queries";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { FocusTimeline } from "./FocusTimeline";
-
 /**
  * History panel (design Phase 9) — session-scoped, newest-first action log
  * with a single top-level Undo button that reverses exactly the newest
@@ -16,25 +15,12 @@ export function HistoryPanel({ sessionId, onClose }: { sessionId: number; onClos
   const undo = useUndo();
   const nextPending = actions.find((a) => !a.undone);
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[520px] max-w-[94vw] max-h-[80vh] flex flex-col gap-3 p-5"
-        onKeyDown={(e) => {
-          if (e.key === "Escape") onClose();
-        }}
-      >
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-app-text">History</p>
-          <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">
-            ×
-          </button>
-        </div>
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="md" showCloseButton={false} className="max-h-[80vh] p-5">
+        <DialogHeader>
+          <DialogTitle className="text-sm font-semibold text-app-text">History</DialogTitle>
+        </DialogHeader>
 
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs text-app-text-dim">{nextPending ? `Undo reverses: ${describeAction(nextPending)}` : "Nothing left to undo."}</p>
@@ -48,9 +34,6 @@ export function HistoryPanel({ sessionId, onClose }: { sessionId: number; onClos
           </button>
         </div>
 
-        {/* What the session was WORKING ON over time, above what was done to
-            it — a switch from the car to the driver is the context that makes
-            the action log below readable. */}
         <div className="rounded border border-app-border p-3">
           <div className="text-app-caption uppercase tracking-wider text-app-text-muted mb-1.5">Focus</div>
           <FocusTimeline experimentId={sessionId} versions={versions} />
@@ -59,7 +42,7 @@ export function HistoryPanel({ sessionId, onClose }: { sessionId: number; onClos
         {undo.data?.warning && <div className="text-xs text-status-warning">{undo.data.warning}</div>}
         {undo.isError && <div className="text-xs text-status-danger">{(undo.error as Error)?.message ?? "Undo failed"}</div>}
 
-        <div className="flex-1 min-h-0 overflow-y-auto border border-app-border rounded">
+        <div className="min-h-[120px] max-h-[45vh] overflow-y-auto border border-app-border rounded">
           {isLoading ? (
             <div className="p-3 text-xs text-app-text-dim">Loading…</div>
           ) : actions.length === 0 ? (
@@ -75,10 +58,10 @@ export function HistoryPanel({ sessionId, onClose }: { sessionId: number; onClos
             </ul>
           )}
         </div>
-      </div>
-    </div>,
-    document.body,
+      </DialogContent>
+    </Dialog>
   );
+
 }
 
 const KIND_LABELS: Record<string, string> = {
