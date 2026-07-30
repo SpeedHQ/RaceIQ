@@ -28,23 +28,41 @@ async function runSeed(dataDir: string, ...args: string[]): Promise<{ code: numb
 
 async function counts(dataDir: string): Promise<Record<string, number>> {
   const client = createClient({ url: `file:${join(dataDir, "forza-telemetry.db")}` });
-  const tables = ["sessions", "laps", "tunes", "experiments", "experiment_versions", "experiment_focus_events", "lap_analyses", "compare_analyses"];
-  const result: Record<string, number> = {};
-  for (const table of tables) {
-    const rows = await client.execute(`SELECT COUNT(*) AS count FROM ${table}`);
-    result[table] = Number(rows.rows[0]?.count ?? 0);
+  try {
+    const tables = ["sessions", "laps", "tunes", "experiments", "experiment_versions", "experiment_focus_events", "lap_analyses", "compare_analyses"];
+    const result: Record<string, number> = {};
+    for (const table of tables) {
+      const rows = await client.execute(`SELECT COUNT(*) AS count FROM ${table}`);
+      result[table] = Number(rows.rows[0]?.count ?? 0);
+    }
+    return result;
+  } finally {
+    client.close();
   }
-  return result;
 }
 
 async function seededGames(dataDir: string): Promise<string[]> {
   const client = createClient({ url: `file:${join(dataDir, "forza-telemetry.db")}` });
-  const rows = await client.execute("SELECT DISTINCT game_id FROM sessions WHERE notes LIKE '%raceiq-demo-seed-v1%' ORDER BY game_id");
-  return rows.rows.map((row) => String(row.game_id));
+  try {
+    const rows = await client.execute("SELECT DISTINCT game_id FROM sessions WHERE notes LIKE '%raceiq-demo-seed-v1%' ORDER BY game_id");
+    return rows.rows.map((row) => String(row.game_id));
+  } finally {
+    client.close();
+  }
 }
 
-afterEach(() => {
-  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+afterEach(async () => {
+  for (const dir of tempDirs.splice(0)) {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      try {
+        rmSync(dir, { recursive: true, force: true });
+        break;
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== "EBUSY" || attempt === 9) throw err;
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+    }
+  }
 });
 
 describe("db:seed", () => {
@@ -74,10 +92,14 @@ describe("db:seed", () => {
     expect(seeded.code, seeded.output).toBe(0);
 
     const client = createClient({ url: `file:${join(dataDir, "forza-telemetry.db")}` });
-    await client.execute({
-      sql: "INSERT INTO sessions (car_ordinal, track_ordinal, game_id, notes) VALUES (?, ?, ?, ?)",
-      args: [999, 999, "fm-2023", "real user session"],
-    });
+    try {
+      await client.execute({
+        sql: "INSERT INTO sessions (car_ordinal, track_ordinal, game_id, notes) VALUES (?, ?, ?, ?)",
+        args: [999, 999, "fm-2023", "real user session"],
+      });
+    } finally {
+      client.close();
+    }
     const reset = await runSeed(dataDir, "--reset");
     expect(reset.code, reset.output).toBe(0);
 
