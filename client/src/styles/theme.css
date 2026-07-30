@@ -69,7 +69,7 @@
   --app-text: #f5f5f5;
   --app-text-secondary: #aaaaaa;
   --app-text-muted: #999999;
-  --app-text-dim: #777777;
+  --app-text-dim: #7b7b7b;
   --app-on-filled: #000000;
   --app-accent: #22d3ee;
   --app-accent-hover: #67e8f9;
@@ -89,7 +89,7 @@
   --status-danger: #ef4444;
   --status-danger-hover: var(--color-red-400);
   --status-info: #22d3ee;
-  --status-unavailable: #777777;
+  --status-unavailable: #7b7b7b;
 
   /* Ordered telemetry scale. Runtime code selects a level, never a hue. */
   --severity-nominal: #34d399;

@@ -23,6 +23,31 @@ const themeCss = readFileSync(THEME_PATH, "utf8");
 const brandingCss = readFileSync(BRANDING_PATH, "utf8");
 const contractCss = [themeCss, brandingCss].join("\n");
 
+function themeHex(token: string): string {
+  const value = themeCss.match(new RegExp(`^\\s*${token}:\\s*(#[\\da-f]{6});`, "mi"))?.[1];
+  if (!value) throw new Error(`Expected ${token} to use a six-digit hex color`);
+  return value;
+}
+
+function relativeLuminance(hex: string): number {
+  const channels = hex
+    .slice(1)
+    .match(/.{2}/g)
+    ?.map((channel) => Number.parseInt(channel, 16) / 255);
+  if (!channels || channels.length !== 3) throw new Error(`Invalid color: ${hex}`);
+
+  const [red, green, blue] = channels.map((channel) =>
+    channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
+  );
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+function contrastRatio(first: string, second: string): number {
+  const lighter = Math.max(relativeLuminance(first), relativeLuminance(second));
+  const darker = Math.min(relativeLuminance(first), relativeLuminance(second));
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
 describe("frontend theme contract", () => {
   test("keeps theme-controlled tokens together and branding tokens separate", () => {
     const definitionPattern = new RegExp(`^\\s*(--(?:${CONTRACT_PREFIXES})-[\\w-]+)\\s*:`, "gm");
@@ -109,6 +134,16 @@ describe("frontend theme contract", () => {
     );
     expect(designMetadata.components.map((component) => component.css).join("\n")).not.toMatch(/#(?:020617|0f172a|1e293b|334155|f1f5f9|b8c5d4|a0b0c0|7a8ea0)/i);
     expect(designMetadata.components.map((component) => component.css).join("\n")).not.toContain(":hover{background:var(--app-surface-alt)");
+  });
+
+  test("keeps default semantic text and filled controls readable", () => {
+    for (const token of ["--app-text", "--app-text-secondary", "--app-text-muted", "--app-text-dim", "--status-unavailable"]) {
+      expect(contrastRatio(themeHex(token), themeHex("--app-surface"))).toBeGreaterThanOrEqual(4.5);
+    }
+
+    for (const token of ["--app-accent", "--status-success", "--status-warning", "--status-danger", "--status-info"]) {
+      expect(contrastRatio(themeHex("--app-on-filled"), themeHex(token))).toBeGreaterThanOrEqual(4.5);
+    }
   });
 
   test("rejects malformed semantic utilities", () => {
