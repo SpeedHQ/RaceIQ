@@ -14,7 +14,7 @@ on:
     branches: [main]
     paths:
       - "client/**"
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, ready_for_review]
   # Manual dispatch remains available for any PR, including non-client changes.
   workflow_dispatch:
     inputs:
