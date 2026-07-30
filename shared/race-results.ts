@@ -1,13 +1,11 @@
 import type { GameId } from "./types";
 
-export const RACE_RESULT_PROCESSOR_ID = "race-result-v1";
-
 export type RaceResultStatus = "finished" | "dnf" | "retired" | "qualifying" | "unknown";
+
 export interface RaceResult {
   id: number;
   sessionId: number;
   gameId: GameId;
-  processorVersion: string;
   sessionType: string;
   classification: RaceResultStatus;
   finishingPosition: number | null;
@@ -20,7 +18,6 @@ export interface RaceResult {
   provenance: unknown;
   reasons: string[];
   events: Array<{
-    eventType?: "pit" | "position-change";
     sequence: number;
     lapNumber: number | null;
     elapsedSeconds: number | null;
@@ -30,8 +27,6 @@ export interface RaceResult {
     fuelAdded: number | null;
     fuelBefore: number | null;
     fuelAfter: number | null;
-    positionBefore?: number | null;
-    positionAfter?: number | null;
     linkage: "linked" | "unlinked" | "unknown";
     source: unknown;
   }>;

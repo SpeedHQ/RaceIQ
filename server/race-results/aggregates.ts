@@ -1,11 +1,8 @@
-import type { RaceResult } from "../../shared/race-results";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { GameId } from "../../shared/types";
 import type { RaceResultAggregate } from "../../shared/race-results";
 import { db } from "../db";
 import { pitEvents, sessionResults, sessions } from "../db/schema";
-import { getSessionResult } from "../db/queries";
-
 
 export interface ResultAggregateScope {
   gameId: GameId;
@@ -59,22 +56,4 @@ export async function getRaceResultAggregate(scope: ResultAggregateScope): Promi
     tyreStrategyAvailable: value(row?.tyreAvailable) > 0,
     fuelStrategyAvailable: value(row?.fuelAvailable) > 0,
   };
-}
-
-export async function getRecentRaceResults(gameId: GameId, limit = 10): Promise<RaceResult[]> {
-  const boundedLimit = Math.max(1, Math.min(50, Math.trunc(limit)));
-  const rows = await db
-    .select({ sessionId: sessionResults.sessionId })
-    .from(sessionResults)
-    .innerJoin(sessions, eq(sessionResults.sessionId, sessions.id))
-    .where(eq(sessions.gameId, gameId))
-    .orderBy(desc(sessions.id))
-    .limit(boundedLimit)
-    .all();
-  const results: RaceResult[] = [];
-  for (const row of rows) {
-    const result = await getSessionResult(row.sessionId, gameId);
-    if (result) results.push(result as RaceResult);
-  }
-  return results;
 }

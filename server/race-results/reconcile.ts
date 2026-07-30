@@ -1,6 +1,4 @@
 import type { GameId, TelemetryPacket } from "../../shared/types";
-import { RACE_RESULT_PROCESSOR_ID } from "../../shared/race-results";
-export { RACE_RESULT_PROCESSOR_ID } from "../../shared/race-results";
 import {
   getLapById,
   getLapsForSession,
@@ -12,7 +10,6 @@ import {
 import { deriveRaceResult } from "./derive";
 import { extractRaceSource } from "./source";
 import type { PitEvent } from "./types";
-import { getAllServerGames } from "../games/registry";
 
 export interface ReconcileSessionReport {
   sessionId: number;
@@ -34,7 +31,6 @@ export interface BackfillReport {
 function toStoredPitEvent(event: PitEvent) {
   return {
     sequence: event.sequence,
-    eventType: event.eventType ?? "pit",
     lapNumber: event.lapNumber,
     elapsedSeconds: event.elapsedSeconds,
     durationSeconds: event.durationSeconds,
@@ -43,8 +39,6 @@ function toStoredPitEvent(event: PitEvent) {
     fuelAdded: event.fuelAdded,
     fuelBefore: event.fuelBefore,
     fuelAfter: event.fuelAfter,
-    positionBefore: event.positionBefore ?? null,
-    positionAfter: event.positionAfter ?? null,
     linkage: event.linkage,
     source: event.source,
   };
@@ -72,7 +66,6 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
   const derived = deriveRaceResult({ ...source, sessionType: session.sessionType ?? source.sessionType, reasons });
   const existing = await getSessionResult(sessionId, gameId);
   const unchanged = existing != null &&
-    existing.processorVersion === RACE_RESULT_PROCESSOR_ID &&
     existing.sessionType === derived.sessionType &&
     existing.classification === derived.classification &&
     existing.finishingPosition === derived.finishingPosition &&
@@ -85,9 +78,6 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
       const expected = derived.events[index];
       return expected != null &&
         event.sequence === expected.sequence &&
-        event.eventType === (expected.eventType ?? "pit") &&
-        event.positionBefore === expected.positionBefore &&
-        event.positionAfter === expected.positionAfter &&
         event.lapNumber === expected.lapNumber &&
         event.elapsedSeconds === expected.elapsedSeconds &&
         event.durationSeconds === expected.durationSeconds &&
@@ -99,7 +89,6 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
     });
   const result = await upsertSessionResult({
     sessionId,
-    processorVersion: RACE_RESULT_PROCESSOR_ID,
     sessionType: derived.sessionType,
     classification: derived.classification,
     finishingPosition: derived.finishingPosition,
@@ -120,18 +109,6 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
       ? "ambiguous"
       : "enriched";
   return { sessionId, status, eventCount: derived.events.length, reasons: derived.reasons };
-}
-
-const reconciliationInFlight = new Map<number, Promise<ReconcileSessionReport>>();
-
-export function reconcileSessionResultAfterLap(sessionId: number, gameId: GameId): Promise<ReconcileSessionReport> {
-  const existing = reconciliationInFlight.get(sessionId);
-  if (existing) return existing;
-  const pending = reconcileSessionResult(sessionId, gameId).finally(() => {
-    reconciliationInFlight.delete(sessionId);
-  });
-  reconciliationInFlight.set(sessionId, pending);
-  return pending;
 }
 
 export async function backfillRaceResults(options: { gameId: GameId; limit: number; afterSessionId?: number }): Promise<BackfillReport> {
@@ -157,35 +134,4 @@ export async function backfillRaceResults(options: { gameId: GameId; limit: numb
     errors: results.filter((result) => result.status === "error").length,
     results,
   };
-}
-
-export async function backfillAllRaceResults(): Promise<void> {
-  for (const game of getAllServerGames()) {
-    let afterSessionId: number | undefined;
-    let totals = { processed: 0, enriched: 0, unchanged: 0, ambiguous: 0, errors: 0 };
-
-    try {
-      while (true) {
-        const report = await backfillRaceResults({
-          gameId: game.id,
-          limit: 100,
-          afterSessionId,
-        });
-        totals = {
-          processed: totals.processed + report.processed,
-          enriched: totals.enriched + report.enriched,
-          unchanged: totals.unchanged + report.unchanged,
-          ambiguous: totals.ambiguous + report.ambiguous,
-          errors: totals.errors + report.errors,
-        };
-        const lastSessionId = report.results.at(-1)?.sessionId;
-        if (lastSessionId != null) afterSessionId = lastSessionId;
-        if (report.processed < 100 || lastSessionId == null) break;
-        await Bun.sleep(0);
-      }
-      console.log(`[RaceResults] Backfill ${game.id}: ${JSON.stringify(totals)}`);
-    } catch (error) {
-      console.error(`[RaceResults] Backfill failed for ${game.id}:`, error);
-    }
-  }
 }
