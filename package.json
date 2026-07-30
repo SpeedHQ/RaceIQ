@@ -89,5 +89,8 @@
   },
   "optionalDependencies": {
     "@libsql/darwin-arm64": "^0.5.29"
+  },
+  "patchedDependencies": {
+    "@inlang/paraglide-js@2.22.0": "patches/@inlang%2Fparaglide-js@2.22.0.patch"
   }
 }

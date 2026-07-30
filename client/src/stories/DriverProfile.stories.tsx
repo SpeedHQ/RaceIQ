@@ -2,7 +2,6 @@ import type { Meta, StoryObj } from "@storybook/react";
 import type { DriverFingerprint, RankedWeakness, StyleAxes } from "../../../server/ai/driver-profile-aggregate";
 import type { DriverProfileOutput } from "../../../server/ai/schemas";
 import type { DriverProfileRun } from "../hooks/queries";
-import { DriverProgressCard } from "../components/HomePage";
 import { DriverProfileView } from "../components/driver/DriverProfileView";
 
 /**
@@ -249,20 +248,6 @@ export const AutomaticCoaching: Story = {
  */
 export const MeasuredOnly: Story = {
   args: { fingerprint: FINGERPRINT, plan: null },
-};
-/** The compact deterministic snapshot shown on an active game's home page. */
-export const ProgressSummary: Story = {
-  render: () => <DriverProgressCard gameId="fm-2023" fingerprint={FINGERPRINT} medianLapSec={138.01} runState="succeeded" latestRun={RUN_HISTORY[0]} />,
-};
-
-/** Empty state with a direct route to record/analyse the first laps. */
-export const ProgressEmpty: Story = {
-  render: () => (
-    <DriverProgressCard
-      gameId="fm-2023"
-      fingerprint={{ ...FINGERPRINT, ok: false, laps: { ...FINGERPRINT.laps, analyzed: 0 }, pace: { ...FINGERPRINT.pace, bestS: null, meanS: null, consistency: null, n: 0 } }}
-    />
-  ),
 };
 /** Deterministic measurements stay visible while an AI coach is running. */
 export const CoachRunning: Story = {
