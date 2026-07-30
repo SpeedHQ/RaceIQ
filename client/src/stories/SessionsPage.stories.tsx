@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import { SessionsPage } from "../components/SessionsPage";
-import { useGameStore } from "../stores/game";
+import { GameStoryScope } from "./GameStoryScope";
 
 const gameId = "ac-evo";
 
@@ -86,7 +86,6 @@ const laps = [...makeLaps(1, 6, 94.2), ...makeLaps(2, 4, 412.9), ...makeLaps(3, 
 
 queryClient.setQueryData(["sessions", gameId], sessions);
 queryClient.setQueryData(["laps", gameId], laps);
-useGameStore.getState().setGameId(gameId);
 
 /** The tab is a URL search param, so each story mounts its own history entry. */
 function withRouter(Story: React.ComponentType, initialEntry: string) {
@@ -104,11 +103,13 @@ const meta: Meta<typeof SessionsPage> = {
   component: SessionsPage,
   decorators: [
     (Story) => (
-      <QueryClientProvider client={queryClient}>
-        <div style={{ height: "100vh", overflow: "auto", background: "var(--app-bg)" }}>
-          <Story />
-        </div>
-      </QueryClientProvider>
+      <GameStoryScope gameId={gameId}>
+        <QueryClientProvider client={queryClient}>
+          <div style={{ height: "100vh", overflow: "auto", background: "var(--app-bg)" }}>
+            <Story />
+          </div>
+        </QueryClientProvider>
+      </GameStoryScope>
     ),
   ],
   parameters: { layout: "fullscreen" },

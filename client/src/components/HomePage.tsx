@@ -1,17 +1,11 @@
-import { tryGetGame } from "@shared/games/registry";
-import type { LapMeta } from "@shared/types";
-import { useQueries } from "@tanstack/react-query";
+import type { GameId, LapMeta, SessionMeta, SessionRecap as SessionRecapDto } from "@shared/types";
 import { Link } from "@tanstack/react-router";
 import { Settings2 } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { m } from "@/paraglide/messages";
-import { useLaps, useSessions, useSettings } from "../hooks/queries";
-import { client } from "../lib/rpc";
-import { getGameRoute, useGameId } from "../stores/game";
-import { useUiStore } from "../stores/ui";
 import { ActivityHeatmap } from "./ActivityHeatmap";
 import { formatLapTime } from "./LiveTelemetry";
-import { SessionRecap } from "./SessionRecap";
+import { SessionRecapView, type TrackOutlineData, type TrackSectorBounds } from "./SessionRecap";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 
 function StatCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
@@ -24,7 +18,19 @@ function StatCard({ label, value, sub, color }: { label: string; value: string; 
   );
 }
 
-function RecentLapsTable({ laps, carNames, trackNames, gameId }: { laps: LapMeta[]; carNames: Record<number, string>; trackNames: Record<number, string>; gameId: string | null }) {
+function RecentLapsTable({
+  laps,
+  carNames,
+  trackNames,
+  gameId,
+  onAnalyseLap,
+}: {
+  laps: LapMeta[];
+  carNames: Record<number, string>;
+  trackNames: Record<number, string>;
+  gameId: string | null;
+  onAnalyseLap: (lap: LapMeta) => void;
+}) {
   const showGame = !gameId; // show game column on global homepage
   if (laps.length === 0) {
     return <div className="p-6 text-center text-app-text/90-dim">{m.home_no_laps()}</div>;
@@ -49,8 +55,7 @@ function RecentLapsTable({ laps, carNames, trackNames, gameId }: { laps: LapMeta
             <TRow
               key={lap.id}
               onClick={() => {
-                if (!lap.gameId) return;
-                window.location.href = `${getGameRoute(lap.gameId)}/analyse?track=${lap.trackOrdinal ?? ""}&car=${lap.carOrdinal ?? ""}&lap=${lap.id}`;
+                onAnalyseLap(lap);
               }}
             >
               {showGame && (
@@ -93,142 +98,83 @@ function formatTimeAgo(date: Date): string {
   if (sec < 604800) return `${Math.floor(sec / 86400)}d ${m.home_days_ago()}`;
   return date.toLocaleDateString();
 }
+export type PeriodKey = "today" | "week" | "month" | "year" | "allTime";
+export type PeriodStats = Record<
+  PeriodKey,
+  {
+    laps: number;
+    valid: number;
+    best: number;
+    avgTime: number;
+    totalTime: number;
+    tracks: number;
+    cars: number;
+    sessions: number;
+    favCarOrd: number | null;
+    favCarCount: number;
+  }
+>;
+export type GameStats = Record<"fm" | "f1" | "acc" | "acEvo" | "iracing", { laps: number; time: string }>;
 
-export function HomePage() {
-  const gameId = useGameId();
-  const gameAdapter = gameId ? tryGetGame(gameId) : null;
-  const { data: allLaps = [] } = useLaps();
-  const { data: sessions = [] } = useSessions();
-  const { displaySettings } = useSettings();
-  const { openSettings } = useUiStore();
-  const hiddenGames: string[] = displaySettings.hiddenGames ?? [];
 
-  const latestSession = useMemo(() => {
-    if (sessions.length === 0) return null;
-    return [...sessions].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-  }, [sessions]);
+export interface HomePageViewProps {
+  gameId: GameId | null;
+  gameDisplayName: string | null;
+  displaySettings: { driverName?: string | null; hiddenGames?: string[] };
+  allLaps: LapMeta[];
+  recentLaps: LapMeta[];
+  carNames: Record<number, string>;
+  trackNames: Record<number, string>;
+  gameStats: GameStats;
+  hiddenGames: string[];
+  latestSession: SessionMeta | null;
+  latestRecap: SessionRecapDto | null | undefined;
+  latestRecapLoading: boolean;
+  latestRecapError: boolean;
+  latestRecapOutline?: TrackOutlineData;
+  latestRecapBounds?: TrackSectorBounds;
+  recapCopied: boolean;
+  onCopyRecap: () => void;
+  onAnalyseLap: (lap: LapMeta) => void;
+  lapsLoading?: boolean;
+  lapsError?: boolean;
+  sessionsLoading?: boolean;
+  sessionsError?: boolean;
+  onAnalyseRecap: () => void;
+  periodTab: PeriodKey;
+  periodStats: PeriodStats;
+  onPeriodTabChange: (period: PeriodKey) => void;
+  onOpenSettings: () => void;
+}
 
-  // Resolve car/track names for recent laps
-  const [carNames, setCarNames] = useState<Record<number, string>>({});
-  const [trackNames, setTrackNames] = useState<Record<number, string>>({});
-
-  const recentLaps = useMemo(
-    () =>
-      [...allLaps]
-        .filter((l) => l.lapTime > 0)
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 10),
-    [allLaps],
-  );
-
-  // Per-game stats — fetched from /api/stats per game so counts aren't
-  // capped by useLaps()'s 200-row limit (home and /<gameId> used to
-  // disagree when total laps across games exceeded 200).
-  const gameQueries = useQueries({
-    queries: (["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"] as const).map((g) => ({
-      queryKey: ["stats", g],
-      queryFn: async () => {
-        const res = await client.api.stats.$get({ query: { gameId: g } });
-        if (!res.ok) throw new Error(res.statusText);
-        return res.json() as Promise<{ totalLaps: number; totalTimeSec: number }>;
-      },
-    })),
-  });
-
-  const gameStats = useMemo(() => {
-    const fmtTime = (sec: number) => {
-      if (sec <= 0) return "—";
-      const h = Math.floor(sec / 3600);
-      const m = Math.floor((sec % 3600) / 60);
-      return h > 0 ? `${h}h ${m}m` : `${m}m`;
-    };
-    const pick = (i: number) => {
-      const d = gameQueries[i].data;
-      return { laps: d?.totalLaps ?? 0, time: fmtTime(d?.totalTimeSec ?? 0) };
-    };
-    return { fm: pick(0), f1: pick(1), acc: pick(2), acEvo: pick(3), iracing: pick(4) };
-  }, [gameQueries]);
-
-  // Period metrics
-  const [periodTab, setPeriodTab] = useState<"today" | "week" | "month" | "year" | "allTime">("allTime");
-
-  const [{ todayStart, weekAgo, monthAgo, yearAgo }] = useState(() => {
-    const now = Date.now();
-    return {
-      todayStart: new Date().setHours(0, 0, 0, 0),
-      weekAgo: now - 7 * 24 * 60 * 60 * 1000,
-      monthAgo: now - 30 * 24 * 60 * 60 * 1000,
-      yearAgo: now - 365 * 24 * 60 * 60 * 1000,
-    };
-  });
-
-  const periodStats = useMemo(() => {
-    function computePeriod(laps: LapMeta[]) {
-      const valid = laps.filter((l) => l.isValid && l.lapTime > 0);
-      const best = valid.length > 0 ? Math.min(...valid.map((l) => l.lapTime)) : 0;
-      const avgTime = valid.length > 0 ? valid.reduce((s, l) => s + l.lapTime, 0) / valid.length : 0;
-      const totalTime = laps.reduce((s, l) => s + (l.lapTime > 0 ? l.lapTime : 0), 0);
-      const tracks = new Set(laps.map((l) => l.trackOrdinal).filter(Boolean)).size;
-      const cars = new Set(laps.map((l) => l.carOrdinal).filter(Boolean)).size;
-      const sessions = new Set(laps.map((l) => l.sessionId).filter(Boolean)).size;
-      const carCounts = new Map<number, number>();
-      for (const l of laps) {
-        if (l.carOrdinal) carCounts.set(l.carOrdinal, (carCounts.get(l.carOrdinal) ?? 0) + 1);
-      }
-      let favCarOrd: number | null = null;
-      let favCarCount = 0;
-      for (const [ord, count] of carCounts) {
-        if (count > favCarCount) {
-          favCarOrd = ord;
-          favCarCount = count;
-        }
-      }
-      return { laps: laps.length, valid: valid.length, best, avgTime, totalTime, tracks, cars, sessions, favCarOrd, favCarCount };
-    }
-
-    const gameLaps = gameId ? allLaps.filter((l) => l.gameId === gameId) : allLaps;
-
-    const todayLaps = gameLaps.filter((l) => new Date(l.createdAt).getTime() >= todayStart);
-    const weekLaps = gameLaps.filter((l) => new Date(l.createdAt).getTime() >= weekAgo);
-    const monthLaps = gameLaps.filter((l) => new Date(l.createdAt).getTime() >= monthAgo);
-    const yearLaps = gameLaps.filter((l) => new Date(l.createdAt).getTime() >= yearAgo);
-
-    return {
-      today: computePeriod(todayLaps),
-      week: computePeriod(weekLaps),
-      month: computePeriod(monthLaps),
-      year: computePeriod(yearLaps),
-      allTime: computePeriod(gameLaps),
-    };
-  }, [allLaps, gameId, todayStart, weekAgo, monthAgo, yearAgo]);
-
-  // Fetch names for recent laps + favourite cars
-  useEffect(() => {
-    const carOrds = [...new Set([...recentLaps.map((l) => l.carOrdinal), periodStats.today.favCarOrd, periodStats.week.favCarOrd, periodStats.month.favCarOrd].filter((o): o is number => o != null))];
-    const trackOrds = [...new Set(recentLaps.map((l) => l.trackOrdinal).filter((o): o is number => o != null))];
-    for (const ord of carOrds) {
-      if (carNames[ord]) continue;
-      // Find the gameId from a lap that has this ordinal
-      const lapForCar = recentLaps.find((l) => l.carOrdinal === ord);
-      client.api["car-name"][":ordinal"]
-        .$get({ param: { ordinal: String(ord) }, query: { gameId: (lapForCar?.gameId ?? gameId)! } })
-        .then((r) => (r.ok ? r.text() : ""))
-        .then((name) => setCarNames((prev) => ({ ...prev, [ord]: name })))
-        .catch(() => {});
-    }
-    for (const ord of trackOrds) {
-      if (trackNames[ord]) continue;
-      const lapForTrack = recentLaps.find((l) => l.trackOrdinal === ord);
-      client.api["track-name"][":ordinal"]
-        .$get({ param: { ordinal: String(ord) }, query: { gameId: (lapForTrack?.gameId ?? gameId)! } })
-        .then((r) => (r.ok ? r.text() : ""))
-        .then((name) => setTrackNames((prev) => ({ ...prev, [ord]: name })))
-        .catch(() => {});
-    }
-  }, [recentLaps, periodStats, gameId]);
-
+export function HomePageView({
+  gameId,
+  gameDisplayName,
+  displaySettings,
+  allLaps,
+  recentLaps,
+  carNames,
+  trackNames,
+  gameStats,
+  hiddenGames,
+  latestSession,
+  latestRecap,
+  latestRecapLoading,
+  latestRecapError,
+  latestRecapOutline,
+  latestRecapBounds,
+  recapCopied,
+  onCopyRecap,
+  onAnalyseLap,
+  onAnalyseRecap,
+  periodTab,
+  periodStats,
+  onPeriodTabChange,
+  onOpenSettings,
+}: HomePageViewProps) {
   return (
-    <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
+    <div className="min-h-full bg-black">
+    <div className="mx-auto max-w-[1400px] p-4 md:p-6 space-y-6">
       {/* Header */}
       {gameId ? (
         (() => {
@@ -312,7 +258,7 @@ export function HomePage() {
               <div className="relative flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-md flex items-center justify-center shrink-0 bg-white/5 border border-white/10">{t.logo}</div>
-                  <div className="text-base font-bold text-white/90">{gameAdapter?.displayName ?? gameId}</div>
+                  <div className="text-base font-bold text-white/90">{gameDisplayName ?? gameId}</div>
                 </div>
               </div>
             </div>
@@ -324,12 +270,7 @@ export function HomePage() {
             <h1 className="text-2xl font-bold text-app-text/90">{displaySettings.driverName ? `${m.home_hello()}, ${displaySettings.driverName}` : "RaceIQ"}</h1>
             <p className="text-sm text-app-text/90-muted mt-0.5">{m.home_dashboard_overview()}</p>
           </div>
-          <button
-            type="button"
-            onClick={() => openSettings("games")}
-            className="p-1.5 rounded text-app-text-muted hover:text-app-text hover:bg-app-surface-alt transition-colors"
-            title={m.home_manage_games()}
-          >
+          <button type="button" onClick={onOpenSettings} className="p-1.5 rounded text-app-text-muted hover:text-app-text hover:bg-app-surface-alt transition-colors" title={m.home_manage_games()}>
             <Settings2 className="size-4" />
           </button>
         </div>
@@ -556,68 +497,165 @@ export function HomePage() {
         </div>
       )}
 
-      {/* Latest session recap. Renders in full here, so there is no modal to open —
-          clicking deep-links to analysing the session's best lap instead. */}
-      {latestSession && (
-        <div className="rounded-lg border border-app-border bg-app-surface p-4">
-          <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider mb-2">{m.recap_latest_session()}</h2>
-          {/* gameId passed explicitly: the global home page has no active-game scope. */}
-          <SessionRecap sessionId={latestSession.id} gameId={latestSession.gameId} linkToAnalyse />
-        </div>
-      )}
+      {gameId ? (
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+          <main className="min-w-0 space-y-6">
 
-      {/* Activity heatmap */}
-      <ActivityHeatmap laps={gameId ? allLaps.filter((l) => l.gameId === gameId) : allLaps} />
+            <section>
+              <ActivityHeatmap laps={allLaps.filter((l) => l.gameId === gameId)} />
+            </section>
 
-      {/* Period tabs + stats */}
-      <div>
-        <div className="flex items-center flex-wrap gap-1 mb-3">
-          {(
-            [
-              ["today", m.home_period_today()],
-              ["week", m.home_period_week()],
-              ["month", m.home_period_month()],
-              ["year", m.home_period_year()],
-              ["allTime", m.home_period_all_time()],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              type="button"
-              key={key}
-              onClick={() => setPeriodTab(key)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90-muted hover:text-app-text/90"}`}
-            >
-              {label}
-            </button>
-          ))}
+            <section>
+              <div className="mb-3 flex flex-wrap items-center gap-1">
+                {(
+                  [
+                    ["today", m.home_period_today()],
+                    ["week", m.home_period_week()],
+                    ["month", m.home_period_month()],
+                    ["year", m.home_period_year()],
+                    ["allTime", m.home_period_all_time()],
+                  ] as const
+                ).map(([key, label]) => (
+                  <button
+                    type="button"
+                    key={key}
+                    onClick={() => onPeriodTabChange(key)}
+                    className={`rounded px-3 py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90-muted hover:text-app-text/90"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {(() => {
+                const data = periodStats[periodTab];
+                const timeSec = data.totalTime;
+                const fmtTime = (s: number) => {
+                  const h = Math.floor(s / 3600);
+                  const m = Math.floor((s % 3600) / 60);
+                  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+                };
+                return (
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                    <StatCard label={m.label_sessions()} value={`${data.sessions}`} />
+                    <StatCard label={m.label_laps()} value={`${data.laps}`} />
+                    <StatCard label={m.label_tracks()} value={`${data.tracks}`} />
+                    <StatCard label={m.label_cars()} value={`${data.cars}`} />
+                    {timeSec > 0 && <StatCard label={m.home_stat_time_driven()} value={fmtTime(timeSec)} color="text-violet-400" />}
+                  </div>
+                );
+              })()}
+            </section>
+
+            <section>
+              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90-muted">{m.home_recent_laps()}</h2>
+              <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseLap={onAnalyseLap} />
+            </section>
+          </main>
+
+          <aside className="lg:sticky lg:top-6">
+            {latestSession ? (
+              <div className="relative overflow-hidden rounded-xl border border-app-border bg-app-bg p-4">
+                <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-app-accent opacity-15 blur-3xl" />
+                <div className="relative mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-app-accent">
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-app-accent shadow-[0_0_8px_var(--color-app-accent,#7c5cff)]" />
+                  {m.recap_latest_session()}
+                </div>
+                {latestRecapLoading ? (
+                  <div className="p-6 text-center text-app-text-dim">{m.common_loading()}</div>
+                ) : latestRecapError || !latestRecap ? (
+                  <div className="p-6 text-center text-red-400">{m.common_error()}</div>
+                ) : (
+                  <SessionRecapView
+                    recap={latestRecap}
+                    gameId={latestRecap.gameId}
+                    linkToAnalyse
+                    copied={recapCopied}
+                    onCopy={onCopyRecap}
+                    onAnalyse={onAnalyseRecap}
+                    outlineData={latestRecapOutline}
+                    bounds={latestRecapBounds}
+                  />
+                )}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-app-border bg-app-surface p-6 text-center text-xs text-app-text-muted">{m.recap_latest_session()}</div>
+            )}
+          </aside>
         </div>
-        {(() => {
-          const data = periodStats[periodTab];
-          const timeSec = data.totalTime;
-          const fmtTime = (s: number) => {
-            const h = Math.floor(s / 3600);
-            const m = Math.floor((s % 3600) / 60);
-            return h > 0 ? `${h}h ${m}m` : `${m}m`;
-          };
-          return (
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              <StatCard label={m.label_sessions()} value={`${data.sessions}`} />
-              <StatCard label={m.label_laps()} value={`${data.laps}`} />
-              <StatCard label={m.label_tracks()} value={`${data.tracks}`} />
-              <StatCard label={m.label_cars()} value={`${data.cars}`} />
-              {timeSec > 0 && <StatCard label={m.home_stat_time_driven()} value={fmtTime(timeSec)} color="text-violet-400" />}
+      ) : (
+        <>
+          {latestSession && (
+            <div className="rounded-lg border border-app-border bg-app-surface p-4">
+              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text-muted">{m.recap_latest_session()}</h2>
+              {latestRecapLoading ? (
+                <div className="p-6 text-center text-app-text-dim">{m.common_loading()}</div>
+              ) : latestRecapError || !latestRecap ? (
+                <div className="p-6 text-center text-red-400">{m.common_error()}</div>
+              ) : (
+                <SessionRecapView
+                  recap={latestRecap}
+                  gameId={latestRecap.gameId}
+                  linkToAnalyse
+                  copied={recapCopied}
+                  onCopy={onCopyRecap}
+                  onAnalyse={onAnalyseRecap}
+                  outlineData={latestRecapOutline}
+                  bounds={latestRecapBounds}
+                />
+              )}
             </div>
-          );
-        })()}
-      </div>
+          )}
 
-      {/* Recent laps */}
-      <div>
-        <div className="mb-2">
-          <h2 className="text-xs font-semibold text-app-text/90-muted uppercase tracking-wider">{m.home_recent_laps()}</h2>
-        </div>
-        <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} />
-      </div>
+          <ActivityHeatmap laps={allLaps} />
+
+          <div>
+            <div className="mb-3 flex flex-wrap items-center gap-1">
+              {(
+                [
+                  ["today", m.home_period_today()],
+                  ["week", m.home_period_week()],
+                  ["month", m.home_period_month()],
+                  ["year", m.home_period_year()],
+                  ["allTime", m.home_period_all_time()],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  type="button"
+                  key={key}
+                  onClick={() => onPeriodTabChange(key)}
+                  className={`rounded px-3 py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90-muted hover:text-app-text/90"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {(() => {
+              const data = periodStats[periodTab];
+              const timeSec = data.totalTime;
+              const fmtTime = (s: number) => {
+                const h = Math.floor(s / 3600);
+                const m = Math.floor((s % 3600) / 60);
+                return h > 0 ? `${h}h ${m}m` : `${m}m`;
+              };
+              return (
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                  <StatCard label={m.label_sessions()} value={`${data.sessions}`} />
+                  <StatCard label={m.label_laps()} value={`${data.laps}`} />
+                  <StatCard label={m.label_tracks()} value={`${data.tracks}`} />
+                  <StatCard label={m.label_cars()} value={`${data.cars}`} />
+                  {timeSec > 0 && <StatCard label={m.home_stat_time_driven()} value={fmtTime(timeSec)} color="text-violet-400" />}
+                </div>
+              );
+            })()}
+          </div>
+
+          <div>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90-muted">{m.home_recent_laps()}</h2>
+            <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseLap={onAnalyseLap} />
+          </div>
+        </>
+      )}
+    </div>
     </div>
   );
 }

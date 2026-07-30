@@ -1056,4 +1056,38 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          AND raw_file IS NOT NULL`,
     ],
   },
+
+  // v47: Persist driver-profile execution history independently of the
+  // successful current-profile cache in driver_profiles.
+  {
+    version: 47,
+    name: "driver profile run history",
+    sql: [
+      `CREATE TABLE IF NOT EXISTS driver_profile_runs (
+         id              INTEGER PRIMARY KEY AUTOINCREMENT,
+         scope_key       TEXT NOT NULL,
+         game_id         TEXT NOT NULL,
+         car_ordinal     INTEGER,
+         track_ordinal   INTEGER,
+         pool_key        TEXT NOT NULL,
+         status          TEXT NOT NULL DEFAULT 'queued'
+                         CHECK (status IN ('queued', 'running', 'succeeded', 'failed')),
+         fingerprint     TEXT,
+         plan            TEXT,
+         error           TEXT,
+         input_tokens    INTEGER NOT NULL DEFAULT 0,
+         output_tokens   INTEGER NOT NULL DEFAULT 0,
+         cost_usd        REAL NOT NULL DEFAULT 0,
+         duration_ms     INTEGER NOT NULL DEFAULT 0,
+         model           TEXT NOT NULL DEFAULT '',
+         created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+         started_at      TEXT,
+         completed_at    TEXT
+       )`,
+      `CREATE INDEX IF NOT EXISTS driver_profile_runs_scope_status_idx
+       ON driver_profile_runs (scope_key, status)`,
+      `CREATE INDEX IF NOT EXISTS driver_profile_runs_scope_created_idx
+       ON driver_profile_runs (scope_key, created_at DESC, id DESC)`,
+    ],
+  },
 ];
