@@ -33,7 +33,7 @@ function SourceBadge({ source }: { source: string }) {
   const curated = source === "shared";
   return (
     <span
-      className={`text-[10px] px-1.5 py-0.5 rounded border font-mono leading-none ${
+      className={`text-app-caption px-1.5 py-0.5 rounded border font-mono leading-none ${
         curated ? "bg-status-success/15 border-status-success/50 text-status-success" : "bg-app-surface-alt/70 border-app-border text-app-text-dim"
       }`}
     >
@@ -160,7 +160,7 @@ export function TrackInfoPanel({
                   <div className="flex items-baseline gap-2 flex-wrap">
                     <span className="text-app-body font-medium text-app-text">{c.label}</span>
                     {c.priority && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded border font-mono leading-none bg-status-warning/15 border-status-warning/50 text-status-warning">{m.trackinfo_priority()}</span>
+                      <span className="text-app-caption px-1.5 py-0.5 rounded border font-mono leading-none bg-status-warning/15 border-status-warning/50 text-status-warning">{m.trackinfo_priority()}</span>
                     )}
                     <span className="text-app-label text-app-text-dim">{c.type}</span>
                   </div>

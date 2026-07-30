@@ -38,7 +38,7 @@ export function SectorHeatmap({ laps, focusLapId, onFocusLap }: SectorHeatmapPro
 
   return (
     <div className="overflow-x-auto">
-      <table className="border-collapse w-full text-[11px]">
+      <table className="border-collapse w-full text-app-compact">
         <thead>
           <tr>
             <th className="text-left text-app-text-muted font-semibold pr-2 pb-1 sticky left-0 bg-app-surface">Lap</th>

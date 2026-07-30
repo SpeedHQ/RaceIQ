@@ -43,15 +43,15 @@ export function ArcGauge({ value, max, label, unit, color }: { value: number; ma
         {/* Value arc */}
         {pct > 0.01 && <path d={arcPath(startAngle, valAngle)} fill="none" stroke={color} strokeWidth={5} strokeLinecap="round" />}
         {/* Value text */}
-        <text x={cx} y={cy - 1} textAnchor="middle" fill={color} fontSize={12} fontWeight="bold" fontFamily="monospace">
+        <text x={cx} y={cy - 1} textAnchor="middle" fill={color} fontSize={12} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
           {value.toFixed(0)}
         </text>
         {/* Unit */}
-        <text x={cx} y={cy + 10} textAnchor="middle" fill="var(--app-text-dim)" fontSize={7} fontFamily="monospace">
+        <text x={cx} y={cy + 10} textAnchor="middle" fill="var(--app-text-dim)" fontSize={7} fontFamily="var(--font-mono)">
           {unit}
         </text>
       </svg>
-      <span className="text-[9px] text-app-text-muted -mt-1">{label}</span>
+      <span className="text-app-micro text-app-text-muted -mt-1">{label}</span>
     </div>
   );
 }
@@ -147,7 +147,7 @@ export function FuelGauge({ packet }: { packet: TelemetryPacket }) {
   // Delta vs average: positive = using more than avg, negative = saving
   return (
     <div className="flex-1">
-      <div className="flex justify-between text-[10px] mb-0.5">
+      <div className="flex justify-between text-app-caption mb-0.5">
         <span className="font-mono font-bold" style={{ color: fuelColor }}>
           Fuel {fuel.amount.toFixed(1)}{fuel.unit}
         </span>
@@ -167,7 +167,7 @@ export function FuelGauge({ packet }: { packet: TelemetryPacket }) {
         </div>
       )}
       {averageDisplay != null && (
-        <div className="flex justify-between text-[9px] font-mono mt-0.5">
+        <div className="flex justify-between text-app-micro font-mono mt-0.5">
           <span className="text-app-text-muted">
             {averageDisplay.amount.toFixed(1)}{averageDisplay.unit}/lap avg
           </span>

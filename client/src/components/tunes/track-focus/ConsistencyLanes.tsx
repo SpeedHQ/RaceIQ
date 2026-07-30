@@ -156,7 +156,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
         const laneIssues = issues.filter((it) => it.distanceFrac != null && ch.issueKinds.has(it.kind));
         return (
           <div key={ch.key}>
-            <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">{ch.label}</div>
+            <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">{ch.label}</div>
             <Lane
               bgFill="transparent"
               height={100}
@@ -242,7 +242,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
         );
       })}
       <div>
-        <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Speed (km/h)</div>
+        <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Speed (km/h)</div>
         <Lane
           bgFill="transparent"
           height={120}
@@ -301,7 +301,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
         </Lane>
       </div>
       <div>
-        <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Δ time vs best (s, cumulative)</div>
+        <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Δ time vs best (s, cumulative)</div>
         <Lane
           bgFill="transparent"
           height={100}
@@ -357,7 +357,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
         </Lane>
       </div>
       <div>
-        <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1 flex items-center gap-1.5">
+        <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1 flex items-center gap-1.5">
           Race line spread (m)
           {hasLineSpread && (
             <span
@@ -370,7 +370,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
           )}
           {hasLineSpread && lineSpread!.lowTrust && (
             <span
-              className="px-1 py-px rounded text-[9px] font-normal normal-case tracking-normal bg-app-surface-alt border border-app-border text-app-text-dim"
+              className="px-1 py-px rounded text-app-micro font-normal normal-case tracking-normal bg-app-surface-alt border border-app-border text-app-text-dim"
               title={`Average racing-line spread exceeds ${LINE_SPREAD_THRESHOLD_M}m — the line varies notably lap-to-lap.`}
             >
               inconsistent line
@@ -418,7 +418,7 @@ export function ConsistencyLanes({ traces, bestLapId, cornerFracs, corners = [],
             )}
           </Lane>
         ) : (
-          <div className="h-[90px] flex items-center justify-center rounded bg-app-surface border border-app-border text-[11px] text-app-text-dim">Need 3+ valid laps</div>
+          <div className="h-[90px] flex items-center justify-center rounded bg-app-surface border border-app-border text-app-compact text-app-text-dim">Need 3+ valid laps</div>
         )}
       </div>
     </div>

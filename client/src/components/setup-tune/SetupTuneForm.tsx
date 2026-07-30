@@ -261,7 +261,7 @@ export function SetupTuneForm({
           >
             {m.setupform_paste_json()}
           </button>
-          {jsonError && <span className="text-[10px] text-status-danger ml-2">{jsonError}</span>}
+          {jsonError && <span className="text-app-caption text-status-danger ml-2">{jsonError}</span>}
         </div>
 
         <label className="col-span-2 space-y-1">
@@ -329,7 +329,7 @@ export function SetupTuneForm({
         {sections.length > 0 && (
           <div className="col-span-2 flex items-center justify-between">
             <span className="text-xs font-medium text-app-text-muted">{m.setupform_tunable_sections()}</span>
-            <span className="text-[10px] text-app-text-muted">
+            <span className="text-app-caption text-app-text-muted">
               {coveredSections.size} / {sections.length} {m.setupform_covered()}
             </span>
           </div>
@@ -341,7 +341,7 @@ export function SetupTuneForm({
           <label className="col-span-2 space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-app-text-muted">{m.setupform_setup_json()}</span>
-              {jsonError && <span className="text-[10px] text-status-danger">{jsonError}</span>}
+              {jsonError && <span className="text-app-caption text-status-danger">{jsonError}</span>}
             </div>
             <textarea
               value={jsonText}
@@ -349,7 +349,7 @@ export function SetupTuneForm({
               spellCheck={false}
               className="w-full h-96 bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs font-mono text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
             />
-            <p className="text-[10px] text-app-text-muted">
+            <p className="text-app-caption text-app-text-muted">
               Paste the full setup JSON produced by {gameLabel}. Every in-game tunable lives inside <code>basicSetup</code> or <code>advancedSetup</code> — the section counter above shows which groups
               are present.
             </p>

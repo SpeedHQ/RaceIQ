@@ -97,11 +97,11 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
                       type="button"
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       onClick={() => navigate({ to: `${gameRoute}/analyse` as any, search: { track: l.trackOrdinal, car: l.carOrdinal, lap: l.id } as any })}
-                      className="px-1.5 py-0.5 text-[10px] rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled"
+                      className="px-1.5 py-0.5 text-app-caption rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled"
                     >
                       {m.label_analyse()}
                     </button>
-                    <button type="button" onClick={() => deleteLap.mutate(l.id)} className="px-1 py-0.5 text-[10px] rounded bg-app-border-input text-app-text hover:bg-status-danger hover:text-app-on-filled">
+                    <button type="button" onClick={() => deleteLap.mutate(l.id)} className="px-1 py-0.5 text-app-caption rounded bg-app-border-input text-app-text hover:bg-status-danger hover:text-app-on-filled">
                       ×
                     </button>
                   </div>

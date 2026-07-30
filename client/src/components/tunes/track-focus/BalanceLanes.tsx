@@ -84,15 +84,15 @@ export function BalanceLanes({ traces, bestLapId, cornerFracs, corners = [], cur
   if (withBalance.length === 0) {
     return (
       <div>
-        <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Balance (understeer / oversteer)</div>
-        <div className="h-[100px] flex items-center justify-center rounded bg-app-surface border border-app-border text-[11px] text-app-text-dim">No slip-angle data for this game</div>
+        <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Balance (understeer / oversteer)</div>
+        <div className="h-[100px] flex items-center justify-center rounded bg-app-surface border border-app-border text-app-compact text-app-text-dim">No slip-angle data for this game</div>
       </div>
     );
   }
 
   return (
     <div className="space-y-1">
-      <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Balance (° axle slip delta, + understeer / − oversteer)</div>
+      <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Balance (° axle slip delta, + understeer / − oversteer)</div>
       <Lane
         bgFill="transparent"
         height={120}

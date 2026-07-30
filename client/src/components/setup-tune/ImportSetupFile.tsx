@@ -59,7 +59,7 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars }: { game
             {m.import_title_prefix()} {gameLabel} {m.import_title_suffix()}
           </h1>
           <p className="text-xs text-app-text-muted">
-            {m.import_pick_setup()} {data?.baseDir ? <span className="font-mono text-[10px]">{data.baseDir}</span> : null}
+            {m.import_pick_setup()} {data?.baseDir ? <span className="font-mono text-app-caption">{data.baseDir}</span> : null}
           </p>
         </div>
         <Button type="button" variant="app-outline" size="app-sm" onClick={() => navigate({ to: `${routePrefix}/setups` })}>
@@ -74,7 +74,7 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars }: { game
           <p>
             {m.import_folder_not_found_prefix()} {gameLabel} {m.import_folder_not_found_suffix()}
           </p>
-          <p className="mt-2 text-[11px]">
+          <p className="mt-2 text-app-compact">
             {m.import_expected_path()} <code className="font-mono">Documents/{gameId === "acc" ? "Assetto Corsa Competizione" : "Assetto Corsa EVO"}/Setups</code>.{m.import_launch_game()}
           </p>
         </div>
@@ -95,7 +95,7 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars }: { game
             <div className="overflow-auto max-h-96">
               {filteredCarEntries.map(([carModel, files]) => (
                 <div key={carModel} className="border-b border-app-border last:border-0">
-                  <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-app-text-muted bg-app-bg/50">{carModel}</div>
+                  <div className="px-3 py-1.5 text-app-caption font-semibold uppercase tracking-wider text-app-text-muted bg-app-bg/50">{carModel}</div>
                   {files.map((f) => (
                     <button
                       key={f.absolutePath}
@@ -109,7 +109,7 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars }: { game
                       }`}
                     >
                       <div className="truncate">{f.fileName}</div>
-                      <div className="text-[10px] text-app-text-muted truncate">{f.trackName}</div>
+                      <div className="text-app-caption text-app-text-muted truncate">{f.trackName}</div>
                     </button>
                   ))}
                 </div>
@@ -121,8 +121,8 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars }: { game
             {selectedPath ? (
               <>
                 <div className="space-y-1">
-                  <span className="text-[10px] font-semibold uppercase text-app-text-muted">{m.import_selected()}</span>
-                  <div className="text-[11px] font-mono text-app-text-secondary break-all">{selectedPath}</div>
+                  <span className="text-app-caption font-semibold uppercase text-app-text-muted">{m.import_selected()}</span>
+                  <div className="text-app-compact font-mono text-app-text-secondary break-all">{selectedPath}</div>
                 </div>
                 <label className="space-y-1 block">
                   <span className="text-xs font-medium text-app-text-muted">{m.tune_form_name()}</span>
@@ -170,7 +170,7 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars }: { game
                     ))}
                   </select>
                 </label>
-                {importMut.error && <div className="text-[10px] text-status-danger">{(importMut.error as Error).message}</div>}
+                {importMut.error && <div className="text-app-caption text-status-danger">{(importMut.error as Error).message}</div>}
                 <div className="flex justify-end pt-2">
                   <Button type="button" variant="app-primary" size="app-sm" onClick={doImport} disabled={!selectedPath || importMut.isPending}>
                     {importMut.isPending ? m.label_importing() : m.import_import_setup()}

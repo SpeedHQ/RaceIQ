@@ -149,9 +149,9 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
               transform: hover.x > VIEW / 2 ? "translate(-108%, -50%)" : "translate(8%, -50%)",
             }}
           >
-            <div className="text-[10px] text-app-text-dim mb-0.5 tabular-nums">{Math.round((hover.idx / Math.max(1, total - 1)) * 100)}% lap</div>
+            <div className="text-app-caption text-app-text-dim mb-0.5 tabular-nums">{Math.round((hover.idx / Math.max(1, total - 1)) * 100)}% lap</div>
             {rows.map((r) => (
-              <div key={r.label} className="flex items-center justify-between gap-3 text-[11px] font-mono tabular-nums">
+              <div key={r.label} className="flex items-center justify-between gap-3 text-app-compact font-mono tabular-nums">
                 <span className="text-app-text-muted">{r.label}</span>
                 <span style={{ color: r.color ?? "var(--app-text)" }}>{r.value}</span>
               </div>
@@ -164,7 +164,7 @@ export function SectorMap({ telemetry, sectorTimes, highlight, showTimes = true,
           {Array.from({ length: sectorTimes?.times.length ?? 3 }, (_, i) => `S${i + 1}`).map((label, i) => (
             <div key={label} className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length] }} />
-              <span className="text-[11px] text-app-text-muted">{label}</span>
+              <span className="text-app-compact text-app-text-muted">{label}</span>
               <span className="text-xs font-mono tabular-nums text-app-text ml-auto">{sectorTimes && sectorTimes.times[i] > 0 ? sectorTimes.times[i].toFixed(3) : "—"}</span>
             </div>
           ))}

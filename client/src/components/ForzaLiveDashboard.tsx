@@ -24,7 +24,7 @@ function PageHeader({ dashMode, demo }: { dashMode: DashboardMode; demo: ReturnT
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             `${prefix}/live/driver` as any
           }
-          className={`text-[10px] font-semibold px-2 py-0.5 rounded transition-colors ${dashMode === "driver" ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text"}`}
+          className={`text-app-caption font-semibold px-2 py-0.5 rounded transition-colors ${dashMode === "driver" ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text"}`}
         >
           {m.label_driver()}
         </Link>
@@ -33,7 +33,7 @@ function PageHeader({ dashMode, demo }: { dashMode: DashboardMode; demo: ReturnT
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             `${prefix}/live/pit` as any
           }
-          className={`text-[10px] font-semibold px-2 py-0.5 rounded transition-colors ${dashMode === "pitcrew" ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text"}`}
+          className={`text-app-caption font-semibold px-2 py-0.5 rounded transition-colors ${dashMode === "pitcrew" ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text"}`}
         >
           {m.label_pit_crew()}
         </Link>
@@ -42,7 +42,7 @@ function PageHeader({ dashMode, demo }: { dashMode: DashboardMode; demo: ReturnT
         <button
           onClick={demo.toggle}
           disabled={demo.loading}
-          className={`text-[10px] font-mono font-semibold px-2 py-0.5 rounded border transition-colors ${
+          className={`text-app-caption font-mono font-semibold px-2 py-0.5 rounded border transition-colors ${
             demo.active
               ? "bg-status-warning/20 border-status-warning/50 text-status-warning hover:bg-status-warning/30"
               : demo.loading

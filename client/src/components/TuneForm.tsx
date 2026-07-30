@@ -133,7 +133,7 @@ export function NumberField({ label, value, onChange, step, unit }: { label: str
     <label className="flex items-center justify-between gap-3 text-xs">
       <span className="text-app-text-muted whitespace-nowrap">{label}</span>
       <div className="flex items-center gap-2">
-        {unit && <span className="text-[10px] text-app-text-muted w-10 text-right">{unit}</span>}
+        {unit && <span className="text-app-caption text-app-text-muted w-10 text-right">{unit}</span>}
         <input
           type="number"
           value={value}
@@ -366,14 +366,14 @@ export function UserTuneCard({
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-app-text">{tune.name}</span>
-            <span className="text-[10px] font-mono text-app-text-muted">{carName ?? `Car #${tune.carOrdinal}`}</span>
-            <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${CATEGORY_COLORS[tune.category] ?? "bg-app-text-dim/20 text-app-text-muted"}`}>
+            <span className="text-app-caption font-mono text-app-text-muted">{carName ?? `Car #${tune.carOrdinal}`}</span>
+            <span className={`text-app-caption font-semibold uppercase px-1.5 py-0.5 rounded ${CATEGORY_COLORS[tune.category] ?? "bg-app-text-dim/20 text-app-text-muted"}`}>
               {CATEGORY_LABELS[tune.category] ?? tune.category}
             </span>
-            <span className="text-[10px] text-app-text-muted">
+            <span className="text-app-caption text-app-text-muted">
               by {tune.author} &middot; {tune.source === "catalog-clone" ? "cloned from catalog" : "user created"}
             </span>
-            {tune.source === "catalog-clone" && <span className="text-[10px] px-1.5 py-0.5 rounded bg-app-accent/20 text-app-accent">{m.tuneform_cloned()}</span>}
+            {tune.source === "catalog-clone" && <span className="text-app-caption px-1.5 py-0.5 rounded bg-app-accent/20 text-app-accent">{m.tuneform_cloned()}</span>}
           </div>
           <p className={`text-xs text-app-text-muted mt-0.5 ${isExpanded ? "" : "line-clamp-1"}`}>{tune.description}</p>
         </div>
@@ -390,7 +390,7 @@ export function UserTuneCard({
                 e.stopPropagation();
                 onEdit();
               }}
-              className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-status-info/20 text-status-info hover:bg-status-info/30 transition-colors"
+              className="text-app-caption font-semibold uppercase px-2 py-1 rounded bg-status-info/20 text-status-info hover:bg-status-info/30 transition-colors"
             >
               {m.common_edit()}
             </button>
@@ -401,7 +401,7 @@ export function UserTuneCard({
                   onDuplicate();
                 }}
                 disabled={isDuplicating}
-                className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-app-accent/20 text-app-accent hover:bg-app-accent/30 disabled:opacity-50 transition-colors"
+                className="text-app-caption font-semibold uppercase px-2 py-1 rounded bg-app-accent/20 text-app-accent hover:bg-app-accent/30 disabled:opacity-50 transition-colors"
               >
                 {isDuplicating ? "..." : m.common_duplicate()}
               </button>
@@ -412,16 +412,16 @@ export function UserTuneCard({
                   e.stopPropagation();
                   setShareOpen((v) => !v);
                 }}
-                className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-status-success/20 text-status-success hover:bg-status-success/30 transition-colors"
+                className="text-app-caption font-semibold uppercase px-2 py-1 rounded bg-status-success/20 text-status-success hover:bg-status-success/30 transition-colors"
               >
                 {shareStatus === "copied" ? "Copied" : "Share"}
               </button>
               {shareOpen && (
                 <div className="absolute left-0 top-full mt-1 z-20 min-w-40 rounded-md border border-app-border bg-app-surface p-1 shadow-lg">
-                  <button type="button" onClick={handleCopyShare} className="block w-full text-left text-[10px] px-2 py-1 rounded hover:bg-app-accent/20 text-app-text">
+                  <button type="button" onClick={handleCopyShare} className="block w-full text-left text-app-caption px-2 py-1 rounded hover:bg-app-accent/20 text-app-text">
                     {m.tuneform_copy_clipboard()}
                   </button>
-                  <button type="button" onClick={handleDownloadShare} className="block w-full text-left text-[10px] px-2 py-1 rounded hover:bg-app-accent/20 text-app-text">
+                  <button type="button" onClick={handleDownloadShare} className="block w-full text-left text-app-caption px-2 py-1 rounded hover:bg-app-accent/20 text-app-text">
                     {m.tuneform_download_json()}
                   </button>
                 </div>
@@ -433,20 +433,20 @@ export function UserTuneCard({
                   e.stopPropagation();
                   setConfirmDelete(true);
                 }}
-                className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-status-danger/20 text-status-danger hover:bg-status-danger/30 transition-colors"
+                className="text-app-caption font-semibold uppercase px-2 py-1 rounded bg-status-danger/20 text-status-danger hover:bg-status-danger/30 transition-colors"
               >
                 {m.common_delete()}
               </button>
             ) : (
               <span className="flex items-center gap-1">
-                <span className="text-[10px] text-status-danger">Sure?</span>
+                <span className="text-app-caption text-status-danger">Sure?</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     onDelete();
                   }}
                   disabled={isDeleting}
-                  className="text-[10px] font-semibold uppercase px-2 py-1 rounded bg-status-danger/30 text-status-danger hover:bg-status-danger/50 disabled:opacity-50 transition-colors"
+                  className="text-app-caption font-semibold uppercase px-2 py-1 rounded bg-status-danger/30 text-status-danger hover:bg-status-danger/50 disabled:opacity-50 transition-colors"
                 >
                   {isDeleting ? "..." : "Yes"}
                 </button>
@@ -455,7 +455,7 @@ export function UserTuneCard({
                     e.stopPropagation();
                     setConfirmDelete(false);
                   }}
-                  className="text-[10px] font-semibold uppercase px-2 py-1 rounded text-app-text-muted hover:text-app-text transition-colors"
+                  className="text-app-caption font-semibold uppercase px-2 py-1 rounded text-app-text-muted hover:text-app-text transition-colors"
                 >
                   No
                 </button>
@@ -774,25 +774,25 @@ export function TuneForm({
                 <div className="p-3 grid grid-cols-3 gap-x-4 gap-y-2">
                   {s.hp > 0 && (
                     <div className="flex flex-col">
-                      <span className="text-[10px] text-app-text-muted uppercase tracking-wide">{m.label_power()}</span>
+                      <span className="text-app-caption text-app-text-muted uppercase tracking-wide">{m.label_power()}</span>
                       <span className="text-xs font-mono text-app-text">{s.hp} hp</span>
                     </div>
                   )}
                   {s.torque > 0 && (
                     <div className="flex flex-col">
-                      <span className="text-[10px] text-app-text-muted uppercase tracking-wide">{m.label_torque()}</span>
+                      <span className="text-app-caption text-app-text-muted uppercase tracking-wide">{m.label_torque()}</span>
                       <span className="text-xs font-mono text-app-text">{s.torque} lb-ft</span>
                     </div>
                   )}
                   {s.weightKg > 0 && (
                     <div className="flex flex-col">
-                      <span className="text-[10px] text-app-text-muted uppercase tracking-wide">{m.label_weight()}</span>
+                      <span className="text-app-caption text-app-text-muted uppercase tracking-wide">{m.label_weight()}</span>
                       <span className="text-xs font-mono text-app-text">{s.weightKg} kg</span>
                     </div>
                   )}
                   {s.engine && (
                     <div className="flex flex-col">
-                      <span className="text-[10px] text-app-text-muted uppercase tracking-wide">{m.label_engine()}</span>
+                      <span className="text-app-caption text-app-text-muted uppercase tracking-wide">{m.label_engine()}</span>
                       <span className="text-xs font-mono text-app-text truncate">
                         {s.engine}
                         {s.aspiration && s.aspiration !== "NA" ? ` · ${s.aspiration}` : ""}
@@ -801,13 +801,13 @@ export function TuneForm({
                   )}
                   {s.topSpeedMph > 0 && (
                     <div className="flex flex-col">
-                      <span className="text-[10px] text-app-text-muted uppercase tracking-wide">{m.label_top_speed()}</span>
+                      <span className="text-app-caption text-app-text-muted uppercase tracking-wide">{m.label_top_speed()}</span>
                       <span className="text-xs font-mono text-app-text">{Math.round(s.topSpeedMph * 1.60934)} km/h</span>
                     </div>
                   )}
                   {s.division && (
                     <div className="flex flex-col">
-                      <span className="text-[10px] text-app-text-muted uppercase tracking-wide">{m.label_division()}</span>
+                      <span className="text-app-caption text-app-text-muted uppercase tracking-wide">{m.label_division()}</span>
                       <span className="text-xs text-app-text truncate">{s.division}</span>
                     </div>
                   )}
@@ -842,14 +842,14 @@ export function TuneForm({
                   <button
                     type="button"
                     onClick={() => switchUnitSystem(true)}
-                    className={`text-[10px] font-semibold px-2.5 py-1 transition-colors ${isMetric ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
+                    className={`text-app-caption font-semibold px-2.5 py-1 transition-colors ${isMetric ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
                   >
                     {m.tune_metric()}
                   </button>
                   <button
                     type="button"
                     onClick={() => switchUnitSystem(false)}
-                    className={`text-[10px] font-semibold px-2.5 py-1 transition-colors ${!isMetric ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
+                    className={`text-app-caption font-semibold px-2.5 py-1 transition-colors ${!isMetric ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
                   >
                     {m.tune_imperial()}
                   </button>
@@ -948,7 +948,7 @@ export function TuneForm({
                       <label key={i} className="flex items-center justify-between gap-2 text-xs">
                         <span className="text-app-text-muted whitespace-nowrap">Gear {i + 1}</span>
                         <div className="flex items-center gap-1">
-                          <span className="text-[10px] text-app-text-muted font-mono tabular-nums w-14 text-right">{Math.round(gearTopKph)} km/h</span>
+                          <span className="text-app-caption text-app-text-muted font-mono tabular-nums w-14 text-right">{Math.round(gearTopKph)} km/h</span>
                           <input
                             type="number"
                             value={ratio}
@@ -963,7 +963,7 @@ export function TuneForm({
                             }}
                             className="w-20 bg-app-bg border border-app-border rounded px-1.5 py-0.5 text-xs text-app-text font-mono text-right focus:outline-none focus:ring-1 focus:ring-app-accent"
                           />
-                          <span className="text-[10px] text-app-text-muted w-8">:1</span>
+                          <span className="text-app-caption text-app-text-muted w-8">:1</span>
                         </div>
                       </label>
                     );
@@ -988,7 +988,7 @@ export function TuneForm({
               <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent">{m.tune_section_anti_roll_bars()}</h4>
-                  <span className="text-[10px] text-app-text-muted">soft → stiff</span>
+                  <span className="text-app-caption text-app-text-muted">soft → stiff</span>
                 </div>
                 <NumberField label="Front" value={settings.antiRollBars.front} onChange={(v) => updateSettings("antiRollBars", "front", v)} />
                 <NumberField label="Rear" value={settings.antiRollBars.rear} onChange={(v) => updateSettings("antiRollBars", "rear", v)} />
@@ -1017,7 +1017,7 @@ export function TuneForm({
               <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent">{m.tune_section_damping()}</h4>
-                  <span className="text-[10px] text-app-text-muted">soft → stiff</span>
+                  <span className="text-app-caption text-app-text-muted">soft → stiff</span>
                 </div>
                 <NumberField label="Front Bump" value={settings.damping.frontBump} onChange={(v) => updateSettings("damping", "frontBump", v)} />
                 <NumberField label="Rear Bump" value={settings.damping.rearBump} onChange={(v) => updateSettings("damping", "rearBump", v)} />

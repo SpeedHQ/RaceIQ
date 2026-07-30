@@ -92,7 +92,7 @@ export function LapTimeChart({
 
     const chartW = width - leftPad - rightPad;
 
-    ctx.font = "13px monospace";
+    ctx.font = "var(--text-app-detail) var(--font-mono)";
     ctx.fillStyle = "var(--app-text-muted)";
     ctx.textAlign = "right";
     const tickCount = yTicks;
@@ -123,7 +123,7 @@ export function LapTimeChart({
     ctx.stroke();
     ctx.setLineDash([]);
 
-    ctx.font = "12px monospace";
+    ctx.font = "var(--text-app-label) var(--font-mono)";
     ctx.textAlign = "right";
     ctx.fillStyle = "var(--telemetry-rpm)";
     ctx.fillText(`optimum`, width - rightPad - 2, optimumY - 5);
@@ -156,7 +156,7 @@ export function LapTimeChart({
 
       if (i % labelEvery === 0 || i === laps.length - 1) {
         ctx.fillStyle = "var(--app-text-muted)";
-        ctx.font = "12px monospace";
+        ctx.font = "var(--text-app-label) var(--font-mono)";
         ctx.textAlign = "center";
         ctx.fillText(`${laps[i].lap}`, x, topPad + plotH + 14);
       }

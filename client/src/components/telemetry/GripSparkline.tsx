@@ -75,7 +75,7 @@ export function GripSparkline({ data, label, renderKey, width = 140, height = 40
 
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[9px] font-semibold text-app-text-muted uppercase">{label}</span>
+      <span className="text-app-micro font-semibold text-app-text-muted uppercase">{label}</span>
       <div className="flex items-center gap-1.5">
         <canvas ref={canvasRef} style={{ width, height }} className="rounded bg-app-surface/40" />
         <span className="text-xs font-mono font-bold tabular-nums" style={{ color: valColor }}>

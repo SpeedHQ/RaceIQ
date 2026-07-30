@@ -99,7 +99,7 @@ function Gauge({ label, value, display, reading, min, max, markers = [], band, b
       {markers.length > 0 && (
         <div className="relative mt-0.5 h-3">
           {markers.map((mk) => (
-            <span key={mk.label} className="absolute -translate-x-1/2 whitespace-nowrap text-[10px] text-app-text-muted" style={{ left: `${pos(mk.at, min, max)}%` }}>
+            <span key={mk.label} className="absolute -translate-x-1/2 whitespace-nowrap text-app-caption text-app-text-muted" style={{ left: `${pos(mk.at, min, max)}%` }}>
               {mk.label}
             </span>
           ))}
@@ -216,7 +216,7 @@ export function StyleGauges({ style }: { style: StyleAxes }) {
             { at: 100, label: "late" },
           ]}
         />
-        <p className="pb-2 text-[11px] text-app-text-muted/70">
+        <p className="pb-2 text-app-compact text-app-text-muted/70">
           Relative only — read the sign and the size, not as a percentage. Braking point is a judgement about where you
           <em> should</em> have braked, so unlike the axes above it has no physical scale to measure against.
         </p>

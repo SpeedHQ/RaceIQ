@@ -13,8 +13,8 @@ export function AnalyseF1ErsPanel({ currentPacket }: Props) {
 
   return (
     <>
-      <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-2 pt-2 border-t border-app-border font-semibold">{m.analyse_drs_ers()}</h3>
-      <div className="text-[11px] font-mono space-y-1.5 mb-3">
+      <h3 className="text-app-caption text-app-text-muted uppercase tracking-wider mb-2 pt-2 border-t border-app-border font-semibold">{m.analyse_drs_ers()}</h3>
+      <div className="text-app-compact font-mono space-y-1.5 mb-3">
         <div className="flex justify-between">
           <span className="text-app-text-muted">{m.analyse_drs()}</span>
           <span className={`font-bold ${currentPacket.DrsActive ? "text-(--telemetry-drs)" : "text-app-text-dim"}`}>{currentPacket.DrsActive ? "OPEN" : "OFF"}</span>

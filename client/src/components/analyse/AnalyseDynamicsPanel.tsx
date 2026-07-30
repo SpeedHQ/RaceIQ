@@ -62,7 +62,7 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
     <span className="flex items-center gap-1 group relative">
       {m.label_slip()}
       <Info className="w-3 h-3 text-app-text-dim cursor-help inline" />
-      <span className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary whitespace-nowrap z-10 pointer-events-none normal-case tracking-normal">
+      <span className="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-app-caption text-app-text-secondary whitespace-nowrap z-10 pointer-events-none normal-case tracking-normal">
         Ratio: wheel speed vs ground speed
         <br />
         Angle: direction vs travel (6-12° = peak grip)
@@ -80,19 +80,19 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
   const currentX = balX(bal.balance);
 
   return (
-    <div className="text-[11px] font-mono space-y-1.5 mb-3">
+    <div className="text-app-compact font-mono space-y-1.5 mb-3">
       {/* Balance */}
       <div className="flex justify-between">
         <span className="flex items-center gap-1 group relative text-app-text-muted">
           {m.label_balance()}
           {analysis.balance.source === "unavailable" ? (
-            <span className="text-[10px] text-app-text-dim">
+            <span className="text-app-caption text-app-text-dim">
               {m.analyse_unavailable()}
             </span>
           ) : (
             <>
               <Info className="w-3 h-3 text-app-text-dim cursor-help" />
-              <span className="absolute left-0 top-full mt-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2.5 py-2 text-[10px] text-app-text-secondary z-50 pointer-events-none normal-case tracking-normal w-[300px]">
+              <span className="absolute left-0 top-full mt-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2.5 py-2 text-app-caption text-app-text-secondary z-50 pointer-events-none normal-case tracking-normal w-[300px]">
             <span className="block mb-1">Yaw rate vs path curvature + front/rear slip-angle delta.</span>
             <span className="block mb-2 text-app-text-dim">
               + = understeer (front slip &gt; rear) &nbsp;|&nbsp; − = oversteer (body yawing past Ay/V)
@@ -152,11 +152,11 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
 
                   {/* Conflict / agree badge */}
                   {bal.signalsAgree ? (
-                    <text x="100" y="70" textAnchor="middle" fill="var(--status-success)" fontSize="7" fontWeight="600">
+                    <text x="100" y="70" textAnchor="middle" fill="var(--status-success)" fontSize="7" fontWeight="var(--font-weight-semibold)">
                       SIGNALS AGREE — blended 50/50
                     </text>
                   ) : (
-                    <text x="100" y="70" textAnchor="middle" fill="var(--status-warning)" fontSize="7" fontWeight="600">
+                    <text x="100" y="70" textAnchor="middle" fill="var(--status-warning)" fontSize="7" fontWeight="var(--font-weight-semibold)">
                       CONFLICT — slip angle used alone
                     </text>
                   )}
@@ -173,13 +173,13 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
                   <line x1={thrLeftX} y1="78" x2={thrLeftX} y2="96" stroke="currentColor" opacity="0.4" strokeDasharray="2,2" />
                   <line x1={thrRightX} y1="78" x2={thrRightX} y2="96" stroke="currentColor" opacity="0.4" strokeDasharray="2,2" />
                   <circle cx={currentX} cy="87" r="4" fill={balanceColor(bal.state)} stroke="var(--app-surface)" strokeWidth="1.2" />
-                  <text x={thrLeftX / 2} y="106" textAnchor="middle" fill="var(--balance-negative)" fontSize="7" fontWeight="600">
+                  <text x={thrLeftX / 2} y="106" textAnchor="middle" fill="var(--balance-negative)" fontSize="7" fontWeight="var(--font-weight-semibold)">
                     {m.dynamics_over()}
                   </text>
-                  <text x="100" y="106" textAnchor="middle" fill="var(--balance-neutral)" fontSize="7" fontWeight="600">
+                  <text x="100" y="106" textAnchor="middle" fill="var(--balance-neutral)" fontSize="7" fontWeight="var(--font-weight-semibold)">
                     {m.dynamics_neutral()}
                   </text>
-                  <text x={(thrRightX + 200) / 2} y="106" textAnchor="middle" fill="var(--balance-positive)" fontSize="7" fontWeight="600">
+                  <text x={(thrRightX + 200) / 2} y="106" textAnchor="middle" fill="var(--balance-positive)" fontSize="7" fontWeight="var(--font-weight-semibold)">
                     {m.dynamics_under()}
                   </text>
                 </svg>

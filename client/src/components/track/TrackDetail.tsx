@@ -66,7 +66,7 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
       <div className="w-full md:w-2/5 min-w-0 bg-app-surface/50 border border-app-border rounded-lg flex flex-col md:overflow-hidden">
         <div className="flex justify-between items-center px-3 py-2 border-b border-app-border shrink-0">
           <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_stats()}</div>
-          <div className="text-[11px] text-app-text-dim font-mono">{m.track_detail_last_100()}</div>
+          <div className="text-app-compact text-app-text-dim font-mono">{m.track_detail_last_100()}</div>
         </div>
         <div className="flex-1 p-3 flex flex-col gap-3">
           <div className="flex flex-wrap gap-x-4 gap-y-1">
@@ -249,7 +249,7 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
             </div>
           )}
         </div>
-        <div className="text-[11px] text-app-text-dim font-mono">{m.track_detail_last_100()}</div>
+        <div className="text-app-compact text-app-text-dim font-mono">{m.track_detail_last_100()}</div>
       </div>
       {/* Scrollable body */}
       <div className="flex-1 md:overflow-y-auto p-3 flex flex-col gap-3">
@@ -278,9 +278,9 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
             />
             <div className="absolute top-1/2 -translate-y-1/2 w-2 h-3 rounded-sm shadow" style={{ left: `calc(${medPct}% - 4px)`, background: "var(--app-text)", opacity: 0.8 }} />
           </div>
-          <div className="flex justify-between items-center text-[11px] text-app-text-secondary font-mono">
+          <div className="flex justify-between items-center text-app-compact text-app-text-secondary font-mono">
             <span>{formatLapTime(minT)}</span>
-            <span className="flex items-center gap-1 text-[10px] text-app-text-dim font-sans">
+            <span className="flex items-center gap-1 text-app-caption text-app-text-dim font-sans">
               <span className="inline-block w-2.5 h-1.5 rounded-sm" style={{ background: "var(--lap-pace-on-target)", opacity: 0.7 }} />
               {m.track_detail_typical_range()}
             </span>
@@ -340,10 +340,10 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
                 {/* Area fill */}
                 <polygon points={`${polyline} ${(padL + plotW).toFixed(1)},${(padT + plotH).toFixed(1)} ${padL},${(padT + plotH).toFixed(1)}`} fill="url(#areaFill)" />
                 {/* Axis labels */}
-                <text x={padL} y={vbH - 2} fontSize="8" fill="var(--app-text)" fillOpacity={0.3} fontFamily="sans-serif">
+                <text x={padL} y={vbH - 2} fontSize="8" fill="var(--app-text)" fillOpacity={0.3} fontFamily="var(--font-sans)">
                   {m.trackdetail_older()}
                 </text>
-                <text x={padL + plotW - 30} y={vbH - 2} fontSize="8" fill="var(--app-text)" fillOpacity={0.3} fontFamily="sans-serif">
+                <text x={padL + plotW - 30} y={vbH - 2} fontSize="8" fill="var(--app-text)" fillOpacity={0.3} fontFamily="var(--font-sans)">
                   {lastDate}
                 </text>
                 {/* Trend line */}
@@ -380,7 +380,7 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
                   fontSize="8"
                   fill="var(--lap-pace-off-target)"
                   fillOpacity={0.8}
-                  fontFamily="sans-serif"
+                  fontFamily="var(--font-sans)"
                   textAnchor={worstPoint.x > vbW / 2 ? "end" : "start"}
                   style={{ pointerEvents: "none" }}
                 >
@@ -394,7 +394,7 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
                   y={bestPoint.y - 16}
                   fontSize="8"
                   fill="var(--lap-record)"
-                  fontFamily="sans-serif"
+                  fontFamily="var(--font-sans)"
                   textAnchor={bestPoint.x > vbW / 2 ? "end" : "start"}
                   style={{ pointerEvents: "none" }}
                 >
@@ -423,7 +423,7 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
                   const pctX = p.x / vbW;
                   return (
                     <div
-                      className="absolute pointer-events-none z-10 bg-app-surface border border-app-border rounded px-2 py-1 text-[11px] font-mono text-app-text shadow-lg -translate-y-full"
+                      className="absolute pointer-events-none z-10 bg-app-surface border border-app-border rounded px-2 py-1 text-app-compact font-mono text-app-text shadow-lg -translate-y-full"
                       style={{
                         left: `${Math.min(Math.max(pctX * 100, 5), 85)}%`,
                         top: `${(p.y / vbH) * 100}%`,
@@ -448,7 +448,7 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
                 <InfoTooltip position="bottom">{m.trackdetail_theoretical_best_tooltip()}</InfoTooltip>
               </div>
               {theoretical != null && (
-                <div className="flex items-baseline gap-2 text-[11px] font-mono tabular-nums">
+                <div className="flex items-baseline gap-2 text-app-compact font-mono tabular-nums">
                   <span style={{ color: "var(--app-accent)" }}>{formatLapTime(theoretical)}</span>
                   {sectorGap != null && sectorGap > 0.001 && (
                     <>
@@ -471,19 +471,19 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
                       <div className="flex justify-between items-baseline">
                         <div className="flex items-center gap-1.5">
                           <span className="text-xs text-app-text-dim">{label}</span>
-                          {pctOfTheoretical && <span className="text-[10px] text-app-text-muted">{pctOfTheoretical}%</span>}
+                          {pctOfTheoretical && <span className="text-app-caption text-app-text-muted">{pctOfTheoretical}%</span>}
                           {isWorstVariance && (
                             <span className="group/tip relative inline-flex items-center shrink-0 cursor-help">
-                              <span className="text-[9px]" style={{ color: "var(--status-warning)", opacity: 0.8 }}>
+                              <span className="text-app-micro" style={{ color: "var(--status-warning)", opacity: 0.8 }}>
                                 ↔
                               </span>
-                              <span className="absolute left-0 top-full mt-2 w-max max-w-[200px] hidden group-hover/tip:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-[10px] text-app-text-secondary z-50 pointer-events-none leading-relaxed">
+                              <span className="absolute left-0 top-full mt-2 w-max max-w-[200px] hidden group-hover/tip:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-app-caption text-app-text-secondary z-50 pointer-events-none leading-relaxed">
                                 {m.trackdetail_most_variance_tooltip()}
                               </span>
                             </span>
                           )}
                         </div>
-                        <div className="flex items-baseline gap-2 text-[11px] font-mono tabular-nums">
+                        <div className="flex items-baseline gap-2 text-app-compact font-mono tabular-nums">
                           <span style={{ color: "var(--lap-record)" }}>{formatLapTime(min)}</span>
                           <span className="text-app-text-dim">·</span>
                           <span className="text-app-text-secondary">{formatLapTime(med)}</span>
@@ -548,7 +548,7 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
                   <span className="font-mono text-xs tabular-nums shrink-0" style={{ color: isFastest ? "var(--lap-record)" : "var(--app-text)" }}>
                     {formatLapTime(bestTime)}
                   </span>
-                  <span className="text-[11px] text-app-text-secondary shrink-0">×{count}</span>
+                  <span className="text-app-compact text-app-text-secondary shrink-0">×{count}</span>
                 </div>
               );
             })}
@@ -1052,11 +1052,11 @@ export function TrackDetail({
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_segments()}</span>
-                    {segSource && <span className="text-[9px] font-mono text-app-text-dim px-1 py-0.5 rounded bg-app-surface-alt border border-app-border-input">{segSource}</span>}
+                    {segSource && <span className="text-app-micro font-mono text-app-text-dim px-1 py-0.5 rounded bg-app-surface-alt border border-app-border-input">{segSource}</span>}
                   </div>
                   {isDevelopment &&
                     (!editing ? (
-                      <button type="button" onClick={startEditing} className="text-app-unit text-app-accent hover:text-app-accent-hover px-2 py-0.5 rounded bg-app-accent/10 border border-app-accent/30">
+                      <button type="button" onClick={startEditing} className="text-app-compact text-app-accent hover:text-app-accent-hover px-2 py-0.5 rounded bg-app-accent/10 border border-app-accent/30">
                         {m.common_edit()}
                       </button>
                     ) : (
@@ -1065,14 +1065,14 @@ export function TrackDetail({
                           type="button"
                           onClick={saveSegments}
                           disabled={saving}
-                          className="text-app-unit text-status-success px-2 py-0.5 rounded bg-status-success/10 border border-status-success/30 hover:bg-status-success/20 disabled:opacity-50"
+                          className="text-app-compact text-status-success px-2 py-0.5 rounded bg-status-success/10 border border-status-success/30 hover:bg-status-success/20 disabled:opacity-50"
                         >
                           {saving ? "..." : m.common_save()}
                         </button>
                         <button
                           type="button"
                           onClick={() => setEditing(false)}
-                          className="text-app-unit text-app-text-secondary hover:text-app-text px-2 py-0.5 rounded bg-app-surface-alt border border-app-border-input"
+                          className="text-app-compact text-app-text-secondary hover:text-app-text px-2 py-0.5 rounded bg-app-surface-alt border border-app-border-input"
                         >
                           {m.common_cancel()}
                         </button>
@@ -1105,7 +1105,7 @@ export function TrackDetail({
                           <button
                             type="button"
                             onClick={() => toggleSegType(i)}
-                            className="shrink-0 text-app-unit font-bold px-1 rounded bg-(--segment-color)/20 text-(--segment-color)"
+                            className="shrink-0 text-app-compact font-bold px-1 rounded bg-(--segment-color)/20 text-(--segment-color)"
                           >
                             {isCorner ? "T" : "S"}
                           </button>
@@ -1115,7 +1115,7 @@ export function TrackDetail({
                           <button
                             type="button"
                             onClick={() => addSegment(i)}
-                            className="shrink-0 w-5 h-5 flex items-center justify-center text-app-unit rounded bg-app-surface-alt border border-app-border-input text-app-text-muted hover:text-app-text"
+                            className="shrink-0 w-5 h-5 flex items-center justify-center text-app-compact rounded bg-app-surface-alt border border-app-border-input text-app-text-muted hover:text-app-text"
                             title={m.trackdetail_split_segment()}
                           >
                             +
@@ -1124,7 +1124,7 @@ export function TrackDetail({
                             type="button"
                             onClick={() => removeSegment(i)}
                             disabled={(editing ? editSegments : displaySectors.segments).length <= 1}
-                            className="shrink-0 w-5 h-5 flex items-center justify-center text-app-unit rounded bg-status-danger/10 border border-status-danger/30 text-status-danger hover:bg-status-danger/20 disabled:opacity-30"
+                            className="shrink-0 w-5 h-5 flex items-center justify-center text-app-compact rounded bg-status-danger/10 border border-status-danger/30 text-status-danger hover:bg-status-danger/20 disabled:opacity-30"
                             title={m.trackdetail_remove_segment()}
                           >
                             ×
@@ -1168,7 +1168,7 @@ export function TrackDetail({
                       type="button"
                       onClick={startEditingSectors}
                       disabled={!sectorBounds}
-                      className="text-app-unit text-app-accent hover:text-app-accent-hover px-2 py-0.5 rounded bg-app-accent/10 border border-app-accent/30 disabled:opacity-50"
+                      className="text-app-compact text-app-accent hover:text-app-accent-hover px-2 py-0.5 rounded bg-app-accent/10 border border-app-accent/30 disabled:opacity-50"
                     >
                       {m.common_edit()}
                     </button>
@@ -1178,14 +1178,14 @@ export function TrackDetail({
                         type="button"
                         onClick={saveSectorBounds}
                         disabled={savingSectors}
-                        className="text-app-unit text-status-success px-2 py-0.5 rounded bg-status-success/10 border border-status-success/30 hover:bg-status-success/20 disabled:opacity-50"
+                        className="text-app-compact text-status-success px-2 py-0.5 rounded bg-status-success/10 border border-status-success/30 hover:bg-status-success/20 disabled:opacity-50"
                       >
                         {savingSectors ? "..." : m.common_save()}
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditingSectors(false)}
-                        className="text-app-unit text-app-text-secondary hover:text-app-text px-2 py-0.5 rounded bg-app-surface-alt border border-app-border-input"
+                        className="text-app-compact text-app-text-secondary hover:text-app-text px-2 py-0.5 rounded bg-app-surface-alt border border-app-border-input"
                       >
                         {m.common_cancel()}
                       </button>
@@ -1346,7 +1346,7 @@ export function TrackDetail({
                           setZoom(1);
                           setPan({ x: 0, z: 0 });
                         }}
-                        className="px-1.5 py-1 text-[9px] font-mono bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded"
+                        className="px-1.5 py-1 text-app-micro font-mono bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded"
                       >
                         {zoom % 1 === 0 ? `${zoom}x` : `${zoom.toFixed(2)}x`}
                       </button>
@@ -1357,7 +1357,7 @@ export function TrackDetail({
                         <button
                           type="button"
                           onClick={() => setMapDisplayMode((m) => (m === "segments" ? "sectors" : "segments"))}
-                          className={`px-1.5 py-1 text-[9px] font-mono rounded border transition-colors ${
+                          className={`px-1.5 py-1 text-app-micro font-mono rounded border transition-colors ${
                             mapDisplayMode === "sectors"
                               ? "map-sectors-active"
                               : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
@@ -1371,7 +1371,7 @@ export function TrackDetail({
                     </div>
                   )}
                   {/* Track info overlay — bottom left */}
-                  <div className="absolute bottom-2 left-2 flex items-center gap-2.5 text-[10px] font-mono text-app-text-dim bg-app-surface/70 backdrop-blur-sm rounded px-2 py-1 pointer-events-none">
+                  <div className="absolute bottom-2 left-2 flex items-center gap-2.5 text-app-caption font-mono text-app-text-dim bg-app-surface/70 backdrop-blur-sm rounded px-2 py-1 pointer-events-none">
                     {track.lengthKm > 0 && <span>{track.lengthKm} km</span>}
                     {corners.length > 0 && (
                       <>
@@ -1468,7 +1468,7 @@ export function TrackDetail({
                                 return (
                                   <>
                                     {!hideClassCol && car && (
-                                      <span className="font-bold font-mono text-[10px] flex-shrink-0" style={{ color: carClassColor(car.carClass) }}>{car.carClass}</span>
+                                      <span className="font-bold font-mono text-app-caption flex-shrink-0" style={{ color: carClassColor(car.carClass) }}>{car.carClass}</span>
                                     )}
                                     <span className="truncate">{opt.label}</span>
                                   </>
@@ -1478,7 +1478,7 @@ export function TrackDetail({
                             {/* Selection actions — inline in header row */}
                             {selectedLaps.size > 0 && (
                               <div className="flex items-center gap-2 ml-auto">
-                                <span className="text-app-unit text-app-text-dim">
+                                <span className="text-app-compact text-app-text-dim">
                                   {selectedLaps.size} {m.trackdetail_selected()}
                                 </span>
                                 {selectedLaps.size === 2 &&
@@ -1499,31 +1499,31 @@ export function TrackDetail({
                                             },
                                           })
                                         }
-                                        className="text-app-unit px-2 py-0.5 rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled font-medium"
+                                        className="text-app-compact px-2 py-0.5 rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled font-medium"
                                       >
                                         {m.trackdetail_compare()}
                                       </button>
                                     );
                                   })()}
                                 {!confirmDelete ? (
-                                  <button type="button" onClick={() => setConfirmDelete(true)} className="text-app-unit px-2 py-0.5 rounded bg-status-danger/80 hover:bg-status-danger text-app-on-filled font-medium">
+                                  <button type="button" onClick={() => setConfirmDelete(true)} className="text-app-compact px-2 py-0.5 rounded bg-status-danger/80 hover:bg-status-danger text-app-on-filled font-medium">
                                     {m.trackdetail_delete()} ({selectedLaps.size})
                                   </button>
                                 ) : (
                                   <div className="flex items-center gap-1">
-                                    <span className="text-app-unit text-status-danger">{m.trackdetail_confirm()}</span>
+                                    <span className="text-app-compact text-status-danger">{m.trackdetail_confirm()}</span>
                                     <button
                                       type="button"
                                       onClick={handleBulkDelete}
                                       disabled={deleting}
-                                      className="text-app-unit px-2 py-0.5 rounded bg-status-danger hover:bg-status-danger-hover text-app-on-filled font-medium disabled:opacity-50"
+                                      className="text-app-compact px-2 py-0.5 rounded bg-status-danger hover:bg-status-danger-hover text-app-on-filled font-medium disabled:opacity-50"
                                     >
                                       {deleting ? "..." : m.trackdetail_yes()}
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => setConfirmDelete(false)}
-                                      className="text-app-unit px-2 py-0.5 rounded bg-app-surface-alt text-app-text-secondary hover:text-app-text"
+                                      className="text-app-compact px-2 py-0.5 rounded bg-app-surface-alt text-app-text-secondary hover:text-app-text"
                                     >
                                       {m.common_cancel()}
                                     </button>
@@ -1590,13 +1590,13 @@ export function TrackDetail({
                                                     {hasSessionTypes &&
                                                       lap.sessionId != null &&
                                                       ((sessionLapCounts.get(lap.sessionId) ?? 0) > 1 ? (
-                                                        <span className="text-[10px] text-status-success font-medium">{m.track_detail_race()}</span>
+                                                        <span className="text-app-caption text-status-success font-medium">{m.track_detail_race()}</span>
                                                       ) : (
-                                                        <span className="text-[10px] text-status-warning font-medium">{m.track_detail_quali()}</span>
+                                                        <span className="text-app-caption text-status-warning font-medium">{m.track_detail_quali()}</span>
                                                       ))}
                                                   </div>
                                                   {lap.createdAt && (
-                                                    <div className="mt-1 text-[11px] text-app-text-dim font-mono">
+                                                    <div className="mt-1 text-app-compact text-app-text-dim font-mono">
                                                       {new Date(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}{" "}
                                                       {new Date(lap.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                                                     </div>
@@ -1681,9 +1681,9 @@ export function TrackDetail({
                                             {hasSessionTypes && (
                                               <TD>
                                                 {lap.sessionId != null && (sessionLapCounts.get(lap.sessionId) ?? 0) > 1 ? (
-                                                  <span className="text-[10px] text-status-success font-medium">{m.track_detail_race()}</span>
+                                                  <span className="text-app-caption text-status-success font-medium">{m.track_detail_race()}</span>
                                                 ) : (
-                                                  <span className="text-[10px] text-status-warning font-medium">{m.track_detail_quali()}</span>
+                                                  <span className="text-app-caption text-status-warning font-medium">{m.track_detail_quali()}</span>
                                                 )}
                                               </TD>
                                             )}
@@ -1694,7 +1694,7 @@ export function TrackDetail({
                                                 {lap.isValid === false ? (
                                                   <span className="group/inv relative text-sm text-status-danger cursor-default">
                                                     ✕
-                                                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/inv:block w-max max-w-[200px] bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-[10px] text-app-text-secondary z-50 pointer-events-none leading-relaxed">
+                                                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/inv:block w-max max-w-[200px] bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-app-caption text-app-text-secondary z-50 pointer-events-none leading-relaxed">
                                                       {lap.invalidReason ?? m.trackdetail_invalid_lap()}
                                                     </span>
                                                   </span>

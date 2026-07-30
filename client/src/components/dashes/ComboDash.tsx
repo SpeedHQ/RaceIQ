@@ -81,21 +81,21 @@ export function ComboDash({ rawPacket, packet, sectors, pit, unitSystem, tireHea
         <div className="grid grid-cols-3 gap-3 min-h-0">
           <div className="min-w-0 min-h-0">
             <Tile label="GEAR">
-              <div className="font-black leading-none" style={{ fontSize: "clamp(3rem, 14vh, 8rem)" }}>
+              <div className="text-app-instrument-primary font-black leading-none">
                 {gearLabel(gear)}
               </div>
             </Tile>
           </div>
           <div className="min-w-0 min-h-0">
             <Tile label={unit.toUpperCase()}>
-              <div className="font-black leading-none" style={{ fontSize: "clamp(2.5rem, 13vh, 7rem)" }}>
+              <div className="text-app-instrument-secondary font-black leading-none">
                 {Math.round(speed)}
               </div>
             </Tile>
           </div>
           <div className="min-w-0 min-h-0">
             <Tile label="LAP">
-              <div className="font-black leading-none tabular-nums" style={{ fontSize: "clamp(2.5rem, 13vh, 7rem)" }}>
+              <div className="text-app-instrument-secondary font-black leading-none tabular-nums">
                 {lapNumber > 0 ? lapNumber : "-"}
                 {totalLaps && totalLaps > 0 ? <span className="text-app-text/40">/{totalLaps}</span> : null}
               </div>
@@ -165,7 +165,7 @@ function PitRow({ label, value, suffix, color }: { label: string; value: string;
   return (
     <div>
       <div className="text-app-text/40 text-xs tracking-widest uppercase">{label}</div>
-      <div className={`font-black leading-none tabular-nums ${color}`} style={{ fontSize: "2.5rem" }}>
+      <div className={`text-app-instrument-value font-black leading-none tabular-nums ${color}`}>
         {value}
         <span className="text-app-text/40 text-base font-semibold ml-2">{suffix}</span>
       </div>

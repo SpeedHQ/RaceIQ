@@ -8,7 +8,7 @@ function SuspBarStandard({ norm, thresholds }: { norm: number; thresholds: numbe
       <div className="w-4 h-16 bg-app-surface-alt/80 border border-app-border/50 rounded-sm overflow-hidden relative">
         <div className="absolute top-0 w-full rounded-sm" style={{ backgroundColor: suspColor(norm, thresholds), height: `${pct}%` }} />
       </div>
-      <span className="text-[10px] font-mono text-app-text-muted tabular-nums w-7 text-center">{pct.toFixed(0)}%</span>
+      <span className="text-app-caption font-mono text-app-text-muted tabular-nums w-7 text-center">{pct.toFixed(0)}%</span>
     </div>
   );
 }
@@ -34,7 +34,7 @@ function SuspBarCentered({ norm, thresholds, mmTravel }: { norm: number; thresho
         {/* Extension fill — downward from centre */}
         {extendedFrac > 0 && <div className="absolute w-full opacity-70" style={{ backgroundColor: "var(--operating-cold)", top: "50%", height: `${extendedFrac * 50}%` }} />}
       </div>
-      <span className="text-[10px] font-mono text-app-text-muted tabular-nums w-7 text-center">{label}</span>
+      <span className="text-app-caption font-mono text-app-text-muted tabular-nums w-7 text-center">{label}</span>
     </div>
   );
 }

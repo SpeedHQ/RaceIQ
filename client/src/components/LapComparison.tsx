@@ -329,7 +329,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
       <div className="flex items-start gap-3 shrink-0">
         {/* Track selector */}
         <div className="flex flex-col gap-1 flex-1 min-w-[140px] max-w-[260px]">
-          <label className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.label_track()}</label>
+          <label className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.label_track()}</label>
           <SearchSelect
             value={selectedTrack != null ? String(selectedTrack) : ""}
             onChange={(v) => setSelectedTrack(v ? Number(v) : null)}
@@ -342,7 +342,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
         <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[220px]">
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "var(--comparison-lap-a)" }} />
-            <label className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.compare_car_a()}</label>
+            <label className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.compare_car_a()}</label>
           </div>
           <SearchSelect
             value={carAOrd != null ? String(carAOrd) : ""}
@@ -356,7 +356,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
 
         {/* Lap A */}
         <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[200px]">
-          <label className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.compare_lap_a()}</label>
+          <label className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.compare_lap_a()}</label>
           <SearchSelect
             value={lapAId != null ? String(lapAId) : ""}
             onChange={(v) => setLapAId(v ? Number(v) : null)}
@@ -371,7 +371,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
         <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[220px]">
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "var(--comparison-lap-b)" }} />
-            <label className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.compare_car_b()}</label>
+            <label className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.compare_car_b()}</label>
           </div>
           <SearchSelect
             value={carBOrd != null ? String(carBOrd) : ""}
@@ -385,7 +385,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
 
         {/* Lap B */}
         <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[200px]">
-          <label className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.compare_lap_b()}</label>
+          <label className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.compare_lap_b()}</label>
           <SearchSelect
             value={lapBId != null ? String(lapBId) : ""}
             onChange={(v) => setLapBId(v ? Number(v) : null)}

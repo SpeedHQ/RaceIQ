@@ -254,7 +254,7 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
               return (
                 <g key={c.index}>
                   <circle cx={pt.x} cy={pt.y} r={isActive ? 3.5 : 2.5} fill={color} stroke="var(--app-bg)" strokeWidth={0.75} />
-                  <text x={pt.x + ox} y={pt.y + oy} textAnchor="middle" fontFamily="var(--font-mono, monospace)" fontSize={isActive ? 8.5 : 7.5} fontWeight={isActive ? 700 : 400} fill={color}>
+                  <text x={pt.x + ox} y={pt.y + oy} textAnchor="middle" fontFamily="var(--font-mono)" fontSize={isActive ? 8.5 : 7.5} fontWeight={isActive ? "var(--font-weight-bold)" : "var(--font-weight-normal)"} fill={color}>
                     {c.label}
                   </text>
                 </g>
@@ -294,7 +294,7 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
             const speed = readoutFrame ? `${(readoutFrame.Speed * 3.6).toFixed(0)} km/h` : null;
             return (
               <div
-                className="absolute pointer-events-none text-[10px] font-mono tabular-nums bg-app-surface-alt/95 border border-app-border rounded px-1.5 py-0.5 text-app-text-muted whitespace-nowrap shadow"
+                className="absolute pointer-events-none text-app-caption font-mono tabular-nums bg-app-surface-alt/95 border border-app-border rounded px-1.5 py-0.5 text-app-text-muted whitespace-nowrap shadow"
                 style={{
                   left: `${leftPct}%`,
                   top: `${topPct}%`,
@@ -308,7 +308,7 @@ export function TrackFocusMap({ telemetry, sectorTimes, edges, corners, cornerFr
           })()
         ) : null}
       </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-app-text-dim">
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-app-caption text-app-text-dim">
         {heatSegments ? (
           <>
             <span className="inline-flex items-center gap-1.5">

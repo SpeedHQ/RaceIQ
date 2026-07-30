@@ -145,7 +145,7 @@ export function TuneLiveDashboard({ gameId, trackName, sessionLaps }: TuneLiveDa
               <div className="space-y-2">
                 {lapIssuesFeed.slice(0, 5).map((entry) => (
                   <div key={entry.lapId} className="border border-app-border rounded p-2">
-                    <div className="text-[11px] text-app-text-muted uppercase tracking-wider mb-1">Lap {entry.lapNumber}</div>
+                    <div className="text-app-compact text-app-text-muted uppercase tracking-wider mb-1">Lap {entry.lapNumber}</div>
                     {entry.issues.length === 0 ? (
                       <div className="text-xs text-app-text-dim">No issues.</div>
                     ) : (

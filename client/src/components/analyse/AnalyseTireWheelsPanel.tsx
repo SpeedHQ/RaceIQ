@@ -133,7 +133,7 @@ export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, ga
   ];
 
   return (
-    <div className="text-[11px] font-mono">
+    <div className="text-app-compact font-mono">
       <WheelTable title={m.analyse_wheels_wheels()} borderTop rows={rows} />
     </div>
   );

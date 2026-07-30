@@ -52,7 +52,7 @@ export function HistoryPanel({ sessionId, onClose }: { sessionId: number; onClos
             it — a switch from the car to the driver is the context that makes
             the action log below readable. */}
         <div className="rounded border border-app-border p-3">
-          <div className="text-[10px] uppercase tracking-wider text-app-text-muted mb-1.5">Focus</div>
+          <div className="text-app-caption uppercase tracking-wider text-app-text-muted mb-1.5">Focus</div>
           <FocusTimeline experimentId={sessionId} versions={versions} />
         </div>
 

@@ -33,23 +33,53 @@ colors:
   operating-cold: "var(--operating-cold)"
 typography:
   title:
-    fontFamily: "Geist Variable, sans-serif"
-    fontSize: "1.125rem"
+    fontFamily: "var(--font-sans)"
+    fontSize: "var(--text-app-title)"
   heading:
-    fontFamily: "Geist Variable, sans-serif"
-    fontSize: "1rem"
+    fontFamily: "var(--font-sans)"
+    fontSize: "var(--text-app-heading)"
   body:
-    fontFamily: "Geist Variable, sans-serif"
-    fontSize: "0.9375rem"
+    fontFamily: "var(--font-sans)"
+    fontSize: "var(--text-app-body)"
   subtext:
-    fontFamily: "Geist Variable, sans-serif"
-    fontSize: "0.875rem"
+    fontFamily: "var(--font-sans)"
+    fontSize: "var(--text-app-subtext)"
+  detail:
+    fontFamily: "var(--font-sans)"
+    fontSize: "var(--text-app-detail)"
   label:
-    fontFamily: "Geist Variable, sans-serif"
-    fontSize: "0.75rem"
-  unit:
-    fontFamily: "Geist Variable, sans-serif"
-    fontSize: "0.6875rem"
+    fontFamily: "var(--font-sans)"
+    fontSize: "var(--text-app-label)"
+  compact:
+    fontFamily: "var(--font-sans)"
+    fontSize: "var(--text-app-compact)"
+  caption:
+    fontFamily: "var(--font-sans)"
+    fontSize: "var(--text-app-caption)"
+  micro:
+    fontFamily: "var(--font-sans)"
+    fontSize: "var(--text-app-micro)"
+  nano:
+    fontFamily: "var(--font-sans)"
+    fontSize: "var(--text-app-nano)"
+  glyph:
+    fontFamily: "var(--font-sans)"
+    fontSize: "var(--text-app-glyph)"
+  visualization-value:
+    fontFamily: "var(--font-mono)"
+    fontSize: "var(--text-app-visualization-value)"
+  visualization-emphasis:
+    fontFamily: "var(--font-mono)"
+    fontSize: "var(--text-app-visualization-emphasis)"
+  instrument-value:
+    fontFamily: "var(--font-sans)"
+    fontSize: "var(--text-app-instrument-value)"
+  instrument-secondary:
+    fontFamily: "var(--font-sans)"
+    fontSize: "var(--text-app-instrument-secondary)"
+  instrument-primary:
+    fontFamily: "var(--font-sans)"
+    fontSize: "var(--text-app-instrument-primary)"
 rounded:
   sm: "6px"
   md: "8px"
@@ -87,7 +117,7 @@ This system explicitly rejects the generic SaaS look — no gradient hero-metric
 - Near-black base with a single cyan signal color, not a rainbow of accents
 - Flat, tonally-layered surfaces — no shadows, no glass
 - A semantic severity scale (`severity-nominal` → `severity-critical`) plus `operating-cold` for telemetry state encoding — never used for UI chrome
-- Compact, utilitarian type scale (11px–18px) built for data density
+- Compact, shared type scale built for data density, with sub-11px roles reserved for constrained telemetry and visualization labels
 - Tactile, confident interactive states: visible hover shifts, no timid opacity fades
 
 ## 2. Colors
@@ -126,22 +156,31 @@ A near-black instrument-panel base with one cyan accent doing all the signaling;
 
 ## 3. Typography
 
-**Display Font:** Geist Variable, sans-serif
-**Body Font:** Geist Variable, sans-serif
-**Label/Mono Font:** Geist Variable (same family; no separate mono in use)
+**Display/Body Font:** `var(--font-sans)` (Geist Variable by default)
+**Data/Mono Font:** `var(--font-mono)` (the shared system monospace stack by default)
 
-**Character:** One variable sans family carries the entire hierarchy through weight and a tight, compact size scale (11px–18px) — legible at a glance, built for data density rather than editorial breathing room.
+**Character:** A variable sans family carries interface hierarchy while the monospace role aligns telemetry values. Readable UI uses the compact 11px–18px range; smaller shared roles are reserved for dense telemetry, diagrams, and single-character glyphs. Larger visualization and instrument roles are reserved for primary driving data.
 
 ### Hierarchy
-- **Title** (18px / `--app-font-title`): Page and section titles.
-- **Headline** (16px / `--app-font-heading`): Card headings.
-- **Body** (15px / `--app-font-body`): Primary body copy and telemetry values.
-- **Subtext** (14px / `--app-font-subtext`): Descriptions, secondary content.
-- **Label** (12px / `--app-font-label`): Caps labels, badges, timestamps.
-- **Unit** (11px / `--app-font-unit`): Units and fine print — the smallest legible tier, used only for unit suffixes (mph, °C, psi).
+- **Title** (18px / `--text-app-title`): Page and section titles.
+- **Headline** (16px / `--text-app-heading`): Card headings.
+- **Body** (15px / `--text-app-body`): Primary body copy and telemetry values.
+- **Subtext** (14px / `--text-app-subtext`): Descriptions and secondary content.
+- **Detail** (13px / `--text-app-detail`): Compact table and control content.
+- **Label** (12px / `--text-app-label`): Caps labels, badges, and timestamps.
+- **Compact** (11px / `--text-app-compact`): Dense controls, units, and fine print; pair with `font-mono` for telemetry values.
+- **Caption** (10px / `--text-app-caption`): Dense telemetry annotations.
+- **Micro** (9px / `--text-app-micro`): Compact visualization labels and badges.
+- **Nano** (8px / `--text-app-nano`): Diagram labels with constrained geometry.
+- **Glyph** (7px / `--text-app-glyph`): Single-character indicators only.
+- **Visualization Value** (22px / `--text-app-visualization-value`): Secondary values rendered into visualization textures.
+- **Visualization Emphasis** (28px / `--text-app-visualization-emphasis`): Primary values rendered into visualization textures.
+- **Instrument Value** (40px / `--text-app-instrument-value`): Fixed-size cockpit readouts.
+- **Instrument Secondary** (`clamp(40px, 13vh, 112px)` / `--text-app-instrument-secondary`): Responsive speed and lap readouts.
+- **Instrument Primary** (`clamp(48px, 14vh, 128px)` / `--text-app-instrument-primary`): Responsive primary gear readout.
 
 ### Named Rules
-**The Compact Scale Rule.** Every size step is smaller than a typical marketing scale — this is a cockpit, not a landing page. Never introduce a size above 18px (`--app-font-title`) outside a genuinely new page-level heading need.
+**The Compact Scale Rule.** Use the shared `text-app-*` roles instead of one-off pixel sizes. Caption, micro, nano, and glyph are for constrained telemetry or visualization contexts, not general body copy. Sizes above 18px are limited to Tailwind's shared display scale and the explicit visualization or instrument roles; do not invent component-local display sizes.
 
 ## 4. Elevation
 
@@ -181,7 +220,7 @@ Tactile and confident: interactive elements shift color decisively on hover/acti
 ### Do:
 - **Do** keep `app-accent` as the only interface accent — telemetry data can use the semantic severity scale, chrome cannot.
 - **Do** convey elevation with the bg → surface → surface-alt tonal steps, never a shadow.
-- **Do** keep the type scale within 11px–18px; this is a cockpit, not a marketing page.
+- **Do** use the shared `text-app-*` scale; this is a cockpit, not a marketing page.
 - **Do** use the `translate-y-px` active-press shift on interactive elements to keep the "tactile and confident" feel.
 - **Do** pack real data into every surface — density is the point, not a flaw to soften.
 

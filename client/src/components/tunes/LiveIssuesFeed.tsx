@@ -21,7 +21,7 @@ export function LiveIssuesFeed() {
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="shrink-0 px-3 py-2 border-b border-app-border">
-        <h2 className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Issues Detected</h2>
+        <h2 className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Issues Detected</h2>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto">
         {rows.length === 0 ? (
@@ -31,8 +31,8 @@ export function LiveIssuesFeed() {
             {rows.map(({ lapNumber, issue }, i) => (
               <li key={`${lapNumber}-${issue.kind}-${issue.corner ?? ""}-${i}`} className="flex items-start gap-2 px-3 py-1.5">
                 <span className={`mt-1 size-2 shrink-0 rounded-full ${SEVERITY_DOT[issue.severity]}`} />
-                <span className="shrink-0 text-[10px] font-mono text-app-text-muted tabular-nums w-8">L{lapNumber}</span>
-                {issue.corner && <span className="shrink-0 text-[10px] font-mono text-app-text-secondary w-8">{issue.corner}</span>}
+                <span className="shrink-0 text-app-caption font-mono text-app-text-muted tabular-nums w-8">L{lapNumber}</span>
+                {issue.corner && <span className="shrink-0 text-app-caption font-mono text-app-text-secondary w-8">{issue.corner}</span>}
                 <span className="text-xs text-app-text leading-snug">{issue.detail}</span>
               </li>
             ))}

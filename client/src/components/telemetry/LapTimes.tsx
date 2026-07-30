@@ -24,15 +24,15 @@ export function LapTimes({ packet, sectors }: LapTimesProps) {
     <div className="space-y-1">
       <div className="flex gap-3">
         <div className="w-fit">
-          <div className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.telemetry_current()}</div>
+          <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.telemetry_current()}</div>
           <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">{formatLapTime(packet.CurrentLap)}</div>
         </div>
         <div className="w-fit">
-          <div className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.telemetry_est_lap()}</div>
+          <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.telemetry_est_lap()}</div>
           <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">{formatLapTime(sectors?.estimatedLap ?? 0)}</div>
         </div>
         <div className="w-fit">
-          <div className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.label_delta()}</div>
+          <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.label_delta()}</div>
           <div className={`text-3xl font-mono font-bold tabular-nums leading-none ${deltaToBest === 0 ? "text-app-text-dim" : deltaColor}`}>
             {deltaToBest === 0 ? "--:--.---" : `${deltaToBest <= 0 ? "" : "+"}${deltaToBest.toFixed(3)}`}
           </div>
@@ -40,11 +40,11 @@ export function LapTimes({ packet, sectors }: LapTimesProps) {
       </div>
       <div className="flex gap-3">
         <div className="w-fit">
-          <div className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.telemetry_last()}</div>
+          <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.telemetry_last()}</div>
           <div className="text-xl font-mono font-bold text-app-text tabular-nums leading-none">{formatLapTime(packet.LastLap)}</div>
         </div>
         <div className="w-fit">
-          <div className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.label_best()}</div>
+          <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.label_best()}</div>
         <div className="text-xl font-mono font-bold text-(--lap-pace-best) tabular-nums leading-none">{formatLapTime(packet.BestLap)}</div>
         </div>
       </div>

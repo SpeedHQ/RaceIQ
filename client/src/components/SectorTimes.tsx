@@ -160,11 +160,11 @@ export function SectorTimes({ sectors }: { sectors: LiveSectorData | null }) {
                 )}
               </div>
               <div className="flex justify-between mt-1">
-                <span className="text-[10px] text-app-text-muted">{m.label_last()}</span>
+                <span className="text-app-caption text-app-text-muted">{m.label_last()}</span>
                 <span className="text-sm font-mono font-bold text-app-text-secondary tabular-nums">{last > 0 ? formatLapTime(last) : "-"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[10px]" style={{ color: "var(--lap-record)" }}>{m.label_best()}</span>
+                <span className="text-app-caption" style={{ color: "var(--lap-record)" }}>{m.label_best()}</span>
                 <span className="text-sm font-mono font-bold tabular-nums" style={{ color: "var(--lap-record)" }}>{best > 0 ? formatLapTime(best) : "-"}</span>
               </div>
             </div>

@@ -71,7 +71,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
   return (
     <div className="px-3 py-2 border-b border-app-border bg-app-surface/50 shrink-0">
       <div className="flex items-center gap-3 mb-2">
-        <span className="text-[10px] text-app-text-muted">Lap {lapNumber}</span>
+        <span className="text-app-caption text-app-text-muted">Lap {lapNumber}</span>
         <span className="text-2xl font-mono font-bold tabular-nums text-app-accent">{formatLapTime(currentTime)}</span>
         <span className="text-sm font-mono tabular-nums text-app-text-secondary">/ {formatLapTime(totalTime)}</span>
         {sectorTimes &&
@@ -84,12 +84,12 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
                 style={{ ["--local-sector-color" as string]: SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length] }}
               >
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length] }} />
-                <span className="text-[10px] font-semibold text-app-text-muted">{name}</span>
+                <span className="text-app-caption font-semibold text-app-text-muted">{name}</span>
                 <span className={`text-xs font-mono font-bold tabular-nums ${isActive ? "text-app-text" : "text-app-text-secondary"}`}>{formatLapTime(sectorTimes.times[i])}</span>
               </div>
             );
           })}
-        <span className="text-[10px] font-mono text-app-text-dim ml-auto">
+        <span className="text-app-caption font-mono text-app-text-dim ml-auto">
           Packet {cursorIdx + 1}/{totalPackets}
         </span>
       </div>
@@ -108,7 +108,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
               type="button"
               key={s}
               onClick={() => onSpeedChange(s)}
-              className={`px-1.5 py-0.5 text-[10px] font-mono rounded transition-colors ${
+              className={`px-1.5 py-0.5 text-app-caption font-mono rounded transition-colors ${
                 playbackSpeed === s ? "bg-app-accent text-app-on-filled" : "bg-app-surface-alt text-app-text-secondary hover:bg-app-surface-hover hover:text-app-text"
               }`}
             >

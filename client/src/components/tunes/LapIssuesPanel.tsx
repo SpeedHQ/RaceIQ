@@ -37,7 +37,7 @@ function LapIssuesEntry({ lap }: { lap: LapMeta }) {
 
   return (
     <div className="border border-app-border rounded p-2">
-      <div className="text-[11px] text-app-text-muted uppercase tracking-wider mb-1">
+      <div className="text-app-compact text-app-text-muted uppercase tracking-wider mb-1">
         Lap {lap.lapNumber} — {lap.lapTime.toFixed(3)}s
       </div>
       {isLoading ? (

@@ -781,7 +781,7 @@ export function StepConnection() {
             </li>
             <li>{m.ob_packet_format_car_dash()}</li>
           </ol>
-          <p className="mt-2 text-[10px] text-app-text-muted/70">{m.ob_connection_forza_note()}</p>
+          <p className="mt-2 text-app-caption text-app-text-muted/70">{m.ob_connection_forza_note()}</p>
         </div>
       </details>
 
@@ -802,7 +802,7 @@ export function StepConnection() {
             <li>{m.ob_udp_send_rate_short()}</li>
             <li>{m.setupguide_udp_format()}</li>
           </ol>
-          <p className="mt-2 text-[10px] text-app-text-muted/70">{m.ob_connection_f1_note()}</p>
+          <p className="mt-2 text-app-caption text-app-text-muted/70">{m.ob_connection_f1_note()}</p>
         </div>
       </details>
 

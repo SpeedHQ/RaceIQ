@@ -62,21 +62,21 @@ export function CurrentLapStats({ packet }: Props) {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-                    <span className="text-[10px] font-semibold text-app-text-secondary">{name}</span>
+                    <span className="text-app-caption font-semibold text-app-text-secondary">{name}</span>
                   </div>
                   <span className={`text-sm font-mono font-bold tabular-nums ${isActive ? "text-app-text" : "text-app-text"}`}>{current > 0 ? formatLapTime(current) : "--:--.---"}</span>
                 </div>
                 <div className="flex items-center justify-between mt-0.5">
                   <div className="flex gap-3">
-                    <span className="text-[9px] text-app-text-muted">
+                    <span className="text-app-micro text-app-text-muted">
                       {m.telemetry_last()} <span className="font-mono text-app-text-secondary">{last > 0 ? formatLapTime(last) : "-"}</span>
                     </span>
-                    <span className="text-[9px]" style={{ color: "var(--lap-record)" }}>
+                    <span className="text-app-micro" style={{ color: "var(--lap-record)" }}>
                       {m.label_best()} <span className="font-mono">{best > 0 ? formatLapTime(best) : "-"}</span>
                     </span>
                   </div>
                   {delta && (
-                    <span className="text-[9px] font-mono font-bold" style={{ color: deltaColor }}>
+                    <span className="text-app-micro font-mono font-bold" style={{ color: deltaColor }}>
                       {delta}
                     </span>
                   )}
@@ -87,10 +87,10 @@ export function CurrentLapStats({ packet }: Props) {
 
           {/* Last/Best total */}
           <div className="flex justify-between pt-1 border-t border-app-border/50">
-            <span className="text-[9px] text-app-text-muted">
+            <span className="text-app-micro text-app-text-muted">
               {m.telemetry_last()} <span className="font-mono text-app-text-secondary">{sectors.lastLapTime > 0 ? formatLapTime(sectors.lastLapTime) : "-"}</span>
             </span>
-            <span className="text-[9px]" style={{ color: "var(--lap-record)" }}>
+            <span className="text-app-micro" style={{ color: "var(--lap-record)" }}>
               {m.label_best()} <span className="font-mono">{theoreticalBest > 0 ? formatLapTime(theoreticalBest) : "-"}</span>
             </span>
           </div>

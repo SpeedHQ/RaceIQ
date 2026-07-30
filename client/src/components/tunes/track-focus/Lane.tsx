@@ -79,7 +79,7 @@ export function Lane({ height = 100, domain, cornerFracs, cursorFrac, onCursorFr
       </svg>
       {tooltip && hoverFrac != null && (
         <div
-          className="absolute z-10 pointer-events-none bg-app-surface border border-app-border rounded px-2 py-1.5 shadow-lg text-[11px]"
+          className="absolute z-10 pointer-events-none bg-app-surface border border-app-border rounded px-2 py-1.5 shadow-lg text-app-compact"
           style={{
             left: `${hoverFrac * 100}%`,
             top: 0,

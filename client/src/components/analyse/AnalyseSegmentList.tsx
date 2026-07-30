@@ -76,13 +76,13 @@ export const AnalyseSegmentList = memo(function AnalyseSegmentList({ telemetry, 
   }, [segmentData, cursorIdx]);
 
   if (!segmentTimes) {
-    return <div className="text-[10px] text-app-text-dim">{m.analyse_no_segment_data()}</div>;
+    return <div className="text-app-caption text-app-text-dim">{m.analyse_no_segment_data()}</div>;
   }
 
   return (
     <div className="space-y-0.5">
       {segmentTimes.map((seg, i) => (
-        <div key={i} className={`flex items-center justify-between px-1.5 py-1 rounded text-[11px] font-mono ${seg.active ? "bg-app-surface-alt ring-1 ring-inset ring-app-text-dim" : ""}`}>
+        <div key={i} className={`flex items-center justify-between px-1.5 py-1 rounded text-app-compact font-mono ${seg.active ? "bg-app-surface-alt ring-1 ring-inset ring-app-text-dim" : ""}`}>
           <div className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: seg.type === "corner" ? "var(--track-corner-marker)" : "var(--track-straight-marker)" }} />
             <span className={seg.active ? "text-app-text" : "text-app-text-secondary"}>{seg.name}</span>

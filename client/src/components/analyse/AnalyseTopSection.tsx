@@ -99,11 +99,11 @@ export function AnalyseTopSection({
         <div className="flex flex-wrap items-center gap-3 mb-2 pb-2 border-b border-app-border">
           <div className="flex items-center gap-1">
               <div className="w-3 h-1.5 rounded-sm bg-(--telemetry-ers-deployed)" />
-            <span className="text-[9px] text-app-text-muted">{m.label_corner()}</span>
+            <span className="text-app-micro text-app-text-muted">{m.label_corner()}</span>
           </div>
           <div className="flex items-center gap-1">
               <div className="w-3 h-1.5 rounded-sm bg-(--telemetry-ers-store)" />
-            <span className="text-[9px] text-app-text-muted">{m.analyse_straight()}</span>
+            <span className="text-app-micro text-app-text-muted">{m.analyse_straight()}</span>
           </div>
         </div>
         {/* Segment list */}

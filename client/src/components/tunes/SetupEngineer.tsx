@@ -165,7 +165,7 @@ export function SetupEngineerResult({ state }: { state: SetupEngineerState }) {
               picks when the LLM engine ran. */}
           {result.rulesIntents && result.rulesIntents.length > 0 && (
             <div className="border-t border-app-border pt-2 space-y-1">
-              <div className="text-[11px] text-app-text-muted uppercase tracking-wider">Deterministic (LLM-free) recommendation</div>
+              <div className="text-app-compact text-app-text-muted uppercase tracking-wider">Deterministic (LLM-free) recommendation</div>
               <ul className="space-y-1">
                 {result.rulesIntents.map((it, i) => (
                   <li key={`rules-${it.component}-${i}`} className="text-xs text-app-text">
@@ -189,7 +189,7 @@ export function SetupEngineerResult({ state }: { state: SetupEngineerState }) {
           {/* Save-as: write the applied setup to a new, user-named file. */}
           {canApply && (
             <div className="border-t border-app-border pt-2 space-y-1.5">
-              <div className="text-[11px] text-app-text-muted uppercase tracking-wider">Save as new setup</div>
+              <div className="text-app-compact text-app-text-muted uppercase tracking-wider">Save as new setup</div>
               <div className="flex items-center gap-1.5">
                 <input
                   value={saveAs}
@@ -207,7 +207,7 @@ export function SetupEngineerResult({ state }: { state: SetupEngineerState }) {
                   {isPending ? "Saving…" : "Apply"}
                 </button>
               </div>
-              <div className="text-[11px] text-app-text-dim">Creates a new file next to the base setup — the original is untouched.</div>
+              <div className="text-app-compact text-app-text-dim">Creates a new file next to the base setup — the original is untouched.</div>
             </div>
           )}
 
@@ -251,7 +251,7 @@ function DetectedFindings({ symptoms }: { symptoms: any }) {
   const findings = deriveFindings(symptoms);
   return (
     <div className="space-y-1">
-      <div className="text-[11px] text-app-text-muted uppercase tracking-wider">Detected from telemetry</div>
+      <div className="text-app-compact text-app-text-muted uppercase tracking-wider">Detected from telemetry</div>
       {findings.length === 0 ? (
         <div className="text-xs text-app-text-dim">No handling or tyre issues detected in this lap.</div>
       ) : (

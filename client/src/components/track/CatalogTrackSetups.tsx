@@ -233,9 +233,9 @@ export function CatalogTrackSetups({ gameId, trackName, trackVariant, trackOrdin
 
         <div className="flex-1 min-h-0 overflow-y-auto rounded-lg border border-app-border/20">
           <div className="flex items-center gap-1.5 px-2 py-1 bg-app-surface-alt/50 border-b border-app-border/20 sticky top-0 z-10">
-            <span className="text-[9px] text-app-text-dim uppercase w-4 text-right shrink-0">#</span>
-            <span className="text-[9px] text-app-text-dim uppercase flex-1">{m.catalogtracksetups_name_car()}</span>
-            <span className="text-[9px] text-app-text-dim uppercase text-center">Cat</span>
+            <span className="text-app-micro text-app-text-dim uppercase w-4 text-right shrink-0">#</span>
+            <span className="text-app-micro text-app-text-dim uppercase flex-1">{m.catalogtracksetups_name_car()}</span>
+            <span className="text-app-micro text-app-text-dim uppercase text-center">Cat</span>
           </div>
           {setups.map((t, i) => {
             const badge = CATEGORY_BADGE[t.category] ?? DEFAULT_BADGE;
@@ -248,12 +248,12 @@ export function CatalogTrackSetups({ gameId, trackName, trackVariant, trackOrdin
                   selected?.id === t.id ? "bg-app-accent/10" : "hover:bg-app-surface-hover/30"
                 }`}
               >
-                <span className="text-app-unit text-app-text-dim font-mono w-4 text-right shrink-0">{i + 1}</span>
+                <span className="text-app-compact text-app-text-dim font-mono w-4 text-right shrink-0">{i + 1}</span>
                 <div className="flex-1 min-w-0 flex items-center gap-1">
-                  <span className="text-app-unit font-medium text-app-text truncate">{t.name}</span>
-                  <span className="text-[9px] text-app-text-dim truncate">({carName(t.carOrdinal)})</span>
+                  <span className="text-app-compact font-medium text-app-text truncate">{t.name}</span>
+                  <span className="text-app-micro text-app-text-dim truncate">({carName(t.carOrdinal)})</span>
                 </div>
-                <span className={`text-[8px] px-1 py-0.5 rounded font-bold shrink-0 ${badge.cls}`} title={t.category}>
+                <span className={`text-app-nano px-1 py-0.5 rounded font-bold shrink-0 ${badge.cls}`} title={t.category}>
                   {badge.label}
                 </span>
               </button>
@@ -267,7 +267,7 @@ export function CatalogTrackSetups({ gameId, trackName, trackVariant, trackOrdin
         <div className="flex-1 min-w-0 overflow-y-auto space-y-3">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-app-body font-bold text-app-text">{selected.name}</span>
-            <span className="text-app-unit text-app-text-secondary">
+            <span className="text-app-compact text-app-text-secondary">
               {carName(selected.carOrdinal)}
               {selected.sourceLabel && ` · ${selected.sourceLabel}`}
             </span>

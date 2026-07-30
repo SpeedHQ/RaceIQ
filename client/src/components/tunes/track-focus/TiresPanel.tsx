@@ -188,7 +188,7 @@ function TireMetricSection({
 
   return (
     <div ref={wrapRef} className="space-y-2">
-      <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">{cfg.title}</div>
+      <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">{cfg.title}</div>
       <svg viewBox={`0 0 ${bw} ${H}`} width="100%" height={H} preserveAspectRatio="none">
         <rect x={x0} y={y0} width={x1 - x0} height={y1 - y0} fill="var(--app-surface-alt)" fillOpacity={0.35} rx={4} />
         {cfg.refLines?.map((t) => (
@@ -236,7 +236,7 @@ function TireMetricSection({
           );
         })}
       </svg>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-app-text-dim">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-app-compact text-app-text-dim">
         {CORNERS.map((c) => {
           const tr = trends[c.key];
           return (
@@ -259,7 +259,7 @@ function TireMetricSection({
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
-          className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-app-text-dim hover:text-app-text border border-app-border rounded px-2 py-1"
+          className="flex items-center gap-1.5 text-app-caption uppercase tracking-wider text-app-text-dim hover:text-app-text border border-app-border rounded px-2 py-1"
         >
           <span className={`inline-block transition-transform ${expanded ? "rotate-90" : ""}`}>▸</span>
           {expanded ? "Hide per-wheel detail" : "Show per-wheel detail"}
@@ -269,7 +269,7 @@ function TireMetricSection({
         lapsWithTrace.length > 0 &&
         CORNERS.map((c) => (
           <div key={c.key} className="space-y-1">
-            <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-app-text-dim">
+            <div className="flex items-center gap-2 text-app-caption uppercase tracking-wider text-app-text-dim">
               <span className="w-2.5 h-1.5 rounded-sm inline-block" style={{ background: c.color }} />
               {c.label} — {cfg.laneUnit}
             </div>

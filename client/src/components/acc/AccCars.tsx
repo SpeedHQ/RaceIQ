@@ -41,7 +41,7 @@ function BrandBadge({ brand }: { brand: string }) {
 
   return (
     <div data-car-brand={brand} className="brand-color-badge w-10 h-10 rounded-lg border flex items-center justify-center shrink-0">
-      <span className="text-[9px] font-black tracking-tight">{abbr}</span>
+      <span className="text-app-micro font-black tracking-tight">{abbr}</span>
     </div>
   );
 }
@@ -147,7 +147,7 @@ export function AccCars() {
                         }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-app-bg/60 via-transparent to-transparent" />
-                      <span className="catalog-category absolute bottom-2 right-2 text-[9px] font-bold px-1.5 py-0.5 rounded" data-catalog-category={car.class}>
+                      <span className="catalog-category absolute bottom-2 right-2 text-app-micro font-bold px-1.5 py-0.5 rounded" data-catalog-category={car.class}>
                         {car.class}
                       </span>
                     </div>
@@ -156,7 +156,7 @@ export function AccCars() {
                         <BrandBadge brand={brand} />
                         <div className="min-w-0 flex-1">
                           <div className="text-sm font-medium text-app-text leading-tight">{car.name}</div>
-                          <div className="text-[10px] text-app-text-dim mt-0.5">{brand}</div>
+                          <div className="text-app-caption text-app-text-dim mt-0.5">{brand}</div>
                         </div>
                       </div>
 

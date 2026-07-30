@@ -75,7 +75,7 @@ export function GearRatioChart({ ratios, finalDrive, topSpeedKph, topSpeedMph, m
               fontSize="7"
               fill="var(--app-text)"
               fillOpacity="0.6"
-              fontWeight="600"
+              fontWeight="var(--font-weight-semibold)"
             >
               {index + 1}
             </text>

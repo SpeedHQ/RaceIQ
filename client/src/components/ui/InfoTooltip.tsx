@@ -7,7 +7,7 @@ export function Tooltip({ children, content, position = "top" }: { children: Rea
     <span className="group/tip relative inline-flex items-center">
       {children}
       <span
-        className={`absolute left-0 ${posClass} w-max max-w-[280px] hidden group-hover/tip:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-[10px] text-app-text-secondary z-50 pointer-events-none leading-relaxed whitespace-normal`}
+        className={`absolute left-0 ${posClass} w-max max-w-[280px] hidden group-hover/tip:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-app-caption text-app-text-secondary z-50 pointer-events-none leading-relaxed whitespace-normal`}
       >
         {content}
       </span>
@@ -61,7 +61,7 @@ export function InfoTooltip({
         <Info className="w-3 h-3 text-app-text-dim" />
       </button>
       <span
-        className={`absolute left-0 ${posClass} ${widthClass} ${tapOpen ? "block" : "hidden group-hover/tip:block"} bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-[10px] text-app-text-secondary z-50 pointer-events-none normal-case tracking-normal leading-relaxed`}
+        className={`absolute left-0 ${posClass} ${widthClass} ${tapOpen ? "block" : "hidden group-hover/tip:block"} bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-app-caption text-app-text-secondary z-50 pointer-events-none normal-case tracking-normal leading-relaxed`}
       >
         {children}
       </span>

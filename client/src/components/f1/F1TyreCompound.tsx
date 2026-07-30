@@ -10,7 +10,7 @@ export function F1TyreCompound({ f1 }: { f1: F1ExtendedData }) {
       </div>
       <div className="flex flex-col">
         <span className="text-xs text-app-text-secondary font-medium capitalize">{compound}</span>
-        <span className="text-[10px] text-app-text-dim">
+        <span className="text-app-caption text-app-text-dim">
           {f1.tyreAge} lap{f1.tyreAge !== 1 ? "s" : ""} old
         </span>
       </div>

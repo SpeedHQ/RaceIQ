@@ -93,10 +93,10 @@ export function BodyAttitude({ packet }: { packet: TelemetryPacket }) {
           {/* Roll pointer at top */}
           <polygon points="25,3 23,6 27,6" fill="var(--app-text)" fillOpacity={0.5} />
           {/* Yaw heading at top */}
-          <text x={25} y={2.5} textAnchor="middle" fill="var(--app-text-dim)" fontSize={5} fontFamily="monospace">
+          <text x={25} y={2.5} textAnchor="middle" fill="var(--app-text-dim)" fontSize={5} fontFamily="var(--font-mono)">
             {yaw.toFixed(0)}°
           </text>
-          <text x={25} y={48} textAnchor="middle" fill="var(--app-text-dim)" fontSize={7} fontFamily="monospace">
+          <text x={25} y={48} textAnchor="middle" fill="var(--app-text-dim)" fontSize={7} fontFamily="var(--font-mono)">
             R{roll.toFixed(0)}° P{pitch.toFixed(0)}°
           </text>
         </svg>

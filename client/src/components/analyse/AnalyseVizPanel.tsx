@@ -45,7 +45,7 @@ export function AnalyseVizPanel({
         <button
           type="button"
           onClick={() => onVizModeChange("2d")}
-          className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
+          className={`flex-1 py-1.5 text-app-caption uppercase tracking-wider font-semibold transition-colors ${
             vizMode === "2d" ? "text-app-text border-b-2 border-app-accent" : "text-app-text-muted hover:text-app-text"
           }`}
         >
@@ -54,7 +54,7 @@ export function AnalyseVizPanel({
         <button
           type="button"
           onClick={() => onVizModeChange("3d")}
-          className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
+          className={`flex-1 py-1.5 text-app-caption uppercase tracking-wider font-semibold transition-colors ${
             vizMode === "3d" ? "text-app-text border-b-2 border-app-accent" : "text-app-text-muted hover:text-app-text"
           }`}
         >

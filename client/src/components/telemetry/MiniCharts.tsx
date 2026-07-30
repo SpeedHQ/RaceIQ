@@ -61,7 +61,7 @@ export function FourLineChart({
     const maxLen = GRIP_MAX_SAMPLES;
 
     // Y axis: min/max labels
-    ctx.font = "7px monospace";
+    ctx.font = "var(--text-app-glyph) var(--font-mono)";
     ctx.fillStyle = "var(--app-text-dim)";
     ctx.textAlign = "left";
     ctx.fillText(`${computedMax.toFixed(0)}${unit ?? ""}`, 1, 8);
@@ -96,10 +96,10 @@ export function FourLineChart({
   return (
     <div>
       <div className="flex items-center justify-between mb-0.5">
-        <span className="text-[9px] text-app-text-muted font-semibold uppercase">{label}</span>
+        <span className="text-app-micro text-app-text-muted font-semibold uppercase">{label}</span>
         <div className="flex gap-2">
           {TIRE_LABELS.map((l, i) => (
-            <span key={l} className="text-[8px] font-mono" style={{ color: TIRE_COLORS[i] }}>
+            <span key={l} className="text-app-nano font-mono" style={{ color: TIRE_COLORS[i] }}>
               {l}
             </span>
           ))}
@@ -111,7 +111,7 @@ export function FourLineChart({
         </div>
         <div className="flex flex-col justify-between w-10 shrink-0" style={{ height }}>
           {TIRE_LABELS.map((l, i) => (
-            <span key={l} className="text-[10px] font-mono font-bold tabular-nums text-right" style={{ color: TIRE_COLORS[i] }}>
+            <span key={l} className="text-app-caption font-mono font-bold tabular-nums text-right" style={{ color: TIRE_COLORS[i] }}>
               {currentVals[i].toFixed(1)}
             </span>
           ))}
@@ -174,13 +174,13 @@ export function SingleLineChart({ data, label, color, maxY, height = 50 }: { dat
 
   return (
     <div>
-      <span className="text-[9px] text-app-text-muted font-semibold uppercase">{label}</span>
+      <span className="text-app-micro text-app-text-muted font-semibold uppercase">{label}</span>
       <div className="flex gap-1.5">
         <div className="flex-1" ref={containerRef}>
           <canvas ref={canvasRef} style={{ width: "100%", height }} className="rounded bg-app-surface/40" />
         </div>
         <div className="flex items-center w-12 shrink-0">
-          <span className="text-[10px] font-mono font-bold tabular-nums text-right w-full" style={{ color }}>
+          <span className="text-app-caption font-mono font-bold tabular-nums text-right w-full" style={{ color }}>
             {currentVal.toFixed(0)}
           </span>
         </div>
@@ -267,12 +267,12 @@ export function DualLineChart({
   return (
     <div>
       <div className="flex items-center justify-between mb-0.5">
-        <span className="text-[9px] text-app-text-muted font-semibold uppercase">{label}</span>
+        <span className="text-app-micro text-app-text-muted font-semibold uppercase">{label}</span>
         <div className="flex gap-2">
-          <span className="text-[8px] font-mono" style={{ color: color1 }}>
+          <span className="text-app-nano font-mono" style={{ color: color1 }}>
             {label1}
           </span>
-          <span className="text-[8px] font-mono" style={{ color: color2 }}>
+          <span className="text-app-nano font-mono" style={{ color: color2 }}>
             {label2}
           </span>
         </div>
@@ -282,10 +282,10 @@ export function DualLineChart({
           <canvas ref={canvasRef} style={{ width: "100%", height }} className="rounded bg-app-surface/40" />
         </div>
         <div className="flex flex-col justify-between w-10 shrink-0" style={{ height }}>
-          <span className="text-[10px] font-mono font-bold tabular-nums text-right" style={{ color: color1 }}>
+          <span className="text-app-caption font-mono font-bold tabular-nums text-right" style={{ color: color1 }}>
             {val1.toFixed(0)}
           </span>
-          <span className="text-[10px] font-mono font-bold tabular-nums text-right" style={{ color: color2 }}>
+          <span className="text-app-caption font-mono font-bold tabular-nums text-right" style={{ color: color2 }}>
             {val2.toFixed(0)}
           </span>
         </div>

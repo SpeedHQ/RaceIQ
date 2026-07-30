@@ -32,12 +32,12 @@ export function AnalyseSteeringOverlay({ packet }: Props) {
           }}
         />
       </div>
-      <span className="text-[9px] font-mono text-app-text-secondary tabular-nums">
+      <span className="text-app-micro font-mono text-app-text-secondary tabular-nums">
         {packet.Steer > 0 ? "R" : packet.Steer < 0 ? "L" : ""} {Math.abs(steerDeg).toFixed(0)}&deg;
       </span>
       <div className="flex gap-1 items-end" style={{ height: 60 }}>
         <div className="flex flex-col items-center gap-0.5">
-          <span className="text-[9px] font-mono font-bold tabular-nums" style={{ color: brakeBarColor(packet.Brake) }}>
+          <span className="text-app-micro font-mono font-bold tabular-nums" style={{ color: brakeBarColor(packet.Brake) }}>
             {((packet.Brake / 255) * 100).toFixed(0)}
           </span>
           <div className="w-4 bg-app-surface-alt/60 rounded-sm overflow-hidden relative" style={{ height: 40 }}>
@@ -46,16 +46,16 @@ export function AnalyseSteeringOverlay({ packet }: Props) {
               style={{ height: `${(packet.Brake / 255) * 100}%`, background: `linear-gradient(to top, var(--brake-warm), ${brakeBarColor(packet.Brake)})` }}
             />
           </div>
-          <span className="text-[7px] text-app-text-muted">B</span>
+          <span className="text-app-glyph text-app-text-muted">B</span>
         </div>
         <div className="flex flex-col items-center gap-0.5">
-          <span className="text-[9px] font-mono font-bold tabular-nums" style={{ color: "var(--ch-throttle)" }}>
+          <span className="text-app-micro font-mono font-bold tabular-nums" style={{ color: "var(--ch-throttle)" }}>
             {((packet.Accel / 255) * 100).toFixed(0)}
           </span>
           <div className="w-4 bg-app-surface-alt/60 rounded-sm overflow-hidden relative" style={{ height: 40 }}>
             <div className="absolute bottom-0 w-full rounded-sm transition-all" style={{ backgroundColor: "var(--ch-throttle)", height: `${(packet.Accel / 255) * 100}%` }} />
           </div>
-          <span className="text-[7px] text-app-text-muted">T</span>
+          <span className="text-app-glyph text-app-text-muted">T</span>
         </div>
       </div>
     </div>

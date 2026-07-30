@@ -297,7 +297,7 @@ export function TrackDebugPanel({
         const mid = Math.floor((start + end) / 2);
         const [lx, ly] = toCanvas(centerPts[mid].x, centerPts[mid].z);
         const label = labels[segIdx];
-        ctx.font = "bold 10px monospace";
+        ctx.font = "var(--font-weight-bold) var(--text-app-caption) var(--font-mono)";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillStyle = "var(--app-surface)";
@@ -381,7 +381,7 @@ export function TrackDebugPanel({
     ctx.stroke();
 
     // Legend
-    ctx.font = "11px monospace";
+    ctx.font = "var(--text-app-compact) var(--font-mono)";
     ctx.textAlign = "left";
     const legendY = h - 10;
     ctx.fillStyle = "var(--track-centerline)";
@@ -454,7 +454,7 @@ export function TrackDebugPanel({
                 setZoom(1);
                 setPan({ x: 0, z: 0 });
               }}
-              className="w-7 h-7 text-app-unit bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
+              className="w-7 h-7 text-app-compact bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
             >
               {zoom % 1 === 0 ? `${zoom}x` : zoom.toFixed(1) + "x"}
             </button>
@@ -464,7 +464,7 @@ export function TrackDebugPanel({
               <div className="h-px" />
               <button
                 onClick={() => setOverlayMode((m) => (m === "segments" ? "sectors" : "segments"))}
-                className={`px-1.5 py-1 text-[9px] font-mono rounded border transition-colors ${
+                className={`px-1.5 py-1 text-app-micro font-mono rounded border transition-colors ${
                   overlayMode === "sectors" ? "map-sectors-active" : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
                 }`}
               >
@@ -474,7 +474,7 @@ export function TrackDebugPanel({
           )}
         </div>
         {(trackLengthKm || corners || straights || trackCreatedAt) && (
-          <div className="absolute bottom-2 left-2 flex items-center gap-2.5 text-[10px] font-mono text-app-text-dim bg-app-surface/70 backdrop-blur-sm rounded px-2 py-1 pointer-events-none">
+          <div className="absolute bottom-2 left-2 flex items-center gap-2.5 text-app-caption font-mono text-app-text-dim bg-app-surface/70 backdrop-blur-sm rounded px-2 py-1 pointer-events-none">
             {(trackLengthKm ?? 0) > 0 && <span>{trackLengthKm} km</span>}
             {(corners ?? 0) > 0 && (
               <>

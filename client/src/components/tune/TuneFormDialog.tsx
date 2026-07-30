@@ -290,13 +290,13 @@ export function TuneFormDialog({
               <button
                 type="button"
                 onClick={() => setJsonMode(!jsonMode)}
-                className={`text-[10px] font-semibold uppercase px-2 py-1 rounded transition-colors ${
+                className={`text-app-caption font-semibold uppercase px-2 py-1 rounded transition-colors ${
                   jsonMode ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"
                 }`}
               >
                 {m.tune_json_import()}
               </button>
-              {!jsonMode && <span className="text-[10px] text-app-text-muted">{m.tune_or_fill_sections()}</span>}
+              {!jsonMode && <span className="text-app-caption text-app-text-muted">{m.tune_or_fill_sections()}</span>}
             </div>
 
             {jsonMode ? (

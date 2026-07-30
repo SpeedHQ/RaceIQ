@@ -68,7 +68,7 @@ export function SearchMultiSelect<K extends string | number>({
             setOpen((o) => !o);
             setSearch("");
           }}
-          className="text-sm md:text-app-unit px-3 py-2 md:px-2 md:py-0.5 rounded border border-app-border-input text-app-text-secondary hover:text-app-text flex items-center gap-1.5"
+          className="text-sm md:text-app-compact px-3 py-2 md:px-2 md:py-0.5 rounded border border-app-border-input text-app-text-secondary hover:text-app-text flex items-center gap-1.5"
         >
           {buttonLabel}
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -76,7 +76,7 @@ export function SearchMultiSelect<K extends string | number>({
           </svg>
         </button>
         {onClear && (
-          <button onClick={onClear} className="text-sm md:text-app-unit text-app-text-dim hover:text-app-text px-2 py-2 md:px-1 md:py-0.5">
+          <button onClick={onClear} className="text-sm md:text-app-compact text-app-text-dim hover:text-app-text px-2 py-2 md:px-1 md:py-0.5">
             ✕
           </button>
         )}

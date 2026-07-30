@@ -85,10 +85,10 @@ export function CurbDebugSection({
       >
         {extracting ? "Extracting..." : "Extract Curbs from Laps"}
       </button>
-      <p className="text-[9px] text-app-text-dim mt-1">Scans all stored laps for rumble strip data and recalibrates track boundaries.</p>
+      <p className="text-app-micro text-app-text-dim mt-1">Scans all stored laps for rumble strip data and recalibrates track boundaries.</p>
 
       {result && (
-        <div className="mt-2 p-2 rounded bg-app-bg/80 border border-app-border text-[10px] font-mono space-y-0.5">
+        <div className="mt-2 p-2 rounded bg-app-bg/80 border border-app-border text-app-caption font-mono space-y-0.5">
           <div>
             Laps scanned: <span className="text-app-text">{result.lapsScanned}</span>
           </div>

@@ -109,12 +109,12 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
     <div className="space-y-3">
       {withLatG.length === 0 ? (
         <div>
-          <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Lateral g</div>
-          <div className="h-[100px] flex items-center justify-center rounded bg-app-surface border border-app-border text-[11px] text-app-text-dim">No acceleration data for this game</div>
+          <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Lateral g</div>
+          <div className="h-[100px] flex items-center justify-center rounded bg-app-surface border border-app-border text-app-compact text-app-text-dim">No acceleration data for this game</div>
         </div>
       ) : (
         <div>
-          <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Lateral g</div>
+          <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Lateral g</div>
           <Lane
             bgFill="transparent"
             height={100}
@@ -156,12 +156,12 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
 
       {withLongG.length === 0 ? (
         <div>
-          <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Longitudinal g</div>
-          <div className="h-[100px] flex items-center justify-center rounded bg-app-surface border border-app-border text-[11px] text-app-text-dim">No acceleration data for this game</div>
+          <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Longitudinal g</div>
+          <div className="h-[100px] flex items-center justify-center rounded bg-app-surface border border-app-border text-app-compact text-app-text-dim">No acceleration data for this game</div>
         </div>
       ) : (
         <div>
-          <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Longitudinal g (+ accel / − brake)</div>
+          <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Longitudinal g (+ accel / − brake)</div>
           <Lane
             bgFill="transparent"
             height={100}
@@ -203,12 +203,12 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
 
       {withSlip.length === 0 ? (
         <div>
-          <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Combined tyre slip</div>
-          <div className="h-[100px] flex items-center justify-center rounded bg-app-surface border border-app-border text-[11px] text-app-text-dim">No combined-slip data for this game</div>
+          <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Combined tyre slip</div>
+          <div className="h-[100px] flex items-center justify-center rounded bg-app-surface border border-app-border text-app-compact text-app-text-dim">No combined-slip data for this game</div>
         </div>
       ) : (
         <div className="space-y-1">
-          <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Combined tyre slip</div>
+          <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Combined tyre slip</div>
           <Lane
             bgFill="transparent"
             height={100}
@@ -241,7 +241,7 @@ export function GripPanel({ traces, bestLapId, cornerFracs, corners = [], cursor
               </>
             )}
           </Lane>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-app-text-dim">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-app-compact text-app-text-dim">
             {SLIP_CORNERS.map((c) => (
               <span key={c.key} className="inline-flex items-center gap-1.5">
                 <span className="w-2.5 h-1.5 rounded-sm inline-block" style={{ background: c.color }} />

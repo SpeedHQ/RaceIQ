@@ -17,7 +17,7 @@ export function IbtTelemetryWarning({ missingVariables }: Props) {
         <summary className="cursor-pointer font-medium">
           Missing {channelLabel} ({missingVariables.length})
         </summary>
-      <p className="mt-1 break-words font-mono text-[11px] text-status-warning/80">{missingVariables.join(", ")}</p>
+      <p className="mt-1 break-words font-mono text-app-compact text-status-warning/80">{missingVariables.join(", ")}</p>
       </details>
     </div>
   );

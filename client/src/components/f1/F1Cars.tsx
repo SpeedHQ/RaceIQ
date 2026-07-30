@@ -358,7 +358,7 @@ export function F1Cars() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {Object.entries(regulations).map(([key, value]) => (
             <div key={key} className="bg-app-surface-alt/20 rounded-lg p-3">
-              <div className="text-[10px] text-app-text-dim uppercase tracking-wider mb-1">{key.replace(/([A-Z])/g, " $1").trim()}</div>
+              <div className="text-app-caption text-app-text-dim uppercase tracking-wider mb-1">{key.replace(/([A-Z])/g, " $1").trim()}</div>
               <div className="text-xs text-app-text/90 font-medium">{value}</div>
             </div>
           ))}
@@ -432,7 +432,7 @@ function TeamCard({ team }: { team: F1Team }) {
                 <span className="brand-color-text text-lg font-mono font-bold leading-none">{driver.number}</span>
                 <div>
                   <div className="text-sm font-medium text-app-text/90 leading-tight">{driver.name}</div>
-                  <div className="text-[10px] text-app-text-dim uppercase">{driver.nationality}</div>
+                  <div className="text-app-caption text-app-text-dim uppercase">{driver.nationality}</div>
                 </div>
               </div>
             </div>
@@ -446,7 +446,7 @@ function TeamCard({ team }: { team: F1Team }) {
             .map(({ key, label }) => (
               <div key={key} className="text-center">
                 <div className={`text-base font-mono font-bold leading-none ${getRatingColor(team.stats[key])}`}>{team.stats[key]}</div>
-                <div className="text-[9px] text-app-text-dim uppercase tracking-wider mt-1">{label}</div>
+                <div className="text-app-micro text-app-text-dim uppercase tracking-wider mt-1">{label}</div>
               </div>
             ))}
         </div>

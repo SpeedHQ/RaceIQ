@@ -43,11 +43,11 @@ export function RaceInfo({
           <div className="p-3">
             <div className="flex items-baseline gap-4 mb-2">
               <div>
-                <div className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.label_position()}</div>
+                <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.label_position()}</div>
                 <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">P{packet.RacePosition}</div>
               </div>
               <div>
-                <div className="text-[10px] text-app-text-muted uppercase tracking-wider">Lap</div>
+                <div className="text-app-caption text-app-text-muted uppercase tracking-wider">Lap</div>
                 <div className="text-3xl font-mono font-bold text-app-text tabular-nums leading-none">
                   {packet.LapNumber}
                   {totalLaps && totalLaps > 0 ? `/${totalLaps}` : ""}

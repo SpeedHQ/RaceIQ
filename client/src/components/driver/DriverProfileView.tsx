@@ -40,7 +40,7 @@ function FocusArea({ area, rank, detector, defaultOpen }: { area: DriverProfileO
     <Collapsible open={open} onOpenChange={setOpen}>
       <div className="rounded-lg bg-app-surface ring-1 ring-app-text/10">
         <CollapsibleTrigger className="flex w-full items-start gap-3 p-3 text-left">
-          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-app-text/10 text-[11px] font-semibold tabular-nums text-app-text">{rank}</span>
+          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-app-text/10 text-app-compact font-semibold tabular-nums text-app-text">{rank}</span>
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-medium text-app-text">{area.title}</span>
             <span className="mt-0.5 block text-xs text-app-text-muted">{detector ? `Seen on ${(detector.perLapFrequency * 100).toFixed(0)}% of laps` : "From your profile"}</span>
@@ -180,7 +180,7 @@ export function DriverProfileView({ fingerprint: fp, plan, cached = false, warni
                   overlapping windows, so a total would be double-counted
                   fiction. Say so where someone would be tempted to add up. */}
               {plan.focusAreas.some((a) => a.estimatedGainS !== undefined) && (
-                <p className="mt-2 text-[11px] text-app-text-muted/70">Time estimates are conservative and measured separately for each fault. They overlap, so don't add them up.</p>
+                <p className="mt-2 text-app-compact text-app-text-muted/70">Time estimates are conservative and measured separately for each fault. They overlap, so don't add them up.</p>
               )}
             </div>
 

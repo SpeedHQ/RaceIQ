@@ -12,7 +12,7 @@ function DimensionLabel({ position, text, color }: { position: [number, number, 
     canvas.height = 64;
     const ctx = getSemanticCanvasContext(canvas)!;
     ctx.clearRect(0, 0, 256, 64);
-    ctx.font = "bold 36px monospace";
+    ctx.font = "var(--font-weight-bold) var(--text-4xl) var(--font-mono)";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = color;

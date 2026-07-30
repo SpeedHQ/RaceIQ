@@ -66,7 +66,7 @@ export function AddBaseModal({
         <SetupFilePicker gameId={gameId} value={picked} onChange={setPicked} lockedCar={lockedCar} />
 
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Label (optional)</span>
+          <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Label (optional)</span>
           <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="base" maxLength={200} className="bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs" />
         </label>
 

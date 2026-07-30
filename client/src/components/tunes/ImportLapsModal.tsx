@@ -131,7 +131,7 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
           </div>
         ) : (
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Attach to</span>
+            <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Attach to</span>
             <select value={targetTestId} onChange={(e) => setTargetTestId(e.target.value)} className="bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs">
               <option value="">Session baseline (no specific version)</option>
               {tests.map((t) => (
@@ -150,7 +150,7 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
           </div>
         )}
 
-        <div className="flex items-center justify-between text-[11px] text-app-text-muted uppercase tracking-wider">
+        <div className="flex items-center justify-between text-app-compact text-app-text-muted uppercase tracking-wider">
           <span>Importable laps ({laps.length})</span>
           <div className="flex items-center gap-3 normal-case">
             {isF1 && (

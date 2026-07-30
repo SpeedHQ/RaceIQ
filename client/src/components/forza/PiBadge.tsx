@@ -14,7 +14,7 @@ export function piClass(pi: number): string {
 export function PiBadge({ pi, showNumber = true }: { pi: number; showNumber?: boolean }) {
   const cls = piClass(pi);
   return (
-    <span className="pi-class-badge text-[10px] font-bold px-1.5 py-0.5 rounded" data-pi-class={cls}>
+    <span className="pi-class-badge text-app-caption font-bold px-1.5 py-0.5 rounded" data-pi-class={cls}>
       {cls}
       {showNumber ? pi : ""}
     </span>

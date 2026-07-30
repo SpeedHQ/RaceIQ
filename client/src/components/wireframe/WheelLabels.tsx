@@ -128,7 +128,7 @@ export function WheelInfoCard({
     rows.forEach((row, i) => {
       const y = PAD_Y + i * ROW_H + ROW_H / 2;
       if (row.kind === "health") {
-        ctx.font = "bold 24px monospace";
+        ctx.font = "var(--font-weight-bold) var(--text-2xl) var(--font-mono)";
         const text = `${row.pct}%`;
         const metrics = ctx.measureText(text);
         const heartSize = 13;
@@ -140,11 +140,11 @@ export function WheelInfoCard({
         ctx.fillText(text, left + heartSize * 2 + 10, y);
         ctx.textAlign = "center";
       } else if (row.kind === "temp") {
-        ctx.font = "bold 28px monospace";
+        ctx.font = "var(--font-weight-bold) var(--text-app-visualization-emphasis) var(--font-mono)";
         ctx.fillStyle = row.color;
         ctx.fillText(row.text, CARD_W / 2, y);
       } else if (row.kind === "brake") {
-        ctx.font = "bold 24px monospace";
+        ctx.font = "var(--font-weight-bold) var(--text-2xl) var(--font-mono)";
         const metrics = ctx.measureText(row.text);
         const iconW = 36;
         const groupW = iconW + 8 + metrics.width;
@@ -155,11 +155,11 @@ export function WheelInfoCard({
         ctx.fillText(row.text, left + iconW + 8, y);
         ctx.textAlign = "center";
       } else if (row.kind === "pressure") {
-        ctx.font = "bold 22px monospace";
+        ctx.font = "var(--font-weight-bold) var(--text-app-visualization-value) var(--font-mono)";
         ctx.fillStyle = row.color;
         ctx.fillText(row.text, CARD_W / 2, y);
       } else if (row.kind === "wear") {
-        ctx.font = "bold 20px monospace";
+        ctx.font = "var(--font-weight-bold) var(--text-xl) var(--font-mono)";
         ctx.fillStyle = "var(--telemetry-wear)";
         ctx.fillText(row.text, CARD_W / 2, y);
       }

@@ -333,13 +333,13 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
             <Sparkles className="size-5 text-app-text-dim" />
             <div>
-              <p className="text-[11px] text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
-              <p className="text-[10px] text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
+              <p className="text-app-compact text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
+              <p className="text-app-caption text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
             </div>
             <button
               type="button"
               onClick={() => openSettings("ai")}
-              className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-[var(--ai-accent)] hover:bg-[var(--ai-accent-hover)] text-app-on-filled font-medium transition-colors"
+              className="flex items-center gap-1.5 text-app-compact px-3 py-1.5 rounded bg-[var(--ai-accent)] hover:bg-[var(--ai-accent-hover)] text-app-on-filled font-medium transition-colors"
             >
               {m.aipanel_set_up_ai()}
             </button>
@@ -355,7 +355,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               <Sparkles className="absolute inset-0 m-auto size-4 text-(--ai-accent)/60" />
             </div>
             <div className="text-center">
-              <p className="text-[11px] text-app-text-secondary font-medium">
+              <p className="text-app-compact text-app-text-secondary font-medium">
                 {analyseTool
                   ? `${m.aipanel_using_tool()} ${analyseTool}`
                   : analyseStatus === "generating"
@@ -364,8 +364,8 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                       ? m.aipanel_thinking()
                       : m.aipanel_preparing_model()}
               </p>
-              <p className="text-[10px] text-app-text-dim mt-1">{analyseStatus === "generating" ? m.aipanel_streaming_tokens() : m.aipanel_reviewing_data()}</p>
-              {!analyseStatus && <p className="text-[9px] text-app-text-dim mt-0.5">{m.aipanel_may_take()}</p>}
+              <p className="text-app-caption text-app-text-dim mt-1">{analyseStatus === "generating" ? m.aipanel_streaming_tokens() : m.aipanel_reviewing_data()}</p>
+              {!analyseStatus && <p className="text-app-micro text-app-text-dim mt-0.5">{m.aipanel_may_take()}</p>}
             </div>
             <div className="flex gap-1">
               <div className="size-1 rounded-full animate-pulse" style={{ backgroundColor: "var(--ai-accent)" }} />
@@ -379,8 +379,8 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         {aiConfigured && !analysis && !loading && !error && (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
             <Sparkles className="size-5" style={{ color: "var(--ai-accent)" }} />
-            <p className="text-[11px] text-app-text-muted">{m.aipanel_no_analysis()}</p>
-            <button type="button" onClick={() => fetchAnalysis(false)} className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled transition-colors">
+            <p className="text-app-compact text-app-text-muted">{m.aipanel_no_analysis()}</p>
+            <button type="button" onClick={() => fetchAnalysis(false)} className="flex items-center gap-1.5 text-app-compact px-3 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled transition-colors">
               <Sparkles className="size-3" />
               {m.aipanel_analyse_lap()}
             </button>
@@ -391,7 +391,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         {error && !loading && (
           <div className="flex justify-start">
             <div className="rounded-lg px-2.5 py-2 bg-status-danger/10 border border-status-danger/20">
-              <p className="text-[11px] text-status-danger">{error}</p>
+              <p className="text-app-compact text-status-danger">{error}</p>
               <Button variant="app-outline" size="app-sm" onClick={() => fetchAnalysis(false)} className="mt-1">
                 {m.label_retry()}
               </Button>

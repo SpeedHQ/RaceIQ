@@ -5,7 +5,7 @@
 
 export function SpeedRangeLegend() {
   return (
-    <div className="flex items-center gap-3 flex-wrap text-[10.5px] text-app-text-dim">
+    <div className="flex items-center gap-3 flex-wrap text-app-caption text-app-text-dim">
       <span className="uppercase tracking-wider">Speed range</span>
       <span className="flex items-center gap-1">
         <span className="inline-block w-[2px] h-3 bg-(--setup-range-limit) rounded-full" />

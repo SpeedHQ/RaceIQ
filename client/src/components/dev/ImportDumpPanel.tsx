@@ -177,7 +177,7 @@ export function ImportDumpPanel() {
                   <div key={lap.lapId} className="flex items-center gap-2 px-2 py-1.5 rounded bg-app-surface-alt text-app-text">
                     <div className="flex-1 min-w-0 text-xs font-mono">
                       <span className="text-app-text-muted">#{lap.lapNumber}</span> <span>{formatLapTime(lap.lapTime)}</span>
-                    {!lap.isValid && <span className="ml-2 px-1.5 py-0.5 rounded bg-status-danger/15 text-status-danger text-[10px]">invalid</span>}
+                    {!lap.isValid && <span className="ml-2 px-1.5 py-0.5 rounded bg-status-danger/15 text-status-danger text-app-caption">invalid</span>}
                     </div>
                     <button type="button" onClick={() => openInAnalyse(lap)} className="px-2.5 py-1 text-xs rounded bg-app-accent text-app-on-filled hover:opacity-90 transition-opacity">
                       {m.dev_open_analyse()}

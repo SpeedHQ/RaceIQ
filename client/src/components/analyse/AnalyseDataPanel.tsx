@@ -122,7 +122,7 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
         <button
           type="button"
           onClick={() => onSidebarTabChange("live")}
-          className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
+          className={`flex-1 py-1.5 text-app-caption uppercase tracking-wider font-semibold transition-colors ${
             sidebarTab === "live" ? "text-app-text border-b-2 border-app-accent" : "text-app-text-muted hover:text-app-text"
           }`}
         >
@@ -131,18 +131,18 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
         <button
           type="button"
           onClick={() => onSidebarTabChange("insights")}
-          className={`flex-1 py-1.5 text-[10px] uppercase tracking-wider font-semibold transition-colors ${
+          className={`flex-1 py-1.5 text-app-caption uppercase tracking-wider font-semibold transition-colors ${
             sidebarTab === "insights" ? "text-app-text border-b-2 border-app-accent" : "text-app-text-muted hover:text-app-text"
           }`}
         >
           {m.analyse_tab_insights()}
-          {lapInsights.length > 0 && <span className="ml-1 text-[9px] bg-app-border-input text-app-text rounded-full px-1.5">{lapInsights.length}</span>}
+          {lapInsights.length > 0 && <span className="ml-1 text-app-micro bg-app-border-input text-app-text rounded-full px-1.5">{lapInsights.length}</span>}
         </button>
       </div>
 
       {sidebarTab === "live" && (
         <div className="px-3 pt-3 pb-1 shrink-0 flex items-center justify-between">
-          <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider mb-0 font-semibold">{m.analyse_metrics_at_cursor()}</h3>
+          <h3 className="text-app-caption text-app-text-muted uppercase tracking-wider mb-0 font-semibold">{m.analyse_metrics_at_cursor()}</h3>
           {currentPacket && (
             <button type="button" onClick={handleCopyValues} title={m.analyse_copy_values_tooltip()} className="text-app-text-muted hover:text-app-text transition-colors">
               {copied ? <Check className="size-3.5 text-status-success" /> : <Copy className="size-3.5" />}
@@ -159,7 +159,7 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
             {currentPacket && (
               <>
                 <div className="mb-2 mt-3 pt-2 border-t border-app-border">
-                  <h3 className="text-[10px] text-app-text-muted uppercase tracking-wider font-semibold">{m.analyse_section_dynamics()}</h3>
+                  <h3 className="text-app-caption text-app-text-muted uppercase tracking-wider font-semibold">{m.analyse_section_dynamics()}</h3>
                 </div>
                 <AnalyseDynamicsPanel currentPacket={currentPacket} gameId={gameId} units={units} />
 

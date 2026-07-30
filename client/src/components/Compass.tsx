@@ -62,8 +62,8 @@ export function Compass({ yaw }: Props) {
             dominantBaseline="central"
             fill={label === "N" ? "var(--compass-north)" : "var(--compass-marker)"}
             fontSize={label === "N" ? 8 : 7}
-            fontWeight="bold"
-            fontFamily="monospace"
+            fontWeight="var(--font-weight-bold)"
+            fontFamily="var(--font-mono)"
           >
             {label}
           </text>
@@ -73,7 +73,7 @@ export function Compass({ yaw }: Props) {
         <polygon points="50,3 48,0 52,0" fill="var(--app-accent)" />
         <line x1="50" y1="3" x2="50" y2="5" stroke="var(--app-accent)" strokeWidth="1" />
       </svg>
-      <div className="text-[10px] font-mono text-app-text-secondary tabular-nums -mt-0.5">{headingDeg.toFixed(0)}°</div>
+      <div className="text-app-caption font-mono text-app-text-secondary tabular-nums -mt-0.5">{headingDeg.toFixed(0)}°</div>
     </div>
   );
 }

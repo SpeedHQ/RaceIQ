@@ -63,7 +63,7 @@ export function Vitals2D({ packet }: { packet: TelemetryPacket | null }) {
       <div className="flex items-center justify-center gap-2">
         <span className="text-lg font-mono font-bold text-app-accent">{p.Gear === 0 ? "R" : p.Gear === 11 ? "N" : p.Gear}</span>
         <span className="text-xl font-mono font-bold tabular-nums text-app-text">
-          {units.speed(p.Speed).toFixed(0)} <span className="text-[10px] text-app-text-muted">{units.speedLabel}</span>
+          {units.speed(p.Speed).toFixed(0)} <span className="text-app-caption text-app-text-muted">{units.speedLabel}</span>
         </span>
       </div>
       <div className="flex items-center gap-2">

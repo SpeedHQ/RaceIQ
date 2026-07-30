@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import uPlot from "uplot";
 import "uplot/dist/uPlot.min.css";
-import { resolveCssColor } from "../lib/css-color";
+import { resolveCssColor, resolveCssFont } from "../lib/css-color";
 
 interface Props {
   data: {
@@ -60,7 +60,7 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
         stroke: axisStroke,
         grid: { stroke: gridStroke, width: 1 },
         ticks: { stroke: tickStroke, width: 1 },
-        font: "11px ui-monospace, monospace",
+        font: resolveCssFont("var(--text-app-compact) var(--font-mono)"),
       });
 
       const opts: uPlot.Options = {
@@ -87,12 +87,12 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
               // Style title and legend via direct DOM (reliable across Tailwind versions)
               const titleEl = upl.root.querySelector(".u-title") as HTMLElement | null;
               if (titleEl) {
-                titleEl.style.fontSize = "10px";
-                titleEl.style.fontWeight = "600";
+                titleEl.style.fontSize = "var(--text-app-caption)";
+                titleEl.style.fontWeight = "var(--font-weight-semibold)";
               }
 
               const legendEl = upl.root.querySelector(".u-legend") as HTMLElement | null;
-              if (legendEl) legendEl.style.fontSize = "10px";
+              if (legendEl) legendEl.style.fontSize = "var(--text-app-caption)";
 
               // Drag start line overlay
               const over = upl.over;
@@ -192,8 +192,8 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
     <div className="w-full">
       {title && (
         <div className="relative flex items-center justify-center px-1 pb-0.5">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-app-text-secondary">{title}</span>
-          <span className="absolute right-1 text-[10px] text-app-text-dim">Click &amp; drag to zoom · Double-click to reset</span>
+          <span className="text-app-caption font-semibold uppercase tracking-wider text-app-text-secondary">{title}</span>
+          <span className="absolute right-1 text-app-caption text-app-text-dim">Click &amp; drag to zoom · Double-click to reset</span>
         </div>
       )}
       <div ref={outerRef} className="relative w-full">

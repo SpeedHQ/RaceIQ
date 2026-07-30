@@ -240,13 +240,13 @@ export const CarWireframe = React.memo(function CarWireframe({
       {!hideControls && minimal && !editMode && carModel.hasModel && (
         <button
           onClick={() => setEditMode(true)}
-          className="absolute bottom-2 left-2 px-2 py-1 text-[10px] rounded bg-app-surface-alt/80 border border-app-border-input text-app-text-muted hover:text-app-text transition-colors"
+          className="absolute bottom-2 left-2 px-2 py-1 text-app-caption rounded bg-app-surface-alt/80 border border-app-border-input text-app-text-muted hover:text-app-text transition-colors"
         >
           {m.label_edit_model()}
         </button>
       )}
       {!hideControls && minimal && editMode && (
-        <div className="absolute bottom-2 left-2 bg-app-bg/90 rounded-lg border border-app-border p-2 text-[10px] font-mono space-y-1.5" style={{ minWidth: 220 }}>
+        <div className="absolute bottom-2 left-2 bg-app-bg/90 rounded-lg border border-app-border p-2 text-app-caption font-mono space-y-1.5" style={{ minWidth: 220 }}>
           <div className="flex items-center justify-between">
             <span className="text-app-text-muted uppercase tracking-wider">{m.label_model_offset()}</span>
             <div className="flex gap-1">

@@ -327,7 +327,7 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
   cx += barW + sectionGap;
 
   // Label
-  ctx.font = "10px ui-monospace, monospace";
+  ctx.font = "var(--text-app-caption) var(--font-mono)";
   ctx.fillStyle = "var(--app-text-dim)";
   ctx.textAlign = "center";
   ctx.fillText("Brake", bx0 + barW + barGap / 2, y0 + barH + 14);
@@ -362,7 +362,7 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
     ctx.stroke();
 
     // Gear number in center
-    ctx.font = "bold 20px ui-monospace, monospace";
+    ctx.font = "var(--font-weight-bold) var(--text-xl) var(--font-mono)";
     ctx.fillStyle = "var(--app-text)";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -386,7 +386,7 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
   cx += wheelR * 2 + sectionGap;
 
   // Center label
-  ctx.font = "10px ui-monospace, monospace";
+  ctx.font = "var(--text-app-caption) var(--font-mono)";
   ctx.fillStyle = "var(--app-text-dim)";
   ctx.textAlign = "center";
   ctx.fillText("Steering / Gear", (wheelAcx + wheelBcx) / 2, y0 + barH + 14);
@@ -398,7 +398,7 @@ export function drawInputsHUD(ctx: CanvasRenderingContext2D, w: number, h: numbe
   cx += barW + barGap;
   drawBar(cx, throttleB, "var(--ch-throttle)", COLOR_B);
 
-  ctx.font = "10px ui-monospace, monospace";
+  ctx.font = "var(--text-app-caption) var(--font-mono)";
   ctx.fillStyle = "var(--app-text-dim)";
   ctx.textAlign = "center";
   ctx.fillText("Throttle", cx - barGap / 2, y0 + barH + 14);

@@ -358,7 +358,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
     <div className="bg-app-surface rounded-lg border border-app-border overflow-hidden h-full flex flex-col">
       {/* Overview — full track, static */}
       <div ref={overviewContainerRef} className="relative border-b border-app-border h-[220px] shrink-0">
-        <span className="absolute top-2 left-2 text-[10px] text-app-text-dim uppercase tracking-wider z-10">{m.compare_overview()}</span>
+        <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_overview()}</span>
         {alignedOutline.length < 2 ? (
           <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">{m.compare_no_outline()}</div>
         ) : (
@@ -367,7 +367,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
       </div>
       {/* Zoomed — follows cursor position */}
       <div ref={zoomContainerRef} className="relative border-b border-app-border h-[320px] shrink-0">
-        <span className="absolute top-2 left-2 text-[10px] text-app-text-dim uppercase tracking-wider z-10">{m.compare_zoomed()}</span>
+        <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_zoomed()}</span>
         <button
           onClick={() => {
             const next = !followCarRef.current;
@@ -375,7 +375,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
             setFollowCar(next);
             drawBoth();
           }}
-          className={`absolute top-2 right-2 z-10 px-2 py-1 text-[10px] rounded border transition-colors ${
+          className={`absolute top-2 right-2 z-10 px-2 py-1 text-app-caption rounded border transition-colors ${
             followCar ? "bg-status-info/20 border-status-info/50 text-status-info" : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
           }`}
         >
@@ -392,7 +392,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
         <div className="overflow-auto flex-1 min-h-0">
           <table className="w-full text-xs">
             <thead className="sticky top-0 z-10 bg-[var(--app-surface)]">
-              <tr className="text-[10px] text-app-text-muted uppercase tracking-wider border-b border-app-border">
+              <tr className="text-app-caption text-app-text-muted uppercase tracking-wider border-b border-app-border">
                 <th className="text-left px-2 py-1.5">{m.compare_segment()}</th>
                 <th className="text-right px-2 py-1.5" style={{ color: COLOR_A }}>
                   A

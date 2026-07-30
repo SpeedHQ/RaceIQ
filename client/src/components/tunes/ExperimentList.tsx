@@ -74,7 +74,7 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
  *  read, and a row's focus decides how its arms should be judged. */
 export function FocusBadge({ focus }: { focus: ExperimentFocus }) {
   return (
-    <span className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap ${focus === "driver" ? "bg-(--focus-driver)/15 text-(--focus-driver)" : "bg-(--focus-setup)/15 text-(--focus-setup)"}`}>
+    <span className={`inline-block rounded-full px-2 py-0.5 text-app-caption font-medium whitespace-nowrap ${focus === "driver" ? "bg-(--focus-driver)/15 text-(--focus-driver)" : "bg-(--focus-setup)/15 text-(--focus-setup)"}`}>
       {EXPERIMENT_FOCUS_LABELS[focus]}
     </span>
   );
@@ -87,7 +87,7 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
     <div className="overflow-x-auto border border-app-border rounded-lg">
       <table className="w-full text-sm border-collapse">
         <thead>
-          <tr className="text-left text-[11px] uppercase tracking-wider text-app-text-muted border-b border-app-border">
+          <tr className="text-left text-app-compact uppercase tracking-wider text-app-text-muted border-b border-app-border">
             <th className="px-3 py-2 font-medium w-12 text-right">#</th>
             <th className="px-3 py-2 font-medium">Session</th>
             <th className="px-3 py-2 font-medium">Varying</th>
@@ -451,7 +451,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
         </button>
         {notice && (
           <div
-            className={`flex items-start gap-2 rounded-md border px-2.5 py-2 text-[11px] ${
+            className={`flex items-start gap-2 rounded-md border px-2.5 py-2 text-app-compact ${
                 notice.tone === "error"
                   ? "border-status-danger/40 bg-status-danger/10 text-status-danger"
                   : "border-status-warning/40 bg-status-warning/10 text-status-warning"
@@ -472,19 +472,19 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
         {pendingDrop && !placing && (
           <div className="rounded-lg border border-app-border bg-app-bg/40 p-3">
             <div className="flex items-start gap-3">
-              <span className="shrink-0 rounded bg-app-border/40 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-app-text-dim">{setupFileFormat(gameId).extension.slice(1)}</span>
+              <span className="shrink-0 rounded bg-app-border/40 px-1.5 py-0.5 font-mono text-app-caption uppercase tracking-wider text-app-text-dim">{setupFileFormat(gameId).extension.slice(1)}</span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono text-xs text-app-text truncate" title={pendingDrop.fileName}>
                     {pendingDrop.fileName}
                   </span>
                   {dropStatus && (
-                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${dropStatus === "placed" ? "bg-status-success/15 text-status-success" : "bg-app-border/50 text-app-text-dim"}`}>
+                    <span className={`rounded-full px-2 py-0.5 text-app-caption font-medium ${dropStatus === "placed" ? "bg-status-success/15 text-status-success" : "bg-app-border/50 text-app-text-dim"}`}>
                       {dropStatus === "placed" ? "Copied to Setups" : dropStatus === "existing" ? "Already saved there" : "Found in Setups"}
                     </span>
                   )}
                 </div>
-                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-app-text-dim">
+                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-app-compact text-app-text-dim">
                   <span>
                     Car <span className="text-app-text">{allPlaceCars.find((c) => c.value === car)?.label ?? car ?? "—"}</span>
                   </span>
@@ -501,7 +501,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
                     setPlaceTrack("");
                     setNotice(null);
                   }}
-                  className="px-2 py-1 text-[11px] rounded border border-app-border text-app-text hover:bg-app-surface-hover/30"
+                  className="px-2 py-1 text-app-compact rounded border border-app-border text-app-text hover:bg-app-surface-hover/30"
                 >
                   Copy to another track
                 </button>
@@ -521,13 +521,13 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
             {/* Two ways in: a file that was never in Setups, and an existing
                 one the driver chose to copy to a second circuit. Saying "isn't
                 in your Setups folder yet" in the second case is simply false. */}
-            <div className="text-[11px] text-app-text">
+            <div className="text-app-compact text-app-text">
               <span className="font-mono">{pendingDrop.fileName}</span>{" "}
               {dropStatus == null ? "isn't in your Setups folder yet — add it and pick its track:" : "will be copied into the track folder you pick — the existing copy stays where it is:"}
             </div>
             <div className="flex flex-wrap items-end gap-2">
               <label className="flex flex-col gap-1">
-                <span className="text-[10px] text-app-text-muted uppercase tracking-wider">Car folder</span>
+                <span className="text-app-caption text-app-text-muted uppercase tracking-wider">Car folder</span>
                 {/* A picker, not free text: when the file names its own car
                     this is already selected, but a .carsetup saved without a
                     preset id carries no car at all — and nobody should have to
@@ -544,7 +544,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
                 </div>
               </label>
               <label className="flex flex-col gap-1">
-                <span className="text-[10px] text-app-text-muted uppercase tracking-wider">Track</span>
+                <span className="text-app-caption text-app-text-muted uppercase tracking-wider">Track</span>
                 <div className="w-[180px]">
                   <SearchSelect
                     value={placeTrack}
@@ -574,7 +574,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
         {/* A driving experiment still needs car + track (an experiment is always
             one car at one circuit) but the setup file is optional there. */}
         {focus === "driver" && (
-          <p className="-mb-2 text-[11px] text-app-text-dim">Pick the car and track you're driving. A base setup is optional for driving work — leave it blank to just log drills.</p>
+          <p className="-mb-2 text-app-compact text-app-text-dim">Pick the car and track you're driving. A base setup is optional for driving work — leave it blank to just log drills.</p>
         )}
 
         {/* Cascading searchable pickers */}
@@ -589,7 +589,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
         />
 
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Session name</span>
+          <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Session name</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -603,12 +603,12 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
             above already states car + track, and saying it twice was half of
             what made this modal read as a pile of status lines. */}
         {car && track && baseSetupPath && !pendingDrop && (
-          <div className="text-[11px] text-app-text-dim">
+          <div className="text-app-compact text-app-text-dim">
             Pinned to <span className="text-app-text font-medium">{car}</span> · <span className="text-app-text font-medium">{track}</span> — each session is one car + track.
           </div>
         )}
         {noFiles && (
-          <div className="text-[11px] text-status-warning">
+          <div className="text-app-compact text-status-warning">
             No saved setups found. In-game, open <span className="font-mono">Setup → Save</span> (even the default) so it appears here.
           </div>
         )}
@@ -721,22 +721,22 @@ function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onC
         <FocusPicker value={focus} onChange={setFocus} />
 
         {focus === "car" && (
-          <p className="text-[11px] text-app-text-dim">F1 setups are read from telemetry — your base setup will be captured from your first lap, or via "Capture current setup" in the session.</p>
+          <p className="text-app-compact text-app-text-dim">F1 setups are read from telemetry — your base setup will be captured from your first lap, or via "Capture current setup" in the session.</p>
         )}
 
         <div className="flex gap-2">
           <label className="flex flex-col gap-1 flex-1">
-            <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Car (optional)</span>
+            <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Car (optional)</span>
             <input value={car} onChange={(e) => setCar(e.target.value)} placeholder="Car name" maxLength={200} className="bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs" />
           </label>
           <label className="flex flex-col gap-1 flex-1">
-            <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Track</span>
+            <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Track</span>
             <SearchSelect value={track} onChange={setTrack} options={trackOptions} placeholder="Search tracks…" focusColor="purple-500" />
           </label>
         </div>
 
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] text-app-text-muted uppercase tracking-wider">Session name</span>
+          <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Session name</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}

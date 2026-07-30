@@ -1,16 +1,18 @@
 const resolvedColorCache = new Map<string, string>();
+const resolvedFontCache = new Map<string, string>();
 type Canvas2DContext = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 const semanticCanvasContexts = new WeakMap<Canvas2DContext, Canvas2DContext>();
 let themeObserverInstalled = false;
 
 /** Clear imperative-renderer values after changing theme variables programmatically. */
-export function invalidateCssColorCache(): void {
+export function invalidateCssValueCaches(): void {
   resolvedColorCache.clear();
+  resolvedFontCache.clear();
 }
 
 function ensureThemeObserver(): void {
   if (themeObserverInstalled || typeof document === "undefined" || typeof MutationObserver === "undefined") return;
-  const observer = new MutationObserver(invalidateCssColorCache);
+  const observer = new MutationObserver(invalidateCssValueCaches);
   const options: MutationObserverInit = { attributes: true, attributeFilter: ["class", "data-theme", "style"] };
   observer.observe(document.documentElement, options);
   if (document.body) observer.observe(document.body, options);
@@ -46,6 +48,34 @@ export function resolveCssColor(color: string): string {
   return color;
 }
 
+/**
+ * Resolve the CSS-variable font shorthand used by Canvas and chart libraries.
+ * DOM and SVG callers should continue to use the theme variables directly.
+ */
+export function resolveCssFont(font: string): string {
+  if (!font.includes("var(")) return font;
+
+  ensureThemeObserver();
+  const cached = resolvedFontCache.get(font);
+  if (cached) return cached;
+  if (typeof document === "undefined" || typeof getComputedStyle === "undefined") return font;
+
+  const probe = document.createElement("span");
+  probe.style.font = font;
+  probe.style.position = "absolute";
+  probe.style.pointerEvents = "none";
+  probe.style.visibility = "hidden";
+  document.documentElement.appendChild(probe);
+  const resolved = getComputedStyle(probe).font.trim();
+  probe.remove();
+
+  if (resolved) {
+    resolvedFontCache.set(font, resolved);
+    return resolved;
+  }
+  return font;
+}
+
 /** Interpolate CSS-owned endpoints without hard-coding their RGB values. */
 export function mixCssColors(from: string, to: string, amount: number): string {
   const t = Math.min(1, Math.max(0, amount));
@@ -57,7 +87,7 @@ export function mixCssColors(from: string, to: string, amount: number): string {
 }
 
 /**
- * Canvas does not resolve CSS custom properties in fillStyle/strokeStyle.
+ * Canvas does not resolve CSS custom properties in color or font assignments.
  * This adapter keeps imperative drawing code on the same semantic CSS
  * contract as DOM and SVG renderers.
  */
@@ -76,8 +106,14 @@ export function getSemanticCanvasContext(canvas: HTMLCanvasElement | OffscreenCa
       return typeof value === "function" ? value.bind(target) : value;
     },
     set(target, property, value) {
-      const nextValue =
-        typeof value === "string" && (property === "fillStyle" || property === "strokeStyle" || property === "shadowColor") ? resolveCssColor(value) : value;
+      let nextValue = value;
+      if (typeof value === "string") {
+        if (property === "fillStyle" || property === "strokeStyle" || property === "shadowColor") {
+          nextValue = resolveCssColor(value);
+        } else if (property === "font") {
+          nextValue = resolveCssFont(value);
+        }
+      }
       return Reflect.set(target, property, nextValue, target);
     },
   });

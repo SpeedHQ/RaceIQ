@@ -120,7 +120,7 @@ export function IRacingCars() {
                       }}
                     />
                   )}
-                  <span className="catalog-category-badge absolute bottom-2 right-2 rounded border px-2 py-0.5 text-[10px] font-bold shadow-sm backdrop-blur-sm" data-catalog-category={car.category}>{categoryLabel(car.category)}</span>
+                  <span className="catalog-category-badge absolute bottom-2 right-2 rounded border px-2 py-0.5 text-app-caption font-bold shadow-sm backdrop-blur-sm" data-catalog-category={car.category}>{categoryLabel(car.category)}</span>
                 </div>
                 <div className="p-3">
                   <h2 className="text-sm font-semibold leading-tight text-app-text">{car.name}</h2>

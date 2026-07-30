@@ -75,7 +75,7 @@ export function TelemetryChart({
     const range = gMax - gMin;
 
     // Y axis ticks (3)
-    ctx.font = "9px monospace";
+    ctx.font = "var(--text-app-micro) var(--font-mono)";
     ctx.fillStyle = "var(--app-border)";
     ctx.textAlign = "right";
     for (let i = 0; i <= 2; i++) {
@@ -125,7 +125,7 @@ export function TelemetryChart({
     }
 
     // Labels
-    ctx.font = "bold 9px system-ui";
+    ctx.font = "var(--font-weight-bold) var(--text-app-micro) var(--font-sans)";
     ctx.textAlign = "left";
     let ly = 10;
     for (const s of series) {

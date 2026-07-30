@@ -265,7 +265,7 @@ export function LiveTrackMap({ packet, issues }: Props) {
     if (!displayOutline || displayOutline.length < 2) {
       if (noOutline) {
         ctx.fillStyle = "var(--app-text-dim)";
-        ctx.font = "12px system-ui";
+        ctx.font = "var(--text-app-label) var(--font-sans)";
         ctx.textAlign = "center";
         ctx.fillText("Drive to map track...", w / 2, h / 2);
       }
@@ -601,7 +601,7 @@ export function LiveTrackMap({ packet, issues }: Props) {
     // "Building map..." label for live trace
     if (isLiveTrace) {
       ctx.fillStyle = "var(--app-text-dim)";
-      ctx.font = "10px system-ui";
+      ctx.font = "var(--text-app-caption) var(--font-sans)";
       ctx.textAlign = "left";
       ctx.fillText(`Mapping... ${displayOutline.length} pts`, 8, h - 8);
     }
@@ -662,7 +662,7 @@ export function LiveTrackMap({ packet, issues }: Props) {
         } else {
           [cx, cy] = [0, 0];
           ctx.fillStyle = "var(--app-text-dim)";
-          ctx.font = "9px system-ui";
+          ctx.font = "var(--text-app-micro) var(--font-sans)";
           ctx.textAlign = "left";
           ctx.fillText("Complete a lap to track position", 8, h - 8);
         }

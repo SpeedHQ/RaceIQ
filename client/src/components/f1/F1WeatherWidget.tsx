@@ -20,7 +20,7 @@ export function F1WeatherWidget({ f1 }: { f1: F1ExtendedData }) {
         <div>
           <div className="text-sm text-app-text font-medium">{label}</div>
           {f1.rainPercentage > 0 && (
-            <div className="text-[10px] text-(--metric-rain)">
+            <div className="text-app-caption text-(--metric-rain)">
               {m.f1weather_rain_label()} {f1.rainPercentage}%
             </div>
           )}

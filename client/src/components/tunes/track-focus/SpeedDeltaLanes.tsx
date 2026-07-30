@@ -58,7 +58,7 @@ export function SpeedDeltaLanes({ bestTrace, focusTrace, cornerFracs, corners = 
   return (
     <div className="space-y-3">
       <div>
-        <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Speed (km/h)</div>
+        <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Speed (km/h)</div>
         <Lane
           height={150}
           domain={speedDomain}
@@ -89,7 +89,7 @@ export function SpeedDeltaLanes({ bestTrace, focusTrace, cornerFracs, corners = 
         </Lane>
       </div>
       <div>
-        <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">Δ time vs best (s, cumulative)</div>
+        <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">Δ time vs best (s, cumulative)</div>
         <Lane
           height={110}
           domain={deltaDomain}

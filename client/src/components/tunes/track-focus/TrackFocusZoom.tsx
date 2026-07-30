@@ -187,7 +187,7 @@ export function TrackFocusZoom({ lapLines, bestLapId, cursorFrac, radiusM = DEFA
   const totalPoints = viewport ? viewport.inWindow.reduce((sum, l) => sum + l.points.length, 0) : 0;
 
   if (!viewport || lapLines.length === 0 || totalPoints < 2) {
-    return <div className="aspect-square rounded bg-app-surface border border-app-border flex items-center justify-center text-[11px] text-app-text-dim">no line data</div>;
+    return <div className="aspect-square rounded bg-app-surface border border-app-border flex items-center justify-center text-app-compact text-app-text-dim">no line data</div>;
   }
 
   const { center, dot, inWindow, edges: windowedEdges } = viewport;
@@ -226,8 +226,8 @@ export function TrackFocusZoom({ lapLines, bestLapId, cursorFrac, radiusM = DEFA
         })}
         <circle cx={dotPx} cy={dotPy} r={4} fill="var(--app-accent)" stroke="var(--app-bg)" strokeWidth={1.2} />
       </svg>
-      <div className="absolute top-1 right-1 text-[10px] font-mono tabular-nums bg-app-surface/80 border border-app-border rounded px-1.5 py-0.5 text-app-text-muted">±{radiusM}m</div>
-      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-app-text-dim">
+      <div className="absolute top-1 right-1 text-app-caption font-mono tabular-nums bg-app-surface/80 border border-app-border rounded px-1.5 py-0.5 text-app-text-muted">±{radiusM}m</div>
+      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-app-caption text-app-text-dim">
         <span className="inline-flex items-center gap-1.5">
           <span className="w-2.5 h-1 rounded-sm inline-block" style={{ background: COLOR_BRAKE }} /> brake
         </span>

@@ -76,7 +76,7 @@ function SectorTrackMap({ trackOrdinal, gameId, sectors, sourceStarts }: { track
 
   return (
     <div>
-      <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">{m.recap_sectors()}</div>
+      <div className="text-app-caption text-app-text-muted uppercase tracking-wider mb-1">{m.recap_sectors()}</div>
       {canDraw && <canvas ref={canvasRef} className="w-full h-[220px]" aria-label={m.recap_sectors()} />}
 
       {/* Sector times from the best lap. Colour repeats the map's status so the two read together. */}
@@ -88,7 +88,7 @@ function SectorTrackMap({ trackOrdinal, gameId, sectors, sourceStarts }: { track
               <span className="text-app-text-muted font-medium">S{s.index}</span>
             </span>
             <span className="font-mono tabular-nums text-app-text/90">{s.bestLapSec.toFixed(3)}</span>
-            <span className="text-[10px] text-app-text-dim">{sectorLabel(s.status)}</span>
+            <span className="text-app-caption text-app-text-dim">{sectorLabel(s.status)}</span>
           </div>
         ))}
       </div>
@@ -99,11 +99,11 @@ function SectorTrackMap({ trackOrdinal, gameId, sectors, sourceStarts }: { track
 function Tile({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
   return (
     <div className="bg-app-surface-alt/30 rounded-lg p-3">
-      <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">{label}</div>
+      <div className="text-app-caption text-app-text-muted uppercase tracking-wider mb-1">{label}</div>
       <div className={`text-xl font-mono font-black tabular-nums leading-none ${color ? "" : "text-app-text/90"}`} style={color ? { color } : undefined}>
         {value}
       </div>
-      {sub && <div className="text-[11px] text-app-text-dim mt-1">{sub}</div>}
+      {sub && <div className="text-app-compact text-app-text-dim mt-1">{sub}</div>}
     </div>
   );
 }
@@ -269,7 +269,7 @@ export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = fa
 
             {recap.sparkline.length >= 2 && (
               <div>
-                <div className="text-[10px] text-app-text-muted uppercase tracking-wider mb-1">{m.recap_pace()}</div>
+                <div className="text-app-caption text-app-text-muted uppercase tracking-wider mb-1">{m.recap_pace()}</div>
                 <Sparkline laps={recap.sparkline} />
               </div>
             )}

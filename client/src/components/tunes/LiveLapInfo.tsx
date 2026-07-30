@@ -26,14 +26,14 @@ export function LiveLapInfo({ sectors, currentLap, totalLaps }: { sectors: LiveS
     <div className="flex flex-col gap-2 p-3">
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-app-text-muted">Current Lap</div>
+          <div className="text-app-caption uppercase tracking-wider text-app-text-muted">Current Lap</div>
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-mono font-bold tabular-nums text-app-text">{running > 0 ? formatLapTime(running) : "--:--.---"}</span>
             {sectors && <Delta value={sectors.deltaToBest} />}
           </div>
         </div>
         <div className="text-right">
-          <div className="text-[10px] uppercase tracking-wider text-app-text-muted">Lap</div>
+          <div className="text-app-caption uppercase tracking-wider text-app-text-muted">Lap</div>
           <div className="text-2xl font-mono font-bold tabular-nums text-app-accent">
             {currentLap ?? "—"}
             {totalLaps > 0 && <span className="text-sm text-app-text-muted"> / {totalLaps}</span>}
@@ -43,11 +43,11 @@ export function LiveLapInfo({ sectors, currentLap, totalLaps }: { sectors: LiveS
 
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded bg-app-surface-alt/40 px-2.5 py-1.5">
-          <div className="text-[10px] text-app-text-muted">Last</div>
+          <div className="text-app-caption text-app-text-muted">Last</div>
           <div className="text-sm font-mono font-bold tabular-nums text-app-text-secondary">{sectors && sectors.lastLapTime > 0 ? formatLapTime(sectors.lastLapTime) : "-"}</div>
         </div>
         <div className="rounded bg-app-surface-alt/40 px-2.5 py-1.5">
-          <div className="text-[10px] text-(--lap-pace-best)">Best</div>
+          <div className="text-app-caption text-(--lap-pace-best)">Best</div>
           <div className="text-sm font-mono font-bold tabular-nums text-(--lap-pace-best)">{sectors && sectors.bestLapTime > 0 ? formatLapTime(sectors.bestLapTime) : "-"}</div>
         </div>
       </div>

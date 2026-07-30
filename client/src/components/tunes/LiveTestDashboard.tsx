@@ -27,7 +27,7 @@ const WEATHER_LABELS: Record<number, string> = {
 function LiveTrackConditions({ packet }: { packet: TelemetryPacket | undefined }) {
   if (!packet || (packet.WeatherType == null && packet.TrackTemp == null && packet.AirTemp == null)) return null;
   return (
-    <div className="absolute bottom-2 right-2 bg-app-surface-alt/80 backdrop-blur border border-app-border-input/50 rounded-lg px-2.5 py-1.5 text-[10px] space-y-0.5">
+    <div className="absolute bottom-2 right-2 bg-app-surface-alt/80 backdrop-blur border border-app-border-input/50 rounded-lg px-2.5 py-1.5 text-app-caption space-y-0.5">
       {packet.WeatherType != null && <div className="text-app-text font-medium">{WEATHER_LABELS[packet.WeatherType] ?? "Unknown"}</div>}
       {(packet.TrackTemp != null || packet.AirTemp != null) && (
         <div className="flex gap-3 text-app-text-muted">
@@ -107,7 +107,7 @@ export function LiveTestDashboard({
       {/* Top row: live track position + car vitals + lap info */}
       <div className="shrink-0 grid grid-cols-1 lg:grid-cols-[1.8fr_1.5fr_1.3fr] border-b border-app-border">
         <div className="lg:border-r border-app-border flex flex-col">
-          <div className="px-3 pt-2 pb-1 text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Track Position</div>
+          <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Track Position</div>
           <div className="relative" style={{ height: 360 }}>
             <AnalyseTrackPanel
               telemetry={liveTrace}
@@ -132,7 +132,7 @@ export function LiveTestDashboard({
           </div>
         </div>
         <div className="overflow-y-auto lg:border-r border-app-border">
-          <div className="px-3 pt-2 pb-1 text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Live Timing</div>
+          <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Live Timing</div>
           <LiveLapInfo sectors={sectors} currentLap={packet?.CurrentLap ?? null} totalLaps={sessionLaps.length} />
         </div>
         <div className="h-full min-h-0">
@@ -144,13 +144,13 @@ export function LiveTestDashboard({
       <div className="flex-1 min-h-0 flex flex-col">
         {/* recorded laps so far, as a card row, with the in-progress lap leading */}
         <div className="shrink-0 border-b border-app-border">
-          <div className="px-3 pt-2 pb-1 text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">Laps</div>
+          <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Laps</div>
           <LiveLapCards laps={sessionLaps} trackOrdinal={trackOrd ?? undefined} sectors={sectors} currentLapNumber={rawPacket?.LapNumber ?? null} maxLaps={30} />
         </div>
         {/* compact live tyre readout for the in-progress lap — sector-by-sector
             breakdown reviews a completed lap, not what's happening right now */}
         <div className="flex-1 min-h-0 overflow-y-auto">
-          <div className="px-3 pt-2 pb-1 text-[11px] font-semibold text-app-text-muted uppercase tracking-wider">This Test — Tyres &amp; Fuel</div>
+          <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">This Test — Tyres &amp; Fuel</div>
           <CurrentLapTireStrip telemetry={liveTrace} />
         </div>
       </div>

@@ -36,7 +36,7 @@ export function IssuesList({ issues, onIssueClick }: IssuesListProps) {
     <div className="space-y-3">
       {groups.map(([corner, items]) => (
         <div key={corner}>
-          <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">{corner}</div>
+          <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">{corner}</div>
           <ul className="space-y-1">
             {items.map((it) => {
               const clickable = it.distanceFrac != null;

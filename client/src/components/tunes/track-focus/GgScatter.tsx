@@ -58,15 +58,15 @@ export function GgScatter({ traces, bestLapId, cursorFrac }: GgScatterProps) {
   if (withG.length === 0) {
     return (
       <div>
-        <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">G-G friction circle</div>
-        <div className="h-[120px] flex items-center justify-center rounded bg-app-surface border border-app-border text-[11px] text-app-text-dim">No acceleration data for this game</div>
+        <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">G-G friction circle</div>
+        <div className="h-[120px] flex items-center justify-center rounded bg-app-surface border border-app-border text-app-compact text-app-text-dim">No acceleration data for this game</div>
       </div>
     );
   }
 
   return (
     <div ref={wrapRef} className="space-y-1">
-      <div className="text-[11px] font-semibold text-app-text-muted uppercase tracking-wider mb-1">G-G friction circle (lat vs long)</div>
+      <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider mb-1">G-G friction circle (lat vs long)</div>
       <svg viewBox={`0 0 ${bw} ${H}`} width="100%" height={H}>
         <rect x={0} y={0} width={bw} height={H} fill="var(--app-surface-alt)" fillOpacity={0.35} rx={4} />
         {RINGS.map((g) => (

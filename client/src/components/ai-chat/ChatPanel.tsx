@@ -204,7 +204,7 @@ function TokenUsageFooter({
   const hasUsage = (usage?.totalTokens ?? 0) > 0;
 
   return (
-    <div className="shrink-0 flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t border-app-border/40 px-2 py-1 text-[9px] text-app-text-muted tabular-nums">
+    <div className="shrink-0 flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t border-app-border/40 px-2 py-1 text-app-micro text-app-text-muted tabular-nums">
       {/* Context meter */}
       <span className="flex items-center gap-1" title={level === "ok" ? undefined : "Context is filling up — consider starting a new chat"}>
         <span>
@@ -374,9 +374,9 @@ function ChatPanelThread({
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <TooltipProvider>
-        <div className={className ?? "h-full min-h-0 flex flex-col text-[11px] [&_*]:text-[11px] [&_svg]:size-3.5 [&_.aui-composer-input]:text-[11px]"}>
+        <div className={className ?? "h-full min-h-0 flex flex-col text-app-compact [&_*]:text-app-compact [&_svg]:size-3.5 [&_.aui-composer-input]:text-app-compact"}>
           {readOnly && (
-            <div className="shrink-0 px-2 py-1 text-[10px] text-status-warning bg-status-warning/10 border-b border-status-warning/30">
+            <div className="shrink-0 px-2 py-1 text-app-caption text-status-warning bg-status-warning/10 border-b border-status-warning/30">
               Viewing an earlier chat (read-only). Switch to the latest to continue.
             </div>
           )}
@@ -454,7 +454,7 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
     return (
       emptyState ?? (
         <div className="pt-2 space-y-1.5">
-          <p className="text-[11px] text-app-text-dim">Add an AI provider key to chat.</p>
+          <p className="text-app-compact text-app-text-dim">Add an AI provider key to chat.</p>
           <button type="button" onClick={() => openSettings("ai")} className="w-full px-3 py-1.5 text-xs rounded bg-ai-accent hover:bg-ai-accent-hover text-app-on-filled font-medium">
             Set up AI
           </button>
@@ -467,7 +467,7 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
   // only reads `messages` on first render, so mounting before history resolves would
   // seed an empty thread and silently drop prior turns for the rest of the session.
   if (!isSuccess || (!!compactThreadId && !runStatusFetched)) {
-    return <div className="h-full min-h-0 flex flex-col pt-2 gap-1.5 text-[11px] text-app-text-dim">Loading…</div>;
+    return <div className="h-full min-h-0 flex flex-col pt-2 gap-1.5 text-app-compact text-app-text-dim">Loading…</div>;
   }
 
   return (

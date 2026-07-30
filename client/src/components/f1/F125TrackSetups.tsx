@@ -54,8 +54,8 @@ interface F125TrackSummary {
 }
 
 function ProviderBadge({ provider }: { provider: string }) {
-  if (provider === "f1laps") return <span className="provider-badge px-1 py-0.5 text-[8px] font-bold uppercase rounded shrink-0" data-provider-brand="f1laps">F1L</span>;
-  if (provider === "simracingsetup") return <span className="provider-badge px-1 py-0.5 text-[8px] font-bold uppercase rounded shrink-0" data-provider-brand="simracingsetup">SRS</span>;
+  if (provider === "f1laps") return <span className="provider-badge px-1 py-0.5 text-app-nano font-bold uppercase rounded shrink-0" data-provider-brand="f1laps">F1L</span>;
+  if (provider === "simracingsetup") return <span className="provider-badge px-1 py-0.5 text-app-nano font-bold uppercase rounded shrink-0" data-provider-brand="simracingsetup">SRS</span>;
   return null;
 }
 
@@ -106,7 +106,7 @@ export function F125SetupsWithGuide({ trackOrdinal, trackName }: { trackOrdinal:
           <button
             key={tab}
             onClick={() => setSubTab(tab)}
-            className={`text-app-unit px-3 py-1 rounded border transition-colors ${
+            className={`text-app-compact px-3 py-1 rounded border transition-colors ${
               subTab === tab ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"
             }`}
           >
@@ -154,7 +154,7 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
   const [mobileView, setMobileView] = useState<"list" | "detail">("list");
   const activeGuide = guides.find((g) => g.source === selectedSource) ?? guides[0];
 
-  if (guides.length === 0) return <div className="text-app-text-secondary text-app-unit p-4">{m.f1setup_no_guide()}</div>;
+  if (guides.length === 0) return <div className="text-app-text-secondary text-app-compact p-4">{m.f1setup_no_guide()}</div>;
 
   return (
     <div className="flex h-full min-h-0 gap-3">
@@ -176,8 +176,8 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
             >
               <div className="flex items-center gap-1.5 mb-1">
                 <span className={`text-sm font-medium ${isActive ? "text-app-accent" : "text-app-text"}`}>{sourceDisplayName(g.source)}</span>
-                {sectionCount > 0 && <span className="px-1 py-0.5 text-[8px] font-bold uppercase rounded bg-status-info/20 text-status-info">{m.label_text()}</span>}
-                {g.videoUrl && <span className="provider-badge px-1 py-0.5 text-[8px] font-bold uppercase rounded" data-provider-brand="youtube">YT</span>}
+                {sectionCount > 0 && <span className="px-1 py-0.5 text-app-nano font-bold uppercase rounded bg-status-info/20 text-status-info">{m.label_text()}</span>}
+                {g.videoUrl && <span className="provider-badge px-1 py-0.5 text-app-nano font-bold uppercase rounded" data-provider-brand="youtube">YT</span>}
               </div>
               <table className="w-full text-xs text-app-text-secondary">
                 <tbody>
@@ -211,20 +211,20 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
           <div className="flex items-center gap-2 mb-2 shrink-0 flex-wrap">
             <button
               onClick={() => setContentTab("guide")}
-              className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${contentTab === "guide" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
+              className={`text-app-caption px-2 py-0.5 rounded border transition-colors ${contentTab === "guide" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
             >
               {m.f1setup_guide_tab()}
             </button>
             {activeGuide.setupTips && (
               <button
                 onClick={() => setContentTab("setup")}
-                className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${contentTab === "setup" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
+                className={`text-app-caption px-2 py-0.5 rounded border transition-colors ${contentTab === "setup" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
               >
                 {m.f1setup_setup_tips_tab()}
               </button>
             )}
             {activeGuide.source && (
-              <a href={activeGuide.source} target="_blank" rel="noopener noreferrer" className="text-[10px] text-app-text-muted hover:text-app-text underline underline-offset-2">
+              <a href={activeGuide.source} target="_blank" rel="noopener noreferrer" className="text-app-caption text-app-text-muted hover:text-app-text underline underline-offset-2">
                 View on {sourceDisplayName(activeGuide.source)} ↗
               </a>
             )}
@@ -355,7 +355,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
                   setFilterProvider(p);
                   resetSetup();
                 }}
-                className={`text-app-unit px-2 py-1 rounded border transition-colors ${filterProvider === p ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
+                className={`text-app-compact px-2 py-1 rounded border transition-colors ${filterProvider === p ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
               >
                 {p === "" ? "All" : p === "f1laps" ? `F1Laps (${f1lapsCount})` : `SRS (${srsCount})`}
               </button>
@@ -370,7 +370,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
                   setFilterWeather(filterWeather === w ? "" : w);
                   resetSetup();
                 }}
-                className={`text-app-unit px-2 py-1 rounded border transition-colors ${filterWeather === w ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
+                className={`text-app-compact px-2 py-1 rounded border transition-colors ${filterWeather === w ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
               >
                 {w === "Dry" ? `☀ ${dryCount}` : `🌧 ${wetCount}`}
               </button>
@@ -382,12 +382,12 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
         <div className="flex-1 min-h-0 overflow-y-auto rounded-lg border border-app-border/20">
           {/* Header */}
           <div className="flex items-center gap-1.5 px-2 py-1 bg-app-surface-alt border-b border-app-border/20 sticky top-0 z-10">
-            <span className="text-[9px] text-app-text-dim uppercase w-4 text-right shrink-0">#</span>
-            <span className="text-[9px] text-app-text-dim uppercase w-7 shrink-0">Src</span>
-            <span className="text-[9px] text-app-text-dim uppercase flex-1">{m.label_author_team()}</span>
-            <span className="text-[9px] text-app-text-dim uppercase w-8 text-center">{m.label_input()}</span>
-            <span className="text-[9px] text-app-text-dim uppercase w-12 text-center">{m.label_info()}</span>
-            <span className="text-[9px] text-app-text-dim uppercase w-16 text-right">{m.label_time()}</span>
+            <span className="text-app-micro text-app-text-dim uppercase w-4 text-right shrink-0">#</span>
+            <span className="text-app-micro text-app-text-dim uppercase w-7 shrink-0">Src</span>
+            <span className="text-app-micro text-app-text-dim uppercase flex-1">{m.label_author_team()}</span>
+            <span className="text-app-micro text-app-text-dim uppercase w-8 text-center">{m.label_input()}</span>
+            <span className="text-app-micro text-app-text-dim uppercase w-12 text-center">{m.label_info()}</span>
+            <span className="text-app-micro text-app-text-dim uppercase w-16 text-right">{m.label_time()}</span>
           </div>
           {filteredSetups.map((s, i) => (
             <div
@@ -397,25 +397,25 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
                 selectedIdx === i ? "bg-app-accent/10" : "hover:bg-app-surface-hover/30"
               }`}
             >
-              <span className="text-app-unit text-app-text-dim font-mono w-4 text-right shrink-0">{i + 1}</span>
+              <span className="text-app-compact text-app-text-dim font-mono w-4 text-right shrink-0">{i + 1}</span>
               <ProviderBadge provider={s.provider} />
               <div className="flex-1 min-w-0 flex items-center gap-1">
-                <span className="text-app-unit font-medium text-app-text truncate">{s.author || "—"}</span>
-                {s.team && <span className="text-[9px] text-app-text-dim truncate">({s.team})</span>}
+                <span className="text-app-compact font-medium text-app-text truncate">{s.author || "—"}</span>
+                {s.team && <span className="text-app-micro text-app-text-dim truncate">({s.team})</span>}
               </div>
               <div className="shrink-0 w-8 text-center">
-                {s.inputDevice === "wheel" && <span className="input-device-badge text-[8px] px-1 py-0.5 rounded font-bold" data-input-device="wheel">WHL</span>}
-                {s.inputDevice === "controller" && <span className="input-device-badge text-[8px] px-1 py-0.5 rounded font-bold" data-input-device="controller">PAD</span>}
+                {s.inputDevice === "wheel" && <span className="input-device-badge text-app-nano px-1 py-0.5 rounded font-bold" data-input-device="wheel">WHL</span>}
+                {s.inputDevice === "controller" && <span className="input-device-badge text-app-nano px-1 py-0.5 rounded font-bold" data-input-device="controller">PAD</span>}
               </div>
               <div className="flex items-center gap-1 shrink-0 w-12 justify-center">
                 {s.videoUrl && (
-                  <span className="text-[9px]" style={{ color: "var(--brand-provider-youtube)" }} title={m.accsetup_setup_type_has_video_title()}>
+                  <span className="text-app-micro" style={{ color: "var(--brand-provider-youtube)" }} title={m.accsetup_setup_type_has_video_title()}>
                     ▶
                   </span>
                 )}
-                {s.weather === "Wet" && <span className="weather-wet-badge text-[8px] px-1 py-0.5 rounded font-bold">WET</span>}
+                {s.weather === "Wet" && <span className="weather-wet-badge text-app-nano px-1 py-0.5 rounded font-bold">WET</span>}
               </div>
-              <span className="text-app-unit font-mono shrink-0 w-16 text-right" style={{ color: "var(--lap-record)" }}>{s.lapTime || "—"}</span>
+              <span className="text-app-compact font-mono shrink-0 w-16 text-right" style={{ color: "var(--lap-record)" }}>{s.lapTime || "—"}</span>
             </div>
           ))}
         </div>
@@ -434,7 +434,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
             <div className="flex items-center gap-2 flex-wrap">
               <ProviderBadge provider={setup.provider} />
               <span className="text-app-body font-bold text-app-text">{setup.author || "Unknown"}</span>
-              <span className="text-app-unit text-app-text-secondary">
+              <span className="text-app-compact text-app-text-secondary">
                 {setup.team && `${setup.team} · `}
                 {setup.lapTime}
                 {setup.inputDevice && ` · ${setup.inputDevice === "wheel" ? m.label_wheel() : m.f1setup_controller()}`}
@@ -442,7 +442,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
                 {setup.sessionType && ` · ${setup.sessionType}`}
               </span>
               {setup.source && (
-                <a href={setup.source} target="_blank" rel="noopener noreferrer" className="px-2 py-1 text-app-unit bg-app-accent/15 text-app-accent rounded hover:bg-app-accent/25 transition-colors">
+                <a href={setup.source} target="_blank" rel="noopener noreferrer" className="px-2 py-1 text-app-compact bg-app-accent/15 text-app-accent rounded hover:bg-app-accent/25 transition-colors">
                   {m.f1setup_view_source()}
                 </a>
               )}
@@ -648,7 +648,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
                 <button
                   key={w}
                   onClick={() => setWeather(w)}
-                  className={`text-app-unit px-2 py-1 rounded border transition-colors ${
+                  className={`text-app-compact px-2 py-1 rounded border transition-colors ${
                     weather === w ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"
                   }`}
                 >
@@ -662,7 +662,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
                 <button
                   key={p}
                   onClick={() => setFilterProvider(p)}
-                  className={`text-app-unit px-2 py-1 rounded border transition-colors ${filterProvider === p ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
+                  className={`text-app-compact px-2 py-1 rounded border transition-colors ${filterProvider === p ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
                 >
                   {p === "" ? `All (${allWeatherSetups.length})` : p === "f1laps" ? `F1Laps (${f1lapsCount})` : `SRS (${srsCount})`}
                 </button>
@@ -673,20 +673,20 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
           <div className="flex items-center gap-2 mb-1 px-1">
             {dragRange.size > 0 || pickedSetup ? (
               <>
-                {dragRange.size > 0 && <span className="text-[10px] text-app-accent">{dragRange.size} in range</span>}
-                {pickedSetup && <span className="text-[10px] text-status-success">{pickedSetup.author || "Selected"}</span>}
+                {dragRange.size > 0 && <span className="text-app-caption text-app-accent">{dragRange.size} in range</span>}
+                {pickedSetup && <span className="text-app-caption text-status-success">{pickedSetup.author || "Selected"}</span>}
                 <button
                   onClick={() => {
                     setDragRange(new Set());
                     setPickedIdx(null);
                   }}
-                  className="text-[10px] text-app-text-dim hover:text-app-text"
+                  className="text-app-caption text-app-text-dim hover:text-app-text"
                 >
                   {m.label_clear()}
                 </button>
               </>
             ) : (
-              <span className="text-[10px] text-app-text-dim">{m.f1setup_drag_filter_hint()}</span>
+              <span className="text-app-caption text-app-text-dim">{m.f1setup_drag_filter_hint()}</span>
             )}
           </div>
 
@@ -728,12 +728,12 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
           >
             {/* Header */}
             <div className="flex items-center gap-1.5 px-2 py-1 bg-app-surface-alt border-b border-app-border/20 sticky top-0 z-10">
-              <span className="text-[9px] text-app-text-dim uppercase w-4 text-right shrink-0">#</span>
-              <span className="text-[9px] text-app-text-dim uppercase w-7 shrink-0">Src</span>
-              <span className="text-[9px] text-app-text-dim uppercase flex-1">{m.label_author_team()}</span>
-              <span className="text-[9px] text-app-text-dim uppercase w-8 text-center">{m.label_input()}</span>
-              <span className="text-[9px] text-app-text-dim uppercase w-12 text-center">{m.label_info()}</span>
-              <span className="text-[9px] text-app-text-dim uppercase w-16 text-right">{m.label_time()}</span>
+              <span className="text-app-micro text-app-text-dim uppercase w-4 text-right shrink-0">#</span>
+              <span className="text-app-micro text-app-text-dim uppercase w-7 shrink-0">Src</span>
+              <span className="text-app-micro text-app-text-dim uppercase flex-1">{m.label_author_team()}</span>
+              <span className="text-app-micro text-app-text-dim uppercase w-8 text-center">{m.label_input()}</span>
+              <span className="text-app-micro text-app-text-dim uppercase w-12 text-center">{m.label_info()}</span>
+              <span className="text-app-micro text-app-text-dim uppercase w-16 text-right">{m.label_time()}</span>
             </div>
             {filteredSetups.length === 0 ? (
               <div className="text-app-text-dim text-xs py-4 text-center">No {weather.toLowerCase()} setups</div>
@@ -763,25 +763,25 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
                       isPicked ? "bg-status-success/15" : inRange && dragRange.size > 0 ? "bg-app-accent/8" : "hover:bg-app-surface-hover/30"
                     } ${!inRange ? "opacity-40" : ""}`}
                   >
-                    <span className="text-app-unit text-app-text-dim font-mono w-4 text-right shrink-0">{i + 1}</span>
+                    <span className="text-app-compact text-app-text-dim font-mono w-4 text-right shrink-0">{i + 1}</span>
                     <ProviderBadge provider={s.provider} />
                     <div className="flex-1 min-w-0 flex items-center gap-1">
-                      <span className="text-app-unit font-medium text-app-text truncate">{s.author || "—"}</span>
-                      {s.team && <span className="text-[9px] text-app-text-dim truncate">({s.team})</span>}
+                      <span className="text-app-compact font-medium text-app-text truncate">{s.author || "—"}</span>
+                      {s.team && <span className="text-app-micro text-app-text-dim truncate">({s.team})</span>}
                     </div>
                     <div className="shrink-0 w-8 text-center">
-                      {s.inputDevice === "wheel" && <span className="input-device-badge text-[8px] px-1 py-0.5 rounded font-bold" data-input-device="wheel">WHL</span>}
-                      {s.inputDevice === "controller" && <span className="input-device-badge text-[8px] px-1 py-0.5 rounded font-bold" data-input-device="controller">PAD</span>}
+                      {s.inputDevice === "wheel" && <span className="input-device-badge text-app-nano px-1 py-0.5 rounded font-bold" data-input-device="wheel">WHL</span>}
+                      {s.inputDevice === "controller" && <span className="input-device-badge text-app-nano px-1 py-0.5 rounded font-bold" data-input-device="controller">PAD</span>}
                     </div>
                     <div className="flex items-center gap-1 shrink-0 w-12 justify-center">
                       {s.videoUrl && (
-                        <span className="text-[9px]" style={{ color: "var(--brand-provider-youtube)" }} title={m.accsetup_setup_type_has_video_title()}>
+                        <span className="text-app-micro" style={{ color: "var(--brand-provider-youtube)" }} title={m.accsetup_setup_type_has_video_title()}>
                           ▶
                         </span>
                       )}
-                      {s.weather === "Wet" && <span className="weather-wet-badge text-[8px] px-1 py-0.5 rounded font-bold">WET</span>}
+                      {s.weather === "Wet" && <span className="weather-wet-badge text-app-nano px-1 py-0.5 rounded font-bold">WET</span>}
                     </div>
-                    <span className="text-app-unit font-mono shrink-0 w-16 text-right" style={{ color: "var(--lap-record)" }}>{s.lapTime || "—"}</span>
+                    <span className="text-app-compact font-mono shrink-0 w-16 text-right" style={{ color: "var(--lap-record)" }}>{s.lapTime || "—"}</span>
                   </div>
                 );
               })
@@ -792,7 +792,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
         {/* Right: range bars */}
         <div className="snap-center shrink-0 w-full md:flex-1 md:min-w-0 flex flex-col min-h-0 @container">
           {/* Legend — matches filter row height */}
-          <div className="flex items-center gap-3 mb-1.5 text-[10px] text-app-text-secondary" style={{ minHeight: "1.625rem" }}>
+          <div className="flex items-center gap-3 mb-1.5 text-app-caption text-app-text-secondary" style={{ minHeight: "1.625rem" }}>
             <span className="flex items-center gap-1">
               <span className="inline-block w-[2px] h-3 rounded-full" style={{ backgroundColor: "var(--setup-range-limit)" }} />
               {m.f1setup_min_max()}

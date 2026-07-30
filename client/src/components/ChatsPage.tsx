@@ -130,7 +130,7 @@ export function ChatsPage() {
       <div className="flex items-center gap-2 shrink-0">
         <MessageSquare className="size-4 text-app-text-secondary" />
         <h1 className="text-sm font-semibold text-app-text uppercase tracking-wider">{m.chats_title()}</h1>
-        <span className="text-[10px] text-app-text-muted">({rows.length})</span>
+        <span className="text-app-caption text-app-text-muted">({rows.length})</span>
       </div>
 
       {loading && <div className="text-app-text-muted text-sm">{m.common_loading()}</div>}
@@ -140,15 +140,15 @@ export function ChatsPage() {
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-app-text-dim">
           <Sparkles className="size-6 text-app-text-dim" />
           <p className="text-sm">{m.chats_empty_title()}</p>
-          <p className="text-[11px] text-app-text-muted">{m.chats_empty_desc()}</p>
+          <p className="text-app-compact text-app-text-muted">{m.chats_empty_desc()}</p>
         </div>
       )}
 
       {!loading && rows.length > 0 && (
         <div className="flex-1 min-h-0 overflow-auto rounded-lg border border-app-border bg-app-surface">
-          <table className="w-full min-w-max md:min-w-0 text-[12px]">
+          <table className="w-full min-w-max md:min-w-0 text-app-label">
             <thead className="sticky top-0 bg-app-surface-alt/80 backdrop-blur z-10 border-b border-app-border">
-              <tr className="text-left text-[10px] uppercase tracking-wider text-app-text-muted">
+              <tr className="text-left text-app-caption uppercase tracking-wider text-app-text-muted">
                 <th className="px-3 py-2 font-semibold">{m.label_type()}</th>
                 <th className="px-3 py-2 font-semibold">{m.label_track()}</th>
                 <th className="px-3 py-2 font-semibold">{m.chats_col_cars()}</th>
@@ -162,7 +162,7 @@ export function ChatsPage() {
                 <tr key={row.threadId} className="border-b border-app-border/40 hover:bg-app-surface-hover/40 transition-colors">
                   <td className="px-3 py-2">
                     <span
-                      className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                      className={`text-app-caption font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
                         row.type === "compare"
                           ? "bg-status-info/15 text-status-info border border-status-info/30"
                           : row.type === "tune"
@@ -188,7 +188,7 @@ export function ChatsPage() {
                       ))
                     )}
                   </td>
-                  <td className="px-3 py-2 text-app-text-secondary font-mono text-[11px]">
+                  <td className="px-3 py-2 text-app-text-secondary font-mono text-app-compact">
                     {row.type === "tune" && row.tune ? (
                       <span className="truncate max-w-[220px] block">#{row.tune.seq} — {row.tune.name}</span>
                     ) : (
@@ -205,14 +205,14 @@ export function ChatsPage() {
                     <div className="flex items-center justify-end gap-1">
                       <button
                         onClick={() => handleOpen(row)}
-                        className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-app-surface-hover text-app-text-secondary hover:text-app-text"
+                        className="inline-flex items-center gap-1 text-app-compact px-2 py-1 rounded hover:bg-app-surface-hover text-app-text-secondary hover:text-app-text"
                         title={m.chats_open()}
                       >
                         <ExternalLink className="size-3" /> {m.chats_open()}
                       </button>
                       <button
                         onClick={() => handleDelete(row.threadId)}
-                        className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-status-danger/15 text-app-text-muted hover:text-status-danger"
+                        className="inline-flex items-center gap-1 text-app-compact px-2 py-1 rounded hover:bg-status-danger/15 text-app-text-muted hover:text-status-danger"
                         title={m.chats_delete_title()}
                       >
                         <Trash2 className="size-3" />

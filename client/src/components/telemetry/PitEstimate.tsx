@@ -102,13 +102,13 @@ export function PitEstimate({ packet, pit }: PitEstimateProps) {
           <div className="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-x-2 items-center mb-1 px-0.5">
             <div className="w-6" />
             <div />
-            <div className="text-[10px] text-app-text-dim uppercase tracking-wider text-right w-12">{m.pit_health()}</div>
-            <div className="text-[10px] text-app-text-dim uppercase tracking-wider text-right w-14">{m.pit_wear_lap()}</div>
-            <div className="text-[10px] uppercase tracking-wider text-right w-12 text-(--severity-caution)/70">
+            <div className="text-app-caption text-app-text-dim uppercase tracking-wider text-right w-12">{m.pit_health()}</div>
+            <div className="text-app-caption text-app-text-dim uppercase tracking-wider text-right w-14">{m.pit_wear_lap()}</div>
+            <div className="text-app-caption uppercase tracking-wider text-right w-12 text-(--severity-caution)/70">
               {m.pit_cliff()}
               {pit?.cliffPct ? ` ${pit.cliffPct}%` : ""}
             </div>
-            <div className="text-[10px] uppercase tracking-wider text-right w-12 text-(--severity-critical)/70">
+            <div className="text-app-caption uppercase tracking-wider text-right w-12 text-(--severity-critical)/70">
               {m.pit_dead()}
               {pit?.deadPct ? ` ${pit.deadPct}%` : ""}
             </div>

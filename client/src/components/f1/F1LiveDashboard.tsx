@@ -228,12 +228,12 @@ function ErsSection({ f1 }: { f1: F1ExtendedData }) {
   return (
     <div>
       <div className="h-8 px-2 border-b border-app-border flex items-center justify-between">
-        <h2 className="text-[10px] font-semibold text-app-text-muted uppercase tracking-wider">{m.f1live_section_electronics()}</h2>
+        <h2 className="text-app-caption font-semibold text-app-text-muted uppercase tracking-wider">{m.f1live_section_electronics()}</h2>
       </div>
       <div className="p-3 space-y-2">
         <DrsIndicator f1={f1} />
         <div className="flex items-center justify-between gap-2 mt-1">
-          <span className="text-[10px] text-app-text-muted uppercase tracking-wider">{m.f1live_ers_label()}</span>
+          <span className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.f1live_ers_label()}</span>
           <div className="flex items-center gap-1.5">
             <span className="text-sm font-bold px-2 py-0.5 rounded bg-app-surface-alt tabular-nums" style={{ color: chargeColor }}>
               {pct.toFixed(0)}%
@@ -246,7 +246,7 @@ function ErsSection({ f1 }: { f1: F1ExtendedData }) {
         <div className="h-2 rounded-full overflow-hidden">
           <div className="h-full rounded-full transition-all" style={{ backgroundColor: chargeColor, width: `${pct}%` }} />
         </div>
-        <div className="flex justify-between text-[10px] text-app-text-muted font-mono tabular-nums">
+        <div className="flex justify-between text-app-caption text-app-text-muted font-mono tabular-nums">
           <span>↓ {deployedPct.toFixed(0)}%</span>
           <span>↑ {harvestedPct.toFixed(0)}%</span>
         </div>
@@ -289,13 +289,13 @@ function WeatherWidget({ f1 }: { f1: F1ExtendedData }) {
       )}
       <div className="flex gap-3">
         <div>
-          <div className="text-[9px] text-app-text-muted uppercase">{m.label_track()}</div>
+          <div className="text-app-micro text-app-text-muted uppercase">{m.label_track()}</div>
           <div className="text-base font-mono font-bold tabular-nums leading-none" style={{ color: "var(--metric-track-temperature)" }}>
             {f1.trackTemperature}&deg;
           </div>
         </div>
         <div>
-          <div className="text-[9px] text-app-text-muted uppercase">{m.f1live_weather_air()}</div>
+          <div className="text-app-micro text-app-text-muted uppercase">{m.f1live_weather_air()}</div>
           <div className="text-base font-mono font-bold tabular-nums leading-none" style={{ color: "var(--metric-air-temperature)" }}>
             {f1.airTemperature}&deg;
           </div>

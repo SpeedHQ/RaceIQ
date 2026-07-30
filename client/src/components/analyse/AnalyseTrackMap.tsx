@@ -294,7 +294,7 @@ export const AnalyseTrackMap = forwardRef<
         }
       }
 
-      ctx.font = "bold 9px monospace";
+      ctx.font = "var(--font-weight-bold) var(--text-app-micro) var(--font-mono)";
       ctx.textAlign = "center";
       const occupied: { x: number; y: number; w: number; h: number }[] = [];
       for (const label of labelCandidates.sort(
@@ -346,7 +346,7 @@ export const AnalyseTrackMap = forwardRef<
     // Official iRacing turns.svg text is already positioned for this exact
     // layout, so preserve it instead of attaching another layout's names.
     if (mapLabels && mapLabels.length > 0 && !showInputs) {
-      ctx.font = "bold 9px monospace";
+      ctx.font = "var(--font-weight-bold) var(--text-app-micro) var(--font-mono)";
       ctx.textAlign = "center";
       for (const label of mapLabels) {
         const [labelX, labelY] = toCanvas(label.x, label.z);

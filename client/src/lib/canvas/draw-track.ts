@@ -38,7 +38,9 @@ function overlaps(a: Rect, b: Rect): boolean {
  * inside, before giving up.
  */
 function placeLabels(ctx: CanvasRenderingContext2D, labels: LabelCandidate[], large: boolean, w: number, h: number) {
-  ctx.font = large ? "bold 9px monospace" : "bold 7px monospace";
+  ctx.font = large
+    ? "var(--font-weight-bold) var(--text-app-micro) var(--font-mono)"
+    : "var(--font-weight-bold) var(--text-app-glyph) var(--font-mono)";
   ctx.textAlign = "center";
   const offDist = large ? 14 : 8;
   const padX = 3;
@@ -231,7 +233,7 @@ export function drawTrack(
       const offDist = 16;
       const lx = mx + (-dz2 / len2) * offDist;
       const ly = my + (dx2 / len2) * offDist;
-      ctx.font = "bold 11px monospace";
+      ctx.font = "var(--font-weight-bold) var(--text-app-compact) var(--font-mono)";
       ctx.textAlign = "center";
       const textWidth = ctx.measureText(sec.label).width;
       ctx.globalAlpha = 0.9;

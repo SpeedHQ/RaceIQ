@@ -22,6 +22,24 @@ const sourceFiles = ownedSourceFiles(SOURCE_DIR);
 const themeCss = readFileSync(THEME_PATH, "utf8");
 const brandingCss = readFileSync(BRANDING_PATH, "utf8");
 const contractCss = [themeCss, brandingCss].join("\n");
+const TYPOGRAPHY_ROLES = [
+  "title",
+  "heading",
+  "body",
+  "subtext",
+  "detail",
+  "label",
+  "compact",
+  "caption",
+  "micro",
+  "nano",
+  "glyph",
+  "visualization-value",
+  "visualization-emphasis",
+  "instrument-value",
+  "instrument-secondary",
+  "instrument-primary",
+] as const;
 
 function themeHex(token: string): string {
   const value = themeCss.match(new RegExp(`^\\s*${token}:\\s*(#[\\da-f]{6});`, "mi"))?.[1];
@@ -122,7 +140,10 @@ describe("frontend theme contract", () => {
     }
 
     const designMetadata = JSON.parse(readFileSync(resolve(CLIENT_DIR, ".impeccable/design.json"), "utf8")) as {
-      extensions: { colorMeta: { surfaceRamp: string[]; textRamp: string[]; statusPalette: Record<string, string> } };
+      extensions: {
+        colorMeta: { surfaceRamp: string[]; textRamp: string[]; statusPalette: Record<string, string> };
+        typographyMeta: { fontFamily: string; monoFamily: string; scale: Record<string, string> };
+      };
       components: { css: string }[];
     };
     expect(designMetadata.extensions.colorMeta.surfaceRamp).toEqual(["--app-bg", "--app-surface", "--app-surface-alt"].map((token) => `var(${token})`));
@@ -132,8 +153,25 @@ describe("frontend theme contract", () => {
     expect(designMetadata.extensions.colorMeta.statusPalette).toEqual(
       Object.fromEntries(["success", "warning", "danger", "info", "unavailable"].map((name) => [name, `var(--status-${name})`])),
     );
+    expect(designMetadata.extensions.typographyMeta.fontFamily).toBe("var(--font-sans)");
+    expect(designMetadata.extensions.typographyMeta.monoFamily).toBe("var(--font-mono)");
+    expect(designMetadata.extensions.typographyMeta.scale).toEqual(Object.fromEntries(TYPOGRAPHY_ROLES.map((role) => [role, `var(--text-app-${role})`])));
+    for (const role of TYPOGRAPHY_ROLES) {
+      expect(themeCss).toMatch(new RegExp(`^\\s*--text-app-${role}:`, "m"));
+      expect(designMarkdown).toContain(`fontSize: "var(--text-app-${role})"`);
+    }
+    expect(themeCss).toMatch(/^\s*--font-sans:/m);
+    expect(themeCss).toMatch(/^\s*--font-mono:/m);
+    expect(themeCss).not.toContain("--app-font-");
     expect(designMetadata.components.map((component) => component.css).join("\n")).not.toMatch(/#(?:020617|0f172a|1e293b|334155|f1f5f9|b8c5d4|a0b0c0|7a8ea0)/i);
     expect(designMetadata.components.map((component) => component.css).join("\n")).not.toContain(":hover{background:var(--app-surface-alt)");
+    const componentTypographyDeclarations = [
+      ...designMetadata.components
+        .map((component) => component.css)
+        .join("\n")
+        .matchAll(/\b(font-(?:family|size|weight)):\s*([^;}]+)/g),
+    ].map((match) => `${match[1]}:${match[2].trim()}`);
+    expect(componentTypographyDeclarations.filter((declaration) => !declaration.includes(":var("))).toEqual([]);
   });
 
   test("keeps default semantic text and filled controls readable", () => {
@@ -154,6 +192,28 @@ describe("frontend theme contract", () => {
 
     expect(frontendSources).not.toMatch(/text-app-text\/90-(?:muted|dim)/);
     expect(frontendSources).not.toContain("forza-theme");
+  });
+
+  test("keeps application typography on the shared Tailwind scale", () => {
+    const typographySources = sourceFiles
+      .filter((path) => path !== THEME_PATH)
+      .map((path) => readFileSync(path, "utf8"))
+      .join("\n");
+
+    expect(typographySources).not.toMatch(/\btext-\[(?:\d+(?:\.\d+)?px|\d*\.?\d+rem)\]/);
+    expect(typographySources).not.toMatch(/\bfontFamily\s*=\s*(?:["'](?!var\()|\{\s*["'](?!var\())/);
+    expect(typographySources).not.toMatch(/\bfontWeight\s*=\s*(?:["'](?:bold|normal|\d+)["']|\{\d+\})/);
+    expect(typographySources).not.toMatch(/\bfontSize\s*:\s*["'`](?!var\()/);
+    expect(typographySources).not.toMatch(/\.style\.fontSize\s*=\s*["'][^"']*(?:px|rem)/);
+    expect(typographySources).not.toMatch(/["'`](?:bold\s+)?\d+(?:\.\d+)?px\s+(?:(?:ui-)?monospace|system-ui|sans-serif)/i);
+
+    const cssSources = sourceFiles
+      .filter((path) => extname(path) === ".css" && path !== THEME_PATH)
+      .map((path) => readFileSync(path, "utf8"))
+      .join("\n");
+    expect(cssSources).not.toMatch(/\bfont-size:\s*(?:\d|\.\d)/);
+    expect(cssSources).not.toMatch(/\bfont-family:\s*(?:["']|(?:ui-)?monospace\b|sans-serif\b|Geist\b)/i);
+    expect(cssSources).not.toMatch(/\bfont-weight:\s*(?:\d|bold\b|normal\b)/i);
   });
 
   test("keeps raw palette values in CSS and adapts imperative renderers centrally", () => {
@@ -210,6 +270,8 @@ describe("frontend theme contract", () => {
 
     const adapterSource = readFileSync(adapterPath, "utf8");
     expect(adapterSource).toContain('canvas.getContext("2d")');
+    expect(adapterSource).toContain('property === "font"');
+    expect(adapterSource).toContain("resolveCssFont(value)");
   });
 
   test("keeps product, manufacturer, and team color values out of React", () => {

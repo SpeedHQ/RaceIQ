@@ -79,7 +79,7 @@ function DonutChart({ binCount, gzCount }: { binCount: number; gzCount: number }
           strokeDashoffset={circumference / 4 + binOffset}
           strokeLinecap="butt"
         />
-        <text x={cx} y={cy - 6} textAnchor="middle" fill="var(--app-text)" fontSize="18" fontWeight="600">
+        <text x={cx} y={cy - 6} textAnchor="middle" fill="var(--app-text)" fontSize="18" fontWeight="var(--font-weight-semibold)">
           {total}
         </text>
         <text x={cx} y={cy + 10} textAnchor="middle" fill="var(--app-text)" fillOpacity={0.4} fontSize="10">

@@ -387,13 +387,13 @@ export function AiSection() {
                 type="button"
                 onClick={() => refreshModels.mutate()}
                 disabled={aiModelsFetching || modelsRefreshing || isSaving}
-                className="inline-flex items-center gap-1 text-[11px] text-app-text-muted hover:text-app-text disabled:opacity-50"
+                className="inline-flex items-center gap-1 text-app-compact text-app-text-muted hover:text-app-text disabled:opacity-50"
                 title={m.ai_refresh_models_title()}
               >
                 <RefreshCw className={`size-3 ${aiModelsFetching || modelsRefreshing ? "animate-spin" : ""}`} />
                 {m.ai_refresh()}
               </button>
-              {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-[11px] text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
+              {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-app-compact text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
             </div>
             <select
               value={model}
@@ -514,13 +514,13 @@ export function AiSection() {
                 type="button"
                 onClick={() => refreshModels.mutate()}
                 disabled={aiModelsFetching || modelsRefreshing || isSaving}
-                className="inline-flex items-center gap-1 text-[11px] text-app-text-muted hover:text-app-text disabled:opacity-50"
+                className="inline-flex items-center gap-1 text-app-compact text-app-text-muted hover:text-app-text disabled:opacity-50"
                 title={m.ai_refresh_models_title()}
               >
                 <RefreshCw className={`size-3 ${aiModelsFetching || modelsRefreshing ? "animate-spin" : ""}`} />
                 {m.ai_refresh()}
               </button>
-              {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-[11px] text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
+              {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-app-compact text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
             </div>
             <select
               value={chatModel}
@@ -647,7 +647,7 @@ export function AiSection() {
                 className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full font-mono"
               />
             </div>
-            <p className="text-[11px] text-app-text-muted mt-1">
+            <p className="text-app-compact text-app-text-muted mt-1">
               {PROVIDER_KEY_LABELS[autoTuneProvider].helpText}{" "}
               <a href={PROVIDER_KEY_LABELS[autoTuneProvider].helpUrl} target="_blank" rel="noreferrer" className="text-app-accent hover:underline">
                 {new URL(PROVIDER_KEY_LABELS[autoTuneProvider].helpUrl).hostname}
@@ -663,12 +663,12 @@ export function AiSection() {
                 type="button"
                 onClick={() => refreshModels.mutate()}
                 disabled={aiModelsFetching || modelsRefreshing || isSaving}
-                className="inline-flex items-center gap-1 text-[11px] text-app-text-muted hover:text-app-text disabled:opacity-50"
+                className="inline-flex items-center gap-1 text-app-compact text-app-text-muted hover:text-app-text disabled:opacity-50"
               >
                 <RefreshCw className={`size-3 ${aiModelsFetching || modelsRefreshing ? "animate-spin" : ""}`} />
                 {m.ai_refresh()}
               </button>
-              {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-[11px] text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
+              {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-app-compact text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
             </div>
             <select
               value={autoTuneModel}

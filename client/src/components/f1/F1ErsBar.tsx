@@ -51,7 +51,7 @@ export function F1ErsBar({ f1 }: { f1: F1ExtendedData }) {
       </div>
 
       {/* Deploy / Harvest stats */}
-      <div className="flex justify-between text-[10px] text-app-text-dim">
+      <div className="flex justify-between text-app-caption text-app-text-dim">
         <span>
           {m.f1ers_deploy()}: {deployedPct.toFixed(0)}%
         </span>

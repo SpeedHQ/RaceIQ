@@ -35,14 +35,25 @@
       "operatingCold": "var(--operating-cold)"
     },
     "typographyMeta": {
-      "fontFamily": "Geist Variable, sans-serif",
+      "fontFamily": "var(--font-sans)",
+      "monoFamily": "var(--font-mono)",
       "scale": {
-        "title": "1.125rem",
-        "heading": "1rem",
-        "body": "0.9375rem",
-        "subtext": "0.875rem",
-        "label": "0.75rem",
-        "unit": "0.6875rem"
+        "title": "var(--text-app-title)",
+        "heading": "var(--text-app-heading)",
+        "body": "var(--text-app-body)",
+        "subtext": "var(--text-app-subtext)",
+        "detail": "var(--text-app-detail)",
+        "label": "var(--text-app-label)",
+        "compact": "var(--text-app-compact)",
+        "caption": "var(--text-app-caption)",
+        "micro": "var(--text-app-micro)",
+        "nano": "var(--text-app-nano)",
+        "glyph": "var(--text-app-glyph)",
+        "visualization-value": "var(--text-app-visualization-value)",
+        "visualization-emphasis": "var(--text-app-visualization-emphasis)",
+        "instrument-value": "var(--text-app-instrument-value)",
+        "instrument-secondary": "var(--text-app-instrument-secondary)",
+        "instrument-primary": "var(--text-app-instrument-primary)"
       }
     },
     "shadows": {
@@ -64,7 +75,7 @@
     {
       "name": "button-app-primary",
       "html": "<button class=\"ds-btn ds-btn-primary\">Analyze Lap</button>",
-      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:8px;font-family:'Geist Variable',sans-serif;font-size:0.8rem;font-weight:500;white-space:nowrap;transition:all 150ms;border:1px solid transparent;padding:6px 10px;}.ds-btn:active{transform:translateY(1px);}.ds-btn-primary{background:var(--app-accent);color:var(--app-on-filled);}.ds-btn-primary:hover{background:var(--app-accent-hover);}.ds-btn-primary:disabled{background:color-mix(in srgb,var(--app-accent) 40%,transparent);opacity:1;pointer-events:none;}"
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:8px;font-family:var(--font-sans);font-size:var(--text-app-detail);font-weight:var(--font-weight-medium);white-space:nowrap;transition:all 150ms;border:1px solid transparent;padding:6px 10px;}.ds-btn:active{transform:translateY(1px);}.ds-btn-primary{background:var(--app-accent);color:var(--app-on-filled);}.ds-btn-primary:hover{background:var(--app-accent-hover);}.ds-btn-primary:disabled{background:color-mix(in srgb,var(--app-accent) 40%,transparent);opacity:1;pointer-events:none;}"
     },
     {
       "name": "button-app-outline",
@@ -84,12 +95,12 @@
     {
       "name": "card",
       "html": "<div class=\"ds-card\"><div class=\"ds-card-header\">Sector Times</div><div class=\"ds-card-body\">Corner-by-corner breakdown</div></div>",
-      "css": ".ds-card{background:var(--app-surface);border:1px solid var(--app-border);border-radius:8px;}.ds-card:hover{background:var(--app-surface-hover);}.ds-card-header{font-family:'Geist Variable',sans-serif;font-size:1rem;font-weight:600;color:var(--app-text);padding:12px 16px;border-bottom:1px solid var(--app-border);}.ds-card-body{font-family:'Geist Variable',sans-serif;font-size:0.875rem;color:var(--app-text-secondary);padding:12px 16px;}"
+      "css": ".ds-card{background:var(--app-surface);border:1px solid var(--app-border);border-radius:8px;}.ds-card:hover{background:var(--app-surface-hover);}.ds-card-header{font-family:var(--font-sans);font-size:var(--text-app-heading);font-weight:var(--font-weight-semibold);color:var(--app-text);padding:12px 16px;border-bottom:1px solid var(--app-border);}.ds-card-body{font-family:var(--font-sans);font-size:var(--text-app-subtext);color:var(--app-text-secondary);padding:12px 16px;}"
     },
     {
       "name": "input",
       "html": "<input class=\"ds-input\" placeholder=\"Search laps\" />",
-      "css": ".ds-input{background:var(--app-surface-alt);border:1px solid var(--app-border-input);border-radius:8px;color:var(--app-text);font-family:'Geist Variable',sans-serif;font-size:0.875rem;padding:6px 10px;}.ds-input:focus{outline:none;border-color:var(--app-accent);}.ds-input::placeholder{color:var(--app-text-dim);}"
+      "css": ".ds-input{background:var(--app-surface-alt);border:1px solid var(--app-border-input);border-radius:8px;color:var(--app-text);font-family:var(--font-sans);font-size:var(--text-app-subtext);padding:6px 10px;}.ds-input:focus{outline:none;border-color:var(--app-accent);}.ds-input::placeholder{color:var(--app-text-dim);}"
     }
   ],
   "narrative": {
@@ -99,18 +110,18 @@
       "Near-black base with a single cyan signal color, not a rainbow of accents",
       "Flat, tonally-layered surfaces — no shadows, no glass",
       "A semantic severity scale reserved for telemetry state encoding, never used for UI chrome",
-      "Compact, utilitarian type scale (11px-18px) built for data density",
+      "Compact, utilitarian type scale built for data density, with dedicated visualization and instrument readout roles",
       "Tactile, confident interactive states: visible hover shifts, no timid opacity fades"
     ],
     "rules": [
       "The One Signal Rule: cyan is the only interface accent; telemetry severity colors never leak into chrome",
-      "The Compact Scale Rule: never introduce a type size above 18px outside a genuine new page-level heading need",
+      "The Compact Scale Rule: use the shared text-app-* scale; reserve caption, micro, nano, and glyph for dense telemetry, and larger roles for visualization or instrument readouts",
       "The Flat-By-Default Rule: no drop shadows, no glassmorphism, no blur; elevation is tonal stepping only"
     ],
     "dos": [
       "Keep cyan as the only interface accent",
       "Convey elevation with bg → surface → surface-alt tonal steps",
-      "Keep type scale within 11px-18px",
+      "Use the shared semantic type scale instead of one-off pixel sizes",
       "Use translate-y-px active-press shift for tactile feel",
       "Pack real data into every surface"
     ],

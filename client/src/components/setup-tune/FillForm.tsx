@@ -39,7 +39,7 @@ function ScalarInput({ field, settings, onChange }: { field: FieldDef; settings:
         }}
         className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-sm text-app-text focus:outline-none focus:ring-1 focus:ring-app-accent"
       />
-      {field.hint && <span className="text-[10px] text-app-text-muted">{field.hint}</span>}
+      {field.hint && <span className="text-app-caption text-app-text-muted">{field.hint}</span>}
     </label>
   );
 }
@@ -54,12 +54,12 @@ function ArrayInput({ field, settings, onChange }: { field: FieldDef; settings: 
     <div className="space-y-1">
       <div className="flex items-baseline justify-between">
         <span className="text-xs font-medium text-app-text-muted">{field.label}</span>
-        {field.hint && <span className="text-[10px] text-app-text-muted">{field.hint}</span>}
+        {field.hint && <span className="text-app-caption text-app-text-muted">{field.hint}</span>}
       </div>
       <div className={`grid gap-2 ${len === 4 ? "grid-cols-4" : "grid-cols-2"}`}>
         {Array.from({ length: len }).map((_, i) => (
           <label key={i} className="space-y-0.5 block">
-            <span className="text-[10px] text-app-text-muted">{labels[i]}</span>
+            <span className="text-app-caption text-app-text-muted">{labels[i]}</span>
             <input
               type="number"
               step={field.step ?? "any"}
@@ -103,7 +103,7 @@ function SectionCard({
       <button type="button" onClick={() => setOpen((o) => !o)} className="w-full flex items-center justify-between px-3 py-2 text-left">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-app-text">{section.label}</span>
-          <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded ${hasData ? "bg-status-success/20 text-status-success" : "bg-app-bg text-app-text-muted"}`}>
+          <span className={`text-app-micro font-semibold uppercase px-1.5 py-0.5 rounded ${hasData ? "bg-status-success/20 text-status-success" : "bg-app-bg text-app-text-muted"}`}>
             {hasData ? "set" : "—"}
           </span>
         </div>

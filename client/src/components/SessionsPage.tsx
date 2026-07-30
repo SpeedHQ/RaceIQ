@@ -46,7 +46,7 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
         <span className={`text-xs break-words whitespace-pre-wrap transition-opacity group-hover:opacity-30 ${value ? "text-app-text/90" : "text-app-text-dim italic"}`}>
           {value || m.sessions_add_note()}
         </span>
-        <span className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity text-app-text/90 text-[10px] font-medium">
+        <span className="absolute inset-0 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity text-app-text/90 text-app-caption font-medium">
           <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
@@ -630,7 +630,7 @@ export function SessionsPage() {
                     <div className="flex items-baseline justify-between gap-2">
                       <div className="text-sm font-semibold text-app-text truncate">{trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}</div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <div className="text-[11px] text-app-text-dim">
+                        <div className="text-app-compact text-app-text-dim">
                           {new Date(session.createdAt).toLocaleDateString()} {new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </div>
                         <Button

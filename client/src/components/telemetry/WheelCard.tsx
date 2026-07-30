@@ -65,7 +65,7 @@ export function WheelCard({
     <div className="flex flex-col items-center">
       <svg viewBox="0 0 80 145" width={80} height={145}>
         {/* Label */}
-        <text x={cx} y={8} textAnchor="middle" fill="var(--app-text-muted)" fontSize={8} fontWeight="bold" fontFamily="monospace">
+        <text x={cx} y={8} textAnchor="middle" fill="var(--app-text-muted)" fontSize={8} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
           {label}
         </text>
 
@@ -134,8 +134,8 @@ export function WheelCard({
           textAnchor={outerSide === "left" ? "end" : "start"}
           fill={slipCol}
           fontSize={7}
-          fontWeight="bold"
-          fontFamily="monospace"
+          fontWeight="var(--font-weight-bold)"
+          fontFamily="var(--font-mono)"
         >
           {slipAngle.toFixed(1)}°
         </text>
@@ -147,8 +147,8 @@ export function WheelCard({
           textAnchor={outerSide === "left" ? "end" : "start"}
           fill={spinColor ?? "var(--app-text-dim)"}
           fontSize={6}
-          fontWeight={spinLabel ? "bold" : "normal"}
-          fontFamily="monospace"
+          fontWeight={spinLabel ? "var(--font-weight-bold)" : "var(--font-weight-normal)"}
+          fontFamily="var(--font-mono)"
         >
           {spinLabel ? `${spinLabel} ` : ""}
           {spinPct > 0 ? "+" : ""}
@@ -156,16 +156,16 @@ export function WheelCard({
         </text>
 
         {/* Below tire: temp, wear, traction */}
-        <text x={cx} y={93} textAnchor="middle" fill={stroke} fontSize={9} fontWeight="bold" fontFamily="monospace">
+        <text x={cx} y={93} textAnchor="middle" fill={stroke} fontSize={9} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
           {tempFn(temp).toFixed(0)}°{tempUnit}
         </text>
-        <text x={cx} y={105} textAnchor="middle" fill="var(--app-text-muted)" fontSize={9} fontFamily="monospace">
+        <text x={cx} y={105} textAnchor="middle" fill="var(--app-text-muted)" fontSize={9} fontFamily="var(--font-mono)">
           Health {((1 - wearPct) * 100).toFixed(0)}%
         </text>
         {(() => {
           const ts = tireState(wheelState.state, wheelState.slipRatio, (slipAngle * Math.PI) / 180);
           return (
-            <text x={cx} y={117} textAnchor="middle" fill={ts.color} fontSize={8} fontWeight="bold" fontFamily="monospace">
+            <text x={cx} y={117} textAnchor="middle" fill={ts.color} fontSize={8} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
               {ts.label}
             </text>
           );
@@ -173,19 +173,19 @@ export function WheelCard({
 
         {/* Brake temp */}
         {brakeTemp != null && brakeTemp > 0 && (
-          <text x={cx} y={127} textAnchor="middle" fill={brakeTempColor(brakeTemp, label.startsWith("R"))} fontSize={8} fontFamily="monospace">
+          <text x={cx} y={127} textAnchor="middle" fill={brakeTempColor(brakeTemp, label.startsWith("R"))} fontSize={8} fontFamily="var(--font-mono)">
             BRK {tempFn(brakeTemp).toFixed(0)}°
           </text>
         )}
 
         {/* Theme-owned curb and puddle surface indicators */}
         {onRumble && (
-          <text x={cx} y={brakeTemp != null && brakeTemp > 0 ? 137 : 127} textAnchor="middle" fill="var(--track-curb-right)" fontSize={7} fontWeight="bold" fontFamily="monospace">
+          <text x={cx} y={brakeTemp != null && brakeTemp > 0 ? 137 : 127} textAnchor="middle" fill="var(--track-curb-right)" fontSize={7} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
             CURB
           </text>
         )}
         {puddleDepth > 0 && (
-          <text x={cx} y={(brakeTemp != null && brakeTemp > 0 ? 137 : 127) + (onRumble ? 9 : 0)} textAnchor="middle" fill="var(--surface-wet)" fontSize={7} fontWeight="bold" fontFamily="monospace">
+          <text x={cx} y={(brakeTemp != null && brakeTemp > 0 ? 137 : 127) + (onRumble ? 9 : 0)} textAnchor="middle" fill="var(--surface-wet)" fontSize={7} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
             WET {(puddleDepth * 100).toFixed(0)}%
           </text>
         )}

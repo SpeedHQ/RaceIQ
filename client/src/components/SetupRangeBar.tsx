@@ -82,7 +82,7 @@ export function SetupRangeBar({
       </div>
       {/* Median value label above the bar */}
       {showMedianLabel && (
-        <span className="absolute -top-2.5 -translate-x-1/2 text-[10px] font-mono leading-none whitespace-nowrap" style={{ color: "var(--setup-range-median)", left: `${medPct}%` }}>
+        <span className="absolute -top-2.5 -translate-x-1/2 text-app-caption font-mono leading-none whitespace-nowrap" style={{ color: "var(--setup-range-median)", left: `${medPct}%` }}>
           {Math.round(median)}
         </span>
       )}
@@ -93,7 +93,7 @@ export function SetupRangeBar({
             className="w-0 h-0 border-l-[4px] border-r-[4px] border-b-[6px] border-l-transparent border-r-transparent"
             style={{ borderBottomColor: "var(--setup-range-selected)" }}
           />
-          <span className="text-[11px] font-mono font-bold leading-none mt-0.5 whitespace-nowrap" style={{ color: "var(--setup-range-selected)" }}>
+          <span className="text-app-compact font-mono font-bold leading-none mt-0.5 whitespace-nowrap" style={{ color: "var(--setup-range-selected)" }}>
             {selected}
             {unit ?? ""}
           </span>

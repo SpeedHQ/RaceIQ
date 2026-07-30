@@ -82,7 +82,7 @@ export function TrackCard({
           <div className="absolute bottom-1.5 right-1.5 flex flex-col items-end gap-1 pointer-events-none">
             {setupCount !== undefined && (
               <span
-                className={`text-[10px] px-1.5 py-0.5 rounded border font-mono leading-none ${
+                className={`text-app-caption px-1.5 py-0.5 rounded border font-mono leading-none ${
                   setupCount > 0 ? "bg-status-success/15 border-status-success/50 text-status-success" : "bg-app-surface-alt/70 border-app-border text-app-text-dim"
                 }`}
               >
@@ -91,7 +91,7 @@ export function TrackCard({
             )}
             {guideCount !== undefined && (
               <span
-                className={`text-[10px] px-1.5 py-0.5 rounded border font-mono leading-none ${
+                className={`text-app-caption px-1.5 py-0.5 rounded border font-mono leading-none ${
                   guideCount > 0 ? "bg-status-warning/15 border-status-warning/50 text-status-warning" : "bg-app-surface-alt/70 border-app-border text-app-text-dim"
                 }`}
               >

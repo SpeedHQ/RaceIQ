@@ -74,7 +74,7 @@ function RatingBar({ value, max = 10 }: { value: number; max?: number }) {
       <div className="w-16 h-1 bg-app-border rounded-full overflow-hidden">
         <div className="h-full bg-app-accent rounded-full" style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-[10px] tabular-nums text-app-text-muted w-5">{value.toFixed(1)}</span>
+      <span className="text-app-caption tabular-nums text-app-text-muted w-5">{value.toFixed(1)}</span>
     </div>
   );
 }
@@ -104,9 +104,9 @@ function CarDetail({
         ) : (
           <div className="w-full h-24 rounded bg-app-surface flex items-center justify-center text-xs text-app-text-muted">{m.common_no_image()}</div>
         )}
-        {s.synopsis && <p className="text-[11px] text-app-text-muted leading-relaxed line-clamp-4">{s.synopsis}</p>}
+        {s.synopsis && <p className="text-app-compact text-app-text-muted leading-relaxed line-clamp-4">{s.synopsis}</p>}
         {s.wikiUrl && (
-          <a href={s.wikiUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-app-accent hover:underline" onClick={(e) => e.stopPropagation()}>
+          <a href={s.wikiUrl} target="_blank" rel="noopener noreferrer" className="text-app-caption text-app-accent hover:underline" onClick={(e) => e.stopPropagation()}>
             {m.cars_forza_wiki()}
           </a>
         )}
@@ -116,7 +116,7 @@ function CarDetail({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2 text-xs">
         {/* Engine */}
         <div className="space-y-1">
-          <div className="text-[10px] uppercase tracking-wider text-app-text-muted font-semibold">{m.cars_engine()}</div>
+          <div className="text-app-caption uppercase tracking-wider text-app-text-muted font-semibold">{m.cars_engine()}</div>
           <div className="text-app-text/90">
             {s.engine || "—"} {s.displacement > 0 ? `${s.displacement}L` : ""}
           </div>
@@ -134,7 +134,7 @@ function CarDetail({
 
         {/* Performance */}
         <div className="space-y-1">
-          <div className="text-[10px] uppercase tracking-wider text-app-text-muted font-semibold">{m.cars_performance()}</div>
+          <div className="text-app-caption uppercase tracking-wider text-app-text-muted font-semibold">{m.cars_performance()}</div>
           <div className="flex justify-between">
             <span className="text-app-text-muted">{m.cars_top_speed()}</span>
             <span className="text-app-text/90 tabular-nums">{fmtSpeed(s.topSpeedMph)}</span>
@@ -163,7 +163,7 @@ function CarDetail({
 
         {/* Ratings */}
         <div className="space-y-1">
-          <div className="text-[10px] uppercase tracking-wider text-app-text-muted font-semibold">{m.cars_ratings()}</div>
+          <div className="text-app-caption uppercase tracking-wider text-app-text-muted font-semibold">{m.cars_ratings()}</div>
           <div className="flex items-center justify-between gap-2">
             <span className="text-app-text-muted w-16">{m.label_speed()}</span>
             <RatingBar value={s.speedRating} />
@@ -180,7 +180,7 @@ function CarDetail({
             <span className="text-app-text-muted w-16">{m.cars_rating_accel()}</span>
             <RatingBar value={s.accelRating} />
           </div>
-          <div className="mt-1 text-[10px] text-app-text-muted">
+          <div className="mt-1 text-app-caption text-app-text-muted">
             {s.division && <span className="mr-2">{s.division}</span>}
             {s.price > 0 && <span>{s.price.toLocaleString()} CR</span>}
           </div>
@@ -310,7 +310,7 @@ function ColHeader({ k, label, className = "", sort, sortDir, onSort }: { k: Sor
   return (
     <button
       onClick={() => onSort(k)}
-      className={`text-left text-[10px] uppercase tracking-wider font-semibold transition-colors ${active ? "text-app-accent" : "text-app-text-muted hover:text-app-text/90"} ${className}`}
+      className={`text-left text-app-caption uppercase tracking-wider font-semibold transition-colors ${active ? "text-app-accent" : "text-app-text-muted hover:text-app-text/90"} ${className}`}
     >
       {label}
       {active ? (sortDir === 1 ? " ↑" : " ↓") : ""}
@@ -513,7 +513,7 @@ export function CarsPage() {
                             e.stopPropagation();
                             navigate({ to: "/fm23/cars/$carOrdinal", params: { carOrdinal: String(car.ordinal) } });
                           }}
-                          className="absolute top-2 right-2 px-1.5 py-0.5 text-[9px] font-bold rounded bg-app-accent/80 hover:bg-app-accent-hover text-app-on-filled border border-app-accent/30 transition-colors"
+                          className="absolute top-2 right-2 px-1.5 py-0.5 text-app-micro font-bold rounded bg-app-accent/80 hover:bg-app-accent-hover text-app-on-filled border border-app-accent/30 transition-colors"
                           title={m.cars_view_3d_model()}
                         >
                           3D
@@ -526,17 +526,17 @@ export function CarsPage() {
                       <div>
                         <div className="flex items-center gap-1.5 flex-wrap">
                           {s.pi > 0 && <PiBadge showNumber={false} pi={s.pi} />}
-                          <span className="text-[10px] font-semibold text-(--badge-color)" data-pi-class={piClass(s.pi)}>
+                          <span className="text-app-caption font-semibold text-(--badge-color)" data-pi-class={piClass(s.pi)}>
                             {s.pi || ""}
                           </span>
                         </div>
                         <div className="text-xs font-semibold text-app-text/90 leading-tight mt-0.5 line-clamp-2">{car.name}</div>
-                        <div className="text-[10px] text-app-text-muted mt-0.5">
+                        <div className="text-app-caption text-app-text-muted mt-0.5">
                           {s.division || "—"} · {s.drivetrain || "—"}
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-app-caption">
                         <div className="flex justify-between">
                           <span className="text-app-text-muted">HP</span>
                           <span className="tabular-nums text-app-text/90">{s.hp || "—"}</span>
@@ -567,25 +567,25 @@ export function CarsPage() {
                         <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
                           {s.speedRating > 0 && (
                             <div className="flex items-center gap-1">
-                              <span className="text-[9px] text-app-text-muted w-6">Spd</span>
+                              <span className="text-app-micro text-app-text-muted w-6">Spd</span>
                               <RatingBar value={s.speedRating} />
                             </div>
                           )}
                           {s.handlingRating > 0 && (
                             <div className="flex items-center gap-1">
-                              <span className="text-[9px] text-app-text-muted w-6">Hdl</span>
+                              <span className="text-app-micro text-app-text-muted w-6">Hdl</span>
                               <RatingBar value={s.handlingRating} />
                             </div>
                           )}
                           {s.accelRating > 0 && (
                             <div className="flex items-center gap-1">
-                              <span className="text-[9px] text-app-text-muted w-6">Acc</span>
+                              <span className="text-app-micro text-app-text-muted w-6">Acc</span>
                               <RatingBar value={s.accelRating} />
                             </div>
                           )}
                           {s.brakingRating > 0 && (
                             <div className="flex items-center gap-1">
-                              <span className="text-[9px] text-app-text-muted w-6">Brk</span>
+                              <span className="text-app-micro text-app-text-muted w-6">Brk</span>
                               <RatingBar value={s.brakingRating} />
                             </div>
                           )}

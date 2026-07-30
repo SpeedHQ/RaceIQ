@@ -166,10 +166,10 @@ export function CornerBars({
                 />
               )}
             </div>
-            <span className="text-[10px] font-mono tabular-nums" style={{ color: hasCursor ? "var(--app-accent)" : empty ? "var(--app-text-dim)" : color }}>
+            <span className="text-app-caption font-mono tabular-nums" style={{ color: hasCursor ? "var(--app-accent)" : empty ? "var(--app-text-dim)" : color }}>
               {hasCursor ? Math.round(cv!) : empty ? "—" : Math.round(r.avg)}
             </span>
-            <span className="text-[9px] text-app-text-dim uppercase">{c}</span>
+            <span className="text-app-micro text-app-text-dim uppercase">{c}</span>
           </div>
         );
       })}
