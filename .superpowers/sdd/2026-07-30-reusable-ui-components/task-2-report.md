@@ -35,3 +35,15 @@ Removed all duplicate `createPortal`/fixed backdrop/panel markup from these migr
    - Exit 0; no whitespace errors.
 
 The known full-suite timeout and `test/story-isolation.test.ts` `@/paraglide/messages` resolution issue were not broadened or changed.
+
+## Overlay regression fix
+
+Restored `DialogOverlay` default backdrop to `bg-app-bg/10`, preserving existing consumers including setup file picker and assistant attachment preview. Added typed feature-neutral `DialogContent.overlayClassName` opt-in and applied `bg-app-bg/60` to migrated modal shells whose prior custom backdrops used `/60`.
+
+## Fix verification
+
+1. `cd client && bun run build`
+   - Exit 0; Paraglide compile succeeded; TypeScript build succeeded; Vite transformed 5,620 modules and completed production build.
+   - Existing large-chunk warning only.
+2. `cd client && bun run build-storybook`
+   - Exit 0; Storybook build completed successfully.

@@ -60,7 +60,7 @@ export function AnalysisModalShell({
 }) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="lg" showCloseButton={false} className="max-h-[85vh] flex flex-col overflow-hidden p-0">
+      <DialogContent size="lg" showCloseButton={false} overlayClassName="bg-app-bg/60" className="max-h-[85vh] flex flex-col overflow-hidden p-0">
         <DialogHeader className="flex shrink-0 flex-row items-center gap-2 border-b border-app-border px-4 py-2.5">
           <Sparkles className="size-3.5 text-ai-accent shrink-0" />
           <DialogTitle className="sr-only">{m.label_ai_analysis()}</DialogTitle>
