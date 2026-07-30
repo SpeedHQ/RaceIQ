@@ -11,7 +11,9 @@ function flatten(obj: unknown, prefix = "", out: Record<string, unknown> = {}): 
     return out;
   }
   if (Array.isArray(obj)) {
-    obj.forEach((v, i) => flatten(v, prefix ? `${prefix}[${i}]` : `[${i}]`, out));
+    obj.forEach((v, i) => {
+      flatten(v, prefix ? `${prefix}[${i}]` : `[${i}]`, out);
+    });
     return out;
   }
   if (typeof obj === "object") {
@@ -36,7 +38,7 @@ export function RawTelemetry({ packet }: Props) {
       <div className="text-xs text-app-text-muted uppercase tracking-wider mb-3">
         {m.rawtel_title()} ({entries.length} fields)
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-0.5">
+      <div className="grid grid-cols-1 gap-x-4 gap-y-0.5 @3xl/workspace:grid-cols-2 @5xl/workspace:grid-cols-3">
         {entries.map(([key, value]) => (
           <div key={key} className="flex justify-between items-center py-0.5 border-b border-app-border/50">
             <span className="text-xs text-app-text-secondary truncate mr-2">{key}</span>

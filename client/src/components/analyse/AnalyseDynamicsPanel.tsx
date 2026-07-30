@@ -15,9 +15,7 @@ interface Props {
 }
 
 export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
-  const analysis = resolveAnalysisTelemetry(
-    gameId ? tryGetGame(gameId) : undefined,
-  );
+  const analysis = resolveAnalysisTelemetry(gameId ? tryGetGame(gameId) : undefined);
   const ws = allWheelStates(currentPacket);
   const fc = allFrictionCircle(currentPacket);
   const bal = steerBalance(currentPacket);
@@ -86,105 +84,103 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
         <span className="flex items-center gap-1 group relative text-app-text-muted">
           {m.label_balance()}
           {analysis.balance.source === "unavailable" ? (
-            <span className="text-app-caption text-app-text-dim">
-              {m.analyse_unavailable()}
-            </span>
+            <span className="text-app-caption text-app-text-dim">{m.analyse_unavailable()}</span>
           ) : (
             <>
               <Info className="w-3 h-3 text-app-text-dim cursor-help" />
-              <span className="absolute left-0 top-full mt-2 hidden group-hover:block bg-app-surface-alt border border-app-border-input rounded px-2.5 py-2 text-app-caption text-app-text-secondary z-50 pointer-events-none normal-case tracking-normal w-[300px]">
-            <span className="block mb-1">Yaw rate vs path curvature + front/rear slip-angle delta.</span>
-            <span className="block mb-2 text-app-text-dim">
-              + = understeer (front slip &gt; rear) &nbsp;|&nbsp; − = oversteer (body yawing past Ay/V)
-              <br />
-              Gated by |latG| ≥ 0.25g — straight-line wheelspin ignored
-            </span>
+              <span className="pointer-events-none absolute top-full left-0 z-50 mt-2 hidden w-[min(300px,calc(100vw-2rem))] rounded border border-app-border-input bg-app-surface-alt px-2.5 py-2 text-app-caption text-app-text-secondary normal-case tracking-normal group-hover:block">
+                <span className="block mb-1">Yaw rate vs path curvature + front/rear slip-angle delta.</span>
+                <span className="block mb-2 text-app-text-dim">
+                  + = understeer (front slip &gt; rear) &nbsp;|&nbsp; − = oversteer (body yawing past Ay/V)
+                  <br />
+                  Gated by |latG| ≥ 0.25g — straight-line wheelspin ignored
+                </span>
 
-            {/* Signal breakdown */}
-            {(() => {
-              const SIG_RANGE = 1.5;
-              const sigX = (u: number) => Math.max(2, Math.min(198, 100 + (Math.max(-SIG_RANGE, Math.min(SIG_RANGE, u)) / SIG_RANGE) * 98));
-              const slipX = sigX(bal.uSlip);
-              const yawX = sigX(bal.uYaw);
-              const slipColor = signedBalanceColor(bal.uSlip, 0.05);
-              // Yaw signal becomes unreliable at high speed (yawRatePath → 0).
-              // Fade it out proportionally so the user can see why it's discounted.
-              const yawReliability = Math.min(1, bal.yawRatePath / 0.15);
-              const yawColor = signedBalanceColor(bal.uYaw, 0.05);
-              return (
-                <svg viewBox="0 0 200 110" className="w-full h-auto mb-1">
-                  {/* ── Signal rows ── */}
-                  {[
-                    { label: "Slip Δ", x: slipX, color: slipColor, opacity: 1, y: 16, desc: `F ${bal.frontSlipDeg.toFixed(1)}° / R ${bal.rearSlipDeg.toFixed(1)}°` },
-                    {
-                      label: "Yaw",
-                      x: yawX,
-                      color: yawColor,
-                      opacity: yawReliability,
-                      y: 40,
-                      desc: `err ${bal.yawError > 0 ? "+" : ""}${bal.yawError.toFixed(2)} r/s (path ${bal.yawRatePath.toFixed(2)})`,
-                    },
-                  ].map(({ label, x, color, opacity, y, desc }) => (
-                    <g key={label} opacity={opacity}>
-                      <text x="0" y={y - 4} fill="currentColor" opacity="0.5" fontSize="6.5">
-                        {label}
+                {/* Signal breakdown */}
+                {(() => {
+                  const SIG_RANGE = 1.5;
+                  const sigX = (u: number) => Math.max(2, Math.min(198, 100 + (Math.max(-SIG_RANGE, Math.min(SIG_RANGE, u)) / SIG_RANGE) * 98));
+                  const slipX = sigX(bal.uSlip);
+                  const yawX = sigX(bal.uYaw);
+                  const slipColor = signedBalanceColor(bal.uSlip, 0.05);
+                  // Yaw signal becomes unreliable at high speed (yawRatePath → 0).
+                  // Fade it out proportionally so the user can see why it's discounted.
+                  const yawReliability = Math.min(1, bal.yawRatePath / 0.15);
+                  const yawColor = signedBalanceColor(bal.uYaw, 0.05);
+                  return (
+                    <svg viewBox="0 0 200 110" className="w-full h-auto mb-1">
+                      {/* ── Signal rows ── */}
+                      {[
+                        { label: "Slip Δ", x: slipX, color: slipColor, opacity: 1, y: 16, desc: `F ${bal.frontSlipDeg.toFixed(1)}° / R ${bal.rearSlipDeg.toFixed(1)}°` },
+                        {
+                          label: "Yaw",
+                          x: yawX,
+                          color: yawColor,
+                          opacity: yawReliability,
+                          y: 40,
+                          desc: `err ${bal.yawError > 0 ? "+" : ""}${bal.yawError.toFixed(2)} r/s (path ${bal.yawRatePath.toFixed(2)})`,
+                        },
+                      ].map(({ label, x, color, opacity, y, desc }) => (
+                        <g key={label} opacity={opacity}>
+                          <text x="0" y={y - 4} fill="currentColor" opacity="0.5" fontSize="6.5">
+                            {label}
+                          </text>
+                          <rect x="0" y={y} width="200" height="10" rx="1" fill="currentColor" opacity="0.06" />
+                          <rect x="0" y={y} width={thrLeftX} height="10" fill="var(--balance-negative)" opacity="0.12" />
+                          <rect x={thrLeftX} y={y} width={thrRightX - thrLeftX} height="10" fill="var(--balance-neutral)" opacity="0.12" />
+                          <rect x={thrRightX} y={y} width={200 - thrRightX} height="10" fill="var(--balance-positive)" opacity="0.12" />
+                          <line x1="100" y1={y} x2="100" y2={y + 10} stroke="currentColor" opacity="0.2" />
+                          <line x1={thrLeftX} y1={y} x2={thrLeftX} y2={y + 10} stroke="currentColor" opacity="0.3" strokeDasharray="2,1" />
+                          <line x1={thrRightX} y1={y} x2={thrRightX} y2={y + 10} stroke="currentColor" opacity="0.3" strokeDasharray="2,1" />
+                          <circle cx={x} cy={y + 5} r="4" fill={color} stroke="var(--app-surface)" strokeWidth="1" />
+                          <text x="0" y={y + 20} fill="currentColor" opacity="0.35" fontSize="6">
+                            {desc}
+                          </text>
+                        </g>
+                      ))}
+
+                      {/* Yaw low-reliability warning */}
+                      {yawReliability < 0.6 && (
+                        <text x="200" y="44" textAnchor="end" fill="var(--status-warning)" fontSize="6.5" opacity="0.8">
+                          {`↓ unreliable at ${(currentPacket.Speed * 3.6).toFixed(0)} km/h`}
+                        </text>
+                      )}
+
+                      {/* Conflict / agree badge */}
+                      {bal.signalsAgree ? (
+                        <text x="100" y="70" textAnchor="middle" fill="var(--status-success)" fontSize="7" fontWeight="var(--font-weight-semibold)">
+                          SIGNALS AGREE — blended 50/50
+                        </text>
+                      ) : (
+                        <text x="100" y="70" textAnchor="middle" fill="var(--status-warning)" fontSize="7" fontWeight="var(--font-weight-semibold)">
+                          CONFLICT — slip angle used alone
+                        </text>
+                      )}
+
+                      {/* Combined balance bar */}
+                      <text x="0" y="80" fill="currentColor" opacity="0.5" fontSize="6.5">
+                        {m.label_combined()}
                       </text>
-                      <rect x="0" y={y} width="200" height="10" rx="1" fill="currentColor" opacity="0.06" />
-                      <rect x="0" y={y} width={thrLeftX} height="10" fill="var(--balance-negative)" opacity="0.12" />
-                      <rect x={thrLeftX} y={y} width={thrRightX - thrLeftX} height="10" fill="var(--balance-neutral)" opacity="0.12" />
-                      <rect x={thrRightX} y={y} width={200 - thrRightX} height="10" fill="var(--balance-positive)" opacity="0.12" />
-                      <line x1="100" y1={y} x2="100" y2={y + 10} stroke="currentColor" opacity="0.2" />
-                      <line x1={thrLeftX} y1={y} x2={thrLeftX} y2={y + 10} stroke="currentColor" opacity="0.3" strokeDasharray="2,1" />
-                      <line x1={thrRightX} y1={y} x2={thrRightX} y2={y + 10} stroke="currentColor" opacity="0.3" strokeDasharray="2,1" />
-                      <circle cx={x} cy={y + 5} r="4" fill={color} stroke="var(--app-surface)" strokeWidth="1" />
-                      <text x="0" y={y + 20} fill="currentColor" opacity="0.35" fontSize="6">
-                        {desc}
+                      <rect x="0" y="82" width="200" height="10" rx="1" fill="currentColor" opacity="0.06" />
+                      <rect x="0" y="82" width={thrLeftX} height="10" fill="var(--balance-negative)" opacity="0.18" />
+                      <rect x={thrLeftX} y="82" width={thrRightX - thrLeftX} height="10" fill="var(--balance-neutral)" opacity="0.18" />
+                      <rect x={thrRightX} y="82" width={200 - thrRightX} height="10" fill="var(--balance-positive)" opacity="0.18" />
+                      <line x1="100" y1="82" x2="100" y2="92" stroke="currentColor" opacity="0.25" />
+                      <line x1={thrLeftX} y1="78" x2={thrLeftX} y2="96" stroke="currentColor" opacity="0.4" strokeDasharray="2,2" />
+                      <line x1={thrRightX} y1="78" x2={thrRightX} y2="96" stroke="currentColor" opacity="0.4" strokeDasharray="2,2" />
+                      <circle cx={currentX} cy="87" r="4" fill={balanceColor(bal.state)} stroke="var(--app-surface)" strokeWidth="1.2" />
+                      <text x={thrLeftX / 2} y="106" textAnchor="middle" fill="var(--balance-negative)" fontSize="7" fontWeight="var(--font-weight-semibold)">
+                        {m.dynamics_over()}
                       </text>
-                    </g>
-                  ))}
-
-                  {/* Yaw low-reliability warning */}
-                  {yawReliability < 0.6 && (
-                    <text x="200" y="44" textAnchor="end" fill="var(--status-warning)" fontSize="6.5" opacity="0.8">
-                      {`↓ unreliable at ${(currentPacket.Speed * 3.6).toFixed(0)} km/h`}
-                    </text>
-                  )}
-
-                  {/* Conflict / agree badge */}
-                  {bal.signalsAgree ? (
-                    <text x="100" y="70" textAnchor="middle" fill="var(--status-success)" fontSize="7" fontWeight="var(--font-weight-semibold)">
-                      SIGNALS AGREE — blended 50/50
-                    </text>
-                  ) : (
-                    <text x="100" y="70" textAnchor="middle" fill="var(--status-warning)" fontSize="7" fontWeight="var(--font-weight-semibold)">
-                      CONFLICT — slip angle used alone
-                    </text>
-                  )}
-
-                  {/* Combined balance bar */}
-                  <text x="0" y="80" fill="currentColor" opacity="0.5" fontSize="6.5">
-                    {m.label_combined()}
-                  </text>
-                  <rect x="0" y="82" width="200" height="10" rx="1" fill="currentColor" opacity="0.06" />
-                  <rect x="0" y="82" width={thrLeftX} height="10" fill="var(--balance-negative)" opacity="0.18" />
-                  <rect x={thrLeftX} y="82" width={thrRightX - thrLeftX} height="10" fill="var(--balance-neutral)" opacity="0.18" />
-                  <rect x={thrRightX} y="82" width={200 - thrRightX} height="10" fill="var(--balance-positive)" opacity="0.18" />
-                  <line x1="100" y1="82" x2="100" y2="92" stroke="currentColor" opacity="0.25" />
-                  <line x1={thrLeftX} y1="78" x2={thrLeftX} y2="96" stroke="currentColor" opacity="0.4" strokeDasharray="2,2" />
-                  <line x1={thrRightX} y1="78" x2={thrRightX} y2="96" stroke="currentColor" opacity="0.4" strokeDasharray="2,2" />
-                  <circle cx={currentX} cy="87" r="4" fill={balanceColor(bal.state)} stroke="var(--app-surface)" strokeWidth="1.2" />
-                  <text x={thrLeftX / 2} y="106" textAnchor="middle" fill="var(--balance-negative)" fontSize="7" fontWeight="var(--font-weight-semibold)">
-                    {m.dynamics_over()}
-                  </text>
-                  <text x="100" y="106" textAnchor="middle" fill="var(--balance-neutral)" fontSize="7" fontWeight="var(--font-weight-semibold)">
-                    {m.dynamics_neutral()}
-                  </text>
-                  <text x={(thrRightX + 200) / 2} y="106" textAnchor="middle" fill="var(--balance-positive)" fontSize="7" fontWeight="var(--font-weight-semibold)">
-                    {m.dynamics_under()}
-                  </text>
-                </svg>
-              );
-            })()}
+                      <text x="100" y="106" textAnchor="middle" fill="var(--balance-neutral)" fontSize="7" fontWeight="var(--font-weight-semibold)">
+                        {m.dynamics_neutral()}
+                      </text>
+                      <text x={(thrRightX + 200) / 2} y="106" textAnchor="middle" fill="var(--balance-positive)" fontSize="7" fontWeight="var(--font-weight-semibold)">
+                        {m.dynamics_under()}
+                      </text>
+                    </svg>
+                  );
+                })()}
               </span>
             </>
           )}
@@ -239,18 +235,13 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
             rr: analysis.traction.source === "unavailable" ? unavailable : C(states[3].label, states[3].color),
           },
           {
-            label:
-              analysis.tireTemperature.source === "direct" &&
-              analysis.tireTemperature.freshness === "pit-snapshot"
-                ? m.analyse_wheels_pit_temp()
-                : m.analyse_dynamics_temp(),
+            label: analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot" ? m.analyse_wheels_pit_temp() : m.analyse_dynamics_temp(),
             fl: C(states[0].temp.label, states[0].temp.color),
             fr: C(states[1].temp.label, states[1].temp.color),
             rl: C(states[2].temp.label, states[2].temp.color),
             rr: C(states[3].temp.label, states[3].temp.color),
           },
-          ...(analysis.surface.source !== "unavailable" &&
-          analysis.surface.display !== "vehicle"
+          ...(analysis.surface.source !== "unavailable" && analysis.surface.display !== "vehicle"
             ? [
                 {
                   label: m.analyse_dynamics_surface(),
@@ -295,15 +286,12 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
             : []),
         ]}
       />
-      {analysis.surface.source !== "unavailable" &&
-        analysis.surface.display === "vehicle" && (
-          <div className="flex justify-between">
-            <span className="text-app-text-muted">
-              {m.analyse_dynamics_surface()}
-            </span>
-            <span className="text-app-text">{vehicleSurface}</span>
-          </div>
-        )}
+      {analysis.surface.source !== "unavailable" && analysis.surface.display === "vehicle" && (
+        <div className="flex justify-between">
+          <span className="text-app-text-muted">{m.analyse_dynamics_surface()}</span>
+          <span className="text-app-text">{vehicleSurface}</span>
+        </div>
+      )}
 
       {/* Slip */}
       <WheelTable

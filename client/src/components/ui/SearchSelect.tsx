@@ -68,11 +68,13 @@ export function SearchSelect({ id, value, onChange, options, placeholder = "Sear
       if (rect) setPanelRect({ top: rect.bottom, left: rect.left, width: rect.width });
     };
     updateRect();
+    const resizeObserver = new ResizeObserver(updateRect);
+    resizeObserver.observe(document.documentElement);
+    if (inputRef.current) resizeObserver.observe(inputRef.current);
     window.addEventListener("scroll", updateRect, true);
-    window.addEventListener("resize", updateRect);
     return () => {
+      resizeObserver.disconnect();
       window.removeEventListener("scroll", updateRect, true);
-      window.removeEventListener("resize", updateRect);
     };
   }, [open]);
 

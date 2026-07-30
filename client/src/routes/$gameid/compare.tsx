@@ -1,6 +1,5 @@
 import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { LapComparison, type LapComparisonSearch } from "../../components/LapComparison";
-import { ResponsiveWorkspace } from "../../components/ResponsiveWorkspace";
 
 export const Route = createFileRoute("/$gameid/compare")({
   component: ComparePage,
@@ -15,9 +14,5 @@ export const Route = createFileRoute("/$gameid/compare")({
 
 function ComparePage() {
   const search = useSearch({ from: "/$gameid/compare" });
-  return (
-    <ResponsiveWorkspace>
-      <LapComparison initialSearch={search} />
-    </ResponsiveWorkspace>
-  );
+  return <LapComparison initialSearch={search} />;
 }

@@ -523,7 +523,13 @@ export function SessionsPage() {
             ))}
           </div>
         )}
-        <AppInput type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={m.sessions_search_placeholder()} className="flex-1 min-w-[200px] sm:flex-none sm:w-64" />
+        <AppInput
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={m.sessions_search_placeholder()}
+          className="min-w-[200px] flex-1 @3xl/workspace:w-64 @3xl/workspace:flex-none"
+        />
         <h1 className="text-sm font-semibold text-app-text/90 shrink-0">
           {m.label_sessions()}
           {!isLoading && (
@@ -587,7 +593,7 @@ export function SessionsPage() {
       </div>
 
       {/* Mobile card list */}
-      <div className="md:hidden flex-1 overflow-auto flex flex-col gap-2">
+      <div className="flex flex-1 flex-col gap-2 overflow-auto @3xl/workspace:hidden">
         {isLoading ? (
           <div className="px-3 py-8 text-center text-app-text/90">{m.common_loading()}</div>
         ) : pageItems.length === 0 ? (
@@ -701,7 +707,7 @@ export function SessionsPage() {
         )}
       </div>
 
-      <Table className="hidden md:table flex-1 overflow-auto">
+      <Table className="hidden flex-1 overflow-auto @3xl/workspace:table">
         <THead>
           <TH className="w-10 px-2">
             <input

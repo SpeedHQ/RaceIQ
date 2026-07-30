@@ -14,6 +14,7 @@ export function StrategyPanel({ strategies, tuneId }: { strategies: RaceStrategy
         <div className="flex gap-1">
           {strategies.map((s) => (
             <button
+              type="button"
               key={`${tuneId}-${s.condition}`}
               onClick={() => setActiveCondition(s.condition)}
               className={`text-app-caption font-semibold uppercase px-2 py-0.5 rounded transition-colors ${
@@ -25,7 +26,7 @@ export function StrategyPanel({ strategies, tuneId }: { strategies: RaceStrategy
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-2">
+      <div className="mb-2 grid grid-cols-2 gap-3 @3xl/workspace:grid-cols-4">
         <div className="text-center">
           <div className="text-sm font-bold text-app-text font-mono leading-tight">{strategy.totalLaps}</div>
           <div className="text-app-caption text-app-text-muted uppercase leading-tight">{m.label_laps()}</div>

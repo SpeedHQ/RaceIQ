@@ -10,7 +10,7 @@ const SOURCE_LABEL: Record<TuneRow["source"], () => string> = {
 };
 
 // Shared responsive grid: mobile shows #, name, lap, chevron; sm+ adds car + track + category + author.
-export const TUNE_GRID = "grid grid-cols-[26px_1fr_66px_26px] sm:grid-cols-[34px_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,0.9fr)_88px_minmax(90px,120px)_84px_30px] items-center gap-2.5";
+export const TUNE_GRID = "grid grid-cols-[26px_1fr_66px_26px] items-center gap-2.5 @3xl/workspace:grid-cols-[34px_minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,0.9fr)_88px_minmax(90px,120px)_84px_30px]";
 
 export interface TuneBrowserRowProps {
   row: TuneRow;
@@ -43,24 +43,26 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
           <span className="block text-app-body font-semibold truncate">{row.name}</span>
           <span className="block text-app-caption text-app-text-muted mt-1">{SOURCE_LABEL[row.source]()}</span>
         </span>
-        <span className="hidden sm:block text-app-detail text-app-text-secondary min-w-0 truncate">{carName}</span>
-        <span className={`hidden sm:block text-app-detail min-w-0 truncate ${trackName ? "text-app-accent" : "text-app-text-dim"}`}>{trackName ?? "—"}</span>
-        <span className="hidden sm:block min-w-0">
+        <span className="hidden min-w-0 truncate text-app-detail text-app-text-secondary @3xl/workspace:block">{carName}</span>
+        <span className={`hidden min-w-0 truncate text-app-detail @3xl/workspace:block ${trackName ? "text-app-accent" : "text-app-text-dim"}`}>{trackName ?? "—"}</span>
+        <span className="hidden min-w-0 @3xl/workspace:block">
           {row.category && (
             <span className={`inline-block text-app-caption font-semibold uppercase px-1.5 py-0.5 rounded truncate ${CATEGORY_COLORS[row.category] ?? "bg-app-surface-alt text-app-text-muted"}`}>
               {catLabel}
             </span>
           )}
         </span>
-        <span className="hidden sm:block text-app-detail min-w-0 truncate">{row.author}</span>
+        <span className="hidden min-w-0 truncate text-app-detail @3xl/workspace:block">{row.author}</span>
         <span className={`justify-self-end font-mono text-app-detail tabular-nums text-right ${hasTime ? "text-(--lap-pace-average)" : "text-app-text-dim"}`}>
           {hasTime ? row.lapTimeRaw : "—"}
-          <span className="hidden sm:block text-app-nano uppercase tracking-wide text-app-text-dim mt-0.5">{hasTime ? (row.lapTimeTrack ?? m.browser_lap_label()) : m.browser_no_time()}</span>
+          <span className="mt-0.5 hidden text-app-nano text-app-text-dim uppercase tracking-wide @3xl/workspace:block">
+            {hasTime ? (row.lapTimeTrack ?? m.browser_lap_label()) : m.browser_no_time()}
+          </span>
         </span>
-        <span className={`hidden sm:block text-center text-app-text-dim transition-transform ${isOpen ? "rotate-90 text-app-accent" : ""}`}>›</span>
+        <span className={`hidden text-center text-app-text-dim transition-transform @3xl/workspace:block ${isOpen ? "rotate-90 text-app-accent" : ""}`}>›</span>
       </button>
       {isOpen && (
-        <div className="px-4 sm:pl-14 pb-4 pt-1">
+        <div className="px-4 pt-1 pb-4 @3xl/workspace:pl-14">
           {row.description && <p className="text-xs text-app-text-muted leading-relaxed whitespace-pre-line mb-3.5 max-w-[70ch]">{row.description}</p>}
           {renderSettings(row)}
           {!readOnly && (

@@ -3,7 +3,7 @@ import type { ReactNode, TdHTMLAttributes, ThHTMLAttributes } from "react";
 export function Table({ children, className = "", fit = false }: { children: ReactNode; className?: string; fit?: boolean }) {
   return (
     <div className={`rounded-lg ${fit ? "" : "overflow-x-auto"} ${className}`}>
-      <table className={`w-full text-sm ${fit ? "min-w-0" : "min-w-max md:min-w-0"}`}>{children}</table>
+      <table className={`w-full text-sm ${fit ? "min-w-0" : "min-w-max @3xl/workspace:min-w-0"}`}>{children}</table>
     </div>
   );
 }

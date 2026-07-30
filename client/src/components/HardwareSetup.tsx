@@ -115,9 +115,10 @@ export function WheelCatalogue({ onSelect }: { onSelect: (profileId: string) => 
         <p className="text-app-subtext text-app-text-muted mt-1">{m.hw_catalogue_subtitle()}</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 @3xl/workspace:grid-cols-2">
         {WHEEL_CATALOGUE.map((wheel) => (
           <button
+            type="button"
             key={wheel.profileId}
             onClick={() => onSelect(wheel.profileId)}
             className="group rounded-xl bg-app-surface/40 ring-1 ring-app-border hover:ring-app-accent/50 transition-all overflow-hidden text-left"
@@ -172,7 +173,7 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
               </svg>
             </button>
             <h1 className="text-app-title font-bold text-app-text">{m.hw_setup_title()}</h1>
-          <span className="text-app-compact font-semibold uppercase px-1.5 py-0.5 rounded bg-app-accent/20 text-app-accent">{profile.wheelBase.maxTorque}</span>
+            <span className="text-app-compact font-semibold uppercase px-1.5 py-0.5 rounded bg-app-accent/20 text-app-accent">{profile.wheelBase.maxTorque}</span>
           </div>
           <p className="text-app-subtext text-app-text-muted">{profile.description}</p>
         </div>
@@ -184,6 +185,7 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
           { id: "ingame" as const, label: m.hw_tab_ingame_ffb() },
         ].map((tab) => (
           <button
+            type="button"
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`text-app-label font-semibold uppercase px-3 py-1.5 rounded-lg transition-colors ${
@@ -209,7 +211,7 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
             </div>
             <ul className="px-4 py-3 space-y-2">
               {profile.tips.map((tip, i) => (
-                <li key={i} className="text-app-body text-app-text-secondary flex items-start gap-2">
+                <li key={tip} className="text-app-body text-app-text-secondary flex items-start gap-2">
                   <span className="text-app-accent shrink-0 mt-0.5">{i + 1}.</span>
                   {tip}
                 </li>
@@ -224,6 +226,7 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
           <div className="flex gap-2">
             {profile.inGamePresets.map((p) => (
               <button
+                type="button"
                 key={p.id}
                 onClick={() => setActivePreset(p.id)}
                 className={`text-app-label font-semibold uppercase px-2.5 py-1.5 rounded-lg transition-colors ${

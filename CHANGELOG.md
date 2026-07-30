@@ -9,7 +9,7 @@
 ### Fixes
 
 - Show all registered games in storage settings, including games with no recording files
-- Make lap analysis and comparison reflow across phone, tablet, odd-shaped, and desktop windows without blocking device or rotation gates
+- Make every app workspace reflow across phone, tablet, odd-shaped, and desktop windows without blocking device or rotation gates
 
 ### Internal
 - Stabilized Storybook dashboard capture readiness, aligned PR preview comparison with Playwright's material-diff policy, and restricted baseline writes to the pinned Linux renderer

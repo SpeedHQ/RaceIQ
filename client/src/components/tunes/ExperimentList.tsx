@@ -33,7 +33,7 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
   const [creating, setCreating] = useState(false);
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto p-3 @3xl/workspace:p-4">
       <div className="space-y-2">
         <div>
           <h1 className="text-lg font-semibold text-app-text">Experiments</h1>
@@ -74,7 +74,9 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
  *  read, and a row's focus decides how its arms should be judged. */
 export function FocusBadge({ focus }: { focus: ExperimentFocus }) {
   return (
-    <span className={`inline-block rounded-full px-2 py-0.5 text-app-caption font-medium whitespace-nowrap ${focus === "driver" ? "bg-(--focus-driver)/15 text-(--focus-driver)" : "bg-(--focus-setup)/15 text-(--focus-setup)"}`}>
+    <span
+      className={`inline-block rounded-full px-2 py-0.5 text-app-caption font-medium whitespace-nowrap ${focus === "driver" ? "bg-(--focus-driver)/15 text-(--focus-driver)" : "bg-(--focus-setup)/15 text-(--focus-setup)"}`}
+    >
       {EXPERIMENT_FOCUS_LABELS[focus]}
     </span>
   );
@@ -84,18 +86,18 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
   const accCarName = useAccCarName();
   const carName = (n: string | null | undefined) => (gameId === "acc" ? accCarName(n) : n) ?? "—";
   return (
-    <div className="overflow-x-auto border border-app-border rounded-lg">
-      <table className="w-full text-sm border-collapse">
+    <div className="min-w-0 max-w-full overflow-hidden rounded-lg border border-app-border">
+      <table className="w-full table-fixed border-collapse text-sm">
         <thead>
           <tr className="text-left text-app-compact uppercase tracking-wider text-app-text-muted border-b border-app-border">
-            <th className="px-3 py-2 font-medium w-12 text-right">#</th>
+            <th className="hidden w-12 px-3 py-2 text-right font-medium @sm/workspace:table-cell">#</th>
             <th className="px-3 py-2 font-medium">Session</th>
-            <th className="px-3 py-2 font-medium">Varying</th>
-            <th className="px-3 py-2 font-medium">Car</th>
-            <th className="px-3 py-2 font-medium">Track</th>
-            <th className="px-3 py-2 font-medium">Base setup</th>
-            <th className="px-3 py-2 font-medium whitespace-nowrap">Last active</th>
-            <th className="px-3 py-2 font-medium sr-only">Actions</th>
+            <th className="hidden px-3 py-2 font-medium @3xl/workspace:table-cell">Varying</th>
+            <th className="hidden px-3 py-2 font-medium @3xl/workspace:table-cell">Car</th>
+            <th className="hidden px-3 py-2 font-medium @5xl/workspace:table-cell">Track</th>
+            <th className="hidden px-3 py-2 font-medium @5xl/workspace:table-cell">Base setup</th>
+            <th className="hidden whitespace-nowrap px-3 py-2 font-medium @7xl/workspace:table-cell">Last active</th>
+            <th className="w-20 px-3 py-2 font-medium sr-only">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -110,18 +112,18 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
             const base = s.baseSetupPath?.split(/[\\/]/).pop() ?? "—";
             return (
               <tr key={s.id} onClick={() => onOpen(s.id)} className="border-b border-app-border/60 last:border-0 hover:bg-app-surface-hover/60 cursor-pointer">
-                <td className="px-3 py-2 text-right font-mono text-app-text-dim tabular-nums">{s.seq}</td>
-                <td className="px-3 py-2 font-medium text-app-text">{s.name}</td>
-                <td className="px-3 py-2">
+                <td className="hidden px-3 py-2 text-right font-mono text-app-text-dim tabular-nums @sm/workspace:table-cell">{s.seq}</td>
+                <td className="truncate px-3 py-2 font-medium text-app-text">{s.name}</td>
+                <td className="hidden px-3 py-2 @3xl/workspace:table-cell">
                   <FocusBadge focus={s.focus} />
                 </td>
-                <td className="px-3 py-2 text-app-text-dim">{carName(s.carName)}</td>
-                <td className="px-3 py-2 text-app-text-dim">{s.trackName ?? "—"}</td>
-                <td className="px-3 py-2 text-app-text-dim font-mono text-xs max-w-[220px] truncate" title={s.baseSetupPath ?? undefined}>
+                <td className="hidden truncate px-3 py-2 text-app-text-dim @3xl/workspace:table-cell">{carName(s.carName)}</td>
+                <td className="hidden truncate px-3 py-2 text-app-text-dim @5xl/workspace:table-cell">{s.trackName ?? "—"}</td>
+                <td className="hidden max-w-[220px] truncate px-3 py-2 font-mono text-xs text-app-text-dim @5xl/workspace:table-cell" title={s.baseSetupPath ?? undefined}>
                   {base}
                 </td>
-                <td className="px-3 py-2 text-app-text-dim whitespace-nowrap">{new Date(s.updatedAt).toLocaleDateString()}</td>
-                <td className="px-3 py-2 text-right">
+                <td className="hidden whitespace-nowrap px-3 py-2 text-app-text-dim @7xl/workspace:table-cell">{new Date(s.updatedAt).toLocaleDateString()}</td>
+                <td className="w-20 px-3 py-2 text-right">
                   <span className="text-app-accent text-xs font-semibold">Resume →</span>
                 </td>
               </tr>
@@ -389,6 +391,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
   };
 
   return createPortal(
+    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop closes only when pointer targets backdrop itself
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
       onMouseDown={(e) => {
@@ -396,6 +399,9 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
       }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
         className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[680px] max-w-[94vw] flex flex-col gap-4 p-5"
         onKeyDown={(e) => {
           if (e.key === "Escape") onClose();
@@ -452,9 +458,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
         {notice && (
           <div
             className={`flex items-start gap-2 rounded-md border px-2.5 py-2 text-app-compact ${
-                notice.tone === "error"
-                  ? "border-status-danger/40 bg-status-danger/10 text-status-danger"
-                  : "border-status-warning/40 bg-status-warning/10 text-status-warning"
+              notice.tone === "error" ? "border-status-danger/40 bg-status-danger/10 text-status-danger" : "border-status-warning/40 bg-status-warning/10 text-status-warning"
             }`}
           >
             <span aria-hidden className="leading-none">
@@ -472,14 +476,18 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
         {pendingDrop && !placing && (
           <div className="rounded-lg border border-app-border bg-app-bg/40 p-3">
             <div className="flex items-start gap-3">
-              <span className="shrink-0 rounded bg-app-border/40 px-1.5 py-0.5 font-mono text-app-caption uppercase tracking-wider text-app-text-dim">{setupFileFormat(gameId).extension.slice(1)}</span>
+              <span className="shrink-0 rounded bg-app-border/40 px-1.5 py-0.5 font-mono text-app-caption uppercase tracking-wider text-app-text-dim">
+                {setupFileFormat(gameId).extension.slice(1)}
+              </span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono text-xs text-app-text truncate" title={pendingDrop.fileName}>
                     {pendingDrop.fileName}
                   </span>
                   {dropStatus && (
-                    <span className={`rounded-full px-2 py-0.5 text-app-caption font-medium ${dropStatus === "placed" ? "bg-status-success/15 text-status-success" : "bg-app-border/50 text-app-text-dim"}`}>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-app-caption font-medium ${dropStatus === "placed" ? "bg-status-success/15 text-status-success" : "bg-app-border/50 text-app-text-dim"}`}
+                    >
                       {dropStatus === "placed" ? "Copied to Setups" : dropStatus === "existing" ? "Already saved there" : "Found in Setups"}
                     </span>
                   )}
@@ -526,7 +534,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
               {dropStatus == null ? "isn't in your Setups folder yet — add it and pick its track:" : "will be copied into the track folder you pick — the existing copy stays where it is:"}
             </div>
             <div className="flex flex-wrap items-end gap-2">
-              <label className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1">
                 <span className="text-app-caption text-app-text-muted uppercase tracking-wider">Car folder</span>
                 {/* A picker, not free text: when the file names its own car
                     this is already selected, but a .carsetup saved without a
@@ -542,8 +550,8 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
                     focusColor="purple-500"
                   />
                 </div>
-              </label>
-              <label className="flex flex-col gap-1">
+              </div>
+              <div className="flex flex-col gap-1">
                 <span className="text-app-caption text-app-text-muted uppercase tracking-wider">Track</span>
                 <div className="w-[180px]">
                   <SearchSelect
@@ -555,7 +563,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
                     focusColor="purple-500"
                   />
                 </div>
-              </label>
+              </div>
               <button
                 type="button"
                 onClick={doPlace}
@@ -699,6 +707,7 @@ function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onC
   };
 
   return createPortal(
+    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop closes only when pointer targets backdrop itself
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
       onMouseDown={(e) => {
@@ -706,6 +715,9 @@ function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onC
       }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
         className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[480px] max-w-[94vw] flex flex-col gap-4 p-5"
         onKeyDown={(e) => {
           if (e.key === "Escape") onClose();
@@ -729,10 +741,10 @@ function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onC
             <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Car (optional)</span>
             <input value={car} onChange={(e) => setCar(e.target.value)} placeholder="Car name" maxLength={200} className="bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs" />
           </label>
-          <label className="flex flex-col gap-1 flex-1">
+          <div className="flex flex-col gap-1 flex-1">
             <span className="text-app-compact text-app-text-muted uppercase tracking-wider">Track</span>
             <SearchSelect value={track} onChange={setTrack} options={trackOptions} placeholder="Search tracks…" focusColor="purple-500" />
-          </label>
+          </div>
         </div>
 
         <label className="flex flex-col gap-1">

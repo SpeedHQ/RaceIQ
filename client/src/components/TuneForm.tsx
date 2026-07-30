@@ -35,10 +35,7 @@ export function useAllCars() {
   >({
     queryKey: ["all-cars", gameId],
     queryFn: async () => {
-      const response = await client.api.cars.$get(
-        {},
-        { headers: { "X-Game-Id": gameId } },
-      );
+      const response = await client.api.cars.$get({}, { headers: { "X-Game-Id": gameId } });
       if (!response.ok) throw await errorFromResponse(response);
       return response.json();
     },
@@ -270,7 +267,7 @@ export function TuneSettingsPanel({ settings: raw }: { settings: TuneSettings })
     </div>
   );
 
-  return <div className="w-full columns-1 gap-3 md:columns-2 xl:columns-3">{orderedSections.map((section) => renderSection(section))}</div>;
+  return <div className="w-full columns-1 gap-3 @3xl/workspace:columns-2 @7xl/workspace:columns-3">{orderedSections.map((section) => renderSection(section))}</div>;
 }
 
 // ── UserTuneCard ─────────────────────────────────────────────────────────────
@@ -362,7 +359,7 @@ export function UserTuneCard({
 
   return (
     <div className="rounded-xl bg-app-surface ring-1 ring-app-border overflow-hidden">
-      <button onClick={onToggle} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-app-surface-hover transition-colors">
+      <button type="button" onClick={onToggle} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-app-surface-hover transition-colors">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-app-text">{tune.name}</span>
@@ -386,6 +383,7 @@ export function UserTuneCard({
         <div className="px-4 pb-4 space-y-4 border-t border-app-border">
           <div className="flex items-center gap-2 pt-3 flex-wrap">
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onEdit();
@@ -396,6 +394,7 @@ export function UserTuneCard({
             </button>
             {onDuplicate && (
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onDuplicate();
@@ -408,6 +407,7 @@ export function UserTuneCard({
             )}
             <div className="relative">
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   setShareOpen((v) => !v);
@@ -429,6 +429,7 @@ export function UserTuneCard({
             </div>
             {!confirmDelete ? (
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   setConfirmDelete(true);
@@ -441,6 +442,7 @@ export function UserTuneCard({
               <span className="flex items-center gap-1">
                 <span className="text-app-caption text-status-danger">Sure?</span>
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     onDelete();
@@ -451,6 +453,7 @@ export function UserTuneCard({
                   {isDeleting ? "..." : "Yes"}
                 </button>
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     setConfirmDelete(false);
@@ -882,7 +885,7 @@ export function TuneForm({
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 @3xl/workspace:grid-cols-2">
               <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{m.tune_section_tires()}</h4>
                 <NumberField
@@ -922,7 +925,7 @@ export function TuneForm({
                     <select
                       value={settings.gearing.ratios?.length ?? 6}
                       onChange={(e) => {
-                        const count = parseInt(e.target.value);
+                        const count = parseInt(e.target.value, 10);
                         const current = settings.gearing.ratios ?? [];
                         const ratios = Array.from({ length: count }, (_, i) => current[i] ?? 3.5 - i * 0.4);
                         setSettings((s) => ({
@@ -945,7 +948,7 @@ export function TuneForm({
                     const CIRC = topSpeedKph && topGearRatio ? (topSpeedKph * topGearRatio * settings.gearing.finalDrive) / (8000 / 60) / 3.6 : 2.0;
                     const gearTopKph = (8000 / 60 / (ratio * settings.gearing.finalDrive)) * CIRC * 3.6;
                     return (
-                      <label key={i} className="flex items-center justify-between gap-2 text-xs">
+                      <label key={ratio} className="flex items-center justify-between gap-2 text-xs">
                         <span className="text-app-text-muted whitespace-nowrap">Gear {i + 1}</span>
                         <div className="flex items-center gap-1">
                           <span className="text-app-caption text-app-text-muted font-mono tabular-nums w-14 text-right">{Math.round(gearTopKph)} km/h</span>

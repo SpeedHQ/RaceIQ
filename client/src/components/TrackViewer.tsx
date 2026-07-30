@@ -102,14 +102,20 @@ export function TrackViewer() {
   return (
     <div className="p-4 overflow-auto h-full">
       <div className="flex items-center flex-wrap gap-3 mb-3">
-        <AppInput placeholder={m.trackviewer_search_placeholder()} value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1 min-w-[180px] sm:flex-none sm:max-w-xs" />
-        <div className="flex items-center gap-1.5 md:gap-1 text-sm md:text-app-label text-app-text-muted">
+        <AppInput
+          placeholder={m.trackviewer_search_placeholder()}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="min-w-[180px] flex-1 @3xl/workspace:max-w-xs @3xl/workspace:flex-none"
+        />
+        <div className="flex items-center gap-1.5 text-sm text-app-text-muted @3xl/workspace:gap-1 @3xl/workspace:text-app-label">
           <span className="uppercase tracking-wider">{m.trackviewer_sort_label()}</span>
           {(["name", "laps"] as SortKey[]).map((key) => (
             <button
+              type="button"
               key={key}
               onClick={() => setSortKey(key)}
-              className={`px-3 py-2 md:px-2 md:py-0.5 rounded capitalize ${sortKey === key ? "bg-app-surface-alt border border-app-border text-app-text" : "text-app-text-dim hover:text-app-text-muted"}`}
+              className={`rounded px-3 py-2 capitalize @3xl/workspace:px-2 @3xl/workspace:py-0.5 ${sortKey === key ? "bg-app-surface-alt border border-app-border text-app-text" : "text-app-text-dim hover:text-app-text-muted"}`}
             >
               {key}
             </button>
@@ -127,7 +133,7 @@ export function TrackViewer() {
       )}
 
       {withOutline.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mb-6">
+        <div className="mb-6 grid grid-cols-1 gap-3 @3xl/workspace:grid-cols-2 @7xl/workspace:grid-cols-3">
           {withOutline.map((t) => (
             <TrackCard key={t.ordinal} track={t} onSelect={handleSelectTrack} gameId={gameId} setupCount={setupCountFor(t.ordinal)} guideCount={guideCountFor(t.ordinal)} />
           ))}
@@ -137,9 +143,14 @@ export function TrackViewer() {
       {withoutOutline.length > 0 && (
         <>
           <div className="text-app-label text-app-text-muted uppercase tracking-wider mb-3 mt-4">{m.trackviewer_without_outlines_title()}</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 gap-2 @3xl/workspace:grid-cols-2 @7xl/workspace:grid-cols-3">
             {withoutOutline.map((t) => (
-              <div key={t.ordinal} className="border border-app-border rounded-lg p-3 bg-app-surface/30 cursor-pointer hover:border-app-border-hover" onClick={() => handleSelectTrack(t)}>
+              <button
+                type="button"
+                key={t.ordinal}
+                className="w-full border border-app-border rounded-lg p-3 bg-app-surface/30 cursor-pointer hover:border-app-border-hover text-left"
+                onClick={() => handleSelectTrack(t)}
+              >
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-app-body text-app-text-secondary">{t.name}</div>
                   <span className="shrink-0 text-app-label px-1.5 py-0.5 rounded bg-app-surface-alt border border-app-border text-app-text-muted">
@@ -149,7 +160,7 @@ export function TrackViewer() {
                 <div className="text-app-label text-app-text-dim">
                   {t.variant} · {t.location}
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </>

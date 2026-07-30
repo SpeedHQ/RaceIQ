@@ -167,24 +167,24 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
   }
 
   return (
-    <div className="flex flex-col md:flex-row h-full">
+    <div className="@container/settings flex h-full flex-col @3xl/settings:flex-row">
       {/* Nav — horizontal tabs on mobile, sidebar on md+ */}
-      <nav className="md:w-48 shrink-0 md:border-r border-b md:border-b-0 border-app-border bg-app-surface-alt/50 py-2 flex md:flex-col overflow-x-auto md:overflow-x-visible">
+      <nav className="flex shrink-0 overflow-x-auto border-b border-app-border bg-app-surface-alt/50 py-2 @3xl/settings:w-48 @3xl/settings:flex-col @3xl/settings:overflow-x-visible @3xl/settings:border-r @3xl/settings:border-b-0">
         {NAV_ITEMS.filter((item) => !("devOnly" in item) || isDevelopment).map((item) => (
           <button
             type="button"
             key={item.id}
             onClick={() => setActiveSection(item.id)}
-            className={`shrink-0 md:w-full text-left px-4 py-2 text-sm whitespace-nowrap transition-colors ${
+            className={`shrink-0 px-4 py-2 text-left text-sm whitespace-nowrap transition-colors @3xl/settings:w-full ${
               activeSection === item.id
-                ? "text-app-accent bg-app-accent/10 border-b-2 md:border-b-0 md:border-r-2 border-app-accent"
+                ? "border-b-2 border-app-accent bg-app-accent/10 text-app-accent @3xl/settings:border-r-2 @3xl/settings:border-b-0"
                 : "text-app-text-muted hover:text-app-text hover:bg-app-surface-hover"
             }`}
           >
             {(NAV_LABELS[item.id] ?? (() => item.label))()}
           </button>
         ))}
-        <div className="hidden md:block mt-auto pt-2 border-t border-app-border mx-2">
+        <div className="mx-2 mt-auto hidden border-t border-app-border pt-2 @3xl/settings:block">
           <button
             type="button"
             className="w-full text-left px-4 py-2 text-sm text-app-text-muted hover:text-app-text hover:bg-app-surface-hover transition-colors"
@@ -198,7 +198,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
         </div>
         <button
           type="button"
-          className="md:hidden shrink-0 px-4 py-2 text-sm whitespace-nowrap text-app-text-muted hover:text-app-text transition-colors border-l border-app-border ml-auto"
+          className="ml-auto shrink-0 whitespace-nowrap border-l border-app-border px-4 py-2 text-sm text-app-text-muted transition-colors hover:text-app-text @3xl/settings:hidden"
           onClick={() => {
             onClose?.();
             openOnboarding();
@@ -209,7 +209,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
       </nav>
 
       {/* Right content */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6">
+      <div className="flex-1 overflow-y-auto p-4 @3xl/settings:p-6">
         {activeSection === "general" && (
           <section>
             <h2 className="text-lg font-semibold text-app-text mb-1">{m.label_general()}</h2>

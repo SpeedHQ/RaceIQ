@@ -18,6 +18,31 @@ const PAGES = [
   { name: "compare", path: "/fm23/compare", testId: "lap-compare-workspace", inputCount: 5 },
 ] as const;
 
+const APP_ROUTES = [
+  { name: "global home", path: "/" },
+  { name: "game home", path: "/fm23" },
+  { name: "live", path: "/fm23/live" },
+  { name: "sessions", path: "/fm23/sessions" },
+  { name: "tracks", path: "/fm23/tracks" },
+  { name: "track detail", path: "/fm23/tracks/5/info" },
+  { name: "cars", path: "/fm23/cars" },
+  { name: "chats", path: "/fm23/chats" },
+  { name: "driver", path: "/fm23/driver" },
+  { name: "experiments", path: "/f125/experiments" },
+  { name: "raw telemetry", path: "/fm23/raw" },
+  { name: "Forza setups", path: "/fm23/setups" },
+  { name: "ACC setups", path: "/acc/setups" },
+  { name: "dashboard catalogue", path: "/dash" },
+  { name: "standalone dashboard", path: "/dash/combo-1" },
+  { name: "developer tools", path: "/dev" },
+] as const;
+
+const APP_VIEWPORTS = [
+  { name: "minimum", width: 320, height: 568 },
+  { name: "square", width: 900, height: 900 },
+  { name: "desktop", width: 1280, height: 800 },
+] as const;
+
 async function assertNoHorizontalOverflow(page: Page) {
   await expect
     .poll(() =>
@@ -28,6 +53,16 @@ async function assertNoHorizontalOverflow(page: Page) {
       }),
     )
     .toBe(true);
+}
+
+async function assertAppRouteShell(page: Page, path: string) {
+  await page.goto(path, { waitUntil: "domcontentloaded" });
+  const workspace = page.locator("[data-responsive-workspace]");
+  await expect(workspace).toHaveCount(1, { timeout: 15_000 });
+  await expect(workspace).toBeVisible();
+  await expect(page.getByText("Desktop required")).toHaveCount(0);
+  await expect(page.getByText("Rotate your device")).toHaveCount(0);
+  await assertNoHorizontalOverflow(page);
 }
 
 async function assertInputsInsideViewport(page: Page, testId: string, expectedCount: number) {
@@ -69,6 +104,19 @@ for (const viewport of VIEWPORTS) {
         await firstInput.click();
         await expect(firstInput).toBeFocused();
         await assertNoHorizontalOverflow(page);
+      });
+    }
+  });
+}
+
+for (const viewport of APP_VIEWPORTS) {
+  test(`app routes follow workspace policy at ${viewport.name} ${viewport.width}x${viewport.height}`, async ({ page }) => {
+    test.setTimeout(180_000);
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+
+    for (const route of APP_ROUTES) {
+      await test.step(route.name, async () => {
+        await assertAppRouteShell(page, route.path);
       });
     }
   });

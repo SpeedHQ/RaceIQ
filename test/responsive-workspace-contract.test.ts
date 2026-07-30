@@ -17,24 +17,21 @@ function readTree(path: string) {
 }
 
 describe("responsive workspace contract", () => {
-  test("analysis and comparison use shared container boundary", () => {
+  test("app shell owns one shared container boundary for every route", () => {
     const workspace = read("client/src/components/ResponsiveWorkspace.tsx");
+    const root = read("client/src/routes/__root.tsx");
     const analyseRoute = read("client/src/routes/$gameid/analyse.tsx");
     const compareRoute = read("client/src/routes/$gameid/compare.tsx");
 
     expect(workspace).toContain("@container/workspace");
     expect(workspace).toContain("overflow-x-hidden");
-    expect(analyseRoute).toContain("<ResponsiveWorkspace>");
-    expect(compareRoute).toContain("<ResponsiveWorkspace>");
+    expect(root).toContain("<ResponsiveWorkspace>");
+    expect(analyseRoute).not.toContain("ResponsiveWorkspace");
+    expect(compareRoute).not.toContain("ResponsiveWorkspace");
   });
 
-  test("feature components do not own viewport gates", () => {
-    const featureSources = [
-      read("client/src/components/LapAnalyse.tsx"),
-      read("client/src/components/LapComparison.tsx"),
-      ...readTree("client/src/components/analyse"),
-      ...readTree("client/src/components/comparison"),
-    ];
+  test("app features do not own viewport gates or resize listeners", () => {
+    const featureSources = [...readTree("client/src/components"), ...readTree("client/src/routes")];
 
     for (const source of featureSources) {
       expect(source).not.toContain("window.innerWidth");
@@ -66,5 +63,43 @@ describe("responsive workspace contract", () => {
     expect(analyse).toContain("@5xl/workspace:flex-row");
     expect(compare).toContain("@5xl/workspace:flex-row");
     expect(analyseTop).toContain("@5xl/workspace:flex-row");
+  });
+
+  test("route-level page composition uses named content-width tiers", () => {
+    const pageOwners = [
+      "client/src/components/HomePage.tsx",
+      "client/src/components/CarsPage.tsx",
+      "client/src/components/SessionsPage.tsx",
+      "client/src/components/TrackViewer.tsx",
+      "client/src/components/track/TrackDetail.tsx",
+      "client/src/components/ForzaLiveDashboard.tsx",
+      "client/src/components/f1/F1LiveDashboard.tsx",
+      "client/src/components/acc/AccLiveDashboard.tsx",
+      "client/src/components/tunes/ExperimentList.tsx",
+      "client/src/components/tunes/ExperimentWorkspace.tsx",
+      "client/src/routes/dash.index.tsx",
+    ];
+
+    for (const path of pageOwners) {
+      const source = read(path);
+      expect(source).toMatch(/@(?:3xl|5xl|7xl)\/workspace:/);
+      expect(source).not.toMatch(/(?:^|[\s"'`])(?:sm|md|lg|xl|2xl):/);
+    }
+  });
+
+  test("app shell and full-screen flows own named container contracts", () => {
+    const owners = [
+      ["client/src/routes/__root.tsx", "@container/shell"],
+      ["client/src/components/Settings.tsx", "@container/settings"],
+      ["client/src/components/Onboarding.tsx", "@container/onboarding"],
+      ["client/src/components/analyse/DataGuideModal.tsx", "@container/data-guide"],
+      ["client/src/components/analyse/TuneViewModal.tsx", "@container/tune-view"],
+      ["client/src/components/tunes/SetupFilePicker.tsx", "@container/setup-file"],
+      ["client/src/components/ui/dialog.tsx", "@container/dialog"],
+    ] as const;
+
+    for (const [path, container] of owners) {
+      expect(read(path)).toContain(container);
+    }
   });
 });

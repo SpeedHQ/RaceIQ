@@ -278,7 +278,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
               </button>
             ))}
           </div>
-          <div className="ml-auto flex items-center gap-2">{trackName && <span className="hidden lg:inline text-xs text-app-text-muted">{trackName}</span>}</div>
+          <div className="ml-auto flex items-center gap-2">{trackName && <span className="hidden text-xs text-app-text-muted @5xl/workspace:inline">{trackName}</span>}</div>
         </div>
 
         {test && <ArmHeadline kind={test.kind} laps={validLaps} />}
@@ -321,9 +321,9 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-flow-col sm:auto-cols-fr">
+            <div className="grid grid-cols-1 @3xl/workspace:auto-cols-fr @3xl/workspace:grid-flow-col">
               {Array.from({ length: sectorCount }, (_, i) => `S${i + 1}`).map((label, i) => (
-                <div key={label} className={`p-3 ${i < sectorCount - 1 ? "sm:border-r border-app-border" : ""} border-t sm:border-t-0 border-app-border first:border-t-0`}>
+                <div key={label} className={`border-t border-app-border p-3 first:border-t-0 @3xl/workspace:border-t-0 ${i < sectorCount - 1 ? "border-app-border @3xl/workspace:border-r" : ""}`}>
                   <div className="flex items-center gap-2">
                     <span className="w-6 h-1 rounded" style={{ background: SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length] }} />
                     <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Sector {i + 1}</span>
@@ -364,14 +364,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
       {/* Detail body — owns its own scroll; the header above stays static. */}
       <div className="flex-1 min-h-0 overflow-y-auto">
         {view === "track" ? (
-          <TrackFocusView
-            gameId={gameId}
-            laps={laps}
-            trackOrdinal={focusLap.trackOrdinal}
-            focusLapId={trackFocusId}
-            onFocusLap={setFocus}
-            experimentId={experimentId ?? test?.experimentId ?? null}
-          />
+          <TrackFocusView gameId={gameId} laps={laps} trackOrdinal={focusLap.trackOrdinal} focusLapId={trackFocusId} onFocusLap={setFocus} experimentId={experimentId ?? test?.experimentId ?? null} />
         ) : sectorIndex != null ? (
           <SectorDetailView telemetry={telemetry} sectorTimes={sectorTimes} sectorIndex={sectorIndex} trackOrdinal={focusLap.trackOrdinal} issues={issueGroups.bySector[sectorIndex]} />
         ) : (
@@ -395,9 +388,9 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
                       </div>
                     </div>
                   )}
-                  <div className="grid grid-cols-1 sm:grid-flow-col sm:auto-cols-fr">
+                  <div className="grid grid-cols-1 @3xl/workspace:auto-cols-fr @3xl/workspace:grid-flow-col">
                     {Array.from({ length: sectorCount }, (_, i) => `S${i + 1}`).map((label, i) => (
-                      <div key={label} className={`px-3 py-2 ${i < sectorCount - 1 ? "sm:border-r border-app-border" : ""} border-t sm:border-t-0 border-app-border`}>
+                      <div key={label} className={`border-t border-app-border px-3 py-2 @3xl/workspace:border-t-0 ${i < sectorCount - 1 ? "border-app-border @3xl/workspace:border-r" : ""}`}>
                         <div className="flex items-center gap-1.5 mb-1.5">
                           <span className="w-3 h-1 rounded" style={{ background: SECTOR_COLOR_VARS[i % SECTOR_COLOR_VARS.length] }} />
                           <span className="text-app-caption text-app-text-muted uppercase tracking-wider">Sector {i + 1}</span>
@@ -510,7 +503,7 @@ function ReviewOverviewSkeleton({ trackName, onBack }: { trackName?: string; onB
             </span>
           ))}
         </div>
-        {trackName && <span className="ml-auto hidden lg:inline text-xs text-app-text-muted">{trackName}</span>}
+        {trackName && <span className="ml-auto hidden text-xs text-app-text-muted @5xl/workspace:inline">{trackName}</span>}
       </div>
 
       {/* Sector spine — placeholder times + empty maps. */}
@@ -518,9 +511,9 @@ function ReviewOverviewSkeleton({ trackName, onBack }: { trackName?: string; onB
         <div className="flex items-center justify-between gap-3 px-4 py-2 border-b border-app-border">
           <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Sectors</span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3">
+        <div className="grid grid-cols-1 @3xl/workspace:grid-cols-3">
           {[0, 1, 2].map((i) => (
-            <div key={i} className={`p-3 ${i < 2 ? "sm:border-r border-app-border" : ""} border-t sm:border-t-0 border-app-border first:border-t-0`}>
+            <div key={i} className={`border-t border-app-border p-3 first:border-t-0 @3xl/workspace:border-t-0 ${i < 2 ? "border-app-border @3xl/workspace:border-r" : ""}`}>
               <div className="flex items-center gap-2">
                 <span className="w-6 h-1 rounded" style={{ background: SECTOR_COLOR_VARS[i] }} />
                 <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Sector {i + 1}</span>

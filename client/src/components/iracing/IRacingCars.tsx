@@ -60,7 +60,7 @@ export function IRacingCars() {
   return (
     <div className="flex-1 overflow-auto p-4 space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
-        <AppInput value={search} onChange={(event) => setSearch(event.target.value)} placeholder={m.cars_search_placeholder()} className="w-full sm:w-72" />
+        <AppInput value={search} onChange={(event) => setSearch(event.target.value)} placeholder={m.cars_search_placeholder()} className="w-full @3xl/workspace:w-72" />
         {!isLoading && (
           <span className="text-xs text-app-text/90 whitespace-nowrap">
             {filtered.length} / {cars.length}
@@ -103,7 +103,7 @@ export function IRacingCars() {
       ) : filtered.length === 0 ? (
         <div className="text-center py-12 text-app-text/90 text-sm">{m.cars_no_match()}</div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 gap-3 @3xl/workspace:grid-cols-2 @5xl/workspace:grid-cols-3 @7xl/workspace:grid-cols-4">
           {filtered.map((car) => {
             return (
               <article key={car.ordinal} className="group overflow-hidden rounded-lg border border-app-border/10 bg-app-surface-alt/20 transition-colors hover:border-app-border-hover/30">
@@ -120,7 +120,12 @@ export function IRacingCars() {
                       }}
                     />
                   )}
-                  <span className="catalog-category-badge absolute bottom-2 right-2 rounded border px-2 py-0.5 text-app-caption font-bold shadow-sm backdrop-blur-sm" data-catalog-category={car.category}>{categoryLabel(car.category)}</span>
+                  <span
+                    className="catalog-category-badge absolute bottom-2 right-2 rounded border px-2 py-0.5 text-app-caption font-bold shadow-sm backdrop-blur-sm"
+                    data-catalog-category={car.category}
+                  >
+                    {categoryLabel(car.category)}
+                  </span>
                 </div>
                 <div className="p-3">
                   <h2 className="text-sm font-semibold leading-tight text-app-text">{car.name}</h2>

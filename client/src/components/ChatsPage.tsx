@@ -146,7 +146,7 @@ export function ChatsPage() {
 
       {!loading && rows.length > 0 && (
         <div className="flex-1 min-h-0 overflow-auto rounded-lg border border-app-border bg-app-surface">
-          <table className="w-full min-w-max md:min-w-0 text-app-label">
+          <table className="w-full min-w-max text-app-label @3xl/workspace:min-w-0">
             <thead className="sticky top-0 bg-app-surface-alt/80 backdrop-blur z-10 border-b border-app-border">
               <tr className="text-left text-app-caption uppercase tracking-wider text-app-text-muted">
                 <th className="px-3 py-2 font-semibold">{m.label_type()}</th>
@@ -179,10 +179,8 @@ export function ChatsPage() {
                       <span className="truncate max-w-[180px] block">{row.tune.carName || "—"}</span>
                     ) : (
                       row.laps.map((l, i) => (
-                        <div key={i} className="flex items-center gap-1.5">
-                          {row.type === "compare" && (
-                            <span className={`w-1.5 h-1.5 rounded-full ${i === 0 ? "bg-(--comparison-lap-a)" : "bg-(--comparison-lap-b)"}`} />
-                          )}
+                        <div key={l.id} className="flex items-center gap-1.5">
+                          {row.type === "compare" && <span className={`w-1.5 h-1.5 rounded-full ${i === 0 ? "bg-(--comparison-lap-a)" : "bg-(--comparison-lap-b)"}`} />}
                           <span className="truncate max-w-[180px]">{l.carName}</span>
                         </div>
                       ))
@@ -190,10 +188,12 @@ export function ChatsPage() {
                   </td>
                   <td className="px-3 py-2 text-app-text-secondary font-mono text-app-compact">
                     {row.type === "tune" && row.tune ? (
-                      <span className="truncate max-w-[220px] block">#{row.tune.seq} — {row.tune.name}</span>
+                      <span className="truncate max-w-[220px] block">
+                        #{row.tune.seq} — {row.tune.name}
+                      </span>
                     ) : (
-                      row.laps.map((l, i) => (
-                        <div key={i}>
+                      row.laps.map((l) => (
+                        <div key={l.id}>
                           {m.chats_lap_number()} {l.lapNumber} — {formatLapTime(l.lapTime)}
                           {!l.isValid && <span className="text-status-danger ml-1">(inv)</span>}
                         </div>
@@ -204,6 +204,7 @@ export function ChatsPage() {
                   <td className="px-3 py-2 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <button
+                        type="button"
                         onClick={() => handleOpen(row)}
                         className="inline-flex items-center gap-1 text-app-compact px-2 py-1 rounded hover:bg-app-surface-hover text-app-text-secondary hover:text-app-text"
                         title={m.chats_open()}
@@ -211,6 +212,7 @@ export function ChatsPage() {
                         <ExternalLink className="size-3" /> {m.chats_open()}
                       </button>
                       <button
+                        type="button"
                         onClick={() => handleDelete(row.threadId)}
                         className="inline-flex items-center gap-1 text-app-compact px-2 py-1 rounded hover:bg-status-danger/15 text-app-text-muted hover:text-status-danger"
                         title={m.chats_delete_title()}

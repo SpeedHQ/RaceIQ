@@ -8,7 +8,7 @@ export function SetupSettingsPanel({ gameId, settings }: { gameId: GameId; setti
   const sections = getSchemaForGame(gameId);
 
   return (
-    <div className="w-full columns-1 gap-3 md:columns-2 xl:columns-3">
+    <div className="w-full columns-1 gap-3 @3xl/workspace:columns-2 @7xl/workspace:columns-3">
       {sections.map((section) => {
         const rows: [string, string][] = [];
         for (const field of section.fields) {

@@ -96,7 +96,7 @@ const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
           </div>
 
           <ThreadPrimitive.ViewportFooter
-            className={cn("aui-thread-viewport-footer bg-background flex flex-col gap-4 overflow-visible pb-4 md:pb-6", !isEmpty && "sticky bottom-0 mt-auto rounded-t-(--composer-radius)")}
+            className={cn("aui-thread-viewport-footer bg-background flex flex-col gap-4 overflow-visible pb-4 @md:pb-6", !isEmpty && "sticky bottom-0 mt-auto rounded-t-(--composer-radius)")}
           >
             <ThreadScrollToBottom />
             <ThreadFollowupSuggestions />

@@ -44,15 +44,18 @@ export function DropdownMenu({ trigger, items, align = "right" }: DropdownMenuPr
       setPanelRect({ top: rect.bottom, left: align === "right" ? rect.right : rect.left });
     };
     updateRect();
+    const resizeObserver = new ResizeObserver(updateRect);
+    resizeObserver.observe(document.documentElement);
+    if (triggerRef.current) resizeObserver.observe(triggerRef.current);
     window.addEventListener("scroll", updateRect, true);
-    window.addEventListener("resize", updateRect);
     return () => {
+      resizeObserver.disconnect();
       window.removeEventListener("scroll", updateRect, true);
-      window.removeEventListener("resize", updateRect);
     };
   }, [open, align]);
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: wrapper preserves caller-provided trigger element and shared menu positioning
     <div
       ref={triggerRef}
       className="relative inline-block"
@@ -73,7 +76,8 @@ export function DropdownMenu({ trigger, items, align = "right" }: DropdownMenuPr
             style={{
               position: "fixed",
               top: panelRect.top,
-              [align === "right" ? "right" : "left"]: align === "right" ? window.innerWidth - panelRect.left : panelRect.left,
+              left: panelRect.left,
+              transform: align === "right" ? "translateX(-100%)" : undefined,
               marginTop: 4,
             }}
             className="min-w-[180px] rounded-lg bg-app-surface-alt border border-app-border-input z-50 shadow-lg py-1"

@@ -80,7 +80,7 @@ export function TuneLiveDashboard({ gameId, trackName, sessionLaps }: TuneLiveDa
   }
 
   return (
-    <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0">
+    <div className="grid flex-1 grid-cols-1 gap-0 @5xl/workspace:grid-cols-2">
       {/* Left column: tires, fuel/stint, recommendation */}
       <div className="border-r border-app-border overflow-auto">
         <div className="border-b border-app-border">

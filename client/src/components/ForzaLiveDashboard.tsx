@@ -40,6 +40,7 @@ function PageHeader({ dashMode, demo }: { dashMode: DashboardMode; demo: ReturnT
       </div>
       {import.meta.env.DEV && (
         <button
+          type="button"
           onClick={demo.toggle}
           disabled={demo.loading}
           className={`text-app-caption font-mono font-semibold px-2 py-0.5 rounded border transition-colors ${
@@ -79,7 +80,7 @@ export function ForzaLiveDashboard({ mode = "driver" }: { mode?: DashboardMode }
 
   if (mode === "driver") {
     return (
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0 h-full">
+      <div className="grid h-auto flex-1 grid-cols-1 gap-0 @5xl/workspace:h-full @5xl/workspace:grid-cols-2">
         {/* Left column: Tire Health + Pit Window */}
         <div className="border-r border-app-border overflow-auto">
           <PageHeader dashMode={mode} demo={demo} />
@@ -102,7 +103,7 @@ export function ForzaLiveDashboard({ mode = "driver" }: { mode?: DashboardMode }
 
   // ── PIT CREW MODE ─────────────────────────────────────────────
   return (
-    <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0 h-full">
+    <div className="grid h-auto flex-1 grid-cols-1 gap-0 @5xl/workspace:h-full @5xl/workspace:grid-cols-2">
       {/* Left column: Full telemetry */}
       <div className="border-r border-app-border overflow-auto">
         <PageHeader dashMode={mode} demo={demo} />

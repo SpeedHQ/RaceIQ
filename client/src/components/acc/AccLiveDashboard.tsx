@@ -30,7 +30,7 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
   }
 
   return (
-    <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0 h-full">
+    <div className="grid h-auto flex-1 grid-cols-1 gap-0 @5xl/workspace:h-full @5xl/workspace:grid-cols-2">
       {/* Left column: Tires + Pit Window */}
       <div className="border-r border-app-border overflow-auto">
         {/* Tires */}

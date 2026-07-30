@@ -8,6 +8,7 @@ import { m } from "@/paraglide/messages";
 import { getLocale, isLocale } from "@/paraglide/runtime";
 import { AppSidebar } from "../components/AppSidebar";
 import { OnboardingModal } from "../components/Onboarding";
+import { ResponsiveWorkspace } from "../components/ResponsiveWorkspace";
 import { Settings } from "../components/Settings";
 import { UpdateModal } from "../components/UpdateModal";
 import { useSettings } from "../hooks/queries";
@@ -35,7 +36,7 @@ function ReprocessProgressModal({ total, done, onClose }: { total: number; done:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60 backdrop-blur-sm">
-      <div className="w-96 rounded-xl border border-app-border bg-app-surface p-6 shadow-2xl">
+      <div className="w-[calc(100%-2rem)] max-w-96 rounded-xl border border-app-border bg-app-surface p-6 shadow-2xl">
         <div className="flex items-center gap-3 mb-4">
           <RefreshCw className={`size-5 text-status-info ${complete ? "" : "animate-spin"}`} />
           <h2 className="text-sm font-semibold text-app-text flex-1">{complete ? m.root_reprocessing_complete() : m.root_reprocessing()}</h2>
@@ -166,15 +167,17 @@ function AppShell() {
   if (isDash) {
     return (
       <div className="h-screen bg-app-bg text-app-text">
-        <Outlet key={uiLocale} />
+        <ResponsiveWorkspace className="overflow-hidden">
+          <Outlet key={uiLocale} />
+        </ResponsiveWorkspace>
       </div>
     );
   }
 
   return (
     <>
-      <div className="flex h-screen min-h-0 bg-app-bg text-app-text">
-        <aside className="hidden h-full shrink-0 md:block">
+      <div className="@container/shell flex h-screen min-h-0 bg-app-bg text-app-text">
+        <aside className="hidden h-full shrink-0 @3xl/shell:block">
           <AppSidebar
             collapsed={sidebarCollapsed}
             connected={connected}
@@ -192,19 +195,21 @@ function AppShell() {
         </aside>
 
         <div className="flex min-w-0 min-h-0 flex-1 flex-col">
-          <header className="flex min-h-14 items-center justify-between border-b border-app-border px-3 md:hidden">
+          <header className="flex min-h-14 items-center justify-between border-b border-app-border px-3 @3xl/shell:hidden">
             <span className="text-sm font-semibold text-app-text">RaceIQ</span>
             <button type="button" onClick={() => setMobileNavOpen(true)} className="p-3 text-app-text-secondary hover:text-app-text" aria-label="Open navigation">
               <Menu className="size-6" />
             </button>
           </header>
-          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-            <Outlet key={uiLocale} />
+          <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
+            <ResponsiveWorkspace>
+              <Outlet key={uiLocale} />
+            </ResponsiveWorkspace>
           </main>
         </div>
 
         {mobileNavOpen && (
-          <div className="fixed inset-0 z-50 flex justify-end md:hidden">
+          <div className="fixed inset-0 z-50 flex justify-end @3xl/shell:hidden">
             <button type="button" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} className="absolute inset-0 bg-app-bg/60" />
             <div className="relative h-full">
               <AppSidebar
@@ -226,9 +231,9 @@ function AppShell() {
         )}
 
         {showSettings && (
-          <div className="fixed inset-0 z-50 flex items-stretch justify-center md:items-start md:pb-12 md:pt-12">
+          <div className="fixed inset-0 z-50 flex items-stretch justify-center @3xl/shell:items-start @3xl/shell:py-12">
             <button type="button" aria-label="Close settings" onClick={closeSettings} className="absolute inset-0 bg-app-bg/60" />
-            <div className="relative h-full w-full overflow-hidden bg-app-bg md:max-w-2xl md:rounded-lg md:border md:border-app-border">
+            <div className="relative h-full w-full overflow-hidden bg-app-bg @3xl/shell:max-w-2xl @3xl/shell:rounded-lg @3xl/shell:border @3xl/shell:border-app-border">
               <div className="flex items-center justify-between border-b border-app-border bg-app-surface px-4 py-3">
                 <h1 className="text-sm font-semibold text-app-text">{m.nav_settings()}</h1>
                 <button type="button" onClick={closeSettings} className="text-lg leading-none text-app-text-muted hover:text-app-text">

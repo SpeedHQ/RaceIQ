@@ -96,7 +96,7 @@ function CarDetail({
   if (!s) return <div className="px-4 py-3 text-xs text-app-text/90">{m.cars_no_stats()}</div>;
 
   return (
-    <div className="px-4 py-3 grid grid-cols-1 md:grid-cols-[200px_1fr] gap-4 bg-app-bg border-t border-app-border">
+    <div className="grid grid-cols-1 gap-4 border-t border-app-border bg-app-bg px-4 py-3 @3xl/workspace:grid-cols-[200px_1fr]">
       {/* Image */}
       <div className="flex flex-col gap-2">
         {s.imageUrl ? (
@@ -113,7 +113,7 @@ function CarDetail({
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2 text-xs">
+      <div className="grid grid-cols-1 gap-x-6 gap-y-2 text-xs @3xl/workspace:grid-cols-2 @5xl/workspace:grid-cols-3">
         {/* Engine */}
         <div className="space-y-1">
           <div className="text-app-caption uppercase tracking-wider text-app-text/90 font-semibold">{m.cars_engine()}</div>
@@ -236,7 +236,7 @@ function CompareModal({
     const vals = cars.map((c) => {
       const raw = c.specs ? row.getValue(c.specs) : "—";
       const n = parseFloat(raw.replace(/[^0-9.-]/g, ""));
-      return isNaN(n) ? null : n;
+      return Number.isNaN(n) ? null : n;
     });
     const valid = vals.filter((v): v is number => v !== null);
     if (valid.length < 2) return [];
@@ -247,16 +247,23 @@ function CompareModal({
   const colWidth = Math.max(180, Math.floor(560 / cars.length));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-app-bg/70 pt-8 pb-4 px-4 overflow-auto" onClick={onClose}>
+    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop closes only when pointer targets backdrop itself
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-app-bg/70 pt-8 pb-4 px-4 overflow-auto"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
       <div
+        role="dialog"
+        aria-modal="true"
         className="bg-app-bg border border-app-border rounded-xl shadow-2xl w-full overflow-auto"
         style={{ maxWidth: 160 + colWidth * cars.length, maxHeight: "90vh" }}
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-app-border sticky top-0 bg-app-bg z-10">
           <h2 className="text-sm font-bold text-app-text/90">{m.cars_compare_modal_title()}</h2>
-          <button onClick={onClose} className="text-app-text/90 hover:text-app-text text-lg leading-none">
+          <button type="button" onClick={onClose} className="text-app-text/90 hover:text-app-text text-lg leading-none">
             ×
           </button>
         </div>
@@ -281,7 +288,7 @@ function CompareModal({
               {rows.map((row, ri) => {
                 const bestIdxs = getBestIdx(row);
                 return (
-                  <tr key={ri} className={ri % 2 === 0 ? "bg-app-surface/30" : ""}>
+                  <tr key={row.label} className={ri % 2 === 0 ? "bg-app-surface/30" : ""}>
                     <td className="px-4 py-1.5 text-app-text/90 sticky left-0 bg-inherit font-medium" style={{ minWidth: 160 }}>
                       {row.label}
                     </td>
@@ -289,7 +296,7 @@ function CompareModal({
                       const val = car.specs ? row.getValue(car.specs) : "—";
                       const isBest = bestIdxs.includes(ci);
                       return (
-                      <td key={car.ordinal} className={`px-3 py-1.5 text-center tabular-nums ${isBest ? "text-status-success font-semibold" : "text-app-text/90"}`}>
+                        <td key={car.ordinal} className={`px-3 py-1.5 text-center tabular-nums ${isBest ? "text-status-success font-semibold" : "text-app-text/90"}`}>
                           {val}
                         </td>
                       );
@@ -309,6 +316,7 @@ function ColHeader({ k, label, className = "", sort, sortDir, onSort }: { k: Sor
   const active = sort === k;
   return (
     <button
+      type="button"
       onClick={() => onSort(k)}
       className={`text-left text-app-caption uppercase tracking-wider font-semibold transition-colors ${active ? "text-app-accent" : "text-app-text/90 hover:text-app-text"} ${className}`}
     >
@@ -332,10 +340,10 @@ export function CarsPage() {
     return mph ? `${units.fromMph(mph).toFixed(1)} ${units.speedLabel}` : "—";
   }
   function fmtBrake(ft: number) {
-    return ft ? `${isMetric ? (ft * 0.3048).toFixed(1) + " m" : ft + " ft"}` : "—";
+    return ft ? `${isMetric ? `${(ft * 0.3048).toFixed(1)} m` : `${ft} ft`}` : "—";
   }
   function fmtWeight(kg: number, lbs: number) {
-    return kg ? `${isMetric ? kg + " kg" : lbs + " lb"}` : "—";
+    return kg ? `${isMetric ? `${kg} kg` : `${lbs} lb`}` : "—";
   }
 
   const { data: cars = [], isLoading } = useQuery<Car[]>({
@@ -356,7 +364,7 @@ export function CarsPage() {
       compareParam
         .split(",")
         .map(Number)
-        .filter((n) => !isNaN(n)),
+        .filter((n) => !Number.isNaN(n)),
     );
   }, [compareParam]);
 
@@ -368,10 +376,7 @@ export function CarsPage() {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const [selected, setSelected] = useState<Set<number>>(() => initialCompareIds ?? new Set());
   const [comparing, setComparing] = useState(false);
-  const [viewMode, setViewMode] = useState<"table" | "grid">(() => {
-    if (typeof window !== "undefined" && window.innerWidth < 768) return "grid";
-    return "table";
-  });
+  const [viewMode, setViewMode] = useState<"table" | "grid">("grid");
   const [detailCar, setDetailCar] = useState<Car | null>(null);
 
   // Auto-open compare modal when cars load and ?compare param is present
@@ -410,8 +415,7 @@ export function CarsPage() {
     }
   }
 
-  function toggleSelect(ordinal: number, e: React.MouseEvent) {
-    e.stopPropagation();
+  function toggleSelect(ordinal: number) {
     setSelected((prev) => {
       const s = new Set(prev);
       if (s.has(ordinal)) s.delete(ordinal);
@@ -427,6 +431,7 @@ export function CarsPage() {
         {/* View mode toggle */}
         <div className="flex items-center rounded-lg border border-app-border overflow-hidden">
           <button
+            type="button"
             onClick={() => setViewMode("table")}
             title={m.label_table_view()}
             className={`px-2.5 py-1.5 transition-colors ${viewMode === "table" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text"}`}
@@ -437,6 +442,7 @@ export function CarsPage() {
             </svg>
           </button>
           <button
+            type="button"
             onClick={() => setViewMode("grid")}
             title={m.label_grid_view()}
             className={`px-2.5 py-1.5 transition-colors ${viewMode === "grid" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text"}`}
@@ -450,11 +456,12 @@ export function CarsPage() {
           </button>
         </div>
 
-        <AppInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder={m.cars_search_placeholder()} className="flex-1 min-w-[180px] sm:flex-none sm:w-52" />
+        <AppInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder={m.cars_search_placeholder()} className="min-w-[180px] flex-1 @3xl/workspace:w-52 @3xl/workspace:flex-none" />
 
         <div className="flex items-center flex-wrap gap-1">
           {PI_CLASSES.map((cls) => (
             <button
+              type="button"
               key={cls}
               onClick={() => setClassFilter(classFilter === cls ? null : cls)}
               className={`text-xs font-bold px-3 py-1.5 rounded transition-colors ${classFilter === cls ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text border border-app-border"}`}
@@ -467,6 +474,7 @@ export function CarsPage() {
         <div className="flex items-center flex-wrap gap-1">
           {DRIVETRAINS.map((d) => (
             <button
+              type="button"
               key={d}
               onClick={() => setDriveFilter(driveFilter === d ? null : d)}
               className={`text-xs font-semibold px-3 py-1.5 rounded transition-colors ${driveFilter === d ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text border border-app-border"}`}
@@ -490,14 +498,29 @@ export function CarsPage() {
                 const s = car.specs!;
                 const isSel = selected.has(car.ordinal);
                 return (
+                  // biome-ignore lint/a11y/useSemanticElements: card contains nested checkbox and navigation button
                   <div
                     key={car.ordinal}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setDetailCar(car)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setDetailCar(car);
+                      }
+                    }}
                     className={`relative rounded-xl border cursor-pointer transition-all hover:border-app-accent/50 hover:shadow-md ${isSel ? "border-app-accent bg-app-accent/5" : "border-app-border bg-app-surface"}`}
                   >
                     {/* Checkbox */}
-                    <div onClick={(e) => toggleSelect(car.ordinal, e)} className="absolute top-2 left-2 z-10">
-                      <input type="checkbox" checked={isSel} onChange={() => {}} className="w-3.5 h-3.5 accent-app-accent cursor-pointer" />
+                    <div className="absolute top-2 left-2 z-10">
+                      <input
+                        type="checkbox"
+                        checked={isSel}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={() => toggleSelect(car.ordinal)}
+                        className="w-3.5 h-3.5 accent-app-accent cursor-pointer"
+                      />
                     </div>
 
                     {/* Image */}
@@ -509,6 +532,7 @@ export function CarsPage() {
                       )}
                       {configsReady && getCarModel(car.ordinal).hasModel && (
                         <button
+                          type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate({ to: "/fm23/cars/$carOrdinal", params: { carOrdinal: String(car.ordinal) } });
@@ -600,14 +624,20 @@ export function CarsPage() {
 
           {/* Card detail modal */}
           {detailCar && (
-            <div className="fixed inset-0 z-50 flex items-start justify-center bg-app-bg/70 pt-12 pb-4 px-4 overflow-auto" onClick={() => setDetailCar(null)}>
-              <div className="bg-app-bg border border-app-border rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            // biome-ignore lint/a11y/noStaticElementInteractions: backdrop closes only when pointer targets backdrop itself
+            <div
+              className="fixed inset-0 z-50 flex items-start justify-center bg-app-bg/70 pt-12 pb-4 px-4 overflow-auto"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) setDetailCar(null);
+              }}
+            >
+              <div role="dialog" aria-modal="true" className="bg-app-bg border border-app-border rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-app-border">
                   <div className="flex items-center gap-2">
                     {detailCar.specs?.pi && <PiBadge showNumber={false} pi={detailCar.specs.pi} />}
                     <span className="text-sm font-bold text-app-text/90">{detailCar.name}</span>
                   </div>
-                  <button onClick={() => setDetailCar(null)} className="text-app-text/90 hover:text-app-text text-lg leading-none">
+                  <button type="button" onClick={() => setDetailCar(null)} className="text-app-text/90 hover:text-app-text text-lg leading-none">
                     ×
                   </button>
                 </div>
@@ -686,8 +716,14 @@ export function CarsPage() {
                     className={selected.has(car.ordinal) ? "bg-app-accent/5" : ""}
                   >
                     <TD className="px-4 w-8">
-                      <div onClick={(e) => toggleSelect(car.ordinal, e)} className="flex items-center justify-center">
-                        <input type="checkbox" checked={selected.has(car.ordinal)} onChange={() => {}} className="w-3.5 h-3.5 accent-app-accent cursor-pointer" />
+                      <div className="flex items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(car.ordinal)}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={() => toggleSelect(car.ordinal)}
+                          className="w-3.5 h-3.5 accent-app-accent cursor-pointer"
+                        />
                       </div>
                     </TD>
                     <TD>
@@ -740,13 +776,14 @@ export function CarsPage() {
             {selected.size} {m.cars_selected()}
           </span>
           <button
+            type="button"
             onClick={() => setComparing(true)}
             disabled={selected.size < 2}
             className="text-xs font-semibold px-3 py-1 rounded-full bg-app-accent/20 text-app-accent border border-app-accent/30 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-app-accent/30 transition-colors"
           >
             {m.cars_compare_button()} ({selected.size})
           </button>
-          <button onClick={() => setSelected(new Set())} className="text-xs text-app-text/90 hover:text-app-text transition-colors">
+          <button type="button" onClick={() => setSelected(new Set())} className="text-xs text-app-text/90 hover:text-app-text transition-colors">
             {m.common_clear()}
           </button>
         </div>

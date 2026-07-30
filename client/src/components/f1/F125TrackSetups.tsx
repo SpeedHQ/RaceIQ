@@ -54,8 +54,18 @@ interface F125TrackSummary {
 }
 
 function ProviderBadge({ provider }: { provider: string }) {
-  if (provider === "f1laps") return <span className="provider-badge px-1 py-0.5 text-app-nano font-bold uppercase rounded shrink-0" data-provider-brand="f1laps">F1L</span>;
-  if (provider === "simracingsetup") return <span className="provider-badge px-1 py-0.5 text-app-nano font-bold uppercase rounded shrink-0" data-provider-brand="simracingsetup">SRS</span>;
+  if (provider === "f1laps")
+    return (
+      <span className="provider-badge px-1 py-0.5 text-app-nano font-bold uppercase rounded shrink-0" data-provider-brand="f1laps">
+        F1L
+      </span>
+    );
+  if (provider === "simracingsetup")
+    return (
+      <span className="provider-badge px-1 py-0.5 text-app-nano font-bold uppercase rounded shrink-0" data-provider-brand="simracingsetup">
+        SRS
+      </span>
+    );
   return null;
 }
 
@@ -104,6 +114,7 @@ export function F125SetupsWithGuide({ trackOrdinal, trackName }: { trackOrdinal:
       <div className="flex gap-1 shrink-0">
         {(["setups", "ranges"] as const).map((tab) => (
           <button
+            type="button"
             key={tab}
             onClick={() => setSubTab(tab)}
             className={`text-app-compact px-3 py-1 rounded border transition-colors ${
@@ -159,12 +170,13 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
   return (
     <div className="flex h-full min-h-0 gap-3">
       {/* Source list */}
-      <div className={`w-full md:w-56 shrink-0 flex flex-col gap-1 ${mobileView === "detail" ? "hidden md:flex" : ""}`}>
+      <div className={`flex w-full shrink-0 flex-col gap-1 @3xl/workspace:w-56 ${mobileView === "detail" ? "hidden @3xl/workspace:flex" : ""}`}>
         {guides.map((g) => {
           const isActive = g.source === activeGuide?.source;
           const sectionCount = g.sections?.length ?? 0;
           return (
             <button
+              type="button"
               key={g.source}
               onClick={() => {
                 setSelectedSource(g.source);
@@ -177,7 +189,11 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
               <div className="flex items-center gap-1.5 mb-1">
                 <span className={`text-sm font-medium ${isActive ? "text-app-accent" : "text-app-text"}`}>{sourceDisplayName(g.source)}</span>
                 {sectionCount > 0 && <span className="px-1 py-0.5 text-app-nano font-bold uppercase rounded bg-status-info/20 text-status-info">{m.label_text()}</span>}
-                {g.videoUrl && <span className="provider-badge px-1 py-0.5 text-app-nano font-bold uppercase rounded" data-provider-brand="youtube">YT</span>}
+                {g.videoUrl && (
+                  <span className="provider-badge px-1 py-0.5 text-app-nano font-bold uppercase rounded" data-provider-brand="youtube">
+                    YT
+                  </span>
+                )}
               </div>
               <table className="w-full text-xs text-app-text-secondary">
                 <tbody>
@@ -202,14 +218,15 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
 
       {/* Guide content */}
       {activeGuide && (
-        <div className={`flex-1 min-w-0 flex flex-col min-h-0 ${mobileView === "list" ? "hidden md:flex" : ""}`}>
+        <div className={`min-h-0 min-w-0 flex-1 flex-col ${mobileView === "list" ? "hidden @3xl/workspace:flex" : "flex"}`}>
           {/* Back button (mobile only) */}
-          <Button variant="app-outline" size="default" onClick={() => setMobileView("list")} className="md:hidden self-start mb-3">
+          <Button variant="app-outline" size="default" onClick={() => setMobileView("list")} className="mb-3 self-start @3xl/workspace:hidden">
             &larr; Back to guides
           </Button>
           {/* Content tabs + source link */}
           <div className="flex items-center gap-2 mb-2 shrink-0 flex-wrap">
             <button
+              type="button"
               onClick={() => setContentTab("guide")}
               className={`text-app-caption px-2 py-0.5 rounded border transition-colors ${contentTab === "guide" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
             >
@@ -217,6 +234,7 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
             </button>
             {activeGuide.setupTips && (
               <button
+                type="button"
                 onClick={() => setContentTab("setup")}
                 className={`text-app-caption px-2 py-0.5 rounded border transition-colors ${contentTab === "setup" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
               >
@@ -233,7 +251,7 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
             {contentTab === "guide" && (
               <>
                 {activeGuide.videoUrl && (
-                  <div className="mb-4 md:float-right md:ml-4 md:mb-4 w-full md:w-[45%] rounded-lg overflow-hidden border border-app-border/30">
+                  <div className="mb-4 w-full overflow-hidden rounded-lg border border-app-border/30 @3xl/workspace:float-right @3xl/workspace:ml-4 @3xl/workspace:mb-4 @3xl/workspace:w-[45%]">
                     <div className="relative w-full" style={{ paddingBottom: "56.25%" }}>
                       <iframe
                         src={toEmbedUrl(activeGuide.videoUrl)}
@@ -245,8 +263,8 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
                     </div>
                   </div>
                 )}
-                {activeGuide.sections?.map((s, i) => (
-                  <div key={i} className="mb-6">
+                {activeGuide.sections?.map((s) => (
+                  <div key={`${s.heading}-${s.body}`} className="mb-6">
                     {s.heading && <p className="text-app-text font-semibold text-sm mb-1">{s.heading}</p>}
                     <p className="text-app-text-secondary text-sm leading-relaxed whitespace-pre-line">{s.body}</p>
                   </div>
@@ -341,15 +359,16 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
   const dryCount = trackData.setups.filter((s) => s.weather !== "Wet").length;
 
   return (
-    <div className="flex gap-3 md:h-full md:overflow-hidden">
+    <div className="flex gap-3 @3xl/workspace:h-full @3xl/workspace:overflow-hidden">
       {/* Left: filters + setup list */}
-      <div className={`w-full md:w-[420px] shrink-0 flex flex-col min-h-0 ${mobileView === "detail" ? "hidden md:flex" : ""}`}>
+      <div className={`min-h-0 w-full shrink-0 flex-col @3xl/workspace:w-[420px] ${mobileView === "detail" ? "hidden @3xl/workspace:flex" : "flex"}`}>
         {/* Filters — single row */}
         <div className="flex items-center gap-1 mb-1.5">
           <div className="text-app-label text-app-text-muted uppercase tracking-wider shrink-0">Setups ({filteredSetups.length})</div>
           <div className="flex gap-0.5 ml-auto">
             {(["", "f1laps", "simracingsetup"] as const).map((p) => (
               <button
+                type="button"
                 key={p}
                 onClick={() => {
                   setFilterProvider(p);
@@ -365,6 +384,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
           <div className="flex gap-0.5">
             {(["Dry", "Wet"] as const).map((w) => (
               <button
+                type="button"
                 key={w}
                 onClick={() => {
                   setFilterWeather(filterWeather === w ? "" : w);
@@ -390,46 +410,57 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
             <span className="text-app-micro text-app-text-dim uppercase w-16 text-right">{m.label_time()}</span>
           </div>
           {filteredSetups.map((s, i) => (
-            <div
-              key={i}
+            <button
+              type="button"
+              key={setupId(s)}
               onClick={() => selectSetup(i)}
-              className={`flex items-center gap-1.5 px-2 py-1.5 cursor-pointer border-b border-app-border/10 transition-colors ${
+              className={`flex w-full items-center gap-1.5 px-2 py-1.5 text-left cursor-pointer border-b border-app-border/10 transition-colors ${
                 selectedIdx === i ? "bg-app-accent/10" : "hover:bg-app-surface-hover/30"
               }`}
             >
               <span className="text-app-compact text-app-text-dim font-mono w-4 text-right shrink-0">{i + 1}</span>
               <ProviderBadge provider={s.provider} />
-              <div className="flex-1 min-w-0 flex items-center gap-1">
+              <span className="flex-1 min-w-0 flex items-center gap-1">
                 <span className="text-app-compact font-medium text-app-text truncate">{s.author || "—"}</span>
                 {s.team && <span className="text-app-micro text-app-text-dim truncate">({s.team})</span>}
-              </div>
-              <div className="shrink-0 w-8 text-center">
-                {s.inputDevice === "wheel" && <span className="input-device-badge text-app-nano px-1 py-0.5 rounded font-bold" data-input-device="wheel">WHL</span>}
-                {s.inputDevice === "controller" && <span className="input-device-badge text-app-nano px-1 py-0.5 rounded font-bold" data-input-device="controller">PAD</span>}
-              </div>
-              <div className="flex items-center gap-1 shrink-0 w-12 justify-center">
+              </span>
+              <span className="shrink-0 w-8 text-center">
+                {s.inputDevice === "wheel" && (
+                  <span className="input-device-badge text-app-nano px-1 py-0.5 rounded font-bold" data-input-device="wheel">
+                    WHL
+                  </span>
+                )}
+                {s.inputDevice === "controller" && (
+                  <span className="input-device-badge text-app-nano px-1 py-0.5 rounded font-bold" data-input-device="controller">
+                    PAD
+                  </span>
+                )}
+              </span>
+              <span className="flex items-center gap-1 shrink-0 w-12 justify-center">
                 {s.videoUrl && (
                   <span className="text-app-micro" style={{ color: "var(--brand-provider-youtube)" }} title={m.accsetup_setup_type_has_video_title()}>
                     ▶
                   </span>
                 )}
                 {s.weather === "Wet" && <span className="weather-wet-badge text-app-nano px-1 py-0.5 rounded font-bold">WET</span>}
-              </div>
-              <span className="text-app-compact font-mono shrink-0 w-16 text-right" style={{ color: "var(--lap-record)" }}>{s.lapTime || "—"}</span>
-            </div>
+              </span>
+              <span className="text-app-compact font-mono shrink-0 w-16 text-right" style={{ color: "var(--lap-record)" }}>
+                {s.lapTime || "—"}
+              </span>
+            </button>
           ))}
         </div>
       </div>
 
       {/* Right: setup detail (2/3) + video (1/3) */}
       {setup && (
-        <div className={`flex-1 min-w-0 flex flex-col md:flex-row gap-3 md:h-full md:overflow-hidden ${mobileView === "list" ? "hidden md:flex" : ""}`}>
+        <div className={`min-w-0 flex-1 flex-col gap-3 @3xl/workspace:h-full @3xl/workspace:flex-row @3xl/workspace:overflow-hidden ${mobileView === "list" ? "hidden @3xl/workspace:flex" : "flex"}`}>
           {/* Back button (mobile only) */}
-          <Button variant="app-outline" size="default" onClick={() => setMobileView("list")} className="md:hidden self-start">
+          <Button variant="app-outline" size="default" onClick={() => setMobileView("list")} className="self-start @3xl/workspace:hidden">
             &larr; {m.f1setup_back_to_setups()}
           </Button>
           {/* Setup detail column */}
-          <div className="flex-1 min-w-0 md:overflow-y-auto space-y-2">
+          <div className="min-w-0 flex-1 space-y-2 @3xl/workspace:overflow-y-auto">
             {/* Header */}
             <div className="flex items-center gap-2 flex-wrap">
               <ProviderBadge provider={setup.provider} />
@@ -442,7 +473,12 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
                 {setup.sessionType && ` · ${setup.sessionType}`}
               </span>
               {setup.source && (
-                <a href={setup.source} target="_blank" rel="noopener noreferrer" className="px-2 py-1 text-app-compact bg-app-accent/15 text-app-accent rounded hover:bg-app-accent/25 transition-colors">
+                <a
+                  href={setup.source}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2 py-1 text-app-compact bg-app-accent/15 text-app-accent rounded hover:bg-app-accent/25 transition-colors"
+                >
                   {m.f1setup_view_source()}
                 </a>
               )}
@@ -624,11 +660,12 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
   if (isLoading || !trackData) return <div className="text-app-text-dim text-sm py-4 text-center animate-pulse">{m.f1setup_loading_setups()}</div>;
 
   return (
-    <div className="flex flex-col md:flex-row md:gap-3 md:h-full md:overflow-hidden">
+    <div className="flex flex-col @3xl/workspace:h-full @3xl/workspace:flex-row @3xl/workspace:gap-3 @3xl/workspace:overflow-hidden">
       {/* Mobile tab bar */}
-      <div className="md:hidden flex items-center gap-1 border-b border-app-border">
+      <div className="flex items-center gap-1 border-b border-app-border @3xl/workspace:hidden">
         {["List", "Compare"].map((label, i) => (
           <button
+            type="button"
             key={label}
             onClick={() => gotoCarouselPage(i)}
             className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 -mb-px transition-colors ${carouselPage === i ? "border-app-accent text-app-accent" : "border-transparent text-app-text-muted"}`}
@@ -638,14 +675,15 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
         ))}
       </div>
       {/* Carousel on mobile, side-by-side at md+ */}
-      <div ref={setCarouselEl} className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth items-start md:contents">
+      <div ref={setCarouselEl} className="flex snap-x snap-mandatory items-start overflow-x-auto scroll-smooth @3xl/workspace:contents">
         {/* Left: setup list */}
-        <div className="snap-center shrink-0 w-full md:w-[420px] md:shrink-0 flex flex-col min-h-0">
+        <div className="flex min-h-0 w-full shrink-0 snap-center flex-col @3xl/workspace:w-[420px] @3xl/workspace:shrink-0">
           {/* Filters */}
           <div className="flex items-center gap-1 mb-1.5">
             <div className="flex gap-0.5">
               {(["Dry", "Wet"] as const).map((w) => (
                 <button
+                  type="button"
                   key={w}
                   onClick={() => setWeather(w)}
                   className={`text-app-compact px-2 py-1 rounded border transition-colors ${
@@ -660,6 +698,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
             <div className="flex gap-0.5 ml-auto">
               {(["", "f1laps", "simracingsetup"] as const).map((p) => (
                 <button
+                  type="button"
                   key={p}
                   onClick={() => setFilterProvider(p)}
                   className={`text-app-compact px-2 py-1 rounded border transition-colors ${filterProvider === p ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
@@ -676,6 +715,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
                 {dragRange.size > 0 && <span className="text-app-caption text-app-accent">{dragRange.size} in range</span>}
                 {pickedSetup && <span className="text-app-caption text-status-success">{pickedSetup.author || "Selected"}</span>}
                 <button
+                  type="button"
                   onClick={() => {
                     setDragRange(new Set());
                     setPickedIdx(null);
@@ -742,8 +782,9 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
                 const inRange = dragRange.size === 0 || dragRange.has(i);
                 const isPicked = pickedIdx === i;
                 return (
-                  <div
-                    key={i}
+                  <button
+                    type="button"
+                    key={setupId(s)}
                     data-setup-idx={i}
                     onContextMenu={(e) => e.preventDefault()}
                     style={{ WebkitTouchCallout: "none" }}
@@ -759,30 +800,40 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
                       }, 400);
                     }}
                     onClick={() => handleClick(i)}
-                    className={`flex items-center gap-1.5 px-2 py-1.5 cursor-pointer border-b border-app-border/10 transition-colors ${
+                    className={`flex w-full items-center gap-1.5 px-2 py-1.5 text-left cursor-pointer border-b border-app-border/10 transition-colors ${
                       isPicked ? "bg-status-success/15" : inRange && dragRange.size > 0 ? "bg-app-accent/8" : "hover:bg-app-surface-hover/30"
                     } ${!inRange ? "opacity-40" : ""}`}
                   >
                     <span className="text-app-compact text-app-text-dim font-mono w-4 text-right shrink-0">{i + 1}</span>
                     <ProviderBadge provider={s.provider} />
-                    <div className="flex-1 min-w-0 flex items-center gap-1">
+                    <span className="flex-1 min-w-0 flex items-center gap-1">
                       <span className="text-app-compact font-medium text-app-text truncate">{s.author || "—"}</span>
                       {s.team && <span className="text-app-micro text-app-text-dim truncate">({s.team})</span>}
-                    </div>
-                    <div className="shrink-0 w-8 text-center">
-                      {s.inputDevice === "wheel" && <span className="input-device-badge text-app-nano px-1 py-0.5 rounded font-bold" data-input-device="wheel">WHL</span>}
-                      {s.inputDevice === "controller" && <span className="input-device-badge text-app-nano px-1 py-0.5 rounded font-bold" data-input-device="controller">PAD</span>}
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0 w-12 justify-center">
+                    </span>
+                    <span className="shrink-0 w-8 text-center">
+                      {s.inputDevice === "wheel" && (
+                        <span className="input-device-badge text-app-nano px-1 py-0.5 rounded font-bold" data-input-device="wheel">
+                          WHL
+                        </span>
+                      )}
+                      {s.inputDevice === "controller" && (
+                        <span className="input-device-badge text-app-nano px-1 py-0.5 rounded font-bold" data-input-device="controller">
+                          PAD
+                        </span>
+                      )}
+                    </span>
+                    <span className="flex items-center gap-1 shrink-0 w-12 justify-center">
                       {s.videoUrl && (
                         <span className="text-app-micro" style={{ color: "var(--brand-provider-youtube)" }} title={m.accsetup_setup_type_has_video_title()}>
                           ▶
                         </span>
                       )}
                       {s.weather === "Wet" && <span className="weather-wet-badge text-app-nano px-1 py-0.5 rounded font-bold">WET</span>}
-                    </div>
-                    <span className="text-app-compact font-mono shrink-0 w-16 text-right" style={{ color: "var(--lap-record)" }}>{s.lapTime || "—"}</span>
-                  </div>
+                    </span>
+                    <span className="text-app-compact font-mono shrink-0 w-16 text-right" style={{ color: "var(--lap-record)" }}>
+                      {s.lapTime || "—"}
+                    </span>
+                  </button>
                 );
               })
             )}
@@ -790,7 +841,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
         </div>
 
         {/* Right: range bars */}
-        <div className="snap-center shrink-0 w-full md:flex-1 md:min-w-0 flex flex-col min-h-0 @container">
+        <div className="@container flex min-h-0 w-full shrink-0 snap-center flex-col @3xl/workspace:min-w-0 @3xl/workspace:flex-1">
           {/* Legend — matches filter row height */}
           <div className="flex items-center gap-3 mb-1.5 text-app-caption text-app-text-secondary" style={{ minHeight: "1.625rem" }}>
             <span className="flex items-center gap-1">
@@ -798,10 +849,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
               {m.f1setup_min_max()}
             </span>
             <span className="flex items-center gap-1">
-              <span
-                className="inline-block w-12 h-2.5 rounded-sm"
-                style={{ background: "linear-gradient(to right, transparent, var(--app-accent))" }}
-              />
+              <span className="inline-block w-12 h-2.5 rounded-sm" style={{ background: "linear-gradient(to right, transparent, var(--app-accent))" }} />
               {m.f1setup_popularity()}
             </span>
             <span className="flex items-center gap-1">
@@ -820,7 +868,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
             {filteredSetups.length === 0 ? (
               <div className="text-app-text-dim text-sm py-4 text-center">No {weather.toLowerCase()} setups available</div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-4 gap-y-1">
+              <div className="grid grid-cols-1 gap-x-4 gap-y-1 @3xl/workspace:grid-cols-2 @7xl/workspace:grid-cols-3">
                 {rangeData.map((group) => (
                   <div key={group.title} className="rounded-lg border border-app-border bg-transparent p-2 mt-1">
                     <div className="text-xs text-app-accent uppercase tracking-wider font-bold mb-1.5 border-b border-app-border/20 pb-0.5">{group.title}</div>
@@ -862,7 +910,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
       <button
         type="button"
         onClick={() => gotoCarouselPage(carouselPage === 0 ? 1 : 0)}
-        className="md:hidden mt-3 flex items-center justify-center gap-2 py-3 rounded-lg bg-app-surface-alt/50 border border-app-border/40 text-xs text-app-text-muted uppercase tracking-wider select-none"
+        className="mt-3 flex select-none items-center justify-center gap-2 rounded-lg border border-app-border/40 bg-app-surface-alt/50 py-3 text-xs text-app-text-muted uppercase tracking-wider @3xl/workspace:hidden"
       >
         <span>{carouselPage === 0 ? "Swipe here to view comparison →" : "← Swipe here to view list"}</span>
       </button>
