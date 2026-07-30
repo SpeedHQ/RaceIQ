@@ -130,6 +130,7 @@ export interface F1ExtendedData {
   totalWarnings?: number;
   cornerCuttingWarnings?: number;
   driverStatus?: number;
+  resultStatus?: number;
   pitLaneTimerActive?: number;
   pitLaneTimeInLaneInMS?: number;
   speedTrapFastestSpeed?: number;
