@@ -11,7 +11,6 @@ import { OnboardingModal } from "../components/Onboarding";
 import { ResponsiveWorkspace } from "../components/ResponsiveWorkspace";
 import { Settings } from "../components/Settings";
 import { UpdateModal } from "../components/UpdateModal";
-import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { useSettings } from "../hooks/queries";
 import { useLocalStorage } from "../hooks/useLocalStorage";
@@ -38,9 +37,9 @@ function ReprocessProgressModal({ total, done, onClose }: { total: number; done:
   const complete = done >= total;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60 backdrop-blur-sm">
-      <div className="w-[calc(100%-2rem)] max-w-96 rounded-xl border border-app-border bg-app-surface p-6 shadow-2xl">
-        <div className="flex items-center gap-3 mb-4">
+    <Dialog open onOpenChange={(open) => !open && complete && onClose()}>
+      <DialogContent size="sm" showCloseButton={false} className="w-96 p-6">
+        <DialogHeader className="mb-4 flex flex-row items-center gap-3">
           <RefreshCw className={`size-5 text-status-info ${complete ? "" : "animate-spin"}`} />
           <DialogTitle className="flex-1 text-sm font-semibold text-app-text">{complete ? m.root_reprocessing_complete() : m.root_reprocessing()}</DialogTitle>
           {complete && (

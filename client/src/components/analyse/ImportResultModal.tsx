@@ -23,7 +23,7 @@ interface Props {
 export function ImportResultModal({ fileName, packetCount, laps, sameGame, gameLabel, onGoToSession, onClose }: Props) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="sm" showCloseButton={false} overlayClassName="bg-app-bg/60">
+      <DialogContent size="sm" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle className="text-xs font-medium text-app-text/90 uppercase tracking-wider">{m.analyse_import_result_title()}</DialogTitle>
         </DialogHeader>

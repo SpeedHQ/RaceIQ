@@ -53,7 +53,7 @@ function formatSize(bytes: number): string {
 export function IbtImportPreviewModal({ token, preview, importing, onImport, onClose }: Props) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="md" showCloseButton={false} overlayClassName="bg-app-bg/60">
+      <DialogContent size="md" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle className="text-xs font-medium text-app-text/90 uppercase tracking-wider">iRacing IBT import preview</DialogTitle>
           <p className="mt-1 text-xs text-app-text-muted truncate" title={preview.fileName}>

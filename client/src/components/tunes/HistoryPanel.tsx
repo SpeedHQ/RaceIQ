@@ -1,5 +1,4 @@
 import { type ExperimentActionRow, useExperimentHistory, useExperimentVersions, useUndo } from "../../hooks/queries";
-import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { FocusTimeline } from "./FocusTimeline";
 /**
@@ -18,7 +17,7 @@ export function HistoryPanel({ sessionId, onClose }: { sessionId: number; onClos
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="md" showCloseButton={false} overlayClassName="bg-app-bg/60" layout="scrollable">
+      <DialogContent size="md" showCloseButton={false} className="max-h-[80vh] p-5">
         <DialogHeader>
           <DialogTitle className="text-sm font-semibold text-app-text">History</DialogTitle>
         </DialogHeader>
@@ -57,6 +56,7 @@ export function HistoryPanel({ sessionId, onClose }: { sessionId: number; onClos
       </DialogContent>
     </Dialog>
   );
+
 }
 
 const KIND_LABELS: Record<string, string> = {

@@ -1,7 +1,6 @@
 import type { GameId } from "@shared/types";
 import { useMemo, useState } from "react";
-import { type ExperimentVersion, type ImportableLap, useImportableLaps, useImportLaps } from "../../hooks/queries";
-import { Button } from "../ui/button";
+import { type ImportableLap, type ExperimentVersion, useImportableLaps, useImportLaps } from "../../hooks/queries";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 
 function fmtLapTime(ms: number | null | undefined): string {
@@ -107,10 +106,12 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="wide" showCloseButton={false} overlayClassName="bg-app-bg/60">
+      <DialogContent size="wide" showCloseButton={false} className="max-h-[86vh] p-5">
         <DialogHeader>
           <DialogTitle className="text-sm font-semibold text-app-text">Add laps from history</DialogTitle>
-          <DialogDescription className="text-xs text-app-text-dim">Attach laps already recorded for this car and track to this session, instead of driving fresh ones.</DialogDescription>
+          <DialogDescription className="text-xs text-app-text-dim">
+            Attach laps already recorded for this car and track to this session, instead of driving fresh ones.
+          </DialogDescription>
         </DialogHeader>
 
         {isF1 ? (
@@ -179,12 +180,18 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
         {error && <div className="text-xs text-status-danger">{error}</div>}
 
         <DialogFooter className="border-0 bg-transparent p-0 -mx-0 -mb-0">
-          <Button variant="app-outline" size="app-sm" onClick={onClose}>
+          <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs rounded border border-app-border text-app-text-dim hover:text-app-text">
             Cancel
-          </Button>
-          <Button variant="app-primary" size="app-sm" onClick={submit} disabled={importLaps.isPending || selected.size === 0} title={selected.size === 0 ? "Select at least one lap" : undefined}>
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={importLaps.isPending || selected.size === 0}
+            title={selected.size === 0 ? "Select at least one lap" : undefined}
+            className="px-3 py-1.5 text-xs rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 text-app-on-filled font-semibold"
+          >
             {importLaps.isPending ? "Importing…" : `Import ${selected.size || ""} lap${selected.size === 1 ? "" : "s"}`}
-          </Button>
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

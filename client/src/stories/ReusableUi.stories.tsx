@@ -71,7 +71,7 @@ export const DialogSizes: Story = {
   render: () => (
     <Dialog defaultOpen>
       <DialogTrigger render={<Button variant="app-outline" size="app-md" />}>Open lap summary</DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent size="sm">
         <DialogHeader>
           <DialogTitle>Lap summary</DialogTitle>
           <DialogDescription>Review your latest stint before saving it to this driver profile.</DialogDescription>

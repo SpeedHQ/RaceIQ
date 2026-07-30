@@ -117,9 +117,9 @@ export function MotecImportModal({ onClose, onImported }: { onClose: () => void;
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="lg" showCloseButton={false} overlayClassName="bg-app-bg/60" layout="scrollable" className="max-w-xl">
+      <DialogContent size="lg" showCloseButton={false} className="max-w-xl max-h-[85vh] overflow-y-auto p-5">
         <DialogHeader>
-          <DialogTitle variant="import">Import MoTeC log</DialogTitle>
+          <DialogTitle className="text-sm font-semibold uppercase tracking-wide text-app-text">Import MoTeC log</DialogTitle>
         </DialogHeader>
 
         {result ? (

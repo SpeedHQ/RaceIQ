@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useAddBase } from "../../hooks/queries";
-import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { SetupFilePicker, type SetupFilePickerValue } from "./SetupFilePicker";
 
@@ -43,7 +42,7 @@ export function AddBaseModal({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="lg" showCloseButton={false} overlayClassName="bg-app-bg/60">
+      <DialogContent size="lg" showCloseButton={false} className="max-w-2xl p-5">
         <DialogHeader>
           <DialogTitle className="text-sm font-semibold text-app-text">Add base</DialogTitle>
           <DialogDescription className="text-xs text-app-text-dim">
@@ -65,12 +64,18 @@ export function AddBaseModal({
         {error && <div className="text-xs text-status-danger">{error}</div>}
 
         <DialogFooter className="border-0 bg-transparent p-0 -mx-0 -mb-0">
-          <Button variant="app-outline" size="app-sm" onClick={onClose}>
+          <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs rounded border border-app-border text-app-text-dim hover:text-app-text">
             Cancel
-          </Button>
-          <Button variant="app-primary" size="app-sm" onClick={submit} disabled={addBase.isPending || !picked.setupPath} title={!picked.setupPath ? "Pick a setup file" : undefined}>
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={addBase.isPending || !picked.setupPath}
+            title={!picked.setupPath ? "Pick a setup file" : undefined}
+            className="px-3 py-1.5 text-xs rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 text-app-on-filled font-semibold"
+          >
             {addBase.isPending ? "Adding…" : "Add base"}
-          </Button>
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

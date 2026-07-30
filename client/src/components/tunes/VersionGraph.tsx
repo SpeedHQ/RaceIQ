@@ -5,6 +5,8 @@ import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { type ExperimentLapMetric, type ExperimentVersion, useDeleteVersion, useExperimentFocusHistory, useSetHead, useSetTestNote } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
+import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { F1SetupModal } from "../analyse/F1SetupModal";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -144,7 +146,7 @@ function EngineerNotesView({ notes }: { notes: string | null }) {
 function NotesModal({ sessionId, test, onClose }: { sessionId: number; test: ExperimentVersion; onClose: () => void }) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="wide" showCloseButton={false} overlayClassName="bg-app-bg/60" layout="scrollable">
+      <DialogContent size="wide" showCloseButton={false} className="max-h-[90vh] overflow-y-auto p-5">
         <DialogHeader>
           <DialogTitle className="text-sm font-semibold text-app-text">
             <span className="font-mono">{test.label}</span> — notes
