@@ -2,6 +2,7 @@ import type { DriverProfileSummary } from "../../../../server/ai/schemas";
 import { parseDriverProfileSummary } from "../../../../server/ai/schemas";
 import { useDriverProfile, useDriverProfileRuns, useRunDriverProfile } from "../../hooks/queries";
 import { useRequiredGameId } from "../../stores/game";
+import { RaceResultSummary } from "../race-results/ResultSummary";
 import { DriverProfileView } from "./DriverProfileView";
 
 /**
@@ -59,6 +60,7 @@ export function DriverProfilePage() {
           </button>
         </div>
       </header>
+      <RaceResultSummary gameId={gameId} title="Driver result breakdown" />
 
       {(profileError || runError) && (
         <div className="mb-4 rounded-lg bg-status-danger/10 p-3 text-sm text-status-danger ring-1 ring-status-danger/20" role="alert">
