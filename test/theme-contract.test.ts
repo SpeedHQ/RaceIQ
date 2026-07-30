@@ -142,7 +142,7 @@ describe("frontend theme contract", () => {
     const designMetadata = JSON.parse(readFileSync(resolve(CLIENT_DIR, ".impeccable/design.json"), "utf8")) as {
       extensions: {
         colorMeta: { surfaceRamp: string[]; textRamp: string[]; statusPalette: Record<string, string> };
-        typographyMeta: { fontFamily: string; monoFamily: string; scale: Record<string, string> };
+        typographyMeta: { fontFamily: string; monoFamily: string; labelTracking: string; scale: Record<string, string> };
       };
       components: { css: string }[];
     };
@@ -155,6 +155,7 @@ describe("frontend theme contract", () => {
     );
     expect(designMetadata.extensions.typographyMeta.fontFamily).toBe("var(--font-sans)");
     expect(designMetadata.extensions.typographyMeta.monoFamily).toBe("var(--font-mono)");
+    expect(designMetadata.extensions.typographyMeta.labelTracking).toBe("var(--tracking-app-label)");
     expect(designMetadata.extensions.typographyMeta.scale).toEqual(Object.fromEntries(TYPOGRAPHY_ROLES.map((role) => [role, `var(--text-app-${role})`])));
     for (const role of TYPOGRAPHY_ROLES) {
       expect(themeCss).toMatch(new RegExp(`^\\s*--text-app-${role}:`, "m"));
@@ -162,6 +163,7 @@ describe("frontend theme contract", () => {
     }
     expect(themeCss).toMatch(/^\s*--font-sans:/m);
     expect(themeCss).toMatch(/^\s*--font-mono:/m);
+    expect(themeCss).toMatch(/^\s*--tracking-app-label:/m);
     expect(themeCss).not.toContain("--app-font-");
     expect(designMetadata.components.map((component) => component.css).join("\n")).not.toMatch(/#(?:020617|0f172a|1e293b|334155|f1f5f9|b8c5d4|a0b0c0|7a8ea0)/i);
     expect(designMetadata.components.map((component) => component.css).join("\n")).not.toContain(":hover{background:var(--app-surface-alt)");
@@ -201,6 +203,7 @@ describe("frontend theme contract", () => {
       .join("\n");
 
     expect(typographySources).not.toMatch(/\btext-\[(?:\d+(?:\.\d+)?px|\d*\.?\d+rem)\]/);
+    expect(typographySources).not.toMatch(/\btracking-\[(?:-?\d+(?:\.\d+)?px|-?\d*\.?\d+(?:em|rem))\]/);
     expect(typographySources).not.toMatch(/\bfontFamily\s*=\s*(?:["'](?!var\()|\{\s*["'](?!var\())/);
     expect(typographySources).not.toMatch(/\bfontWeight\s*=\s*(?:["'](?:bold|normal|\d+)["']|\{\d+\})/);
     expect(typographySources).not.toMatch(/\bfontSize\s*:\s*["'`](?!var\()/);

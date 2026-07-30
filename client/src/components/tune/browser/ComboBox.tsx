@@ -29,7 +29,7 @@ export function ComboBox({ label, value, options, onChange, placeholder, variant
   };
   return (
     <div className="relative flex-1 min-w-0">
-      <div className={`text-app-micro tracking-[0.14em] uppercase mb-1.5 ${variant === "track" ? "text-app-accent" : "text-app-text-muted"}`}>{label}</div>
+      <div className={`text-app-micro tracking-app-label uppercase mb-1.5 ${variant === "track" ? "text-app-accent" : "text-app-text-muted"}`}>{label}</div>
       <div className={`flex items-center gap-2.5 bg-app-surface border rounded-lg px-3.5 py-3 ${open ? "border-app-accent rounded-b-none" : "border-app-border-input"}`}>
         <span className="text-app-accent text-sm leading-none">⌕</span>
         <input

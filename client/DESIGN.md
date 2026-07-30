@@ -161,6 +161,8 @@ A near-black instrument-panel base with one cyan accent doing all the signaling;
 
 **Character:** A variable sans family carries interface hierarchy while the monospace role aligns telemetry values. Readable UI uses the compact 11px–18px range; smaller shared roles are reserved for dense telemetry, diagrams, and single-character glyphs. Larger visualization and instrument roles are reserved for primary driving data.
 
+**Label Tracking:** `var(--tracking-app-label)` provides the shared wide tracking for compact uppercase labels.
+
 ### Hierarchy
 - **Title** (18px / `--text-app-title`): Page and section titles.
 - **Headline** (16px / `--text-app-heading`): Card headings.

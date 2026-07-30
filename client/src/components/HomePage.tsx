@@ -302,11 +302,11 @@ export function HomePage() {
               {/* Stats */}
               <div className="relative flex gap-5">
                 <div>
-                  <div className="text-app-micro uppercase tracking-[1.5px] text-app-text/60 mb-0.5">{m.label_laps()}</div>
+                  <div className="text-app-micro uppercase tracking-app-label text-app-text/60 mb-0.5">{m.label_laps()}</div>
                   <div className="game-brand-accent text-lg font-extrabold font-mono leading-none">{gameStats.fm.laps}</div>
                 </div>
                 <div>
-                  <div className="text-app-micro uppercase tracking-[1.5px] text-app-text/60 mb-0.5">{m.label_time()}</div>
+                  <div className="text-app-micro uppercase tracking-app-label text-app-text/60 mb-0.5">{m.label_time()}</div>
                   <div className="text-lg font-extrabold font-mono leading-none text-app-text/70">{gameStats.fm.time}</div>
                 </div>
               </div>
@@ -338,11 +338,11 @@ export function HomePage() {
               {/* Stats */}
               <div className="relative flex gap-5">
                 <div>
-                  <div className="text-app-micro uppercase tracking-[1.5px] text-app-text/60 mb-0.5">{m.label_laps()}</div>
+                  <div className="text-app-micro uppercase tracking-app-label text-app-text/60 mb-0.5">{m.label_laps()}</div>
                   <div className="game-brand-accent text-lg font-extrabold font-mono leading-none">{gameStats.f1.laps}</div>
                 </div>
                 <div>
-                  <div className="text-app-micro uppercase tracking-[1.5px] text-app-text/60 mb-0.5">{m.label_time()}</div>
+                  <div className="text-app-micro uppercase tracking-app-label text-app-text/60 mb-0.5">{m.label_time()}</div>
                   <div className="text-lg font-extrabold font-mono leading-none text-app-text/70">{gameStats.f1.time}</div>
                 </div>
               </div>
@@ -374,11 +374,11 @@ export function HomePage() {
               {/* Stats */}
               <div className="relative flex gap-5">
                 <div>
-                  <div className="text-app-micro uppercase tracking-[1.5px] text-app-text/60 mb-0.5">{m.label_laps()}</div>
+                  <div className="text-app-micro uppercase tracking-app-label text-app-text/60 mb-0.5">{m.label_laps()}</div>
                   <div className="game-brand-accent text-lg font-extrabold font-mono leading-none">{gameStats.acc.laps}</div>
                 </div>
                 <div>
-                  <div className="text-app-micro uppercase tracking-[1.5px] text-app-text/60 mb-0.5">{m.label_time()}</div>
+                  <div className="text-app-micro uppercase tracking-app-label text-app-text/60 mb-0.5">{m.label_time()}</div>
                   <div className="text-lg font-extrabold font-mono leading-none text-app-text/70">{gameStats.acc.time}</div>
                 </div>
               </div>
@@ -410,11 +410,11 @@ export function HomePage() {
               {/* Stats */}
               <div className="relative flex gap-5">
                 <div>
-                  <div className="text-app-micro uppercase tracking-[1.5px] text-app-text/60 mb-0.5">{m.label_laps()}</div>
+                  <div className="text-app-micro uppercase tracking-app-label text-app-text/60 mb-0.5">{m.label_laps()}</div>
                   <div className="game-brand-accent text-lg font-extrabold font-mono leading-none">{gameStats.acEvo.laps}</div>
                 </div>
                 <div>
-                  <div className="text-app-micro uppercase tracking-[1.5px] text-app-text/60 mb-0.5">{m.label_time()}</div>
+                  <div className="text-app-micro uppercase tracking-app-label text-app-text/60 mb-0.5">{m.label_time()}</div>
                   <div className="text-lg font-extrabold font-mono leading-none text-app-text/70">{gameStats.acEvo.time}</div>
                 </div>
               </div>
@@ -441,11 +441,11 @@ export function HomePage() {
               </div>
               <div className="relative flex gap-5">
                 <div>
-                  <div className="text-app-micro uppercase tracking-[1.5px] text-app-text/60 mb-0.5">{m.label_laps()}</div>
+                  <div className="text-app-micro uppercase tracking-app-label text-app-text/60 mb-0.5">{m.label_laps()}</div>
                   <div className="game-brand-accent text-lg font-extrabold font-mono leading-none">{gameStats.iracing.laps}</div>
                 </div>
                 <div>
-                  <div className="text-app-micro uppercase tracking-[1.5px] text-app-text/60 mb-0.5">{m.label_time()}</div>
+                  <div className="text-app-micro uppercase tracking-app-label text-app-text/60 mb-0.5">{m.label_time()}</div>
                   <div className="text-lg font-extrabold font-mono leading-none text-app-text/70">{gameStats.iracing.time}</div>
                 </div>
               </div>

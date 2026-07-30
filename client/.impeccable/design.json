@@ -37,6 +37,7 @@
     "typographyMeta": {
       "fontFamily": "var(--font-sans)",
       "monoFamily": "var(--font-mono)",
+      "labelTracking": "var(--tracking-app-label)",
       "scale": {
         "title": "var(--text-app-title)",
         "heading": "var(--text-app-heading)",
