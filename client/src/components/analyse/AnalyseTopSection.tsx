@@ -150,7 +150,6 @@ export function AnalyseTopSection({
           sectors={sectors}
           segments={segments}
           currentPacket={currentPacket}
-          containerHeight={topHeight}
           aiPanelOpen={aiPanelOpen}
           aiHighlights={aiHighlights}
           rotateWithCar={rotateWithCar}

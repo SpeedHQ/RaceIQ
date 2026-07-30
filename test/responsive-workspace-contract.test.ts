@@ -65,6 +65,17 @@ describe("responsive workspace contract", () => {
     expect(analyseTop).toContain("@5xl/workspace:flex-row");
   });
 
+  test("analyse track sizing stays CSS-owned", () => {
+    const trackPanel = read("client/src/components/analyse/AnalyseTrackPanel.tsx");
+    const trackMap = read("client/src/components/analyse/AnalyseTrackMap.tsx");
+    const liveDashboard = read("client/src/components/tunes/LiveTestDashboard.tsx");
+
+    expect(trackPanel).not.toContain("containerHeight");
+    expect(trackMap).not.toContain("containerHeight");
+    expect(trackPanel).toContain("h-full");
+    expect(liveDashboard).toContain("h-[22.5rem]");
+  });
+
   test("route-level page composition uses named content-width tiers", () => {
     const pageOwners = [
       "client/src/components/HomePage.tsx",

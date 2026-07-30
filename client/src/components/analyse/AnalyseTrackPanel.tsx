@@ -18,7 +18,6 @@ interface AnalyseTrackPanelProps {
   sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   currentPacket: TelemetryPacket | null;
-  containerHeight: number;
 
   aiPanelOpen?: boolean;
   aiHighlights?: AnalysisHighlight[] | null;
@@ -57,7 +56,6 @@ export function AnalyseTrackPanel({
   sectors,
   segments,
   currentPacket,
-  containerHeight,
   aiPanelOpen,
   aiHighlights,
   rotateWithCar,
@@ -73,8 +71,7 @@ export function AnalyseTrackPanel({
 }: AnalyseTrackPanelProps) {
   return (
     <div
-      className="bg-app-bg p-2 relative flex-1 min-w-0"
-      style={{ height: containerHeight }}
+      className="relative h-full min-w-0 bg-app-bg p-2"
       onWheel={(e) => {
         if (!rotateWithCar) return;
         e.preventDefault();
@@ -95,7 +92,6 @@ export function AnalyseTrackPanel({
         showTrace={showTrace}
         rotateWithCar={rotateWithCar}
         zoom={mapZoom}
-        containerHeight={containerHeight}
       />
       {/* Weather widget (updates at cursor position) — bottom left by default, bottom right for the live dashboard */}
       {telemetry[cursorIdx]?.f1 && <WeatherWidget f1={telemetry[cursorIdx].f1!} position={weatherBottomRight ? "bottom-right" : "bottom-left"} />}
