@@ -1,5 +1,15 @@
 import { describe, test, expect } from "bun:test";
-import { isMastraSignalMigrationRequiredError } from "../server/ai/agents";
+import { isMastraSignalMigrationRequiredError, shouldUseMastraRuntime } from "../server/ai/agents";
+
+describe("shouldUseMastraRuntime", () => {
+  test("does not enable Mastra for standalone seed commands", () => {
+    expect(shouldUseMastraRuntime("development", ["bun", "scripts/seed-db.ts"])).toBe(false);
+  });
+
+  test("enables Mastra for the development server", () => {
+    expect(shouldUseMastraRuntime("development", ["bun", "server/index.ts"])).toBe(true);
+  });
+});
 
 describe("isMastraSignalMigrationRequiredError", () => {
   test("matches duckdb migration error id", () => {
