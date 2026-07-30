@@ -15,7 +15,8 @@
 - Added a disposable development database seed from committed telemetry fixtures
 - Consolidated shared sessions, chats, analysis, driver, and experiment routes across all supported games
 - Tolerate sparse screenshot antialiasing differences while preserving substantial visual regression reporting
-- Centralized frontend theme, telemetry, product, manufacturer, and team color contracts with semantic regression coverage
+- Centralized theme-overridable frontend colors, typography, tracking, surfaces, semantic states, telemetry, game branding, manufacturer, and team design tokens
+- Added focused CSS resolution adapters for Canvas and uPlot renderers, backed by theme contract and Storybook snapshot coverage
 - Updated workspace dependencies and regenerated root Bun lockfile
 - Use `import.meta.dirname` in Vite config for native config-loader compatibility
 
