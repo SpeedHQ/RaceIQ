@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { openStory, warmStorybook } from "./storybook-ready";
+import { openStoryForSnapshot, warmStorybook } from "./storybook-ready";
 
 // Storybook iframe URL format: /iframe.html?id=<story-id>&viewMode=story
 // Story IDs are derived from title + export name: "Dashboards/F1LiveDashboard" + "Default" → "dashboards-f1livedashboard--default"
@@ -56,13 +56,7 @@ test.beforeAll(async ({ browser }) => {
 for (const story of stories) {
   test(`snapshot: ${story.name}`, async ({ page }) => {
     if (story.viewport) await page.setViewportSize(story.viewport);
-    await openStory(page, `/iframe.html?id=${story.id}&viewMode=story`);
-    // Wait for web fonts to finish loading. Otherwise the capture can race the
-    // font swap (Geist vs fallback) and every glyph shifts ~1px, producing a
-    // full-frame text diff that has nothing to do with the actual change.
-    await page.evaluate(() => document.fonts.ready);
-    // Extra settle time for charts and animations
-    await page.waitForTimeout(500);
+    await openStoryForSnapshot(page, `/iframe.html?id=${story.id}&viewMode=story`);
 
     await expect(page).toHaveScreenshot(`${story.name}.png`, {
       fullPage: false,

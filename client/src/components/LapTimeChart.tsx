@@ -1,7 +1,7 @@
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
-import { lapPaceColor } from "@/lib/colors";
 import type { LapMeta } from "@shared/types";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { lapPaceColor } from "@/lib/colors";
+import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { m } from "../paraglide/messages";
 import { formatLapTime } from "./LiveTelemetry";
 
@@ -52,6 +52,7 @@ export function LapTimeChart({
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container || laps.length < 1) return;
+    canvas.dataset.visualReady = "pending";
     const ctx = getSemanticCanvasContext(canvas);
     if (!ctx) return;
 
@@ -161,6 +162,7 @@ export function LapTimeChart({
         ctx.fillText(`${laps[i].lap}`, x, topPad + plotH + 14);
       }
     }
+    canvas.dataset.visualReady = "ready";
   }, [laps, yTicks, maxLaps, resizeTick]);
 
   return (
@@ -172,6 +174,7 @@ export function LapTimeChart({
         {laps.length === 0 && <div className="absolute inset-2 flex items-center justify-center rounded bg-app-surface/40 text-app-text-dim text-sm">{m.laptime_empty_state()}</div>}
         <canvas
           ref={canvasRef}
+          data-visual-ready={laps.length > 0 ? "pending" : "ready"}
           style={{
             position: "absolute",
             inset: 8,

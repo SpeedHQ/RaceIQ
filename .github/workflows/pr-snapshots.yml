@@ -92,9 +92,9 @@ jobs:
               dir=$(dirname "$diff")
               name=$(basename "$diff")
               name=${name%-diff.png}
-              cp "$dir/$name-expected.png" "$out/changed--render--$name-before.png" 2>/dev/null || continue
-              cp "$dir/$name-actual.png"   "$out/changed--render--$name-after.png"  2>/dev/null || continue
-              cp "$dir/$name-diff.png"     "$out/changed--render--$name-diff.png"   2>/dev/null || continue
+              cp "$dir/$name-expected.png" "$out/changed--render-vs-committed-pr-baseline--$name-before.png" 2>/dev/null || continue
+              cp "$dir/$name-actual.png"   "$out/changed--render-vs-committed-pr-baseline--$name-after.png"  2>/dev/null || continue
+              cp "$dir/$name-diff.png"     "$out/changed--render-vs-committed-pr-baseline--$name-diff.png"   2>/dev/null || continue
               echo "changed rendered snapshot: $name"
             done < <(find "$results" -name '*-diff.png')
           fi
@@ -103,7 +103,7 @@ jobs:
             --base "$RUNNER_TEMP/raceiq-main/client/src/stories/__snapshots__" \
             --current "$GITHUB_WORKSPACE/client/src/stories/__snapshots__" \
             --out "$out" \
-            --prefix storybook
+            --prefix committed-pr-baseline-vs-main
 
           if compgen -G "$out/*-after.png" >/dev/null; then
             echo "changed=1" >> "$GITHUB_OUTPUT"

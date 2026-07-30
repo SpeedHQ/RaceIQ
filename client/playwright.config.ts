@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { VISUAL_DIFF_COLOR_THRESHOLD, VISUAL_DIFF_MAX_PIXEL_RATIO } from "../scripts/visual-diff-config";
 
 export default defineConfig({
   testDir: "./src/stories",
@@ -11,8 +12,8 @@ export default defineConfig({
   // `maxDiffPixelRatio` is the fraction of pixels allowed to differ overall.
   expect: {
     toHaveScreenshot: {
-      threshold: 0.2,
-      maxDiffPixelRatio: 0.01,
+      threshold: VISUAL_DIFF_COLOR_THRESHOLD,
+      maxDiffPixelRatio: VISUAL_DIFF_MAX_PIXEL_RATIO,
     },
   },
   use: {

@@ -1,5 +1,6 @@
 import { tryGetGame } from "@shared/games/registry";
 import type { F1ExtendedData } from "@shared/types";
+import { Cloud, CloudLightning, CloudRain, CloudSun, Sun } from "lucide-react";
 import { useState } from "react";
 import { severityColor, severityRangeColor } from "@/lib/colors";
 import { m } from "@/paraglide/messages";
@@ -257,24 +258,33 @@ function ErsSection({ f1 }: { f1: F1ExtendedData }) {
 
 // ── Weather Section ──────────────────────────────────────────────────────────
 
-const WEATHER_ICONS: Record<number, string> = {
-  0: "☀️",
-  1: "⛅",
-  2: "☁️",
-  3: "🌧️",
-  4: "🌧️",
-  5: "⛈️",
-};
+function WeatherIcon({ weather }: { weather: number }) {
+  const iconProps = { "aria-hidden": true, className: "size-8 shrink-0", strokeWidth: 2 } as const;
+  switch (weather) {
+    case 0:
+      return <Sun {...iconProps} className={`${iconProps.className} text-(--metric-track-temperature)`} />;
+    case 1:
+      return <CloudSun {...iconProps} className={`${iconProps.className} text-(--metric-track-temperature)`} />;
+    case 2:
+      return <Cloud {...iconProps} className={`${iconProps.className} text-app-text-secondary`} />;
+    case 3:
+    case 4:
+      return <CloudRain {...iconProps} className={`${iconProps.className} text-(--metric-rain)`} />;
+    case 5:
+      return <CloudLightning {...iconProps} className={`${iconProps.className} text-(--severity-caution)`} />;
+    default:
+      return <CloudSun {...iconProps} className={`${iconProps.className} text-app-text-secondary`} />;
+  }
+}
 
 function WeatherWidget({ f1 }: { f1: F1ExtendedData }) {
-  const icon = WEATHER_ICONS[f1.weather] ?? "🌤️";
   const label = WEATHER_LABELS[f1.weather] ?? "Unknown";
   const hasRain = f1.rainPercentage > 0;
 
   return (
     <div className="h-full flex flex-col justify-center gap-2 px-3 py-2">
       <div className="flex items-center gap-2">
-        <div className="text-3xl leading-none">{icon}</div>
+        <WeatherIcon weather={f1.weather} />
         <div className="text-sm font-bold text-app-text">{label}</div>
       </div>
       {hasRain && (
@@ -349,7 +359,7 @@ function GridSection({ f1, playerPosition }: { f1: F1ExtendedData; playerPositio
     <div className="flex flex-col flex-1">
       <div className="h-8 px-2 border-b border-app-border flex items-center justify-between">
         <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.f1live_section_standings()}</h2>
-        <button onClick={() => setExpanded(!expanded)} className="text-xs text-app-accent hover:text-app-accent/80 font-semibold">
+        <button type="button" onClick={() => setExpanded(!expanded)} className="text-xs text-app-accent hover:text-app-accent/80 font-semibold">
           {expanded ? m.f1live_standings_focus() : m.f1live_standings_show_all()}
         </button>
       </div>
