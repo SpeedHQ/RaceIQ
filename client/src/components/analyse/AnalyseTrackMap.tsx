@@ -55,9 +55,8 @@ export const AnalyseTrackMap = forwardRef<
     showTrace?: boolean;
     rotateWithCar: boolean;
     zoom?: number;
-    containerHeight?: number;
   }
->(function AnalyseTrackMap({ telemetry, cursorIdx, outline, mapLabels, boundaries, sectors, segments, highlights, showInputs, showTrace = true, rotateWithCar, zoom = 1, containerHeight }, ref) {
+>(function AnalyseTrackMap({ telemetry, cursorIdx, outline, mapLabels, boundaries, sectors, segments, highlights, showInputs, showTrace = true, rotateWithCar, zoom = 1 }, ref) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const carCanvasRef = useRef<HTMLCanvasElement>(null);
   const pulseRef = useRef<HTMLCanvasElement>(null);
@@ -517,9 +516,8 @@ export const AnalyseTrackMap = forwardRef<
         }
       }
     }
-    // containerHeight triggers redraw on resize (not used directly but signals layout change)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [telemetry, resolvedPositions, outline, mapLabels, boundaries, sectors, segments, rotateWithCar, zoom, highlights, showInputs, showTrace, containerHeight]);
+  }, [telemetry, resolvedPositions, outline, mapLabels, boundaries, sectors, segments, rotateWithCar, zoom, highlights, showInputs, showTrace]);
 
   // Composite the cached track buffer onto the main canvas with rotation for follow view.
   const compositeTrack = useCallback(
@@ -671,7 +669,6 @@ export const AnalyseTrackMap = forwardRef<
 
   // ResizeObserver — rebuild the offscreen cache whenever the canvas
   // dimensions change (window resize, pane drag, layout toggles, etc).
-  // containerHeight prop only catches some of these; this catches all of them.
   const cursorRef = useRef(cursorIdx);
   useEffect(() => {
     cursorRef.current = cursorIdx;

@@ -106,7 +106,7 @@ export function LiveTestDashboard({
       <div className="grid shrink-0 grid-cols-1 border-b border-app-border @5xl/workspace:grid-cols-[1.8fr_1.5fr_1.3fr]">
         <div className="flex flex-col border-app-border @5xl/workspace:border-r">
           <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Track Position</div>
-          <div className="relative" style={{ height: 360 }}>
+          <div className="relative h-[22.5rem]">
             <AnalyseTrackPanel
               telemetry={liveTrace}
               cursorIdx={liveTrace.length - 1}
@@ -115,7 +115,6 @@ export function LiveTestDashboard({
               sectors={null}
               segments={null}
               currentPacket={rawPacket ?? null}
-              containerHeight={360}
               showTrace={false}
               rotateWithCar={rotateWithCar}
               trackOverlay={trackOverlay}
