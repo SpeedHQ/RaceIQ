@@ -1,6 +1,6 @@
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, compareAnalyses, profiles, tunes, lineSpreadCache, driverProfiles, driverProfileRuns } from "./schema";
+import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, compareAnalyses, profiles, tunes, lineSpreadCache, driverProfiles, driverProfileRuns, sessionResults, pitEvents } from "./schema";
 import type { TelemetryPacket, LapMeta, SessionMeta, GameId } from "../../shared/types";
 import type { Corner } from "../corner-detection";
 import { fillNormSuspension } from "../telemetry-utils";
@@ -171,6 +171,90 @@ export async function updateSession(
   updates: { sessionType?: string; notes?: string | null }
 ): Promise<void> {
   await db.update(sessions).set(updates).where(eq(sessions.id, id)).run();
+}
+
+export type SessionResultInput = {
+  sessionId: number;
+  sessionType: string;
+  classification: string;
+  finishingPosition: number | null;
+  qualifyingPosition: number | null;
+  isPodium: boolean | null;
+  isFastestLap: boolean | null;
+  pitCount: number;
+  tyreStrategy: unknown;
+  fuelStrategy: unknown;
+  provenance: unknown;
+  reasons: string[];
+};
+
+export type PitEventInput = {
+  sequence: number;
+  lapNumber: number | null;
+  elapsedSeconds: number | null;
+  durationSeconds: number | null;
+  service: string;
+  tyreChange: unknown;
+  fuelAdded: number | null;
+  fuelBefore: number | null;
+  fuelAfter: number | null;
+  linkage: string;
+  source: unknown;
+};
+
+export async function upsertSessionResult(input: SessionResultInput): Promise<{ id: number; changed: boolean }> {
+  const existing = await db
+    .select({ id: sessionResults.id })
+    .from(sessionResults)
+    .where(eq(sessionResults.sessionId, input.sessionId))
+    .get();
+  const values = {
+    sessionId: input.sessionId,
+    sessionType: input.sessionType,
+    classification: input.classification,
+    finishingPosition: input.finishingPosition,
+    qualifyingPosition: input.qualifyingPosition,
+    isPodium: input.isPodium,
+    isFastestLap: input.isFastestLap,
+    pitCount: input.pitCount,
+    tyreStrategy: input.tyreStrategy,
+    fuelStrategy: input.fuelStrategy,
+    provenance: input.provenance,
+    reasons: input.reasons,
+    updatedAt: new Date().toISOString(),
+  };
+  if (!existing) {
+    const row = await db.insert(sessionResults).values(values).returning({ id: sessionResults.id }).get();
+    return { id: row.id, changed: true };
+  }
+  await db.update(sessionResults).set(values).where(eq(sessionResults.id, existing.id)).run();
+  return { id: existing.id, changed: true };
+}
+
+export async function replacePitEvents(resultId: number, events: PitEventInput[]): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.delete(pitEvents).where(eq(pitEvents.resultId, resultId));
+    if (events.length > 0) {
+      await tx.insert(pitEvents).values(events.map((event) => ({ resultId, ...event })));
+    }
+  });
+}
+
+export async function getSessionResult(sessionId: number, gameId: GameId) {
+  const row = await db
+    .select({ result: sessionResults, gameId: sessions.gameId })
+    .from(sessionResults)
+    .innerJoin(sessions, eq(sessionResults.sessionId, sessions.id))
+    .where(and(eq(sessionResults.sessionId, sessionId), eq(sessions.gameId, gameId)))
+    .get();
+  if (!row) return null;
+  const events = await db
+    .select()
+    .from(pitEvents)
+    .where(eq(pitEvents.resultId, row.result.id))
+    .orderBy(pitEvents.sequence)
+    .all();
+  return { ...row.result, gameId: row.gameId as GameId, events };
 }
 
 export async function updateLapNotes(id: number, notes: string | null): Promise<void> {
