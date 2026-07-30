@@ -406,7 +406,7 @@ function InputsModal({
 }) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="wide" showCloseButton={false} className="max-h-[85vh] flex flex-col overflow-hidden p-0">
+      <DialogContent size="wide" showCloseButton={false} overlayClassName="bg-app-bg/60" className="max-h-[85vh] flex flex-col overflow-hidden p-0">
         <DialogHeader className="flex shrink-0 flex-row items-center justify-between border-b border-app-border px-4 py-3">
           <div className="flex items-center gap-2">
             <Sparkles className="size-3.5 text-ai-accent" />

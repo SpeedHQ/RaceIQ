@@ -17,7 +17,7 @@ export function HistoryPanel({ sessionId, onClose }: { sessionId: number; onClos
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="md" showCloseButton={false} className="max-h-[80vh] p-5">
+      <DialogContent size="md" showCloseButton={false} overlayClassName="bg-app-bg/60" className="max-h-[80vh] p-5">
         <DialogHeader>
           <DialogTitle className="text-sm font-semibold text-app-text">History</DialogTitle>
         </DialogHeader>
