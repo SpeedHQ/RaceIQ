@@ -104,15 +104,16 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
   }, [analysis, currentPacket, currentDisplayPacket, telemetryModel, units]);
 
   return (
-    <Tabs
-      value={sidebarTab}
-      onValueChange={(value) => {
-        if (value === "live" || value === "insights") onSidebarTabChange(value);
-      }}
-      className="flex h-full w-[22rem] shrink-0 flex-col overflow-hidden border-l border-app-border bg-app-surface/50"
-    >
-      <TabsList variant="underline" className="w-full shrink-0">
-        <TabsTrigger value="live" className="flex-1">
+    <div className="flex h-[34rem] w-full shrink-0 flex-col overflow-hidden border-t border-app-border bg-app-surface/50 @5xl/workspace:h-full @5xl/workspace:w-[clamp(18rem,30cqw,22rem)] @5xl/workspace:border-t-0 @5xl/workspace:border-l">
+      {/* Tab switcher */}
+      <div className="flex border-b border-app-border shrink-0">
+        <button
+          type="button"
+          onClick={() => onSidebarTabChange("live")}
+          className={`flex-1 py-1.5 text-app-caption uppercase tracking-wider font-semibold transition-colors ${
+            sidebarTab === "live" ? "text-app-text border-b-2 border-app-accent" : "text-app-text-muted hover:text-app-text"
+          }`}
+        >
           {m.analyse_tab_data()}
         </TabsTrigger>
         <TabsTrigger value="insights" className="flex-1">

@@ -7,7 +7,6 @@ import { m } from "@/paraglide/messages";
 import { ComboDash } from "../components/dashes/ComboDash";
 import { ComboDash2 } from "../components/dashes/ComboDash2";
 import { fakeForzaDisplayPacket, fakeForzaPacket, fakePit, fakeSectors, generateFakeSessionLaps } from "../stories/fakeData";
-import { RotatePrompt } from "./__root";
 
 const PREVIEW_LAPS = generateFakeSessionLaps(10);
 
@@ -91,7 +90,6 @@ function DashCatalogue() {
 
   return (
     <div className="min-h-screen bg-app-bg text-app-text p-8">
-      <RotatePrompt />
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-black tracking-tight">{m.dash_page_title()}</h1>

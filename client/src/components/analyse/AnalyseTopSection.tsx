@@ -1,15 +1,10 @@
 import type { TelemetryPacket } from "@shared/types";
-import type { RefObject } from "react";
+import type { CSSProperties, RefObject } from "react";
 import type { DisplayPacket } from "../../lib/convert-packet";
 import { m } from "../../paraglide/messages";
 import type { AnalysisHighlight } from "../AiPanel";
 import { AnalyseSegmentList } from "./AnalyseSegmentList";
-import type {
-  Point,
-  SectorBoundaries,
-  TrackMapLabel,
-  TrackMapHandle,
-} from "./AnalyseTrackMap";
+import type { Point, SectorBoundaries, TrackMapHandle, TrackMapLabel } from "./AnalyseTrackMap";
 import { AnalyseTrackPanel } from "./AnalyseTrackPanel";
 import { AnalyseVizPanel } from "./AnalyseVizPanel";
 
@@ -91,18 +86,24 @@ export function AnalyseTopSection({
   cursorRef,
   displayTelemetryRef,
 }: AnalyseTopSectionProps) {
+  const responsiveSizeVars = {
+    "--analyse-top-height": `${topHeight}px`,
+    "--analyse-left-width": `${leftColWidth}px`,
+    "--analyse-right-width": `${rightColWidth}px`,
+  } as CSSProperties;
+
   return (
-    <div className="flex shrink-0 overflow-hidden" style={{ height: topHeight }}>
+    <div className="flex shrink-0 flex-col overflow-visible @5xl/workspace:h-(--analyse-top-height) @5xl/workspace:flex-row @5xl/workspace:overflow-hidden" style={responsiveSizeVars}>
       {/* Segment table + legend */}
-      <div className="border-r border-app-border overflow-y-auto p-2 shrink-0" style={{ height: "100%", width: leftColWidth }}>
+      <div className="h-48 w-full shrink-0 overflow-y-auto border-b border-app-border p-2 @5xl/workspace:h-full @5xl/workspace:w-(--analyse-left-width) @5xl/workspace:border-r @5xl/workspace:border-b-0">
         {/* Legend */}
         <div className="flex flex-wrap items-center gap-3 mb-2 pb-2 border-b border-app-border">
           <div className="flex items-center gap-1">
-              <div className="w-3 h-1.5 rounded-sm bg-(--telemetry-ers-deployed)" />
+            <div className="w-3 h-1.5 rounded-sm bg-(--telemetry-ers-deployed)" />
             <span className="text-app-micro text-app-text-muted">{m.label_corner()}</span>
           </div>
           <div className="flex items-center gap-1">
-              <div className="w-3 h-1.5 rounded-sm bg-(--telemetry-ers-store)" />
+            <div className="w-3 h-1.5 rounded-sm bg-(--telemetry-ers-store)" />
             <span className="text-app-micro text-app-text-muted">{m.analyse_straight()}</span>
           </div>
         </div>
@@ -111,8 +112,17 @@ export function AnalyseTopSection({
       </div>
 
       {/* Left resize handle */}
-      <div
-        className="w-1.5 shrink-0 cursor-col-resize bg-app-border hover:bg-app-accent/40 transition-colors"
+      <button
+        type="button"
+        aria-label="Resize segment panel"
+        className="hidden w-1.5 shrink-0 cursor-col-resize bg-app-border transition-colors hover:bg-app-accent/40 @5xl/workspace:block"
+        onKeyDown={(event) => {
+          if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+            event.preventDefault();
+            const delta = event.key === "ArrowLeft" ? -16 : 16;
+            onLeftResize(Math.max(60, Math.min(800, leftColWidth + delta)));
+          }
+        }}
         onMouseDown={(e) => {
           e.preventDefault();
           const startX = e.clientX;
@@ -130,7 +140,7 @@ export function AnalyseTopSection({
       />
 
       {/* Track map */}
-      <div className="border-r border-app-border flex-1 min-w-0" style={{ height: "100%" }}>
+      <div className="h-[28rem] w-full min-w-0 border-b border-app-border @5xl/workspace:h-full @5xl/workspace:flex-1 @5xl/workspace:border-r @5xl/workspace:border-b-0">
         <AnalyseTrackPanel
           telemetry={telemetry}
           cursorIdx={cursorIdx}
@@ -154,8 +164,17 @@ export function AnalyseTopSection({
       </div>
 
       {/* Right resize handle */}
-      <div
-        className="w-1.5 shrink-0 cursor-col-resize bg-app-border hover:bg-app-accent/40 transition-colors"
+      <button
+        type="button"
+        aria-label="Resize visualization panel"
+        className="hidden w-1.5 shrink-0 cursor-col-resize bg-app-border transition-colors hover:bg-app-accent/40 @5xl/workspace:block"
+        onKeyDown={(event) => {
+          if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+            event.preventDefault();
+            const delta = event.key === "ArrowLeft" ? 16 : -16;
+            onRightResize(Math.max(200, rightColWidth + delta));
+          }
+        }}
         onMouseDown={(e) => {
           e.preventDefault();
           const startX = e.clientX;
@@ -176,7 +195,6 @@ export function AnalyseTopSection({
       <AnalyseVizPanel
         vizMode={vizMode}
         onVizModeChange={onVizModeChange}
-        width={rightColWidth}
         currentPacket={currentPacket}
         currentDisplayPacket={currentDisplayPacket}
         displayTelemetry={displayTelemetry}

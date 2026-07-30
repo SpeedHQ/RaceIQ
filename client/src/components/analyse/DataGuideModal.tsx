@@ -19,8 +19,8 @@ function Section({ title, children }: SectionProps) {
 
 function Row({ label, desc }: { label: string; desc: React.ReactNode }) {
   return (
-    <div className="flex gap-3">
-      <span className="text-app-text w-24 shrink-0">{label}</span>
+    <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
+      <span className="w-full shrink-0 text-app-text sm:w-24">{label}</span>
       <span className="text-app-text-muted leading-relaxed">{desc}</span>
     </div>
   );
@@ -52,13 +52,9 @@ function BrakeTemperatureDot({ state }: { state: "cold" | "working" | "hot" }) {
 
 export function DataGuideModal({ onClose }: { onClose: () => void }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="bg-app-surface border border-app-border rounded-xl shadow-2xl w-[560px] max-h-[85vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3">
+      <button type="button" aria-label={m.common_close()} className="absolute inset-0 bg-app-bg/60" onClick={onClose} />
+      <div className="relative flex max-h-[85vh] w-full max-w-[560px] flex-col rounded-xl border border-app-border bg-app-surface shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-app-border shrink-0">
           <h2 className="text-sm font-semibold text-app-text">{m.analyse_data_guide_title()}</h2>

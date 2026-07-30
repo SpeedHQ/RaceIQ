@@ -112,64 +112,6 @@ function StaleLapButton() {
   );
 }
 
-export function MobileNotSupported({ feature = m.root_this_view() }: { feature?: string }) {
-  return (
-    <div className="flex-1 flex items-center justify-center p-8 text-center">
-      <div className="max-w-sm flex flex-col items-center gap-3">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-app-accent">
-          <rect x="3" y="4" width="18" height="14" rx="2" />
-          <path d="M8 20h8" />
-        </svg>
-        <div className="text-base font-semibold text-app-text">{m.root_desktop_required()}</div>
-        <div className="text-sm text-app-text-muted">
-          {feature} {m.root_mobile_not_supported()}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export function RotatePrompt() {
-  const [show, setShow] = useState(false);
-  useEffect(() => {
-    const check = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      // Prompt only when portrait width cannot support desktop-only views.
-      setShow(h > w && isNarrowViewport(w));
-    };
-    check();
-    window.addEventListener("resize", check);
-    window.addEventListener("orientationchange", check);
-    return () => {
-      window.removeEventListener("resize", check);
-      window.removeEventListener("orientationchange", check);
-    };
-  }, []);
-
-  const [dismissed, setDismissed] = useState(false);
-  if (!show || dismissed) return null;
-
-  return (
-    <div className="fixed inset-x-0 bottom-6 z-40 flex justify-center px-6 pointer-events-none">
-      <div className="relative w-full max-w-sm rounded-xl border border-app-border bg-app-surface p-6 shadow-2xl text-center pointer-events-auto">
-        <Button type="button" onClick={() => setDismissed(true)} className="absolute top-2 right-2 p-1 text-app-text-muted hover:text-app-text" aria-label="Dismiss">
-          <X className="size-4" />
-        </Button>
-        <div className="flex flex-col items-center gap-3">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-app-accent animate-pulse">
-            <rect x="5" y="2" width="14" height="20" rx="2" />
-            <path d="M12 18h.01" />
-            <path d="M3 12 L8 9 L8 15 Z" fill="currentColor" />
-          </svg>
-          <div className="text-base font-semibold text-app-text">{m.root_rotate_device()}</div>
-          <div className="text-sm text-app-text-muted">{m.root_rotate_landscape()}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function AppShell() {
   useWebSocket();
   const { displaySettings, settingsLoaded } = useSettings();

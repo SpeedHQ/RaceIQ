@@ -193,7 +193,7 @@ export function TelemetryChart({ data, syncKey, height = 200, title, fillColors,
       {title && (
         <div className="relative flex items-center justify-center px-1 pb-0.5">
           <span className="text-app-caption font-semibold uppercase tracking-wider text-app-text-secondary">{title}</span>
-          <span className="absolute right-1 text-app-caption text-app-text-dim">Click &amp; drag to zoom · Double-click to reset</span>
+          <span className="absolute right-1 hidden text-app-caption text-app-text-dim md:inline">Click &amp; drag to zoom · Double-click to reset</span>
         </div>
       )}
       <div ref={outerRef} className="relative w-full">

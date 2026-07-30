@@ -11,8 +11,9 @@ export function TuneViewModal({ tuneId, onClose }: { tuneId: number; onClose: ()
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60" onClick={onClose}>
-      <div className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[600px] max-h-[80vh] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3">
+      <button type="button" aria-label={m.common_close()} className="absolute inset-0 bg-app-bg/60" onClick={onClose} />
+      <div className="relative max-h-[80vh] w-full max-w-[600px] overflow-y-auto rounded-lg border border-app-border bg-app-surface p-4 shadow-xl sm:p-5">
         {isLoading ? (
           <p className="text-app-text-muted text-sm">{m.tuneview_loading()}</p>
         ) : !tune ? (
@@ -38,7 +39,7 @@ export function TuneViewModal({ tuneId, onClose }: { tuneId: number; onClose: ()
             {tune.description && <p className="text-sm text-app-text-muted mb-4">{tune.description}</p>}
 
             {tune.settings && (
-              <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
                 {Object.entries(tune.settings).map(([section, values]) => (
                   <div key={section} className="bg-app-surface-alt rounded p-2 border border-app-border">
                     <h3 className="font-semibold text-app-accent uppercase tracking-wider mb-1">{section}</h3>
