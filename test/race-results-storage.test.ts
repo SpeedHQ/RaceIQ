@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { insertSession, getSessionResult, replacePitEvents, upsertSessionResult } from "../server/db/queries";
+import { getRecentRaceResults } from "../server/race-results/aggregates";
 
 describe("persisted race result metadata", () => {
   test("upserts one result and replaces ordered pit events on rerun", async () => {
@@ -49,4 +50,26 @@ describe("persisted race result metadata", () => {
     });
     expect(await getSessionResult(sessionId, "f1-2025")).toBeNull();
   });
+  test("returns newest persisted sessions without counting unpersisted gaps", async () => {
+    const oldest = await insertSession(1, 1, "f1-2025", "race");
+    await insertSession(1, 1, "f1-2025", "race");
+    await insertSession(1, 1, "f1-2025", "race");
+    await upsertSessionResult({
+      sessionId: oldest,
+      sessionType: "race",
+      classification: "finished",
+      finishingPosition: 1,
+      qualifyingPosition: null,
+      isPodium: true,
+      isFastestLap: null,
+      pitCount: 0,
+      tyreStrategy: null,
+      fuelStrategy: null,
+      provenance: {},
+      reasons: [],
+    });
+    const results = await getRecentRaceResults("f1-2025", 2);
+    expect(results.map((result) => result.sessionId)).toEqual([oldest + 2, oldest + 1]);
+  });
+
 });

@@ -1,6 +1,21 @@
 import type { GameId, TelemetryPacket } from "../../shared/types";
 import { derivePitLedger, type PitServiceSignals } from "./pit-ledger";
-import type { RaceSourceObservation } from "./types";
+import type { RaceSourceObservation, ResultClassification } from "./types";
+
+function classifyF1Result(status: number | undefined): ResultClassification | null {
+  switch (status) {
+    case 3:
+      return "finished";
+    case 4:
+    case 5:
+    case 6:
+      return "dnf";
+    case 7:
+      return "retired";
+    default:
+      return null;
+  }
+}
 
 function last<T>(packets: TelemetryPacket[]): T | null {
   return packets.length > 0 ? (packets[packets.length - 1] as T) : null;
@@ -57,6 +72,7 @@ function extractF1Result(packets: TelemetryPacket[]) {
   const isFastestLap = bestLap != null && gridBest.length > 0 ? bestLap <= Math.min(...gridBest) : null;
   return {
     sessionType: f1?.sessionType,
+    classification: classifyF1Result(f1?.resultStatus),
     finishingPosition: playerPosition,
     qualifyingPosition: f1?.gridPosition && f1.gridPosition > 0 ? f1.gridPosition : null,
     isFastestLap,
@@ -79,7 +95,7 @@ export function extractRaceSource(gameId: GameId, packets: TelemetryPacket[]): R
   return {
     gameId,
     sessionType: sessionType ?? null,
-    classification: null,
+    classification: f1?.classification ?? null,
     finishingPosition: position,
     qualifyingPosition: f1?.qualifyingPosition ?? null,
     isFastestLap: f1?.isFastestLap ?? null,
