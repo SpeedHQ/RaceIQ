@@ -249,6 +249,11 @@ Installed via `postinstall` script. Runs in parallel on staged client files:
 - **lint** — ESLint on staged `client/src/**/*.{ts,tsx}`
 - **typecheck** — full client build (`cd client && bun run build`)
 
+
+### Pull Request Changelog
+
+Every pull request must include a concise bullet in `CHANGELOG.md` under `## Unreleased`. Use `### Internal` for implementation, CI, tooling, and maintenance changes that are not user-visible; keep `### Breaking`, `### Features`, and `### Fixes` for user-facing changes. Run `bun test test/changelog.test.ts --timeout 60000` before requesting review.
+
 ### AI Evaluators
 
 Lap Analyst and Compare Engineer outputs are gated by deterministic scorers under `mastra/evals/scorers/`. The eval harness runs real fixture laps through an eval-only agent (pinned to `google/gemini-3-flash`), scores the output, and fails the build if any score drops below its threshold in `mastra/evals/index.ts::SCORER_THRESHOLDS`.

@@ -103,6 +103,16 @@ All data stays on your machine in `%APPDATA%/raceiq`:
 
 The database is created automatically on first run. No cloud account or external service required.
 
+### Seed a disposable development database
+
+From a fresh checkout, populate `DATA_DIR` with real committed telemetry:
+
+```bash
+bun run db:seed
+```
+
+The command imports representative Forza Motorsport, F1 2025, ACC, AC Evo, and iRacing captures and adds demo tunes, comparisons, cached analyses, and experiments. It marks onboarding complete so the dashboard opens directly to seeded data. It is idempotent. Use `bun run db:seed --reset` to regenerate only the seeded rows, or `DATA_DIR=.data-dev bun run db:seed` for a disposable database. The command refuses to mix seed data into a database containing captured user data unless `--force` is explicit.
+
 ## AI Coaching Setup
 
 AI analysis is optional. Add your API key in the RaceIQ settings panel — multiple providers are supported. Analysis is sent directly to the provider's API, no intermediary server.

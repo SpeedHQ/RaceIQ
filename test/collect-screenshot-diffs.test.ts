@@ -106,4 +106,85 @@ describe("collect-screenshot-diffs", () => {
       .toBuffer();
     expect(actualAddedDiff.equals(expectedAddedDiff)).toBe(true);
   });
+  test("ignores sparse one-level antialiasing differences", async () => {
+    const root = makeTempDir();
+    const base = join(root, "base");
+    const current = join(root, "current");
+    const out = join(root, "out");
+    const width = 1000;
+    const height = 100;
+    const pixels = Buffer.alloc(width * height * 4, 0);
+
+    for (let offset = 0; offset < pixels.length; offset += 4) {
+      pixels[offset] = 20;
+      pixels[offset + 1] = 20;
+      pixels[offset + 2] = 20;
+      pixels[offset + 3] = 255;
+    }
+
+    const currentPixels = Buffer.from(pixels);
+    for (const offset of [0, 4, 8]) {
+      currentPixels[offset] += 1;
+      currentPixels[offset + 1] += 1;
+      currentPixels[offset + 2] += 1;
+    }
+
+    await mkdirSync(join(base, "desktop"), { recursive: true });
+    await mkdirSync(join(current, "desktop"), { recursive: true });
+    await sharp(pixels, { raw: { width, height, channels: 4 } })
+      .png()
+      .toFile(join(base, "desktop", "antialias.png"));
+    await sharp(currentPixels, { raw: { width, height, channels: 4 } })
+      .png()
+      .toFile(join(current, "desktop", "antialias.png"));
+
+    const proc = Bun.spawn(
+      ["bun", "scripts/collect-screenshot-diffs.ts", "--base", base, "--current", current, "--out", out, "--prefix", "responsive"],
+      { cwd: process.cwd(), stdout: "pipe", stderr: "pipe" },
+    );
+
+    expect(await proc.exited).toBe(0);
+    expect(readdirSync(out)).toEqual([]);
+  });
+
+  test("keeps reporting substantial one-level changes", async () => {
+    const root = makeTempDir();
+    const base = join(root, "base");
+    const current = join(root, "current");
+    const out = join(root, "out");
+    const width = 100;
+    const height = 100;
+    const pixels = Buffer.alloc(width * height * 4, 0);
+
+    for (let offset = 0; offset < pixels.length; offset += 4) {
+      pixels[offset] = 20;
+      pixels[offset + 1] = 20;
+      pixels[offset + 2] = 20;
+      pixels[offset + 3] = 255;
+    }
+
+    const currentPixels = Buffer.from(pixels);
+    for (let offset = 0; offset < currentPixels.length; offset += 4) {
+      currentPixels[offset] += 1;
+      currentPixels[offset + 1] += 1;
+      currentPixels[offset + 2] += 1;
+    }
+
+    await mkdirSync(join(base, "desktop"), { recursive: true });
+    await mkdirSync(join(current, "desktop"), { recursive: true });
+    await sharp(pixels, { raw: { width, height, channels: 4 } })
+      .png()
+      .toFile(join(base, "desktop", "changed.png"));
+    await sharp(currentPixels, { raw: { width, height, channels: 4 } })
+      .png()
+      .toFile(join(current, "desktop", "changed.png"));
+
+    const proc = Bun.spawn(
+      ["bun", "scripts/collect-screenshot-diffs.ts", "--base", base, "--current", current, "--out", out, "--prefix", "responsive"],
+      { cwd: process.cwd(), stdout: "pipe", stderr: "pipe" },
+    );
+
+    expect(await proc.exited).toBe(0);
+    expect(existsSync(join(out, "changed--responsive--desktop--changed-diff.png"))).toBe(true);
+  });
 });
