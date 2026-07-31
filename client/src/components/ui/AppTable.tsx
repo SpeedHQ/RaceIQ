@@ -1,50 +1,53 @@
-import type { ReactNode, TdHTMLAttributes, ThHTMLAttributes } from "react";
+import type {
+  HTMLAttributes,
+  ReactNode,
+  TableHTMLAttributes,
+  TdHTMLAttributes,
+  ThHTMLAttributes,
+} from "react";
+import { cn } from "@/lib/utils";
 
-export function Table({ children, className = "", fit = false }: { children: ReactNode; className?: string; fit?: boolean }) {
+type TableProps = TableHTMLAttributes<HTMLTableElement> & {
+  fit?: boolean;
+  tableClassName?: string;
+};
+
+export function Table({ children, className, fit = false, tableClassName, ...props }: TableProps) {
   return (
-    <div className={`rounded-lg ${fit ? "" : "overflow-x-auto"} ${className}`}>
-      <table className={`w-full text-sm ${fit ? "min-w-0" : "min-w-max md:min-w-0"}`}>{children}</table>
+    <div className={cn("rounded-lg", fit ? "" : "overflow-x-auto", className)}>
+      <table className={cn("w-full text-sm", fit ? "min-w-0" : "min-w-max md:min-w-0", tableClassName)} {...props}>
+        {children}
+      </table>
     </div>
   );
 }
 
-export function THead({ children, className = "" }: { children: ReactNode; className?: string }) {
+export function THead({ children, className, rowClassName, ...props }: HTMLAttributes<HTMLTableSectionElement> & { rowClassName?: string }) {
   return (
-    <thead className={`bg-app-surface sticky top-0 z-10 ${className}`}>
-      <tr className="text-app-caption uppercase tracking-wider text-app-text-muted border-b border-app-border">{children}</tr>
+    <thead className={cn("bg-app-surface sticky top-0 z-10", className)} {...props}>
+      <tr className={cn("text-app-caption uppercase tracking-wider text-app-text-muted border-b border-app-border", rowClassName)}>{children}</tr>
     </thead>
   );
 }
 
-export function TBody({ children }: { children: ReactNode }) {
-  return <tbody className="divide-y divide-app-border/40">{children}</tbody>;
+export function TBody({ children, className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {
+  return (
+    <tbody className={cn("divide-y divide-app-border/40", className)} {...props}>
+      {children}
+    </tbody>
+  );
 }
 
 export function TRow({
   children,
-  className = "",
-  onClick,
-  onContextMenu,
-  title,
-  style,
+  className,
   tooltip,
-}: {
-  children: ReactNode;
-  className?: string;
-  onClick?: () => void;
-  onContextMenu?: (e: React.MouseEvent) => void;
-  title?: string;
-  style?: React.CSSProperties;
+  ...props
+}: HTMLAttributes<HTMLTableRowElement> & {
   tooltip?: string;
 }) {
   return (
-    <tr
-      className={`group/row relative hover:bg-app-surface-hover/50 transition-colors ${onClick ? "cursor-pointer" : ""} ${className}`}
-      onClick={onClick}
-      title={title}
-      style={style}
-      onContextMenu={onContextMenu}
-    >
+    <tr className={cn("group/row relative hover:bg-app-surface-hover/50 transition-colors", props.onClick && "cursor-pointer", className)} {...props}>
       {children}
       {tooltip && (
         <td className="p-0 w-0 overflow-visible">
@@ -57,18 +60,24 @@ export function TRow({
   );
 }
 
-export function TH({ children, className = "", ...props }: { children?: ReactNode; className?: string } & ThHTMLAttributes<HTMLTableCellElement>) {
+export function TH({ children, className, ...props }: { children?: ReactNode; className?: string } & ThHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <th className={`px-3 py-2 text-left ${className}`} {...props}>
+    <th className={cn("px-3 py-2 text-left", className)} {...props}>
       {children}
     </th>
   );
 }
 
-export function TD({ children, className = "", ...props }: { children?: ReactNode; className?: string } & TdHTMLAttributes<HTMLTableCellElement>) {
+export function TD({ children, className, ...props }: { children?: ReactNode; className?: string } & TdHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <td className={`px-3 py-2 ${className}`} {...props}>
+    <td className={cn("px-3 py-2", className)} {...props}>
       {children}
     </td>
   );
 }
+
+export const TableHeader = THead;
+export const TableBody = TBody;
+export const TableRow = TRow;
+export const TableHead = TH;
+export const TableCell = TD;
