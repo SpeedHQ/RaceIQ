@@ -102,8 +102,9 @@ function DialogFooter({
   );
 }
 
-function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
-  return <DialogPrimitive.Title data-slot="dialog-title" className={cn("text-base leading-none font-medium", className)} {...props} />;
+function DialogTitle({ className, variant = "default", ...props }: DialogPrimitive.Title.Props & { variant?: "default" | "import" }) {
+  const variants = { default: "", import: "text-xs font-medium text-app-text/90 uppercase tracking-wider" };
+  return <DialogPrimitive.Title data-slot="dialog-title" className={cn("text-base leading-none font-medium", variants[variant], className)} {...props} />;
 }
 
 function DialogDescription({ className, ...props }: DialogPrimitive.Description.Props) {

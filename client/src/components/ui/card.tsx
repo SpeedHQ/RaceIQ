@@ -2,12 +2,12 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-type CardVariant = "default" | "settings-section" | "transparent-panel" | "tune-summary";
-
+type CardVariant = "default" | "settings-section" | "transparent-panel" | "tune-summary" | "form-section";
 function Card({ className, size = "default", variant = "default", ...props }: React.ComponentProps<"div"> & { size?: "default" | "sm"; variant?: CardVariant }) {
   const variants: Record<CardVariant, string> = {
     default: "",
     "settings-section": "gap-0 rounded-xl bg-app-surface/40 p-0",
+    "form-section": "gap-0 rounded-lg",
     "transparent-panel": "bg-transparent ring-0",
     "tune-summary": "gap-3 rounded-lg bg-app-surface-alt/60",
   };
