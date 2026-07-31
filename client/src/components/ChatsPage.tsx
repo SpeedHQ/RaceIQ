@@ -4,6 +4,7 @@ import { ExternalLink, MessageSquare, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "../stores/game";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/AppTable";
 
 interface LapSummary {
   id: number;
@@ -145,87 +146,83 @@ export function ChatsPage() {
       )}
 
       {!loading && rows.length > 0 && (
-        <div className="flex-1 min-h-0 overflow-auto rounded-lg border border-app-border bg-app-surface">
-          <table className="w-full min-w-max text-app-label @3xl/workspace:min-w-0">
-            <thead className="sticky top-0 bg-app-surface-alt/80 backdrop-blur z-10 border-b border-app-border">
-              <tr className="text-left text-app-caption uppercase tracking-wider text-app-text-muted">
-                <th className="px-3 py-2 font-semibold">{m.label_type()}</th>
-                <th className="px-3 py-2 font-semibold">{m.label_track()}</th>
-                <th className="px-3 py-2 font-semibold">{m.chats_col_cars()}</th>
-                <th className="px-3 py-2 font-semibold">{m.chats_col_laps()}</th>
-                <th className="px-3 py-2 font-semibold">{m.chats_col_updated()}</th>
-                <th className="px-3 py-2 font-semibold text-right">{m.label_actions()}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.threadId} className="border-b border-app-border/40 hover:bg-app-surface-hover/40 transition-colors">
-                  <td className="px-3 py-2">
-                    <span
-                      className={`text-app-caption font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                        row.type === "compare"
-                          ? "bg-status-info/15 text-status-info border border-status-info/30"
-                          : row.type === "tune"
-                            ? "bg-status-success/15 text-status-success border border-status-success/30"
-                            : "bg-status-warning/15 text-status-warning border border-status-warning/30"
-                      }`}
+        <Table className="flex-1 min-h-0 overflow-auto border border-app-border bg-app-surface" tableClassName="min-w-max text-app-label @3xl/workspace:min-w-0">
+          <TableHeader className="bg-app-surface-alt/80 backdrop-blur z-10" rowClassName="text-left text-app-caption uppercase tracking-wider text-app-text-muted">
+            <TableHead className="font-semibold">{m.label_type()}</TableHead>
+            <TableHead className="font-semibold">{m.label_track()}</TableHead>
+            <TableHead className="font-semibold">{m.chats_col_cars()}</TableHead>
+            <TableHead className="font-semibold">{m.chats_col_laps()}</TableHead>
+            <TableHead className="font-semibold">{m.chats_col_updated()}</TableHead>
+            <TableHead className="font-semibold text-right">{m.label_actions()}</TableHead>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row) => (
+              <TableRow key={row.threadId} className="border-b border-app-border/40 hover:bg-app-surface-hover/40 transition-colors">
+                <TableCell>
+                  <span
+                    className={`text-app-caption font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                      row.type === "compare"
+                        ? "bg-status-info/15 text-status-info border border-status-info/30"
+                        : row.type === "tune"
+                          ? "bg-status-success/15 text-status-success border border-status-success/30"
+                          : "bg-status-warning/15 text-status-warning border border-status-warning/30"
+                    }`}
+                  >
+                    {row.type === "tune" ? "setup" : row.type}
+                  </span>
+                </TableCell>
+                <TableCell className="text-app-text">{row.trackName || "—"}</TableCell>
+                <TableCell className="text-app-text-secondary">
+                  {row.type === "tune" && row.tune ? (
+                    <span className="truncate max-w-[180px] block">{row.tune.carName || "—"}</span>
+                  ) : (
+                    row.laps.map((l, i) => (
+                      <div key={l.id} className="flex items-center gap-1.5">
+                        {row.type === "compare" && (
+                          <span className={`w-1.5 h-1.5 rounded-full ${i === 0 ? "bg-(--comparison-lap-a)" : "bg-(--comparison-lap-b)"}`} />
+                        )}
+                        <span className="truncate max-w-[180px]">{l.carName}</span>
+                      </div>
+                    ))
+                  )}
+                </TableCell>
+                <TableCell className="text-app-text-secondary font-mono text-app-compact">
+                  {row.type === "tune" && row.tune ? (
+                    <span className="truncate max-w-[220px] block">#{row.tune.seq} — {row.tune.name}</span>
+                  ) : (
+                    row.laps.map((l) => (
+                      <div key={l.id}>
+                        {m.chats_lap_number()} {l.lapNumber} — {formatLapTime(l.lapTime)}
+                        {!l.isValid && <span className="text-status-danger ml-1">(inv)</span>}
+                      </div>
+                    ))
+                  )}
+                </TableCell>
+                <TableCell className="text-app-text-muted">{formatRelative(row.updatedAt)}</TableCell>
+                <TableCell className="text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleOpen(row)}
+                      className="inline-flex items-center gap-1 text-app-compact px-2 py-1 rounded hover:bg-app-surface-hover text-app-text-secondary hover:text-app-text"
+                      title={m.chats_open()}
                     >
-                      {row.type === "tune" ? "setup" : row.type}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 text-app-text">{row.trackName || "—"}</td>
-                  <td className="px-3 py-2 text-app-text-secondary">
-                    {row.type === "tune" && row.tune ? (
-                      <span className="truncate max-w-[180px] block">{row.tune.carName || "—"}</span>
-                    ) : (
-                      row.laps.map((l, i) => (
-                        <div key={l.id} className="flex items-center gap-1.5">
-                          {row.type === "compare" && <span className={`w-1.5 h-1.5 rounded-full ${i === 0 ? "bg-(--comparison-lap-a)" : "bg-(--comparison-lap-b)"}`} />}
-                          <span className="truncate max-w-[180px]">{l.carName}</span>
-                        </div>
-                      ))
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-app-text-secondary font-mono text-app-compact">
-                    {row.type === "tune" && row.tune ? (
-                      <span className="truncate max-w-[220px] block">
-                        #{row.tune.seq} — {row.tune.name}
-                      </span>
-                    ) : (
-                      row.laps.map((l) => (
-                        <div key={l.id}>
-                          {m.chats_lap_number()} {l.lapNumber} — {formatLapTime(l.lapTime)}
-                          {!l.isValid && <span className="text-status-danger ml-1">(inv)</span>}
-                        </div>
-                      ))
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-app-text-muted">{formatRelative(row.updatedAt)}</td>
-                  <td className="px-3 py-2 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        type="button"
-                        onClick={() => handleOpen(row)}
-                        className="inline-flex items-center gap-1 text-app-compact px-2 py-1 rounded hover:bg-app-surface-hover text-app-text-secondary hover:text-app-text"
-                        title={m.chats_open()}
-                      >
-                        <ExternalLink className="size-3" /> {m.chats_open()}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(row.threadId)}
-                        className="inline-flex items-center gap-1 text-app-compact px-2 py-1 rounded hover:bg-status-danger/15 text-app-text-muted hover:text-status-danger"
-                        title={m.chats_delete_title()}
-                      >
-                        <Trash2 className="size-3" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      <ExternalLink className="size-3" /> {m.chats_open()}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(row.threadId)}
+                      className="inline-flex items-center gap-1 text-app-compact px-2 py-1 rounded hover:bg-status-danger/15 text-app-text-muted hover:text-status-danger"
+                      title={m.chats_delete_title()}
+                    >
+                      <Trash2 className="size-3" />
+                    </button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
     </div>
   );

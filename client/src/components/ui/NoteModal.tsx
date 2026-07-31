@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { m } from "@/paraglide/messages";
 import { Button } from "./button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "./dialog";
 
 export function NoteModal({ value, onSave, onClose }: { value?: string; onSave: (v: string) => void; onClose: () => void }) {
   const [draft, setDraft] = useState(value ?? "");
@@ -13,15 +13,12 @@ export function NoteModal({ value, onSave, onClose }: { value?: string; onSave: 
     onSave(draft);
     onClose();
   };
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[480px] max-w-[90vw] flex flex-col gap-3 p-4">
-        <p className="text-xs font-medium text-app-text/90 uppercase tracking-wider">{m.note_title()}</p>
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="sm" showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle className="text-xs font-medium text-app-text/90 uppercase tracking-wider">{m.note_title()}</DialogTitle>
+        </DialogHeader>
         <textarea
           ref={ref}
           rows={5}
@@ -34,16 +31,15 @@ export function NoteModal({ value, onSave, onClose }: { value?: string; onSave: 
           }}
           placeholder={m.note_placeholder()}
         />
-        <div className="flex justify-end gap-2">
+        <DialogFooter className="border-0 bg-transparent p-0 -mx-0 -mb-0">
           <Button variant="app-ghost" size="app-sm" onClick={onClose}>
             {m.common_cancel()}
           </Button>
           <Button variant="app-outline" size="app-sm" className="bg-app-accent/15 !border-app-accent/40 text-app-accent hover:bg-app-accent/25" onClick={commit}>
             {m.common_save()}
           </Button>
-        </div>
-      </div>
-    </div>,
-    document.body,
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

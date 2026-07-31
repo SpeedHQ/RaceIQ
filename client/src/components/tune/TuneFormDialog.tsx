@@ -7,6 +7,8 @@ import type { TuneSettings } from "../../data/tune-catalog";
 import { client } from "../../lib/rpc";
 import { errorFromResponse } from "../../lib/rpc-error";
 import { useRequiredGameId } from "../../stores/game";
+import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { ALL_CATEGORIES, CATEGORY_LABELS } from "./tune-constants.tsx";
 
 // ── Default settings for new tune ───────────────────────────────────────────
@@ -109,10 +111,7 @@ export function TuneFormDialog({
   const { data: allCars = [] } = useQuery<{ ordinal: number; name: string }[]>({
     queryKey: ["all-cars", gameId],
     queryFn: async () => {
-      const response = await client.api.cars.$get(
-        {},
-        { headers: { "X-Game-Id": gameId } },
-      );
+      const response = await client.api.cars.$get({}, { headers: { "X-Game-Id": gameId } });
       if (!response.ok) throw await errorFromResponse(response);
       return response.json();
     },
@@ -184,20 +183,21 @@ export function TuneFormDialog({
     e.preventDefault();
     onSubmit({ name, author, carOrdinal, category, description, settings });
   };
-
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 pb-8">
-      <div className="absolute inset-0 bg-app-bg/70" onClick={onClose} />
-      <div className="relative bg-app-surface rounded-xl ring-1 ring-app-border shadow-2xl w-full max-w-lg max-h-[calc(100vh-4rem)] overflow-auto mx-4">
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent className="max-w-lg max-h-[calc(100vh-4rem)] overflow-auto p-0" showCloseButton={false}>
         <form onSubmit={handleSubmit}>
-          <div className="sticky top-0 bg-app-surface px-4 py-3 border-b border-app-border flex items-center justify-between z-10">
-            <h2 className="text-sm font-bold text-app-text">{title}</h2>
-            <button type="button" onClick={onClose} className="text-app-text-muted hover:text-app-text text-lg leading-none">
+          <DialogHeader className="sticky top-0 z-10 flex-row items-center justify-between bg-app-surface px-4 py-3 border-b border-app-border">
+            <DialogTitle className="text-sm font-bold text-app-text">{title}</DialogTitle>
+            <Button variant="app-ghost" size="icon-sm" onClick={onClose} aria-label="Close">
               x
-            </button>
-          </div>
+            </Button>
+          </DialogHeader>
 
           <div className="p-4 space-y-3">
             {/* Metadata */}
@@ -287,15 +287,14 @@ export function TuneFormDialog({
 
             {/* JSON Import toggle */}
             <div className="flex items-center gap-2">
-              <button
-                type="button"
+              <Button
+                variant="app-ghost"
+                size="app-sm"
                 onClick={() => setJsonMode(!jsonMode)}
-                className={`text-app-caption font-semibold uppercase px-2 py-1 rounded transition-colors ${
-                  jsonMode ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"
-                }`}
+                className={`font-semibold uppercase ${jsonMode ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
               >
                 {m.tune_json_import()}
-              </button>
+              </Button>
               {!jsonMode && <span className="text-app-caption text-app-text-muted">{m.tune_or_fill_sections()}</span>}
             </div>
 
@@ -312,9 +311,9 @@ export function TuneFormDialog({
                   className="w-full bg-app-bg/85 border border-app-border rounded px-2 py-1.5 text-xs text-app-text font-mono focus:outline-none focus:ring-1 focus:ring-app-accent resize-y"
                 />
                 {jsonError && <p className="text-xs text-status-danger">{jsonError}</p>}
-                <button type="button" onClick={handleJsonParse} className="text-xs px-3 py-1.5 rounded bg-app-accent/20 text-app-accent hover:bg-app-accent/30 transition-colors">
+                <Button variant="app-ghost" size="app-sm" onClick={handleJsonParse} className="text-app-accent hover:bg-app-accent/30">
                   {m.tune_parse_populate()}
-                </button>
+                </Button>
               </div>
             ) : (
               <div className="space-y-2">
@@ -384,20 +383,16 @@ export function TuneFormDialog({
             )}
           </div>
 
-          <div className="sticky bottom-0 bg-app-surface px-4 py-3 border-t border-app-border flex justify-end gap-2">
-            <button type="button" onClick={onClose} className="text-xs px-3 py-1.5 rounded border border-app-border text-app-text-secondary hover:text-app-text transition-colors">
+          <DialogFooter className="sticky bottom-0 bg-app-surface px-4 py-3 border-t border-app-border">
+            <Button variant="app-outline" size="app-md" onClick={onClose}>
               {m.common_cancel()}
-            </button>
-            <button
-              type="submit"
-              disabled={!name || isSubmitting}
-              className="text-xs px-3 py-1.5 rounded bg-app-accent text-app-on-filled hover:bg-app-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
+            </Button>
+            <Button type="submit" variant="app-primary" size="app-md" disabled={!name || isSubmitting}>
               {isSubmitting ? m.common_saving() : m.common_save()}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

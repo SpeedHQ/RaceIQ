@@ -10,6 +10,8 @@ import { useRequiredGameId } from "../stores/game";
 import { PiBadge, piClass } from "./forza/PiBadge";
 import { AppInput } from "./ui/AppInput";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
+import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 
 interface CarSpecs {
   hp: number;
@@ -247,68 +249,60 @@ function CompareModal({
   const colWidth = Math.max(180, Math.floor(560 / cars.length));
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop closes only when pointer targets backdrop itself
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-app-bg/70 pt-8 pb-4 px-4 overflow-auto"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="bg-app-bg border border-app-border rounded-xl shadow-2xl w-full overflow-auto"
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        size="wide"
+        showCloseButton={false}
+        className="!top-8 !max-w-none !translate-y-0 overflow-auto rounded-xl bg-app-bg p-0"
         style={{ maxWidth: 160 + colWidth * cars.length, maxHeight: "90vh" }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-app-border sticky top-0 bg-app-bg z-10">
-          <h2 className="text-sm font-bold text-app-text/90">{m.cars_compare_modal_title()}</h2>
-          <button type="button" onClick={onClose} className="text-app-text/90 hover:text-app-text text-lg leading-none">
+        <DialogHeader className="sticky top-0 z-10 flex flex-row items-center justify-between border-b border-app-border bg-app-bg px-4 py-3">
+          <DialogTitle className="text-sm font-bold text-app-text/90">{m.cars_compare_modal_title()}</DialogTitle>
+          <Button variant="app-ghost" size="icon-sm" onClick={onClose} className="!h-auto !w-auto !p-1 text-app-text/90 hover:text-app-text" aria-label={m.common_close()}>
             ×
-          </button>
-        </div>
+          </Button>
+        </DialogHeader>
 
         <div className="overflow-auto">
-          <table className="w-full text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-app-border">
-                <th className="text-left px-4 py-2 text-app-text/90 font-medium sticky left-0 bg-app-bg" style={{ minWidth: 160 }}>
-                  {m.cars_stat_column()}
-                </th>
-                {cars.map((car) => (
-                  <th key={car.ordinal} className="px-3 py-2 text-center" style={{ minWidth: colWidth }}>
-                    {car.specs?.imageUrl && <img src={car.specs.imageUrl} alt={car.name} loading="lazy" className="h-14 w-full object-contain mx-auto mb-1" />}
-                    <div className="font-semibold text-app-text/90 leading-tight">{car.name}</div>
-                    {car.specs?.pi && <PiBadge showNumber={false} pi={car.specs.pi} />}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
+          <Table fit tableClassName="w-full border-collapse text-xs">
+            <THead className="bg-app-bg" rowClassName="border-b border-app-border">
+              <TH className="sticky left-0 bg-app-bg px-4 py-2 text-left font-medium text-app-text/90" style={{ minWidth: 160 }}>
+                {m.cars_stat_column()}
+              </TH>
+              {cars.map((car) => (
+                <TH key={car.ordinal} className="px-3 py-2 text-center" style={{ minWidth: colWidth }}>
+                  {car.specs?.imageUrl && <img src={car.specs.imageUrl} alt={car.name} loading="lazy" className="mx-auto mb-1 h-14 w-full object-contain" />}
+                  <div className="font-semibold leading-tight text-app-text/90">{car.name}</div>
+                  {car.specs?.pi && <PiBadge showNumber={false} pi={car.specs.pi} />}
+                </TH>
+              ))}
+            </THead>
+            <TBody>
               {rows.map((row, ri) => {
                 const bestIdxs = getBestIdx(row);
                 return (
-                  <tr key={row.label} className={ri % 2 === 0 ? "bg-app-surface/30" : ""}>
-                    <td className="px-4 py-1.5 text-app-text/90 sticky left-0 bg-inherit font-medium" style={{ minWidth: 160 }}>
+                  <TRow key={row.label} className={ri % 2 === 0 ? "bg-app-surface/30" : ""}>
+                    <TD className="sticky left-0 bg-inherit px-4 py-1.5 font-medium text-app-text/90" style={{ minWidth: 160 }}>
                       {row.label}
-                    </td>
+                    </TD>
                     {cars.map((car, ci) => {
                       const val = car.specs ? row.getValue(car.specs) : "—";
                       const isBest = bestIdxs.includes(ci);
                       return (
-                        <td key={car.ordinal} className={`px-3 py-1.5 text-center tabular-nums ${isBest ? "text-status-success font-semibold" : "text-app-text/90"}`}>
+                        <TD key={car.ordinal} className={`px-3 py-1.5 text-center tabular-nums ${isBest ? "font-semibold text-status-success" : "text-app-text/90"}`}>
                           {val}
-                        </td>
+                        </TD>
                       );
                     })}
-                  </tr>
+                  </TRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -430,22 +424,24 @@ export function CarsPage() {
       <div className="flex items-center flex-wrap gap-2">
         {/* View mode toggle */}
         <div className="flex items-center rounded-lg border border-app-border overflow-hidden">
-          <button
-            type="button"
+          <Button
+            variant="app-ghost"
+            size="icon-sm"
             onClick={() => setViewMode("table")}
             title={m.label_table_view()}
-            className={`px-2.5 py-1.5 transition-colors ${viewMode === "table" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text"}`}
+            className={`!h-auto !w-auto !rounded-none !p-2.5 transition-colors ${viewMode === "table" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text"}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" />
               <path d="M3 9h18M3 15h18M9 3v18" />
             </svg>
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="app-ghost"
+            size="icon-sm"
             onClick={() => setViewMode("grid")}
             title={m.label_grid_view()}
-            className={`px-2.5 py-1.5 transition-colors ${viewMode === "grid" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text"}`}
+            className={`!h-auto !w-auto !rounded-none !p-2.5 transition-colors ${viewMode === "grid" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text"}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="7" height="7" />
@@ -453,34 +449,36 @@ export function CarsPage() {
               <rect x="3" y="14" width="7" height="7" />
               <rect x="14" y="14" width="7" height="7" />
             </svg>
-          </button>
+          </Button>
         </div>
 
         <AppInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder={m.cars_search_placeholder()} className="min-w-[180px] flex-1 @3xl/workspace:w-52 @3xl/workspace:flex-none" />
 
         <div className="flex items-center flex-wrap gap-1">
           {PI_CLASSES.map((cls) => (
-            <button
-              type="button"
+            <Button
               key={cls}
+              variant="app-ghost"
+              size="app-sm"
               onClick={() => setClassFilter(classFilter === cls ? null : cls)}
-              className={`text-xs font-bold px-3 py-1.5 rounded transition-colors ${classFilter === cls ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text border border-app-border"}`}
+              className={`!px-3 !py-1.5 text-xs font-bold ${classFilter === cls ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text border border-app-border"}`}
             >
               {cls}
-            </button>
+            </Button>
           ))}
         </div>
 
         <div className="flex items-center flex-wrap gap-1">
           {DRIVETRAINS.map((d) => (
-            <button
-              type="button"
+            <Button
               key={d}
+              variant="app-ghost"
+              size="app-sm"
               onClick={() => setDriveFilter(driveFilter === d ? null : d)}
-              className={`text-xs font-semibold px-3 py-1.5 rounded transition-colors ${driveFilter === d ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text border border-app-border"}`}
+              className={`!px-3 !py-1.5 text-xs font-semibold ${driveFilter === d ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text border border-app-border"}`}
             >
               {d}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -531,17 +529,18 @@ export function CarsPage() {
                         <div className="text-xs text-app-text/90">{m.cars_no_image()}</div>
                       )}
                       {configsReady && getCarModel(car.ordinal).hasModel && (
-                        <button
-                          type="button"
+                        <Button
+                          variant="app-primary"
+                          size="app-sm"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate({ to: "/fm23/cars/$carOrdinal", params: { carOrdinal: String(car.ordinal) } });
                           }}
-                          className="absolute top-2 right-2 px-1.5 py-0.5 text-app-micro font-bold rounded bg-app-accent/80 hover:bg-app-accent-hover text-app-on-filled border border-app-accent/30 transition-colors"
+                          className="absolute top-2 right-2 !px-1.5 !py-0.5 text-app-micro font-bold bg-app-accent/80 hover:bg-app-accent-hover border border-app-accent/30"
                           title={m.cars_view_3d_model()}
                         >
                           3D
-                        </button>
+                        </Button>
                       )}
                     </div>
 
@@ -623,28 +622,22 @@ export function CarsPage() {
           )}
 
           {/* Card detail modal */}
-          {detailCar && (
-            // biome-ignore lint/a11y/noStaticElementInteractions: backdrop closes only when pointer targets backdrop itself
-            <div
-              className="fixed inset-0 z-50 flex items-start justify-center bg-app-bg/70 pt-12 pb-4 px-4 overflow-auto"
-              onMouseDown={(event) => {
-                if (event.target === event.currentTarget) setDetailCar(null);
-              }}
-            >
-              <div role="dialog" aria-modal="true" className="bg-app-bg border border-app-border rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-app-border">
-                  <div className="flex items-center gap-2">
+          <Dialog open={!!detailCar} onOpenChange={(open) => !open && setDetailCar(null)}>
+            {detailCar && (
+              <DialogContent size="lg" showCloseButton={false} className="max-w-2xl overflow-hidden p-0">
+                <DialogHeader className="flex flex-row items-center justify-between border-b border-app-border px-4 py-3">
+                  <DialogTitle className="flex items-center gap-2 text-sm font-bold text-app-text/90">
                     {detailCar.specs?.pi && <PiBadge showNumber={false} pi={detailCar.specs.pi} />}
-                    <span className="text-sm font-bold text-app-text/90">{detailCar.name}</span>
-                  </div>
-                  <button type="button" onClick={() => setDetailCar(null)} className="text-app-text/90 hover:text-app-text text-lg leading-none">
+                    {detailCar.name}
+                  </DialogTitle>
+                  <Button variant="app-ghost" size="icon-sm" onClick={() => setDetailCar(null)} className="!h-auto !w-auto p-1 text-app-text/90 hover:text-app-text" aria-label={m.common_close()}>
                     ×
-                  </button>
-                </div>
+                  </Button>
+                </DialogHeader>
                 <CarDetail car={detailCar} fmtSpeed={fmtSpeed} fmtBrake={fmtBrake} fmtWeight={fmtWeight} isMetric={isMetric} />
-              </div>
-            </div>
-          )}
+              </DialogContent>
+            )}
+          </Dialog>
         </>
       ) : (
         <Table>
@@ -775,17 +768,18 @@ export function CarsPage() {
           <span className="text-xs text-app-text/90">
             {selected.size} {m.cars_selected()}
           </span>
-          <button
-            type="button"
+          <Button
+            variant="app-outline"
+            size="app-sm"
             onClick={() => setComparing(true)}
             disabled={selected.size < 2}
-            className="text-xs font-semibold px-3 py-1 rounded-full bg-app-accent/20 text-app-accent border border-app-accent/30 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-app-accent/30 transition-colors"
+            className="!rounded-full !border-app-accent/30 !px-3 !py-1 text-xs font-semibold text-app-accent bg-app-accent/20 hover:bg-app-accent/30 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {m.cars_compare_button()} ({selected.size})
-          </button>
-          <button type="button" onClick={() => setSelected(new Set())} className="text-xs text-app-text/90 hover:text-app-text transition-colors">
+          </Button>
+          <Button variant="app-ghost" size="app-sm" onClick={() => setSelected(new Set())} className="!rounded-full !px-0 text-xs text-app-text/90 hover:text-app-text">
             {m.common_clear()}
-          </button>
+          </Button>
         </div>
       )}
 

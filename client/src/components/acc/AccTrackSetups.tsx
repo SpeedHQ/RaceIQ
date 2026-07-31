@@ -5,6 +5,7 @@ import { detectPlatform, PLATFORM_LABEL, PlatformIcon } from "@/components/acc/a
 import { m } from "@/paraglide/messages";
 import { client } from "../../lib/rpc";
 import { SearchSelect } from "../ui/SearchSelect";
+import { Card } from "../ui/card";
 
 interface AccSetup {
   name: string;
@@ -53,7 +54,7 @@ function SetupVideo({ url }: { url: string }) {
     const vid = u.hostname.includes("youtube.com") ? u.searchParams.get("v") : u.hostname === "youtu.be" ? u.pathname.slice(1) : null;
     if (!vid) return null;
     return (
-      <div className="rounded-lg overflow-hidden border border-app-border/20">
+      <Card className="rounded-lg border-0 bg-transparent p-0 ring-app-border/20">
         <iframe
           src={`https://www.youtube.com/embed/${vid}`}
           title="Hotlap"
@@ -61,7 +62,7 @@ function SetupVideo({ url }: { url: string }) {
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
         />
-      </div>
+      </Card>
     );
   } catch {
     return null;
@@ -174,7 +175,7 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
         </div>
 
         {/* Setup list */}
-        <div className="flex-1 min-h-0 overflow-y-auto rounded-lg border border-app-border/20">
+        <Card className="flex-1 min-h-0 overflow-y-auto rounded-lg border-0 bg-transparent p-0 ring-app-border/20">
           {/* Header */}
           <div className="flex items-center gap-1.5 px-2 py-1 bg-app-surface-alt/50 border-b border-app-border/20 sticky top-0">
             <span className="text-app-micro text-app-text-dim uppercase w-4 text-right shrink-0">#</span>
@@ -226,7 +227,7 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
               <span className="text-app-compact font-mono text-(--lap-pace-on-target) shrink-0 w-16 text-right">{s.lapTime || "—"}</span>
             </button>
           ))}
-        </div>
+        </Card>
       </div>
 
       {/* Right: setup detail + video */}
@@ -354,7 +355,7 @@ export function AccTrackGuide({ trackOrdinal, trackName }: { trackOrdinal: numbe
 
   return (
     <div className="flex items-start justify-center h-full p-4">
-      <div className="w-full max-w-4xl rounded-lg overflow-hidden border border-app-border/20">
+      <Card className="w-full max-w-4xl rounded-lg border-0 bg-transparent p-0 ring-app-border/20">
         <iframe
           src={embedUrl}
           title={`${trackName} Track Guide`}
@@ -362,7 +363,7 @@ export function AccTrackGuide({ trackOrdinal, trackName }: { trackOrdinal: numbe
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
         />
-      </div>
+      </Card>
     </div>
   );
 }

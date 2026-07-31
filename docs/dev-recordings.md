@@ -15,6 +15,7 @@ the dev server in recording mode and opens the dashboard:
 | F1 2025 | `bun run dev:dump:f1` | UDP — raw datagrams |
 | Assetto Corsa Competizione | `bun run dev:dump:acc` | Shared memory (Windows only) |
 | Assetto Corsa Evo | `bun run dev:dump:ac-evo` | Shared memory (Windows only) |
+| iRacing | `bun run dev:dump:iracing` | SDK source frames (Windows only) |
 
 Drive your session. The server appends packets live. When you're done,
 hit `Ctrl+C` — the signal handler flushes the recorder before exiting,
@@ -26,6 +27,7 @@ test/artifacts/sessions/fm-2023-2026-04-18T17-32-09-418Z.bin
 test/artifacts/sessions/f1-2025-2026-04-18T17-45-12-902Z.bin
 test/artifacts/sessions/acc-2026-04-18T17-51-03-776Z.bin
 test/artifacts/sessions/ac-evo-2026-04-18T17-59-44-112Z.bin
+test/artifacts/laps/iracing-2026-04-18T18-06-12-021Z.bin
 ```
 
 The filename prefix encodes the `gameId` — don't rename it, or the
@@ -88,7 +90,8 @@ gunzips it server-side before replaying.
   and flushes the buffer, so the file ends on a packet boundary. A
   hard kill (e.g. `kill -9`) can still truncate the in-flight record,
   but everything written prior remains importable.
-- Shared-memory games (ACC, AC Evo) use their own `.bin` triplet
-  format; UDP games (FM, F1) use the `UdpRecorder` `[uint32 len][N
-  bytes]` format. The importer picks the reader automatically from the
-  filename prefix.
+- UDP dump files (FM, F1) use `SessionRecorder` framing
+  (`[uint32 len][N bytes]`) with one raw datagram per record. Shared-memory
+  dumps (ACC, AC Evo) use `AcRecorder` typed frames. iRacing dump mode uses
+  its source-frame format and `IRacingRecorder`. Importer picks record decoder
+  automatically from file magic and filename prefix.

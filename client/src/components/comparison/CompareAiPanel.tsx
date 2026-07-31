@@ -1,7 +1,6 @@
 import type { UIMessage } from "ai";
 import { RefreshCw, Sparkles, Trash2, X } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
-import { createPortal } from "react-dom";
 import { useSettings } from "../../hooks/queries";
 import { isAiConfigured } from "../../lib/is-ai-configured";
 import { client } from "../../lib/rpc";
@@ -11,6 +10,7 @@ import { type AnalysisData, AnalysisDisplay, SetupList } from "../ai/analysis-di
 import { AnalysisModalShell, AnalysisSummaryRow } from "../ai/analysis-summary";
 import { ChatPanel } from "../ai-chat/ChatPanel";
 import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
 type ParsedAnalysis = Partial<AnalysisData>;
 
@@ -326,24 +326,18 @@ function InputsModal({
   trackSegments?: { name: string; startFrac: number; endFrac: number }[];
   onJumpToFrac?: (frac: number) => void;
 }) {
-  return createPortal(
-    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60 p-4"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[720px] max-w-[95vw] max-h-[85vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-app-border shrink-0">
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="wide" showCloseButton={false} overlayClassName="bg-app-bg/60" className="max-h-[85vh] flex flex-col overflow-hidden p-0">
+        <DialogHeader className="flex shrink-0 flex-row items-center justify-between border-b border-app-border px-4 py-3">
           <div className="flex items-center gap-2">
             <Sparkles className="size-3.5 text-ai-accent" />
-            <span className="text-app-compact font-semibold text-app-text uppercase tracking-wider">{m.compare_inputs_comparison()}</span>
+            <DialogTitle className="text-app-compact font-semibold text-app-text uppercase tracking-wider">{m.compare_inputs_comparison()}</DialogTitle>
           </div>
-          <button type="button" onClick={onClose} className="text-app-text-muted hover:text-app-text">
+          <button type="button" onClick={onClose} className="text-app-text-muted hover:text-app-text" aria-label={m.common_close()}>
             <X className="size-4" />
           </button>
-        </div>
+        </DialogHeader>
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
           {analysis.verdict && <p className="text-app-label text-app-text leading-relaxed">{analysis.verdict}</p>}
 
@@ -370,7 +364,9 @@ function InputsModal({
                       <span className="text-app-compact font-semibold text-app-text">{seg.name}</span>
                       {seg.type && <span className="text-app-micro uppercase tracking-wider text-app-text-muted">{seg.type}</span>}
                       {typeof seg.deltaSeconds === "number" && (
-                        <span className={`ml-auto text-app-caption font-mono ${seg.deltaSeconds > 0.05 ? "text-(--delta-loss)" : seg.deltaSeconds < -0.05 ? "text-(--delta-gain)" : "text-app-text-muted"}`}>
+                        <span
+                          className={`ml-auto text-app-caption font-mono ${seg.deltaSeconds > 0.05 ? "text-(--delta-loss)" : seg.deltaSeconds < -0.05 ? "text-(--delta-gain)" : "text-app-text-muted"}`}
+                        >
                           {seg.deltaSeconds >= 0 ? "+" : ""}
                           {seg.deltaSeconds.toFixed(3)}s
                         </span>
@@ -424,9 +420,8 @@ function InputsModal({
             </div>
           )}
         </div>
-      </div>
-    </div>,
-    document.body,
+      </DialogContent>
+    </Dialog>
   );
 }
 

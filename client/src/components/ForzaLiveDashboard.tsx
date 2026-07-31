@@ -9,6 +9,7 @@ import { type DashboardMode, LiveTelemetry } from "./LiveTelemetry";
 import { NoDataView } from "./NoDataView";
 import { RaceInfo } from "./RaceInfo";
 import { RecordedLaps } from "./RecordedLaps";
+import { Button } from "./ui/button";
 
 function PageHeader({ dashMode, demo }: { dashMode: DashboardMode; demo: ReturnType<typeof useDemoMode> }) {
   const prefix = useGameRoute();
@@ -39,11 +40,12 @@ function PageHeader({ dashMode, demo }: { dashMode: DashboardMode; demo: ReturnT
         </Link>
       </div>
       {import.meta.env.DEV && (
-        <button
-          type="button"
+        <Button
+          variant="app-ghost"
+          size="app-sm"
           onClick={demo.toggle}
           disabled={demo.loading}
-          className={`text-app-caption font-mono font-semibold px-2 py-0.5 rounded border transition-colors ${
+          className={`!border font-mono font-semibold ${
             demo.active
               ? "bg-status-warning/20 border-status-warning/50 text-status-warning hover:bg-status-warning/30"
               : demo.loading
@@ -52,7 +54,7 @@ function PageHeader({ dashMode, demo }: { dashMode: DashboardMode; demo: ReturnT
           }`}
         >
           {demo.loading ? "Loading..." : demo.active ? "Stop Demo" : "Demo"}
-        </button>
+        </Button>
       )}
     </div>
   );

@@ -6,7 +6,7 @@ import { notifyDriverProfileLap } from "./ai/driver-profile-runner";
 import type { ExclusionScopeLap } from "./experiment-auto-exclude";
 import { getTuneAssignment } from "./db/tune-queries";
 import { wsManager } from "./ws";
-import { UdpRecorder } from "./udp-recorder";
+import { SessionRecorder } from "./session-recorder";
 import { resolveDataDir } from "./data-dir";
 
 export interface CapturedSession {
@@ -84,7 +84,7 @@ export interface SessionRecorderAdapter {
   readonly epoch: number;
   start(gameId: GameId): void;
   writeMetaFrame(): void;
-  writePacket(buf: Buffer): void;
+  writeRecord(buf: Buffer): void;
   getCurrentByteOffset(): number;
   flush(): void;
   stop(): Promise<void>;
@@ -257,9 +257,9 @@ export class NullDbAdapter implements DbAdapter {
   }
 }
 
-/** Real session recorder — writes raw UDP packets to `<DATA_DIR>/sessions/<game>/<timestamp>.bin`. */
+/** Real session recorder — writes telemetry records to `<DATA_DIR>/sessions/<game>/<timestamp>.bin`. */
 export class RealSessionRecorderAdapter implements SessionRecorderAdapter {
-  private _inner: UdpRecorder | null = null;
+  private _inner: SessionRecorder | null = null;
   private _epoch = 0;
 
   get active(): boolean { return this._inner?.recording ?? false; }
@@ -272,13 +272,13 @@ export class RealSessionRecorderAdapter implements SessionRecorderAdapter {
     const sessionDir = resolve(dataDir, "sessions", gameId);
     mkdirSync(sessionDir, { recursive: true });
     const filePath = resolve(sessionDir, `${timestamp}.bin`);
-    this._inner = new UdpRecorder();
+    this._inner = new SessionRecorder();
     this._inner.start(filePath);
     this._epoch++;
   }
 
   writeMetaFrame(): void { this._inner?.writeMetaFrame(); }
-  writePacket(buf: Buffer): void { this._inner?.writePacket(buf); }
+  writeRecord(buf: Buffer): void { this._inner?.writeRecord(buf); }
   getCurrentByteOffset(): number { return this._inner?.getCurrentByteOffset() ?? 0; }
   flush(): void { this._inner?.flush(); }
   async stop(): Promise<void> {
@@ -295,7 +295,7 @@ export class NullSessionRecorderAdapter implements SessionRecorderAdapter {
   get epoch(): number { return 0; }
   start(_gameId: GameId): void {}
   writeMetaFrame(): void {}
-  writePacket(_buf: Buffer): void {}
+  writeRecord(_buf: Buffer): void {}
   getCurrentByteOffset(): number { return 0; }
   flush(): void {}
   async stop(): Promise<void> {}

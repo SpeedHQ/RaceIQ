@@ -171,41 +171,44 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
       {/* Nav — horizontal tabs on mobile, sidebar on md+ */}
       <nav className="flex shrink-0 overflow-x-auto border-b border-app-border bg-app-surface-alt/50 py-2 @3xl/settings:w-48 @3xl/settings:flex-col @3xl/settings:overflow-x-visible @3xl/settings:border-r @3xl/settings:border-b-0">
         {NAV_ITEMS.filter((item) => !("devOnly" in item) || isDevelopment).map((item) => (
-          <button
-            type="button"
+          <Button
+            variant="app-ghost"
+            size="app-md"
             key={item.id}
             onClick={() => setActiveSection(item.id)}
-            className={`shrink-0 px-4 py-2 text-left text-sm whitespace-nowrap transition-colors @3xl/settings:w-full ${
+            className={`shrink-0 !justify-start !rounded-none !px-4 !py-2 text-sm whitespace-nowrap transition-colors @3xl/settings:w-full ${
               activeSection === item.id
                 ? "border-b-2 border-app-accent bg-app-accent/10 text-app-accent @3xl/settings:border-r-2 @3xl/settings:border-b-0"
                 : "text-app-text-muted hover:text-app-text hover:bg-app-surface-hover"
             }`}
           >
             {(NAV_LABELS[item.id] ?? (() => item.label))()}
-          </button>
+          </Button>
         ))}
         <div className="mx-2 mt-auto hidden border-t border-app-border pt-2 @3xl/settings:block">
-          <button
-            type="button"
-            className="w-full text-left px-4 py-2 text-sm text-app-text-muted hover:text-app-text hover:bg-app-surface-hover transition-colors"
+          <Button
+            variant="app-ghost"
+            size="app-md"
+            className="w-full !justify-start !rounded-none !px-4 !py-2 text-sm text-app-text-muted hover:text-app-text hover:bg-app-surface-hover transition-colors"
             onClick={() => {
               onClose?.();
               openOnboarding();
             }}
           >
             {m.settings_setup_wizard()}
-          </button>
+          </Button>
         </div>
-        <button
-          type="button"
-          className="ml-auto shrink-0 whitespace-nowrap border-l border-app-border px-4 py-2 text-sm text-app-text-muted transition-colors hover:text-app-text @3xl/settings:hidden"
+        <Button
+          variant="app-ghost"
+          size="app-md"
+          className="ml-auto shrink-0 whitespace-nowrap !rounded-none border-l border-app-border !px-4 !py-2 text-sm text-app-text-muted transition-colors hover:text-app-text @3xl/settings:hidden"
           onClick={() => {
             onClose?.();
             openOnboarding();
           }}
         >
           {m.settings_setup_wizard()}
-        </button>
+        </Button>
       </nav>
 
       {/* Right content */}
@@ -338,12 +341,12 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             </div>
 
             <div className="mt-6 pt-6 border-t border-app-border">
-              <button type="button" onClick={() => setShowSetupGuide(!showSetupGuide)} className="flex items-center gap-2 text-sm text-app-accent hover:text-app-accent/80 transition-colors">
+              <Button variant="app-ghost" size="app-sm" onClick={() => setShowSetupGuide(!showSetupGuide)} className="!p-0 text-sm text-app-accent hover:text-app-accent/80">
                 <svg aria-hidden="true" className={`w-4 h-4 transition-transform ${showSetupGuide ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
                 {m.settings_forza_guide_toggle()}
-              </button>
+              </Button>
 
               {showSetupGuide && (
                 <div className="mt-4 rounded-lg border border-app-border bg-app-surface-alt p-4 max-w-lg">
@@ -377,12 +380,12 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             </div>
 
             <div className="mt-3">
-              <button type="button" onClick={() => setShowF1SetupGuide(!showF1SetupGuide)} className="flex items-center gap-2 text-sm text-app-accent hover:text-app-accent/80 transition-colors">
+              <Button variant="app-ghost" size="app-sm" onClick={() => setShowF1SetupGuide(!showF1SetupGuide)} className="!p-0 text-sm text-app-accent hover:text-app-accent/80">
                 <svg aria-hidden="true" className={`w-4 h-4 transition-transform ${showF1SetupGuide ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
                 {m.settings_f1_guide_toggle()}
-              </button>
+              </Button>
 
               {showF1SetupGuide && (
                 <div className="mt-4 rounded-lg border border-app-border bg-app-surface-alt p-4 max-w-lg">

@@ -5,6 +5,7 @@ import { type LineSpreadTrace, type TrackCorner, useLapIssues, useLapTelemetry, 
 import { useStintTraces } from "../../../hooks/useStintTraces";
 import { type LapTrace, stintStats } from "../../../lib/stint-traces";
 import { flipPoints, needsTrackFlip } from "../../../lib/track-coords";
+import { Button } from "../../ui/button";
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
 import { BalanceLanes } from "./BalanceLanes";
 import { ConsistencyLanes } from "./ConsistencyLanes";
@@ -275,14 +276,15 @@ export function TrackFocusViewInner({
         <div className="flex flex-col gap-3 min-h-0 min-w-0">
           <div className="flex-none flex gap-1 flex-wrap">
             {TABS.map((t) => (
-              <button
+              <Button
                 key={t}
-                type="button"
+                variant="app-ghost"
+                size="app-sm"
                 onClick={() => setActiveTab(t)}
-                className={`px-2.5 py-1 text-xs rounded border ${activeTab === t ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
+                className={`!border text-xs ${activeTab === t ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
               >
                 {TAB_LABELS[t]}
-              </button>
+              </Button>
             ))}
           </div>
 

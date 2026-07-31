@@ -6,7 +6,7 @@ import { storedLapsSectorCount } from "../lib/lap-sectors";
 import { useGameRoute } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
 import { Button } from "./ui/button";
-
+import { Table } from "./ui/AppTable";
 function formatLapTime(seconds: number): string {
   if (seconds <= 0) return "--:--.---";
   const m = Math.floor(seconds / 60);
@@ -75,7 +75,7 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
 
   return (
     <div className="overflow-auto">
-      <table className="w-full text-sm">
+      <Table fit tableClassName="w-full text-sm">
         <thead>
           <tr className="text-xs text-app-text-muted uppercase tracking-wider border-b border-app-border">
             <th className="text-left p-2 cursor-pointer hover:text-app-text select-none" onClick={() => toggleSort("lap")}>
@@ -150,7 +150,7 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
             );
           })}
         </tbody>
-      </table>
+      </Table>
     </div>
   );
 }

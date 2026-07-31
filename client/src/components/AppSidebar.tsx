@@ -91,7 +91,7 @@ function SidebarAction({ children, collapsed, label, onClick }: { children: Reac
 
   if (!collapsed) {
     return (
-      <Button type="button" variant="app-ghost" size="app-md" onClick={onClick} aria-label={label} className={className}>
+      <Button variant="app-ghost" size="app-md" onClick={onClick} aria-label={label} className={className}>
         {children}
       </Button>
     );
@@ -99,7 +99,7 @@ function SidebarAction({ children, collapsed, label, onClick }: { children: Reac
 
   return (
     <Tooltip>
-      <TooltipTrigger render={<Button type="button" variant="app-ghost" size="app-md" onClick={onClick} aria-label={label} className={className} />}>{children}</TooltipTrigger>
+      <TooltipTrigger render={<Button variant="app-ghost" size="app-md" onClick={onClick} aria-label={label} className={className} />}>{children}</TooltipTrigger>
       <TooltipContent side="right" role="tooltip">
         {label}
       </TooltipContent>
@@ -217,7 +217,7 @@ export function AppSidebar({
         <div className={`flex h-14 items-center border-b border-app-border ${showCollapsed ? "justify-center" : "justify-between px-3"}`}>
           {!showCollapsed && <span className="text-sm font-semibold text-app-text">RaceIQ</span>}
           {mobile ? (
-            <Button type="button" variant="app-ghost" size="icon-sm" onClick={onClose} aria-label="Close navigation">
+            <Button variant="app-ghost" size="icon-sm" onClick={onClose} aria-label="Close navigation">
               <X className="size-4" />
             </Button>
           ) : (

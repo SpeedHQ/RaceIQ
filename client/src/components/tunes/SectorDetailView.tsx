@@ -1,6 +1,7 @@
 import type { TelemetryPacket, TuneIssue } from "@shared/types";
 import { useState } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
+import { Button } from "../ui/button";
 import { SectorMap } from "./SectorMap";
 import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS } from "./SectorRangeBreakdown";
 
@@ -87,20 +88,21 @@ export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrd
               {issues.map((it) => {
                 const locatable = it.distanceFrac != null;
                 return (
-                  <button
-                    type="button"
+                  <Button
+                    variant="app-ghost"
+                    size="app-sm"
                     key={`${it.kind}-${it.corner ?? ""}-${it.detail}`}
                     disabled={!locatable}
                     onMouseEnter={locatable ? () => setMarkFrac(it.distanceFrac!) : undefined}
                     onMouseLeave={locatable ? () => setMarkFrac(null) : undefined}
                     onFocus={locatable ? () => setMarkFrac(it.distanceFrac!) : undefined}
                     onBlur={locatable ? () => setMarkFrac(null) : undefined}
-                    className={`text-left text-xs px-2 py-1 rounded border ${SEVERITY_CLASS[it.severity]} ${locatable ? "cursor-pointer" : ""}`}
+                    className={`!w-full !justify-start !border !px-2 !py-1 text-left text-xs ${SEVERITY_CLASS[it.severity]} ${locatable ? "cursor-pointer" : ""}`}
                   >
                     <span className="font-mono uppercase mr-1.5 opacity-70">{it.kind}</span>
                     {it.corner ? <span className="font-mono mr-1">{it.corner}</span> : null}
                     {it.detail}
-                  </button>
+                  </Button>
                 );
               })}
             </div>

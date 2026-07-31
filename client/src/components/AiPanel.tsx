@@ -5,8 +5,8 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import { m } from "@/paraglide/messages";
 import { useSettings } from "../hooks/queries";
 import { type ChatStreamError, type ChatStreamStatus, readChatStream } from "../lib/chat-stream";
-import { resolveCssColor } from "../lib/rendering/css-values";
 import { isAiConfigured } from "../lib/is-ai-configured";
+import { resolveCssColor } from "../lib/rendering/css-values";
 import { client } from "../lib/rpc";
 import { useUiStore } from "../stores/ui";
 import { type AnalysisData, AnalysisDisplay, type AnalysisHighlight, findSegment, type Segment, SetupList } from "./ai/analysis-display";
@@ -336,13 +336,9 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               <p className="text-app-compact text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
               <p className="text-app-caption text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
             </div>
-            <button
-              type="button"
-              onClick={() => openSettings("ai")}
-              className="flex items-center gap-1.5 text-app-compact px-3 py-1.5 rounded bg-[var(--ai-accent)] hover:bg-[var(--ai-accent-hover)] text-app-on-filled font-medium transition-colors"
-            >
+            <Button variant="app-primary" size="app-md" onClick={() => openSettings("ai")} className="text-app-compact bg-[var(--ai-accent)] hover:bg-[var(--ai-accent-hover)]">
               {m.aipanel_set_up_ai()}
-            </button>
+            </Button>
           </div>
         )}
 
@@ -380,10 +376,10 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           <div className="flex flex-col items-center justify-center py-12 gap-3">
             <Sparkles className="size-5" style={{ color: "var(--ai-accent)" }} />
             <p className="text-app-compact text-app-text-muted">{m.aipanel_no_analysis()}</p>
-            <button type="button" onClick={() => fetchAnalysis(false)} className="flex items-center gap-1.5 text-app-compact px-3 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled transition-colors">
+            <Button variant="app-primary" size="app-md" onClick={() => fetchAnalysis(false)} className="text-app-compact">
               <Sparkles className="size-3" />
               {m.aipanel_analyse_lap()}
-            </button>
+            </Button>
           </div>
         )}
 

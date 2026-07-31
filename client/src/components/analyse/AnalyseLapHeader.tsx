@@ -140,22 +140,14 @@ export function AnalyseLapHeader({
             ) : (
               <>
                 <span className="text-app-text-muted">{m.analyse_tune_label()}</span>
-                <select
-                  value={selectedLap?.tuneId ?? ""}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    onTuneChange(val ? Number.parseInt(val, 10) : null);
-                  }}
+                <SearchSelect
+                  value={selectedLap?.tuneId != null ? String(selectedLap.tuneId) : ""}
+                  onChange={(value) => onTuneChange(value ? Number.parseInt(value, 10) : null)}
+                  options={availableTunes?.map((tune) => ({ value: String(tune.id), label: tune.name })) ?? []}
+                  placeholder={m.analyse_no_tune()}
                   disabled={tunePending}
-                  className="bg-app-surface border border-app-border-input rounded px-2 py-1 text-sm text-app-text"
-                >
-                  <option value="">{m.analyse_no_tune()}</option>
-                  {availableTunes?.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
+                  className="min-w-[160px]"
+                />
                 {selectedLap?.tuneId != null && (
                   <Button variant="app-outline" size="app-sm" onClick={() => onViewTune(selectedLap.tuneId as number)}>
                     {m.label_view()}

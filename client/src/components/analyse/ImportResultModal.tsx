@@ -1,7 +1,7 @@
-import { createPortal } from "react-dom";
 import { formatLapTime } from "../../lib/format";
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 
 export interface ImportedLapSummary {
   lapId: number;
@@ -21,15 +21,12 @@ interface Props {
 }
 
 export function ImportResultModal({ fileName, packetCount, laps, sameGame, gameLabel, onGoToSession, onClose }: Props) {
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[480px] max-w-[90vw] flex flex-col gap-3 p-4">
-        <p className="text-xs font-medium text-app-text/90 uppercase tracking-wider">{m.analyse_import_result_title()}</p>
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="sm" showCloseButton={false} overlayClassName="bg-app-bg/60">
+        <DialogHeader>
+          <DialogTitle className="text-xs font-medium text-app-text/90 uppercase tracking-wider">{m.analyse_import_result_title()}</DialogTitle>
+        </DialogHeader>
         <p className="text-xs text-app-text-muted truncate" title={fileName}>
           {fileName} · {packetCount.toLocaleString()} {m.analyse_import_packets_label()}
         </p>
@@ -47,7 +44,7 @@ export function ImportResultModal({ fileName, packetCount, laps, sameGame, gameL
           </div>
         )}
         {!sameGame && laps.length > 0 && <p className="text-xs text-app-text-muted">{m.analyse_import_different_game({ game: gameLabel })}</p>}
-        <div className="flex justify-end gap-2">
+        <DialogFooter className="border-0 bg-transparent p-0 -mx-0 -mb-0">
           <Button variant="app-ghost" size="app-sm" onClick={onClose}>
             {m.common_close()}
           </Button>
@@ -56,9 +53,8 @@ export function ImportResultModal({ fileName, packetCount, laps, sameGame, gameL
               {sameGame ? m.analyse_import_view_session() : m.analyse_import_go_to_game({ game: gameLabel })}
             </Button>
           )}
-        </div>
-      </div>
-    </div>,
-    document.body,
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -8,6 +8,8 @@ import type { ExperimentVersion } from "../../hooks/queries";
 import { useLapIssues, useLapTelemetry, useTirePressureOptimal } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 import { TireGrid } from "../telemetry/TireGrid";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
 import { SectorDetailView } from "./SectorDetailView";
 import { SectorMap } from "./SectorMap";
 import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS, type MetricKey } from "./SectorRangeBreakdown";
@@ -237,9 +239,9 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
         {/* Toolbar: lap picker + view switcher on the left, Setup Engineer on the right */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 border-b border-app-border">
           {onBack && (
-            <button type="button" onClick={onBack} className="px-2.5 py-1 text-xs rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-border-hover">
+            <Button variant="app-outline" size="app-sm" onClick={onBack}>
               ← Session
-            </button>
+            </Button>
           )}
           <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Post-lap</span>
           <select
@@ -268,14 +270,15 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
           )}
           <div className="flex gap-1">
             {(["overview", ...Array.from({ length: sectorCount }, (_, index) => `s${index + 1}` as SectorView), "track"] as ReviewView[]).map((v) => (
-              <button
+              <Button
                 key={v}
-                type="button"
+                variant="app-ghost"
+                size="app-sm"
                 onClick={() => setView(v)}
-                className={`px-2.5 py-1 text-xs rounded border ${view === v ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
+                className={`!border text-xs ${view === v ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
               >
                 {v === "overview" ? "Overview" : v === "track" ? "Track" : `Sector ${v.slice(1)}`}
-              </button>
+              </Button>
             ))}
           </div>
           <div className="ml-auto flex items-center gap-2">{trackName && <span className="hidden text-xs text-app-text-muted @5xl/workspace:inline">{trackName}</span>}</div>
@@ -308,16 +311,15 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
               <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Sectors</span>
               <div className="flex gap-1 flex-wrap justify-end">
                 {METRICS.map((m) => (
-                  <button
+                  <Button
                     key={m.key}
-                    type="button"
+                    variant="app-ghost"
+                    size="app-sm"
                     onClick={() => setMetricKey(m.key)}
-                    className={`px-2 py-0.5 text-app-compact rounded border ${
-                      m.key === metricKey ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"
-                    }`}
+                    className={`!border text-app-compact ${m.key === metricKey ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
                   >
                     {m.label}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -461,13 +463,14 @@ function ArmHeadline({ kind, laps }: { kind: VersionKind; laps: LapMeta[] }) {
 
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-app-border px-4 py-2.5">
-      <span
-        className="review-kind-badge rounded-full px-2 py-0.5 text-app-caption font-medium"
+      <Badge
+        variant={kind === "drill" ? "warning" : "info"}
+        className="review-kind-badge"
         data-review-kind={kind}
         title={kind === "drill" ? "A driving drill — judged on consistency" : "A setup version — judged on best lap"}
       >
         {kind === "drill" ? "Driving drill" : "Setup version"}
-      </span>
+      </Badge>
       <div>
         <div className="text-app-caption uppercase tracking-wider text-app-text-muted">{lead.label}</div>
         <div className="font-mono text-sm text-app-text tabular-nums">{lead.value}</div>
@@ -490,9 +493,9 @@ function ReviewOverviewSkeleton({ trackName, onBack }: { trackName?: string; onB
       {/* Toolbar — mirrors the real one; controls disabled with no lap loaded. */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 border-b border-app-border">
         {onBack && (
-          <button type="button" onClick={onBack} className="px-2.5 py-1 text-xs rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-border-hover">
+          <Button variant="app-outline" size="app-sm" onClick={onBack}>
             ← Session
-          </button>
+          </Button>
         )}
         <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Post-lap</span>
         <div className="bg-app-surface-alt border border-app-border rounded px-2 py-1 text-sm font-mono text-app-text-dim">No laps yet</div>
@@ -542,18 +545,19 @@ function IssuePill({ issue, onHover }: { issue: TuneIssue; onHover?: (frac: numb
     );
   }
   return (
-    <button
-      type="button"
+    <Button
+      variant="app-ghost"
+      size="app-sm"
       onMouseEnter={() => onHover!(issue.distanceFrac!)}
       onMouseLeave={() => onHover!(null)}
       onFocus={() => onHover!(issue.distanceFrac!)}
       onBlur={() => onHover!(null)}
-      className={`text-xs px-2 py-1 rounded border text-left ${SEVERITY_CLASS[issue.severity]} cursor-pointer`}
+      className={`!justify-start !border !py-1 text-left text-xs ${SEVERITY_CLASS[issue.severity]} cursor-pointer`}
     >
       <span className="font-mono uppercase mr-1.5 opacity-70">{issue.kind}</span>
       {issue.corner ? <span className="font-mono mr-1">{issue.corner}</span> : null}
       {issue.detail}
-    </button>
+    </Button>
   );
 }
 

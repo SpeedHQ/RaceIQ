@@ -200,9 +200,10 @@ function SessionLapTable({
             }}
           />
           <div className="fixed z-50 bg-app-surface border border-app-border rounded shadow-lg py-1 text-sm" style={{ left: contextMenu.x, top: contextMenu.y }}>
-            <button
-              type="button"
-              className="w-full px-3 py-1.5 text-left hover:bg-app-surface-hover text-app-text"
+            <Button
+              variant="app-ghost"
+              size="app-sm"
+              className="w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover"
               onClick={async () => {
                 const res = await fetch(`/api/laps/${contextMenu.lapId}/recheck`, { method: "POST" });
                 const data = await res.json();
@@ -212,10 +213,11 @@ function SessionLapTable({
               }}
             >
               {m.sessions_recheck_validity()}
-            </button>
-            <button
-              type="button"
-              className="w-full px-3 py-1.5 text-left hover:bg-app-surface-hover text-app-text"
+            </Button>
+            <Button
+              variant="app-ghost"
+              size="app-sm"
+              className="w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover"
               onClick={async () => {
                 const lapId = contextMenu.lapId;
                 setContextMenu(null);
@@ -227,7 +229,7 @@ function SessionLapTable({
               }}
             >
               {m.sessions_export_lap()}
-            </button>
+            </Button>
           </div>
         </>
       )}
@@ -507,19 +509,20 @@ export function SessionsPage() {
         {motecEnabled && (
           <div className="flex items-center rounded border border-app-border overflow-hidden shrink-0">
             {(["recorded", "imported"] as const satisfies readonly SessionsTab[]).map((t) => (
-              <button
+              <Button
                 key={t}
-                type="button"
+                variant="app-ghost"
+                size="app-md"
                 onClick={() => {
                   setTab(t);
                   setPage(0);
                   setSelectedSessions(new Set());
                   setSelectedLaps(new Set());
                 }}
-                className={`px-3 py-1.5 text-sm font-semibold transition-colors ${tab === t ? "bg-app-accent text-app-on-filled" : "text-app-text/90 hover:text-app-text"}`}
+                className={`!rounded-none text-sm font-semibold transition-colors ${tab === t ? "bg-app-accent text-app-on-filled" : "text-app-text/90 hover:text-app-text"}`}
               >
                 {t === "recorded" ? m.sessions_tab_recorded() : m.sessions_tab_imported()}
-              </button>
+              </Button>
             ))}
           </div>
         )}
@@ -557,8 +560,9 @@ export function SessionsPage() {
               if (!sessA || !sessB) return null;
               if (sessA.trackOrdinal !== sessB.trackOrdinal) return null;
               return (
-                <button
-                  type="button"
+                <Button
+                  variant="app-primary"
+                  size="app-md"
                   onClick={() => {
                     // Compare is shared across all game routes.
                     // TanStack Router types don't know about the dynamic gameRoute
@@ -576,18 +580,17 @@ export function SessionsPage() {
                     };
                     navigate(args);
                   }}
-                  className="px-3 py-1.5 text-sm rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled font-semibold transition-colors"
                 >
                   {m.sessions_compare_two()}
-                </button>
+                </Button>
               );
             })()}
           {(selectedSessions.size > 0 || selectedLaps.size > 0) && (
-            <button type="button" onClick={deleteSelected} className="px-3 py-1.5 text-sm rounded bg-status-danger hover:bg-status-danger-hover text-app-on-filled font-semibold transition-colors">
+            <Button variant="app-danger" size="app-md" onClick={deleteSelected}>
               {m.common_delete()} {selectedSessions.size > 0 ? `${selectedSessions.size} ${m.sessions_count_sessions()}` : ""}
               {selectedSessions.size > 0 && selectedLaps.size > 0 ? " + " : ""}
               {selectedLaps.size > 0 ? `${selectedLaps.size} ${m.sessions_count_laps()}` : ""}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -851,22 +854,18 @@ export function SessionsPage() {
             {m.sessions_showing_prefix()} {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} {m.sessions_showing_of()} {filtered.length}
           </span>
           <div className="flex gap-1">
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={page === 0}
-              className="px-2 py-1 rounded bg-app-surface border border-app-border hover:bg-app-accent/10 disabled:opacity-30 disabled:cursor-not-allowed"
-            >
+            <Button variant="app-outline" size="app-sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} className="!py-1 disabled:opacity-30 disabled:cursor-not-allowed">
               {m.sessions_prev()}
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="app-outline"
+              size="app-sm"
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1}
-              className="px-2 py-1 rounded bg-app-surface border border-app-border hover:bg-app-accent/10 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="!py-1 disabled:opacity-30 disabled:cursor-not-allowed"
             >
               {m.common_next()}
-            </button>
+            </Button>
           </div>
         </div>
       )}

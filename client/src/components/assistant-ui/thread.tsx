@@ -159,10 +159,7 @@ const ThreadSuggestionItem: FC = () => {
       <SuggestionPrimitive.Trigger
         send
         render={
-          <Button
-            variant="ghost"
-            className="aui-thread-welcome-suggestion text-foreground hover:bg-muted border-border/60 h-auto gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-normal whitespace-nowrap transition-colors"
-          />
+          <Button variant="ghost" className="aui-thread-welcome-suggestion text-foreground border-border/60 h-auto rounded-full border px-3.5 py-1.5 font-normal whitespace-nowrap transition-colors" />
         }
       >
         <SuggestionPrimitive.Title className="aui-thread-welcome-suggestion-text-1" />
@@ -241,7 +238,7 @@ const ComposerAction: FC = () => {
           </ComposerPrimitive.Send>
         </AuiIf>
         <AuiIf condition={(s) => s.thread.isRunning}>
-          <ComposerPrimitive.Cancel render={<Button type="button" variant="default" size="icon" className="aui-composer-cancel size-7 rounded-full" aria-label="Stop generating" />}>
+          <ComposerPrimitive.Cancel render={<Button variant="default" size="icon" className="aui-composer-cancel size-7 rounded-full" aria-label="Stop generating" />}>
             <SquareIcon className="aui-composer-cancel-icon size-3.5 fill-current" />
           </ComposerPrimitive.Cancel>
         </AuiIf>
