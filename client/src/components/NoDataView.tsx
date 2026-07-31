@@ -126,7 +126,7 @@ export function NoDataView() {
       </div>
 
       <div>
-        <Button variant="app-ghost" size="app-md" onClick={() => setExpanded(!expanded)} className="!p-0 text-sm text-app-accent hover:text-app-accent/80">
+        <Button type="button" variant="app-ghost" size="app-md" onClick={() => setExpanded(!expanded)} className="!h-auto !p-0 text-sm text-app-accent hover:text-app-accent/80">
           <svg className={`w-4 h-4 transition-transform ${expanded ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>

@@ -6,6 +6,7 @@ import { m } from "@/paraglide/messages";
 import { useSettings } from "../hooks/queries";
 import { type ChatStreamError, type ChatStreamStatus, readChatStream } from "../lib/chat-stream";
 import { isAiConfigured } from "../lib/is-ai-configured";
+import { resolveCssColor } from "../lib/rendering/css-values";
 import { client } from "../lib/rpc";
 import { resolveCssColor } from "../lib/rendering/css-values";
 import { useUiStore } from "../stores/ui";
@@ -365,7 +366,77 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
       {/* Analysis area. Once the chat is mounted below it this shrinks to its
           content — otherwise two flex-1 siblings would split the panel 50/50
           and the collapsed row would sit on top of a tall empty box. */}
-      <div className={`overflow-y-auto px-3 py-3 space-y-2.5 ${analysis && !loading && !analysisCollapsed ? "shrink-0 max-h-[50%]" : !loading ? "shrink-0" : "flex-1 min-h-0"}`}>
+      <div className={`overflow-y-auto px-3 py-3 space-y-2.5 ${analysis && !loading ? "shrink-0 max-h-[50%]" : "flex-1 min-h-0"}`}>
+        {/* No AI provider configured */}
+        {!aiConfigured && (
+          <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+            <Sparkles className="size-5 text-app-text-dim" />
+            <div>
+              <p className="text-app-compact text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
+              <p className="text-app-caption text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
+            </div>
+            <Button type="button" variant="app-primary" size="app-md" onClick={() => openSettings("ai")} className="text-app-compact bg-[var(--ai-accent)] hover:bg-[var(--ai-accent-hover)]">
+              {m.aipanel_set_up_ai()}
+            </Button>
+          </div>
+        )}
+
+        {/* Loading state */}
+        {loading && (
+          <div className="flex flex-col items-center py-10 gap-4">
+            <div className="relative">
+              <div className="size-10 border-2 border-app-border-input rounded-full" />
+              <div className="absolute inset-0 size-10 border-2 border-transparent rounded-full animate-spin" style={{ borderTopColor: "var(--ai-accent)" }} />
+              <Sparkles className="absolute inset-0 m-auto size-4 text-(--ai-accent)/60" />
+            </div>
+            <div className="text-center">
+              <p className="text-app-compact text-app-text-secondary font-medium">
+                {analyseTool
+                  ? `${m.aipanel_using_tool()} ${analyseTool}`
+                  : analyseStatus === "generating"
+                    ? m.aipanel_generating_analysis()
+                    : analyseStatus === "thinking"
+                      ? m.aipanel_thinking()
+                      : m.aipanel_preparing_model()}
+              </p>
+              <p className="text-app-caption text-app-text-dim mt-1">{analyseStatus === "generating" ? m.aipanel_streaming_tokens() : m.aipanel_reviewing_data()}</p>
+              {!analyseStatus && <p className="text-app-micro text-app-text-dim mt-0.5">{m.aipanel_may_take()}</p>}
+            </div>
+            <div className="flex gap-1">
+              <div className="size-1 rounded-full animate-pulse" style={{ backgroundColor: "var(--ai-accent)" }} />
+              <div className="size-1 rounded-full animate-pulse [animation-delay:200ms]" style={{ backgroundColor: "var(--ai-accent)" }} />
+              <div className="size-1 rounded-full animate-pulse [animation-delay:400ms]" style={{ backgroundColor: "var(--ai-accent)" }} />
+            </div>
+          </div>
+        )}
+
+        {/* Empty state — after clear */}
+        {aiConfigured && !analysis && !loading && !error && (
+          <div className="flex flex-col items-center justify-center py-12 gap-3">
+            <Sparkles className="size-5" style={{ color: "var(--ai-accent)" }} />
+            <p className="text-app-compact text-app-text-muted">{m.aipanel_no_analysis()}</p>
+            <Button type="button" variant="app-primary" size="app-md" onClick={() => fetchAnalysis(false)} className="text-app-compact">
+              <Sparkles className="size-3" />
+              {m.aipanel_analyse_lap()}
+            </Button>
+          </div>
+        )}
+
+        {/* Error state */}
+        {error && !loading && (
+          <div className="flex justify-start">
+            <div className="rounded-lg px-2.5 py-2 bg-status-danger/10 border border-status-danger/20">
+              <p className="text-app-compact text-status-danger">{error}</p>
+              <Button variant="app-outline" size="app-sm" onClick={() => fetchAnalysis(false)} className="mt-1">
+                {m.label_retry()}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Analysis collapses to a summary row; the full breakdown opens in a
+            modal. Both pieces are the shared components the compare panel
+            uses, so the two pages stay in lockstep. */}
         {analysis && !loading && (
           <PanelSectionHeader
             title="Lap analysis"

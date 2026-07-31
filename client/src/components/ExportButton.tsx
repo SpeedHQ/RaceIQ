@@ -23,7 +23,7 @@ export function ExportButton({ lapId }: Props) {
   }
 
   return (
-    <Button variant="app-primary" size="app-sm" onClick={handleExport} disabled={status === "copying"}>
+    <Button type="button" variant="app-primary" size="app-sm" onClick={handleExport} disabled={status === "copying"} className="!px-2 !py-1 text-xs">
       {status === "copied" ? "Copied!" : "Export"}
     </Button>
   );
