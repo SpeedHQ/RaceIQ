@@ -56,7 +56,7 @@ import {
   STATIC_EVO,
 } from "../games/ac-evo/structs";
 import { ACEVO_PACKED_MAGIC, packTriplet } from "../games/shared/pack-triplet";
-import { META_FRAME_MAGIC } from "../udp-recorder";
+import { META_FRAME_MAGIC } from "../session-recorder";
 import { getAcEvoCarByModel, getAcEvoCarName } from "../../shared/ac-evo-car-data";
 import {
   getAcEvoTrackByName,

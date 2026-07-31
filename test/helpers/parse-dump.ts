@@ -17,7 +17,7 @@ import { getAccCarByModel } from "../../shared/acc-car-data";
 import { getAccTrackByName } from "../../shared/acc-track-data";
 import { readFileSync } from "fs";
 import { gunzipSync } from "zlib";
-import { META_FRAME_MAGIC } from "../../server/udp-recorder";
+import { META_FRAME_MAGIC } from "../../server/session-recorder";
 
 let _initialized = false;
 export function ensureInit(): void {

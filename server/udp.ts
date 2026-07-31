@@ -16,7 +16,7 @@ import { wsManager } from "./ws";
 import { processPacket, flushSessionRecorderBuffer } from "./pipeline";
 import { getRunningGame } from "./games/registry";
 import { lapDetector } from "./pipeline";
-import { UdpRecorder } from "./udp-recorder";
+import { SessionRecorder } from "./session-recorder";
 import type { GameId } from "../shared/types";
 
 const MIN_PACKET_LENGTH = 29; // Minimum: F1 header size
@@ -33,7 +33,7 @@ class UdpListener {
   private _socket: { stop(): void } | null = null;
   private _port = 5301;
   private _hostname = "0.0.0.0";
-  private _recorder: UdpRecorder | null = null;
+  private _recorder: SessionRecorder | null = null;
   private _recordingGameId: GameId | null = null;
   private _lastDetectedGame: ReturnType<typeof getRunningGame> = null;
   private _lastRaceOn = false;
@@ -83,7 +83,7 @@ class UdpListener {
       const dir = resolve(process.cwd(), "test", "artifacts", "sessions");
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const filePath = resolve(dir, `${this._recordingGameId}-${timestamp}.bin`);
-      this._recorder = new UdpRecorder();
+      this._recorder = new SessionRecorder();
       this._recorder.start(filePath);
     }
 
@@ -188,7 +188,7 @@ class UdpListener {
 
     // Append raw datagrams to the dump BEFORE parsing so recordings preserve
     // the exact wire format (including any packets parsePacket would skip).
-    this._recorder?.writePacket(buf);
+    this._recorder?.writeRecord(buf);
 
     // Returns null when game is paused/in menus (IsRaceOn == 0)
     const packet = parsePacket(buf);

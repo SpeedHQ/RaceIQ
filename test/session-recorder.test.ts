@@ -2,10 +2,10 @@ import { describe, test, expect, afterEach } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { UdpRecorder } from "../server/udp-recorder";
+import { SessionRecorder } from "../server/session-recorder";
 import { readUdpDump } from "./helpers/recording";
 
-describe("UdpRecorder + readUdpDump", () => {
+describe("SessionRecorder + readUdpDump", () => {
   let tmpDir: string;
 
   afterEach(() => {
@@ -14,13 +14,13 @@ describe("UdpRecorder + readUdpDump", () => {
 
   test("round-trips packets through dump file", async () => {
     tmpDir = mkdtempSync(join(tmpdir(), "raceiq-test-"));
-    const recorder = new UdpRecorder();
+    const recorder = new SessionRecorder();
     recorder.start(join(tmpDir, "dump.bin"));
 
     const pkt1 = Buffer.from([0x01, 0x02, 0x03]);
     const pkt2 = Buffer.from([0xAA, 0xBB, 0xCC, 0xDD]);
-    recorder.writePacket(pkt1);
-    recorder.writePacket(pkt2);
+    recorder.writeRecord(pkt1);
+    recorder.writeRecord(pkt2);
     await recorder.stop();
 
     const packets = readUdpDump(recorder.path!);

@@ -5,7 +5,7 @@ import { deleteSession } from "./db/queries";
 import { getAllServerGames, getServerGame } from "./games/registry";
 import { Pipeline } from "./pipeline";
 import { RealDbAdapter, type DbAdapter, type WsAdapter } from "./pipeline-adapters";
-import { META_FRAME_MAGIC } from "./udp-recorder";
+import { META_FRAME_MAGIC } from "./session-recorder";
 
 export class NoopWsAdapter implements WsAdapter {
   broadcast(): void {}
