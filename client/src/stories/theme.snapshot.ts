@@ -1,11 +1,10 @@
 import { expect, test } from "@playwright/test";
+import { THEME_SNAPSHOT_CASE } from "./snapshot-cases";
 import { openStory, warmStorybook } from "./storybook-ready";
 
-const themeStoryUrl = "/iframe.html?id=design-system-theme-contract--states&viewMode=story";
+const themeStoryUrl = `/iframe.html?id=${THEME_SNAPSHOT_CASE.id}&viewMode=story`;
 
-// Storybook's first preview navigation can remain on its loading screen while
-// Vite compiles the story graph. Warm the preview once and reload if that
-// first request gets stuck, rather than charging the race to the snapshot.
+// Warm cold Storybook preview before charging compilation to this snapshot.
 test.setTimeout(120_000);
 test.beforeAll(async ({ browser }) => {
   test.setTimeout(120_000);
@@ -15,11 +14,11 @@ test.beforeAll(async ({ browser }) => {
   });
 });
 
-test("snapshot: theme semantic states", async ({ page }) => {
+test(`snapshot: ${THEME_SNAPSHOT_CASE.name}`, async ({ page }) => {
   await openStory(page, themeStoryUrl);
-  await page.getByRole("heading", { name: "Theme contract" }).waitFor({ timeout: 60_000 });
+  await page.getByRole("heading", { name: THEME_SNAPSHOT_CASE.readyText }).waitFor({ timeout: 60_000 });
   await page.evaluate(() => document.fonts.ready);
-  await page.getByRole("button", { name: "Hover state" }).hover();
+  await page.getByRole("button", { name: THEME_SNAPSHOT_CASE.hoverLabel }).hover();
 
   await expect(page).toHaveScreenshot("ThemeContract.png", {
     fullPage: false,

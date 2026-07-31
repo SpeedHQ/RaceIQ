@@ -7,17 +7,38 @@ import { VISUAL_DIFF_COLOR_THRESHOLD, VISUAL_DIFF_MAX_PIXEL_RATIO } from "./visu
 
 type ChangeStatus = "added" | "changed" | "removed";
 
-interface Options {
+export interface ScreenshotDiffOptions {
   baseDir: string;
   currentDir: string;
   outDir: string;
   prefix: string;
+  includeMissing?: boolean;
 }
 
 interface DecodedImage {
   data: Buffer;
   width: number;
   height: number;
+}
+
+export interface ScreenshotDiff {
+  status: ChangeStatus;
+  prefix: string;
+  relativePath: string;
+  stem: string;
+  width: number;
+  height: number;
+  differingPixels: number | null;
+  pixelRatio: number;
+  beforeFile: string;
+  afterFile: string;
+  diffFile: string;
+}
+
+interface ImageComparison {
+  matches: boolean;
+  differingPixels: number;
+  pixelRatio: number;
 }
 
 function listPngs(root: string, dir = root, files = new Map<string, string>()): Map<string, string> {
@@ -39,14 +60,21 @@ async function decode(path: string): Promise<DecodedImage> {
   return { data, width: info.width, height: info.height };
 }
 
-function imagesMatch(base: DecodedImage, current: DecodedImage): boolean {
-  if (base.width !== current.width || base.height !== current.height) return false;
+function compareImages(base: DecodedImage, current: DecodedImage): ImageComparison {
+  if (base.width !== current.width || base.height !== current.height) {
+    return { matches: false, differingPixels: 0, pixelRatio: 1 };
+  }
 
   const pixelCount = base.width * base.height;
   const differingPixels = pixelmatch(base.data, current.data, null, base.width, base.height, {
     threshold: VISUAL_DIFF_COLOR_THRESHOLD,
   });
-  return differingPixels / pixelCount <= VISUAL_DIFF_MAX_PIXEL_RATIO;
+  const pixelRatio = differingPixels / pixelCount;
+  return {
+    matches: pixelRatio <= VISUAL_DIFF_MAX_PIXEL_RATIO,
+    differingPixels,
+    pixelRatio,
+  };
 }
 
 function placeholder(width: number, height: number, label: string): Promise<Buffer> {
@@ -97,12 +125,12 @@ function outputStem(status: ChangeStatus, prefix: string, relativePath: string):
 }
 
 async function writeTriplet(
-  options: Options,
+  options: ScreenshotDiffOptions,
   status: ChangeStatus,
   relativePath: string,
   basePath?: string,
   currentPath?: string,
-): Promise<void> {
+): Promise<Pick<ScreenshotDiff, "stem" | "width" | "height" | "beforeFile" | "afterFile" | "diffFile">> {
   const baseImage = basePath ? await decode(basePath) : undefined;
   const currentImage = currentPath ? await decode(currentPath) : undefined;
   const width = Math.max(baseImage?.width ?? 0, currentImage?.width ?? 0);
@@ -122,26 +150,33 @@ async function writeTriplet(
     .png()
     .toBuffer();
   const stem = outputStem(status, options.prefix, relativePath);
+  const beforeFile = `${stem}-before.png`;
+  const afterFile = `${stem}-after.png`;
+  const diffFile = `${stem}-diff.png`;
 
   await Promise.all([
-    Bun.write(join(options.outDir, `${stem}-before.png`), before),
-    Bun.write(join(options.outDir, `${stem}-after.png`), after),
-    Bun.write(join(options.outDir, `${stem}-diff.png`), diff),
+    Bun.write(join(options.outDir, beforeFile), before),
+    Bun.write(join(options.outDir, afterFile), after),
+    Bun.write(join(options.outDir, diffFile), diff),
   ]);
   console.log(`${status} screenshot: ${relativePath}`);
+  return { stem, width, height, beforeFile, afterFile, diffFile };
 }
 
-export async function collectScreenshotDiffs(options: Options): Promise<number> {
+export async function collectScreenshotDiffs(options: ScreenshotDiffOptions): Promise<ScreenshotDiff[]> {
   mkdirSync(options.outDir, { recursive: true });
   const baseFiles = listPngs(options.baseDir);
   const currentFiles = listPngs(options.currentDir);
   const paths = [...new Set([...baseFiles.keys(), ...currentFiles.keys()])].sort();
-  let changed = 0;
+  const changes: ScreenshotDiff[] = [];
 
   for (const relativePath of paths) {
     const basePath = baseFiles.get(relativePath);
     const currentPath = currentFiles.get(relativePath);
+    if (options.includeMissing === false && (!basePath || !currentPath)) continue;
+
     let status: ChangeStatus;
+    let comparison: ImageComparison | undefined;
 
     if (!basePath) {
       status = "added";
@@ -149,20 +184,26 @@ export async function collectScreenshotDiffs(options: Options): Promise<number> 
       status = "removed";
     } else {
       const [baseImage, currentImage] = await Promise.all([decode(basePath), decode(currentPath)]);
-      if (imagesMatch(baseImage, currentImage)) {
-        continue;
-      }
+      comparison = compareImages(baseImage, currentImage);
+      if (comparison.matches) continue;
       status = "changed";
     }
 
-    await writeTriplet(options, status, relativePath, basePath, currentPath);
-    changed += 1;
+    const output = await writeTriplet(options, status, relativePath, basePath, currentPath);
+    changes.push({
+      status,
+      prefix: options.prefix,
+      relativePath,
+      ...output,
+      differingPixels: comparison?.differingPixels ?? null,
+      pixelRatio: comparison?.pixelRatio ?? 1,
+    });
   }
 
-  return changed;
+  return changes;
 }
 
-function parseArgs(args: string[]): Options {
+function parseArgs(args: string[]): ScreenshotDiffOptions {
   const values = new Map<string, string>();
   for (let index = 0; index < args.length; index += 2) {
     const key = args[index];
@@ -183,6 +224,6 @@ function parseArgs(args: string[]): Options {
 
 if (import.meta.main) {
   const options = parseArgs(process.argv.slice(2));
-  const count = await collectScreenshotDiffs(options);
-  console.log(`Collected ${count} screenshot diff${count === 1 ? "" : "s"}.`);
+  const changes = await collectScreenshotDiffs(options);
+  console.log(`Collected ${changes.length} screenshot diff${changes.length === 1 ? "" : "s"}.`);
 }
