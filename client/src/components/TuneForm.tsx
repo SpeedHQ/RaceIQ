@@ -252,7 +252,7 @@ export function TuneSettingsPanel({ settings: raw }: { settings: TuneSettings })
   const orderedSections = [...(tiresSection ? [tiresSection] : []), ...(gearingSection ? [gearingSection] : []), ...(alignmentSection ? [alignmentSection] : []), ...remainingSections];
 
   const renderSection = (section: { title: string; rows: [string, string][] }) => (
-    <Card key={section.title} className="mb-3 break-inside-avoid">
+    <Card key={section.title} className="mb-3 break-inside-avoid rounded-lg bg-app-bg p-0 ring-0">
       <CardHeader className="rounded-none p-3 pb-2">
         <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent">{section.title}</h4>
       </CardHeader>
@@ -365,8 +365,8 @@ export function UserTuneCard({
   };
 
   return (
-    <div className="rounded-xl bg-app-surface ring-1 ring-app-border overflow-hidden">
-      <button type="button" onClick={onToggle} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-app-surface-hover transition-colors">
+    <Card className="gap-0 rounded-xl bg-app-surface p-0">
+      <button onClick={onToggle} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-app-surface-hover transition-colors">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-app-text">{tune.name}</span>
@@ -792,7 +792,7 @@ export function TuneForm({
             if (!carData?.specs) return null;
             const s = carData.specs;
             return (
-              <Card className="col-span-2">
+              <Card className="col-span-2 gap-0 rounded-lg bg-app-surface p-0">
                 <CardContent className="grid grid-cols-3 gap-x-4 gap-y-2 p-3">
                   {s.hp > 0 && (
                     <div className="flex flex-col">

@@ -210,7 +210,7 @@ export const DialogSizes: Story = {
 
 export const CardShell: Story = {
   render: () => (
-    <Card className="w-full max-w-md border border-app-border bg-app-surface">
+    <Card className="w-full max-w-md">
       <CardHeader className="border-b border-app-border">
         <CardTitle>Driver profile</CardTitle>
         <CardDescription>Keep setup notes close to your telemetry.</CardDescription>

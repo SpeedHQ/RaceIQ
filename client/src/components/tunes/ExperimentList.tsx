@@ -20,6 +20,7 @@ import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { SearchSelect } from "../ui/SearchSelect";
 import { FocusPicker } from "./FocusPicker";
+import { Card } from "../ui/card";
 import { SetupFilePicker } from "./SetupFilePicker";
 
 /**
@@ -87,10 +88,9 @@ export function FocusBadge({ focus }: { focus: ExperimentFocus }) {
 function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Experiment[]; onOpen: (id: number) => void; isLoading: boolean; gameId: ExperimentGameId }) {
   const accCarName = useAccCarName();
   const carName = (n: string | null | undefined) => (gameId === "acc" ? accCarName(n) : n) ?? "—";
-
-  return (
-    <div className="min-w-0 max-w-full overflow-hidden rounded-lg border border-app-border">
-      <table className="w-full table-fixed border-collapse text-sm">
+    return (
+      <Card className="gap-0 overflow-x-auto rounded-lg border border-app-border bg-app-surface p-0 ring-0">
+      <table className="w-full text-sm border-collapse">
         <thead>
           <tr className="text-left text-app-compact uppercase tracking-wider text-app-text-muted border-b border-app-border">
             <th className="hidden w-12 px-3 py-2 text-right font-medium @sm/workspace:table-cell">#</th>
@@ -132,9 +132,9 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
               </tr>
             );
           })}
-        </TBody>
-      </Table>
-    </div>
+        </tbody>
+      </table>
+      </Card>
   );
 }
 

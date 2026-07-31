@@ -1,6 +1,7 @@
 import fanatec15nm from "@shared/setup/fanatec-15nm.json";
 import { useState } from "react";
 import { m } from "@/paraglide/messages";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 interface Setting {
   name: string;
@@ -45,12 +46,12 @@ const PROFILES: HardwareProfile[] = [fanatec15nm as HardwareProfile];
 
 function SettingsTable({ group }: { group: SettingsGroup }) {
   return (
-    <div className="rounded-xl bg-app-surface/40 ring-1 ring-app-border overflow-hidden">
-      <div className="px-4 py-3 border-b border-app-border">
+    <Card className="gap-0 rounded-xl bg-app-surface/40 p-0">
+      <CardHeader className="rounded-none border-b border-app-border px-4 py-3">
         <h3 className="text-app-heading font-semibold text-app-text">{group.title}</h3>
         <p className="text-app-subtext text-app-text-muted mt-0.5">{group.description}</p>
-      </div>
-      <div className="divide-y divide-app-border">
+      </CardHeader>
+      <CardContent className="divide-y divide-app-border p-0">
         {group.settings.map((s) => (
           <div key={s.name} className="px-4 py-2.5 flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -63,15 +64,15 @@ function SettingsTable({ group }: { group: SettingsGroup }) {
             </div>
           </div>
         ))}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
 function PresetSettingsTable({ preset }: { preset: InGamePreset }) {
   return (
-    <div className="rounded-xl bg-app-surface/40 ring-1 ring-app-border overflow-hidden">
-      <div className="divide-y divide-app-border">
+    <Card className="gap-0 rounded-xl bg-app-surface/40 p-0">
+      <CardContent className="divide-y divide-app-border p-0">
         {preset.settings.map((s) => (
           <div key={s.name} className="px-4 py-2.5 flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -84,10 +85,11 @@ function PresetSettingsTable({ preset }: { preset: InGamePreset }) {
             </div>
           </div>
         ))}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
+
 
 interface WheelCatalogueEntry {
   profileId: string;
@@ -205,19 +207,21 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
 
           <SettingsTable group={profile.fanalab} />
 
-          <div className="rounded-xl bg-app-surface/40 ring-1 ring-app-border overflow-hidden">
-            <div className="px-4 py-3 border-b border-app-border">
+          <Card className="gap-0 rounded-xl bg-app-surface/40 p-0">
+            <CardHeader className="rounded-none border-b border-app-border px-4 py-3">
               <h3 className="text-app-heading font-semibold text-app-text">{m.hw_tips_title()}</h3>
-            </div>
-            <ul className="px-4 py-3 space-y-2">
-              {profile.tips.map((tip, i) => (
-                <li key={tip} className="text-app-body text-app-text-secondary flex items-start gap-2">
-                  <span className="text-app-accent shrink-0 mt-0.5">{i + 1}.</span>
-                  {tip}
-                </li>
-              ))}
-            </ul>
-          </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ul className="px-4 py-3 space-y-2">
+                {profile.tips.map((tip, i) => (
+                  <li key={i} className="text-app-body text-app-text-secondary flex items-start gap-2">
+                    <span className="text-app-accent shrink-0 mt-0.5">{i + 1}.</span>
+                    {tip}
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
         </>
       )}
 
@@ -245,12 +249,12 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
           <PresetSettingsTable preset={preset} />
 
           {profile.perCarOverrides.length > 0 && (
-            <div className="rounded-xl bg-app-surface/40 ring-1 ring-app-border overflow-hidden">
-              <div className="px-4 py-3 border-b border-app-border">
+            <Card className="gap-0 rounded-xl bg-app-surface/40 p-0">
+              <CardHeader className="rounded-none border-b border-app-border px-4 py-3">
                 <h3 className="text-app-heading font-semibold text-app-text">{m.hw_per_car_overrides()}</h3>
                 <p className="text-app-subtext text-app-text-muted mt-0.5">{m.hw_per_car_overrides_desc()}</p>
-              </div>
-              <div className="divide-y divide-app-border">
+              </CardHeader>
+              <CardContent className="divide-y divide-app-border p-0">
                 {profile.perCarOverrides.map((car) => (
                   <div key={car.carOrdinal} className="px-4 py-3">
                     <div className="text-app-body font-semibold text-app-text">{car.carName}</div>
@@ -266,8 +270,8 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
                     ))}
                   </div>
                 ))}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           )}
         </>
       )}

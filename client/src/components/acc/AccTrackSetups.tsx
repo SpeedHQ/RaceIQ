@@ -6,7 +6,6 @@ import { m } from "@/paraglide/messages";
 import { client } from "../../lib/rpc";
 import { SearchSelect } from "../ui/SearchSelect";
 import { Card } from "../ui/card";
-import { Button } from "../ui/button";
 
 interface AccSetup {
   name: string;

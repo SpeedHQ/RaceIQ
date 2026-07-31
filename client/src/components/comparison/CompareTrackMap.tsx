@@ -6,8 +6,8 @@ import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
 import { client } from "../../lib/rpc";
 import { flipBoundaries, flipPoints, needsTrackFlip } from "../../lib/track-coords";
 import { m } from "../../paraglide/messages";
-import { Table, TBody, TD, TH, THead, TRow } from "../ui/AppTable";
-import { Button } from "../ui/button";
+
+import { Card } from "../ui/card";
 export interface SegmentTiming {
   name: string;
   type: "corner" | "straight";
@@ -358,8 +358,8 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
     return () => observer.disconnect();
   }, [drawBoth]);
 
-  return (
-    <div className="flex h-full flex-col overflow-hidden text-app-body text-app-text">
+    return (
+      <Card className="h-full gap-0 rounded-lg bg-app-surface p-0 ring-app-border">
       {/* Overview — full track, static */}
       <div ref={overviewContainerRef} className="relative border-b border-app-border h-[220px] shrink-0">
         <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_overview()}</span>
@@ -433,7 +433,6 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
             </TBody>
           </Table>
         </div>
-      ) : null}
-    </div>
+    </Card>
   );
 }
