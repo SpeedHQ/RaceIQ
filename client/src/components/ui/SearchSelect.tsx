@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { m } from "@/paraglide/messages";
 import { AppInput } from "./AppInput";
@@ -23,7 +23,10 @@ interface SearchSelectProps {
   fallbackLabel?: string;
 }
 
-export function SearchSelect({ id, value, onChange, options, placeholder = "Search...", disabled = false, className = "", focusColor, fallbackLabel }: SearchSelectProps) {
+const OVERLAY_SURFACE_CLASS = "rounded-lg border border-app-border-input bg-app-surface-alt text-app-text shadow-lg";
+const OVERLAY_ITEM_CLASS = "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm outline-none transition-colors";
+
+export function SearchSelect({ value, onChange, options, placeholder = "Search...", disabled = false, className = "", focusColor, fallbackLabel }: SearchSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -33,8 +36,8 @@ export function SearchSelect({ id, value, onChange, options, placeholder = "Sear
   const [panelRect, setPanelRect] = useState<{ top: number; left: number; width: number; above: boolean } | null>(null);
   const [highlightIdx, setHighlightIdx] = useState(-1);
 
-  const selectedLabel = options.find((option) => option.value === value)?.label ?? fallbackLabel ?? "";
-  const filtered = useMemo(() => (search ? options.filter((option) => option.label.toLowerCase().includes(search.toLowerCase())) : options), [options, search]);
+  const selectedLabel = options.find((o) => o.value === value)?.label ?? fallbackLabel ?? "";
+  const filtered = search ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase())) : options;
 
   const close = useCallback(() => {
     setOpen(false);
@@ -43,17 +46,18 @@ export function SearchSelect({ id, value, onChange, options, placeholder = "Sear
   }, []);
 
   const handleSelect = useCallback(
-    (selectedValue: string) => {
-      onChange(selectedValue);
+    (val: string) => {
+      onChange(val);
       close();
     },
     [close, onChange],
   );
 
+  // Close on outside click, including clicks in the portaled panel.
   useEffect(() => {
     if (!open) return;
-    const handler = (event: MouseEvent) => {
-      const target = event.target as Node;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
       if (containerRef.current?.contains(target) || panelRef.current?.contains(target)) return;
       close();
     };
@@ -61,6 +65,7 @@ export function SearchSelect({ id, value, onChange, options, placeholder = "Sear
     return () => document.removeEventListener("mousedown", handler);
   }, [close, open]);
 
+  // Position the portaled panel against the trigger, with viewport-aware vertical and horizontal collision handling.
   useLayoutEffect(() => {
     if (!open) {
       setPanelRect(null);
@@ -88,7 +93,7 @@ export function SearchSelect({ id, value, onChange, options, placeholder = "Sear
   useEffect(() => {
     const selectedIndex = filtered.findIndex((option) => option.value === value && !option.disabled);
     setHighlightIdx(selectedIndex);
-  }, [filtered, open, value]);
+  }, [search, open, value]);
 
   const moveHighlight = (direction: 1 | -1) => {
     if (filtered.length === 0) return;
@@ -102,24 +107,24 @@ export function SearchSelect({ id, value, onChange, options, placeholder = "Sear
     }
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
       moveHighlight(1);
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
       moveHighlight(-1);
-    } else if (event.key === "Home") {
-      event.preventDefault();
+    } else if (e.key === "Home") {
+      e.preventDefault();
       setHighlightIdx(filtered.findIndex((option) => !option.disabled));
-    } else if (event.key === "End") {
-      event.preventDefault();
+    } else if (e.key === "End") {
+      e.preventDefault();
       setHighlightIdx([...filtered].findLastIndex((option) => !option.disabled));
-    } else if (event.key === "Enter" && highlightIdx >= 0 && filtered[highlightIdx] && !filtered[highlightIdx].disabled) {
-      event.preventDefault();
+    } else if (e.key === "Enter" && highlightIdx >= 0 && filtered[highlightIdx] && !filtered[highlightIdx].disabled) {
+      e.preventDefault();
       handleSelect(filtered[highlightIdx].value);
-    } else if (event.key === "Escape") {
-      event.preventDefault();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
       close();
     }
   };
@@ -149,7 +154,7 @@ export function SearchSelect({ id, value, onChange, options, placeholder = "Sear
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
-        className={`w-full bg-app-surface-alt ${focusBorderClass}`}
+        className={`w-full rounded border border-app-border-input bg-app-surface-alt px-2 py-1.5 text-sm text-app-text placeholder:text-app-text-dim outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${focusBorderClass}`}
       />
       <svg
         aria-hidden="true"
@@ -186,12 +191,10 @@ export function SearchSelect({ id, value, onChange, options, placeholder = "Sear
               return (
                 <div key={option.value}>
                   {showGroup && <div className="border-t border-app-border-input bg-app-surface px-3 py-1 text-xs font-medium text-app-text-muted first:border-t-0">{option.group}</div>}
-                  <Button
+                  <button
                     id={`${listboxId}-${index}`}
                     type="button"
                     role="option"
-                    variant="plain"
-                    size="content"
                     aria-selected={selected}
                     disabled={option.disabled}
                     data-highlighted={highlighted ? "" : undefined}
@@ -200,11 +203,17 @@ export function SearchSelect({ id, value, onChange, options, placeholder = "Sear
                     onMouseEnter={() => !option.disabled && setHighlightIdx(index)}
                     onClick={() => handleSelect(option.value)}
                     className={`${OVERLAY_ITEM_CLASS} ${
-                      option.disabled ? "cursor-not-allowed text-app-text-dim opacity-50" : highlighted ? "bg-app-accent/20 text-app-text" : selected ? "text-app-accent" : "text-app-text"
+                      option.disabled
+                        ? "cursor-not-allowed text-app-text-dim opacity-50"
+                        : highlighted
+                          ? "bg-app-accent/20 text-app-text"
+                          : selected
+                            ? "text-app-accent"
+                            : "text-app-text hover:bg-app-accent/10"
                     }`}
                   >
                     {option.label}
-                  </Button>
+                  </button>
                 </div>
               );
             })}
