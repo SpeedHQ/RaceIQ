@@ -461,6 +461,7 @@ function InputsModal({
           </button>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+          {analysis.verdict && <p className="text-app-label text-app-text leading-relaxed">{analysis.verdict}</p>}
 
           {analysis.segments?.length > 0 && (
             <div className="space-y-2">
