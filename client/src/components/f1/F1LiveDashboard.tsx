@@ -365,78 +365,62 @@ function GridSection({ f1, playerPosition }: { f1: F1ExtendedData; playerPositio
           {expanded ? m.f1live_standings_focus() : m.f1live_standings_show_all()}
         </Button>
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        <Table density="compact" fit variant="embedded">
-          <TableHeader>
-            <TableHead>{m.f1grid_header_position()}</TableHead>
-            <TableHead>{m.f1grid_header_driver()}</TableHead>
-            <TableHead align="end">{m.f1grid_header_s1()}</TableHead>
-            <TableHead align="end">{m.f1grid_header_s2()}</TableHead>
-            <TableHead align="end">{m.f1grid_header_s3()}</TableHead>
-            <TableHead align="end">{m.label_delta()}</TableHead>
-            <TableHead align="end">{m.f1grid_header_ahead()}</TableHead>
-            <TableHead align="center">{m.label_tires()}</TableHead>
-            <TableHead align="end">{m.f1grid_header_age()}</TableHead>
-            <TableHead align="center">{m.f1grid_header_pit()}</TableHead>
-          </TableHeader>
-          <TableBody>
-            {focused.map((entry) => {
-              if ("separator" in entry) {
-                return (
-                  <TableRow key={`sep-${entry.position}`} variant="separator">
-                    <TableCell align="center" colSpan={10} tone="dim">
-                      {m.f1grid_separator()}
-                    </TableCell>
-                  </TableRow>
-                );
-              }
-              const isPlayer = entry.position === playerPosition;
+      <Table fit className="flex-1 min-h-0 rounded-none overflow-y-auto" tableClassName="text-sm">
+        <TableHeader className="bg-app-surface" rowClassName="text-app-text-muted border-b border-app-border">
+          <TableHead className="px-2 py-1.5 text-left w-8 font-semibold">{m.f1grid_header_position()}</TableHead>
+          <TableHead className="px-2 py-1.5 text-left font-semibold">{m.f1grid_header_driver()}</TableHead>
+          <TableHead className="px-2 py-1.5 text-right font-semibold">{m.f1grid_header_s1()}</TableHead>
+          <TableHead className="px-2 py-1.5 text-right font-semibold">{m.f1grid_header_s2()}</TableHead>
+          <TableHead className="px-2 py-1.5 text-right font-semibold">{m.f1grid_header_s3()}</TableHead>
+          <TableHead className="px-2 py-1.5 text-right font-semibold">{m.label_delta()}</TableHead>
+          <TableHead className="px-2 py-1.5 text-right font-semibold">{m.f1grid_header_ahead()}</TableHead>
+          <TableHead className="px-2 py-1.5 text-center w-6 font-semibold">{m.label_tires()}</TableHead>
+          <TableHead className="px-2 py-1.5 text-right w-8 font-semibold">{m.f1grid_header_age()}</TableHead>
+          <TableHead className="px-2 py-1.5 text-center w-8 font-semibold">{m.f1grid_header_pit()}</TableHead>
+        </TableHeader>
+        <TableBody className="divide-y-0">
+          {focused.map((entry) => {
+            if ("separator" in entry) {
               return (
-                <TableRow key={entry.position} selected={isPlayer}>
-                  <TableCell emphasis numeric tone="primary">
-                    {entry.position}
-                  </TableCell>
-                  <TableCell emphasis={isPlayer} tone={isPlayer ? "accent" : "default"} truncate="narrow">
-                    {entry.name || `${m.label_car()} ${entry.position}`}
-                  </TableCell>
-                  <TableCell align="end" numeric>
-                    {entry.lastS1 > 0 ? entry.lastS1.toFixed(3) : "—"}
-                  </TableCell>
-                  <TableCell align="end" numeric>
-                    {entry.lastS2 > 0 ? entry.lastS2.toFixed(3) : "—"}
-                  </TableCell>
-                  <TableCell align="end" numeric>
-                    {entry.lastS3 > 0 ? entry.lastS3.toFixed(3) : "—"}
-                  </TableCell>
-                  <TableCell align="end" numeric tone="muted">
-                    {entry.position === 1 ? m.f1grid_leader() : formatGap(entry.gapToLeader)}
-                  </TableCell>
-                  <TableCell align="end" numeric tone="muted">
-                    {formatGap(entry.gapToCarAhead)}
-                  </TableCell>
-                  <TableCell align="center">
-                    <span className="tire-compound-dot inline-block w-2.5 h-2.5 rounded-full" data-tire-compound={(entry.tyreCompound || "unknown").toLowerCase()} />
-                  </TableCell>
-                  <TableCell align="end" numeric tone="muted">
-                    {entry.tyreAge}
-                  </TableCell>
-                  <TableCell align="center" tone="muted">
-                    {entry.pitStatus === 1 ? (
-                      <span className="text-status-warning font-bold">IN</span>
-                    ) : entry.pitStatus === 2 ? (
-                      <span className="text-status-warning">PIT</span>
-                    ) : entry.numPitStops > 0 ? (
-                      entry.numPitStops
-                    ) : (
-                      ""
-                    )}
+                <TableRow key={`sep-${entry.position}`} className="hover:bg-transparent">
+                  <TableCell colSpan={10} className="text-center text-xs text-app-text-dim py-0.5">
+                    {m.f1grid_separator()}
                   </TableCell>
                 </TableRow>
               );
-            })}
-          </TableBody>
-        </Table>
-      </div>
+            }
+            const isPlayer = entry.position === playerPosition;
+            return (
+              <TableRow key={entry.position} className={`border-b border-app-border/50 ${isPlayer ? "bg-app-accent/10" : ""}`}>
+                <TableCell className="px-2 py-1.5 font-bold text-app-text tabular-nums">{entry.position}</TableCell>
+                <TableCell className={`px-2 py-1.5 truncate max-w-[140px] ${isPlayer ? "text-app-accent font-semibold" : "text-app-text-secondary"}`}>
+                  {entry.name || `${m.label_car()} ${entry.position}`}
+                </TableCell>
+                <TableCell className="px-2 py-1.5 text-right tabular-nums font-mono text-app-text-secondary">{entry.lastS1 > 0 ? entry.lastS1.toFixed(3) : "—"}</TableCell>
+                <TableCell className="px-2 py-1.5 text-right tabular-nums font-mono text-app-text-secondary">{entry.lastS2 > 0 ? entry.lastS2.toFixed(3) : "—"}</TableCell>
+                <TableCell className="px-2 py-1.5 text-right tabular-nums font-mono text-app-text-secondary">{entry.lastS3 > 0 ? entry.lastS3.toFixed(3) : "—"}</TableCell>
+                <TableCell className="px-2 py-1.5 text-right text-app-text-muted tabular-nums font-mono">{entry.position === 1 ? m.f1grid_leader() : formatGap(entry.gapToLeader)}</TableCell>
+                <TableCell className="px-2 py-1.5 text-right text-app-text-muted tabular-nums font-mono">{formatGap(entry.gapToCarAhead)}</TableCell>
+                <TableCell className="px-2 py-1.5 text-center">
+                  <span className="tire-compound-dot inline-block w-2.5 h-2.5 rounded-full" data-tire-compound={(entry.tyreCompound || "unknown").toLowerCase()} />
+                </TableCell>
+                <TableCell className="px-2 py-1.5 text-right text-app-text-muted tabular-nums font-mono">{entry.tyreAge}</TableCell>
+                <TableCell className="px-2 py-1.5 text-center text-app-text-muted">
+                  {entry.pitStatus === 1 ? (
+                    <span className="text-status-warning font-bold">IN</span>
+                  ) : entry.pitStatus === 2 ? (
+                    <span className="text-status-warning">PIT</span>
+                  ) : entry.numPitStops > 0 ? (
+                    entry.numPitStops
+                  ) : (
+                    ""
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
     </div>
   );
 }
