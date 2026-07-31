@@ -216,12 +216,13 @@ export const SemanticVariants: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
+    const body = within(document.body);
     await expect(canvas.getByRole("button", { name: "Menu action" })).toBeVisible();
     await expect(canvas.getByRole("button", { name: "Close" })).toHaveAttribute("type", "button");
     await expect(canvas.getByText("Category")).toBeVisible();
     await expect(canvas.getByText("Settings section")).toBeVisible();
     await expect(canvas.getByRole("tab", { name: "One" })).toHaveAttribute("data-active");
-    await expect(canvas.getByText("Scrollable dialog")).toBeVisible();
+    await expect(body.getByText("Scrollable dialog")).toBeVisible();
     await expect(canvas.getByText("Settings row")).toBeVisible();
   },
 };
