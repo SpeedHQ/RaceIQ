@@ -375,7 +375,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               <p className="text-app-compact text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
               <p className="text-app-caption text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
             </div>
-            <Button variant="app-primary" size="app-md" onClick={() => openSettings("ai")} className="text-app-compact bg-[var(--ai-accent)] hover:bg-[var(--ai-accent-hover)]">
+            <Button variant="ai-action" size="app-md" onClick={() => openSettings("ai")}>
               {m.aipanel_set_up_ai()}
             </Button>
           </div>
