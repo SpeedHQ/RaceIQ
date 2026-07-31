@@ -48,6 +48,7 @@ const buttonVariants = cva(
         "icon-xs": "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
         "icon-lg": "size-9",
+        "icon-destructive": "size-7 rounded-full",
         // App sizes (no fixed height — padding-driven like existing header buttons)
         "app-sm": "px-2 py-0.5 text-app-caption gap-1 [&_svg:not([class*='size-'])]:size-3",
         "app-md": "px-3 py-1.5 text-xs gap-1.5",
