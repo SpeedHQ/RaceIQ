@@ -2,6 +2,7 @@ import { Eye, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { m } from "@/paraglide/messages";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 
 /** Shared completed-analysis summary row. */
 export function AnalysisSummaryRow({ title, detail, onView }: { title?: string; detail: string; onView: () => void }) {
@@ -123,31 +124,35 @@ export function AnalysisModalShell({
   onTabChange?: (key: string) => void;
   children: ReactNode;
 }) {
+  const modalTabs: AnalysisModalTab[] = tabs?.length ? tabs : [{ key: "__title", label: m.label_ai_analysis() }];
+  const interactive = (tabs?.length ?? 0) > 1;
+  const selectedTab = activeTab ?? modalTabs[0]?.key;
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent size="lg" showCloseButton={false} overlayClassName="bg-app-bg/60" className="max-h-[85vh] flex flex-col overflow-hidden p-0">
         <DialogHeader className="flex shrink-0 flex-row items-center gap-2 border-b border-app-border px-4 py-2.5">
           <Sparkles className="size-3.5 text-ai-accent shrink-0" />
-          <DialogTitle className="sr-only">{m.label_ai_analysis()}</DialogTitle>
-          {(tabs?.length ? tabs : [{ key: "__title", label: m.label_ai_analysis() } as AnalysisModalTab]).map((tab) => {
-            const active = !tabs?.length || tab.key === activeTab;
-            const interactive = (tabs?.length ?? 0) > 1;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                disabled={!interactive}
-                onClick={() => onTabChange?.(tab.key)}
-                className={`flex items-center gap-1.5 rounded px-2 py-1 text-app-compact font-semibold uppercase tracking-wider transition-colors ${
-                  active ? "text-app-text" : "text-app-text-muted hover:text-app-text-secondary"
-                } ${interactive ? (active ? "bg-app-border-input/30" : "hover:bg-app-surface-hover/20") : "px-0"}`}
-              >
-                {tab.label}
-                {tab.badge !== undefined && <span className="text-app-micro font-mono px-1.5 py-0.5 rounded bg-app-border-input/30 text-app-text-secondary">{tab.badge}</span>}
-                {tab.flag && <span className="text-app-nano font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-ai-accent/15 text-ai-accent border border-ai-accent/20">{tab.flag}</span>}
-              </button>
-            );
-          })}
+          <Tabs value={selectedTab} onValueChange={interactive ? onTabChange : undefined} className="contents">
+            <TabsList className="flex items-center gap-2 border-0 p-0">
+              {modalTabs.map((tab) => {
+                const active = tab.key === selectedTab;
+                return (
+                  <TabsTrigger
+                    key={tab.key}
+                    value={tab.key}
+                    disabled={!interactive}
+                    className={`flex items-center gap-1.5 px-2 py-1 text-app-compact font-semibold uppercase tracking-wider ${
+                      active ? "data-[active]:bg-app-border-input/30 data-[active]:text-app-text" : "data-[active]:bg-transparent data-[active]:text-app-text-muted"
+                    } ${interactive ? "hover:bg-app-surface-hover/20" : "px-0 disabled:opacity-100"}`}
+                  >
+                    {tab.label}
+                    {tab.badge !== undefined && <span className="text-app-micro font-mono px-1.5 py-0.5 rounded bg-app-border-input/30 text-app-text-secondary">{tab.badge}</span>}
+                    {tab.flag && <span className="text-app-nano font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-ai-accent/15 text-ai-accent border border-ai-accent/20">{tab.flag}</span>}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </Tabs>
           {subtitle && <span className="text-app-compact text-app-text-secondary truncate ml-2">{subtitle}</span>}
           <button type="button" onClick={onClose} className="ml-auto pl-2 text-app-text-muted hover:text-app-text shrink-0" aria-label={m.common_close()}>
             <X className="size-4" />

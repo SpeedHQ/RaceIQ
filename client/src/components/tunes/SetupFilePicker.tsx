@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useSetupFileContent, useSetupFiles } from "../../hooks/queries";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { SearchSelect } from "../ui/SearchSelect";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 
@@ -69,8 +70,10 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
                   const ib = TAB_ORDER.indexOf(b);
                   return (ia === -1 ? TAB_ORDER.length : ia) - (ib === -1 ? TAB_ORDER.length : ib);
                 });
-                const tab = activeTab && tabs.includes(activeTab) ? activeTab : tabs[0];
-                const corners = allCorners.map((s) => ({ ...s, rows: s.rows.filter((r) => rowTab(r.label) === tab) })).filter((s) => s.rows.length > 0);
+                const tab = (activeTab && tabs.includes(activeTab) ? activeTab : tabs[0]) ?? "";
+                const corners = allCorners
+                  .map((s) => ({ ...s, rows: s.rows.filter((r) => rowTab(r.label) === tab) }))
+                  .filter((s) => s.rows.length > 0);
                 const others = allOthers.filter((s) => sectionTab(s.title) === tab);
                 const card = (s: (typeof sections)[number], masonry: boolean) => (
                   <div key={s.title} className={`${masonry ? "mb-3 break-inside-avoid " : ""}rounded-lg bg-app-bg p-3`}>
@@ -105,16 +108,12 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
                   <Tabs value={tab} onValueChange={setActiveTab}>
                     <TabsList>
                       {tabs.map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => setActiveTab(t)}
-                          className={`rounded px-2 py-1 text-app-compact ${t === tab ? "bg-app-bg font-semibold text-app-accent" : "text-app-text-muted hover:text-app-text"}`}
-                        >
+                        <TabsTrigger key={t} value={t}>
                           {t}
                         </TabsTrigger>
                       ))}
-                    </div>
+                    </TabsList>
+                    <TabsContent value={tab} className="space-y-3">
                     {tab === "Aero" && others.length > 0 ? (
                       // Aero: rear fields on the left, front fields on the right.
                       <div className="grid grid-cols-1 gap-3 @3xl/setup-file:grid-cols-2">
@@ -148,7 +147,8 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
                         {others.length > 0 && <div className="w-full min-w-0 columns-1 gap-3 @3xl/setup-file:columns-2">{others.map((s) => card(s, true))}</div>}
                       </div>
                     )}
-                  </div>
+                    </TabsContent>
+                  </Tabs>
                 );
               })()}
             </div>

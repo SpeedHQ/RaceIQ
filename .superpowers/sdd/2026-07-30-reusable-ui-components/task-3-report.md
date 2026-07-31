@@ -22,7 +22,3 @@ Added Storybook coverage for uncontrolled tabs (including disabled trigger and A
 ## Verification
 
 Per shared parallel-task instruction, no build, test, Storybook, lint, or formatter command was run in this worktree.
-
-## Shared story follow-up
-
-Added `BadgeVariants` coverage requested by the controls slice: all semantic variants, compact/default sizes, long-text wrapping, and a decorative `aria-hidden` badge without focus semantics.
