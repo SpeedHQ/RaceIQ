@@ -190,7 +190,7 @@ export function TuneFormDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="max-w-lg max-h-[calc(100vh-4rem)] overflow-auto p-0" showCloseButton={false}>
+      <DialogContent layout="scrollable" className="max-w-lg" showCloseButton={false}>
         <form onSubmit={handleSubmit}>
           <DialogHeader className="sticky top-0 z-10 flex-row items-center justify-between bg-app-surface px-4 py-3 border-b border-app-border">
             <DialogTitle className="text-sm font-bold text-app-text">{title}</DialogTitle>

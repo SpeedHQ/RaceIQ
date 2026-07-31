@@ -47,7 +47,7 @@ const PROFILES: HardwareProfile[] = [fanatec15nm as HardwareProfile];
 
 function SettingsTable({ group }: { group: SettingsGroup }) {
   return (
-    <Card className="gap-0 rounded-xl bg-app-surface/40 p-0">
+    <Card variant="settings-section">
       <CardHeader className="rounded-none border-b border-app-border px-4 py-3">
         <h3 className="text-app-heading font-semibold text-app-text">{group.title}</h3>
         <p className="text-app-subtext text-app-text-muted mt-0.5">{group.description}</p>
@@ -72,7 +72,7 @@ function SettingsTable({ group }: { group: SettingsGroup }) {
 
 function PresetSettingsTable({ preset }: { preset: InGamePreset }) {
   return (
-    <Card className="gap-0 rounded-xl bg-app-surface/40 p-0">
+    <Card variant="settings-section">
       <CardContent className="divide-y divide-app-border p-0">
         {preset.settings.map((s) => (
           <div key={s.name} className="px-4 py-2.5 flex items-start justify-between gap-4">
@@ -208,7 +208,7 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
 
           <SettingsTable group={profile.fanalab} />
 
-          <Card className="gap-0 rounded-xl bg-app-surface/40 p-0">
+          <Card variant="settings-section">
             <CardHeader className="rounded-none border-b border-app-border px-4 py-3">
               <h3 className="text-app-heading font-semibold text-app-text">{m.hw_tips_title()}</h3>
             </CardHeader>
@@ -251,7 +251,7 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
           <PresetSettingsTable preset={preset} />
 
           {profile.perCarOverrides.length > 0 && (
-            <Card className="gap-0 rounded-xl bg-app-surface/40 p-0">
+            <Card variant="settings-section">
               <CardHeader className="rounded-none border-b border-app-border px-4 py-3">
                 <h3 className="text-app-heading font-semibold text-app-text">{m.hw_per_car_overrides()}</h3>
                 <p className="text-app-subtext text-app-text-muted mt-0.5">{m.hw_per_car_overrides_desc()}</p>
