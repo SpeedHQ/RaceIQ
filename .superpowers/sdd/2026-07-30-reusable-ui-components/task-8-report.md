@@ -28,3 +28,10 @@ Remaining rounded dots, switches, progress bars, and chart/telemetry markers are
 ## Verification
 
 Per task instruction, no explicit tests, builds, Storybook, linters, or formatters were run. Structural source inspection and targeted markup searches were used for the audit. The commit hook ran its automatic lint/typecheck checks and blocked the first commit attempt: it reported formatting/import diagnostics in touched files plus pre-existing syntax errors in `SessionsPage.tsx`, `comparison/CompareTrackMap.tsx`, and `tune/TuneFormDialog.tsx`; no hook fixes were applied.
+
+## JSX structure repair
+
+- Restored the selected-items conditional wrapper around the shared delete `Button` in `SessionsPage.tsx`.
+- Restored `filteredFormCars.map` callback structure, JSON parse error rendering, and sticky footer wrapper in `tune/TuneFormDialog.tsx` without changing shared `Button` conversions.
+- Restored the `segments.length > 0 ? (...) : null` closing expression before the shared `Card` in `comparison/CompareTrackMap.tsx`.
+- No tests, builds, linters, or formatters run per fixer assignment; inspected resulting snippets and exact diff for balanced JSX structure.

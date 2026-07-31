@@ -605,6 +605,7 @@ export function SessionsPage() {
                 </Button>
               );
             })()}
+          {(selectedSessions.size > 0 || selectedLaps.size > 0) && (
             <Button type="button" variant="app-danger" size="app-md" onClick={deleteSelected}>
               {m.common_delete()} {selectedSessions.size > 0 ? `${selectedSessions.size} ${m.sessions_count_sessions()}` : ""}
               {selectedSessions.size > 0 && selectedLaps.size > 0 ? " + " : ""}

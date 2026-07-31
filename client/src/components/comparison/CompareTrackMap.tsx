@@ -433,6 +433,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
             </TBody>
           </Table>
         </div>
+      ) : null}
     </Card>
   );
 }
