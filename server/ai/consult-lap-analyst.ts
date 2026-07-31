@@ -19,7 +19,7 @@ import { loadSettings } from "../settings";
 import { resolveAi } from "./ai-runtime";
 import { buildAnalystPrompt } from "./analyst-prompt";
 import { resolveTrack } from "../track-info";
-import { runAiStructured } from "./model-provider";
+import { runAiText } from "./model-provider";
 import { loadRepresentativeLap } from "./setup-engineer-context";
 import { lapAnalystAgent } from "../../mastra/agents/lap-analyst";
 
@@ -50,9 +50,8 @@ export async function consultLapAnalystForSession(sessionId: number): Promise<La
     settings.language,
   );
   const ai = await resolveAi("analysis", settings);
-  const result = await runAiStructured(ai, {
+  const result = await runAiText(ai, {
     prompt,
-    schema: {},
     maxOutputTokens: 4096,
     temperature: 0,
   }, async (requestContext) =>

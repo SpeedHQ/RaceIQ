@@ -6,6 +6,7 @@ import type {
   ChatRequest,
   ResolvedAi,
   StructuredRequest,
+  TextRequest,
 } from "./ai-types";
 import { resolveAi } from "./ai-runtime";
 import { AiProviderError } from "./provider-error";
@@ -111,22 +112,11 @@ export async function runAiChat(
   return runMastra(context);
 }
 
-export async function runAiStructured(
-  ai: ResolvedAi,
-  input: StructuredRequest<unknown>,
-  runMastra: (context: RequestContext) => Promise<unknown>,
-): Promise<AiResult> {
-  const internals = getResolvedAiInternals(ai);
-  if (!internals?.model) return ai.generateStructured(input);
+export type AiStructuredOptions = {
+  operation?: "comparison";
+};
 
-  const context = createModelContext(ai);
-  if (!context) {
-    throw new AiProviderError(
-      `Structured generation is not supported for ${ai.provider} provider on ${ai.feature} feature.`,
-      { code: "unsupported-operation", provider: ai.provider, modelId: ai.model },
-    );
-  }
-  const result = await runMastra(context) as MastraResult;
+function normalizeMastraResult(result: MastraResult, model: string): AiResult {
   if (
     typeof result.analysis === "string"
     && result.usage
@@ -139,6 +129,52 @@ export async function runAiStructured(
   }
   return {
     analysis: textFor(result),
-    usage: usageFor(result.usage, ai.model),
+    usage: usageFor(result.usage, model),
   };
+}
+
+export async function runAiText(
+  ai: ResolvedAi,
+  input: TextRequest,
+  runMastra: (context: RequestContext) => Promise<unknown>,
+): Promise<AiResult> {
+  const internals = getResolvedAiInternals(ai);
+  if (!internals?.model) return ai.generateText(input);
+
+  const context = createModelContext(ai);
+  if (!context) {
+    throw new AiProviderError(
+      `Text generation is not supported for ${ai.provider} provider on ${ai.feature} feature.`,
+      { code: "unsupported-operation", provider: ai.provider, modelId: ai.model },
+    );
+  }
+  const result = await runMastra(context) as MastraResult;
+  return normalizeMastraResult(result, ai.model);
+}
+
+export async function runAiStructured(
+  ai: ResolvedAi,
+  input: StructuredRequest<unknown>,
+  runMastra: (context: RequestContext) => Promise<unknown>,
+  options?: AiStructuredOptions,
+): Promise<AiResult> {
+  if (options?.operation === "comparison" && ai.provider === "codex") {
+    throw new AiProviderError(
+      `Comparison analysis is not supported for ${ai.provider} provider on ${ai.feature} feature.`,
+      { code: "unsupported-operation", provider: ai.provider, modelId: ai.model },
+    );
+  }
+
+  const internals = getResolvedAiInternals(ai);
+  if (!internals?.model) return ai.generateStructured(input);
+
+  const context = createModelContext(ai);
+  if (!context) {
+    throw new AiProviderError(
+      `Structured generation is not supported for ${ai.provider} provider on ${ai.feature} feature.`,
+      { code: "unsupported-operation", provider: ai.provider, modelId: ai.model },
+    );
+  }
+  const result = await runMastra(context) as MastraResult;
+  return normalizeMastraResult(result, ai.model);
 }

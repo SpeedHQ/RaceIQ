@@ -4,7 +4,7 @@ import { RequestContext } from "@mastra/core/request-context";
 import { loadSettings, saveSettings, type AppSettings } from "../server/settings";
 import { resolveAi } from "../server/ai/ai-runtime";
 import { OpenAiProviderAdapter } from "../server/ai/provider-adapters";
-import { createModelContext, getModel, runAiChat, runAiStructured } from "../server/ai/model-provider";
+import { createModelContext, getModel, runAiChat, runAiStructured, runAiText } from "../server/ai/model-provider";
 import { setResolvedAiInternals } from "../server/ai/resolved-ai-internals";
 import { modelFromRequestContext } from "../mastra/model";
 
@@ -121,6 +121,41 @@ describe("settings-aware model provider", () => {
       return { text: "ok", usage: { inputTokens: 1, outputTokens: 2 } };
     });
     expect(result).toMatchObject({ analysis: "ok", usage: { model: "gpt-4o-mini" } });
+  });
+
+  test("rejects Codex comparison centrally before native execution", async () => {
+    const codex = await resolveAi("analysis", settings({ aiProvider: "codex", aiModel: "codex-model" }));
+
+    await expect(runAiStructured(codex, {
+      prompt: "compare",
+      schema: {},
+    }, async () => {
+      throw new Error("comparison Mastra must not run");
+    }, { operation: "comparison" })).rejects.toMatchObject({
+      code: "unsupported-operation",
+      provider: "codex",
+    });
+  });
+
+  test("dispatches Codex prose through native text generation", async () => {
+    const codex = {
+      feature: "analysis" as const,
+      provider: "codex" as const,
+      model: "codex",
+      generateText: async () => ({
+        analysis: "prose",
+        usage: { inputTokens: 1, outputTokens: 2, costUsd: 0, durationMs: 3, model: "codex" },
+      }),
+      generateStructured: async () => ({
+        analysis: "",
+        usage: { inputTokens: 0, outputTokens: 0, costUsd: 0, durationMs: 0, model: "codex" },
+      }),
+    };
+
+    const result = await runAiText(codex, { prompt: "consult" }, async () => {
+      throw new Error("Mastra must not run");
+    });
+    expect(result).toMatchObject({ analysis: "prose", usage: { model: "codex" } });
   });
 
 });

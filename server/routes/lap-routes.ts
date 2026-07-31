@@ -1222,7 +1222,7 @@ export const lapRoutes = new Hono()
         compareEngineerAgent.generate(prompt, {
           requestContext,
           modelSettings: { maxOutputTokens: 8192, temperature: 0 },
-        }));
+        }), { operation: "comparison" });
       const durationMs = Math.round(performance.now() - start);
       const object = InputsCompareSchema.parse(JSON.parse(extractJson(result.analysis)));
 
