@@ -1,4 +1,9 @@
 import { test, expect } from "@playwright/test";
+import {
+  RESPONSIVE_INTERACTION_CASES,
+  RESPONSIVE_PAGES,
+  RESPONSIVE_VIEWPORTS,
+} from "./responsive-screenshot-cases";
 
 // Mobile responsive screenshot tests.
 //
@@ -12,24 +17,7 @@ import { test, expect } from "@playwright/test";
 //
 // Output: playwright/screenshots/mobile/<viewport>/<page>.png (gitignored).
 
-const SCREENSHOT_DIR = "./screenshots/mobile";
-
-const VIEWPORTS = [
-  { name: "mobile", width: 390, height: 844 },       // iPhone 14
-  { name: "tablet", width: 768, height: 1024 },      // iPad portrait
-  { name: "desktop", width: 1280, height: 800 },     // small laptop — baseline
-] as const;
-
-const PAGES = [
-  { name: "home", path: "/" },
-  { name: "fm23-landing", path: "/fm23" },
-  { name: "fm23-sessions", path: "/fm23/sessions" },
-  { name: "fm23-cars", path: "/fm23/cars" },
-  { name: "fm23-tracks", path: "/fm23/tracks" },
-  { name: "fm23-chats", path: "/fm23/chats" },
-  { name: "f125-cars", path: "/f125/cars" },
-  { name: "f125-tracks", path: "/f125/tracks" },
-] as const;
+const SCREENSHOT_DIR = process.env.RACEIQ_SCREENSHOT_DIR ?? "./screenshots/mobile";
 
 test.beforeAll(async ({ request }) => {
   // Fresh-install server boots with onboardingComplete=false, which makes
@@ -40,11 +28,11 @@ test.beforeAll(async ({ request }) => {
   expect(res.ok()).toBeTruthy();
 });
 
-for (const viewport of VIEWPORTS) {
+for (const viewport of RESPONSIVE_VIEWPORTS) {
   test.describe(`${viewport.name} ${viewport.width}x${viewport.height}`, () => {
     test.use({ viewport: { width: viewport.width, height: viewport.height } });
 
-    for (const page of PAGES) {
+    for (const page of RESPONSIVE_PAGES) {
       test(page.name, async ({ page: p }) => {
         await p.goto(page.path, { waitUntil: "networkidle" });
         await p.waitForTimeout(500);
@@ -56,44 +44,30 @@ for (const viewport of VIEWPORTS) {
       });
     }
 
-    // Mobile-only: verify the hamburger drawer opens and shows nav tabs.
-    if (viewport.width < 768) {
-      test("nav-drawer-open", async ({ page: p }) => {
-        await p.goto("/fm23", { waitUntil: "networkidle" });
-        await p.getByLabel("Open navigation").click();
-        await expect(p.getByRole("navigation").last()).toBeVisible();
+    for (const screenshotCase of RESPONSIVE_INTERACTION_CASES) {
+      if (screenshotCase.mobileOnly && viewport.width >= 768) continue;
+
+      test(screenshotCase.name, async ({ page: p }) => {
+        await p.goto(screenshotCase.path, { waitUntil: "networkidle" });
+        if (screenshotCase.kind === "nav-drawer") {
+          await p.getByLabel("Open navigation").click();
+          await expect(p.getByRole("navigation").last()).toBeVisible();
+        } else {
+          if (viewport.width < 768) {
+            await p.getByLabel("Open navigation").click();
+          }
+          await p.getByRole("button", { name: /Settings|TestDriver/ }).click();
+          await expect(
+            p.getByRole("heading", { name: "Settings" }),
+          ).toBeVisible();
+        }
         await p.waitForTimeout(200);
         await p.screenshot({
-          path: `${SCREENSHOT_DIR}/${viewport.name}/nav-drawer-open.png`,
+          path: `${SCREENSHOT_DIR}/${viewport.name}/${screenshotCase.name}.png`,
           fullPage: false,
           animations: "disabled",
         });
       });
     }
-
-    test("settings-modal", async ({ page: p }) => {
-      await p.goto("/", { waitUntil: "networkidle" });
-      if (viewport.width < 768) {
-        await p.getByLabel("Open navigation").click();
-      }
-      await p.getByRole("button", { name: /Settings|TestDriver/ }).click();
-      await expect(p.getByRole("heading", { name: "Settings" })).toBeVisible();
-      const overlay = p.getByRole("button", { name: "Close settings" });
-      await expect(overlay).toHaveCSS("position", "absolute");
-      await expect(overlay).toHaveCSS("inset", "0px");
-      await expect(overlay).toHaveCSS("width", `${viewport.width}px`);
-      await expect(overlay).toHaveCSS("height", `${viewport.height}px`);
-      if (viewport.width >= 768) {
-        const background = await overlay.evaluate((element) => getComputedStyle(element).backgroundColor);
-        await overlay.hover({ position: { x: 4, y: 4 } });
-        await expect(overlay).toHaveCSS("background-color", background);
-      }
-      await p.waitForTimeout(200);
-      await p.screenshot({
-        path: `${SCREENSHOT_DIR}/${viewport.name}/settings-modal.png`,
-        fullPage: false,
-        animations: "disabled",
-      });
-    });
   });
 }
