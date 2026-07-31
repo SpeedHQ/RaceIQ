@@ -392,6 +392,7 @@ async function captureResponsive(
         env: {
           E2E_SERVER_MODE: "dev",
           PW_SCREENSHOT_ONLY: "1",
+          PW_SEED_SCREENSHOTS: "1",
           RACEIQ_APP_ROOT: revisionRoot,
           RACEIQ_SCREENSHOT_DIR: screenshotDir,
           PW_FRESH_INSTALL_PORT: String(serverPort),
@@ -428,6 +429,14 @@ async function captureStorybook(
     "test",
     "cli.js",
   );
+  const hasReusableUiStories = existsSync(
+    join(revisionRoot, "client", "src", "stories", "ReusableUi.stories.tsx"),
+  );
+  const snapshotSpecs = [
+    "dashboards.snapshot.ts",
+    "theme.snapshot.ts",
+    ...(hasReusableUiStories ? ["reusable-ui.snapshot.ts"] : []),
+  ];
 
   try {
     await run(
@@ -435,8 +444,7 @@ async function captureStorybook(
         nodePath,
         playwrightCli,
         "test",
-        "dashboards.snapshot.ts",
-        "theme.snapshot.ts",
+        ...snapshotSpecs,
         "--update-snapshots",
       ],
       {
@@ -446,6 +454,7 @@ async function captureStorybook(
           RACEIQ_STORYBOOK_ROOT: join(revisionRoot, "client"),
           RACEIQ_SNAPSHOT_DIR: screenshotDir,
           RACEIQ_SNAPSHOT_RESULTS_DIR: resultsDir,
+          RACEIQ_CAPTURE_REUSABLE_UI: hasReusableUiStories ? "1" : "0",
         },
       },
     );

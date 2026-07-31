@@ -6,7 +6,17 @@ import { resolve } from "path";
 // Bun + Vite development servers instead.
 const E2E_DEV_SERVER = process.env.E2E_SERVER_MODE === "dev";
 const SCREENSHOT_ONLY = process.env.PW_SCREENSHOT_ONLY === "1";
+const SEEDED_SCREENSHOTS = process.env.PW_SEED_SCREENSHOTS === "1";
+const PARALLEL_SCREENSHOT_RUN = SCREENSHOT_ONLY && SEEDED_SCREENSHOTS;
 const APP_ROOT = process.env.RACEIQ_APP_ROOT;
+const defaultScreenshotWorkers = process.env.CI ? 2 : 4;
+const requestedScreenshotWorkers = Number.parseInt(
+  process.env.PW_SCREENSHOT_WORKERS ?? String(defaultScreenshotWorkers),
+  10,
+);
+const SCREENSHOT_WORKERS = Number.isFinite(requestedScreenshotWorkers) && requestedScreenshotWorkers > 0
+  ? requestedScreenshotWorkers
+  : defaultScreenshotWorkers;
 
 const FRESH_INSTALL_PORT = process.env.PW_FRESH_INSTALL_PORT ?? "3118";
 const FRESH_INSTALL_CLIENT_PORT = process.env.PW_FRESH_INSTALL_CLIENT_PORT ?? "4118";
@@ -25,8 +35,11 @@ const TUNES_DATA_DIR = resolve(
 export default defineConfig({
   testDir: ".",
   outputDir: "./test-results",
-  fullyParallel: false,
-  workers: 1,
+  // Screenshot-only runs are read-only after fixture seeding. Spread their
+  // independent routes across browser workers; keep stateful E2E projects
+  // single-worker and ordered.
+  fullyParallel: PARALLEL_SCREENSHOT_RUN,
+  workers: PARALLEL_SCREENSHOT_RUN ? SCREENSHOT_WORKERS : 1,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",
 

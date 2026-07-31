@@ -51,6 +51,31 @@ async function seededGames(dataDir: string): Promise<string[]> {
   }
 }
 
+async function seededRelationships(dataDir: string): Promise<{
+  experimentGames: string[];
+  f1ExperimentLaps: number;
+  nonForzaTunedLaps: number;
+  crossGameComparisons: number;
+}> {
+  const client = createClient({ url: `file:${join(dataDir, "forza-telemetry.db")}` });
+  try {
+    const [experimentGames, f1ExperimentLaps, nonForzaTunedLaps, crossGameComparisons] = await Promise.all([
+      client.execute("SELECT DISTINCT game_id FROM experiments ORDER BY game_id"),
+      client.execute("SELECT COUNT(*) AS count FROM laps l JOIN sessions s ON s.id = l.session_id WHERE s.game_id = 'f1-2025' AND l.experiment_version_id IS NOT NULL"),
+      client.execute("SELECT COUNT(*) AS count FROM laps l JOIN sessions s ON s.id = l.session_id WHERE s.game_id <> 'fm-2023' AND l.tune_id IS NOT NULL"),
+      client.execute("SELECT COUNT(*) AS count FROM compare_analyses c JOIN laps a ON a.id = c.lap_a_id JOIN sessions sa ON sa.id = a.session_id JOIN laps b ON b.id = c.lap_b_id JOIN sessions sb ON sb.id = b.session_id WHERE sa.game_id <> sb.game_id"),
+    ]);
+    return {
+      experimentGames: experimentGames.rows.map((row) => String(row.game_id)),
+      f1ExperimentLaps: Number(f1ExperimentLaps.rows[0]?.count ?? 0),
+      nonForzaTunedLaps: Number(nonForzaTunedLaps.rows[0]?.count ?? 0),
+      crossGameComparisons: Number(crossGameComparisons.rows[0]?.count ?? 0),
+    };
+  } finally {
+    client.close();
+  }
+}
+
 afterEach(async () => {
   for (const dir of tempDirs.splice(0)) {
     for (let attempt = 0; attempt < 10; attempt++) {
@@ -80,6 +105,12 @@ describe("db:seed", () => {
     expect(initial.experiment_focus_events).toBe(2);
     expect(initial.lap_analyses).toBe(1);
     expect(initial.compare_analyses).toBe(1);
+    expect(await seededRelationships(dataDir)).toEqual({
+      experimentGames: ["f1-2025"],
+      f1ExperimentLaps: 5,
+      nonForzaTunedLaps: 0,
+      crossGameComparisons: 0,
+    });
 
     const second = await runSeed(dataDir);
     expect(second.code, second.output).toBe(0);
