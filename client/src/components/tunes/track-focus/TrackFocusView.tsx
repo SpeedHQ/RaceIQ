@@ -12,6 +12,7 @@ import { CornerLedger } from "./CornerLedger";
 import { detectCorners } from "./detect-corners";
 import { GripPanel } from "./GripPanel";
 import { IssuesList } from "./IssuesList";
+import { Button } from "../../ui/button";
 import { SectorLedger } from "./SectorLedger";
 import { SuspensionLanes } from "./SuspensionLanes";
 import { TiresPanel } from "./TiresPanel";
@@ -275,14 +276,16 @@ export function TrackFocusViewInner({
         <div className="flex flex-col gap-3 min-h-0 min-w-0">
           <div className="flex-none flex gap-1 flex-wrap">
             {TABS.map((t) => (
-              <button
+              <Button
                 key={t}
                 type="button"
+                variant="app-ghost"
+                size="app-sm"
                 onClick={() => setActiveTab(t)}
-                className={`px-2.5 py-1 text-xs rounded border ${activeTab === t ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
+                className={`!h-auto !rounded !border !px-2.5 !py-1 text-xs ${activeTab === t ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
               >
                 {TAB_LABELS[t]}
-              </button>
+              </Button>
             ))}
           </div>
 

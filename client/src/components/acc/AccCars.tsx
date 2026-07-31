@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { client } from "../../lib/rpc";
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
 import { m } from "../../paraglide/messages";
 
 interface AccCarSpecs {
@@ -93,23 +95,29 @@ export function AccCars() {
       {/* Filters & Sort */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex gap-1">
-          <button
-            className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${!filterClass ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
+          <Button
+            type="button"
+            variant="app-ghost"
+            size="app-sm"
+            className={`!h-auto !px-3 !py-1 text-xs font-semibold ${!filterClass ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
             onClick={() => setFilterClass(null)}
           >
             {m.acccars_all_classes()}
-          </button>
+          </Button>
           {classes.map((cls) => {
             const count = cars.filter((car) => car.class === cls).length;
             return (
-              <button
+              <Button
                 key={cls}
+                type="button"
+                variant="app-ghost"
+                size="app-sm"
                 data-catalog-category={cls}
-                className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${filterClass === cls ? "catalog-category" : "text-app-text-muted hover:text-app-text-secondary"}`}
+                className={`!h-auto !px-3 !py-1 text-xs font-semibold ${filterClass === cls ? "catalog-category" : "text-app-text-muted hover:text-app-text-secondary"}`}
                 onClick={() => setFilterClass(filterClass === cls ? null : cls)}
               >
                 {cls} ({count})
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -120,7 +128,7 @@ export function AccCars() {
         return (
           <div key={cls}>
             <div className="flex items-center gap-2 mb-3">
-              <span className="catalog-category text-xs font-bold px-2 py-0.5 rounded" data-catalog-category={cls}>{cls}</span>
+              <Badge variant="neutral" size="default" className="catalog-category border-transparent text-xs font-bold" data-catalog-category={cls}>{cls}</Badge>
               <span className="text-xs text-app-text-dim">
                 {classCars.length} {m.acccars_car_count_label()}
               </span>
@@ -147,9 +155,9 @@ export function AccCars() {
                         }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-app-bg/60 via-transparent to-transparent" />
-                      <span className="catalog-category absolute bottom-2 right-2 text-app-micro font-bold px-1.5 py-0.5 rounded" data-catalog-category={car.class}>
+                      <Badge variant="neutral" size="compact" className="catalog-category absolute bottom-2 right-2 border-transparent text-app-micro font-bold" data-catalog-category={car.class}>
                         {car.class}
-                      </span>
+                      </Badge>
                     </div>
                     <div className="p-3">
                       <div className="flex items-center gap-3 mb-2">

@@ -1,6 +1,7 @@
 import type { LapMeta } from "@shared/types";
 import { useMemo } from "react";
 import { severityRangeColor } from "@/lib/colors";
+import { Button } from "../../ui/button";
 
 interface SectorHeatmapProps {
   laps: LapMeta[];
@@ -60,11 +61,13 @@ export function SectorHeatmap({ laps, focusLapId, onFocusLap }: SectorHeatmapPro
                 const isFocus = lap.id === focusLapId;
                 return (
                   <td key={lap.id} className="p-0.5">
-                    <button
+                    <Button
                       type="button"
+                      variant="app-ghost"
+                      size="app-sm"
                       title={`S${si + 1} L${lap.lapNumber} ${delta == null ? "n/a" : `${delta >= 0 ? "+" : ""}${delta.toFixed(2)}s`}`}
                       onClick={() => onFocusLap(lap.id)}
-                      className="w-full h-6 rounded-sm block"
+                      className="!h-6 !w-full !rounded-sm !border-0 !p-0 block"
                       style={{
                         background: cellColor(delta),
                         opacity: delta == null ? 0.3 : 0.85,

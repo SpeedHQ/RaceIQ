@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type AutoTuneResult, useAutoTune, useSetupFiles } from "../../hooks/queries";
+import { Button } from "../ui/button";
 
 /**
  * useSetupEngineer — owns the Setup Engineer (symptom→intent→apply) request
@@ -88,15 +89,17 @@ export function SetupEngineerControls({ state, lapId }: { state: SetupEngineerSt
         title="Driver feel — biases the recommendation, never overrides telemetry. e.g. 'loose on entry', 'understeer in slow hairpins'"
         className="bg-app-dropdown border border-app-border rounded px-2 py-1 text-xs w-[200px]"
       />
-      <button
+      <Button
         type="button"
+        variant="app-primary"
+        size="app-sm"
         onClick={() => lapId != null && runPreviewFor(lapId)}
         disabled={lapId == null || isPending || !filePath}
         title={!filePath ? "Pick a base setup first" : undefined}
-        className="px-3 py-1 text-xs rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 text-app-on-filled font-semibold"
+        className="!h-auto"
       >
         {isPending ? "Analysing…" : "Recommend"}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -198,14 +201,9 @@ export function SetupEngineerResult({ state }: { state: SetupEngineerState }) {
                   className="flex-1 min-w-0 bg-app-surface-alt border border-app-border rounded px-2 py-1 text-xs font-mono"
                 />
                 <span className="text-xs text-app-text-dim">.json</span>
-                <button
-                  type="button"
-                  onClick={() => applyToFile(saveAs.trim() || undefined)}
-                  disabled={isPending || !saveAs.trim()}
-                  className="px-3 py-1 text-xs rounded bg-status-success hover:bg-status-success-hover disabled:opacity-40 text-app-on-filled font-semibold"
-                >
+                <Button type="button" variant="app-primary" size="app-sm" onClick={() => applyToFile(saveAs.trim() || undefined)} disabled={isPending || !saveAs.trim()} className="!h-auto bg-status-success hover:bg-status-success-hover">
                   {isPending ? "Saving…" : "Apply"}
-                </button>
+                </Button>
               </div>
               <div className="text-app-compact text-app-text-dim">Creates a new file next to the base setup — the original is untouched.</div>
             </div>

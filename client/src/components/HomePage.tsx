@@ -6,6 +6,8 @@ import { ActivityHeatmap } from "./ActivityHeatmap";
 import { formatLapTime } from "./LiveTelemetry";
 import { SessionRecapView, type TrackOutlineData, type TrackSectorBounds } from "./SessionRecap";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
 
 function GameBrandLogo({ gameId, className = "w-5 h-5" }: { gameId: string; className?: string }) {
   if (gameId === "fm-2023") return <img src="/forza-logo.svg" alt="" className={`game-brand-logo ${className}`} />;
@@ -66,9 +68,9 @@ function RecentLapsTable({
             >
               {showGame && (
                 <TD>
-                  <span data-game-brand={lap.gameId ?? "fm-2023"} className="game-brand-badge text-app-caption font-semibold px-1.5 py-0.5 rounded">
+                  <Badge variant="neutral" size="compact" data-game-brand={lap.gameId ?? "fm-2023"} className="game-brand-badge border-transparent text-app-caption font-semibold">
                     {lap.gameId === "f1-2025" ? "F1" : lap.gameId === "acc" ? "ACC" : lap.gameId === "ac-evo" ? "ACE" : lap.gameId === "iracing" ? "iR" : "FM"}
-                  </span>
+                  </Badge>
                 </TD>
               )}
               <TD className="text-app-text/90 truncate max-w-[160px]" title={track}>
@@ -204,9 +206,9 @@ export function HomePageView({
             <h1 className="text-2xl font-bold text-app-text/90">{displaySettings.driverName ? `${m.home_hello()}, ${displaySettings.driverName}` : "RaceIQ"}</h1>
             <p className="text-sm text-app-text/90 mt-0.5">{m.home_dashboard_overview()}</p>
           </div>
-          <button type="button" onClick={onOpenSettings} className="p-1.5 rounded text-app-text-muted hover:text-app-text hover:bg-app-surface-hover transition-colors" title={m.home_manage_games()}>
+          <Button type="button" variant="app-ghost" size="icon-sm" onClick={onOpenSettings} className="!h-auto !w-auto p-1.5 text-app-text-muted hover:text-app-text hover:bg-app-surface-hover" title={m.home_manage_games()}>
             <Settings2 className="size-4" />
-          </button>
+          </Button>
         </div>
       )}
 
@@ -410,14 +412,16 @@ export function HomePageView({
                     ["allTime", m.home_period_all_time()],
                   ] as const
                 ).map(([key, label]) => (
-                  <button
+                  <Button
                     type="button"
+                    variant="app-ghost"
+                    size="app-sm"
                     key={key}
                     onClick={() => onPeriodTabChange(key)}
-                    className={`rounded px-3 py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90 hover:text-app-text"}`}
+                    className={`!h-auto !px-3 !py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90 hover:text-app-text"}`}
                   >
                     {label}
-                  </button>
+                  </Button>
                 ))}
               </div>
               {(() => {
@@ -513,14 +517,16 @@ export function HomePageView({
                   ["allTime", m.home_period_all_time()],
                 ] as const
               ).map(([key, label]) => (
-                <button
+                <Button
                   type="button"
+                  variant="app-ghost"
+                  size="app-sm"
                   key={key}
                   onClick={() => onPeriodTabChange(key)}
-                  className={`rounded px-3 py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90 hover:text-app-text"}`}
+                  className={`!h-auto !px-3 !py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90 hover:text-app-text"}`}
                 >
                   {label}
-                </button>
+                </Button>
               ))}
             </div>
             {(() => {
