@@ -4,6 +4,7 @@ import { m } from "@/paraglide/messages";
 import { useDeleteLap } from "../hooks/queries";
 import { storedLapsSectorCount } from "../lib/lap-sectors";
 import { useGameRoute } from "../stores/game";
+import { Button } from "./ui/button";
 
 function formatLapTime(seconds: number): string {
   if (seconds <= 0) return "-:--.---";
@@ -71,8 +72,7 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
             {sorted.map((l) => {
               const delta = l.lapTime - best;
               const isBest = delta === 0;
-              const timeColor =
-                isBest ? "text-(--lap-pace-best)" : delta < 0.5 ? "text-(--lap-pace-on-target)" : delta < 1.5 ? "text-app-text" : "text-(--lap-pace-off-target)";
+              const timeColor = isBest ? "text-(--lap-pace-best)" : delta < 0.5 ? "text-(--lap-pace-on-target)" : delta < 1.5 ? "text-app-text" : "text-(--lap-pace-off-target)";
               return (
                 <div key={l.id} className="grid gap-x-2 px-3 py-1.5 items-center" style={{ gridTemplateColumns }}>
                   <span
@@ -93,17 +93,19 @@ export function RecordedLaps({ laps, trackOrdinal, maxLaps = 15 }: RecordedLapsP
                   <span className={`text-base font-mono font-bold tabular-nums text-right ${timeColor}`}>{formatLapTime(l.lapTime)}</span>
                   <span className="text-xs text-app-text-dim font-mono tabular-nums text-right w-14">{isBest ? "PB" : `+${delta.toFixed(3)}`}</span>
                   <div className="flex items-center gap-1 w-16 justify-end">
-                    <button
+                    <Button
                       type="button"
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
                       onClick={() => navigate({ to: `${gameRoute}/analyse` as any, search: { track: l.trackOrdinal, car: l.carOrdinal, lap: l.id } as any })}
-                      className="px-1.5 py-0.5 text-app-caption rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled"
+                      variant="app-primary"
+                      size="app-sm"
+                      className="!px-1.5 !py-0.5"
                     >
                       {m.label_analyse()}
-                    </button>
-                    <button type="button" onClick={() => deleteLap.mutate(l.id)} className="px-1 py-0.5 text-app-caption rounded bg-app-border-input text-app-text hover:bg-status-danger hover:text-app-on-filled">
+                    </Button>
+                    <Button type="button" variant="app-danger" size="app-sm" onClick={() => deleteLap.mutate(l.id)} className="!px-1 !py-0.5">
                       ×
-                    </button>
+                    </Button>
                   </div>
                 </div>
               );

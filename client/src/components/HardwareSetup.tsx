@@ -1,7 +1,8 @@
 import fanatec15nm from "@shared/setup/fanatec-15nm.json";
 import { useState } from "react";
-import { m } from "@/paraglide/messages";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { m } from "@/paraglide/messages";
 
 interface Setting {
   name: string;
@@ -90,7 +91,6 @@ function PresetSettingsTable({ preset }: { preset: InGamePreset }) {
   );
 }
 
-
 interface WheelCatalogueEntry {
   profileId: string;
   name: string;
@@ -120,6 +120,7 @@ export function WheelCatalogue({ onSelect }: { onSelect: (profileId: string) => 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {WHEEL_CATALOGUE.map((wheel) => (
           <button
+            type="button"
             key={wheel.profileId}
             onClick={() => onSelect(wheel.profileId)}
             className="group rounded-xl bg-app-surface/40 ring-1 ring-app-border hover:ring-app-accent/50 transition-all overflow-hidden text-left"
@@ -164,17 +165,17 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={onBack} className="text-app-text-muted hover:text-app-text transition-colors" title={m.hw_back_to_catalogue()}>
+            <Button type="button" variant="app-ghost" size="icon-sm" onClick={onBack} className="!h-auto !w-auto !p-0 text-app-text-muted hover:text-app-text" title={m.hw_back_to_catalogue()}>
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
                 <path
                   fillRule="evenodd"
-                  d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z"
+                  d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 011.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z"
                   clipRule="evenodd"
                 />
               </svg>
-            </button>
+            </Button>
             <h1 className="text-app-title font-bold text-app-text">{m.hw_setup_title()}</h1>
-          <span className="text-app-compact font-semibold uppercase px-1.5 py-0.5 rounded bg-app-accent/20 text-app-accent">{profile.wheelBase.maxTorque}</span>
+            <span className="text-app-compact font-semibold uppercase px-1.5 py-0.5 rounded bg-app-accent/20 text-app-accent">{profile.wheelBase.maxTorque}</span>
           </div>
           <p className="text-app-subtext text-app-text-muted">{profile.description}</p>
         </div>
@@ -185,15 +186,18 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
           { id: "wheel" as const, label: m.hw_tab_wheel_base() },
           { id: "ingame" as const, label: m.hw_tab_ingame_ffb() },
         ].map((tab) => (
-          <button
+          <Button
             key={tab.id}
+            type="button"
+            variant="app-ghost"
+            size="app-md"
             onClick={() => setActiveTab(tab.id)}
-            className={`text-app-label font-semibold uppercase px-3 py-1.5 rounded-lg transition-colors ${
+            className={`!h-auto !px-3 !py-1.5 text-app-label font-semibold uppercase ${
               activeTab === tab.id ? "bg-app-accent/20 text-app-accent ring-1 ring-app-accent/30" : "bg-app-surface/40 text-app-text-muted hover:text-app-text-secondary ring-1 ring-app-border"
             }`}
           >
             {tab.label}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -227,15 +231,18 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
         <>
           <div className="flex gap-2">
             {profile.inGamePresets.map((p) => (
-              <button
+              <Button
                 key={p.id}
+                type="button"
+                variant="app-ghost"
+                size="app-md"
                 onClick={() => setActivePreset(p.id)}
-                className={`text-app-label font-semibold uppercase px-2.5 py-1.5 rounded-lg transition-colors ${
+                className={`!h-auto !px-2.5 !py-1.5 text-app-label font-semibold uppercase ${
                   activePreset === p.id ? "bg-app-accent/20 text-app-accent ring-1 ring-app-accent/30" : "bg-app-surface/40 text-app-text-muted hover:text-app-text-secondary ring-1 ring-app-border"
                 }`}
               >
                 {p.name}
-              </button>
+              </Button>
             ))}
           </div>
 

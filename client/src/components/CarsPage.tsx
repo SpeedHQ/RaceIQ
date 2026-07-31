@@ -10,8 +10,9 @@ import { useRequiredGameId } from "../stores/game";
 import { PiBadge, piClass } from "./forza/PiBadge";
 import { AppInput } from "./ui/AppInput";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+
 interface CarSpecs {
   hp: number;
   torque: number;
@@ -309,6 +310,7 @@ function ColHeader({ k, label, className = "", sort, sortDir, onSort }: { k: Sor
   const active = sort === k;
   return (
     <button
+      type="button"
       onClick={() => onSort(k)}
       className={`text-left text-app-caption uppercase tracking-wider font-semibold transition-colors ${active ? "text-app-accent" : "text-app-text/90 hover:text-app-text"} ${className}`}
     >
@@ -615,18 +617,27 @@ export function CarsPage() {
 
           {/* Card detail modal */}
           <Dialog open={!!detailCar} onOpenChange={(open) => !open && setDetailCar(null)}>
-            <DialogContent size="lg" showCloseButton={false} className="max-w-2xl overflow-hidden p-0">
-              <DialogHeader className="flex flex-row items-center justify-between border-b border-app-border px-4 py-3">
-                <DialogTitle className="flex items-center gap-2 text-sm font-bold text-app-text/90">
-                  {detailCar.specs?.pi && <PiBadge showNumber={false} pi={detailCar.specs.pi} />}
-                  {detailCar.name}
-                </DialogTitle>
-                <Button type="button" variant="app-ghost" size="icon-sm" onClick={() => setDetailCar(null)} className="!h-auto !w-auto p-1 text-app-text/90 hover:text-app-text" aria-label={m.common_close()}>
-                  ×
-                </Button>
-              </DialogHeader>
-              <CarDetail car={detailCar} fmtSpeed={fmtSpeed} fmtBrake={fmtBrake} fmtWeight={fmtWeight} isMetric={isMetric} />
-            </DialogContent>
+            {detailCar && (
+              <DialogContent size="lg" showCloseButton={false} className="max-w-2xl overflow-hidden p-0">
+                <DialogHeader className="flex flex-row items-center justify-between border-b border-app-border px-4 py-3">
+                  <DialogTitle className="flex items-center gap-2 text-sm font-bold text-app-text/90">
+                    {detailCar.specs?.pi && <PiBadge showNumber={false} pi={detailCar.specs.pi} />}
+                    {detailCar.name}
+                  </DialogTitle>
+                  <Button
+                    type="button"
+                    variant="app-ghost"
+                    size="icon-sm"
+                    onClick={() => setDetailCar(null)}
+                    className="!h-auto !w-auto p-1 text-app-text/90 hover:text-app-text"
+                    aria-label={m.common_close()}
+                  >
+                    ×
+                  </Button>
+                </DialogHeader>
+                <CarDetail car={detailCar} fmtSpeed={fmtSpeed} fmtBrake={fmtBrake} fmtWeight={fmtWeight} isMetric={isMetric} />
+              </DialogContent>
+            )}
           </Dialog>
         </>
       ) : (
