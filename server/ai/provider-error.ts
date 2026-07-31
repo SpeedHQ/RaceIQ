@@ -1,5 +1,6 @@
 export type AiProviderErrorCode =
   | "missing-provider"
+  | "missing-model"
   | "unsupported-provider"
   | "missing-api-key"
   | "upstream"

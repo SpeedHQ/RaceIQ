@@ -84,19 +84,20 @@ The central chat-stream helper uses the shared Codex UI-message stream adapter w
 Errors are typed at the provider boundary and mapped once to client responses. Every error includes feature, provider, and actionable remediation when a user action can resolve it:
 
 - missing API key: settings section name
+- missing model: selected AI settings section; provider-specific model names are never inferred
 - missing Codex executable: install/available-on-PATH guidance
 - unauthenticated Codex: `codex login`
 - timeout: bounded timeout message
 - malformed output: provider parser failure without leaking raw credentials or unbounded subprocess output
 
-No silent fallback to another provider is permitted.
+No silent fallback to another provider or provider-specific default model is permitted.
 
 ## Verification
 
 Focused tests must cover:
 
 - every feature mapping and auto-tune fallback
-- provider/model resolution and unsupported operations
+- provider/model resolution, missing-model rejection, and unsupported operations
 - direct agent resolution through stored settings and request-bound resolution without duplicate lookups
 - API-key non-leakage and concurrent request isolation
 - Codex readiness, command arguments, process-tree timeout cleanup, exit failure, malformed JSONL, empty output, and usage parsing

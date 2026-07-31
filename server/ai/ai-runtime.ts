@@ -33,15 +33,6 @@ function selectedSettings(settings: AppSettings, feature: AiFeature): {
   };
 }
 
-function fallbackModel(provider: AiProvider): string {
-  switch (provider) {
-    case "gemini": return "gemini-flash-latest";
-    case "openai": return "gpt-4o-mini";
-    case "local": return "local-model";
-    case "codex": return "codex";
-  }
-}
-
 export async function resolveAi(feature: AiFeature, settings: AppSettings = loadSettings()): Promise<ResolvedAi> {
   const selected = selectedSettings(settings, feature);
   const section = sectionFor(feature);
@@ -59,7 +50,13 @@ export async function resolveAi(feature: AiFeature, settings: AppSettings = load
     });
   }
 
-  const model = selected.model.trim() || fallbackModel(provider);
+  const model = selected.model.trim();
+  if (!model) {
+    throw new AiProviderError(`No AI model selected. Choose one in Settings → AI ${section}.`, {
+      code: "missing-model",
+      provider,
+    });
+  }
   const config = { feature, model, thinkingBudget: selected.thinkingBudget };
   switch (provider) {
     case "gemini": {

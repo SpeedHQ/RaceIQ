@@ -53,7 +53,7 @@ describe("resolveAi", () => {
     secrets["gemini-api-key"] = "gemini-secret";
     secrets["openai-api-key"] = "openai-secret";
 
-    const gemini = await resolveAi("analysis", settings({ aiProvider: "gemini", aiModel: "" }));
+    const gemini = await resolveAi("analysis", settings({ aiProvider: "gemini", aiModel: "gemini-flash-latest" }));
     const openai = await resolveAi("analysis", settings({ aiProvider: "openai", aiModel: "custom-model" }));
 
     expect(gemini.provider).toBe("gemini");
@@ -66,9 +66,9 @@ describe("resolveAi", () => {
     expect(JSON.stringify(openai)).not.toContain("openai-secret");
   });
 
-  test("resolves Local and Codex with provider-specific model fallbacks", async () => {
-    const local = await resolveAi("chat", settings({ chatProvider: "local", chatModel: "", localEndpoint: "http://local.test/v1" }));
-    const codex = await resolveAi("chat", settings({ chatProvider: "codex", chatModel: "" }));
+  test("resolves Local and Codex with explicitly configured models", async () => {
+    const local = await resolveAi("chat", settings({ chatProvider: "local", chatModel: "local-model", localEndpoint: "http://local.test/v1" }));
+    const codex = await resolveAi("chat", settings({ chatProvider: "codex", chatModel: "codex" }));
 
     expect(local.provider).toBe("local");
     expect(local.model).toBe("local-model");
@@ -80,11 +80,24 @@ describe("resolveAi", () => {
   test("throws typed errors for missing provider and API key", async () => {
     secrets["openai-api-key"] = "";
     const noProvider = resolveAi("analysis", settings());
-    const noKey = resolveAi("analysis", settings({ aiProvider: "openai" }));
+    const noKey = resolveAi("analysis", settings({ aiProvider: "openai", aiModel: "gpt-4o-mini" }));
 
     await expect(noProvider).rejects.toBeInstanceOf(AiProviderError);
     await expect(noProvider).rejects.toMatchObject({ code: "missing-provider" });
     await expect(noKey).rejects.toMatchObject({ code: "missing-api-key", provider: "openai" });
+  });
+
+  test("rejects a missing model instead of inferring a provider default", async () => {
+    secrets["openai-api-key"] = "openai-secret";
+
+    const noModel = resolveAi("analysis", settings({ aiProvider: "openai", aiModel: "   " }));
+
+    await expect(noModel).rejects.toBeInstanceOf(AiProviderError);
+    await expect(noModel).rejects.toMatchObject({
+      code: "missing-model",
+      provider: "openai",
+      modelId: null,
+    });
   });
 
   test("rejects unsupported providers and exposes no chat operation for HTTP adapters", async () => {
@@ -92,7 +105,7 @@ describe("resolveAi", () => {
     await expect(unsupported).rejects.toMatchObject({ code: "unsupported-provider" });
 
     secrets["gemini-api-key"] = "gemini-secret";
-    const gemini = await resolveAi("chat", settings({ chatProvider: "gemini" }));
+    const gemini = await resolveAi("chat", settings({ chatProvider: "gemini", chatModel: "gemini-flash-latest" }));
     expect("createChatResponse" in gemini).toBe(false);
     expect("mastraModel" in gemini).toBe(false);
   });
@@ -154,6 +167,7 @@ describe("resolveAi", () => {
     try {
       const resolved = await resolveAi("analysis", settings({
         aiProvider: "gemini",
+        aiModel: "gemini-flash-latest",
         aiThinkingBudget: 777,
       }));
       await resolved.generateText({ prompt: "hello" });

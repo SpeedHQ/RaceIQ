@@ -8,6 +8,7 @@
 - View all release notes since your installed version in the app
 
 ### Fixes
+- Report missing AI model settings instead of silently selecting a provider default
 
 - Keep the Compare loading message hidden after comparison data is available
 - Cover the full page when settings are open so background content is consistently dimmed and dismissible

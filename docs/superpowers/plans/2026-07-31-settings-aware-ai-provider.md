@@ -226,7 +226,45 @@ git add -A server/ai/chat-agent.ts test .superpowers/sdd docs/superpowers
 git commit -m "chore: clean AI provider migration artifacts"
 ```
 
-### Task 4: Verify behavior and reconcile PR
+### Task 4: Reject missing configured model
+
+**Files:**
+- Modify: `server/ai/provider-error.ts`
+- Modify: `server/ai/ai-runtime.ts`
+- Test: `test/ai-runtime.test.ts`
+- Modify: `docs/superpowers/specs/2026-07-31-settings-aware-ai-provider-design.md`
+
+**Interfaces:**
+- Consumes: `selectedSettings(settings, feature)` and `AiProviderError`.
+- Produces: `AiProviderErrorCode` value `"missing-model"` when selected feature settings and any configured feature fallback yield an empty or whitespace-only model.
+
+- [ ] **Step 1: Write failing resolver test**
+
+Add an assertion that `resolveAi("analysis", settings({ aiProvider: "openai", aiModel: "   " }))` rejects with `{ code: "missing-model", provider: "openai", modelId: null }`. Keep API-key coverage explicit by supplying a non-empty model in the existing missing-key test.
+
+- [ ] **Step 2: Verify test fails for fallback behavior**
+
+Run: `bun test test/ai-runtime.test.ts`
+
+Expected: FAIL because the resolver substitutes `gpt-4o-mini` instead of rejecting the blank model.
+
+- [ ] **Step 3: Implement central missing-model error**
+
+Add `"missing-model"` to `AiProviderErrorCode`, delete `fallbackModel`, trim the selected model, and throw `AiProviderError` with the selected provider and AI settings section before reading credentials or constructing an adapter.
+
+- [ ] **Step 4: Verify focused resolver behavior**
+
+Run: `bun test test/ai-runtime.test.ts`
+
+Expected: PASS, including existing provider, credential-isolation, thinking-budget, and model-resolution cases.
+
+- [ ] **Step 5: Run combined AI regression group**
+
+Run: `bun test test/ai-configured.test.ts test/ai-consumer-resolution.test.ts test/ai-features.test.ts test/ai-model-provider.test.ts test/ai-runtime.test.ts test/codex-chat-stream.test.ts test/codex-provider.test.ts test/context-window.test.ts test/settings.test.ts`
+
+Expected: zero failures.
+
+### Task 5: Verify behavior and reconcile PR
 
 **Files:**
 - Modify only if verification exposes a real defect.
