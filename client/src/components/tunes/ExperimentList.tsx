@@ -92,7 +92,7 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
   const carName = (n: string | null | undefined) => (gameId === "acc" ? accCarName(n) : n) ?? "—";
 
   return (
-    <Card className="gap-0 overflow-x-auto rounded-lg border border-app-border bg-app-surface p-0 ring-0">
+    <Card className="overflow-x-auto">
       <Table>
         <THead rowClassName="border-b border-app-border">
           <TH className="w-12 text-right">#</TH>
@@ -396,7 +396,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="lg" className="flex max-h-[90vh] w-[680px] max-w-[94vw] flex-col gap-4 overflow-y-auto p-5">
+      <DialogContent size="lg" layout="scrollable" className="flex w-[680px] max-w-[94vw] flex-col">
         <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle className="text-sm font-semibold">New experiment</DialogTitle>
           <Button variant="app-ghost" size="icon-sm" onClick={onClose} className="text-xl leading-none text-app-text-dim hover:text-app-text" aria-label="Close">
@@ -684,7 +684,7 @@ function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onC
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="md" className="flex max-h-[90vh] w-[480px] max-w-[94vw] flex-col gap-4 overflow-y-auto p-5">
+      <DialogContent size="md" layout="scrollable" className="flex w-[480px] max-w-[94vw] flex-col">
         <DialogHeader className="flex flex-row items-center justify-between">
           <DialogTitle className="text-sm font-semibold">New experiment</DialogTitle>
           <Button variant="app-ghost" size="icon-sm" onClick={onClose} className="text-xl leading-none text-app-text-dim hover:text-app-text" aria-label="Close">

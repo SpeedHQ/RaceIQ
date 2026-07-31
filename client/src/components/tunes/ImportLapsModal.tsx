@@ -107,7 +107,7 @@ export function ImportLapsModal({ gameId, sessionId, tests, onClose }: { gameId:
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="wide" showCloseButton={false} overlayClassName="bg-app-bg/60" className="max-h-[86vh] p-5">
+      <DialogContent size="wide" showCloseButton={false} overlayClassName="bg-app-bg/60">
         <DialogHeader>
           <DialogTitle className="text-sm font-semibold text-app-text">Add laps from history</DialogTitle>
           <DialogDescription className="text-xs text-app-text-dim">Attach laps already recorded for this car and track to this session, instead of driving fresh ones.</DialogDescription>
