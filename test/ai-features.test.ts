@@ -56,5 +56,10 @@ describe("AI feature registry", () => {
     };
 
     const resolved = await resolveAi("compaction", settings);
+    expect(resolved.feature).toBe("compaction");
+    expect(resolved.provider).toBe("codex");
+    expect(resolved.model).toBe("chat-model");
+    expect(AI_FEATURES[resolved.feature].thinkingBudgetSetting).toBe("chatThinkingBudget");
+    expect(settings[AI_FEATURES[resolved.feature].thinkingBudgetSetting]).toBe(123);
   });
 });

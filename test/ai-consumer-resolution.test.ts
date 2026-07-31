@@ -5,6 +5,13 @@ import { compareEngineerPersona } from "../server/ai/compare-engineer";
 const secrets: Record<string, string> = {};
 mock.module("../server/keystore", () => ({
   getSecret: async (key: string) => secrets[key] ?? "",
+  setSecret: async (key: string, value: string) => {
+    if (value) secrets[key] = value;
+    else delete secrets[key];
+  },
+  deleteSecret: async (key: string) => {
+    delete secrets[key];
+  },
 }));
 
 const { resolveAi } = await import("../server/ai/ai-runtime");

@@ -193,23 +193,23 @@ git commit -m "refactor: route AI calls through central provider"
 - Consumes: final Task 1 and Task 2 APIs.
 - Produces: one documented architecture, composable tests, no dead provider helpers.
 
-- [ ] **Step 1: Make test mocks composable**
+- [x] **Step 1: Make test mocks composable**
 
 Replace partial `mock.module("../server/keystore", () => ({ getSecret }))` definitions with complete mocks that preserve `setSecret`, `deleteSecret`, and other exports used by concurrently loaded test files. Run combined tests to verify previous `Export named 'setSecret' not found` failure is gone.
 
-- [ ] **Step 2: Restore compaction assertions**
+- [x] **Step 2: Restore compaction assertions**
 
-In `test/ai-features.test.ts`, assert resolved compaction feature, provider, model, and thinking budget instead of assigning an unused `resolved` value.
+In `test/ai-features.test.ts`, assert resolved compaction feature, provider, and model plus the mapped chat thinking-budget setting and selected value. The public `ResolvedAi` contract does not expose `thinkingBudget`; provider transport tests cover supported request-body propagation.
 
-- [ ] **Step 3: Delete duplicate legacy model helper**
+- [x] **Step 3: Delete duplicate legacy model helper**
 
 Remove `getMastraModelId` from `server/ai/chat-agent.ts` and update its module comment to describe memory/thread ownership only. Confirm LSP references show no callers before deletion.
 
-- [ ] **Step 4: Remove stale artifacts**
+- [x] **Step 4: Remove stale artifacts**
 
 Delete the task report and superseded 2026-07-30 Codex design/plan. Retained final documents already cover Codex readiness, transport, process cleanup, parsing, chat streaming, errors, and verification. Do not remove changelog, UI, settings, dependency, context-window, or provider tests that still defend shipped behavior.
 
-- [ ] **Step 5: Run combined regression group**
+- [x] **Step 5: Run combined regression group**
 
 Run:
 
@@ -219,7 +219,7 @@ bun test test/ai-configured.test.ts test/ai-consumer-resolution.test.ts test/ai-
 
 Expected: all pass together, zero unhandled module-export errors.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A server/ai/chat-agent.ts test .superpowers/sdd docs/superpowers

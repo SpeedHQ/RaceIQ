@@ -65,6 +65,8 @@ interface ResolvedAi {
 
 Any internal model binding remains private to the adapter/bridge boundary. Unsupported provider/operation combinations fail inside central resolution with a stable `AiProviderError`; consumers never infer support from optional methods.
 
+Thinking-budget selection remains internal to feature resolution and provider execution; it is not exposed as `ResolvedAi` metadata. Feature mapping tests verify compaction's chat budget setting, while provider transport tests verify the selected budget reaches supported request bodies.
+
 ## Settings and readiness
 
 A Codex provider is not considered configured solely because settings contain `codex`. Readiness checks executable availability and `codex login status`; the status endpoint and settings UI consume the same readiness result. API providers check secret presence without returning secret values.
