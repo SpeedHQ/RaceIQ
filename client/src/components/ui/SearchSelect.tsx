@@ -2,7 +2,6 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import { createPortal } from "react-dom";
 import { m } from "@/paraglide/messages";
 import { AppInput } from "./AppInput";
-import { Button } from "./button";
 
 interface SearchSelectOption {
   value: string;
@@ -133,8 +132,7 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
 
   return (
     <div ref={containerRef} className={`relative ${className}`}>
-      <input
-        id={id}
+      <AppInput
         ref={inputRef}
         type="text"
         role="combobox"
@@ -154,7 +152,7 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
-        className={`w-full rounded border border-app-border-input bg-app-surface-alt px-2 py-1.5 text-sm text-app-text placeholder:text-app-text-dim outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${focusBorderClass}`}
+        className={`w-full bg-app-surface-alt ${focusBorderClass}`}
       />
       <svg
         aria-hidden="true"
