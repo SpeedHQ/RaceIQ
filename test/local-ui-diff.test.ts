@@ -9,7 +9,7 @@ import {
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
-  COMMITTED_STORYBOOK_SNAPSHOT_CASES,
+  CORE_STORYBOOK_SNAPSHOT_CASES,
   REUSABLE_UI_SNAPSHOT_CASES,
   STORYBOOK_SNAPSHOT_CASES,
 } from "../client/src/stories/snapshot-cases";
@@ -194,10 +194,19 @@ describe("local UI diff report", () => {
     expect(screenshotCases).toContain('name: "analyse-actions-menu"');
     expect(screenshots).toContain("RESPONSIVE_INTERACTION_CASES");
     expect(runner).toContain('Bun.which("node")');
+    expect(runner).toContain('requirePlaywrightCli(repoRoot, "client")');
+    expect(runner).toContain('requirePlaywrightCli(repoRoot, "playwright")');
+    expect(runner).toContain("retrying inside disposable worktree");
     expect(runner).toContain('"--project=mobile-screenshots"');
     expect(runner).toContain('"dashboards.snapshot.ts"');
     expect(runner).toContain('"theme.snapshot.ts"');
     expect(runner).toContain('"reusable-ui.snapshot.ts"');
+    expect(runner).toContain('arg === "--storybook-only"');
+    expect(runner).toContain('options.storybookOnly ? "Storybook only"');
+    expect(runner).toContain('RACEIQ_UI_DIFF_CAPTURE: "1"');
+    expect(runner).toContain('"--workers=1"');
+    expect(runner).toContain('existsSync("C:\\\\tmp")');
+    expect(runner).toContain("Promise.allSettled");
     expect(runner).toContain('prefix: "storybook"');
     expect(responsiveConfig).toContain("RACEIQ_APP_ROOT");
     expect(responsiveConfig).toContain("PW_SCREENSHOT_ONLY");
@@ -221,22 +230,20 @@ describe("local UI diff report", () => {
     expect(themeSnapshot).toContain("THEME_SNAPSHOT_CASE");
     expect(reusableUiSnapshot).toContain("REUSABLE_UI_SNAPSHOT_CASES");
     expect(packageJson.scripts["ui:diff"]).toBe("bun scripts/local-ui-diff.ts");
+    expect(packageJson.scripts["ui:diff:storybook"]).toBe("bun scripts/local-ui-diff.ts --storybook-only");
     expect(packageJson.scripts["test:screenshots"]).toContain("PW_SEED_SCREENSHOTS=1");
     expect(gitignore).toContain(".ui-diff/");
   });
 
-  test("keeps reusable Storybook baseline rollout atomic", () => {
-    const currentManifest = COMMITTED_STORYBOOK_SNAPSHOT_CASES.map((entry) => entry.outputName).sort();
-    const fullManifest = STORYBOOK_SNAPSHOT_CASES.map((entry) => entry.outputName).sort();
+  test("requires every Storybook baseline in the bounded manifest", () => {
+    const manifest = STORYBOOK_SNAPSHOT_CASES.map((entry) => entry.outputName).sort();
     const committed = readdirSync(
       join(repoRoot, "client/src/stories/__snapshots__"),
     )
       .filter((entry) => entry.startsWith("snapshot-") && entry.endsWith(".png"))
       .sort();
 
-    expect([JSON.stringify(currentManifest), JSON.stringify(fullManifest)]).toContain(
-      JSON.stringify(committed),
-    );
+    expect(committed).toEqual(manifest);
   });
 
   test("keeps screenshot coverage bounded to high-value visual states", () => {
@@ -244,7 +251,7 @@ describe("local UI diff report", () => {
     expect(RESPONSIVE_PAGES).toHaveLength(51);
     expect(RESPONSIVE_INTERACTION_CASES).toHaveLength(4);
     expect(RESPONSIVE_SCREENSHOT_COUNT).toBe(97);
-    expect(COMMITTED_STORYBOOK_SNAPSHOT_CASES).toHaveLength(8);
+    expect(CORE_STORYBOOK_SNAPSHOT_CASES).toHaveLength(8);
     expect(REUSABLE_UI_SNAPSHOT_CASES).toHaveLength(9);
     expect(STORYBOOK_SNAPSHOT_CASES).toHaveLength(17);
     expect(RESPONSIVE_SCREENSHOT_COUNT + STORYBOOK_SNAPSHOT_CASES.length).toBe(114);

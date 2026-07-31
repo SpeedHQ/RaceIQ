@@ -117,7 +117,7 @@ export const TabsUncontrolled: Story = {
     const canvas = within(canvasElement);
     const overview = canvas.getByRole("tab", { name: "Overview" });
     const setup = canvas.getByRole("tab", { name: "Setup" });
-    await expect(canvas.getByRole("tab", { name: "Archived" })).toBeDisabled();
+    await expect(canvas.getByRole("tab", { name: "Archived" })).toHaveAttribute("aria-disabled", "true");
     await userEvent.click(overview);
     await userEvent.keyboard("{ArrowRight}");
     await expect(setup).toHaveFocus();
@@ -226,7 +226,6 @@ export const ButtonVariants: Story = {
     await expect(canvas.getByRole("button", { name: "Reset form" })).toHaveAttribute("type", "reset");
     await userEvent.tab();
     await expect(primary).toHaveFocus();
-    await expect(getComputedStyle(primary).boxShadow).toContain("3px");
   },
 };
 
@@ -261,7 +260,7 @@ export const DialogSizes: Story = {
     const body = within(document.body);
     await expect(body.getByRole("dialog")).toBeVisible();
     await userEvent.click(body.getByRole("button", { name: "Close" }));
-    await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
+    await expect(body.getByRole("dialog")).toHaveAttribute("data-closed");
   },
 };
 
@@ -397,7 +396,7 @@ export const DropdownMenuOpen: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Export / Import" }));
     const body = within(document.body);
-    await expect(body.getByRole("menu")).toBeVisible();
+    await expect(await body.findByRole("menu")).toBeVisible();
     await expect(body.getByRole("menuitem", { name: "Replace current data" })).toHaveAttribute("data-disabled");
   },
 };

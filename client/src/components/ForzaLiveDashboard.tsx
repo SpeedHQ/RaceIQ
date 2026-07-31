@@ -82,7 +82,7 @@ export function ForzaLiveDashboard({ mode = "driver" }: { mode?: DashboardMode }
 
   if (mode === "driver") {
     return (
-      <div className="grid h-auto flex-1 grid-cols-1 gap-0 @5xl/workspace:h-full @5xl/workspace:grid-cols-2">
+      <div data-live-dashboard-layout className="grid h-auto flex-1 grid-cols-1 gap-0 @5xl/workspace:h-full @5xl/workspace:grid-cols-2">
         {/* Left column: Tire Health + Pit Window */}
         <div className="border-r border-app-border overflow-auto">
           <PageHeader dashMode={mode} demo={demo} />
@@ -90,7 +90,7 @@ export function ForzaLiveDashboard({ mode = "driver" }: { mode?: DashboardMode }
         </div>
 
         {/* Right column: Race (with sectors) + Lap Chart + Recorded Laps */}
-        <div className="overflow-y-auto overflow-x-hidden flex flex-col">
+        <div data-live-dashboard-race className="overflow-y-auto overflow-x-hidden flex flex-col">
           <RaceInfo packet={packet} sectors={sectors} trackName={trackName} carName={carName} showTrackMap={false} showSectors={true} />
           <div className="shrink-0 h-[240px]">
             <LapTimeChart sessionLaps={sessionLaps} />
@@ -105,7 +105,7 @@ export function ForzaLiveDashboard({ mode = "driver" }: { mode?: DashboardMode }
 
   // ── PIT CREW MODE ─────────────────────────────────────────────
   return (
-    <div className="grid h-auto flex-1 grid-cols-1 gap-0 @5xl/workspace:h-full @5xl/workspace:grid-cols-2">
+    <div data-live-dashboard-layout className="grid h-auto flex-1 grid-cols-1 gap-0 @5xl/workspace:h-full @5xl/workspace:grid-cols-2">
       {/* Left column: Full telemetry */}
       <div className="border-r border-app-border overflow-auto">
         <PageHeader dashMode={mode} demo={demo} />
@@ -113,7 +113,7 @@ export function ForzaLiveDashboard({ mode = "driver" }: { mode?: DashboardMode }
       </div>
 
       {/* Right column: Race HUD + laps */}
-      <div className="overflow-auto flex flex-col">
+      <div data-live-dashboard-race className="overflow-auto flex flex-col">
         <RaceInfo packet={packet} sectors={sectors} trackName={trackName} carName={carName} showTrackMap={false} showSectors={true} />
         <div className="shrink-0 h-[240px]">
           <LapTimeChart sessionLaps={sessionLaps} />

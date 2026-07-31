@@ -2,8 +2,8 @@ import { tryGetGame } from "@shared/games/registry";
 import type { F1ExtendedData } from "@shared/types";
 import { Cloud, CloudLightning, CloudRain, CloudSun, Sun } from "lucide-react";
 import { useState } from "react";
-import { severityColor, severityRangeColor } from "@/lib/colors";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/AppTable";
+import { severityColor, severityRangeColor } from "@/lib/colors";
 import { m } from "@/paraglide/messages";
 import { useCarName, useTrackName } from "../../hooks/queries";
 import { useTelemetryStore } from "../../stores/telemetry";
@@ -65,7 +65,7 @@ export function F1LiveDashboard() {
   }
 
   return (
-    <div className="grid h-auto flex-1 grid-cols-1 gap-0 @5xl/workspace:h-full @5xl/workspace:grid-cols-2">
+    <div data-live-dashboard-layout className="grid h-auto flex-1 grid-cols-1 gap-0 @5xl/workspace:h-full @5xl/workspace:grid-cols-2">
       {/* Left column: Core telemetry + pit info */}
       <div className="border-r border-app-border overflow-auto">
         {/* Weather | Electronics side-by-side */}
@@ -110,7 +110,7 @@ export function F1LiveDashboard() {
       </div>
 
       {/* Right column: Race info + Charts + Recorded Laps */}
-      <div className="overflow-y-auto overflow-x-hidden flex flex-col">
+      <div data-live-dashboard-race className="overflow-y-auto overflow-x-hidden flex flex-col">
         <RaceInfo packet={packet!} sectors={sectors} trackName={trackName} carName={carName} totalLaps={f1.totalLaps} sessionType={f1.sessionType} showTrackMap={false} showSectors={true} />
         <div className="shrink-0 h-[240px]">
           <LapTimeChart sessionLaps={sessionLaps} />
