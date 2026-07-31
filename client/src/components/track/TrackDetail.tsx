@@ -65,7 +65,7 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   if (laps.length === 0) {
     return (
-      <Card className="w-full md:w-2/5 min-w-0 gap-0 rounded-lg bg-app-surface/50 p-0 ring-app-border">
+      <Card className="w-full md:w-2/5 min-w-0">
         <CardHeader className="flex shrink-0 items-center justify-between rounded-none border-b border-app-border p-3 py-2">
           <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_stats()}</div>
           <div className="text-app-compact text-app-text-dim font-mono">{m.track_detail_last_100()}</div>
@@ -225,7 +225,7 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
   const showLapNumBreakdown = lapNumData.length > 1;
 
   return (
-    <Card className="w-full md:w-2/5 min-w-0 gap-0 rounded-lg bg-app-surface/50 p-0 ring-app-border">
+    <Card className="w-full md:w-2/5 min-w-0">
       {/* Fixed header — outside scroll container */}
       <CardHeader className="flex shrink-0 items-center justify-between rounded-none border-b border-app-border p-3 py-2">
         <div className="flex items-center gap-2">
@@ -1043,7 +1043,7 @@ export function TrackDetail({
           <div className="w-80 shrink-0 flex flex-col gap-3 overflow-auto">
             {/* Segment list / editor */}
             {displaySectors && displaySectors.segments.length > 0 && (
-              <Card className="gap-0 rounded-lg bg-app-surface/50 p-3 ring-app-border">
+              <Card>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_segments()}</span>
@@ -1154,7 +1154,7 @@ export function TrackDetail({
               </Card>
             )}
             {/* Sector Boundaries */}
-            <Card className={`gap-0 rounded-lg bg-app-surface/50 p-3 ring-app-border ${gameId === "iracing" ? "hidden" : ""}`}>
+            <Card className={gameId === "iracing" ? "hidden" : undefined}>
               <div className="flex items-center justify-between mb-2">
                 <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.trackdetail_sector_boundaries()}</div>
                 {isDevelopment &&
@@ -1277,14 +1277,14 @@ export function TrackDetail({
               <div className={`flex shrink-0 flex-col gap-3 @3xl/workspace:flex-row ${activeTab === "guide" && isF125 ? "@3xl/workspace:h-[160px]" : "@3xl/workspace:h-[320px]"}`}>
                 {/* Info summary left of map, same shape as the laps leaderboard */}
                 {activeTab === "info" && (
-                  <Card className="order-2 md:order-1 w-full md:w-[560px] shrink-0 overflow-auto gap-0 rounded-lg bg-app-surface/50 p-3 ring-app-border min-h-[200px] md:min-h-0">
+                  <Card className="order-2 md:order-1 w-full md:w-[560px] shrink-0 overflow-auto min-h-[200px] md:min-h-0">
                     <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="summary" />
                   </Card>
                 )}
 
                 {/* Leaderboard left of map on laps tab */}
                 {activeTab === "laps" && (
-                  <Card className="order-2 md:order-1 w-full md:w-[560px] shrink-0 overflow-hidden gap-0 rounded-lg bg-app-surface/50 p-3 ring-app-border min-h-[200px] md:min-h-0">
+                  <Card className="order-2 md:order-1 w-full md:w-[560px] shrink-0 overflow-hidden min-h-[200px] md:min-h-0">
                     {isF125 ? <F125Leaderboard trackOrdinal={track.ordinal} /> : <CommunityLeaderboard trackName={track.name} trackVariant={track.variant} />}
                   </Card>
                 )}
@@ -1635,7 +1635,7 @@ export function TrackDetail({
                             <div className="hidden min-h-0 flex-1 gap-3 overflow-hidden @3xl/workspace:flex">
                               <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} sectorCount={sectorCount} showSessionFilter={isF125} />
                               {/* Lap table (md+) */}
-                              <Card className="flex-1 min-w-0 overflow-y-auto gap-0 rounded-lg bg-app-surface/50 p-0 ring-app-border">
+                              <Card className="flex-1 min-w-0 overflow-y-auto">
                                 <Table>
                                   <THead>
                                     <TH>
