@@ -206,21 +206,25 @@ function InputsSection({ lapAId, lapBId, panelOpen, onView }: { lapAId: number; 
         <span className="w-2 h-2 rounded-full bg-gradient-to-r from-(--comparison-lap-a) to-(--comparison-lap-b)" />
         <span className="text-app-compact font-semibold text-app-text truncate flex-1">{m.compare_inputs_comparison_ab()}</span>
         {analysis && (
-          <button type="button" onClick={() => run(true)} disabled={loading} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title={m.label_regenerate()}>
+          <Button
+            type="button"
+            variant="app-ghost"
+            size="icon-sm"
+            onClick={() => run(true)}
+            disabled={loading}
+            className="text-app-text-muted hover:text-app-text disabled:opacity-40"
+            title={m.label_regenerate()}
+          >
             <RefreshCw className="size-3" />
-          </button>
+          </Button>
         )}
       </div>
 
       {!analysis && !loading && !error && (
-        <button
-          type="button"
-          onClick={() => run(false)}
-          className="w-full flex items-center justify-center gap-1.5 text-app-compact px-2 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled transition-colors"
-        >
+        <Button type="button" variant="app-primary" size="app-md" onClick={() => run(false)} className="w-full">
           <Sparkles className="size-3" />
           {m.compare_inputs_compare_button()}
-        </button>
+        </Button>
       )}
 
       {loading && (
@@ -271,21 +275,25 @@ function LapSection({
         <span className={`w-2 h-2 rounded-full ${dotClass}`} />
         <span className="text-app-compact font-semibold text-app-text truncate flex-1">{lap.label}</span>
         {summary && (
-          <button type="button" onClick={() => run(true)} disabled={loading} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title={m.label_regenerate()}>
+          <Button
+            type="button"
+            variant="app-ghost"
+            size="icon-sm"
+            onClick={() => run(true)}
+            disabled={loading}
+            className="text-app-text-muted hover:text-app-text disabled:opacity-40"
+            title={m.label_regenerate()}
+          >
             <RefreshCw className="size-3" />
-          </button>
+          </Button>
         )}
       </div>
 
       {!summary && !loading && !error && (
-        <button
-          type="button"
-          onClick={() => run(false)}
-          className="w-full flex items-center justify-center gap-1.5 text-app-compact px-2 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled transition-colors"
-        >
+        <Button type="button" variant="app-primary" size="app-md" onClick={() => run(false)} className="w-full">
           <Sparkles className="size-3" />
           {m.compare_analyse_lap_button()}
-        </button>
+        </Button>
       )}
 
       {loading && (
@@ -473,13 +481,9 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
           <p className="text-app-compact text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
           <p className="text-app-caption text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => openSettings("ai")}
-          className="flex items-center gap-1.5 text-app-compact px-3 py-1.5 rounded bg-ai-accent hover:bg-ai-accent-hover text-app-on-filled font-medium transition-colors"
-        >
+        <Button type="button" variant="app-primary" size="app-md" onClick={() => openSettings("ai")}>
           {m.compare_setup_ai_button()}
-        </button>
+        </Button>
       </div>
     );
   }
@@ -499,9 +503,9 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
       {bothReady && (
         <div className="flex-1 min-h-0 flex flex-col border-t border-app-border">
           <div className="flex justify-end px-2 pt-1">
-            <button type="button" onClick={clearChat} className="text-app-micro text-app-text-muted hover:text-status-danger">
+            <Button type="button" variant="app-danger" size="icon-sm" onClick={clearChat} title={m.aipanel_clear_title()}>
               <Trash2 className="size-3" />
-            </button>
+            </Button>
           </div>
           <ChatPanel
             key={chatRemountKey}
