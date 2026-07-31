@@ -5,12 +5,12 @@ import { useSettings } from "../../hooks/queries";
 import { isAiConfigured } from "../../lib/is-ai-configured";
 import { client } from "../../lib/rpc";
 import { m } from "../../paraglide/messages";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { useUiStore } from "../../stores/ui";
 import { type AnalysisData, AnalysisDisplay } from "../ai/analysis-display";
 import { AnalysisModalShell, AnalysisResultCard, AnalysisSummaryRow } from "../ai/analysis-summary";
 import { ChatPanel } from "../ai-chat/ChatPanel";
-import { PanelSectionHeader } from "../ui/panel-section-header";
+import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 
 type ParsedAnalysis = Partial<AnalysisData>;
 
@@ -486,7 +486,9 @@ function InputsModal({
                       <span className="text-app-compact font-semibold text-app-text">{seg.name}</span>
                       {seg.type && <span className="text-app-micro uppercase tracking-wider text-app-text-muted">{seg.type}</span>}
                       {typeof seg.deltaSeconds === "number" && (
-                        <span className={`ml-auto text-app-caption font-mono ${seg.deltaSeconds > 0.05 ? "text-status-danger" : seg.deltaSeconds < -0.05 ? "text-status-success" : "text-app-text-muted"}`}>
+                        <span
+                          className={`ml-auto text-app-caption font-mono ${seg.deltaSeconds > 0.05 ? "text-(--delta-loss)" : seg.deltaSeconds < -0.05 ? "text-(--delta-gain)" : "text-app-text-muted"}`}
+                        >
                           {seg.deltaSeconds >= 0 ? "+" : ""}
                           {seg.deltaSeconds.toFixed(3)}s
                         </span>
