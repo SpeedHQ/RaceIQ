@@ -48,3 +48,17 @@ Created with `git commit -m "chore: clean AI provider migration artifacts"`; fin
 ## Concerns
 
 None. Public `ResolvedAi` intentionally remains feature/provider/model plus operations; thinking-budget selection is covered without exposing provider configuration metadata.
+
+## Fix round 1
+
+Reviewer requested execution-level proof for compaction thinking-budget propagation. Updated `test/ai-features.test.ts` to resolve compaction from Gemini chat settings, invoke `resolved.generateText()` with mocked Gemini transport, and assert `generationConfig.thinkingConfig.thinkingBudget === 123` plus `includeThoughts === false`. Public `ResolvedAi` remains unchanged.
+
+Behavioral test: `bun test test/ai-features.test.ts` — 4 pass, 0 fail, 12 assertions.
+
+Re-run combined regression:
+
+```bash
+bun test test/ai-configured.test.ts test/ai-consumer-resolution.test.ts test/ai-features.test.ts test/ai-model-provider.test.ts test/ai-runtime.test.ts test/codex-chat-stream.test.ts test/codex-provider.test.ts test/context-window.test.ts test/settings.test.ts
+```
+
+Result: `61 pass`, `0 fail`, `122 expect() calls`, `Ran 61 tests across 9 files`, zero unhandled export errors.
