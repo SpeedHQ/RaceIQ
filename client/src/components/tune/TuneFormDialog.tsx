@@ -240,6 +240,7 @@ export function TuneFormDialog({
                 />
                 {carDropOpen && (
                   <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-auto rounded-lg bg-app-surface border border-app-border z-50 shadow-lg">
+                    {filteredFormCars.map((c) => (
                       <Button
                         key={c.ordinal}
                         type="button"
@@ -310,6 +311,7 @@ export function TuneFormDialog({
                   rows={10}
                   className="w-full bg-app-bg/85 border border-app-border rounded px-2 py-1.5 text-xs text-app-text font-mono focus:outline-none focus:ring-1 focus:ring-app-accent resize-y"
                 />
+                {jsonError && <p className="text-xs text-status-danger">{jsonError}</p>}
                 <Button type="button" variant="app-primary" size="app-sm" onClick={handleJsonParse} className="!h-auto">
                   {m.tune_parse_populate()}
                 </Button>
@@ -382,6 +384,7 @@ export function TuneFormDialog({
             )}
           </div>
 
+          <div className="sticky bottom-0 bg-app-surface px-4 py-3 border-t border-app-border flex justify-end gap-2">
             <Button type="button" variant="app-outline" size="app-sm" onClick={onClose} className="!h-auto">
               {m.common_cancel()}
             </Button>
