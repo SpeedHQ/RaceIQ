@@ -23,6 +23,7 @@ import { startDetachedAgentTurn } from "../ai/agent-stream";
 import { reserveChatRun, buildReplayStream } from "../ai/chat-run-registry";
 import { createUIMessageStreamResponse } from "ai";
 import { resolveAi } from "../ai/ai-runtime";
+import { runAiChat } from "../ai/model-provider";
 import type { ResolvedAi } from "../ai/ai-types";
 import { sessionAgentForFocus } from "../ai/agents";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiment-focus";
@@ -220,13 +221,6 @@ export const tuneChatRoutes = new Hono()
         const message = err instanceof Error ? err.message : String(err);
         return c.json({ error: message }, 400);
       }
-      const chatModelLabel = ai.model;
-      reqCtx.set("aiProviderConfig", {
-        provider: ai.provider,
-        model: ai.model,
-        mastraModel: ai.mastraModel,
-        localEndpoint: settings.localEndpoint,
-      });
 
       // Captured before the turn runs so the onFinish reasoning-patch below can
       // tell *this* turn's freshly-saved assistant row apart from any earlier
@@ -242,65 +236,48 @@ export const tuneChatRoutes = new Hono()
       if (gatheredContext) systemSegments.push(gatheredContext);
       if (extendedContext) systemSegments.push(extendedContext);
 
-      if (ai.createChatResponse) {
-        try {
-          return await ai.createChatResponse({
-            systemPrompt: systemSegments.join("\n\n"),
-            messages,
-          });
-        } catch (err: unknown) {
-          const message = err instanceof Error ? err.message : String(err);
-          console.error("[SetupEngineer] Codex CLI failed:", message);
-          return c.json({ error: message }, 500);
-        }
-      }
-      // Reserve (or re-attach to) this thread's detached run BEFORE calling
-      // the agent — the double-start guard lives in the registry: if a turn
-      // is already active for this thread (e.g. a duplicate POST fired while
-      // one is in flight), `isNew` is false and we skip starting a second
-      // agent call entirely, just attaching to the existing run's stream.
-      const { run, isNew } = reserveChatRun(threadId);
-      if (isNew) {
-        const stream = await agent.stream(
-          [{ role: "system", content: systemSegments.join("\n\n") }, ...messages],
-          {
-          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-          requestContext: reqCtx,
-          // Threaded through so a client Cancel (POST .../run/cancel) or an
-          // evicted/aborted run actually stops the underlying model call,
-          // not just this HTTP response.
-          abortSignal: run.abortController.signal,
-          // Ask the model to stream its thought process so the tune chat can show a
-          // live "thinking" block that auto-collapses once the reply text starts
-          // (reasoning.tsx drives the collapse off the streamed reasoning parts).
-          // toAISdkStream forwards reasoning parts into the UI-message stream by
-          // default — the writer loop below relays every part — so enabling
-          // reasoning here is the whole server-side wiring. Scoped to this route:
-          // the main AiPanel keeps includeThoughts:false.
-          providerOptions: {
-            openai: { reasoningEffort: "medium" },
-            google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
-          },
-        });
+      try {
+        return await runAiChat(ai, {
+          systemPrompt: systemSegments.join("\n\n"),
+          messages,
+        }, async (chatContext) => {
+          chatContext.set("gameId", gameId);
+          chatContext.set("sessionId", id);
+          // Reserve (or re-attach to) this thread's detached run BEFORE
+          // calling the agent. Duplicate posts attach to existing run.
+          const { run, isNew } = reserveChatRun(threadId);
+          if (isNew) {
+            const stream = await agent.stream(
+              [{ role: "system", content: systemSegments.join("\n\n") }, ...messages],
+              {
+                memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+                requestContext: chatContext,
+                abortSignal: run.abortController.signal,
+                providerOptions: {
+                  openai: { reasoningEffort: "medium" },
+                  google: buildGoogleReasoningProviderOptions(ai.model, settings.chatThinkingBudget) as never,
+                },
+              },
+            );
 
-        // Detaches immediately: the agent stream keeps running and gets
-        // persisted server-side (onFinish inside agent-stream.ts) regardless
-        // of whether the response below is ever read to completion.
-        startDetachedAgentTurn(run, {
-          agentStream: stream,
-          originalMessages: messages,
-          memory: getChatMemory(),
-          threadId,
-          turnStartedAt,
-        });
-      }
+            startDetachedAgentTurn(run, {
+              agentStream: stream,
+              originalMessages: messages,
+              memory: getChatMemory(),
+              threadId,
+              turnStartedAt,
+            });
+          }
 
-      // Same replay-then-live-tail stream the reconnect endpoint serves —
-      // identical code path, so a fresh POST and a later reconnect are
-      // indistinguishable to the client's transport.
-      const response = createUIMessageStreamResponse({ stream: buildReplayStream(run) });
-      response.headers.set("x-resumable-stream-id", run.runId);
-      return response;
+          const response = createUIMessageStreamResponse({ stream: buildReplayStream(run) });
+          response.headers.set("x-resumable-stream-id", run.runId);
+          return response;
+        });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[SetupEngineer] Stream failed:", message);
+        return c.json({ error: message }, 500);
+      }
     }
   )
 

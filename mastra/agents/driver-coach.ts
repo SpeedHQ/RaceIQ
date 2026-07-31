@@ -26,7 +26,7 @@ import { Agent } from "@mastra/core/agent";
 import { aiLanguageInstruction } from "../../shared/locales";
 import { TRACK_GUIDE_PROMPT } from "../../shared/prompt-snippets";
 import { getChatMemory } from "../../server/ai/chat-agent";
-import { getMastraModelId, modelFromRequestContext } from "../model";
+import { getModel } from "../../server/ai/model-provider";
 import { loadSettings } from "../../server/settings";
 import { driverCoachTools } from "../tools/driver-coach";
 import { liveCoachScorers } from "../evals";
@@ -76,12 +76,7 @@ export const driverCoachAgent = new Agent({
   id: "driver-coach",
   name: "Driver Coach",
   instructions: () => `${DRIVER_COACH_INSTRUCTIONS}${TRACK_GUIDE_PROMPT}${aiLanguageInstruction(loadSettings().language)}`,
-  model: ({ requestContext }) => {
-    const bound = modelFromRequestContext(requestContext);
-    if (bound) return bound;
-    const s = loadSettings();
-    return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
-  },
+  model: ({ requestContext }) => getModel("chat", requestContext),
   // Read side is force-gathered by the `setup-engineer-turn` workflow and
   // injected as context (it describes the session, not the car, so it serves
   // both agents), hence no read tools here beyond the heavier sub-agent calls.

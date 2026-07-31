@@ -15,7 +15,7 @@ import { Agent } from "@mastra/core/agent";
 import { aiLanguageInstruction } from "../../shared/locales";
 import { TRACK_GUIDE_PROMPT, ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
 import { getChatMemory } from "../../server/ai/chat-agent";
-import { getMastraModelId, modelFromRequestContext } from "../model";
+import { getModel } from "../../server/ai/model-provider";
 import { loadSettings } from "../../server/settings";
 import { setupEngineerTools } from "../tools/setup-engineer";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiment-focus";
@@ -94,12 +94,7 @@ export const setupEngineerAgent = new Agent({
   id: "setup-engineer",
   name: "Setup Engineer",
   instructions: () => `${SETUP_ENGINEER_INSTRUCTIONS}${TRACK_GUIDE_PROMPT}${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(loadSettings().language)}`,
-  model: ({ requestContext }) => {
-    const bound = modelFromRequestContext(requestContext);
-    if (bound) return bound;
-    const s = loadSettings();
-    return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
-  },
+  model: ({ requestContext }) => getModel("chat", requestContext),
   // Read side (setup / symptoms / track conditions / history) is force-gathered
   // by the `setup-engineer-turn` workflow and injected as context, so those
   // tools are deliberately NOT exposed to the model. It gets only the heavier

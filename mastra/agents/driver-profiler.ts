@@ -5,8 +5,7 @@
  * measurements and advice; this agent may only explain trend credibility.
  */
 import { Agent } from "@mastra/core/agent";
-import { getMastraModelId, modelFromRequestContext } from "../model";
-import { loadSettings } from "../../server/settings";
+import { getModel } from "../../server/ai/model-provider";
 import { renderDriverProfileSummarySchemaForPrompt } from "../../server/ai/schemas";
 
 const DRIVER_PROFILER_INSTRUCTIONS = `You are a concise driver trend analyst. The prompt contains a deterministic global trend for the selected game, including window counts, normalized relative pace, consistency, spread, clean rate, directions, and deterministic advice.
@@ -20,10 +19,5 @@ export const driverProfilerAgent = new Agent({
   id: "driver-profiler",
   name: "Driver Profiler",
   instructions: DRIVER_PROFILER_INSTRUCTIONS,
-  model: ({ requestContext }) => {
-    const bound = modelFromRequestContext(requestContext);
-    if (bound) return bound;
-    const s = loadSettings();
-    return getMastraModelId(s.aiProvider, s.aiModel, s.localEndpoint);
-  },
+  model: ({ requestContext }) => getModel("driverProfile", requestContext),
 });

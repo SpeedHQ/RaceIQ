@@ -19,7 +19,7 @@ import { loadSettings } from "../settings";
 import { resolveAi } from "./ai-runtime";
 import { buildAnalystPrompt } from "./analyst-prompt";
 import { resolveTrack } from "../track-info";
-import { RequestContext } from "@mastra/core/request-context";
+import { runAiStructured } from "./model-provider";
 import { loadRepresentativeLap } from "./setup-engineer-context";
 import { lapAnalystAgent } from "../../mastra/agents/lap-analyst";
 
@@ -50,20 +50,17 @@ export async function consultLapAnalystForSession(sessionId: number): Promise<La
     settings.language,
   );
   const ai = await resolveAi("analysis", settings);
-  const requestContext = new RequestContext();
-  requestContext.set("aiProviderConfig", {
-    provider: ai.provider,
-    model: ai.model,
-    mastraModel: ai.mastraModel,
-    localEndpoint: settings.localEndpoint,
-  });
-  const result = ai.createChatResponse
-    ? await ai.generateText({ prompt, maxOutputTokens: 4096, temperature: 0 })
-    : await lapAnalystAgent.generate(prompt, {
-        maxSteps: 5,
-        modelSettings: { maxOutputTokens: 4096, temperature: 0 },
-        requestContext,
-      });
-  const text = ("analysis" in result ? result.analysis : result.text ?? "").trim();
+  const result = await runAiStructured(ai, {
+    prompt,
+    schema: {},
+    maxOutputTokens: 4096,
+    temperature: 0,
+  }, async (requestContext) =>
+    lapAnalystAgent.generate(prompt, {
+      maxSteps: 5,
+      modelSettings: { maxOutputTokens: 4096, temperature: 0 },
+      requestContext,
+    }));
+  const text = result.analysis.trim();
   return { available: true, summary: text || "Lap Analyst returned no content." };
 }

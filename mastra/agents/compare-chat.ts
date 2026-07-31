@@ -8,7 +8,7 @@
 import { Agent } from "@mastra/core/agent";
 import { compareEngineerPersona } from "../../server/ai/compare-engineer";
 import { getChatMemory } from "../../server/ai/chat-agent";
-import { getMastraModelId, modelFromRequestContext } from "../model";
+import { getModel } from "../../server/ai/model-provider";
 import { loadSettings } from "../../server/settings";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
@@ -22,12 +22,7 @@ export const compareChatAgent = new Agent({
     const s = loadSettings();
     return compareEngineerPersona(s.unit, s.temperatureUnit, s.language) + TRACK_GUIDE_PROMPT;
   },
-  model: ({ requestContext }) => {
-    const bound = modelFromRequestContext(requestContext);
-    if (bound) return bound;
-    const s = loadSettings();
-    return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
-  },
+  model: ({ requestContext }) => getModel("chat", requestContext),
   tools: { getTrackGuideTool, listTrackGuidesTool, compareF1SetupToCatalogTool, getCornerMetricsTool },
   memory: getChatMemory(),
 });

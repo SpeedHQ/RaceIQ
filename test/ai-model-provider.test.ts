@@ -4,7 +4,8 @@ import { RequestContext } from "@mastra/core/request-context";
 import { loadSettings, saveSettings, type AppSettings } from "../server/settings";
 import { resolveAi } from "../server/ai/ai-runtime";
 import { OpenAiProviderAdapter } from "../server/ai/provider-adapters";
-import { createModelContext, getModel } from "../server/ai/model-provider";
+import { createModelContext, getModel, runAiChat, runAiStructured } from "../server/ai/model-provider";
+import { setResolvedAiInternals } from "../server/ai/resolved-ai-internals";
 import { modelFromRequestContext } from "../mastra/model";
 
 const originalSettings = loadSettings();
@@ -84,4 +85,42 @@ describe("settings-aware model provider", () => {
       provider: "codex",
     });
   });
+  test("dispatches native Codex chat without running Mastra", async () => {
+    const codexAi = {
+      feature: "chat" as const,
+      provider: "codex" as const,
+      model: "codex",
+      generateText: async () => ({ analysis: "", usage: { inputTokens: 0, outputTokens: 0, costUsd: 0, durationMs: 0, model: "codex" } }),
+      generateStructured: async () => ({ analysis: "", usage: { inputTokens: 0, outputTokens: 0, costUsd: 0, durationMs: 0, model: "codex" } }),
+    };
+    setResolvedAiInternals(codexAi, {
+      createChatResponse: async () => new Response("ok", { status: 200 }),
+    });
+
+    const response = await runAiChat(codexAi, { systemPrompt: "", messages: [] }, async () => {
+      throw new Error("Mastra must not run");
+    });
+    expect(response.status).toBe(200);
+  });
+
+  test("normalizes Mastra structured output and passes bound context", async () => {
+    const openAi = {
+      feature: "analysis" as const,
+      provider: "openai" as const,
+      model: "gpt-4o-mini",
+      generateText: async () => ({ analysis: "", usage: { inputTokens: 0, outputTokens: 0, costUsd: 0, durationMs: 0, model: "gpt-4o-mini" } }),
+      generateStructured: async () => ({ analysis: "", usage: { inputTokens: 0, outputTokens: 0, costUsd: 0, durationMs: 0, model: "gpt-4o-mini" } }),
+    };
+    setResolvedAiInternals(openAi, { model: "bound-model" });
+
+    const result = await runAiStructured(openAi, {
+      prompt: "test",
+      schema: {},
+    }, async (context) => {
+      expect(modelFromRequestContext(context)).toBe("bound-model");
+      return { text: "ok", usage: { inputTokens: 1, outputTokens: 2 } };
+    });
+    expect(result).toMatchObject({ analysis: "ok", usage: { model: "gpt-4o-mini" } });
+  });
+
 });

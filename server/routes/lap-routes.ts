@@ -76,18 +76,18 @@ import { buildChatSystemPrompt } from "../ai/chat-prompt";
 import { buildCompareChatSystemPrompt } from "../ai/compare-chat-prompt";
 import { streamAgentTurnResponse } from "../ai/agent-stream";
 import { MessageList } from "@mastra/core/agent";
-import { RequestContext } from "@mastra/core/request-context";
 import { topCatalogReferences, normalizePacketSetup, getCatalogDisplayName } from "../ai/f1-setup-catalog";
 import type { TelemetryPacket } from "../../shared/types";
 import { buildInputsComparePrompt, InputsCompareSchema, type PromptSegment } from "../ai/inputs-compare-prompt";
 // Dev uses the full Mastra instance (so Studio sees traces); prod tree-shakes
 // the Mastra wrapper out. See `server/ai/agents.ts` for the switch.
-import { lapAnalystAgent, lapChatAgent, compareChatAgent } from "../ai/agents";
+import { lapAnalystAgent, lapChatAgent, compareChatAgent, compareEngineerAgent } from "../ai/agents";
 import { buildGoogleProviderOptions, buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
 import { toClientAiError } from "../ai/provider-error";
 import { extractJson } from "../ai/extract-json";
 import type { ResolvedAi } from "../ai/ai-types";
 import { resolveAi } from "../ai/ai-runtime";
+import { runAiChat, runAiStructured } from "../ai/model-provider";
 import { resolveLapF1Setup } from "../ai/f1-setup-identity";
 
 /**
@@ -744,13 +744,6 @@ export const lapRoutes = new Hono()
     // to keep Bun's 255s idleTimeout alive for slow local models, then a
     // single `result` (or `error`) event at the end. The client doesn't
     const modelLabel = ai.model;
-    const analysisContext = new RequestContext();
-    analysisContext.set("aiProviderConfig", {
-      provider: ai.provider,
-      model: ai.model,
-      mastraModel: ai.mastraModel,
-      localEndpoint: settings.localEndpoint,
-    });
     const startedAt = Date.now();
     const encoder = new TextEncoder();
     const writeEvent = (c: ReadableStreamDefaultController, obj: unknown) => {
@@ -767,42 +760,37 @@ export const lapRoutes = new Hono()
           writeEvent(controller, { type: "ping" });
         }, 200_000);
         try {
-          const result = ai.createChatResponse
-            ? await ai.generateStructured({
-                prompt,
-                schema: getAnalystJsonSchema(),
-                schemaName: "analyst_output",
-                maxOutputTokens: 8192,
-                temperature: 0,
-              })
-            : await lapAnalystAgent.generate(prompt, {
-                maxSteps: 5,
-                modelSettings: { maxOutputTokens: 8192, temperature: 0 },
-                requestContext: analysisContext,
-                providerOptions: {
-                  openai: {
-                    reasoningEffort: "medium",
-                    responseFormat: {
-                      type: "json_schema",
-                      jsonSchema: {
-                        name: "analyst_output",
-                        strict: true,
-                        schema: getAnalystJsonSchema() as Record<string, never>,
-                      },
-                    } as never,
-                  },
-                  google: buildGoogleProviderOptions(
-                    modelLabel,
-                    getAnalystJsonSchema() as Record<string, unknown>,
-                    settings.aiThinkingBudget,
-                  ) as never,
+          const result = await runAiStructured(ai, {
+            prompt,
+            schema: getAnalystJsonSchema(),
+            schemaName: "analyst_output",
+            maxOutputTokens: 8192,
+            temperature: 0,
+          }, async (analysisContext) =>
+            lapAnalystAgent.generate(prompt, {
+              maxSteps: 5,
+              modelSettings: { maxOutputTokens: 8192, temperature: 0 },
+              requestContext: analysisContext,
+              providerOptions: {
+                openai: {
+                  reasoningEffort: "medium",
+                  responseFormat: {
+                    type: "json_schema",
+                    jsonSchema: {
+                      name: "analyst_output",
+                      strict: true,
+                      schema: getAnalystJsonSchema() as Record<string, never>,
+                    },
+                  } as never,
                 },
-              });
-          const rawText = "analysis" in result
-            ? result.analysis
-            : typeof result.text === "string"
-              ? result.text
-              : "";
+                google: buildGoogleProviderOptions(
+                  ai.model,
+                  getAnalystJsonSchema() as Record<string, unknown>,
+                  settings.aiThinkingBudget,
+                ) as never,
+              },
+            }));
+          const rawText = result.analysis;
           let text = rawText;
           const durationMs = Date.now() - startedAt;
           let validJson = false;
@@ -939,49 +927,35 @@ export const lapRoutes = new Hono()
       const message = err instanceof Error ? err.message : String(err);
       return c.json({ error: message }, 400);
     }
-    if (ai.createChatResponse) {
-      try {
-        return await ai.createChatResponse({ systemPrompt, messages });
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        console.error("[Chat] Codex CLI failed:", message);
-        return c.json({ error: message }, 500);
-      }
-    }
-
     const chatModelLabel = ai.model;
-    const chatContext = new RequestContext();
-    chatContext.set("aiProviderConfig", {
-      provider: ai.provider,
-      model: ai.model,
-      mastraModel: ai.mastraModel,
-      localEndpoint: settings.localEndpoint,
-    });
     const threadId = await resolveActiveThread(chatThreadId(id));
     const turnStartedAt = Date.now();
     try {
-      const stream = await lapChatAgent.stream(
-        [{ role: "system", content: systemPrompt }, ...messages],
-        {
-          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-          requestContext: chatContext,
-          providerOptions: {
-            openai: { reasoningEffort: "medium" },
-            google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
+      return await runAiChat(ai, { systemPrompt, messages }, async (chatContext) => {
+        const stream = await lapChatAgent.stream(
+          [{ role: "system", content: systemPrompt }, ...messages],
+          {
+            memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+            requestContext: chatContext,
+            providerOptions: {
+              openai: { reasoningEffort: "medium" },
+              google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
+            },
           },
-        },
-      );
+        );
 
-      return streamAgentTurnResponse({
-        agentStream: stream,
-        originalMessages: messages,
-        memory: getChatMemory(),
-        threadId,
-        turnStartedAt,
+        return streamAgentTurnResponse({
+          agentStream: stream,
+          originalMessages: messages,
+          memory: getChatMemory(),
+          threadId,
+          turnStartedAt,
+        });
       });
-    } catch (err: any) {
-      console.error("[Chat] Stream failed:", err.message);
-      return c.json({ error: err.message }, 500);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[Chat] Stream failed:", message);
+      return c.json({ error: message }, 500);
     }
   })
 
@@ -1234,20 +1208,21 @@ export const lapRoutes = new Hono()
     } catch (err) {
       return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
     }
-    if (analysisAi.createChatResponse) {
-      return c.json({ error: "Codex CLI is not supported for comparison analysis yet." }, 400);
-    }
 
     try {
       const start = performance.now();
-      const result = await analysisAi.generateStructured({
+      const result = await runAiStructured(analysisAi, {
         system: compareEngineerPersona(settings.unit, settings.temperatureUnit, settings.language, { json: true }),
         prompt,
         schema: InputsCompareSchema,
         schemaName: "inputs_compare",
         maxOutputTokens: 8192,
         temperature: 0,
-      });
+      }, async (requestContext) =>
+        compareEngineerAgent.generate(prompt, {
+          requestContext,
+          modelSettings: { maxOutputTokens: 8192, temperature: 0 },
+        }));
       const durationMs = Math.round(performance.now() - start);
       const object = InputsCompareSchema.parse(JSON.parse(extractJson(result.analysis)));
 
@@ -1382,49 +1357,35 @@ export const lapRoutes = new Hono()
       const message = err instanceof Error ? err.message : String(err);
       return c.json({ error: message }, 400);
     }
-    if (ai.createChatResponse) {
-      try {
-        return await ai.createChatResponse({ systemPrompt, messages });
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        console.error("[CompareChat] Codex CLI failed:", message);
-        return c.json({ error: message }, 500);
-      }
-    }
-
     const chatModelLabel = ai.model;
-    const chatContext = new RequestContext();
-    chatContext.set("aiProviderConfig", {
-      provider: ai.provider,
-      model: ai.model,
-      mastraModel: ai.mastraModel,
-      localEndpoint: settings.localEndpoint,
-    });
     const threadId = await resolveActiveThread(compareChatThreadId(id1, id2));
     const turnStartedAt = Date.now();
     try {
-      const stream = await compareChatAgent.stream(
-        [{ role: "system", content: systemPrompt }, ...messages],
-        {
-          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-          requestContext: chatContext,
-          providerOptions: {
-            openai: { reasoningEffort: "medium" },
-            google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
+      return await runAiChat(ai, { systemPrompt, messages }, async (chatContext) => {
+        const stream = await compareChatAgent.stream(
+          [{ role: "system", content: systemPrompt }, ...messages],
+          {
+            memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+            requestContext: chatContext,
+            providerOptions: {
+              openai: { reasoningEffort: "medium" },
+              google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
+            },
           },
-        },
-      );
+        );
 
-      return streamAgentTurnResponse({
-        agentStream: stream,
-        originalMessages: messages,
-        memory: getChatMemory(),
-        threadId,
-        turnStartedAt,
+        return streamAgentTurnResponse({
+          agentStream: stream,
+          originalMessages: messages,
+          memory: getChatMemory(),
+          threadId,
+          turnStartedAt,
+        });
       });
-    } catch (err: any) {
-      console.error("[CompareChat] Stream failed:", err.message);
-      return c.json({ error: err.message }, 500);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[CompareChat] Stream failed:", message);
+      return c.json({ error: message }, 500);
     }
   })
 
