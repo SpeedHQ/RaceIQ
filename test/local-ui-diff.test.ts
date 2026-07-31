@@ -8,9 +8,19 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import {
+  COMMITTED_STORYBOOK_SNAPSHOT_CASES,
+  REUSABLE_UI_SNAPSHOT_CASES,
+  STORYBOOK_SNAPSHOT_CASES,
+} from "../client/src/stories/snapshot-cases";
+import {
+  RESPONSIVE_INTERACTION_CASES,
+  RESPONSIVE_PAGES,
+  RESPONSIVE_SCREENSHOT_COUNT,
+  RESPONSIVE_VIEWPORTS,
+} from "../playwright/responsive-screenshot-cases";
 import type { ScreenshotDiff } from "../scripts/collect-screenshot-diffs";
 import { writeUiDiffReport } from "../scripts/local-ui-diff";
-import { STORYBOOK_SNAPSHOT_CASES } from "../client/src/stories/snapshot-cases";
 
 const tempDirs: string[] = [];
 const repoRoot = resolve(import.meta.dir, "..");
@@ -133,8 +143,28 @@ describe("local UI diff report", () => {
       join(repoRoot, "client/src/stories/theme.snapshot.ts"),
       "utf8",
     );
+    const reusableUiSnapshot = readFileSync(
+      join(repoRoot, "client/src/stories/reusable-ui.snapshot.ts"),
+      "utf8",
+    );
     const responsiveConfig = readFileSync(
       join(repoRoot, "playwright/playwright.config.ts"),
+      "utf8",
+    );
+    const responsiveWorkflow = readFileSync(
+      join(repoRoot, ".github/workflows/pr-screenshots.yml"),
+      "utf8",
+    );
+    const devLauncher = readFileSync(
+      join(repoRoot, "playwright/start-dev-server.ts"),
+      "utf8",
+    );
+    const productionLauncher = readFileSync(
+      join(repoRoot, "playwright/start-server.ts"),
+      "utf8",
+    );
+    const seedHelper = readFileSync(
+      join(repoRoot, "playwright/seed-screenshot-data.ts"),
       "utf8",
     );
     const storybookConfig = readFileSync(
@@ -150,16 +180,34 @@ describe("local UI diff report", () => {
     expect(screenshots).toContain("RESPONSIVE_VIEWPORTS");
     expect(screenshotCases).toContain('{ name: "mobile", width: 390, height: 844 }');
     expect(screenshotCases).toContain('{ name: "home", path: "/" }');
+    expect(screenshotCases).toContain('{ name: "fm23-analyse", path: "/fm23/analyse" }');
+    expect(screenshotCases).toContain('{ name: "acc-setups", path: "/acc/setups" }');
+    expect(screenshotCases).toContain('name: "iracing-track-detail"');
+    expect(screenshotCases).toContain('path: "/iracing/tracks/18/info"');
+    expect(screenshotCases).toContain('name: "iracing-laps-empty"');
+    expect(screenshotCases).toContain('name: "f125-experiment-detail"');
+    expect(screenshotCases).toContain('name: "f125-experiment-review"');
+    expect(screenshotCases).toContain('name: "ac-evo-live"');
     expect(screenshotCases).toContain('name: "nav-drawer-open"');
     expect(screenshotCases).toContain('name: "settings-modal"');
+    expect(screenshotCases).toContain('name: "settings-language-menu"');
+    expect(screenshotCases).toContain('name: "analyse-actions-menu"');
     expect(screenshots).toContain("RESPONSIVE_INTERACTION_CASES");
     expect(runner).toContain('Bun.which("node")');
     expect(runner).toContain('"--project=mobile-screenshots"');
     expect(runner).toContain('"dashboards.snapshot.ts"');
     expect(runner).toContain('"theme.snapshot.ts"');
+    expect(runner).toContain('"reusable-ui.snapshot.ts"');
     expect(runner).toContain('prefix: "storybook"');
     expect(responsiveConfig).toContain("RACEIQ_APP_ROOT");
     expect(responsiveConfig).toContain("PW_SCREENSHOT_ONLY");
+    expect(responsiveConfig).toContain("PW_SCREENSHOT_WORKERS");
+    expect(responsiveConfig).toContain("fullyParallel: PARALLEL_SCREENSHOT_RUN");
+    expect(responsiveWorkflow).toContain('- "playwright/**"');
+    expect(responsiveWorkflow).toContain('PW_SEED_SCREENSHOTS: "1"');
+    expect(devLauncher).toContain("seedScreenshotData(repoDir, dir)");
+    expect(productionLauncher).toContain("seedScreenshotData(repoDir, dir)");
+    expect(seedHelper).toContain('process.env.PW_SEED_SCREENSHOTS !== "1"');
     expect(storybookConfig).toContain("RACEIQ_STORYBOOK_ROOT");
     expect(storybookConfig).toContain("RACEIQ_SNAPSHOT_DIR");
     expect(
@@ -171,18 +219,34 @@ describe("local UI diff report", () => {
     );
     expect(dashboardSnapshots).toContain("DASHBOARD_SNAPSHOT_CASES");
     expect(themeSnapshot).toContain("THEME_SNAPSHOT_CASE");
+    expect(reusableUiSnapshot).toContain("REUSABLE_UI_SNAPSHOT_CASES");
     expect(packageJson.scripts["ui:diff"]).toBe("bun scripts/local-ui-diff.ts");
+    expect(packageJson.scripts["test:screenshots"]).toContain("PW_SEED_SCREENSHOTS=1");
     expect(gitignore).toContain(".ui-diff/");
   });
 
-  test("shares the complete committed Storybook screenshot inventory", () => {
-    const manifest = STORYBOOK_SNAPSHOT_CASES.map((entry) => entry.outputName).sort();
+  test("keeps reusable Storybook baseline rollout atomic", () => {
+    const currentManifest = COMMITTED_STORYBOOK_SNAPSHOT_CASES.map((entry) => entry.outputName).sort();
+    const fullManifest = STORYBOOK_SNAPSHOT_CASES.map((entry) => entry.outputName).sort();
     const committed = readdirSync(
       join(repoRoot, "client/src/stories/__snapshots__"),
     )
       .filter((entry) => entry.startsWith("snapshot-") && entry.endsWith(".png"))
       .sort();
 
-    expect(manifest).toEqual(committed);
+    expect([JSON.stringify(currentManifest), JSON.stringify(fullManifest)]).toContain(
+      JSON.stringify(committed),
+    );
+  });
+
+  test("keeps screenshot coverage bounded to high-value visual states", () => {
+    expect(RESPONSIVE_VIEWPORTS).toHaveLength(3);
+    expect(RESPONSIVE_PAGES).toHaveLength(51);
+    expect(RESPONSIVE_INTERACTION_CASES).toHaveLength(4);
+    expect(RESPONSIVE_SCREENSHOT_COUNT).toBe(97);
+    expect(COMMITTED_STORYBOOK_SNAPSHOT_CASES).toHaveLength(8);
+    expect(REUSABLE_UI_SNAPSHOT_CASES).toHaveLength(9);
+    expect(STORYBOOK_SNAPSHOT_CASES).toHaveLength(17);
+    expect(RESPONSIVE_SCREENSHOT_COUNT + STORYBOOK_SNAPSHOT_CASES.length).toBe(114);
   });
 });

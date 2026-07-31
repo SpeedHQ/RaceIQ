@@ -13,6 +13,7 @@
 - Make every app workspace reflow across phone, tablet, odd-shaped, and desktop windows without blocking device or rotation gates
 
 ### Internal
+- Expanded visual regression coverage to 97 fixture-seeded responsive app states plus 17 Storybook states, covering every game, high-risk screens, track and experiment details, reusable primitives, navigation, dialogs, and viewport-positioned menus
 - Added a local main-versus-worktree UI comparison report using the same responsive and Storybook screenshot inventory as pull-request previews
 - Stabilized Storybook dashboard capture readiness, aligned PR preview comparison with Playwright's material-diff policy, and restricted baseline writes to the pinned Linux renderer
 - Made Storybook snapshots own an exact-port server and retry cold preview preparation

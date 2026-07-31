@@ -5,8 +5,11 @@ import { Table, TBody, TD, TH, THead, TRow } from "../components/ui/AppTable";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
+import { DropdownMenu } from "../components/ui/DropdownMenu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
+import { SearchMultiSelect } from "../components/ui/SearchMultiSelect";
+import { SearchSelect } from "../components/ui/SearchSelect";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
 
@@ -43,6 +46,47 @@ function ControlledTabsDemo() {
         Driver notes and reminders.
       </TabsContent>
     </Tabs>
+  );
+}
+
+const TRACK_OPTIONS = [
+  { value: "road-america", label: "Road America", group: "United States" },
+  { value: "watkins-glen", label: "Watkins Glen", group: "United States" },
+  { value: "brands-hatch", label: "Brands Hatch", group: "United Kingdom" },
+  { value: "silverstone", label: "Silverstone", group: "United Kingdom" },
+  { value: "retired-layout", label: "Retired test layout", group: "Unavailable", disabled: true },
+];
+
+function SearchSelectDemo() {
+  const [track, setTrack] = useState("road-america");
+  return <SearchSelect value={track} onChange={setTrack} options={TRACK_OPTIONS} placeholder="Search tracks..." className="w-80" />;
+}
+
+const CLASS_OPTIONS = [
+  { key: "gt3", label: "GT3" },
+  { key: "prototype", label: "Prototype" },
+  { key: "touring", label: "Touring Car" },
+  { key: "formula", label: "Formula" },
+];
+
+function SearchMultiSelectDemo() {
+  const [selected, setSelected] = useState(() => new Set(["gt3", "prototype"]));
+  return (
+    <SearchMultiSelect
+      buttonLabel={`${selected.size} classes selected`}
+      options={CLASS_OPTIONS}
+      isSelected={(key) => selected.has(key)}
+      onSelect={(key) => {
+        setSelected((current) => {
+          const next = new Set(current);
+          if (next.has(key)) next.delete(key);
+          else next.add(key);
+          return next;
+        });
+      }}
+      onClear={() => setSelected(new Set())}
+      searchPlaceholder="Search classes..."
+    />
   );
 }
 export default meta;
@@ -310,5 +354,50 @@ export const TableShell: Story = {
     await expect(canvas.getAllByRole("rowgroup")).toHaveLength(2);
     await expect(canvas.getAllByRole("columnheader")).toHaveLength(3);
     await expect(canvas.getAllByRole("cell")).toHaveLength(9);
+  },
+};
+
+export const SearchSelectMenu: Story = {
+  render: () => <SearchSelectDemo />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("combobox", { name: "" }));
+    await expect(within(document.body).getByRole("listbox", { name: "Search tracks..." })).toBeVisible();
+  },
+};
+
+export const SearchMultiSelectMenu: Story = {
+  render: () => <SearchMultiSelectDemo />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "2 classes selected" }));
+    const body = within(document.body);
+    await expect(body.getByRole("listbox", { name: "Search classes..." })).toBeVisible();
+    await expect(body.getByRole("option", { name: "GT3" })).toHaveAttribute("aria-selected", "true");
+  },
+};
+
+export const DropdownMenuOpen: Story = {
+  render: () => (
+    <DropdownMenu
+      align="left"
+      trigger={
+        <Button variant="app-outline" size="app-md">
+          Export / Import
+        </Button>
+      }
+      items={[
+        { key: "export", label: "Export selected laps", onClick: () => undefined },
+        { key: "import", label: "Import telemetry", onClick: () => undefined },
+        { key: "replace", label: "Replace current data", onClick: () => undefined, disabled: true },
+      ]}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Export / Import" }));
+    const body = within(document.body);
+    await expect(body.getByRole("menu")).toBeVisible();
+    await expect(body.getByRole("menuitem", { name: "Replace current data" })).toHaveAttribute("data-disabled");
   },
 };
