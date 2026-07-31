@@ -481,11 +481,41 @@ export interface TelemetryPacket {
   // Tire slip combined (set 2)
   TireSlipCombinedFL_2: number;
 
-  // Tire temps (F)
+  // Common representative tire temperature. Unit comes from game adapter.
   TireTempFL: number;
   TireTempFR: number;
   TireTempRL: number;
   TireTempRR: number;
+
+  // Detailed tire temperatures (°C). Optional when source lacks this fidelity.
+  TireCarcassTempFL?: number;
+  TireCarcassTempFR?: number;
+  TireCarcassTempRL?: number;
+  TireCarcassTempRR?: number;
+  TireCarcassTempLeftFL?: number;
+  TireCarcassTempLeftFR?: number;
+  TireCarcassTempLeftRL?: number;
+  TireCarcassTempLeftRR?: number;
+  TireCarcassTempMiddleFL?: number;
+  TireCarcassTempMiddleFR?: number;
+  TireCarcassTempMiddleRL?: number;
+  TireCarcassTempMiddleRR?: number;
+  TireCarcassTempRightFL?: number;
+  TireCarcassTempRightFR?: number;
+  TireCarcassTempRightRL?: number;
+  TireCarcassTempRightRR?: number;
+  TireSurfaceTempInnerFL?: number;
+  TireSurfaceTempInnerFR?: number;
+  TireSurfaceTempInnerRL?: number;
+  TireSurfaceTempInnerRR?: number;
+  TireSurfaceTempMiddleFL?: number;
+  TireSurfaceTempMiddleFR?: number;
+  TireSurfaceTempMiddleRL?: number;
+  TireSurfaceTempMiddleRR?: number;
+  TireSurfaceTempOuterFL?: number;
+  TireSurfaceTempOuterFR?: number;
+  TireSurfaceTempOuterRL?: number;
+  TireSurfaceTempOuterRR?: number;
 
   // Engine/fuel
   Boost: number;

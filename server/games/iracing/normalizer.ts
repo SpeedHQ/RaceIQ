@@ -63,18 +63,34 @@ function canonicalGear(value: number): number {
   return nativeGear;
 }
 
-function tireTemperature(
+interface TireCarcassTemperature {
+  left?: number;
+  middle?: number;
+  right?: number;
+  average?: number;
+}
+
+function tireCarcassTemperature(
   values: Record<string, IRacingValue>,
   corner: "LF" | "RF" | "LR" | "RR",
-): number {
-  const samples = [
-    scalar(values, `${corner}tempCL`, Number.NaN),
-    scalar(values, `${corner}tempCM`, Number.NaN),
-    scalar(values, `${corner}tempCR`, Number.NaN),
-  ].filter(Number.isFinite);
-  return samples.length > 0
-    ? samples.reduce((sum, value) => sum + value, 0) / samples.length
-    : 0;
+): TireCarcassTemperature {
+  const raw = {
+    left: scalar(values, `${corner}tempCL`, Number.NaN),
+    middle: scalar(values, `${corner}tempCM`, Number.NaN),
+    right: scalar(values, `${corner}tempCR`, Number.NaN),
+  };
+  const result: TireCarcassTemperature = {};
+  const samples: number[] = [];
+  for (const [band, value] of Object.entries(raw)) {
+    if (!Number.isFinite(value)) continue;
+    result[band as keyof typeof raw] = value;
+    samples.push(value);
+  }
+  if (samples.length > 0) {
+    result.average =
+      samples.reduce((sum, value) => sum + value, 0) / samples.length;
+  }
+  return result;
 }
 
 /**
@@ -166,6 +182,12 @@ export function normalizeIRacingFrame(
     trackLengthM > 0 ? rawLap * trackLengthM + lapDistanceM : lapDistanceM;
   const onTrack = bool(values, "IsOnTrack");
   const wetness = clamp(scalar(values, "TrackWetness", 0), 0, 7);
+  const tireTemps = {
+    LF: tireCarcassTemperature(values, "LF"),
+    RF: tireCarcassTemperature(values, "RF"),
+    LR: tireCarcassTemperature(values, "LR"),
+    RR: tireCarcassTemperature(values, "RR"),
+  };
 
   return {
     gameId: "iracing",
@@ -239,10 +261,26 @@ export function normalizeIRacingFrame(
     SurfaceRumbleRR_2: 0,
     TireSlipCombinedFL_2: 0,
 
-    TireTempFL: tireTemperature(values, "LF"),
-    TireTempFR: tireTemperature(values, "RF"),
-    TireTempRL: tireTemperature(values, "LR"),
-    TireTempRR: tireTemperature(values, "RR"),
+    TireTempFL: tireTemps.LF.average ?? 0,
+    TireTempFR: tireTemps.RF.average ?? 0,
+    TireTempRL: tireTemps.LR.average ?? 0,
+    TireTempRR: tireTemps.RR.average ?? 0,
+    TireCarcassTempFL: tireTemps.LF.average,
+    TireCarcassTempFR: tireTemps.RF.average,
+    TireCarcassTempRL: tireTemps.LR.average,
+    TireCarcassTempRR: tireTemps.RR.average,
+    TireCarcassTempLeftFL: tireTemps.LF.left,
+    TireCarcassTempLeftFR: tireTemps.RF.left,
+    TireCarcassTempLeftRL: tireTemps.LR.left,
+    TireCarcassTempLeftRR: tireTemps.RR.left,
+    TireCarcassTempMiddleFL: tireTemps.LF.middle,
+    TireCarcassTempMiddleFR: tireTemps.RF.middle,
+    TireCarcassTempMiddleRL: tireTemps.LR.middle,
+    TireCarcassTempMiddleRR: tireTemps.RR.middle,
+    TireCarcassTempRightFL: tireTemps.LF.right,
+    TireCarcassTempRightFR: tireTemps.RF.right,
+    TireCarcassTempRightRL: tireTemps.LR.right,
+    TireCarcassTempRightRR: tireTemps.RR.right,
 
     Boost: 0,
     Fuel: Math.max(0, scalar(values, "FuelLevel", 0)),

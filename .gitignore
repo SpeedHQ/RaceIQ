@@ -1,7 +1,11 @@
 node_modules/
 dist/
-/data/
+/data/*
+!/data/diagnostics/
+/data/diagnostics/*
+!/data/diagnostics/iracing-all-vars-2026-07-29T02-06-39-162Z.json
 /.data-test/
+/.data-test-*/
 *.db
 *.db-journal
 *.db-wal
