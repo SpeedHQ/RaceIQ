@@ -224,9 +224,8 @@ const ComposerAction: FC = () => {
                   tooltip="Stop dictation"
                   side="bottom"
                   type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="aui-composer-stop-dictation text-destructive size-7 rounded-full"
+                  variant="destructive"
+                  size="icon-destructive"
                   aria-label="Stop voice input"
                 />
               }

@@ -13,3 +13,15 @@
 - `cd client && bun run build`: PASS.
 - `cd client && bun run build-storybook`: PASS.
 - `cd client && bun run snapshot:test -- src/stories/dashboards.snapshot.ts`: BLOCKED: `http://localhost:6006/index.json is already used`.
+
+## Final audit
+- `MotecImportModal.tsx:120` `DialogContent className="max-w-xl"` remains layout-only: constrains modal width while `DialogContent size="lg"` owns surface, border, radius, padding, and typography.
+- `thread.tsx:162` `Button className="aui-thread-welcome-suggestion"` remains a styling hook for assistant-ui suggestion composition; no appearance utility classes.
+- `thread.tsx:209,234,240,467` primitive classNames (`aui-composer-dictate`, `aui-composer-send`, `aui-composer-cancel`, `aui-user-action-edit`) remain hook/layout selectors only; shared Button/TooltipIconButton props own appearance and interaction.
+- `SetupFilePicker.tsx:40-41` `DialogContent` sizing/flex and `DialogHeader` min-width/padding remain composition-only for constrained scrolling and close-button clearance.
+- `thread.tsx:224` StopDictation now uses semantic `variant="destructive"` and shared `size="icon-destructive"` (`size-7 rounded-full`), preserving destructive intent, dimensions, radius, tooltip, accessibility label, and behavior without consumer appearance classes.
+
+## Final verification
+- `cd client && bun run build`: PASS.
+- `cd client && bun run build-storybook`: PASS.
+- `cd client && bun run snapshot:test -- src/stories/dashboards.snapshot.ts`: RUNNABLE after stopping stale sibling-worktree Storybook on port 6006; 3/7 passed, 4 failed pixel comparisons (F1LiveDashboard, ForzaLiveDashboard, AccLiveDashboard, ComboDash1). Baselines were not updated.
