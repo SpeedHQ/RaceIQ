@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
-import { Button } from "../../components/ui/button";
+import { Button } from "@/components/ui/button";
 import { CarWireframe } from "../../components/CarWireframe";
 import { getCarModel, loadCarModelConfigs } from "../../data/car-models";
 import { client } from "../../lib/rpc";
@@ -124,10 +124,7 @@ function CarModelPage() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4 text-app-text-dim">
         <div className="text-lg">{m.carmodel_no_model()}</div>
-        <Button
-          onClick={() => navigate({ to: "/$gameid/cars", params: { gameid: "fm23" } })}
-          className="px-4 py-2 rounded bg-app-surface-alt border border-app-border-input text-app-text-secondary hover:text-app-text"
-        >
+        <Button type="button" variant="app-outline" size="app-lg" onClick={() => navigate({ to: "/$gameid/cars", params: { gameid: "fm23" } })} className="!bg-app-surface-alt text-app-text-secondary hover:!bg-app-surface-hover hover:text-app-text">
           {m.carmodel_back_to_cars()}
         </Button>
       </div>
@@ -138,8 +135,11 @@ function CarModelPage() {
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center gap-3 p-3 border-b border-app-border shrink-0">
         <Button
+          type="button"
+          variant="app-outline"
+          size="app-sm"
           onClick={() => navigate({ to: "/$gameid/cars", params: { gameid: "fm23" } })}
-          className="text-app-label text-app-text-secondary hover:text-app-text px-2 py-1 rounded bg-app-surface-alt hover:bg-app-surface-hover transition-colors"
+          className="text-app-label !bg-app-surface-alt hover:!bg-app-surface-hover transition-colors"
         >
           &larr; Cars
         </Button>
