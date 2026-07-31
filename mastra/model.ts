@@ -26,6 +26,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import type { FetchFunction } from "@ai-sdk/provider-utils";
 import { extractReasoningMiddleware, wrapLanguageModel, type LanguageModel } from "ai";
 import type { MastraModelConfig } from "@mastra/core/llm";
+import { RESOLVED_AI_MODEL_CONTEXT_KEY } from "../server/ai/resolved-ai-internals";
 
 export type BoundMastraModel = MastraModelConfig;
 
@@ -200,17 +201,16 @@ function reasoningContentToThinkFetch(baseFetch: FetchFunction): FetchFunction {
 export type MastraRequestContext = {
   get(key: string): unknown;
 };
-
 /** Return the provider-bound model attached to this request, if present. */
 export function modelFromRequestContext(
   requestContext: MastraRequestContext | undefined,
 ): BoundMastraModel | undefined {
-  const config = requestContext?.get("aiProviderConfig");
-  if (!config || typeof config !== "object" || !("mastraModel" in config)) return undefined;
-  const model = config.mastraModel;
+  const model = requestContext?.get(RESOLVED_AI_MODEL_CONTEXT_KEY);
   if (typeof model === "string") return model;
-  if (model && typeof model === "object" && "doGenerate" in model) {
-    return bindMastraModel(model as LanguageModel);
+  if (model && typeof model === "object" && "doGenerate" in model
+      && typeof model.doGenerate === "function") {
+    const boundModel = model as BoundMastraModel;
+    return boundModel;
   }
   return undefined;
 }

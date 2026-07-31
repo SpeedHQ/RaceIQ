@@ -15,6 +15,7 @@ import type {
   StructuredRequest,
   TextRequest,
 } from "./ai-types";
+import { setResolvedAiInternals } from "./resolved-ai-internals";
 export { createCodexChatResponse } from "./codex-chat-stream";
 export { getCodexStatus, parseCodexJsonl, runCodexCli } from "./providers";
 export type { CodexCliOptions, CodexResult, CodexStatus } from "./providers";
@@ -195,13 +196,15 @@ export function resolvedAiFromAdapter(adapter: AnyProviderAdapter): ResolvedAi {
     feature: adapter.feature,
     provider: adapter.provider,
     model: adapter.model,
-    mastraModel: "mastraModel" in adapter ? adapter.mastraModel : undefined,
     generateText: adapter.generateText.bind(adapter),
     generateStructured: adapter.generateStructured.bind(adapter),
   };
-  if (adapter instanceof CodexProviderAdapter) {
-    resolved.createChatResponse = adapter.createChatResponse.bind(adapter);
-  }
+  setResolvedAiInternals(resolved, {
+    model: "mastraModel" in adapter ? adapter.mastraModel : undefined,
+    createChatResponse: adapter instanceof CodexProviderAdapter
+      ? adapter.createChatResponse.bind(adapter)
+      : undefined,
+  });
   return resolved;
 }
 export function unsupportedAiOperation(feature: AiFeature, provider: AiProvider, operation: string): never {

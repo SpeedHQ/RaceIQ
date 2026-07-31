@@ -66,8 +66,8 @@ describe("resolveAi", () => {
     expect(local.provider).toBe("local");
     expect(local.model).toBe("local-model");
     expect(codex.provider).toBe("codex");
-    expect(codex.model).toBe("codex");
-    expect(codex.createChatResponse).toBeFunction();
+    expect("createChatResponse" in codex).toBe(false);
+    expect("mastraModel" in codex).toBe(false);
   });
 
   test("throws typed errors for missing provider and API key", async () => {
@@ -86,7 +86,8 @@ describe("resolveAi", () => {
 
     secrets["gemini-api-key"] = "gemini-secret";
     const gemini = await resolveAi("chat", settings({ chatProvider: "gemini" }));
-    expect(gemini.createChatResponse).toBeUndefined();
+    expect("createChatResponse" in gemini).toBe(false);
+    expect("mastraModel" in gemini).toBe(false);
   });
 
   test("isolates concurrent transport credentials and endpoints", async () => {
