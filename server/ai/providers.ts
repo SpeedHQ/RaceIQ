@@ -41,26 +41,112 @@ export type CodexResult = {
   outputTokens: number;
 };
 
+export type CodexStatus = { ready: true } | { ready: false; reason: string };
+
+export type CodexCliOptions = {
+  executable?: string;
+  timeoutMs?: number;
+  env?: Record<string, string>;
+};
+
+const DEFAULT_CODEX_EXECUTABLE = "codex";
+const DEFAULT_CODEX_TIMEOUT_MS = 90_000;
+const CODEX_STATUS_TIMEOUT_MS = 5_000;
+const MAX_CODEX_ERROR_DETAIL = 240;
+
+function codexExecutable(options?: CodexCliOptions): string {
+  return options?.executable?.trim() || process.env.CODEX_CLI_PATH?.trim() || DEFAULT_CODEX_EXECUTABLE;
+}
+
+function codexEnvironment(options?: CodexCliOptions): Record<string, string> {
+  const env = { ...process.env, ...(options?.env ?? {}) };
+  delete env.OPENAI_API_KEY;
+  return env as Record<string, string>;
+}
+
+function compactCodexDetail(...values: string[]): string {
+  return values
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .slice(0, MAX_CODEX_ERROR_DETAIL);
+}
+
+function isMissingExecutable(error: unknown): boolean {
+  const candidate = error as { code?: string; message?: string } | undefined;
+  return candidate?.code === "ENOENT" || /(?:not found|no such file)/i.test(candidate?.message ?? "");
+}
+
+type CodexProcessResult = {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+};
+
+async function runCodexProcess(
+  args: string[],
+  options: CodexCliOptions = {},
+  stdin?: string,
+): Promise<CodexProcessResult> {
+  const proc = Bun.spawn(args, {
+    stdin: stdin == null ? "ignore" : "pipe",
+    stdout: "pipe",
+    stderr: "pipe",
+    env: codexEnvironment(options),
+  });
+  if (stdin != null) {
+    proc.stdin!.write(stdin);
+    proc.stdin!.end();
+  }
+
+  const output = Promise.all([
+    proc.exited,
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+  ] as const);
+  const timeoutMs = options.timeoutMs ?? DEFAULT_CODEX_TIMEOUT_MS;
+  const timeoutGate = Promise.withResolvers<null>();
+  const timeoutHandle = setTimeout(() => timeoutGate.resolve(null), timeoutMs);
+  const result = await Promise.race([output, timeoutGate.promise]);
+  clearTimeout(timeoutHandle);
+  if (result === null) {
+    proc.kill();
+    // Ensure a killed process cannot retain open pipes, without allowing a
+    // misbehaving child to defeat timeout enforcement.
+    await Promise.race([output.catch(() => undefined), Bun.sleep(100)]);
+    throw new Error(`Codex timed out after ${timeoutMs >= 1000 ? `${timeoutMs / 1000} seconds` : `${timeoutMs}ms`}`);
+  }
+  const [exitCode, stdout, stderr] = result;
+  return { exitCode, stdout, stderr };
+}
+
 export function parseCodexJsonl(raw: string): CodexResult {
   let text = "";
   let inputTokens = 0;
   let outputTokens = 0;
+  let sawCompletion = false;
+  let lineNumber = 0;
 
   for (const line of raw.split(/\r?\n/)) {
+    lineNumber += 1;
     if (!line.trim()) continue;
-    let event: Record<string, unknown>;
+    let parsed: unknown;
     try {
-      const parsed: unknown = JSON.parse(line);
-      if (!parsed || typeof parsed !== "object") continue;
-      event = parsed as Record<string, unknown>;
+      parsed = JSON.parse(line);
     } catch {
-      continue;
+      throw new Error(`Codex returned malformed JSONL on line ${lineNumber}`);
     }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error(`Codex returned malformed JSONL on line ${lineNumber}`);
+    }
+    const event = parsed as Record<string, unknown>;
     const item = event.item;
     if (
       event.type === "item.completed"
       && item
       && typeof item === "object"
+      && !Array.isArray(item)
       && "type" in item
       && item.type === "agent_message"
       && "text" in item
@@ -68,53 +154,77 @@ export function parseCodexJsonl(raw: string): CodexResult {
     ) {
       text = item.text;
     }
-    const usage = event.usage;
-    if (event.type === "turn.completed" && usage && typeof usage === "object") {
-      const input = "input_tokens" in usage ? usage.input_tokens : 0;
-      const output = "output_tokens" in usage ? usage.output_tokens : 0;
-      inputTokens = typeof input === "number" ? input : 0;
-      outputTokens = typeof output === "number" ? output : 0;
+    if (event.type === "turn.completed") {
+      sawCompletion = true;
+      const usage = event.usage;
+      if (usage && typeof usage === "object" && !Array.isArray(usage)) {
+        const input = "input_tokens" in usage ? usage.input_tokens : 0;
+        const output = "output_tokens" in usage ? usage.output_tokens : 0;
+        inputTokens = typeof input === "number" ? input : 0;
+        outputTokens = typeof output === "number" ? output : 0;
+      }
     }
   }
 
   if (!text.trim()) throw new Error("Codex returned empty response");
+  if (!sawCompletion) throw new Error("Codex response did not include turn.completed");
   return { text, model: "codex", inputTokens, outputTokens };
 }
 
-export async function runCodexCli(prompt: string, model?: string): Promise<AiResult> {
-  const args = ["codex", "exec", "--json", "--ephemeral", "--skip-git-repo-check"];
+export async function getCodexStatus(options: CodexCliOptions = {}): Promise<CodexStatus> {
+  const executable = codexExecutable(options);
+  try {
+    const result = await runCodexProcess(
+      [executable, "login", "status"],
+      { ...options, timeoutMs: options.timeoutMs ?? CODEX_STATUS_TIMEOUT_MS },
+    );
+    if (result.exitCode === 0) return { ready: true };
+    const detail = compactCodexDetail(result.stdout, result.stderr);
+    return {
+      ready: false,
+      reason: detail || "Codex is not authenticated. Run `codex login`.",
+    };
+  } catch (error) {
+    if (isMissingExecutable(error)) {
+      return { ready: false, reason: `Codex executable not found: ${executable}` };
+    }
+    const detail = error instanceof Error ? error.message : String(error);
+    return { ready: false, reason: `Unable to check Codex login status: ${detail}` };
+  }
+}
+
+export async function runCodexCli(
+  prompt: string,
+  model?: string,
+  options: CodexCliOptions = {},
+): Promise<AiResult> {
+  const startedAt = Date.now();
+  const executable = codexExecutable(options);
+  const args = [executable, "exec", "--json", "--ephemeral", "--skip-git-repo-check"];
   if (model?.trim()) args.push("--model", model.trim());
   args.push("-");
-  const proc = Bun.spawn(args, { stdin: "pipe", stdout: "pipe", stderr: "pipe" });
-  proc.stdin.write(prompt);
-  proc.stdin.end();
-
-  let timedOut = false;
-  const timeout = setTimeout(() => {
-    timedOut = true;
-    proc.kill();
-  }, 90_000);
-  const [exitCode, stdout, stderr] = await Promise.all([
-    proc.exited,
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-  ]);
-  clearTimeout(timeout);
-
-  if (timedOut) throw new Error("Codex timed out after 90 seconds");
-  if (exitCode !== 0) {
-    const detail = stderr.trim().replace(/\s+/g, " ").slice(0, 240);
+  let result: CodexProcessResult;
+  try {
+    result = await runCodexProcess(args, options, prompt);
+  } catch (error) {
+    if (isMissingExecutable(error)) {
+      throw new Error(`Codex executable not found: ${executable}`);
+    }
+    throw error;
+  }
+  if (result.exitCode !== 0) {
+    const detail = compactCodexDetail(result.stderr);
     throw new Error(`Codex CLI failed. Run \`codex login\` to authenticate.${detail ? ` ${detail}` : ""}`);
   }
-  const result = parseCodexJsonl(stdout);
+  const parsed = parseCodexJsonl(result.stdout);
   return {
-    analysis: result.text,
+    analysis: parsed.text,
     usage: {
-      inputTokens: result.inputTokens,
-      outputTokens: result.outputTokens,
+      inputTokens: parsed.inputTokens,
+      outputTokens: parsed.outputTokens,
       costUsd: 0,
-      durationMs: 0,
-      model: model?.trim() || result.model,
+      durationMs: Date.now() - startedAt,
+      model: model?.trim() || parsed.model,
     },
   };
 }

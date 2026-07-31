@@ -14,6 +14,9 @@ import type {
   StructuredRequest,
   TextRequest,
 } from "./ai-types";
+export { createCodexChatResponse } from "./codex-chat-stream";
+export { getCodexStatus, parseCodexJsonl, runCodexCli } from "./providers";
+export type { CodexCliOptions, CodexResult, CodexStatus } from "./providers";
 
 export type ProviderAdapterConfig = {
   feature: AiFeature;
