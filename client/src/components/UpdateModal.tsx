@@ -86,7 +86,7 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
         <div className="flex items-center justify-between px-5 py-4 border-b border-app-border">
           <h2 className="text-sm font-semibold text-app-text">{stage === "complete" ? m.update_title_complete() : stage ? m.update_title_updating() : m.update_title_available()}</h2>
           {!isUpdating && (
-            <Button variant="app-ghost" size="icon-sm" onClick={onClose} className="!h-auto !w-auto !p-1.5 text-app-text-muted hover:text-app-text" aria-label={m.common_close()}>
+            <Button variant="close-action" size="icon-sm" onClick={onClose} aria-label={m.common_close()}>
               <X className="size-4" />
             </Button>
           )}
@@ -115,7 +115,7 @@ export function UpdateModal({ version, newReleases, onClose }: { version: string
                         <ReleaseNotes notes={latest.notes} />
                       </div>
                       {older.length > 0 && !showAllReleases && (
-                        <Button variant="app-ghost" size="app-sm" onClick={() => setShowAllReleases(true)} className="!p-0 text-xs text-app-accent hover:underline">
+                        <Button variant="app-ghost" size="app-sm" onClick={() => setShowAllReleases(true)}>
                           {m.update_show_earlier_prefix()} {older.length} {m.update_show_earlier_suffix()}
                         </Button>
                       )}

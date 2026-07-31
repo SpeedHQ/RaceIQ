@@ -222,7 +222,7 @@ export function MotecImportModal({ onClose, onImported }: { onClose: () => void;
               <Button variant="app-outline" size="app-md" onClick={onClose} disabled={busy}>
                 Cancel
               </Button>
-              <Button variant="app-outline" size="app-md" onClick={submit} disabled={!canSubmit} className="text-app-accent border-app-accent/40 disabled:opacity-50">
+              <Button variant="app-primary" size="app-md" onClick={submit} disabled={!canSubmit}>
                 {busy ? "Importing…" : "Import"}
               </Button>
             </div>

@@ -14,7 +14,7 @@ import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
  */
 export function AnalysisSummaryRow({ title, detail, onView }: { title?: string; detail: string; onView: () => void }) {
   return (
-    <Button variant="app-ghost" size="app-sm" onClick={onView} className="w-full justify-start gap-2 bg-status-success/10 !px-2 !py-1.5 text-left hover:bg-status-success/15">
+    <Button variant="full-width-action" size="app-sm" onClick={onView}>
       <Sparkles className="size-3 shrink-0 text-status-success" />
       <div className="min-w-0 flex-1">
         <div className="text-app-caption font-semibold uppercase tracking-wider text-status-success">{title ?? m.compare_analysis_complete()}</div>
@@ -81,12 +81,12 @@ export function AnalysisModalShell({
                   >
                     {tab.label}
                     {tab.badge !== undefined && (
-                      <Badge variant="neutral" size="compact" className="border-0 bg-app-border-input/30 text-app-text-secondary">
+                      <Badge variant="neutral" size="compact">
                         {tab.badge}
                       </Badge>
                     )}
                     {tab.flag && (
-                      <Badge variant="warning" size="compact" className="border-ai-accent/20 bg-ai-accent/15 text-ai-accent">
+                      <Badge variant="ai-status" size="compact">
                         {tab.flag}
                       </Badge>
                     )}
@@ -96,7 +96,7 @@ export function AnalysisModalShell({
             </TabsList>
           </Tabs>
           {subtitle && <span className="text-app-compact text-app-text-secondary truncate ml-2">{subtitle}</span>}
-          <Button variant="app-ghost" size="icon-sm" onClick={onClose} className="ml-auto shrink-0 pl-2 text-app-text-muted" aria-label={m.common_close()}>
+          <Button variant="close-action" size="icon-sm" onClick={onClose} className="ml-auto shrink-0" aria-label={m.common_close()}>
             <X className="size-4" />
           </Button>
         </DialogHeader>

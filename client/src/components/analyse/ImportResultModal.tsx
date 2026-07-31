@@ -49,7 +49,7 @@ export function ImportResultModal({ fileName, packetCount, laps, sameGame, gameL
             {m.common_close()}
           </Button>
           {laps.length > 0 && onGoToSession && (
-            <Button variant="app-outline" size="app-sm" className="bg-app-accent/15 !border-app-accent/40 text-app-accent hover:bg-app-accent/25" onClick={onGoToSession}>
+            <Button variant="selected-toggle" size="app-sm" onClick={onGoToSession}>
               {sameGame ? m.analyse_import_view_session() : m.analyse_import_go_to_game({ game: gameLabel })}
             </Button>
           )}

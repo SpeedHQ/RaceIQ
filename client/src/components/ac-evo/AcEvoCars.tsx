@@ -56,9 +56,8 @@ export function AcEvoCars() {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex gap-1">
           <Button
-            variant="app-ghost"
+            variant={filterClass ? "app-ghost" : "selected-toggle"}
             size="app-sm"
-            className={`!h-auto !px-3 !py-1 text-xs font-semibold ${!filterClass ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
             onClick={() => setFilterClass(null)}
           >
             {m.acevocars_filter_all()}
@@ -68,10 +67,9 @@ export function AcEvoCars() {
             return (
               <Button
                 key={cls}
-                variant="app-ghost"
+                variant={filterClass === cls ? "selected-toggle" : "app-ghost"}
                 size="app-sm"
                 data-catalog-category={cls}
-                className={`!h-auto !px-3 !py-1 text-xs font-semibold ${filterClass === cls ? "catalog-category" : "text-app-text-muted hover:text-app-text-secondary"}`}
                 onClick={() => setFilterClass(filterClass === cls ? null : cls)}
               >
                 {cls} ({count})
@@ -86,7 +84,7 @@ export function AcEvoCars() {
         return (
           <div key={cls}>
             <div className="flex items-center gap-2 mb-3">
-              <Badge variant="neutral" size="default" className="catalog-category border-transparent text-xs font-bold" data-catalog-category={cls}>
+              <Badge variant="catalog-category" size="default" data-catalog-category={cls}>
                 {cls}
               </Badge>
               <span className="text-xs text-app-text-dim">{classCars.length} cars</span>
@@ -107,7 +105,7 @@ export function AcEvoCars() {
                           <div className="text-sm font-semibold text-app-text leading-tight">{car.name}</div>
                           <div className="text-xs text-app-text-muted mt-0.5">{brand}</div>
                         </div>
-                        <Badge variant="neutral" size="compact" className="catalog-category shrink-0 border-transparent text-xs font-bold" data-catalog-category={cls}>
+                        <Badge variant="catalog-category" size="compact" className="shrink-0" data-catalog-category={cls}>
                           {cls}
                         </Badge>
                       </div>

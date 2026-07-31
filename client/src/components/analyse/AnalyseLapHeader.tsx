@@ -182,7 +182,7 @@ export function AnalyseLapHeader({
             </Button>
           )}
           {selectedLapId != null && (
-            <Button variant="app-outline" size="app-md" onClick={onDeleteLap} className="text-status-danger border-status-danger/30 hover:bg-status-danger/10">
+            <Button variant="destructive-outline" size="app-md" onClick={onDeleteLap}>
               <Trash2 className="size-3.5" />
               {m.common_delete()}
             </Button>
@@ -248,7 +248,7 @@ export function AnalyseLapHeader({
             ]}
           />
           {hasTelemetry && (
-            <Button variant="app-outline" size="app-lg" onClick={onToggleAi} className={aiPanelOpen ? "text-app-accent border-app-accent/40 bg-app-accent/10" : "hover:text-app-accent"}>
+            <Button variant={aiPanelOpen ? "selected-toggle" : "app-outline"} size="app-lg" onClick={onToggleAi}>
               <Sparkles className="size-3.5" />
               {m.label_ai_analysis()}
             </Button>
