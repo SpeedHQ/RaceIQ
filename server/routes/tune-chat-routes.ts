@@ -22,8 +22,8 @@ import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-optio
 import { startDetachedAgentTurn } from "../ai/agent-stream";
 import { reserveChatRun, buildReplayStream } from "../ai/chat-run-registry";
 import { createUIMessageStreamResponse } from "ai";
-import { createCodexChatResponse } from "../ai/codex-chat-stream";
-import { getConfiguredAiProvider } from "../ai/provider-runtime";
+import { resolveAi } from "../ai/ai-runtime";
+import type { ResolvedAi } from "../ai/ai-types";
 import { sessionAgentForFocus } from "../ai/agents";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiment-focus";
 import { buildSetupEngineerSystemPrompt } from "../../mastra/agents/setup-engineer";
@@ -212,28 +212,15 @@ export const tuneChatRoutes = new Hono()
         console.error("[SetupEngineer] prereq workflow failed:", err?.message);
       }
 
-      // Provider/key/model plumbing — inlined from startChatStream (see
-      // ../ai/chat-stream.ts) since this route no longer uses the shared
-      // NDJSON helper (assistant-ui speaks the AI SDK v5 UI-message-stream
-      // protocol instead). Keep this block in sync with chat-stream.ts if
-      // the provider matrix changes.
       const settings = loadSettings();
-      let chatRuntime;
+      let ai: ResolvedAi;
       try {
-        chatRuntime = await getConfiguredAiProvider("chat", settings);
-      } catch (err) {
-        return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
+        ai = await resolveAi("chat", settings);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        return c.json({ error: message }, 400);
       }
-      const chatProvider = chatRuntime.provider;
-
-      // Same model-label fallback chain chat-stream.ts uses, so thinking support
-      // is detected off the model that will actually run.
-      const chatModelLabel = settings.chatModel
-        || (chatProvider === "openai"
-          ? "gpt-4o-mini"
-          : chatProvider === "local"
-            ? "local-model"
-            : "gemini-flash-latest");
+      const chatModelLabel = ai.model;
 
       // Captured before the turn runs so the onFinish reasoning-patch below can
       // tell *this* turn's freshly-saved assistant row apart from any earlier
@@ -249,16 +236,16 @@ export const tuneChatRoutes = new Hono()
       if (gatheredContext) systemSegments.push(gatheredContext);
       if (extendedContext) systemSegments.push(extendedContext);
 
-      if (chatProvider === "codex") {
+      if (ai.createChatResponse) {
         try {
-          return await createCodexChatResponse({
+          return await ai.createChatResponse({
             systemPrompt: systemSegments.join("\n\n"),
             messages,
-            model: settings.chatModel,
           });
-        } catch (err) {
-          console.error("[SetupEngineer] Codex CLI failed:", err);
-          return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error("[SetupEngineer] Codex CLI failed:", message);
+          return c.json({ error: message }, 500);
         }
       }
       // Reserve (or re-attach to) this thread's detached run BEFORE calling

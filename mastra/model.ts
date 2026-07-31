@@ -192,11 +192,23 @@ function reasoningContentToThinkFetch(baseFetch: FetchFunction): FetchFunction {
   }) as FetchFunction;
 }
 
+export type MastraProviderConfig = {
+  provider: string;
+  model: string;
+  localEndpoint?: string;
+};
+
+export function getMastraModelId(config: MastraProviderConfig): string | OpenAIModel;
+export function getMastraModelId(provider: string, model: string, localEndpoint?: string): string | OpenAIModel;
 export function getMastraModelId(
-  provider: string,
-  model: string,
-  localEndpoint?: string,
+  providerOrConfig: string | MastraProviderConfig,
+  legacyModel?: string,
+  legacyLocalEndpoint?: string,
 ): string | OpenAIModel {
+  const config = typeof providerOrConfig === "string"
+    ? { provider: providerOrConfig, model: legacyModel ?? "", localEndpoint: legacyLocalEndpoint }
+    : providerOrConfig;
+  const { provider, model, localEndpoint } = config;
   switch (provider) {
     case "gemini":
       return `google/${model || "gemini-flash-latest"}`;

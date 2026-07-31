@@ -9,8 +9,7 @@
  * helpers directly since we want a single structured turn, not a chat agent.
  */
 import type { GameId } from "../../shared/types";
-import { runCodexCli, runGemini, runOpenAi } from "./providers";
-import { getConfiguredAiProvider } from "./provider-runtime";
+import { resolveAi } from "./ai-runtime";
 import {
   getTuneIntentJsonSchema,
   parseTuneIntents,
@@ -150,30 +149,15 @@ async function runTuneIntentProvider(
   prompt: string,
   schema: object,
 ): Promise<{ raw: string; model: string }> {
-  const runtime = await getConfiguredAiProvider("autoTune");
-  const provider = runtime.provider;
-  const tuneModel = runtime.model;
-
-  switch (provider) {
-    case "codex": {
-      const r = await runCodexCli(prompt, tuneModel);
-      return { raw: r.analysis, model: r.usage.model };
-    }
-    case "openai": {
-      const r = await runOpenAi(prompt, runtime.apiKey ?? "", tuneModel, schema, "tune_intents");
-      return { raw: r.analysis, model: r.usage.model };
-    }
-    case "local": {
-      const r = await runOpenAiLocal(prompt, runtime.localEndpoint, tuneModel, schema);
-      return { raw: r.analysis, model: r.usage.model };
-    }
-    case "gemini": {
-      const r = await runGemini(prompt, runtime.apiKey ?? "", tuneModel, schema);
-      return { raw: r.analysis, model: r.usage.model };
-    }
-  }
+  const ai = await resolveAi("autoTune");
+  const result = await ai.generateStructured({
+    prompt,
+    schema,
+    schemaName: "tune_intents",
+    temperature: 0.3,
+  });
+  return { raw: result.analysis, model: result.usage.model };
 }
-
 /**
  * Run the intent request against the configured provider and parse the result.
  * Throws (with a user-facing message) when the provider fails or the model
@@ -220,43 +204,4 @@ export async function requestTuneIntentsFromChat(
     throw new Error("AI returned an invalid tune-intent response. Try again or switch models.");
   }
   return { intents: parsed.data, model };
-}
-
-/** OpenAI-compatible call against a local endpoint (no API key required). */
-async function runOpenAiLocal(
-  prompt: string,
-  baseUrl: string,
-  model: string,
-  schema: object,
-): ReturnType<typeof runOpenAi> {
-  // runOpenAi hard-codes the OpenAI host, so hit the local endpoint inline.
-  const start = performance.now();
-  const res = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "user", content: prompt }],
-      response_format: {
-        type: "json_schema",
-        json_schema: { name: "tune_intents", strict: true, schema },
-      },
-      temperature: 0.3,
-    }),
-  });
-  const durationMs = Math.round(performance.now() - start);
-  if (!res.ok) throw new Error(`Local model error: ${res.status}`);
-  const data = (await res.json()) as any;
-  const text = data.choices?.[0]?.message?.content ?? "";
-  if (!text.trim()) throw new Error("Local model returned empty response");
-  return {
-    analysis: text,
-    usage: {
-      inputTokens: data.usage?.prompt_tokens ?? 0,
-      outputTokens: data.usage?.completion_tokens ?? 0,
-      costUsd: 0,
-      durationMs,
-      model,
-    },
-  };
 }

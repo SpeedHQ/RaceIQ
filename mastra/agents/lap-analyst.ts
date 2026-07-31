@@ -31,7 +31,25 @@ export const lapAnalystAgent = new Agent({
   id: "lap-analyst",
   name: "Lap Analyst",
   instructions: LAP_ANALYST_INSTRUCTIONS,
-  model: () => {
+  model: ({ requestContext }) => {
+    const configured = requestContext?.get("aiProviderConfig");
+    if (
+      configured
+      && typeof configured === "object"
+      && "provider" in configured
+      && "model" in configured
+      && typeof configured.provider === "string"
+      && typeof configured.model === "string"
+    ) {
+      const localEndpoint = "localEndpoint" in configured && typeof configured.localEndpoint === "string"
+        ? configured.localEndpoint
+        : undefined;
+      return getMastraModelId({
+        provider: configured.provider,
+        model: configured.model,
+        localEndpoint,
+      });
+    }
     const s = loadSettings();
     return getMastraModelId(s.aiProvider, s.aiModel, s.localEndpoint);
   },

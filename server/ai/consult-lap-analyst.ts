@@ -16,16 +16,12 @@ import type { GameId } from "../../shared/types";
 import { getCorners } from "../db/queries";
 import { detectCorners } from "../corner-detection";
 import { loadSettings } from "../settings";
-import { runCodexCli } from "./providers";
-import { getConfiguredAiProvider } from "./provider-runtime";
+import { resolveAi } from "./ai-runtime";
 import { buildAnalystPrompt } from "./analyst-prompt";
 import { resolveTrack } from "../track-info";
-// Import the raw Lap Analyst agent directly (not via ./agents) to avoid a module
-// cycle: ./agents → setup-engineer agent → its tools → this file. The raw agent
-// has no such back-edge. We lose the dev-only observability wrapper here, which
-// the setup-engineer consult doesn't need.
-import { lapAnalystAgent } from "../../mastra/agents/lap-analyst";
+import { RequestContext } from "@mastra/core/request-context";
 import { loadRepresentativeLap } from "./setup-engineer-context";
+import { lapAnalystAgent } from "../../mastra/agents/lap-analyst";
 
 export interface LapAnalystConsult {
   available: boolean;
@@ -53,21 +49,20 @@ export async function consultLapAnalystForSession(sessionId: number): Promise<La
     undefined,
     settings.language,
   );
-
-  const runtime = await getConfiguredAiProvider("analysis", settings);
-  const provider = runtime.provider;
-  if (provider === "codex") {
-    const result = await runCodexCli(prompt, runtime.model);
-    const text = result.analysis.trim();
-    return { available: true, summary: text || "Lap Analyst returned no content." };
-  }
-
-  const hideTools = provider === "local";
-  const result = await lapAnalystAgent.generate(prompt, {
-    maxSteps: 5,
-    ...(hideTools ? { activeTools: [] as never[] } : {}),
-    modelSettings: { maxOutputTokens: 4096, temperature: 0 },
+  const ai = await resolveAi("analysis", settings);
+  const requestContext = new RequestContext();
+  requestContext.set("aiProviderConfig", {
+    provider: ai.provider,
+    model: ai.model,
+    localEndpoint: settings.localEndpoint,
   });
-  const text = typeof result.text === "string" ? result.text.trim() : "";
+  const result = ai.createChatResponse
+    ? await ai.generateText({ prompt, maxOutputTokens: 4096, temperature: 0 })
+    : await lapAnalystAgent.generate(prompt, {
+        maxSteps: 5,
+        modelSettings: { maxOutputTokens: 4096, temperature: 0 },
+        requestContext,
+      });
+  const text = ("analysis" in result ? result.analysis : result.text ?? "").trim();
   return { available: true, summary: text || "Lap Analyst returned no content." };
 }

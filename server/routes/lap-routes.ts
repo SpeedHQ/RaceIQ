@@ -50,6 +50,7 @@ import { getGame } from "../../shared/games/registry";
 import type { GameId } from "../../shared/types";
 import { loadSettings } from "../settings";
 import { buildAnalystPrompt } from "../ai/analyst-prompt";
+import { compareEngineerPersona } from "../ai/compare-engineer";
 import { resolveTrack } from "../track-info";
 import {
   computeNativeSectorTimeline,
@@ -73,21 +74,20 @@ import { promisify } from "util";
 const gzipAsync = promisify(gzip);
 import { buildChatSystemPrompt } from "../ai/chat-prompt";
 import { buildCompareChatSystemPrompt } from "../ai/compare-chat-prompt";
-import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
 import { streamAgentTurnResponse } from "../ai/agent-stream";
 import { MessageList } from "@mastra/core/agent";
+import { RequestContext } from "@mastra/core/request-context";
 import { topCatalogReferences, normalizePacketSetup, getCatalogDisplayName } from "../ai/f1-setup-catalog";
 import type { TelemetryPacket } from "../../shared/types";
 import { buildInputsComparePrompt, InputsCompareSchema, type PromptSegment } from "../ai/inputs-compare-prompt";
 // Dev uses the full Mastra instance (so Studio sees traces); prod tree-shakes
 // the Mastra wrapper out. See `server/ai/agents.ts` for the switch.
-import { lapAnalystAgent, lapChatAgent, compareEngineerAgent, compareChatAgent } from "../ai/agents";
-import { buildGoogleProviderOptions, buildGoogleThinkingProviderOptions } from "../ai/google-provider-options";
+import { lapAnalystAgent, lapChatAgent, compareChatAgent } from "../ai/agents";
+import { buildGoogleProviderOptions, buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
 import { toClientAiError } from "../ai/provider-error";
 import { extractJson } from "../ai/extract-json";
-import { runCodexCli } from "../ai/providers";
-import { getConfiguredAiProvider } from "../ai/provider-runtime";
-import { createCodexChatResponse } from "../ai/codex-chat-stream";
+import type { ResolvedAi } from "../ai/ai-types";
+import { resolveAi } from "../ai/ai-runtime";
 import { resolveLapF1Setup } from "../ai/f1-setup-identity";
 
 /**
@@ -733,25 +733,23 @@ export const lapRoutes = new Hono()
       prompt += buildF1SetupReferenceBlock(lap.carSetup, lap.telemetry, lap.trackOrdinal ?? -1);
     }
 
-    let runtime;
+    let ai: ResolvedAi;
     try {
-      runtime = await getConfiguredAiProvider("analysis", settings);
+      ai = await resolveAi("analysis", settings);
     } catch (err) {
       return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
     }
-    const analystProvider = runtime.provider;
 
     // Analyse returns a heartbeat-style NDJSON stream: `ping` every ~200s
     // to keep Bun's 255s idleTimeout alive for slow local models, then a
     // single `result` (or `error`) event at the end. The client doesn't
-    const modelLabel = settings.aiModel
-      || (analystProvider === "openai"
-        ? "gpt-4o-mini"
-        : analystProvider === "codex"
-          ? "codex"
-          : analystProvider === "local"
-            ? "local-model"
-            : "gemini-flash-latest");
+    const modelLabel = ai.model;
+    const analysisContext = new RequestContext();
+    analysisContext.set("aiProviderConfig", {
+      provider: ai.provider,
+      model: ai.model,
+      localEndpoint: settings.localEndpoint,
+    });
     const startedAt = Date.now();
     const encoder = new TextEncoder();
     const writeEvent = (c: ReadableStreamDefaultController, obj: unknown) => {
@@ -761,7 +759,6 @@ export const lapRoutes = new Hono()
         /* closed */
       }
     };
-    const hideTools = analystProvider === "local";
 
     const readable = new ReadableStream({
       async start(controller) {
@@ -769,13 +766,18 @@ export const lapRoutes = new Hono()
           writeEvent(controller, { type: "ping" });
         }, 200_000);
         try {
-          const codexResult = analystProvider === "codex" ? await runCodexCli(prompt, settings.aiModel) : null;
-          const result = codexResult
-            ? { text: codexResult.analysis, usage: codexResult.usage }
+          const result = ai.createChatResponse
+            ? await ai.generateStructured({
+                prompt,
+                schema: getAnalystJsonSchema(),
+                schemaName: "analyst_output",
+                maxOutputTokens: 8192,
+                temperature: 0,
+              })
             : await lapAnalystAgent.generate(prompt, {
                 maxSteps: 5,
-                ...(hideTools ? { activeTools: [] as never[] } : {}),
                 modelSettings: { maxOutputTokens: 8192, temperature: 0 },
+                requestContext: analysisContext,
                 providerOptions: {
                   openai: {
                     reasoningEffort: "medium",
@@ -788,10 +790,18 @@ export const lapRoutes = new Hono()
                       },
                     } as never,
                   },
-                  google: buildGoogleProviderOptions(modelLabel, getAnalystJsonSchema() as Record<string, unknown>, settings.aiThinkingBudget) as never,
+                  google: buildGoogleProviderOptions(
+                    modelLabel,
+                    getAnalystJsonSchema() as Record<string, unknown>,
+                    settings.aiThinkingBudget,
+                  ) as never,
                 },
               });
-          const rawText = typeof result.text === "string" ? result.text : "";
+          const rawText = "analysis" in result
+            ? result.analysis
+            : typeof result.text === "string"
+              ? result.text
+              : "";
           let text = rawText;
           const durationMs = Date.now() - startedAt;
           let validJson = false;
@@ -921,33 +931,24 @@ export const lapRoutes = new Hono()
     // Build chat prompt
     const systemPrompt = buildChatSystemPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, analysisJson, settings.language);
 
-    // Provider/key/model plumbing — inlined from the old startChatStream
-    // helper (removed, was the NDJSON transport's shared provider setup)
-    // since this route now speaks the AI SDK v5 UI-message-stream
-    // protocol instead).
-    let chatRuntime;
+    let ai: ResolvedAi;
     try {
-      chatRuntime = await getConfiguredAiProvider("chat", settings);
-    } catch (err) {
-      return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
+      ai = await resolveAi("chat", settings);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      return c.json({ error: message }, 400);
     }
-    const chatProvider = chatRuntime.provider;
-    if (chatProvider === "codex") {
+    if (ai.createChatResponse) {
       try {
-        return await createCodexChatResponse({ systemPrompt, messages, model: chatRuntime.model });
-      } catch (err) {
-        console.error("[Chat] Codex CLI failed:", err);
-        return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
+        return await ai.createChatResponse({ systemPrompt, messages });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[Chat] Codex CLI failed:", message);
+        return c.json({ error: message }, 500);
       }
     }
 
-    const chatModelLabel = settings.chatModel
-      || (chatProvider === "openai"
-        ? "gpt-4o-mini"
-        : chatProvider === "local"
-          ? "local-model"
-          : "gemini-flash-latest");
-
+    const chatModelLabel = ai.model;
     const threadId = await resolveActiveThread(chatThreadId(id));
     const turnStartedAt = Date.now();
     try {
@@ -1218,81 +1219,53 @@ export const lapRoutes = new Hono()
         buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
     );
 
-    // Set provider env vars before calling Mastra (the dynamic model resolver
-    // reads settings at request time but env-based API keys must be in scope).
-    let analysisRuntime;
+    let analysisAi: ResolvedAi;
     try {
-      analysisRuntime = await getConfiguredAiProvider("analysis", settings);
+      analysisAi = await resolveAi("analysis", settings);
     } catch (err) {
       return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
     }
-    if (analysisRuntime.provider === "codex") {
+    if (analysisAi.createChatResponse) {
       return c.json({ error: "Codex CLI is not supported for comparison analysis yet." }, 400);
     }
 
     try {
       const start = performance.now();
-      const result = await compareEngineerAgent.generate(prompt, {
-        structuredOutput: {
-          schema: InputsCompareSchema,
-          // LM Studio only accepts `response_format: json_schema` (it rejects
-          // json_object), and for reasoning models such as qwen3.5 it emits the
-          // schema-constrained JSON into `reasoning_content` while leaving
-          // `content` empty — so no object is ever parsed and this route throws.
-          // Prompt injection keeps the answer on the plain-text channel, which
-          // those models fill normally. Hosted providers parse native structured
-          // output fine, so only the local path opts in.
-          ...(settings.aiProvider === "local" ? { jsonPromptInjection: true } : {}),
-        },
-        // Every other AI route already caps output and disables reasoning on
-        // local models (analyse, lap chat, compare chat). This one did not, so
-        // a thinking model such as qwen3.5 could reason unboundedly and push the
-        // request past Bun.serve's 255s idleTimeout — surfacing to the client as
-        // a bare "socket hang up" from the Vite proxy.
-        modelSettings: { maxOutputTokens: 8192, temperature: 0 },
-        providerOptions: {
-          openai: { reasoningEffort: "medium" },
-          google: buildGoogleThinkingProviderOptions(
-            settings.aiModel || "gemini-flash-latest",
-            settings.aiThinkingBudget,
-          ) as never,
-        },
+      const result = await analysisAi.generateStructured({
+        system: compareEngineerPersona(settings.unit, settings.temperatureUnit, settings.language, { json: true }),
+        prompt,
+        schema: InputsCompareSchema,
+        schemaName: "inputs_compare",
+        maxOutputTokens: 8192,
+        temperature: 0,
       });
       const durationMs = Math.round(performance.now() - start);
-
-      const object = (result as any).object;
-      if (!object) {
-        throw new Error(
-          settings.aiProvider === "local"
-            ? `Model "${settings.aiModel}" returned no output matching the expected structure. Some local models do not reliably emit structured JSON — try another model in Settings → AI Analysis.`
-            : "Compare engineer returned no structured object",
-        );
-      }
+      const object = InputsCompareSchema.parse(JSON.parse(extractJson(result.analysis)));
 
       // Merge server-authoritative segment types into the model response so
       // named corners never appear as "straight". Match by name first; fall
       // back to positional order (both lists are emitted in the same order).
       if (Array.isArray(object.segments) && segments) {
         const byName = new Map(segments.map((s) => [s.name, s.type]));
-        object.segments = object.segments.map((seg: any, i: number) => ({
+        object.segments = object.segments.map((seg, i) => ({
           ...seg,
           type: byName.get(seg.name) ?? segments[i]?.type ?? "straight",
         }));
       }
       const analysisJson = JSON.stringify(object);
-      const totalUsage = (result as any).totalUsage ?? (result as any).usage ?? {};
       const usage = {
-        inputTokens: totalUsage.inputTokens ?? totalUsage.promptTokens ?? 0,
-        outputTokens: totalUsage.outputTokens ?? totalUsage.completionTokens ?? 0,
-        costUsd: 0,
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        costUsd: result.usage.costUsd,
         durationMs,
-        model: settings.aiModel || settings.aiProvider,
+        model: analysisAi.model,
       };
       await saveCompareAnalysis(id1, id2, analysisJson, usage, "inputs");
       return c.json({ analysis: analysisJson, cached: false, usage });
-    } catch (err: any) {
-      console.error("[InputsCompare] Failed:", err.message);
-      return c.json({ error: err.message }, err.message.includes("timed out") ? 504 : 500);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[InputsCompare] Failed:", message);
+      return c.json({ error: message }, message.includes("timed out") ? 504 : 500);
     }
   })
 
@@ -1393,28 +1366,24 @@ export const lapRoutes = new Hono()
         buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
     );
 
-    let chatRuntime;
+    let ai: ResolvedAi;
     try {
-      chatRuntime = await getConfiguredAiProvider("chat", settings);
-    } catch (err) {
-      return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
+      ai = await resolveAi("chat", settings);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      return c.json({ error: message }, 400);
     }
-    const chatProvider = chatRuntime.provider;
-    if (chatProvider === "codex") {
+    if (ai.createChatResponse) {
       try {
-        return await createCodexChatResponse({ systemPrompt, messages, model: chatRuntime.model });
-      } catch (err) {
-        console.error("[CompareChat] Codex CLI failed:", err);
-        return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
+        return await ai.createChatResponse({ systemPrompt, messages });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[CompareChat] Codex CLI failed:", message);
+        return c.json({ error: message }, 500);
       }
     }
 
-    const chatModelLabel = settings.chatModel
-      || (chatProvider === "openai"
-        ? "gpt-4o-mini"
-        : chatProvider === "local"
-          ? "local-model"
-          : "gemini-flash-latest");
+    const chatModelLabel = ai.model;
 
     const threadId = await resolveActiveThread(compareChatThreadId(id1, id2));
     const turnStartedAt = Date.now();
