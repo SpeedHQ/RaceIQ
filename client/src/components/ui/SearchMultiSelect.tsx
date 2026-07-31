@@ -139,7 +139,7 @@ export function SearchMultiSelect<K extends string | number>({
           </svg>
         </Button>
         {onClear && (
-          <Button type="button" aria-label="Clear selection" variant="search-select-clear" size="app-md" onClick={onClear}>
+          <Button type="button" aria-label={m.label_clear()} variant="search-select-clear" size="app-md" onClick={onClear}>
             <span aria-hidden="true">✕</span>
           </Button>
         )}

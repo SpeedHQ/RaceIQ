@@ -68,7 +68,7 @@ function RecentLapsTable({
             >
               {showGame && (
                 <TD>
-                  <Badge variant="neutral" size="compact" data-game-brand={lap.gameId ?? "fm-2023"} className="game-brand-badge border-transparent text-app-caption font-semibold">
+                  <Badge variant="game-brand" size="compact" data-game-brand={lap.gameId ?? "fm-2023"}>
                     {lap.gameId === "f1-2025" ? "F1" : lap.gameId === "acc" ? "ACC" : lap.gameId === "ac-evo" ? "ACE" : lap.gameId === "iracing" ? "iR" : "FM"}
                   </Badge>
                 </TD>

@@ -427,10 +427,10 @@ export function UserTuneCard({
               </Button>
               {shareOpen && (
                 <div className="absolute left-0 top-full mt-1 z-20 min-w-40 rounded-md border border-app-border bg-app-surface p-1 shadow-lg">
-                  <Button variant="app-ghost" size="app-sm" onClick={handleCopyShare} className="w-full !justify-start !py-1 text-left text-app-text hover:bg-app-accent/20">
+                  <Button variant="menu-action" size="app-sm" onClick={handleCopyShare}>
                     {m.tuneform_copy_clipboard()}
                   </Button>
-                  <Button variant="app-ghost" size="app-sm" onClick={handleDownloadShare} className="w-full !justify-start !py-1 text-left text-app-text hover:bg-app-accent/20">
+                  <Button variant="menu-action" size="app-sm" onClick={handleDownloadShare}>
                     {m.tuneform_download_json()}
                   </Button>
                 </div>
