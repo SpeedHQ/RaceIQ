@@ -56,7 +56,7 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
             return (
               <Button
                 key={f}
-                variant="app-ghost"
+                variant={active ? (f === "driver" ? "focus-toggle-driver" : "focus-toggle-setup") : "focus-toggle"}
                 size="app-sm"
                 aria-pressed={active}
                 title={EXPERIMENT_FOCUS_HINTS[f]}
@@ -67,13 +67,6 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
                   setPending(f);
                   setNote("");
                 }}
-                className={`!rounded-none text-xs transition-colors ${
-                  active
-                    ? f === "driver"
-                      ? "bg-(--focus-driver)/20 text-(--focus-driver) font-semibold"
-                      : "bg-(--focus-setup)/20 text-(--focus-setup) font-semibold"
-                    : "text-app-text-dim hover:text-app-text hover:bg-app-surface-hover/30"
-                }`}
               >
                 {EXPERIMENT_FOCUS_LABELS[f]}
               </Button>
