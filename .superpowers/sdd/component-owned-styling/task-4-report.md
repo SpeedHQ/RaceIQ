@@ -25,3 +25,10 @@
 - `cd client && bun run build`: PASS.
 - `cd client && bun run build-storybook`: PASS.
 - `cd client && bun run snapshot:test -- src/stories/dashboards.snapshot.ts`: RUNNABLE after stopping stale sibling-worktree Storybook on port 6006; 3/7 passed, 4 failed pixel comparisons (F1LiveDashboard, ForzaLiveDashboard, AccLiveDashboard, ComboDash1). Baselines were not updated.
+
+## Snapshot resolution
+- Reviewed generated actual/diff images for the four failures; differences are intentional visual consequences of PR #198 shared component typography/appearance ownership changes, not unrelated layout regressions.
+- Updated only `snapshot-F1LiveDashboard.png`, `snapshot-ForzaLiveDashboard.png`, `snapshot-AccLiveDashboard.png`, and `snapshot-ComboDash1.png` from generated actuals. `assets/screenshots/ForzaLiveDashboard.png` was not touched.
+- `cd client && bun run snapshot:test -- src/stories/dashboards.snapshot.ts`: PASS (7/7).
+- `cd client && bun run build`: PASS.
+- `cd client && bun run build-storybook`: PASS.
