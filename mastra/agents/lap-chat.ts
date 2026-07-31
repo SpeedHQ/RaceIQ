@@ -7,7 +7,6 @@
 import { Agent } from "@mastra/core/agent";
 import { getChatMemory } from "../../server/ai/chat-agent";
 import { getModel } from "../../server/ai/model-provider";
-import { loadSettings } from "../../server/settings";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
