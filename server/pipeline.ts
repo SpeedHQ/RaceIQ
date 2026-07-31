@@ -227,7 +227,7 @@ export class Pipeline {
     const epochBefore = this.recorder.epoch;
     if (rawBuf && this.recorder.active) {
       rawByteOffset = this.recorder.getCurrentByteOffset();
-      this.recorder.writePacket(rawBuf);
+      this.recorder.writeRecord(rawBuf);
     }
 
     // Normalize coordinates so all games use the same display convention.
@@ -252,7 +252,7 @@ export class Pipeline {
     // the detector's lap byte offset so the DB row points at the right place.
     if (rawBuf && this.recorder.active && this.recorder.epoch !== epochBefore) {
       const firstOffset = this.recorder.getCurrentByteOffset();
-      this.recorder.writePacket(rawBuf);
+      this.recorder.writeRecord(rawBuf);
       detector.setCurrentLapByteOffset?.(firstOffset);
     }
 

@@ -31,7 +31,7 @@ tap that produces test fixtures, not user data. It is documented in
 `docs/dev-recordings.md` and deliberately left out here.
 
 The recorder that matters architecturally is the **session recorder**:
-`UdpRecorder`, owned by `Pipeline` (`server/pipeline.ts`) via
+`SessionRecorder`, owned by `Pipeline` (`server/pipeline.ts`) via
 `RealSessionRecorderAdapter`. It writes one packed triplet per record to
 `<DATA_DIR>/sessions/ac-evo/<timestamp>.bin`, each record carrying the `ACEP`
 magic (`ACEVO_PACKED_MAGIC`), and laps in the DB store a byte offset into it.
@@ -66,7 +66,7 @@ flowchart TD
     PACK --> PP["Pipeline.processPacket(packet, rawBuf)"]
 
     subgraph PIPE["server/pipeline.ts"]
-        PP --> OFF["snapshot byte offset<br/>recorder.writePacket(rawBuf)"]
+        PP --> OFF["snapshot byte offset<br/>recorder.writeRecord(rawBuf)"]
         OFF --> NORM["coord normalise + fillNormSuspension"]
         NORM --> LD["LapDetectorAcEvo.feed(packet, rawByteOffset)"]
         LD --> ST["SectorTracker + PitTracker"]
@@ -176,7 +176,7 @@ magic and `tryParse()` calls `unpackTriplet()` before re-parsing.
 Shared with every game. Per packet:
 
 1. Snapshot `recorder.getCurrentByteOffset()` **before** writing, then
-   `recorder.writePacket(rawBuf)`. The offset points at this packet.
+   `recorder.writeRecord(rawBuf)`. The offset points at this packet.
 2. Normalise coordinates (AC Evo is `standard-xyz`, so X is flipped) and fill
    `NormSuspensionTravel`.
 3. `detector.feed(packet, rawByteOffset)`.
@@ -190,9 +190,9 @@ Shared with every game. Per packet:
 Track calibration is skipped for AC Evo — `coordSystem === "standard-xyz"`
 already matches outline space.
 
-### 8. Session recorder file format — `UdpRecorder`
+### 8. Session recorder file format — `SessionRecorder`
 
-Despite the name, this is the generic session writer for all games.
+Generic session writer for all games:
 
 ```
 [meta frame: 0xFFFFFFFF u32le][payloadLen=4 u32le][totalFrames u32le]   (12 bytes)
@@ -201,8 +201,8 @@ Despite the name, this is the generic session writer for all games.
 
 Key behaviours:
 
-- **Lazy open.** The file is not created until the first `writePacket`. Sessions
-  that start and end without packets (menu flapping, shutdown) leave no file.
+- **Lazy open.** The file is not created until the first `writeRecord`. Sessions
+  that start and end without records (menu flapping, shutdown) leave no file.
 - **Append-only.** A hard kill truncates at most the last in-flight write.
 - `totalFrames` is patched into the header on `stop()`.
 - `flush()` is called periodically so DB lap offsets never point past EOF.
@@ -304,7 +304,7 @@ ends up truncated or zero-length, stranding lap byte offsets past EOF.
 | `server/games/shared/pack-triplet.ts` | `ACEP` pack/unpack |
 | `server/pipeline.ts` | Shared per-packet processing, session recorder ownership |
 | `server/pipeline-adapters.ts` | DB / WS / session-recorder adapter seams |
-| `server/udp-recorder.ts` | Session `.bin` writer |
+| `server/session-recorder.ts` | Session `.bin` writer |
 | `server/lap-detector-ac-evo.ts` | Lap boundaries, validity, byte offsets |
 | `server/reprocess.ts` | Replay a session through a fresh detector |
 | `server/session-compressor.ts` | Background gzip of old sessions |

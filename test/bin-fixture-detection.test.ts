@@ -21,7 +21,7 @@ import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
 import { getGame } from "../shared/games/registry";
 import { stopMaintenanceTasks } from "../server/pipeline";
-import { META_FRAME_MAGIC } from "../server/udp-recorder";
+import { META_FRAME_MAGIC } from "../server/session-recorder";
 import { detectGameIdFromBuffer } from "../server/import-session-bin";
 import { getAccTrackName } from "../shared/acc-track-data";
 import { getAccCarName } from "../shared/acc-car-data";
