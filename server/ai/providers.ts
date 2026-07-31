@@ -3,6 +3,7 @@
  */
 
 import { extractJson } from "./extract-json";
+import { AiProviderError } from "./provider-error";
 export interface AiResult {
   analysis: string;
   usage: {
@@ -343,101 +344,152 @@ export const INPUTS_COMPARE_SCHEMA = {
   required: ["verdict", "segments", "coaching"],
 };
 
-/** Run analysis via Gemini API. */
-export async function runGemini(
-  prompt: string,
-  apiKey: string,
-  model?: string,
-  schema: object = ANALYSIS_SCHEMA,
-): Promise<AiResult> {
-  model = model || "gemini-flash-latest";
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+export type GeminiRequestOptions = {
+  prompt: string;
+  apiKey: string;
+  model?: string;
+  schema?: object;
+  temperature?: number;
+  maxOutputTokens?: number;
+};
+
+export async function runGeminiRequest(options: GeminiRequestOptions): Promise<AiResult> {
+  const model = options.model || "gemini-flash-latest";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${options.apiKey}`;
+  const generationConfig: Record<string, unknown> = {
+    temperature: options.temperature ?? 0.3,
+  };
+  if (options.maxOutputTokens != null) generationConfig.maxOutputTokens = options.maxOutputTokens;
+  if (options.schema) {
+    generationConfig.responseMimeType = "application/json";
+    generationConfig.responseSchema = options.schema;
+  }
 
   const start = performance.now();
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: schema,
-        temperature: 0.3,
-      },
+      contents: [{ parts: [{ text: options.prompt }] }],
+      generationConfig,
     }),
   });
-
   const durationMs = Math.round(performance.now() - start);
 
   if (!res.ok) {
     const errBody = await res.text();
     console.error("[AI] Gemini API error:", res.status, errBody);
-    if (res.status === 401 || res.status === 403) {
-      throw new Error("Invalid Gemini API key. Check your key in Settings.");
-    }
-    throw new Error(`Gemini API error: ${res.status}`);
+    throw new AiProviderError(
+      res.status === 401 || res.status === 403
+        ? "Invalid Gemini API key. Check your key in Settings."
+        : `Gemini API error: ${res.status}`,
+      {
+        code: "upstream",
+        provider: "gemini",
+        modelId: model,
+        statusCode: res.status,
+        isRetryable: res.status >= 500,
+        responseBody: errBody,
+      },
+    );
   }
 
-  const data = await res.json() as any;
+  const data = await res.json() as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+  };
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
   if (!text.trim()) throw new Error("Gemini returned empty response");
-
-  const jsonStr = extractJson(text);
-
+  const analysis = options.schema ? extractJson(text) : text.trim();
   const usage = data.usageMetadata ?? {};
   return {
-    analysis: jsonStr,
+    analysis,
     usage: {
       inputTokens: usage.promptTokenCount ?? 0,
       outputTokens: usage.candidatesTokenCount ?? 0,
-      costUsd: 0, // Gemini Flash pricing is negligible
+      costUsd: 0,
       durationMs,
       model,
     },
   };
 }
 
-
-/** Run analysis via OpenAI API. */
-export async function runOpenAi(
+/** Run structured analysis via Gemini API. */
+export async function runGemini(
   prompt: string,
   apiKey: string,
   model?: string,
   schema: object = ANALYSIS_SCHEMA,
-  schemaName: string = "lap_analysis",
 ): Promise<AiResult> {
-  model = model || "gpt-4o-mini";
+  return runGeminiRequest({ prompt, apiKey, model, schema });
+}
+
+export type OpenAiRequestOptions = {
+  prompt: string;
+  apiKey?: string;
+  endpoint?: string;
+  model?: string;
+  schema?: object;
+  schemaName?: string;
+  temperature?: number;
+  maxOutputTokens?: number;
+};
+
+/** Run a request against OpenAI or an OpenAI-compatible endpoint. */
+export async function runOpenAiCompatible(options: OpenAiRequestOptions): Promise<AiResult> {
+  const model = options.model || "gpt-4o-mini";
+  const endpoint = (options.endpoint || "https://api.openai.com/v1").replace(/\/+$/, "");
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (options.apiKey) headers.Authorization = `Bearer ${options.apiKey}`;
+  const body: Record<string, unknown> = {
+    model,
+    messages: [{ role: "user", content: options.prompt }],
+    temperature: options.temperature ?? 0.3,
+  };
+  if (options.maxOutputTokens != null) body.max_tokens = options.maxOutputTokens;
+  if (options.schema) {
+    body.response_format = {
+      type: "json_schema",
+      json_schema: { name: options.schemaName || "lap_analysis", strict: true, schema: options.schema },
+    };
+  }
+
   const start = performance.now();
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+  const res = await fetch(`${endpoint}/chat/completions`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: "user", content: prompt }],
-      response_format: {
-        type: "json_schema",
-        json_schema: { name: schemaName, strict: true, schema },
-      },
-      temperature: 0.3,
-    }),
+    headers,
+    body: JSON.stringify(body),
   });
   const durationMs = Math.round(performance.now() - start);
 
   if (!res.ok) {
     const errBody = await res.text();
-    console.error("[AI] OpenAI API error:", res.status, errBody);
-    if (res.status === 401) throw new Error("Invalid OpenAI API key. Check your key in Settings.");
-    throw new Error(`OpenAI API error: ${res.status}`);
+    console.error("[AI] OpenAI-compatible API error:", res.status, errBody);
+    throw new AiProviderError(
+      res.status === 401
+        ? "Invalid OpenAI API key. Check your key in Settings."
+        : `OpenAI API error: ${res.status}`,
+      {
+        code: "upstream",
+        provider: endpoint === "https://api.openai.com/v1" ? "openai" : "local",
+        modelId: model,
+        statusCode: res.status,
+        isRetryable: res.status >= 500,
+        responseBody: errBody,
+      },
+    );
   }
 
-  const data = await res.json() as any;
+  const data = await res.json() as {
+    choices?: Array<{ message?: { content?: string } }>;
+    usage?: { prompt_tokens?: number; completion_tokens?: number };
+  };
   const text = data.choices?.[0]?.message?.content ?? "";
   if (!text.trim()) throw new Error("OpenAI returned empty response");
-
-  const jsonStr = extractJson(text);
+  const analysis = options.schema ? extractJson(text) : text.trim();
   const usage = data.usage ?? {};
   return {
-    analysis: jsonStr,
+    analysis,
     usage: {
       inputTokens: usage.prompt_tokens ?? 0,
       outputTokens: usage.completion_tokens ?? 0,
@@ -446,6 +498,17 @@ export async function runOpenAi(
       model,
     },
   };
+}
+
+/** Run structured analysis via OpenAI API. */
+export async function runOpenAi(
+  prompt: string,
+  apiKey: string,
+  model?: string,
+  schema: object = ANALYSIS_SCHEMA,
+  schemaName: string = "lap_analysis",
+): Promise<AiResult> {
+  return runOpenAiCompatible({ prompt, apiKey, model, schema, schemaName });
 }
 
 const OPENAI_MODELS = [
