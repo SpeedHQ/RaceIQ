@@ -20,7 +20,9 @@ rmSync(dir, { recursive: true, force: true });
 mkdirSync(dir, { recursive: true });
 writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort: Number(udpPort) }));
 
-const repoDir = resolve(__dirname, "..");
+const repoDir = process.env.RACEIQ_APP_ROOT
+  ? resolve(process.env.RACEIQ_APP_ROOT)
+  : resolve(__dirname, "..");
 const server = spawn("bun", ["run", "server/index.ts"], {
   cwd: repoDir,
   stdio: "inherit",

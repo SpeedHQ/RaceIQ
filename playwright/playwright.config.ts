@@ -5,16 +5,22 @@ import { resolve } from "path";
 // PR CI sets E2E_SERVER_MODE=dev to run the same projects against isolated
 // Bun + Vite development servers instead.
 const E2E_DEV_SERVER = process.env.E2E_SERVER_MODE === "dev";
+const SCREENSHOT_ONLY = process.env.PW_SCREENSHOT_ONLY === "1";
+const APP_ROOT = process.env.RACEIQ_APP_ROOT;
 
 const FRESH_INSTALL_PORT = process.env.PW_FRESH_INSTALL_PORT ?? "3118";
 const FRESH_INSTALL_CLIENT_PORT = process.env.PW_FRESH_INSTALL_CLIENT_PORT ?? "4118";
 const FRESH_INSTALL_UDP_PORT = process.env.PW_FRESH_INSTALL_UDP_PORT ?? "15318";
-const FRESH_INSTALL_DATA_DIR = resolve(__dirname, "test-data");
+const FRESH_INSTALL_DATA_DIR = resolve(
+  process.env.PW_FRESH_INSTALL_DATA_DIR ?? resolve(__dirname, "test-data"),
+);
 
 const TUNES_PORT = process.env.PW_TUNES_PORT ?? "3119";
 const TUNES_CLIENT_PORT = process.env.PW_TUNES_CLIENT_PORT ?? "4119";
 const TUNES_UDP_PORT = process.env.PW_TUNES_UDP_PORT ?? "15319";
-const TUNES_DATA_DIR = resolve(__dirname, "test-data-tunes");
+const TUNES_DATA_DIR = resolve(
+  process.env.PW_TUNES_DATA_DIR ?? resolve(__dirname, "test-data-tunes"),
+);
 
 export default defineConfig({
   testDir: ".",
@@ -98,6 +104,7 @@ export default defineConfig({
             CLIENT_PORT: FRESH_INSTALL_CLIENT_PORT,
             UDP_PORT: FRESH_INSTALL_UDP_PORT,
             NODE_ENV: "test",
+            ...(APP_ROOT ? { RACEIQ_APP_ROOT: APP_ROOT } : {}),
           },
           url: `http://localhost:${FRESH_INSTALL_CLIENT_PORT}`,
           timeout: 120_000,
@@ -105,21 +112,26 @@ export default defineConfig({
           stdout: "pipe",
           stderr: "pipe",
         },
-        {
-          command: `bun start-dev-server.ts`,
-          env: {
-            DATA_DIR: TUNES_DATA_DIR,
-            SERVER_PORT: TUNES_PORT,
-            CLIENT_PORT: TUNES_CLIENT_PORT,
-            UDP_PORT: TUNES_UDP_PORT,
-            NODE_ENV: "test",
-          },
-          url: `http://localhost:${TUNES_CLIENT_PORT}`,
-          timeout: 120_000,
-          reuseExistingServer: false,
-          stdout: "pipe",
-          stderr: "pipe",
-        },
+        ...(SCREENSHOT_ONLY
+          ? []
+          : [
+              {
+                command: `bun start-dev-server.ts`,
+                env: {
+                  DATA_DIR: TUNES_DATA_DIR,
+                  SERVER_PORT: TUNES_PORT,
+                  CLIENT_PORT: TUNES_CLIENT_PORT,
+                  UDP_PORT: TUNES_UDP_PORT,
+                  NODE_ENV: "test",
+                  ...(APP_ROOT ? { RACEIQ_APP_ROOT: APP_ROOT } : {}),
+                },
+                url: `http://localhost:${TUNES_CLIENT_PORT}`,
+                timeout: 120_000,
+                reuseExistingServer: false,
+                stdout: "pipe" as const,
+                stderr: "pipe" as const,
+              },
+            ]),
       ]
     : [
         {
