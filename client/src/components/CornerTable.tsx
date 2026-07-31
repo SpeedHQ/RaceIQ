@@ -1,4 +1,5 @@
 import { m } from "../paraglide/messages";
+import { Table } from "./ui/AppTable";
 
 interface CornerDelta {
   label: string;
@@ -18,7 +19,7 @@ export function CornerTable({ corners }: Props) {
 
   return (
     <div className="overflow-auto">
-      <table className="w-full text-sm">
+      <Table fit tableClassName="w-full text-sm">
         <thead>
           <tr className="text-xs text-app-text-muted uppercase tracking-wider border-b border-app-border">
             <th className="text-left p-2">{m.label_corner()}</th>
@@ -43,7 +44,7 @@ export function CornerTable({ corners }: Props) {
             );
           })}
         </tbody>
-      </table>
+      </Table>
     </div>
   );
 }

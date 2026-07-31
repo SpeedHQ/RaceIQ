@@ -10,7 +10,7 @@ import { useRequiredGameId } from "../stores/game";
 import { PiBadge, piClass } from "./forza/PiBadge";
 import { AppInput } from "./ui/AppInput";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
-
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Button } from "./ui/button";
 interface CarSpecs {
   hp: number;
@@ -248,61 +248,60 @@ function CompareModal({
   const colWidth = Math.max(180, Math.floor(560 / cars.length));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-app-bg/70 pt-8 pb-4 px-4 overflow-auto" onClick={onClose}>
-      <div
-        className="bg-app-bg border border-app-border rounded-xl shadow-2xl w-full overflow-auto"
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        size="wide"
+        showCloseButton={false}
+        className="!top-8 !max-w-none !translate-y-0 overflow-auto rounded-xl bg-app-bg p-0"
         style={{ maxWidth: 160 + colWidth * cars.length, maxHeight: "90vh" }}
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-app-border sticky top-0 bg-app-bg z-10">
-          <h2 className="text-sm font-bold text-app-text/90">{m.cars_compare_modal_title()}</h2>
+        <DialogHeader className="sticky top-0 z-10 flex flex-row items-center justify-between border-b border-app-border bg-app-bg px-4 py-3">
+          <DialogTitle className="text-sm font-bold text-app-text/90">{m.cars_compare_modal_title()}</DialogTitle>
           <Button type="button" variant="app-ghost" size="icon-sm" onClick={onClose} className="!h-auto !w-auto !p-1 text-app-text/90 hover:text-app-text" aria-label={m.common_close()}>
             ×
           </Button>
-        </div>
+        </DialogHeader>
 
         <div className="overflow-auto">
-          <table className="w-full text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-app-border">
-                <th className="text-left px-4 py-2 text-app-text/90 font-medium sticky left-0 bg-app-bg" style={{ minWidth: 160 }}>
-                  {m.cars_stat_column()}
-                </th>
-                {cars.map((car) => (
-                  <th key={car.ordinal} className="px-3 py-2 text-center" style={{ minWidth: colWidth }}>
-                    {car.specs?.imageUrl && <img src={car.specs.imageUrl} alt={car.name} loading="lazy" className="h-14 w-full object-contain mx-auto mb-1" />}
-                    <div className="font-semibold text-app-text/90 leading-tight">{car.name}</div>
-                    {car.specs?.pi && <PiBadge showNumber={false} pi={car.specs.pi} />}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
+          <Table fit tableClassName="w-full border-collapse text-xs">
+            <THead className="bg-app-bg" rowClassName="border-b border-app-border">
+              <TH className="sticky left-0 bg-app-bg px-4 py-2 text-left font-medium text-app-text/90" style={{ minWidth: 160 }}>
+                {m.cars_stat_column()}
+              </TH>
+              {cars.map((car) => (
+                <TH key={car.ordinal} className="px-3 py-2 text-center" style={{ minWidth: colWidth }}>
+                  {car.specs?.imageUrl && <img src={car.specs.imageUrl} alt={car.name} loading="lazy" className="mx-auto mb-1 h-14 w-full object-contain" />}
+                  <div className="font-semibold leading-tight text-app-text/90">{car.name}</div>
+                  {car.specs?.pi && <PiBadge showNumber={false} pi={car.specs.pi} />}
+                </TH>
+              ))}
+            </THead>
+            <TBody>
               {rows.map((row, ri) => {
                 const bestIdxs = getBestIdx(row);
                 return (
-                  <tr key={ri} className={ri % 2 === 0 ? "bg-app-surface/30" : ""}>
-                    <td className="px-4 py-1.5 text-app-text/90 sticky left-0 bg-inherit font-medium" style={{ minWidth: 160 }}>
+                  <TRow key={ri} className={ri % 2 === 0 ? "bg-app-surface/30" : ""}>
+                    <TD className="sticky left-0 bg-inherit px-4 py-1.5 font-medium text-app-text/90" style={{ minWidth: 160 }}>
                       {row.label}
-                    </td>
+                    </TD>
                     {cars.map((car, ci) => {
                       const val = car.specs ? row.getValue(car.specs) : "—";
                       const isBest = bestIdxs.includes(ci);
                       return (
-                      <td key={car.ordinal} className={`px-3 py-1.5 text-center tabular-nums ${isBest ? "text-status-success font-semibold" : "text-app-text/90"}`}>
+                        <TD key={car.ordinal} className={`px-3 py-1.5 text-center tabular-nums ${isBest ? "font-semibold text-status-success" : "text-app-text/90"}`}>
                           {val}
-                        </td>
+                        </TD>
                       );
                     })}
-                  </tr>
+                  </TRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -615,22 +614,20 @@ export function CarsPage() {
           )}
 
           {/* Card detail modal */}
-          {detailCar && (
-            <div className="fixed inset-0 z-50 flex items-start justify-center bg-app-bg/70 pt-12 pb-4 px-4 overflow-auto" onClick={() => setDetailCar(null)}>
-              <div className="bg-app-bg border border-app-border rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-between px-4 py-3 border-b border-app-border">
-                  <div className="flex items-center gap-2">
-                    {detailCar.specs?.pi && <PiBadge showNumber={false} pi={detailCar.specs.pi} />}
-                    <span className="text-sm font-bold text-app-text/90">{detailCar.name}</span>
-                  </div>
-                  <Button type="button" variant="app-ghost" size="icon-sm" onClick={() => setDetailCar(null)} className="!h-auto !w-auto p-1 text-app-text/90 hover:text-app-text" aria-label={m.common_close()}>
-                    ×
-                  </Button>
-                </div>
-                <CarDetail car={detailCar} fmtSpeed={fmtSpeed} fmtBrake={fmtBrake} fmtWeight={fmtWeight} isMetric={isMetric} />
-              </div>
-            </div>
-          )}
+          <Dialog open={!!detailCar} onOpenChange={(open) => !open && setDetailCar(null)}>
+            <DialogContent size="lg" showCloseButton={false} className="max-w-2xl overflow-hidden p-0">
+              <DialogHeader className="flex flex-row items-center justify-between border-b border-app-border px-4 py-3">
+                <DialogTitle className="flex items-center gap-2 text-sm font-bold text-app-text/90">
+                  {detailCar.specs?.pi && <PiBadge showNumber={false} pi={detailCar.specs.pi} />}
+                  {detailCar.name}
+                </DialogTitle>
+                <Button type="button" variant="app-ghost" size="icon-sm" onClick={() => setDetailCar(null)} className="!h-auto !w-auto p-1 text-app-text/90 hover:text-app-text" aria-label={m.common_close()}>
+                  ×
+                </Button>
+              </DialogHeader>
+              <CarDetail car={detailCar} fmtSpeed={fmtSpeed} fmtBrake={fmtBrake} fmtWeight={fmtWeight} isMetric={isMetric} />
+            </DialogContent>
+          </Dialog>
         </>
       ) : (
         <Table>

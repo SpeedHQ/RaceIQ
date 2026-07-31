@@ -1735,11 +1735,11 @@ export function TrackDetail({
                                       });
                                     })()}
                                     {filteredLaps.length === 0 && (
-                                      <tr>
-                                        <td colSpan={6} className="px-3 py-4 text-center text-sm text-app-text-dim">
+                                      <TRow>
+                                        <TD colSpan={6} className="px-3 py-4 text-center text-sm text-app-text-dim">
                                           {m.track_detail_no_laps_match_filters()}
-                                        </td>
-                                      </tr>
+                                        </TD>
+                                      </TRow>
                                     )}
                                   </TBody>
                                 </Table>

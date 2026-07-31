@@ -1,7 +1,6 @@
 import { DEFAULT_EXPERIMENT_FOCUS, EXPERIMENT_FOCUS_LABELS, type ExperimentFocus } from "@shared/experiment-focus";
 import { AccSetupJsonSchema, setupFileFormat, setupFileRejectReason } from "@shared/setup-file-formats";
 import { type DragEvent, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import {
   type Experiment,
   type ExperimentGameId,
@@ -16,8 +15,12 @@ import {
 } from "../../hooks/queries";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { SearchSelect } from "../ui/SearchSelect";
-import { FocusPicker } from "./FocusPicker";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
 import { Card } from "../ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Table, TBody, TD, TH, THead, TRow } from "../ui/AppTable";
+import { FocusPicker } from "./FocusPicker";
 import { SetupFilePicker } from "./SetupFilePicker";
 
 /**
@@ -34,15 +37,15 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
   const [creating, setCreating] = useState(false);
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="flex-1 space-y-4 overflow-y-auto p-4">
       <div className="space-y-2">
         <div>
           <h1 className="text-lg font-semibold text-app-text">Experiments</h1>
-          <p className="text-xs text-app-text-dim mt-0.5">An experiment tracks one car + track as you iterate setups — base setup, stints driven, and (soon) versions with lap deltas.</p>
+          <p className="mt-0.5 text-xs text-app-text-dim">An experiment tracks one car + track as you iterate setups — base setup, stints driven, and (soon) versions with lap deltas.</p>
         </div>
-        <button type="button" onClick={() => setCreating(true)} className="self-start px-3 py-1.5 text-xs rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled font-semibold">
+        <Button type="button" variant="app-primary" size="app-md" onClick={() => setCreating(true)} className="self-start">
           + New experiment
-        </button>
+        </Button>
       </div>
 
       {creating &&
@@ -71,66 +74,62 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
 }
 
 /** What an experiment is working on right now. Purple = the car is being
- *  varied, sky = the driver is. Colour-coded because the list is scanned, not
- *  read, and a row's focus decides how its arms should be judged. */
+ * varied, sky = the driver is. */
 export function FocusBadge({ focus }: { focus: ExperimentFocus }) {
   return (
-    <span className={`inline-block rounded-full px-2 py-0.5 text-app-caption font-medium whitespace-nowrap ${focus === "driver" ? "bg-(--focus-driver)/15 text-(--focus-driver)" : "bg-(--focus-setup)/15 text-(--focus-setup)"}`}>
+    <Badge
+      variant="neutral"
+      size="default"
+      className={focus === "driver" ? "border-(--focus-driver)/30 bg-(--focus-driver)/15 text-(--focus-driver)" : "border-(--focus-setup)/30 bg-(--focus-setup)/15 text-(--focus-setup)"}
+    >
       {EXPERIMENT_FOCUS_LABELS[focus]}
-    </span>
+    </Badge>
   );
 }
 
 function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Experiment[]; onOpen: (id: number) => void; isLoading: boolean; gameId: ExperimentGameId }) {
   const accCarName = useAccCarName();
   const carName = (n: string | null | undefined) => (gameId === "acc" ? accCarName(n) : n) ?? "—";
-    return (
-      <Card className="gap-0 overflow-x-auto rounded-lg border border-app-border bg-app-surface p-0 ring-0">
-      <table className="w-full text-sm border-collapse">
-        <thead>
-          <tr className="text-left text-app-compact uppercase tracking-wider text-app-text-muted border-b border-app-border">
-            <th className="px-3 py-2 font-medium w-12 text-right">#</th>
-            <th className="px-3 py-2 font-medium">Session</th>
-            <th className="px-3 py-2 font-medium">Varying</th>
-            <th className="px-3 py-2 font-medium">Car</th>
-            <th className="px-3 py-2 font-medium">Track</th>
-            <th className="px-3 py-2 font-medium">Base setup</th>
-            <th className="px-3 py-2 font-medium whitespace-nowrap">Last active</th>
-            <th className="px-3 py-2 font-medium sr-only">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
+
+  return (
+    <Card className="gap-0 overflow-x-auto rounded-lg border border-app-border bg-app-surface p-0 ring-0">
+      <Table>
+        <THead rowClassName="border-b border-app-border">
+          <TH className="w-12 text-right">#</TH>
+          <TH>Session</TH>
+          <TH>Varying</TH>
+          <TH>Car</TH>
+          <TH>Track</TH>
+          <TH>Base setup</TH>
+          <TH className="whitespace-nowrap">Last active</TH>
+          <TH className="sr-only">Actions</TH>
+        </THead>
+        <TBody>
           {sessions.length === 0 && (
-            <tr>
-              <td colSpan={8} className="px-3 py-6 text-center text-xs text-app-text-dim">
+            <TRow>
+              <TD colSpan={8} className="px-3 py-6 text-center text-xs text-app-text-dim">
                 {isLoading ? "Loading experiments…" : "No experiments yet. Create one above to get started."}
-              </td>
-            </tr>
+              </TD>
+            </TRow>
           )}
           {sessions.map((s) => {
             const base = s.baseSetupPath?.split(/[\\/]/).pop() ?? "—";
             return (
-              <tr key={s.id} onClick={() => onOpen(s.id)} className="border-b border-app-border/60 last:border-0 hover:bg-app-surface-hover/60 cursor-pointer">
-                <td className="px-3 py-2 text-right font-mono text-app-text-dim tabular-nums">{s.seq}</td>
-                <td className="px-3 py-2 font-medium text-app-text">{s.name}</td>
-                <td className="px-3 py-2">
-                  <FocusBadge focus={s.focus} />
-                </td>
-                <td className="px-3 py-2 text-app-text-dim">{carName(s.carName)}</td>
-                <td className="px-3 py-2 text-app-text-dim">{s.trackName ?? "—"}</td>
-                <td className="px-3 py-2 text-app-text-dim font-mono text-xs max-w-[220px] truncate" title={s.baseSetupPath ?? undefined}>
-                  {base}
-                </td>
-                <td className="px-3 py-2 text-app-text-dim whitespace-nowrap">{new Date(s.updatedAt).toLocaleDateString()}</td>
-                <td className="px-3 py-2 text-right">
-                  <span className="text-app-accent text-xs font-semibold">Resume →</span>
-                </td>
-              </tr>
+              <TRow key={s.id} onClick={() => onOpen(s.id)} className="cursor-pointer border-b border-app-border/60 last:border-0 hover:bg-app-surface-hover/60">
+                <TD className="text-right font-mono tabular-nums text-app-text-dim">{s.seq}</TD>
+                <TD className="font-medium text-app-text">{s.name}</TD>
+                <TD><FocusBadge focus={s.focus} /></TD>
+                <TD className="text-app-text-dim">{carName(s.carName)}</TD>
+                <TD className="text-app-text-dim">{s.trackName ?? "—"}</TD>
+                <TD className="max-w-[220px] truncate font-mono text-xs text-app-text-dim" title={s.baseSetupPath ?? undefined}>{base}</TD>
+                <TD className="whitespace-nowrap text-app-text-dim">{new Date(s.updatedAt).toLocaleDateString()}</TD>
+                <TD className="text-right"><span className="text-xs font-semibold text-app-accent">Resume →</span></TD>
+              </TRow>
             );
           })}
-        </tbody>
-      </table>
-      </Card>
+        </TBody>
+      </Table>
+    </Card>
   );
 }
 
@@ -389,26 +388,15 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
     }
   };
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[680px] max-w-[94vw] flex flex-col gap-4 p-5"
-        onKeyDown={(e) => {
-          if (e.key === "Escape") onClose();
-        }}
-      >
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-app-text">New experiment</p>
-          <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="lg" className="flex max-h-[90vh] w-[680px] max-w-[94vw] flex-col gap-4 overflow-y-auto p-5">
+        <DialogHeader className="flex flex-row items-center justify-between">
+          <DialogTitle className="text-sm font-semibold">New experiment</DialogTitle>
+          <Button type="button" variant="app-ghost" size="icon-sm" onClick={onClose} className="text-xl leading-none text-app-text-dim hover:text-app-text" aria-label="Close">
             ×
-          </button>
-        </div>
-
+          </Button>
+        </DialogHeader>
         {/* What this experiment starts on. Presented as a starting mode rather
             than a type, because it is switchable from the workspace at any
             point — the driver who fixes a balance problem and then wants to
@@ -426,8 +414,10 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
             e.target.value = "";
           }}
         />
-        <button
+        <Button
           type="button"
+          variant="app-outline"
+          size="app-md"
           onClick={() => fileInputRef.current?.click()}
           onDragOver={(e) => {
             e.preventDefault();
@@ -449,13 +439,13 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
               <br />— pins car + track. Or pick them below.
             </>
           )}
-        </button>
+        </Button>
         {notice && (
           <div
             className={`flex items-start gap-2 rounded-md border px-2.5 py-2 text-app-compact ${
-                notice.tone === "error"
-                  ? "border-status-danger/40 bg-status-danger/10 text-status-danger"
-                  : "border-status-warning/40 bg-status-warning/10 text-status-warning"
+              notice.tone === "error"
+                ? "border-status-danger/40 bg-status-danger/10 text-status-danger"
+                : "border-status-warning/40 bg-status-warning/10 text-status-warning"
             }`}
           >
             <span aria-hidden className="leading-none">
@@ -480,9 +470,9 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
                     {pendingDrop.fileName}
                   </span>
                   {dropStatus && (
-                    <span className={`rounded-full px-2 py-0.5 text-app-caption font-medium ${dropStatus === "placed" ? "bg-status-success/15 text-status-success" : "bg-app-border/50 text-app-text-dim"}`}>
+                    <Badge variant={dropStatus === "placed" ? "success" : "neutral"} size="compact">
                       {dropStatus === "placed" ? "Copied to Setups" : dropStatus === "existing" ? "Already saved there" : "Found in Setups"}
-                    </span>
+                    </Badge>
                   )}
                 </div>
                 <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-app-compact text-app-text-dim">
@@ -495,20 +485,21 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-1">
-                <button
+                <Button
                   type="button"
+                  variant="app-outline"
+                  size="app-sm"
                   onClick={() => {
                     setPlacing(true);
                     setPlaceTrack("");
                     setNotice(null);
                   }}
-                  className="px-2 py-1 text-app-compact rounded border border-app-border text-app-text hover:bg-app-surface-hover/30"
                 >
                   Copy to another track
-                </button>
-                <button type="button" onClick={clearDrop} aria-label="Remove this setup" title="Remove this setup" className="px-1.5 py-1 text-app-text-dim hover:text-app-text leading-none">
+                </Button>
+                <Button type="button" variant="app-ghost" size="icon-xs" onClick={clearDrop} aria-label="Remove this setup" title="Remove this setup">
                   ×
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -557,17 +548,18 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
                   />
                 </div>
               </label>
-              <button
+              <Button
                 type="button"
+                variant="app-primary"
+                size="app-md"
                 onClick={doPlace}
                 disabled={place.isPending || !placeCar.trim() || !placeTrack.trim()}
-                className="px-3 py-1.5 text-xs rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 text-app-on-filled font-semibold"
               >
                 {place.isPending ? "Placing…" : "Add to Setups & use"}
-              </button>
-              <button type="button" onClick={() => setPlacing(false)} className="px-2 py-1.5 text-xs text-app-text-dim hover:text-app-text">
+              </Button>
+              <Button type="button" variant="app-ghost" size="app-sm" onClick={() => setPlacing(false)}>
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -616,22 +608,22 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
         {error && <div className="text-xs text-status-danger">{error}</div>}
 
         <div className="flex justify-end gap-2 pt-1">
-          <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs rounded border border-app-border text-app-text-dim hover:text-app-text">
+          <Button type="button" variant="app-outline" size="app-md" onClick={onClose}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="app-primary"
+            size="app-md"
             onClick={submit}
             disabled={create.isPending || !canCreate}
             title={!canCreate ? "Pick car, track, and a base setup" : undefined}
-            className="px-3 py-1.5 text-xs rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 text-app-on-filled font-semibold"
           >
             {create.isPending ? "Creating…" : "Create session"}
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>,
-    document.body,
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -699,25 +691,15 @@ function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onC
     }
   };
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[480px] max-w-[94vw] flex flex-col gap-4 p-5"
-        onKeyDown={(e) => {
-          if (e.key === "Escape") onClose();
-        }}
-      >
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-app-text">New experiment</p>
-          <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="md" className="flex max-h-[90vh] w-[480px] max-w-[94vw] flex-col gap-4 overflow-y-auto p-5">
+        <DialogHeader className="flex flex-row items-center justify-between">
+          <DialogTitle className="text-sm font-semibold">New experiment</DialogTitle>
+          <Button type="button" variant="app-ghost" size="icon-sm" onClick={onClose} className="text-xl leading-none text-app-text-dim hover:text-app-text" aria-label="Close">
             ×
-          </button>
-        </div>
+          </Button>
+        </DialogHeader>
 
         <FocusPicker value={focus} onChange={setFocus} />
 
@@ -750,21 +732,14 @@ function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onC
         {error && <div className="text-xs text-status-danger">{error}</div>}
 
         <div className="flex justify-end gap-2 pt-1">
-          <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs rounded border border-app-border text-app-text-dim hover:text-app-text">
+          <Button type="button" variant="app-outline" size="app-md" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={create.isPending || !canCreate}
-            title={!canCreate ? "Pick a track" : undefined}
-            className="px-3 py-1.5 text-xs rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 text-app-on-filled font-semibold"
-          >
+          </Button>
+          <Button type="button" variant="app-primary" size="app-md" onClick={submit} disabled={create.isPending || !canCreate} title={!canCreate ? "Pick a track" : undefined}>
             {create.isPending ? "Creating…" : "Create session"}
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>,
-    document.body,
+      </DialogContent>
+    </Dialog>
   );
 }

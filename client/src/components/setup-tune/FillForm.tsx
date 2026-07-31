@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { Card } from "../ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { arityLabels, arityLength, type FieldDef, getByPath, type SectionDef, setByPath } from "./setup-schema";
 
@@ -100,24 +103,24 @@ function SectionCard({
   const hasData = present != null && typeof present === "object";
 
   return (
-    <div className="rounded-lg ring-1 ring-app-border bg-app-surface">
-      <button type="button" onClick={() => setOpen((o) => !o)} className="w-full flex items-center justify-between px-3 py-2 text-left">
+    <Card size="sm" className="gap-0 rounded-lg">
+      <Button variant="app-ghost" size="app-md" type="button" onClick={() => setOpen((o) => !o)} className="w-full justify-between rounded-none px-3 py-2 text-left">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-app-text">{section.label}</span>
-          <span className={`text-app-micro font-semibold uppercase px-1.5 py-0.5 rounded ${hasData ? "bg-status-success/20 text-status-success" : "bg-app-bg text-app-text-muted"}`}>
+          <Badge variant={hasData ? "success" : "neutral"} size="compact" className={hasData ? "" : "bg-app-bg"}>
             {hasData ? "set" : "—"}
-          </span>
+          </Badge>
         </div>
-        <span className="text-app-text-muted text-xs">{open ? "▾" : "▸"}</span>
-      </button>
+        <span className="text-xs text-app-text-muted">{open ? "▾" : "▸"}</span>
+      </Button>
       {open && (
-        <div className="px-3 pb-3 pt-1 space-y-3 border-t border-app-border">
+        <div className="space-y-3 border-t border-app-border px-3 pb-3 pt-1">
           {section.fields.map((f) =>
             f.arity === "scalar" ? <ScalarInput key={f.path} field={f} settings={settings} onChange={onChange} /> : <ArrayInput key={f.path} field={f} settings={settings} onChange={onChange} />,
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
