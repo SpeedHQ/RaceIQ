@@ -23,4 +23,10 @@ describe("contextWindowFor", () => {
   test("local ignores a non-positive reported context length", () => {
     expect(contextWindowFor("local", "local-model", 0)).toBeUndefined();
   });
+
+  test("uses Codex context fallback only for known Codex models", () => {
+    expect(contextWindowFor("codex", "gpt-5-codex")).toBe(400_000);
+    expect(contextWindowFor("codex", "codex-default")).toBe(400_000);
+    expect(contextWindowFor("codex", "custom-model")).toBeUndefined();
+  });
 });

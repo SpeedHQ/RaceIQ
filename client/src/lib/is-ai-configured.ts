@@ -5,11 +5,13 @@ export interface AiConfigSettings {
   geminiApiKeySet?: boolean;
   aiModel?: string;
   openaiApiKeySet?: boolean;
+  codexReady?: boolean;
 }
 
 export function isAiConfigured(settings: AiConfigSettings): boolean {
   const provider = settings.aiProvider ?? "gemini";
-  if (provider === "local" || provider === "codex") return true;
+  if (provider === "local") return true;
+  if (provider === "codex") return settings.codexReady === true;
   if (provider === "openai") return !!settings.openaiApiKeySet;
   return !!settings.geminiApiKeySet;
 }
