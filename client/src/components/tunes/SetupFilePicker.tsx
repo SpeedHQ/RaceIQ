@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useSetupFileContent, useSetupFiles } from "../../hooks/queries";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { SearchSelect } from "../ui/SearchSelect";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 
@@ -36,7 +37,7 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
   const body = data?.formatted ?? (data?.setup ? JSON.stringify(data.setup, null, 2) : null);
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="flex h-[60vh] w-[min(94vw,720px)] flex-col sm:max-w-[720px]">
+      <DialogContent size="lg" className="flex h-[60vh] w-[min(94vw,720px)] flex-col sm:max-w-[720px]">
         <DialogHeader className="min-w-0 pr-8">
           <DialogTitle className="truncate">{data?.fileName ?? fileName}</DialogTitle>
           {data?.presetId && <DialogDescription className="truncate text-app-compact">Preset {data.presetId}</DialogDescription>}
@@ -69,7 +70,7 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
                   const ib = TAB_ORDER.indexOf(b);
                   return (ia === -1 ? TAB_ORDER.length : ia) - (ib === -1 ? TAB_ORDER.length : ib);
                 });
-                const tab = activeTab && tabs.includes(activeTab) ? activeTab : tabs[0];
+                const tab = (activeTab && tabs.includes(activeTab) ? activeTab : tabs[0]) ?? "";
                 const corners = allCorners
                   .map((s) => ({ ...s, rows: s.rows.filter((r) => rowTab(r.label) === tab) }))
                   .filter((s) => s.rows.length > 0);
@@ -104,21 +105,15 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
                   </div>
                 );
                 return (
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap gap-1 border-b border-app-border pb-2">
+                  <Tabs value={tab} onValueChange={setActiveTab}>
+                    <TabsList>
                       {tabs.map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => setActiveTab(t)}
-                          className={`rounded px-2 py-1 text-app-compact ${
-                            t === tab ? "bg-app-bg font-semibold text-app-accent" : "text-app-text-muted hover:text-app-text"
-                          }`}
-                        >
+                        <TabsTrigger key={t} value={t}>
                           {t}
-                        </button>
+                        </TabsTrigger>
                       ))}
-                    </div>
+                    </TabsList>
+                    <TabsContent value={tab} className="space-y-3">
                     {tab === "Aero" && others.length > 0 ? (
                       // Aero: rear fields on the left, front fields on the right.
                       <div className="grid grid-cols-1 gap-3 @3xl/setup-file:grid-cols-2">
@@ -152,7 +147,8 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
                         {others.length > 0 && <div className="w-full min-w-0 columns-1 gap-3 @3xl/setup-file:columns-2">{others.map((s) => card(s, true))}</div>}
                       </div>
                     )}
-                  </div>
+                    </TabsContent>
+                  </Tabs>
                 );
               })()}
             </div>
@@ -308,9 +304,9 @@ export function SetupFilePicker({
               onClick={() => refetch()}
               disabled={isFetching}
               title="Rescan the Setups folder for new files"
-              className="flex items-center gap-1"
+              className="text-app-compact text-app-text-muted hover:text-app-text"
             >
-              <span className={isFetching ? "animate-spin inline-block" : "inline-block"}>⟳</span>
+              <span className={isFetching ? "inline-block animate-spin" : "inline-block"}>⟳</span>
               Refresh
             </Button>
           </div>

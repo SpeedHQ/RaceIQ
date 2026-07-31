@@ -3,10 +3,11 @@ import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/review-laps";
 import type { F1CarSetup, LapMeta } from "@shared/types";
 import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import { type ExperimentLapMetric, type ExperimentVersion, useDeleteVersion, useExperimentFocusHistory, useSetHead, useSetTestNote } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Badge } from "../ui/badge";
 import { F1SetupModal } from "../analyse/F1SetupModal";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -90,21 +91,23 @@ function NodeTextEditor({
         <div className="flex items-center gap-2">
           <Button
             type="button"
-            variant="app-primary"
+            variant="app-outline"
             size="app-sm"
             onClick={() => onSave(trimmed === "" ? null : trimmed, () => setDirty(false))}
             disabled={pending}
+            className="!h-auto normal-case tracking-wider"
           >
             {pending ? "Saving…" : "Save"}
           </Button>
           <Button
             type="button"
-            variant="app-outline"
+            variant="app-ghost"
             size="app-sm"
             onClick={() => {
               setDirty(false);
               setDraft(current);
             }}
+            className="!h-auto normal-case tracking-wider text-app-text-muted hover:text-app-text"
           >
             Cancel
           </Button>
@@ -150,36 +153,20 @@ function EngineerNotesView({ notes }: { notes: string | null }) {
 /** Modal wrapping both per-node comment editors, opened from a node's "Notes"
  *  button. Closes on backdrop click, the × button, or Escape. */
 function NotesModal({ sessionId, test, onClose }: { sessionId: number; test: ExperimentVersion; onClose: () => void }) {
-  return createPortal(
-    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: Escape-to-close container */}
-      <div
-        className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[820px] max-w-[94vw] max-h-[90vh] overflow-y-auto flex flex-col p-5"
-        onKeyDown={(e) => {
-          if (e.key === "Escape") onClose();
-        }}
-      >
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold text-app-text">
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="wide" showCloseButton={false} overlayClassName="bg-app-bg/60" className="max-h-[90vh] overflow-y-auto p-5">
+        <DialogHeader>
+          <DialogTitle className="text-sm font-semibold text-app-text">
             <span className="font-mono">{test.label}</span> — notes
-          </p>
-          <Button type="button" variant="app-ghost" size="icon-sm" onClick={onClose}>
-            ×
-          </Button>
-        </div>
+          </DialogTitle>
+        </DialogHeader>
         <div className="grid grid-cols-2 divide-x divide-app-border/60 border border-app-border/60 rounded-md overflow-hidden bg-app-surface/40">
           <DriverCommentEditor sessionId={sessionId} versionId={test.id} note={test.driverComment} rows={8} />
           <EngineerNotesView notes={test.notes} />
         </div>
-      </div>
-    </div>,
-    document.body,
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -332,37 +319,40 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
               <span className="text-app-text-dim text-xs w-3">{isOpen ? "▾" : "▸"}</span>
               <span className="font-mono text-xs text-app-text shrink-0">{t.label}</span>
               {focusEraByVersionId.has(t.id) && (
-                <span
+                <Badge
+                  variant="neutral"
+                  size="compact"
                   title={`Focus switched to ${EXPERIMENT_FOCUS_LABELS[focusEraByVersionId.get(t.id)!]} here`}
-                  className={`text-app-micro uppercase tracking-wider rounded px-1 py-px shrink-0 ${
-                                focusEraByVersionId.get(t.id) === "driver"
-                                  ? "text-(--focus-driver) border border-(--focus-driver)/40"
-                                  : "text-(--focus-setup) border border-(--focus-setup)/40"
+                  className={`border bg-transparent text-app-micro uppercase tracking-wider rounded px-1 py-px shrink-0 ${
+                    focusEraByVersionId.get(t.id) === "driver"
+                      ? "text-(--focus-driver) border-(--focus-driver)/40"
+                      : "text-(--focus-setup) border-(--focus-setup)/40"
                   }`}
                 >
                   → {EXPERIMENT_FOCUS_LABELS[focusEraByVersionId.get(t.id)!]}
-                </span>
+                </Badge>
               )}
               <span className="text-app-compact text-app-text-muted truncate min-w-0">
                 {t.notes || (summarizeAppliedChanges(t.appliedChanges) ?? (t.parentVersionId == null ? (t.setupPath?.split(/[\\/]/).pop() ?? "Base setup") : "no changes recorded"))}
               </span>
-                          {isHead && <span className="text-app-micro uppercase tracking-wider text-app-accent border border-app-accent/40 rounded px-1 py-px shrink-0">HEAD</span>}
+                          {isHead && <Badge variant="success" size="compact">HEAD</Badge>}
               {!isHead && (
-                <button
+                <Button
                   type="button"
+                  variant="app-outline"
+                  size="app-sm"
                   onClick={(e) => {
                     e.stopPropagation();
                     setHead.mutate({ sessionId, versionId: t.id });
                   }}
                   disabled={setHead.isPending}
-                  className="normal-case tracking-normal font-sans text-app-caption px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-border-hover disabled:opacity-50 disabled:pointer-events-none shrink-0"
+                  className="!h-auto normal-case tracking-normal font-sans shrink-0"
                 >
                   Checkout
-                </button>
+                </Button>
               )}
               {gameId && (gameId === "f1-2025" ? t.setupSnapshot != null : t.setupPath != null) && (
                 <Button
-                  type="button"
                   variant="app-outline"
                   size="app-sm"
                   onClick={(e) => {
@@ -376,31 +366,37 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                 </Button>
               )}
               {onOpenReview && (
-                <button
+                <Button
                   type="button"
+                  variant="app-outline"
+                  size="app-sm"
                   onClick={(e) => {
                     e.stopPropagation();
                     onOpenReview(t);
                   }}
-                  className="normal-case tracking-normal font-sans text-app-caption px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-border-hover disabled:opacity-50 disabled:pointer-events-none shrink-0"
+                  className="!h-auto normal-case tracking-normal font-sans shrink-0"
                 >
                   Review
-                </button>
+                </Button>
               )}
-              <button
+              <Button
                 type="button"
+                variant="app-outline"
+                size="app-sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   setNotesForId(t.id);
                 }}
                 title={t.driverComment || t.notes ? "View / edit notes" : "Add notes"}
-                className="normal-case tracking-normal font-sans text-app-caption px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-border-hover shrink-0 inline-flex items-center gap-1"
+                className="!h-auto normal-case tracking-normal font-sans shrink-0 inline-flex items-center gap-1"
               >
                 Notes
                 {(t.driverComment || t.notes) && <span className="size-1.5 rounded-full bg-app-accent" />}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="app-ghost"
+                size="app-sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   const extra = hasChildren ? " and its whole branch" : "";
@@ -409,10 +405,10 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                 }}
                 disabled={deleteVersion.isPending}
                 title={hasChildren ? "Trash this version and its whole branch (reversible)" : "Trash this version (reversible)"}
-                          className="normal-case tracking-normal font-sans text-app-caption px-1.5 py-0.5 rounded border border-app-border text-app-text-muted hover:text-status-danger hover:border-status-danger/40 disabled:opacity-50 disabled:pointer-events-none shrink-0"
+                className="!h-auto normal-case tracking-normal font-sans text-status-danger hover:bg-status-danger/10 shrink-0"
               >
                 Delete branch
-              </button>
+              </Button>
               <span
                 className="ml-auto flex items-center gap-3 shrink-0 text-app-compact tabular-nums"
                 title={`Averages/best/worst over the ${evalLaps.length} evaluated lap${evalLaps.length === 1 ? "" : "s"} of ${laps.length} recorded — the same laps the review analyses. Excluded: invalid, pit/out laps, manually excluded, and laps slower than the fastest-${REVIEW_LAP_CAP} cap.`}
