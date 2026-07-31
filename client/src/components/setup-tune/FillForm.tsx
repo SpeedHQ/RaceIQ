@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { arityLabels, arityLength, type FieldDef, getByPath, type SectionDef, setByPath } from "./setup-schema";
 
 // Renders each setup section as a collapsible card with numeric inputs.
@@ -140,36 +141,39 @@ export function FillForm({ sections, settings, onChange }: { sections: SectionDe
   ].filter((t) => t.sections.length > 0);
 
   const [active, setActive] = useState(0);
-  const activeTab = tabs[Math.min(active, tabs.length - 1)];
+  const activeValue = tabs[Math.min(active, tabs.length - 1)]?.label;
 
   return (
     <div className="col-span-2 space-y-2">
-      <div className="flex flex-wrap gap-1 border-b border-app-border pb-2" role="tablist">
-        {tabs.map((t, i) => {
-          const hasData = t.sections.some((s) => {
-            const present = getByPath(settings, s.key);
-            return present != null && typeof present === "object";
-          });
-          return (
-            <button
-              key={t.label}
-              type="button"
-              role="tab"
-              aria-selected={i === active}
-              onClick={() => setActive(i)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                i === active ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text hover:bg-app-surface-hover"
-              }`}
-            >
-              {t.label}
-              {hasData && <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-status-success align-middle" />}
-            </button>
-          );
-        })}
-      </div>
-      {activeTab?.sections.map((s) => (
-        <SectionCard key={s.key} section={s} settings={settings} onChange={onChange} defaultOpen={true} />
-      ))}
+      <Tabs
+        value={activeValue}
+        onValueChange={(value) => {
+          const next = tabs.findIndex((t) => t.label === value);
+          if (next >= 0) setActive(next);
+        }}
+      >
+        <TabsList>
+          {tabs.map((t) => {
+            const hasData = t.sections.some((s) => {
+              const present = getByPath(settings, s.key);
+              return present != null && typeof present === "object";
+            });
+            return (
+              <TabsTrigger key={t.label} value={t.label}>
+                {t.label}
+                {hasData && <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-status-success align-middle" />}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+        {tabs.map((t) => (
+          <TabsContent key={t.label} value={t.label} className="space-y-2">
+            {t.sections.map((s) => (
+              <SectionCard key={s.key} section={s} settings={settings} onChange={onChange} defaultOpen={true} />
+            ))}
+          </TabsContent>
+        ))}
+      </Tabs>
     </div>
   );
 }

@@ -1,5 +1,7 @@
+import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
 import { expect, userEvent, within } from "storybook/test";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Table, TBody, TD, TH, THead, TRow } from "../components/ui/AppTable";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
@@ -21,8 +23,75 @@ const meta = {
   ],
 } satisfies Meta;
 
+
+function ControlledTabsDemo() {
+  const [value, setValue] = useState("telemetry");
+  return (
+    <Tabs value={value} onValueChange={setValue} className="w-full max-w-md">
+      <TabsList activateOnFocus>
+        <TabsTrigger value="telemetry">Telemetry</TabsTrigger>
+        <TabsTrigger value="setup">Setup</TabsTrigger>
+        <TabsTrigger value="notes">Notes</TabsTrigger>
+      </TabsList>
+      <TabsContent value="telemetry" className="pt-3 text-app-subtext text-app-text-secondary">
+        Live telemetry for current session.
+      </TabsContent>
+      <TabsContent value="setup" className="pt-3 text-app-subtext text-app-text-secondary">
+        Current setup values.
+      </TabsContent>
+      <TabsContent value="notes" className="pt-3 text-app-subtext text-app-text-secondary">
+        Driver notes and reminders.
+      </TabsContent>
+    </Tabs>
+  );
+}
 export default meta;
 type Story = StoryObj<typeof meta>;
+
+export const TabsUncontrolled: Story = {
+  render: () => (
+    <Tabs defaultValue="overview" className="w-full max-w-md">
+      <TabsList activateOnFocus>
+        <TabsTrigger value="overview">Overview</TabsTrigger>
+        <TabsTrigger value="setup">Setup</TabsTrigger>
+        <TabsTrigger value="archived" disabled>
+          Archived
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="overview" className="pt-3 text-app-subtext text-app-text-secondary">
+        Session overview.
+      </TabsContent>
+      <TabsContent value="setup" className="pt-3 text-app-subtext text-app-text-secondary">
+        Setup details.
+      </TabsContent>
+      <TabsContent value="archived" className="pt-3 text-app-subtext text-app-text-secondary">
+        Archived sessions.
+      </TabsContent>
+    </Tabs>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const overview = canvas.getByRole("tab", { name: "Overview" });
+    const setup = canvas.getByRole("tab", { name: "Setup" });
+    await expect(canvas.getByRole("tab", { name: "Archived" })).toBeDisabled();
+    await userEvent.click(overview);
+    await userEvent.keyboard("{ArrowRight}");
+    await expect(setup).toHaveFocus();
+    await expect(setup).toHaveAttribute("data-active");
+    await expect(canvas.getByText("Setup details.")).toBeVisible();
+  },
+};
+
+export const TabsControlled: Story = {
+  render: () => <ControlledTabsDemo />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("tab", { name: "Telemetry" })).toHaveAttribute("data-active");
+    await userEvent.click(canvas.getByRole("tab", { name: "Setup" }));
+    await expect(canvas.getByRole("tab", { name: "Setup" })).toHaveAttribute("data-active");
+    await expect(canvas.getByText("Current setup values.")).toBeVisible();
+  },
+};
 
 export const ButtonVariants: Story = {
   render: () => (
