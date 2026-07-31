@@ -9,6 +9,7 @@ const badgeVariants = cva(
     variants: {
       variant: {
         neutral: "border-app-border bg-app-surface-alt text-app-text-muted",
+        "form-section-empty": "border-app-border bg-app-bg text-app-text-muted",
         info: "border-status-info/30 bg-status-info/15 text-status-info",
         success: "border-status-success/30 bg-status-success/15 text-status-success",
         warning: "border-status-warning/30 bg-status-warning/15 text-status-warning",

@@ -27,6 +27,7 @@ const buttonVariants = cva(
         "destructive-outline": "!border-status-danger/40 text-status-danger hover:border-status-danger/60 hover:bg-status-danger/10",
         "selected-toggle": "border-app-accent bg-app-accent/15 text-app-accent hover:bg-app-accent/25",
         "full-width-action": "w-full",
+        "form-section-toggle": "w-full !justify-between !rounded-none !py-2 text-left",
         "analysis-summary": "w-full !justify-start !gap-2 bg-status-success/10 !px-2 !py-1.5 text-left hover:bg-status-success/15",
         "settings-nav": "shrink-0 md:w-full !justify-start !rounded-none !px-4 !py-2 text-sm whitespace-nowrap transition-colors text-app-text-muted hover:text-app-text hover:bg-app-surface-hover",
         "settings-nav-selected": "shrink-0 md:w-full !justify-start !rounded-none !px-4 !py-2 text-sm whitespace-nowrap transition-colors text-app-accent bg-app-accent/10 border-b-2 md:border-b-0 md:border-r-2 border-app-accent",

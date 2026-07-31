@@ -133,7 +133,7 @@ const ThreadScrollToBottom: FC = () => {
         <TooltipIconButton
           tooltip="Scroll to bottom"
           variant="outline"
-          className="aui-thread-scroll-to-bottom dark:border-border dark:bg-background dark:hover:bg-accent absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible"
+          className="aui-thread-scroll-to-bottom absolute -top-12 z-10 self-center disabled:invisible"
         />
       }
     >
@@ -164,7 +164,7 @@ const ThreadSuggestionItem: FC = () => {
       <SuggestionPrimitive.Trigger
         send
         render={
-          <Button variant="ghost" className="aui-thread-welcome-suggestion text-foreground border-border/60 h-auto rounded-full border px-3.5 py-1.5 font-normal whitespace-nowrap transition-colors" />
+          <Button variant="ghost" size="app-md" className="aui-thread-welcome-suggestion" />
         }
       >
         <SuggestionPrimitive.Title className="aui-thread-welcome-suggestion-text-1" />
@@ -211,7 +211,7 @@ const ComposerAction: FC = () => {
           <AuiIf condition={(s) => s.composer.dictation == null}>
             <ComposerPrimitive.Dictate
               render={
-                <TooltipIconButton tooltip="Voice input" side="bottom" type="button" variant="ghost" size="icon" className="aui-composer-dictate size-7 rounded-full" aria-label="Start voice input" />
+                <TooltipIconButton tooltip="Voice input" side="bottom" type="button" variant="ghost" size="icon-sm" className="aui-composer-dictate" aria-label="Start voice input" />
               }
             >
               <MicIcon className="aui-composer-dictate-icon size-4" />
@@ -237,13 +237,13 @@ const ComposerAction: FC = () => {
         </AuiIf>
         <AuiIf condition={(s) => !s.thread.isRunning}>
           <ComposerPrimitive.Send
-            render={<TooltipIconButton tooltip="Send message" side="bottom" type="button" variant="default" size="icon" className="aui-composer-send size-7 rounded-full" aria-label="Send message" />}
+            render={<TooltipIconButton tooltip="Send message" side="bottom" type="button" variant="default" size="icon-sm" className="aui-composer-send" aria-label="Send message" />}
           >
             <ArrowUpIcon className="aui-composer-send-icon size-4.5" />
           </ComposerPrimitive.Send>
         </AuiIf>
         <AuiIf condition={(s) => s.thread.isRunning}>
-          <ComposerPrimitive.Cancel render={<Button variant="default" size="icon" className="aui-composer-cancel size-7 rounded-full" aria-label="Stop generating" />}>
+          <ComposerPrimitive.Cancel render={<Button variant="default" size="icon-sm" className="aui-composer-cancel" aria-label="Stop generating" />}>
             <SquareIcon className="aui-composer-cancel-icon size-3.5 fill-current" />
           </ComposerPrimitive.Cancel>
         </AuiIf>
@@ -421,7 +421,7 @@ const AssistantActionBar: FC = () => {
         <RefreshCwIcon />
       </ActionBarPrimitive.Reload>
       <ActionBarMorePrimitive.Root>
-        <ActionBarMorePrimitive.Trigger render={<TooltipIconButton tooltip="More" className="data-[state=open]:bg-accent" />}>
+        <ActionBarMorePrimitive.Trigger render={<TooltipIconButton tooltip="More" />}>
           <MoreHorizontalIcon />
         </ActionBarMorePrimitive.Trigger>
         <ActionBarMorePrimitive.Content
@@ -496,8 +496,8 @@ const EditComposer: FC = () => {
       <ComposerPrimitive.Root className="aui-edit-composer-root border-border/60 dark:border-muted-foreground/15 ms-auto flex w-full max-w-[85%] flex-col rounded-(--composer-radius) border bg-(--composer-bg) shadow-[0_4px_16px_-8px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] dark:shadow-none">
         <ComposerPrimitive.Input className="aui-edit-composer-input text-foreground min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base outline-none" autoFocus />
         <div className="aui-edit-composer-footer mx-2.5 mb-2.5 flex items-center gap-1.5 self-end">
-          <ComposerPrimitive.Cancel render={<Button variant="ghost" size="sm" className="h-8 rounded-full px-3.5" />}>Cancel</ComposerPrimitive.Cancel>
-          <ComposerPrimitive.Send render={<Button size="sm" className="h-8 rounded-full px-3.5" />}>Update</ComposerPrimitive.Send>
+        <ComposerPrimitive.Cancel render={<Button variant="ghost" size="sm" />}>Cancel</ComposerPrimitive.Cancel>
+        <ComposerPrimitive.Send render={<Button size="sm" />}>Update</ComposerPrimitive.Send>
         </div>
       </ComposerPrimitive.Root>
     </MessagePrimitive.Root>

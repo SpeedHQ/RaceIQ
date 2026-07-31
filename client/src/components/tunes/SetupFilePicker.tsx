@@ -36,10 +36,11 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
   const body = data?.formatted ?? (data?.setup ? JSON.stringify(data.setup, null, 2) : null);
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="lg" className="flex h-[60vh] w-[min(94vw,720px)] flex-col sm:max-w-[720px]">
-        <DialogHeader className="min-w-0 pr-8">
-          <DialogTitle className="truncate">{data?.fileName ?? fileName}</DialogTitle>
-          {data?.presetId && <DialogDescription className="truncate text-app-compact">Preset {data.presetId}</DialogDescription>}
+        {/* Composition-only sizing/layout keeps picker viewport scrollable; DialogContent owns surface, border, and radius. */}
+        <DialogContent size="lg" className="flex h-[60vh] w-[min(94vw,720px)] flex-col sm:max-w-[720px]">
+          <DialogHeader className="min-w-0 pr-8">
+            <DialogTitle className="truncate">{data?.fileName ?? fileName}</DialogTitle>
+            {data?.presetId && <DialogDescription className="truncate">Preset {data.presetId}</DialogDescription>}
         </DialogHeader>
         <div className="min-h-0 flex-1 overflow-auto">
           {isLoading && <div className="text-sm text-muted-foreground">Loading…</div>}
