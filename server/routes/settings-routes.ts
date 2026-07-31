@@ -16,17 +16,26 @@ import { getRunningGame } from "../games/registry";
 import { getTrackLengthMeters } from "../../shared/track-data";
 import { withOnboardingOverride } from "../runtime-options";
 
-import { getCodexStatus, getProviders } from "../ai/providers";
+import { getCodexStatus, getProviders, type CodexStatus } from "../ai/providers";
 const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
 const MODELS_EMPTY_RETRY_MS = 10 * 1000;
 let cachedGeminiModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
 let cachedLocalModels: { endpoint: string; models: { id: string; name: string; contextLength?: number }[]; at: number } | null = null;
+let cachedLocalEmpty: { endpoint: string; at: number } | null = null;
 export type AiProviderDiscovery = {
   id: string;
   name: string;
   ready?: boolean;
   error?: string | null;
 };
+function publicCodexError(status: CodexStatus): string | null {
+  if (status.ready) return null;
+  const reason = status.reason.toLowerCase();
+  if (reason.includes("not found")) return "Codex executable not found. Install the Codex CLI.";
+  if (reason.includes("timed out")) return "Codex readiness check timed out.";
+  return "Codex is not authenticated. Run `codex login`.";
+}
+
 
 export async function getAiProviderDiscovery(): Promise<AiProviderDiscovery[]> {
   const codexStatus = await getCodexStatus();
@@ -34,7 +43,7 @@ export async function getAiProviderDiscovery(): Promise<AiProviderDiscovery[]> {
     ? {
         ...provider,
         ready: codexStatus.ready,
-        error: codexStatus.ready ? null : codexStatus.reason,
+        error: publicCodexError(codexStatus),
       }
     : provider);
 }

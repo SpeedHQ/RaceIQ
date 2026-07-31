@@ -58,10 +58,13 @@ describe("settings with unit system", () => {
 
 describe("Codex provider discovery", () => {
   const originalCodexPath = process.env.CODEX_CLI_PATH;
+  const originalArgsFile = process.env.CODEX_ARGS_FILE;
 
   afterEach(() => {
     if (originalCodexPath === undefined) delete process.env.CODEX_CLI_PATH;
     else process.env.CODEX_CLI_PATH = originalCodexPath;
+    if (originalArgsFile === undefined) delete process.env.CODEX_ARGS_FILE;
+    else process.env.CODEX_ARGS_FILE = originalArgsFile;
   });
 
   test("reports Codex unavailable without exposing secrets when executable is missing", async () => {
@@ -76,12 +79,14 @@ describe("Codex provider discovery", () => {
     expect(providers.find((provider) => provider.id === "codex")?.error).toContain("not found");
   });
 
-  test("reports Codex ready when login status succeeds", async () => {
+  test("reports Codex ready when login status succeeds with expected command", async () => {
     const dir = mkdtempSync(join(tmpdir(), "raceiq-codex-ready-"));
     const executable = join(dir, "codex");
-    writeFileSync(executable, "#!/bin/sh\nexit 0\n");
+    const argsFile = join(dir, "args");
+    writeFileSync(executable, "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CODEX_ARGS_FILE\"\nexit 0\n");
     chmodSync(executable, 0o755);
     process.env.CODEX_CLI_PATH = executable;
+    process.env.CODEX_ARGS_FILE = argsFile;
 
     const response = await settingsRoutes.request("/api/ai-providers");
     const providers = await response.json() as Array<{ id: string; ready?: boolean; error?: string | null }>;
@@ -90,6 +95,34 @@ describe("Codex provider discovery", () => {
       ready: true,
       error: null,
     });
+    expect(readFileSync(argsFile, "utf8").trim().split("\n")).toEqual(["login", "status"]);
+  });
+  test("sanitizes Codex CLI diagnostics exposed by provider discovery", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "raceiq-codex-secret-"));
+    const executable = join(dir, "codex");
+    writeFileSync(executable, "#!/bin/sh\nprintf 'token=super-secret-token\\n' >&2\nexit 1\n");
+    chmodSync(executable, 0o755);
+    process.env.CODEX_CLI_PATH = executable;
+
+    const response = await settingsRoutes.request("/api/ai-providers");
+    const serialized = await response.text();
+    expect(serialized).not.toContain("super-secret-token");
+    expect(serialized).toContain("Codex is not authenticated");
+  });
+
+
+  test("keeps local model discovery available when endpoint returns an error", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response("", { status: 503, statusText: "Unavailable" });
+    try {
+      const response = await settingsRoutes.request("/api/ai-models?providers=local");
+      expect(response.status).toBe(200);
+      const body = await response.json() as { local: unknown[]; _errors?: { local?: string | null } };
+      expect(body.local).toEqual([]);
+      expect(body._errors?.local).toContain("503");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 
   test("keeps Codex model discovery empty", async () => {
