@@ -18,35 +18,40 @@ Providers remain Gemini, OpenAI API, Local OpenAI-compatible, and Codex CLI. Exi
 
 ## Architecture
 
-### Feature registry
+### Feature registry and model utility
 
-Create one typed registry mapping each feature to its settings fields, UI label, default model behavior, and supported operations. The registry is the only place that knows that analysis uses `aiProvider`/`aiModel`, chat uses `chatProvider`/`chatModel`, and auto-tune may fall back to analysis settings.
+Keep one typed feature registry for settings selection. Every Mastra agent declares only the feature it needs:
 
-`resolveAi(feature, settings?)` loads and validates the selected settings, resolves the model, checks provider readiness, and returns a provider-neutral `ResolvedAi` object. Unknown providers and unavailable credentials/CLI sessions fail before execution with feature-specific actionable errors.
+```ts
+model: ({ requestContext }) => getModel("chat", requestContext);
+```
+
+`getModel(feature, requestContext?)` is the sole Mastra model utility. It reuses an opaque request-bound model when present; otherwise it asynchronously calls `resolveAi(feature)` so direct Mastra Studio and workflow runs use saved settings and keystore credentials. Agent files do not read provider/model settings, select fallbacks, inspect raw context keys, or branch on provider IDs.
+
+`resolveAi(feature, settings?)` remains the only settings and credential resolver. It validates provider readiness and returns a provider-neutral `ResolvedAi`.
 
 ### Provider adapters
 
-Each provider implements a common execution contract. Adapters own credentials and transport:
+Each provider implements the common execution contract and owns credentials, endpoints, readiness, and transport:
 
-- Gemini adapter creates Gemini requests with an explicit API key.
-- OpenAI adapter creates OpenAI requests with an explicit API key.
-- Local adapter creates OpenAI-compatible requests using the configured endpoint.
-- Codex adapter owns executable/authentication checks, subprocess lifecycle, JSONL parsing, timeout handling, and UI-message stream conversion.
+- Gemini adapter creates Gemini requests and a bound Mastra model with an explicit API key.
+- OpenAI adapter creates OpenAI requests and a bound Mastra model with an explicit API key.
+- Local adapter creates OpenAI-compatible requests and a bound Mastra model using the configured endpoint.
+- Codex adapter owns executable/authentication checks, subprocess lifecycle, JSONL parsing, timeout handling, and UI-message conversion.
 
-`ResolvedAi` does not expose API keys and does not mutate process-global environment during normal execution. Any unavoidable legacy Mastra bridge is isolated behind one compatibility function with scoped cleanup and is not part of the consumer API.
+No adapter mutates process-global provider environment. Provider/model fallback checks exist only in the feature resolver and model utility, never in routes or agents.
 
-### Consumer contract
+### Central execution helpers
 
-Consumers pass only a feature key and request data:
+Opaque binding and provider capability selection remain behind small execution helpers:
 
-```ts
-const ai = await resolveAi("analysis");
-return ai.generateStructured({ prompt, schema });
-```
+- `getModel(feature, requestContext?)` returns the settings-aware, credential-bound Mastra model.
+- `createModelContext(ai, context?)` binds a resolved model without exposing provider IDs, endpoints, credentials, or raw context keys.
+- `startChat(feature, input)` and the structured-agent equivalent choose Mastra or provider-native execution once, centrally.
 
-No route or feature module switches on provider IDs, reads secrets, sets environment variables, selects provider-specific model fallbacks, or constructs Codex chat streams.
+Routes supply prompts, schemas, memory, tools, and generation options. They do not construct `aiProviderConfig`, read `mastraModel`, test `createChatResponse`, or branch on provider IDs. Existing Mastra tools, personas, memory, reasoning options, and detached streaming remain unchanged.
 
-Supported operations:
+`ResolvedAi` exposes provider-neutral operations only:
 
 ```ts
 interface ResolvedAi {
@@ -55,23 +60,22 @@ interface ResolvedAi {
   model: string;
   generateText(input: TextRequest): Promise<AiResult>;
   generateStructured<T>(input: StructuredRequest<T>): Promise<AiResult>;
-  createChatResponse?(input: ChatRequest): Promise<Response>;
 }
 ```
 
-The runtime rejects unsupported operations at resolution time with a stable error. Codex structured calls continue using existing downstream JSON/schema parsing until a provider-native structured-output contract is available.
+Any internal model binding remains private to the adapter/bridge boundary. Unsupported provider/operation combinations fail inside central resolution with a stable `AiProviderError`; consumers never infer support from optional methods.
 
 ## Settings and readiness
 
 A Codex provider is not considered configured solely because settings contain `codex`. Readiness checks executable availability and `codex login status`; the status endpoint and settings UI consume the same readiness result. API providers check secret presence without returning secret values.
 
-Provider resolution must be safe under concurrent requests. No request may inherit another request's API key or endpoint. Prefer explicit SDK client construction; legacy environment bridging must snapshot and restore every touched variable in `finally` and be removed as adapters migrate.
+Provider resolution must be safe under concurrent requests. No request may inherit another request's API key or endpoint. All SDK clients use explicit request-scoped credentials; provider environment variables are never mutated.
 
 ## Codex behavior
 
 `parseCodexJsonl` accepts recognized progress events, extracts the final `agent_message`, reads completion usage, and rejects malformed non-empty JSONL, missing completion, or empty output. `runCodexCli` bounds diagnostics, enforces the existing timeout, reports missing executable/authentication/non-zero exit distinctly, and never reads or writes `OPENAI_API_KEY`.
 
-Chat routes use one shared Codex UI-message stream adapter. It emits the same start, text, and finish chunks as existing chat routes and performs no persistence or memory write after a failed provider call.
+The central chat-stream helper uses the shared Codex UI-message stream adapter when required. It emits the same start, text, and finish chunks as existing chat routes and performs no persistence or memory write after a failed provider call.
 
 ## Error handling
 
@@ -87,14 +91,17 @@ No silent fallback to another provider is permitted.
 
 ## Verification
 
-Add focused tests for:
+Focused tests must cover:
 
-- every feature registry mapping and auto-tune fallback
+- every feature mapping and auto-tune fallback
 - provider/model resolution and unsupported operations
+- direct agent resolution through stored settings and request-bound resolution without duplicate lookups
 - API-key non-leakage and concurrent request isolation
-- Codex readiness, command arguments, timeout, exit failure, malformed JSONL, empty output, and usage parsing
-- shared structured-output behavior
-- shared chat UI-message stream contract
-- all migrated consumers using feature-key resolution without provider switches
+- Codex readiness, command arguments, process-tree timeout cleanup, exit failure, malformed JSONL, empty output, and usage parsing
+- shared structured-agent and chat-stream dispatch without route-level provider/capability checks
+- all migrated consumers using feature or agent resolution without constructing provider context
+- test mocks composing in one Bun process
 
-Run focused tests, TypeScript/build verification, and a fake-Codex smoke path. Do not make real subscription or API calls in tests.
+Cleanup removes the unused duplicate model helper, vacuous assertions, stale task report, and superseded provider documentation. Relevant Codex UI, settings, dependencies, runtime, consumer, and changelog changes remain.
+
+Run the focused AI/settings suite together, TypeScript/build verification, and a fake-Codex smoke path. Do not make real subscription or API calls in tests. Reconcile the branch with `main` only after focused verification passes, then repeat affected verification.
