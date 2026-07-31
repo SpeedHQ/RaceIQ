@@ -4,21 +4,10 @@ import {
   mkdirSync,
   mkdtempSync,
   rmSync,
-  writeFileSync,
 } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import {
-  RESPONSIVE_INTERACTION_CASES,
-  RESPONSIVE_PAGES,
-  RESPONSIVE_VIEWPORTS,
-} from "../playwright/responsive-screenshot-cases";
-import { STORYBOOK_SNAPSHOT_CASES } from "../client/src/stories/snapshot-cases";
-import {
-  captureResponsiveWithCdp,
-  captureStorybookWithCdp,
-} from "./chromium-cdp";
 import {
   collectScreenshotDiffs,
   type ScreenshotDiff,
@@ -69,6 +58,8 @@ function parseArgs(args: string[]): CliOptions {
         [
           "Usage: bun run ui:diff [--base REF] [--no-fetch] [--open]",
           "",
+          "Requires Node.js to run Playwright.",
+          "",
           "  --base REF   Compare with an explicit Git ref (default: origin/main)",
           "  --no-fetch   Use the locally known origin/main",
           "  --open       Open the generated HTML report",
@@ -112,6 +103,40 @@ async function run(
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+async function requireNode(repoRoot: string): Promise<string> {
+  const missingNode = () =>
+    new Error(
+      "Node.js is required for `bun run ui:diff`. Install Node.js, then rerun. " +
+        "The Playwright runner cannot use Bun's Node compatibility layer on Windows.",
+    );
+  const nodePath = [
+    Bun.which("node"),
+    process.platform === "win32"
+      ? "C:\\Program Files\\nodejs\\node.exe"
+      : undefined,
+  ].find(
+    (candidate): candidate is string =>
+      Boolean(
+        candidate &&
+          !candidate.includes("bun-node-") &&
+          existsSync(candidate),
+      ),
+  );
+  if (!nodePath) throw missingNode();
+
+  let version: string;
+  try {
+    version = await run([nodePath, "--version"], {
+      cwd: repoRoot,
+      quiet: true,
+    });
+  } catch {
+    throw missingNode();
+  }
+  console.log(`Using Node.js ${version}`);
+  return nodePath;
 }
 
 async function removeRuntimeData(path: string): Promise<void> {
@@ -341,175 +366,91 @@ async function reservePorts(count: number): Promise<number[]> {
   return ports;
 }
 
-async function waitForUrl(url: string, timeoutMs = 120_000): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  let lastError: unknown;
-  while (Date.now() < deadline) {
-    try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(2_000) });
-      if (response.ok) return;
-      lastError = new Error(`${url} returned ${response.status}`);
-    } catch (error) {
-      lastError = error;
-    }
-    await Bun.sleep(250);
-  }
-  throw new Error(`Timed out waiting for ${url}: ${errorMessage(lastError)}`);
-}
-
-async function prepareScreenshotSettings(
-  apiUrl: string,
-  timeoutMs = 120_000,
-): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
-  let lastError: unknown;
-  while (Date.now() < deadline) {
-    try {
-      const response = await fetch(`${apiUrl}/api/settings`, {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          onboardingComplete: true,
-          driverName: "TestDriver",
-        }),
-        signal: AbortSignal.timeout(2_000),
-      });
-      if (response.ok) return;
-      lastError = new Error(`Settings preparation returned ${response.status}`);
-    } catch (error) {
-      lastError = error;
-    }
-    await Bun.sleep(250);
-  }
-  throw new Error(`Timed out preparing screenshot settings: ${errorMessage(lastError)}`);
-}
-
-type SpawnedProcess = ReturnType<typeof Bun.spawn>;
-
-async function stopProcessTree(subprocess: SpawnedProcess): Promise<void> {
-  if (subprocess.exitCode !== null) return;
-  if (process.platform === "win32") {
-    const killer = Bun.spawn(
-      ["taskkill", "/PID", String(subprocess.pid), "/T", "/F"],
-      { stdout: "ignore", stderr: "ignore" },
-    );
-    await killer.exited;
-    return;
-  }
-
-  subprocess.kill("SIGTERM");
-  const stopped = await Promise.race([
-    subprocess.exited.then(() => true),
-    Bun.sleep(10_000).then(() => false),
-  ]);
-  if (!stopped) {
-    subprocess.kill("SIGKILL");
-    await subprocess.exited;
-  }
-}
-
 async function captureResponsive(
   repoRoot: string,
   revisionRoot: string,
   screenshotDir: string,
+  nodePath: string,
 ): Promise<void> {
   rmSync(screenshotDir, { recursive: true, force: true });
   mkdirSync(screenshotDir, { recursive: true });
-  const [serverPort, clientPort, udpPort, debuggingPort] = await reservePorts(4);
+  const [serverPort, clientPort, udpPort] = await reservePorts(3);
   const dataDir = join(repoRoot, ".ui-diff", "runtime", `test-data-${serverPort}`);
-  rmSync(dataDir, { recursive: true, force: true });
-  mkdirSync(dataDir, { recursive: true });
-  writeFileSync(
-    join(dataDir, "settings.json"),
-    JSON.stringify({
-      udpPort,
-      onboardingComplete: true,
-      driverName: "TestDriver",
-    }),
+  const playwrightCli = join(
+    repoRoot,
+    "node_modules",
+    "@playwright",
+    "test",
+    "cli.js",
   );
-  const serverProcess = Bun.spawn(["bun", "run", "server/index.ts"], {
-    cwd: revisionRoot,
-    env: {
-      ...process.env,
-      DATA_DIR: dataDir,
-      SERVER_PORT: String(serverPort),
-      UDP_PORT: String(udpPort),
-      NODE_ENV: "test",
-    },
-    stdout: "ignore",
-    stderr: "inherit",
-  });
-  const clientProcess = Bun.spawn(
-    ["bun", "run", "dev", "--", "--host", "127.0.0.1", "--port", String(clientPort)],
-    {
-      cwd: join(revisionRoot, "client"),
-      env: {
-        ...process.env,
-        SERVER_PORT: String(serverPort),
-        PROXY_TARGET: `http://127.0.0.1:${serverPort}`,
-      },
-      stdout: "ignore",
-      stderr: "inherit",
-    },
-  );
-  const clientUrl = `http://127.0.0.1:${clientPort}`;
-  const apiUrl = `http://127.0.0.1:${serverPort}`;
 
   try {
-    await Promise.all([waitForUrl(clientUrl), prepareScreenshotSettings(apiUrl)]);
-
-    await captureResponsiveWithCdp({
-      clientUrl,
-      screenshotDir,
-      debuggingPort,
-      viewports: RESPONSIVE_VIEWPORTS,
-      pages: RESPONSIVE_PAGES,
-      interactions: RESPONSIVE_INTERACTION_CASES,
-    });
+    await run(
+      [nodePath, playwrightCli, "test", "--project=mobile-screenshots"],
+      {
+        cwd: join(repoRoot, "playwright"),
+        env: {
+          E2E_SERVER_MODE: "dev",
+          PW_SCREENSHOT_ONLY: "1",
+          RACEIQ_APP_ROOT: revisionRoot,
+          RACEIQ_SCREENSHOT_DIR: screenshotDir,
+          PW_FRESH_INSTALL_PORT: String(serverPort),
+          PW_FRESH_INSTALL_CLIENT_PORT: String(clientPort),
+          PW_FRESH_INSTALL_UDP_PORT: String(udpPort),
+          PW_FRESH_INSTALL_DATA_DIR: dataDir,
+        },
+      },
+    );
   } finally {
-    await stopProcessTree(clientProcess);
-    await stopProcessTree(serverProcess);
     await removeRuntimeData(dataDir);
   }
 }
 
 async function captureStorybook(
+  repoRoot: string,
   revisionRoot: string,
   screenshotDir: string,
+  nodePath: string,
 ): Promise<void> {
   rmSync(screenshotDir, { recursive: true, force: true });
   mkdirSync(screenshotDir, { recursive: true });
-  const [storybookPort, debuggingPort] = await reservePorts(2);
-  const storybookProcess = Bun.spawn(
-    [
-      "bunx",
-      "storybook",
-      "dev",
-      "-p",
-      String(storybookPort),
-      "--ci",
-      "--no-open",
-      "--exact-port",
-    ],
-    {
-      cwd: join(revisionRoot, "client"),
-      env: process.env,
-      stdout: "ignore",
-      stderr: "inherit",
-    },
+  const [storybookPort] = await reservePorts(1);
+  const resultsDir = join(
+    repoRoot,
+    ".ui-diff",
+    "runtime",
+    `test-results-${storybookPort}`,
   );
-  const storybookUrl = `http://127.0.0.1:${storybookPort}`;
+  const playwrightCli = join(
+    repoRoot,
+    "node_modules",
+    "@playwright",
+    "test",
+    "cli.js",
+  );
 
   try {
-    await waitForUrl(`${storybookUrl}/index.json`);
-    await captureStorybookWithCdp({
-      storybookUrl,
-      screenshotDir,
-      debuggingPort,
-      cases: STORYBOOK_SNAPSHOT_CASES,
-    });
+    await run(
+      [
+        nodePath,
+        playwrightCli,
+        "test",
+        "dashboards.snapshot.ts",
+        "theme.snapshot.ts",
+        "--update-snapshots",
+      ],
+      {
+        cwd: join(repoRoot, "client"),
+        env: {
+          RACEIQ_STORYBOOK_PORT: String(storybookPort),
+          RACEIQ_STORYBOOK_ROOT: join(revisionRoot, "client"),
+          RACEIQ_SNAPSHOT_DIR: screenshotDir,
+          RACEIQ_SNAPSHOT_RESULTS_DIR: resultsDir,
+        },
+      },
+    );
   } finally {
-    await stopProcessTree(storybookProcess);
+    await removeRuntimeData(resultsDir);
   }
 }
 
@@ -526,6 +467,7 @@ function openReport(reportPath: string, cwd: string): void {
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
   const repoRoot = resolve(import.meta.dir, "..");
+  const nodePath = await requireNode(repoRoot);
   const uiDiffDir = join(repoRoot, ".ui-diff");
   const captureDir = join(uiDiffDir, "captures");
   const baseResponsiveDir = join(captureDir, "base-responsive");
@@ -584,26 +526,46 @@ async function main(): Promise<void> {
     let currentStorybookCaptured = false;
     if (baseReady) {
       try {
-        await captureResponsive(repoRoot, baseWorktree, baseResponsiveDir);
+        await captureResponsive(
+          repoRoot,
+          baseWorktree,
+          baseResponsiveDir,
+          nodePath,
+        );
         baseResponsiveCaptured = true;
       } catch (error) {
         errors.push(`Baseline responsive capture failed:\n${errorMessage(error)}`);
       }
       try {
-        await captureStorybook(baseWorktree, baseStorybookDir);
+        await captureStorybook(
+          repoRoot,
+          baseWorktree,
+          baseStorybookDir,
+          nodePath,
+        );
         baseStorybookCaptured = true;
       } catch (error) {
         errors.push(`Baseline Storybook capture failed:\n${errorMessage(error)}`);
       }
     }
     try {
-      await captureResponsive(repoRoot, repoRoot, currentResponsiveDir);
+      await captureResponsive(
+        repoRoot,
+        repoRoot,
+        currentResponsiveDir,
+        nodePath,
+      );
       currentResponsiveCaptured = true;
     } catch (error) {
       errors.push(`Current responsive capture failed:\n${errorMessage(error)}`);
     }
     try {
-      await captureStorybook(repoRoot, currentStorybookDir);
+      await captureStorybook(
+        repoRoot,
+        repoRoot,
+        currentStorybookDir,
+        nodePath,
+      );
       currentStorybookCaptured = true;
     } catch (error) {
       errors.push(`Current Storybook capture failed:\n${errorMessage(error)}`);
@@ -679,7 +641,7 @@ async function main(): Promise<void> {
 
 if (import.meta.main) {
   main().catch((error) => {
-    console.error(error);
+    console.error(`UI diff failed: ${errorMessage(error)}`);
     process.exit(1);
   });
 }

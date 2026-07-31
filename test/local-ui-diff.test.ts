@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { ScreenshotDiff } from "../scripts/collect-screenshot-diffs";
@@ -127,6 +133,14 @@ describe("local UI diff report", () => {
       join(repoRoot, "client/src/stories/theme.snapshot.ts"),
       "utf8",
     );
+    const responsiveConfig = readFileSync(
+      join(repoRoot, "playwright/playwright.config.ts"),
+      "utf8",
+    );
+    const storybookConfig = readFileSync(
+      join(repoRoot, "client/playwright.config.ts"),
+      "utf8",
+    );
     const packageJson = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
     const gitignore = readFileSync(join(repoRoot, ".gitignore"), "utf8");
 
@@ -139,10 +153,18 @@ describe("local UI diff report", () => {
     expect(screenshotCases).toContain('name: "nav-drawer-open"');
     expect(screenshotCases).toContain('name: "settings-modal"');
     expect(screenshots).toContain("RESPONSIVE_INTERACTION_CASES");
-    expect(runner).toContain("RESPONSIVE_INTERACTION_CASES");
-    expect(runner).toContain('"taskkill", "/PID"');
-    expect(runner).toContain("STORYBOOK_SNAPSHOT_CASES");
+    expect(runner).toContain('Bun.which("node")');
+    expect(runner).toContain('"--project=mobile-screenshots"');
+    expect(runner).toContain('"dashboards.snapshot.ts"');
+    expect(runner).toContain('"theme.snapshot.ts"');
     expect(runner).toContain('prefix: "storybook"');
+    expect(responsiveConfig).toContain("RACEIQ_APP_ROOT");
+    expect(responsiveConfig).toContain("PW_SCREENSHOT_ONLY");
+    expect(storybookConfig).toContain("RACEIQ_STORYBOOK_ROOT");
+    expect(storybookConfig).toContain("RACEIQ_SNAPSHOT_DIR");
+    expect(
+      existsSync(join(repoRoot, "scripts/chromium-cdp.ts")),
+    ).toBeFalse();
     expect(snapshotCases).toContain('outputName: "snapshot-F1LiveDashboard.png"');
     expect(snapshotCases).toContain(
       'outputName: "snapshot-theme-semantic-states.png"',
