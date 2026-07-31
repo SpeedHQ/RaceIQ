@@ -172,7 +172,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
       <nav className="flex shrink-0 overflow-x-auto border-b border-app-border bg-app-surface-alt/50 py-2 @3xl/settings:w-48 @3xl/settings:flex-col @3xl/settings:overflow-x-visible @3xl/settings:border-r @3xl/settings:border-b-0">
         {NAV_ITEMS.filter((item) => !("devOnly" in item) || isDevelopment).map((item) => (
           <Button
-            variant={activeSection === item.id ? "selected-toggle" : "app-ghost"}
+            variant={activeSection === item.id ? "settings-nav-selected" : "settings-nav"}
             size="app-md"
             key={item.id}
             onClick={() => setActiveSection(item.id)}

@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 /** Shared completed-analysis summary row. */
 export function AnalysisSummaryRow({ title, detail, onView }: { title?: string; detail: string; onView: () => void }) {
   return (
-    <Button variant="full-width-action" size="app-sm" onClick={onView}>
+    <Button variant="analysis-summary" size="app-sm" onClick={onView}>
       <Sparkles className="size-3 shrink-0 text-status-success" />
       <div className="min-w-0 flex-1">
         <div className="text-app-caption font-semibold uppercase tracking-wider text-status-success">{title ?? m.compare_analysis_complete()}</div>
