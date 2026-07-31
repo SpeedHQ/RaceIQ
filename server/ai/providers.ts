@@ -4,6 +4,7 @@
 
 import { extractJson } from "./extract-json";
 import { AiProviderError } from "./provider-error";
+import { buildGoogleThinkingProviderOptions } from "./google-provider-options";
 export interface AiResult {
   analysis: string;
   usage: {
@@ -351,6 +352,7 @@ export type GeminiRequestOptions = {
   schema?: object;
   temperature?: number;
   maxOutputTokens?: number;
+  thinkingBudget?: number | null;
 };
 
 export async function runGeminiRequest(options: GeminiRequestOptions): Promise<AiResult> {
@@ -360,6 +362,7 @@ export async function runGeminiRequest(options: GeminiRequestOptions): Promise<A
     temperature: options.temperature ?? 0.3,
   };
   if (options.maxOutputTokens != null) generationConfig.maxOutputTokens = options.maxOutputTokens;
+  Object.assign(generationConfig, buildGoogleThinkingProviderOptions(model, options.thinkingBudget ?? null));
   if (options.schema) {
     generationConfig.responseMimeType = "application/json";
     generationConfig.responseSchema = options.schema;

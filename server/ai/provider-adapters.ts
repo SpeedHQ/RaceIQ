@@ -30,11 +30,13 @@ export class GeminiProviderAdapter {
   readonly provider: AiProvider = "gemini";
   readonly model: string;
   readonly #apiKey: string;
+  readonly #thinkingBudget: number | null;
 
   constructor(config: ProviderAdapterConfig & { apiKey: string }) {
     this.feature = config.feature;
     this.model = config.model;
     this.#apiKey = config.apiKey;
+    this.#thinkingBudget = config.thinkingBudget ?? null;
   }
 
   generateText(input: TextRequest): Promise<AiResult> {
@@ -44,6 +46,7 @@ export class GeminiProviderAdapter {
       model: this.model,
       temperature: input.temperature,
       maxOutputTokens: input.maxOutputTokens,
+      thinkingBudget: input.thinkingBudget ?? this.#thinkingBudget,
     });
   }
 
@@ -55,6 +58,7 @@ export class GeminiProviderAdapter {
       schema: input.schema as unknown as object,
       temperature: input.temperature,
       maxOutputTokens: input.maxOutputTokens,
+      thinkingBudget: input.thinkingBudget ?? this.#thinkingBudget,
     });
   }
 }

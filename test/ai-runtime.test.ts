@@ -109,4 +109,28 @@ describe("resolveAi", () => {
     expect(process.env.OPENAI_BASE_URL).toBe(before.baseUrl);
     expect(process.env.GOOGLE_GENERATIVE_AI_API_KEY).toBe(before.googleKey);
   });
+  test("carries Gemini thinking budget into request-local generation options", async () => {
+    secrets["gemini-api-key"] = "gemini-thinking";
+    const originalFetch = globalThis.fetch;
+    let requestBody: Record<string, unknown> | undefined;
+    globalThis.fetch = async (_input, init) => {
+      requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(JSON.stringify({
+        candidates: [{ content: { parts: [{ text: "plain response" }] } }],
+        usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 2 },
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    };
+    try {
+      const resolved = await resolveAi("analysis", settings({
+        aiProvider: "gemini",
+        aiThinkingBudget: 777,
+      }));
+      await resolved.generateText({ prompt: "hello" });
+      expect(requestBody?.generationConfig).toMatchObject({
+        thinkingConfig: { thinkingBudget: 777, includeThoughts: false },
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
