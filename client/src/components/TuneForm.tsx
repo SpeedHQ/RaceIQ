@@ -12,6 +12,7 @@ import { ALL_CATEGORIES, CATEGORY_COLORS, CATEGORY_LABELS } from "./tune/tune-co
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 
+import { Card, CardContent, CardHeader } from "./ui/card";
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useAllCars() {
@@ -253,22 +254,26 @@ export function TuneSettingsPanel({ settings: raw }: { settings: TuneSettings })
   const orderedSections = [...(tiresSection ? [tiresSection] : []), ...(gearingSection ? [gearingSection] : []), ...(alignmentSection ? [alignmentSection] : []), ...remainingSections];
 
   const renderSection = (section: { title: string; rows: [string, string][] }) => (
-    <div key={section.title} className="mb-3 break-inside-avoid rounded-lg bg-app-bg p-3">
-      <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{section.title}</h4>
-      <div className="space-y-0">
-        {section.rows.map(([label, value]) => (
-          <div key={label} className="flex justify-between text-xs gap-2">
-            <span className="text-app-text-muted whitespace-nowrap">{label}</span>
-            <span className="text-app-text font-mono whitespace-nowrap">{value}</span>
-          </div>
-        ))}
-      </div>
-      {section.title === "Gearing" && ratios.length > 0 && (
-        <div className="mt-2 pt-2 border-t border-app-border/60">
-          <GearRatioChart ratios={ratios} finalDrive={settings.gearing.finalDrive} topSpeedMph={settings.gearing.topSpeedKph ? settings.gearing.topSpeedKph / 1.60934 : undefined} />
+    <Card key={section.title} className="mb-3 break-inside-avoid rounded-lg bg-app-bg p-0 ring-0">
+      <CardHeader className="rounded-none p-3 pb-2">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent">{section.title}</h4>
+      </CardHeader>
+      <CardContent className="p-3 pt-0">
+        <div className="space-y-0">
+          {section.rows.map(([label, value]) => (
+            <div key={label} className="flex justify-between text-xs gap-2">
+              <span className="text-app-text-muted whitespace-nowrap">{label}</span>
+              <span className="text-app-text font-mono whitespace-nowrap">{value}</span>
+            </div>
+          ))}
         </div>
-      )}
-    </div>
+        {section.title === "Gearing" && ratios.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-app-border/60">
+            <GearRatioChart ratios={ratios} finalDrive={settings.gearing.finalDrive} topSpeedMph={settings.gearing.topSpeedKph ? settings.gearing.topSpeedKph / 1.60934 : undefined} />
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 
   return <div className="w-full columns-1 gap-3 md:columns-2 xl:columns-3">{orderedSections.map((section) => renderSection(section))}</div>;
@@ -362,7 +367,7 @@ export function UserTuneCard({
   };
 
   return (
-    <div className="rounded-xl bg-app-surface ring-1 ring-app-border overflow-hidden">
+    <Card className="gap-0 rounded-xl bg-app-surface p-0">
       <button onClick={onToggle} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-app-surface-hover transition-colors">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -384,7 +389,7 @@ export function UserTuneCard({
       </button>
 
       {isExpanded && (
-        <div className="px-4 pb-4 space-y-4 border-t border-app-border">
+        <CardContent className="space-y-4 border-t border-app-border px-4 pb-4 pt-0">
           <div className="flex items-center gap-2 pt-3 flex-wrap">
             <Button
               type="button"
@@ -482,9 +487,9 @@ export function UserTuneCard({
             )}
           </div>
           {tune.settings && <TuneSettingsPanel settings={tune.settings} />}
-        </div>
+        </CardContent>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -789,8 +794,8 @@ export function TuneForm({
             if (!carData?.specs) return null;
             const s = carData.specs;
             return (
-              <div className="col-span-2 rounded-lg bg-app-surface ring-1 ring-app-border overflow-hidden">
-                <div className="p-3 grid grid-cols-3 gap-x-4 gap-y-2">
+              <Card className="col-span-2 gap-0 rounded-lg bg-app-surface p-0">
+                <CardContent className="grid grid-cols-3 gap-x-4 gap-y-2 p-3">
                   {s.hp > 0 && (
                     <div className="flex flex-col">
                       <span className="text-app-caption text-app-text-muted uppercase tracking-wide">{m.label_power()}</span>
@@ -830,7 +835,7 @@ export function TuneForm({
                       <span className="text-xs text-app-text truncate">{s.division}</span>
                     </div>
                   )}
-                </div>
+                </CardContent>
                 {s.imageUrl && (
                   <img
                     src={s.imageUrl}
@@ -841,7 +846,7 @@ export function TuneForm({
                     }}
                   />
                 )}
-              </div>
+              </Card>
             );
           })()}
         </div>

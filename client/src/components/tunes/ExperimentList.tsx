@@ -17,6 +17,7 @@ import {
 import { useTelemetryStore } from "../../stores/telemetry";
 import { SearchSelect } from "../ui/SearchSelect";
 import { FocusPicker } from "./FocusPicker";
+import { Card } from "../ui/card";
 import { SetupFilePicker } from "./SetupFilePicker";
 
 /**
@@ -83,8 +84,8 @@ export function FocusBadge({ focus }: { focus: ExperimentFocus }) {
 function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Experiment[]; onOpen: (id: number) => void; isLoading: boolean; gameId: ExperimentGameId }) {
   const accCarName = useAccCarName();
   const carName = (n: string | null | undefined) => (gameId === "acc" ? accCarName(n) : n) ?? "—";
-  return (
-    <div className="overflow-x-auto border border-app-border rounded-lg">
+    return (
+      <Card className="gap-0 overflow-x-auto rounded-lg border border-app-border bg-app-surface p-0 ring-0">
       <table className="w-full text-sm border-collapse">
         <thead>
           <tr className="text-left text-app-compact uppercase tracking-wider text-app-text-muted border-b border-app-border">
@@ -129,7 +130,7 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
           })}
         </tbody>
       </table>
-    </div>
+      </Card>
   );
 }
 

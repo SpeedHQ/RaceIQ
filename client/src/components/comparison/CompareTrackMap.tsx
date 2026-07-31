@@ -7,6 +7,7 @@ import { client } from "../../lib/rpc";
 import { flipBoundaries, flipPoints, needsTrackFlip } from "../../lib/track-coords";
 import { m } from "../../paraglide/messages";
 
+import { Card } from "../ui/card";
 export interface SegmentTiming {
   name: string;
   type: "corner" | "straight";
@@ -354,8 +355,8 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
     return () => observer.disconnect();
   }, [drawBoth]);
 
-  return (
-    <div className="bg-app-surface rounded-lg border border-app-border overflow-hidden h-full flex flex-col">
+    return (
+      <Card className="h-full gap-0 rounded-lg bg-app-surface p-0 ring-app-border">
       {/* Overview — full track, static */}
       <div ref={overviewContainerRef} className="relative border-b border-app-border h-[220px] shrink-0">
         <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_overview()}</span>
@@ -429,7 +430,6 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
             </tbody>
           </table>
         </div>
-      ) : null}
-    </div>
+    </Card>
   );
 }
