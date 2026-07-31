@@ -220,10 +220,9 @@ function SessionLapTable({
           />
           <div className="fixed z-50 bg-app-surface border border-app-border rounded shadow-lg py-1 text-sm" style={{ left: contextMenu.x, top: contextMenu.y }}>
             <Button
-              type="button"
               variant="app-ghost"
               size="app-sm"
-              className="!h-auto w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover"
+              className="w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover"
               onClick={async () => {
                 const res = await fetch(`/api/laps/${contextMenu.lapId}/recheck`, { method: "POST" });
                 const data = await res.json();
@@ -235,10 +234,9 @@ function SessionLapTable({
               {m.sessions_recheck_validity()}
             </Button>
             <Button
-              type="button"
               variant="app-ghost"
               size="app-sm"
-              className="!h-auto w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover"
+              className="w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover"
               onClick={async () => {
                 const lapId = contextMenu.lapId;
                 setContextMenu(null);
@@ -529,7 +527,6 @@ export function SessionsPage() {
             {(["recorded", "imported"] as const satisfies readonly SessionsTab[]).map((t) => (
               <Button
                 key={t}
-                type="button"
                 variant="app-ghost"
                 size="app-md"
                 onClick={() => {
@@ -538,7 +535,7 @@ export function SessionsPage() {
                   setSelectedSessions(new Set());
                   setSelectedLaps(new Set());
                 }}
-                className={`!h-auto !rounded-none !px-3 !py-1.5 text-sm font-semibold transition-colors ${tab === t ? "bg-app-accent text-app-on-filled" : "text-app-text/90 hover:text-app-text"}`}
+                className={`!rounded-none text-sm font-semibold transition-colors ${tab === t ? "bg-app-accent text-app-on-filled" : "text-app-text/90 hover:text-app-text"}`}
               >
                 {t === "recorded" ? m.sessions_tab_recorded() : m.sessions_tab_imported()}
               </Button>
@@ -580,7 +577,6 @@ export function SessionsPage() {
               if (sessA.trackOrdinal !== sessB.trackOrdinal) return null;
               return (
                 <Button
-                  type="button"
                   variant="app-primary"
                   size="app-md"
                   onClick={() => {
@@ -606,7 +602,7 @@ export function SessionsPage() {
               );
             })()}
           {(selectedSessions.size > 0 || selectedLaps.size > 0) && (
-            <Button type="button" variant="app-danger" size="app-md" onClick={deleteSelected}>
+            <Button variant="app-danger" size="app-md" onClick={deleteSelected}>
               {m.common_delete()} {selectedSessions.size > 0 ? `${selectedSessions.size} ${m.sessions_count_sessions()}` : ""}
               {selectedSessions.size > 0 && selectedLaps.size > 0 ? " + " : ""}
               {selectedLaps.size > 0 ? `${selectedLaps.size} ${m.sessions_count_laps()}` : ""}
@@ -857,23 +853,15 @@ export function SessionsPage() {
             {m.sessions_showing_prefix()} {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} {m.sessions_showing_of()} {filtered.length}
           </span>
           <div className="flex gap-1">
-            <Button
-              type="button"
-              variant="app-outline"
-              size="app-sm"
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={page === 0}
-              className="!h-auto !px-2 !py-1 disabled:opacity-30 disabled:cursor-not-allowed"
-            >
+            <Button variant="app-outline" size="app-sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} className="!py-1 disabled:opacity-30 disabled:cursor-not-allowed">
               {m.sessions_prev()}
             </Button>
             <Button
-              type="button"
               variant="app-outline"
               size="app-sm"
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1}
-              className="!h-auto !px-2 !py-1 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="!py-1 disabled:opacity-30 disabled:cursor-not-allowed"
             >
               {m.common_next()}
             </Button>

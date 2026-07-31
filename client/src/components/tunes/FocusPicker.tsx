@@ -32,12 +32,11 @@ export function FocusPicker({
         {EXPERIMENT_FOCUSES.map((f) => (
           <Button
             key={f}
-            type="button"
             variant="app-ghost"
             size="app-md"
             onClick={() => onChange(f)}
             aria-pressed={value === f}
-            className={`!h-auto !w-full !justify-start !rounded-lg !border !px-3 !py-2 text-left transition-colors ${
+            className={`!w-full !justify-start !rounded-lg !border !py-2 text-left transition-colors ${
               value === f ? "border-app-accent bg-app-accent/10" : "border-app-border hover:border-app-accent/50"
             }`}
           >

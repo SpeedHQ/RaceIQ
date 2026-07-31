@@ -56,7 +56,6 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
             return (
               <Button
                 key={f}
-                type="button"
                 variant="app-ghost"
                 size="app-sm"
                 aria-pressed={active}
@@ -68,7 +67,7 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
                   setPending(f);
                   setNote("");
                 }}
-                className={`!h-auto !rounded-none !px-2.5 !py-1 text-xs transition-colors ${
+                className={`!rounded-none text-xs transition-colors ${
                   active
                     ? f === "driver"
                       ? "bg-(--focus-driver)/20 text-(--focus-driver) font-semibold"
@@ -104,10 +103,10 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
           />
           {error && <div className="mt-1.5 text-app-compact text-status-danger">{error}</div>}
           <div className="mt-2 flex justify-end gap-2">
-            <Button type="button" variant="app-outline" size="app-sm" onClick={() => setPending(null)} className="!h-auto">
+            <Button variant="app-outline" size="app-sm" onClick={() => setPending(null)}>
               Cancel
             </Button>
-            <Button type="button" variant="app-primary" size="app-sm" onClick={() => void commit()} disabled={setFocus.isPending} className="!h-auto">
+            <Button variant="app-primary" size="app-sm" onClick={() => void commit()} disabled={setFocus.isPending}>
               {setFocus.isPending ? "Switching…" : "Switch"}
             </Button>
           </div>

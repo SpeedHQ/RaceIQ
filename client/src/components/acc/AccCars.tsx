@@ -1,8 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { client } from "../../lib/rpc";
-import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
 import { m } from "../../paraglide/messages";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -98,7 +96,6 @@ export function AccCars() {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex gap-1">
           <Button
-            type="button"
             variant="app-ghost"
             size="app-sm"
             className={`!h-auto !px-3 !py-1 text-xs font-semibold ${!filterClass ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
@@ -111,7 +108,6 @@ export function AccCars() {
             return (
               <Button
                 key={cls}
-                type="button"
                 variant="app-ghost"
                 size="app-sm"
                 data-catalog-category={cls}
@@ -130,7 +126,9 @@ export function AccCars() {
         return (
           <div key={cls}>
             <div className="flex items-center gap-2 mb-3">
-              <Badge variant="neutral" size="default" className="catalog-category border-transparent text-xs font-bold" data-catalog-category={cls}>{cls}</Badge>
+              <Badge variant="neutral" size="default" className="catalog-category border-transparent text-xs font-bold" data-catalog-category={cls}>
+                {cls}
+              </Badge>
               <span className="text-xs text-app-text-dim">
                 {classCars.length} {m.acccars_car_count_label()}
               </span>

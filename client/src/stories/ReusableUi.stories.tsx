@@ -1,13 +1,13 @@
-import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react";
+import { useState } from "react";
 import { expect, userEvent, within } from "storybook/test";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Table, TBody, TD, TH, THead, TRow } from "../components/ui/AppTable";
-import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
 
 const meta = {
@@ -23,7 +23,6 @@ const meta = {
     ),
   ],
 } satisfies Meta;
-
 
 function ControlledTabsDemo() {
   const [value, setValue] = useState("telemetry");
@@ -162,11 +161,25 @@ export const ButtonVariants: Story = {
           Large
         </Button>
       </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="app-primary" size="app-sm">
+          Default action
+        </Button>
+        <Button variant="app-primary" size="app-sm" type="submit">
+          Submit form
+        </Button>
+        <Button variant="app-outline" size="app-sm" type="reset">
+          Reset form
+        </Button>
+      </div>
     </div>
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const primary = canvas.getByRole("button", { name: "Start session" });
+    await expect(canvas.getByRole("button", { name: "Default action" })).toHaveAttribute("type", "button");
+    await expect(canvas.getByRole("button", { name: "Submit form" })).toHaveAttribute("type", "submit");
+    await expect(canvas.getByRole("button", { name: "Reset form" })).toHaveAttribute("type", "reset");
     await userEvent.tab();
     await expect(primary).toHaveFocus();
     await expect(getComputedStyle(primary).boxShadow).toContain("3px");

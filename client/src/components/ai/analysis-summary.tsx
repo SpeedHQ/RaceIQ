@@ -1,21 +1,15 @@
 import { Eye, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
 import type { ReactNode } from "react";
-import { m } from "@/paraglide/messages";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { m } from "@/paraglide/messages";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 
 /** Shared completed-analysis summary row. */
 export function AnalysisSummaryRow({ title, detail, onView }: { title?: string; detail: string; onView: () => void }) {
   return (
-    <Button
-      type="button"
-      variant="app-ghost"
-      size="app-sm"
-      onClick={onView}
-      className="w-full justify-start gap-2 rounded bg-status-success/10 !px-2 !py-1.5 text-left hover:bg-status-success/15"
-    >
+    <Button variant="app-ghost" size="app-sm" onClick={onView} className="w-full justify-start gap-2 bg-status-success/10 !px-2 !py-1.5 text-left hover:bg-status-success/15">
       <Sparkles className="size-3 shrink-0 text-status-success" />
       <div className="min-w-0 flex-1">
         <div className="text-app-caption font-semibold uppercase tracking-wider text-status-success">{title ?? m.compare_analysis_complete()}</div>
@@ -73,15 +67,23 @@ export function AnalysisModalShell({
                     } ${interactive ? "hover:bg-app-surface-hover/20" : "px-0 disabled:opacity-100"}`}
                   >
                     {tab.label}
-                    {tab.badge !== undefined && <Badge variant="neutral" size="compact" className="border-0 bg-app-border-input/30 text-app-text-secondary">{tab.badge}</Badge>}
-                    {tab.flag && <Badge variant="warning" size="compact" className="border-ai-accent/20 bg-ai-accent/15 text-ai-accent">{tab.flag}</Badge>}
+                    {tab.badge !== undefined && (
+                      <Badge variant="neutral" size="compact" className="border-0 bg-app-border-input/30 text-app-text-secondary">
+                        {tab.badge}
+                      </Badge>
+                    )}
+                    {tab.flag && (
+                      <Badge variant="warning" size="compact" className="border-ai-accent/20 bg-ai-accent/15 text-ai-accent">
+                        {tab.flag}
+                      </Badge>
+                    )}
                   </TabsTrigger>
                 );
               })}
             </TabsList>
           </Tabs>
           {subtitle && <span className="text-app-compact text-app-text-secondary truncate ml-2">{subtitle}</span>}
-          <Button type="button" variant="app-ghost" size="icon-sm" onClick={onClose} className="ml-auto shrink-0 pl-2 text-app-text-muted hover:text-app-text" aria-label={m.common_close()}>
+          <Button variant="app-ghost" size="icon-sm" onClick={onClose} className="ml-auto shrink-0 pl-2 text-app-text-muted" aria-label={m.common_close()}>
             <X className="size-4" />
           </Button>
         </DialogHeader>

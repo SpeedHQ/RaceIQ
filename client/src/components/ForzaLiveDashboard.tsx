@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { m } from "@/paraglide/messages";
-import { Button } from "./ui/button";
 import { useCarName, useTrackName } from "../hooks/queries";
 import { useDemoMode } from "../hooks/useDemoMode";
 import { useGameId, useGameRoute } from "../stores/game";
@@ -42,12 +41,11 @@ function PageHeader({ dashMode, demo }: { dashMode: DashboardMode; demo: ReturnT
       </div>
       {import.meta.env.DEV && (
         <Button
-          type="button"
           variant="app-ghost"
           size="app-sm"
           onClick={demo.toggle}
           disabled={demo.loading}
-          className={`!h-auto !border !px-2 !py-0.5 text-app-caption font-mono font-semibold ${
+          className={`!border font-mono font-semibold ${
             demo.active
               ? "bg-status-warning/20 border-status-warning/50 text-status-warning hover:bg-status-warning/30"
               : demo.loading

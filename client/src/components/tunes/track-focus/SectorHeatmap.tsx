@@ -62,7 +62,6 @@ export function SectorHeatmap({ laps, focusLapId, onFocusLap }: SectorHeatmapPro
                 return (
                   <td key={lap.id} className="p-0.5">
                     <Button
-                      type="button"
                       variant="app-ghost"
                       size="app-sm"
                       title={`S${si + 1} L${lap.lapNumber} ${delta == null ? "n/a" : `${delta >= 0 ? "+" : ""}${delta.toFixed(2)}s`}`}

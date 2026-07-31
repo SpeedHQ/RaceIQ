@@ -104,7 +104,7 @@ function SectionCard({
 
   return (
     <Card size="sm" className="gap-0 rounded-lg">
-      <Button variant="app-ghost" size="app-md" type="button" onClick={() => setOpen((o) => !o)} className="w-full justify-between rounded-none px-3 py-2 text-left">
+      <Button variant="app-ghost" size="app-md" onClick={() => setOpen((o) => !o)} className="w-full justify-between rounded-none py-2 text-left">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-app-text">{section.label}</span>
           <Badge variant={hasData ? "success" : "neutral"} size="compact" className={hasData ? "" : "bg-app-bg"}>

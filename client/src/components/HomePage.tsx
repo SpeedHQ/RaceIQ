@@ -6,8 +6,8 @@ import { ActivityHeatmap } from "./ActivityHeatmap";
 import { formatLapTime } from "./LiveTelemetry";
 import { SessionRecapView, type TrackOutlineData, type TrackSectorBounds } from "./SessionRecap";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
-import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 
 function GameBrandLogo({ gameId, className = "w-5 h-5" }: { gameId: string; className?: string }) {
   if (gameId === "fm-2023") return <img src="/forza-logo.svg" alt="" className={`game-brand-logo ${className}`} />;
@@ -183,7 +183,7 @@ export function HomePageView({
 }: HomePageViewProps) {
   return (
     <div className="min-h-full bg-app-bg">
-      <div className="mx-auto max-w-[1400px] space-y-6 p-4 @3xl/workspace:p-6">
+      <div className="mx-auto max-w-[1400px] p-4 md:p-6 space-y-6">
         {/* Header */}
         {gameId ? (
           <div data-game-brand={gameId} className="game-brand-panel relative overflow-hidden rounded-lg border p-5">
@@ -209,24 +209,26 @@ export function HomePageView({
               <h1 className="text-2xl font-bold text-app-text/90">{displaySettings.driverName ? `${m.home_hello()}, ${displaySettings.driverName}` : "RaceIQ"}</h1>
               <p className="text-sm text-app-text/90 mt-0.5">{m.home_dashboard_overview()}</p>
             </div>
-            <button type="button" onClick={onOpenSettings} className="p-1.5 rounded text-app-text-muted hover:text-app-text hover:bg-app-surface-hover transition-colors" title={m.home_manage_games()}>
+            <Button
+              variant="app-ghost"
+              size="icon-sm"
+              onClick={onOpenSettings}
+              className="!h-auto !w-auto p-1.5 text-app-text-muted hover:text-app-text hover:bg-app-surface-hover"
+              title={m.home_manage_games()}
+            >
               <Settings2 className="size-4" />
-            </button>
+            </Button>
           </div>
-          <Button type="button" variant="app-ghost" size="icon-sm" onClick={onOpenSettings} className="!h-auto !w-auto p-1.5 text-app-text-muted hover:text-app-text hover:bg-app-surface-hover" title={m.home_manage_games()}>
-            <Settings2 className="size-4" />
-          </Button>
-        </div>
-      )}
+        )}
 
         {/* Game cards — only on global homepage */}
         {!gameId && (
-          <div className="grid grid-cols-2 gap-3 @3xl/workspace:flex">
+          <div className="grid grid-cols-2 md:flex gap-3">
             {!hiddenGames.includes("fm-2023") && (
               <Link
                 to="/fm23"
                 data-game-brand="fm-2023"
-                className="game-brand-panel game-brand-card group relative overflow-hidden rounded-lg border p-5 transition-all duration-250 ease-out hover:scale-[1.02] @3xl/workspace:flex-1"
+                className="game-brand-panel game-brand-card group md:flex-1 relative overflow-hidden rounded-lg border p-5 transition-all duration-250 ease-out hover:scale-[1.02]"
               >
                 {/* Accent glow */}
                 <div className="game-brand-glow absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20" />
@@ -262,7 +264,7 @@ export function HomePageView({
               <Link
                 to="/f125"
                 data-game-brand="f1-2025"
-                className="game-brand-panel game-brand-card group relative overflow-hidden rounded-lg border p-5 transition-all duration-250 ease-out hover:scale-[1.02] @3xl/workspace:flex-1"
+                className="game-brand-panel game-brand-card group md:flex-1 relative overflow-hidden rounded-lg border p-5 transition-all duration-250 ease-out hover:scale-[1.02]"
               >
                 {/* Accent glow */}
                 <div className="game-brand-glow absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20" />
@@ -298,7 +300,7 @@ export function HomePageView({
               <Link
                 to="/acc"
                 data-game-brand="acc"
-                className="game-brand-panel game-brand-card group relative overflow-hidden rounded-lg border p-5 transition-all duration-250 ease-out hover:scale-[1.02] @3xl/workspace:flex-1"
+                className="game-brand-panel game-brand-card group md:flex-1 relative overflow-hidden rounded-lg border p-5 transition-all duration-250 ease-out hover:scale-[1.02]"
               >
                 {/* Accent glow */}
                 <div className="game-brand-glow absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20" />
@@ -334,7 +336,7 @@ export function HomePageView({
               <Link
                 to="/ac-evo"
                 data-game-brand="ac-evo"
-                className="game-brand-panel game-brand-card group relative overflow-hidden rounded-lg border p-5 transition-all duration-250 ease-out hover:scale-[1.02] @3xl/workspace:flex-1"
+                className="game-brand-panel game-brand-card group md:flex-1 relative overflow-hidden rounded-lg border p-5 transition-all duration-250 ease-out hover:scale-[1.02]"
               >
                 {/* Accent glow */}
                 <div className="game-brand-glow absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20" />
@@ -370,7 +372,7 @@ export function HomePageView({
               <Link
                 to="/iracing"
                 data-game-brand="iracing"
-                className="game-brand-panel game-brand-card group relative overflow-hidden rounded-lg border p-5 transition-all duration-250 ease-out hover:scale-[1.02] @3xl/workspace:flex-1"
+                className="game-brand-panel game-brand-card group md:flex-1 relative overflow-hidden rounded-lg border p-5 transition-all duration-250 ease-out hover:scale-[1.02]"
               >
                 <div className="game-brand-glow absolute -top-8 -right-8 w-[120px] h-[120px] rounded-full transition-opacity duration-250 opacity-10 group-hover:opacity-20" />
                 <div className="game-brand-bar absolute bottom-0 left-0 right-0 h-[1.5px] transition-opacity duration-250 opacity-50 group-hover:opacity-100" />
@@ -401,7 +403,7 @@ export function HomePageView({
         )}
 
         {gameId ? (
-          <div className="grid grid-cols-1 items-start gap-6 @5xl/workspace:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
             <main className="min-w-0 space-y-6">
               <section>
                 <ActivityHeatmap laps={allLaps.filter((l) => l.gameId === gameId)} />
@@ -418,14 +420,15 @@ export function HomePageView({
                       ["allTime", m.home_period_all_time()],
                     ] as const
                   ).map(([key, label]) => (
-                    <button
-                      type="button"
+                    <Button
+                      variant="app-ghost"
+                      size="app-sm"
                       key={key}
                       onClick={() => onPeriodTabChange(key)}
-                      className={`rounded px-3 py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90 hover:text-app-text"}`}
+                      className={`!px-3 !py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90 hover:text-app-text"}`}
                     >
                       {label}
-                    </button>
+                    </Button>
                   ))}
                 </div>
                 {(() => {
@@ -437,7 +440,7 @@ export function HomePageView({
                     return h > 0 ? `${h}h ${m}m` : `${m}m`;
                   };
                   return (
-                    <div className="grid grid-cols-2 gap-3 @3xl/workspace:grid-cols-5">
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
                       <StatCard label={m.label_sessions()} value={`${data.sessions}`} />
                       <StatCard label={m.label_laps()} value={`${data.laps}`} />
                       <StatCard label={m.label_tracks()} value={`${data.tracks}`} />
@@ -454,7 +457,7 @@ export function HomePageView({
               </section>
             </main>
 
-            <aside className="@5xl/workspace:sticky @5xl/workspace:top-6">
+            <aside className="lg:sticky lg:top-6">
               {latestSession ? (
                 <div className="relative overflow-hidden rounded-xl border border-app-border bg-app-bg p-4">
                   <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-app-accent opacity-15 blur-3xl" />
@@ -522,12 +525,11 @@ export function HomePageView({
                   ] as const
                 ).map(([key, label]) => (
                   <Button
-                    type="button"
                     variant="app-ghost"
                     size="app-sm"
                     key={key}
                     onClick={() => onPeriodTabChange(key)}
-                    className={`!h-auto !px-3 !py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90 hover:text-app-text"}`}
+                    className={`!px-3 !py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90 hover:text-app-text"}`}
                   >
                     {label}
                   </Button>
@@ -557,60 +559,9 @@ export function HomePageView({
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90">{m.home_recent_laps()}</h2>
               <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseLap={onAnalyseLap} />
             </div>
-          )}
-
-          <ActivityHeatmap laps={allLaps} />
-
-          <div>
-            <div className="mb-3 flex flex-wrap items-center gap-1">
-              {(
-                [
-                  ["today", m.home_period_today()],
-                  ["week", m.home_period_week()],
-                  ["month", m.home_period_month()],
-                  ["year", m.home_period_year()],
-                  ["allTime", m.home_period_all_time()],
-                ] as const
-              ).map(([key, label]) => (
-                <Button
-                  type="button"
-                  variant="app-ghost"
-                  size="app-sm"
-                  key={key}
-                  onClick={() => onPeriodTabChange(key)}
-                  className={`!h-auto !px-3 !py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90 hover:text-app-text"}`}
-                >
-                  {label}
-                </Button>
-              ))}
-            </div>
-            {(() => {
-              const data = periodStats[periodTab];
-              const timeSec = data.totalTime;
-              const fmtTime = (s: number) => {
-                const h = Math.floor(s / 3600);
-                const m = Math.floor((s % 3600) / 60);
-                return h > 0 ? `${h}h ${m}m` : `${m}m`;
-              };
-              return (
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-                  <StatCard label={m.label_sessions()} value={`${data.sessions}`} />
-                  <StatCard label={m.label_laps()} value={`${data.laps}`} />
-                  <StatCard label={m.label_tracks()} value={`${data.tracks}`} />
-                  <StatCard label={m.label_cars()} value={`${data.cars}`} />
-                  {timeSec > 0 && <StatCard label={m.home_stat_time_driven()} value={fmtTime(timeSec)} color="text-app-accent" />}
-                </div>
-              );
-            })()}
-          </div>
-
-          <div>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90">{m.home_recent_laps()}</h2>
-            <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseLap={onAnalyseLap} />
-          </div>
-        </>
-      )}
-    </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
