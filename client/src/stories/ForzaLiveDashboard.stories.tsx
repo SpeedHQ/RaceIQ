@@ -1,17 +1,17 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
+import { QueryClient } from "@tanstack/react-query";
 import { ForzaLiveDashboard } from "../components/ForzaLiveDashboard";
 import { useGameStore } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
 import { fakeForzaDisplayPacket, fakeForzaPacket, fakePit, fakeSectors, fakeSessionLaps } from "./fakeData";
+import { LiveDashboardStoryFrame } from "./LiveDashboardStoryFrame";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Infinity } },
 });
 queryClient.setQueryData(["laps", "fm-2023"], fakeSessionLaps);
 
-function StoryDecorator({ children }: { children: React.ReactNode }) {
+function StoryDecorator({ story }: { story: React.ComponentType }) {
   useTelemetryStore.setState({
     connected: true,
     rawPacket: fakeForzaPacket,
@@ -34,34 +34,14 @@ function StoryDecorator({ children }: { children: React.ReactNode }) {
 
   useGameStore.setState({ gameId: "fm-2023" });
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      <div style={{ height: "100vh", overflow: "auto", background: "var(--app-bg)" }}>{children}</div>
-    </QueryClientProvider>
-  );
-}
-
-// Minimal router so TanStack Router <Link> components don't crash
-function withRouter(Story: React.ComponentType) {
-  const Comp = () => <Story />;
-  const rootRoute = createRootRoute({ component: Comp });
-  const router = createRouter({
-    routeTree: rootRoute,
-    history: createMemoryHistory({ initialEntries: ["/"] }),
-  });
-  return <RouterProvider router={router} />;
+  return <LiveDashboardStoryFrame queryClient={queryClient} story={story} />;
 }
 
 const meta: Meta<typeof ForzaLiveDashboard> = {
   title: "Dashboards/ForzaLiveDashboard",
   component: ForzaLiveDashboard,
   decorators: [
-    (Story) => (
-      <StoryDecorator>
-        <Story />
-      </StoryDecorator>
-    ),
-    (Story) => withRouter(Story),
+    (Story) => <StoryDecorator story={Story} />,
   ],
   parameters: {
     layout: "fullscreen",

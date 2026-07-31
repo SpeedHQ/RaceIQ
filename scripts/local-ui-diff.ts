@@ -17,6 +17,7 @@ interface CliOptions {
   baseRef: string;
   fetchMain: boolean;
   open: boolean;
+  storybookOnly: boolean;
 }
 
 export interface UiDiffMetadata {
@@ -40,6 +41,7 @@ function parseArgs(args: string[]): CliOptions {
   let baseRef = "origin/main";
   let fetchMain = true;
   let open = false;
+  let storybookOnly = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -53,16 +55,21 @@ function parseArgs(args: string[]): CliOptions {
       fetchMain = false;
     } else if (arg === "--open") {
       open = true;
+    } else if (arg === "--storybook-only") {
+      storybookOnly = true;
     } else if (arg === "--help" || arg === "-h") {
       console.log(
         [
-          "Usage: bun run ui:diff [--base REF] [--no-fetch] [--open]",
+          "Usage: bun run ui:diff [--base REF] [--no-fetch] [--open] [--storybook-only]",
           "",
           "Requires Node.js to run Playwright.",
+          "Use this same-renderer comparison before push; direct client snapshot:test",
+          "compares pinned Linux baselines and may expose local font-rasterization noise.",
           "",
           "  --base REF   Compare with an explicit Git ref (default: origin/main)",
           "  --no-fetch   Use the locally known origin/main",
           "  --open       Open the generated HTML report",
+          "  --storybook-only  Skip responsive app captures and compare Storybook only",
         ].join("\n"),
       );
       process.exit(0);
@@ -71,7 +78,7 @@ function parseArgs(args: string[]): CliOptions {
     }
   }
 
-  return { baseRef, fetchMain, open };
+  return { baseRef, fetchMain, open, storybookOnly };
 }
 
 async function run(
@@ -137,6 +144,16 @@ async function requireNode(repoRoot: string): Promise<string> {
   }
   console.log(`Using Node.js ${version}`);
   return nodePath;
+}
+
+function requirePlaywrightCli(repoRoot: string, workspace: "client" | "playwright"): string {
+  const candidates = [
+    join(repoRoot, workspace, "node_modules", "@playwright", "test", "cli.js"),
+    join(repoRoot, "node_modules", "@playwright", "test", "cli.js"),
+  ];
+  const cli = candidates.find((candidate) => existsSync(candidate));
+  if (!cli) throw new Error(`Playwright CLI is missing for ${workspace}; run bun install before UI comparison`);
+  return cli;
 }
 
 async function removeRuntimeData(path: string): Promise<void> {
@@ -376,13 +393,7 @@ async function captureResponsive(
   mkdirSync(screenshotDir, { recursive: true });
   const [serverPort, clientPort, udpPort] = await reservePorts(3);
   const dataDir = join(repoRoot, ".ui-diff", "runtime", `test-data-${serverPort}`);
-  const playwrightCli = join(
-    repoRoot,
-    "node_modules",
-    "@playwright",
-    "test",
-    "cli.js",
-  );
+  const playwrightCli = requirePlaywrightCli(repoRoot, "playwright");
 
   try {
     await run(
@@ -422,13 +433,7 @@ async function captureStorybook(
     "runtime",
     `test-results-${storybookPort}`,
   );
-  const playwrightCli = join(
-    repoRoot,
-    "node_modules",
-    "@playwright",
-    "test",
-    "cli.js",
-  );
+  const playwrightCli = requirePlaywrightCli(repoRoot, "client");
   const hasReusableUiStories = existsSync(
     join(revisionRoot, "client", "src", "stories", "ReusableUi.stories.tsx"),
   );
@@ -446,6 +451,7 @@ async function captureStorybook(
         "test",
         ...snapshotSpecs,
         "--update-snapshots",
+        "--workers=1",
       ],
       {
         cwd: join(repoRoot, "client"),
@@ -455,6 +461,7 @@ async function captureStorybook(
           RACEIQ_SNAPSHOT_DIR: screenshotDir,
           RACEIQ_SNAPSHOT_RESULTS_DIR: resultsDir,
           RACEIQ_CAPTURE_REUSABLE_UI: hasReusableUiStories ? "1" : "0",
+          RACEIQ_UI_DIFF_CAPTURE: "1",
         },
       },
     );
@@ -485,7 +492,10 @@ async function main(): Promise<void> {
   const currentStorybookDir = join(captureDir, "current-storybook");
   const reportDir = join(uiDiffDir, "report");
   const imagesDir = join(reportDir, "images");
-  const tempRoot = mkdtempSync(join(tmpdir(), "raceiq-ui-diff-"));
+  // Bun workspace linking can fail when the Windows user temp path contains
+  // spaces. Prefer the existing short C:\tmp root used by local test tooling.
+  const tempParent = process.platform === "win32" && existsSync("C:\\tmp") ? "C:\\tmp" : tmpdir();
+  const tempRoot = mkdtempSync(join(tempParent, "raceiq-ui-diff-"));
   const baseWorktree = join(tempRoot, "base");
   const errors: string[] = [];
   let baseSha: string | null = null;
@@ -513,6 +523,7 @@ async function main(): Promise<void> {
 
     console.log(`\nBase ${options.baseRef}: ${baseSha}`);
     console.log(`Current worktree: ${currentSha}${dirtyFiles.length > 0 ? ` (${dirtyFiles.length} dirty paths)` : ""}`);
+    console.log(`Capture mode: ${options.storybookOnly ? "Storybook only" : "responsive app + Storybook"}`);
 
     await run(["git", "worktree", "add", "--detach", baseWorktree, baseSha], {
       cwd: repoRoot,
@@ -521,9 +532,14 @@ async function main(): Promise<void> {
 
     let baseReady = false;
     try {
-      await run(["bun", "install", "--frozen-lockfile", "--ignore-scripts"], {
-        cwd: baseWorktree,
-      });
+      try {
+        await run(["bun", "install", "--frozen-lockfile", "--ignore-scripts"], {
+          cwd: baseWorktree,
+        });
+      } catch {
+        console.warn("Frozen install rejected temporary Windows lockfile normalization; retrying inside disposable worktree.");
+        await run(["bun", "install", "--ignore-scripts"], { cwd: baseWorktree });
+      }
       baseReady = true;
     } catch (error) {
       errors.push(`Baseline dependency preparation failed:\n${errorMessage(error)}`);
@@ -533,60 +549,79 @@ async function main(): Promise<void> {
     let currentResponsiveCaptured = false;
     let baseStorybookCaptured = false;
     let currentStorybookCaptured = false;
-    if (baseReady) {
+
+    if (options.storybookOnly) {
+      const captures = await Promise.allSettled([
+        ...(baseReady ? [captureStorybook(repoRoot, baseWorktree, baseStorybookDir, nodePath)] : []),
+        captureStorybook(repoRoot, repoRoot, currentStorybookDir, nodePath),
+      ]);
+      let captureIndex = 0;
+      if (baseReady) {
+        const baseResult = captures[captureIndex++];
+        if (baseResult.status === "fulfilled") baseStorybookCaptured = true;
+        else errors.push(`Baseline Storybook capture failed:\n${errorMessage(baseResult.reason)}`);
+      }
+      const currentResult = captures[captureIndex];
+      if (currentResult.status === "fulfilled") currentStorybookCaptured = true;
+      else errors.push(`Current Storybook capture failed:\n${errorMessage(currentResult.reason)}`);
+    } else {
+      if (baseReady) {
+        try {
+          await captureResponsive(
+            repoRoot,
+            baseWorktree,
+            baseResponsiveDir,
+            nodePath,
+          );
+          baseResponsiveCaptured = true;
+        } catch (error) {
+          errors.push(`Baseline responsive capture failed:\n${errorMessage(error)}`);
+        }
+        try {
+          await captureStorybook(
+            repoRoot,
+            baseWorktree,
+            baseStorybookDir,
+            nodePath,
+          );
+          baseStorybookCaptured = true;
+        } catch (error) {
+          errors.push(`Baseline Storybook capture failed:\n${errorMessage(error)}`);
+        }
+      }
       try {
         await captureResponsive(
           repoRoot,
-          baseWorktree,
-          baseResponsiveDir,
+          repoRoot,
+          currentResponsiveDir,
           nodePath,
         );
-        baseResponsiveCaptured = true;
+        currentResponsiveCaptured = true;
       } catch (error) {
-        errors.push(`Baseline responsive capture failed:\n${errorMessage(error)}`);
+        errors.push(`Current responsive capture failed:\n${errorMessage(error)}`);
       }
       try {
         await captureStorybook(
           repoRoot,
-          baseWorktree,
-          baseStorybookDir,
+          repoRoot,
+          currentStorybookDir,
           nodePath,
         );
-        baseStorybookCaptured = true;
+        currentStorybookCaptured = true;
       } catch (error) {
-        errors.push(`Baseline Storybook capture failed:\n${errorMessage(error)}`);
+        errors.push(`Current Storybook capture failed:\n${errorMessage(error)}`);
       }
     }
-    try {
-      await captureResponsive(
-        repoRoot,
-        repoRoot,
-        currentResponsiveDir,
-        nodePath,
-      );
-      currentResponsiveCaptured = true;
-    } catch (error) {
-      errors.push(`Current responsive capture failed:\n${errorMessage(error)}`);
-    }
-    try {
-      await captureStorybook(
-        repoRoot,
-        repoRoot,
-        currentStorybookDir,
-        nodePath,
-      );
-      currentStorybookCaptured = true;
-    } catch (error) {
-      errors.push(`Current Storybook capture failed:\n${errorMessage(error)}`);
-    }
 
-    const responsiveChanges = await collectScreenshotDiffs({
-      baseDir: baseResponsiveDir,
-      currentDir: currentResponsiveDir,
-      outDir: imagesDir,
-      prefix: "responsive",
-      includeMissing: baseResponsiveCaptured && currentResponsiveCaptured,
-    });
+    const responsiveChanges = options.storybookOnly
+      ? []
+      : await collectScreenshotDiffs({
+          baseDir: baseResponsiveDir,
+          currentDir: currentResponsiveDir,
+          outDir: imagesDir,
+          prefix: "responsive",
+          includeMissing: baseResponsiveCaptured && currentResponsiveCaptured,
+        });
     const storybookChanges = await collectScreenshotDiffs({
       baseDir: baseStorybookDir,
       currentDir: currentStorybookDir,
@@ -630,7 +665,10 @@ async function main(): Promise<void> {
           quiet: true,
         });
       } catch (error) {
-        errors.push(`Temporary worktree cleanup failed: ${errorMessage(error)}`);
+        // Windows preview processes can briefly retain files after Playwright
+        // exits. The explicit temp removal below recovers that state; prune
+        // then clears Git's stale worktree registration.
+        console.warn(`Temporary worktree cleanup needed fallback removal: ${errorMessage(error)}`);
       }
     }
     if (existsSync(tempRoot)) rmSync(tempRoot, { recursive: true, force: true });

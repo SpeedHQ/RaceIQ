@@ -124,5 +124,5 @@ export const REUSABLE_UI_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [
   },
 ];
 
-export const COMMITTED_STORYBOOK_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [...DASHBOARD_SNAPSHOT_CASES, THEME_SNAPSHOT_CASE];
-export const STORYBOOK_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [...COMMITTED_STORYBOOK_SNAPSHOT_CASES, ...REUSABLE_UI_SNAPSHOT_CASES];
+export const CORE_STORYBOOK_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [...DASHBOARD_SNAPSHOT_CASES, THEME_SNAPSHOT_CASE];
+export const STORYBOOK_SNAPSHOT_CASES: readonly StorybookSnapshotCase[] = [...CORE_STORYBOOK_SNAPSHOT_CASES, ...REUSABLE_UI_SNAPSHOT_CASES];

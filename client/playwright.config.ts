@@ -13,6 +13,9 @@ export default defineConfig({
   workers: 1,
   testDir: "./src/stories",
   testMatch: "**/*.snapshot.ts",
+  // Snapshot specs share one cold-compiling Storybook server. Serial workers
+  // prevent competing beforeAll warmups from timing out or closing contexts.
+  workers: 1,
   outputDir: RESULTS_DIR,
   snapshotDir: SNAPSHOT_DIR,
   snapshotPathTemplate: "{snapshotDir}/{testName}.png",
