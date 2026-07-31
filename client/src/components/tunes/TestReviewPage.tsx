@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { type ExperimentGameId, useExperiment, useExperimentVersions, useLaps } from "../../hooks/queries";
 import { Button } from "../ui/button";
 import { TuneReviewDashboard } from "./TuneReviewDashboard";
+import { Button } from "../ui/button";
 import { TuneSetupChat } from "./TuneSetupChat";
 
 /**
@@ -53,7 +54,7 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
         <div className="text-sm text-app-text-muted max-w-md">
           This experiment (#{experimentId}) no longer exists — it may have been deleted, or removed when the database was reset. The laps it referenced may still be in your history.
         </div>
-        <Button variant="app-primary" size="app-md" onClick={backToExperimentList} className="mt-2">
+        <Button type="button" variant="app-primary" size="app-md" onClick={backToExperimentList} className="!h-auto mt-2">
           Back to experiments
         </Button>
       </div>
@@ -90,9 +91,9 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
             {/* Named after the experiment's current focus, same as the
                 workspace panel — one agent, two modes. */}
             <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{EXPERIMENT_FOCUS_AGENT_LABELS[session?.focus ?? DEFAULT_EXPERIMENT_FOCUS]}</span>
-            <button type="button" onClick={backToWorkspace} className="px-3 py-1 text-xs rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled font-semibold">
-              Session
-            </Button>
+          <Button type="button" variant="app-primary" size="app-sm" onClick={backToWorkspace} className="!h-auto">
+            Session
+          </Button>
           </div>
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
             <TuneSetupChat sessionId={experimentId} headVersionId={session?.headVersionId ?? null} extendedContext={lapReviewContext} />

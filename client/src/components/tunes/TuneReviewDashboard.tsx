@@ -15,6 +15,8 @@ import { SectorMap } from "./SectorMap";
 import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS, type MetricKey } from "./SectorRangeBreakdown";
 import { TrackFocusView } from "./track-focus/TrackFocusView";
 
+import { Button } from "../ui/button";
+import { Badge } from "../ui/badge";
 interface TuneReviewDashboardProps {
   gameId: "acc" | "ac-evo";
   trackName?: string;
@@ -239,7 +241,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
         {/* Toolbar: lap picker + view switcher on the left, Setup Engineer on the right */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 border-b border-app-border">
           {onBack && (
-            <Button variant="app-outline" size="app-sm" onClick={onBack}>
+            <Button type="button" variant="app-outline" size="app-sm" onClick={onBack} className="!h-auto">
               ← Session
             </Button>
           )}
@@ -272,10 +274,11 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
             {(["overview", ...Array.from({ length: sectorCount }, (_, index) => `s${index + 1}` as SectorView), "track"] as ReviewView[]).map((v) => (
               <Button
                 key={v}
+                type="button"
                 variant="app-ghost"
                 size="app-sm"
                 onClick={() => setView(v)}
-                className={`!border text-xs ${view === v ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
+                className={`!h-auto !rounded !border !px-2.5 !py-1 text-xs ${view === v ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
               >
                 {v === "overview" ? "Overview" : v === "track" ? "Track" : `Sector ${v.slice(1)}`}
               </Button>
@@ -313,10 +316,13 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
                 {METRICS.map((m) => (
                   <Button
                     key={m.key}
+                    type="button"
                     variant="app-ghost"
                     size="app-sm"
                     onClick={() => setMetricKey(m.key)}
-                    className={`!border text-app-compact ${m.key === metricKey ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
+                    className={`!h-auto !rounded !border !px-2 !py-0.5 text-app-compact ${
+                      m.key === metricKey ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"
+                    }`}
                   >
                     {m.label}
                   </Button>
@@ -493,7 +499,7 @@ function ReviewOverviewSkeleton({ trackName, onBack }: { trackName?: string; onB
       {/* Toolbar — mirrors the real one; controls disabled with no lap loaded. */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 border-b border-app-border">
         {onBack && (
-          <Button variant="app-outline" size="app-sm" onClick={onBack}>
+          <Button type="button" variant="app-outline" size="app-sm" onClick={onBack} className="!h-auto">
             ← Session
           </Button>
         )}
@@ -546,13 +552,14 @@ function IssuePill({ issue, onHover }: { issue: TuneIssue; onHover?: (frac: numb
   }
   return (
     <Button
+      type="button"
       variant="app-ghost"
       size="app-sm"
       onMouseEnter={() => onHover!(issue.distanceFrac!)}
       onMouseLeave={() => onHover!(null)}
       onFocus={() => onHover!(issue.distanceFrac!)}
       onBlur={() => onHover!(null)}
-      className={`!justify-start !border !py-1 text-left text-xs ${SEVERITY_CLASS[issue.severity]} cursor-pointer`}
+      className={`!h-auto !justify-start !rounded !border !px-2 !py-1 text-left text-xs ${SEVERITY_CLASS[issue.severity]} cursor-pointer`}
     >
       <span className="font-mono uppercase mr-1.5 opacity-70">{issue.kind}</span>
       {issue.corner ? <span className="font-mono mr-1">{issue.corner}</span> : null}

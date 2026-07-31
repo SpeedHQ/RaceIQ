@@ -30,7 +30,17 @@ export function FocusPicker({
       <span className="text-app-compact text-app-text-muted uppercase tracking-wider">{label}</span>
       <div className="grid grid-cols-2 gap-2">
         {EXPERIMENT_FOCUSES.map((f) => (
-          <Button key={f} variant={value === f ? "focus-option-selected" : "focus-option"} size="app-md" onClick={() => onChange(f)} aria-pressed={value === f}>
+          <Button
+            key={f}
+            type="button"
+            variant="app-ghost"
+            size="app-md"
+            onClick={() => onChange(f)}
+            aria-pressed={value === f}
+            className={`!h-auto !w-full !justify-start !rounded-lg !border !px-3 !py-2 text-left transition-colors ${
+              value === f ? "border-app-accent bg-app-accent/10" : "border-app-border hover:border-app-accent/50"
+            }`}
+          >
             <div className="text-xs font-semibold text-app-text">{EXPERIMENT_FOCUS_LABELS[f]}</div>
             <div className="mt-0.5 text-app-compact text-app-text-dim">{EXPERIMENT_FOCUS_HINTS[f]}</div>
           </Button>

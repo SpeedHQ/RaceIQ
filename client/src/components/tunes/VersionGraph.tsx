@@ -7,6 +7,7 @@ import { type ExperimentLapMetric, type ExperimentVersion, useDeleteVersion, use
 import { formatLapTime } from "../../lib/format";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Badge } from "../ui/badge";
 import { F1SetupModal } from "../analyse/F1SetupModal";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
@@ -88,21 +89,29 @@ function NodeTextEditor({
       />
       {dirty && changed && (
         <div className="flex items-center gap-2">
-          <Button variant="app-outline" size="app-sm" onClick={() => onSave(trimmed === "" ? null : trimmed, () => setDirty(false))} disabled={pending} className="normal-case tracking-wider">
+          <Button
+            type="button"
+            variant="app-outline"
+            size="app-sm"
+            onClick={() => onSave(trimmed === "" ? null : trimmed, () => setDirty(false))}
+            disabled={pending}
+            className="!h-auto normal-case tracking-wider"
+          >
             {pending ? "Saving…" : "Save"}
           </Button>
           <Button
+            type="button"
             variant="app-ghost"
             size="app-sm"
             onClick={() => {
               setDirty(false);
               setDraft(current);
             }}
-            className="normal-case tracking-wider text-app-text-muted hover:text-app-text"
+            className="!h-auto normal-case tracking-wider text-app-text-muted hover:text-app-text"
           >
             Cancel
           </Button>
-          {error != null && <span className="text-app-caption text-status-danger">{(error as Error).message}</span>}
+        {error != null && <span className="text-app-caption text-status-danger">{(error as Error).message}</span>}
         </div>
       )}
     </div>
@@ -315,7 +324,9 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                   size="compact"
                   title={`Focus switched to ${EXPERIMENT_FOCUS_LABELS[focusEraByVersionId.get(t.id)!]} here`}
                   className={`border bg-transparent text-app-micro uppercase tracking-wider rounded px-1 py-px shrink-0 ${
-                    focusEraByVersionId.get(t.id) === "driver" ? "text-(--focus-driver) border-(--focus-driver)/40" : "text-(--focus-setup) border-(--focus-setup)/40"
+                    focusEraByVersionId.get(t.id) === "driver"
+                      ? "text-(--focus-driver) border-(--focus-driver)/40"
+                      : "text-(--focus-setup) border-(--focus-setup)/40"
                   }`}
                 >
                   → {EXPERIMENT_FOCUS_LABELS[focusEraByVersionId.get(t.id)!]}
@@ -324,13 +335,10 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
               <span className="text-app-compact text-app-text-muted truncate min-w-0">
                 {t.notes || (summarizeAppliedChanges(t.appliedChanges) ?? (t.parentVersionId == null ? (t.setupPath?.split(/[\\/]/).pop() ?? "Base setup") : "no changes recorded"))}
               </span>
-              {isHead && (
-                <Badge variant="success" size="compact">
-                  HEAD
-                </Badge>
-              )}
+                          {isHead && <Badge variant="success" size="compact">HEAD</Badge>}
               {!isHead && (
                 <Button
+                  type="button"
                   variant="app-outline"
                   size="app-sm"
                   onClick={(e) => {
@@ -338,7 +346,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                     setHead.mutate({ sessionId, versionId: t.id });
                   }}
                   disabled={setHead.isPending}
-                  className="normal-case tracking-normal font-sans shrink-0"
+                  className="!h-auto normal-case tracking-normal font-sans shrink-0"
                 >
                   Checkout
                 </Button>
@@ -359,18 +367,20 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
               )}
               {onOpenReview && (
                 <Button
+                  type="button"
                   variant="app-outline"
                   size="app-sm"
                   onClick={(e) => {
                     e.stopPropagation();
                     onOpenReview(t);
                   }}
-                  className="normal-case tracking-normal font-sans shrink-0"
+                  className="!h-auto normal-case tracking-normal font-sans shrink-0"
                 >
                   Review
                 </Button>
               )}
               <Button
+                type="button"
                 variant="app-outline"
                 size="app-sm"
                 onClick={(e) => {
@@ -378,12 +388,13 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                   setNotesForId(t.id);
                 }}
                 title={t.driverComment || t.notes ? "View / edit notes" : "Add notes"}
-                className="normal-case tracking-normal font-sans shrink-0 inline-flex items-center gap-1"
+                className="!h-auto normal-case tracking-normal font-sans shrink-0 inline-flex items-center gap-1"
               >
                 Notes
                 {(t.driverComment || t.notes) && <span className="size-1.5 rounded-full bg-app-accent" />}
               </Button>
               <Button
+                type="button"
                 variant="app-ghost"
                 size="app-sm"
                 onClick={(e) => {
@@ -394,10 +405,9 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                 }}
                 disabled={deleteVersion.isPending}
                 title={hasChildren ? "Trash this version and its whole branch (reversible)" : "Trash this version (reversible)"}
-                aria-label={hasChildren ? "Delete branch" : "Delete version"}
-                className="normal-case tracking-normal font-sans text-status-danger hover:bg-status-danger/10 shrink-0"
+                className="!h-auto normal-case tracking-normal font-sans text-status-danger hover:bg-status-danger/10 shrink-0"
               >
-                <Trash2 className="size-3.5" aria-hidden="true" />
+                Delete branch
               </Button>
               <span
                 className="ml-auto flex items-center gap-3 shrink-0 text-app-compact tabular-nums"

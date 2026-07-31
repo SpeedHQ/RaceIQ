@@ -6,8 +6,8 @@ import { ActivityHeatmap } from "./ActivityHeatmap";
 import { formatLapTime } from "./LiveTelemetry";
 import { SessionRecapView, type TrackOutlineData, type TrackSectorBounds } from "./SessionRecap";
 import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
-import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
 
 function GameBrandLogo({ gameId, className = "w-5 h-5" }: { gameId: string; className?: string }) {
   if (gameId === "fm-2023") return <img src="/forza-logo.svg" alt="" className={`game-brand-logo ${className}`} />;
@@ -68,7 +68,7 @@ function RecentLapsTable({
             >
               {showGame && (
                 <TD>
-                  <Badge variant="game-brand" size="compact" data-game-brand={lap.gameId ?? "fm-2023"}>
+                  <Badge variant="neutral" size="compact" data-game-brand={lap.gameId ?? "fm-2023"} className="game-brand-badge border-transparent text-app-caption font-semibold">
                     {lap.gameId === "f1-2025" ? "F1" : lap.gameId === "acc" ? "ACC" : lap.gameId === "ac-evo" ? "ACE" : lap.gameId === "iracing" ? "iR" : "FM"}
                   </Badge>
                 </TD>
@@ -213,7 +213,11 @@ export function HomePageView({
               <Settings2 className="size-4" />
             </button>
           </div>
-        )}
+          <Button type="button" variant="app-ghost" size="icon-sm" onClick={onOpenSettings} className="!h-auto !w-auto p-1.5 text-app-text-muted hover:text-app-text hover:bg-app-surface-hover" title={m.home_manage_games()}>
+            <Settings2 className="size-4" />
+          </Button>
+        </div>
+      )}
 
         {/* Game cards — only on global homepage */}
         {!gameId && (
@@ -517,14 +521,16 @@ export function HomePageView({
                     ["allTime", m.home_period_all_time()],
                   ] as const
                 ).map(([key, label]) => (
-                  <button
+                  <Button
                     type="button"
+                    variant="app-ghost"
+                    size="app-sm"
                     key={key}
                     onClick={() => onPeriodTabChange(key)}
-                    className={`rounded px-3 py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90 hover:text-app-text"}`}
+                    className={`!h-auto !px-3 !py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90 hover:text-app-text"}`}
                   >
                     {label}
-                  </button>
+                  </Button>
                 ))}
               </div>
               {(() => {
@@ -551,9 +557,60 @@ export function HomePageView({
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90">{m.home_recent_laps()}</h2>
               <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseLap={onAnalyseLap} />
             </div>
-          </>
-        )}
-      </div>
+          )}
+
+          <ActivityHeatmap laps={allLaps} />
+
+          <div>
+            <div className="mb-3 flex flex-wrap items-center gap-1">
+              {(
+                [
+                  ["today", m.home_period_today()],
+                  ["week", m.home_period_week()],
+                  ["month", m.home_period_month()],
+                  ["year", m.home_period_year()],
+                  ["allTime", m.home_period_all_time()],
+                ] as const
+              ).map(([key, label]) => (
+                <Button
+                  type="button"
+                  variant="app-ghost"
+                  size="app-sm"
+                  key={key}
+                  onClick={() => onPeriodTabChange(key)}
+                  className={`!h-auto !px-3 !py-1.5 text-xs font-semibold transition-colors ${periodTab === key ? "bg-app-accent/20 text-app-accent" : "text-app-text/90 hover:text-app-text"}`}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+            {(() => {
+              const data = periodStats[periodTab];
+              const timeSec = data.totalTime;
+              const fmtTime = (s: number) => {
+                const h = Math.floor(s / 3600);
+                const m = Math.floor((s % 3600) / 60);
+                return h > 0 ? `${h}h ${m}m` : `${m}m`;
+              };
+              return (
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                  <StatCard label={m.label_sessions()} value={`${data.sessions}`} />
+                  <StatCard label={m.label_laps()} value={`${data.laps}`} />
+                  <StatCard label={m.label_tracks()} value={`${data.tracks}`} />
+                  <StatCard label={m.label_cars()} value={`${data.cars}`} />
+                  {timeSec > 0 && <StatCard label={m.home_stat_time_driven()} value={fmtTime(timeSec)} color="text-app-accent" />}
+                </div>
+              );
+            })()}
+          </div>
+
+          <div>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90">{m.home_recent_laps()}</h2>
+            <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseLap={onAnalyseLap} />
+          </div>
+        </>
+      )}
+    </div>
     </div>
   );
 }

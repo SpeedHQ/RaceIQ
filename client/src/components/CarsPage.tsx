@@ -13,6 +13,7 @@ import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 
+import { Button } from "./ui/button";
 interface CarSpecs {
   hp: number;
   torque: number;
@@ -265,10 +266,10 @@ function CompareModal({
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-app-border sticky top-0 bg-app-bg z-10">
           <h2 className="text-sm font-bold text-app-text/90">{m.cars_compare_modal_title()}</h2>
-          <button type="button" onClick={onClose} className="text-app-text/90 hover:text-app-text text-lg leading-none">
+          <Button type="button" variant="app-ghost" size="icon-sm" onClick={onClose} className="!h-auto !w-auto !p-1 text-app-text/90 hover:text-app-text" aria-label={m.common_close()}>
             ×
           </Button>
-        </DialogHeader>
+        </div>
 
         <div className="overflow-auto">
           <Table density="compact" fit>
@@ -428,8 +429,10 @@ export function CarsPage() {
       <div className="flex items-center flex-wrap gap-2">
         {/* View mode toggle */}
         <div className="flex items-center rounded-lg border border-app-border overflow-hidden">
-          <button
+          <Button
             type="button"
+            variant="app-ghost"
+            size="icon-sm"
             onClick={() => setViewMode("table")}
             title={m.label_table_view()}
             className={`!h-auto !w-auto !rounded-none !p-2.5 transition-colors ${viewMode === "table" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text"}`}
@@ -438,9 +441,11 @@ export function CarsPage() {
               <rect x="3" y="3" width="18" height="18" rx="2" />
               <path d="M3 9h18M3 15h18M9 3v18" />
             </svg>
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="app-ghost"
+            size="icon-sm"
             onClick={() => setViewMode("grid")}
             title={m.label_grid_view()}
             className={`!h-auto !w-auto !rounded-none !p-2.5 transition-colors ${viewMode === "grid" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text"}`}
@@ -458,13 +463,13 @@ export function CarsPage() {
 
         <div className="flex items-center flex-wrap gap-1">
           {PI_CLASSES.map((cls) => (
-            <button
-              type="button"
+            <Button
               key={cls}
+              type="button"
               variant="app-ghost"
               size="app-sm"
               onClick={() => setClassFilter(classFilter === cls ? null : cls)}
-              className={`!px-3 !py-1.5 text-xs font-bold ${classFilter === cls ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text border border-app-border"}`}
+              className={`!h-auto !px-3 !py-1.5 text-xs font-bold ${classFilter === cls ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text border border-app-border"}`}
             >
               {cls}
             </Button>
@@ -473,13 +478,13 @@ export function CarsPage() {
 
         <div className="flex items-center flex-wrap gap-1">
           {DRIVETRAINS.map((d) => (
-            <button
-              type="button"
+            <Button
               key={d}
+              type="button"
               variant="app-ghost"
               size="app-sm"
               onClick={() => setDriveFilter(driveFilter === d ? null : d)}
-              className={`!px-3 !py-1.5 text-xs font-semibold ${driveFilter === d ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text border border-app-border"}`}
+              className={`!h-auto !px-3 !py-1.5 text-xs font-semibold ${driveFilter === d ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text border border-app-border"}`}
             >
               {d}
             </Button>
@@ -533,13 +538,15 @@ export function CarsPage() {
                         <div className="text-xs text-app-text/90">{m.cars_no_image()}</div>
                       )}
                       {configsReady && getCarModel(car.ordinal).hasModel && (
-                        <button
+                        <Button
                           type="button"
+                          variant="app-primary"
+                          size="app-sm"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate({ to: "/fm23/cars/$carOrdinal", params: { carOrdinal: String(car.ordinal) } });
                           }}
-                          className="absolute top-2 right-2 !px-1.5 !py-0.5 text-app-micro font-bold bg-app-accent/80 hover:bg-app-accent-hover border border-app-accent/30"
+                          className="!h-auto absolute top-2 right-2 !px-1.5 !py-0.5 text-app-micro font-bold bg-app-accent/80 hover:bg-app-accent-hover border border-app-accent/30"
                           title={m.cars_view_3d_model()}
                         >
                           3D
@@ -639,10 +646,10 @@ export function CarsPage() {
                     {detailCar.specs?.pi && <PiBadge showNumber={false} pi={detailCar.specs.pi} />}
                     <span className="text-sm font-bold text-app-text/90">{detailCar.name}</span>
                   </div>
-                  <button type="button" onClick={() => setDetailCar(null)} className="text-app-text/90 hover:text-app-text text-lg leading-none">
+                  <Button type="button" variant="app-ghost" size="icon-sm" onClick={() => setDetailCar(null)} className="!h-auto !w-auto p-1 text-app-text/90 hover:text-app-text" aria-label={m.common_close()}>
                     ×
                   </Button>
-                </DialogHeader>
+                </div>
                 <CarDetail car={detailCar} fmtSpeed={fmtSpeed} fmtBrake={fmtBrake} fmtWeight={fmtWeight} isMetric={isMetric} />
               </DialogContent>
             )}
@@ -801,15 +808,17 @@ export function CarsPage() {
           <span className="text-xs text-app-text/90">
             {selected.size} {m.cars_selected()}
           </span>
-          <button
+          <Button
             type="button"
+            variant="app-outline"
+            size="app-sm"
             onClick={() => setComparing(true)}
             disabled={selected.size < 2}
-            className="!rounded-full !border-app-accent/30 !px-3 !py-1 text-xs font-semibold text-app-accent bg-app-accent/20 hover:bg-app-accent/30 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="!h-auto !rounded-full !border-app-accent/30 !px-3 !py-1 text-xs font-semibold text-app-accent bg-app-accent/20 hover:bg-app-accent/30 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {m.cars_compare_button()} ({selected.size})
-          </button>
-          <button type="button" onClick={() => setSelected(new Set())} className="text-xs text-app-text/90 hover:text-app-text transition-colors">
+          </Button>
+          <Button type="button" variant="app-ghost" size="app-sm" onClick={() => setSelected(new Set())} className="!h-auto !rounded-full !px-0 text-xs text-app-text/90 hover:text-app-text">
             {m.common_clear()}
           </Button>
         </div>

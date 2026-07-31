@@ -56,7 +56,8 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
             return (
               <Button
                 key={f}
-                variant={active ? (f === "driver" ? "focus-toggle-driver" : "focus-toggle-setup") : "focus-toggle"}
+                type="button"
+                variant="app-ghost"
                 size="app-sm"
                 aria-pressed={active}
                 title={EXPERIMENT_FOCUS_HINTS[f]}
@@ -67,6 +68,13 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
                   setPending(f);
                   setNote("");
                 }}
+                className={`!h-auto !rounded-none !px-2.5 !py-1 text-xs transition-colors ${
+                  active
+                    ? f === "driver"
+                      ? "bg-(--focus-driver)/20 text-(--focus-driver) font-semibold"
+                      : "bg-(--focus-setup)/20 text-(--focus-setup) font-semibold"
+                    : "text-app-text-dim hover:text-app-text hover:bg-app-surface-hover/30"
+                }`}
               >
                 {EXPERIMENT_FOCUS_LABELS[f]}
               </Button>
@@ -96,10 +104,10 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
           />
           {error && <div className="mt-1.5 text-app-compact text-status-danger">{error}</div>}
           <div className="mt-2 flex justify-end gap-2">
-            <Button variant="app-outline" size="app-sm" onClick={() => setPending(null)}>
+            <Button type="button" variant="app-outline" size="app-sm" onClick={() => setPending(null)} className="!h-auto">
               Cancel
             </Button>
-            <Button variant="app-primary" size="app-sm" onClick={() => void commit()} disabled={setFocus.isPending}>
+            <Button type="button" variant="app-primary" size="app-sm" onClick={() => void commit()} disabled={setFocus.isPending} className="!h-auto">
               {setFocus.isPending ? "Switching…" : "Switch"}
             </Button>
           </div>

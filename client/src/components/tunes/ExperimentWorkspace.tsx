@@ -259,15 +259,15 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                 <div className="flex items-center justify-between px-2 pt-2 flex-wrap gap-1">
                   <span className="text-app-caption uppercase tracking-wider text-app-text-muted">Version tree</span>
                   <div className="flex items-center gap-2">
-                    <Button variant="app-outline" size="app-sm" onClick={() => setShowImportLaps(true)}>
+                    <Button type="button" variant="app-outline" size="app-sm" onClick={() => setShowImportLaps(true)} className="!h-auto">
                       Add laps from history
                     </Button>
                     {gameId !== "f1-2025" && (
-                      <Button variant="app-outline" size="app-sm" onClick={() => setShowAddBase(true)}>
+                      <Button type="button" variant="app-outline" size="app-sm" onClick={() => setShowAddBase(true)} className="!h-auto">
                         + Add base
                       </Button>
                     )}
-                    <Button variant="app-outline" size="app-sm" onClick={() => setShowHistory(true)}>
+                    <Button type="button" variant="app-outline" size="app-sm" onClick={() => setShowHistory(true)} className="!h-auto">
                       History
                     </Button>
                   </div>
@@ -317,6 +317,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
+                      type="button"
                       variant="app-primary"
                       size="app-sm"
                       onClick={() => {
@@ -328,10 +329,11 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                           // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         } as any);
                       }}
+                      className="!h-auto"
                     >
                       Review laps
                     </Button>
-                    <Button variant="app-outline" size="app-sm" onClick={() => setTestPhase("idle")}>
+                    <Button type="button" variant="app-outline" size="app-sm" onClick={() => setTestPhase("idle")} className="!h-auto">
                       Close
                     </Button>
                   </div>
@@ -350,11 +352,18 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
             Hidden during a live test — the live dashboard gets the full width. */}
         {testPhase === "idle" && (
           <div className="min-h-0 flex flex-col border border-app-border rounded-lg overflow-hidden">
-            <PanelSectionHeader title={EXPERIMENT_FOCUS_AGENT_LABELS[session.focus]}>
-              <Button variant="app-primary" size="app-sm" onClick={() => setTestPhase("live")}>
-                Dashboard
-              </Button>
-            </PanelSectionHeader>
+            <div className="shrink-0 px-3 py-2 border-b border-app-border flex items-center justify-between">
+              {/* The panel is the same agent either way, but naming it after
+                  the current focus is the difference between "why is the setup
+                  engineer talking about my braking" and an obvious mode. */}
+              <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{EXPERIMENT_FOCUS_AGENT_LABELS[session.focus]}</span>
+              <div className="flex items-center gap-3">
+                <Button type="button" variant="app-primary" size="app-sm" onClick={() => setTestPhase("live")} className="!h-auto">
+                  Dashboard
+                </Button>
+                <CopyChatJsonButton sessionId={session.id} />
+              </div>
+            </div>
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               <TuneSetupChat sessionId={session.id} headVersionId={session.headVersionId} />
             </div>
@@ -384,6 +393,34 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
+/** Copy the persisted chat thread (full AI-SDK UIMessage[] — parts, tool calls,
+ *  metadata) as JSON to the clipboard, from the setup-engineer header. Debug aid. */
+function CopyChatJsonButton({ sessionId }: { sessionId: number }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Button
+      type="button"
+      variant="app-ghost"
+      size="app-sm"
+      onClick={async () => {
+        try {
+          const res = await fetch(`/api/experiments/${sessionId}/chat`);
+          const data = res.ok ? await res.json() : { error: res.statusText };
+          await navigator.clipboard.writeText(JSON.stringify(data.messages ?? data, null, 2));
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1200);
+        } catch {
+          /* ignore */
+        }
+      }}
+      title="Copy chat JSON (debug)"
+      className="!h-auto !px-0 flex items-center gap-1 text-app-text-muted hover:text-app-text"
+    >
+      {copied ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
+      <span className="text-app-micro uppercase tracking-wider">{copied ? "Copied" : "JSON"}</span>
+    </Button>
+  );
+}
 
 /** Compact inline stat for the horizontal "Current stint" strip. */
 function InlineStat({ label, value }: { label: string; value: string }) {
