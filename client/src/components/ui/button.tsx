@@ -32,6 +32,8 @@ const buttonVariants = cva(
         "settings-nav-selected": "shrink-0 md:w-full !justify-start !rounded-none !px-4 !py-2 text-sm whitespace-nowrap transition-colors text-app-accent bg-app-accent/10 border-b-2 md:border-b-0 md:border-r-2 border-app-accent",
         "focus-option": "!w-full !justify-start !rounded-lg !border !py-2 text-left transition-colors border-app-border hover:border-app-accent/50",
         "focus-option-selected": "!w-full !justify-start !rounded-lg !border !py-2 text-left transition-colors border-app-accent bg-app-accent/10",
+        "search-select-trigger": "rounded border border-app-border-input px-3 py-2 md:px-2 md:py-0.5 text-app-text-secondary hover:text-app-text",
+        "search-select-clear": "px-2 py-2 text-app-text-dim hover:text-app-text focus-visible:text-app-text md:px-1 md:py-0.5 md:text-app-compact",
         "focus-toggle": "!rounded-none text-xs transition-colors text-app-text-dim hover:text-app-text hover:bg-app-surface-hover/30",
         "focus-toggle-driver": "!rounded-none text-xs transition-colors bg-(--focus-driver)/20 text-(--focus-driver) font-semibold",
         "focus-toggle-setup": "!rounded-none text-xs transition-colors bg-(--focus-setup)/20 text-(--focus-setup) font-semibold",

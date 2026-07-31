@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { m } from "@/paraglide/messages";
+import { Button } from "./button";
 
 export interface SearchMultiSelectOption<K extends string | number = string | number> {
   key: K;
@@ -120,8 +121,10 @@ export function SearchMultiSelect<K extends string | number>({
   return (
     <div ref={ref} className={`relative ${className}`}>
       <div className="flex items-center gap-1">
-        <button
+        <Button
           type="button"
+          variant="search-select-trigger"
+          size="app-md"
           aria-expanded={open}
           aria-controls={open ? listboxId : undefined}
           aria-haspopup="listbox"
@@ -129,17 +132,16 @@ export function SearchMultiSelect<K extends string | number>({
             setOpen((current) => !current);
             setSearch("");
           }}
-          className="flex items-center gap-1.5 rounded border border-app-border-input px-3 py-2 text-sm text-app-text-secondary outline-none transition-colors hover:text-app-text focus-visible:border-app-accent focus-visible:ring-1 focus-visible:ring-app-accent/30 md:px-2 md:py-0.5 md:text-app-compact"
         >
           {buttonLabel}
           <svg aria-hidden="true" className="size-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
-        </button>
+        </Button>
         {onClear && (
-          <button type="button" aria-label="Clear selection" onClick={onClear} className="px-2 py-2 text-sm text-app-text-dim outline-none transition-colors hover:text-app-text focus-visible:text-app-text md:px-1 md:py-0.5 md:text-app-compact">
+          <Button type="button" aria-label="Clear selection" variant="search-select-clear" size="app-md" onClick={onClear}>
             <span aria-hidden="true">✕</span>
-          </button>
+          </Button>
         )}
       </div>
       {open &&
