@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { Card } from "../ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { arityLabels, arityLength, type FieldDef, getByPath, type SectionDef, setByPath } from "./setup-schema";
 
@@ -100,11 +103,11 @@ function SectionCard({
   const hasData = present != null && typeof present === "object";
 
   return (
-    <Card size="sm" variant="form-section">
-      <Button variant="form-section-toggle" size="app-md" onClick={() => setOpen((o) => !o)}>
+    <Card size="sm" className="gap-0 rounded-lg">
+      <Button variant="app-ghost" size="app-md" type="button" onClick={() => setOpen((o) => !o)} className="w-full justify-between rounded-none px-3 py-2 text-left">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-app-text">{section.label}</span>
-          <Badge variant={hasData ? "success" : "form-section-empty"} size="compact">
+          <Badge variant={hasData ? "success" : "neutral"} size="compact" className={hasData ? "" : "bg-app-bg"}>
             {hasData ? "set" : "—"}
           </Badge>
         </div>

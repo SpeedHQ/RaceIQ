@@ -37,7 +37,7 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
   const body = data?.formatted ?? (data?.setup ? JSON.stringify(data.setup, null, 2) : null);
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="@container/setup-file flex h-[60vh] w-[min(94vw,720px)] max-w-[720px] flex-col">
+      <DialogContent size="lg" className="flex h-[60vh] w-[min(94vw,720px)] flex-col sm:max-w-[720px]">
         <DialogHeader className="min-w-0 pr-8">
           <DialogTitle className="truncate">{data?.fileName ?? fileName}</DialogTitle>
           {data?.presetId && <DialogDescription className="truncate text-app-compact">Preset {data.presetId}</DialogDescription>}
@@ -298,6 +298,7 @@ export function SetupFilePicker({
           <span className="text-app-compact text-app-text-muted uppercase tracking-wider">{labels.setup ?? "Base setup"}</span>
           <div className="flex items-center gap-3">
             <Button
+              type="button"
               variant="app-ghost"
               size="app-sm"
               onClick={() => refetch()}

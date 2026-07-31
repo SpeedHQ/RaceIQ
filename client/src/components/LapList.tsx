@@ -6,7 +6,7 @@ import { storedLapsSectorCount } from "../lib/lap-sectors";
 import { useGameRoute } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
 import { Button } from "./ui/button";
-import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
+import { Table } from "./ui/AppTable";
 function formatLapTime(seconds: number): string {
   if (seconds <= 0) return "--:--.---";
   const m = Math.floor(seconds / 60);
@@ -73,21 +73,27 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
 
   return (
     <div className="overflow-auto">
-      <Table fit>
-        <THead>
-          <SortableTH direction={sortKey === "lap" ? (sortDir === "asc" ? "ascending" : "descending") : undefined} onSort={() => toggleSort("lap")}>
-            {m.label_lap()}
-          </SortableTH>
-          <SortableTH direction={sortKey === "time" ? (sortDir === "asc" ? "ascending" : "descending") : undefined} onSort={() => toggleSort("time")}>
-            {m.label_time()}
-          </SortableTH>
-          {sectorLabels.map((label) => (
-            <TH key={label}>{label}</TH>
-          ))}
-          <TH align="center">{m.laps_col_valid()}</TH>
-          <TH align="end">{m.label_actions()}</TH>
-        </THead>
-        <TBody>
+      <Table fit tableClassName="w-full text-sm">
+        <thead>
+          <tr className="text-xs text-app-text-muted uppercase tracking-wider border-b border-app-border">
+            <th className="text-left p-2 cursor-pointer hover:text-app-text select-none" onClick={() => toggleSort("lap")}>
+              {m.label_lap()}
+              {arrow("lap")}
+            </th>
+            <th className="text-left p-2 cursor-pointer hover:text-app-text select-none" onClick={() => toggleSort("time")}>
+              {m.label_time()}
+              {arrow("time")}
+            </th>
+            {sectorLabels.map((label) => (
+              <th key={label} className="text-left p-2">
+                {label}
+              </th>
+            ))}
+            <th className="text-center p-2">{m.laps_col_valid()}</th>
+            <th className="text-right p-2">{m.label_actions()}</th>
+          </tr>
+        </thead>
+        <tbody>
           {sortedLaps.map((lap) => {
             const hasSectors = lap.sectorTimes?.length === sectorCount && lap.sectorTimes.every((time) => time > 0);
             return (
@@ -142,7 +148,7 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
               </TRow>
             );
           })}
-        </TBody>
+        </tbody>
       </Table>
     </div>
   );

@@ -1739,9 +1739,9 @@ export function TrackDetail({
                                       });
                                     })()}
                                     {filteredLaps.length === 0 && (
-                                      <TRow variant="separator">
-                                        <TD align="center" colSpan={6} tone="dim">
-                                          <div className="py-2">{m.track_detail_no_laps_match_filters()}</div>
+                                      <TRow>
+                                        <TD colSpan={6} className="px-3 py-4 text-center text-sm text-app-text-dim">
+                                          {m.track_detail_no_laps_match_filters()}
                                         </TD>
                                       </TRow>
                                     )}
