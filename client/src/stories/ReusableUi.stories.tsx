@@ -185,6 +185,30 @@ export const ButtonVariants: Story = {
     await expect(getComputedStyle(primary).boxShadow).toContain("3px");
   },
 };
+export const SemanticVariants: Story = {
+  render: () => (
+    <div className="flex max-w-md flex-col gap-3">
+      <div className="flex flex-wrap gap-2">
+        <Button variant="menu-action">Menu action</Button>
+        <Button variant="close-action" aria-label="Close">×</Button>
+        <Button variant="destructive-outline">Delete</Button>
+        <Button variant="selected-toggle" aria-pressed="true">Selected</Button>
+        <Button variant="full-width-action">Full width</Button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Badge variant="catalog-category">Category</Badge>
+        <Badge variant="game-brand">Game brand</Badge>
+        <Badge variant="ai-status">AI status</Badge>
+      </div>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("button", { name: "Menu action" })).toBeVisible();
+    await expect(canvas.getByRole("button", { name: "Close" })).toHaveAttribute("type", "button");
+    await expect(canvas.getByText("Category")).toBeVisible();
+  },
+};
 
 export const DialogSizes: Story = {
   render: () => (

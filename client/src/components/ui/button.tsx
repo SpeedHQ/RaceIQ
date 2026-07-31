@@ -22,6 +22,11 @@ const buttonVariants = cva(
         "app-primary": "bg-app-accent text-app-on-filled hover:bg-app-accent-hover rounded disabled:bg-app-accent/40 disabled:opacity-100",
         "app-ghost": "text-app-text-secondary hover:text-app-text rounded",
         "app-danger": "bg-status-danger text-app-on-filled hover:bg-status-danger-hover rounded",
+        "menu-action": "w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover",
+        "close-action": "size-7 !rounded-md text-app-text-muted hover:bg-app-surface-hover hover:text-app-text",
+        "destructive-outline": "!border-status-danger/40 text-status-danger hover:border-status-danger/60 hover:bg-status-danger/10",
+        "selected-toggle": "border-app-accent bg-app-accent/15 text-app-accent hover:bg-app-accent/25",
+        "full-width-action": "w-full",
       },
       size: {
         default: "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",

@@ -45,6 +45,7 @@ function DialogContent({
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean;
   size?: "default" | "sm" | "md" | "lg" | "wide";
+  layout?: "default" | "scrollable";
   overlayClassName?: string;
 }) {
   const sizeClasses = {
