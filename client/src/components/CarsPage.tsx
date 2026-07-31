@@ -259,7 +259,7 @@ function CompareModal({
         {/* Header */}
         <DialogHeader className="sticky top-0 z-10 flex flex-row items-center justify-between border-b border-app-border bg-app-bg px-4 py-3">
           <DialogTitle className="text-sm font-bold text-app-text/90">{m.cars_compare_modal_title()}</DialogTitle>
-          <Button type="button" variant="app-ghost" size="icon-sm" onClick={onClose} className="!h-auto !w-auto !p-1 text-app-text/90 hover:text-app-text" aria-label={m.common_close()}>
+          <Button variant="app-ghost" size="icon-sm" onClick={onClose} className="!h-auto !w-auto !p-1 text-app-text/90 hover:text-app-text" aria-label={m.common_close()}>
             ×
           </Button>
         </DialogHeader>
@@ -429,7 +429,6 @@ export function CarsPage() {
         {/* View mode toggle */}
         <div className="flex items-center rounded-lg border border-app-border overflow-hidden">
           <Button
-            type="button"
             variant="app-ghost"
             size="icon-sm"
             onClick={() => setViewMode("table")}
@@ -442,7 +441,6 @@ export function CarsPage() {
             </svg>
           </Button>
           <Button
-            type="button"
             variant="app-ghost"
             size="icon-sm"
             onClick={() => setViewMode("grid")}
@@ -464,11 +462,10 @@ export function CarsPage() {
           {PI_CLASSES.map((cls) => (
             <Button
               key={cls}
-              type="button"
               variant="app-ghost"
               size="app-sm"
               onClick={() => setClassFilter(classFilter === cls ? null : cls)}
-              className={`!h-auto !px-3 !py-1.5 text-xs font-bold ${classFilter === cls ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text border border-app-border"}`}
+              className={`!px-3 !py-1.5 text-xs font-bold ${classFilter === cls ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text border border-app-border"}`}
             >
               {cls}
             </Button>
@@ -479,11 +476,10 @@ export function CarsPage() {
           {DRIVETRAINS.map((d) => (
             <Button
               key={d}
-              type="button"
               variant="app-ghost"
               size="app-sm"
               onClick={() => setDriveFilter(driveFilter === d ? null : d)}
-              className={`!h-auto !px-3 !py-1.5 text-xs font-semibold ${driveFilter === d ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text border border-app-border"}`}
+              className={`!px-3 !py-1.5 text-xs font-semibold ${driveFilter === d ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text border border-app-border"}`}
             >
               {d}
             </Button>
@@ -523,14 +519,13 @@ export function CarsPage() {
                       )}
                       {configsReady && getCarModel(car.ordinal).hasModel && (
                         <Button
-                          type="button"
                           variant="app-primary"
                           size="app-sm"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate({ to: "/fm23/cars/$carOrdinal", params: { carOrdinal: String(car.ordinal) } });
                           }}
-                          className="!h-auto absolute top-2 right-2 !px-1.5 !py-0.5 text-app-micro font-bold bg-app-accent/80 hover:bg-app-accent-hover border border-app-accent/30"
+                          className="absolute top-2 right-2 !px-1.5 !py-0.5 text-app-micro font-bold bg-app-accent/80 hover:bg-app-accent-hover border border-app-accent/30"
                           title={m.cars_view_3d_model()}
                         >
                           3D
@@ -624,14 +619,7 @@ export function CarsPage() {
                     {detailCar.specs?.pi && <PiBadge showNumber={false} pi={detailCar.specs.pi} />}
                     {detailCar.name}
                   </DialogTitle>
-                  <Button
-                    type="button"
-                    variant="app-ghost"
-                    size="icon-sm"
-                    onClick={() => setDetailCar(null)}
-                    className="!h-auto !w-auto p-1 text-app-text/90 hover:text-app-text"
-                    aria-label={m.common_close()}
-                  >
+                  <Button variant="app-ghost" size="icon-sm" onClick={() => setDetailCar(null)} className="!h-auto !w-auto p-1 text-app-text/90 hover:text-app-text" aria-label={m.common_close()}>
                     ×
                   </Button>
                 </DialogHeader>
@@ -764,16 +752,15 @@ export function CarsPage() {
             {selected.size} {m.cars_selected()}
           </span>
           <Button
-            type="button"
             variant="app-outline"
             size="app-sm"
             onClick={() => setComparing(true)}
             disabled={selected.size < 2}
-            className="!h-auto !rounded-full !border-app-accent/30 !px-3 !py-1 text-xs font-semibold text-app-accent bg-app-accent/20 hover:bg-app-accent/30 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="!rounded-full !border-app-accent/30 !px-3 !py-1 text-xs font-semibold text-app-accent bg-app-accent/20 hover:bg-app-accent/30 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {m.cars_compare_button()} ({selected.size})
           </Button>
-          <Button type="button" variant="app-ghost" size="app-sm" onClick={() => setSelected(new Set())} className="!h-auto !rounded-full !px-0 text-xs text-app-text/90 hover:text-app-text">
+          <Button variant="app-ghost" size="app-sm" onClick={() => setSelected(new Set())} className="!rounded-full !px-0 text-xs text-app-text/90 hover:text-app-text">
             {m.common_clear()}
           </Button>
         </div>

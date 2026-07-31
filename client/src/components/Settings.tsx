@@ -172,12 +172,11 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
       <nav className="md:w-48 shrink-0 md:border-r border-b md:border-b-0 border-app-border bg-app-surface-alt/50 py-2 flex md:flex-col overflow-x-auto md:overflow-x-visible">
         {NAV_ITEMS.filter((item) => !("devOnly" in item) || isDevelopment).map((item) => (
           <Button
-            type="button"
             variant="app-ghost"
             size="app-md"
             key={item.id}
             onClick={() => setActiveSection(item.id)}
-            className={`!h-auto shrink-0 md:w-full !justify-start !rounded-none !px-4 !py-2 text-sm whitespace-nowrap transition-colors ${
+            className={`shrink-0 md:w-full !justify-start !rounded-none !px-4 !py-2 text-sm whitespace-nowrap transition-colors ${
               activeSection === item.id
                 ? "text-app-accent bg-app-accent/10 border-b-2 md:border-b-0 md:border-r-2 border-app-accent"
                 : "text-app-text-muted hover:text-app-text hover:bg-app-surface-hover"
@@ -188,10 +187,9 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
         ))}
         <div className="hidden md:block mt-auto pt-2 border-t border-app-border mx-2">
           <Button
-            type="button"
             variant="app-ghost"
             size="app-md"
-            className="!h-auto w-full !justify-start !rounded-none !px-4 !py-2 text-sm text-app-text-muted hover:text-app-text hover:bg-app-surface-hover transition-colors"
+            className="w-full !justify-start !rounded-none !px-4 !py-2 text-sm text-app-text-muted hover:text-app-text hover:bg-app-surface-hover transition-colors"
             onClick={() => {
               onClose?.();
               openOnboarding();
@@ -201,10 +199,9 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
           </Button>
         </div>
         <Button
-          type="button"
           variant="app-ghost"
           size="app-md"
-          className="!h-auto shrink-0 !rounded-none !px-4 !py-2 text-sm whitespace-nowrap text-app-text-muted hover:text-app-text transition-colors border-l border-app-border ml-auto"
+          className="shrink-0 !rounded-none !px-4 !py-2 text-sm whitespace-nowrap text-app-text-muted hover:text-app-text transition-colors border-l border-app-border ml-auto"
           onClick={() => {
             onClose?.();
             openOnboarding();
@@ -344,7 +341,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             </div>
 
             <div className="mt-6 pt-6 border-t border-app-border">
-              <Button type="button" variant="app-ghost" size="app-sm" onClick={() => setShowSetupGuide(!showSetupGuide)} className="!h-auto !p-0 text-sm text-app-accent hover:text-app-accent/80">
+              <Button variant="app-ghost" size="app-sm" onClick={() => setShowSetupGuide(!showSetupGuide)} className="!p-0 text-sm text-app-accent hover:text-app-accent/80">
                 <svg aria-hidden="true" className={`w-4 h-4 transition-transform ${showSetupGuide ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
@@ -383,7 +380,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             </div>
 
             <div className="mt-3">
-              <Button type="button" variant="app-ghost" size="app-sm" onClick={() => setShowF1SetupGuide(!showF1SetupGuide)} className="!h-auto !p-0 text-sm text-app-accent hover:text-app-accent/80">
+              <Button variant="app-ghost" size="app-sm" onClick={() => setShowF1SetupGuide(!showF1SetupGuide)} className="!p-0 text-sm text-app-accent hover:text-app-accent/80">
                 <svg aria-hidden="true" className={`w-4 h-4 transition-transform ${showF1SetupGuide ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>

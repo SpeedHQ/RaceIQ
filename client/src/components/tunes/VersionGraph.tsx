@@ -4,10 +4,10 @@ import type { F1CarSetup, LapMeta } from "@shared/types";
 import { useMemo, useState } from "react";
 import { type ExperimentLapMetric, type ExperimentVersion, useDeleteVersion, useExperimentFocusHistory, useSetHead, useSetTestNote } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
+import { F1SetupModal } from "../analyse/F1SetupModal";
+import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
-import { Badge } from "../ui/badge";
-import { F1SetupModal } from "../analyse/F1SetupModal";
 import { SetupContentModal } from "./SetupFilePicker";
 import { AppliedChangesList, LapBreakdown, summarizeAppliedChanges } from "./tune-version-shared";
 
@@ -85,29 +85,21 @@ function NodeTextEditor({
       />
       {dirty && changed && (
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="app-outline"
-            size="app-sm"
-            onClick={() => onSave(trimmed === "" ? null : trimmed, () => setDirty(false))}
-            disabled={pending}
-            className="!h-auto normal-case tracking-wider"
-          >
+          <Button variant="app-outline" size="app-sm" onClick={() => onSave(trimmed === "" ? null : trimmed, () => setDirty(false))} disabled={pending} className="normal-case tracking-wider">
             {pending ? "Saving…" : "Save"}
           </Button>
           <Button
-            type="button"
             variant="app-ghost"
             size="app-sm"
             onClick={() => {
               setDirty(false);
               setDraft(current);
             }}
-            className="!h-auto normal-case tracking-wider text-app-text-muted hover:text-app-text"
+            className="normal-case tracking-wider text-app-text-muted hover:text-app-text"
           >
             Cancel
           </Button>
-        {error != null && <span className="text-app-caption text-status-danger">{(error as Error).message}</span>}
+          {error != null && <span className="text-app-caption text-status-danger">{(error as Error).message}</span>}
         </div>
       )}
     </div>
@@ -295,7 +287,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
           <div className="relative w-6 shrink-0 flex flex-col items-center">
             {depth > 0 && <div className="absolute -left-3 top-[15px] w-[24px] h-px bg-app-border" />}
             {(!isLastSibling || hasChildren) && <div className="absolute top-3 bottom-0 w-px bg-app-border" />}
-                        <div className={`z-10 mt-[10px] size-2.5 rounded-full border-2 ${isHead ? "bg-app-accent border-app-accent" : "bg-app-surface border-app-text-dim"}`} title={isHead ? "HEAD" : undefined} />
+            <div className={`z-10 mt-[10px] size-2.5 rounded-full border-2 ${isHead ? "bg-app-accent border-app-accent" : "bg-app-surface border-app-text-dim"}`} title={isHead ? "HEAD" : undefined} />
           </div>
 
           <div className="flex-1 min-w-0 pb-2">
@@ -320,9 +312,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                   size="compact"
                   title={`Focus switched to ${EXPERIMENT_FOCUS_LABELS[focusEraByVersionId.get(t.id)!]} here`}
                   className={`border bg-transparent text-app-micro uppercase tracking-wider rounded px-1 py-px shrink-0 ${
-                    focusEraByVersionId.get(t.id) === "driver"
-                      ? "text-(--focus-driver) border-(--focus-driver)/40"
-                      : "text-(--focus-setup) border-(--focus-setup)/40"
+                    focusEraByVersionId.get(t.id) === "driver" ? "text-(--focus-driver) border-(--focus-driver)/40" : "text-(--focus-setup) border-(--focus-setup)/40"
                   }`}
                 >
                   → {EXPERIMENT_FOCUS_LABELS[focusEraByVersionId.get(t.id)!]}
@@ -331,10 +321,13 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
               <span className="text-app-compact text-app-text-muted truncate min-w-0">
                 {t.notes || (summarizeAppliedChanges(t.appliedChanges) ?? (t.parentVersionId == null ? (t.setupPath?.split(/[\\/]/).pop() ?? "Base setup") : "no changes recorded"))}
               </span>
-                          {isHead && <Badge variant="success" size="compact">HEAD</Badge>}
+              {isHead && (
+                <Badge variant="success" size="compact">
+                  HEAD
+                </Badge>
+              )}
               {!isHead && (
                 <Button
-                  type="button"
                   variant="app-outline"
                   size="app-sm"
                   onClick={(e) => {
@@ -342,7 +335,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                     setHead.mutate({ sessionId, versionId: t.id });
                   }}
                   disabled={setHead.isPending}
-                  className="!h-auto normal-case tracking-normal font-sans shrink-0"
+                  className="normal-case tracking-normal font-sans shrink-0"
                 >
                   Checkout
                 </Button>
@@ -363,20 +356,18 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
               )}
               {onOpenReview && (
                 <Button
-                  type="button"
                   variant="app-outline"
                   size="app-sm"
                   onClick={(e) => {
                     e.stopPropagation();
                     onOpenReview(t);
                   }}
-                  className="!h-auto normal-case tracking-normal font-sans shrink-0"
+                  className="normal-case tracking-normal font-sans shrink-0"
                 >
                   Review
                 </Button>
               )}
               <Button
-                type="button"
                 variant="app-outline"
                 size="app-sm"
                 onClick={(e) => {
@@ -384,13 +375,12 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                   setNotesForId(t.id);
                 }}
                 title={t.driverComment || t.notes ? "View / edit notes" : "Add notes"}
-                className="!h-auto normal-case tracking-normal font-sans shrink-0 inline-flex items-center gap-1"
+                className="normal-case tracking-normal font-sans shrink-0 inline-flex items-center gap-1"
               >
                 Notes
                 {(t.driverComment || t.notes) && <span className="size-1.5 rounded-full bg-app-accent" />}
               </Button>
               <Button
-                type="button"
                 variant="app-ghost"
                 size="app-sm"
                 onClick={(e) => {
@@ -401,7 +391,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                 }}
                 disabled={deleteVersion.isPending}
                 title={hasChildren ? "Trash this version and its whole branch (reversible)" : "Trash this version (reversible)"}
-                className="!h-auto normal-case tracking-normal font-sans text-status-danger hover:bg-status-danger/10 shrink-0"
+                className="normal-case tracking-normal font-sans text-status-danger hover:bg-status-danger/10 shrink-0"
               >
                 Delete branch
               </Button>
@@ -412,7 +402,7 @@ export function VersionGraph({ sessionId, gameId, tests, headVersionId, lapsByTe
                 {/* The whole row is eval-only, not "all laps recorded against
                     this version" — say so once here rather than qualifying
                     every stat label. */}
-                          <span className="text-app-nano uppercase tracking-wider text-status-success/70 whitespace-nowrap self-end leading-tight">eval laps</span>
+                <span className="text-app-nano uppercase tracking-wider text-status-success/70 whitespace-nowrap self-end leading-tight">eval laps</span>
                 {/* eval/total: every other stat on this row is eval-only, so
                     show both counts rather than a bare total that doesn't
                     match the numbers next to it. */}

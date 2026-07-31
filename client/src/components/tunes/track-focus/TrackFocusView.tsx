@@ -5,6 +5,7 @@ import { type LineSpreadTrace, type TrackCorner, useLapIssues, useLapTelemetry, 
 import { useStintTraces } from "../../../hooks/useStintTraces";
 import { type LapTrace, stintStats } from "../../../lib/stint-traces";
 import { flipPoints, needsTrackFlip } from "../../../lib/track-coords";
+import { Button } from "../../ui/button";
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
 import { BalanceLanes } from "./BalanceLanes";
 import { ConsistencyLanes } from "./ConsistencyLanes";
@@ -12,7 +13,6 @@ import { CornerLedger } from "./CornerLedger";
 import { detectCorners } from "./detect-corners";
 import { GripPanel } from "./GripPanel";
 import { IssuesList } from "./IssuesList";
-import { Button } from "../../ui/button";
 import { SectorLedger } from "./SectorLedger";
 import { SuspensionLanes } from "./SuspensionLanes";
 import { TiresPanel } from "./TiresPanel";
@@ -278,11 +278,10 @@ export function TrackFocusViewInner({
             {TABS.map((t) => (
               <Button
                 key={t}
-                type="button"
                 variant="app-ghost"
                 size="app-sm"
                 onClick={() => setActiveTab(t)}
-                className={`!h-auto !rounded !border !px-2.5 !py-1 text-xs ${activeTab === t ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
+                className={`!border text-xs ${activeTab === t ? "border-app-accent text-app-accent bg-app-accent/10" : "border-app-border text-app-text-muted hover:text-app-text"}`}
               >
                 {TAB_LABELS[t]}
               </Button>

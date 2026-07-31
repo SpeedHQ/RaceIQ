@@ -165,7 +165,7 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <Button type="button" variant="app-ghost" size="icon-sm" onClick={onBack} className="!h-auto !w-auto !p-0 text-app-text-muted hover:text-app-text" title={m.hw_back_to_catalogue()}>
+            <Button variant="app-ghost" size="icon-sm" onClick={onBack} className="!h-auto !w-auto !p-0 text-app-text-muted hover:text-app-text" title={m.hw_back_to_catalogue()}>
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
                 <path
                   fillRule="evenodd"
@@ -188,11 +188,10 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
         ].map((tab) => (
           <Button
             key={tab.id}
-            type="button"
             variant="app-ghost"
             size="app-md"
             onClick={() => setActiveTab(tab.id)}
-            className={`!h-auto !px-3 !py-1.5 text-app-label font-semibold uppercase ${
+            className={`!px-3 !py-1.5 text-app-label font-semibold uppercase ${
               activeTab === tab.id ? "bg-app-accent/20 text-app-accent ring-1 ring-app-accent/30" : "bg-app-surface/40 text-app-text-muted hover:text-app-text-secondary ring-1 ring-app-border"
             }`}
           >
@@ -233,11 +232,10 @@ export function HardwareSetupDetail({ profileId, onBack }: { profileId: string; 
             {profile.inGamePresets.map((p) => (
               <Button
                 key={p.id}
-                type="button"
                 variant="app-ghost"
                 size="app-md"
                 onClick={() => setActivePreset(p.id)}
-                className={`!h-auto !px-2.5 !py-1.5 text-app-label font-semibold uppercase ${
+                className={`!px-2.5 !py-1.5 text-app-label font-semibold uppercase ${
                   activePreset === p.id ? "bg-app-accent/20 text-app-accent ring-1 ring-app-accent/30" : "bg-app-surface/40 text-app-text-muted hover:text-app-text-secondary ring-1 ring-app-border"
                 }`}
               >

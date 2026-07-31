@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAddBase } from "../../hooks/queries";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { SetupFilePicker, type SetupFilePickerValue } from "./SetupFilePicker";
 
 /**
@@ -65,18 +65,10 @@ export function AddBaseModal({
         {error && <div className="text-xs text-status-danger">{error}</div>}
 
         <DialogFooter className="border-0 bg-transparent p-0 -mx-0 -mb-0">
-          <Button type="button" variant="app-outline" size="app-sm" onClick={onClose} className="!h-auto">
+          <Button variant="app-outline" size="app-sm" onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            type="button"
-            variant="app-primary"
-            size="app-sm"
-            onClick={submit}
-            disabled={addBase.isPending || !picked.setupPath}
-            title={!picked.setupPath ? "Pick a setup file" : undefined}
-            className="!h-auto"
-          >
+          <Button variant="app-primary" size="app-sm" onClick={submit} disabled={addBase.isPending || !picked.setupPath} title={!picked.setupPath ? "Pick a setup file" : undefined}>
             {addBase.isPending ? "Adding…" : "Add base"}
           </Button>
         </DialogFooter>

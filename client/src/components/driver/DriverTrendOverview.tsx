@@ -251,7 +251,7 @@ export function DriverTrendOverview({ trend, summary = null, runState, onRefresh
           )}
           <p className="mt-3 text-app-compact text-app-text-muted">AI may explain measured direction. It cannot add lap, corner, car, track, or session-specific advice.</p>
           {onRefresh && (
-            <Button className="mt-3" type="button" variant="outline" onClick={onRefresh} disabled={runPending}>
+            <Button className="mt-3" variant="outline" onClick={onRefresh} disabled={runPending}>
               {runPending ? "Refreshing…" : "Refresh AI summary"}
             </Button>
           )}

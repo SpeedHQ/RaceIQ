@@ -2,8 +2,8 @@ import { useMemo, useState } from "react";
 import { useSetupFileContent, useSetupFiles } from "../../hooks/queries";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { SearchSelect } from "../ui/SearchSelect";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 
 /** Read-only modal showing the picked setup file — human-readable sections
  *  when available, otherwise parsed JSON pretty-printed for ACC or decoded
@@ -70,9 +70,7 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
                   return (ia === -1 ? TAB_ORDER.length : ia) - (ib === -1 ? TAB_ORDER.length : ib);
                 });
                 const tab = (activeTab && tabs.includes(activeTab) ? activeTab : tabs[0]) ?? "";
-                const corners = allCorners
-                  .map((s) => ({ ...s, rows: s.rows.filter((r) => rowTab(r.label) === tab) }))
-                  .filter((s) => s.rows.length > 0);
+                const corners = allCorners.map((s) => ({ ...s, rows: s.rows.filter((r) => rowTab(r.label) === tab) })).filter((s) => s.rows.length > 0);
                 const others = allOthers.filter((s) => sectionTab(s.title) === tab);
                 const card = (s: (typeof sections)[number], masonry: boolean) => (
                   <div key={s.title} className={`${masonry ? "mb-3 break-inside-avoid " : ""}rounded-lg bg-app-bg p-3`}>
@@ -113,37 +111,37 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
                       ))}
                     </TabsList>
                     <TabsContent value={tab} className="space-y-3">
-                    {tab === "Aero" && others.length > 0 ? (
-                      // Aero: rear fields on the left, front fields on the right.
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        {(() => {
-                          const rows = others.flatMap((s) => s.rows);
-                          const rear = rows.filter((r) => /rear|wing/i.test(r.label));
-                          const front = rows.filter((r) => !/rear|wing/i.test(r.label));
-                          return [card({ title: "Rear", rows: rear }, false), card({ title: "Front", rows: front }, false)];
-                        })()}
-                      </div>
-                    ) : tab === "Suspension" ? (
-                      // Suspension: front card above the FL/FR/RL/RR grid, rear card below.
-                      <div className="flex flex-col gap-3">
-                        {(() => {
-                          const rear = others.filter((s) => /rear/i.test(s.title));
-                          const front = others.filter((s) => !/rear/i.test(s.title));
-                          return (
-                            <>
-                              {front.map((s) => card(s, false))}
-                              {corners.length > 0 && <div className="grid grid-cols-1 content-start gap-3 sm:grid-cols-2">{corners.map((s) => card(s, false))}</div>}
-                              {rear.map((s) => card(s, false))}
-                            </>
-                          );
-                        })()}
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-3 xl:flex-row xl:items-start">
-                        {corners.length > 0 && <div className="grid shrink-0 grid-cols-1 content-start gap-3 sm:grid-cols-2 xl:w-1/2">{corners.map((s) => card(s, false))}</div>}
-                        {others.length > 0 && <div className="w-full min-w-0 columns-1 gap-3 md:columns-2">{others.map((s) => card(s, true))}</div>}
-                      </div>
-                    )}
+                      {tab === "Aero" && others.length > 0 ? (
+                        // Aero: rear fields on the left, front fields on the right.
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          {(() => {
+                            const rows = others.flatMap((s) => s.rows);
+                            const rear = rows.filter((r) => /rear|wing/i.test(r.label));
+                            const front = rows.filter((r) => !/rear|wing/i.test(r.label));
+                            return [card({ title: "Rear", rows: rear }, false), card({ title: "Front", rows: front }, false)];
+                          })()}
+                        </div>
+                      ) : tab === "Suspension" ? (
+                        // Suspension: front card above the FL/FR/RL/RR grid, rear card below.
+                        <div className="flex flex-col gap-3">
+                          {(() => {
+                            const rear = others.filter((s) => /rear/i.test(s.title));
+                            const front = others.filter((s) => !/rear/i.test(s.title));
+                            return (
+                              <>
+                                {front.map((s) => card(s, false))}
+                                {corners.length > 0 && <div className="grid grid-cols-1 content-start gap-3 sm:grid-cols-2">{corners.map((s) => card(s, false))}</div>}
+                                {rear.map((s) => card(s, false))}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-3 xl:flex-row xl:items-start">
+                          {corners.length > 0 && <div className="grid shrink-0 grid-cols-1 content-start gap-3 sm:grid-cols-2 xl:w-1/2">{corners.map((s) => card(s, false))}</div>}
+                          {others.length > 0 && <div className="w-full min-w-0 columns-1 gap-3 md:columns-2">{others.map((s) => card(s, true))}</div>}
+                        </div>
+                      )}
                     </TabsContent>
                   </Tabs>
                 );
@@ -295,7 +293,6 @@ export function SetupFilePicker({
           <span className="text-app-compact text-app-text-muted uppercase tracking-wider">{labels.setup ?? "Base setup"}</span>
           <div className="flex items-center gap-3">
             <Button
-              type="button"
               variant="app-ghost"
               size="app-sm"
               onClick={() => refetch()}

@@ -259,15 +259,15 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                 <div className="flex items-center justify-between px-2 pt-2 flex-wrap gap-1">
                   <span className="text-app-caption uppercase tracking-wider text-app-text-muted">Version tree</span>
                   <div className="flex items-center gap-2">
-                    <Button type="button" variant="app-outline" size="app-sm" onClick={() => setShowImportLaps(true)} className="!h-auto">
+                    <Button variant="app-outline" size="app-sm" onClick={() => setShowImportLaps(true)}>
                       Add laps from history
                     </Button>
                     {gameId !== "f1-2025" && (
-                      <Button type="button" variant="app-outline" size="app-sm" onClick={() => setShowAddBase(true)} className="!h-auto">
+                      <Button variant="app-outline" size="app-sm" onClick={() => setShowAddBase(true)}>
                         + Add base
                       </Button>
                     )}
-                    <Button type="button" variant="app-outline" size="app-sm" onClick={() => setShowHistory(true)} className="!h-auto">
+                    <Button variant="app-outline" size="app-sm" onClick={() => setShowHistory(true)}>
                       History
                     </Button>
                   </div>
@@ -317,7 +317,6 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
-                      type="button"
                       variant="app-primary"
                       size="app-sm"
                       onClick={() => {
@@ -329,11 +328,10 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                           // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         } as any);
                       }}
-                      className="!h-auto"
                     >
                       Review laps
                     </Button>
-                    <Button type="button" variant="app-outline" size="app-sm" onClick={() => setTestPhase("idle")} className="!h-auto">
+                    <Button variant="app-outline" size="app-sm" onClick={() => setTestPhase("idle")}>
                       Close
                     </Button>
                   </div>
@@ -358,7 +356,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                   engineer talking about my braking" and an obvious mode. */}
               <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{EXPERIMENT_FOCUS_AGENT_LABELS[session.focus]}</span>
               <div className="flex items-center gap-3">
-                <Button type="button" variant="app-primary" size="app-sm" onClick={() => setTestPhase("live")} className="!h-auto">
+                <Button variant="app-primary" size="app-sm" onClick={() => setTestPhase("live")}>
                   Dashboard
                 </Button>
                 <CopyChatJsonButton sessionId={session.id} />
@@ -399,7 +397,6 @@ function CopyChatJsonButton({ sessionId }: { sessionId: number }) {
   const [copied, setCopied] = useState(false);
   return (
     <Button
-      type="button"
       variant="app-ghost"
       size="app-sm"
       onClick={async () => {
@@ -414,7 +411,7 @@ function CopyChatJsonButton({ sessionId }: { sessionId: number }) {
         }
       }}
       title="Copy chat JSON (debug)"
-      className="!h-auto !px-0 flex items-center gap-1 text-app-text-muted hover:text-app-text"
+      className="!px-0 flex items-center gap-1 text-app-text-muted hover:text-app-text"
     >
       {copied ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
       <span className="text-app-micro uppercase tracking-wider">{copied ? "Copied" : "JSON"}</span>

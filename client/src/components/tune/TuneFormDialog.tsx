@@ -194,7 +194,7 @@ export function TuneFormDialog({
         <form onSubmit={handleSubmit}>
           <DialogHeader className="sticky top-0 z-10 flex-row items-center justify-between bg-app-surface px-4 py-3 border-b border-app-border">
             <DialogTitle className="text-sm font-bold text-app-text">{title}</DialogTitle>
-            <Button type="button" variant="app-ghost" size="icon-sm" onClick={onClose} aria-label="Close">
+            <Button variant="app-ghost" size="icon-sm" onClick={onClose} aria-label="Close">
               x
             </Button>
           </DialogHeader>
@@ -288,7 +288,6 @@ export function TuneFormDialog({
             {/* JSON Import toggle */}
             <div className="flex items-center gap-2">
               <Button
-                type="button"
                 variant="app-ghost"
                 size="app-sm"
                 onClick={() => setJsonMode(!jsonMode)}
@@ -312,7 +311,7 @@ export function TuneFormDialog({
                   className="w-full bg-app-bg/85 border border-app-border rounded px-2 py-1.5 text-xs text-app-text font-mono focus:outline-none focus:ring-1 focus:ring-app-accent resize-y"
                 />
                 {jsonError && <p className="text-xs text-status-danger">{jsonError}</p>}
-                <Button type="button" variant="app-ghost" size="app-sm" onClick={handleJsonParse} className="text-app-accent hover:bg-app-accent/30">
+                <Button variant="app-ghost" size="app-sm" onClick={handleJsonParse} className="text-app-accent hover:bg-app-accent/30">
                   {m.tune_parse_populate()}
                 </Button>
               </div>
@@ -385,7 +384,7 @@ export function TuneFormDialog({
           </div>
 
           <DialogFooter className="sticky bottom-0 bg-app-surface px-4 py-3 border-t border-app-border">
-            <Button type="button" variant="app-outline" size="app-md" onClick={onClose}>
+            <Button variant="app-outline" size="app-md" onClick={onClose}>
               {m.common_cancel()}
             </Button>
             <Button type="submit" variant="app-primary" size="app-md" disabled={!name || isSubmitting}>

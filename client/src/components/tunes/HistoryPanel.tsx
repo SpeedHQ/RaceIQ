@@ -1,6 +1,6 @@
 import { type ExperimentActionRow, useExperimentHistory, useExperimentVersions, useUndo } from "../../hooks/queries";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { FocusTimeline } from "./FocusTimeline";
 /**
  * History panel (design Phase 9) — session-scoped, newest-first action log
@@ -25,7 +25,7 @@ export function HistoryPanel({ sessionId, onClose }: { sessionId: number; onClos
 
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs text-app-text-dim">{nextPending ? `Undo reverses: ${describeAction(nextPending)}` : "Nothing left to undo."}</p>
-          <Button type="button" variant="app-primary" size="app-sm" onClick={() => undo.mutate({ sessionId })} disabled={!nextPending || undo.isPending} className="!h-auto shrink-0">
+          <Button variant="app-primary" size="app-sm" onClick={() => undo.mutate({ sessionId })} disabled={!nextPending || undo.isPending} className="shrink-0">
             {undo.isPending ? "Undoing…" : "Undo last"}
           </Button>
         </div>
@@ -57,7 +57,6 @@ export function HistoryPanel({ sessionId, onClose }: { sessionId: number; onClos
       </DialogContent>
     </Dialog>
   );
-
 }
 
 const KIND_LABELS: Record<string, string> = {

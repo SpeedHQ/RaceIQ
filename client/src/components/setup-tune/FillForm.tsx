@@ -104,7 +104,7 @@ function SectionCard({
 
   return (
     <Card size="sm" className="gap-0 rounded-lg">
-      <Button variant="app-ghost" size="app-md" type="button" onClick={() => setOpen((o) => !o)} className="w-full justify-between rounded-none px-3 py-2 text-left">
+      <Button variant="app-ghost" size="app-md" onClick={() => setOpen((o) => !o)} className="w-full justify-between rounded-none py-2 text-left">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-app-text">{section.label}</span>
           <Badge variant={hasData ? "success" : "neutral"} size="compact" className={hasData ? "" : "bg-app-bg"}>
@@ -138,10 +138,9 @@ export function FillForm({ sections, settings, onChange }: { sections: SectionDe
   // Group sections into tabs; anything the tab map doesn't know about lands
   // in an "Other" tab so game-specific sections are never silently dropped.
   const known = new Set(TAB_DEFS.flatMap((t) => t.keys));
-  const tabs = [
-    ...TAB_DEFS.map((t) => ({ label: t.label, sections: sections.filter((s) => t.keys.includes(s.key)) })),
-    { label: "Other", sections: sections.filter((s) => !known.has(s.key)) },
-  ].filter((t) => t.sections.length > 0);
+  const tabs = [...TAB_DEFS.map((t) => ({ label: t.label, sections: sections.filter((s) => t.keys.includes(s.key)) })), { label: "Other", sections: sections.filter((s) => !known.has(s.key)) }].filter(
+    (t) => t.sections.length > 0,
+  );
 
   const [active, setActive] = useState(0);
   const activeValue = tabs[Math.min(active, tabs.length - 1)]?.label;

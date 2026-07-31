@@ -9,8 +9,8 @@ import { errorFromResponse } from "../lib/rpc-error";
 import { useRequiredGameId } from "../stores/game";
 import { GearRatioChart } from "./tune/GearRatioChart";
 import { ALL_CATEGORIES, CATEGORY_COLORS, CATEGORY_LABELS } from "./tune/tune-constants";
-import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 
 import { Card, CardContent, CardHeader } from "./ui/card";
 // ── Hook ─────────────────────────────────────────────────────────────────────
@@ -37,10 +37,7 @@ export function useAllCars() {
   >({
     queryKey: ["all-cars", gameId],
     queryFn: async () => {
-      const response = await client.api.cars.$get(
-        {},
-        { headers: { "X-Game-Id": gameId } },
-      );
+      const response = await client.api.cars.$get({}, { headers: { "X-Game-Id": gameId } });
       if (!response.ok) throw await errorFromResponse(response);
       return response.json();
     },
@@ -392,20 +389,18 @@ export function UserTuneCard({
         <CardContent className="space-y-4 border-t border-app-border px-4 pb-4 pt-0">
           <div className="flex items-center gap-2 pt-3 flex-wrap">
             <Button
-              type="button"
               variant="outline"
               size="app-sm"
               onClick={(e) => {
                 e.stopPropagation();
                 onEdit();
               }}
-              className="!h-auto border-status-info/30 bg-status-info/15 text-status-info hover:bg-status-info/25"
+              className="border-status-info/30 bg-status-info/15 text-status-info hover:bg-status-info/25"
             >
               {m.common_edit()}
             </Button>
             {onDuplicate && (
               <Button
-                type="button"
                 variant="app-ghost"
                 size="app-sm"
                 onClick={(e) => {
@@ -413,30 +408,29 @@ export function UserTuneCard({
                   onDuplicate();
                 }}
                 disabled={isDuplicating}
-                className="!h-auto bg-app-accent/20 text-app-accent hover:bg-app-accent/30"
+                className="bg-app-accent/20 text-app-accent hover:bg-app-accent/30"
               >
                 {isDuplicating ? "..." : m.common_duplicate()}
               </Button>
             )}
             <div className="relative">
               <Button
-                type="button"
                 variant="app-ghost"
                 size="app-sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   setShareOpen((v) => !v);
                 }}
-                className="!h-auto bg-status-success/20 text-status-success hover:bg-status-success/30"
+                className="bg-status-success/20 text-status-success hover:bg-status-success/30"
               >
                 {shareStatus === "copied" ? "Copied" : "Share"}
               </Button>
               {shareOpen && (
                 <div className="absolute left-0 top-full mt-1 z-20 min-w-40 rounded-md border border-app-border bg-app-surface p-1 shadow-lg">
-                  <Button type="button" variant="app-ghost" size="app-sm" onClick={handleCopyShare} className="!h-auto w-full !justify-start !rounded !px-2 !py-1 text-left text-app-text hover:bg-app-accent/20">
+                  <Button variant="app-ghost" size="app-sm" onClick={handleCopyShare} className="w-full !justify-start !py-1 text-left text-app-text hover:bg-app-accent/20">
                     {m.tuneform_copy_clipboard()}
                   </Button>
-                  <Button type="button" variant="app-ghost" size="app-sm" onClick={handleDownloadShare} className="!h-auto w-full !justify-start !rounded !px-2 !py-1 text-left text-app-text hover:bg-app-accent/20">
+                  <Button variant="app-ghost" size="app-sm" onClick={handleDownloadShare} className="w-full !justify-start !py-1 text-left text-app-text hover:bg-app-accent/20">
                     {m.tuneform_download_json()}
                   </Button>
                 </div>
@@ -444,45 +438,42 @@ export function UserTuneCard({
             </div>
             {!confirmDelete ? (
               <Button
-                type="button"
                 variant="app-danger"
                 size="app-sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   setConfirmDelete(true);
                 }}
-                className="!h-auto bg-status-danger/20 text-status-danger hover:bg-status-danger/30"
+                className="bg-status-danger/20 text-status-danger hover:bg-status-danger/30"
               >
                 {m.common_delete()}
               </Button>
             ) : (
               <span className="flex items-center gap-1">
                 <span className="text-app-caption text-status-danger">Sure?</span>
-                  <Button
-                    type="button"
-                    variant="app-danger"
-                    size="app-sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDelete();
-                    }}
-                    disabled={isDeleting}
-                    className="!h-auto bg-status-danger/30 text-status-danger hover:bg-status-danger/50"
-                  >
-                    {isDeleting ? "..." : "Yes"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="app-ghost"
-                    size="app-sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setConfirmDelete(false);
-                    }}
-                    className="!h-auto text-app-text-muted hover:text-app-text"
-                  >
-                    No
-                  </Button>
+                <Button
+                  variant="app-danger"
+                  size="app-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete();
+                  }}
+                  disabled={isDeleting}
+                  className="bg-status-danger/30 text-status-danger hover:bg-status-danger/50"
+                >
+                  {isDeleting ? "..." : "Yes"}
+                </Button>
+                <Button
+                  variant="app-ghost"
+                  size="app-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmDelete(false);
+                  }}
+                  className="text-app-text-muted hover:text-app-text"
+                >
+                  No
+                </Button>
               </span>
             )}
           </div>
@@ -671,20 +662,20 @@ export function TuneForm({
     <form onSubmit={handleSubmit} className="flex flex-col min-h-full">
       {/* Sticky header — title, tabs, and actions in one bar */}
       <div className="sticky top-0 z-10 bg-app-bg border-b border-app-border flex items-center gap-3 px-4 py-2">
-        <Button type="button" variant="app-ghost" size="app-sm" onClick={onCancel}>
+        <Button variant="app-ghost" size="app-sm" onClick={onCancel}>
           &larr;
         </Button>
         <h2 className="text-sm font-semibold text-app-text">{title}</h2>
         <div className="flex items-center gap-1 ml-2">
-          <Button type="button" variant="app-ghost" size="app-sm" className={tabCls("info")} onClick={() => setActiveTab("info")}>
+          <Button variant="app-ghost" size="app-sm" className={tabCls("info")} onClick={() => setActiveTab("info")}>
             {m.tune_form_tab_info()}
           </Button>
-          <Button type="button" variant="app-ghost" size="app-sm" className={tabCls("settings")} onClick={() => setActiveTab("settings")}>
+          <Button variant="app-ghost" size="app-sm" className={tabCls("settings")} onClick={() => setActiveTab("settings")}>
             {m.tune_form_tab_settings()}
           </Button>
         </div>
         <div className="flex items-center gap-2 ml-auto">
-          <Button type="button" variant="app-outline" size="app-sm" onClick={onCancel}>
+          <Button variant="app-outline" size="app-sm" onClick={onCancel}>
             {m.common_cancel()}
           </Button>
           <Button type="submit" variant="app-primary" size="app-sm" disabled={!name || isSubmitting}>
@@ -864,20 +855,18 @@ export function TuneForm({
               {!jsonMode && (
                 <div className="flex rounded-md ring-1 ring-app-border overflow-hidden">
                   <Button
-                    type="button"
                     variant="app-ghost"
                     size="app-sm"
                     onClick={() => switchUnitSystem(true)}
-                    className={`!h-auto !rounded-none !px-2.5 !py-1 text-app-caption font-semibold transition-colors ${isMetric ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
+                    className={`!rounded-none !px-2.5 !py-1 font-semibold transition-colors ${isMetric ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
                   >
                     {m.tune_metric()}
                   </Button>
                   <Button
-                    type="button"
                     variant="app-ghost"
                     size="app-sm"
                     onClick={() => switchUnitSystem(false)}
-                    className={`!h-auto !rounded-none !px-2.5 !py-1 text-app-caption font-semibold transition-colors ${!isMetric ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
+                    className={`!rounded-none !px-2.5 !py-1 font-semibold transition-colors ${!isMetric ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
                   >
                     {m.tune_imperial()}
                   </Button>
@@ -905,7 +894,7 @@ export function TuneForm({
                 className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs text-app-text font-mono focus:outline-none focus:ring-1 focus:ring-app-accent resize-y"
               />
               {jsonError && <p className="text-xs text-status-danger">{jsonError}</p>}
-              <Button type="button" variant="app-primary" size="app-sm" onClick={handleJsonParse} className="!h-auto">
+              <Button variant="app-primary" size="app-sm" onClick={handleJsonParse}>
                 {m.tune_parse_populate()}
               </Button>
             </div>

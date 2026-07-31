@@ -336,7 +336,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               <p className="text-app-compact text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
               <p className="text-app-caption text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
             </div>
-            <Button type="button" variant="app-primary" size="app-md" onClick={() => openSettings("ai")} className="text-app-compact bg-[var(--ai-accent)] hover:bg-[var(--ai-accent-hover)]">
+            <Button variant="app-primary" size="app-md" onClick={() => openSettings("ai")} className="text-app-compact bg-[var(--ai-accent)] hover:bg-[var(--ai-accent-hover)]">
               {m.aipanel_set_up_ai()}
             </Button>
           </div>
@@ -376,7 +376,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           <div className="flex flex-col items-center justify-center py-12 gap-3">
             <Sparkles className="size-5" style={{ color: "var(--ai-accent)" }} />
             <p className="text-app-compact text-app-text-muted">{m.aipanel_no_analysis()}</p>
-            <Button type="button" variant="app-primary" size="app-md" onClick={() => fetchAnalysis(false)} className="text-app-compact">
+            <Button variant="app-primary" size="app-md" onClick={() => fetchAnalysis(false)} className="text-app-compact">
               <Sparkles className="size-3" />
               {m.aipanel_analyse_lap()}
             </Button>
