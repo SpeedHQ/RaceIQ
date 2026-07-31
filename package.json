@@ -42,6 +42,7 @@
     "laps:export": "bun scripts/export-laps.ts",
     "laps:import": "bun scripts/import-laps.ts",
     "ibt:probe": "bun scripts/probe-ibt.ts",
+    "telemetry:catalog": "bun scripts/generate-telemetry-catalog.ts",
     "iracing:cars:seed": "bun scripts/seed-iracing-cars.ts",
     "iracing:tracks:seed": "bun scripts/seed-iracing-tracks.ts",
     "gzip:recording": "bun scripts/gzip-recording.ts",
@@ -76,6 +77,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@babel/parser": "^7.29.7",
     "@mastra/duckdb": "^1.5.2",
     "@mastra/hono": "^1.5.12",
     "@mastra/loggers": "^1.2.0",

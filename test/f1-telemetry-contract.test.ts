@@ -36,6 +36,7 @@ describe("F1 telemetry contract", () => {
 
     const carTelemetry = Buffer.alloc(60);
     carTelemetry.writeUInt8(90, 32);
+    carTelemetry.writeUInt8(88, 36);
     accumulator.feed(header(6), frame(carTelemetry));
 
     const carStatus = Buffer.alloc(55);
@@ -50,5 +51,6 @@ describe("F1 telemetry contract", () => {
     expect(packet!.FuelCapacity).toBeCloseTo(110);
     expect(packet!.Power).toBeCloseTo(620_000);
     expect(packet!.TireTempFL).toBe(90);
+    expect(packet!.TireCarcassTempFL).toBe(88);
   });
 });

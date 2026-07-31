@@ -11,6 +11,7 @@
 - Show all registered games in storage settings, including games with no recording files
 
 ### Internal
+- Added complete telemetry-first semantic catalog with units, descriptions, per-game fidelity mappings, full parser/setup source inventories, stable iRacing SessionInfo setup leaves, detailed sector relationships, and persisted detailed tire temperatures
 - Stabilized Storybook dashboard capture readiness, aligned PR preview comparison with Playwright's material-diff policy, and restricted baseline writes to the pinned Linux renderer
 - Made Storybook snapshots own an exact-port server and retry cold preview preparation
 - Restored the ACC live-dashboard fuel bar in fixture-backed previews

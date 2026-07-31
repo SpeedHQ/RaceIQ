@@ -1053,6 +1053,10 @@ export class F1StateAccumulator {
       TireTempFR: ct.tyreTempFR,
       TireTempRL: ct.tyreTempRL,
       TireTempRR: ct.tyreTempRR,
+      TireCarcassTempFL: ct.tyresInnerTempFL,
+      TireCarcassTempFR: ct.tyresInnerTempFR,
+      TireCarcassTempRL: ct.tyresInnerTempRL,
+      TireCarcassTempRR: ct.tyresInnerTempRR,
 
       // Tire wear: F1 sends 0-100% from CarDamage packet, normalize to 0-1
       TireWearFL: cd ? cd.tyreWearFL / 100 : -1,

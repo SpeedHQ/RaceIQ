@@ -31,6 +31,13 @@ const TELEMETRY_FIELDS: (keyof TelemetryPacket)[] = [
   "SurfaceRumbleFL_2","SurfaceRumbleFR_2","SurfaceRumbleRL_2","SurfaceRumbleRR_2",
   "TireSlipCombinedFL_2",
   "TireTempFL","TireTempFR","TireTempRL","TireTempRR",
+  "TireCarcassTempFL","TireCarcassTempFR","TireCarcassTempRL","TireCarcassTempRR",
+  "TireCarcassTempLeftFL","TireCarcassTempLeftFR","TireCarcassTempLeftRL","TireCarcassTempLeftRR",
+  "TireCarcassTempMiddleFL","TireCarcassTempMiddleFR","TireCarcassTempMiddleRL","TireCarcassTempMiddleRR",
+  "TireCarcassTempRightFL","TireCarcassTempRightFR","TireCarcassTempRightRL","TireCarcassTempRightRR",
+  "TireSurfaceTempInnerFL","TireSurfaceTempInnerFR","TireSurfaceTempInnerRL","TireSurfaceTempInnerRR",
+  "TireSurfaceTempMiddleFL","TireSurfaceTempMiddleFR","TireSurfaceTempMiddleRL","TireSurfaceTempMiddleRR",
+  "TireSurfaceTempOuterFL","TireSurfaceTempOuterFR","TireSurfaceTempOuterRL","TireSurfaceTempOuterRR",
   "Boost","Fuel","DistanceTraveled","BestLap","LastLap","CurrentLap","CurrentRaceTime",
   "LapNumber","RacePosition","Accel","Brake","Clutch","HandBrake","Gear","Steer",
   "NormDrivingLine","NormAIBrakeDiff",
@@ -132,6 +139,7 @@ export function decompressTelemetry(blob: Buffer): TelemetryPacket[] {
     const vals = lines[i].split(",");
     const p = {} as TelemetryPacket;
     for (let j = 0; j < fields.length; j++) {
+      if (vals[j] === "") continue;
       (p as any)[fields[j]] = Number(vals[j]);
     }
     if (meta) {

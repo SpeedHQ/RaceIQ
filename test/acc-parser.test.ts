@@ -43,6 +43,10 @@ function makePhysicsBuf(overrides: Record<string, number> = {}): Buffer {
   buf.writeFloatLE(86.0, PHYSICS.tyreCoreFR.offset);
   buf.writeFloatLE(90.0, PHYSICS.tyreCoreRL.offset);
   buf.writeFloatLE(91.0, PHYSICS.tyreCoreRR.offset);
+  // Three-band surface temperatures
+  buf.writeFloatLE(84.0, PHYSICS.tyreTempInnerFL.offset);
+  buf.writeFloatLE(85.0, PHYSICS.tyreTempMiddleFL.offset);
+  buf.writeFloatLE(86.0, PHYSICS.tyreTempOuterFL.offset);
   // Tire pressures (PSI)
   buf.writeFloatLE(27.5, PHYSICS.tyrePressureFL.offset);
   buf.writeFloatLE(27.6, PHYSICS.tyrePressureFR.offset);
@@ -113,6 +117,10 @@ describe("ACC parser", () => {
     expect(packet!.TireTempFR).toBeCloseTo(86.0);
     expect(packet!.TireTempRL).toBeCloseTo(90.0);
     expect(packet!.TireTempRR).toBeCloseTo(91.0);
+    expect(packet!.TireCarcassTempFL).toBeCloseTo(85.0);
+    expect(packet!.TireSurfaceTempInnerFL).toBeCloseTo(84.0);
+    expect(packet!.TireSurfaceTempMiddleFL).toBeCloseTo(85.0);
+    expect(packet!.TireSurfaceTempOuterFL).toBeCloseTo(86.0);
   });
 
   test("parseAccBuffers maps tire pressures correctly", () => {

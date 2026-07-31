@@ -26,6 +26,7 @@
         "zod": "^4.4.3",
       },
       "devDependencies": {
+        "@babel/parser": "^7.29.7",
         "@mastra/duckdb": "^1.5.2",
         "@mastra/hono": "^1.5.12",
         "@mastra/loggers": "^1.2.0",
