@@ -41,7 +41,22 @@ for (const story of DASHBOARD_SNAPSHOT_CASES) {
       const raceBox = await racePanel.boundingBox();
       if (!viewport || !raceBox) throw new Error(`${story.name} race panel has no viewport geometry`);
       expect(raceBox.x).toBeGreaterThanOrEqual(viewport.width / 2 - 1);
+      expect(raceBox.width).toBeGreaterThanOrEqual(viewport.width / 2 - 1);
       expect(raceBox.y).toBeLessThan(viewport.height);
+
+      const raceHeading = racePanel.getByRole("heading", { name: "Race", exact: true });
+      await expect(raceHeading).toBeVisible();
+      const headingBox = await raceHeading.boundingBox();
+      if (!headingBox) throw new Error(`${story.name} Race heading has no viewport geometry`);
+      expect(headingBox.x).toBeGreaterThanOrEqual(raceBox.x);
+      expect(headingBox.x + headingBox.width).toBeLessThanOrEqual(raceBox.x + raceBox.width);
+      expect(
+        await raceHeading.evaluate((heading) => {
+          const box = heading.getBoundingClientRect();
+          const painted = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+          return painted === heading || heading.contains(painted);
+        }),
+      ).toBe(true);
     }
 
     await expect(page).toHaveScreenshot(`${story.name}.png`, {
