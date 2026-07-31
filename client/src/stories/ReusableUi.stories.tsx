@@ -4,6 +4,7 @@ import { expect, userEvent, within } from "storybook/test";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Table, TBody, TD, TH, THead, TRow } from "../components/ui/AppTable";
 import { Button } from "../components/ui/button";
+import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
@@ -90,6 +91,42 @@ export const TabsControlled: Story = {
     await userEvent.click(canvas.getByRole("tab", { name: "Setup" }));
     await expect(canvas.getByRole("tab", { name: "Setup" })).toHaveAttribute("data-active");
     await expect(canvas.getByText("Current setup values.")).toBeVisible();
+  },
+};
+
+export const BadgeVariants: Story = {
+  render: () => (
+    <div className="flex max-w-md flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="neutral" size="compact">
+          Neutral
+        </Badge>
+        <Badge variant="info" size="default">
+          Info
+        </Badge>
+        <Badge variant="success" size="compact">
+          Success
+        </Badge>
+        <Badge variant="warning" size="default">
+          Warning
+        </Badge>
+        <Badge variant="danger" size="compact">
+          Danger
+        </Badge>
+      </div>
+      <Badge variant="info" size="default" className="max-w-48 whitespace-normal text-center">
+        Long status text wraps without changing badge semantics.
+      </Badge>
+      <Badge aria-hidden="true" variant="neutral" size="compact">
+        Decorative indicator
+      </Badge>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Long status text wraps without changing badge semantics.")).toBeVisible();
+    await expect(canvas.getByText("Decorative indicator")).toHaveAttribute("aria-hidden", "true");
+    await expect(canvas.getByText("Decorative indicator")).not.toHaveAttribute("tabindex");
   },
 };
 
