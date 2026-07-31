@@ -259,7 +259,7 @@ function CompareModal({
         {/* Header */}
         <DialogHeader className="sticky top-0 z-10 flex flex-row items-center justify-between border-b border-app-border bg-app-bg px-4 py-3">
           <DialogTitle className="text-sm font-bold text-app-text/90">{m.cars_compare_modal_title()}</DialogTitle>
-          <Button variant="app-ghost" size="icon-sm" onClick={onClose} className="!h-auto !w-auto !p-1 text-app-text/90 hover:text-app-text" aria-label={m.common_close()}>
+          <Button variant="close-action" size="icon-sm" onClick={onClose} aria-label={m.common_close()}>
             ×
           </Button>
         </DialogHeader>
@@ -630,7 +630,7 @@ export function CarsPage() {
                     {detailCar.specs?.pi && <PiBadge showNumber={false} pi={detailCar.specs.pi} />}
                     {detailCar.name}
                   </DialogTitle>
-                  <Button variant="app-ghost" size="icon-sm" onClick={() => setDetailCar(null)} className="!h-auto !w-auto p-1 text-app-text/90 hover:text-app-text" aria-label={m.common_close()}>
+                  <Button variant="close-action" size="icon-sm" onClick={() => setDetailCar(null)} aria-label={m.common_close()}>
                     ×
                   </Button>
                 </DialogHeader>
@@ -801,7 +801,7 @@ export function CarsPage() {
           >
             {m.cars_compare_button()} ({selected.size})
           </Button>
-          <Button variant="app-ghost" size="app-sm" onClick={() => setSelected(new Set())} className="!rounded-full !px-0 text-xs text-app-text/90 hover:text-app-text">
+          <Button variant="app-ghost" size="app-sm" onClick={() => setSelected(new Set())}>
             {m.common_clear()}
           </Button>
         </div>
