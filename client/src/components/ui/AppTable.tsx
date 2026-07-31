@@ -14,8 +14,12 @@ type TableProps = TableHTMLAttributes<HTMLTableElement> & {
 };
 
 export function Table({ children, className, fit = false, tableClassName, variant = "default", ...props }: TableProps) {
+  const variantClasses = {
+    default: "",
+    settings: "bg-app-surface/40 ring-1 ring-app-border",
+  } as const;
   return (
-    <div className={cn("rounded-lg", fit ? "" : "overflow-x-auto", className)}>
+    <div className={cn("rounded-lg", variantClasses[variant], fit ? "" : "overflow-x-auto", className)}>
       <table data-variant={variant} className={cn("w-full text-sm", fit ? "min-w-0" : "min-w-max md:min-w-0", tableClassName)} {...props}>
         {children}
       </table>

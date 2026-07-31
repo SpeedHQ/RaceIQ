@@ -200,6 +200,18 @@ export const SemanticVariants: Story = {
         <Badge variant="game-brand">Game brand</Badge>
         <Badge variant="ai-status">AI status</Badge>
       </div>
+      <Card variant="transparent-panel">
+        <CardHeader><CardTitle>Settings section</CardTitle></CardHeader>
+        <CardContent>Transparent panel contract.</CardContent>
+      </Card>
+      <Tabs defaultValue="one">
+        <TabsList variant="pills"><TabsTrigger value="one" variant="pills">One</TabsTrigger><TabsTrigger value="two" variant="pills">Two</TabsTrigger></TabsList>
+        <TabsContent value="one">Active tab content</TabsContent>
+      </Tabs>
+      <Table variant="settings"><TBody><TRow><TD>Settings row</TD></TRow></TBody></Table>
+      <Dialog defaultOpen>
+        <DialogContent layout="scrollable" size="sm"><DialogTitle>Scrollable dialog</DialogTitle><DialogDescription>Dialog shell contract.</DialogDescription></DialogContent>
+      </Dialog>
     </div>
   ),
   play: async ({ canvasElement }) => {
@@ -207,6 +219,10 @@ export const SemanticVariants: Story = {
     await expect(canvas.getByRole("button", { name: "Menu action" })).toBeVisible();
     await expect(canvas.getByRole("button", { name: "Close" })).toHaveAttribute("type", "button");
     await expect(canvas.getByText("Category")).toBeVisible();
+    await expect(canvas.getByText("Settings section")).toBeVisible();
+    await expect(canvas.getByRole("tab", { name: "One" })).toHaveAttribute("data-active");
+    await expect(canvas.getByText("Scrollable dialog")).toBeVisible();
+    await expect(canvas.getByText("Settings row")).toBeVisible();
   },
 };
 
