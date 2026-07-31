@@ -286,6 +286,8 @@ export function StorageSection() {
         {data && data.binCount > 0 && (
           <div className="mt-4">
             <Button
+              variant="app-ghost"
+              size="app-md"
               onClick={() => compress.mutate()}
               disabled={compress.isPending}
               className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md bg-app-surface-alt hover:bg-app-surface-hover/60 text-app-text disabled:opacity-50 transition-colors"

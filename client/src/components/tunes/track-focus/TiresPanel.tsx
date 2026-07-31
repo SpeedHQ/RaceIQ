@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
+import { Button } from "../../ui/button";
 import { WHEEL_COLOR_VARS } from "@/lib/colors";
 import { indexAtFrac, type LapTrace, type TireAverages, type TireTraces } from "../../../lib/stint-traces";
 import { Button } from "../../ui/button";
 import { Lane } from "./Lane";
 import { useMeasuredWidth } from "./use-measured-width";
-import { Button } from "../../ui/button";
 
 interface TiresPanelProps {
   /** Traces in lap order (undefined entries = not loaded yet, skipped). */
@@ -280,13 +280,7 @@ function TireMetricSection({
 
       {/* Per-corner lanes: collapsed by default — the averages chart above is the summary. */}
       {lapsWithTrace.length > 0 && (
-        <Button
-          type="button"
-          variant="app-outline"
-          size="app-sm"
-          onClick={() => setExpanded((v) => !v)}
-          className="!h-auto flex items-center gap-1.5 text-app-caption uppercase tracking-wider text-app-text-dim hover:text-app-text"
-        >
+        <Button type="button" variant="app-outline" size="app-sm" onClick={() => setExpanded((v) => !v)}>
           <span className={`inline-block transition-transform ${expanded ? "rotate-90" : ""}`}>▸</span>
           {expanded ? "Hide per-wheel detail" : "Show per-wheel detail"}
         </Button>

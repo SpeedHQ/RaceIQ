@@ -1,6 +1,7 @@
 import { DEFAULT_EXPERIMENT_FOCUS, EXPERIMENT_FOCUS_LABELS, type ExperimentFocus } from "@shared/experiment-focus";
 import { AccSetupJsonSchema, setupFileFormat, setupFileRejectReason } from "@shared/setup-file-formats";
 import { type DragEvent, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   type Experiment,
   type ExperimentGameId,
@@ -14,16 +15,8 @@ import {
   useTracks,
 } from "../../hooks/queries";
 import { useTelemetryStore } from "../../stores/telemetry";
-import { Table, TBody, TD, TH, THead, TRow } from "../ui/AppTable";
-import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { SearchSelect } from "../ui/SearchSelect";
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
-import { Card } from "../ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
-import { Table, TBody, TD, TH, THead, TRow } from "../ui/AppTable";
 import { FocusPicker } from "./FocusPicker";
 import { SetupFilePicker } from "./SetupFilePicker";
 
@@ -41,13 +34,13 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
   const [creating, setCreating] = useState(false);
 
   return (
-    <div className="flex-1 space-y-4 overflow-y-auto p-4">
+    <div className="flex-1 overflow-y-auto p-4 space-y-4">
       <div className="space-y-2">
         <div>
           <h1 className="text-lg font-semibold text-app-text">Experiments</h1>
-          <p className="mt-0.5 text-xs text-app-text-dim">An experiment tracks one car + track as you iterate setups — base setup, stints driven, and (soon) versions with lap deltas.</p>
+          <p className="text-xs text-app-text-dim mt-0.5">An experiment tracks one car + track as you iterate setups — base setup, stints driven, and (soon) versions with lap deltas.</p>
         </div>
-        <Button type="button" variant="app-primary" size="app-md" onClick={() => setCreating(true)} className="self-start">
+        <Button type="button" variant="app-primary" size="app-md" onClick={() => setCreating(true)}>
           + New experiment
         </Button>
       </div>
@@ -78,62 +71,66 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
 }
 
 /** What an experiment is working on right now. Purple = the car is being
- * varied, sky = the driver is. */
+ *  varied, sky = the driver is. Colour-coded because the list is scanned, not
+ *  read, and a row's focus decides how its arms should be judged. */
 export function FocusBadge({ focus }: { focus: ExperimentFocus }) {
   return (
-    <Badge
-      variant="neutral"
-      size="default"
-      className={focus === "driver" ? "border-(--focus-driver)/30 bg-(--focus-driver)/15 text-(--focus-driver)" : "border-(--focus-setup)/30 bg-(--focus-setup)/15 text-(--focus-setup)"}
-    >
+    <span className={`inline-block rounded-full px-2 py-0.5 text-app-caption font-medium whitespace-nowrap ${focus === "driver" ? "bg-(--focus-driver)/15 text-(--focus-driver)" : "bg-(--focus-setup)/15 text-(--focus-setup)"}`}>
       {EXPERIMENT_FOCUS_LABELS[focus]}
-    </Badge>
+    </span>
   );
 }
 
 function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Experiment[]; onOpen: (id: number) => void; isLoading: boolean; gameId: ExperimentGameId }) {
   const accCarName = useAccCarName();
   const carName = (n: string | null | undefined) => (gameId === "acc" ? accCarName(n) : n) ?? "—";
-
   return (
-    <Card className="gap-0 overflow-x-auto rounded-lg border border-app-border bg-app-surface p-0 ring-0">
-      <Table>
-        <THead rowClassName="border-b border-app-border">
-          <TH className="w-12 text-right">#</TH>
-          <TH>Session</TH>
-          <TH>Varying</TH>
-          <TH>Car</TH>
-          <TH>Track</TH>
-          <TH>Base setup</TH>
-          <TH className="whitespace-nowrap">Last active</TH>
-          <TH className="sr-only">Actions</TH>
-        </THead>
-        <TBody>
+    <div className="overflow-x-auto border border-app-border rounded-lg">
+      <table className="w-full text-sm border-collapse">
+        <thead>
+          <tr className="text-left text-app-compact uppercase tracking-wider text-app-text-muted border-b border-app-border">
+            <th className="px-3 py-2 font-medium w-12 text-right">#</th>
+            <th className="px-3 py-2 font-medium">Session</th>
+            <th className="px-3 py-2 font-medium">Varying</th>
+            <th className="px-3 py-2 font-medium">Car</th>
+            <th className="px-3 py-2 font-medium">Track</th>
+            <th className="px-3 py-2 font-medium">Base setup</th>
+            <th className="px-3 py-2 font-medium whitespace-nowrap">Last active</th>
+            <th className="px-3 py-2 font-medium sr-only">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
           {sessions.length === 0 && (
-            <TRow>
-              <TD colSpan={8} className="px-3 py-6 text-center text-xs text-app-text-dim">
+            <tr>
+              <td colSpan={8} className="px-3 py-6 text-center text-xs text-app-text-dim">
                 {isLoading ? "Loading experiments…" : "No experiments yet. Create one above to get started."}
-              </TD>
-            </TRow>
+              </td>
+            </tr>
           )}
           {sessions.map((s) => {
             const base = s.baseSetupPath?.split(/[\\/]/).pop() ?? "—";
             return (
-              <TRow key={s.id} onClick={() => onOpen(s.id)} className="cursor-pointer border-b border-app-border/60 last:border-0 hover:bg-app-surface-hover/60">
-                <TD className="text-right font-mono tabular-nums text-app-text-dim">{s.seq}</TD>
-                <TD className="font-medium text-app-text">{s.name}</TD>
-                <TD><FocusBadge focus={s.focus} /></TD>
-                <TD className="text-app-text-dim">{carName(s.carName)}</TD>
-                <TD className="text-app-text-dim">{s.trackName ?? "—"}</TD>
-                <TD className="max-w-[220px] truncate font-mono text-xs text-app-text-dim" title={s.baseSetupPath ?? undefined}>{base}</TD>
-                <TD className="whitespace-nowrap text-app-text-dim">{new Date(s.updatedAt).toLocaleDateString()}</TD>
-                <TD className="text-right"><span className="text-xs font-semibold text-app-accent">Resume →</span></TD>
-              </TRow>
+              <tr key={s.id} onClick={() => onOpen(s.id)} className="border-b border-app-border/60 last:border-0 hover:bg-app-surface-hover/60 cursor-pointer">
+                <td className="px-3 py-2 text-right font-mono text-app-text-dim tabular-nums">{s.seq}</td>
+                <td className="px-3 py-2 font-medium text-app-text">{s.name}</td>
+                <td className="px-3 py-2">
+                  <FocusBadge focus={s.focus} />
+                </td>
+                <td className="px-3 py-2 text-app-text-dim">{carName(s.carName)}</td>
+                <td className="px-3 py-2 text-app-text-dim">{s.trackName ?? "—"}</td>
+                <td className="px-3 py-2 text-app-text-dim font-mono text-xs max-w-[220px] truncate" title={s.baseSetupPath ?? undefined}>
+                  {base}
+                </td>
+                <td className="px-3 py-2 text-app-text-dim whitespace-nowrap">{new Date(s.updatedAt).toLocaleDateString()}</td>
+                <td className="px-3 py-2 text-right">
+                  <span className="text-app-accent text-xs font-semibold">Resume →</span>
+                </td>
+              </tr>
             );
           })}
-        </TBody>
-      </Table>
-    </Card>
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -392,15 +389,25 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
     }
   };
 
-  return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="lg" className="flex max-h-[90vh] w-[680px] max-w-[94vw] flex-col gap-4 overflow-y-auto p-5">
-        <DialogHeader className="flex flex-row items-center justify-between">
-          <DialogTitle className="text-sm font-semibold">New experiment</DialogTitle>
-          <Button type="button" variant="app-ghost" size="icon-sm" onClick={onClose} className="text-xl leading-none text-app-text-dim hover:text-app-text" aria-label="Close">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[680px] max-w-[94vw] flex flex-col gap-4 p-5"
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
+      >
+        <div className="flex items-center justify-between">
+          <Button type="button" variant="app-ghost" size="icon-sm" onClick={onClose}>
             ×
           </Button>
-        </DialogHeader>
+        </div>
+
         {/* What this experiment starts on. Presented as a starting mode rather
             than a type, because it is switchable from the workspace at any
             point — the driver who fixes a balance problem and then wants to
@@ -418,10 +425,8 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
             e.target.value = "";
           }}
         />
-        <Button
+        <button
           type="button"
-          variant="app-outline"
-          size="app-md"
           onClick={() => fileInputRef.current?.click()}
           onDragOver={(e) => {
             e.preventDefault();
@@ -443,13 +448,13 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
               <br />— pins car + track. Or pick them below.
             </>
           )}
-        </Button>
+        </button>
         {notice && (
           <div
             className={`flex items-start gap-2 rounded-md border px-2.5 py-2 text-app-compact ${
-              notice.tone === "error"
-                ? "border-status-danger/40 bg-status-danger/10 text-status-danger"
-                : "border-status-warning/40 bg-status-warning/10 text-status-warning"
+                notice.tone === "error"
+                  ? "border-status-danger/40 bg-status-danger/10 text-status-danger"
+                  : "border-status-warning/40 bg-status-warning/10 text-status-warning"
             }`}
           >
             <span aria-hidden className="leading-none">
@@ -476,9 +481,9 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
                     {pendingDrop.fileName}
                   </span>
                   {dropStatus && (
-                    <Badge variant={dropStatus === "placed" ? "success" : "neutral"} size="compact">
+                    <span className={`rounded-full px-2 py-0.5 text-app-caption font-medium ${dropStatus === "placed" ? "bg-status-success/15 text-status-success" : "bg-app-border/50 text-app-text-dim"}`}>
                       {dropStatus === "placed" ? "Copied to Setups" : dropStatus === "existing" ? "Already saved there" : "Found in Setups"}
-                    </Badge>
+                    </span>
                   )}
                 </div>
                 <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-app-compact text-app-text-dim">
@@ -490,7 +495,6 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
                   </span>
                 </div>
               </div>
-              <div className="flex shrink-0 items-center gap-1">
                 <Button
                   type="button"
                   variant="app-outline"
@@ -503,7 +507,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
                 >
                   Copy to another track
                 </Button>
-                <Button type="button" variant="app-ghost" size="icon-xs" onClick={clearDrop} aria-label="Remove this setup" title="Remove this setup">
+                <Button type="button" variant="app-ghost" size="icon-sm" onClick={clearDrop} aria-label="Remove this setup" title="Remove this setup">
                   ×
                 </Button>
               </div>
@@ -554,13 +558,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
                   />
                 </div>
               </label>
-              <Button
-                type="button"
-                variant="app-primary"
-                size="app-md"
-                onClick={doPlace}
-                disabled={place.isPending || !placeCar.trim() || !placeTrack.trim()}
-              >
+              <Button type="button" variant="app-primary" size="app-md" onClick={doPlace} disabled={place.isPending || !placeCar.trim() || !placeTrack.trim()}>
                 {place.isPending ? "Placing…" : "Add to Setups & use"}
               </Button>
               <Button type="button" variant="app-ghost" size="app-sm" onClick={() => setPlacing(false)}>
@@ -614,7 +612,7 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
         {error && <div className="text-xs text-status-danger">{error}</div>}
 
         <div className="flex justify-end gap-2 pt-1">
-          <Button type="button" variant="app-outline" size="app-md" onClick={onClose}>
+          <Button type="button" variant="app-outline" size="app-sm" onClick={onClose}>
             Cancel
           </Button>
           <Button
@@ -628,8 +626,9 @@ function NewExperimentModal({ gameId, onClose, onCreated }: { gameId: "acc" | "a
             {create.isPending ? "Creating…" : "Create session"}
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -697,15 +696,25 @@ function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onC
     }
   };
 
-  return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="md" className="flex max-h-[90vh] w-[480px] max-w-[94vw] flex-col gap-4 overflow-y-auto p-5">
-        <DialogHeader className="flex flex-row items-center justify-between">
-          <DialogTitle className="text-sm font-semibold">New experiment</DialogTitle>
-          <Button type="button" variant="app-ghost" size="icon-sm" onClick={onClose} className="text-xl leading-none text-app-text-dim hover:text-app-text" aria-label="Close">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[480px] max-w-[94vw] flex flex-col gap-4 p-5"
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
+      >
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-app-text">New experiment</p>
+          <Button type="button" variant="app-ghost" size="icon-sm" onClick={onClose}>
             ×
           </Button>
-        </DialogHeader>
+        </div>
 
         <FocusPicker value={focus} onChange={setFocus} />
 
@@ -738,14 +747,22 @@ function NewF1ExperimentModal({ onClose, onCreated }: { onClose: () => void; onC
         {error && <div className="text-xs text-status-danger">{error}</div>}
 
         <div className="flex justify-end gap-2 pt-1">
-          <Button type="button" variant="app-outline" size="app-md" onClick={onClose}>
+          <Button type="button" variant="app-outline" size="app-sm" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="button" variant="app-primary" size="app-md" onClick={submit} disabled={create.isPending || !canCreate} title={!canCreate ? "Pick a track" : undefined}>
+          <Button
+            type="button"
+            variant="app-primary"
+            size="app-md"
+            onClick={submit}
+            disabled={create.isPending || !canCreate}
+            title={!canCreate ? "Pick a track" : undefined}
+          >
             {create.isPending ? "Creating…" : "Create session"}
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>,
+    document.body,
   );
 }

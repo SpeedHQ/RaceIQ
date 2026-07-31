@@ -491,12 +491,11 @@ export function AiSection() {
               />
               {(keyStatus[provider] ?? false) && (
                 <Button
-                  type="button"
                   variant="app-ghost"
                   size="icon-sm"
                   onClick={() => clearKey(PROVIDER_KEY_MAP[provider])}
                   title={m.ai_clear_key_title()}
-                  className="!h-auto !w-auto p-1.5 text-app-text-muted hover:text-status-danger hover:bg-status-danger/10"
+                  className="shrink-0 p-1.5 rounded text-app-text-muted hover:text-status-danger hover:bg-status-danger/10 transition-colors"
                 >
                   <X className="size-3.5" />
                 </Button>
@@ -520,7 +519,7 @@ export function AiSection() {
                 size="app-sm"
                 onClick={() => refreshModels.mutate()}
                 disabled={aiModelsFetching || modelsRefreshing || isSaving}
-                className="text-app-compact text-app-text-muted hover:text-app-text"
+                className="inline-flex items-center gap-1 text-app-compact text-app-text-muted hover:text-app-text disabled:opacity-50"
                 title={m.ai_refresh_models_title()}
               >
                 <RefreshCw className={`size-3 ${aiModelsFetching || modelsRefreshing ? "animate-spin" : ""}`} />
@@ -572,7 +571,7 @@ export function AiSection() {
         {provider !== "" && hasProviderKey && !aiModelsFetching && models.length === 0 && (
           <div className="flex items-center gap-2 text-xs text-app-text-muted">
             <span>{m.ai_no_models()}</span>
-            <Button type="button" variant="app-ghost" size="app-sm" onClick={() => refreshModels.mutate()} disabled={modelsRefreshing || isSaving} className="text-app-text-muted hover:text-app-text">
+            <Button variant="app-ghost" size="app-sm" type="button" onClick={() => refreshModels.mutate()} disabled={modelsRefreshing || isSaving} className="inline-flex items-center gap-1 hover:text-app-text disabled:opacity-50">
               <RefreshCw className="size-3" />
               {m.ai_refresh()}
             </Button>
@@ -580,11 +579,11 @@ export function AiSection() {
         )}
         {provider !== "" && hasProviderKey && (providerModelError || aiModelsError) && <p className="text-xs text-status-danger">{providerModelError || m.ai_load_models_failed()}</p>}
         <Button
-          type="button"
           variant="app-primary"
           size="app-md"
           onClick={handleSave}
           disabled={isSaving || !canSaveAnalysis}
+          className="text-sm px-3 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-60 disabled:cursor-not-allowed text-app-on-filled transition-colors"
         >
           {isSaving ? m.common_saving() : m.common_save()}
         </Button>
@@ -627,12 +626,11 @@ export function AiSection() {
               />
               {(keyStatus[chatProvider] ?? false) && (
                 <Button
-                  type="button"
                   variant="app-ghost"
                   size="icon-sm"
                   onClick={() => clearKey(PROVIDER_KEY_MAP[chatProvider])}
                   title={m.ai_clear_key_title()}
-                  className="!h-auto !w-auto p-1.5 text-app-text-muted hover:text-status-danger hover:bg-status-danger/10"
+                  className="shrink-0 p-1.5 rounded text-app-text-muted hover:text-status-danger hover:bg-status-danger/10 transition-colors"
                 >
                   <X className="size-3.5" />
                 </Button>
@@ -656,7 +654,7 @@ export function AiSection() {
                 size="app-sm"
                 onClick={() => refreshModels.mutate()}
                 disabled={aiModelsFetching || modelsRefreshing || isSaving}
-                className="text-app-compact text-app-text-muted hover:text-app-text"
+                className="inline-flex items-center gap-1 text-app-compact text-app-text-muted hover:text-app-text disabled:opacity-50"
                 title={m.ai_refresh_models_title()}
               >
                 <RefreshCw className={`size-3 ${aiModelsFetching || modelsRefreshing ? "animate-spin" : ""}`} />
@@ -708,7 +706,7 @@ export function AiSection() {
         {chatProvider !== "" && hasChatProviderKey && !aiModelsFetching && chatModels.length === 0 && (
           <div className="flex items-center gap-2 text-xs text-app-text-muted">
             <span>{m.ai_no_models()}</span>
-            <Button type="button" variant="app-ghost" size="app-sm" onClick={() => refreshModels.mutate()} disabled={modelsRefreshing || isSaving} className="text-app-text-muted hover:text-app-text">
+            <Button variant="app-ghost" size="app-sm" type="button" onClick={() => refreshModels.mutate()} disabled={modelsRefreshing || isSaving} className="inline-flex items-center gap-1 hover:text-app-text disabled:opacity-50">
               <RefreshCw className="size-3" />
               {m.ai_refresh()}
             </Button>
@@ -716,7 +714,6 @@ export function AiSection() {
         )}
         {chatProvider !== "" && hasChatProviderKey && (chatProviderModelError || aiModelsError) && <p className="text-xs text-status-danger">{chatProviderModelError || m.ai_load_models_failed()}</p>}
         <Button
-          type="button"
           variant="app-primary"
           size="app-md"
           onClick={async () => {
@@ -753,6 +750,7 @@ export function AiSection() {
             }
           }}
           disabled={isSaving || !canSaveChat}
+          className="text-sm px-3 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-60 disabled:cursor-not-allowed text-app-on-filled transition-colors"
         >
           {isSaving ? m.common_saving() : m.common_save()}
         </Button>
@@ -811,7 +809,7 @@ export function AiSection() {
                 size="app-sm"
                 onClick={() => refreshModels.mutate()}
                 disabled={aiModelsFetching || modelsRefreshing || isSaving}
-                className="text-app-compact text-app-text-muted hover:text-app-text"
+                className="inline-flex items-center gap-1 text-app-compact text-app-text-muted hover:text-app-text disabled:opacity-50"
               >
                 <RefreshCw className={`size-3 ${aiModelsFetching || modelsRefreshing ? "animate-spin" : ""}`} />
                 {m.ai_refresh()}
@@ -838,7 +836,7 @@ export function AiSection() {
         {autoTuneProvider !== "" && hasAutoTuneProviderKey && !aiModelsFetching && autoTuneModels.length === 0 && (
           <div className="flex items-center gap-2 text-xs text-app-text-muted">
             <span>{m.ai_no_models()}</span>
-            <Button type="button" variant="app-ghost" size="app-sm" onClick={() => refreshModels.mutate()} disabled={modelsRefreshing || isSaving} className="text-app-text-muted hover:text-app-text">
+            <Button variant="app-ghost" size="app-sm" type="button" onClick={() => refreshModels.mutate()} disabled={modelsRefreshing || isSaving} className="inline-flex items-center gap-1 hover:text-app-text disabled:opacity-50">
               <RefreshCw className="size-3" />
               {m.ai_refresh()}
             </Button>
@@ -848,7 +846,6 @@ export function AiSection() {
           <p className="text-xs text-status-danger">{autoTuneProviderModelError || m.ai_load_models_failed()}</p>
         )}
         <Button
-          type="button"
           variant="app-primary"
           size="app-md"
           onClick={async () => {
@@ -881,6 +878,7 @@ export function AiSection() {
             }
           }}
           disabled={isSaving || !canSaveAutoTune}
+          className="text-sm px-3 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-60 disabled:cursor-not-allowed text-app-on-filled transition-colors"
         >
           {isSaving ? m.common_saving() : m.common_save()}
         </Button>
@@ -932,12 +930,11 @@ export function AiSection() {
               />
               {(keyStatus[driverProfileProvider] ?? false) && (
                 <Button
-                  type="button"
                   variant="app-ghost"
                   size="icon-sm"
                   onClick={() => clearDriverProfileKey(PROVIDER_KEY_MAP[driverProfileProvider])}
                   title={m.ai_clear_key_title()}
-                  className="!h-auto !w-auto p-1.5 text-app-text-muted hover:text-status-danger hover:bg-status-danger/10"
+                  className="shrink-0 p-1.5 rounded text-app-text-muted hover:text-status-danger hover:bg-status-danger/10 transition-colors"
                 >
                   <X className="size-3.5" />
                 </Button>
@@ -961,7 +958,7 @@ export function AiSection() {
                 size="app-sm"
                 onClick={() => refreshModels.mutate()}
                 disabled={aiModelsFetching || modelsRefreshing || isSaving}
-                className="text-app-compact text-app-text-muted hover:text-app-text"
+                className="inline-flex items-center gap-1 text-app-compact text-app-text-muted hover:text-app-text disabled:opacity-50"
                 title={m.ai_refresh_models_title()}
               >
                 <RefreshCw className={`size-3 ${aiModelsFetching || modelsRefreshing ? "animate-spin" : ""}`} />
@@ -1013,7 +1010,7 @@ export function AiSection() {
         {driverProfileProvider !== "" && hasDriverProfileProviderKey && !aiModelsFetching && driverProfileModels.length === 0 && (
           <div className="flex items-center gap-2 text-xs text-app-text-muted">
             <span>{m.ai_no_models()}</span>
-            <Button type="button" variant="app-ghost" size="app-sm" onClick={() => refreshModels.mutate()} disabled={modelsRefreshing || isSaving} className="text-app-text-muted hover:text-app-text">
+            <Button variant="app-ghost" size="app-sm" type="button" onClick={() => refreshModels.mutate()} disabled={modelsRefreshing || isSaving} className="inline-flex items-center gap-1 hover:text-app-text disabled:opacity-50">
               <RefreshCw className="size-3" />
               {m.ai_refresh()}
             </Button>
@@ -1023,11 +1020,11 @@ export function AiSection() {
           <p className="text-xs text-status-danger">{driverProfileProviderModelError || m.ai_load_models_failed()}</p>
         )}
         <Button
-          type="button"
           variant="app-primary"
           size="app-md"
           onClick={handleDriverProfileSave}
           disabled={isSaving || !canSaveDriverProfile}
+          className="text-sm px-3 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-60 disabled:cursor-not-allowed text-app-on-filled transition-colors"
         >
           {isSaving ? m.common_saving() : m.common_save()}
         </Button>

@@ -1,5 +1,5 @@
-import { ChevronLeft } from "lucide-react";
 import { Button } from "../ui/button";
+import { ChevronLeft } from "lucide-react";
 
 /**
  * BackButton — one consistent back affordance for the tuning workspace (list ↔
@@ -9,7 +9,7 @@ import { Button } from "../ui/button";
  */
 export function BackButton({ onClick, label = "Experiments", className = "" }: { onClick: () => void; label?: string; className?: string }) {
   return (
-    <Button type="button" variant="app-ghost" size="app-sm" onClick={onClick} className={`!h-auto !px-0 inline-flex items-center gap-0.5 text-xs text-app-text-dim hover:text-app-text ${className}`}>
+    <Button type="button" variant="app-ghost" size="app-sm" onClick={onClick} className={`inline-flex items-center gap-0.5 ${className}`}>
       <ChevronLeft className="size-3.5" />
       {label}
     </Button>
