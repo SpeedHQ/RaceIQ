@@ -7,7 +7,7 @@ function readMaybeGzipped(filePath: string): Buffer {
 }
 
 /**
- * Read a UDP dump file written by UdpRecorder.
+ * Read a UDP dump file written by SessionRecorder.
  *
  * Format: repeated [uint32 LE length][N raw bytes]
  * A truncated final record (declared length > remaining bytes) is silently skipped.

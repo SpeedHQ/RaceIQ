@@ -25,7 +25,7 @@ import {
   importSessionBin,
   type ImportedLap,
 } from "./import-session-bin";
-import { META_FRAME_MAGIC } from "./udp-recorder";
+import { META_FRAME_MAGIC } from "./session-recorder";
 import { isIRacingSessionFrame } from "./games/iracing/source-frame";
 import type { GameId } from "../shared/types";
 

@@ -2,7 +2,7 @@ import { readFileSync } from "fs";
 import { gunzipSync } from "zlib";
 import type { GameId, TelemetryPacket } from "../../shared/types";
 import { getServerGame } from "../../server/games/registry";
-import { META_FRAME_MAGIC } from "../../server/udp-recorder";
+import { META_FRAME_MAGIC } from "../../server/session-recorder";
 import { ensureInit } from "./parse-dump";
 
 /**
@@ -10,7 +10,7 @@ import { ensureInit } from "./parse-dump";
  *
  * `test/helpers/parse-dump.ts` handles the older per-game dump formats; this
  * reads the length-prefixed session-bin container (with `META_FRAME_MAGIC`
- * sidecar frames interleaved) that `server/udp-recorder.ts` writes today.
+ * sidecar frames interleaved) that `server/session-recorder.ts` writes today.
  */
 export function readSessionPackets(filePath: string, gameId: GameId): TelemetryPacket[] {
   ensureInit();
