@@ -221,6 +221,12 @@ export const tuneChatRoutes = new Hono()
         return c.json({ error: message }, 400);
       }
       const chatModelLabel = ai.model;
+      reqCtx.set("aiProviderConfig", {
+        provider: ai.provider,
+        model: ai.model,
+        mastraModel: ai.mastraModel,
+        localEndpoint: settings.localEndpoint,
+      });
 
       // Captured before the turn runs so the onFinish reasoning-patch below can
       // tell *this* turn's freshly-saved assistant row apart from any earlier

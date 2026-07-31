@@ -7,7 +7,7 @@
  */
 import { Agent } from "@mastra/core/agent";
 import { compareEngineerPersona } from "../../server/ai/compare-engineer";
-import { getMastraModelId } from "../model";
+import { getMastraModelId, modelFromRequestContext } from "../model";
 import { loadSettings } from "../../server/settings";
 
 export const compareEngineerAgent = new Agent({
@@ -18,7 +18,9 @@ export const compareEngineerAgent = new Agent({
     // json: true — this agent's output is parsed against InputsCompareSchema.
     return compareEngineerPersona(s.unit, s.temperatureUnit, s.language, { json: true });
   },
-  model: () => {
+  model: ({ requestContext }) => {
+    const bound = modelFromRequestContext(requestContext);
+    if (bound) return bound;
     const s = loadSettings();
     return getMastraModelId(s.aiProvider, s.aiModel, s.localEndpoint);
   },

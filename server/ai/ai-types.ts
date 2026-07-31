@@ -43,6 +43,12 @@ export interface ResolvedAi {
   feature: AiFeature;
   provider: AiProvider;
   model: string;
+  /**
+   * Provider-bound Mastra model/client. This object captures credentials and
+   * endpoint in request-local closures; it must be passed through
+   * RequestContext rather than process.env.
+   */
+  mastraModel?: unknown;
   generateText(input: TextRequest): Promise<AiResult>;
   generateStructured<T>(input: StructuredRequest<T>): Promise<AiResult>;
   createChatResponse?(input: ChatRequest): Promise<Response>;

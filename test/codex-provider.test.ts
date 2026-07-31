@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, watch, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -10,7 +10,7 @@ import {
   type CodexCliOptions,
 } from "../server/ai/provider-adapters";
 import { loadSettings } from "../server/settings";
-import { getConfiguredAiProvider } from "../server/ai/provider-runtime";
+import { resolveAi } from "../server/ai/ai-runtime";
 
 const tempDirs: string[] = [];
 
@@ -134,7 +134,41 @@ exit 9
     const { executable } = makeFakeExecutable("sleep 1");
     await expect(runCodexCli("prompt", undefined, { executable, timeoutMs: 20 })).rejects.toThrow("timed out");
   });
+  test("terminates timed-out child process tree before returning", async () => {
+    const pidFile = join(tmpdir(), `raceiq-codex-child-pid-${crypto.randomUUID()}`);
+    const marker = join(tmpdir(), `raceiq-codex-child-${crypto.randomUUID()}`);
+    const { executable } = makeFakeExecutable(`
+(sleep 1000; printf orphaned > "$CODEX_CHILD_MARKER") &
+child=$!
+printf '%s' "$child" > "$CODEX_CHILD_PID_FILE"
+wait
+`);
+    const ready = new Promise<void>((resolve) => {
+      const watcher = watch(tmpdir(), (_event, filename) => {
+        if (String(filename) === pidFile.slice(pidFile.lastIndexOf("/") + 1)) {
+          watcher.close();
+          resolve();
+        }
+      });
+    });
+    const run = runCodexCli("prompt", undefined, {
+      executable,
+      timeoutMs: 500,
+      env: { CODEX_CHILD_MARKER: marker, CODEX_CHILD_PID_FILE: pidFile },
+    });
+    try {
+      await ready;
+      const childPid = Number(readFileSync(pidFile, "utf8"));
+      await expect(run).rejects.toThrow("timed out");
+      expect(() => process.kill(childPid, 0)).toThrow();
+      expect(() => readFileSync(marker, "utf8")).toThrow();
+    } finally {
+      rmSync(pidFile, { force: true });
+      rmSync(marker, { force: true });
+    }
+  });
 });
+
 
 describe("Codex readiness", () => {
   test("reports missing executable", async () => {
@@ -163,7 +197,7 @@ exit 1
 
 test("settings-aware runtime selects Codex without API-key lookup", async () => {
   const settings = { ...loadSettings(), aiProvider: "codex" as const, aiModel: "gpt-5" };
-  await expect(getConfiguredAiProvider("analysis", settings)).resolves.toMatchObject({
+  await expect(resolveAi("analysis", settings)).resolves.toMatchObject({
     provider: "codex",
     model: "gpt-5",
   });

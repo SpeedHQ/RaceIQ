@@ -89,7 +89,7 @@ describe("resolveAi", () => {
     expect(gemini.createChatResponse).toBeUndefined();
   });
 
-  test("resolves concurrent providers without mutating process environment", async () => {
+  test("isolates concurrent transport credentials and endpoints", async () => {
     secrets["gemini-api-key"] = "gemini-a";
     secrets["openai-api-key"] = "openai-b";
     const before = {
@@ -97,17 +97,40 @@ describe("resolveAi", () => {
       baseUrl: process.env.OPENAI_BASE_URL,
       googleKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
     };
+    const originalFetch = globalThis.fetch;
+    const requests: Array<{ url: string; authorization?: string }> = [];
+    globalThis.fetch = async (input, init) => {
+      const url = String(input);
+      requests.push({ url, authorization: new Headers(init?.headers).get("Authorization") ?? undefined });
+      await Promise.resolve();
+      return url.includes("generativelanguage.googleapis.com")
+        ? new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "gemini response" }] } }] }), { status: 200 })
+        : new Response(JSON.stringify({ choices: [{ message: { content: "openai response" } }] }), { status: 200 });
+    };
+    try {
+      const [gemini, openai] = await Promise.all([
+        resolveAi("analysis", settings({ aiProvider: "gemini", aiModel: "gemini-a" })),
+        resolveAi("chat", settings({ chatProvider: "openai", chatModel: "openai-b" })),
+      ]);
+      await Promise.all([
+        gemini.generateText({ prompt: "gemini prompt" }),
+        openai.generateText({ prompt: "openai prompt" }),
+      ]);
 
-    const [gemini, local] = await Promise.all([
-      resolveAi("analysis", settings({ aiProvider: "gemini", aiModel: "gemini-a" })),
-      resolveAi("chat", settings({ chatProvider: "local", chatModel: "local-b", localEndpoint: "http://local-b.test/v1" })),
-    ]);
-
-    expect(gemini.model).toBe("gemini-a");
-    expect(local.model).toBe("local-b");
-    expect(process.env.OPENAI_API_KEY).toBe(before.apiKey);
-    expect(process.env.OPENAI_BASE_URL).toBe(before.baseUrl);
-    expect(process.env.GOOGLE_GENERATIVE_AI_API_KEY).toBe(before.googleKey);
+      expect(requests).toHaveLength(2);
+      expect(requests.find((request) => String(request.url).includes("generativelanguage.googleapis.com"))).toMatchObject({
+        url: expect.stringContaining("key=gemini-a"),
+        authorization: undefined,
+      });
+      expect(requests.find((request) => String(request.url).includes("api.openai.com/v1/chat/completions"))).toMatchObject({
+        authorization: "Bearer openai-b",
+      });
+      expect(process.env.OPENAI_API_KEY).toBe(before.apiKey);
+      expect(process.env.OPENAI_BASE_URL).toBe(before.baseUrl);
+      expect(process.env.GOOGLE_GENERATIVE_AI_API_KEY).toBe(before.googleKey);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
   test("carries Gemini thinking budget into request-local generation options", async () => {
     secrets["gemini-api-key"] = "gemini-thinking";

@@ -84,6 +84,21 @@ type CodexProcessResult = {
   stderr: string;
 };
 
+async function terminateCodexProcess(proc: Bun.Subprocess): Promise<void> {
+  if (process.platform === "win32") {
+    proc.kill();
+  } else {
+    try {
+      // Codex may launch helper processes. Detached spawn gives it a private
+      // process group; kill the group so timeout cleanup cannot orphan them.
+      process.kill(-proc.pid, "SIGKILL");
+    } catch {
+      proc.kill();
+    }
+  }
+  await proc.exited.catch(() => undefined);
+}
+
 async function runCodexProcess(
   args: string[],
   options: CodexCliOptions = {},
@@ -94,6 +109,7 @@ async function runCodexProcess(
     stdout: "pipe",
     stderr: "pipe",
     env: codexEnvironment(options),
+    detached: process.platform !== "win32",
   });
   if (stdin != null) {
     proc.stdin!.write(stdin);
@@ -111,10 +127,10 @@ async function runCodexProcess(
   const result = await Promise.race([output, timeoutGate.promise]);
   clearTimeout(timeoutHandle);
   if (result === null) {
-    proc.kill();
-    // Ensure a killed process cannot retain open pipes, without allowing a
-    // misbehaving child to defeat timeout enforcement.
-    await Promise.race([output.catch(() => undefined), Bun.sleep(100)]);
+    await terminateCodexProcess(proc);
+    // All descendants share the detached group's pipes. Awaiting output after
+    // group termination confirms pipe closure instead of racing a fixed delay.
+    await output.catch(() => undefined);
     throw new Error(`Codex timed out after ${timeoutMs >= 1000 ? `${timeoutMs / 1000} seconds` : `${timeoutMs}ms`}`);
   }
   const [exitCode, stdout, stderr] = result;

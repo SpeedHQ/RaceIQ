@@ -748,6 +748,7 @@ export const lapRoutes = new Hono()
     analysisContext.set("aiProviderConfig", {
       provider: ai.provider,
       model: ai.model,
+      mastraModel: ai.mastraModel,
       localEndpoint: settings.localEndpoint,
     });
     const startedAt = Date.now();
@@ -949,6 +950,13 @@ export const lapRoutes = new Hono()
     }
 
     const chatModelLabel = ai.model;
+    const chatContext = new RequestContext();
+    chatContext.set("aiProviderConfig", {
+      provider: ai.provider,
+      model: ai.model,
+      mastraModel: ai.mastraModel,
+      localEndpoint: settings.localEndpoint,
+    });
     const threadId = await resolveActiveThread(chatThreadId(id));
     const turnStartedAt = Date.now();
     try {
@@ -956,6 +964,7 @@ export const lapRoutes = new Hono()
         [{ role: "system", content: systemPrompt }, ...messages],
         {
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+          requestContext: chatContext,
           providerOptions: {
             openai: { reasoningEffort: "medium" },
             google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
@@ -1384,7 +1393,13 @@ export const lapRoutes = new Hono()
     }
 
     const chatModelLabel = ai.model;
-
+    const chatContext = new RequestContext();
+    chatContext.set("aiProviderConfig", {
+      provider: ai.provider,
+      model: ai.model,
+      mastraModel: ai.mastraModel,
+      localEndpoint: settings.localEndpoint,
+    });
     const threadId = await resolveActiveThread(compareChatThreadId(id1, id2));
     const turnStartedAt = Date.now();
     try {
@@ -1392,6 +1407,7 @@ export const lapRoutes = new Hono()
         [{ role: "system", content: systemPrompt }, ...messages],
         {
           memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+          requestContext: chatContext,
           providerOptions: {
             openai: { reasoningEffort: "medium" },
             google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,

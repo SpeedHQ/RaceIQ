@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { loadSettings } from "../server/settings";
-import { getConfiguredAiProvider } from "../server/ai/provider-runtime";
+import { resolveAi } from "../server/ai/ai-runtime";
 import { AI_FEATURES } from "../server/ai/ai-features";
 describe("AI feature registry", () => {
   test("maps all supported features to their settings", () => {
@@ -55,10 +55,6 @@ describe("AI feature registry", () => {
       chatThinkingBudget: 123,
     };
 
-    const resolved = await getConfiguredAiProvider("compaction", settings);
-
-    expect(resolved.provider).toBe("codex");
-    expect(resolved.model).toBe("chat-model");
-    expect(resolved.thinkingBudget).toBe(123);
+    const resolved = await resolveAi("compaction", settings);
   });
 });

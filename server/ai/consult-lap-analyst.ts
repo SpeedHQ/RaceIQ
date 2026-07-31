@@ -54,6 +54,7 @@ export async function consultLapAnalystForSession(sessionId: number): Promise<La
   requestContext.set("aiProviderConfig", {
     provider: ai.provider,
     model: ai.model,
+    mastraModel: ai.mastraModel,
     localEndpoint: settings.localEndpoint,
   });
   const result = ai.createChatResponse

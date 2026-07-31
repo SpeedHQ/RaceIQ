@@ -5,7 +5,7 @@
  * measurements and advice; this agent may only explain trend credibility.
  */
 import { Agent } from "@mastra/core/agent";
-import { getMastraModelId } from "../model";
+import { getMastraModelId, modelFromRequestContext } from "../model";
 import { loadSettings } from "../../server/settings";
 import { renderDriverProfileSummarySchemaForPrompt } from "../../server/ai/schemas";
 
@@ -20,7 +20,9 @@ export const driverProfilerAgent = new Agent({
   id: "driver-profiler",
   name: "Driver Profiler",
   instructions: DRIVER_PROFILER_INSTRUCTIONS,
-  model: () => {
+  model: ({ requestContext }) => {
+    const bound = modelFromRequestContext(requestContext);
+    if (bound) return bound;
     const s = loadSettings();
     return getMastraModelId(s.aiProvider, s.aiModel, s.localEndpoint);
   },

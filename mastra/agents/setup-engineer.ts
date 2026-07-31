@@ -15,7 +15,7 @@ import { Agent } from "@mastra/core/agent";
 import { aiLanguageInstruction } from "../../shared/locales";
 import { TRACK_GUIDE_PROMPT, ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
 import { getChatMemory } from "../../server/ai/chat-agent";
-import { getMastraModelId } from "../model";
+import { getMastraModelId, modelFromRequestContext } from "../model";
 import { loadSettings } from "../../server/settings";
 import { setupEngineerTools } from "../tools/setup-engineer";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiment-focus";
@@ -94,7 +94,9 @@ export const setupEngineerAgent = new Agent({
   id: "setup-engineer",
   name: "Setup Engineer",
   instructions: () => `${SETUP_ENGINEER_INSTRUCTIONS}${TRACK_GUIDE_PROMPT}${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(loadSettings().language)}`,
-  model: () => {
+  model: ({ requestContext }) => {
+    const bound = modelFromRequestContext(requestContext);
+    if (bound) return bound;
     const s = loadSettings();
     return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
   },

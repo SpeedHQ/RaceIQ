@@ -26,7 +26,7 @@ import { Agent } from "@mastra/core/agent";
 import { aiLanguageInstruction } from "../../shared/locales";
 import { TRACK_GUIDE_PROMPT } from "../../shared/prompt-snippets";
 import { getChatMemory } from "../../server/ai/chat-agent";
-import { getMastraModelId } from "../model";
+import { getMastraModelId, modelFromRequestContext } from "../model";
 import { loadSettings } from "../../server/settings";
 import { driverCoachTools } from "../tools/driver-coach";
 import { liveCoachScorers } from "../evals";
@@ -76,7 +76,9 @@ export const driverCoachAgent = new Agent({
   id: "driver-coach",
   name: "Driver Coach",
   instructions: () => `${DRIVER_COACH_INSTRUCTIONS}${TRACK_GUIDE_PROMPT}${aiLanguageInstruction(loadSettings().language)}`,
-  model: () => {
+  model: ({ requestContext }) => {
+    const bound = modelFromRequestContext(requestContext);
+    if (bound) return bound;
     const s = loadSettings();
     return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
   },

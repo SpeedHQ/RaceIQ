@@ -7,7 +7,7 @@
  * across two laps.
  */
 import { Agent } from "@mastra/core/agent";
-import { getMastraModelId } from "../model";
+import { getMastraModelId, modelFromRequestContext } from "../model";
 import { loadSettings } from "../../server/settings";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
@@ -32,24 +32,8 @@ export const lapAnalystAgent = new Agent({
   name: "Lap Analyst",
   instructions: LAP_ANALYST_INSTRUCTIONS,
   model: ({ requestContext }) => {
-    const configured = requestContext?.get("aiProviderConfig");
-    if (
-      configured
-      && typeof configured === "object"
-      && "provider" in configured
-      && "model" in configured
-      && typeof configured.provider === "string"
-      && typeof configured.model === "string"
-    ) {
-      const localEndpoint = "localEndpoint" in configured && typeof configured.localEndpoint === "string"
-        ? configured.localEndpoint
-        : undefined;
-      return getMastraModelId({
-        provider: configured.provider,
-        model: configured.model,
-        localEndpoint,
-      });
-    }
+    const bound = modelFromRequestContext(requestContext);
+    if (bound) return bound;
     const s = loadSettings();
     return getMastraModelId(s.aiProvider, s.aiModel, s.localEndpoint);
   },

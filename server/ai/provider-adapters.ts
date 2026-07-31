@@ -1,5 +1,6 @@
 import { createCodexChatResponse } from "./codex-chat-stream";
 import { AiProviderError } from "./provider-error";
+import { getMastraModelId, type BoundMastraModel } from "../../mastra/model";
 import {
   runCodexCli,
   runGeminiRequest,
@@ -32,6 +33,7 @@ export class GeminiProviderAdapter {
   readonly feature: AiFeature;
   readonly provider: AiProvider = "gemini";
   readonly model: string;
+  readonly mastraModel: BoundMastraModel;
   readonly #apiKey: string;
   readonly #thinkingBudget: number | null;
 
@@ -40,6 +42,11 @@ export class GeminiProviderAdapter {
     this.model = config.model;
     this.#apiKey = config.apiKey;
     this.#thinkingBudget = config.thinkingBudget ?? null;
+    this.mastraModel = getMastraModelId({
+      provider: this.provider,
+      model: this.model,
+      apiKey: this.#apiKey,
+    });
   }
 
   generateText(input: TextRequest): Promise<AiResult> {
@@ -70,12 +77,18 @@ export class OpenAiProviderAdapter {
   readonly feature: AiFeature;
   readonly provider: AiProvider = "openai";
   readonly model: string;
+  readonly mastraModel: BoundMastraModel;
   readonly #apiKey: string;
 
   constructor(config: ProviderAdapterConfig & { apiKey: string }) {
     this.feature = config.feature;
     this.model = config.model;
     this.#apiKey = config.apiKey;
+    this.mastraModel = getMastraModelId({
+      provider: this.provider,
+      model: this.model,
+      apiKey: this.#apiKey,
+    });
   }
 
   generateText(input: TextRequest): Promise<AiResult> {
@@ -105,12 +118,18 @@ export class LocalProviderAdapter {
   readonly feature: AiFeature;
   readonly provider: AiProvider = "local";
   readonly model: string;
+  readonly mastraModel: BoundMastraModel;
   readonly #endpoint: string;
 
   constructor(config: ProviderAdapterConfig & { endpoint: string }) {
     this.feature = config.feature;
     this.model = config.model;
     this.#endpoint = config.endpoint;
+    this.mastraModel = getMastraModelId({
+      provider: this.provider,
+      model: this.model,
+      localEndpoint: this.#endpoint,
+    });
   }
 
   generateText(input: TextRequest): Promise<AiResult> {
@@ -176,6 +195,7 @@ export function resolvedAiFromAdapter(adapter: AnyProviderAdapter): ResolvedAi {
     feature: adapter.feature,
     provider: adapter.provider,
     model: adapter.model,
+    mastraModel: "mastraModel" in adapter ? adapter.mastraModel : undefined,
     generateText: adapter.generateText.bind(adapter),
     generateStructured: adapter.generateStructured.bind(adapter),
   };
@@ -184,7 +204,6 @@ export function resolvedAiFromAdapter(adapter: AnyProviderAdapter): ResolvedAi {
   }
   return resolved;
 }
-
 export function unsupportedAiOperation(feature: AiFeature, provider: AiProvider, operation: string): never {
   throw new AiProviderError(
     `${operation} is not supported for ${provider} provider on ${feature} feature.`,
