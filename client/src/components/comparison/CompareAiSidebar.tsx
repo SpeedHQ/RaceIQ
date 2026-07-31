@@ -21,9 +21,9 @@ export function CompareAiSidebar({ lapA, lapB, segments, onJumpToFrac }: Compare
           <span className="text-app-caption uppercase tracking-wider font-semibold text-app-text">{m.compare_ai_compare()}</span>
         </div>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => panelRef.current?.clearChat()} className="text-app-micro text-app-text-muted hover:text-app-text" title={m.compare_clear_chat()}>
+          <Button type="button" variant="app-danger" size="app-sm" onClick={() => panelRef.current?.clearChat()} title={m.compare_clear_chat()}>
             {m.compare_clear_chat()}
-          </button>
+          </Button>
           <Button variant="app-ghost" size="app-sm" onClick={onClose}>
             ✕
           </Button>

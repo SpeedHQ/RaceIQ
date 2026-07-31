@@ -1,8 +1,7 @@
 import { AlertTriangle, CircleDot, Download, Gauge, Lightbulb, RefreshCw, Sliders, Sparkles, Trash2, Zap } from "lucide-react";
 import { type ReactNode, useRef } from "react";
+import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
-import { Button } from "../ui/button";
-
 export interface AnalysisHighlight {
   startFrac: number;
   endFrac: number;
@@ -500,8 +499,10 @@ export function AnalysisDisplay({
           {onExport && (
             <Button
               type="button"
+              variant="app-ghost"
+              size="app-sm"
               onClick={onExport}
-              className="flex items-center gap-1 text-app-micro text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-hover transition-colors"
+              className="border border-transparent hover:border-app-border-hover"
               title={m.label_export_as_image()}
             >
               <Download className="size-3" /> {m.label_export()}
@@ -510,9 +511,11 @@ export function AnalysisDisplay({
           {onRegenerate && (
             <Button
               type="button"
+              variant="app-ghost"
+              size="app-sm"
               onClick={onRegenerate}
               disabled={loading}
-              className="flex items-center gap-1 text-app-micro text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-hover transition-colors disabled:opacity-50"
+              className="border border-transparent hover:border-app-border-hover"
               title={m.aidisplay_regenerate()}
             >
               <RefreshCw className="size-3" /> {m.label_regenerate()}
@@ -521,8 +524,9 @@ export function AnalysisDisplay({
           {onClear && (
             <Button
               type="button"
+              variant="app-danger"
+              size="app-sm"
               onClick={onClear}
-              className="flex items-center gap-1 text-app-micro text-app-text-muted hover:text-status-danger px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-hover transition-colors"
               title={m.aipanel_clear_title()}
             >
               <Trash2 className="size-3" /> {m.label_clear()}

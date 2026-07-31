@@ -323,22 +323,48 @@ function InputsSection({
     onAnalysisChange(!!analysis);
   }, [analysis, onAnalysisChange]);
   return (
-    <AnalysisResultCard
-      title={m.compare_inputs_comparison_ab()}
-      dotClass="bg-gradient-to-r from-comparison-lap-a to-comparison-lap-b"
-      hasResult={!!analysis}
-      loading={loading}
-      error={error}
-      runLabel={m.compare_inputs_compare_button()}
-      loadingLabel={m.compare_inputs_comparing()}
-      retryLabel={m.compare_retry()}
-      onRun={() => run(false)}
-      onRetry={() => run(false)}
-      onRegenerate={() => run(true)}
-      onDelete={() => void remove()}
-      deleteLabel="Delete inputs comparison"
-      actionsDisabled={loading || deleting}
-    >
+    <div className="rounded-lg border border-app-border-input/40 bg-app-surface-alt/30 px-2.5 py-2">
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="w-2 h-2 rounded-full bg-gradient-to-r from-(--comparison-lap-a) to-(--comparison-lap-b)" />
+        <span className="text-app-compact font-semibold text-app-text truncate flex-1">{m.compare_inputs_comparison_ab()}</span>
+        {analysis && (
+          <Button
+            type="button"
+            variant="app-ghost"
+            size="icon-sm"
+            onClick={() => run(true)}
+            disabled={loading}
+            className="text-app-text-muted hover:text-app-text disabled:opacity-40"
+            title={m.label_regenerate()}
+          >
+            <RefreshCw className="size-3" />
+          </Button>
+        )}
+      </div>
+
+      {!analysis && !loading && !error && (
+        <Button type="button" variant="app-primary" size="app-md" onClick={() => run(false)} className="w-full">
+          <Sparkles className="size-3" />
+          {m.compare_inputs_compare_button()}
+        </Button>
+      )}
+
+      {loading && (
+        <div className="flex items-center gap-2 text-app-caption text-app-text-muted py-1">
+          <div className="size-3 border border-app-border-input border-t-amber-400 rounded-full animate-spin" />
+          {m.compare_inputs_comparing()}
+        </div>
+      )}
+
+      {error && (
+        <div className="text-app-caption text-status-danger mb-1">
+          {error}
+          <Button variant="app-outline" size="app-sm" onClick={() => run(false)} className="ml-2">
+            {m.compare_retry()}
+          </Button>
+        </div>
+      )}
+
       {analysis && (
         <AnalysisSummaryRow title={m.compare_inputs_analysed()} detail={`${analysis.segments?.length ?? 0} segments · ${analysis.coaching?.length ?? 0} tips`} onView={() => onView(analysis)} />
       )}
@@ -366,22 +392,48 @@ function LapSection({
   }, [summary, onAnalysisChange]);
 
   return (
-    <AnalysisResultCard
-      title={lap.label}
-      dotClass={dotClass}
-      hasResult={!!summary}
-      loading={loading}
-      error={error}
-      runLabel={m.compare_analyse_lap_button()}
-      loadingLabel={m.compare_analysing()}
-      retryLabel={m.compare_retry()}
-      onRun={() => run(false)}
-      onRetry={() => run(false)}
-      onRegenerate={() => run(true)}
-      onDelete={() => void remove()}
-      deleteLabel={`Delete ${lap.label} analysis`}
-      actionsDisabled={loading || deleting}
-    >
+    <div className="rounded-lg border border-app-border-input/40 bg-app-surface-alt/30 px-2.5 py-2">
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className={`w-2 h-2 rounded-full ${dotClass}`} />
+        <span className="text-app-compact font-semibold text-app-text truncate flex-1">{lap.label}</span>
+        {summary && (
+          <Button
+            type="button"
+            variant="app-ghost"
+            size="icon-sm"
+            onClick={() => run(true)}
+            disabled={loading}
+            className="text-app-text-muted hover:text-app-text disabled:opacity-40"
+            title={m.label_regenerate()}
+          >
+            <RefreshCw className="size-3" />
+          </Button>
+        )}
+      </div>
+
+      {!summary && !loading && !error && (
+        <Button type="button" variant="app-primary" size="app-md" onClick={() => run(false)} className="w-full">
+          <Sparkles className="size-3" />
+          {m.compare_analyse_lap_button()}
+        </Button>
+      )}
+
+      {loading && (
+        <div className="flex items-center gap-2 text-app-caption text-app-text-muted py-1">
+          <div className="size-3 border border-app-border-input border-t-amber-400 rounded-full animate-spin" />
+          {m.compare_analysing()}
+        </div>
+      )}
+
+      {error && (
+        <div className="text-app-caption text-status-danger mb-1">
+          {error}
+          <Button variant="app-outline" size="app-sm" onClick={() => run(false)} className="ml-2">
+            {m.compare_retry()}
+          </Button>
+        </div>
+      )}
+
       {summary && <AnalysisSummaryRow detail={`${summary.cornerCount} corners · ${summary.coachingCount} tips · ${summary.setupCount} setup`} onView={() => onView(lap.label, summary)} />}
     </AnalysisResultCard>
   );
@@ -526,13 +578,9 @@ export function CompareAiPanel({ lapA, lapB, panelOpen = false, segments: trackS
           <p className="text-app-compact text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
           <p className="text-app-caption text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => openSettings("ai")}
-          className="flex items-center gap-1.5 text-app-compact px-3 py-1.5 rounded bg-ai-accent hover:bg-ai-accent-hover text-app-on-filled font-medium transition-colors"
-        >
+        <Button type="button" variant="app-primary" size="app-md" onClick={() => openSettings("ai")}>
           {m.compare_setup_ai_button()}
-        </button>
+        </Button>
       </div>
     );
   }
@@ -554,8 +602,13 @@ export function CompareAiPanel({ lapA, lapB, panelOpen = false, segments: trackS
         )}
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col border-t border-app-border">
-        {bothReady ? (
+      {bothReady && (
+        <div className="flex-1 min-h-0 flex flex-col border-t border-app-border">
+          <div className="flex justify-end px-2 pt-1">
+            <Button type="button" variant="app-danger" size="icon-sm" onClick={clearChat} title={m.aipanel_clear_title()}>
+              <Trash2 className="size-3" />
+            </Button>
+          </div>
           <ChatPanel
             api={`/api/laps/${lapA.id}/compare/${lapB.id}/chat`}
             fetchHistory={(gen) => fetchCompareChatHistory(lapA.id, lapB.id, gen)}

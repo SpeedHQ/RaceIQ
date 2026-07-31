@@ -6,8 +6,8 @@ import type { UIMessage } from "ai";
 import { Maximize2, Minimize2, MoreHorizontal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Thread, type ThreadProps } from "@/components/assistant-ui/thread";
+import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { client } from "@/lib/rpc";
 import { useSettings } from "../../hooks/queries";
 import { isAiConfigured } from "../../lib/is-ai-configured";
 import { useUiStore } from "../../stores/ui";
@@ -218,39 +218,58 @@ function TokenUsageFooter({
       {hasUsage && cost > 0 && <span>≈ ${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(3)}</span>}
       {maxGen > 1 && (
         <span className="flex items-center gap-0.5">
-          <button
+          <Button
             type="button"
+            variant="app-ghost"
+            size="app-sm"
             onClick={() => onViewGen(Math.max(1, viewingGen - 1))}
             disabled={viewingGen <= 1}
-            className="px-1 rounded border border-app-border/50 hover:bg-app-surface-hover/30 disabled:opacity-30"
+            className="!px-1 border border-app-border/50 disabled:opacity-30"
             title="Previous chat generation"
           >
             ‹
-          </button>
+          </Button>
           <span>
             gen {viewingGen}/{maxGen}
           </span>
-          <button
+          <Button
             type="button"
+            variant="app-ghost"
+            size="app-sm"
             onClick={() => onViewGen(Math.min(maxGen, viewingGen + 1))}
             disabled={viewingGen >= maxGen}
-            className="px-1 rounded border border-app-border/50 hover:bg-app-surface-hover/30 disabled:opacity-30"
+            className="!px-1 border border-app-border/50 disabled:opacity-30"
             title="Next chat generation"
           >
             ›
-          </button>
+          </Button>
         </span>
       )}
-      {compactThreadId && (
-        <button
+      {activeThreadId && isRunning && (
+        <Button
           type="button"
+          variant="app-outline"
+          size="app-sm"
+          onClick={() => {
+            void fetch(`/api/chats/${encodeURIComponent(activeThreadId)}/run/cancel`, { method: "POST" });
+          }}
+          title="Stop the agent turn on the server (not just this view)"
+        >
+          Cancel
+        </Button>
+      )}
+      {compactThreadId && (
+        <Button
+          type="button"
+          variant="app-outline"
+          size="app-sm"
           onClick={onNewChat}
           disabled={compacting || isRunning}
-          className="ml-auto px-1.5 py-0.5 rounded border border-app-border/50 hover:bg-app-surface-hover/30 disabled:opacity-40"
+          className="ml-auto"
           title="Compact this chat into a summary and continue in a fresh chat (keeps this chat as read-only history)"
         >
           {compacting ? "Compacting…" : "Compact & New chat"}
-        </button>
+        </Button>
       )}
       {compactMsg && <span className="text-app-text-dim">{compactMsg}</span>}
     </div>
@@ -585,9 +604,9 @@ export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, re
       emptyState ?? (
         <div className="pt-2 space-y-1.5">
           <p className="text-app-compact text-app-text-dim">Add an AI provider key to chat.</p>
-          <button type="button" onClick={() => openSettings("ai")} className="w-full px-3 py-1.5 text-xs rounded bg-ai-accent hover:bg-ai-accent-hover text-app-on-filled font-medium">
+          <Button type="button" variant="app-primary" size="app-md" onClick={() => openSettings("ai")} className="w-full">
             Set up AI
-          </button>
+          </Button>
         </div>
       )
     );
