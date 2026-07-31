@@ -23,20 +23,28 @@ function Tabs({ className, ...props }: TabsProps) {
   return <TabsPrimitive.Root data-slot="tabs" className={cn(className)} {...props} />;
 }
 
-function TabsList({ className, ...props }: TabsPrimitive.List.Props) {
-  return <TabsPrimitive.List data-slot="tabs-list" className={cn("flex flex-wrap gap-1 border-b border-app-border pb-2", className)} {...props} />;
+function TabsList({ className, variant = "default", ...props }: TabsPrimitive.List.Props & { variant?: "default" | "settings" | "pills" }) {
+  const variants = {
+    default: "flex flex-wrap gap-1 border-b border-app-border pb-2",
+    settings: "flex flex-wrap gap-1 border-b border-app-border pb-2",
+    pills: "flex flex-wrap gap-1 rounded-lg bg-app-surface-alt p-1",
+  } as const;
+  return <TabsPrimitive.List data-slot="tabs-list" data-variant={variant} className={cn(variants[variant], className)} {...props} />;
 }
 
-function TabsTrigger({ className, ...props }: TabsTriggerProps) {
+function TabsTrigger({ className, variant = "default", ...props }: TabsTriggerProps & { variant?: "default" | "settings" | "pills" }) {
+  const variants = {
+    default: "rounded-md px-3 py-1.5 text-xs font-semibold text-app-text-muted transition-colors outline-none hover:bg-app-surface-hover hover:text-app-text data-[active]:bg-app-accent/20 data-[active]:text-app-accent",
+    settings: "rounded-md px-3 py-1.5 text-xs font-semibold text-app-text-muted transition-colors outline-none hover:bg-app-surface-hover hover:text-app-text data-[active]:bg-app-accent/20 data-[active]:text-app-accent",
+    pills: "rounded-md px-3 py-1.5 text-xs font-semibold text-app-text-muted transition-colors outline-none hover:text-app-text data-[active]:bg-app-surface data-[active]:text-app-text",
+  } as const;
   return (
     <TabsPrimitive.Tab
       data-slot="tabs-trigger"
+      data-variant={variant}
       className={cn(
-        "rounded-md px-3 py-1.5 text-xs font-semibold text-app-text-muted transition-colors outline-none",
-        "hover:bg-app-surface-hover hover:text-app-text",
-        "data-[active]:bg-app-accent/20 data-[active]:text-app-accent",
-        "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-        "disabled:pointer-events-none disabled:opacity-50 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+        variants[variant],
+        "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className,
       )}
       {...props}
