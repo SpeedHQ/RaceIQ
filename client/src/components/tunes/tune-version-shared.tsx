@@ -1,11 +1,10 @@
-import { Button } from "../ui/button";
 import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/review-laps";
 import { parseTestChanges, summarizeTestChange } from "@shared/test-changes";
 import type { LapMeta } from "@shared/types";
 import { useMemo, useState } from "react";
 import { type ExperimentLapMetric, useSetLapExcluded } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
-
+import { Table } from "../ui/AppTable";
 /**
  * Shared rendering pieces for a tuning test ("setup version"): the
  * applied-changes summary and the per-lap breakdown table. Both
@@ -196,7 +195,7 @@ export function LapBreakdown({
     return <div className="px-3 py-2 text-xs text-app-text-dim">No laps recorded against this version yet.</div>;
   }
   return (
-    <table className="w-full text-xs">
+    <Table fit tableClassName="w-full text-xs">
       <thead>
         <tr className="text-app-caption uppercase tracking-wider text-app-text-muted">
           <th className="px-3 py-1 font-medium text-left">
@@ -288,17 +287,18 @@ export function LapBreakdown({
                   {/* Invalid laps are already out of the analysis by rule
                     (selectEvaluationLaps → "invalid"), so a manual exclude
                     toggle there is a no-op control — hide it. */}
-                    <Button
+                  {l.isValid && (
+                    <button
                       type="button"
-                      variant="app-outline"
-                      size="app-sm"
                       onClick={() => setExcluded.mutate({ lapId: l.id, excluded: !excluded, experimentId })}
                       disabled={setExcluded.isPending}
                       title={excluded ? "Include this lap in the tuning aggregate again" : "Exclude this lap from the tuning aggregate (blunder, off-track, spin)"}
-                      className={excluded ? "text-app-text-dim opacity-60" : "text-app-text hover:bg-app-surface-hover/30"}
+                      className={`text-app-caption uppercase tracking-wider px-1.5 py-0.5 rounded border disabled:opacity-50 disabled:pointer-events-none ${
+                        excluded ? "border-app-border text-app-text-dim opacity-60" : "border-app-border text-app-text hover:bg-app-surface-hover/30"
+                      }`}
                     >
                       {excluded ? "Excluded" : "Exclude"}
-                    </Button>
+                    </button>
                   )}
                 </div>
               </td>
@@ -310,6 +310,6 @@ export function LapBreakdown({
           );
         })}
       </tbody>
-    </table>
+    </Table>
   );
 }

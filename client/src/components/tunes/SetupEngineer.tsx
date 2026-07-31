@@ -92,10 +92,11 @@ export function SetupEngineerControls({ state, lapId }: { state: SetupEngineerSt
       <Button
         type="button"
         variant="app-primary"
-        size="app-md"
+        size="app-sm"
         onClick={() => lapId != null && runPreviewFor(lapId)}
         disabled={lapId == null || isPending || !filePath}
         title={!filePath ? "Pick a base setup first" : undefined}
+        className="!h-auto"
       >
         {isPending ? "Analysing…" : "Recommend"}
       </Button>
@@ -200,13 +201,7 @@ export function SetupEngineerResult({ state }: { state: SetupEngineerState }) {
                   className="flex-1 min-w-0 bg-app-surface-alt border border-app-border rounded px-2 py-1 text-xs font-mono"
                 />
                 <span className="text-xs text-app-text-dim">.json</span>
-                <Button
-                  type="button"
-                  variant="app-primary"
-                  size="app-md"
-                  onClick={() => applyToFile(saveAs.trim() || undefined)}
-                  disabled={isPending || !saveAs.trim()}
-                >
+                <Button type="button" variant="app-primary" size="app-sm" onClick={() => applyToFile(saveAs.trim() || undefined)} disabled={isPending || !saveAs.trim()} className="!h-auto bg-status-success hover:bg-status-success-hover">
                   {isPending ? "Saving…" : "Apply"}
                 </Button>
               </div>

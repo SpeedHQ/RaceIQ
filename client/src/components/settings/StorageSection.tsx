@@ -275,16 +275,14 @@ export function StorageSection() {
         {data && data.total === 0 && <p className="text-sm text-app-text-dim">{m.storage_no_files()}</p>}
         {data && data.binCount > 0 && (
           <div className="mt-4">
-            <Button
-              variant="app-ghost"
-              size="app-md"
+            <button
               onClick={() => compress.mutate()}
               disabled={compress.isPending}
               className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md bg-app-surface-alt hover:bg-app-surface-hover/60 text-app-text disabled:opacity-50 transition-colors"
             >
               {compress.isPending && <Loader2 className="size-3 animate-spin" />}
               {m.storage_compress_now()}
-            </Button>
+            </button>
             {compress.isSuccess && <p className="text-xs text-status-success mt-2">{m.storage_compress_complete()}</p>}
           </div>
         )}

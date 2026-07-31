@@ -4,8 +4,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { type ExperimentGameId, useExperiment, useExperimentVersions, useLaps } from "../../hooks/queries";
 import { TuneReviewDashboard } from "./TuneReviewDashboard";
-import { TuneSetupChat } from "./TuneSetupChat";
 import { Button } from "../ui/button";
+import { TuneSetupChat } from "./TuneSetupChat";
 
 /**
  * TestReviewPage — the post-test review dashboard as its own route
@@ -53,7 +53,7 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
         <div className="text-sm text-app-text-muted max-w-md">
           This experiment (#{experimentId}) no longer exists — it may have been deleted, or removed when the database was reset. The laps it referenced may still be in your history.
         </div>
-        <Button type="button" variant="app-primary" size="app-lg" onClick={backToExperimentList}>
+        <Button type="button" variant="app-primary" size="app-md" onClick={backToExperimentList} className="!h-auto mt-2">
           Back to experiments
         </Button>
       </div>
@@ -90,9 +90,9 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
             {/* Named after the experiment's current focus, same as the
                 workspace panel — one agent, two modes. */}
             <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{EXPERIMENT_FOCUS_AGENT_LABELS[session?.focus ?? DEFAULT_EXPERIMENT_FOCUS]}</span>
-            <Button type="button" variant="app-primary" size="app-md" onClick={backToWorkspace}>
-              Session
-            </Button>
+          <Button type="button" variant="app-primary" size="app-sm" onClick={backToWorkspace} className="!h-auto">
+            Session
+          </Button>
           </div>
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
             <TuneSetupChat sessionId={experimentId} headVersionId={session?.headVersionId ?? null} extendedContext={lapReviewContext} />
