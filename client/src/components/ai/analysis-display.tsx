@@ -1,7 +1,7 @@
 import { AlertTriangle, CircleDot, Download, Gauge, Lightbulb, RefreshCw, Sliders, Sparkles, Trash2, Zap } from "lucide-react";
 import { type ReactNode, useRef } from "react";
-import { Button } from "@/components/ui/button";
 import { m } from "@/paraglide/messages";
+
 export interface AnalysisHighlight {
   startFrac: number;
   endFrac: number;
@@ -497,40 +497,35 @@ export function AnalysisDisplay({
             </span>
           )}
           {onExport && (
-            <Button
+            <button
               type="button"
-              variant="app-ghost"
-              size="app-sm"
               onClick={onExport}
-              className="border border-transparent hover:border-app-border-hover"
+              className="flex items-center gap-1 text-app-micro text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-hover transition-colors"
               title={m.label_export_as_image()}
             >
               <Download className="size-3" /> {m.label_export()}
-            </Button>
+            </button>
           )}
           {onRegenerate && (
-            <Button
+            <button
               type="button"
-              variant="app-ghost"
-              size="app-sm"
               onClick={onRegenerate}
               disabled={loading}
-              className="border border-transparent hover:border-app-border-hover"
+              className="flex items-center gap-1 text-app-micro text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-hover transition-colors disabled:opacity-50"
               title={m.aidisplay_regenerate()}
             >
               <RefreshCw className="size-3" /> {m.label_regenerate()}
-            </Button>
+            </button>
           )}
           {onClear && (
-            <Button
+            <button
               type="button"
-              variant="app-danger"
-              size="app-sm"
               onClick={onClear}
+              className="flex items-center gap-1 text-app-micro text-app-text-muted hover:text-status-danger px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-hover transition-colors"
               title={m.aipanel_clear_title()}
             >
               <Trash2 className="size-3" /> {m.label_clear()}
-            </Button>
+            </button>
           )}
         </div>
       )}

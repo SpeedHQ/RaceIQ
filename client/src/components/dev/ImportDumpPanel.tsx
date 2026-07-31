@@ -1,9 +1,9 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
-import { Button } from "../ui/button";
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
+
 interface ImportedLap {
   lapId: number;
   sessionId: number;
@@ -119,13 +119,18 @@ export function ImportDumpPanel() {
       </label>
 
       <div className="mt-4 flex gap-2">
-        <Button type="button" variant="app-primary" size="app-lg" onClick={handleImport} disabled={!file || importing} className="flex-1">
+        <button
+          type="button"
+          onClick={handleImport}
+          disabled={!file || importing}
+          className="flex-1 px-4 py-2 rounded bg-app-accent text-app-on-filled font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+        >
           {importing ? m.label_importing() : m.dev_import_button()}
-        </Button>
+        </button>
         {file && !importing && (
-          <Button type="button" variant="app-ghost" size="app-lg" onClick={() => handleSelect(null)}>
+          <button type="button" onClick={() => handleSelect(null)} className="px-4 py-2 rounded bg-app-surface-alt text-app-text hover:bg-app-surface-hover transition-colors">
             {m.common_clear()}
-          </Button>
+          </button>
         )}
       </div>
 
@@ -174,9 +179,9 @@ export function ImportDumpPanel() {
                       <span className="text-app-text-muted">#{lap.lapNumber}</span> <span>{formatLapTime(lap.lapTime)}</span>
                       {!lap.isValid && <span className="ml-2 px-1.5 py-0.5 rounded bg-status-danger/15 text-status-danger text-app-caption">invalid</span>}
                     </div>
-                    <Button type="button" variant="app-primary" size="app-sm" onClick={() => openInAnalyse(lap)}>
+                    <button type="button" onClick={() => openInAnalyse(lap)} className="px-2.5 py-1 text-xs rounded bg-app-accent text-app-on-filled hover:opacity-90 transition-opacity">
                       {m.dev_open_analyse()}
-                    </Button>
+                    </button>
                   </div>
                 ))}
               </div>

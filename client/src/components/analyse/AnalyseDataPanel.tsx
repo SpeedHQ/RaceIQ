@@ -9,7 +9,6 @@ import type { DisplayPacket } from "../../lib/convert-packet";
 import type { LapInsight } from "../../lib/lap-insights";
 import { m } from "../../paraglide/messages";
 import { InsightPanel } from "../InsightPanel";
-import { Button } from "../ui/button";
 import { getSteeringLock } from "../Settings";
 import { Button } from "../ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
@@ -127,16 +126,9 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
         <div className="flex shrink-0 items-center justify-between px-3 pt-3 pb-1">
           <h3 className="mb-0 text-app-caption font-semibold text-app-text-muted uppercase tracking-wider">{m.analyse_metrics_at_cursor()}</h3>
           {currentPacket && (
-            <Button
-              type="button"
-              variant="app-ghost"
-              size="app-sm"
-              onClick={handleCopyValues}
-              title={m.analyse_copy_values_tooltip()}
-              className="!p-0"
-            >
+            <button type="button" onClick={handleCopyValues} title={m.analyse_copy_values_tooltip()} className="text-app-text-muted hover:text-app-text transition-colors">
               {copied ? <Check className="size-3.5 text-status-success" /> : <Copy className="size-3.5" />}
-            </Button>
+            </button>
           )}
         </div>
 
