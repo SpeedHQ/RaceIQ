@@ -8,6 +8,7 @@
 
 ### Fixes
 - Clean up settings and onboarding wizard controls so navigation, progress indicators, and wheel cards render correctly
+- Render experiment focus choices as wrapping cards, remove the experiment table shell, and underline Analyse tabs
 - Report missing AI model settings instead of silently selecting a provider default
 
 - Keep the Compare loading message hidden after comparison data is available

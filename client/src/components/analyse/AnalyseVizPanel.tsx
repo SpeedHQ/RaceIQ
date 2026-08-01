@@ -48,7 +48,7 @@ export function AnalyseVizPanel({
       className="flex shrink-0 flex-col items-center justify-start overflow-y-auto border-r border-app-border"
       style={{ width }}
     >
-      <TabsList className="w-full shrink-0">
+      <TabsList variant="underline" className="w-full shrink-0">
         <TabsTrigger value="2d" className="flex-1">
           2D
         </TabsTrigger>

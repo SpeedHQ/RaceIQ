@@ -17,7 +17,6 @@ import { useTelemetryStore } from "../../stores/telemetry";
 import { Table, TBody, TD, TH, THead, TRow } from "../ui/AppTable";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { Card } from "../ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { SearchSelect } from "../ui/SearchSelect";
 import { FocusPicker } from "./FocusPicker";
@@ -92,7 +91,7 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
   const carName = (n: string | null | undefined) => (gameId === "acc" ? accCarName(n) : n) ?? "—";
 
   return (
-    <Card className="overflow-x-auto">
+    <div className="overflow-x-auto">
       <Table>
         <THead>
           <TH align="end">#</TH>
@@ -141,7 +140,7 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
           })}
         </TBody>
       </Table>
-    </Card>
+    </div>
   );
 }
 
