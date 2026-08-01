@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import { createPortal } from "react-dom";
 import { m } from "@/paraglide/messages";
 import { AppInput } from "./AppInput";
+import { Button } from "./button";
 
 interface SearchSelectOption {
   value: string;
@@ -186,7 +187,7 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
               return (
                 <div key={option.value}>
                   {showGroup && <div className="border-t border-app-border-input bg-app-surface px-3 py-1 text-xs font-medium text-app-text-muted first:border-t-0">{option.group}</div>}
-                  <button
+                  <Button
                     id={`${listboxId}-${index}`}
                     type="button"
                     role="option"
@@ -208,7 +209,7 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
                     }`}
                   >
                     {option.label}
-                  </button>
+                  </Button>
                 </div>
               );
             })}

@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
+import { Button } from "../ui/button";
 
 interface ImportedLap {
   lapId: number;
@@ -119,18 +120,18 @@ export function ImportDumpPanel() {
       </label>
 
       <div className="mt-4 flex gap-2">
-        <button
+        <Button
           type="button"
           onClick={handleImport}
           disabled={!file || importing}
           className="flex-1 px-4 py-2 rounded bg-app-accent text-app-on-filled font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
         >
           {importing ? m.label_importing() : m.dev_import_button()}
-        </button>
+        </Button>
         {file && !importing && (
-          <button type="button" onClick={() => handleSelect(null)} className="px-4 py-2 rounded bg-app-surface-alt text-app-text hover:bg-app-surface-hover transition-colors">
+          <Button type="button" onClick={() => handleSelect(null)} className="px-4 py-2 rounded bg-app-surface-alt text-app-text hover:bg-app-surface-hover transition-colors">
             {m.common_clear()}
-          </button>
+          </Button>
         )}
       </div>
 
@@ -170,18 +171,18 @@ export function ImportDumpPanel() {
           </div>
 
           {result.laps.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-status-success/30">
+            <div className="mt-3 pt-3 border-t border-status-success/30">
               <div className="text-xs text-app-text-muted mb-2">{m.dev_imported_laps()}</div>
               <div className="space-y-1">
                 {result.laps.map((lap) => (
                   <div key={lap.lapId} className="flex items-center gap-2 px-2 py-1.5 rounded bg-app-surface-alt text-app-text">
                     <div className="flex-1 min-w-0 text-xs font-mono">
                       <span className="text-app-text-muted">#{lap.lapNumber}</span> <span>{formatLapTime(lap.lapTime)}</span>
-                    {!lap.isValid && <span className="ml-2 px-1.5 py-0.5 rounded bg-status-danger/15 text-status-danger text-app-caption">invalid</span>}
+                      {!lap.isValid && <span className="ml-2 px-1.5 py-0.5 rounded bg-status-danger/15 text-status-danger text-app-caption">invalid</span>}
                     </div>
-                    <button type="button" onClick={() => openInAnalyse(lap)} className="px-2.5 py-1 text-xs rounded bg-app-accent text-app-on-filled hover:opacity-90 transition-opacity">
+                    <Button type="button" onClick={() => openInAnalyse(lap)} className="px-2.5 py-1 text-xs rounded bg-app-accent text-app-on-filled hover:opacity-90 transition-opacity">
                       {m.dev_open_analyse()}
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>

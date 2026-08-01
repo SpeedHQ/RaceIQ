@@ -1,9 +1,6 @@
 import { resolveAnalysisTelemetry } from "@shared/games/analysis-telemetry";
 import { getGame } from "@shared/games/registry";
-import {
-  getFuelDisplay,
-  WATTS_PER_HORSEPOWER,
-} from "@shared/games/telemetry";
+import { getFuelDisplay, WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
 import type { GameId, TelemetryPacket } from "@shared/types";
 import { Check, Copy } from "lucide-react";
 import { useCallback, useState } from "react";
@@ -18,6 +15,7 @@ import { AnalyseF1ErsPanel } from "./AnalyseF1ErsPanel";
 import { MetricsPanel } from "./AnalyseMetricsPanel";
 import { AnalyseSuspensionPanel } from "./AnalyseSuspensionPanel";
 import { AnalyseTireWheelsPanel } from "./AnalyseTireWheelsPanel";
+import { Button } from "../ui/button";
 
 interface WearRate {
   FL: number;
@@ -78,31 +76,20 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
     const tFR = dp?.DisplayTireTempFR ?? pkt.TireTempFR;
     const tRL = dp?.DisplayTireTempRL ?? pkt.TireTempRL;
     const tRR = dp?.DisplayTireTempRR ?? pkt.TireTempRR;
-    const tireTemperatureHeading =
-      analysis.tireTemperature.source === "direct" &&
-      analysis.tireTemperature.freshness === "pit-snapshot"
-        ? "Last Pit Tire Temps"
-        : "Tire Temps";
+    const tireTemperatureHeading = analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot" ? "Last Pit Tire Temps" : "Tire Temps";
     lines.push("", `--- ${tireTemperatureHeading} ---`);
     lines.push(`FL: ${tFL.toFixed(0)}  FR: ${tFR.toFixed(0)}`);
     lines.push(`RL: ${tRL.toFixed(0)}  RR: ${tRR.toFixed(0)}`);
 
     // Tire wear
-    const tireHealthHeading =
-      analysis.tireHealth.source === "direct" &&
-      analysis.tireHealth.freshness === "pit-snapshot"
-        ? "Last Pit Tire Health"
-        : "Tire Health";
+    const tireHealthHeading = analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "pit-snapshot" ? "Last Pit Tire Health" : "Tire Health";
     lines.push("", `--- ${tireHealthHeading} ---`);
     lines.push(`FL: ${((1 - pkt.TireWearFL) * 100).toFixed(1)}%  FR: ${((1 - pkt.TireWearFR) * 100).toFixed(1)}%`);
     lines.push(`RL: ${((1 - pkt.TireWearRL) * 100).toFixed(1)}%  RR: ${((1 - pkt.TireWearRR) * 100).toFixed(1)}%`);
 
     // Suspension
     lines.push("", "--- Suspension Travel ---");
-    if (
-      analysis.suspensionTravel.source !== "unavailable" &&
-      analysis.suspensionTravel.display === "millimeters"
-    ) {
+    if (analysis.suspensionTravel.source !== "unavailable" && analysis.suspensionTravel.display === "millimeters") {
       lines.push(`FL: ${(pkt.SuspensionTravelMFL * 1000).toFixed(0)}mm  FR: ${(pkt.SuspensionTravelMFR * 1000).toFixed(0)}mm`);
       lines.push(`RL: ${(pkt.SuspensionTravelMRL * 1000).toFixed(0)}mm  RR: ${(pkt.SuspensionTravelMRR * 1000).toFixed(0)}mm`);
     } else {
@@ -119,7 +106,7 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
     <div className="w-[22rem] h-full shrink-0 border-l border-app-border bg-app-surface/50 flex flex-col overflow-hidden">
       {/* Tab switcher */}
       <div className="flex border-b border-app-border shrink-0">
-        <button
+        <Button
           type="button"
           onClick={() => onSidebarTabChange("live")}
           className={`flex-1 py-1.5 text-app-caption uppercase tracking-wider font-semibold transition-colors ${
@@ -127,8 +114,8 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
           }`}
         >
           {m.analyse_tab_data()}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
           onClick={() => onSidebarTabChange("insights")}
           className={`flex-1 py-1.5 text-app-caption uppercase tracking-wider font-semibold transition-colors ${
@@ -137,16 +124,16 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
         >
           {m.analyse_tab_insights()}
           {lapInsights.length > 0 && <span className="ml-1 text-app-micro bg-app-border-input text-app-text rounded-full px-1.5">{lapInsights.length}</span>}
-        </button>
+        </Button>
       </div>
 
       {sidebarTab === "live" && (
         <div className="px-3 pt-3 pb-1 shrink-0 flex items-center justify-between">
           <h3 className="text-app-caption text-app-text-muted uppercase tracking-wider mb-0 font-semibold">{m.analyse_metrics_at_cursor()}</h3>
           {currentPacket && (
-            <button type="button" onClick={handleCopyValues} title={m.analyse_copy_values_tooltip()} className="text-app-text-muted hover:text-app-text transition-colors">
+            <Button type="button" onClick={handleCopyValues} title={m.analyse_copy_values_tooltip()} className="text-app-text-muted hover:text-app-text transition-colors">
               {copied ? <Check className="size-3.5 text-status-success" /> : <Copy className="size-3.5" />}
-            </button>
+            </Button>
           )}
         </div>
       )}

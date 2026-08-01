@@ -119,7 +119,7 @@ export function WheelCatalogue({ onSelect }: { onSelect: (profileId: string) => 
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {WHEEL_CATALOGUE.map((wheel) => (
-          <button
+          <Button
             type="button"
             key={wheel.profileId}
             onClick={() => onSelect(wheel.profileId)}
@@ -139,7 +139,7 @@ export function WheelCatalogue({ onSelect }: { onSelect: (profileId: string) => 
                 ))}
               </div>
             </div>
-          </button>
+          </Button>
         ))}
 
         <div className="rounded-xl border-2 border-dashed border-app-border/50 flex items-center justify-center min-h-[200px] opacity-50">

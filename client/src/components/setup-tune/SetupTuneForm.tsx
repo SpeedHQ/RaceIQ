@@ -239,7 +239,7 @@ export function SetupTuneForm({
             settings come from the structured form or a pasted JSON blob. */}
         <div className="col-span-2 flex items-center gap-2" role="radiogroup" aria-label="Input mode">
           <span className="text-xs font-medium text-app-text-muted mr-1">{m.setupform_input_label()}</span>
-          <button
+          <Button
             type="button"
             role="radio"
             aria-checked={mode === "form"}
@@ -249,8 +249,8 @@ export function SetupTuneForm({
             }`}
           >
             {m.setupform_fill_form()}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             role="radio"
             aria-checked={mode === "json"}
@@ -260,7 +260,7 @@ export function SetupTuneForm({
             }`}
           >
             {m.setupform_paste_json()}
-          </button>
+          </Button>
           {jsonError && <span className="text-app-caption text-status-danger ml-2">{jsonError}</span>}
         </div>
 

@@ -33,8 +33,9 @@ function TabsList({ className, variant = "default", ...props }: TabsListProps) {
 
 function TabsTrigger({ className, variant = "default", ...props }: TabsTriggerProps) {
   const variants = {
-    default: "rounded-md px-3 py-1.5 text-xs font-semibold text-app-text-muted transition-colors outline-none hover:bg-app-surface-hover hover:text-app-text data-[active]:bg-app-accent/20 data-[active]:text-app-accent",
-    pills: "rounded-md px-3 py-1.5 text-xs font-semibold text-app-text-muted transition-colors outline-none hover:text-app-text data-[active]:bg-app-surface data-[active]:text-app-text",
+    default:
+      "rounded-md px-3 py-1.5 text-app-label font-semibold text-app-text-muted transition-colors outline-none hover:bg-app-surface-hover hover:text-app-text data-[active]:bg-app-accent/20 data-[active]:text-app-accent",
+    pills: "rounded-md px-3 py-1.5 text-app-label font-semibold text-app-text-muted transition-colors outline-none hover:text-app-text data-[active]:bg-app-surface data-[active]:text-app-text",
   } as const;
   return (
     <TabsPrimitive.Tab

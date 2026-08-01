@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { type ExperimentLapMetric, useSetLapExcluded } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 import { Table } from "../ui/AppTable";
+import { Button } from "../ui/button";
 /**
  * Shared rendering pieces for a tuning test ("setup version"): the
  * applied-changes summary and the per-lap breakdown table. Both
@@ -192,22 +193,22 @@ export function LapBreakdown({
   const toggleSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
   const cycleStatusFilter = () => setStatusFilter((s) => STATUS_FILTERS[(STATUS_FILTERS.indexOf(s) + 1) % STATUS_FILTERS.length]);
   if (laps.length === 0) {
-    return <div className="px-3 py-2 text-xs text-app-text-dim">No laps recorded against this version yet.</div>;
+    return <div className="px-3 py-2 text-app-subtext text-app-text-dim">No laps recorded against this version yet.</div>;
   }
   return (
-    <Table fit tableClassName="w-full text-xs">
+    <Table fit tableClassName="w-full">
       <thead>
-        <tr className="text-app-caption uppercase tracking-wider text-app-text-muted">
+        <tr className="text-app-label uppercase tracking-wider text-app-text-muted">
           <th className="px-3 py-1 font-medium text-left">
-            <button type="button" onClick={() => toggleSort("lap")} className={`uppercase tracking-wider hover:text-app-text ${sort.key === "lap" ? "text-app-text" : ""}`} title="Sort by lap">
+            <Button type="button" onClick={() => toggleSort("lap")} className={`uppercase tracking-wider hover:text-app-text ${sort.key === "lap" ? "text-app-text" : ""}`} title="Sort by lap">
               Lap
               {sort.key === "lap" && <span className="ml-1">{sort.dir === 1 ? "▲" : "▼"}</span>}
-            </button>
+            </Button>
           </th>
           <th className="px-3 py-1 font-medium text-left">
-            <button type="button" onClick={cycleStatusFilter} className={`uppercase tracking-wider hover:text-app-text ${statusFilter !== "all" ? "text-app-text" : ""}`} title="Filter by status">
+            <Button type="button" onClick={cycleStatusFilter} className={`uppercase tracking-wider hover:text-app-text ${statusFilter !== "all" ? "text-app-text" : ""}`} title="Filter by status">
               {STATUS_FILTER_LABELS[statusFilter]}
-            </button>
+            </Button>
           </th>
           {(
             [
@@ -217,7 +218,7 @@ export function LapBreakdown({
             ] as [SortKey, string, "left" | "right"][]
           ).map(([key, label, align]) => (
             <th key={key} className={`px-3 py-1 font-medium ${align === "left" ? "text-left" : "text-right"}`}>
-              <button
+              <Button
                 type="button"
                 onClick={() => toggleSort(key)}
                 className={`uppercase tracking-wider hover:text-app-text ${sort.key === key ? "text-app-text" : ""}`}
@@ -225,7 +226,7 @@ export function LapBreakdown({
               >
                 {label}
                 {sort.key === key && <span className="ml-1">{sort.dir === 1 ? "▲" : "▼"}</span>}
-              </button>
+              </Button>
             </th>
           ))}
         </tr>
@@ -274,7 +275,10 @@ export function LapBreakdown({
                     status of the lap too, so they sit with the status text and
                     not next to the exclude control. */}
                     {reason === "chosen" && (
-                      <span className="text-app-caption uppercase tracking-wider text-status-success" title={`Used for evaluation — one of the fastest ${REVIEW_LAP_CAP} clean laps this analysis reads`}>
+                      <span
+                        className="text-app-caption uppercase tracking-wider text-status-success"
+                        title={`Used for evaluation — one of the fastest ${REVIEW_LAP_CAP} clean laps this analysis reads`}
+                      >
                         Eval
                       </span>
                     )}
@@ -288,7 +292,7 @@ export function LapBreakdown({
                     (selectEvaluationLaps → "invalid"), so a manual exclude
                     toggle there is a no-op control — hide it. */}
                   {l.isValid && (
-                    <button
+                    <Button
                       type="button"
                       onClick={() => setExcluded.mutate({ lapId: l.id, excluded: !excluded, experimentId })}
                       disabled={setExcluded.isPending}
@@ -298,7 +302,7 @@ export function LapBreakdown({
                       }`}
                     >
                       {excluded ? "Excluded" : "Exclude"}
-                    </button>
+                    </Button>
                   )}
                 </div>
               </td>

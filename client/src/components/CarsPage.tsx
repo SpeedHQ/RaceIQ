@@ -258,14 +258,14 @@ function CompareModal({
       >
         {/* Header */}
         <DialogHeader className="sticky top-0 z-10 flex flex-row items-center justify-between border-b border-app-border bg-app-bg px-4 py-3">
-          <DialogTitle className="text-sm font-bold text-app-text/90">{m.cars_compare_modal_title()}</DialogTitle>
+          <DialogTitle className="text-app-heading font-bold text-app-text/90">{m.cars_compare_modal_title()}</DialogTitle>
           <Button variant="close-action" size="icon-sm" onClick={onClose} aria-label={m.common_close()}>
             ×
           </Button>
         </DialogHeader>
 
         <div className="overflow-auto">
-          <Table fit tableClassName="w-full border-collapse text-xs">
+          <Table fit tableClassName="w-full border-collapse">
             <THead className="bg-app-bg" rowClassName="border-b border-app-border">
               <TH className="sticky left-0 bg-app-bg px-4 py-2 text-left font-medium text-app-text/90" style={{ minWidth: 160 }}>
                 {m.cars_stat_column()}
@@ -309,14 +309,14 @@ function CompareModal({
 function ColHeader({ k, label, className = "", sort, sortDir, onSort }: { k: SortKey; label: string; className?: string; sort: SortKey; sortDir: 1 | -1; onSort: (k: SortKey) => void }) {
   const active = sort === k;
   return (
-    <button
+    <Button
       type="button"
       onClick={() => onSort(k)}
       className={`text-left text-app-caption uppercase tracking-wider font-semibold transition-colors ${active ? "text-app-accent" : "text-app-text/90 hover:text-app-text"} ${className}`}
     >
       {label}
       {active ? (sortDir === 1 ? " ↑" : " ↓") : ""}
-    </button>
+    </Button>
   );
 }
 

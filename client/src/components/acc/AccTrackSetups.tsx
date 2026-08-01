@@ -6,6 +6,7 @@ import { m } from "@/paraglide/messages";
 import { client } from "../../lib/rpc";
 import { SearchSelect } from "../ui/SearchSelect";
 import { Card } from "../ui/card";
+import { Button } from "../ui/button";
 
 interface AccSetup {
   name: string;
@@ -253,10 +254,26 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
             {/* Variant tags */}
             {(setup.hasRace || setup.hasQuali || setup.hasSafe || setup.hasWet) && (
               <div className="flex items-center gap-1.5 flex-wrap">
-                {setup.hasRace && <span className="setup-variant-badge text-app-caption px-2 py-0.5 rounded-full border font-medium" data-setup-variant="race">{m.label_race()}</span>}
-                {setup.hasQuali && <span className="setup-variant-badge text-app-caption px-2 py-0.5 rounded-full border font-medium" data-setup-variant="qualifying">{m.accsetup_badge_qualify()}</span>}
-                {setup.hasSafe && <span className="setup-variant-badge text-app-caption px-2 py-0.5 rounded-full border font-medium" data-setup-variant="safe">{m.accsetup_badge_safe()}</span>}
-                {setup.hasWet && <span className="setup-variant-badge text-app-caption px-2 py-0.5 rounded-full border font-medium" data-setup-variant="wet">{m.accsetup_badge_wet()}</span>}
+                {setup.hasRace && (
+                  <span className="setup-variant-badge text-app-caption px-2 py-0.5 rounded-full border font-medium" data-setup-variant="race">
+                    {m.label_race()}
+                  </span>
+                )}
+                {setup.hasQuali && (
+                  <span className="setup-variant-badge text-app-caption px-2 py-0.5 rounded-full border font-medium" data-setup-variant="qualifying">
+                    {m.accsetup_badge_qualify()}
+                  </span>
+                )}
+                {setup.hasSafe && (
+                  <span className="setup-variant-badge text-app-caption px-2 py-0.5 rounded-full border font-medium" data-setup-variant="safe">
+                    {m.accsetup_badge_safe()}
+                  </span>
+                )}
+                {setup.hasWet && (
+                  <span className="setup-variant-badge text-app-caption px-2 py-0.5 rounded-full border font-medium" data-setup-variant="wet">
+                    {m.accsetup_badge_wet()}
+                  </span>
+                )}
               </div>
             )}
 
@@ -281,13 +298,13 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
                 );
               })()}
               {setup.setupFile && (
-                <button
+                <Button
                   onClick={() => installMutation.mutate(setup)}
                   disabled={installMutation.isPending}
                   className="px-3 py-1.5 text-app-compact font-semibold bg-status-success/15 text-status-success rounded hover:bg-status-success/25 transition-colors disabled:opacity-50"
                 >
                   {installMutation.isPending ? "Installing..." : installMutation.isSuccess ? "Installed" : "Install to ACC"}
-                </button>
+                </Button>
               )}
               {setup.videoUrl && setup.videoUrl !== setup.downloadUrl && (
                 <a

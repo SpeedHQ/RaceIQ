@@ -2,6 +2,7 @@ import { type ReactNode, useState } from "react";
 import { CATEGORY_COLORS, CATEGORY_LABELS } from "@/components/tune/tune-constants";
 import { m } from "@/paraglide/messages";
 import type { TuneRow } from "./types";
+import { Button } from "@/components/ui/button";
 
 // Resolve at render time — calling m.*() at module scope would freeze the locale.
 const SOURCE_LABEL: Record<TuneRow["source"], () => string> = {
@@ -37,7 +38,7 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
 
   return (
     <div className={`border-b border-app-border ${isOpen ? "bg-app-surface-alt" : "bg-app-surface even:bg-app-surface-alt"}`}>
-      <button type="button" className={`${TUNE_GRID} w-full text-left px-3 py-3`} onClick={onToggle}>
+      <Button type="button" variant="plain" size="content" className={`${TUNE_GRID} w-full text-left px-3 py-3`} onClick={onToggle}>
         <span className={`text-sm font-bold text-center ${rank === 1 && hasTime ? "text-app-accent" : "text-app-text-muted"}`}>{rank}</span>
         <span className="min-w-0">
           <span className="block text-app-body font-semibold truncate">{row.name}</span>
@@ -58,7 +59,7 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
           <span className="hidden sm:block text-app-nano uppercase tracking-wide text-app-text-dim mt-0.5">{hasTime ? (row.lapTimeTrack ?? m.browser_lap_label()) : m.browser_no_time()}</span>
         </span>
         <span className={`hidden sm:block text-center text-app-text-dim transition-transform ${isOpen ? "rotate-90 text-app-accent" : ""}`}>›</span>
-      </button>
+      </Button>
       {isOpen && (
         <div className="px-4 sm:pl-14 pb-4 pt-1">
           {row.description && <p className="text-xs text-app-text-muted leading-relaxed whitespace-pre-line mb-3.5 max-w-[70ch]">{row.description}</p>}
@@ -67,39 +68,39 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
             <div className="flex gap-2 mt-3.5">
               {isUser ? (
                 <>
-                  <button type="button" className="text-app-compact uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-on-filled font-bold" onClick={() => onEdit?.(row)}>
+                  <Button type="button" className="text-app-compact uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-on-filled font-bold" onClick={() => onEdit?.(row)}>
                     {m.common_edit()}
-                  </button>
+                  </Button>
                   {onDuplicate && (
-                    <button
+                    <Button
                       type="button"
                       className="text-app-compact uppercase tracking-wide px-4 py-2 rounded border border-app-border text-app-accent disabled:opacity-50"
                       onClick={() => onDuplicate(row)}
                       disabled={isDuplicating}
                     >
                       {isDuplicating ? "…" : m.tune_duplicate()}
-                    </button>
+                    </Button>
                   )}
                   {!confirmDelete ? (
-                    <button type="button" className="text-app-compact uppercase tracking-wide px-4 py-2 rounded border border-app-border text-status-danger" onClick={() => setConfirmDelete(true)}>
+                    <Button type="button" className="text-app-compact uppercase tracking-wide px-4 py-2 rounded border border-app-border text-status-danger" onClick={() => setConfirmDelete(true)}>
                       {m.common_delete()}
-                    </button>
+                    </Button>
                   ) : (
                     <span className="flex items-center gap-1.5">
                       <span className="text-app-compact text-status-danger uppercase">{m.browser_confirm_delete()}</span>
-                      <button type="button" className="text-app-compact uppercase tracking-wide px-3 py-2 rounded bg-status-danger/20 text-status-danger" onClick={() => onDelete?.(row)}>
+                      <Button type="button" className="text-app-compact uppercase tracking-wide px-3 py-2 rounded bg-status-danger/20 text-status-danger" onClick={() => onDelete?.(row)}>
                         {m.tune_yes()}
-                      </button>
-                      <button type="button" className="text-app-compact uppercase tracking-wide px-3 py-2 rounded text-app-text-muted hover:text-app-text" onClick={() => setConfirmDelete(false)}>
+                      </Button>
+                      <Button type="button" className="text-app-compact uppercase tracking-wide px-3 py-2 rounded text-app-text-muted hover:text-app-text" onClick={() => setConfirmDelete(false)}>
                         {m.browser_no()}
-                      </button>
+                      </Button>
                     </span>
                   )}
                 </>
               ) : (
-                <button type="button" className="text-app-compact uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-on-filled font-bold" onClick={() => onClone?.(row)}>
+                <Button type="button" className="text-app-compact uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-on-filled font-bold" onClick={() => onClone?.(row)}>
                   {m.browser_clone_garage()}
-                </button>
+                </Button>
               )}
             </div>
           )}

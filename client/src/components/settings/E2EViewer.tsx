@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
+import { Button } from "../ui/button";
 
 interface E2EFile {
   name: string;
@@ -234,7 +235,7 @@ export function E2EViewer() {
               <p className="text-sm text-app-text-muted p-2">No recordings found</p>
             ) : (
               sortedFiles.map((file) => (
-                <button
+                <Button
                   key={file.name}
                   onClick={() => handleSelectFile(file.name)}
                   className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
@@ -243,7 +244,7 @@ export function E2EViewer() {
                 >
                   <div className="font-mono truncate">{file.name}</div>
                   <div className="text-app-text-muted text-xs">{(file.size / 1024 / 1024).toFixed(1)} MB</div>
-                </button>
+                </Button>
               ))
             )}
           </div>
@@ -330,16 +331,16 @@ export function E2EViewer() {
                 <div className="space-y-1">
                   <Label className="text-sm font-medium">Laps ({laps.length})</Label>
                   <div className="flex flex-wrap gap-2">
-                    <button
+                    <Button
                       onClick={() => setSelectedLap(null)}
                       className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
                         selectedLap === null ? "bg-app-accent text-app-on-filled" : "bg-app-surface text-app-text hover:bg-app-surface-hover border border-app-border"
                       }`}
                     >
                       Raw
-                    </button>
+                    </Button>
                     {laps.map((lap) => (
-                      <button
+                      <Button
                         key={lap.lapNumber}
                         onClick={() => handleSelectLap(lap)}
                         className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
@@ -348,7 +349,7 @@ export function E2EViewer() {
                         title={`Lap ${lap.lapNumber}: ${lap.lapTime.toFixed(2)}s`}
                       >
                         L{lap.lapNumber} {lap.lapTime > 0 && `${lap.lapTime.toFixed(1)}s`}
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 </div>

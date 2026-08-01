@@ -8,6 +8,7 @@ import { flipBoundaries, flipPoints, needsTrackFlip } from "../../lib/track-coor
 import { m } from "../../paraglide/messages";
 
 import { Card } from "../ui/card";
+import { Button } from "../ui/button";
 export interface SegmentTiming {
   name: string;
   type: "corner" | "straight";
@@ -355,8 +356,8 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
     return () => observer.disconnect();
   }, [drawBoth]);
 
-    return (
-      <Card className="h-full">
+  return (
+    <Card className="h-full">
       {/* Overview — full track, static */}
       <div ref={overviewContainerRef} className="relative border-b border-app-border h-[220px] shrink-0">
         <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_overview()}</span>
@@ -369,7 +370,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
       {/* Zoomed — follows cursor position */}
       <div ref={zoomContainerRef} className="relative border-b border-app-border h-[320px] shrink-0">
         <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_zoomed()}</span>
-        <button
+        <Button
           onClick={() => {
             const next = !followCarRef.current;
             followCarRef.current = next;
@@ -381,7 +382,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
           }`}
         >
           {followCar ? m.compare_follow_view() : m.compare_fixed_view()}
-        </button>
+        </Button>
         {alignedOutline.length < 2 ? (
           <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">{m.compare_no_outline()}</div>
         ) : (
@@ -391,9 +392,9 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
       {/* Segment Times Table */}
       {segments.length > 0 ? (
         <div className="overflow-auto flex-1 min-h-0">
-          <table className="w-full text-xs">
+          <table className="w-full text-app-detail">
             <thead className="sticky top-0 z-10 bg-[var(--app-surface)]">
-              <tr className="text-app-caption text-app-text-muted uppercase tracking-wider border-b border-app-border">
+              <tr className="text-app-label text-app-text-muted uppercase tracking-wider border-b border-app-border">
                 <th className="text-left px-2 py-1.5">{m.compare_segment()}</th>
                 <th className="text-right px-2 py-1.5" style={{ color: COLOR_A }}>
                   A

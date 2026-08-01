@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "../stores/game";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/AppTable";
+import { Button } from "./ui/button";
 
 interface LapSummary {
   id: number;
@@ -129,25 +130,25 @@ export function ChatsPage() {
   return (
     <div className="flex flex-col gap-4 p-4 h-full overflow-hidden">
       <div className="flex items-center gap-2 shrink-0">
-        <MessageSquare className="size-4 text-app-text-secondary" />
-        <h1 className="text-sm font-semibold text-app-text uppercase tracking-wider">{m.chats_title()}</h1>
-        <span className="text-app-caption text-app-text-muted">({rows.length})</span>
+        <MessageSquare className="size-5 text-app-text-secondary" />
+        <h1 className="text-app-title font-semibold text-app-text">{m.chats_title()}</h1>
+        <span className="text-app-label text-app-text-muted">({rows.length})</span>
       </div>
 
-      {loading && <div className="text-app-text-muted text-sm">{m.common_loading()}</div>}
-      {error && <div className="text-status-danger text-sm">{error}</div>}
+      {loading && <div className="text-app-text-muted text-app-subtext">{m.common_loading()}</div>}
+      {error && <div className="text-status-danger text-app-subtext">{error}</div>}
 
       {!loading && !error && rows.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-app-text-dim">
           <Sparkles className="size-6 text-app-text-dim" />
-          <p className="text-sm">{m.chats_empty_title()}</p>
-          <p className="text-app-compact text-app-text-muted">{m.chats_empty_desc()}</p>
+          <p className="text-app-body font-medium">{m.chats_empty_title()}</p>
+          <p className="text-app-subtext text-app-text-muted">{m.chats_empty_desc()}</p>
         </div>
       )}
 
       {!loading && rows.length > 0 && (
-        <Table className="flex-1 min-h-0 overflow-auto border border-app-border bg-app-surface" tableClassName="min-w-max md:min-w-0 text-app-label">
-          <TableHeader className="bg-app-surface-alt/80 backdrop-blur z-10" rowClassName="text-left text-app-caption uppercase tracking-wider text-app-text-muted">
+        <Table className="flex-1 min-h-0 overflow-auto border border-app-border bg-app-surface" tableClassName="min-w-max md:min-w-0">
+          <TableHeader className="bg-app-surface-alt/80 backdrop-blur z-10" rowClassName="text-left text-app-text-muted">
             <TableHead className="font-semibold">{m.label_type()}</TableHead>
             <TableHead className="font-semibold">{m.label_track()}</TableHead>
             <TableHead className="font-semibold">{m.chats_col_cars()}</TableHead>
@@ -178,9 +179,7 @@ export function ChatsPage() {
                   ) : (
                     row.laps.map((l, i) => (
                       <div key={i} className="flex items-center gap-1.5">
-                        {row.type === "compare" && (
-                          <span className={`w-1.5 h-1.5 rounded-full ${i === 0 ? "bg-(--comparison-lap-a)" : "bg-(--comparison-lap-b)"}`} />
-                        )}
+                        {row.type === "compare" && <span className={`w-1.5 h-1.5 rounded-full ${i === 0 ? "bg-(--comparison-lap-a)" : "bg-(--comparison-lap-b)"}`} />}
                         <span className="truncate max-w-[180px]">{l.carName}</span>
                       </div>
                     ))
@@ -188,7 +187,9 @@ export function ChatsPage() {
                 </TableCell>
                 <TableCell className="text-app-text-secondary font-mono text-app-compact">
                   {row.type === "tune" && row.tune ? (
-                    <span className="truncate max-w-[220px] block">#{row.tune.seq} — {row.tune.name}</span>
+                    <span className="truncate max-w-[220px] block">
+                      #{row.tune.seq} — {row.tune.name}
+                    </span>
                   ) : (
                     row.laps.map((l, i) => (
                       <div key={i}>
@@ -201,20 +202,20 @@ export function ChatsPage() {
                 <TableCell className="text-app-text-muted">{formatRelative(row.updatedAt)}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1">
-                    <button
+                    <Button
                       onClick={() => handleOpen(row)}
                       className="inline-flex items-center gap-1 text-app-compact px-2 py-1 rounded hover:bg-app-surface-hover text-app-text-secondary hover:text-app-text"
                       title={m.chats_open()}
                     >
                       <ExternalLink className="size-3" /> {m.chats_open()}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       onClick={() => handleDelete(row.threadId)}
                       className="inline-flex items-center gap-1 text-app-compact px-2 py-1 rounded hover:bg-status-danger/15 text-app-text-muted hover:text-status-danger"
                       title={m.chats_delete_title()}
                     >
                       <Trash2 className="size-3" />
-                    </button>
+                    </Button>
                   </div>
                 </TableCell>
               </TableRow>

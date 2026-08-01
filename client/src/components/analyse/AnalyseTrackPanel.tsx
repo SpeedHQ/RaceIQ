@@ -4,14 +4,9 @@ import { m } from "../../paraglide/messages";
 import type { AnalysisHighlight } from "../AiPanel";
 import { Compass } from "../Compass";
 import { AnalyseSteeringOverlay } from "./AnalyseSteeringOverlay";
-import {
-  AnalyseTrackMap,
-  type Point,
-  type SectorBoundaries,
-  type TrackMapLabel,
-  type TrackMapHandle,
-} from "./AnalyseTrackMap";
+import { AnalyseTrackMap, type Point, type SectorBoundaries, type TrackMapLabel, type TrackMapHandle } from "./AnalyseTrackMap";
 import { WeatherWidget } from "./WeatherWidget";
+import { Button } from "../ui/button";
 
 interface AnalyseTrackPanelProps {
   telemetry: TelemetryPacket[];
@@ -107,23 +102,23 @@ export function AnalyseTrackPanel({
 
       {/* View toggles — top left */}
       <div className="absolute top-2 left-2 flex flex-wrap gap-1">
-        <button
+        <Button
           onClick={onRotateWithCarToggle}
           className={`px-2 py-1 text-app-micro uppercase tracking-wider font-semibold rounded border transition-colors ${
-              rotateWithCar ? "bg-app-accent/15 border-app-accent/40 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
+            rotateWithCar ? "bg-app-accent/15 border-app-accent/40 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
           }`}
         >
           {rotateWithCar ? m.overlay_follow() : m.overlay_fixed()}
-        </button>
+        </Button>
         {!hideSteeringOverlay && (
-          <button
+          <Button
             onClick={onTrackOverlayCycle}
             className={`px-2 py-1 text-app-micro uppercase tracking-wider font-semibold rounded border transition-colors ${
               trackOverlay !== "none" ? "bg-app-accent/15 border-app-accent/40 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
             }`}
           >
             {trackOverlay === "none" ? m.overlay_overlay() : trackOverlay === "inputs" ? m.overlay_inputs() : trackOverlay === "segments" ? m.overlay_segments() : m.overlay_sectors()}
-          </button>
+          </Button>
         )}
       </div>
 
@@ -131,18 +126,18 @@ export function AnalyseTrackPanel({
       <div className="absolute top-2 right-2 flex items-start gap-2">
         {rotateWithCar && (
           <div className="flex flex-col gap-1">
-            <button
+            <Button
               onClick={() => onMapZoomChange((z) => Math.min(z + 0.25, 4))}
               className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
             >
               +
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => onMapZoomChange((z) => Math.max(z - 0.25, 0.5))}
               className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
             >
               -
-            </button>
+            </Button>
           </div>
         )}
         {currentPacket && <Compass yaw={currentPacket.Yaw} />}

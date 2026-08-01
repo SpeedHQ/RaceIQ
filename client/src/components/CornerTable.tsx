@@ -14,14 +14,14 @@ interface Props {
 
 export function CornerTable({ corners }: Props) {
   if (corners.length === 0) {
-    return <div className="text-app-text-dim text-sm p-4">{m.corner_no_data()}</div>;
+    return <div className="text-app-text-dim text-app-subtext p-4">{m.corner_no_data()}</div>;
   }
 
   return (
     <div className="overflow-auto">
-      <Table fit tableClassName="w-full text-sm">
+      <Table fit tableClassName="w-full">
         <thead>
-          <tr className="text-xs text-app-text-muted uppercase tracking-wider border-b border-app-border">
+          <tr className="text-app-label text-app-text-muted uppercase tracking-wider border-b border-app-border">
             <th className="text-left p-2">{m.label_corner()}</th>
             <th className="text-right p-2">{m.label_delta()}</th>
           </tr>

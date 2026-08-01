@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { m } from "@/paraglide/messages";
 import { Table, TBody, TD, TH, THead, TRow } from "../ui/AppTable";
+import { Button } from "../ui/button";
 
 interface F1Driver {
   name: string;
@@ -325,7 +326,7 @@ export function F1Cars() {
     <div className="flex-1 overflow-auto p-4 space-y-4">
       <div className="flex items-center gap-2">
         <div className="flex items-center rounded-lg border border-app-border overflow-hidden">
-          <button
+          <Button
             onClick={() => setView("table")}
             title={m.label_table_view()}
             className={`px-2.5 py-1.5 transition-colors ${view === "table" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text"}`}
@@ -334,8 +335,8 @@ export function F1Cars() {
               <rect x="3" y="3" width="18" height="18" rx="2" />
               <path d="M3 9h18M3 15h18M9 3v18" />
             </svg>
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setView("grid")}
             title={m.label_grid_view()}
             className={`px-2.5 py-1.5 transition-colors ${view === "grid" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text"}`}
@@ -346,7 +347,7 @@ export function F1Cars() {
               <rect x="3" y="14" width="7" height="7" />
               <rect x="14" y="14" width="7" height="7" />
             </svg>
-          </button>
+          </Button>
         </div>
       </div>
 

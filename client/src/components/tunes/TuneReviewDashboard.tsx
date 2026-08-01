@@ -245,7 +245,7 @@ export function TuneReviewDashboard({ gameId, trackName, laps, onBack, test, exp
           )}
           <span className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Post-lap</span>
           <select
-            className="bg-app-surface-alt border border-app-border rounded px-2 py-1 text-sm font-mono"
+            className="bg-app-surface-alt border border-app-border rounded px-2 py-1 text-app-detail font-mono"
             value={view === "track" ? (trackFocusId ?? "all") : focusLap.id}
             onChange={(e) => {
               if (e.target.value === "all") {

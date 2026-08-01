@@ -7,6 +7,7 @@ import { CarWireframe } from "../CarWireframe";
 import { GForceCircle } from "../telemetry/GForceCircle";
 import { Vitals2D } from "../telemetry/Vitals2D";
 import type { Point } from "./AnalyseTrackMap";
+import { Button } from "../ui/button";
 
 interface Props {
   vizMode: "2d" | "3d";
@@ -42,7 +43,7 @@ export function AnalyseVizPanel({
     <div className="border-r border-app-border flex flex-col items-center justify-start overflow-y-auto shrink-0" style={{ width }}>
       {/* Wheel panel tabs */}
       <div className="flex w-full border-b border-app-border shrink-0">
-        <button
+        <Button
           type="button"
           onClick={() => onVizModeChange("2d")}
           className={`flex-1 py-1.5 text-app-caption uppercase tracking-wider font-semibold transition-colors ${
@@ -50,8 +51,8 @@ export function AnalyseVizPanel({
           }`}
         >
           2D
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
           onClick={() => onVizModeChange("3d")}
           className={`flex-1 py-1.5 text-app-caption uppercase tracking-wider font-semibold transition-colors ${
@@ -59,7 +60,7 @@ export function AnalyseVizPanel({
           }`}
         >
           3D
-        </button>
+        </Button>
       </div>
 
       <div className="p-2 flex flex-col items-center gap-2 w-full flex-1 min-h-0">

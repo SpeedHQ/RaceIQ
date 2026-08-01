@@ -54,8 +54,18 @@ interface F125TrackSummary {
 }
 
 function ProviderBadge({ provider }: { provider: string }) {
-  if (provider === "f1laps") return <span className="provider-badge px-1 py-0.5 text-app-nano font-bold uppercase rounded shrink-0" data-provider-brand="f1laps">F1L</span>;
-  if (provider === "simracingsetup") return <span className="provider-badge px-1 py-0.5 text-app-nano font-bold uppercase rounded shrink-0" data-provider-brand="simracingsetup">SRS</span>;
+  if (provider === "f1laps")
+    return (
+      <span className="provider-badge px-1 py-0.5 text-app-nano font-bold uppercase rounded shrink-0" data-provider-brand="f1laps">
+        F1L
+      </span>
+    );
+  if (provider === "simracingsetup")
+    return (
+      <span className="provider-badge px-1 py-0.5 text-app-nano font-bold uppercase rounded shrink-0" data-provider-brand="simracingsetup">
+        SRS
+      </span>
+    );
   return null;
 }
 
@@ -103,7 +113,7 @@ export function F125SetupsWithGuide({ trackOrdinal, trackName }: { trackOrdinal:
     <div className="flex flex-col gap-2 h-full">
       <div className="flex gap-1 shrink-0">
         {(["setups", "ranges"] as const).map((tab) => (
-          <button
+          <Button
             key={tab}
             onClick={() => setSubTab(tab)}
             className={`text-app-compact px-3 py-1 rounded border transition-colors ${
@@ -111,7 +121,7 @@ export function F125SetupsWithGuide({ trackOrdinal, trackName }: { trackOrdinal:
             }`}
           >
             {tabLabels[tab]}
-          </button>
+          </Button>
         ))}
       </div>
       {subTab === "setups" ? <F125TrackSetups trackOrdinal={trackOrdinal} trackName={trackName} /> : <F125SetupRanges trackOrdinal={trackOrdinal} />}
@@ -164,8 +174,10 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
           const isActive = g.source === activeGuide?.source;
           const sectionCount = g.sections?.length ?? 0;
           return (
-            <button
+            <Button
               key={g.source}
+              variant="plain"
+              size="content"
               onClick={() => {
                 setSelectedSource(g.source);
                 setMobileView("detail");
@@ -175,11 +187,15 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
               }`}
             >
               <div className="flex items-center gap-1.5 mb-1">
-                <span className={`text-sm font-medium ${isActive ? "text-app-accent" : "text-app-text"}`}>{sourceDisplayName(g.source)}</span>
+                <span className={`text-app-subtext font-medium ${isActive ? "text-app-accent" : "text-app-text"}`}>{sourceDisplayName(g.source)}</span>
                 {sectionCount > 0 && <span className="px-1 py-0.5 text-app-nano font-bold uppercase rounded bg-status-info/20 text-status-info">{m.label_text()}</span>}
-                {g.videoUrl && <span className="provider-badge px-1 py-0.5 text-app-nano font-bold uppercase rounded" data-provider-brand="youtube">YT</span>}
+                {g.videoUrl && (
+                  <span className="provider-badge px-1 py-0.5 text-app-nano font-bold uppercase rounded" data-provider-brand="youtube">
+                    YT
+                  </span>
+                )}
               </div>
-              <table className="w-full text-xs text-app-text-secondary">
+              <table className="w-full text-app-detail text-app-text-secondary">
                 <tbody>
                   {g.setupTips && (
                     <tr>
@@ -195,7 +211,7 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
                   )}
                 </tbody>
               </table>
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -209,19 +225,19 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
           </Button>
           {/* Content tabs + source link */}
           <div className="flex items-center gap-2 mb-2 shrink-0 flex-wrap">
-            <button
+            <Button
               onClick={() => setContentTab("guide")}
-              className={`text-app-caption px-2 py-0.5 rounded border transition-colors ${contentTab === "guide" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
+              className={`text-app-label px-2 py-0.5 rounded border transition-colors ${contentTab === "guide" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
             >
               {m.f1setup_guide_tab()}
-            </button>
+            </Button>
             {activeGuide.setupTips && (
-              <button
+              <Button
                 onClick={() => setContentTab("setup")}
-                className={`text-app-caption px-2 py-0.5 rounded border transition-colors ${contentTab === "setup" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
+                className={`text-app-label px-2 py-0.5 rounded border transition-colors ${contentTab === "setup" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
               >
                 {m.f1setup_setup_tips_tab()}
-              </button>
+              </Button>
             )}
             {activeGuide.source && (
               <a href={activeGuide.source} target="_blank" rel="noopener noreferrer" className="text-app-caption text-app-text-muted hover:text-app-text underline underline-offset-2">
@@ -349,7 +365,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
           <div className="text-app-label text-app-text-muted uppercase tracking-wider shrink-0">Setups ({filteredSetups.length})</div>
           <div className="flex gap-0.5 ml-auto">
             {(["", "f1laps", "simracingsetup"] as const).map((p) => (
-              <button
+              <Button
                 key={p}
                 onClick={() => {
                   setFilterProvider(p);
@@ -358,13 +374,13 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
                 className={`text-app-compact px-2 py-1 rounded border transition-colors ${filterProvider === p ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
               >
                 {p === "" ? "All" : p === "f1laps" ? `F1Laps (${f1lapsCount})` : `SRS (${srsCount})`}
-              </button>
+              </Button>
             ))}
           </div>
           <span className="text-app-border mx-0.5">|</span>
           <div className="flex gap-0.5">
             {(["Dry", "Wet"] as const).map((w) => (
-              <button
+              <Button
                 key={w}
                 onClick={() => {
                   setFilterWeather(filterWeather === w ? "" : w);
@@ -373,7 +389,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
                 className={`text-app-compact px-2 py-1 rounded border transition-colors ${filterWeather === w ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
               >
                 {w === "Dry" ? `☀ ${dryCount}` : `🌧 ${wetCount}`}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -404,8 +420,16 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
                 {s.team && <span className="text-app-micro text-app-text-dim truncate">({s.team})</span>}
               </div>
               <div className="shrink-0 w-8 text-center">
-                {s.inputDevice === "wheel" && <span className="input-device-badge text-app-nano px-1 py-0.5 rounded font-bold" data-input-device="wheel">WHL</span>}
-                {s.inputDevice === "controller" && <span className="input-device-badge text-app-nano px-1 py-0.5 rounded font-bold" data-input-device="controller">PAD</span>}
+                {s.inputDevice === "wheel" && (
+                  <span className="input-device-badge text-app-nano px-1 py-0.5 rounded font-bold" data-input-device="wheel">
+                    WHL
+                  </span>
+                )}
+                {s.inputDevice === "controller" && (
+                  <span className="input-device-badge text-app-nano px-1 py-0.5 rounded font-bold" data-input-device="controller">
+                    PAD
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-1 shrink-0 w-12 justify-center">
                 {s.videoUrl && (
@@ -415,7 +439,9 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
                 )}
                 {s.weather === "Wet" && <span className="weather-wet-badge text-app-nano px-1 py-0.5 rounded font-bold">WET</span>}
               </div>
-              <span className="text-app-compact font-mono shrink-0 w-16 text-right" style={{ color: "var(--lap-record)" }}>{s.lapTime || "—"}</span>
+              <span className="text-app-compact font-mono shrink-0 w-16 text-right" style={{ color: "var(--lap-record)" }}>
+                {s.lapTime || "—"}
+              </span>
             </div>
           ))}
         </div>
@@ -442,7 +468,12 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
                 {setup.sessionType && ` · ${setup.sessionType}`}
               </span>
               {setup.source && (
-                <a href={setup.source} target="_blank" rel="noopener noreferrer" className="px-2 py-1 text-app-compact bg-app-accent/15 text-app-accent rounded hover:bg-app-accent/25 transition-colors">
+                <a
+                  href={setup.source}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2 py-1 text-app-compact bg-app-accent/15 text-app-accent rounded hover:bg-app-accent/25 transition-colors"
+                >
                   {m.f1setup_view_source()}
                 </a>
               )}
@@ -628,13 +659,13 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
       {/* Mobile tab bar */}
       <div className="md:hidden flex items-center gap-1 border-b border-app-border">
         {["List", "Compare"].map((label, i) => (
-          <button
+          <Button
             key={label}
             onClick={() => gotoCarouselPage(i)}
             className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 -mb-px transition-colors ${carouselPage === i ? "border-app-accent text-app-accent" : "border-transparent text-app-text-muted"}`}
           >
             {label}
-          </button>
+          </Button>
         ))}
       </div>
       {/* Carousel on mobile, side-by-side at md+ */}
@@ -645,7 +676,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
           <div className="flex items-center gap-1 mb-1.5">
             <div className="flex gap-0.5">
               {(["Dry", "Wet"] as const).map((w) => (
-                <button
+                <Button
                   key={w}
                   onClick={() => setWeather(w)}
                   className={`text-app-compact px-2 py-1 rounded border transition-colors ${
@@ -653,19 +684,19 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
                   }`}
                 >
                   {w === "Dry" ? `☀ ${dryCount}` : `🌧 ${wetCount}`}
-                </button>
+                </Button>
               ))}
             </div>
             <span className="text-app-border mx-0.5">|</span>
             <div className="flex gap-0.5 ml-auto">
               {(["", "f1laps", "simracingsetup"] as const).map((p) => (
-                <button
+                <Button
                   key={p}
                   onClick={() => setFilterProvider(p)}
                   className={`text-app-compact px-2 py-1 rounded border transition-colors ${filterProvider === p ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
                 >
                   {p === "" ? `All (${allWeatherSetups.length})` : p === "f1laps" ? `F1Laps (${f1lapsCount})` : `SRS (${srsCount})`}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -675,7 +706,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
               <>
                 {dragRange.size > 0 && <span className="text-app-caption text-app-accent">{dragRange.size} in range</span>}
                 {pickedSetup && <span className="text-app-caption text-status-success">{pickedSetup.author || "Selected"}</span>}
-                <button
+                <Button
                   onClick={() => {
                     setDragRange(new Set());
                     setPickedIdx(null);
@@ -683,7 +714,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
                   className="text-app-caption text-app-text-dim hover:text-app-text"
                 >
                   {m.label_clear()}
-                </button>
+                </Button>
               </>
             ) : (
               <span className="text-app-caption text-app-text-dim">{m.f1setup_drag_filter_hint()}</span>
@@ -770,8 +801,16 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
                       {s.team && <span className="text-app-micro text-app-text-dim truncate">({s.team})</span>}
                     </div>
                     <div className="shrink-0 w-8 text-center">
-                      {s.inputDevice === "wheel" && <span className="input-device-badge text-app-nano px-1 py-0.5 rounded font-bold" data-input-device="wheel">WHL</span>}
-                      {s.inputDevice === "controller" && <span className="input-device-badge text-app-nano px-1 py-0.5 rounded font-bold" data-input-device="controller">PAD</span>}
+                      {s.inputDevice === "wheel" && (
+                        <span className="input-device-badge text-app-nano px-1 py-0.5 rounded font-bold" data-input-device="wheel">
+                          WHL
+                        </span>
+                      )}
+                      {s.inputDevice === "controller" && (
+                        <span className="input-device-badge text-app-nano px-1 py-0.5 rounded font-bold" data-input-device="controller">
+                          PAD
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0 w-12 justify-center">
                       {s.videoUrl && (
@@ -781,7 +820,9 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
                       )}
                       {s.weather === "Wet" && <span className="weather-wet-badge text-app-nano px-1 py-0.5 rounded font-bold">WET</span>}
                     </div>
-                    <span className="text-app-compact font-mono shrink-0 w-16 text-right" style={{ color: "var(--lap-record)" }}>{s.lapTime || "—"}</span>
+                    <span className="text-app-compact font-mono shrink-0 w-16 text-right" style={{ color: "var(--lap-record)" }}>
+                      {s.lapTime || "—"}
+                    </span>
                   </div>
                 );
               })
@@ -798,10 +839,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
               {m.f1setup_min_max()}
             </span>
             <span className="flex items-center gap-1">
-              <span
-                className="inline-block w-12 h-2.5 rounded-sm"
-                style={{ background: "linear-gradient(to right, transparent, var(--app-accent))" }}
-              />
+              <span className="inline-block w-12 h-2.5 rounded-sm" style={{ background: "linear-gradient(to right, transparent, var(--app-accent))" }} />
               {m.f1setup_popularity()}
             </span>
             <span className="flex items-center gap-1">
@@ -859,13 +897,13 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
         </div>
       </div>
       {/* Bottom swipe banner (mobile only) */}
-      <button
+      <Button
         type="button"
         onClick={() => gotoCarouselPage(carouselPage === 0 ? 1 : 0)}
         className="md:hidden mt-3 flex items-center justify-center gap-2 py-3 rounded-lg bg-app-surface-alt/50 border border-app-border/40 text-xs text-app-text-muted uppercase tracking-wider select-none"
       >
         <span>{carouselPage === 0 ? "Swipe here to view comparison →" : "← Swipe here to view list"}</span>
-      </button>
+      </Button>
     </div>
   );
 }

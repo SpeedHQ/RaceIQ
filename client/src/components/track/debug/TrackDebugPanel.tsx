@@ -6,6 +6,7 @@ import { segmentDisplayNames } from "@/lib/segment-label";
 import { useGameId } from "@/stores/game";
 import type { Point, TrackBoundaries, TrackCurb, TrackSectors } from "../types";
 import { CurbDebugSection } from "./CurbDebugSection";
+import { Button } from "@/components/ui/button";
 
 /**
  * TrackDebugPanel — Full-page debug visualization for track boundary data.
@@ -436,20 +437,20 @@ export function TrackDebugPanel({
         />
         {/* Zoom controls */}
         <div className="absolute top-2 right-2 flex flex-col gap-1">
-          <button
+          <Button
             onClick={() => setZoom((z) => Math.min(z + 0.25, 8))}
             className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
           >
             +
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => setZoom((z) => Math.max(z - 0.25, 0.5))}
             className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
           >
             -
-          </button>
+          </Button>
           {zoom !== 1 && (
-            <button
+            <Button
               onClick={() => {
                 setZoom(1);
                 setPan({ x: 0, z: 0 });
@@ -457,19 +458,19 @@ export function TrackDebugPanel({
               className="w-7 h-7 text-app-compact bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
             >
               {zoom % 1 === 0 ? `${zoom}x` : zoom.toFixed(1) + "x"}
-            </button>
+            </Button>
           )}
           {(displaySectors || sectorBounds) && (
             <>
               <div className="h-px" />
-              <button
+              <Button
                 onClick={() => setOverlayMode((m) => (m === "segments" ? "sectors" : "segments"))}
                 className={`px-1.5 py-1 text-app-micro font-mono rounded border transition-colors ${
                   overlayMode === "sectors" ? "map-sectors-active" : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
                 }`}
               >
                 {overlayMode === "sectors" ? "Sectors" : "Segments"}
-              </button>
+              </Button>
             </>
           )}
         </div>

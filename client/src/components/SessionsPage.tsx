@@ -35,7 +35,7 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
   return (
     <>
       {open && <NoteModal value={value} onSave={onSave} onClose={() => setOpen(false)} />}
-      <button
+      <Button
         type="button"
         className="relative cursor-pointer group block w-full text-left"
         onClick={(e) => {
@@ -53,7 +53,7 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
           </svg>
           {m.common_edit()}
         </span>
-      </button>
+      </Button>
     </>
   );
 }
@@ -190,7 +190,7 @@ function SessionLapTable({
       {/* Dev context menu */}
       {contextMenu && (
         <>
-          <button
+          <Button
             type="button"
             aria-label={m.common_close()}
             className="fixed inset-0 z-40 cursor-default"
@@ -521,7 +521,7 @@ export function SessionsPage() {
                   setSelectedSessions(new Set());
                   setSelectedLaps(new Set());
                 }}
-                className={`!rounded-none text-sm font-semibold transition-colors ${tab === t ? "bg-app-accent text-app-on-filled" : "text-app-text/90 hover:text-app-text"}`}
+                className={`!rounded-none text-app-subtext font-semibold transition-colors ${tab === t ? "bg-app-accent text-app-on-filled" : "text-app-text/90 hover:text-app-text"}`}
               >
                 {t === "recorded" ? m.sessions_tab_recorded() : m.sessions_tab_imported()}
               </Button>
@@ -529,10 +529,10 @@ export function SessionsPage() {
           </div>
         )}
         <AppInput type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={m.sessions_search_placeholder()} className="flex-1 min-w-[200px] sm:flex-none sm:w-64" />
-        <h1 className="text-sm font-semibold text-app-text/90 shrink-0">
+        <h1 className="text-app-title font-semibold text-app-text/90 shrink-0">
           {m.label_sessions()}
           {!isLoading && (
-            <span className="text-app-text/90 font-normal ml-2">
+            <span className="text-app-subtext text-app-text/90 font-normal ml-2">
               {filtered.length === sessions.length ? `${sessions.length} ${m.sessions_total()}` : `${filtered.length} ${m.sessions_filtered_count()} ${sessions.length}`}
             </span>
           )}

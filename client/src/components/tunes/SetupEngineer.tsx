@@ -68,7 +68,7 @@ export function SetupEngineerControls({ state, lapId }: { state: SetupEngineerSt
   return (
     <div className="flex items-center gap-2">
       <select
-        className="bg-app-dropdown border border-app-border rounded px-2 py-1 text-xs max-w-[220px]"
+        className="bg-app-dropdown border border-app-border rounded px-2 py-1 text-app-detail max-w-[220px]"
         value={filePath}
         onChange={(e) => setFilePath(e.target.value)}
         disabled={loadingFiles || noFiles}

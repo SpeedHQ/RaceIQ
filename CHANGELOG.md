@@ -13,6 +13,7 @@
 - Highlight the active sector-blip setting with a cyan border
 - Keep desktop-only analysis and comparison pages available on wide, low-height displays
 - Resize the comparison track map with a persisted splitter and keep the AI Analysis control right-aligned
+- Keep table text, Track Detail tabs, guide cards, and setup rows consistently scaled without overflowing
 
 ### Internal
 - Renamed generic session recorder API to reflect support for UDP and shared-memory telemetry

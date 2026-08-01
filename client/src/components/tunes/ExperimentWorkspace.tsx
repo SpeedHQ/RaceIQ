@@ -224,13 +224,13 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
       <div className="shrink-0">
         <BackButton onClick={clearSession} className="mb-2" />
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-lg font-semibold text-app-text">
+          <h1 className="text-app-title font-semibold text-app-text">
             <span className="text-app-text-muted font-mono mr-2">#{session.seq}</span>
             {session.name}
           </h1>
           <FocusSwitcher experimentId={session.id} focus={session.focus} />
         </div>
-        {subtitle && <div className="mt-0.5 text-xs text-app-text-muted">{subtitle}</div>}
+        {subtitle && <div className="mt-0.5 text-app-subtext text-app-text-muted">{subtitle}</div>}
       </div>
 
       {/* Main row fills the remaining height. Left column scrolls; the right

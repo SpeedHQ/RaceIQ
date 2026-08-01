@@ -75,9 +75,9 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
 
   return (
     <div className="overflow-auto">
-      <Table fit tableClassName="w-full text-sm">
+      <Table fit tableClassName="w-full">
         <thead>
-          <tr className="text-xs text-app-text-muted uppercase tracking-wider border-b border-app-border">
+          <tr className="text-app-label text-app-text-muted uppercase tracking-wider border-b border-app-border">
             <th className="text-left p-2 cursor-pointer hover:text-app-text select-none" onClick={() => toggleSort("lap")}>
               {m.label_lap()}
               {arrow("lap")}
@@ -101,13 +101,11 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
             return (
               <tr key={lap.id} className="border-b border-app-border/50 hover:bg-app-surface-hover/30">
                 <td className="p-2 font-mono text-app-text">{lap.lapNumber}</td>
-                <td className={`p-2 font-mono font-bold ${lap.isValid && lap.lapTime === bestLapTime ? "text-(--lap-pace-best)" : "text-app-text"}`}>
-                  {formatLapTime(lap.lapTime)}
-                </td>
+                <td className={`p-2 font-mono font-bold ${lap.isValid && lap.lapTime === bestLapTime ? "text-(--lap-pace-best)" : "text-app-text"}`}>{formatLapTime(lap.lapTime)}</td>
                 {sectorLabels.map((label, index) => {
                   const time = lap.sectorTimes?.[index] ?? 0;
                   return (
-                    <td key={label} className={`p-2 font-mono text-xs font-bold ${hasSectors ? sectorColor(time, bestSectors[index], avgSectors[index]) : "text-app-text-secondary"}`}>
+                    <td key={label} className={`p-2 font-mono text-app-detail font-bold ${hasSectors ? sectorColor(time, bestSectors[index], avgSectors[index]) : "text-app-text-secondary"}`}>
                       {hasSectors ? formatLapTime(time) : "-"}
                     </td>
                   );

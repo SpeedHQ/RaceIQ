@@ -64,17 +64,21 @@ export function AutoTunePanel({ gameId, laps, trackName, liveMode = false, fixed
       <div className="flex items-center justify-between">
         <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">Race engineer</h2>
         {liveMode && (
-        <span className="flex items-center gap-1.5 text-app-compact text-status-danger">
-          <span className="w-2 h-2 rounded-full bg-status-danger animate-pulse" />
+          <span className="flex items-center gap-1.5 text-app-compact text-status-danger">
+            <span className="w-2 h-2 rounded-full bg-status-danger animate-pulse" />
             Live — updates each lap
           </span>
         )}
       </div>
 
       {fixedLapId == null && (
-        <label className="block text-xs text-app-text-dim">
+        <label className="block text-app-label text-app-text-dim">
           Stint / Lap
-          <select className="mt-1 w-full bg-app-dropdown border border-app-border rounded px-2 py-1 text-sm" value={stintId} onChange={(e) => setStintId(e.target.value ? Number(e.target.value) : "")}>
+          <select
+            className="mt-1 w-full bg-app-dropdown border border-app-border rounded px-2 py-1 text-app-detail"
+            value={stintId}
+            onChange={(e) => setStintId(e.target.value ? Number(e.target.value) : "")}
+          >
             <option value="">Select a completed lap…</option>
             {validLaps.map((l) => (
               <option key={l.id} value={l.id}>
@@ -94,7 +98,7 @@ export function AutoTunePanel({ gameId, laps, trackName, liveMode = false, fixed
           <span>
             Auto-apply each lap → <span className="font-mono text-app-text">{AUTO_SETUP_NAME}.json</span>
           </span>
-        {autoApply && state.filePath && <span className="text-status-success">on — reload it in-game</span>}
+          {autoApply && state.filePath && <span className="text-status-success">on — reload it in-game</span>}
           {!state.filePath && <span className="text-app-text-muted">(pick a base setup first)</span>}
         </label>
       )}

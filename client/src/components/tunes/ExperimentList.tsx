@@ -40,8 +40,8 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
     <div className="flex-1 space-y-4 overflow-y-auto p-4">
       <div className="space-y-2">
         <div>
-          <h1 className="text-lg font-semibold text-app-text">Experiments</h1>
-          <p className="mt-0.5 text-xs text-app-text-dim">An experiment tracks one car + track as you iterate setups — base setup, stints driven, and (soon) versions with lap deltas.</p>
+          <h1 className="text-app-title font-semibold text-app-text">Experiments</h1>
+          <p className="mt-0.5 text-app-subtext text-app-text-dim">An experiment tracks one car + track as you iterate setups — base setup, stints driven, and (soon) versions with lap deltas.</p>
         </div>
         <Button variant="app-primary" size="app-md" onClick={() => setCreating(true)} className="self-start">
           + New experiment

@@ -171,27 +171,31 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
       {/* Nav — horizontal tabs on mobile, sidebar on md+ */}
       <nav className="md:w-48 shrink-0 md:border-r border-b md:border-b-0 border-app-border bg-app-surface-alt/50 py-2 flex md:flex-col overflow-x-auto md:overflow-x-visible">
         {NAV_ITEMS.filter((item) => !("devOnly" in item) || isDevelopment).map((item) => (
-          <Button
-            variant={activeSection === item.id ? "settings-nav-selected" : "settings-nav"}
-            size="app-md"
-            key={item.id}
-            onClick={() => setActiveSection(item.id)}
-          >
+          <Button variant={activeSection === item.id ? "settings-nav-selected" : "settings-nav"} size="app-md" key={item.id} onClick={() => setActiveSection(item.id)}>
             {(NAV_LABELS[item.id] ?? (() => item.label))()}
           </Button>
         ))}
         <div className="hidden md:block mt-auto pt-2 border-t border-app-border mx-2">
-          <Button variant="full-width-action" size="app-md" onClick={() => {
-            onClose?.();
-            openOnboarding();
-          }}>
+          <Button
+            variant="full-width-action"
+            size="app-md"
+            onClick={() => {
+              onClose?.();
+              openOnboarding();
+            }}
+          >
             {m.settings_setup_wizard()}
           </Button>
         </div>
-        <Button variant="app-ghost" size="app-md" className="ml-auto" onClick={() => {
-          onClose?.();
-          openOnboarding();
-        }}>
+        <Button
+          variant="app-ghost"
+          size="app-md"
+          className="ml-auto"
+          onClick={() => {
+            onClose?.();
+            openOnboarding();
+          }}
+        >
           {m.settings_setup_wizard()}
         </Button>
       </nav>
@@ -226,7 +230,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             <div className="max-w-xs">
               <Label className={`${displaySettings.isCompiled ? "text-app-text-secondary" : "text-app-text-muted"}`}>{m.label_launch_on_login()}</Label>
               <div className="flex items-center gap-3 mt-1.5">
-                <button
+                <Button
                   type="button"
                   role="switch"
                   disabled={!displaySettings.isCompiled}
@@ -245,7 +249,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                       displaySettings.launchOnLogin ? "translate-x-4" : "translate-x-0"
                     }`}
                   />
-                </button>
+                </Button>
                 <span className="text-sm text-app-text-muted">
                   {!displaySettings.isCompiled ? m.settings_launch_installed_only() : displaySettings.launchOnLogin ? m.common_enabled() : m.common_disabled()}
                 </span>

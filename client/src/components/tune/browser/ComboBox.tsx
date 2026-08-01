@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
+import { Button } from "@/components/ui/button";
 
 export interface ComboOption {
   value: string;
@@ -65,7 +66,7 @@ export function ComboBox({ label, value, options, onChange, placeholder, variant
       {open && (
         <div className="absolute top-full left-0 right-0 z-30 bg-app-surface border border-t-0 border-app-accent rounded-b-lg max-h-64 overflow-auto shadow-lg">
           {filtered.map((o, i) => (
-            <button
+            <Button
               key={o.value}
               type="button"
               onMouseDown={(e) => e.preventDefault()}
@@ -78,7 +79,7 @@ export function ComboBox({ label, value, options, onChange, placeholder, variant
                   <b className="text-app-text">{o.count}</b> {m.browser_tunes()}
                 </span>
               )}
-            </button>
+            </Button>
           ))}
           {filtered.length === 0 && <div className="px-3.5 py-2.5 text-xs text-app-text-dim">{m.browser_no_match()}</div>}
         </div>

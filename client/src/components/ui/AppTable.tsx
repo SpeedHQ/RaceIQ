@@ -1,10 +1,4 @@
-import type {
-  HTMLAttributes,
-  ReactNode,
-  TableHTMLAttributes,
-  TdHTMLAttributes,
-  ThHTMLAttributes,
-} from "react";
+import type { HTMLAttributes, ReactNode, TableHTMLAttributes, TdHTMLAttributes, ThHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
 type TableProps = TableHTMLAttributes<HTMLTableElement> & {
@@ -20,7 +14,7 @@ export function Table({ children, className, fit = false, tableClassName, varian
   } as const;
   return (
     <div className={cn("rounded-lg", variantClasses[variant], fit ? "" : "overflow-x-auto", className)}>
-      <table data-variant={variant} className={cn("w-full text-sm", fit ? "min-w-0" : "min-w-max md:min-w-0", tableClassName)} {...props}>
+      <table data-variant={variant} className={cn("w-full text-app-detail", fit ? "min-w-0" : "min-w-max md:min-w-0", tableClassName)} {...props}>
         {children}
       </table>
     </div>
@@ -30,7 +24,7 @@ export function Table({ children, className, fit = false, tableClassName, varian
 export function THead({ children, className, rowClassName, ...props }: HTMLAttributes<HTMLTableSectionElement> & { rowClassName?: string }) {
   return (
     <thead className={cn("bg-app-surface sticky top-0 z-10", className)} {...props}>
-      <tr className={cn("text-app-caption uppercase tracking-wider text-app-text-muted border-b border-app-border", rowClassName)}>{children}</tr>
+      <tr className={cn("text-app-label uppercase tracking-wider text-app-text-muted border-b border-app-border", rowClassName)}>{children}</tr>
     </thead>
   );
 }

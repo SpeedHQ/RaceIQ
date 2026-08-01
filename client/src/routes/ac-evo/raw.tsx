@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { RawTelemetry } from "../../components/RawTelemetry";
 import { useTelemetryStore } from "../../stores/telemetry";
+import { Button } from "@/components/ui/button";
 
 type PageKey = "physics" | "graphics" | "staticData";
 
@@ -169,24 +170,24 @@ function RawPage() {
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
       <div className="flex gap-2 p-2 border-b border-app-border items-center">
-        <button className={`px-3 py-1 rounded text-xs ${view === "parsed" ? "bg-app-accent text-app-on-filled" : "bg-app-surface"}`} onClick={() => setView("parsed")}>
+        <Button className={`px-3 py-1 rounded text-xs ${view === "parsed" ? "bg-app-accent text-app-on-filled" : "bg-app-surface"}`} onClick={() => setView("parsed")}>
           {m.dev_parsed_packet()}
-        </button>
-        <button className={`px-3 py-1 rounded text-xs ${view === "fields" ? "bg-app-accent text-app-on-filled" : "bg-app-surface"}`} onClick={() => setView("fields")}>
+        </Button>
+        <Button className={`px-3 py-1 rounded text-xs ${view === "fields" ? "bg-app-accent text-app-on-filled" : "bg-app-surface"}`} onClick={() => setView("fields")}>
           {m.dev_struct_fields()}
-        </button>
-        <button className={`px-3 py-1 rounded text-xs ${view === "verify" ? "bg-app-accent text-app-on-filled" : "bg-app-surface"}`} onClick={() => setView("verify")}>
+        </Button>
+        <Button className={`px-3 py-1 rounded text-xs ${view === "verify" ? "bg-app-accent text-app-on-filled" : "bg-app-surface"}`} onClick={() => setView("verify")}>
           {m.dev_verify_fields()}
-        </button>
-        <button className={`px-3 py-1 rounded text-xs ${view === "hex" ? "bg-app-accent text-app-on-filled" : "bg-app-surface"}`} onClick={() => setView("hex")}>
+        </Button>
+        <Button className={`px-3 py-1 rounded text-xs ${view === "hex" ? "bg-app-accent text-app-on-filled" : "bg-app-surface"}`} onClick={() => setView("hex")}>
           {m.dev_raw_hex()}
-        </button>
+        </Button>
         {view === "hex" && (
           <div className="flex gap-1 ml-4">
             {(["physics", "graphics", "staticData"] as PageKey[]).map((p) => (
-              <button key={p} className={`px-2 py-1 rounded text-xs ${page === p ? "bg-app-surface-alt" : "bg-app-surface"}`} onClick={() => setPage(p)}>
+              <Button key={p} className={`px-2 py-1 rounded text-xs ${page === p ? "bg-app-surface-alt" : "bg-app-surface"}`} onClick={() => setPage(p)}>
                 {p}
-              </button>
+              </Button>
             ))}
           </div>
         )}

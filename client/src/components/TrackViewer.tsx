@@ -11,6 +11,7 @@ import { tuneMatchesTrack } from "./track/CatalogTrackSetups";
 import { TrackCard } from "./track/TrackCard";
 import type { TrackInfo } from "./track/types";
 import { AppInput } from "./ui/AppInput";
+import { Button } from "./ui/button";
 
 type SortKey = "name" | "laps";
 
@@ -106,13 +107,13 @@ export function TrackViewer() {
         <div className="flex items-center gap-1.5 md:gap-1 text-sm md:text-app-label text-app-text-muted">
           <span className="uppercase tracking-wider">{m.trackviewer_sort_label()}</span>
           {(["name", "laps"] as SortKey[]).map((key) => (
-            <button
+            <Button
               key={key}
               onClick={() => setSortKey(key)}
               className={`px-3 py-2 md:px-2 md:py-0.5 rounded capitalize ${sortKey === key ? "bg-app-surface-alt border border-app-border text-app-text" : "text-app-text-dim hover:text-app-text-muted"}`}
             >
               {key}
-            </button>
+            </Button>
           ))}
         </div>
         <div className="text-app-label text-app-text-muted uppercase tracking-wider whitespace-nowrap">

@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { Button } from "../components/ui/button";
 
 function ThemeContract() {
   return (
@@ -27,18 +28,18 @@ function ThemeContract() {
         <section className="rounded-lg border border-app-border bg-app-surface p-4">
           <h2 className="text-app-heading font-semibold">Interaction states</h2>
           <div className="mt-3 flex flex-wrap gap-3">
-            <button
+            <Button
               type="button"
               className="rounded border border-app-border bg-app-surface-alt px-3 py-2 text-app-subtext text-app-text-muted transition-colors hover:border-app-border-hover hover:bg-app-surface-hover hover:text-app-text"
             >
               Hover state
-            </button>
-            <button type="button" aria-pressed="true" className="rounded border border-app-accent bg-app-accent/15 px-3 py-2 text-app-subtext font-semibold text-app-accent">
+            </Button>
+            <Button type="button" aria-pressed="true" className="rounded border border-app-accent bg-app-accent/15 px-3 py-2 text-app-subtext font-semibold text-app-accent">
               Active state
-            </button>
-            <button type="button" disabled className="cursor-not-allowed rounded border border-app-border bg-app-surface-alt px-3 py-2 text-app-subtext text-app-text-dim opacity-50">
+            </Button>
+            <Button type="button" disabled className="cursor-not-allowed rounded border border-app-border bg-app-surface-alt px-3 py-2 text-app-subtext text-app-text-dim opacity-50">
               Disabled state
-            </button>
+            </Button>
           </div>
         </section>
 

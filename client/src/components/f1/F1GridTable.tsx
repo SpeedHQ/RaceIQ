@@ -21,12 +21,12 @@ export function F1GridTable({ f1, playerCarIndex }: { f1: F1ExtendedData; player
   return (
     <div className="rounded-lg bg-app-surface overflow-hidden">
       <div className="px-3 py-2 border-b border-app-border">
-        <span className="text-xs text-app-text-muted font-medium">
+        <span className="text-app-label text-app-text-muted font-medium">
           {m.f1grid_section_standings()} &mdash; {f1.sessionType?.replace("-", " ").toUpperCase() ?? m.f1grid_session_fallback()}
           {f1.totalLaps > 0 && ` (${f1.totalLaps} ${m.label_laps()})`}
         </span>
       </div>
-      <Table fit className="rounded-none overflow-y-auto max-h-[400px]" tableClassName="text-xs">
+      <Table fit className="rounded-none overflow-y-auto max-h-[400px]">
         <TableHeader className="bg-app-surface" rowClassName="text-app-text-dim border-b border-app-border">
           <TableHead className="px-2 py-1 text-left w-8">{m.f1grid_header_position()}</TableHead>
           <TableHead className="px-2 py-1 text-left">{m.f1grid_header_driver()}</TableHead>

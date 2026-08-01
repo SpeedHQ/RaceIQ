@@ -7,6 +7,7 @@ import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useUiStore } from "@/stores/ui";
+import { Button } from "../ui/button";
 
 interface AccSetup {
   name: string;
@@ -186,14 +187,14 @@ function AccSetupPanel({ setup }: { setup: AccSetup }) {
       )}
       <div className="flex flex-wrap items-center gap-2">
         {setup.setupFile && (
-          <button
+          <Button
             type="button"
             className="text-app-compact uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-on-filled font-bold disabled:opacity-50"
             onClick={() => install.mutate()}
             disabled={install.isPending || install.isSuccess}
           >
             {install.isSuccess ? "Installed ✓" : install.isPending ? "Installing…" : "Install to ACC"}
-          </button>
+          </Button>
         )}
         {fileUrl ? (
           <a

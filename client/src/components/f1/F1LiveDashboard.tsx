@@ -13,6 +13,7 @@ import { RaceInfo } from "../RaceInfo";
 import { RecordedLaps } from "../RecordedLaps";
 import { PitEstimate } from "../telemetry/PitEstimate";
 import { TireGrid } from "../telemetry/TireGrid";
+import { Button } from "../ui/button";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -359,12 +360,12 @@ function GridSection({ f1, playerPosition }: { f1: F1ExtendedData; playerPositio
   return (
     <div className="flex flex-col flex-1">
       <div className="h-8 px-2 border-b border-app-border flex items-center justify-between">
-        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.f1live_section_standings()}</h2>
-        <button type="button" onClick={() => setExpanded(!expanded)} className="text-xs text-app-accent hover:text-app-accent/80 font-semibold">
+        <h2 className="text-app-label font-semibold text-app-text-muted uppercase tracking-wider">{m.f1live_section_standings()}</h2>
+        <Button type="button" onClick={() => setExpanded(!expanded)} className="text-app-label text-app-accent hover:text-app-accent/80 font-semibold">
           {expanded ? m.f1live_standings_focus() : m.f1live_standings_show_all()}
-        </button>
+        </Button>
       </div>
-      <Table fit className="flex-1 min-h-0 rounded-none overflow-y-auto" tableClassName="text-sm">
+      <Table fit className="flex-1 min-h-0 rounded-none overflow-y-auto">
         <TableHeader className="bg-app-surface" rowClassName="text-app-text-muted border-b border-app-border">
           <TableHead className="px-2 py-1.5 text-left w-8 font-semibold">{m.f1grid_header_position()}</TableHead>
           <TableHead className="px-2 py-1.5 text-left font-semibold">{m.f1grid_header_driver()}</TableHead>
@@ -382,7 +383,7 @@ function GridSection({ f1, playerPosition }: { f1: F1ExtendedData; playerPositio
             if ("separator" in entry) {
               return (
                 <TableRow key={`sep-${entry.position}`} className="hover:bg-transparent">
-                  <TableCell colSpan={10} className="text-center text-xs text-app-text-dim py-0.5">
+                  <TableCell colSpan={10} className="text-center text-app-label text-app-text-dim py-0.5">
                     {m.f1grid_separator()}
                   </TableCell>
                 </TableRow>
