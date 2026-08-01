@@ -36,6 +36,7 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
   const body = data?.formatted ?? (data?.setup ? JSON.stringify(data.setup, null, 2) : null);
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
+      {/* Composition-only sizing/layout keeps picker viewport scrollable; DialogContent owns surface, border, and radius. */}
       <DialogContent size="lg" className="@container/setup-file flex h-[60vh] w-[min(94vw,720px)] max-w-[720px] flex-col">
         <DialogHeader className="min-w-0 pr-8">
           <DialogTitle className="truncate">{data?.fileName ?? fileName}</DialogTitle>
@@ -138,7 +139,9 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
                         </div>
                       ) : (
                         <div className="flex flex-col gap-3 @5xl/setup-file:flex-row @5xl/setup-file:items-start">
-                          {corners.length > 0 && <div className="grid shrink-0 grid-cols-1 content-start gap-3 @3xl/setup-file:grid-cols-2 @5xl/setup-file:w-1/2">{corners.map((s) => card(s, false))}</div>}
+                          {corners.length > 0 && (
+                            <div className="grid shrink-0 grid-cols-1 content-start gap-3 @3xl/setup-file:grid-cols-2 @5xl/setup-file:w-1/2">{corners.map((s) => card(s, false))}</div>
+                          )}
                           {others.length > 0 && <div className="w-full min-w-0 columns-1 gap-3 @3xl/setup-file:columns-2">{others.map((s) => card(s, true))}</div>}
                         </div>
                       )}

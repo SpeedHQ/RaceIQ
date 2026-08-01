@@ -1,9 +1,11 @@
 import type { ComparisonData, LapMeta } from "@shared/types";
 import { useNavigate } from "@tanstack/react-router";
 import { Sparkles } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLaps, useTrackOutline, useTrackSectors } from "../hooks/queries";
+import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useUnits } from "../hooks/useUnits";
+import { COMPARE_MAP_DEFAULT_WIDTH, COMPARE_MAP_MIN_WIDTH, clampCompareMapWidth } from "../lib/comparison-layout";
 import { COLOR_A, COLOR_B, formatLapTime, type Point } from "../lib/comparison-utils";
 import { client } from "../lib/rpc";
 import { m } from "../paraglide/messages";
@@ -73,6 +75,9 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
   const hoveredDistanceRef = useRef<number | null>(null);
   const mapRedrawRef = useRef<(() => void) | null>(null);
   const aiPanelRef = useRef<CompareAiPanelHandle | null>(null);
+  const comparisonLayoutRef = useRef<HTMLDivElement>(null);
+  const [comparisonLayoutWidth, setComparisonLayoutWidth] = useState(0);
+  const [savedMapWidth, setSavedMapWidth] = useLocalStorage("compare-left-column-width", COMPARE_MAP_DEFAULT_WIDTH);
   const [aiPanelOpen, setAiPanelOpen] = useState<boolean>(() => {
     try {
       return localStorage.getItem("compare-ai-panel-open") === "1";
@@ -91,6 +96,16 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
       return next;
     });
   }, []);
+  useEffect(() => {
+    const layout = comparisonLayoutRef.current;
+    if (!layout) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setComparisonLayoutWidth(entry.contentRect.width);
+    });
+    observer.observe(layout);
+    return () => observer.disconnect();
+  }, [comparison]);
+  const mapWidth = comparisonLayoutWidth > 0 ? clampCompareMapWidth(savedMapWidth, comparisonLayoutWidth, aiPanelOpen) : savedMapWidth;
   const handleCursorMove = useCallback((d: number | null) => {
     hoveredDistanceRef.current = d;
     // Directly redraw the map canvas without React re-render
@@ -399,7 +414,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
         </div>
 
         {/* AI panel toggle */}
-        <div className="flex w-full flex-col gap-1 @3xl/workspace:w-auto">
+        <div className="ml-auto flex w-full flex-col gap-1 self-end @3xl/workspace:w-auto">
           <Button
             variant="app-outline"
             size="app-lg"
@@ -428,9 +443,15 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
       ) : lapAId === lapBId ? (
         <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_select_different_laps()}</div>
       ) : comparison?.traces?.distance ? (
-        <div className="relative flex flex-none flex-col gap-4 overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:flex-row @5xl/workspace:overflow-hidden">
+        <div
+          ref={comparisonLayoutRef}
+          className="relative flex flex-none flex-col gap-4 overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:flex-row @5xl/workspace:overflow-hidden"
+        >
           {/* Left: track map */}
-          <div className="h-[42rem] w-full shrink-0 @5xl/workspace:h-auto @5xl/workspace:min-h-0 @5xl/workspace:w-[clamp(20rem,42cqw,27.5rem)]">
+          <div
+            className="h-[42rem] w-full shrink-0 @5xl/workspace:h-auto @5xl/workspace:min-h-0 @5xl/workspace:w-(--compare-map-width)"
+            style={{ "--compare-map-width": `${mapWidth}px` } as CSSProperties}
+          >
             <CompareTrackMap
               outline={trackOutline ?? syntheticOutline}
               telemetryA={comparison.telemetryA}
@@ -446,6 +467,36 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
               gameId={gameId}
             />
           </div>
+
+          <hr
+            aria-label="Resize track map"
+            aria-orientation="vertical"
+            aria-valuemin={COMPARE_MAP_MIN_WIDTH}
+            aria-valuemax={comparisonLayoutWidth > 0 ? clampCompareMapWidth(Number.MAX_SAFE_INTEGER, comparisonLayoutWidth, aiPanelOpen) : COMPARE_MAP_DEFAULT_WIDTH}
+            aria-valuenow={Math.round(mapWidth)}
+            tabIndex={0}
+            className="-mx-2 hidden w-2 shrink-0 cursor-col-resize border-x border-app-border bg-app-surface-alt/80 transition-colors hover:bg-app-accent/30 focus-visible:bg-app-accent/30 @5xl/workspace:block"
+            onKeyDown={(event) => {
+              if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+              event.preventDefault();
+              const delta = event.key === "ArrowLeft" ? -16 : 16;
+              setSavedMapWidth(clampCompareMapWidth(mapWidth + delta, comparisonLayoutWidth, aiPanelOpen));
+            }}
+            onMouseDown={(event) => {
+              event.preventDefault();
+              const startX = event.clientX;
+              const startWidth = mapWidth;
+              const onMove = (moveEvent: MouseEvent) => {
+                setSavedMapWidth(clampCompareMapWidth(startWidth + moveEvent.clientX - startX, comparisonLayoutWidth, aiPanelOpen));
+              };
+              const onUp = () => {
+                window.removeEventListener("mousemove", onMove);
+                window.removeEventListener("mouseup", onUp);
+              };
+              window.addEventListener("mousemove", onMove);
+              window.addEventListener("mouseup", onUp);
+            }}
+          />
 
           {/* Right column: time delta pinned + scrollable charts */}
           <div className="flex min-w-0 flex-none flex-col gap-4 overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:overflow-hidden">

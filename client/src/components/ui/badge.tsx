@@ -9,10 +9,14 @@ const badgeVariants = cva(
     variants: {
       variant: {
         neutral: "border-app-border bg-app-surface-alt text-app-text-muted",
+        "form-section-empty": "border-app-border bg-app-bg text-app-text-muted",
         info: "border-status-info/30 bg-status-info/15 text-status-info",
         success: "border-status-success/30 bg-status-success/15 text-status-success",
         warning: "border-status-warning/30 bg-status-warning/15 text-status-warning",
         danger: "border-status-danger/30 bg-status-danger/15 text-status-danger",
+        "catalog-category": "border-app-accent/30 bg-app-accent/10 text-app-accent font-semibold",
+        "game-brand": "border-transparent bg-app-surface-alt text-app-text font-semibold",
+        "ai-status": "border-status-info/30 bg-status-info/15 text-status-info font-semibold",
       },
       size: {
         compact: "px-1.5 py-0.5 text-app-micro",

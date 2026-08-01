@@ -251,7 +251,7 @@ export function TuneSettingsPanel({ settings: raw }: { settings: TuneSettings })
   const orderedSections = [...(tiresSection ? [tiresSection] : []), ...(gearingSection ? [gearingSection] : []), ...(alignmentSection ? [alignmentSection] : []), ...remainingSections];
 
   const renderSection = (section: { title: string; rows: [string, string][] }) => (
-    <Card key={section.title} className="mb-3 break-inside-avoid rounded-lg bg-app-bg p-0 ring-0">
+    <Card key={section.title} className="mb-3 break-inside-avoid">
       <CardHeader className="rounded-none p-3 pb-2">
         <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent">{section.title}</h4>
       </CardHeader>
@@ -364,7 +364,7 @@ export function UserTuneCard({
   };
 
   return (
-    <Card className="gap-0 rounded-xl bg-app-surface p-0">
+    <Card>
       <button type="button" onClick={onToggle} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-app-surface-hover transition-colors">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -427,10 +427,10 @@ export function UserTuneCard({
               </Button>
               {shareOpen && (
                 <div className="absolute left-0 top-full mt-1 z-20 min-w-40 rounded-md border border-app-border bg-app-surface p-1 shadow-lg">
-                  <Button variant="app-ghost" size="app-sm" onClick={handleCopyShare} className="w-full !justify-start !py-1 text-left text-app-text hover:bg-app-accent/20">
+                  <Button variant="menu-action" size="app-sm" onClick={handleCopyShare}>
                     {m.tuneform_copy_clipboard()}
                   </Button>
-                  <Button variant="app-ghost" size="app-sm" onClick={handleDownloadShare} className="w-full !justify-start !py-1 text-left text-app-text hover:bg-app-accent/20">
+                  <Button variant="menu-action" size="app-sm" onClick={handleDownloadShare}>
                     {m.tuneform_download_json()}
                   </Button>
                 </div>
@@ -785,7 +785,7 @@ export function TuneForm({
             if (!carData?.specs) return null;
             const s = carData.specs;
             return (
-              <Card className="col-span-2 gap-0 rounded-lg bg-app-surface p-0">
+              <Card className="col-span-2">
                 <CardContent className="grid grid-cols-3 gap-x-4 gap-y-2 p-3">
                   {s.hp > 0 && (
                     <div className="flex flex-col">

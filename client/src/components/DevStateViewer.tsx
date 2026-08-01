@@ -18,7 +18,7 @@ export function DevStateViewer() {
     <div className="flex flex-col h-full overflow-hidden p-2 gap-2">
       <div className="flex items-center justify-between">
         <span className="text-xs text-app-text-muted uppercase tracking-wider">Dev State</span>
-        <Button variant="app-outline" size="app-sm" onClick={toggleDevStatePause} className="!border-app-border !py-1 text-xs">
+        <Button variant="app-outline" size="app-sm" onClick={toggleDevStatePause}>
           {devStatePaused ? "Resume" : "Pause"}
         </Button>
       </div>

@@ -1,21 +1,20 @@
-import type {
-  HTMLAttributes,
-  ReactNode,
-  TableHTMLAttributes,
-  TdHTMLAttributes,
-  ThHTMLAttributes,
-} from "react";
+import type { HTMLAttributes, ReactNode, TableHTMLAttributes, TdHTMLAttributes, ThHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
 type TableProps = TableHTMLAttributes<HTMLTableElement> & {
   fit?: boolean;
   tableClassName?: string;
+  variant?: "default" | "settings";
 };
 
-export function Table({ children, className, fit = false, tableClassName, ...props }: TableProps) {
+export function Table({ children, className, fit = false, tableClassName, variant = "default", ...props }: TableProps) {
+  const variantClasses = {
+    default: "",
+    settings: "bg-app-surface/40 ring-1 ring-app-border",
+  } as const;
   return (
-    <div className={cn("rounded-lg", fit ? "" : "overflow-x-auto", className)}>
-      <table className={cn("w-full text-sm", fit ? "min-w-0" : "min-w-max @3xl/workspace:min-w-0", tableClassName)} {...props}>
+    <div className={cn("rounded-lg", variantClasses[variant], fit ? "" : "overflow-x-auto", className)}>
+      <table data-variant={variant} className={cn("w-full text-sm", fit ? "min-w-0" : "min-w-max @3xl/workspace:min-w-0", tableClassName)} {...props}>
         {children}
       </table>
     </div>

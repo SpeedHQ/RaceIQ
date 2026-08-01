@@ -455,7 +455,7 @@ export function StepSound() {
         <Label className="text-app-text-secondary text-sm">{m.ob_sound_sector_blip()}</Label>
         <Button
           size="sm"
-          variant={enabled ? "default" : "outline"}
+          variant={enabled ? "selected-toggle" : "outline"}
           onClick={() => {
             setEnabled(true);
             setSoundEnabled(true);
@@ -465,7 +465,7 @@ export function StepSound() {
         </Button>
         <Button
           size="sm"
-          variant={!enabled ? "default" : "outline"}
+          variant={!enabled ? "selected-toggle" : "outline"}
           onClick={() => {
             setEnabled(false);
             setSoundEnabled(false);
@@ -656,7 +656,7 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
               </Button>
             )}
             {step < MODAL_STEPS.length - 1 ? (
-              <Button size="sm" onClick={() => setStep((s) => s + 1)}>
+              <Button variant="app-primary" size="sm" onClick={() => setStep((s) => s + 1)}>
                 {step === 0 ? m.common_get_started() : m.common_next()}
               </Button>
             ) : (

@@ -43,7 +43,7 @@ export function AddBaseModal({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="lg" showCloseButton={false} overlayClassName="bg-app-bg/60" className="max-w-2xl p-5">
+      <DialogContent size="lg" showCloseButton={false} overlayClassName="bg-app-bg/60">
         <DialogHeader>
           <DialogTitle className="text-sm font-semibold text-app-text">Add base</DialogTitle>
           <DialogDescription className="text-xs text-app-text-dim">

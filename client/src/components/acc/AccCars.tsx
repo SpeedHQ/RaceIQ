@@ -96,9 +96,8 @@ export function AccCars() {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex gap-1">
           <Button
-            variant="app-ghost"
+            variant={filterClass ? "app-ghost" : "selected-toggle"}
             size="app-sm"
-            className={`!h-auto !px-3 !py-1 text-xs font-semibold ${!filterClass ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
             onClick={() => setFilterClass(null)}
           >
             {m.acccars_all_classes()}
@@ -108,10 +107,9 @@ export function AccCars() {
             return (
               <Button
                 key={cls}
-                variant="app-ghost"
+                variant={filterClass === cls ? "selected-toggle" : "app-ghost"}
                 size="app-sm"
                 data-catalog-category={cls}
-                className={`!h-auto !px-3 !py-1 text-xs font-semibold ${filterClass === cls ? "catalog-category" : "text-app-text-muted hover:text-app-text-secondary"}`}
                 onClick={() => setFilterClass(filterClass === cls ? null : cls)}
               >
                 {cls} ({count})
@@ -126,7 +124,7 @@ export function AccCars() {
         return (
           <div key={cls}>
             <div className="flex items-center gap-2 mb-3">
-              <Badge variant="neutral" size="default" className="catalog-category border-transparent text-xs font-bold" data-catalog-category={cls}>
+              <Badge variant="catalog-category" size="default" data-catalog-category={cls}>
                 {cls}
               </Badge>
               <span className="text-xs text-app-text-dim">
@@ -155,7 +153,7 @@ export function AccCars() {
                         }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-app-bg/60 via-transparent to-transparent" />
-                      <Badge variant="neutral" size="compact" className="catalog-category absolute bottom-2 right-2 border-transparent text-app-micro font-bold" data-catalog-category={car.class}>
+                      <Badge variant="catalog-category" size="compact" className="absolute bottom-2 right-2" data-catalog-category={car.class}>
                         {car.class}
                       </Badge>
                     </div>

@@ -117,9 +117,9 @@ export function MotecImportModal({ onClose, onImported }: { onClose: () => void;
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="lg" showCloseButton={false} overlayClassName="bg-app-bg/60" className="max-w-xl max-h-[85vh] overflow-y-auto p-5">
+      <DialogContent size="lg" showCloseButton={false} overlayClassName="bg-app-bg/60" layout="scrollable" className="max-w-xl">
         <DialogHeader>
-          <DialogTitle className="text-sm font-semibold uppercase tracking-wide text-app-text">Import MoTeC log</DialogTitle>
+          <DialogTitle variant="import">Import MoTeC log</DialogTitle>
         </DialogHeader>
 
         {result ? (
@@ -222,7 +222,7 @@ export function MotecImportModal({ onClose, onImported }: { onClose: () => void;
               <Button variant="app-outline" size="app-md" onClick={onClose} disabled={busy}>
                 Cancel
               </Button>
-              <Button variant="app-outline" size="app-md" onClick={submit} disabled={!canSubmit} className="text-app-accent border-app-accent/40 disabled:opacity-50">
+              <Button variant="app-outline" size="app-md" onClick={submit} disabled={!canSubmit}>
                 {busy ? "Importing…" : "Import"}
               </Button>
             </div>

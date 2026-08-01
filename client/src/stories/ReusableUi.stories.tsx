@@ -228,6 +228,47 @@ export const ButtonVariants: Story = {
     await expect(primary).toHaveFocus();
   },
 };
+export const SemanticVariants: Story = {
+  render: () => (
+    <div className="flex max-w-md flex-col gap-3">
+      <div className="flex flex-wrap gap-2">
+        <Button variant="menu-action">Menu action</Button>
+        <Button variant="close-action" aria-label="Close">×</Button>
+        <Button variant="destructive-outline">Delete</Button>
+        <Button variant="selected-toggle" aria-pressed="true">Selected</Button>
+        <Button variant="full-width-action">Full width</Button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Badge variant="catalog-category">Category</Badge>
+        <Badge variant="game-brand">Game brand</Badge>
+        <Badge variant="ai-status">AI status</Badge>
+      </div>
+      <Card variant="transparent-panel">
+        <CardHeader><CardTitle>Settings section</CardTitle></CardHeader>
+        <CardContent>Transparent panel contract.</CardContent>
+      </Card>
+      <Tabs defaultValue="one">
+        <TabsList variant="pills"><TabsTrigger value="one" variant="pills">One</TabsTrigger><TabsTrigger value="two" variant="pills">Two</TabsTrigger></TabsList>
+        <TabsContent value="one">Active tab content</TabsContent>
+      </Tabs>
+      <Table variant="settings"><TBody><TRow><TD>Settings row</TD></TRow></TBody></Table>
+      <Dialog defaultOpen>
+        <DialogContent layout="scrollable" size="sm"><DialogTitle>Scrollable dialog</DialogTitle><DialogDescription>Dialog shell contract.</DialogDescription></DialogContent>
+      </Dialog>
+    </div>
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const body = within(document.body);
+    await expect(canvas.getByRole("button", { name: "Menu action" })).toBeVisible();
+    await expect(canvas.getByRole("button", { name: "Close" })).toHaveAttribute("type", "button");
+    await expect(canvas.getByText("Category")).toBeVisible();
+    await expect(canvas.getByText("Settings section")).toBeVisible();
+    await expect(canvas.getByRole("tab", { name: "One" })).toHaveAttribute("data-active");
+    await expect(body.getByText("Scrollable dialog")).toBeVisible();
+    await expect(canvas.getByText("Settings row")).toBeVisible();
+  },
+};
 
 export const DialogSizes: Story = {
   render: () => (

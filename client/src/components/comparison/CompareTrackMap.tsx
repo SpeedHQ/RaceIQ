@@ -356,7 +356,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
   }, [drawBoth]);
 
     return (
-      <Card className="h-full gap-0 rounded-lg bg-app-surface p-0 ring-app-border">
+      <Card className="h-full">
       {/* Overview — full track, static */}
       <div ref={overviewContainerRef} className="relative border-b border-app-border h-[220px] shrink-0">
         <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_overview()}</span>

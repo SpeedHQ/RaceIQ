@@ -37,7 +37,7 @@ function ReprocessProgressModal({ total, done, onClose }: { total: number; done:
 
   return (
     <Dialog open onOpenChange={(open) => !open && complete && onClose()}>
-      <DialogContent size="sm" showCloseButton={false} overlayClassName="bg-app-bg/60" className="w-96 p-6">
+      <DialogContent size="sm" showCloseButton={false} overlayClassName="bg-app-bg/60" className="w-96">
         <DialogHeader className="mb-4 flex flex-row items-center gap-3">
           <RefreshCw className={`size-5 text-status-info ${complete ? "" : "animate-spin"}`} />
           <DialogTitle className="flex-1 text-sm font-semibold text-app-text">{complete ? m.root_reprocessing_complete() : m.root_reprocessing()}</DialogTitle>
@@ -109,6 +109,7 @@ function StaleLapButton() {
     </>
   );
 }
+
 
 function AppShell() {
   useWebSocket();

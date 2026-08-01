@@ -103,11 +103,11 @@ function SectionCard({
   const hasData = present != null && typeof present === "object";
 
   return (
-    <Card size="sm" className="gap-0 rounded-lg">
-      <Button variant="app-ghost" size="app-md" onClick={() => setOpen((o) => !o)} className="w-full justify-between rounded-none py-2 text-left">
+    <Card size="sm" variant="form-section">
+      <Button variant="form-section-toggle" size="app-md" onClick={() => setOpen((o) => !o)}>
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-app-text">{section.label}</span>
-          <Badge variant={hasData ? "success" : "neutral"} size="compact" className={hasData ? "" : "bg-app-bg"}>
+          <Badge variant={hasData ? "success" : "form-section-empty"} size="compact">
             {hasData ? "set" : "—"}
           </Badge>
         </div>

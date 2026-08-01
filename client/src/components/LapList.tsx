@@ -124,9 +124,8 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
                 <td className="p-2 text-right">
                   <div className="flex items-center justify-end gap-2">
                     <Button
-                      variant="app-outline"
+                      variant="selected-toggle"
                       size="app-sm"
-                      className="bg-app-accent/15 !border-app-accent/40 text-app-accent hover:bg-app-accent/25"
                       onClick={() => {
                         const prefix = gameRoute;
                         navigate({
@@ -141,7 +140,7 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
                     >
                       {m.label_analyse()}
                     </Button>
-                    <Button variant="app-ghost" size="app-sm" className="hover:text-status-danger" onClick={() => deleteLap.mutate(lap.id)}>
+                    <Button variant="destructive-outline" size="app-sm" onClick={() => deleteLap.mutate(lap.id)}>
                       {m.common_delete()}
                     </Button>
                   </div>

@@ -143,7 +143,7 @@ function EngineerNotesView({ notes }: { notes: string | null }) {
 function NotesModal({ sessionId, test, onClose }: { sessionId: number; test: ExperimentVersion; onClose: () => void }) {
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent size="wide" showCloseButton={false} overlayClassName="bg-app-bg/60" className="max-h-[90vh] overflow-y-auto p-5">
+      <DialogContent size="wide" showCloseButton={false} overlayClassName="bg-app-bg/60" layout="scrollable">
         <DialogHeader>
           <DialogTitle className="text-sm font-semibold text-app-text">
             <span className="font-mono">{test.label}</span> — notes
