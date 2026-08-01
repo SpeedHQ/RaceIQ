@@ -306,10 +306,7 @@ export class IRacingIbtReader {
     const rowOffset =
       metadata.dataOffset + this.nextRecord * metadata.rowLength;
     readExactly(this.fd, this.rowBuffer, rowOffset);
-    const values = this.variableTable.readSelected(
-      this.rowBuffer,
-      IRACING_TELEMETRY_VARIABLES,
-    );
+    const values = this.variableTable.readAll(this.rowBuffer);
     const recordIndex = this.nextRecord;
     this.nextRecord++;
 

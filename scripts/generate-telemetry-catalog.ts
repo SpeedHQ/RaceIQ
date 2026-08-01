@@ -1,5 +1,6 @@
-import { parse } from "@babel/parser";
+import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
+import { parse } from "@babel/parser";
 import { resolve } from "node:path";
 import { IRACING_SESSION_INFO_CATALOG_FIELDS } from "../shared/games/iracing/session-info-catalog";
 import { getSchemaForGame } from "../shared/setup-schema";
@@ -37,6 +38,62 @@ interface SourceVariable {
   retention: "exact" | "normalized" | "not-recorded";
 }
 
+type ValueType =
+  | "number"
+  | "boolean"
+  | "string"
+  | "enum"
+  | "structured";
+
+type ValueCardinality =
+  | { kind: "scalar" }
+  | { kind: "fixed"; count: number }
+  | { kind: "variable"; min: number; max?: number };
+
+interface StructuredIndexSchema {
+  id: string;
+  cardinality: ValueCardinality;
+  ordering: "numeric-ascending" | "source-order" | "semantic-order";
+}
+
+interface StructuredFieldSchema {
+  id: string;
+  valueType: Exclude<ValueType, "structured">;
+  dimensions: readonly string[];
+  enumDomain?: readonly string[];
+}
+
+interface StructuredValueSchema {
+  indices: readonly StructuredIndexSchema[];
+  fields: readonly StructuredFieldSchema[];
+}
+
+interface MappingExecution {
+  kind: "conversion" | "derivation" | "simplification";
+  id: string;
+  version: string;
+  codeHash: string;
+  deterministic: boolean;
+  declaredInputs: readonly string[];
+  missingDataPolicy: "propagate-missing" | "drop-missing" | "require-all";
+}
+
+interface MappingProvenance {
+  origin:
+    | "parser"
+    | "projection"
+    | "schema"
+    | "yaml"
+    | "derivation";
+  artifact: string;
+  commit: string;
+}
+
+interface CompatibilityReview {
+  id: string;
+  rationale: string;
+}
+
 interface AvailableLink {
   kind: "direct" | "derived" | "simplified";
   nativeUnit: string;
@@ -44,6 +101,10 @@ interface AvailableLink {
   freshness: "continuous" | "pit-snapshot" | "session-update" | "static";
   normalization?: string;
   description: string;
+  limitations?: readonly string[];
+  provenance?: MappingProvenance;
+  execution?: MappingExecution;
+  compatibilityReview?: CompatibilityReview;
 }
 
 interface UnavailableLink {
@@ -73,9 +134,57 @@ interface CatalogVariable {
   description: string;
   parentId: string;
   canonicalUnit: string;
+  valueType?: ValueType;
+  dimensions?: readonly string[];
+  cardinality?: ValueCardinality;
+  ordering?: readonly string[];
+  range?: {
+    min: number;
+    max: number;
+  };
+  enumDomain?: readonly string[];
+  structuredSchema?: StructuredValueSchema;
+  limitations?: readonly string[];
   shape: "scalar" | "per-wheel" | "vector" | "array" | "structured";
   packetFields?: string[];
   games: Record<GameId, GameLink>;
+}
+
+interface CatalogMetadata {
+  catalogVersion: string;
+  schemaVersion: string;
+  generator: {
+    name: string;
+    version: string;
+    commit: string;
+  };
+  generatedAt: string;
+  contentHash: string;
+}
+
+export interface BuiltTelemetryCatalog {
+  format: "raceiq-semantic-telemetry-catalog-v5";
+  metadata: CatalogMetadata;
+  generatedFrom: readonly string[];
+  groups: readonly CatalogGroup[];
+  variables: readonly CatalogVariable[];
+  sources: Record<GameId, readonly SourceVariable[]>;
+  coverage: {
+    normalizedPacketFields: number;
+    semanticVariables: number;
+    sourceCounts: Record<
+      GameId,
+      {
+        total: number;
+        packet: number;
+        extension: number;
+        sdk: number;
+        yaml: number;
+        setup: number;
+        recorded: number;
+      }
+    >;
+  };
 }
 
 interface FieldInfo {
@@ -100,6 +209,13 @@ interface SemanticDefinition {
   parentId: string;
   canonicalUnit: string;
   shape: CatalogVariable["shape"];
+  valueType?: ValueType;
+  dimensions?: readonly string[];
+  cardinality?: ValueCardinality;
+  ordering?: readonly string[];
+  range?: { min: number; max: number };
+  enumDomain?: readonly string[];
+  limitations?: readonly string[];
 }
 
 interface ExtensionMetadata {
@@ -142,10 +258,22 @@ function semanticDefinition(
 const ROOT = resolve(import.meta.dirname, "..");
 const TYPES_PATH = resolve(ROOT, "shared/types.ts");
 const OUTPUT_PATH = resolve(ROOT, "shared/telemetry-catalog.generated.json");
+const OUTPUT_TS_PATH = resolve(ROOT, "shared/telemetry-catalog.generated.ts");
+const OUTPUT_MARKDOWN_PATH = resolve(ROOT, "shared/TELEMETRY_CATALOG.md");
+const OUTPUT_MATRIX_PATH = resolve(ROOT, "shared/telemetry-catalog-matrix.md");
 const IRACING_DIAGNOSTIC = resolve(
   ROOT,
   "data/diagnostics/iracing-all-vars-2026-07-29T02-06-39-162Z.json",
 );
+const PACKAGE_JSON_PATH = resolve(ROOT, "package.json");
+
+const PACKAGE_VERSION = JSON.parse(
+  await Bun.file(PACKAGE_JSON_PATH).text(),
+).version as string;
+const GENERATOR_NAME = "RaceIQ telemetry-catalog generator";
+const CATALOG_FORMAT = "raceiq-semantic-telemetry-catalog-v5";
+const CATALOG_SCHEMA_VERSION = "v5";
+const DERIVATION_VERSION = `${PACKAGE_VERSION}`;
 
 const PARSER_FILES: Record<GameId, string> = {
   "fm-2023": "server/parsers/forza.ts",
@@ -4908,7 +5036,451 @@ function addCrossSourceProjections(
   }
 }
 
-export async function buildTelemetryCatalog() {
+function canonicalize(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([, entry]) => entry !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => [key, canonicalize(entry)]),
+  );
+}
+
+function contentHash(value: unknown): string {
+  return createHash("sha256")
+    .update(JSON.stringify(canonicalize(value)))
+    .digest("hex");
+}
+
+export function telemetryCatalogSourceHash(source: string): string {
+  return contentHash(source.replace(/\r\n?/g, "\n"));
+}
+
+const ENUM_DOMAINS: Readonly<Record<string, readonly string[]>> = {
+  "fuel.ers-deploy-mode": ["0", "1", "2", "3", "4"],
+  "race.driver-change-lap-status": ["0", "1", "2", "3"],
+  "setup.tires.compound": ["0", "1"],
+  "tires.tire-compound": [
+    "7",
+    "8",
+    "16",
+    "17",
+    "18",
+    "dry_compound",
+    "wet_compound",
+  ],
+  "weather.skies": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "clear",
+    "partly cloudy",
+    "mostly cloudy",
+    "overcast",
+  ],
+  "weather.weather-type": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "constant",
+    "dynamic",
+  ],
+};
+
+
+function dimensionForUnit(unit: string): readonly string[] {
+  const normalized = unit.trim().toLowerCase();
+  if (
+    [
+      "boolean",
+      "bool",
+      "text",
+      "string",
+      "structured",
+      "id",
+      "identifier",
+      "code",
+      "flags",
+      "bitmask",
+      "count",
+      "index",
+      "ratio",
+      "fraction",
+      "%",
+      "percent",
+      "0-1",
+      "0-100",
+      "0-255",
+      "-128-127",
+      "game-native",
+      "value-with-unit",
+      "unknown",
+    ].includes(normalized)
+  ) {
+    return ["dimensionless"];
+  }
+  if (/^(s|ms|min|h)$/.test(normalized)) return ["time"];
+  if (/^(m|mm|cm|km|ft|in)$/.test(normalized)) return ["length"];
+  if (/^(m\/s|km\/h|mph)$/.test(normalized)) return ["length", "time^-1"];
+  if (/^(m\/s(?:\^?2|²)|g)$/.test(normalized)) {
+    return ["length", "time^-2"];
+  }
+  if (/^(rad|deg|°)$/.test(normalized)) return ["angle"];
+  if (/^(rad\/s|deg\/s|rpm)$/.test(normalized)) {
+    return ["angle", "time^-1"];
+  }
+  if (/^(°c|°f|c|f|k)$/.test(normalized)) return ["temperature"];
+  if (/^(pa|kpa|bar|psi)$/.test(normalized)) {
+    return ["mass", "length^-1", "time^-2"];
+  }
+  if (/^(l|ml|gal)$/.test(normalized)) return ["length^3"];
+  if (/^(kg|g)$/.test(normalized)) return ["mass"];
+  if (/^(n)$/.test(normalized)) return ["mass", "length", "time^-2"];
+  if (/^(nm)$/.test(normalized)) return ["mass", "length^2", "time^-2"];
+  if (/^(j|kj|mj)$/.test(normalized)) {
+    return ["mass", "length^2", "time^-2"];
+  }
+  if (/^(w|kw|hp)$/.test(normalized)) {
+    return ["mass", "length^2", "time^-3"];
+  }
+  if (/^(a)$/.test(normalized)) return ["electric-current"];
+  if (/^(v)$/.test(normalized)) {
+    return ["mass", "length^2", "time^-3", "electric-current^-1"];
+  }
+  if (/^(kg\/m\^?3)$/.test(normalized)) return ["mass", "length^-3"];
+  return [`unit:${normalized}`];
+}
+
+function scalarValueTypeFor(
+  variable: CatalogVariable,
+  sourceVariables: readonly SourceVariable[],
+): Exclude<ValueType, "structured"> {
+  const unit = variable.canonicalUnit.toLowerCase();
+  const sourceTypes = sourceVariables
+    .map((source) => source.dataType?.toLowerCase() ?? "")
+    .filter(Boolean);
+  if (unit === "boolean" || sourceTypes.some((type) => /\bbool/.test(type))) {
+    return "boolean";
+  }
+  if (
+    unit === "text" ||
+    unit === "string" ||
+    sourceTypes.some((type) => /\bstring\b/.test(type))
+  ) {
+    return "string";
+  }
+  if (unit === "enum" || sourceTypes.some((type) => /\benum\b/.test(type))) {
+    return "enum";
+  }
+  return "number";
+}
+
+function valueTypeFor(
+  variable: CatalogVariable,
+  sourceVariables: readonly SourceVariable[],
+): ValueType {
+  return variable.shape === "structured"
+    ? "structured"
+    : scalarValueTypeFor(variable, sourceVariables);
+}
+
+function structuredSchemaFor(
+  variable: CatalogVariable,
+  sourceVariables: readonly SourceVariable[],
+): StructuredValueSchema {
+  const mappingSources = GAME_IDS.flatMap((gameId) => {
+    const mapping = variable.games[gameId];
+    if (mapping.kind === "unavailable") return [];
+    return Array.isArray(mapping.sources)
+      ? mapping.sources
+      : Object.values(mapping.sources).flat();
+  });
+  const sourceMax = Math.max(
+    0,
+    ...sourceVariables.map((source) => source.count ?? 0),
+  );
+  let indices: StructuredIndexSchema[];
+  if (variable.id.includes(".competitor.")) {
+    indices = [
+      {
+        id: "competitor-index",
+        cardinality: { kind: "variable", min: 0, max: Math.max(64, sourceMax) },
+        ordering: "numeric-ascending",
+      },
+    ];
+  } else if (variable.id.includes(".lap-history.")) {
+    indices = [
+      {
+        id: "lap-number",
+        cardinality: { kind: "variable", min: 0 },
+        ordering: "numeric-ascending",
+      },
+    ];
+  } else if (
+    variable.id === "setup.tires.last-temperature-bands" ||
+    variable.id === "setup.tires.tread-remaining"
+  ) {
+    indices = [
+      {
+        id: "wheel-position",
+        cardinality: { kind: "fixed", count: 4 },
+        ordering: "semantic-order",
+      },
+    ];
+  } else if (variable.id === "setup.brakes.pad-compound") {
+    indices = [
+      {
+        id: "axle-position",
+        cardinality: { kind: "fixed", count: 2 },
+        ordering: "semantic-order",
+      },
+    ];
+  } else {
+    const sourceIndices = [
+      ...new Set(
+        mappingSources.flatMap((source) =>
+          [...source.matchAll(/([A-Za-z][A-Za-z0-9]*)\[\]/g)].map(
+            (match) => `${slug(match[1].replace(/s$/i, ""))}-index`,
+          ),
+        ),
+      ),
+    ];
+    indices =
+      sourceIndices.length > 0
+        ? sourceIndices.map((id) => ({
+            id,
+            cardinality: { kind: "variable" as const, min: 0 },
+            ordering: "source-order" as const,
+          }))
+        : [
+            {
+              id: "source-path",
+              cardinality:
+                sourceMax > 1
+                  ? { kind: "variable" as const, min: 0, max: sourceMax }
+                  : { kind: "variable" as const, min: 0 },
+              ordering: "source-order" as const,
+            },
+          ];
+  }
+  const scalarType = scalarValueTypeFor(variable, sourceVariables);
+  const enumDomain = ENUM_DOMAINS[variable.id];
+  const valueType =
+    scalarType === "enum" && !enumDomain
+      ? sourceVariables.some((source) =>
+          /\bstring\b/i.test(source.dataType ?? ""),
+        )
+        ? ("string" as const)
+        : ("number" as const)
+      : scalarType;
+  const fields: StructuredFieldSchema[] =
+    variable.id === "setup.metadata.unmapped-source-values"
+      ? [
+          {
+            id: "source-path",
+            valueType: "string",
+            dimensions: ["dimensionless"],
+          },
+          {
+            id: "value",
+            valueType: "string",
+            dimensions: ["dimensionless"],
+          },
+        ]
+      : [
+          {
+            id: "value",
+            valueType,
+            dimensions: dimensionForUnit(variable.canonicalUnit),
+            ...(valueType === "enum" ? { enumDomain } : {}),
+          },
+        ];
+  return { indices, fields };
+}
+
+function cardinalityFor(
+  variable: CatalogVariable,
+  sourceVariables: readonly SourceVariable[],
+): Pick<CatalogVariable, "cardinality" | "ordering" | "structuredSchema"> {
+  switch (variable.shape) {
+    case "per-wheel":
+      return {
+        cardinality: { kind: "fixed", count: 4 },
+        ordering: ["FL", "FR", "RL", "RR"],
+      };
+    case "vector":
+      return {
+        cardinality: { kind: "fixed", count: 3 },
+        ordering: ["x", "y", "z"],
+      };
+    case "array":
+      return {
+        cardinality: { kind: "variable", min: 0 },
+        ordering: ["source-order"],
+      };
+    case "structured": {
+      const structuredSchema = structuredSchemaFor(variable, sourceVariables);
+      const [primaryIndex] = structuredSchema.indices;
+      const ordering =
+        primaryIndex.id === "wheel-position"
+          ? ["FL", "FR", "RL", "RR"]
+          : primaryIndex.id === "axle-position"
+            ? ["front", "rear"]
+            : [`${primaryIndex.id}:${primaryIndex.ordering}`];
+      return {
+        cardinality: primaryIndex.cardinality,
+        ordering,
+        structuredSchema,
+      };
+    }
+    default:
+      return { cardinality: { kind: "scalar" } };
+  }
+}
+
+function rangeForUnit(
+  unit: string,
+): CatalogVariable["range"] | undefined {
+  switch (unit.toLowerCase()) {
+    case "fraction":
+    case "ratio":
+    case "0-1":
+      return { min: 0, max: 1 };
+    case "%":
+    case "percent":
+    case "0-100":
+      return { min: 0, max: 100 };
+    case "0-255":
+      return { min: 0, max: 255 };
+    case "-128-127":
+      return { min: -128, max: 127 };
+    default:
+      return undefined;
+  }
+}
+
+function mappingArtifact(
+  gameId: GameId,
+  sources: readonly string[],
+): Pick<MappingProvenance, "origin" | "artifact"> {
+  if (sources.some((source) => source.includes(".SessionInfo."))) {
+    return {
+      origin: "yaml",
+      artifact: "shared/games/iracing/session-info-catalog.ts",
+    };
+  }
+  if (sources.some((source) => source.includes(".SetupFile."))) {
+    return { origin: "schema", artifact: "shared/setup-schema.ts" };
+  }
+  if (
+    sources.some((source) =>
+      /^(RaceIQ\.|LiveSectorData\.|LapMeta\.)/.test(source),
+    )
+  ) {
+    return {
+      origin: "derivation",
+      artifact: "scripts/generate-telemetry-catalog.ts",
+    };
+  }
+  return { origin: "parser", artifact: PARSER_FILES[gameId] };
+}
+
+function enrichCatalogContracts(
+  variables: Map<string, CatalogVariable>,
+  inventories: Record<GameId, SourceVariable[]>,
+  provenanceCommits: Readonly<Record<string, string>>,
+): void {
+  const allSources = GAME_IDS.flatMap((gameId) => inventories[gameId]);
+  for (const variable of variables.values()) {
+    const sourceVariables = allSources.filter(
+      (source) => source.semanticId === variable.id,
+    );
+    variable.valueType ??= valueTypeFor(variable, sourceVariables);
+    variable.dimensions ??= dimensionForUnit(variable.canonicalUnit);
+    const cardinality = cardinalityFor(variable, sourceVariables);
+    variable.cardinality ??= cardinality.cardinality;
+    variable.ordering ??= cardinality.ordering;
+    variable.structuredSchema ??= cardinality.structuredSchema;
+    if (variable.valueType === "enum") {
+      variable.enumDomain ??= ENUM_DOMAINS[variable.id];
+      if (!variable.enumDomain?.length) {
+        throw new Error(`Missing authoritative enum domain for ${variable.id}`);
+      }
+    }
+    variable.range ??= rangeForUnit(variable.canonicalUnit);
+    variable.limitations ??= [];
+
+    for (const gameId of GAME_IDS) {
+      const mapping = variable.games[gameId];
+      if (mapping.kind === "unavailable") continue;
+      const sources = Array.isArray(mapping.sources)
+        ? mapping.sources
+        : Object.values(mapping.sources).flat();
+      if (
+        mapping.kind === "direct" &&
+        mapping.nativeUnit !== variable.canonicalUnit
+      ) {
+        mapping.kind = "derived";
+        mapping.normalization ??=
+          `convert ${mapping.nativeUnit} to ${variable.canonicalUnit}`;
+      }
+      const artifact =
+        mapping.kind === "simplified"
+          ? {
+              origin: "projection" as const,
+              artifact: "scripts/generate-telemetry-catalog.ts",
+            }
+          : mappingArtifact(gameId, sources);
+      mapping.provenance ??= {
+        ...artifact,
+        commit:
+          provenanceCommits[artifact.artifact] ??
+          provenanceCommits["scripts/generate-telemetry-catalog.ts"]!,
+      };
+      mapping.limitations ??=
+        mapping.kind === "simplified"
+          ? [
+              "Reduced-detail representation; unsuitable when direct semantic fidelity is required.",
+            ]
+          : [];
+      if (mapping.kind !== "direct") {
+        const execution = {
+          kind:
+            mapping.kind === "simplified"
+              ? ("simplification" as const)
+              : mapping.normalization &&
+                  /convert|normalize unit|milliseconds|fraction \*|\/ 1000/i.test(
+                    mapping.normalization,
+                  )
+                ? ("conversion" as const)
+                : ("derivation" as const),
+          id: `${gameId}:${variable.id}:${mapping.kind}`,
+          version: DERIVATION_VERSION,
+          deterministic: true,
+          declaredInputs: sources,
+          missingDataPolicy:
+            /available|fallback|prefer/i.test(mapping.normalization ?? "")
+              ? ("drop-missing" as const)
+              : ("require-all" as const),
+        };
+        mapping.execution ??= {
+          ...execution,
+          codeHash: contentHash({
+            ...execution,
+            normalization: mapping.normalization,
+          }),
+        };
+      }
+    }
+  }
+}
+
+export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
   const typesSource = await readFile(TYPES_PATH, "utf8");
   const typesTree = ast(typesSource);
   const packetFields = interfaceFields(
@@ -5305,10 +5877,46 @@ export async function buildTelemetryCatalog() {
         recorded: inventories[gameId].filter((item) => item.recordedByRaceIQ).length,
       },
     ]),
+  ) as BuiltTelemetryCatalog["coverage"]["sourceCounts"];
+  const provenanceArtifacts = [
+    ...new Set([
+      "scripts/generate-telemetry-catalog.ts",
+      "shared/games/iracing/session-info-catalog.ts",
+      "shared/setup-schema.ts",
+      ...Object.values(PARSER_FILES),
+    ]),
+  ];
+  const provenanceCommits = Object.fromEntries(
+    await Promise.all(
+      provenanceArtifacts.map(async (artifact) => [
+        artifact,
+        telemetryCatalogSourceHash(
+          await readFile(resolve(ROOT, artifact), "utf8"),
+        ),
+      ]),
+    ),
   );
+  const generatorCommit =
+    provenanceCommits["scripts/generate-telemetry-catalog.ts"];
+  if (!generatorCommit) {
+    throw new Error("Missing telemetry catalog generator provenance");
+  }
+  enrichCatalogContracts(variables, inventories, provenanceCommits);
 
-  const catalog = {
-    format: "raceiq-semantic-telemetry-catalog-v5",
+  const metadataWithoutHash: Omit<CatalogMetadata, "contentHash"> = {
+    catalogVersion: PACKAGE_VERSION,
+    schemaVersion: CATALOG_SCHEMA_VERSION,
+    generator: {
+      name: GENERATOR_NAME,
+      version: PACKAGE_VERSION,
+      commit: generatorCommit,
+    },
+    // Reproducible-build timestamp: intentionally independent of wall clock.
+    generatedAt: "1970-01-01T00:00:00.000Z",
+  };
+  const catalogWithoutHash = {
+    format: CATALOG_FORMAT,
+    metadata: metadataWithoutHash,
     generatedFrom: [
       "shared/types.ts",
       "shared/setup-schema.ts",
@@ -5327,13 +5935,346 @@ export async function buildTelemetryCatalog() {
     },
   };
 
-  return catalog;
+  return {
+    ...catalogWithoutHash,
+    metadata: {
+      ...metadataWithoutHash,
+      contentHash: contentHash(catalogWithoutHash),
+    },
+  };
+}
+
+
+function markdownCell(value: string): string {
+  return value.replaceAll("|", "\\|").replaceAll("\n", " ");
+}
+
+function cardinalityLabel(variable: CatalogVariable): string {
+  const cardinality = variable.cardinality;
+  if (!cardinality) return "missing";
+  if (cardinality.kind === "scalar") return "scalar";
+  if (cardinality.kind === "fixed") return `fixed:${cardinality.count}`;
+  return `variable:${cardinality.min}-${cardinality.max ?? "*"}`;
+}
+
+function valueSchemaLabel(variable: CatalogVariable): string {
+  if (variable.valueType === "enum") {
+    return `domain: ${variable.enumDomain?.join(", ") ?? "missing"}`;
+  }
+  if (variable.valueType !== "structured" || !variable.structuredSchema) {
+    return "";
+  }
+  const indices = variable.structuredSchema.indices
+    .map(
+      (index) =>
+        `${index.id} (${index.cardinality.kind}:${index.cardinality.kind === "fixed" ? index.cardinality.count : index.cardinality.kind === "variable" ? `${index.cardinality.min}-${index.cardinality.max ?? "*"}` : "1"}, ${index.ordering})`,
+    )
+    .join("; ");
+  const fields = variable.structuredSchema.fields
+    .map((field) => `${field.id}:${field.valueType}`)
+    .join(", ");
+  return `indices: ${indices}; fields: ${fields}`;
+}
+
+
+function renderCatalogMarkdown(catalog: BuiltTelemetryCatalog): string {
+  const lines = [
+    "# Telemetry catalog",
+    "",
+    "> Generated by `bun run telemetry:catalog`. Do not edit manually.",
+    "",
+    "## Manifest",
+    "",
+    `- Catalog version: \`${catalog.metadata.catalogVersion}\``,
+    `- Schema version: \`${catalog.metadata.schemaVersion}\``,
+    `- Generator: \`${catalog.metadata.generator.name}@${catalog.metadata.generator.version}\``,
+    `- Generator commit: \`${catalog.metadata.generator.commit}\``,
+    `- Generated at: \`${catalog.metadata.generatedAt}\` (reproducible-build epoch)`,
+    `- Content SHA-256: \`${catalog.metadata.contentHash}\``,
+    "",
+    "## Coverage",
+    "",
+    "| Simulator | Sources | Recorded | Packet | Extension | SDK | YAML | Setup |",
+    "|---|---:|---:|---:|---:|---:|---:|---:|",
+    ...GAME_IDS.map((gameId) => {
+      const coverage = catalog.coverage.sourceCounts[gameId];
+      return `| ${gameId} | ${coverage.total} | ${coverage.recorded} | ${coverage.packet} | ${coverage.extension} | ${coverage.sdk} | ${coverage.yaml} | ${coverage.setup} |`;
+    }),
+    "",
+    "## Semantic variables",
+    "",
+    "| Semantic ID | Label | Value type | Dimensions | Unit | Cardinality | Ordering | Value schema | Limitations |",
+    "|---|---|---|---|---|---|---|---|---|",
+    ...catalog.variables.map(
+      (variable) =>
+        `| \`${markdownCell(variable.id)}\` | ${markdownCell(variable.label)} | ${variable.valueType} | ${markdownCell(variable.dimensions?.join(" × ") ?? "")} | ${markdownCell(variable.canonicalUnit)} | ${cardinalityLabel(variable)} | ${markdownCell(variable.ordering?.join(", ") ?? "")} | ${markdownCell(valueSchemaLabel(variable))} | ${markdownCell(variable.limitations?.join("; ") ?? "")} |`,
+    ),
+    "",
+    "See [`telemetry-catalog-matrix.md`](./telemetry-catalog-matrix.md) for generated cross-simulator mappings.",
+  ];
+  return `${lines.join("\n")}\n`;
+}
+
+function renderMappingCell(mapping: GameLink): string {
+  if (mapping.kind === "unavailable") {
+    return markdownCell(`unavailable · ${mapping.reason}`);
+  }
+  const sources = Array.isArray(mapping.sources)
+    ? mapping.sources
+    : Object.entries(mapping.sources).flatMap(([element, values]) =>
+        values.map((source) => `${element}:${source}`),
+      );
+  const details = [
+    mapping.kind,
+    mapping.nativeUnit,
+    sources.join("<br>"),
+    mapping.provenance?.artifact ?? "",
+    mapping.execution?.id ?? "",
+    mapping.limitations?.join("; ") ?? "",
+  ].filter(Boolean);
+  return markdownCell(details.join(" · "));
+}
+
+function renderCompatibilityMatrix(catalog: BuiltTelemetryCatalog): string {
+  const lines = [
+    "# Telemetry cross-simulator compatibility matrix",
+    "",
+    "> Generated by `bun run telemetry:catalog`. Do not edit manually.",
+    "",
+    `Catalog \`${catalog.metadata.catalogVersion}\`, schema \`${catalog.metadata.schemaVersion}\`, content \`${catalog.metadata.contentHash}\`.`,
+    "",
+    "| Semantic ID | Type | Dimensions | Unit | Cardinality | FM 2023 | F1 2025 | ACC | AC Evo | iRacing |",
+    "|---|---|---|---|---|---|---|---|---|---|",
+    ...catalog.variables.map(
+      (variable) =>
+        `| \`${markdownCell(variable.id)}\` | ${variable.valueType} | ${markdownCell(variable.dimensions?.join(" × ") ?? "")} | ${markdownCell(variable.canonicalUnit)} | ${cardinalityLabel(variable)} | ${renderMappingCell(variable.games["fm-2023"])} | ${renderMappingCell(variable.games["f1-2025"])} | ${renderMappingCell(variable.games.acc)} | ${renderMappingCell(variable.games["ac-evo"])} | ${renderMappingCell(variable.games.iracing)} |`,
+    ),
+  ];
+  return `${lines.join("\n")}\n`;
+}
+
+export async function buildTelemetryCatalogArtifacts(): Promise<
+  ReadonlyMap<string, string>
+> {
+  const catalog = await buildTelemetryCatalog();
+  const json = `${JSON.stringify(catalog, null, 2)}\n`;
+  const generatedTypeScript = [
+    "// Generated by scripts/generate-telemetry-catalog.ts. Do not edit.",
+    'import catalog from "./telemetry-catalog.generated.json";',
+    "",
+    `export const TELEMETRY_CATALOG_VERSION = ${JSON.stringify(catalog.metadata.catalogVersion)};`,
+    `export const TELEMETRY_CATALOG_SCHEMA_VERSION = ${JSON.stringify(catalog.metadata.schemaVersion)};`,
+    `export const TELEMETRY_CATALOG_HASH = ${JSON.stringify(catalog.metadata.contentHash)};`,
+    "export const TELEMETRY_CATALOG_GENERATED = catalog;",
+    "",
+  ].join("\n");
+  return new Map([
+    [OUTPUT_PATH, json],
+    [OUTPUT_TS_PATH, generatedTypeScript],
+    [OUTPUT_MARKDOWN_PATH, renderCatalogMarkdown(catalog)],
+    [OUTPUT_MATRIX_PATH, renderCompatibilityMatrix(catalog)],
+  ]);
+}
+
+type CompatibilityCatalogMapping = {
+  kind?: unknown;
+  compatibilityReview?: unknown;
+};
+
+type CompatibilityCatalogVariable = {
+  id: string;
+  games: Record<string, CompatibilityCatalogMapping>;
+};
+
+function recordValue(value: unknown): Record<string, unknown> | undefined {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function compatibilityVariables(
+  catalog: unknown,
+  label: string,
+): readonly CompatibilityCatalogVariable[] {
+  const root = recordValue(catalog);
+  if (!root || !Array.isArray(root.variables)) {
+    throw new Error(`${label} telemetry catalog lacks a variables array`);
+  }
+  const result: CompatibilityCatalogVariable[] = [];
+  const seen = new Set<string>();
+  for (const rawVariable of root.variables) {
+    const variable = recordValue(rawVariable);
+    const games = recordValue(variable?.games);
+    if (
+      !variable ||
+      typeof variable.id !== "string" ||
+      variable.id.trim().length === 0 ||
+      !games
+    ) {
+      throw new Error(
+        `${label} telemetry catalog contains a variable without id/games`,
+      );
+    }
+    if (seen.has(variable.id)) {
+      throw new Error(
+        `${label} telemetry catalog contains duplicate variable ${variable.id}`,
+      );
+    }
+    seen.add(variable.id);
+    const parsedGames: Record<string, CompatibilityCatalogMapping> = {};
+    for (const gameId of GAME_IDS) {
+      const mapping = recordValue(games[gameId]);
+      if (
+        !mapping ||
+        !["direct", "derived", "simplified", "unavailable"].includes(
+          typeof mapping.kind === "string" ? mapping.kind : "",
+        )
+      ) {
+        throw new Error(
+          `${label} telemetry catalog variable ${variable.id} has invalid ${gameId} mapping`,
+        );
+      }
+      parsedGames[gameId] = mapping;
+    }
+    result.push({ id: variable.id, games: parsedGames });
+  }
+  return result;
+}
+
+function hasCompatibilityReview(mapping: CompatibilityCatalogMapping): boolean {
+  const review = recordValue(mapping.compatibilityReview);
+  return (
+    typeof review?.id === "string" &&
+    review.id.trim().length > 0 &&
+    typeof review.rationale === "string" &&
+    review.rationale.trim().length > 0
+  );
+}
+
+export function assertDirectToSimplifiedCompatibilityReviews(
+  currentCatalog: unknown,
+  baselineCatalog: unknown,
+): void {
+  const current = compatibilityVariables(currentCatalog, "Current");
+  const baseline = new Map(
+    compatibilityVariables(baselineCatalog, "Baseline").map((variable) => [
+      variable.id,
+      variable,
+    ]),
+  );
+  const missing: string[] = [];
+  for (const variable of current) {
+    const previous = baseline.get(variable.id);
+    if (!previous) continue;
+    for (const gameId of GAME_IDS) {
+      const currentMapping = variable.games[gameId];
+      const previousMapping = previous.games[gameId];
+      if (
+        previousMapping?.kind === "direct" &&
+        currentMapping?.kind === "simplified" &&
+        !hasCompatibilityReview(currentMapping)
+      ) {
+        missing.push(`${variable.id} [${gameId}]`);
+      }
+    }
+  }
+  if (missing.length > 0) {
+    missing.sort();
+    throw new Error(
+      [
+        "Direct-to-simplified telemetry mappings require explicit compatibilityReview { id, rationale }:",
+        ...missing.map((mapping) => `- ${mapping}`),
+      ].join("\n"),
+    );
+  }
+}
+
+function baselineArgument(args: readonly string[]): string | undefined {
+  const indexes = args.flatMap((argument, index) =>
+    argument === "--baseline" ? [index] : [],
+  );
+  if (indexes.length > 1) {
+    throw new Error("--baseline may only be specified once");
+  }
+  const index = indexes[0];
+  if (index === undefined) return undefined;
+  const path = args[index + 1];
+  if (!path || path.startsWith("--")) {
+    throw new Error("--baseline requires a telemetry catalog JSON path");
+  }
+  return path;
+}
+
+async function readBaselineCatalog(path: string): Promise<unknown> {
+  let source: string;
+  try {
+    source = await readFile(resolve(ROOT, path), "utf8");
+  } catch (error) {
+    throw new Error(`Unable to read telemetry catalog baseline ${path}`, {
+      cause: error,
+    });
+  }
+  try {
+    return JSON.parse(source);
+  } catch (error) {
+    throw new Error(`Invalid telemetry catalog baseline JSON ${path}`, {
+      cause: error,
+    });
+  }
+}
+
+async function verifyArtifacts(
+  expected: ReadonlyMap<string, string>,
+): Promise<void> {
+  for (const [path, content] of expected) {
+    let actual: string;
+    try {
+      actual = await readFile(path, "utf8");
+    } catch {
+      throw new Error(`Missing generated telemetry catalog artifact ${path}`);
+    }
+    if (actual !== content) {
+      throw new Error(
+        `Stale telemetry catalog artifact ${path}; run bun run telemetry:catalog`,
+      );
+    }
+  }
 }
 
 if (import.meta.main) {
-  const catalog = await buildTelemetryCatalog();
-  await writeFile(OUTPUT_PATH, `${JSON.stringify(catalog, null, 2)}\n`, "utf8");
+  const args = process.argv.slice(2);
+  const check = args.includes("--check");
+  const repeat = args.includes("--repeat");
+  const baselinePath = baselineArgument(args);
+  if (baselinePath && !check) {
+    throw new Error("--baseline is only valid with --check");
+  }
+  const artifacts = await buildTelemetryCatalogArtifacts();
+  const catalogJson = artifacts.get(OUTPUT_PATH);
+  if (!catalogJson) throw new Error("Generated telemetry catalog JSON is missing");
+  const catalog = JSON.parse(catalogJson) as BuiltTelemetryCatalog;
+  if (repeat) {
+    const repeated = await buildTelemetryCatalogArtifacts();
+    for (const [path, content] of artifacts) {
+      if (repeated.get(path) !== content) {
+        throw new Error(`Non-deterministic telemetry catalog artifact ${path}`);
+      }
+    }
+  }
+  if (check) {
+    if (baselinePath) {
+      assertDirectToSimplifiedCompatibilityReviews(
+        catalog,
+        await readBaselineCatalog(baselinePath),
+      );
+    }
+    await verifyArtifacts(artifacts);
+  } else {
+    await Promise.all(
+      [...artifacts].map(([path, content]) => writeFile(path, content, "utf8")),
+    );
+  }
   console.log(
-    `Wrote ${catalog.variables.length} semantic variables and ${Object.values(catalog.sources).reduce((sum, list) => sum + list.length, 0)} parser/source links to ${OUTPUT_PATH}`,
+    `${check ? "Verified" : "Wrote"} ${catalog.variables.length} semantic variables and ${Object.values(catalog.sources).reduce((sum, list) => sum + list.length, 0)} parser/source links`,
   );
 }

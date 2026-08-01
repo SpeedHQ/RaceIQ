@@ -1,5 +1,40 @@
 import type { TelemetryPacket } from "../types";
 
+export const LAP_PATH_SEMANTIC_IDS = [
+  "motion.position-x",
+  "motion.position-z",
+  "motion.speed",
+  "motion.velocity-x",
+  "motion.velocity-z",
+  "motion.yaw",
+  "timing.lap-fraction",
+] as const;
+
+export type LapPathSemanticId = (typeof LAP_PATH_SEMANTIC_IDS)[number];
+
+/**
+ * Semantic value source compiled once by a consumer. Implementations may
+ * retain and reuse a resolver frame view between calls.
+ */
+export interface LapPathSemanticReader<
+  SemanticId extends string = LapPathSemanticId,
+> {
+  readNumber(
+    packet: TelemetryPacket,
+    semanticId: SemanticId,
+  ): number | undefined;
+}
+
+function readFinite(
+  reader: LapPathSemanticReader | undefined,
+  packet: TelemetryPacket,
+  semanticId: LapPathSemanticId,
+  fallback: number,
+): number {
+  const value = reader?.readNumber(packet, semanticId);
+  return value !== undefined && Number.isFinite(value) ? value : fallback;
+}
+
 export interface LapPathPoint {
   x: number;
   z: number;
@@ -29,10 +64,16 @@ export function deadReckonIRacingPosition(
  * Check if telemetry has valid world positions (not all zeros).
  * Samples a spread of ~20 packets rather than every frame.
  */
-export function hasWorldPositions(telemetry: TelemetryPacket[]): boolean {
+export function hasWorldPositions(
+  telemetry: TelemetryPacket[],
+  reader?: LapPathSemanticReader,
+): boolean {
   for (let i = 0; i < Math.min(telemetry.length, 20); i++) {
     const idx = Math.floor((i * telemetry.length) / 20);
-    if (telemetry[idx].PositionX !== 0 || telemetry[idx].PositionZ !== 0) return true;
+    const packet = telemetry[idx];
+    const positionX = readFinite(reader, packet, "motion.position-x", packet.PositionX);
+    const positionZ = readFinite(reader, packet, "motion.position-z", packet.PositionZ);
+    if (positionX !== 0 || positionZ !== 0) return true;
   }
   return false;
 }
@@ -46,7 +87,10 @@ export function hasWorldPositions(telemetry: TelemetryPacket[]): boolean {
  * canonical Speed value by Yaw for iRacing so the reconstructed path follows
  * the circuit instead of collapsing into a straight line.
  */
-export function integratePositions(packets: TelemetryPacket[]): { x: number[]; z: number[] } {
+export function integratePositions(
+  packets: TelemetryPacket[],
+  reader?: LapPathSemanticReader,
+): { x: number[]; z: number[] } {
   const x: number[] = [0];
   const z: number[] = [0];
   const isIRacing = packets[0]?.gameId === "iracing";
@@ -58,16 +102,36 @@ export function integratePositions(packets: TelemetryPacket[]): { x: number[]; z
       continue;
     }
     if (isIRacing) {
-      const next = deadReckonIRacingPosition(
+      const previousYaw = readFinite(
+        reader,
         packets[i - 1],
-        packets[i],
+        "motion.yaw",
+        packets[i - 1].Yaw,
+      );
+      const yaw = readFinite(reader, packets[i], "motion.yaw", packets[i].Yaw);
+      const speed = readFinite(reader, packets[i], "motion.speed", packets[i].Speed);
+      const next = deadReckonIRacingPosition(
+        { TimestampMS: packets[i - 1].TimestampMS, Yaw: previousYaw },
+        { TimestampMS: packets[i].TimestampMS, Yaw: yaw, Speed: speed },
         { x: x[x.length - 1], z: z[z.length - 1] },
       );
       x.push(next.x);
       z.push(next.z);
     } else {
-      x.push(x[x.length - 1] + packets[i].VelocityX * dt);
-      z.push(z[z.length - 1] + packets[i].VelocityZ * dt);
+      const velocityX = readFinite(
+        reader,
+        packets[i],
+        "motion.velocity-x",
+        packets[i].VelocityX,
+      );
+      const velocityZ = readFinite(
+        reader,
+        packets[i],
+        "motion.velocity-z",
+        packets[i].VelocityZ,
+      );
+      x.push(x[x.length - 1] + velocityX * dt);
+      z.push(z[z.length - 1] + velocityZ * dt);
     }
   }
   return { x, z };
@@ -76,8 +140,21 @@ export function integratePositions(packets: TelemetryPacket[]): { x: number[]; z
 function pathFromLapFraction(
   packets: TelemetryPacket[],
   outline: readonly LapPathPoint[],
+  reader?: LapPathSemanticReader,
 ): { x: number[]; z: number[] } | null {
-  if (outline.length < 2 || !packets.every((packet) => Number.isFinite(packet.iracing?.lapDistancePct))) {
+  if (
+    outline.length < 2 ||
+    !packets.every((packet) =>
+      Number.isFinite(
+        readFinite(
+          reader,
+          packet,
+          "timing.lap-fraction",
+          packet.iracing?.lapDistancePct ?? Number.NaN,
+        ),
+      ),
+    )
+  ) {
     return null;
   }
 
@@ -97,7 +174,18 @@ function pathFromLapFraction(
   const x: number[] = [];
   const z: number[] = [];
   for (const packet of packets) {
-    const fraction = Math.min(1, Math.max(0, packet.iracing!.lapDistancePct));
+    const fraction = Math.min(
+      1,
+      Math.max(
+        0,
+        readFinite(
+          reader,
+          packet,
+          "timing.lap-fraction",
+          packet.iracing?.lapDistancePct ?? Number.NaN,
+        ),
+      ),
+    );
     const target = fraction * total;
     let lo = 1;
     let hi = cumulative.length - 1;
@@ -177,13 +265,21 @@ export function pointAtLapFraction(
 export function lapPath(
   packets: TelemetryPacket[],
   outline?: readonly LapPathPoint[] | null,
+  reader?: LapPathSemanticReader,
 ): { x: number[]; z: number[] } {
-  if (hasWorldPositions(packets)) {
-    return { x: packets.map((p) => p.PositionX), z: packets.map((p) => p.PositionZ) };
+  if (hasWorldPositions(packets, reader)) {
+    return {
+      x: packets.map((packet) =>
+        readFinite(reader, packet, "motion.position-x", packet.PositionX),
+      ),
+      z: packets.map((packet) =>
+        readFinite(reader, packet, "motion.position-z", packet.PositionZ),
+      ),
+    };
   }
   if (outline) {
-    const projected = pathFromLapFraction(packets, outline);
+    const projected = pathFromLapFraction(packets, outline, reader);
     if (projected) return projected;
   }
-  return integratePositions(packets);
+  return integratePositions(packets, reader);
 }

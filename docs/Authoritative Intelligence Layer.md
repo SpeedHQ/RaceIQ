@@ -150,6 +150,38 @@ These are not shortcomings in PR #201’s scope. They are the correct next layer
 
 One inventory limitation remains: the confirmed retrieved artifacts identify the generated outputs, but the complete generator-source path, all simulator mapping source files, and the precise CI workflow that regenerates them were not available in the retained repository response. Those paths should be included in the PR #202 design document and made discoverable from a header in every generated artifact.
 
+### Bounded direct-field consumer migration inventory
+
+A repository scan on 2026-08-01 found 78 TypeScript/TSX files outside parser
+implementations and catalog code that both reference `TelemetryPacket` and read
+normalized packet properties or simulator extensions directly. This is the
+bounded migration inventory for Issue #202; adding another direct-field
+consumer expands the inventory and must fail review.
+
+Completed vertical slice: `client/src/components/TrackMap.tsx` compiles the
+resolver once per simulator, reuses one frame view, and passes semantic
+position, velocity, speed, yaw, input, distance, and lap-fraction reads into
+`shared/lib/lap-path.ts`. Native packet reads remain there only as the explicit
+unavailable-value fallback.
+
+| Migration pull request | Included production paths | Required semantic boundary |
+|---|---|---|
+| #202-B: shared deterministic analysis | `shared/lib/driving-style.ts`, `shared/lib/lap-insights.ts`, `shared/lib/time-loss.ts`, `shared/lib/vehicle-physics.ts`, `shared/stint-trace.ts`, `shared/games/telemetry.ts` | Control, motion, tire, fuel, and timing slots passed into deterministic calculations |
+| #202-C: recording and lap runtime | `server/pipeline.ts`, `server/ws.ts`, `server/lap-detection.ts`, `server/lap-detector*.ts`, `server/sector-tracker.ts`, `server/lap-quality.ts`, `server/lap-metrics.ts`, `server/lap-consistency.ts`, `server/compute-lap-sectors.ts`, `server/acc-lap-rules.ts`, `server/games/*/index.ts` | One compiled resolver per active simulator/parser version; persistence receives canonical values plus version identity |
+| #202-D: replay, comparison, export, and routes | `server/db/queries.ts`, `server/comparison.ts`, `server/corner-detection.ts`, `server/export.ts`, `server/experiment-lap-metrics.ts`, `server/routes/lap-routes.ts`, and track/lap route helpers | Replay envelope supplies resolver-backed frames; legacy blobs use the same resolution surface |
+| #202-E: server analysis and prompts | `server/ai/analyst-prompt.ts`, `chat-prompt.ts`, `corner-data.ts`, `f1-setup-identity.ts`, `insight-format.ts`, `track-conditions.ts`, `tune-damper-symptoms.ts`, `tune-issues.ts`, `tune-symptoms.ts`, `tune-tire-symptoms.ts`, `tune-weight-transfer.ts` | Prompts consume accepted canonical evidence, while deterministic feature builders consume semantic slots |
+| #202-F: analysis and map clients | `client/src/components/analyse/**`, `LapAnalyse.tsx`, `LiveTrackMap.tsx`, `comparison/CompareTrackMap.tsx`, `tunes/track-focus/TrackFocusMap.tsx`, `tunes/track-map-geometry.ts`, and `wireframe/**` | Resolver-backed hooks provide reusable frame views; components do not inspect simulator extensions |
+| #202-G: remaining dashboard clients | `client/src/components/{BodyAttitude,CarWireframe,Onboarding}.tsx`, `components/{dashes,f1,telemetry,tunes}/**`, `client/src/lib/{comparison-utils,convert-packet}.ts`, and telemetry query hooks | Subscribe to requested semantic IDs and convert display units only after canonical resolution |
+
+Parser/normalizer code, the resolver compiler itself, the raw replay decoder,
+test fixtures, `shared/types.ts`, and reviewed unavailable-value fallback
+adapters such as `shared/lib/lap-path.ts` remain deliberate native-field
+boundaries. Completion is mechanically bounded: production code outside those
+allowlisted boundaries must have zero property reads of normalized
+`TelemetryPacket` fields or `packet.f1`, `packet.acc`, and `packet.iracing`.
+Each migration pull request must add focused parity tests before removing its
+paths from this table; the broader migration program completes when the table is empty.
+
 ## Semantic resolver and executable derivations
 
 ### Resolver design principles

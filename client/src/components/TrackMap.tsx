@@ -1,9 +1,11 @@
+import { hasWorldPositions, LAP_PATH_SEMANTIC_IDS, type LapPathSemanticId, type LapPathSemanticReader, lapPath } from "@shared/lib/lap-path";
+import { TELEMETRY_CATALOG } from "@shared/telemetry-catalog";
+import { compileTelemetryResolver, type SemanticSlot, type TelemetryFrameView } from "@shared/telemetry-resolver";
+import type { GameId, TelemetryPacket } from "@shared/types";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { TRACK_SPEED_COLOR_VARS } from "@/lib/colors";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { mixCssColors } from "@/lib/rendering/css-values";
-import { TRACK_SPEED_COLOR_VARS } from "@/lib/colors";
-import { hasWorldPositions, lapPath } from "@shared/lib/lap-path";
-import type { TelemetryPacket } from "@shared/types";
-import { useCallback, useEffect, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { client } from "../lib/rpc";
 import { useGameId } from "../stores/game";
@@ -30,16 +32,50 @@ interface Props {
   trackOrdinal?: number; // when provided, fetches and draws track boundaries
 }
 
-function getSpeedMph(p: TelemetryPacket): number {
-  return Math.sqrt(p.VelocityX ** 2 + p.VelocityY ** 2 + p.VelocityZ ** 2) * 2.23694;
+const TRACK_MAP_SEMANTIC_IDS = [...LAP_PATH_SEMANTIC_IDS, "inputs.accel", "inputs.brake", "timing.distance-traveled"] as const;
+
+type TrackMapSemanticId = LapPathSemanticId | "inputs.accel" | "inputs.brake" | "timing.distance-traveled";
+
+function getSpeedMph(packet: TelemetryPacket, reader?: LapPathSemanticReader<TrackMapSemanticId>): number {
+  const resolvedSpeed = reader?.readNumber(packet, "motion.speed");
+  const speedMps = resolvedSpeed ?? Math.sqrt(packet.VelocityX ** 2 + packet.VelocityY ** 2 + packet.VelocityZ ** 2);
+  return speedMps * 2.23694;
+}
+
+function compileTrackMapSemanticReader(simulator: GameId): LapPathSemanticReader<TrackMapSemanticId> {
+  const resolver = compileTelemetryResolver<TelemetryPacket>(TELEMETRY_CATALOG, {
+    simulator,
+    requested: TRACK_MAP_SEMANTIC_IDS.map((semanticId) => ({ semanticId })),
+  });
+  const slots = {
+    "motion.position-x": resolver.slot("motion.position-x"),
+    "motion.position-z": resolver.slot("motion.position-z"),
+    "motion.speed": resolver.slot("motion.speed"),
+    "motion.velocity-x": resolver.slot("motion.velocity-x"),
+    "motion.velocity-z": resolver.slot("motion.velocity-z"),
+    "motion.yaw": resolver.slot("motion.yaw"),
+    "timing.lap-fraction": resolver.slot("timing.lap-fraction"),
+    "inputs.accel": resolver.slot("inputs.accel"),
+    "inputs.brake": resolver.slot("inputs.brake"),
+    "timing.distance-traveled": resolver.slot("timing.distance-traveled"),
+  } satisfies Record<TrackMapSemanticId, SemanticSlot>;
+  let frameView: TelemetryFrameView | undefined;
+  let currentPacket: TelemetryPacket | undefined;
+
+  return {
+    readNumber(packet, semanticId) {
+      if (packet !== currentPacket || !frameView) {
+        frameView = resolver.createFrameView(packet, packet.TimestampMS, frameView);
+        currentPacket = packet;
+      }
+      return frameView.readNumber(slots[semanticId]);
+    },
+  };
 }
 
 function speedToColor(speed: number, minSpeed: number, maxSpeed: number): string {
   const t = Math.min(1, Math.max(0, maxSpeed > minSpeed ? (speed - minSpeed) / (maxSpeed - minSpeed) : 0));
-  const [from, to, amount] =
-    t < 0.5
-      ? [TRACK_SPEED_COLOR_VARS[0], TRACK_SPEED_COLOR_VARS[1], t * 2]
-      : [TRACK_SPEED_COLOR_VARS[1], TRACK_SPEED_COLOR_VARS[2], (t - 0.5) * 2];
+  const [from, to, amount] = t < 0.5 ? [TRACK_SPEED_COLOR_VARS[0], TRACK_SPEED_COLOR_VARS[1], t * 2] : [TRACK_SPEED_COLOR_VARS[1], TRACK_SPEED_COLOR_VARS[2], (t - 0.5) * 2];
   return mixCssColors(from, to, amount);
 }
 
@@ -52,6 +88,8 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [boundaries, setBoundaries] = useState<BoundaryData | null>(null);
+  const simulator = telemetry[0]?.gameId ?? gameId;
+  const semanticReader = useMemo(() => (simulator ? compileTrackMapSemanticReader(simulator) : undefined), [simulator]);
 
   // Fetch boundaries when trackOrdinal is provided
   useEffect(() => {
@@ -88,8 +126,8 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
     ctx.clearRect(0, 0, w, h);
 
     // Use Forza world positions when available, otherwise integrate from velocity
-    const useWorld = hasWorldPositions(telemetry);
-    const { x, z } = lapPath(telemetry);
+    const useWorld = hasWorldPositions(telemetry, semanticReader);
+    const { x, z } = lapPath(telemetry, undefined, semanticReader);
 
     // Compute bounds — include boundary edges if in same coord system
     const hasBounds = boundaries && (boundaries.coordSystem === "forza" || boundaries.coordSystem === "f1-2025" || boundaries.coordSystem === "acc") && useWorld;
@@ -174,11 +212,17 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
     let values: number[] = [];
     if (!lineColor) {
       if (colorBy === "speed") {
-        values = telemetry.map(getSpeedMph);
+        values = telemetry.map((packet) => getSpeedMph(packet, semanticReader));
       } else if (colorBy === "throttle") {
-        values = telemetry.map((p) => (p.Accel / 255) * 100);
+        values = telemetry.map((packet) => {
+          const value = semanticReader?.readNumber(packet, "inputs.accel") ?? packet.Accel;
+          return (value / 255) * 100;
+        });
       } else {
-        values = telemetry.map((p) => (p.Brake / 255) * 100);
+        values = telemetry.map((packet) => {
+          const value = semanticReader?.readNumber(packet, "inputs.brake") ?? packet.Brake;
+          return (value / 255) * 100;
+        });
       }
     }
 
@@ -200,11 +244,12 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
 
     // Draw highlight dot
     if (highlightDistance !== undefined && telemetry.length > 0) {
-      const distStart = telemetry[0].DistanceTraveled;
+      const distStart = semanticReader?.readNumber(telemetry[0], "timing.distance-traveled") ?? telemetry[0].DistanceTraveled;
       let closestIdx = 0;
       let closestDist = Infinity;
       for (let i = 0; i < telemetry.length; i++) {
-        const d = Math.abs(telemetry[i].DistanceTraveled - distStart - highlightDistance);
+        const distance = semanticReader?.readNumber(telemetry[i], "timing.distance-traveled") ?? telemetry[i].DistanceTraveled;
+        const d = Math.abs(distance - distStart - highlightDistance);
         if (d < closestDist) {
           closestDist = d;
           closestIdx = i;
@@ -226,7 +271,7 @@ export function TrackMap({ telemetry, colorBy = "speed", highlightDistance, line
       ctx.fillStyle = "var(--track-start)";
       ctx.fill();
     }
-  }, [telemetry, colorBy, highlightDistance, lineColor, boundaries]);
+  }, [telemetry, colorBy, highlightDistance, lineColor, boundaries, semanticReader]);
 
   useEffect(() => {
     draw();

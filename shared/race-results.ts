@@ -1,6 +1,156 @@
 import type { GameId } from "./types";
 
-export type RaceResultStatus = "finished" | "dnf" | "retired" | "qualifying" | "unknown";
+export type RaceResultSourceStatus = "direct" | "derived" | "simplified" | "unavailable";
+export type RaceResultOutcomeStatus = "confirmed" | "provisional" | "unavailable";
+export type RaceResultStatus =
+  | "finished"
+  | "dnf"
+  | "disqualified"
+  | "not-classified"
+  | "retired"
+  | "qualifying"
+  | "unknown";
+
+export type RaceResultAuthorityStrategy =
+  | "highest-authority"
+  | "preserve-alternatives"
+  | "require-consensus"
+  | "abstain-on-conflict";
+
+export type RaceResultEvidenceKind = "deterministic" | "ml" | "human";
+
+export interface RaceResultClaimScope {
+  claimId: string;
+  entityId: string;
+  validFrom: number;
+  validTo: number;
+}
+
+export interface RaceResultClaimEvidence<T = unknown> extends RaceResultClaimScope {
+  id: string;
+  value: T;
+  authority: string;
+  kind: RaceResultEvidenceKind;
+  confidence: number;
+  observedAt: number;
+  valid: boolean;
+  applicable: boolean;
+  validated: boolean;
+  provenance: RaceResultProvenance;
+}
+
+export interface RaceResultAuthorityRule {
+  authority: string;
+  minConfidence?: number;
+  maxConfidence?: number;
+  minAgeMs?: number;
+  maxAgeMs?: number;
+}
+
+export interface RaceResultAuthorityPolicy {
+  id: string;
+  version: string;
+  strategy: RaceResultAuthorityStrategy;
+  /** Highest authority first. Evidence from omitted authorities is rejected. */
+  permittedAuthorities: readonly RaceResultAuthorityRule[];
+  confidence: {
+    min: number;
+    max: number;
+  };
+  ageMs: {
+    min: number;
+    max: number;
+  };
+  consensus?: {
+    minimumAuthorities: number;
+  };
+}
+
+export type RaceResultEvidenceRejectionReason =
+  | "different-claim"
+  | "different-entity"
+  | "different-time-interval"
+  | "authority-not-permitted"
+  | "invalid"
+  | "inapplicable"
+  | "unvalidated"
+  | "confidence-out-of-bounds"
+  | "stale"
+  | "not-yet-observed";
+
+export interface RaceResultRejectedEvidence {
+  evidenceId: string;
+  reason: RaceResultEvidenceRejectionReason;
+}
+
+export interface RaceResultClaimAlternative<T = unknown> {
+  value: T;
+  authority: string;
+  authorities: string[];
+  evidenceIds: string[];
+}
+
+export interface RaceResultAuthorityDecision<T = unknown> {
+  policyId: string;
+  policyVersion: string;
+  scope: RaceResultClaimScope;
+  status: "accepted" | "alternatives" | "consensus" | "abstained" | "unavailable";
+  value: T | null;
+  acceptedEvidenceIds: string[];
+  alternatives: RaceResultClaimAlternative<T>[];
+  rejected: RaceResultRejectedEvidence[];
+  conflictReasons: string[];
+}
+
+export interface RaceResultRawInputIdentity {
+  objectId: string;
+  contentHash: string;
+  byteOffset?: number;
+  byteLength?: number;
+}
+
+export interface RaceResultCanonicalInputIdentity {
+  sessionId: string;
+  firstSequence: number;
+  lastSequence: number;
+  contentHash: string;
+}
+
+export interface RaceResultProvenance {
+  catalogVersion: string;
+  catalogHash: string;
+  catalogSchemaVersion: string;
+  parserVersion: string;
+  resolverVersion: string;
+  derivationId: string;
+  derivationVersion: string;
+  derivationCodeHash: string;
+  rawInput: RaceResultRawInputIdentity | null;
+  canonicalInput: RaceResultCanonicalInputIdentity | null;
+  authorityPolicyId: string;
+  authorityPolicyVersion: string;
+  extractor?: {
+    id: string;
+    version: string;
+  };
+  fields?: Record<string, unknown>;
+}
+
+export interface RaceResultEvidence {
+  fieldStatus: {
+    sessionType: RaceResultSourceStatus;
+    classification: RaceResultSourceStatus;
+    finishingPosition: RaceResultSourceStatus;
+    qualifyingPosition: RaceResultSourceStatus;
+    isPodium: RaceResultSourceStatus;
+    isFastestLap: RaceResultSourceStatus;
+    pitEvents: RaceResultSourceStatus;
+    tyreStrategy: RaceResultSourceStatus;
+    fuelStrategy: RaceResultSourceStatus;
+  };
+  conflicts: string[];
+  decisions?: Record<string, RaceResultAuthorityDecision>;
+}
 
 export interface RaceResult {
   id: number;
@@ -15,7 +165,7 @@ export interface RaceResult {
   pitCount: number;
   tyreStrategy: unknown;
   fuelStrategy: unknown;
-  provenance: unknown;
+  provenance: RaceResultProvenance;
   reasons: string[];
   events: Array<{
     sequence: number;

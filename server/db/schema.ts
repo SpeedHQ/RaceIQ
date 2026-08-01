@@ -9,6 +9,7 @@ import {
 	primaryKey,
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
+import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance } from "../../shared/race-results";
 
 export const profiles = sqliteTable("profiles", {
 	id: integer("id").primaryKey({ autoIncrement: true }),
@@ -92,6 +93,14 @@ export const sessions = sqliteTable("sessions", {
 	notes: text("notes"),
 	rawFile: text("raw_file"),
 	lapDetectorVersion: text("lap_detector_version"),
+	// Runtime telemetry identity snapshot attached at first persisted capture (migration v50).
+	// Null = legacy rows and rows inserted before migration.
+	catalogVersion: text("catalog_version"),
+	catalogHash: text("catalog_hash"),
+	catalogSchemaVersion: text("catalog_schema_version"),
+	parserVersion: text("parser_version"),
+	resolverVersion: text("resolver_version"),
+	derivationVersion: text("derivation_version"),
 	// How this session's telemetry was obtained (migration v43). NULL = recorded
 	// live from the game. 'motec' = transcoded from a MoTeC .ld export, where the
 	// racing line is dead-reckoned rather than logged — see server/motec/.
@@ -114,7 +123,7 @@ export const sessionResults = sqliteTable(
 		pitCount: integer("pit_count").notNull().default(0),
 		tyreStrategy: text("tyre_strategy", { mode: "json" }).$type<unknown>(),
 		fuelStrategy: text("fuel_strategy", { mode: "json" }).$type<unknown>(),
-		provenance: text("provenance", { mode: "json" }).$type<unknown>(),
+		provenance: text("provenance", { mode: "json" }).$type<RaceResultProvenance>(),
 		reasons: text("reasons", { mode: "json" }).$type<string[]>(),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 		updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
@@ -175,6 +184,15 @@ export const laps = sqliteTable(
 		sectorTimes: text("sector_times", { mode: "json" }).$type<number[]>(),
 		rawByteOffset: integer("raw_byte_offset"),
 		rawFrameCount: integer("raw_frame_count"),
+		// Pre-v19 gzip CSV telemetry retained only when raw offsets are unavailable.
+		// Current captures leave this null and replay from their raw session file.
+		legacyTelemetry: blob("legacy_telemetry", { mode: "buffer" }),
+		catalogVersion: text("catalog_version"),
+		catalogHash: text("catalog_hash"),
+		catalogSchemaVersion: text("catalog_schema_version"),
+		parserVersion: text("parser_version"),
+		resolverVersion: text("resolver_version"),
+		derivationVersion: text("derivation_version"),
 		// Explicit experiment link (migration v25). Stamped at insert from the
 		// in-memory active tuning session (server/experiment-active.ts) so a tuning
 		// session can span many race sessions. The `.references()` here is

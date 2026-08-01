@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { extractRaceSource } from "../server/race-results/source";
+import { deriveRaceResult } from "../server/race-results/derive";
 import type { TelemetryPacket } from "../shared/types";
 
 const packet = (overrides: Partial<TelemetryPacket> = {}): TelemetryPacket => ({
@@ -33,6 +34,55 @@ describe("race result source extraction", () => {
     ]);
     expect(dnf.classification).toBe("dnf");
     expect(retired.classification).toBe("retired");
+  });
+
+  test("preserves disqualified and not-classified F1 statuses", () => {
+    const disqualified = extractRaceSource("f1-2025", [
+      packet({ gameId: "f1-2025", f1: { sessionType: "race", resultStatus: 5, resultSource: "final-classification" } as never }),
+    ]);
+    const notClassified = extractRaceSource("f1-2025", [
+      packet({ gameId: "f1-2025", f1: { sessionType: "race", resultStatus: 6, resultSource: "final-classification" } as never }),
+    ]);
+    expect(disqualified.classification).toBe("disqualified");
+    expect(disqualified.evidence.fieldStatus.classification).toBe("direct");
+    expect(notClassified.classification).toBe("not-classified");
+  });
+
+  test("authoritative final classification supersedes provisional lap status", () => {
+    const result = extractRaceSource("f1-2025", [
+      packet({
+        gameId: "f1-2025",
+        f1: { sessionType: "race", resultStatus: 4, resultSource: "lap-data" } as never,
+      }),
+      packet({
+        gameId: "f1-2025",
+        RacePosition: 1,
+        f1: { sessionType: "race", resultStatus: 3, resultSource: "final-classification" } as never,
+      }),
+    ]);
+
+    expect(result.classification).toBe("finished");
+    expect(result.finishingPosition).toBe(1);
+    expect(result.evidence.fieldStatus.classification).toBe("direct");
+    expect(result.evidence.conflicts).toEqual([]);
+    expect(result.claims?.map((claim) => [claim.authority, claim.value])).toEqual([
+      ["simulator-live", "dnf"],
+      ["simulator-final", "finished"],
+    ]);
+    expect(result.claims?.every((claim) =>
+      claim.claimId === "race-result.classification" &&
+      claim.entityId === "f1-2025:player" &&
+      claim.kind === "deterministic" &&
+      claim.valid &&
+      claim.applicable &&
+      claim.validated &&
+      claim.provenance === result.provenance
+    )).toBe(true);
+    expect(result.provenance.authorityPolicyId).toBe("race-result-outcome-authority");
+    const derived = deriveRaceResult(result);
+    expect(derived.classification).toBe("finished");
+    expect(derived.outcomeStatus).toBe("confirmed");
+    expect(derived.evidence.decisions?.classification.alternatives.map((alternative) => alternative.value)).toEqual(["finished", "dnf"]);
   });
 
   test("does not invent pit ledger for Forza", () => {

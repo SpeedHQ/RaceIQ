@@ -288,10 +288,7 @@ export class IRacingSdkReader {
           continue;
         }
 
-        const values = this._variableTable.readSelected(
-          row,
-          IRACING_TELEMETRY_VARIABLES,
-        );
+        const values = this._variableTable.readAll(row);
         this._lastTick = newest.tickCount;
         return {
           tick: newest.tickCount,

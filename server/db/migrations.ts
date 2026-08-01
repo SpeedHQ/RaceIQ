@@ -243,6 +243,8 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE sessions ADD COLUMN lap_detector_version TEXT`,
       `ALTER TABLE laps ADD COLUMN raw_byte_offset INTEGER`,
       `ALTER TABLE laps ADD COLUMN raw_frame_count INTEGER`,
+      `ALTER TABLE laps ADD COLUMN legacy_telemetry BLOB`,
+      `UPDATE laps SET legacy_telemetry = telemetry`,
       `ALTER TABLE laps DROP COLUMN telemetry`,
     ],
   },
@@ -550,32 +552,73 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
     ],
   },
 
-  // ── v35: purge pre-v0.8.0 laps (no raw capture) ─────────────────────────────
-  // `sessions.raw_file` arrived in v19 alongside raw binary lap storage. A
-  // session with `raw_file IS NULL` has no .bin behind it, so none of its laps
-  // can ever produce telemetry — they were surfaced read-only as "legacy" laps
-  // with Analyse/Compare disabled. That carve-out is gone: the rows go instead.
+  // ── v35: purge rows with neither raw nor legacy telemetry ──────────────────
+  // `sessions.raw_file` arrived in v19 alongside raw binary lap storage. v19
+  // retains the previous gzip CSV blob in `laps.legacy_telemetry`, so only
+  // sessions with neither representation are unreplayable and safe to purge.
   //
   // Deletes are explicit and child-first rather than leaning on the declared
   // ON DELETE CASCADE, because `runMigrations` sets `PRAGMA foreign_keys = OFF`
   // for the whole batch (SQLite ignores the pragma inside the per-migration
   // transaction, so a migration cannot re-enable it) — under OFF, deleting a
   // session leaves its laps and their analyses orphaned. `compare_analyses`
-  // additionally has no foreign key at all, so it would need an explicit
-  // delete under either pragma.
-  //
-  // Nothing on disk to unlink: these sessions never had a raw file.
+  // additionally has no foreign key at all, so it needs an explicit delete.
   {
     version: 35,
-    name: "purge pre-v0.8.0 laps with no raw capture",
+    name: "purge laps with no replayable telemetry",
     sql: [
       `DELETE FROM compare_analyses
-         WHERE lap_a_id IN (SELECT id FROM laps WHERE session_id IN (SELECT id FROM sessions WHERE raw_file IS NULL))
-            OR lap_b_id IN (SELECT id FROM laps WHERE session_id IN (SELECT id FROM sessions WHERE raw_file IS NULL))`,
+         WHERE lap_a_id IN (
+           SELECT id FROM laps WHERE session_id IN (
+             SELECT id FROM sessions
+             WHERE raw_file IS NULL
+               AND NOT EXISTS (
+                 SELECT 1 FROM laps retained
+                 WHERE retained.session_id = sessions.id
+                   AND retained.legacy_telemetry IS NOT NULL
+               )
+           )
+         )
+            OR lap_b_id IN (
+              SELECT id FROM laps WHERE session_id IN (
+                SELECT id FROM sessions
+                WHERE raw_file IS NULL
+                  AND NOT EXISTS (
+                    SELECT 1 FROM laps retained
+                    WHERE retained.session_id = sessions.id
+                      AND retained.legacy_telemetry IS NOT NULL
+                  )
+              )
+            )`,
       `DELETE FROM lap_analyses
-         WHERE lap_id IN (SELECT id FROM laps WHERE session_id IN (SELECT id FROM sessions WHERE raw_file IS NULL))`,
-      `DELETE FROM laps WHERE session_id IN (SELECT id FROM sessions WHERE raw_file IS NULL)`,
-      `DELETE FROM sessions WHERE raw_file IS NULL`,
+         WHERE lap_id IN (
+           SELECT id FROM laps WHERE session_id IN (
+             SELECT id FROM sessions
+             WHERE raw_file IS NULL
+               AND NOT EXISTS (
+                 SELECT 1 FROM laps retained
+                 WHERE retained.session_id = sessions.id
+                   AND retained.legacy_telemetry IS NOT NULL
+               )
+           )
+         )`,
+      `DELETE FROM laps
+         WHERE session_id IN (
+           SELECT id FROM sessions
+           WHERE raw_file IS NULL
+             AND NOT EXISTS (
+               SELECT 1 FROM laps retained
+               WHERE retained.session_id = sessions.id
+                 AND retained.legacy_telemetry IS NOT NULL
+             )
+         )`,
+      `DELETE FROM sessions
+         WHERE raw_file IS NULL
+           AND NOT EXISTS (
+             SELECT 1 FROM laps retained
+             WHERE retained.session_id = sessions.id
+               AND retained.legacy_telemetry IS NOT NULL
+           )`,
     ],
   },
 
@@ -1023,6 +1066,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          sector_times               TEXT,
          raw_byte_offset            INTEGER,
          raw_frame_count            INTEGER,
+         legacy_telemetry           BLOB,
          experiment_id              INTEGER,
          experiment_version_id      INTEGER,
          experiment_excluded        INTEGER,
@@ -1034,14 +1078,14 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `INSERT INTO laps_v46 (
          id, session_id, lap_number, lap_time, is_valid, invalid_reason,
          notes, profile_id, pi, car_setup, tune_id, sector_times,
-         raw_byte_offset, raw_frame_count, experiment_id, experiment_version_id,
-         experiment_excluded, experiment_excluded_source, fuel_per_lap,
-         tyre_wear, created_at
+         raw_byte_offset, raw_frame_count, legacy_telemetry, experiment_id,
+         experiment_version_id, experiment_excluded, experiment_excluded_source,
+         fuel_per_lap, tyre_wear, created_at
        )
        SELECT
          id, session_id, lap_number, lap_time, is_valid, invalid_reason,
          notes, profile_id, pi, car_setup, tune_id, sector_times,
-         raw_byte_offset, raw_frame_count, experiment_id,
+         raw_byte_offset, raw_frame_count, legacy_telemetry, experiment_id,
          experiment_version_id, experiment_excluded,
          experiment_excluded_source, fuel_per_lap, tyre_wear, created_at
        FROM laps`,
@@ -1131,6 +1175,76 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
          UNIQUE(result_id, sequence)
        )`,
       `CREATE INDEX IF NOT EXISTS idx_pit_events_result ON pit_events(result_id, sequence)`,
+    ],
+  },
+  // v49: Persist authority state and make missing pit linkage explicit.
+  {
+    version: 49,
+    name: "race result authority evidence",
+    sql: [
+      `ALTER TABLE session_results ADD COLUMN outcome_status TEXT NOT NULL DEFAULT 'unavailable'
+         CHECK (outcome_status IN ('confirmed', 'provisional', 'unavailable'))`,
+      `ALTER TABLE session_results ADD COLUMN evidence TEXT`,
+      `CREATE TABLE pit_events_new (
+         id                INTEGER PRIMARY KEY AUTOINCREMENT,
+         result_id         INTEGER NOT NULL REFERENCES session_results(id) ON DELETE CASCADE,
+         sequence          INTEGER NOT NULL,
+         lap_number        INTEGER,
+         elapsed_seconds   REAL,
+         duration_seconds  REAL,
+         service           TEXT NOT NULL DEFAULT 'unknown',
+         tyre_change       TEXT,
+         fuel_added        REAL,
+         fuel_before       REAL,
+         fuel_after        REAL,
+         linkage           TEXT NOT NULL DEFAULT 'unknown',
+         source            TEXT,
+         created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+         UNIQUE(result_id, sequence)
+       )`,
+      `INSERT INTO pit_events_new (
+         id, result_id, sequence, lap_number, elapsed_seconds, duration_seconds,
+         service, tyre_change, fuel_added, fuel_before, fuel_after, linkage, source, created_at
+       )
+       SELECT
+         id, result_id, sequence, lap_number, elapsed_seconds, duration_seconds,
+         service, tyre_change, fuel_added, fuel_before, fuel_after, linkage, source, created_at
+       FROM pit_events`,
+      `DROP TABLE pit_events`,
+      `ALTER TABLE pit_events_new RENAME TO pit_events`,
+      `CREATE INDEX IF NOT EXISTS idx_pit_events_result ON pit_events(result_id, sequence)`,
+    ],
+  },
+  // v50: Immutable runtime identity for deterministic telemetry replay.
+  {
+    version: 50,
+    name: "telemetry replay version identity",
+    sql: [
+      // Databases that already applied the original v46 rebuild lost the v19
+      // column; duplicate-column tolerance makes this converge with fresh DBs.
+      `ALTER TABLE laps ADD COLUMN legacy_telemetry BLOB`,
+      `ALTER TABLE sessions ADD COLUMN catalog_version TEXT`,
+      `ALTER TABLE sessions ADD COLUMN catalog_hash TEXT`,
+      `ALTER TABLE sessions ADD COLUMN catalog_schema_version TEXT`,
+      `ALTER TABLE sessions ADD COLUMN parser_version TEXT`,
+      `ALTER TABLE sessions ADD COLUMN resolver_version TEXT`,
+      `ALTER TABLE sessions ADD COLUMN derivation_version TEXT`,
+      `ALTER TABLE laps ADD COLUMN catalog_version TEXT`,
+      `ALTER TABLE laps ADD COLUMN catalog_hash TEXT`,
+      `ALTER TABLE laps ADD COLUMN catalog_schema_version TEXT`,
+      `ALTER TABLE laps ADD COLUMN parser_version TEXT`,
+      `ALTER TABLE laps ADD COLUMN resolver_version TEXT`,
+      `ALTER TABLE laps ADD COLUMN derivation_version TEXT`,
+    ],
+  },
+  // v51: Converge databases that applied v50 before legacy fallback restoration.
+  // This restores column shape only; rows deleted by an already-applied v35
+  // cannot be reconstructed because no telemetry bytes remain in the database.
+  {
+    version: 51,
+    name: "ensure historical telemetry fallback column",
+    sql: [
+      `ALTER TABLE laps ADD COLUMN legacy_telemetry BLOB`,
     ],
   },
 ];

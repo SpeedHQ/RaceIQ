@@ -40,7 +40,7 @@ import {
 import { iracingAdapter } from "../shared/games/iracing";
 
 const DISK_HEADER_SIZE = 144;
-const ROW_LENGTH = 40;
+const ROW_LENGTH = 44;
 
 initGameAdapters();
 initServerGameAdapters();
@@ -53,6 +53,7 @@ interface SyntheticRow {
   lap?: number;
   lastLapTime?: number;
   currentLapTime?: number;
+  brakeLinePressure?: number;
 }
 
 interface SyntheticIdentity {
@@ -104,6 +105,7 @@ function telemetryRow(row: SyntheticRow): Buffer {
   buffer.writeFloatLE(row.lapDistancePct, 28);
   buffer.writeFloatLE(row.lastLapTime ?? 0, 32);
   buffer.writeFloatLE(row.currentLapTime ?? row.sessionTime, 36);
+  buffer.writeFloatLE(row.brakeLinePressure ?? 1200.25, 40);
   return buffer;
 }
 
@@ -123,6 +125,7 @@ function writeSyntheticIbt(
     descriptor(IRSDKVariableType.Float, 28, "LapDistPct"),
     descriptor(IRSDKVariableType.Float, 32, "LapLastLapTime"),
     descriptor(IRSDKVariableType.Float, 36, "LapCurrentLapTime"),
+    descriptor(IRSDKVariableType.Float, 40, "LFbrakeLinePress"),
   ]);
   const sessionInfo = Buffer.from(`
 WeekendInfo:
@@ -157,12 +160,14 @@ SplitTimeInfo:
       sessionTick: 600,
       speed: 50.5,
       lapDistancePct: 0.25,
+      brakeLinePressure: 1200.25,
     },
     {
       sessionTime: 10 + 1 / 60,
       sessionTick: 601,
       speed: 51.5,
       lapDistancePct: 0.26,
+      brakeLinePressure: 1201.5,
     },
   ];
   const rows = sourceRows.map(telemetryRow);
@@ -315,6 +320,7 @@ describe("IRacingIbtReader", () => {
       Speed: 50.5,
       Lap: 3,
     });
+    expect(first?.values.LFbrakeLinePress).toBeCloseTo(1200.25);
     expect(reader.recordsRead).toBe(1);
     expect(reader.done).toBe(false);
 
@@ -359,6 +365,7 @@ describe("IRacingIbtReader", () => {
       carName: "GT3 Test Car",
     });
     expect(frame).not.toBeNull();
+    expect(frame?.values.LFbrakeLinePress).toBeCloseTo(1200.25);
     const packet = normalizeIRacingFrame(frame!);
     expect(packet.gameId).toBe("iracing");
     expect(packet.sessionUID).toBe("456:123:2");
@@ -368,8 +375,25 @@ describe("IRacingIbtReader", () => {
 
     const secondFrame = decodeIRacingSourceFrame(delivered[1], decoder);
     expect(secondFrame?.values.Speed).toBeCloseTo(51.5);
+    expect(secondFrame?.values.LFbrakeLinePress).toBeCloseTo(1201.5);
 
     await source.stop();
+  });
+
+  test("reports missing required inputs while retaining other native channels", async () => {
+    const path = createRecording();
+    const bytes = readFileSync(path);
+    const speedNameOffset =
+      DISK_HEADER_SIZE + 5 * IRSDK_VAR_HEADER_SIZE + 16;
+    bytes.fill(0, speedNameOffset, speedNameOffset + 32);
+    writeCString(bytes, speedNameOffset, 32, "UnavailableSpeedDetail");
+    writeFileSync(path, bytes);
+
+    const preview = await previewIbtFile(path);
+    expect(preview.missingRequiredVariables).toContain("Speed");
+    expect(preview.reason).toContain(
+      "missing channels required for RaceIQ lap import: Speed",
+    );
   });
 
   test("rejects a recording whose declared rows are truncated", () => {

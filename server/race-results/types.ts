@@ -1,4 +1,11 @@
 import type { GameId, TelemetryPacket } from "../../shared/types";
+import type {
+  RaceResultClaimEvidence,
+  RaceResultEvidence,
+  RaceResultOutcomeStatus,
+  RaceResultProvenance,
+  RaceResultStatus,
+} from "../../shared/race-results";
 
 export type ResultSessionType = "practice" | "qualifying" | "race" | "other" | "unknown";
 export type ResultClassification = "finished" | "dnf" | "retired" | "qualifying" | "unknown";
@@ -28,10 +35,12 @@ export interface RaceSourceObservation {
   isFastestLap?: boolean | null;
   fastestLapSource?: string | null;
   packets: TelemetryPacket[];
+  claims?: RaceResultClaimEvidence[];
   pitEvents?: PitEvent[];
   tyreStrategy?: unknown;
   fuelStrategy?: unknown;
-  provenance: Record<string, string>;
+  provenance: RaceResultProvenance;
+  evidence: RaceResultEvidence;
   reasons: string[];
 }
 
@@ -46,6 +55,8 @@ export interface DerivedRaceResult {
   events: PitEvent[];
   tyreStrategy: unknown;
   fuelStrategy: unknown;
-  provenance: Record<string, string>;
+  provenance: RaceResultProvenance;
+  outcomeStatus: RaceResultOutcomeStatus;
+  evidence: RaceResultEvidence;
   reasons: string[];
 }

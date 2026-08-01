@@ -8,16 +8,9 @@
 - View all release notes since your installed version in the app
 
 ### Fixes
-- Keep unfinished game integrations and experiments out of production releases
-- Make settings, onboarding, analysis, comparison, and experiment controls clearer and more consistent
-- Show actionable guidance when AI provider, credentials, or model configuration is incomplete
-- Keep chat drafts, submitted prompts, loading states, and conversation history consistent across AI surfaces
-- Restore setup-seeded experiment branches and make branch deletion explicit
-- Improve setup browsing with faster filters, clearer track and car context, and direct Forza tune access
-- Keep analysis tables, tabs, maps, cards, and responsive layouts aligned across desktop and compact displays
-- Improve session and sector tables when timing data is sparse or unavailable
-- Show every registered game in storage settings, including games without recorded sessions
-- Keep connection status, theme tokens, button surfaces, and sector-blip selection visually consistent
+
+- Show all registered games in storage settings, including games with no recording files
+- Keep older lap telemetry available when legacy storage is the only replay source or a raw capture fails
 
 ### Internal
 - Added complete telemetry-first semantic catalog with units, descriptions, per-game fidelity mappings, full parser/setup source inventories, stable iRacing SessionInfo setup leaves, detailed sector relationships, and persisted detailed tire temperatures

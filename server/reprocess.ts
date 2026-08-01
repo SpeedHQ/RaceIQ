@@ -3,8 +3,8 @@
  * to update lap boundaries after a lap detection algorithm change.
  */
 import { getServerGame } from "./games/registry";
-import { CapturingDbAdapter } from "./pipeline-adapters";
-import { META_FRAME_MAGIC } from "./session-recorder";
+import { CapturingDbAdapter, currentTelemetryVersionIdentity } from "./pipeline-adapters";
+import { META_FRAME_MAGIC } from "./udp-recorder";
 import type { GameId } from "../shared/types";
 import { gunzip } from "zlib";
 import { promisify } from "util";
@@ -45,6 +45,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
 
   const gameId = session.gameId as GameId;
   const serverGame = getServerGame(gameId);
+  const versionIdentity = currentTelemetryVersionIdentity(gameId);
 
   // Read the raw session file
   const rawFileHandle = Bun.file(session.rawFile);
@@ -116,17 +117,52 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
         detected.lapTime,
         detected.isValid,
         detected.invalidReason,
-        sectors
+        sectors,
+        versionIdentity,
       );
       lapsUpdated++;
     }
   } else {
-    // Count changed — delete and re-insert, preserving notes/tuneId by lap number
+    // Count changed — rebuild detected laps. Match old rows by lap number and
+    // raw offset so their notes, tune, and historical fallback bytes survive.
+    // Old fallback rows with no detected replacement remain as explicit archive
+    // rows instead of being silently destroyed.
     strategy = "replace";
-    const notesByLapNum = new Map(existingLaps.map(l => [l.lapNumber, { notes: l.notes, tuneId: l.tuneId }]));
-    await deleteLapsForSession(sessionId);
-    for (const detected of detectedLaps) {
-      const preserved = notesByLapNum.get(detected.lapNumber);
+    const candidatesByLapNumber = new Map<
+      number,
+      (typeof existingLaps)[number][]
+    >();
+    for (const existing of existingLaps) {
+      const candidates = candidatesByLapNumber.get(existing.lapNumber);
+      if (candidates) candidates.push(existing);
+      else candidatesByLapNumber.set(existing.lapNumber, [existing]);
+    }
+    const replacements = detectedLaps.map((detected) => {
+      const candidates = candidatesByLapNumber.get(detected.lapNumber) ?? [];
+      const exactIndex = candidates.findIndex(
+        (candidate) =>
+          candidate.rawByteOffset === detected.rawByteOffset,
+      );
+      const candidateIndex = exactIndex >= 0 ? exactIndex : 0;
+      const preserved =
+        candidates.length > 0
+          ? candidates.splice(candidateIndex, 1)[0]
+          : undefined;
+      return { detected, preserved };
+    });
+    const replacedIds = new Set(
+      replacements.flatMap(({ preserved }) =>
+        preserved ? [preserved.id] : []
+      ),
+    );
+    const archivedIds = existingLaps
+      .filter(
+        (existing) =>
+          existing.legacyTelemetry != null && !replacedIds.has(existing.id),
+      )
+      .map(({ id }) => id);
+    await deleteLapsForSession(sessionId, archivedIds);
+    for (const { detected, preserved } of replacements) {
       const sectors = detected.sectors ? [...detected.sectors] : null;
       await insertReprocessedLap(
         sessionId,
@@ -138,14 +174,21 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
         preserved?.tuneId ?? null,
         preserved?.notes ?? null,
         detected.invalidReason,
-        sectors
+        sectors,
+        preserved?.legacyTelemetry ?? null,
+        versionIdentity,
       );
       lapsUpdated++;
     }
   }
 
   // Update session lap detector version
-  await updateSessionRawFile(sessionId, session.rawFile, detector.detectorId);
+  await updateSessionRawFile(
+    sessionId,
+    session.rawFile,
+    detector.detectorId,
+    versionIdentity,
+  );
 
   return {
     sessionId,

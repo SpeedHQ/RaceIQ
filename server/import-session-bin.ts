@@ -1,6 +1,6 @@
 import { gunzipSync } from "zlib";
 import { existsSync, unlinkSync } from "fs";
-import { KNOWN_GAME_IDS, type GameId, type LapMeta } from "../shared/types";
+import { KNOWN_GAME_IDS, type GameId, type LapMeta, type TelemetryVersionIdentity } from "../shared/types";
 import { deleteSession } from "./db/queries";
 import { getAllServerGames, getServerGame } from "./games/registry";
 import { Pipeline } from "./pipeline";
@@ -45,12 +45,14 @@ export class ImportCaptureAdapter implements DbAdapter {
     trackOrdinal: number,
     gameId: GameId,
     sessionType?: string,
+    versionIdentity?: TelemetryVersionIdentity,
   ): Promise<number> {
     const id = await this._inner.insertSession(
       carOrdinal,
       trackOrdinal,
       gameId,
       sessionType,
+      versionIdentity,
     );
     this.sessionIds.add(id);
     this._sessionMeta.set(id, { carOrdinal, trackOrdinal });
@@ -67,10 +69,11 @@ export class ImportCaptureAdapter implements DbAdapter {
     profileId: number | null,
     tuneId: number | null,
     invalidReason: string | null,
-    sectors: number[] | null
+    sectors: number[] | null,
+    versionIdentity?: TelemetryVersionIdentity,
   ): Promise<number> {
     const pending = this._inner.insertLap(
-      sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors
+      sessionId, lapNumber, lapTime, isValid, rawByteOffset, rawFrameCount, profileId, tuneId, invalidReason, sectors, versionIdentity
     ).then((id) => {
       const meta = this._sessionMeta.get(sessionId);
       this.laps.push({
