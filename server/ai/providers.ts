@@ -5,6 +5,9 @@
 import { extractJson } from "./extract-json";
 import { AiProviderError } from "./provider-error";
 import { buildGoogleThinkingProviderOptions } from "./google-provider-options";
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 export interface AiResult {
   analysis: string;
   usage: {
@@ -217,7 +220,8 @@ export async function runCodexCli(
   const startedAt = Date.now();
   const executable = codexExecutable(options);
   const args = [executable, "exec", "--json", "--ephemeral", "--skip-git-repo-check"];
-  if (model?.trim()) args.push("--model", model.trim());
+  const selectedModel = model?.trim();
+  if (selectedModel && selectedModel !== "codex-default") args.push("--model", selectedModel);
   args.push("-");
   let result: CodexProcessResult;
   try {
@@ -240,7 +244,7 @@ export async function runCodexCli(
       outputTokens: parsed.outputTokens,
       costUsd: 0,
       durationMs: Date.now() - startedAt,
-      model: model?.trim() || parsed.model,
+      model: selectedModel || parsed.model,
     },
   };
 }
@@ -639,6 +643,24 @@ export async function runOpenAi(
 ): Promise<AiResult> {
   return runOpenAiCompatible({ prompt, apiKey, model, schema, schemaName });
 }
+const CODEX_MODELS_CACHE_FILE = "models_cache.json";
+
+export function getCodexModels() {
+  try {
+    const codexHome = process.env.CODEX_HOME?.trim() || join(homedir(), ".codex");
+    const cache = JSON.parse(readFileSync(join(codexHome, CODEX_MODELS_CACHE_FILE), "utf8")) as {
+      models?: { slug?: unknown; display_name?: unknown; visibility?: unknown }[];
+    };
+    const models = (cache.models ?? [])
+      .filter((model) => model.visibility === "list" && typeof model.slug === "string" && typeof model.display_name === "string")
+      .map((model) => ({ id: model.slug as string, name: model.display_name as string }));
+    if (models.length > 0) return models;
+  } catch {
+    // Older Codex CLI versions may not have a model cache yet.
+  }
+  return [{ id: "codex-default", name: "Codex configured default" }];
+}
+
 
 const OPENAI_MODELS = [
   { id: "gpt-4o-mini", name: "GPT-4o Mini" },

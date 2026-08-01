@@ -79,4 +79,15 @@ describe("formatTuneForPrompt", () => {
 		expect(result).toContain("Minimal");
 		expect(result).not.toContain("undefined");
 	});
+	test("summarises game-specific setup blobs without throwing", () => {
+		const result = formatTuneForPrompt({
+			name: "AC Evo setup",
+			author: "RaceIQ",
+			category: "road",
+			settings: { frontARB: 2, rearARB: 3 } as TuneSettings,
+		});
+		expect(result).toContain("AC Evo setup");
+		expect(result).toContain("frontARB: 2");
+		expect(result).toContain("rearARB: 3");
+	});
 });

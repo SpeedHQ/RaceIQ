@@ -115,6 +115,27 @@ printf '%s\\n' '${jsonl(
       rmSync(keyFile, { force: true });
     }
   });
+  test("uses Codex CLI configured default for codex-default model", async () => {
+    const argsFile = join(tmpdir(), `raceiq-codex-default-args-${crypto.randomUUID()}`);
+    const { executable } = makeFakeExecutable(`
+printf '%s\\n' "$@" > "$CODEX_ARGS_FILE"
+printf '%s\\n' '${jsonl(
+  { type: "item.completed", item: { type: "agent_message", text: "ok" } },
+  { type: "turn.completed", usage: {} },
+)}'
+`);
+    try {
+      await expect(runCodexCli("prompt", "codex-default", {
+        executable,
+        env: { CODEX_ARGS_FILE: argsFile },
+      })).resolves.toMatchObject({ usage: { model: "codex-default" } });
+      expect(readFileSync(argsFile, "utf8").trim().split("\n")).toEqual([
+        "exec", "--json", "--ephemeral", "--skip-git-repo-check", "-",
+      ]);
+    } finally {
+      rmSync(argsFile, { force: true });
+    }
+  });
 
   test("reports non-zero exit with truncated stderr", async () => {
     const { executable } = makeFakeExecutable(`
