@@ -16,7 +16,7 @@ import { getRunningGame } from "../games/registry";
 import { getTrackLengthMeters } from "../../shared/track-data";
 import { withOnboardingOverride } from "../runtime-options";
 
-import { getCodexStatus, getProviders, type CodexStatus } from "../ai/providers";
+import { getCodexModels, getCodexStatus, getGeminiModelsDetailed, getLocalModelsDetailed, getOpenAiModels, getProviders, type CodexStatus } from "../ai/providers";
 const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
 const MODELS_EMPTY_RETRY_MS = 10 * 1000;
 let cachedGeminiModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
@@ -97,7 +97,6 @@ export const settingsRoutes = new Hono()
 
   // GET /api/ai-models — available models per provider
   .get("/api/ai-models", async (c) => {
-    const { getGeminiModelsDetailed, getOpenAiModels, getLocalModelsDetailed } = await import("../ai/providers");
     const forceRefresh = c.req.query("refresh") === "1";
     console.info(`[AI] ai-models request refresh=${forceRefresh ? "1" : "0"} providers=${c.req.query("providers") ?? "<settings>"}`);
 
@@ -186,7 +185,7 @@ export const settingsRoutes = new Hono()
     return c.json({
       "gemini": geminiModels,
       "openai": getOpenAiModels(),
-      "codex": [],
+      "codex": getCodexModels(),
       "local": localModels,
       "_errors": { gemini: geminiError, openai: null, codex: null, local: localError },
     });

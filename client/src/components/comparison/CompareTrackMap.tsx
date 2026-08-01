@@ -31,6 +31,9 @@ interface CompareTrackMapProps {
   trackOrdinal?: number | null;
   gameId?: GameId | null;
 }
+export function compareSegmentKey(name: string, startFrac: number, endFrac: number): string {
+  return `${name}:${startFrac}:${endFrac}`;
+}
 
 /** Dual-panel track map: overview (left) + zoomed follow (right) */
 export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hoveredDistanceRef, redrawRef, trackOrdinal, gameId }: CompareTrackMapProps) {
@@ -403,7 +406,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
               <TH align="end">+/-</TH>
             </THead>
             <TBody ref={segmentTableRef}>
-              {segments.map((s) => {
+              {segments.map((s, index) => {
                 const fasterA = s.timeA > 0 && s.timeB > 0 && s.timeA < s.timeB;
                 const fasterB = s.timeA > 0 && s.timeB > 0 && s.timeB < s.timeA;
                 const delta = s.timeA - s.timeB;
@@ -411,7 +414,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
                 const segmentDeltaColor = isNeutral ? "var(--app-text-secondary)" : deltaColor(delta);
                 const sign = delta > 0 ? "+" : "";
                 return (
-                  <TRow key={s.name}>
+                  <TRow key={compareSegmentKey(s.name, s.startFrac, s.endFrac) || index}>
                     <TD nowrap numeric tone="primary">
                       {s.name}
                     </TD>

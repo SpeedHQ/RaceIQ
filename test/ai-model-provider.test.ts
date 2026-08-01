@@ -123,18 +123,33 @@ describe("settings-aware model provider", () => {
     expect(result).toMatchObject({ analysis: "ok", usage: { model: "gpt-4o-mini" } });
   });
 
-  test("rejects Codex comparison centrally before native execution", async () => {
-    const codex = await resolveAi("analysis", settings({ aiProvider: "codex", aiModel: "codex-model" }));
+  test("dispatches Codex comparison through native structured generation", async () => {
+    let called = false;
+    const codex = {
+      feature: "analysis" as const,
+      provider: "codex" as const,
+      model: "codex",
+      generateText: async () => {
+        throw new Error("comparison must use structured generation");
+      },
+      generateStructured: async () => {
+        called = true;
+        return {
+          analysis: "{\"ok\":true}",
+          usage: { inputTokens: 1, outputTokens: 2, costUsd: 0, durationMs: 3, model: "codex" },
+        };
+      },
+    };
 
-    await expect(runAiStructured(codex, {
+    const result = await runAiStructured(codex, {
       prompt: "compare",
       schema: {},
     }, async () => {
-      throw new Error("comparison Mastra must not run");
-    }, { operation: "comparison" })).rejects.toMatchObject({
-      code: "unsupported-operation",
-      provider: "codex",
+      throw new Error("Codex comparison must not run through Mastra");
     });
+
+    expect(called).toBe(true);
+    expect(result).toMatchObject({ analysis: "{\"ok\":true}", usage: { model: "codex" } });
   });
 
   test("dispatches Codex prose through native text generation", async () => {
