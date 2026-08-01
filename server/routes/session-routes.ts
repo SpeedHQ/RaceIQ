@@ -2,9 +2,9 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 
-import { GameIdQuerySchema } from "../../shared/schemas";
-import { IdParamSchema } from "../../shared/schemas";
-import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions, getSessionRecapData } from "../db/queries";
+import { GameIdQuerySchema, IdParamSchema } from "../../shared/schemas";
+import { GameIdSchema } from "../../shared/types";
+import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions, getSessionRecapData, getSessionResult } from "../db/queries";
 import { reprocessSession } from "../reprocess";
 import { LAP_DETECTOR_ID } from "../lap-detector";
 import { LAP_DETECTOR_V2_ID } from "../lap-detector-acc";
@@ -14,6 +14,8 @@ import { wsManager } from "../ws";
 import { computeRecap } from "../recap";
 import { tryGetGame } from "../../shared/games/registry";
 import { getCarName, getTrackName } from "../../shared/car-data";
+import { backfillRaceResults, reconcileSessionResult } from "../race-results/reconcile";
+import { getRaceResultAggregate, getRecentRaceResults } from "../race-results/aggregates";
 
 const ALL_DETECTOR_IDS = [
   LAP_DETECTOR_ID,
@@ -61,6 +63,55 @@ export const sessionRoutes = new Hono()
     },
   )
 
+  // GET /api/sessions/:id/result
+  .get(
+    "/api/sessions/:id/result",
+    zValidator("param", IdParamSchema),
+    zValidator("query", GameIdQuerySchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const { gameId } = c.req.valid("query");
+      if (!gameId) return c.json({ error: "gameId is required" }, 400);
+      let result = await getSessionResult(id, gameId);
+      if (!result) {
+        await reconcileSessionResult(id, gameId);
+        result = await getSessionResult(id, gameId);
+      }
+      if (!result) return c.json({ error: "Session result not found" }, 404);
+      return c.json(result);
+    },
+  )
+
+  // POST /api/race-results/backfill
+  .post(
+    "/api/race-results/backfill",
+    zValidator(
+      "json",
+      z.object({ gameId: GameIdSchema, limit: z.number().int().min(1).max(100).default(25), afterSessionId: z.number().int().optional() }),
+    ),
+    async (c) => c.json(await backfillRaceResults(c.req.valid("json"))),
+  )
+  // GET /api/race-results/summary
+  .get(
+    "/api/race-results/summary",
+    zValidator(
+      "query",
+      z.object({
+        gameId: GameIdSchema,
+        carOrdinal: z.coerce.number().int().optional(),
+        trackOrdinal: z.coerce.number().int().optional(),
+      }),
+    ),
+    async (c) => c.json(await getRaceResultAggregate(c.req.valid("query"))),
+  )
+
+
+  // GET /api/race-results/recent
+  .get(
+    "/api/race-results/recent",
+    zValidator("query", z.object({ gameId: GameIdSchema, limit: z.coerce.number().int().min(1).max(50).default(10) })),
+    async (c) => c.json(await getRecentRaceResults(c.req.valid("query").gameId, c.req.valid("query").limit)),
+  )
   // PATCH /api/sessions/:id/notes
   .patch(
     "/api/sessions/:id/notes",
