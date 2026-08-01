@@ -7,6 +7,8 @@ import type { TelemetryPacket } from "../../shared/types";
 import { AnalyseDynamicsPanel } from "../src/components/analyse/AnalyseDynamicsPanel";
 import { AnalyseSuspensionPanel } from "../src/components/analyse/AnalyseSuspensionPanel";
 import { AnalyseTireWheelsPanel } from "../src/components/analyse/AnalyseTireWheelsPanel";
+import { buildSegmentData } from "../src/components/analyse/AnalyseSegmentList";
+import { pathForwardOffsets } from "../src/components/analyse/AnalyseTrackMap";
 import type { useUnits } from "../src/hooks/useUnits";
 import { fakeAccPacket } from "../src/stories/fakeData";
 
@@ -111,9 +113,7 @@ describe("iRacing analysis panels", () => {
   });
 
   test("shows raw shock travel and names compression bias honestly", () => {
-    const markup = renderToStaticMarkup(
-      createElement(AnalyseSuspensionPanel, { currentPacket: packet }),
-    );
+    const markup = renderToStaticMarkup(createElement(AnalyseSuspensionPanel, { currentPacket: packet }));
 
     expect(markup).toContain("39mm");
     expect(markup).toContain("59mm");
@@ -121,5 +121,62 @@ describe("iRacing analysis panels", () => {
     expect(markup).toContain("Front 60%");
     expect(markup).toContain("Left 35%");
     expect(markup).not.toContain(">39%<");
+  });
+});
+
+describe("iRacing analysis track marker", () => {
+  test("keeps projected-path direction through repeated positions and corners", () => {
+    const directions = pathForwardOffsets([
+      { x: 0, z: 0 },
+      { x: 0, z: 0 },
+      { x: 1, z: 0 },
+      { x: 1, z: 1 },
+      { x: 1, z: 1 },
+    ]);
+
+    expect(directions[0]).toEqual([1, 0]);
+    expect(directions[1]).toEqual([1, 0]);
+    expect(directions[2]?.[0]).toBeCloseTo(Math.SQRT1_2);
+    expect(directions[2]?.[1]).toBeCloseTo(Math.SQRT1_2);
+    expect(directions[3]).toEqual([0, 1]);
+    expect(directions[4]).toEqual([0, 1]);
+    expect(
+      pathForwardOffsets([
+        { x: 4, z: 2 },
+        { x: 4, z: 2 },
+      ]),
+    ).toEqual([null, null]);
+  });
+});
+
+describe("iRacing analysis segment timing", () => {
+  test("uses lap distance when world positions are unavailable", () => {
+    const telemetry = Array.from({ length: 101 }, (_, index) => ({
+      DistanceTraveled: 7000 + index * 20,
+      CurrentLap: index * 0.5,
+      PositionX: 0,
+      PositionZ: 0,
+    })) as TelemetryPacket[];
+    const segments = [
+      { type: "straight", name: "", startFrac: 0, endFrac: 0.25 },
+      { type: "corner", name: "T1", startFrac: 0.25, endFrac: 0.5 },
+      { type: "straight", name: "", startFrac: 0.5, endFrac: 0.75 },
+      { type: "corner", name: "T2", startFrac: 0.75, endFrac: 1 },
+    ];
+
+    const result = buildSegmentData(telemetry, segments);
+
+    expect(result?.staticSegments.map((segment) => segment.time)).toEqual([
+      12.5,
+      12.5,
+      12.5,
+      12.5,
+    ]);
+    expect(result?.staticSegments.map((segment) => segment.name)).toEqual([
+      "S1",
+      "T1",
+      "S2",
+      "T2",
+    ]);
   });
 });

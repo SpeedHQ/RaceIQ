@@ -15,6 +15,8 @@
 - Highlight the active sector-blip setting with a cyan border
 - Keep desktop-only analysis and comparison pages available on wide, low-height displays
 - Resize the comparison track map with a persisted splitter and keep the AI Analysis control right-aligned
+- Keep the iRacing analysis car indicator aligned with track direction in fixed and follow map views
+- Show corner and straight times on iRacing analysis laps without world-position telemetry
 
 ### Internal
 - Restored live-dashboard Storybook runtime context and added same-renderer local visual comparison before canonical Linux baseline generation

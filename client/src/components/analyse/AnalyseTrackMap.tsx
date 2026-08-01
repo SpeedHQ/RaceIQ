@@ -37,6 +37,43 @@ const HIGHLIGHT_COLORS = {
   critical: { stroke: "color-mix(in srgb, var(--severity-critical) 70%, transparent)", width: 6 },
 };
 
+export function pathForwardOffsets(points: readonly Point[]): ([number, number] | null)[] {
+  const segments: ([number, number] | null)[] = Array(Math.max(0, points.length - 1)).fill(null);
+  for (let index = 0; index < segments.length; index++) {
+    const dx = points[index + 1].x - points[index].x;
+    const dz = points[index + 1].z - points[index].z;
+    const length = Math.hypot(dx, dz);
+    if (length > 1e-6) segments[index] = [dx / length, dz / length];
+  }
+
+  const before: ([number, number] | null)[] = Array(points.length).fill(null);
+  let lastDirection: [number, number] | null = null;
+  for (let index = 0; index < points.length; index++) {
+    if (index > 0 && segments[index - 1]) lastDirection = segments[index - 1];
+    before[index] = lastDirection;
+  }
+
+  const directions: ([number, number] | null)[] = Array(points.length).fill(null);
+  let nextDirection: [number, number] | null = null;
+  for (let index = points.length - 1; index >= 0; index--) {
+    if (index < segments.length && segments[index]) nextDirection = segments[index];
+    const previousDirection = before[index];
+    if (!previousDirection) {
+      directions[index] = nextDirection;
+      continue;
+    }
+    if (!nextDirection) {
+      directions[index] = previousDirection;
+      continue;
+    }
+    const dx = previousDirection[0] + nextDirection[0];
+    const dz = previousDirection[1] + nextDirection[1];
+    const length = Math.hypot(dx, dz);
+    directions[index] = length > 1e-6 ? [dx / length, dz / length] : nextDirection;
+  }
+  return directions;
+}
+
 export const AnalyseTrackMap = forwardRef<
   TrackMapHandle,
   {
@@ -83,6 +120,7 @@ export const AnalyseTrackMap = forwardRef<
       z: path.z[index],
     }));
   }, [telemetry, outline]);
+  const resolvedDirections = useMemo(() => pathForwardOffsets(resolvedPositions), [resolvedPositions]);
 
   // Draw the static track (boundaries, outline, segments, sectors, start/finish) to the offscreen canvas.
   // Called once when data changes — NOT per cursor update.
@@ -540,11 +578,13 @@ export const AnalyseTrackMap = forwardRef<
       const pkt = telemetry[idx];
       const position = resolvedPositions[idx];
       const game = pkt ? tryGetGame(pkt.gameId) : undefined;
+      const pathDirection = game?.coordSystem === "lap-distance" ? resolvedDirections[idx] : null;
       if (pkt && position) {
         const carCx = t.offsetX + (t.maxX - position.x) * t.scale;
         const carCy = t.offsetZ + (position.z - t.minZ) * t.scale;
         ctx.translate(t.w / 2, t.h / 2);
-        ctx.rotate(game?.followViewRotation(pkt.Yaw) ?? Math.PI - pkt.Yaw);
+        const rotation = pathDirection ? -Math.PI / 2 - Math.atan2(pathDirection[1], -pathDirection[0]) : (game?.followViewRotation(pkt.Yaw) ?? Math.PI - pkt.Yaw);
+        ctx.rotate(rotation);
         ctx.translate(-carCx, -carCy);
       }
 
@@ -555,7 +595,7 @@ export const AnalyseTrackMap = forwardRef<
       if (pkt2 && position2) {
         const cx = t.offsetX + (t.maxX - position2.x) * t.scale;
         const cy = t.offsetZ + (position2.z - t.minZ) * t.scale;
-        const [dx, dz] = game?.carForwardOffset(pkt2.Yaw) ?? [Math.sin(pkt2.Yaw), Math.cos(pkt2.Yaw)];
+        const [dx, dz] = pathDirection ?? game?.carForwardOffset(pkt2.Yaw) ?? [Math.sin(pkt2.Yaw), Math.cos(pkt2.Yaw)];
         const fwdX = position2.x + dx;
         const fwdZ = position2.z + dz;
         const fx = t.offsetX + (t.maxX - fwdX) * t.scale;
@@ -581,7 +621,7 @@ export const AnalyseTrackMap = forwardRef<
 
       ctx.restore();
     },
-    [telemetry, resolvedPositions, rotateWithCar],
+    [telemetry, resolvedPositions, resolvedDirections, rotateWithCar],
   );
 
   // Draw car dot on overlay canvas (fixed view only — avoids full redraw)
@@ -617,7 +657,8 @@ export const AnalyseTrackMap = forwardRef<
       const [cx, cy] = toCanvas(position.x, position.z);
       const triSize = 8;
       const game = tryGetGame(pkt.gameId);
-      const [dx, dz] = game?.carForwardOffset(pkt.Yaw) ?? [Math.sin(pkt.Yaw), Math.cos(pkt.Yaw)];
+      const pathDirection = game?.coordSystem === "lap-distance" ? resolvedDirections[idx] : null;
+      const [dx, dz] = pathDirection ?? game?.carForwardOffset(pkt.Yaw) ?? [Math.sin(pkt.Yaw), Math.cos(pkt.Yaw)];
       const fwdX = position.x + dx;
       const fwdZ = position.z + dz;
       const [fx, fy] = toCanvas(fwdX, fwdZ);
@@ -638,7 +679,7 @@ export const AnalyseTrackMap = forwardRef<
       ctx.restore();
       carPosRef.current = { x: cx, y: cy, w: t.w, h: t.h, angle };
     },
-    [telemetry, resolvedPositions],
+    [telemetry, resolvedPositions, resolvedDirections],
   );
 
   // Imperative cursor update — called from animation loop without React re-render
