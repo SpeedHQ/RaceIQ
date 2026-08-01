@@ -46,6 +46,9 @@ demo-frames/
 # Mobile responsive screenshot captures
 playwright/screenshots/
 
+# Local main-vs-worktree UI comparison reports
+.ui-diff/
+
 # Dev dump recordings — track gzipped fixtures only
 test/artifacts/sessions/*.bin
 .claude/scheduled_tasks.lock

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { detectPlatform, PLATFORM_LABEL, PlatformIcon } from "@/components/acc/acc-links";
 import { m } from "@/paraglide/messages";
 import { client } from "../../lib/rpc";
+import { Card } from "../ui/card";
 import { SearchSelect } from "../ui/SearchSelect";
 
 interface AccSetup {
@@ -53,7 +54,7 @@ function SetupVideo({ url }: { url: string }) {
     const vid = u.hostname.includes("youtube.com") ? u.searchParams.get("v") : u.hostname === "youtu.be" ? u.pathname.slice(1) : null;
     if (!vid) return null;
     return (
-      <div className="rounded-lg overflow-hidden border border-app-border/20">
+      <Card className="rounded-lg border-0 bg-transparent p-0 ring-app-border/20">
         <iframe
           src={`https://www.youtube.com/embed/${vid}`}
           title="Hotlap"
@@ -61,7 +62,7 @@ function SetupVideo({ url }: { url: string }) {
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
         />
-      </div>
+      </Card>
     );
   } catch {
     return null;
@@ -153,15 +154,15 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
     : undefined;
 
   return (
-    <div className="flex gap-3 h-full overflow-hidden">
+    <div className="flex h-auto flex-col gap-3 overflow-visible @3xl/workspace:h-full @3xl/workspace:flex-row @3xl/workspace:overflow-hidden">
       {/* Left: filters + setup list */}
-      <div className="w-[420px] shrink-0 flex flex-col min-h-0">
+      <div className="flex min-h-0 w-full shrink-0 flex-col @3xl/workspace:w-[420px]">
         {/* Filters */}
-        <div className="flex items-center gap-2 mb-1.5">
+        <div className="mb-1.5 flex flex-wrap items-center gap-2">
           <div className="text-app-label text-app-text-muted uppercase tracking-wider shrink-0">Setups ({filteredSetups.length})</div>
           {uniqueCars.length > 1 && (
             <SearchSelect
-              className="ml-auto w-48"
+              className="w-full @3xl/workspace:ml-auto @3xl/workspace:w-48"
               value={filterCar}
               onChange={(v) => {
                 setFilterCar(v);
@@ -174,7 +175,7 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
         </div>
 
         {/* Setup list */}
-        <div className="flex-1 min-h-0 overflow-y-auto rounded-lg border border-app-border/20">
+        <Card className="flex-1 min-h-0 overflow-y-auto rounded-lg border-0 bg-transparent p-0 ring-app-border/20">
           {/* Header */}
           <div className="flex items-center gap-1.5 px-2 py-1 bg-app-surface-alt/50 border-b border-app-border/20 sticky top-0">
             <span className="text-app-micro text-app-text-dim uppercase w-4 text-right shrink-0">#</span>
@@ -183,19 +184,20 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
             <span className="text-app-micro text-app-text-dim uppercase w-16 text-right">{m.label_time()}</span>
           </div>
           {filteredSetups.map((s, i) => (
-            <div
+            <button
+              type="button"
               key={setupId(s)}
               onClick={() => selectSetup(i)}
-              className={`flex items-center gap-1.5 px-2 py-1.5 cursor-pointer border-b border-app-border/10 transition-colors ${
+              className={`flex w-full items-center gap-1.5 px-2 py-1.5 text-left cursor-pointer border-b border-app-border/10 transition-colors ${
                 selectedIdx === i ? "bg-app-accent/10" : "hover:bg-app-surface-hover/30"
               }`}
             >
               <span className="text-app-compact text-app-text-dim font-mono w-4 text-right shrink-0">{i + 1}</span>
-              <div className="flex-1 min-w-0 flex items-center gap-1">
+              <span className="flex-1 min-w-0 flex items-center gap-1">
                 <span className="text-app-compact font-medium text-app-text truncate">{s.author || "Unknown"}</span>
                 <span className="text-app-micro text-app-text-dim truncate">({carNameMap.get(s.carModel) ?? s.carModel})</span>
-              </div>
-              <div className="flex items-center gap-0.5 shrink-0 justify-center">
+              </span>
+              <span className="flex items-center gap-0.5 shrink-0 justify-center">
                 {s.hasRace && (
                   <span className="setup-variant-badge text-app-nano px-1 py-0.5 rounded font-bold" data-setup-variant="race" title={m.accsetup_setup_type_race_title()}>
                     R
@@ -221,16 +223,16 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
                     {m.accsetup_file()}
                   </span>
                 )}
-              </div>
+              </span>
               <span className="text-app-compact font-mono text-(--lap-pace-on-target) shrink-0 w-16 text-right">{s.lapTime || "—"}</span>
-            </div>
+            </button>
           ))}
-        </div>
+        </Card>
       </div>
 
       {/* Right: setup detail + video */}
       {setup && (
-        <div className="flex-1 min-w-0 flex gap-3 h-full overflow-hidden">
+        <div className="flex h-auto min-w-0 flex-1 flex-col gap-3 overflow-visible @5xl/workspace:h-full @5xl/workspace:flex-row @5xl/workspace:overflow-hidden">
           {/* Detail column */}
           <div className="flex-1 min-w-0 overflow-y-auto space-y-3">
             {/* Header */}
@@ -252,10 +254,26 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
             {/* Variant tags */}
             {(setup.hasRace || setup.hasQuali || setup.hasSafe || setup.hasWet) && (
               <div className="flex items-center gap-1.5 flex-wrap">
-                {setup.hasRace && <span className="setup-variant-badge text-app-caption px-2 py-0.5 rounded-full border font-medium" data-setup-variant="race">{m.label_race()}</span>}
-                {setup.hasQuali && <span className="setup-variant-badge text-app-caption px-2 py-0.5 rounded-full border font-medium" data-setup-variant="qualifying">{m.accsetup_badge_qualify()}</span>}
-                {setup.hasSafe && <span className="setup-variant-badge text-app-caption px-2 py-0.5 rounded-full border font-medium" data-setup-variant="safe">{m.accsetup_badge_safe()}</span>}
-                {setup.hasWet && <span className="setup-variant-badge text-app-caption px-2 py-0.5 rounded-full border font-medium" data-setup-variant="wet">{m.accsetup_badge_wet()}</span>}
+                {setup.hasRace && (
+                  <span className="setup-variant-badge text-app-caption px-2 py-0.5 rounded-full border font-medium" data-setup-variant="race">
+                    {m.label_race()}
+                  </span>
+                )}
+                {setup.hasQuali && (
+                  <span className="setup-variant-badge text-app-caption px-2 py-0.5 rounded-full border font-medium" data-setup-variant="qualifying">
+                    {m.accsetup_badge_qualify()}
+                  </span>
+                )}
+                {setup.hasSafe && (
+                  <span className="setup-variant-badge text-app-caption px-2 py-0.5 rounded-full border font-medium" data-setup-variant="safe">
+                    {m.accsetup_badge_safe()}
+                  </span>
+                )}
+                {setup.hasWet && (
+                  <span className="setup-variant-badge text-app-caption px-2 py-0.5 rounded-full border font-medium" data-setup-variant="wet">
+                    {m.accsetup_badge_wet()}
+                  </span>
+                )}
               </div>
             )}
 
@@ -281,6 +299,7 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
               })()}
               {setup.setupFile && (
                 <button
+                  type="button"
                   onClick={() => installMutation.mutate(setup)}
                   disabled={installMutation.isPending}
                   className="px-3 py-1.5 text-app-compact font-semibold bg-status-success/15 text-status-success rounded hover:bg-status-success/25 transition-colors disabled:opacity-50"
@@ -314,7 +333,7 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
           </div>
 
           {/* Video column */}
-          <div className="w-1/2 shrink-0 overflow-hidden">{setup.videoUrl && <SetupVideo url={setup.videoUrl} />}</div>
+          <div className="w-full shrink-0 overflow-hidden @5xl/workspace:w-1/2">{setup.videoUrl && <SetupVideo url={setup.videoUrl} />}</div>
         </div>
       )}
     </div>
@@ -336,7 +355,7 @@ export function AccTrackGuide({ trackOrdinal, trackName }: { trackOrdinal: numbe
 
   return (
     <div className="flex items-start justify-center h-full p-4">
-      <div className="w-full max-w-4xl rounded-lg overflow-hidden border border-app-border/20">
+      <Card className="w-full max-w-4xl rounded-lg border-0 bg-transparent p-0 ring-app-border/20">
         <iframe
           src={embedUrl}
           title={`${trackName} Track Guide`}
@@ -344,7 +363,7 @@ export function AccTrackGuide({ trackOrdinal, trackName }: { trackOrdinal: numbe
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen
         />
-      </div>
+      </Card>
     </div>
   );
 }

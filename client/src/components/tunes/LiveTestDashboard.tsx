@@ -92,23 +92,21 @@ export function LiveTestDashboard({
   const { data: outlineRaw } = useTrackOutline(trackOrd ?? undefined, gameId);
   const outline = useMemo(() => {
     if (!outlineRaw) return null;
-    // biome-ignore lint/suspicious/noExplicitAny: shape mirrors LapAnalyse's outline handling
     const d = outlineRaw as any;
     if (d?.points && Array.isArray(d.points)) return d.points as Point[];
     if (Array.isArray(d)) return d as Point[];
     return null;
   }, [outlineRaw]);
   const { data: boundariesRaw } = useTrackBoundaries(trackOrd ?? undefined, gameId);
-  // biome-ignore lint/suspicious/noExplicitAny: shape mirrors LapAnalyse's boundaries handling
   const boundaries = (boundariesRaw as any) ?? null;
 
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Top row: live track position + car vitals + lap info */}
-      <div className="shrink-0 grid grid-cols-1 lg:grid-cols-[1.8fr_1.5fr_1.3fr] border-b border-app-border">
-        <div className="lg:border-r border-app-border flex flex-col">
+      <div className="grid shrink-0 grid-cols-1 border-b border-app-border @5xl/workspace:grid-cols-[1.8fr_1.5fr_1.3fr]">
+        <div className="flex flex-col border-app-border @5xl/workspace:border-r">
           <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Track Position</div>
-          <div className="relative" style={{ height: 360 }}>
+          <div className="relative h-[22.5rem]">
             <AnalyseTrackPanel
               telemetry={liveTrace}
               cursorIdx={liveTrace.length - 1}
@@ -117,7 +115,6 @@ export function LiveTestDashboard({
               sectors={null}
               segments={null}
               currentPacket={rawPacket ?? null}
-              containerHeight={360}
               showTrace={false}
               rotateWithCar={rotateWithCar}
               trackOverlay={trackOverlay}
@@ -131,7 +128,7 @@ export function LiveTestDashboard({
             <LiveTrackConditions packet={liveTrace[liveTrace.length - 1]} />
           </div>
         </div>
-        <div className="overflow-y-auto lg:border-r border-app-border">
+        <div className="overflow-y-auto border-app-border @5xl/workspace:border-r">
           <div className="px-3 pt-2 pb-1 text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Live Timing</div>
           <LiveLapInfo sectors={sectors} currentLap={packet?.CurrentLap ?? null} totalLaps={sessionLaps.length} />
         </div>

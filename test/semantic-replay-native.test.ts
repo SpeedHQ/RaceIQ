@@ -14,7 +14,7 @@ import {
   updateSessionRawFile,
 } from "../server/db/queries";
 import { queryLapTelemetryBySemanticId } from "../server/telemetry-replay";
-import { META_FRAME_MAGIC } from "../server/udp-recorder";
+import { META_FRAME_MAGIC } from "../server/session-recorder";
 import { canonicalizeTelemetryScalar } from "../shared/telemetry-replay";
 import { initGameAdapters } from "../shared/games/init";
 

@@ -4,13 +4,7 @@ import { m } from "../../paraglide/messages";
 import type { AnalysisHighlight } from "../AiPanel";
 import { Compass } from "../Compass";
 import { AnalyseSteeringOverlay } from "./AnalyseSteeringOverlay";
-import {
-  AnalyseTrackMap,
-  type Point,
-  type SectorBoundaries,
-  type TrackMapLabel,
-  type TrackMapHandle,
-} from "./AnalyseTrackMap";
+import { AnalyseTrackMap, type Point, type SectorBoundaries, type TrackMapHandle, type TrackMapLabel } from "./AnalyseTrackMap";
 import { WeatherWidget } from "./WeatherWidget";
 
 interface AnalyseTrackPanelProps {
@@ -23,7 +17,6 @@ interface AnalyseTrackPanelProps {
   sectors: SectorBoundaries | null;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   currentPacket: TelemetryPacket | null;
-  containerHeight: number;
 
   aiPanelOpen?: boolean;
   aiHighlights?: AnalysisHighlight[] | null;
@@ -62,7 +55,6 @@ export function AnalyseTrackPanel({
   sectors,
   segments,
   currentPacket,
-  containerHeight,
   aiPanelOpen,
   aiHighlights,
   rotateWithCar,
@@ -78,8 +70,7 @@ export function AnalyseTrackPanel({
 }: AnalyseTrackPanelProps) {
   return (
     <div
-      className="bg-app-bg p-2 relative flex-1 min-w-0"
-      style={{ height: containerHeight }}
+      className="relative h-full min-w-0 bg-app-bg p-2"
       onWheel={(e) => {
         if (!rotateWithCar) return;
         e.preventDefault();
@@ -100,7 +91,6 @@ export function AnalyseTrackPanel({
         showTrace={showTrace}
         rotateWithCar={rotateWithCar}
         zoom={mapZoom}
-        containerHeight={containerHeight}
       />
       {/* Weather widget (updates at cursor position) — bottom left by default, bottom right for the live dashboard */}
       {telemetry[cursorIdx]?.f1 && <WeatherWidget f1={telemetry[cursorIdx].f1!} position={weatherBottomRight ? "bottom-right" : "bottom-left"} />}
@@ -108,15 +98,17 @@ export function AnalyseTrackPanel({
       {/* View toggles — top left */}
       <div className="absolute top-2 left-2 flex flex-wrap gap-1">
         <button
+          type="button"
           onClick={onRotateWithCarToggle}
           className={`px-2 py-1 text-app-micro uppercase tracking-wider font-semibold rounded border transition-colors ${
-              rotateWithCar ? "bg-app-accent/15 border-app-accent/40 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
+            rotateWithCar ? "bg-app-accent/15 border-app-accent/40 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
           }`}
         >
           {rotateWithCar ? m.overlay_follow() : m.overlay_fixed()}
         </button>
         {!hideSteeringOverlay && (
           <button
+            type="button"
             onClick={onTrackOverlayCycle}
             className={`px-2 py-1 text-app-micro uppercase tracking-wider font-semibold rounded border transition-colors ${
               trackOverlay !== "none" ? "bg-app-accent/15 border-app-accent/40 text-app-accent" : "bg-app-surface-alt/80 border-app-border-input text-app-text-muted hover:text-app-text"
@@ -132,12 +124,14 @@ export function AnalyseTrackPanel({
         {rotateWithCar && (
           <div className="flex flex-col gap-1">
             <button
+              type="button"
               onClick={() => onMapZoomChange((z) => Math.min(z + 0.25, 4))}
               className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
             >
               +
             </button>
             <button
+              type="button"
               onClick={() => onMapZoomChange((z) => Math.max(z - 0.25, 0.5))}
               className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
             >

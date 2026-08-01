@@ -1,6 +1,7 @@
 import { rmSync, mkdirSync, writeFileSync } from "fs";
 import { resolve } from "path";
 import { spawn } from "child_process";
+import { seedScreenshotData } from "./seed-screenshot-data";
 
 // Cross-platform launcher for Playwright projects that target the compiled
 // raceiq binary.
@@ -22,6 +23,7 @@ const dir = process.env.DATA_DIR
   ? resolve(process.env.DATA_DIR)
   : resolve(__dirname, "test-data");
 const udpPort = Number(process.env.UDP_PORT ?? 15318);
+const repoDir = resolve(__dirname, "..");
 
 // Guard against a misconfigured DATA_DIR pointing at real user data — this
 // directory gets wiped unconditionally on every run.
@@ -35,6 +37,7 @@ if (!dirSegments.some((segment) => segment.includes("test-data"))) {
 rmSync(dir, { recursive: true, force: true });
 mkdirSync(dir, { recursive: true });
 writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort }));
+seedScreenshotData(repoDir, dir);
 
 const binaryName = process.platform === "win32" ? "raceiq.exe" : "raceiq";
 const distDir = resolve(__dirname, "..", "dist");

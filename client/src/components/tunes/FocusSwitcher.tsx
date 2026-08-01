@@ -1,6 +1,7 @@
 import { EXPERIMENT_FOCUS_HINTS, EXPERIMENT_FOCUS_LABELS, EXPERIMENT_FOCUSES, type ExperimentFocus } from "@shared/experiment-focus";
 import { useEffect, useRef, useState } from "react";
 import { useSetExperimentFocus } from "../../hooks/queries";
+import { Button } from "../ui/button";
 
 /**
  * Switch what an experiment is working on, mid-session.
@@ -53,9 +54,10 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
           {EXPERIMENT_FOCUSES.map((f) => {
             const active = focus === f;
             return (
-              <button
+              <Button
                 key={f}
-                type="button"
+                variant={active ? (f === "driver" ? "focus-toggle-driver" : "focus-toggle-setup") : "focus-toggle"}
+                size="app-sm"
                 aria-pressed={active}
                 title={EXPERIMENT_FOCUS_HINTS[f]}
                 onClick={() => {
@@ -65,23 +67,16 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
                   setPending(f);
                   setNote("");
                 }}
-                className={`px-2.5 py-1 text-xs transition-colors ${
-                  active
-                    ? f === "driver"
-                      ? "bg-(--focus-driver)/20 text-(--focus-driver) font-semibold"
-                      : "bg-(--focus-setup)/20 text-(--focus-setup) font-semibold"
-                    : "text-app-text-dim hover:text-app-text hover:bg-app-surface-hover/30"
-                }`}
               >
                 {EXPERIMENT_FOCUS_LABELS[f]}
-              </button>
+              </Button>
             );
           })}
         </fieldset>
       </div>
 
       {pending && (
-        <div className="absolute right-0 z-20 mt-2 w-[320px] rounded-lg border border-app-border bg-app-surface p-3 shadow-xl">
+        <div className="absolute right-0 z-20 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-lg border border-app-border bg-app-surface p-3 shadow-xl">
           <p className="text-xs text-app-text">
             Switch to <span className="font-semibold">{EXPERIMENT_FOCUS_LABELS[pending]}</span>
           </p>
@@ -101,17 +96,12 @@ export function FocusSwitcher({ experimentId, focus }: { experimentId: number; f
           />
           {error && <div className="mt-1.5 text-app-compact text-status-danger">{error}</div>}
           <div className="mt-2 flex justify-end gap-2">
-            <button type="button" onClick={() => setPending(null)} className="px-2 py-1 text-app-compact rounded border border-app-border text-app-text-dim hover:text-app-text">
+            <Button variant="app-outline" size="app-sm" onClick={() => setPending(null)}>
               Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => void commit()}
-              disabled={setFocus.isPending}
-              className="px-2.5 py-1 text-app-compact rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 text-app-on-filled font-semibold"
-            >
+            </Button>
+            <Button variant="app-primary" size="app-sm" onClick={() => void commit()} disabled={setFocus.isPending}>
               {setFocus.isPending ? "Switching…" : "Switch"}
-            </button>
+            </Button>
           </div>
         </div>
       )}

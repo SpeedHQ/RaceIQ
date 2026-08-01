@@ -53,6 +53,9 @@
     "mastra:migrate": "DATA_DIR=\"$PWD/data\" bunx --bun mastra migrate --dir mastra",
     "postinstall": "lefthook install",
     "record:demo": "cd playwright && DEMO_START_FRAME=28% DEMO_MAX_FRAMES=2700 bunx playwright test --project=record-demo",
+    "test:screenshots": "cd playwright && E2E_SERVER_MODE=dev PW_SCREENSHOT_ONLY=1 PW_SEED_SCREENSHOTS=1 bunx playwright test --project=mobile-screenshots",
+    "ui:diff": "bun scripts/local-ui-diff.ts",
+    "ui:diff:storybook": "bun scripts/local-ui-diff.ts --storybook-only",
     "render:demo": "ffmpeg -y -framerate 60 -i /tmp/raceiq-demo-frames/frame-%06d.jpg -vf scale=1280:720 -c:v libx264 -pix_fmt yuv420p -crf 30 assets/demo-render.mp4 && ffmpeg -y -framerate 60 -i /tmp/raceiq-demo-frames/frame-%06d.jpg -vf scale=1280:720 -c:v libvpx-vp9 -crf 32 -b:v 0 assets/demo-render.webm",
     "lighthouse": "lighthouse http://raceiq.localhost:1355/ --only-categories=accessibility,performance,best-practices --chrome-flags=\"--headless=new --no-sandbox --disable-gpu\" --output=html --output-path=./lighthouse-report.html && echo 'Report: lighthouse-report.html'"
   },
@@ -83,6 +86,7 @@
     "@mastra/hono": "^1.5.12",
     "@mastra/loggers": "^1.2.0",
     "@mastra/observability": "^1.16.3",
+    "@playwright/test": "^1.62.0",
     "@types/bun": "^1.3.14",
     "cheerio": "^1.2.0",
     "concurrently": "^10.0.4",

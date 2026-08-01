@@ -14,6 +14,10 @@ on:
     branches: [main]
     paths:
       - "client/**"
+      - "playwright/**"
+      - "scripts/collect-screenshot-diffs.ts"
+      - "scripts/seed-db.ts"
+      - "scripts/visual-diff-config.ts"
     types: [opened, synchronize, reopened, ready_for_review]
   # Manual dispatch remains available for any PR, including non-client changes.
   workflow_dispatch:
@@ -78,6 +82,9 @@ jobs:
       - name: Capture current responsive screenshots
         id: current-responsive
         continue-on-error: true
+        env:
+          PW_SCREENSHOT_ONLY: "1"
+          PW_SEED_SCREENSHOTS: "1"
         run: |
           bun run build
           cd playwright
@@ -94,6 +101,9 @@ jobs:
         id: main-responsive
         continue-on-error: true
         working-directory: ${{ runner.temp }}/raceiq-main
+        env:
+          PW_SCREENSHOT_ONLY: "1"
+          PW_SEED_SCREENSHOTS: "1"
         run: |
           bun install
           bun run build

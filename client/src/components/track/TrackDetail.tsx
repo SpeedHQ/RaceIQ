@@ -6,6 +6,7 @@ import { F125Leaderboard } from "@/components/f1/F125Leaderboard";
 import { F125SetupsWithGuide, F125TrackGuide } from "@/components/f1/F125TrackSetups";
 import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { SearchMultiSelect } from "@/components/ui/SearchMultiSelect";
 import { useBulkDeleteLaps } from "@/hooks/queries";
@@ -63,12 +64,12 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   if (laps.length === 0) {
     return (
-      <div className="w-full md:w-2/5 min-w-0 bg-app-surface/50 border border-app-border rounded-lg flex flex-col md:overflow-hidden">
-        <div className="flex justify-between items-center px-3 py-2 border-b border-app-border shrink-0">
+      <Card className="w-full min-w-0 @3xl/workspace:w-2/5">
+        <CardHeader className="flex shrink-0 items-center justify-between rounded-none border-b border-app-border p-3 py-2">
           <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_stats()}</div>
           <div className="text-app-compact text-app-text-dim font-mono">{m.track_detail_last_100()}</div>
-        </div>
-        <div className="flex-1 p-3 flex flex-col gap-3">
+        </CardHeader>
+        <CardContent className="flex-1 p-3 flex flex-col gap-3">
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             {[
               { key: "best", label: m.label_best() },
@@ -83,8 +84,8 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
           </div>
           <div className="relative h-2 bg-app-surface-alt rounded-full overflow-visible" />
           <div className="text-app-subtext text-app-text-dim py-4 text-center">{m.track_detail_no_laps_recorded()}</div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -223,9 +224,9 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
   const showLapNumBreakdown = lapNumData.length > 1;
 
   return (
-    <div className="w-full md:w-2/5 min-w-0 bg-app-surface/50 border border-app-border rounded-lg flex flex-col md:overflow-hidden">
+    <Card className="w-full min-w-0 @3xl/workspace:w-2/5">
       {/* Fixed header — outside scroll container */}
-      <div className="flex justify-between items-center px-3 py-2 border-b border-app-border shrink-0">
+      <CardHeader className="flex shrink-0 items-center justify-between rounded-none border-b border-app-border p-3 py-2">
         <div className="flex items-center gap-2">
           <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_stats()}</div>
           {hasRaceFilter && (
@@ -250,9 +251,9 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
           )}
         </div>
         <div className="text-app-compact text-app-text-dim font-mono">{m.track_detail_last_100()}</div>
-      </div>
+      </CardHeader>
       {/* Scrollable body */}
-      <div className="flex-1 md:overflow-y-auto p-3 flex flex-col gap-3">
+      <CardContent className="flex flex-1 flex-col gap-3 p-3 @3xl/workspace:overflow-y-auto">
         <div className="flex flex-wrap gap-x-4 gap-y-1">
           {[
             { key: "best", label: m.label_best(), value: minT, color: "var(--lap-record)" },
@@ -554,9 +555,9 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
             })}
           </div>
         )}
-      </div>
+      </CardContent>
       {/* end scrollable body */}
-    </div>
+    </Card>
   );
 }
 
@@ -979,7 +980,7 @@ export function TrackDetail({
   return (
     <div className="p-4 overflow-auto h-full">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
+      <div className="mb-4 flex flex-col gap-3 @3xl/workspace:flex-row @3xl/workspace:items-center">
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
@@ -1048,7 +1049,7 @@ export function TrackDetail({
           <div className="w-80 shrink-0 flex flex-col gap-3 overflow-auto">
             {/* Segment list / editor */}
             {displaySectors && displaySectors.segments.length > 0 && (
-              <div className="bg-app-surface/50 rounded-lg border border-app-border p-3">
+              <Card>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_segments()}</span>
@@ -1056,7 +1057,11 @@ export function TrackDetail({
                   </div>
                   {isDevelopment &&
                     (!editing ? (
-                      <button type="button" onClick={startEditing} className="text-app-compact text-app-accent hover:text-app-accent-hover px-2 py-0.5 rounded bg-app-accent/10 border border-app-accent/30">
+                      <button
+                        type="button"
+                        onClick={startEditing}
+                        className="text-app-compact text-app-accent hover:text-app-accent-hover px-2 py-0.5 rounded bg-app-accent/10 border border-app-accent/30"
+                      >
                         {m.common_edit()}
                       </button>
                     ) : (
@@ -1102,11 +1107,7 @@ export function TrackDetail({
                     return (
                       <div key={`${seg.startFrac}-${seg.endFrac}`} className="px-2 py-1.5 rounded space-y-1 bg-(--segment-color)/10" style={colorStyle}>
                         <div className="flex items-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => toggleSegType(i)}
-                            className="shrink-0 text-app-compact font-bold px-1 rounded bg-(--segment-color)/20 text-(--segment-color)"
-                          >
+                          <button type="button" onClick={() => toggleSegType(i)} className="shrink-0 text-app-compact font-bold px-1 rounded bg-(--segment-color)/20 text-(--segment-color)">
                             {isCorner ? "T" : "S"}
                           </button>
                           <span className="flex-1 min-w-0 truncate text-app-label font-mono font-bold text-(--segment-color)" title={m.trackdetail_segment_name_readonly()}>
@@ -1156,10 +1157,10 @@ export function TrackDetail({
                     );
                   })}
                 </div>
-              </div>
+              </Card>
             )}
             {/* Sector Boundaries */}
-            <div className={`bg-app-surface/50 rounded-lg border border-app-border p-3 ${gameId === "iracing" ? "hidden" : ""}`}>
+            <Card className={gameId === "iracing" ? "hidden" : undefined}>
               <div className="flex items-center justify-between mb-2">
                 <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.trackdetail_sector_boundaries()}</div>
                 {isDevelopment &&
@@ -1271,29 +1272,29 @@ export function TrackDetail({
               ) : (
                 <div className="text-app-label text-app-text-dim">{m.trackdetail_no_sector_data()}</div>
               )}
-            </div>
+            </Card>
           </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-4 lg:h-[calc(100vh-160px)] lg:overflow-hidden">
-          <div className="flex flex-col gap-4 min-h-0 md:overflow-hidden flex-1">
+        <div className="flex flex-col gap-4 @5xl/workspace:h-[calc(100vh-160px)] @5xl/workspace:overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 @3xl/workspace:overflow-hidden">
             {/* Track map — hidden on setups tab so the setups panel can take the full left column */}
             {activeTab !== "setups" && (
-              <div className={`shrink-0 flex flex-col md:flex-row gap-3 ${activeTab === "guide" && isF125 ? "md:h-[160px]" : "md:h-[320px]"}`}>
+              <div className={`flex shrink-0 flex-col gap-3 @3xl/workspace:flex-row ${activeTab === "guide" && isF125 ? "@3xl/workspace:h-[160px]" : "@3xl/workspace:h-[320px]"}`}>
                 {/* Info summary left of map, same shape as the laps leaderboard */}
                 {activeTab === "info" && (
-                  <div className="order-2 md:order-1 w-full md:w-[560px] shrink-0 overflow-auto flex flex-col bg-app-surface/50 border border-app-border rounded-lg p-3 min-h-[200px] md:min-h-0">
+                  <Card className="order-2 min-h-[200px] w-full shrink-0 overflow-auto @3xl/workspace:order-1 @3xl/workspace:min-h-0 @3xl/workspace:w-[560px]">
                     <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="summary" />
-                  </div>
+                  </Card>
                 )}
 
                 {/* Leaderboard left of map on laps tab */}
                 {activeTab === "laps" && (
-                  <div className="order-2 md:order-1 w-full md:w-[560px] shrink-0 overflow-hidden flex flex-col bg-app-surface/50 border border-app-border rounded-lg p-3 min-h-[200px] md:min-h-0">
+                  <Card className="order-2 min-h-[200px] w-full shrink-0 overflow-hidden @3xl/workspace:order-1 @3xl/workspace:min-h-0 @3xl/workspace:w-[560px]">
                     {isF125 ? <F125Leaderboard trackOrdinal={track.ordinal} /> : <CommunityLeaderboard trackName={track.name} trackVariant={track.variant} />}
-                  </div>
+                  </Card>
                 )}
-                <div className="order-1 md:order-2 bg-app-bg rounded-lg border border-app-border relative flex-1 min-w-0 h-[260px] md:h-auto">
+                <div className="relative order-1 h-[260px] min-w-0 flex-1 rounded-lg border border-app-border bg-app-bg @3xl/workspace:order-2 @3xl/workspace:h-auto">
                   {outline ? (
                     <canvas
                       ref={canvasRef}
@@ -1315,59 +1316,53 @@ export function TrackDetail({
                       }}
                     />
                   ) : track.mapUrl ? (
-                    <img
-                      src={track.mapUrl}
-                      alt={`${track.name} ${track.variant} map`}
-                      className="w-full h-full object-contain p-5"
-                    />
+                    <img src={track.mapUrl} alt={`${track.name} ${track.variant} map`} className="w-full h-full object-contain p-5" />
                   ) : (
                     <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">{m.trackdetail_no_outline_available()}</div>
                   )}
                   {outline && (
                     <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setZoom((z) => Math.min(z + 0.25, 4))}
-                      className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-                    >
-                      +
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setZoom((z) => Math.max(z - 0.25, 0.5))}
-                      className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-                    >
-                      -
-                    </button>
-                    {zoom !== 1 && (
                       <button
                         type="button"
-                        onClick={() => {
-                          setZoom(1);
-                          setPan({ x: 0, z: 0 });
-                        }}
-                        className="px-1.5 py-1 text-app-micro font-mono bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded"
+                        onClick={() => setZoom((z) => Math.min(z + 0.25, 4))}
+                        className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
                       >
-                        {zoom % 1 === 0 ? `${zoom}x` : `${zoom.toFixed(2)}x`}
+                        +
                       </button>
-                    )}
-                    {(sectorBounds || displaySectors) && (
-                      <>
-                        <div className="h-px" />
+                      <button
+                        type="button"
+                        onClick={() => setZoom((z) => Math.max(z - 0.25, 0.5))}
+                        className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
+                      >
+                        -
+                      </button>
+                      {zoom !== 1 && (
                         <button
                           type="button"
-                          onClick={() => setMapDisplayMode((m) => (m === "segments" ? "sectors" : "segments"))}
-                          className={`px-1.5 py-1 text-app-micro font-mono rounded border transition-colors ${
-                            mapDisplayMode === "sectors"
-                              ? "map-sectors-active"
-                              : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
-                          }`}
-                          title={mapDisplayMode === "sectors" ? m.track_detail_show_segments() : m.track_detail_show_sectors()}
+                          onClick={() => {
+                            setZoom(1);
+                            setPan({ x: 0, z: 0 });
+                          }}
+                          className="px-1.5 py-1 text-app-micro font-mono bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded"
                         >
-                          {mapDisplayMode === "sectors" ? m.overlay_sectors() : m.overlay_segments()}
+                          {zoom % 1 === 0 ? `${zoom}x` : `${zoom.toFixed(2)}x`}
                         </button>
-                      </>
-                    )}
+                      )}
+                      {(sectorBounds || displaySectors) && (
+                        <>
+                          <div className="h-px" />
+                          <button
+                            type="button"
+                            onClick={() => setMapDisplayMode((m) => (m === "segments" ? "sectors" : "segments"))}
+                            className={`px-1.5 py-1 text-app-micro font-mono rounded border transition-colors ${
+                              mapDisplayMode === "sectors" ? "map-sectors-active" : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
+                            }`}
+                            title={mapDisplayMode === "sectors" ? m.track_detail_show_segments() : m.track_detail_show_sectors()}
+                          >
+                            {mapDisplayMode === "sectors" ? m.overlay_sectors() : m.overlay_segments()}
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
                   {/* Track info overlay — bottom left */}
@@ -1418,7 +1413,7 @@ export function TrackDetail({
                 </div>
               )}
 
-              <div className={`flex-1 min-h-0 ${activeTab === "laps" ? "md:overflow-hidden" : "overflow-auto"} ${activeTab === "setups" || activeTab === "guide" ? "hidden" : ""}`}>
+              <div className={`min-h-0 flex-1 ${activeTab === "laps" ? "@3xl/workspace:overflow-hidden" : "overflow-auto"} ${activeTab === "setups" || activeTab === "guide" ? "hidden" : ""}`}>
                 {/* Info tab — guide + segments read full width under the map */}
                 {activeTab === "info" && (
                   <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="details" />
@@ -1426,9 +1421,9 @@ export function TrackDetail({
 
                 {/* Laps tab */}
                 {activeTab === "laps" && (
-                  <div className="flex flex-col gap-3 lg:h-full lg:overflow-hidden">
+                  <div className="flex flex-col gap-3 @5xl/workspace:h-full @5xl/workspace:overflow-hidden">
                     {/* Own laps */}
-                    <div className="flex flex-col gap-3 lg:h-full lg:overflow-hidden">
+                    <div className="flex flex-col gap-3 @5xl/workspace:h-full @5xl/workspace:overflow-hidden">
                       {(() => {
                         const filterRow = (
                           <div className="flex items-center gap-3 flex-wrap">
@@ -1468,7 +1463,9 @@ export function TrackDetail({
                                 return (
                                   <>
                                     {!hideClassCol && car && (
-                                      <span className="font-bold font-mono text-app-caption flex-shrink-0" style={{ color: carClassColor(car.carClass) }}>{car.carClass}</span>
+                                      <span className="font-bold font-mono text-app-caption flex-shrink-0" style={{ color: carClassColor(car.carClass) }}>
+                                        {car.carClass}
+                                      </span>
                                     )}
                                     <span className="truncate">{opt.label}</span>
                                   </>
@@ -1506,7 +1503,11 @@ export function TrackDetail({
                                     );
                                   })()}
                                 {!confirmDelete ? (
-                                  <button type="button" onClick={() => setConfirmDelete(true)} className="text-app-compact px-2 py-0.5 rounded bg-status-danger/80 hover:bg-status-danger text-app-on-filled font-medium">
+                                  <button
+                                    type="button"
+                                    onClick={() => setConfirmDelete(true)}
+                                    className="text-app-compact px-2 py-0.5 rounded bg-status-danger/80 hover:bg-status-danger text-app-on-filled font-medium"
+                                  >
                                     {m.trackdetail_delete()} ({selectedLaps.size})
                                   </button>
                                 ) : (
@@ -1536,10 +1537,10 @@ export function TrackDetail({
                         return (
                           <>
                             {/* Desktop filter row */}
-                            <div className="hidden md:block">{filterRow}</div>
+                            <div className="hidden @3xl/workspace:block">{filterRow}</div>
 
                             {/* Mobile: filter + 2-page carousel (stats / laps) */}
-                            <div className="md:hidden flex flex-col gap-2">
+                            <div className="flex flex-col gap-2 @3xl/workspace:hidden">
                               {filterRow}
                               <div className="flex items-center gap-1 border-b border-app-border">
                                 {[m.trackdetail_stats_page(), m.label_laps()].map((label, i) => (
@@ -1582,7 +1583,9 @@ export function TrackDetail({
                                                   <div className="mt-0.5 flex items-center gap-2 text-xs text-app-text-muted">
                                                     {!hideClassCol && (
                                                       <span>
-                                                        <span className="font-bold font-mono" style={{ color: carClassColor(lap.carClass) }}>{lap.carClass}</span>
+                                                        <span className="font-bold font-mono" style={{ color: carClassColor(lap.carClass) }}>
+                                                          {lap.carClass}
+                                                        </span>
                                                         <span className="ml-1">PI {lap.pi}</span>
                                                       </span>
                                                     )}
@@ -1605,7 +1608,9 @@ export function TrackDetail({
                                                 </div>
                                                 <div className="shrink-0 flex flex-col items-end gap-1 font-mono tabular-nums text-sm leading-tight">
                                                   <div className="flex items-center gap-1">
-                                                    <span className={isFastest ? "font-bold" : undefined} style={{ color: isFastest ? "var(--lap-record)" : "var(--app-text)" }}>{formatLapTime(lap.lapTime)}</span>
+                                                    <span className={isFastest ? "font-bold" : undefined} style={{ color: isFastest ? "var(--lap-record)" : "var(--app-text)" }}>
+                                                      {formatLapTime(lap.lapTime)}
+                                                    </span>
                                                     {lap.isValid === false ? (
                                                       <span className="text-status-danger w-6 text-center" title={lap.invalidReason ?? m.trackdetail_invalid_lap()}>
                                                         ✕
@@ -1633,11 +1638,11 @@ export function TrackDetail({
                             </div>
 
                             {/* Desktop: stats + table side-by-side */}
-                            <div className="hidden md:flex gap-3 flex-1 min-h-0 overflow-hidden">
+                            <div className="hidden min-h-0 flex-1 gap-3 overflow-hidden @3xl/workspace:flex">
                               <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} sectorCount={sectorCount} showSessionFilter={isF125} />
                               {/* Lap table (md+) */}
-                              <div className="flex-1 min-w-0 overflow-y-auto bg-app-surface/50 border border-app-border rounded-lg">
-                                <Table>
+                              <Card className="flex-1 min-w-0 overflow-y-auto">
+                                <Table fit tableClassName="w-full text-sm">
                                   <THead>
                                     <TH className="w-8 px-3">
                                       <input type="checkbox" checked={selectedLaps.size === filteredLaps.length && filteredLaps.length > 0} onChange={toggleAllLaps} className="accent-app-accent" />
@@ -1674,7 +1679,9 @@ export function TrackDetail({
                                             <TD className="truncate max-w-[200px]">{lap.carName}</TD>
                                             {!hideClassCol && (
                                               <TD>
-                                                <span className="font-bold font-mono" style={{ color: carClassColor(lap.carClass) }}>{lap.carClass}</span>
+                                                <span className="font-bold font-mono" style={{ color: carClassColor(lap.carClass) }}>
+                                                  {lap.carClass}
+                                                </span>
                                                 <span className="text-app-text-secondary ml-1">PI {lap.pi}</span>
                                               </TD>
                                             )}
@@ -1690,7 +1697,9 @@ export function TrackDetail({
                                             <TD className="font-mono text-app-text-secondary whitespace-nowrap">{lap.lapNumber}</TD>
                                             <TD className="text-right whitespace-nowrap">
                                               <div className="flex items-center justify-end gap-1">
-                                                <span className={`font-mono tabular-nums ${isFastest ? "font-bold" : ""}`} style={{ color: isFastest ? "var(--lap-record)" : undefined }}>{formatLapTime(lap.lapTime)}</span>
+                                                <span className={`font-mono tabular-nums ${isFastest ? "font-bold" : ""}`} style={{ color: isFastest ? "var(--lap-record)" : undefined }}>
+                                                  {formatLapTime(lap.lapTime)}
+                                                </span>
                                                 {lap.isValid === false ? (
                                                   <span className="group/inv relative text-sm text-status-danger cursor-default">
                                                     ✕
@@ -1734,15 +1743,15 @@ export function TrackDetail({
                                       });
                                     })()}
                                     {filteredLaps.length === 0 && (
-                                      <tr>
-                                        <td colSpan={6} className="px-3 py-4 text-center text-sm text-app-text-dim">
+                                      <TRow>
+                                        <TD colSpan={6} className="px-3 py-4 text-center text-sm text-app-text-dim">
                                           {m.track_detail_no_laps_match_filters()}
-                                        </td>
-                                      </tr>
+                                        </TD>
+                                      </TRow>
                                     )}
                                   </TBody>
                                 </Table>
-                              </div>
+                              </Card>
                             </div>
                             {/* end stats+table flex */}
                           </>

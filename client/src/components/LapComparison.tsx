@@ -1,13 +1,14 @@
 import type { ComparisonData, LapMeta } from "@shared/types";
 import { useNavigate } from "@tanstack/react-router";
 import { Sparkles } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLaps, useTrackOutline, useTrackSectors } from "../hooks/queries";
+import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useUnits } from "../hooks/useUnits";
+import { COMPARE_MAP_DEFAULT_WIDTH, COMPARE_MAP_MIN_WIDTH, clampCompareMapWidth } from "../lib/comparison-layout";
 import { COLOR_A, COLOR_B, formatLapTime, type Point } from "../lib/comparison-utils";
 import { client } from "../lib/rpc";
 import { m } from "../paraglide/messages";
-import { MobileNotSupported } from "../routes/__root";
 import { useGameId } from "../stores/game";
 import type { CompareAiPanelHandle } from "./comparison/CompareAiPanel";
 import { CompareAiSidebar } from "./comparison/CompareAiSidebar";
@@ -25,20 +26,6 @@ interface TrackGroup {
   laps: LapMeta[];
 }
 
-function useIsPhoneViewport() {
-  const [isPhone, setIsPhone] = useState(() => typeof window !== "undefined" && Math.min(window.innerWidth, window.innerHeight) <= 768);
-  useEffect(() => {
-    const check = () => setIsPhone(Math.min(window.innerWidth, window.innerHeight) <= 768);
-    window.addEventListener("resize", check);
-    window.addEventListener("orientationchange", check);
-    return () => {
-      window.removeEventListener("resize", check);
-      window.removeEventListener("orientationchange", check);
-    };
-  }, []);
-  return isPhone;
-}
-
 export interface LapComparisonSearch {
   track?: number;
   carA?: number;
@@ -49,8 +36,6 @@ export interface LapComparisonSearch {
 }
 
 export function LapComparison({ initialSearch }: { initialSearch?: LapComparisonSearch } = {}) {
-  const isPhone = useIsPhoneViewport();
-  if (isPhone) return <MobileNotSupported feature={m.lapcompare_feature_name()} />;
   return <LapComparisonInner initialSearch={initialSearch} />;
 }
 
@@ -90,6 +75,9 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
   const hoveredDistanceRef = useRef<number | null>(null);
   const mapRedrawRef = useRef<(() => void) | null>(null);
   const aiPanelRef = useRef<CompareAiPanelHandle | null>(null);
+  const comparisonLayoutRef = useRef<HTMLDivElement>(null);
+  const [comparisonLayoutWidth, setComparisonLayoutWidth] = useState(0);
+  const [savedMapWidth, setSavedMapWidth] = useLocalStorage("compare-left-column-width", COMPARE_MAP_DEFAULT_WIDTH);
   const [aiPanelOpen, setAiPanelOpen] = useState<boolean>(() => {
     try {
       return localStorage.getItem("compare-ai-panel-open") === "1";
@@ -108,6 +96,16 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
       return next;
     });
   }, []);
+  useEffect(() => {
+    const layout = comparisonLayoutRef.current;
+    if (!layout) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setComparisonLayoutWidth(entry.contentRect.width);
+    });
+    observer.observe(layout);
+    return () => observer.disconnect();
+  }, [comparison]);
+  const mapWidth = comparisonLayoutWidth > 0 ? clampCompareMapWidth(savedMapWidth, comparisonLayoutWidth, aiPanelOpen) : savedMapWidth;
   const handleCursorMove = useCallback((d: number | null) => {
     hoveredDistanceRef.current = d;
     // Directly redraw the map canvas without React re-render
@@ -301,7 +299,11 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
 
     let sNum = 1;
     return trackSegments.map((seg) => {
-      const displayName = seg.type === "straight" && (!seg.name || /^S[\d?]*$/.test(seg.name)) ? `S${sNum++}` : seg.type === "straight" ? (sNum++, seg.name) : seg.name;
+      let displayName = seg.name;
+      if (seg.type === "straight") {
+        displayName = !seg.name || /^S[\d?]*$/.test(seg.name) ? `S${sNum}` : seg.name;
+        sNum++;
+      }
 
       const computeTime = (tel: typeof telA) => {
         const n = tel.length;
@@ -324,13 +326,16 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
   }, [trackSegments, comparison]);
 
   return (
-    <div className="flex flex-col gap-4 p-4 h-full overflow-hidden">
+    <div data-testid="lap-compare-workspace" className="flex min-h-full min-w-0 flex-col gap-4 p-3 @3xl/workspace:p-4 @5xl/workspace:h-full @5xl/workspace:min-h-0 @5xl/workspace:overflow-hidden">
       {/* Selectors: Track → Car A → Lap A → Car B → Lap B */}
-      <div className="flex items-start gap-3 shrink-0">
+      <div className="flex shrink-0 flex-wrap items-end gap-3">
         {/* Track selector */}
-        <div className="flex flex-col gap-1 flex-1 min-w-[140px] max-w-[260px]">
-          <label className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.label_track()}</label>
+        <div className="flex w-full min-w-0 flex-col gap-1 @sm/workspace:w-auto @sm/workspace:min-w-[140px] @sm/workspace:flex-1 @3xl/workspace:max-w-[260px]">
+          <label htmlFor="compare-track" className="text-app-caption text-app-text-muted uppercase tracking-wider">
+            {m.label_track()}
+          </label>
           <SearchSelect
+            id="compare-track"
             value={selectedTrack != null ? String(selectedTrack) : ""}
             onChange={(v) => setSelectedTrack(v ? Number(v) : null)}
             options={trackGroups.map((g) => ({ value: String(g.trackOrdinal), label: `${g.trackName} (${g.laps.length} ${m.pitwindow_laps()})` }))}
@@ -339,12 +344,15 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
         </div>
 
         {/* Car A */}
-        <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[220px]">
+        <div className="flex w-full min-w-0 flex-col gap-1 @sm/workspace:w-auto @sm/workspace:min-w-[120px] @sm/workspace:flex-1 @3xl/workspace:max-w-[220px]">
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "var(--comparison-lap-a)" }} />
-            <label className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.compare_car_a()}</label>
+            <label htmlFor="compare-car-a" className="text-app-caption text-app-text-muted uppercase tracking-wider">
+              {m.compare_car_a()}
+            </label>
           </div>
           <SearchSelect
+            id="compare-car-a"
             value={carAOrd != null ? String(carAOrd) : ""}
             onChange={(v) => setCarAOrd(v ? Number(v) : null)}
             options={trackCars.map((ord) => ({ value: String(ord), label: carNames.get(ord) || `${m.compare_car_fallback()} ${ord}` }))}
@@ -355,9 +363,12 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
         </div>
 
         {/* Lap A */}
-        <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[200px]">
-          <label className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.compare_lap_a()}</label>
+        <div className="flex w-full min-w-0 flex-col gap-1 @sm/workspace:w-auto @sm/workspace:min-w-[120px] @sm/workspace:flex-1 @3xl/workspace:max-w-[200px]">
+          <label htmlFor="compare-lap-a" className="text-app-caption text-app-text-muted uppercase tracking-wider">
+            {m.compare_lap_a()}
+          </label>
           <SearchSelect
+            id="compare-lap-a"
             value={lapAId != null ? String(lapAId) : ""}
             onChange={(v) => setLapAId(v ? Number(v) : null)}
             options={carALaps.map((lap) => ({ value: String(lap.id), label: `${m.compare_lap_label()} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)}${!lap.isValid ? " (inv)" : ""}` }))}
@@ -368,12 +379,15 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
         </div>
 
         {/* Car B */}
-        <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[220px]">
+        <div className="flex w-full min-w-0 flex-col gap-1 @sm/workspace:w-auto @sm/workspace:min-w-[120px] @sm/workspace:flex-1 @3xl/workspace:max-w-[220px]">
           <div className="flex items-center gap-1.5">
             <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: "var(--comparison-lap-b)" }} />
-            <label className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.compare_car_b()}</label>
+            <label htmlFor="compare-car-b" className="text-app-caption text-app-text-muted uppercase tracking-wider">
+              {m.compare_car_b()}
+            </label>
           </div>
           <SearchSelect
+            id="compare-car-b"
             value={carBOrd != null ? String(carBOrd) : ""}
             onChange={(v) => setCarBOrd(v ? Number(v) : null)}
             options={trackCars.map((ord) => ({ value: String(ord), label: carNames.get(ord) || `${m.compare_car_fallback()} ${ord}` }))}
@@ -384,9 +398,12 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
         </div>
 
         {/* Lap B */}
-        <div className="flex flex-col gap-1 flex-1 min-w-[120px] max-w-[200px]">
-          <label className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.compare_lap_b()}</label>
+        <div className="flex w-full min-w-0 flex-col gap-1 @sm/workspace:w-auto @sm/workspace:min-w-[120px] @sm/workspace:flex-1 @3xl/workspace:max-w-[200px]">
+          <label htmlFor="compare-lap-b" className="text-app-caption text-app-text-muted uppercase tracking-wider">
+            {m.compare_lap_b()}
+          </label>
           <SearchSelect
+            id="compare-lap-b"
             value={lapBId != null ? String(lapBId) : ""}
             onChange={(v) => setLapBId(v ? Number(v) : null)}
             options={carBLaps.map((lap) => ({ value: String(lap.id), label: `${m.compare_lap_label()} ${lap.lapNumber} — ${formatLapTime(lap.lapTime)}${!lap.isValid ? " (inv)" : ""}` }))}
@@ -397,14 +414,14 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
         </div>
 
         {/* AI panel toggle */}
-        <div className="flex flex-col gap-1 self-end">
+        <div className="ml-auto flex w-full flex-col gap-1 self-end @3xl/workspace:w-auto">
           <Button
             variant="app-outline"
             size="app-lg"
             onClick={toggleAiPanel}
             disabled={!comparison}
             title={m.compare_toggle_ai()}
-            className={aiPanelOpen ? "text-app-accent border-app-accent/40 bg-app-accent/10" : "hover:text-app-accent"}
+            className={`w-full @3xl/workspace:w-auto ${aiPanelOpen ? "text-app-accent border-app-accent/40 bg-app-accent/10" : "hover:text-app-accent"}`}
           >
             <Sparkles className="size-3.5" />
             {m.label_ai_analysis()}
@@ -426,9 +443,15 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
       ) : lapAId === lapBId ? (
         <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_select_different_laps()}</div>
       ) : comparison?.traces?.distance ? (
-        <div className="flex gap-4 flex-1 min-h-0 overflow-hidden">
+        <div
+          ref={comparisonLayoutRef}
+          className="relative flex flex-none flex-col gap-4 overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:flex-row @5xl/workspace:overflow-hidden"
+        >
           {/* Left: track map */}
-          <div className="w-[440px] shrink-0 min-h-0">
+          <div
+            className="h-[42rem] w-full shrink-0 @5xl/workspace:h-auto @5xl/workspace:min-h-0 @5xl/workspace:w-(--compare-map-width)"
+            style={{ "--compare-map-width": `${mapWidth}px` } as CSSProperties}
+          >
             <CompareTrackMap
               outline={trackOutline ?? syntheticOutline}
               telemetryA={comparison.telemetryA}
@@ -445,15 +468,45 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
             />
           </div>
 
+          <hr
+            aria-label="Resize track map"
+            aria-orientation="vertical"
+            aria-valuemin={COMPARE_MAP_MIN_WIDTH}
+            aria-valuemax={comparisonLayoutWidth > 0 ? clampCompareMapWidth(Number.MAX_SAFE_INTEGER, comparisonLayoutWidth, aiPanelOpen) : COMPARE_MAP_DEFAULT_WIDTH}
+            aria-valuenow={Math.round(mapWidth)}
+            tabIndex={0}
+            className="-mx-2 hidden w-2 shrink-0 cursor-col-resize border-x border-app-border bg-app-surface-alt/80 transition-colors hover:bg-app-accent/30 focus-visible:bg-app-accent/30 @5xl/workspace:block"
+            onKeyDown={(event) => {
+              if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+              event.preventDefault();
+              const delta = event.key === "ArrowLeft" ? -16 : 16;
+              setSavedMapWidth(clampCompareMapWidth(mapWidth + delta, comparisonLayoutWidth, aiPanelOpen));
+            }}
+            onMouseDown={(event) => {
+              event.preventDefault();
+              const startX = event.clientX;
+              const startWidth = mapWidth;
+              const onMove = (moveEvent: MouseEvent) => {
+                setSavedMapWidth(clampCompareMapWidth(startWidth + moveEvent.clientX - startX, comparisonLayoutWidth, aiPanelOpen));
+              };
+              const onUp = () => {
+                window.removeEventListener("mousemove", onMove);
+                window.removeEventListener("mouseup", onUp);
+              };
+              window.addEventListener("mousemove", onMove);
+              window.addEventListener("mouseup", onUp);
+            }}
+          />
+
           {/* Right column: time delta pinned + scrollable charts */}
-          <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden">
+          <div className="flex min-w-0 flex-none flex-col gap-4 overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:overflow-hidden">
             {/* Time Delta — always visible */}
             <div className="bg-app-surface rounded-lg border border-app-border p-1 shrink-0">
               <TimeDelta distances={comparison.traces.distance} timeDelta={comparison.timeDelta} syncKey={SYNC_KEY} height={140} onCursorMove={handleCursorMove} />
             </div>
 
             {/* Scrollable charts */}
-            <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:overflow-y-auto">
               <div className="flex flex-col gap-4">
                 {/* Speed Chart */}
                 <div className="bg-app-surface rounded-lg border border-app-border p-1">
@@ -478,12 +531,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
                       distance: comparison.traces.distance,
                       values: [comparison.traces.throttleA, comparison.traces.throttleB, comparison.traces.brakeA, comparison.traces.brakeB],
                       labels: [m.compare_chart_throttle_a(), m.compare_chart_throttle_b(), m.compare_chart_brake_a(), m.compare_chart_brake_b()],
-                      colors: [
-                        COLOR_A,
-                        COLOR_B,
-                        "color-mix(in srgb, var(--comparison-lap-a) 67%, transparent)",
-                        "color-mix(in srgb, var(--comparison-lap-b) 67%, transparent)",
-                      ],
+                      colors: [COLOR_A, COLOR_B, "color-mix(in srgb, var(--comparison-lap-a) 67%, transparent)", "color-mix(in srgb, var(--comparison-lap-b) 67%, transparent)"],
                     }}
                     syncKey={SYNC_KEY}
                     height={180}

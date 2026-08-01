@@ -1,6 +1,7 @@
 import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { resolve } from "path";
 import { spawn, type ChildProcess } from "child_process";
+import { seedScreenshotData } from "./seed-screenshot-data";
 
 const dir = process.env.DATA_DIR
   ? resolve(process.env.DATA_DIR)
@@ -8,6 +9,9 @@ const dir = process.env.DATA_DIR
 const serverPort = process.env.SERVER_PORT ?? "3118";
 const clientPort = process.env.CLIENT_PORT ?? "4118";
 const udpPort = process.env.UDP_PORT ?? "15318";
+const repoDir = process.env.RACEIQ_APP_ROOT
+  ? resolve(process.env.RACEIQ_APP_ROOT)
+  : resolve(__dirname, "..");
 
 const dirSegments = dir.split(/[\\/]+/);
 if (!dirSegments.some((segment) => segment.includes("test-data"))) {
@@ -19,12 +23,12 @@ if (!dirSegments.some((segment) => segment.includes("test-data"))) {
 rmSync(dir, { recursive: true, force: true });
 mkdirSync(dir, { recursive: true });
 writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort: Number(udpPort) }));
+seedScreenshotData(repoDir, dir);
 
-const repoDir = resolve(__dirname, "..");
 const server = spawn("bun", ["run", "server/index.ts"], {
   cwd: repoDir,
   stdio: "inherit",
-  env: { ...process.env, DATA_DIR: dir, HOME: dir, SERVER_PORT: serverPort, UDP_PORT: udpPort },
+  env: { ...process.env, DATA_DIR: dir, SERVER_PORT: serverPort, UDP_PORT: udpPort },
 });
 const client = spawn("bun", ["run", "dev", "--", "--host", "0.0.0.0", "--port", clientPort], {
   cwd: resolve(repoDir, "client"),

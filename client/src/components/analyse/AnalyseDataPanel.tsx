@@ -1,9 +1,6 @@
 import { resolveAnalysisTelemetry } from "@shared/games/analysis-telemetry";
 import { getGame } from "@shared/games/registry";
-import {
-  getFuelDisplay,
-  WATTS_PER_HORSEPOWER,
-} from "@shared/games/telemetry";
+import { getFuelDisplay, WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
 import type { GameId, TelemetryPacket } from "@shared/types";
 import { Check, Copy } from "lucide-react";
 import { useCallback, useState } from "react";
@@ -78,31 +75,20 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
     const tFR = dp?.DisplayTireTempFR ?? pkt.TireTempFR;
     const tRL = dp?.DisplayTireTempRL ?? pkt.TireTempRL;
     const tRR = dp?.DisplayTireTempRR ?? pkt.TireTempRR;
-    const tireTemperatureHeading =
-      analysis.tireTemperature.source === "direct" &&
-      analysis.tireTemperature.freshness === "pit-snapshot"
-        ? "Last Pit Tire Temps"
-        : "Tire Temps";
+    const tireTemperatureHeading = analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot" ? "Last Pit Tire Temps" : "Tire Temps";
     lines.push("", `--- ${tireTemperatureHeading} ---`);
     lines.push(`FL: ${tFL.toFixed(0)}  FR: ${tFR.toFixed(0)}`);
     lines.push(`RL: ${tRL.toFixed(0)}  RR: ${tRR.toFixed(0)}`);
 
     // Tire wear
-    const tireHealthHeading =
-      analysis.tireHealth.source === "direct" &&
-      analysis.tireHealth.freshness === "pit-snapshot"
-        ? "Last Pit Tire Health"
-        : "Tire Health";
+    const tireHealthHeading = analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "pit-snapshot" ? "Last Pit Tire Health" : "Tire Health";
     lines.push("", `--- ${tireHealthHeading} ---`);
     lines.push(`FL: ${((1 - pkt.TireWearFL) * 100).toFixed(1)}%  FR: ${((1 - pkt.TireWearFR) * 100).toFixed(1)}%`);
     lines.push(`RL: ${((1 - pkt.TireWearRL) * 100).toFixed(1)}%  RR: ${((1 - pkt.TireWearRR) * 100).toFixed(1)}%`);
 
     // Suspension
     lines.push("", "--- Suspension Travel ---");
-    if (
-      analysis.suspensionTravel.source !== "unavailable" &&
-      analysis.suspensionTravel.display === "millimeters"
-    ) {
+    if (analysis.suspensionTravel.source !== "unavailable" && analysis.suspensionTravel.display === "millimeters") {
       lines.push(`FL: ${(pkt.SuspensionTravelMFL * 1000).toFixed(0)}mm  FR: ${(pkt.SuspensionTravelMFR * 1000).toFixed(0)}mm`);
       lines.push(`RL: ${(pkt.SuspensionTravelMRL * 1000).toFixed(0)}mm  RR: ${(pkt.SuspensionTravelMRR * 1000).toFixed(0)}mm`);
     } else {
@@ -116,7 +102,7 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
   }, [analysis, currentPacket, currentDisplayPacket, telemetryModel, units]);
 
   return (
-    <div className="w-[22rem] h-full shrink-0 border-l border-app-border bg-app-surface/50 flex flex-col overflow-hidden">
+    <div className="flex h-[34rem] w-full shrink-0 flex-col overflow-hidden border-t border-app-border bg-app-surface/50 @5xl/workspace:h-full @5xl/workspace:w-[clamp(18rem,30cqw,22rem)] @5xl/workspace:border-t-0 @5xl/workspace:border-l">
       {/* Tab switcher */}
       <div className="flex border-b border-app-border shrink-0">
         <button

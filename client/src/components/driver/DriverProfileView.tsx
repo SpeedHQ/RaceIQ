@@ -61,7 +61,7 @@ export function DriverProfileView({ fingerprint: fp, plan = null, runReason, run
           Full profile detail
         </h2>
         <p className="mt-1 text-xs text-app-text-muted">Existing measured detail remains visible; removed: “Faults you don’t have” and “Next session”</p>
-        <div className="mt-3 grid gap-3 lg:grid-cols-2">
+        <div className="mt-3 grid gap-3 @5xl/workspace:grid-cols-2">
           <article className="rounded-xl border border-app-border bg-app-surface p-4">
             <div className="flex items-center justify-between gap-3">
               <b className="text-sm text-app-text">Driving style</b>

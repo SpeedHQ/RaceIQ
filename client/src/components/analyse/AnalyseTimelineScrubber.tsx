@@ -70,7 +70,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
 
   return (
     <div className="px-3 py-2 border-b border-app-border bg-app-surface/50 shrink-0">
-      <div className="flex items-center gap-3 mb-2">
+      <div className="mb-2 flex flex-wrap items-center gap-3">
         <span className="text-app-caption text-app-text-muted">Lap {lapNumber}</span>
         <span className="text-2xl font-mono font-bold tabular-nums text-app-accent">{formatLapTime(currentTime)}</span>
         <span className="text-sm font-mono tabular-nums text-app-text-secondary">/ {formatLapTime(totalTime)}</span>
@@ -89,11 +89,11 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
               </div>
             );
           })}
-        <span className="text-app-caption font-mono text-app-text-dim ml-auto">
+        <span className="ml-auto text-app-caption font-mono text-app-text-dim">
           Packet {cursorIdx + 1}/{totalPackets}
         </span>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
           onClick={onTogglePlay}
@@ -102,7 +102,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
         >
           {playing ? "\u275A\u275A" : "\u25B6"}
         </button>
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1">
           {[0.1, 0.25, 0.5, 1, 1.5, 2, 2.5].map((s) => (
             <button
               type="button"
@@ -123,7 +123,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
           aria-valuemin={0}
           aria-valuemax={Math.max(0, totalPackets - 1)}
           aria-valuenow={cursorIdx}
-          className="flex-1 relative h-4 flex items-center group cursor-pointer"
+          className="group relative flex h-4 basis-full cursor-pointer items-center @3xl/workspace:basis-auto @3xl/workspace:flex-1"
           onKeyDown={(event) => {
             if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
               event.preventDefault();
@@ -186,11 +186,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
                 );
               })}
             {/* Progress fill */}
-            <div
-              ref={progressRef}
-              className="absolute top-0 h-full rounded-full bg-app-accent/40"
-              style={{ width: `${cursorPct}%` }}
-            />
+            <div ref={progressRef} className="absolute top-0 h-full rounded-full bg-app-accent/40" style={{ width: `${cursorPct}%` }} />
           </div>
           {/* Thumb */}
           <div

@@ -62,7 +62,7 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars }: { game
             {m.import_pick_setup()} {data?.baseDir ? <span className="font-mono text-app-caption">{data.baseDir}</span> : null}
           </p>
         </div>
-        <Button type="button" variant="app-outline" size="app-sm" onClick={() => navigate({ to: `${routePrefix}/setups` })}>
+        <Button variant="app-outline" size="app-sm" onClick={() => navigate({ to: `${routePrefix}/setups` })}>
           {m.common_cancel()}
         </Button>
       </div>
@@ -172,7 +172,7 @@ export function ImportSetupFile({ gameId, routePrefix, gameLabel, cars }: { game
                 </label>
                 {importMut.error && <div className="text-app-caption text-status-danger">{(importMut.error as Error).message}</div>}
                 <div className="flex justify-end pt-2">
-                  <Button type="button" variant="app-primary" size="app-sm" onClick={doImport} disabled={!selectedPath || importMut.isPending}>
+                  <Button variant="app-primary" size="app-sm" onClick={doImport} disabled={!selectedPath || importMut.isPending}>
                     {importMut.isPending ? m.label_importing() : m.import_import_setup()}
                   </Button>
                 </div>

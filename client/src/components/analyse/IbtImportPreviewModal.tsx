@@ -1,5 +1,5 @@
-import { createPortal } from "react-dom";
 import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { IbtTelemetryWarning } from "./IbtTelemetryWarning";
 
 export interface IbtImportPreview {
@@ -51,15 +51,15 @@ function formatSize(bytes: number): string {
 }
 
 export function IbtImportPreviewModal({ token, preview, importing, onImport, onClose }: Props) {
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60">
-      <div className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[520px] max-w-[90vw] flex flex-col gap-4 p-4">
-        <div>
-          <p className="text-xs font-medium text-app-text/90 uppercase tracking-wider">iRacing IBT import preview</p>
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="md" showCloseButton={false} overlayClassName="bg-app-bg/60">
+        <DialogHeader>
+          <DialogTitle className="text-xs font-medium text-app-text/90 uppercase tracking-wider">iRacing IBT import preview</DialogTitle>
           <p className="mt-1 text-xs text-app-text-muted truncate" title={preview.fileName}>
             {preview.fileName} · {formatSize(preview.fileSize)}
           </p>
-        </div>
+        </DialogHeader>
 
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
           <dt className="text-app-text-muted">Track</dt>
@@ -83,11 +83,13 @@ export function IbtImportPreviewModal({ token, preview, importing, onImport, onC
 
         {preview.missingRaceIQVariables.length > 0 && preview.missingRequiredVariables.length === 0 && <IbtTelemetryWarning missingVariables={preview.missingRaceIQVariables} />}
 
-      {!preview.canImport && <p className="rounded border border-status-danger/30 bg-status-danger/10 px-3 py-2 text-sm text-status-danger">{preview.reason ?? "This recording cannot be imported."}</p>}
+        {!preview.canImport && (
+          <p className="rounded border border-status-danger/30 bg-status-danger/10 px-3 py-2 text-sm text-status-danger">{preview.reason ?? "This recording cannot be imported."}</p>
+        )}
 
         <p className="text-xs text-app-text-muted">Import creates a normal RaceIQ iRacing session and canonical .bin capture. The original .ibt file is not copied into session storage.</p>
 
-        <div className="flex justify-end gap-2">
+        <DialogFooter className="border-0 bg-transparent p-0 -mx-0 -mb-0">
           <Button variant="app-ghost" size="app-sm" disabled={importing} onClick={onClose}>
             {preview.canImport ? "Cancel" : "Close"}
           </Button>
@@ -96,9 +98,8 @@ export function IbtImportPreviewModal({ token, preview, importing, onImport, onC
               {importing ? "Importing…" : `Import ${preview.candidateLapCount} ${preview.candidateLapCount === 1 ? "lap" : "laps"}`}
             </Button>
           )}
-        </div>
-      </div>
-    </div>,
-    document.body,
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

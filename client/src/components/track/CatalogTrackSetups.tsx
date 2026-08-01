@@ -115,7 +115,7 @@ function ForzaSettingsGrid({ s }: { s: Partial<TuneSettings> }) {
   ].filter((g) => g.rows.length > 0);
 
   return (
-    <div className="w-full columns-1 gap-3 md:columns-2 xl:columns-3">
+    <div className="w-full columns-1 gap-3 @3xl/workspace:columns-2 @7xl/workspace:columns-3">
       {groups.map((g) => (
         <div key={g.title} className="mb-3 break-inside-avoid rounded-lg bg-app-bg p-3">
           <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{g.title}</h4>
@@ -213,16 +213,16 @@ export function CatalogTrackSetups({ gameId, trackName, trackVariant, trackOrdin
   }
 
   return (
-    <div className="flex gap-3 h-full overflow-hidden">
+    <div className="flex h-auto flex-col gap-3 overflow-visible @3xl/workspace:h-full @3xl/workspace:flex-row @3xl/workspace:overflow-hidden">
       {/* Left: filter + setup list */}
-      <div className="w-[420px] shrink-0 flex flex-col min-h-0">
-        <div className="flex items-center gap-2 mb-1.5">
+      <div className="flex min-h-0 w-full shrink-0 flex-col @3xl/workspace:w-[420px]">
+        <div className="mb-1.5 flex flex-wrap items-center gap-2">
           <div className="text-app-label text-app-text-muted uppercase tracking-wider shrink-0">
             {m.catalogtracksetups_setups()} ({setups.length})
           </div>
           {uniqueCars.length > 1 && (
             <SearchSelect
-              className="ml-auto w-48"
+              className="w-full @3xl/workspace:ml-auto @3xl/workspace:w-48"
               value={filterCar}
               onChange={setFilterCar}
               placeholder={m.catalog_search_cars_placeholder()}

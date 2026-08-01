@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, openSync, writeSync, closeSync } from "fs";
 import { dirname } from "path";
 
 /**
- * Appends raw UDP packets to a binary dump file.
+ * Appends raw telemetry records to a binary dump file.
  *
  * Format: repeated [uint32 LE byte-length][N raw bytes]
  *
@@ -10,17 +10,17 @@ import { dirname } from "path";
  * write — all prior records remain intact. A reader detects truncation by
  * reading the declared length and checking if enough bytes follow.
  *
- * File creation is deferred until the first real packet arrives. A session
- * that only calls start() + writeMetaFrame() and ends without any packets
+ * File creation is deferred until the first telemetry record arrives. A session
+ * that only calls start() + writeMetaFrame() and ends without any records
  * (e.g. sim in menu, car/track flap, app shutdown) leaves no .bin on disk.
  */
-/** Magic length value that marks a meta frame (not a real UDP packet). */
+/** Magic length value that marks a meta frame (not a telemetry record). */
 export const META_FRAME_MAGIC = 0xffffffff;
 
-export class UdpRecorder {
+export class SessionRecorder {
   private _file: Bun.FileSink | null = null;
   private _path: string | null = null;
-  private _packetCount = 0;
+  private _recordCount = 0;
   private _byteOffset = 0;
   private _metaPending = false;
   private _active = false;
@@ -29,8 +29,8 @@ export class UdpRecorder {
     return this._active;
   }
 
-  get packetCount(): number {
-    return this._packetCount;
+  get recordCount(): number {
+    return this._recordCount;
   }
 
   get path(): string | null {
@@ -44,12 +44,12 @@ export class UdpRecorder {
 
   /**
    * Reserve a file path for this session. No file is created on disk until
-   * the first writePacket() call — empty sessions leave nothing behind.
+   * the first writeRecord() call — empty sessions leave nothing behind.
    */
   start(filePath: string): string {
     if (this._active) this.stop();
     this._path = filePath;
-    this._packetCount = 0;
+    this._recordCount = 0;
     this._byteOffset = 0;
     this._metaPending = false;
     this._active = true;
@@ -58,8 +58,8 @@ export class UdpRecorder {
 
   /**
    * Reserve the 12-byte meta frame at offset 0. Actual bytes are written to
-   * disk on the first writePacket() call (lazy-open), so the lap byte-offset
-   * pipeline sees (12) matches what will be on disk once packets arrive.
+   * disk on the first writeRecord() call (lazy-open), so the lap byte-offset
+   * pipeline sees (12) matches what will be on disk once records arrive.
    *
    * Format: [0xFFFFFFFF uint32 LE][4 uint32 LE][totalFrames uint32 LE]
    * totalFrames is written as 0 initially and patched to the real count on stop().
@@ -70,8 +70,8 @@ export class UdpRecorder {
     this._byteOffset += 12;
   }
 
-  /** Append one raw UDP packet. Opens the file + writes meta header on first call. */
-  writePacket(buf: Buffer): void {
+  /** Append one telemetry record. Opens the file + writes meta header on first call. */
+  writeRecord(buf: Buffer): void {
     if (!this._active) return;
     if (!this._file) this._openAndWriteMeta();
     if (!this._file) return;
@@ -79,7 +79,7 @@ export class UdpRecorder {
     lenBuf.writeUInt32LE(buf.length, 0);
     this._file.write(lenBuf);
     this._file.write(buf);
-    this._packetCount++;
+    this._recordCount++;
     this._byteOffset += 4 + buf.length;
   }
 
@@ -88,7 +88,7 @@ export class UdpRecorder {
     const dir = dirname(this._path);
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     this._file = Bun.file(this._path).writer();
-    console.log(`[UdpRecorder] Recording to ${this._path}`);
+    console.log(`[SessionRecorder] Recording to ${this._path}`);
     if (this._metaPending) {
       const header = Buffer.allocUnsafe(12);
       header.writeUInt32LE(META_FRAME_MAGIC, 0);
@@ -113,11 +113,11 @@ export class UdpRecorder {
     }
   }
 
-  /** Flush, patch total frame count into header, and close. No file is created if no packets were written. */
+  /** Flush, patch total frame count into header, and close. No file is created if no records were written. */
   async stop(): Promise<void> {
     const path = this._path;
     const file = this._file;
-    const count = this._packetCount;
+    const count = this._recordCount;
     const hadMeta = this._metaPending;
     this._file = null;
     this._metaPending = false;
@@ -132,9 +132,9 @@ export class UdpRecorder {
         writeSync(fd, countBuf, 0, 4, 8);
         closeSync(fd);
       } catch {
-        // Non-fatal: header patch failing doesn't corrupt the packet data
+        // Non-fatal: header patch failing doesn't corrupt the record data
       }
     }
-    console.log(`[UdpRecorder] Stopped. ${count} packets written to ${path}`);
+    console.log(`[SessionRecorder] Stopped. ${count} records written to ${path}`);
   }
 }

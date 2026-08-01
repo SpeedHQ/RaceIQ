@@ -9,8 +9,10 @@ import { errorFromResponse } from "../lib/rpc-error";
 import { useRequiredGameId } from "../stores/game";
 import { GearRatioChart } from "./tune/GearRatioChart";
 import { ALL_CATEGORIES, CATEGORY_COLORS, CATEGORY_LABELS } from "./tune/tune-constants";
+import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 
+import { Card, CardContent, CardHeader } from "./ui/card";
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useAllCars() {
@@ -35,10 +37,7 @@ export function useAllCars() {
   >({
     queryKey: ["all-cars", gameId],
     queryFn: async () => {
-      const response = await client.api.cars.$get(
-        {},
-        { headers: { "X-Game-Id": gameId } },
-      );
+      const response = await client.api.cars.$get({}, { headers: { "X-Game-Id": gameId } });
       if (!response.ok) throw await errorFromResponse(response);
       return response.json();
     },
@@ -252,25 +251,29 @@ export function TuneSettingsPanel({ settings: raw }: { settings: TuneSettings })
   const orderedSections = [...(tiresSection ? [tiresSection] : []), ...(gearingSection ? [gearingSection] : []), ...(alignmentSection ? [alignmentSection] : []), ...remainingSections];
 
   const renderSection = (section: { title: string; rows: [string, string][] }) => (
-    <div key={section.title} className="mb-3 break-inside-avoid rounded-lg bg-app-bg p-3">
-      <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{section.title}</h4>
-      <div className="space-y-0">
-        {section.rows.map(([label, value]) => (
-          <div key={label} className="flex justify-between text-xs gap-2">
-            <span className="text-app-text-muted whitespace-nowrap">{label}</span>
-            <span className="text-app-text font-mono whitespace-nowrap">{value}</span>
-          </div>
-        ))}
-      </div>
-      {section.title === "Gearing" && ratios.length > 0 && (
-        <div className="mt-2 pt-2 border-t border-app-border/60">
-          <GearRatioChart ratios={ratios} finalDrive={settings.gearing.finalDrive} topSpeedMph={settings.gearing.topSpeedKph ? settings.gearing.topSpeedKph / 1.60934 : undefined} />
+    <Card key={section.title} className="mb-3 break-inside-avoid">
+      <CardHeader className="rounded-none p-3 pb-2">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent">{section.title}</h4>
+      </CardHeader>
+      <CardContent className="p-3 pt-0">
+        <div className="space-y-0">
+          {section.rows.map(([label, value]) => (
+            <div key={label} className="flex justify-between text-xs gap-2">
+              <span className="text-app-text-muted whitespace-nowrap">{label}</span>
+              <span className="text-app-text font-mono whitespace-nowrap">{value}</span>
+            </div>
+          ))}
         </div>
-      )}
-    </div>
+        {section.title === "Gearing" && ratios.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-app-border/60">
+            <GearRatioChart ratios={ratios} finalDrive={settings.gearing.finalDrive} topSpeedMph={settings.gearing.topSpeedKph ? settings.gearing.topSpeedKph / 1.60934 : undefined} />
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 
-  return <div className="w-full columns-1 gap-3 md:columns-2 xl:columns-3">{orderedSections.map((section) => renderSection(section))}</div>;
+  return <div className="w-full columns-1 gap-3 @3xl/workspace:columns-2 @7xl/workspace:columns-3">{orderedSections.map((section) => renderSection(section))}</div>;
 }
 
 // ── UserTuneCard ─────────────────────────────────────────────────────────────
@@ -361,19 +364,19 @@ export function UserTuneCard({
   };
 
   return (
-    <div className="rounded-xl bg-app-surface ring-1 ring-app-border overflow-hidden">
-      <button onClick={onToggle} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-app-surface-hover transition-colors">
+    <Card>
+      <button type="button" onClick={onToggle} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-app-surface-hover transition-colors">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-app-text">{tune.name}</span>
             <span className="text-app-caption font-mono text-app-text-muted">{carName ?? `Car #${tune.carOrdinal}`}</span>
-            <span className={`text-app-caption font-semibold uppercase px-1.5 py-0.5 rounded ${CATEGORY_COLORS[tune.category] ?? "bg-app-text-dim/20 text-app-text-muted"}`}>
+            <Badge variant="neutral" size="compact" className={`border-transparent ${CATEGORY_COLORS[tune.category] ?? "bg-app-text-dim/20 text-app-text-muted"}`}>
               {CATEGORY_LABELS[tune.category] ?? tune.category}
-            </span>
+            </Badge>
             <span className="text-app-caption text-app-text-muted">
               by {tune.author} &middot; {tune.source === "catalog-clone" ? "cloned from catalog" : "user created"}
             </span>
-            {tune.source === "catalog-clone" && <span className="text-app-caption px-1.5 py-0.5 rounded bg-app-accent/20 text-app-accent">{m.tuneform_cloned()}</span>}
+            {tune.source === "catalog-clone" && <Badge variant="info">{m.tuneform_cloned()}</Badge>}
           </div>
           <p className={`text-xs text-app-text-muted mt-0.5 ${isExpanded ? "" : "line-clamp-1"}`}>{tune.description}</p>
         </div>
@@ -383,89 +386,101 @@ export function UserTuneCard({
       </button>
 
       {isExpanded && (
-        <div className="px-4 pb-4 space-y-4 border-t border-app-border">
+        <CardContent className="space-y-4 border-t border-app-border px-4 pb-4 pt-0">
           <div className="flex items-center gap-2 pt-3 flex-wrap">
-            <button
+            <Button
+              variant="outline"
+              size="app-sm"
               onClick={(e) => {
                 e.stopPropagation();
                 onEdit();
               }}
-              className="text-app-caption font-semibold uppercase px-2 py-1 rounded bg-status-info/20 text-status-info hover:bg-status-info/30 transition-colors"
+              className="border-status-info/30 bg-status-info/15 text-status-info hover:bg-status-info/25"
             >
               {m.common_edit()}
-            </button>
+            </Button>
             {onDuplicate && (
-              <button
+              <Button
+                variant="app-ghost"
+                size="app-sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   onDuplicate();
                 }}
                 disabled={isDuplicating}
-                className="text-app-caption font-semibold uppercase px-2 py-1 rounded bg-app-accent/20 text-app-accent hover:bg-app-accent/30 disabled:opacity-50 transition-colors"
+                className="bg-app-accent/20 text-app-accent hover:bg-app-accent/30"
               >
                 {isDuplicating ? "..." : m.common_duplicate()}
-              </button>
+              </Button>
             )}
             <div className="relative">
-              <button
+              <Button
+                variant="app-ghost"
+                size="app-sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   setShareOpen((v) => !v);
                 }}
-                className="text-app-caption font-semibold uppercase px-2 py-1 rounded bg-status-success/20 text-status-success hover:bg-status-success/30 transition-colors"
+                className="bg-status-success/20 text-status-success hover:bg-status-success/30"
               >
                 {shareStatus === "copied" ? "Copied" : "Share"}
-              </button>
+              </Button>
               {shareOpen && (
                 <div className="absolute left-0 top-full mt-1 z-20 min-w-40 rounded-md border border-app-border bg-app-surface p-1 shadow-lg">
-                  <button type="button" onClick={handleCopyShare} className="block w-full text-left text-app-caption px-2 py-1 rounded hover:bg-app-accent/20 text-app-text">
+                  <Button variant="menu-action" size="app-sm" onClick={handleCopyShare}>
                     {m.tuneform_copy_clipboard()}
-                  </button>
-                  <button type="button" onClick={handleDownloadShare} className="block w-full text-left text-app-caption px-2 py-1 rounded hover:bg-app-accent/20 text-app-text">
+                  </Button>
+                  <Button variant="menu-action" size="app-sm" onClick={handleDownloadShare}>
                     {m.tuneform_download_json()}
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
             {!confirmDelete ? (
-              <button
+              <Button
+                variant="app-danger"
+                size="app-sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   setConfirmDelete(true);
                 }}
-                className="text-app-caption font-semibold uppercase px-2 py-1 rounded bg-status-danger/20 text-status-danger hover:bg-status-danger/30 transition-colors"
+                className="bg-status-danger/20 text-status-danger hover:bg-status-danger/30"
               >
                 {m.common_delete()}
-              </button>
+              </Button>
             ) : (
               <span className="flex items-center gap-1">
                 <span className="text-app-caption text-status-danger">Sure?</span>
-                <button
+                <Button
+                  variant="app-danger"
+                  size="app-sm"
                   onClick={(e) => {
                     e.stopPropagation();
                     onDelete();
                   }}
                   disabled={isDeleting}
-                  className="text-app-caption font-semibold uppercase px-2 py-1 rounded bg-status-danger/30 text-status-danger hover:bg-status-danger/50 disabled:opacity-50 transition-colors"
+                  className="bg-status-danger/30 text-status-danger hover:bg-status-danger/50"
                 >
                   {isDeleting ? "..." : "Yes"}
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="app-ghost"
+                  size="app-sm"
                   onClick={(e) => {
                     e.stopPropagation();
                     setConfirmDelete(false);
                   }}
-                  className="text-app-caption font-semibold uppercase px-2 py-1 rounded text-app-text-muted hover:text-app-text transition-colors"
+                  className="text-app-text-muted hover:text-app-text"
                 >
                   No
-                </button>
+                </Button>
               </span>
             )}
           </div>
           {tune.settings && <TuneSettingsPanel settings={tune.settings} />}
-        </div>
+        </CardContent>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -647,20 +662,20 @@ export function TuneForm({
     <form onSubmit={handleSubmit} className="flex flex-col min-h-full">
       {/* Sticky header — title, tabs, and actions in one bar */}
       <div className="sticky top-0 z-10 bg-app-bg border-b border-app-border flex items-center gap-3 px-4 py-2">
-        <Button type="button" variant="app-ghost" size="app-sm" onClick={onCancel}>
+        <Button variant="app-ghost" size="app-sm" onClick={onCancel}>
           &larr;
         </Button>
         <h2 className="text-sm font-semibold text-app-text">{title}</h2>
         <div className="flex items-center gap-1 ml-2">
-          <button type="button" className={tabCls("info")} onClick={() => setActiveTab("info")}>
+          <Button variant="app-ghost" size="app-sm" className={tabCls("info")} onClick={() => setActiveTab("info")}>
             {m.tune_form_tab_info()}
-          </button>
-          <button type="button" className={tabCls("settings")} onClick={() => setActiveTab("settings")}>
+          </Button>
+          <Button variant="app-ghost" size="app-sm" className={tabCls("settings")} onClick={() => setActiveTab("settings")}>
             {m.tune_form_tab_settings()}
-          </button>
+          </Button>
         </div>
         <div className="flex items-center gap-2 ml-auto">
-          <Button type="button" variant="app-outline" size="app-sm" onClick={onCancel}>
+          <Button variant="app-outline" size="app-sm" onClick={onCancel}>
             {m.common_cancel()}
           </Button>
           <Button type="submit" variant="app-primary" size="app-sm" disabled={!name || isSubmitting}>
@@ -770,8 +785,8 @@ export function TuneForm({
             if (!carData?.specs) return null;
             const s = carData.specs;
             return (
-              <div className="col-span-2 rounded-lg bg-app-surface ring-1 ring-app-border overflow-hidden">
-                <div className="p-3 grid grid-cols-3 gap-x-4 gap-y-2">
+              <Card className="col-span-2">
+                <CardContent className="grid grid-cols-3 gap-x-4 gap-y-2 p-3">
                   {s.hp > 0 && (
                     <div className="flex flex-col">
                       <span className="text-app-caption text-app-text-muted uppercase tracking-wide">{m.label_power()}</span>
@@ -811,7 +826,7 @@ export function TuneForm({
                       <span className="text-xs text-app-text truncate">{s.division}</span>
                     </div>
                   )}
-                </div>
+                </CardContent>
                 {s.imageUrl && (
                   <img
                     src={s.imageUrl}
@@ -822,7 +837,7 @@ export function TuneForm({
                     }}
                   />
                 )}
-              </div>
+              </Card>
             );
           })()}
         </div>
@@ -839,20 +854,22 @@ export function TuneForm({
               </button>
               {!jsonMode && (
                 <div className="flex rounded-md ring-1 ring-app-border overflow-hidden">
-                  <button
-                    type="button"
+                  <Button
+                    variant="app-ghost"
+                    size="app-sm"
                     onClick={() => switchUnitSystem(true)}
-                    className={`text-app-caption font-semibold px-2.5 py-1 transition-colors ${isMetric ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
+                    className={`!rounded-none !px-2.5 !py-1 font-semibold transition-colors ${isMetric ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
                   >
                     {m.tune_metric()}
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    variant="app-ghost"
+                    size="app-sm"
                     onClick={() => switchUnitSystem(false)}
-                    className={`text-app-caption font-semibold px-2.5 py-1 transition-colors ${!isMetric ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
+                    className={`!rounded-none !px-2.5 !py-1 font-semibold transition-colors ${!isMetric ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
                   >
                     {m.tune_imperial()}
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -877,12 +894,12 @@ export function TuneForm({
                 className="w-full bg-app-bg border border-app-border rounded px-2 py-1.5 text-xs text-app-text font-mono focus:outline-none focus:ring-1 focus:ring-app-accent resize-y"
               />
               {jsonError && <p className="text-xs text-status-danger">{jsonError}</p>}
-              <button type="button" onClick={handleJsonParse} className="text-xs px-3 py-1.5 rounded bg-app-accent/20 text-app-accent hover:bg-app-accent/30 transition-colors">
+              <Button variant="app-primary" size="app-sm" onClick={handleJsonParse}>
                 {m.tune_parse_populate()}
-              </button>
+              </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 @3xl/workspace:grid-cols-2">
               <div className="rounded-lg bg-app-surface ring-1 ring-app-border p-3 space-y-1">
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent mb-2">{m.tune_section_tires()}</h4>
                 <NumberField
@@ -922,7 +939,7 @@ export function TuneForm({
                     <select
                       value={settings.gearing.ratios?.length ?? 6}
                       onChange={(e) => {
-                        const count = parseInt(e.target.value);
+                        const count = parseInt(e.target.value, 10);
                         const current = settings.gearing.ratios ?? [];
                         const ratios = Array.from({ length: count }, (_, i) => current[i] ?? 3.5 - i * 0.4);
                         setSettings((s) => ({
@@ -945,7 +962,7 @@ export function TuneForm({
                     const CIRC = topSpeedKph && topGearRatio ? (topSpeedKph * topGearRatio * settings.gearing.finalDrive) / (8000 / 60) / 3.6 : 2.0;
                     const gearTopKph = (8000 / 60 / (ratio * settings.gearing.finalDrive)) * CIRC * 3.6;
                     return (
-                      <label key={i} className="flex items-center justify-between gap-2 text-xs">
+                      <label key={ratio} className="flex items-center justify-between gap-2 text-xs">
                         <span className="text-app-text-muted whitespace-nowrap">Gear {i + 1}</span>
                         <div className="flex items-center gap-1">
                           <span className="text-app-caption text-app-text-muted font-mono tabular-nums w-14 text-right">{Math.round(gearTopKph)} km/h</span>

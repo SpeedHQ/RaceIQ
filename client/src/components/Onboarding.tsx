@@ -455,7 +455,7 @@ export function StepSound() {
         <Label className="text-app-text-secondary text-sm">{m.ob_sound_sector_blip()}</Label>
         <Button
           size="sm"
-          variant={enabled ? "default" : "outline"}
+          variant={enabled ? "selected-toggle" : "outline"}
           onClick={() => {
             setEnabled(true);
             setSoundEnabled(true);
@@ -465,7 +465,7 @@ export function StepSound() {
         </Button>
         <Button
           size="sm"
-          variant={!enabled ? "default" : "outline"}
+          variant={!enabled ? "selected-toggle" : "outline"}
           onClick={() => {
             setEnabled(false);
             setSoundEnabled(false);
@@ -597,12 +597,12 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
   }
 
   return (
-    <div className="fixed inset-0 flex items-stretch md:items-center justify-center bg-app-bg md:p-4 z-50">
-      <div className="w-full md:max-w-3xl md:rounded-xl md:border border-app-border bg-app-surface shadow-2xl overflow-hidden flex flex-col max-h-screen">
+    <div className="@container/onboarding fixed inset-0 z-50 flex items-stretch justify-center bg-app-bg @3xl/onboarding:items-center @3xl/onboarding:p-4">
+      <div className="flex max-h-screen w-full flex-col overflow-hidden border-app-border bg-app-surface shadow-2xl @3xl/onboarding:max-w-3xl @3xl/onboarding:rounded-xl @3xl/onboarding:border">
         {/* Header — hidden on welcome */}
         {step > 0 && (
-          <div className="px-4 md:px-6 pt-4 md:pt-6 pb-4 shrink-0">
-            <h1 className="text-base md:text-lg font-semibold text-app-text">{m.ob_configure_title()}</h1>
+          <div className="shrink-0 px-4 pt-4 pb-4 @3xl/onboarding:px-6 @3xl/onboarding:pt-6">
+            <h1 className="text-base font-semibold text-app-text @3xl/onboarding:text-lg">{m.ob_configure_title()}</h1>
             <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-1">
               {MODAL_STEPS.slice(1).map((s, idx) => {
                 const i = idx + 1;
@@ -643,12 +643,12 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
         )}
 
         {/* Content */}
-        <div className="px-4 md:px-6 py-5 min-h-[280px] border-t border-app-border flex-1 overflow-y-auto">
+        <div className="min-h-[280px] flex-1 overflow-y-auto border-t border-app-border px-4 py-5 @3xl/onboarding:px-6">
           <StepComponent />
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end px-4 md:px-6 py-4 border-t border-app-border bg-app-surface-alt/30 shrink-0">
+        <div className="flex shrink-0 items-center justify-end border-t border-app-border bg-app-surface-alt/30 px-4 py-4 @3xl/onboarding:px-6">
           <div className="flex items-center gap-2">
             {step > 0 && (
               <Button variant="outline" size="sm" onClick={() => setStep((s) => s - 1)}>
@@ -656,7 +656,7 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
               </Button>
             )}
             {step < MODAL_STEPS.length - 1 ? (
-              <Button size="sm" onClick={() => setStep((s) => s + 1)}>
+              <Button variant="app-primary" size="sm" onClick={() => setStep((s) => s + 1)}>
                 {step === 0 ? m.common_get_started() : m.common_next()}
               </Button>
             ) : (

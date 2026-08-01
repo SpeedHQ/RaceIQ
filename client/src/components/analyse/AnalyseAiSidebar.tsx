@@ -19,10 +19,10 @@ interface AnalyseAiSidebarProps {
 
 export function AnalyseAiSidebar({ lapId, carName, trackName, segments, aiPanelRef, onClose, onJumpToFrac, onHighlightsChange }: AnalyseAiSidebarProps) {
   return (
-    <div className="w-[22rem] h-full shrink-0 border-l border-app-border bg-app-surface/50 flex flex-col overflow-hidden">
+    <div className="flex h-[36rem] w-full shrink-0 flex-col overflow-hidden border-t border-app-border bg-app-surface shadow-2xl @5xl/workspace:absolute @5xl/workspace:inset-y-0 @5xl/workspace:right-0 @5xl/workspace:z-30 @5xl/workspace:h-full @5xl/workspace:w-[22rem] @5xl/workspace:border-t-0 @5xl/workspace:border-l @7xl/workspace:relative @7xl/workspace:inset-auto @7xl/workspace:z-auto @7xl/workspace:shadow-none">
       <div className="flex items-center justify-between px-3 py-2 border-b border-app-border shrink-0">
         <div className="flex items-center gap-1.5">
-        <Sparkles className="size-3 text-ai-accent" />
+          <Sparkles className="size-3 text-ai-accent" />
           <span className="text-app-caption uppercase tracking-wider font-semibold text-app-text">{m.analyse_ai_analysis()}</span>
         </div>
         <div className="flex items-center gap-2">

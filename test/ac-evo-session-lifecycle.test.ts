@@ -18,7 +18,7 @@ import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
 import { CapturingDbAdapter } from "../server/pipeline-adapters";
 import { LapDetectorAcEvo } from "../server/lap-detector-ac-evo";
-import { META_FRAME_MAGIC } from "../server/udp-recorder";
+import { META_FRAME_MAGIC } from "../server/session-recorder";
 import { stopMaintenanceTasks } from "../server/pipeline";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../server/games/ac-evo/parser";
 import { ACEVO_STATUS, GRAPHICS_EVO } from "../server/games/ac-evo/structs";

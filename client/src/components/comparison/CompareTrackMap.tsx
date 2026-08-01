@@ -1,12 +1,13 @@
 import type { GameId, TelemetryPacket } from "@shared/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
 import { deltaColor } from "../../lib/colors";
 import { type BoundaryData, COLOR_A, COLOR_B, computeZoom, drawInputsHUD, drawTrackCanvas, findTelemetryAtDistance, formatSectionTime, type Point } from "../../lib/comparison-utils";
+import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
 import { client } from "../../lib/rpc";
 import { flipBoundaries, flipPoints, needsTrackFlip } from "../../lib/track-coords";
 import { m } from "../../paraglide/messages";
 
+import { Card } from "../ui/card";
 export interface SegmentTiming {
   name: string;
   type: "corner" | "straight";
@@ -355,7 +356,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
   }, [drawBoth]);
 
   return (
-    <div className="bg-app-surface rounded-lg border border-app-border overflow-hidden h-full flex flex-col">
+    <Card className="h-full">
       {/* Overview — full track, static */}
       <div ref={overviewContainerRef} className="relative border-b border-app-border h-[220px] shrink-0">
         <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_overview()}</span>
@@ -369,6 +370,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
       <div ref={zoomContainerRef} className="relative border-b border-app-border h-[320px] shrink-0">
         <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_zoomed()}</span>
         <button
+          type="button"
           onClick={() => {
             const next = !followCarRef.current;
             followCarRef.current = next;
@@ -430,6 +432,6 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
           </table>
         </div>
       ) : null}
-    </div>
+    </Card>
   );
 }

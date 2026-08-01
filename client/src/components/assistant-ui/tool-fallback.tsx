@@ -17,8 +17,6 @@ import { cn } from "@/lib/utils";
 
 const ANIMATION_DURATION = 200;
 
-const pressable = "active:scale-[0.98]";
-
 export type ToolFallbackRootProps = Omit<React.ComponentProps<typeof Collapsible>, "open" | "onOpenChange"> & {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -325,10 +323,10 @@ function ToolFallbackApproval({
           </ul>
         )}
         <div className="flex items-center gap-2">
-          <Button size="sm" className={pressable} onClick={() => respondWithOption(confirming)} disabled={submitted}>
+          <Button size="sm" onClick={() => respondWithOption(confirming)} disabled={submitted}>
             Confirm
           </Button>
-          <Button size="sm" variant="outline" className={pressable} onClick={() => setConfirmingId(null)} disabled={submitted}>
+          <Button size="sm" variant="outline" onClick={() => setConfirmingId(null)} disabled={submitted}>
             Back
           </Button>
         </div>
@@ -342,12 +340,12 @@ function ToolFallbackApproval({
     return (
       <div data-slot="tool-fallback-approval" className={cn("aui-tool-fallback-approval flex flex-wrap items-center gap-2 pt-1", className)} {...props}>
         {[...allowOptions, ...rejectOptions].map((option) => (
-          <Button key={option.id} size="sm" variant={option === allowOptions[0] ? "default" : "outline"} className={pressable} onClick={() => handleOption(option)} disabled={submitted}>
+          <Button key={option.id} size="sm" variant={option === allowOptions[0] ? "default" : "outline"} onClick={() => handleOption(option)} disabled={submitted}>
             {approvalOptionLabel(option)}
           </Button>
         ))}
         {rejectOptions.length === 0 && (
-          <Button size="sm" variant="outline" className={pressable} onClick={() => respond(false)} disabled={submitted}>
+          <Button size="sm" variant="outline" onClick={() => respond(false)} disabled={submitted}>
             Deny
           </Button>
         )}
@@ -357,10 +355,10 @@ function ToolFallbackApproval({
 
   return (
     <div data-slot="tool-fallback-approval" className={cn("aui-tool-fallback-approval flex items-center gap-2 pt-1", className)} {...props}>
-      <Button size="sm" className={pressable} onClick={() => respond(true)} disabled={submitted}>
+      <Button size="sm" onClick={() => respond(true)} disabled={submitted}>
         Allow
       </Button>
-      <Button size="sm" variant="outline" className={pressable} onClick={() => respond(false)} disabled={submitted}>
+      <Button size="sm" variant="outline" onClick={() => respond(false)} disabled={submitted}>
         Deny
       </Button>
     </div>

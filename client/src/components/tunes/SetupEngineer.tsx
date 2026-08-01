@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type AutoTuneResult, useAutoTune, useSetupFiles } from "../../hooks/queries";
+import { Button } from "../ui/button";
 
 /**
  * useSetupEngineer — owns the Setup Engineer (symptom→intent→apply) request
@@ -88,15 +89,15 @@ export function SetupEngineerControls({ state, lapId }: { state: SetupEngineerSt
         title="Driver feel — biases the recommendation, never overrides telemetry. e.g. 'loose on entry', 'understeer in slow hairpins'"
         className="bg-app-dropdown border border-app-border rounded px-2 py-1 text-xs w-[200px]"
       />
-      <button
-        type="button"
+      <Button
+        variant="app-primary"
+        size="app-sm"
         onClick={() => lapId != null && runPreviewFor(lapId)}
         disabled={lapId == null || isPending || !filePath}
         title={!filePath ? "Pick a base setup first" : undefined}
-        className="px-3 py-1 text-xs rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 text-app-on-filled font-semibold"
       >
         {isPending ? "Analysing…" : "Recommend"}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -142,8 +143,8 @@ export function SetupEngineerResult({ state }: { state: SetupEngineerState }) {
                 <div className="text-xs text-app-text-dim">No changes recommended.</div>
               ) : (
                 <ul className="space-y-1">
-                  {result.intents.map((it, i) => (
-                    <li key={`${it.component}-${i}`} className="text-xs text-app-text">
+                  {result.intents.map((it) => (
+                    <li key={`${it.component}-${it.direction}-${it.magnitude}-${it.reason}`} className="text-xs text-app-text">
                       <span className="font-mono text-(--focus-setup)">{it.component}</span>: {it.direction} ({it.magnitude}) <span className="text-app-text-dim">({it.reason})</span>
                     </li>
                   ))}
@@ -154,8 +155,8 @@ export function SetupEngineerResult({ state }: { state: SetupEngineerState }) {
             <div className="text-xs text-app-text-dim">No changes recommended.</div>
           ) : (
             <ul className="space-y-1">
-              {result.applied.map((a, i) => (
-                <li key={`${a.component}-${i}`} className="text-xs text-app-text">
+              {result.applied.map((a) => (
+                <li key={a.path} className="text-xs text-app-text">
                   <span className="font-mono text-(--focus-setup)">{a.component}</span>: {a.from} → {a.to} <span className="text-app-text-dim">({a.reason})</span>
                 </li>
               ))}
@@ -167,8 +168,8 @@ export function SetupEngineerResult({ state }: { state: SetupEngineerState }) {
             <div className="border-t border-app-border pt-2 space-y-1">
               <div className="text-app-compact text-app-text-muted uppercase tracking-wider">Deterministic (LLM-free) recommendation</div>
               <ul className="space-y-1">
-                {result.rulesIntents.map((it, i) => (
-                  <li key={`rules-${it.component}-${i}`} className="text-xs text-app-text">
+                {result.rulesIntents.map((it) => (
+                  <li key={`${it.component}-${it.direction}-${it.magnitude}-${it.reason}`} className="text-xs text-app-text">
                     <span className="font-mono text-(--focus-driver)">{it.component}</span>: {it.direction} ({it.magnitude}) <span className="text-app-text-dim">({it.reason})</span>
                   </li>
                 ))}
@@ -178,8 +179,8 @@ export function SetupEngineerResult({ state }: { state: SetupEngineerState }) {
 
           {result.skipped.length > 0 && (
             <ul className="space-y-1">
-              {result.skipped.map((s, i) => (
-                <li key={`${s.component}-${i}`} className="text-xs text-status-warning">
+              {result.skipped.map((s) => (
+                <li key={`${s.component}-${s.reason}`} className="text-xs text-status-warning">
                   Skipped {s.component}: {s.reason}
                 </li>
               ))}
@@ -198,21 +199,22 @@ export function SetupEngineerResult({ state }: { state: SetupEngineerState }) {
                   className="flex-1 min-w-0 bg-app-surface-alt border border-app-border rounded px-2 py-1 text-xs font-mono"
                 />
                 <span className="text-xs text-app-text-dim">.json</span>
-                <button
-                  type="button"
+                <Button
+                  variant="app-primary"
+                  size="app-sm"
                   onClick={() => applyToFile(saveAs.trim() || undefined)}
                   disabled={isPending || !saveAs.trim()}
-                  className="px-3 py-1 text-xs rounded bg-status-success hover:bg-status-success-hover disabled:opacity-40 text-app-on-filled font-semibold"
+                  className="bg-status-success hover:bg-status-success-hover"
                 >
                   {isPending ? "Saving…" : "Apply"}
-                </button>
+                </Button>
               </div>
               <div className="text-app-compact text-app-text-dim">Creates a new file next to the base setup — the original is untouched.</div>
             </div>
           )}
 
           {result.written && (
-          <div className="border-t border-app-border pt-2 text-xs text-status-success">
+            <div className="border-t border-app-border pt-2 text-xs text-status-success">
               Saved <span className="font-mono">{result.written.path.split(/[\\/]/).pop()}</span>. Load it in-game from the setup menu.
             </div>
           )}
@@ -238,9 +240,9 @@ interface Finding {
 }
 
 const FINDING_CLASS: Record<Finding["severity"], string> = {
-    critical: "text-status-danger",
-    warn: "text-status-warning",
-    info: "text-status-info",
+  critical: "text-status-danger",
+  warn: "text-status-warning",
+  info: "text-status-info",
 };
 
 /**

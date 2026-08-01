@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { client } from "../lib/rpc";
+import { Button } from "./ui/button";
 
 interface Props {
   lapId: number;
@@ -22,8 +23,8 @@ export function ExportButton({ lapId }: Props) {
   }
 
   return (
-      <button onClick={handleExport} disabled={status === "copying"} className="px-2 py-1 text-xs rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled disabled:opacity-50 transition-colors">
+    <Button variant="app-primary" size="app-sm" onClick={handleExport} disabled={status === "copying"}>
       {status === "copied" ? "Copied!" : "Export"}
-    </button>
+    </Button>
   );
 }

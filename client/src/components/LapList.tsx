@@ -5,6 +5,7 @@ import { useDeleteLap } from "../hooks/queries";
 import { storedLapsSectorCount } from "../lib/lap-sectors";
 import { useGameRoute } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
+import { Table } from "./ui/AppTable";
 import { Button } from "./ui/button";
 
 function formatLapTime(seconds: number): string {
@@ -75,7 +76,7 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
 
   return (
     <div className="overflow-auto">
-      <table className="w-full text-sm">
+      <Table fit tableClassName="w-full text-sm">
         <thead>
           <tr className="text-xs text-app-text-muted uppercase tracking-wider border-b border-app-border">
             <th className="text-left p-2 cursor-pointer hover:text-app-text select-none" onClick={() => toggleSort("lap")}>
@@ -101,9 +102,7 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
             return (
               <tr key={lap.id} className="border-b border-app-border/50 hover:bg-app-surface-hover/30">
                 <td className="p-2 font-mono text-app-text">{lap.lapNumber}</td>
-                <td className={`p-2 font-mono font-bold ${lap.isValid && lap.lapTime === bestLapTime ? "text-(--lap-pace-best)" : "text-app-text"}`}>
-                  {formatLapTime(lap.lapTime)}
-                </td>
+                <td className={`p-2 font-mono font-bold ${lap.isValid && lap.lapTime === bestLapTime ? "text-(--lap-pace-best)" : "text-app-text"}`}>{formatLapTime(lap.lapTime)}</td>
                 {sectorLabels.map((label, index) => {
                   const time = lap.sectorTimes?.[index] ?? 0;
                   return (
@@ -124,9 +123,8 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
                 <td className="p-2 text-right">
                   <div className="flex items-center justify-end gap-2">
                     <Button
-                      variant="app-outline"
+                      variant="selected-toggle"
                       size="app-sm"
-                      className="bg-app-accent/15 !border-app-accent/40 text-app-accent hover:bg-app-accent/25"
                       onClick={() => {
                         const prefix = gameRoute;
                         navigate({
@@ -141,7 +139,7 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
                     >
                       {m.label_analyse()}
                     </Button>
-                    <Button variant="app-ghost" size="app-sm" className="hover:text-status-danger" onClick={() => deleteLap.mutate(lap.id)}>
+                    <Button variant="destructive-outline" size="app-sm" onClick={() => deleteLap.mutate(lap.id)}>
                       {m.common_delete()}
                     </Button>
                   </div>
@@ -150,7 +148,7 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
             );
           })}
         </tbody>
-      </table>
+      </Table>
     </div>
   );
 }

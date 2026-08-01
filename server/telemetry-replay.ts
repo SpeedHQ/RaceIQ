@@ -23,7 +23,7 @@ import {
   decodeIRacingSourceFrame,
   type IRacingValue,
 } from "./games/iracing/source-frame";
-import { META_FRAME_MAGIC } from "./udp-recorder";
+import { META_FRAME_MAGIC } from "./session-recorder";
 import {
   loadRawCaptureIdentity,
   rawCaptureObjectId,

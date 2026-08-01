@@ -1,6 +1,7 @@
 import type { TelemetryPacket, TuneIssue } from "@shared/types";
 import { useState } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
+import { Button } from "../ui/button";
 import { SectorMap } from "./SectorMap";
 import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS } from "./SectorRangeBreakdown";
 
@@ -54,9 +55,9 @@ export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrd
   const sectorTime = sectorTimes && sectorTimes.times[sectorIndex] > 0 ? sectorTimes.times[sectorIndex].toFixed(3) : "—";
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2">
+    <div className="grid grid-cols-1 @5xl/workspace:grid-cols-2">
       {/* Map + issues */}
-      <div className="lg:border-r border-app-border">
+      <div className="border-app-border @5xl/workspace:border-r">
         <div className="flex items-center justify-between px-4 py-2 border-b border-app-border">
           <div className="flex items-center gap-2">
             <span className="w-6 h-1 rounded" style={{ background: SECTOR_COLOR_VARS[sectorIndex % SECTOR_COLOR_VARS.length] }} />
@@ -87,20 +88,21 @@ export function SectorDetailView({ telemetry, sectorTimes, sectorIndex, trackOrd
               {issues.map((it) => {
                 const locatable = it.distanceFrac != null;
                 return (
-                  <button
-                    type="button"
+                  <Button
+                    variant="app-ghost"
+                    size="app-sm"
                     key={`${it.kind}-${it.corner ?? ""}-${it.detail}`}
                     disabled={!locatable}
                     onMouseEnter={locatable ? () => setMarkFrac(it.distanceFrac!) : undefined}
                     onMouseLeave={locatable ? () => setMarkFrac(null) : undefined}
                     onFocus={locatable ? () => setMarkFrac(it.distanceFrac!) : undefined}
                     onBlur={locatable ? () => setMarkFrac(null) : undefined}
-                    className={`text-left text-xs px-2 py-1 rounded border ${SEVERITY_CLASS[it.severity]} ${locatable ? "cursor-pointer" : ""}`}
+                    className={`!w-full !justify-start !border !px-2 !py-1 text-left text-xs ${SEVERITY_CLASS[it.severity]} ${locatable ? "cursor-pointer" : ""}`}
                   >
                     <span className="font-mono uppercase mr-1.5 opacity-70">{it.kind}</span>
                     {it.corner ? <span className="font-mono mr-1">{it.corner}</span> : null}
                     {it.detail}
-                  </button>
+                  </Button>
                 );
               })}
             </div>

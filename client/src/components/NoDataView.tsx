@@ -2,6 +2,7 @@ import { useState } from "react";
 import { m } from "@/paraglide/messages";
 import { useSettings } from "../hooks/queries";
 import { useGameId } from "../stores/game";
+import { Button } from "./ui/button";
 
 function ForzaSetupGuide({ port }: { port: string }) {
   return (
@@ -24,8 +25,8 @@ function ForzaSetupGuide({ port }: { port: string }) {
         </li>
         <li>{m.setupguide_data_out_packet_format()}</li>
       </ol>
-        <div className="mt-4 rounded-md border border-status-warning/30 bg-status-warning/5 px-3 py-2">
-          <p className="text-xs text-status-warning">
+      <div className="mt-4 rounded-md border border-status-warning/30 bg-status-warning/5 px-3 py-2">
+        <p className="text-xs text-status-warning">
           <span className="font-semibold">{m.setupguide_note_label()}</span> {m.setupguide_forza_note()}
         </p>
       </div>
@@ -54,8 +55,8 @@ function F1SetupGuide({ port }: { port: string }) {
         <li>{m.setupguide_udp_send_rate()}</li>
         <li>{m.setupguide_udp_format()}</li>
       </ol>
-        <div className="mt-4 rounded-md border border-status-warning/30 bg-status-warning/5 px-3 py-2">
-          <p className="text-xs text-status-warning">
+      <div className="mt-4 rounded-md border border-status-warning/30 bg-status-warning/5 px-3 py-2">
+        <p className="text-xs text-status-warning">
           <span className="font-semibold">{m.setupguide_note_label()}</span> {m.setupguide_f1_note()}
         </p>
       </div>
@@ -78,8 +79,8 @@ function AccSetupGuide() {
           {m.setupguide_acc_step3_prefix()} <span className="text-app-text">{m.setupguide_acc_practice_session()}</span> {m.setupguide_acc_step3_suffix()}
         </li>
       </ol>
-        <div className="mt-4 rounded-md border border-status-warning/30 bg-status-warning/5 px-3 py-2">
-          <p className="text-xs text-status-warning">
+      <div className="mt-4 rounded-md border border-status-warning/30 bg-status-warning/5 px-3 py-2">
+        <p className="text-xs text-status-warning">
           <span className="font-semibold">{m.setupguide_note_label()}</span> {m.setupguide_acc_note()}
         </p>
       </div>
@@ -125,12 +126,12 @@ export function NoDataView() {
       </div>
 
       <div>
-        <button type="button" onClick={() => setExpanded(!expanded)} className="flex items-center gap-2 text-sm text-app-accent hover:text-app-accent/80 transition-colors">
+        <Button variant="app-ghost" size="app-md" onClick={() => setExpanded(!expanded)} className="!p-0 text-sm text-app-accent hover:text-app-accent/80">
           <svg className={`w-4 h-4 transition-transform ${expanded ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
           {guideLabel}
-        </button>
+        </Button>
 
         {expanded && (gameId === "iracing" ? <IRacingSetupGuide /> : gameId === "f1-2025" ? <F1SetupGuide port={port} /> : gameId === "acc" ? <AccSetupGuide /> : <ForzaSetupGuide port={port} />)}
       </div>

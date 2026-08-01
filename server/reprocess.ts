@@ -4,7 +4,7 @@
  */
 import { getServerGame } from "./games/registry";
 import { CapturingDbAdapter, currentTelemetryVersionIdentity } from "./pipeline-adapters";
-import { META_FRAME_MAGIC } from "./udp-recorder";
+import { META_FRAME_MAGIC } from "./session-recorder";
 import type { GameId } from "../shared/types";
 import { gunzip } from "zlib";
 import { promisify } from "util";

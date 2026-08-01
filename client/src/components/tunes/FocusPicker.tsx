@@ -1,4 +1,5 @@
 import { EXPERIMENT_FOCUS_HINTS, EXPERIMENT_FOCUS_LABELS, EXPERIMENT_FOCUSES, type ExperimentFocus } from "@shared/experiment-focus";
+import { Button } from "../ui/button";
 
 /**
  * Pick what a NEW experiment starts by varying — the car or the driver.
@@ -29,18 +30,10 @@ export function FocusPicker({
       <span className="text-app-compact text-app-text-muted uppercase tracking-wider">{label}</span>
       <div className="grid grid-cols-2 gap-2">
         {EXPERIMENT_FOCUSES.map((f) => (
-          <button
-            key={f}
-            type="button"
-            onClick={() => onChange(f)}
-            aria-pressed={value === f}
-            className={`rounded-lg border px-3 py-2 text-left transition-colors ${
-              value === f ? "border-app-accent bg-app-accent/10" : "border-app-border hover:border-app-accent/50"
-            }`}
-          >
+          <Button key={f} variant={value === f ? "focus-option-selected" : "focus-option"} size="app-md" onClick={() => onChange(f)} aria-pressed={value === f}>
             <div className="text-xs font-semibold text-app-text">{EXPERIMENT_FOCUS_LABELS[f]}</div>
             <div className="mt-0.5 text-app-compact text-app-text-dim">{EXPERIMENT_FOCUS_HINTS[f]}</div>
-          </button>
+          </Button>
         ))}
       </div>
       <p className="text-app-compact text-app-text-dim">You can switch focus later without starting a new experiment.</p>

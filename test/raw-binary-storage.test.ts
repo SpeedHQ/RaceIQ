@@ -1,12 +1,12 @@
 /**
- * Tests for raw binary lap storage: UdpRecorder meta frames, byte offset tracking,
+ * Tests for raw binary lap storage: SessionRecorder meta frames, byte offset tracking,
  * and reprocessSession strategy selection (in-place vs replace).
  */
 import { describe, test, expect, afterEach, beforeEach } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { UdpRecorder, META_FRAME_MAGIC } from "../server/udp-recorder";
+import { SessionRecorder, META_FRAME_MAGIC } from "../server/session-recorder";
 import { reprocessSession } from "../server/reprocess";
 import { db } from "../server/db/index";
 import { sessions, laps } from "../server/db/schema";
@@ -18,9 +18,9 @@ import { countStaleSessions } from "../server/db/queries";
 initGameAdapters();
 initServerGameAdapters();
 
-// ── UdpRecorder: meta frame + byte offset ─────────────────────────────────────
+// ── SessionRecorder: meta frame + byte offset ─────────────────────────────────────
 
-describe("UdpRecorder meta frame", () => {
+describe("SessionRecorder meta frame", () => {
   let tmpDir: string;
 
   afterEach(() => {
@@ -29,12 +29,12 @@ describe("UdpRecorder meta frame", () => {
 
   test("writeMetaFrame writes fixed 12-byte header with frame count", async () => {
     tmpDir = mkdtempSync(join(tmpdir(), "raceiq-test-"));
-    const recorder = new UdpRecorder();
+    const recorder = new SessionRecorder();
     recorder.start(join(tmpDir, "session.bin"));
 
     recorder.writeMetaFrame();
-    recorder.writePacket(Buffer.from([0x01, 0x02]));
-    recorder.writePacket(Buffer.from([0x03, 0x04]));
+    recorder.writeRecord(Buffer.from([0x01, 0x02]));
+    recorder.writeRecord(Buffer.from([0x03, 0x04]));
     await recorder.stop();
 
     const buf = Buffer.from(await Bun.file(recorder.path!).arrayBuffer());
@@ -45,7 +45,7 @@ describe("UdpRecorder meta frame", () => {
 
   test("getCurrentByteOffset starts at 0 before any writes", () => {
     tmpDir = mkdtempSync(join(tmpdir(), "raceiq-test-"));
-    const recorder = new UdpRecorder();
+    const recorder = new SessionRecorder();
     recorder.start(join(tmpDir, "session.bin"));
     expect(recorder.getCurrentByteOffset()).toBe(0);
     recorder.stop();
@@ -53,7 +53,7 @@ describe("UdpRecorder meta frame", () => {
 
   test("getCurrentByteOffset tracks written bytes", async () => {
     tmpDir = mkdtempSync(join(tmpdir(), "raceiq-test-"));
-    const recorder = new UdpRecorder();
+    const recorder = new SessionRecorder();
     recorder.start(join(tmpDir, "session.bin"));
 
     // meta frame: 4 (magic) + 4 (len) + 4 (count) = 12 bytes
@@ -61,7 +61,7 @@ describe("UdpRecorder meta frame", () => {
     expect(recorder.getCurrentByteOffset()).toBe(12);
 
     // packet: 4 (len prefix) + 3 (payload) = 7 bytes
-    recorder.writePacket(Buffer.from([0x01, 0x02, 0x03]));
+    recorder.writeRecord(Buffer.from([0x01, 0x02, 0x03]));
     expect(recorder.getCurrentByteOffset()).toBe(19);
 
     await recorder.stop();
@@ -69,14 +69,14 @@ describe("UdpRecorder meta frame", () => {
 
   test("byte offset after meta frame matches where first real packet is written", async () => {
     tmpDir = mkdtempSync(join(tmpdir(), "raceiq-test-"));
-    const recorder = new UdpRecorder();
+    const recorder = new SessionRecorder();
     recorder.start(join(tmpDir, "session.bin"));
 
     recorder.writeMetaFrame();
     const offsetAfterMeta = recorder.getCurrentByteOffset(); // always 12
 
     const pkt = Buffer.from([0xAA, 0xBB]);
-    recorder.writePacket(pkt);
+    recorder.writeRecord(pkt);
     await recorder.stop();
 
     // Verify the first packet's length prefix sits at offsetAfterMeta in the file

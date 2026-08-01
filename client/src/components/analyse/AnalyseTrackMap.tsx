@@ -1,9 +1,9 @@
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
-import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { tryGetGame } from "@shared/games/registry";
 import { lapPath } from "@shared/lib/lap-path";
 import type { TelemetryPacket } from "@shared/types";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef } from "react";
+import { SECTOR_COLOR_VARS } from "@/lib/colors";
+import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { flipPoints, needsTrackFlip } from "../../lib/track-coords";
 
 export interface Point {
@@ -55,9 +55,8 @@ export const AnalyseTrackMap = forwardRef<
     showTrace?: boolean;
     rotateWithCar: boolean;
     zoom?: number;
-    containerHeight?: number;
   }
->(function AnalyseTrackMap({ telemetry, cursorIdx, outline, mapLabels, boundaries, sectors, segments, highlights, showInputs, showTrace = true, rotateWithCar, zoom = 1, containerHeight }, ref) {
+>(function AnalyseTrackMap({ telemetry, cursorIdx, outline, mapLabels, boundaries, sectors, segments, highlights, showInputs, showTrace = true, rotateWithCar, zoom = 1 }, ref) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const carCanvasRef = useRef<HTMLCanvasElement>(null);
   const pulseRef = useRef<HTMLCanvasElement>(null);
@@ -98,15 +97,9 @@ export const AnalyseTrackMap = forwardRef<
     const w = rect.width;
     const h = rect.height;
 
-    const telemetryPointsWithIdx = resolvedPositions
-      .map((point, idx) => ({ ...point, idx }))
-      .filter((point, index) => index === 0 || point.x !== 0 || point.z !== 0);
+    const telemetryPointsWithIdx = resolvedPositions.map((point, idx) => ({ ...point, idx })).filter((point, index) => index === 0 || point.x !== 0 || point.z !== 0);
     const telemetryPoints = telemetryPointsWithIdx as { x: number; z: number }[];
-    const displayOutline: Point[] = !showTrace
-      ? (outline ?? (telemetryPoints.length > 2 ? telemetryPoints : []))
-      : telemetryPoints.length > 2
-        ? telemetryPoints
-        : (outline ?? []);
+    const displayOutline: Point[] = !showTrace ? (outline ?? (telemetryPoints.length > 2 ? telemetryPoints : [])) : telemetryPoints.length > 2 ? telemetryPoints : (outline ?? []);
 
     if (displayOutline.length < 2) {
       transformRef.current = null;
@@ -274,11 +267,7 @@ export const AnalyseTrackMap = forwardRef<
         }
         ctx.stroke();
 
-        if (
-          !mapLabels?.length &&
-          seg.name &&
-          !labelledNames.has(seg.name)
-        ) {
+        if (!mapLabels?.length && seg.name && !labelledNames.has(seg.name)) {
           labelledNames.add(seg.name);
           const midIdx = Math.round((startIdx + endIdx) / 2);
           const point = displayOutline[Math.min(midIdx, n - 1)];
@@ -300,9 +289,7 @@ export const AnalyseTrackMap = forwardRef<
       ctx.font = "var(--font-weight-bold) var(--text-app-micro) var(--font-mono)";
       ctx.textAlign = "center";
       const occupied: { x: number; y: number; w: number; h: number }[] = [];
-      for (const label of labelCandidates.sort(
-        (a, b) => b.priority - a.priority,
-      )) {
+      for (const label of labelCandidates.sort((a, b) => b.priority - a.priority)) {
         const width = ctx.measureText(label.text).width + 8;
         const rect = {
           x: label.x - width / 2,
@@ -315,13 +302,7 @@ export const AnalyseTrackMap = forwardRef<
           rect.y < 0 ||
           rect.x + rect.w > offW ||
           rect.y + rect.h > offH ||
-          occupied.some(
-            (other) =>
-              rect.x < other.x + other.w &&
-              rect.x + rect.w > other.x &&
-              rect.y < other.y + other.h &&
-              rect.y + rect.h > other.y,
-          )
+          occupied.some((other) => rect.x < other.x + other.w && rect.x + rect.w > other.x && rect.y < other.y + other.h && rect.y + rect.h > other.y)
         ) {
           continue;
         }
@@ -517,9 +498,8 @@ export const AnalyseTrackMap = forwardRef<
         }
       }
     }
-    // containerHeight triggers redraw on resize (not used directly but signals layout change)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [telemetry, resolvedPositions, outline, mapLabels, boundaries, sectors, segments, rotateWithCar, zoom, highlights, showInputs, showTrace, containerHeight]);
+  }, [telemetry, resolvedPositions, outline, mapLabels, boundaries, sectors, segments, rotateWithCar, zoom, highlights, showInputs, showTrace]);
 
   // Composite the cached track buffer onto the main canvas with rotation for follow view.
   const compositeTrack = useCallback(
@@ -671,7 +651,6 @@ export const AnalyseTrackMap = forwardRef<
 
   // ResizeObserver — rebuild the offscreen cache whenever the canvas
   // dimensions change (window resize, pane drag, layout toggles, etc).
-  // containerHeight prop only catches some of these; this catches all of them.
   const cursorRef = useRef(cursorIdx);
   useEffect(() => {
     cursorRef.current = cursorIdx;

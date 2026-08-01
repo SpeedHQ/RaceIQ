@@ -30,7 +30,7 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
   }
 
   return (
-    <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0 h-full">
+    <div data-live-dashboard-layout className="grid h-auto flex-1 grid-cols-1 gap-0 @5xl/workspace:h-full @5xl/workspace:grid-cols-2">
       {/* Left column: Tires + Pit Window */}
       <div className="border-r border-app-border overflow-auto">
         {/* Tires */}
@@ -66,7 +66,7 @@ export function AccLiveDashboard({ gameId = "acc" }: { gameId?: GameId }) {
       </div>
 
       {/* Right column: Race (with sectors) + Charts + Recorded Laps */}
-      <div className="overflow-auto flex flex-col">
+      <div data-live-dashboard-race className="overflow-auto flex flex-col">
         <RaceInfo packet={packet} sectors={sectors} trackName={trackName} carName={carName} showTrackMap={false} showSectors={true} />
 
         <div className="shrink-0 h-[240px]">

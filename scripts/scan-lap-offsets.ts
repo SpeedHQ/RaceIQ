@@ -9,7 +9,7 @@ import { eq } from "drizzle-orm";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
-import { META_FRAME_MAGIC } from "../server/udp-recorder";
+import { META_FRAME_MAGIC } from "../server/session-recorder";
 
 initGameAdapters();
 initServerGameAdapters();

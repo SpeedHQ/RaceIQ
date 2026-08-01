@@ -128,7 +128,7 @@ export function SetupBrowser(props: SetupBrowserProps) {
 
       <div className="flex items-end gap-2.5 mb-3">
         <ComboBox label={m.setup_track_label()} variant="track" value={track} options={trackOptions} onChange={pickTrack} placeholder={m.setup_any_track()} />
-        <span className="hidden sm:block text-app-text-dim pb-3">{m.setup_arrow()}</span>
+        <span className="hidden pb-3 text-app-text-dim @3xl/workspace:block">{m.setup_arrow()}</span>
         <ComboBox label={m.setup_car_label()} variant="car" value={car} options={carOptions} onChange={pickCar} placeholder={m.setup_any_car()} />
       </div>
 
@@ -167,14 +167,14 @@ export function SetupBrowser(props: SetupBrowserProps) {
         <div className={`${TUNE_GRID} px-3 py-2.5 bg-app-bg text-app-micro uppercase tracking-wider text-app-text-dim`}>
           <span>{m.setup_table_rank()}</span>
           <span>{m.setup_table_tune()}</span>
-          <span className="hidden sm:block">{m.label_car()}</span>
-          <span className="hidden sm:block">{m.label_track()}</span>
-          <span className="hidden sm:block">{m.label_category()}</span>
-          <span className="hidden sm:block">{m.label_author()}</span>
+          <span className="hidden @3xl/workspace:block">{m.label_car()}</span>
+          <span className="hidden @3xl/workspace:block">{m.label_track()}</span>
+          <span className="hidden @3xl/workspace:block">{m.label_category()}</span>
+          <span className="hidden @3xl/workspace:block">{m.label_author()}</span>
           <button type="button" className="justify-self-end uppercase tracking-wider text-app-accent inline-flex items-center gap-1" onClick={() => setSortAsc((a) => !a)}>
             {m.label_lap_time()} <span className="text-app-nano">{sortAsc ? "▲" : "▼"}</span>
           </button>
-          <span className="hidden sm:block" />
+          <span className="hidden @3xl/workspace:block" />
         </div>
         {pageRows.map((row, i) => (
           <TuneBrowserRow

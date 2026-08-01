@@ -54,14 +54,14 @@ uniform, which is a different property.
 
 ## `.bin` layout
 
-`server/udp-recorder.ts`. Append-only, length-prefixed:
+`server/session-recorder.ts`. Append-only, length-prefixed:
 
 ```
 [0xFFFFFFFF u32][4 u32][totalFrames u32]   // 12-byte meta frame at offset 0
 [len u32][len bytes]                        // repeated
 ```
 
-`META_FRAME_MAGIC = 0xffffffff` separates header from real packet length.
+`META_FRAME_MAGIC = 0xffffffff` separates header from first record length.
 `totalFrames` patched on `stop()`. Append-only: hard kill truncates at most last
 in-flight write. Reader detects truncation by reading declared length, checking
 that many bytes follow.
@@ -129,7 +129,7 @@ Not compression. Three multipliers:
 
 ## See also
 
-- `server/udp-recorder.ts` — writer, framing
+- `server/session-recorder.ts` — writer, framing
 - `server/games/shared/pack-triplet.ts` — shared-memory frame synthesis
 - `server/import-session-bin.ts` — re-import, re-parse
 - `server/session-compressor.ts` — background gzip

@@ -20,6 +20,7 @@ import {
 import { formatLapTime } from "../../lib/format";
 import { client } from "../../lib/rpc";
 import { useTelemetryStore } from "../../stores/telemetry";
+import { Button } from "../ui/button";
 import { AddBaseModal } from "./AddBaseModal";
 import { BackButton } from "./BackButton";
 import { FocusSwitcher } from "./FocusSwitcher";
@@ -71,7 +72,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
     queryKey: ["experiment-activate", experimentId],
     queryFn: async () => {
       const api = client.api as any;
-      const res = await api["experiments"][":id"].activate.$post({ param: { id: String(experimentId) } });
+      const res = await api.experiments[":id"].activate.$post({ param: { id: String(experimentId) } });
       return res.json() as Promise<{ active: number | null }>;
     },
     refetchInterval: 5000,
@@ -85,7 +86,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
   // clobber a session the driver has since switched to.
   useEffect(() => {
     return () => {
-      (client.api as any)["experiments"][":id"].deactivate.$post({ param: { id: String(experimentId) } }).catch(() => {});
+      (client.api as any).experiments[":id"].deactivate.$post({ param: { id: String(experimentId) } }).catch(() => {});
     };
   }, [experimentId]);
 
@@ -236,7 +237,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
           panel (Recommend + chat) is permanent and full-height. */}
       {/* Chat column is hidden during a live test — the live dashboard gets the
           full width; chat returns on the review page / idle workspace. */}
-      <div className={`flex-1 min-h-0 grid grid-cols-1 gap-3 ${testPhase === "live" ? "" : "lg:grid-cols-[1fr_360px]"}`}>
+      <div className={`grid min-h-0 flex-1 grid-cols-1 gap-3 ${testPhase === "live" ? "" : "@5xl/workspace:grid-cols-[1fr_360px]"}`}>
         {/* Left: tune-tests table normally; the live dashboard takes over the
             panel while a test is running. Review moved to its own route
             (…/review) — no tab switcher. */}
@@ -246,7 +247,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
               <>
                 {/* Session overview — always rendered as placeholders ("—") so
                     the row layout doesn't jump once laps start landing. */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 p-2 border-b border-app-border">
+                <div className="grid grid-cols-2 gap-2 border-b border-app-border p-2 @3xl/workspace:grid-cols-3 @5xl/workspace:grid-cols-6">
                   <StatCard label="Laps" value={String(lapCount)} />
                   <StatCard label="Best lap" value={bestLap != null ? formatLapTime(bestLap) : "—"} />
                   <StatCard label="Best setup" value={bestTest ? `${bestTest.test.label} · ${formatLapTime(bestTest.lapTime)}` : "—"} />
@@ -258,29 +259,17 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                 <div className="flex items-center justify-between px-2 pt-2 flex-wrap gap-1">
                   <span className="text-app-caption uppercase tracking-wider text-app-text-muted">Version tree</span>
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowImportLaps(true)}
-                      className="text-app-caption px-2 py-1 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-border-hover"
-                    >
+                    <Button variant="app-outline" size="app-sm" onClick={() => setShowImportLaps(true)}>
                       Add laps from history
-                    </button>
+                    </Button>
                     {gameId !== "f1-2025" && (
-                      <button
-                        type="button"
-                        onClick={() => setShowAddBase(true)}
-                        className="text-app-caption px-2 py-1 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-border-hover"
-                      >
+                      <Button variant="app-outline" size="app-sm" onClick={() => setShowAddBase(true)}>
                         + Add base
-                      </button>
+                      </Button>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => setShowHistory(true)}
-                      className="text-app-caption px-2 py-1 rounded border border-app-border text-app-text-muted hover:text-app-text hover:border-app-border-hover"
-                    >
+                    <Button variant="app-outline" size="app-sm" onClick={() => setShowHistory(true)}>
                       History
-                    </button>
+                    </Button>
                   </div>
                 </div>
                 <VersionGraph
@@ -327,8 +316,9 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                     <InlineStat label="Fuel/lap" value={liveFuelPerLap != null ? `${liveFuelPerLap.toFixed(2)} L` : "—"} />
                   </div>
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
+                    <Button
+                      variant="app-primary"
+                      size="app-sm"
                       onClick={() => {
                         const lapIds = liveSessionLaps.map((l) => l.id);
                         setTestPhase("idle");
@@ -338,13 +328,12 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                           // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         } as any);
                       }}
-                      className="px-3 py-1 text-xs rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled font-semibold"
                     >
                       Review laps
-                    </button>
-                    <button type="button" onClick={() => setTestPhase("idle")} className="px-3 py-1 text-xs rounded border border-app-border text-app-text-dim hover:text-app-text">
+                    </Button>
+                    <Button variant="app-outline" size="app-sm" onClick={() => setTestPhase("idle")}>
                       Close
-                    </button>
+                    </Button>
                   </div>
                 </div>
                 <div className="flex-1 min-h-0">
@@ -367,9 +356,9 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                   engineer talking about my braking" and an obvious mode. */}
               <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{EXPERIMENT_FOCUS_AGENT_LABELS[session.focus]}</span>
               <div className="flex items-center gap-3">
-                <button type="button" onClick={() => setTestPhase("live")} className="px-3 py-1 text-xs rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled font-semibold">
+                <Button variant="app-primary" size="app-sm" onClick={() => setTestPhase("live")}>
                   Dashboard
-                </button>
+                </Button>
                 <CopyChatJsonButton sessionId={session.id} />
               </div>
             </div>
@@ -407,8 +396,9 @@ function StatCard({ label, value }: { label: string; value: string }) {
 function CopyChatJsonButton({ sessionId }: { sessionId: number }) {
   const [copied, setCopied] = useState(false);
   return (
-    <button
-      type="button"
+    <Button
+      variant="app-ghost"
+      size="app-sm"
       onClick={async () => {
         try {
           const res = await fetch(`/api/experiments/${sessionId}/chat`);
@@ -421,11 +411,11 @@ function CopyChatJsonButton({ sessionId }: { sessionId: number }) {
         }
       }}
       title="Copy chat JSON (debug)"
-      className="flex items-center gap-1 text-app-text-muted hover:text-app-text"
+      className="!px-0 flex items-center gap-1 text-app-text-muted hover:text-app-text"
     >
       {copied ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
       <span className="text-app-micro uppercase tracking-wider">{copied ? "Copied" : "JSON"}</span>
-    </button>
+    </Button>
   );
 }
 

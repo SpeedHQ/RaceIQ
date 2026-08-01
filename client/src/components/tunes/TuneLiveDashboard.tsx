@@ -2,7 +2,6 @@ import { tryGetGame } from "@shared/games/registry";
 import type { GameId, LapMeta, TuneIssue } from "@shared/types";
 import { useEffect, useMemo, useState } from "react";
 import { useLiveAnalysisToggle, useTirePressureOptimal } from "../../hooks/queries";
-import { RotatePrompt } from "../../routes/__root";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { LiveTrackMap } from "../LiveTrackMap";
 import { RaceInfo } from "../RaceInfo";
@@ -81,9 +80,7 @@ export function TuneLiveDashboard({ gameId, trackName, sessionLaps }: TuneLiveDa
   }
 
   return (
-    <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0">
-      <RotatePrompt />
-
+    <div className="grid flex-1 grid-cols-1 gap-0 @5xl/workspace:grid-cols-2">
       {/* Left column: tires, fuel/stint, recommendation */}
       <div className="border-r border-app-border overflow-auto">
         <div className="border-b border-app-border">
@@ -150,8 +147,8 @@ export function TuneLiveDashboard({ gameId, trackName, sessionLaps }: TuneLiveDa
                       <div className="text-xs text-app-text-dim">No issues.</div>
                     ) : (
                       <ul className="space-y-1">
-                        {entry.issues.map((issue, i) => (
-                          <li key={`${issue.kind}-${issue.corner ?? ""}-${i}`} className={`text-xs px-1.5 py-0.5 rounded border ${SEVERITY_CLASS[issue.severity]}`}>
+                        {entry.issues.map((issue) => (
+                          <li key={issueKey(issue)} className={`text-xs px-1.5 py-0.5 rounded border ${SEVERITY_CLASS[issue.severity]}`}>
                             {issue.corner ? <span className="font-mono mr-1">{issue.corner}</span> : null}
                             {issue.detail}
                           </li>

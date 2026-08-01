@@ -14,9 +14,5 @@ export const Route = createFileRoute("/$gameid/compare")({
 
 function ComparePage() {
   const search = useSearch({ from: "/$gameid/compare" });
-  return (
-    <div className="h-full overflow-hidden">
-      <LapComparison initialSearch={search} />
-    </div>
-  );
+  return <LapComparison initialSearch={search} />;
 }

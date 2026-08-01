@@ -4,7 +4,7 @@ import type { LapMeta } from "@shared/types";
 import { useMemo, useState } from "react";
 import { type ExperimentLapMetric, useSetLapExcluded } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
-
+import { Table } from "../ui/AppTable";
 /**
  * Shared rendering pieces for a tuning test ("setup version"): the
  * applied-changes summary and the per-lap breakdown table. Both
@@ -195,7 +195,7 @@ export function LapBreakdown({
     return <div className="px-3 py-2 text-xs text-app-text-dim">No laps recorded against this version yet.</div>;
   }
   return (
-    <table className="w-full text-xs">
+    <Table fit tableClassName="w-full text-xs">
       <thead>
         <tr className="text-app-caption uppercase tracking-wider text-app-text-muted">
           <th className="px-3 py-1 font-medium text-left">
@@ -274,7 +274,10 @@ export function LapBreakdown({
                     status of the lap too, so they sit with the status text and
                     not next to the exclude control. */}
                     {reason === "chosen" && (
-                      <span className="text-app-caption uppercase tracking-wider text-status-success" title={`Used for evaluation — one of the fastest ${REVIEW_LAP_CAP} clean laps this analysis reads`}>
+                      <span
+                        className="text-app-caption uppercase tracking-wider text-status-success"
+                        title={`Used for evaluation — one of the fastest ${REVIEW_LAP_CAP} clean laps this analysis reads`}
+                      >
                         Eval
                       </span>
                     )}
@@ -310,6 +313,6 @@ export function LapBreakdown({
           );
         })}
       </tbody>
-    </table>
+    </Table>
   );
 }

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { useSaveSettings, useSettings } from "@/hooks/queries";
 import { m } from "@/paraglide/messages";
 
@@ -175,9 +176,7 @@ export function AiSection() {
     driverProfileSettings.driverProfileThinkingBudget,
   ]);
 
-  const selectedProviders = Array.from(
-    new Set([provider, chatProvider, autoTuneProvider, driverProfileProvider].filter((p) => p === "gemini" || p === "openai" || p === "local")),
-  );
+  const selectedProviders = Array.from(new Set([provider, chatProvider, autoTuneProvider, driverProfileProvider].filter((p) => p === "gemini" || p === "openai" || p === "local")));
   const keyStatus: Record<string, boolean> = {
     gemini: !!displaySettings.geminiApiKeySet,
     openai: !!displaySettings.openaiApiKeySet,
@@ -266,18 +265,14 @@ export function AiSection() {
   const hasAutoTuneProviderKey = autoTuneProvider === "local" || (keyStatus[autoTuneProvider] ?? false);
   const canShowAutoTuneModelPicker = autoTuneProvider !== "" && hasAutoTuneProviderKey && autoTuneModels.length > 0;
   const autoTuneProviderModelError = autoTuneProvider === "gemini" || autoTuneProvider === "openai" || autoTuneProvider === "local" ? (modelErrors[autoTuneProvider] ?? null) : null;
-  const driverProfileModels =
-    driverProfileProvider === "gemini" || driverProfileProvider === "openai" || driverProfileProvider === "local" ? (aiModels?.[driverProfileProvider] ?? []) : [];
+  const driverProfileModels = driverProfileProvider === "gemini" || driverProfileProvider === "openai" || driverProfileProvider === "local" ? (aiModels?.[driverProfileProvider] ?? []) : [];
   const hasDriverProfileProviderKey = driverProfileProvider === "local" || (keyStatus[driverProfileProvider] ?? false);
   const canShowDriverProfileModelPicker = driverProfileProvider !== "" && hasDriverProfileProviderKey && driverProfileModels.length > 0;
   const effectiveDriverProfileGeminiModel = driverProfileModel || "gemini-flash-latest";
-  const driverProfileModelSupportsThinking =
-    driverProfileProvider === "gemini" && supportsGeminiThinkingBudget(effectiveDriverProfileGeminiModel);
+  const driverProfileModelSupportsThinking = driverProfileProvider === "gemini" && supportsGeminiThinkingBudget(effectiveDriverProfileGeminiModel);
   const effectiveDriverProfileThinkingBudget = driverProfileModelSupportsThinking ? driverProfileThinkingBudget : null;
   const driverProfileProviderModelError =
-    driverProfileProvider === "gemini" || driverProfileProvider === "openai" || driverProfileProvider === "local"
-      ? (modelErrors[driverProfileProvider] ?? null)
-      : null;
+    driverProfileProvider === "gemini" || driverProfileProvider === "openai" || driverProfileProvider === "local" ? (modelErrors[driverProfileProvider] ?? null) : null;
 
   const initialProvider = analysisBaseline.provider;
   const initialModel = analysisBaseline.model;
@@ -366,8 +361,7 @@ export function AiSection() {
     const startedAt = performance.now();
     try {
       const providerKeyId = PROVIDER_KEY_MAP[driverProfileProvider];
-      const keyPromise =
-        driverProfileApiKey && providerKeyId ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey: driverProfileApiKey }) : null;
+      const keyPromise = driverProfileApiKey && providerKeyId ? saveApiKey.mutateAsync({ provider: providerKeyId, apiKey: driverProfileApiKey }) : null;
       const updates: Record<string, unknown> = {
         driverProfileBackgroundEnabled,
         driverProfileProvider,
@@ -442,8 +436,11 @@ export function AiSection() {
       <p className="text-xs text-app-text-muted mb-4">{m.ai_analysis_provider_desc()}</p>
       <div className="space-y-4">
         <div>
-          <label className="block text-xs text-app-text-muted mb-1">{m.ai_provider_label()}</label>
+          <label htmlFor="ai-analysis-provider" className="block text-xs text-app-text-muted mb-1">
+            {m.ai_provider_label()}
+          </label>
           <select
+            id="ai-analysis-provider"
             value={provider}
             onChange={(e) => {
               setProvider(e.target.value as string);
@@ -462,8 +459,11 @@ export function AiSection() {
         </div>
         {provider === "local" && (
           <div>
-            <label className="block text-xs text-app-text-muted mb-1">{m.ai_endpoint_label()}</label>
+            <label htmlFor="ai-analysis-endpoint" className="block text-xs text-app-text-muted mb-1">
+              {m.ai_endpoint_label()}
+            </label>
             <input
+              id="ai-analysis-endpoint"
               type="text"
               value={localEndpoint}
               onChange={(e) => setLocalEndpoint(e.target.value)}
@@ -475,9 +475,12 @@ export function AiSection() {
         )}
         {keyInfo && (
           <div>
-            <label className="block text-xs text-app-text-muted mb-1">{keyInfo.label}</label>
+            <label htmlFor="ai-analysis-api-key" className="block text-xs text-app-text-muted mb-1">
+              {keyInfo.label}
+            </label>
             <div className="flex items-center gap-1.5 max-w-xs">
               <input
+                id="ai-analysis-api-key"
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
@@ -485,13 +488,9 @@ export function AiSection() {
                 className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full font-mono"
               />
               {(keyStatus[provider] ?? false) && (
-                <button
-                  onClick={() => clearKey(PROVIDER_KEY_MAP[provider])}
-                  title={m.ai_clear_key_title()}
-                  className="shrink-0 p-1.5 rounded text-app-text-muted hover:text-status-danger hover:bg-status-danger/10 transition-colors"
-                >
+                <Button variant="destructive-outline" size="icon-sm" onClick={() => clearKey(PROVIDER_KEY_MAP[provider])} title={m.ai_clear_key_title()}>
                   <X className="size-3.5" />
-                </button>
+                </Button>
               )}
             </div>
             <p className="text-xs text-app-text-muted mt-1">
@@ -505,20 +504,17 @@ export function AiSection() {
         {canShowModelPicker && (
           <div>
             <div className="mb-1 flex items-center gap-2 whitespace-nowrap">
-              <label className="block text-xs text-app-text-muted">{m.ai_model_label()}</label>
-              <button
-                type="button"
-                onClick={() => refreshModels.mutate()}
-                disabled={aiModelsFetching || modelsRefreshing || isSaving}
-                className="inline-flex items-center gap-1 text-app-compact text-app-text-muted hover:text-app-text disabled:opacity-50"
-                title={m.ai_refresh_models_title()}
-              >
+              <label htmlFor="ai-analysis-model" className="block text-xs text-app-text-muted">
+                {m.ai_model_label()}
+              </label>
+              <Button variant="app-ghost" size="app-sm" onClick={() => refreshModels.mutate()} disabled={aiModelsFetching || modelsRefreshing || isSaving} title={m.ai_refresh_models_title()}>
                 <RefreshCw className={`size-3 ${aiModelsFetching || modelsRefreshing ? "animate-spin" : ""}`} />
                 {m.ai_refresh()}
-              </button>
+              </Button>
               {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-app-compact text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
             </div>
             <select
+              id="ai-analysis-model"
               value={model}
               onChange={(e) => {
                 setModel(e.target.value);
@@ -537,9 +533,13 @@ export function AiSection() {
         )}
         {provider === "gemini" && canShowModelPicker && (
           <div>
-            <label className="block text-xs text-app-text-muted mb-1">{m.ai_thinking_label()}</label>
+            <div id="ai-analysis-thinking-label" className="block text-xs text-app-text-muted mb-1">
+              {m.ai_thinking_label()}
+            </div>
             {modelSupportsThinking ? (
               <select
+                id="ai-analysis-thinking-budget"
+                aria-labelledby="ai-analysis-thinking-label"
                 value={effectiveThinkingBudget == null ? "" : String(effectiveThinkingBudget)}
                 onChange={(e) => setThinkingBudget(e.target.value ? Number(e.target.value) : null)}
                 className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
@@ -560,20 +560,16 @@ export function AiSection() {
         {provider !== "" && hasProviderKey && !aiModelsFetching && models.length === 0 && (
           <div className="flex items-center gap-2 text-xs text-app-text-muted">
             <span>{m.ai_no_models()}</span>
-            <button type="button" onClick={() => refreshModels.mutate()} disabled={modelsRefreshing || isSaving} className="inline-flex items-center gap-1 hover:text-app-text disabled:opacity-50">
+            <Button variant="app-ghost" size="app-sm" onClick={() => refreshModels.mutate()} disabled={modelsRefreshing || isSaving}>
               <RefreshCw className="size-3" />
               {m.ai_refresh()}
-            </button>
+            </Button>
           </div>
         )}
         {provider !== "" && hasProviderKey && (providerModelError || aiModelsError) && <p className="text-xs text-status-danger">{providerModelError || m.ai_load_models_failed()}</p>}
-        <button
-          onClick={handleSave}
-          disabled={isSaving || !canSaveAnalysis}
-          className="text-sm px-3 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-60 disabled:cursor-not-allowed text-app-on-filled transition-colors"
-        >
+        <Button variant="app-primary" size="app-md" onClick={handleSave} disabled={isSaving || !canSaveAnalysis}>
           {isSaving ? m.common_saving() : m.common_save()}
-        </button>
+        </Button>
         {saveError && <p className="text-xs text-status-danger">{saveError}</p>}
       </div>
 
@@ -582,8 +578,11 @@ export function AiSection() {
       <p className="text-xs text-app-text-muted mb-4">{m.ai_chat_provider_desc()}</p>
       <div className="space-y-4">
         <div>
-          <label className="block text-xs text-app-text-muted mb-1">{m.ai_provider_label()}</label>
+          <label htmlFor="ai-chat-provider" className="block text-xs text-app-text-muted mb-1">
+            {m.ai_provider_label()}
+          </label>
           <select
+            id="ai-chat-provider"
             value={chatProvider}
             onChange={(e) => {
               setChatProvider(e.target.value as string);
@@ -602,9 +601,12 @@ export function AiSection() {
         </div>
         {PROVIDER_KEY_LABELS[chatProvider] && (
           <div>
-            <label className="block text-xs text-app-text-muted mb-1">{PROVIDER_KEY_LABELS[chatProvider].label}</label>
+            <label htmlFor="ai-chat-api-key" className="block text-xs text-app-text-muted mb-1">
+              {PROVIDER_KEY_LABELS[chatProvider].label}
+            </label>
             <div className="flex items-center gap-1.5 max-w-xs">
               <input
+                id="ai-chat-api-key"
                 type="password"
                 value={chatApiKey}
                 onChange={(e) => setChatApiKey(e.target.value)}
@@ -612,13 +614,15 @@ export function AiSection() {
                 className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full font-mono"
               />
               {(keyStatus[chatProvider] ?? false) && (
-                <button
+                <Button
+                  variant="app-ghost"
+                  size="icon-sm"
                   onClick={() => clearKey(PROVIDER_KEY_MAP[chatProvider])}
                   title={m.ai_clear_key_title()}
-                  className="shrink-0 p-1.5 rounded text-app-text-muted hover:text-status-danger hover:bg-status-danger/10 transition-colors"
+                  className="!h-auto !w-auto p-1.5 text-app-text-muted hover:text-status-danger hover:bg-status-danger/10"
                 >
                   <X className="size-3.5" />
-                </button>
+                </Button>
               )}
             </div>
             <p className="text-xs text-app-text-muted mt-1">
@@ -632,20 +636,24 @@ export function AiSection() {
         {canShowChatModelPicker && (
           <div>
             <div className="mb-1 flex items-center gap-2 whitespace-nowrap">
-              <label className="block text-xs text-app-text-muted">{m.ai_model_label()}</label>
-              <button
-                type="button"
+              <label htmlFor="ai-chat-model" className="block text-xs text-app-text-muted">
+                {m.ai_model_label()}
+              </label>
+              <Button
+                variant="app-ghost"
+                size="app-sm"
                 onClick={() => refreshModels.mutate()}
                 disabled={aiModelsFetching || modelsRefreshing || isSaving}
-                className="inline-flex items-center gap-1 text-app-compact text-app-text-muted hover:text-app-text disabled:opacity-50"
+                className="text-app-compact text-app-text-muted"
                 title={m.ai_refresh_models_title()}
               >
                 <RefreshCw className={`size-3 ${aiModelsFetching || modelsRefreshing ? "animate-spin" : ""}`} />
                 {m.ai_refresh()}
-              </button>
+              </Button>
               {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-app-compact text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
             </div>
             <select
+              id="ai-chat-model"
               value={chatModel}
               onChange={(e) => {
                 setChatModel(e.target.value);
@@ -664,9 +672,13 @@ export function AiSection() {
         )}
         {chatProvider === "gemini" && canShowChatModelPicker && (
           <div>
-            <label className="block text-xs text-app-text-muted mb-1">{m.ai_thinking_label()}</label>
+            <div id="ai-chat-thinking-label" className="block text-xs text-app-text-muted mb-1">
+              {m.ai_thinking_label()}
+            </div>
             {chatModelSupportsThinking ? (
               <select
+                id="ai-chat-thinking-budget"
+                aria-labelledby="ai-chat-thinking-label"
                 value={effectiveChatThinkingBudget == null ? "" : String(effectiveChatThinkingBudget)}
                 onChange={(e) => setChatThinkingBudget(e.target.value ? Number(e.target.value) : null)}
                 className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
@@ -687,14 +699,16 @@ export function AiSection() {
         {chatProvider !== "" && hasChatProviderKey && !aiModelsFetching && chatModels.length === 0 && (
           <div className="flex items-center gap-2 text-xs text-app-text-muted">
             <span>{m.ai_no_models()}</span>
-            <button type="button" onClick={() => refreshModels.mutate()} disabled={modelsRefreshing || isSaving} className="inline-flex items-center gap-1 hover:text-app-text disabled:opacity-50">
+            <Button variant="app-ghost" size="app-sm" onClick={() => refreshModels.mutate()} disabled={modelsRefreshing || isSaving}>
               <RefreshCw className="size-3" />
               {m.ai_refresh()}
-            </button>
+            </Button>
           </div>
         )}
         {chatProvider !== "" && hasChatProviderKey && (chatProviderModelError || aiModelsError) && <p className="text-xs text-status-danger">{chatProviderModelError || m.ai_load_models_failed()}</p>}
-        <button
+        <Button
+          variant="app-primary"
+          size="app-md"
           onClick={async () => {
             setChatSaveError(null);
             const startedAt = performance.now();
@@ -729,10 +743,9 @@ export function AiSection() {
             }
           }}
           disabled={isSaving || !canSaveChat}
-          className="text-sm px-3 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-60 disabled:cursor-not-allowed text-app-on-filled transition-colors"
         >
           {isSaving ? m.common_saving() : m.common_save()}
-        </button>
+        </Button>
         {chatSaveError && <p className="text-xs text-status-danger">{chatSaveError}</p>}
       </div>
 
@@ -741,8 +754,11 @@ export function AiSection() {
       <p className="text-xs text-app-text-muted mb-4">{m.ai_auto_tune_provider_desc()}</p>
       <div className="space-y-4">
         <div>
-          <label className="block text-xs text-app-text-muted mb-1">{m.ai_provider_label()}</label>
+          <label htmlFor="ai-auto-tune-provider" className="block text-xs text-app-text-muted mb-1">
+            {m.ai_provider_label()}
+          </label>
           <select
+            id="ai-auto-tune-provider"
             value={autoTuneProvider}
             onChange={(e) => {
               setAutoTuneProvider(e.target.value as string);
@@ -760,9 +776,12 @@ export function AiSection() {
         </div>
         {PROVIDER_KEY_LABELS[autoTuneProvider] && (
           <div>
-            <label className="block text-xs text-app-text-muted mb-1">{PROVIDER_KEY_LABELS[autoTuneProvider].label}</label>
+            <label htmlFor="ai-auto-tune-api-key" className="block text-xs text-app-text-muted mb-1">
+              {PROVIDER_KEY_LABELS[autoTuneProvider].label}
+            </label>
             <div className="flex items-center gap-1.5 max-w-xs">
               <input
+                id="ai-auto-tune-api-key"
                 type="password"
                 value={autoTuneApiKey}
                 onChange={(e) => setAutoTuneApiKey(e.target.value)}
@@ -781,19 +800,23 @@ export function AiSection() {
         {canShowAutoTuneModelPicker && (
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <label className="block text-xs text-app-text-muted">{m.ai_model_label()}</label>
-              <button
-                type="button"
+              <label htmlFor="ai-auto-tune-model" className="block text-xs text-app-text-muted">
+                {m.ai_model_label()}
+              </label>
+              <Button
+                variant="app-ghost"
+                size="app-sm"
                 onClick={() => refreshModels.mutate()}
                 disabled={aiModelsFetching || modelsRefreshing || isSaving}
-                className="inline-flex items-center gap-1 text-app-compact text-app-text-muted hover:text-app-text disabled:opacity-50"
+                className="text-app-compact text-app-text-muted"
               >
                 <RefreshCw className={`size-3 ${aiModelsFetching || modelsRefreshing ? "animate-spin" : ""}`} />
                 {m.ai_refresh()}
-              </button>
+              </Button>
               {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-app-compact text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
             </div>
             <select
+              id="ai-auto-tune-model"
               value={autoTuneModel}
               onChange={(e) => setAutoTuneModel(e.target.value)}
               className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
@@ -811,16 +834,18 @@ export function AiSection() {
         {autoTuneProvider !== "" && hasAutoTuneProviderKey && !aiModelsFetching && autoTuneModels.length === 0 && (
           <div className="flex items-center gap-2 text-xs text-app-text-muted">
             <span>{m.ai_no_models()}</span>
-            <button type="button" onClick={() => refreshModels.mutate()} disabled={modelsRefreshing || isSaving} className="inline-flex items-center gap-1 hover:text-app-text disabled:opacity-50">
+            <Button variant="app-ghost" size="app-sm" onClick={() => refreshModels.mutate()} disabled={modelsRefreshing || isSaving}>
               <RefreshCw className="size-3" />
               {m.ai_refresh()}
-            </button>
+            </Button>
           </div>
         )}
         {autoTuneProvider !== "" && hasAutoTuneProviderKey && (autoTuneProviderModelError || aiModelsError) && (
           <p className="text-xs text-status-danger">{autoTuneProviderModelError || m.ai_load_models_failed()}</p>
         )}
-        <button
+        <Button
+          variant="app-primary"
+          size="app-md"
           onClick={async () => {
             setAutoTuneSaveError(null);
             const startedAt = performance.now();
@@ -851,10 +876,9 @@ export function AiSection() {
             }
           }}
           disabled={isSaving || !canSaveAutoTune}
-          className="text-sm px-3 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-60 disabled:cursor-not-allowed text-app-on-filled transition-colors"
         >
           {isSaving ? m.common_saving() : m.common_save()}
-        </button>
+        </Button>
         {autoTuneSaveError && <p className="text-xs text-status-danger">{autoTuneSaveError}</p>}
       </div>
 
@@ -864,12 +888,7 @@ export function AiSection() {
       <div className="space-y-4">
         <div className="rounded border border-app-border-input bg-app-surface px-3 py-2">
           <label className="flex items-start gap-2 text-sm text-app-text">
-            <input
-              type="checkbox"
-              checked={driverProfileBackgroundEnabled}
-              onChange={(e) => setDriverProfileBackgroundEnabled(e.target.checked)}
-              className="mt-0.5 accent-app-accent"
-            />
+            <input type="checkbox" checked={driverProfileBackgroundEnabled} onChange={(e) => setDriverProfileBackgroundEnabled(e.target.checked)} className="mt-0.5 accent-app-accent" />
             <span>
               <span className="block">{m.ai_driver_profile_background_label()}</span>
               <span className="mt-1 block text-xs text-app-text-muted">{m.ai_driver_profile_background_desc()}</span>
@@ -877,8 +896,11 @@ export function AiSection() {
           </label>
         </div>
         <div>
-          <label className="block text-xs text-app-text-muted mb-1">{m.ai_provider_label()}</label>
+          <label htmlFor="ai-driver-profile-provider" className="block text-xs text-app-text-muted mb-1">
+            {m.ai_provider_label()}
+          </label>
           <select
+            id="ai-driver-profile-provider"
             value={driverProfileProvider}
             onChange={(e) => {
               setDriverProfileProvider(e.target.value);
@@ -897,9 +919,12 @@ export function AiSection() {
         </div>
         {driverProfileKeyInfo && (
           <div>
-            <label className="block text-xs text-app-text-muted mb-1">{driverProfileKeyInfo.label}</label>
+            <label htmlFor="ai-driver-profile-api-key" className="block text-xs text-app-text-muted mb-1">
+              {driverProfileKeyInfo.label}
+            </label>
             <div className="flex items-center gap-1.5 max-w-xs">
               <input
+                id="ai-driver-profile-api-key"
                 type="password"
                 value={driverProfileApiKey}
                 onChange={(e) => setDriverProfileApiKey(e.target.value)}
@@ -907,13 +932,15 @@ export function AiSection() {
                 className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full font-mono"
               />
               {(keyStatus[driverProfileProvider] ?? false) && (
-                <button
+                <Button
+                  variant="app-ghost"
+                  size="icon-sm"
                   onClick={() => clearDriverProfileKey(PROVIDER_KEY_MAP[driverProfileProvider])}
                   title={m.ai_clear_key_title()}
-                  className="shrink-0 p-1.5 rounded text-app-text-muted hover:text-status-danger hover:bg-status-danger/10 transition-colors"
+                  className="!h-auto !w-auto p-1.5 text-app-text-muted hover:text-status-danger hover:bg-status-danger/10"
                 >
                   <X className="size-3.5" />
-                </button>
+                </Button>
               )}
             </div>
             <p className="text-xs text-app-text-muted mt-1">
@@ -927,20 +954,24 @@ export function AiSection() {
         {canShowDriverProfileModelPicker && (
           <div>
             <div className="mb-1 flex items-center gap-2 whitespace-nowrap">
-              <label className="block text-xs text-app-text-muted">{m.ai_model_label()}</label>
-              <button
-                type="button"
+              <label htmlFor="ai-driver-profile-model" className="block text-xs text-app-text-muted">
+                {m.ai_model_label()}
+              </label>
+              <Button
+                variant="app-ghost"
+                size="app-sm"
                 onClick={() => refreshModels.mutate()}
                 disabled={aiModelsFetching || modelsRefreshing || isSaving}
-                className="inline-flex items-center gap-1 text-app-compact text-app-text-muted hover:text-app-text disabled:opacity-50"
+                className="text-app-compact text-app-text-muted"
                 title={m.ai_refresh_models_title()}
               >
                 <RefreshCw className={`size-3 ${aiModelsFetching || modelsRefreshing ? "animate-spin" : ""}`} />
                 {m.ai_refresh()}
-              </button>
+              </Button>
               {(aiModelsFetching || modelsRefreshing) && <span className="ml-1 text-app-compact text-app-text-muted whitespace-nowrap">{m.ai_loading_models()}</span>}
             </div>
             <select
+              id="ai-driver-profile-model"
               value={driverProfileModel}
               onChange={(e) => {
                 setDriverProfileModel(e.target.value);
@@ -959,9 +990,13 @@ export function AiSection() {
         )}
         {driverProfileProvider === "gemini" && canShowDriverProfileModelPicker && (
           <div>
-            <label className="block text-xs text-app-text-muted mb-1">{m.ai_thinking_label()}</label>
+            <div id="ai-driver-profile-thinking-label" className="block text-xs text-app-text-muted mb-1">
+              {m.ai_thinking_label()}
+            </div>
             {driverProfileModelSupportsThinking ? (
               <select
+                id="ai-driver-profile-thinking-budget"
+                aria-labelledby="ai-driver-profile-thinking-label"
                 value={effectiveDriverProfileThinkingBudget == null ? "" : String(effectiveDriverProfileThinkingBudget)}
                 onChange={(e) => setDriverProfileThinkingBudget(e.target.value ? Number(e.target.value) : null)}
                 className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
@@ -982,22 +1017,18 @@ export function AiSection() {
         {driverProfileProvider !== "" && hasDriverProfileProviderKey && !aiModelsFetching && driverProfileModels.length === 0 && (
           <div className="flex items-center gap-2 text-xs text-app-text-muted">
             <span>{m.ai_no_models()}</span>
-            <button type="button" onClick={() => refreshModels.mutate()} disabled={modelsRefreshing || isSaving} className="inline-flex items-center gap-1 hover:text-app-text disabled:opacity-50">
+            <Button variant="app-ghost" size="app-sm" onClick={() => refreshModels.mutate()} disabled={modelsRefreshing || isSaving}>
               <RefreshCw className="size-3" />
               {m.ai_refresh()}
-            </button>
+            </Button>
           </div>
         )}
         {driverProfileProvider !== "" && hasDriverProfileProviderKey && (driverProfileProviderModelError || aiModelsError) && (
           <p className="text-xs text-status-danger">{driverProfileProviderModelError || m.ai_load_models_failed()}</p>
         )}
-        <button
-          onClick={handleDriverProfileSave}
-          disabled={isSaving || !canSaveDriverProfile}
-          className="text-sm px-3 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-60 disabled:cursor-not-allowed text-app-on-filled transition-colors"
-        >
+        <Button variant="app-primary" size="app-md" onClick={handleDriverProfileSave} disabled={isSaving || !canSaveDriverProfile}>
           {isSaving ? m.common_saving() : m.common_save()}
-        </button>
+        </Button>
         {driverProfileSaveError && <p className="text-xs text-status-danger">{driverProfileSaveError}</p>}
       </div>
     </section>

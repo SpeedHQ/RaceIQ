@@ -1,10 +1,9 @@
 import type { GameId } from "@shared/types";
 import { useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useCarsFromEndpoint, useMotecTargets, useTracksForGame, useUserTunes } from "../../hooks/queries";
 import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { SearchSelect } from "../ui/SearchSelect";
-
 export interface MotecImportedLap {
   lapId: number;
   lapNumber: number;
@@ -116,12 +115,12 @@ export function MotecImportModal({ onClose, onImported }: { onClose: () => void;
     }
   }
 
-  return createPortal(
-    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-app-bg/60 p-4" onMouseDown={onClose}>
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: swallows backdrop click inside the panel */}
-      <div className="w-full max-w-xl max-h-[85vh] overflow-y-auto rounded-lg border border-app-border bg-app-surface p-5 shadow-xl" onMouseDown={(e) => e.stopPropagation()}>
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-app-text">Import MoTeC log</h2>
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="lg" showCloseButton={false} overlayClassName="bg-app-bg/60" layout="scrollable" className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle variant="import">Import MoTeC log</DialogTitle>
+        </DialogHeader>
 
         {result ? (
           <div className="mt-4 space-y-3 text-xs text-app-text-dim">
@@ -137,8 +136,8 @@ export function MotecImportModal({ onClose, onImported }: { onClose: () => void;
                 </li>
               ))}
             </ul>
-          <div className="rounded border border-status-warning/30 bg-status-warning/5 p-3">
-            <div className="mb-1 font-semibold text-status-warning">What this data can and can't tell you</div>
+            <div className="rounded border border-status-warning/30 bg-status-warning/5 p-3">
+              <div className="mb-1 font-semibold text-status-warning">What this data can and can't tell you</div>
               <ul className="list-disc space-y-1 pl-4">
                 {result.limitations.map((l) => (
                   <li key={l}>{l}</li>
@@ -217,20 +216,19 @@ export function MotecImportModal({ onClose, onImported }: { onClose: () => void;
               </p>
             </div>
 
-          {error && <div className="rounded border border-status-danger/30 bg-status-danger/5 p-2 text-status-danger">{error}</div>}
+            {error && <div className="rounded border border-status-danger/30 bg-status-danger/5 p-2 text-status-danger">{error}</div>}
 
             <div className="flex justify-end gap-2">
               <Button variant="app-outline" size="app-md" onClick={onClose} disabled={busy}>
                 Cancel
               </Button>
-              <Button variant="app-outline" size="app-md" onClick={submit} disabled={!canSubmit} className="text-app-accent border-app-accent/40 disabled:opacity-50">
+              <Button variant="app-outline" size="app-md" onClick={submit} disabled={!canSubmit}>
                 {busy ? "Importing…" : "Import"}
               </Button>
             </div>
           </div>
         )}
-      </div>
-    </div>,
-    document.body,
+      </DialogContent>
+    </Dialog>
   );
 }

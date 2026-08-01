@@ -92,7 +92,7 @@ export function AnalyseLapHeader({
           onChange={(v) => onTrackChange(v ? Number(v) : null)}
           options={tracks.map(([ord, count]) => ({ value: String(ord), label: `${trackNames[ord] || `Track ${ord}`} (${count})` }))}
           placeholder={m.analyse_search_tracks_placeholder()}
-          className="min-w-[200px]"
+          className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[200px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
           fallbackLabel={selectedTrack != null ? trackNames[selectedTrack] || `Track ${selectedTrack}` : undefined}
         />
 
@@ -103,7 +103,7 @@ export function AnalyseLapHeader({
           options={carsForTrack.map(([ord, count]) => ({ value: String(ord), label: `${carNames[ord] || `Car ${ord}`} (${count})` }))}
           placeholder={m.analyse_search_cars_placeholder()}
           disabled={selectedTrack == null}
-          className="min-w-[200px]"
+          className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[200px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
           fallbackLabel={selectedCar != null ? carNames[selectedCar] || `Car ${selectedCar}` : undefined}
         />
 
@@ -123,6 +123,7 @@ export function AnalyseLapHeader({
           })}
           placeholder={m.analyse_search_laps_placeholder()}
           disabled={selectedCar == null}
+          className="w-full min-w-0 @3xl/workspace:w-auto @3xl/workspace:min-w-[160px] @3xl/workspace:flex-1 @5xl/workspace:flex-none"
           fallbackLabel={selectedLapId != null ? `Lap ${selectedLapId}` : undefined}
         />
 
@@ -139,22 +140,14 @@ export function AnalyseLapHeader({
             ) : (
               <>
                 <span className="text-app-text-muted">{m.analyse_tune_label()}</span>
-                <select
-                  value={selectedLap?.tuneId ?? ""}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    onTuneChange(val ? Number.parseInt(val, 10) : null);
-                  }}
+                <SearchSelect
+                  value={selectedLap?.tuneId != null ? String(selectedLap.tuneId) : ""}
+                  onChange={(value) => onTuneChange(value ? Number.parseInt(value, 10) : null)}
+                  options={availableTunes?.map((tune) => ({ value: String(tune.id), label: tune.name })) ?? []}
+                  placeholder={m.analyse_no_tune()}
                   disabled={tunePending}
-                  className="bg-app-surface border border-app-border-input rounded px-2 py-1 text-sm text-app-text"
-                >
-                  <option value="">{m.analyse_no_tune()}</option>
-                  {availableTunes?.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
+                  className="min-w-[160px]"
+                />
                 {selectedLap?.tuneId != null && (
                   <Button variant="app-outline" size="app-sm" onClick={() => onViewTune(selectedLap.tuneId as number)}>
                     {m.label_view()}
@@ -176,7 +169,7 @@ export function AnalyseLapHeader({
             onClose={() => setNoteOpen(false)}
           />
         )}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 @3xl/workspace:ml-auto @3xl/workspace:w-auto">
           {selectedLapId != null && (
             <Button
               variant="app-outline"
@@ -190,7 +183,7 @@ export function AnalyseLapHeader({
             </Button>
           )}
           {selectedLapId != null && (
-            <Button variant="app-outline" size="app-md" onClick={onDeleteLap} className="text-status-danger border-status-danger/30 hover:bg-status-danger/10">
+            <Button variant="destructive-outline" size="app-md" onClick={onDeleteLap}>
               <Trash2 className="size-3.5" />
               {m.common_delete()}
             </Button>
@@ -256,7 +249,7 @@ export function AnalyseLapHeader({
             ]}
           />
           {hasTelemetry && (
-            <Button variant="app-outline" size="app-lg" onClick={onToggleAi} className={aiPanelOpen ? "text-app-accent border-app-accent/40 bg-app-accent/10" : "hover:text-app-accent"}>
+            <Button variant={aiPanelOpen ? "selected-toggle" : "app-outline"} size="app-lg" onClick={onToggleAi}>
               <Sparkles className="size-3.5" />
               {m.label_ai_analysis()}
             </Button>
