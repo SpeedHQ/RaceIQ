@@ -1636,7 +1636,7 @@ export function TrackDetail({
                               <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} sectorCount={sectorCount} showSessionFilter={isF125} />
                               {/* Lap table (md+) */}
                               <Card className="flex-1 min-w-0 overflow-y-auto">
-                                <Table>
+                                <Table fit tableClassName="w-full text-sm">
                                   <THead>
                                     <TH>
                                       <input type="checkbox" checked={selectedLaps.size === filteredLaps.length && filteredLaps.length > 0} onChange={toggleAllLaps} className="accent-app-accent" />
