@@ -9,6 +9,7 @@
 
 ### Fixes
 
+- Restore lap and session history when upgrading databases affected by overlapping schema migrations
 - Show all registered games in storage settings, including games with no recording files
 - Keep older lap telemetry available when legacy storage is the only replay source or a raw capture fails
 - Make every app workspace reflow across phone, tablet, odd-shaped, and desktop windows without blocking device or rotation gates

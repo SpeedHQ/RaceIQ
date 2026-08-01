@@ -328,4 +328,145 @@ describe("migration runner e2e", () => {
     client.close();
   });
 
+  test("v52 repairs legacy v43/v44 collisions without data loss", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 42);
+
+    const legacyTelemetry = new Uint8Array([0x01, 0x02, 0x03]);
+    await client.execute(
+      `INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id)
+       VALUES (11, 10, 20, 'fm-2023')`,
+    );
+    await client.execute({
+      sql: `INSERT INTO laps (id, session_id, lap_number, lap_time, legacy_telemetry)
+            VALUES (?, ?, ?, ?, ?)`,
+      args: [101, 11, 1, 112.5, legacyTelemetry],
+    });
+
+    const collidedOperations = [
+      {
+        version: 43,
+        name: "runtime-discovered identity registries",
+        sql: migrations.find((migration) => migration.version === 45)!.sql,
+      },
+      {
+        version: 44,
+        name: "dynamic source-defined sector times",
+        sql: migrations.find((migration) => migration.version === 46)!.sql,
+      },
+    ];
+    await client.execute("PRAGMA foreign_keys = OFF");
+    try {
+      for (const operation of collidedOperations) {
+        await client.execute("BEGIN");
+        try {
+          for (const sql of operation.sql) {
+            try {
+              await client.execute(sql);
+            } catch (error) {
+              const message = error instanceof Error ? error.message : String(error);
+              if (!message.includes("duplicate column name")) throw error;
+            }
+          }
+          await client.execute({
+            sql: "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
+            args: [operation.version, operation.name],
+          });
+          await client.execute("COMMIT");
+        } catch (error) {
+          await client.execute("ROLLBACK");
+          throw error;
+        }
+      }
+    } finally {
+      await client.execute("PRAGMA foreign_keys = ON");
+    }
+
+    const preTables = await client.execute(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'driver_profiles'",
+    );
+    expect(preTables.rows).toHaveLength(0);
+    const preSessionColumns = await client.execute("PRAGMA table_info(sessions)");
+    expect(preSessionColumns.rows.map((row) => String(row.name))).not.toContain("source");
+
+    const applied = await runMigrations(client);
+    expect(applied).toBe(migrations.filter((migration) => migration.version > 44).length);
+
+    const versions = await getAppliedVersions(client);
+    expect(versions).toEqual(migrations.map((migration) => migration.version));
+    expect(versions.at(-1)).toBe(52);
+    expect(versions.filter((version) => version === 52)).toHaveLength(1);
+    const collidedLedger = await client.execute(
+      "SELECT version, name FROM schema_migrations WHERE version IN (43, 44) ORDER BY version",
+    );
+    expect(
+      collidedLedger.rows.map((row) => ({
+        version: Number(row.version),
+        name: String(row.name),
+      })),
+    ).toEqual([
+      { version: 43, name: "runtime-discovered identity registries" },
+      { version: 44, name: "dynamic source-defined sector times" },
+    ]);
+
+    const postTables = await client.execute(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'driver_profiles'",
+    );
+    expect(postTables.rows).toHaveLength(1);
+
+    const sessionColumns = await client.execute("PRAGMA table_info(sessions)");
+    const source = sessionColumns.rows.find((row) => String(row.name) === "source");
+    expect(source).toBeDefined();
+    expect(Number(source?.notnull ?? 1)).toBe(0);
+
+    const driverProfileIndexes = await client.execute("PRAGMA index_list(driver_profiles)");
+    const scopeKeyIndex = driverProfileIndexes.rows.find(
+      (row) => String(row.name) === "driver_profiles_scope_key_idx",
+    );
+    const gameIndex = driverProfileIndexes.rows.find(
+      (row) => String(row.name) === "driver_profiles_game_idx",
+    );
+    expect(Number(scopeKeyIndex?.unique ?? 0)).toBe(1);
+    expect(Number(gameIndex?.unique ?? 1)).toBe(0);
+
+    const scopeKeyColumns = await client.execute(
+      "PRAGMA index_info(driver_profiles_scope_key_idx)",
+    );
+    expect(scopeKeyColumns.rows.map((row) => String(row.name))).toEqual(["scope_key"]);
+    const gameColumns = await client.execute("PRAGMA index_info(driver_profiles_game_idx)");
+    expect(gameColumns.rows.map((row) => String(row.name))).toEqual(["game_id"]);
+
+    const sessions = await client.execute(
+      "SELECT id, car_ordinal, track_ordinal, game_id, source FROM sessions ORDER BY id",
+    );
+    expect(
+      sessions.rows.map((row) => ({
+        id: Number(row.id),
+        carOrdinal: Number(row.car_ordinal),
+        trackOrdinal: Number(row.track_ordinal),
+        gameId: String(row.game_id),
+        source: row.source,
+      })),
+    ).toEqual([{ id: 11, carOrdinal: 10, trackOrdinal: 20, gameId: "fm-2023", source: null }]);
+
+    const lapRow = await client.execute({
+      sql: `SELECT id, session_id, lap_number, lap_time, legacy_telemetry
+            FROM laps WHERE id = ?`,
+      args: [101],
+    });
+    expect(lapRow.rows).toHaveLength(1);
+    expect({
+      id: Number(lapRow.rows[0].id),
+      sessionId: Number(lapRow.rows[0].session_id),
+      lapNumber: Number(lapRow.rows[0].lap_number),
+      lapTime: Number(lapRow.rows[0].lap_time),
+    }).toEqual({ id: 101, sessionId: 11, lapNumber: 1, lapTime: 112.5 });
+    expect(new Uint8Array(lapRow.rows[0].legacy_telemetry as ArrayBuffer)).toEqual(
+      legacyTelemetry,
+    );
+
+    client.close();
+  });
+
 });

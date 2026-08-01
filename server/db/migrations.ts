@@ -1247,4 +1247,34 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `ALTER TABLE laps ADD COLUMN legacy_telemetry BLOB`,
     ],
   },
+  // v52: Earlier migrations reused v43/v44, so databases that recorded those
+  // ledger entries skipped the current sessions.source and driver_profiles SQL.
+  // Applied migration history cannot be safely rewritten; replay both effects
+  // in a new forward-only version and let duplicate-column tolerance converge
+  // databases that already have sessions.source.
+  {
+    version: 52,
+    name: "schema convergence: repair v43/v44 collision",
+    sql: [
+      `ALTER TABLE sessions ADD COLUMN source TEXT`,
+      `CREATE TABLE IF NOT EXISTS driver_profiles (
+         id INTEGER PRIMARY KEY AUTOINCREMENT,
+         scope_key TEXT NOT NULL,
+         game_id TEXT NOT NULL,
+         car_ordinal INTEGER,
+         track_ordinal INTEGER,
+         pool_key TEXT NOT NULL,
+         fingerprint TEXT NOT NULL,
+         plan TEXT NOT NULL,
+         input_tokens INTEGER NOT NULL DEFAULT 0,
+         output_tokens INTEGER NOT NULL DEFAULT 0,
+         cost_usd REAL NOT NULL DEFAULT 0,
+         duration_ms INTEGER NOT NULL DEFAULT 0,
+         model TEXT NOT NULL DEFAULT '',
+         created_at TEXT NOT NULL DEFAULT (datetime('now'))
+       )`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS driver_profiles_scope_key_idx ON driver_profiles (scope_key)`,
+      `CREATE INDEX IF NOT EXISTS driver_profiles_game_idx ON driver_profiles (game_id)`,
+    ],
+  },
 ];
