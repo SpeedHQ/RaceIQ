@@ -9,7 +9,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         // shadcn design-token variants
-        default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+        default: "bg-app-surface-alt text-app-text-secondary border-app-border hover:bg-app-surface-hover hover:text-app-text",
         outline: "border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost: "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
@@ -19,7 +19,7 @@ const buttonVariants = cva(
 
         // App design-token variants (use app-* CSS vars)
         "app-outline": "!border-app-border-input text-app-text-secondary hover:text-app-text rounded",
-        "app-primary": "bg-app-accent text-app-on-filled hover:bg-app-accent-hover rounded disabled:bg-app-accent/40 disabled:opacity-100",
+        "app-primary": "!bg-app-surface-alt !text-app-accent border border-app-border hover:!bg-app-surface-hover hover:!text-app-accent-hover rounded disabled:opacity-50",
         "app-ghost": "text-app-text-secondary hover:text-app-text rounded",
         "app-danger": "bg-status-danger text-app-on-filled hover:bg-status-danger-hover rounded",
         "menu-action": "w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover",

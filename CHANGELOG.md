@@ -9,6 +9,10 @@
 ### Fixes
 
 - Show all registered games in storage settings, including games with no recording files
+- Match primary button backgrounds to the neutral gray button surface
+- Highlight the active sector-blip setting with a cyan border
+- Keep desktop-only analysis and comparison pages available on wide, low-height displays
+- Resize the comparison track map with a persisted splitter and keep the AI Analysis control right-aligned
 
 ### Internal
 - Renamed generic session recorder API to reflect support for UDP and shared-memory telemetry

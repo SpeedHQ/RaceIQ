@@ -495,7 +495,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
               <Label className="text-app-text-secondary">{m.settings_sound_sector_blip()}</Label>
               <Button
                 size="sm"
-                variant={soundEnabled ? "default" : "outline"}
+                variant={soundEnabled ? "selected-toggle" : "outline"}
                 onClick={() => {
                   setSoundEnabledState(true);
                   setSoundEnabled(true);
@@ -505,7 +505,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
               </Button>
               <Button
                 size="sm"
-                variant={!soundEnabled ? "default" : "outline"}
+                variant={!soundEnabled ? "selected-toggle" : "outline"}
                 onClick={() => {
                   setSoundEnabledState(false);
                   setSoundEnabled(false);
