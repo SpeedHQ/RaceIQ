@@ -1,16 +1,16 @@
 import { getAllGames } from "@shared/games/registry";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { createRootRoute, Outlet, useLocation } from "@tanstack/react-router";
+import { createRootRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { Menu, RefreshCw, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { applyLocale } from "@/lib/locale";
 import { m } from "@/paraglide/messages";
 import { getLocale, isLocale } from "@/paraglide/runtime";
-import { Button } from "../components/ui/button";
 import { AppSidebar } from "../components/AppSidebar";
 import { OnboardingModal } from "../components/Onboarding";
 import { Settings } from "../components/Settings";
 import { UpdateModal } from "../components/UpdateModal";
+import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { useSettings } from "../hooks/queries";
 import { useLocalStorage } from "../hooks/useLocalStorage";
@@ -254,7 +254,9 @@ function AppShell() {
 
         <div className="flex min-w-0 min-h-0 flex-1 flex-col">
           <header className="flex min-h-14 items-center justify-between border-b border-app-border px-3 md:hidden">
-            <span className="text-sm font-semibold text-app-text">RaceIQ</span>
+            <Link to="/" className="text-sm font-semibold text-app-text transition-colors hover:text-app-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
+              RaceIQ
+            </Link>
             <Button type="button" onClick={() => setMobileNavOpen(true)} className="p-3 text-app-text-secondary hover:text-app-text" aria-label="Open navigation">
               <Menu className="size-6" />
             </Button>

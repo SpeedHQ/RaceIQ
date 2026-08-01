@@ -215,7 +215,11 @@ export function AppSidebar({
         } transition-[width] duration-200 motion-reduce:transition-none`}
       >
         <div className={`flex h-14 items-center border-b border-app-border ${showCollapsed ? "justify-center" : "justify-between px-3"}`}>
-          {!showCollapsed && <span className="text-sm font-semibold text-app-text">RaceIQ</span>}
+          {!showCollapsed && (
+            <Link to="/" className="text-sm font-semibold text-app-text transition-colors hover:text-app-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
+              RaceIQ
+            </Link>
+          )}
           {mobile ? (
             <Button variant="app-ghost" size="icon-sm" onClick={onClose} aria-label="Close navigation">
               <X className="size-4" />
