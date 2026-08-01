@@ -125,10 +125,12 @@ describe("Codex provider discovery", () => {
     }
   });
 
-  test("keeps Codex model discovery empty", async () => {
+  test("returns visible Codex subscription models", async () => {
     const response = await settingsRoutes.request("/api/ai-models?providers=codex");
     expect(response.status).toBe(200);
-    const models = await response.json() as { codex: unknown[] };
-    expect(models.codex).toEqual([]);
+    const models = await response.json() as { codex: { id: string; name: string }[] };
+    expect(models.codex.length).toBeGreaterThan(0);
+    expect(models.codex.every((model) => model.id !== "codex-auto-review")).toBe(true);
+    expect(models.codex.every((model) => model.name.length > 0)).toBe(true);
   });
 });

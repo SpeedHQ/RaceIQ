@@ -112,9 +112,6 @@ export async function runAiChat(
   return runMastra(context);
 }
 
-export type AiStructuredOptions = {
-  operation?: "comparison";
-};
 
 function normalizeMastraResult(result: MastraResult, model: string): AiResult {
   if (
@@ -156,14 +153,7 @@ export async function runAiStructured(
   ai: ResolvedAi,
   input: StructuredRequest<unknown>,
   runMastra: (context: RequestContext) => Promise<unknown>,
-  options?: AiStructuredOptions,
 ): Promise<AiResult> {
-  if (options?.operation === "comparison" && ai.provider === "codex") {
-    throw new AiProviderError(
-      `Comparison analysis is not supported for ${ai.provider} provider on ${ai.feature} feature.`,
-      { code: "unsupported-operation", provider: ai.provider, modelId: ai.model },
-    );
-  }
 
   const internals = getResolvedAiInternals(ai);
   if (!internals?.model) return ai.generateStructured(input);

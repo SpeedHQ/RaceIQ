@@ -184,9 +184,7 @@ export function AiSection() {
     driverProfileSettings.driverProfileThinkingBudget,
   ]);
 
-const selectedProviders = Array.from(
-  new Set([provider, chatProvider, autoTuneProvider, driverProfileProvider].filter((p) => p === "gemini" || p === "openai" || p === "codex" || p === "local")),
-);
+  const selectedProviders = Array.from(new Set([provider, chatProvider, autoTuneProvider, driverProfileProvider].filter((p) => p === "gemini" || p === "openai" || p === "codex" || p === "local")));
   const keyStatus: Record<string, boolean> = {
     gemini: !!displaySettings.geminiApiKeySet,
     openai: !!displaySettings.openaiApiKeySet,
@@ -218,8 +216,7 @@ const selectedProviders = Array.from(
     if (selectedProvider === "codex") return providerReadiness.codex?.ready === true;
     return !!keyStatus[selectedProvider];
   };
-  const providerReadinessError = (selectedProvider: string): string | null =>
-    selectedProvider === "codex" ? providerReadiness.codex?.error ?? null : null;
+  const providerReadinessError = (selectedProvider: string): string | null => (selectedProvider === "codex" ? (providerReadiness.codex?.error ?? null) : null);
   const selectedProvidersForFetch = selectedProviders.filter(isProviderConfigured);
   const selectedProvidersCsv = selectedProvidersForFetch.join(",");
   const {
@@ -261,34 +258,37 @@ const selectedProviders = Array.from(
     },
   });
   const modelsRefreshing = refreshModels.isPending;
-  const models = provider === "gemini" || provider === "openai" || provider === "local" ? (aiModels?.[provider] ?? []) : [];
+  const models = provider === "gemini" || provider === "openai" || provider === "codex" || provider === "local" ? (aiModels?.[provider] ?? []) : [];
   const hasProviderKey = isProviderConfigured(provider);
   const canShowModelPicker = provider !== "" && hasProviderKey && models.length > 0;
   const effectiveGeminiModel = model || "gemini-flash-latest";
   const modelSupportsThinking = provider === "gemini" && supportsGeminiThinkingBudget(effectiveGeminiModel);
   const effectiveThinkingBudget = modelSupportsThinking ? thinkingBudget : null;
-  const chatModels = chatProvider === "gemini" || chatProvider === "openai" || chatProvider === "local" ? (aiModels?.[chatProvider] ?? []) : [];
+  const chatModels = chatProvider === "gemini" || chatProvider === "openai" || chatProvider === "codex" || chatProvider === "local" ? (aiModels?.[chatProvider] ?? []) : [];
   const hasChatProviderKey = isProviderConfigured(chatProvider);
   const canShowChatModelPicker = chatProvider !== "" && hasChatProviderKey && chatModels.length > 0;
   const effectiveChatGeminiModel = chatModel || "gemini-flash-latest";
   const chatModelSupportsThinking = chatProvider === "gemini" && supportsGeminiThinkingBudget(effectiveChatGeminiModel);
   const effectiveChatThinkingBudget = chatModelSupportsThinking ? chatThinkingBudget : null;
   const modelErrors = aiModels?._errors ?? {};
-  const providerModelError = provider === "gemini" || provider === "openai" || provider === "local" ? (modelErrors[provider] ?? null) : null;
-  const chatProviderModelError = chatProvider === "gemini" || chatProvider === "openai" || chatProvider === "local" ? (modelErrors[chatProvider] ?? null) : null;
-  const autoTuneModels = autoTuneProvider === "gemini" || autoTuneProvider === "openai" || autoTuneProvider === "local" ? (aiModels?.[autoTuneProvider] ?? []) : [];
+  const providerModelError = provider === "gemini" || provider === "openai" || provider === "codex" || provider === "local" ? (modelErrors[provider] ?? null) : null;
+  const chatProviderModelError = chatProvider === "gemini" || chatProvider === "openai" || chatProvider === "codex" || chatProvider === "local" ? (modelErrors[chatProvider] ?? null) : null;
+  const autoTuneModels = autoTuneProvider === "gemini" || autoTuneProvider === "openai" || autoTuneProvider === "codex" || autoTuneProvider === "local" ? (aiModels?.[autoTuneProvider] ?? []) : [];
   const hasAutoTuneProviderKey = isProviderConfigured(autoTuneProvider);
   const canShowAutoTuneModelPicker = autoTuneProvider !== "" && hasAutoTuneProviderKey && autoTuneModels.length > 0;
-  const autoTuneProviderModelError = autoTuneProvider === "gemini" || autoTuneProvider === "openai" || autoTuneProvider === "local" ? (modelErrors[autoTuneProvider] ?? null) : null;
-const driverProfileModels =
-  driverProfileProvider === "gemini" || driverProfileProvider === "openai" || driverProfileProvider === "local" ? (aiModels?.[driverProfileProvider] ?? []) : [];
-const hasDriverProfileProviderKey = isProviderConfigured(driverProfileProvider);
+  const autoTuneProviderModelError =
+    autoTuneProvider === "gemini" || autoTuneProvider === "openai" || autoTuneProvider === "codex" || autoTuneProvider === "local" ? (modelErrors[autoTuneProvider] ?? null) : null;
+  const driverProfileModels =
+    driverProfileProvider === "gemini" || driverProfileProvider === "openai" || driverProfileProvider === "codex" || driverProfileProvider === "local" ? (aiModels?.[driverProfileProvider] ?? []) : [];
+  const hasDriverProfileProviderKey = isProviderConfigured(driverProfileProvider);
   const canShowDriverProfileModelPicker = driverProfileProvider !== "" && hasDriverProfileProviderKey && driverProfileModels.length > 0;
   const effectiveDriverProfileGeminiModel = driverProfileModel || "gemini-flash-latest";
   const driverProfileModelSupportsThinking = driverProfileProvider === "gemini" && supportsGeminiThinkingBudget(effectiveDriverProfileGeminiModel);
   const effectiveDriverProfileThinkingBudget = driverProfileModelSupportsThinking ? driverProfileThinkingBudget : null;
   const driverProfileProviderModelError =
-    driverProfileProvider === "gemini" || driverProfileProvider === "openai" || driverProfileProvider === "local" ? (modelErrors[driverProfileProvider] ?? null) : null;
+    driverProfileProvider === "gemini" || driverProfileProvider === "openai" || driverProfileProvider === "codex" || driverProfileProvider === "local"
+      ? (modelErrors[driverProfileProvider] ?? null)
+      : null;
 
   const initialProvider = analysisBaseline.provider;
   const initialModel = analysisBaseline.model;
@@ -526,7 +526,7 @@ const hasDriverProfileProviderKey = isProviderConfigured(driverProfileProvider);
               }}
               className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
             >
-              <option value="">{m.ai_model_default()}</option>
+              <option value="">{provider === "codex" ? "Select a Codex model" : m.ai_model_default()}</option>
               {models.map((m: { id: string; name: string }) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
@@ -656,7 +656,7 @@ const hasDriverProfileProviderKey = isProviderConfigured(driverProfileProvider);
               }}
               className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
             >
-              <option value="">{m.ai_model_default()}</option>
+              <option value="">{chatProvider === "codex" ? "Select a Codex model" : m.ai_model_default()}</option>
               {chatModels.map((m: { id: string; name: string }) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
@@ -807,7 +807,7 @@ const hasDriverProfileProviderKey = isProviderConfigured(driverProfileProvider);
               onChange={(e) => setAutoTuneModel(e.target.value)}
               className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
             >
-              <option value="">{m.ai_model_default()}</option>
+              <option value="">{autoTuneProvider === "codex" ? "Select a Codex model" : m.ai_model_default()}</option>
               {autoTuneModels.map((mm: { id: string; name: string }) => (
                 <option key={mm.id} value={mm.id}>
                   {mm.name}
@@ -960,7 +960,7 @@ const hasDriverProfileProviderKey = isProviderConfigured(driverProfileProvider);
               }}
               className="bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text w-full max-w-xs"
             >
-              <option value="">{m.ai_model_default()}</option>
+              <option value="">{driverProfileProvider === "codex" ? "Select a Codex model" : m.ai_model_default()}</option>
               {driverProfileModels.map((mm: { id: string; name: string }) => (
                 <option key={mm.id} value={mm.id}>
                   {mm.name}
