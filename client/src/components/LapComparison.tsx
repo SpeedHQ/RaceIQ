@@ -38,6 +38,16 @@ export interface LapComparisonSearch {
   cursor?: number;
 }
 
+export function ComparisonLoadStatus({ loading, error, hasComparison }: { loading: boolean; error: string | null; hasComparison: boolean }) {
+  if (!error && (!loading || hasComparison)) return null;
+  return (
+    <div className="shrink-0">
+      {loading && !hasComparison && <div className="text-app-text-muted text-sm">{m.compare_loading()}</div>}
+      {error && <div className="text-status-danger text-sm">{error}</div>}
+    </div>
+  );
+}
+
 export function LapComparison({ initialSearch }: { initialSearch?: LapComparisonSearch } = {}) {
   const isNarrow = useNarrowViewport();
   if (isNarrow) return <MobileNotSupported feature={m.lapcompare_feature_name()} />;
@@ -416,13 +426,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
         </div>
       </div>
 
-      {/* Loading / Error */}
-      {(loading || error) && (
-        <div className="shrink-0">
-          {loading && <div className="text-app-text-muted text-sm">{m.compare_loading()}</div>}
-          {error && <div className="text-status-danger text-sm">{error}</div>}
-        </div>
-      )}
+      <ComparisonLoadStatus loading={loading} error={error} hasComparison={comparison != null} />
 
       {/* No selection prompt */}
       {!lapAId || !lapBId ? (
@@ -487,7 +491,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
           {/* Right column: time delta pinned + scrollable charts */}
           <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden">
             {/* Time Delta — always visible */}
-            <div className="bg-app-surface rounded-lg border border-app-border p-1 shrink-0">
+            <div className="rounded-lg border border-app-border p-1 shrink-0">
               <TimeDelta distances={comparison.traces.distance} timeDelta={comparison.timeDelta} syncKey={SYNC_KEY} height={140} onCursorMove={handleCursorMove} />
             </div>
 
@@ -495,7 +499,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
             <div className="flex-1 min-h-0 overflow-y-auto">
               <div className="flex flex-col gap-4">
                 {/* Speed Chart */}
-                <div className="bg-app-surface rounded-lg border border-app-border p-1">
+                <div className="rounded-lg border border-app-border p-1">
                   <TelemetryChart
                     data={{
                       distance: comparison.traces.distance,
@@ -511,7 +515,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
                 </div>
 
                 {/* Throttle + Brake Chart */}
-                <div className="bg-app-surface rounded-lg border border-app-border p-1">
+                <div className="rounded-lg border border-app-border p-1">
                   <TelemetryChart
                     data={{
                       distance: comparison.traces.distance,
@@ -532,7 +536,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
                 </div>
 
                 {/* RPM Chart */}
-                <div className="bg-app-surface rounded-lg border border-app-border p-1">
+                <div className="rounded-lg border border-app-border p-1">
                   <TelemetryChart
                     data={{
                       distance: comparison.traces.distance,
@@ -549,7 +553,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
 
                 {/* Tire Wear Chart */}
                 {comparison.traces.tireWearA && (
-                  <div className="bg-app-surface rounded-lg border border-app-border p-1">
+                  <div className="rounded-lg border border-app-border p-1">
                     <TelemetryChart
                       data={{
                         distance: comparison.traces.distance,

@@ -8,6 +8,7 @@
 
 ### Fixes
 
+- Keep the Compare loading message hidden after comparison data is available
 - Cover the full page when settings are open so background content is consistently dimmed and dismissible
 - Guide drivers to AI settings with neutral primary actions when their provider, credentials, or model is not configured
 - Use semantic tabs for Analyse visualization modes and Data/Insights navigation
