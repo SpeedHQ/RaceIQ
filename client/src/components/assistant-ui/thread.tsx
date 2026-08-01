@@ -16,7 +16,7 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 import { ArrowDownIcon, ArrowUpIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, DownloadIcon, MicIcon, MoreHorizontalIcon, PencilIcon, RefreshCwIcon, SquareIcon } from "lucide-react";
-import { type ComponentType, createContext, type FC, type PropsWithChildren, useContext } from "react";
+import { type ComponentProps, type ComponentType, createContext, type FC, type PropsWithChildren, useContext, useState } from "react";
 import { ComposerAddAttachment, ComposerAttachments, UserMessageAttachments } from "@/components/assistant-ui/attachment";
 import { ThreadFollowupSuggestions } from "@/components/assistant-ui/follow-up-suggestions";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
@@ -48,6 +48,8 @@ export type ThreadProps = {
   components?: ThreadComponents | undefined;
   /** Disables the composer input + send (e.g. while a server-side Compact runs). */
   inputDisabled?: boolean | undefined;
+  /** Sends a controlled draft through the active thread runtime. */
+  onSend: (text: string) => void;
 };
 
 const EMPTY_COMPONENTS: ThreadComponents = {};
@@ -55,18 +57,21 @@ const EMPTY_COMPONENTS: ThreadComponents = {};
 const ThreadComponentsContext = createContext<ThreadComponents>(EMPTY_COMPONENTS);
 
 const InputDisabledContext = createContext(false);
+const SendMessageContext = createContext<((text: string) => void) | null>(null);
 
 // Startup exposes a loading placeholder thread; treat it as a new chat so
 // the composer mounts centered. Loads after startup keep the docked layout.
 const isNewChatView = (s: AssistantState) => s.thread.messages.length === 0 && (!s.thread.isLoading || s.threads.isLoading);
 
-export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS, inputDisabled = false }) => {
+export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS, inputDisabled = false, onSend }) => {
   const isEmpty = useAuiState(isNewChatView);
 
   return (
     <ThreadComponentsContext.Provider value={components}>
       <InputDisabledContext.Provider value={inputDisabled}>
-        <ThreadRoot isEmpty={isEmpty} />
+        <SendMessageContext.Provider value={onSend}>
+          <ThreadRoot isEmpty={isEmpty} />
+        </SendMessageContext.Provider>
       </InputDisabledContext.Provider>
     </ThreadComponentsContext.Provider>
   );
@@ -124,13 +129,7 @@ const ThreadMessage: FC = () => {
 const ThreadScrollToBottom: FC = () => {
   return (
     <ThreadPrimitive.ScrollToBottom
-      render={
-        <TooltipIconButton
-          tooltip="Scroll to bottom"
-          variant="outline"
-          className="aui-thread-scroll-to-bottom absolute -top-12 z-10 self-center disabled:invisible"
-        />
-      }
+      render={<TooltipIconButton tooltip="Scroll to bottom" variant="outline" className="aui-thread-scroll-to-bottom absolute -top-12 z-10 self-center disabled:invisible" />}
     >
       <ArrowDownIcon />
     </ThreadPrimitive.ScrollToBottom>
@@ -156,12 +155,7 @@ const ThreadSuggestions: FC = () => {
 const ThreadSuggestionItem: FC = () => {
   return (
     <div className="aui-thread-welcome-suggestion-display fade-in slide-in-from-bottom-2 animate-in fill-mode-both duration-200">
-      <SuggestionPrimitive.Trigger
-        send
-        render={
-          <Button variant="ghost" size="app-md" className="aui-thread-welcome-suggestion" />
-        }
-      >
+      <SuggestionPrimitive.Trigger send render={<Button variant="ghost" size="app-md" className="aui-thread-welcome-suggestion" />}>
         <SuggestionPrimitive.Title className="aui-thread-welcome-suggestion-text-1" />
         <SuggestionPrimitive.Description className="aui-thread-welcome-suggestion-text-2 empty:hidden" />
       </SuggestionPrimitive.Trigger>
@@ -171,8 +165,19 @@ const ThreadSuggestionItem: FC = () => {
 
 const Composer: FC = () => {
   const inputDisabled = useContext(InputDisabledContext);
+  const sendMessage = useContext(SendMessageContext);
+  const [draft, setDraft] = useState("");
+
+  const submit: ComponentProps<typeof ComposerPrimitive.Root>["onSubmit"] = (event) => {
+    event.preventDefault();
+    const text = draft.trim();
+    if (inputDisabled || !text || !sendMessage) return;
+    sendMessage(text);
+    setDraft("");
+  };
+
   return (
-    <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
+    <ComposerPrimitive.Root onSubmit={submit} className="aui-composer-root relative flex w-full flex-col">
       <ComposerPrimitive.AttachmentDropzone
         render={
           <div
@@ -183,6 +188,8 @@ const Composer: FC = () => {
       >
         <ComposerAttachments />
         <ComposerPrimitive.Input
+          value={draft}
+          onChange={(event) => setDraft(event.currentTarget.value)}
           placeholder={inputDisabled ? "Compacting…" : "Send a message..."}
           className="aui-composer-input caret-primary placeholder:text-muted-foreground/80 max-h-32 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base outline-none disabled:opacity-50"
           rows={1}
@@ -191,13 +198,13 @@ const Composer: FC = () => {
           aria-label="Message input"
           disabled={inputDisabled}
         />
-        <ComposerAction />
+        <ComposerAction canSend={!inputDisabled && draft.trim().length > 0} />
       </ComposerPrimitive.AttachmentDropzone>
     </ComposerPrimitive.Root>
   );
 };
 
-const ComposerAction: FC = () => {
+const ComposerAction: FC<{ canSend: boolean }> = ({ canSend }) => {
   return (
     <div className="aui-composer-action-wrapper relative flex items-center justify-between">
       <ComposerAddAttachment />
@@ -205,36 +212,21 @@ const ComposerAction: FC = () => {
         <AuiIf condition={(s) => s.thread.capabilities.dictation}>
           <AuiIf condition={(s) => s.composer.dictation == null}>
             <ComposerPrimitive.Dictate
-              render={
-                <TooltipIconButton tooltip="Voice input" side="bottom" type="button" variant="ghost" size="icon-sm" className="aui-composer-dictate" aria-label="Start voice input" />
-              }
+              render={<TooltipIconButton tooltip="Voice input" side="bottom" type="button" variant="ghost" size="icon-sm" className="aui-composer-dictate" aria-label="Start voice input" />}
             >
               <MicIcon className="aui-composer-dictate-icon size-4" />
             </ComposerPrimitive.Dictate>
           </AuiIf>
           <AuiIf condition={(s) => s.composer.dictation != null}>
-            <ComposerPrimitive.StopDictation
-              render={
-                <TooltipIconButton
-                  tooltip="Stop dictation"
-                  side="bottom"
-                  type="button"
-                  variant="destructive"
-                  size="icon-destructive"
-                  aria-label="Stop voice input"
-                />
-              }
-            >
+            <ComposerPrimitive.StopDictation render={<TooltipIconButton tooltip="Stop dictation" side="bottom" type="button" variant="destructive" size="icon-sm" aria-label="Stop voice input" />}>
               <SquareIcon className="aui-composer-stop-dictation-icon size-3.5 animate-pulse fill-current" />
             </ComposerPrimitive.StopDictation>
           </AuiIf>
         </AuiIf>
         <AuiIf condition={(s) => !s.thread.isRunning}>
-          <ComposerPrimitive.Send
-            render={<TooltipIconButton tooltip="Send message" side="bottom" type="button" variant="default" size="icon-sm" className="aui-composer-send" aria-label="Send message" />}
-          >
+          <TooltipIconButton tooltip="Send message" side="bottom" type="submit" variant="default" size="icon-sm" className="aui-composer-send" aria-label="Send message" disabled={!canSend}>
             <ArrowUpIcon className="aui-composer-send-icon size-4.5" />
-          </ComposerPrimitive.Send>
+          </TooltipIconButton>
         </AuiIf>
         <AuiIf condition={(s) => s.thread.isRunning}>
           <ComposerPrimitive.Cancel render={<Button variant="default" size="icon-sm" className="aui-composer-cancel" aria-label="Stop generating" />}>
@@ -477,8 +469,8 @@ const EditComposer: FC = () => {
       <ComposerPrimitive.Root className="aui-edit-composer-root border-border/60 dark:border-muted-foreground/15 ms-auto flex w-full max-w-[85%] flex-col rounded-(--composer-radius) border bg-(--composer-bg) shadow-none">
         <ComposerPrimitive.Input className="aui-edit-composer-input text-foreground min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base outline-none" autoFocus />
         <div className="aui-edit-composer-footer mx-2.5 mb-2.5 flex items-center gap-1.5 self-end">
-        <ComposerPrimitive.Cancel render={<Button variant="ghost" size="sm" />}>Cancel</ComposerPrimitive.Cancel>
-        <ComposerPrimitive.Send render={<Button size="sm" />}>Update</ComposerPrimitive.Send>
+          <ComposerPrimitive.Cancel render={<Button variant="ghost" size="sm" />}>Cancel</ComposerPrimitive.Cancel>
+          <ComposerPrimitive.Send render={<Button size="sm" />}>Update</ComposerPrimitive.Send>
         </div>
       </ComposerPrimitive.Root>
     </MessagePrimitive.Root>

@@ -6,8 +6,7 @@
  */
 import { Agent } from "@mastra/core/agent";
 import { getChatMemory } from "../../server/ai/chat-agent";
-import { getMastraModelId } from "../model";
-import { loadSettings } from "../../server/settings";
+import { getModel } from "../../server/ai/model-provider";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
@@ -21,10 +20,7 @@ export const lapChatAgent = new Agent({
   id: "lap-chat",
   name: "Lap Chat",
   instructions: LAP_CHAT_INSTRUCTIONS,
-  model: () => {
-    const s = loadSettings();
-    return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
-  },
+  model: ({ requestContext }) => getModel("chat", requestContext),
   tools: { getTrackGuideTool, listTrackGuidesTool, compareF1SetupToCatalogTool, getCornerMetricsTool },
   memory: getChatMemory(),
 });
