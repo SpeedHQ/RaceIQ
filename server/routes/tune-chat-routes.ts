@@ -22,12 +22,14 @@ import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-optio
 import { startDetachedAgentTurn } from "../ai/agent-stream";
 import { reserveChatRun, buildReplayStream } from "../ai/chat-run-registry";
 import { createUIMessageStreamResponse } from "ai";
+import { resolveAi } from "../ai/ai-runtime";
+import { runAiChat } from "../ai/model-provider";
+import type { ResolvedAi } from "../ai/ai-types";
 import { sessionAgentForFocus } from "../ai/agents";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiment-focus";
 import { buildSetupEngineerSystemPrompt } from "../../mastra/agents/setup-engineer";
 import { RequestContext } from "@mastra/core/request-context";
 import { setupEngineerTurnWorkflow } from "../../mastra/workflows/setup-engineer-turn";
-import { getSecret } from "../keystore";
 import { MessageList } from "@mastra/core/agent";
 
 
@@ -211,36 +213,14 @@ export const tuneChatRoutes = new Hono()
         console.error("[SetupEngineer] prereq workflow failed:", err?.message);
       }
 
-      // Provider/key/model plumbing — inlined from startChatStream (see
-      // ../ai/chat-stream.ts) since this route no longer uses the shared
-      // NDJSON helper (assistant-ui speaks the AI SDK v5 UI-message-stream
-      // protocol instead). Keep this block in sync with chat-stream.ts if
-      // the provider matrix changes.
       const settings = loadSettings();
-      const chatProvider = settings.chatProvider;
-      if (chatProvider === "gemini") {
-        const key = await getSecret("gemini-api-key");
-        if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
-        process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
-        delete process.env.OPENAI_BASE_URL;
-      } else if (chatProvider === "openai") {
-        const key = await getSecret("openai-api-key");
-        if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Chat." }, 400);
-        process.env.OPENAI_API_KEY = key;
-        delete process.env.OPENAI_BASE_URL;
-      } else if (chatProvider === "local") {
-        process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
-        process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
+      let ai: ResolvedAi;
+      try {
+        ai = await resolveAi("chat", settings);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        return c.json({ error: message }, 400);
       }
-
-      // Same model-label fallback chain chat-stream.ts uses, so thinking support
-      // is detected off the model that will actually run.
-      const chatModelLabel = settings.chatModel
-        || (chatProvider === "openai"
-          ? "gpt-4o-mini"
-          : chatProvider === "local"
-            ? "local-model"
-            : "gemini-flash-latest");
 
       // Captured before the turn runs so the onFinish reasoning-patch below can
       // tell *this* turn's freshly-saved assistant row apart from any earlier
@@ -256,53 +236,48 @@ export const tuneChatRoutes = new Hono()
       if (gatheredContext) systemSegments.push(gatheredContext);
       if (extendedContext) systemSegments.push(extendedContext);
 
-      // Reserve (or re-attach to) this thread's detached run BEFORE calling
-      // the agent — the double-start guard lives in the registry: if a turn
-      // is already active for this thread (e.g. a duplicate POST fired while
-      // one is in flight), `isNew` is false and we skip starting a second
-      // agent call entirely, just attaching to the existing run's stream.
-      const { run, isNew } = reserveChatRun(threadId);
-      if (isNew) {
-        const stream = await agent.stream(
-          [{ role: "system", content: systemSegments.join("\n\n") }, ...messages],
-          {
-          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-          requestContext: reqCtx,
-          // Threaded through so a client Cancel (POST .../run/cancel) or an
-          // evicted/aborted run actually stops the underlying model call,
-          // not just this HTTP response.
-          abortSignal: run.abortController.signal,
-          // Ask the model to stream its thought process so the tune chat can show a
-          // live "thinking" block that auto-collapses once the reply text starts
-          // (reasoning.tsx drives the collapse off the streamed reasoning parts).
-          // toAISdkStream forwards reasoning parts into the UI-message stream by
-          // default — the writer loop below relays every part — so enabling
-          // reasoning here is the whole server-side wiring. Scoped to this route:
-          // the main AiPanel keeps includeThoughts:false.
-          providerOptions: {
-            openai: { reasoningEffort: "medium" },
-            google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
-          },
-        });
+      try {
+        return await runAiChat(ai, {
+          systemPrompt: systemSegments.join("\n\n"),
+          messages,
+        }, async (chatContext) => {
+          chatContext.set("gameId", gameId);
+          chatContext.set("sessionId", id);
+          // Reserve (or re-attach to) this thread's detached run BEFORE
+          // calling the agent. Duplicate posts attach to existing run.
+          const { run, isNew } = reserveChatRun(threadId);
+          if (isNew) {
+            const stream = await agent.stream(
+              [{ role: "system", content: systemSegments.join("\n\n") }, ...messages],
+              {
+                memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+                requestContext: chatContext,
+                abortSignal: run.abortController.signal,
+                providerOptions: {
+                  openai: { reasoningEffort: "medium" },
+                  google: buildGoogleReasoningProviderOptions(ai.model, settings.chatThinkingBudget) as never,
+                },
+              },
+            );
 
-        // Detaches immediately: the agent stream keeps running and gets
-        // persisted server-side (onFinish inside agent-stream.ts) regardless
-        // of whether the response below is ever read to completion.
-        startDetachedAgentTurn(run, {
-          agentStream: stream,
-          originalMessages: messages,
-          memory: getChatMemory(),
-          threadId,
-          turnStartedAt,
+            startDetachedAgentTurn(run, {
+              agentStream: stream,
+              originalMessages: messages,
+              memory: getChatMemory(),
+              threadId,
+              turnStartedAt,
+            });
+          }
+
+          const response = createUIMessageStreamResponse({ stream: buildReplayStream(run) });
+          response.headers.set("x-resumable-stream-id", run.runId);
+          return response;
         });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[SetupEngineer] Stream failed:", message);
+        return c.json({ error: message }, 500);
       }
-
-      // Same replay-then-live-tail stream the reconnect endpoint serves —
-      // identical code path, so a fresh POST and a later reconnect are
-      // indistinguishable to the client's transport.
-      const response = createUIMessageStreamResponse({ stream: buildReplayStream(run) });
-      response.headers.set("x-resumable-stream-id", run.runId);
-      return response;
     }
   )
 

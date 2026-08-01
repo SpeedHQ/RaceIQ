@@ -21,11 +21,18 @@
  * the trace end-to-end. Cloud providers already emit reasoning parts natively,
  * so they never hit this path and are untouched.
  */
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import type { FetchFunction } from "@ai-sdk/provider-utils";
-import { extractReasoningMiddleware, wrapLanguageModel } from "ai";
+import { extractReasoningMiddleware, wrapLanguageModel, type LanguageModel } from "ai";
+import type { MastraModelConfig } from "@mastra/core/llm";
+import { RESOLVED_AI_MODEL_CONTEXT_KEY } from "../server/ai/resolved-ai-internals";
 
-type OpenAIModel = ReturnType<ReturnType<typeof createOpenAI>>;
+export type BoundMastraModel = MastraModelConfig;
+
+function bindMastraModel(model: LanguageModel): BoundMastraModel {
+  return model as unknown as BoundMastraModel;
+}
 
 const SSE_DATA_PREFIX = "data:";
 
@@ -191,17 +198,53 @@ function reasoningContentToThinkFetch(baseFetch: FetchFunction): FetchFunction {
     return response;
   }) as FetchFunction;
 }
+export type MastraRequestContext = {
+  get(key: string): unknown;
+};
+/** Return the provider-bound model attached to this request, if present. */
+export function modelFromRequestContext(
+  requestContext: MastraRequestContext | undefined,
+): BoundMastraModel | undefined {
+  const model = requestContext?.get(RESOLVED_AI_MODEL_CONTEXT_KEY);
+  if (typeof model === "string") return model;
+  if (model && typeof model === "object" && "doGenerate" in model
+      && typeof model.doGenerate === "function") {
+    const boundModel = model as BoundMastraModel;
+    return boundModel;
+  }
+  return undefined;
+}
 
+
+export type MastraProviderConfig = {
+  provider: string;
+  model: string;
+  localEndpoint?: string;
+  apiKey?: string;
+};
+
+export function getMastraModelId(config: MastraProviderConfig): BoundMastraModel;
+export function getMastraModelId(provider: string, model: string, localEndpoint?: string): BoundMastraModel;
 export function getMastraModelId(
-  provider: string,
-  model: string,
-  localEndpoint?: string,
-): string | OpenAIModel {
+  providerOrConfig: string | MastraProviderConfig,
+  legacyModel?: string,
+  legacyLocalEndpoint?: string,
+): BoundMastraModel {
+  const config = typeof providerOrConfig === "string"
+    ? { provider: providerOrConfig, model: legacyModel ?? "", localEndpoint: legacyLocalEndpoint }
+    : providerOrConfig;
+  const { provider, model, localEndpoint, apiKey } = config;
   switch (provider) {
-    case "gemini":
-      return `google/${model || "gemini-flash-latest"}`;
-    case "openai":
-      return `openai/${model || "gpt-4o-mini"}`;
+    case "gemini": {
+      const id = model || "gemini-flash-latest";
+      if (!apiKey) return `google/${id}`;
+      return bindMastraModel(createGoogleGenerativeAI({ apiKey })(id));
+    }
+    case "openai": {
+      const id = model || "gpt-4o-mini";
+      if (!apiKey) return `openai/${id}`;
+      return bindMastraModel(createOpenAI({ apiKey }).chat(id));
+    }
     case "local": {
       const openai = createOpenAI({
         baseURL: localEndpoint ?? "http://localhost:1234/v1",
@@ -218,10 +261,10 @@ export function getMastraModelId(
       // this middleware parses those (plus any genuinely inlined `<think>`
       // tags) back into structured reasoning parts. `startWithReasoning` stays
       // false — the middleware only extracts content actually wrapped in tags.
-      return wrapLanguageModel({
+      return bindMastraModel(wrapLanguageModel({
         model: base,
         middleware: extractReasoningMiddleware({ tagName: "think" }),
-      }) as unknown as OpenAIModel;
+      }));
     }
     default: {
       // claude-cli fallback

@@ -1,9 +1,8 @@
 /**
- * Shared Mastra memory store + thread/model helpers.
+ * Shared Mastra memory store and thread ownership helpers.
  *
  * Agents themselves are defined in `mastra-instance.ts`; this module owns the
- * persistent memory (LibSQL), the thread-id helpers, and the provider→Mastra
- * model-id mapping that the dynamic model resolvers use.
+ * persistent memory (LibSQL) and thread-id helpers.
  */
 import { Memory } from "@mastra/memory";
 import { LibSQLStore } from "@mastra/libsql";
@@ -34,34 +33,6 @@ export function getChatMemory() {
   return memory;
 }
 
-/**
- * Map app settings (aiProvider + aiModel) to a Mastra model ID string.
- * Mastra uses the format "provider/model-name".
- */
-export function getMastraModelId(
-  aiProvider: string,
-  aiModel: string,
-): string {
-  switch (aiProvider) {
-    case "gemini":
-      return `google/${aiModel || "gemini-flash-latest"}`;
-    case "openai":
-      return `openai/${aiModel || "gpt-4o-mini"}`;
-    case "local": {
-      // Local models use OpenAI-compatible API; model ID passed through
-      return `openai/${aiModel || "local-model"}`;
-    }
-    default: {
-      // claude-cli fallback
-      const claudeMap: Record<string, string> = {
-        haiku: "anthropic/claude-haiku-3-5-20241022",
-        sonnet: "anthropic/claude-sonnet-4-6",
-        opus: "anthropic/claude-opus-4-6",
-      };
-      return claudeMap[aiModel] || "anthropic/claude-haiku-3-5-20241022";
-    }
-  }
-}
 
 /** Build the threadId for a lap's chat. */
 export function chatThreadId(lapId: number): string {

@@ -1,8 +1,46 @@
+export type AiProviderErrorCode =
+  | "missing-provider"
+  | "missing-model"
+  | "unsupported-provider"
+  | "missing-api-key"
+  | "upstream"
+  | "unsupported-operation";
+
 type UpstreamError = {
   code?: number;
   message?: string;
   status?: string;
 };
+
+export class AiProviderError extends Error {
+  readonly code: AiProviderErrorCode;
+  readonly provider: string | null;
+  readonly modelId: string | null;
+  readonly statusCode: number | null;
+  readonly isRetryable: boolean;
+  readonly responseBody?: string;
+
+  constructor(
+    message: string,
+    options: {
+      code: AiProviderErrorCode;
+      provider?: string | null;
+      modelId?: string | null;
+      statusCode?: number | null;
+      isRetryable?: boolean;
+      responseBody?: string;
+    },
+  ) {
+    super(message);
+    this.name = "AiProviderError";
+    this.code = options.code;
+    this.provider = options.provider ?? null;
+    this.modelId = options.modelId ?? null;
+    this.statusCode = options.statusCode ?? null;
+    this.isRetryable = options.isRetryable ?? false;
+    this.responseBody = options.responseBody;
+  }
+}
 
 export type ClientAiError = {
   message: string;

@@ -2,11 +2,14 @@
 
 ### Features
 - Automatic driver profile metrics with optional, configurable background AI coaching and auditable run history
+- OpenAI Codex CLI provider using authenticated ChatGPT subscription access for AI analysis and chat
 - Runtime-discovered iRacing cars and tracks, resolved by the SDK's native identifiers
 - Support for iRacing's source-defined sector layouts, including two-sector ovals and layouts with more than three sectors
 - View all release notes since your installed version in the app
 
 ### Fixes
+- Report missing AI model settings instead of silently selecting a provider default
+- Keep AI chat drafts editable and show submitted prompts with the loading state immediately across chat surfaces
 
 - Keep the Compare loading message hidden after comparison data is available
 - Cover the full page when settings are open so background content is consistently dimmed and dismissible
@@ -29,6 +32,7 @@
 
 ### Internal
 - Renamed generic session recorder API to reflect support for UDP and shared-memory telemetry
+- Centralized settings-aware AI provider resolution with request-scoped credentials and shared readiness handling
 - Stabilized Storybook dashboard capture readiness, aligned PR preview comparison with Playwright's material-diff policy, and restricted baseline writes to the pinned Linux renderer
 - Made Storybook snapshots own an exact-port server and retry cold preview preparation
 - Restored the ACC live-dashboard fuel bar in fixture-backed previews

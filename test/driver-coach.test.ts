@@ -1,8 +1,12 @@
 import { describe, expect, test } from "bun:test";
+import { RequestContext } from "@mastra/core/request-context";
 import { driverCoachAgent, DRIVER_COACH_INSTRUCTIONS } from "../mastra/agents/driver-coach";
 import { setupEngineerAgent } from "../mastra/agents/setup-engineer";
 import { sessionAgentForFocus } from "../server/ai/agents";
 import { buildSetupEngineerSystemPrompt } from "../mastra/agents/setup-engineer";
+import { createModelContext } from "../server/ai/model-provider";
+import { resolveAi } from "../server/ai/ai-runtime";
+import { loadSettings } from "../server/settings";
 
 /**
  * Two specialists, one session, no coordinator.
@@ -20,9 +24,20 @@ import { buildSetupEngineerSystemPrompt } from "../mastra/agents/setup-engineer"
 
 /** The tool set the MODEL actually sees at run time — not the constructor
  *  literal, so a tool lost to wiring (rather than to config) still fails here. */
-async function toolNames(agent: any): Promise<string[]> {
-  const tools = await agent.getToolsForExecution({});
-  return Object.keys((tools ?? {}) as Record<string, unknown>).sort();
+type ToolInspectionAgent = {
+  getToolsForExecution(options: { requestContext: RequestContext }): Promise<Record<string, unknown>>;
+};
+
+async function toolNames(agent: ToolInspectionAgent): Promise<string[]> {
+  const ai = await resolveAi("chat", {
+    ...loadSettings(),
+    chatProvider: "local",
+    chatModel: "tool-inspection-model",
+  });
+  const requestContext = createModelContext(ai, new RequestContext());
+  if (!requestContext) throw new Error("Expected local model request context");
+  const tools = await agent.getToolsForExecution({ requestContext });
+  return Object.keys(tools).sort();
 }
 
 describe("authority split between the two session agents", () => {

@@ -8,6 +8,7 @@ import { m } from "@/paraglide/messages";
 const PROVIDER_KEY_MAP: Record<string, string> = {
   gemini: "gemini",
   openai: "openai",
+  codex: "codex",
 };
 
 const PROVIDER_KEY_LABELS: Record<string, { label: string; placeholder: string; helpText: string; helpUrl: string }> = {
@@ -27,10 +28,17 @@ function supportsGeminiThinkingBudget(modelId: string): boolean {
   return !model.startsWith("gemma-") && !model.includes("/gemma-");
 }
 
-type ProviderId = "gemini" | "openai" | "local";
+type ProviderId = "gemini" | "openai" | "codex" | "local";
+type ProviderDiscovery = {
+  id: ProviderId;
+  name: string;
+  ready?: boolean;
+  error?: string | null;
+};
 type ModelsResponse = {
   gemini: { id: string; name: string }[];
   openai: { id: string; name: string }[];
+  codex: { id: string; name: string }[];
   local: { id: string; name: string }[];
   _errors?: Partial<Record<ProviderId, string | null>>;
 };
@@ -176,7 +184,9 @@ export function AiSection() {
     driverProfileSettings.driverProfileThinkingBudget,
   ]);
 
-  const selectedProviders = Array.from(new Set([provider, chatProvider, autoTuneProvider, driverProfileProvider].filter((p) => p === "gemini" || p === "openai" || p === "local")));
+const selectedProviders = Array.from(
+  new Set([provider, chatProvider, autoTuneProvider, driverProfileProvider].filter((p) => p === "gemini" || p === "openai" || p === "codex" || p === "local")),
+);
   const keyStatus: Record<string, boolean> = {
     gemini: !!displaySettings.geminiApiKeySet,
     openai: !!displaySettings.openaiApiKeySet,
@@ -195,18 +205,23 @@ export function AiSection() {
       return { ...(prev as Record<string, unknown>), ...updates };
     });
   };
-
-  const selectedProvidersForFetch = selectedProviders.filter((p) => p === "local" || p === "openai" || Boolean(keyStatus[p]));
-  const selectedProvidersCsv = selectedProvidersForFetch.join(",");
-
   const { data: aiProviders } = useQuery({
     queryKey: ["ai-providers"],
     queryFn: async () => {
       const res = await fetch("/api/ai-providers");
-      return res.json() as Promise<{ id: string; name: string }[]>;
+      return res.json() as Promise<ProviderDiscovery[]>;
     },
   });
-
+  const providerReadiness = Object.fromEntries((aiProviders ?? []).map((entry) => [entry.id, entry])) as Partial<Record<ProviderId, ProviderDiscovery>>;
+  const isProviderConfigured = (selectedProvider: string): boolean => {
+    if (selectedProvider === "local") return true;
+    if (selectedProvider === "codex") return providerReadiness.codex?.ready === true;
+    return !!keyStatus[selectedProvider];
+  };
+  const providerReadinessError = (selectedProvider: string): string | null =>
+    selectedProvider === "codex" ? providerReadiness.codex?.error ?? null : null;
+  const selectedProvidersForFetch = selectedProviders.filter(isProviderConfigured);
+  const selectedProvidersCsv = selectedProvidersForFetch.join(",");
   const {
     data: aiModels,
     isFetching: aiModelsFetching,
@@ -229,7 +244,7 @@ export function AiSection() {
   const refreshModels = useMutation({
     mutationFn: async () => {
       if (!selectedProvidersCsv) {
-        return { gemini: [], openai: [], local: [], _errors: { gemini: null, openai: null, local: null } } as ModelsResponse;
+        return { gemini: [], openai: [], codex: [], local: [], _errors: { gemini: null, openai: null, codex: null, local: null } } as ModelsResponse;
       }
       const base = `/api/ai-models?providers=${encodeURIComponent(selectedProvidersCsv)}&refresh=1`;
       const res = await fetch(base);
@@ -247,13 +262,13 @@ export function AiSection() {
   });
   const modelsRefreshing = refreshModels.isPending;
   const models = provider === "gemini" || provider === "openai" || provider === "local" ? (aiModels?.[provider] ?? []) : [];
-  const hasProviderKey = provider === "local" || (keyStatus[provider] ?? false);
+  const hasProviderKey = isProviderConfigured(provider);
   const canShowModelPicker = provider !== "" && hasProviderKey && models.length > 0;
   const effectiveGeminiModel = model || "gemini-flash-latest";
   const modelSupportsThinking = provider === "gemini" && supportsGeminiThinkingBudget(effectiveGeminiModel);
   const effectiveThinkingBudget = modelSupportsThinking ? thinkingBudget : null;
   const chatModels = chatProvider === "gemini" || chatProvider === "openai" || chatProvider === "local" ? (aiModels?.[chatProvider] ?? []) : [];
-  const hasChatProviderKey = chatProvider === "local" || (keyStatus[chatProvider] ?? false);
+  const hasChatProviderKey = isProviderConfigured(chatProvider);
   const canShowChatModelPicker = chatProvider !== "" && hasChatProviderKey && chatModels.length > 0;
   const effectiveChatGeminiModel = chatModel || "gemini-flash-latest";
   const chatModelSupportsThinking = chatProvider === "gemini" && supportsGeminiThinkingBudget(effectiveChatGeminiModel);
@@ -262,11 +277,12 @@ export function AiSection() {
   const providerModelError = provider === "gemini" || provider === "openai" || provider === "local" ? (modelErrors[provider] ?? null) : null;
   const chatProviderModelError = chatProvider === "gemini" || chatProvider === "openai" || chatProvider === "local" ? (modelErrors[chatProvider] ?? null) : null;
   const autoTuneModels = autoTuneProvider === "gemini" || autoTuneProvider === "openai" || autoTuneProvider === "local" ? (aiModels?.[autoTuneProvider] ?? []) : [];
-  const hasAutoTuneProviderKey = autoTuneProvider === "local" || (keyStatus[autoTuneProvider] ?? false);
+  const hasAutoTuneProviderKey = isProviderConfigured(autoTuneProvider);
   const canShowAutoTuneModelPicker = autoTuneProvider !== "" && hasAutoTuneProviderKey && autoTuneModels.length > 0;
   const autoTuneProviderModelError = autoTuneProvider === "gemini" || autoTuneProvider === "openai" || autoTuneProvider === "local" ? (modelErrors[autoTuneProvider] ?? null) : null;
-  const driverProfileModels = driverProfileProvider === "gemini" || driverProfileProvider === "openai" || driverProfileProvider === "local" ? (aiModels?.[driverProfileProvider] ?? []) : [];
-  const hasDriverProfileProviderKey = driverProfileProvider === "local" || (keyStatus[driverProfileProvider] ?? false);
+const driverProfileModels =
+  driverProfileProvider === "gemini" || driverProfileProvider === "openai" || driverProfileProvider === "local" ? (aiModels?.[driverProfileProvider] ?? []) : [];
+const hasDriverProfileProviderKey = isProviderConfigured(driverProfileProvider);
   const canShowDriverProfileModelPicker = driverProfileProvider !== "" && hasDriverProfileProviderKey && driverProfileModels.length > 0;
   const effectiveDriverProfileGeminiModel = driverProfileModel || "gemini-flash-latest";
   const driverProfileModelSupportsThinking = driverProfileProvider === "gemini" && supportsGeminiThinkingBudget(effectiveDriverProfileGeminiModel);
@@ -540,7 +556,11 @@ export function AiSection() {
             )}
           </div>
         )}
-        {provider !== "" && !hasProviderKey && <p className="text-xs text-app-text-muted">{m.ai_add_key_hint()}</p>}
+        {provider !== "" && !hasProviderKey && (
+          <p className={`text-xs ${provider === "codex" && providerReadinessError(provider) ? "text-status-danger" : "text-app-text-muted"}`}>
+            {provider === "codex" ? (providerReadinessError(provider) ?? "Run `codex login` to authenticate.") : m.ai_add_key_hint()}
+          </p>
+        )}
         {provider !== "" && hasProviderKey && !aiModelsFetching && models.length === 0 && (
           <div className="flex items-center gap-2 text-xs text-app-text-muted">
             <span>{m.ai_no_models()}</span>
@@ -666,7 +686,11 @@ export function AiSection() {
             )}
           </div>
         )}
-        {chatProvider !== "" && !hasChatProviderKey && <p className="text-xs text-app-text-muted">{m.ai_add_key_hint()}</p>}
+        {chatProvider !== "" && !hasChatProviderKey && (
+          <p className={`text-xs ${chatProvider === "codex" && providerReadinessError(chatProvider) ? "text-status-danger" : "text-app-text-muted"}`}>
+            {chatProvider === "codex" ? (providerReadinessError(chatProvider) ?? "Run `codex login` to authenticate.") : m.ai_add_key_hint()}
+          </p>
+        )}
         {chatProvider !== "" && hasChatProviderKey && !aiModelsFetching && chatModels.length === 0 && (
           <div className="flex items-center gap-2 text-xs text-app-text-muted">
             <span>{m.ai_no_models()}</span>
@@ -792,7 +816,11 @@ export function AiSection() {
             </select>
           </div>
         )}
-        {autoTuneProvider !== "" && !hasAutoTuneProviderKey && <p className="text-xs text-app-text-muted">{m.ai_add_key_hint()}</p>}
+        {autoTuneProvider !== "" && !hasAutoTuneProviderKey && (
+          <p className={`text-xs ${autoTuneProvider === "codex" && providerReadinessError(autoTuneProvider) ? "text-status-danger" : "text-app-text-muted"}`}>
+            {autoTuneProvider === "codex" ? (providerReadinessError(autoTuneProvider) ?? "Run `codex login` to authenticate.") : m.ai_add_key_hint()}
+          </p>
+        )}
         {autoTuneProvider !== "" && hasAutoTuneProviderKey && !aiModelsFetching && autoTuneModels.length === 0 && (
           <div className="flex items-center gap-2 text-xs text-app-text-muted">
             <span>{m.ai_no_models()}</span>
@@ -962,7 +990,11 @@ export function AiSection() {
             )}
           </div>
         )}
-        {driverProfileProvider !== "" && !hasDriverProfileProviderKey && <p className="text-xs text-app-text-muted">{m.ai_add_key_hint()}</p>}
+        {driverProfileProvider !== "" && !hasDriverProfileProviderKey && (
+          <p className={`text-xs ${driverProfileProvider === "codex" && providerReadinessError(driverProfileProvider) ? "text-status-danger" : "text-app-text-muted"}`}>
+            {driverProfileProvider === "codex" ? (providerReadinessError(driverProfileProvider) ?? "Run `codex login` to authenticate.") : m.ai_add_key_hint()}
+          </p>
+        )}
         {driverProfileProvider !== "" && hasDriverProfileProviderKey && !aiModelsFetching && driverProfileModels.length === 0 && (
           <div className="flex items-center gap-2 text-xs text-app-text-muted">
             <span>{m.ai_no_models()}</span>

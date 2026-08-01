@@ -16,11 +16,38 @@ import { getRunningGame } from "../games/registry";
 import { getTrackLengthMeters } from "../../shared/track-data";
 import { withOnboardingOverride } from "../runtime-options";
 
+import { getCodexStatus, getProviders, type CodexStatus } from "../ai/providers";
 const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
 const MODELS_EMPTY_RETRY_MS = 10 * 1000;
 let cachedGeminiModels: { key: string; models: { id: string; name: string }[]; at: number } | null = null;
 let cachedLocalModels: { endpoint: string; models: { id: string; name: string; contextLength?: number }[]; at: number } | null = null;
 let cachedLocalEmpty: { endpoint: string; at: number } | null = null;
+export type AiProviderDiscovery = {
+  id: string;
+  name: string;
+  ready?: boolean;
+  error?: string | null;
+};
+function publicCodexError(status: CodexStatus): string | null {
+  if (status.ready) return null;
+  const reason = status.reason.toLowerCase();
+  if (reason.includes("not found")) return "Codex executable not found. Install the Codex CLI.";
+  if (reason.includes("timed out")) return "Codex readiness check timed out.";
+  return "Codex is not authenticated. Run `codex login`.";
+}
+
+
+export async function getAiProviderDiscovery(): Promise<AiProviderDiscovery[]> {
+  const codexStatus = await getCodexStatus();
+  return getProviders().map((provider) => provider.id === "codex"
+    ? {
+        ...provider,
+        ready: codexStatus.ready,
+        error: publicCodexError(codexStatus),
+      }
+    : provider);
+}
+
 export const settingsRoutes = new Hono()
   // GET /api/status
   .get("/api/status", (c) => {
@@ -52,21 +79,21 @@ export const settingsRoutes = new Hono()
     const hasGeminiKey = !!(await getSecret("gemini-api-key"));
     const hasOpenaiKey = !!(await getSecret("openai-api-key"));
     const hasAnthropicKey = !!(await getSecret("anthropic-api-key"));
+    const codex = (await getAiProviderDiscovery()).find((provider) => provider.id === "codex");
     return c.json({
       ...settings,
       udpPort: udpListener.port,
       geminiApiKeySet: hasGeminiKey,
       openaiApiKeySet: hasOpenaiKey,
       anthropicApiKeySet: hasAnthropicKey,
+      codexReady: codex?.ready ?? false,
+      codexError: codex?.error ?? null,
       isCompiled: IS_COMPILED,
     });
   })
 
   // GET /api/ai-providers — available providers
-  .get("/api/ai-providers", async (c) => {
-    const { getProviders } = await import("../ai/providers");
-    return c.json(getProviders());
-  })
+  .get("/api/ai-providers", async (c) => c.json(await getAiProviderDiscovery()))
 
   // GET /api/ai-models — available models per provider
   .get("/api/ai-models", async (c) => {
@@ -79,7 +106,7 @@ export const settingsRoutes = new Hono()
       (c.req.query("providers") ?? "")
         .split(",")
         .map((p) => p.trim())
-        .filter((p) => p === "gemini" || p === "openai" || p === "local"),
+        .filter((p) => p === "gemini" || p === "openai" || p === "codex" || p === "local"),
     );
     const useRequestedProviders = requestedProviders.size > 0;
     const shouldFetchGemini = useRequestedProviders
@@ -159,8 +186,9 @@ export const settingsRoutes = new Hono()
     return c.json({
       "gemini": geminiModels,
       "openai": getOpenAiModels(),
+      "codex": [],
       "local": localModels,
-      "_errors": { gemini: geminiError, openai: null, local: localError },
+      "_errors": { gemini: geminiError, openai: null, codex: null, local: localError },
     });
   })
 
