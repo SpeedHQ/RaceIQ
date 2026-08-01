@@ -11,6 +11,7 @@ import { tuneMatchesTrack } from "./track/CatalogTrackSetups";
 import { TrackCard } from "./track/TrackCard";
 import type { TrackInfo } from "./track/types";
 import { AppInput } from "./ui/AppInput";
+import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 
 type SortKey = "name" | "laps";
 
@@ -105,15 +106,15 @@ export function TrackViewer() {
         <AppInput placeholder={m.trackviewer_search_placeholder()} value={search} onChange={(e) => setSearch(e.target.value)} className="flex-1 min-w-[180px] sm:flex-none sm:max-w-xs" />
         <div className="flex items-center gap-1.5 md:gap-1 text-sm md:text-app-label text-app-text-muted">
           <span className="uppercase tracking-wider">{m.trackviewer_sort_label()}</span>
-          {(["name", "laps"] as SortKey[]).map((key) => (
-            <button
-              key={key}
-              onClick={() => setSortKey(key)}
-              className={`px-3 py-2 md:px-2 md:py-0.5 rounded capitalize ${sortKey === key ? "bg-app-surface-alt border border-app-border text-app-text" : "text-app-text-dim hover:text-app-text-muted"}`}
-            >
-              {key}
-            </button>
-          ))}
+          <Tabs value={sortKey} onValueChange={(value) => setSortKey(value as SortKey)}>
+            <TabsList>
+              {(["name", "laps"] as SortKey[]).map((key) => (
+                <TabsTrigger key={key} value={key}>
+                  {key === "name" ? "Name" : m.label_laps()}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
         </div>
         <div className="text-app-label text-app-text-muted uppercase tracking-wider whitespace-nowrap">
           {withOutline.length} {m.trackviewer_with_outlines()}, {withoutOutline.length} {m.trackviewer_without_outlines_suffix()}

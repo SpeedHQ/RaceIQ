@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { m } from "@/paraglide/messages";
+import { AppInput } from "./AppInput";
+import { Button } from "./button";
 
 interface SearchSelectOption {
   value: string;
   label: string;
-  group?: string; // optional group header label
-  disabled?: boolean; // shown but not selectable
+  group?: string;
+  disabled?: boolean;
 }
 
 interface SearchSelectProps {
@@ -16,9 +18,12 @@ interface SearchSelectProps {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
-  focusColor?: string; // e.g. "orange-500", "blue-500"
-  fallbackLabel?: string; // shown when value is set but no option matches
+  focusColor?: string;
+  fallbackLabel?: string;
 }
+
+const OVERLAY_SURFACE_CLASS = "rounded-lg border border-app-border-input bg-app-surface-alt text-app-text shadow-lg";
+const OVERLAY_ITEM_CLASS = "flex min-h-8 w-full items-center !justify-start gap-2 px-3 py-1.5 text-left text-sm leading-snug whitespace-normal outline-none transition-colors hover:bg-app-accent/20";
 
 export function SearchSelect({ value, onChange, options, placeholder = "Search...", disabled = false, className = "", focusColor, fallbackLabel }: SearchSelectProps) {
   const [open, setOpen] = useState(false);
@@ -26,37 +31,38 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [panelRect, setPanelRect] = useState<{ top: number; left: number; width: number } | null>(null);
+  const listboxId = useId().replace(/:/g, "");
+  const [panelRect, setPanelRect] = useState<{ top: number; left: number; width: number; above: boolean } | null>(null);
+  const [highlightIdx, setHighlightIdx] = useState(-1);
 
-  const selectedLabel = options.find((o) => o.value === value)?.label ?? fallbackLabel ?? "";
+  const selectedLabel = options.find((option) => option.value === value)?.label ?? fallbackLabel ?? "";
+  const filtered = useMemo(() => (search ? options.filter((option) => option.label.toLowerCase().includes(search.toLowerCase())) : options), [options, search]);
 
-  const filtered = search ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase())) : options;
+  const close = useCallback(() => {
+    setOpen(false);
+    setSearch("");
+    inputRef.current?.blur();
+  }, []);
 
   const handleSelect = useCallback(
-    (val: string) => {
-      onChange(val);
-      setSearch("");
-      setOpen(false);
-      inputRef.current?.blur();
+    (selectedValue: string) => {
+      onChange(selectedValue);
+      close();
     },
-    [onChange],
+    [close, onChange],
   );
 
-  // Close on outside click
   useEffect(() => {
     if (!open) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (containerRef.current?.contains(target)) return;
-      if (panelRef.current?.contains(target)) return;
-      setOpen(false);
-      setSearch("");
+    const handler = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (containerRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      close();
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
+  }, [close, open]);
 
-  // Position the portaled panel against the trigger input, recomputing on scroll/resize
   useLayoutEffect(() => {
     if (!open) {
       setPanelRect(null);
@@ -64,7 +70,11 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
     }
     const updateRect = () => {
       const rect = inputRef.current?.getBoundingClientRect();
-      if (rect) setPanelRect({ top: rect.bottom, left: rect.left, width: rect.width });
+      if (!rect) return;
+      const maxHeight = 240;
+      const above = rect.bottom + maxHeight > window.innerHeight - 8 && rect.top > maxHeight + 8;
+      const left = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - rect.width - 8));
+      setPanelRect({ top: above ? rect.top : rect.bottom, left, width: rect.width, above });
     };
     updateRect();
     window.addEventListener("scroll", updateRect, true);
@@ -75,39 +85,60 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
     };
   }, [open]);
 
-  // Keyboard navigation
-  const [highlightIdx, setHighlightIdx] = useState(-1);
   useEffect(() => {
-    setHighlightIdx(-1);
-  }, [search, open]);
+    const selectedIndex = filtered.findIndex((option) => option.value === value && !option.disabled);
+    setHighlightIdx(selectedIndex);
+  }, [filtered, open, value]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setHighlightIdx((i) => Math.min(i + 1, filtered.length - 1));
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setHighlightIdx((i) => Math.max(i - 1, 0));
-    } else if (e.key === "Enter" && highlightIdx >= 0 && filtered[highlightIdx] && !filtered[highlightIdx].disabled) {
-      e.preventDefault();
-      handleSelect(filtered[highlightIdx].value);
-    } else if (e.key === "Escape") {
-      setOpen(false);
-      setSearch("");
-      inputRef.current?.blur();
+  const moveHighlight = (direction: 1 | -1) => {
+    if (filtered.length === 0) return;
+    const start = highlightIdx < 0 ? (direction === 1 ? -1 : filtered.length) : highlightIdx;
+    for (let offset = 1; offset <= filtered.length; offset += 1) {
+      const index = (start + direction * offset + filtered.length) % filtered.length;
+      if (!filtered[index]?.disabled) {
+        setHighlightIdx(index);
+        return;
+      }
     }
   };
 
-  const focusBorderClass = focusColor ? `focus:border-${focusColor}` : "focus:ring-1 focus:ring-app-border-input";
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      moveHighlight(1);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      moveHighlight(-1);
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      setHighlightIdx(filtered.findIndex((option) => !option.disabled));
+    } else if (event.key === "End") {
+      event.preventDefault();
+      setHighlightIdx([...filtered].findLastIndex((option) => !option.disabled));
+    } else if (event.key === "Enter" && highlightIdx >= 0 && filtered[highlightIdx] && !filtered[highlightIdx].disabled) {
+      event.preventDefault();
+      handleSelect(filtered[highlightIdx].value);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      close();
+    }
+  };
+
+  const focusBorderClass = focusColor ? `focus-visible:border-${focusColor}` : "focus-visible:border-app-accent focus-visible:ring-1 focus-visible:ring-app-accent/30";
 
   return (
     <div ref={containerRef} className={`relative ${className}`}>
-      <input
+      <AppInput
         ref={inputRef}
         type="text"
+        role="combobox"
+        aria-expanded={open}
+        aria-controls={open ? listboxId : undefined}
+        aria-autocomplete="list"
+        aria-activedescendant={open && highlightIdx >= 0 ? `${listboxId}-${highlightIdx}` : undefined}
         value={open ? search : selectedLabel}
-        onChange={(e) => {
-          setSearch(e.target.value);
+        onChange={(event) => {
+          setSearch(event.target.value);
           if (!open) setOpen(true);
         }}
         onFocus={() => {
@@ -117,12 +148,11 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
-        className={`w-full bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-sm text-app-text placeholder:text-app-text-dim focus:outline-none disabled:opacity-50 text-ellipsis ${focusBorderClass}`}
+        className={`w-full bg-app-surface-alt ${focusBorderClass}`}
       />
-      {/* Chevron indicator */}
       <svg
         aria-hidden="true"
-        className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-app-text-muted"
+        className="pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2 text-app-text-muted"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -136,33 +166,44 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
         createPortal(
           <div
             ref={panelRef}
-            style={{ position: "fixed", top: panelRect.top, left: panelRect.left, width: panelRect.width, marginTop: 4 }}
-            className="max-h-60 overflow-auto rounded-lg bg-app-surface-alt border border-app-border-input z-50 shadow-lg"
+            id={listboxId}
+            role="listbox"
+            aria-label={placeholder}
+            style={{
+              position: "fixed",
+              top: panelRect.top,
+              left: panelRect.left,
+              width: panelRect.width,
+              ...(panelRect.above ? { transform: "translateY(calc(-100% - 4px))" } : { marginTop: 4 }),
+            }}
+            className={`z-[60] max-h-60 overflow-auto py-1 ${OVERLAY_SURFACE_CLASS}`}
           >
-            {filtered.map((o, i) => {
-              const showGroup = o.group && (i === 0 || filtered[i - 1]?.group !== o.group);
+            {filtered.map((option, index) => {
+              const showGroup = option.group && (index === 0 || filtered[index - 1]?.group !== option.group);
+              const highlighted = index === highlightIdx;
+              const selected = option.value === value;
               return (
-                <div key={o.value}>
-                  {showGroup && <div className="px-3 py-1 text-xs font-medium text-app-text-muted bg-app-surface border-t border-app-border-input first:border-t-0">{o.group}</div>}
-                  <button
+                <div key={option.value}>
+                  {showGroup && <div className="border-t border-app-border-input bg-app-surface px-3 py-1 text-xs font-medium text-app-text-muted first:border-t-0">{option.group}</div>}
+                  <Button
+                    id={`${listboxId}-${index}`}
                     type="button"
-                    disabled={o.disabled}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      if (!o.disabled) handleSelect(o.value);
-                    }}
-                    className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${
-                      o.disabled
-                        ? "text-app-text-dim opacity-50 cursor-not-allowed"
-                        : i === highlightIdx
-                          ? "bg-app-accent/20 text-app-text"
-                          : o.value === value
-                            ? "text-app-accent"
-                            : "text-app-text hover:bg-app-accent/10"
+                    role="option"
+                    variant="plain"
+                    size="content"
+                    aria-selected={selected}
+                    disabled={option.disabled}
+                    data-highlighted={highlighted ? "" : undefined}
+                    data-selected={selected ? "" : undefined}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onMouseEnter={() => !option.disabled && setHighlightIdx(index)}
+                    onClick={() => handleSelect(option.value)}
+                    className={`${OVERLAY_ITEM_CLASS} ${
+                      option.disabled ? "cursor-not-allowed text-app-text-dim opacity-50" : highlighted ? "bg-app-accent/20 text-app-text" : selected ? "text-app-accent" : "text-app-text"
                     }`}
                   >
-                    {o.label}
-                  </button>
+                    {option.label}
+                  </Button>
                 </div>
               );
             })}

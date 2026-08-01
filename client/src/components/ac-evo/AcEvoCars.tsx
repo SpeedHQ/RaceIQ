@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { client } from "../../lib/rpc";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
 
 interface AcEvoCar {
   id: number;
@@ -53,23 +55,25 @@ export function AcEvoCars() {
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex gap-1">
-          <button
-            className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${!filterClass ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text-secondary"}`}
+          <Button
+            variant={filterClass ? "app-ghost" : "selected-toggle"}
+            size="app-sm"
             onClick={() => setFilterClass(null)}
           >
             {m.acevocars_filter_all()}
-          </button>
+          </Button>
           {classes.map((cls) => {
             const count = cars.filter((car) => car.class === cls).length;
             return (
-              <button
+              <Button
                 key={cls}
+                variant={filterClass === cls ? "selected-toggle" : "app-ghost"}
+                size="app-sm"
                 data-catalog-category={cls}
-                className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${filterClass === cls ? "catalog-category" : "text-app-text-muted hover:text-app-text-secondary"}`}
                 onClick={() => setFilterClass(filterClass === cls ? null : cls)}
               >
                 {cls} ({count})
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -80,7 +84,9 @@ export function AcEvoCars() {
         return (
           <div key={cls}>
             <div className="flex items-center gap-2 mb-3">
-              <span className="catalog-category text-xs font-bold px-2 py-0.5 rounded" data-catalog-category={cls}>{cls}</span>
+              <Badge variant="catalog-category" size="default" data-catalog-category={cls}>
+                {cls}
+              </Badge>
               <span className="text-xs text-app-text-dim">{classCars.length} cars</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -99,9 +105,9 @@ export function AcEvoCars() {
                           <div className="text-sm font-semibold text-app-text leading-tight">{car.name}</div>
                           <div className="text-xs text-app-text-muted mt-0.5">{brand}</div>
                         </div>
-                        <span className="catalog-category shrink-0 text-xs font-bold px-1.5 py-0.5 rounded" data-catalog-category={cls}>
+                        <Badge variant="catalog-category" size="compact" className="shrink-0" data-catalog-category={cls}>
                           {cls}
-                        </span>
+                        </Badge>
                       </div>
                     </div>
                   </div>

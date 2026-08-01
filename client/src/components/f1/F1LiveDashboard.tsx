@@ -3,6 +3,7 @@ import type { F1ExtendedData } from "@shared/types";
 import { Cloud, CloudLightning, CloudRain, CloudSun, Sun } from "lucide-react";
 import { useState } from "react";
 import { severityColor, severityRangeColor } from "@/lib/colors";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/AppTable";
 import { m } from "@/paraglide/messages";
 import { useCarName, useTrackName } from "../../hooks/queries";
 import { useTelemetryStore } from "../../stores/telemetry";
@@ -12,6 +13,7 @@ import { RaceInfo } from "../RaceInfo";
 import { RecordedLaps } from "../RecordedLaps";
 import { PitEstimate } from "../telemetry/PitEstimate";
 import { TireGrid } from "../telemetry/TireGrid";
+import { Button } from "../ui/button";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -358,55 +360,67 @@ function GridSection({ f1, playerPosition }: { f1: F1ExtendedData; playerPositio
   return (
     <div className="flex flex-col flex-1">
       <div className="h-8 px-2 border-b border-app-border flex items-center justify-between">
-        <h2 className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{m.f1live_section_standings()}</h2>
-        <button type="button" onClick={() => setExpanded(!expanded)} className="text-xs text-app-accent hover:text-app-accent/80 font-semibold">
+        <h2 className="text-app-label font-semibold text-app-text-muted uppercase tracking-wider">{m.f1live_section_standings()}</h2>
+        <Button type="button" onClick={() => setExpanded(!expanded)} className="text-app-label text-app-accent hover:text-app-accent/80 font-semibold">
           {expanded ? m.f1live_standings_focus() : m.f1live_standings_show_all()}
-        </button>
+        </Button>
       </div>
-      <div className="flex-1 overflow-y-auto">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-app-surface">
-            <tr className="text-app-text-muted border-b border-app-border">
-              <th className="px-2 py-1.5 text-left w-8 font-semibold">{m.f1grid_header_position()}</th>
-              <th className="px-2 py-1.5 text-left font-semibold">{m.f1grid_header_driver()}</th>
-              <th className="px-2 py-1.5 text-right font-semibold">{m.f1grid_header_s1()}</th>
-              <th className="px-2 py-1.5 text-right font-semibold">{m.f1grid_header_s2()}</th>
-              <th className="px-2 py-1.5 text-right font-semibold">{m.f1grid_header_s3()}</th>
-              <th className="px-2 py-1.5 text-right font-semibold">{m.label_delta()}</th>
-              <th className="px-2 py-1.5 text-right font-semibold">{m.f1grid_header_ahead()}</th>
-              <th className="px-2 py-1.5 text-center w-6 font-semibold">{m.label_tires()}</th>
-              <th className="px-2 py-1.5 text-right w-8 font-semibold">{m.f1grid_header_age()}</th>
-              <th className="px-2 py-1.5 text-center w-8 font-semibold">{m.f1grid_header_pit()}</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <Table density="compact" fit variant="embedded">
+          <TableHeader>
+            <TableHead>{m.f1grid_header_position()}</TableHead>
+            <TableHead>{m.f1grid_header_driver()}</TableHead>
+            <TableHead align="end">{m.f1grid_header_s1()}</TableHead>
+            <TableHead align="end">{m.f1grid_header_s2()}</TableHead>
+            <TableHead align="end">{m.f1grid_header_s3()}</TableHead>
+            <TableHead align="end">{m.label_delta()}</TableHead>
+            <TableHead align="end">{m.f1grid_header_ahead()}</TableHead>
+            <TableHead align="center">{m.label_tires()}</TableHead>
+            <TableHead align="end">{m.f1grid_header_age()}</TableHead>
+            <TableHead align="center">{m.f1grid_header_pit()}</TableHead>
+          </TableHeader>
+          <TableBody>
             {focused.map((entry) => {
               if ("separator" in entry) {
                 return (
-                  <tr key={`sep-${entry.position}`}>
-                    <td colSpan={10} className="text-center text-xs text-app-text-dim py-0.5">
+                  <TableRow key={`sep-${entry.position}`} variant="separator">
+                    <TableCell align="center" colSpan={10} tone="dim">
                       {m.f1grid_separator()}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               }
               const isPlayer = entry.position === playerPosition;
               return (
-                <tr key={entry.position} className={`border-b border-app-border/50 ${isPlayer ? "bg-app-accent/10" : ""}`}>
-                  <td className="px-2 py-1.5 font-bold text-app-text tabular-nums">{entry.position}</td>
-                  <td className={`px-2 py-1.5 truncate max-w-[140px] ${isPlayer ? "text-app-accent font-semibold" : "text-app-text-secondary"}`}>
+                <TableRow key={entry.position} selected={isPlayer}>
+                  <TableCell emphasis numeric tone="primary">
+                    {entry.position}
+                  </TableCell>
+                  <TableCell emphasis={isPlayer} tone={isPlayer ? "accent" : "default"} truncate="narrow">
                     {entry.name || `${m.label_car()} ${entry.position}`}
-                  </td>
-                  <td className="px-2 py-1.5 text-right tabular-nums font-mono text-app-text-secondary">{entry.lastS1 > 0 ? entry.lastS1.toFixed(3) : "—"}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums font-mono text-app-text-secondary">{entry.lastS2 > 0 ? entry.lastS2.toFixed(3) : "—"}</td>
-                  <td className="px-2 py-1.5 text-right tabular-nums font-mono text-app-text-secondary">{entry.lastS3 > 0 ? entry.lastS3.toFixed(3) : "—"}</td>
-                  <td className="px-2 py-1.5 text-right text-app-text-muted tabular-nums font-mono">{entry.position === 1 ? m.f1grid_leader() : formatGap(entry.gapToLeader)}</td>
-                  <td className="px-2 py-1.5 text-right text-app-text-muted tabular-nums font-mono">{formatGap(entry.gapToCarAhead)}</td>
-                  <td className="px-2 py-1.5 text-center">
+                  </TableCell>
+                  <TableCell align="end" numeric>
+                    {entry.lastS1 > 0 ? entry.lastS1.toFixed(3) : "—"}
+                  </TableCell>
+                  <TableCell align="end" numeric>
+                    {entry.lastS2 > 0 ? entry.lastS2.toFixed(3) : "—"}
+                  </TableCell>
+                  <TableCell align="end" numeric>
+                    {entry.lastS3 > 0 ? entry.lastS3.toFixed(3) : "—"}
+                  </TableCell>
+                  <TableCell align="end" numeric tone="muted">
+                    {entry.position === 1 ? m.f1grid_leader() : formatGap(entry.gapToLeader)}
+                  </TableCell>
+                  <TableCell align="end" numeric tone="muted">
+                    {formatGap(entry.gapToCarAhead)}
+                  </TableCell>
+                  <TableCell align="center">
                     <span className="tire-compound-dot inline-block w-2.5 h-2.5 rounded-full" data-tire-compound={(entry.tyreCompound || "unknown").toLowerCase()} />
-                  </td>
-                  <td className="px-2 py-1.5 text-right text-app-text-muted tabular-nums font-mono">{entry.tyreAge}</td>
-                  <td className="px-2 py-1.5 text-center text-app-text-muted">
+                  </TableCell>
+                  <TableCell align="end" numeric tone="muted">
+                    {entry.tyreAge}
+                  </TableCell>
+                  <TableCell align="center" tone="muted">
                     {entry.pitStatus === 1 ? (
                       <span className="text-status-warning font-bold">IN</span>
                     ) : entry.pitStatus === 2 ? (
@@ -416,12 +430,12 @@ function GridSection({ f1, playerPosition }: { f1: F1ExtendedData; playerPositio
                     ) : (
                       ""
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               );
             })}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

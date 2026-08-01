@@ -46,14 +46,18 @@ export function CommunityLeaderboard({ trackName, trackVariant }: { trackName: s
           <THead>
             <TH>{m.communityleaderboard_car()}</TH>
             <TH>{m.communityleaderboard_driver()}</TH>
-            <TH className="text-right">{m.communityleaderboard_time()}</TH>
+            <TH align="end">{m.communityleaderboard_time()}</TH>
           </THead>
           <TBody>
             {rows.map((e, i) => (
               <TRow key={`${e.car}-${e.driver}-${e.laptime}-${i}`}>
-                <TD className="font-medium">{e.car}</TD>
-                <TD className="text-app-text-secondary">{e.driver || "—"}</TD>
-                <TD className="text-right font-mono text-app-text">{e.laptime}</TD>
+                <TD emphasis tone="primary">
+                  {e.car}
+                </TD>
+                <TD>{e.driver || "—"}</TD>
+                <TD align="end" numeric tone="primary">
+                  {e.laptime}
+                </TD>
               </TRow>
             ))}
           </TBody>

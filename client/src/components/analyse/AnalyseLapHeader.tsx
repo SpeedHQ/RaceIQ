@@ -133,28 +133,20 @@ export function AnalyseLapHeader({
         {selectedLapId && hasTelemetry && (
           <div className="flex items-center gap-2 text-sm">
             {hasF1Setup ? (
-              <Button variant="app-outline" size="app-sm" onClick={onShowSetup}>
+              <Button variant="app-outline" size="app-md" onClick={onShowSetup}>
                 {m.analyse_car_setup_button()}
               </Button>
             ) : (
               <>
                 <span className="text-app-text-muted">{m.analyse_tune_label()}</span>
-                <select
-                  value={selectedLap?.tuneId ?? ""}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    onTuneChange(val ? Number.parseInt(val, 10) : null);
-                  }}
+                <SearchSelect
+                  value={selectedLap?.tuneId != null ? String(selectedLap.tuneId) : ""}
+                  onChange={(value) => onTuneChange(value ? Number.parseInt(value, 10) : null)}
+                  options={availableTunes?.map((tune) => ({ value: String(tune.id), label: tune.name })) ?? []}
+                  placeholder={m.analyse_no_tune()}
                   disabled={tunePending}
-                  className="bg-app-surface border border-app-border-input rounded px-2 py-1 text-sm text-app-text"
-                >
-                  <option value="">{m.analyse_no_tune()}</option>
-                  {availableTunes?.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </select>
+                  className="min-w-[160px]"
+                />
                 {selectedLap?.tuneId != null && (
                   <Button variant="app-outline" size="app-sm" onClick={() => onViewTune(selectedLap.tuneId as number)}>
                     {m.label_view()}
@@ -190,7 +182,7 @@ export function AnalyseLapHeader({
             </Button>
           )}
           {selectedLapId != null && (
-            <Button variant="app-outline" size="app-md" onClick={onDeleteLap} className="text-status-danger border-status-danger/30 hover:bg-status-danger/10">
+            <Button variant="destructive-outline" size="app-md" onClick={onDeleteLap}>
               <Trash2 className="size-3.5" />
               {m.common_delete()}
             </Button>
@@ -256,7 +248,7 @@ export function AnalyseLapHeader({
             ]}
           />
           {hasTelemetry && (
-            <Button variant="app-outline" size="app-lg" onClick={onToggleAi} className={aiPanelOpen ? "text-app-accent border-app-accent/40 bg-app-accent/10" : "hover:text-app-accent"}>
+            <Button variant={aiPanelOpen ? "selected-toggle" : "app-outline"} size="app-lg" onClick={onToggleAi}>
               <Sparkles className="size-3.5" />
               {m.label_ai_analysis()}
             </Button>

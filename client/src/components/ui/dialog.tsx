@@ -39,17 +39,33 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  size = "default",
+  layout = "default",
+  overlayClassName,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean;
+  size?: "default" | "sm" | "md" | "lg" | "wide";
+  layout?: "default" | "scrollable";
+  overlayClassName?: string;
 }) {
+  const sizeClasses = {
+    default: "max-w-sm",
+    sm: "max-w-md max-h-[90vh] overflow-y-auto",
+    md: "max-w-lg max-h-[90vh] overflow-y-auto",
+    lg: "max-w-2xl max-h-[90vh] overflow-y-auto",
+    wide: "max-w-4xl max-h-[90vh] overflow-y-auto",
+  } as const;
+
   return (
     <DialogPortal>
-      <DialogOverlay />
+      <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl border border-app-border bg-app-surface p-4 text-sm text-app-text shadow-2xl ring-1 ring-foreground/10 duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          layout === "scrollable" ? "max-h-[90vh] overflow-y-auto" : "",
+          sizeClasses[size],
           className,
         )}
         {...props}
@@ -86,8 +102,9 @@ function DialogFooter({
   );
 }
 
-function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
-  return <DialogPrimitive.Title data-slot="dialog-title" className={cn("text-base leading-none font-medium", className)} {...props} />;
+function DialogTitle({ className, variant = "default", ...props }: DialogPrimitive.Title.Props & { variant?: "default" | "import" }) {
+  const variants = { default: "", import: "text-xs font-medium text-app-text/90 uppercase tracking-wider" };
+  return <DialogPrimitive.Title data-slot="dialog-title" className={cn("text-base leading-none font-medium", variants[variant], className)} {...props} />;
 }
 
 function DialogDescription({ className, ...props }: DialogPrimitive.Description.Props) {

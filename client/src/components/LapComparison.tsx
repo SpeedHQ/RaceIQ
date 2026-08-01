@@ -3,7 +3,10 @@ import { useNavigate } from "@tanstack/react-router";
 import { Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLaps, useTrackOutline, useTrackSectors } from "../hooks/queries";
+import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useUnits } from "../hooks/useUnits";
+import { useNarrowViewport } from "../hooks/useNarrowViewport";
+import { clampCompareMapWidth, COMPARE_MAP_DEFAULT_WIDTH, COMPARE_MAP_MIN_WIDTH } from "../lib/comparison-layout";
 import { COLOR_A, COLOR_B, formatLapTime, type Point } from "../lib/comparison-utils";
 import { client } from "../lib/rpc";
 import { m } from "../paraglide/messages";
@@ -25,19 +28,6 @@ interface TrackGroup {
   laps: LapMeta[];
 }
 
-function useIsPhoneViewport() {
-  const [isPhone, setIsPhone] = useState(() => typeof window !== "undefined" && Math.min(window.innerWidth, window.innerHeight) <= 768);
-  useEffect(() => {
-    const check = () => setIsPhone(Math.min(window.innerWidth, window.innerHeight) <= 768);
-    window.addEventListener("resize", check);
-    window.addEventListener("orientationchange", check);
-    return () => {
-      window.removeEventListener("resize", check);
-      window.removeEventListener("orientationchange", check);
-    };
-  }, []);
-  return isPhone;
-}
 
 export interface LapComparisonSearch {
   track?: number;
@@ -48,9 +38,19 @@ export interface LapComparisonSearch {
   cursor?: number;
 }
 
+export function ComparisonLoadStatus({ loading, error, hasComparison }: { loading: boolean; error: string | null; hasComparison: boolean }) {
+  if (!error && (!loading || hasComparison)) return null;
+  return (
+    <div className="shrink-0">
+      {loading && !hasComparison && <div className="text-app-text-muted text-sm">{m.compare_loading()}</div>}
+      {error && <div className="text-status-danger text-sm">{error}</div>}
+    </div>
+  );
+}
+
 export function LapComparison({ initialSearch }: { initialSearch?: LapComparisonSearch } = {}) {
-  const isPhone = useIsPhoneViewport();
-  if (isPhone) return <MobileNotSupported feature={m.lapcompare_feature_name()} />;
+  const isNarrow = useNarrowViewport();
+  if (isNarrow) return <MobileNotSupported feature={m.lapcompare_feature_name()} />;
   return <LapComparisonInner initialSearch={initialSearch} />;
 }
 
@@ -90,6 +90,9 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
   const hoveredDistanceRef = useRef<number | null>(null);
   const mapRedrawRef = useRef<(() => void) | null>(null);
   const aiPanelRef = useRef<CompareAiPanelHandle | null>(null);
+  const comparisonLayoutRef = useRef<HTMLDivElement>(null);
+  const [comparisonLayoutWidth, setComparisonLayoutWidth] = useState(0);
+  const [savedMapWidth, setSavedMapWidth] = useLocalStorage("compare-left-column-width", COMPARE_MAP_DEFAULT_WIDTH);
   const [aiPanelOpen, setAiPanelOpen] = useState<boolean>(() => {
     try {
       return localStorage.getItem("compare-ai-panel-open") === "1";
@@ -108,6 +111,17 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
       return next;
     });
   }, []);
+  useEffect(() => {
+    const layout = comparisonLayoutRef.current;
+    if (!layout) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setComparisonLayoutWidth(entry.contentRect.width);
+    });
+    observer.observe(layout);
+    return () => observer.disconnect();
+  }, [comparison]);
+  const mapWidth =
+    comparisonLayoutWidth > 0 ? clampCompareMapWidth(savedMapWidth, comparisonLayoutWidth, aiPanelOpen) : savedMapWidth;
   const handleCursorMove = useCallback((d: number | null) => {
     hoveredDistanceRef.current = d;
     // Directly redraw the map canvas without React re-render
@@ -397,7 +411,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
         </div>
 
         {/* AI panel toggle */}
-        <div className="flex flex-col gap-1 self-end">
+        <div className="ml-auto flex flex-col gap-1 self-end">
           <Button
             variant="app-outline"
             size="app-lg"
@@ -412,13 +426,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
         </div>
       </div>
 
-      {/* Loading / Error */}
-      {(loading || error) && (
-        <div className="shrink-0">
-          {loading && <div className="text-app-text-muted text-sm">{m.compare_loading()}</div>}
-          {error && <div className="text-status-danger text-sm">{error}</div>}
-        </div>
-      )}
+      <ComparisonLoadStatus loading={loading} error={error} hasComparison={comparison != null} />
 
       {/* No selection prompt */}
       {!lapAId || !lapBId ? (
@@ -426,9 +434,9 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
       ) : lapAId === lapBId ? (
         <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_select_different_laps()}</div>
       ) : comparison?.traces?.distance ? (
-        <div className="flex gap-4 flex-1 min-h-0 overflow-hidden">
+        <div ref={comparisonLayoutRef} className="flex gap-4 flex-1 min-h-0 overflow-hidden">
           {/* Left: track map */}
-          <div className="w-[440px] shrink-0 min-h-0">
+          <div className="shrink-0 min-h-0" style={{ width: mapWidth }}>
             <CompareTrackMap
               outline={trackOutline ?? syntheticOutline}
               telemetryA={comparison.telemetryA}
@@ -445,10 +453,45 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
             />
           </div>
 
+          <div
+            role="separator"
+            aria-label="Resize track map"
+            aria-orientation="vertical"
+            aria-valuemin={COMPARE_MAP_MIN_WIDTH}
+            aria-valuemax={
+              comparisonLayoutWidth > 0
+                ? clampCompareMapWidth(Number.MAX_SAFE_INTEGER, comparisonLayoutWidth, aiPanelOpen)
+                : COMPARE_MAP_DEFAULT_WIDTH
+            }
+            aria-valuenow={Math.round(mapWidth)}
+            tabIndex={0}
+            className="-mx-2 w-2 shrink-0 cursor-col-resize border-x border-app-border bg-app-surface-alt/80 hover:bg-app-accent/30 focus-visible:bg-app-accent/30 transition-colors"
+            onKeyDown={(event) => {
+              if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+              event.preventDefault();
+              const delta = event.key === "ArrowLeft" ? -16 : 16;
+              setSavedMapWidth(clampCompareMapWidth(mapWidth + delta, comparisonLayoutWidth, aiPanelOpen));
+            }}
+            onMouseDown={(event) => {
+              event.preventDefault();
+              const startX = event.clientX;
+              const startWidth = mapWidth;
+              const onMove = (moveEvent: MouseEvent) => {
+                setSavedMapWidth(clampCompareMapWidth(startWidth + moveEvent.clientX - startX, comparisonLayoutWidth, aiPanelOpen));
+              };
+              const onUp = () => {
+                window.removeEventListener("mousemove", onMove);
+                window.removeEventListener("mouseup", onUp);
+              };
+              window.addEventListener("mousemove", onMove);
+              window.addEventListener("mouseup", onUp);
+            }}
+          />
+
           {/* Right column: time delta pinned + scrollable charts */}
           <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden">
             {/* Time Delta — always visible */}
-            <div className="bg-app-surface rounded-lg border border-app-border p-1 shrink-0">
+            <div className="rounded-lg border border-app-border p-1 shrink-0">
               <TimeDelta distances={comparison.traces.distance} timeDelta={comparison.timeDelta} syncKey={SYNC_KEY} height={140} onCursorMove={handleCursorMove} />
             </div>
 
@@ -456,7 +499,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
             <div className="flex-1 min-h-0 overflow-y-auto">
               <div className="flex flex-col gap-4">
                 {/* Speed Chart */}
-                <div className="bg-app-surface rounded-lg border border-app-border p-1">
+                <div className="rounded-lg border border-app-border p-1">
                   <TelemetryChart
                     data={{
                       distance: comparison.traces.distance,
@@ -472,7 +515,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
                 </div>
 
                 {/* Throttle + Brake Chart */}
-                <div className="bg-app-surface rounded-lg border border-app-border p-1">
+                <div className="rounded-lg border border-app-border p-1">
                   <TelemetryChart
                     data={{
                       distance: comparison.traces.distance,
@@ -493,7 +536,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
                 </div>
 
                 {/* RPM Chart */}
-                <div className="bg-app-surface rounded-lg border border-app-border p-1">
+                <div className="rounded-lg border border-app-border p-1">
                   <TelemetryChart
                     data={{
                       distance: comparison.traces.distance,
@@ -510,7 +553,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
 
                 {/* Tire Wear Chart */}
                 {comparison.traces.tireWearA && (
-                  <div className="bg-app-surface rounded-lg border border-app-border p-1">
+                  <div className="rounded-lg border border-app-border p-1">
                     <TelemetryChart
                       data={{
                         distance: comparison.traces.distance,

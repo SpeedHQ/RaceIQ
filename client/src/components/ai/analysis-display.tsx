@@ -1,6 +1,7 @@
 import { AlertTriangle, CircleDot, Download, Gauge, Lightbulb, RefreshCw, Sliders, Sparkles, Trash2, Zap } from "lucide-react";
 import { type ReactNode, useRef } from "react";
 import { m } from "@/paraglide/messages";
+import { Button } from "../ui/button";
 
 export interface AnalysisHighlight {
   startFrac: number;
@@ -475,9 +476,7 @@ export function AnalysisDisplay({
           <div className="space-y-1.5">
             {analysis.coaching.map((item, i) => (
               <TrackCard key={item.tip} seg={findSegment(lookupSegs, item.tip, item.detail)} color="warning" onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} className="flex gap-2">
-                <span className="text-ai-accent/60 text-app-caption font-mono mt-0.5">
-                  {i + 1}.
-                </span>
+                <span className="text-ai-accent/60 text-app-caption font-mono mt-0.5">{i + 1}.</span>
                 <div>
                   <span className="text-app-compact font-medium text-app-text">{item.tip}</span>
                   <p className="text-app-caption text-app-text-secondary mt-0.5">{item.detail}</p>
@@ -499,17 +498,17 @@ export function AnalysisDisplay({
             </span>
           )}
           {onExport && (
-            <button
+            <Button
               type="button"
               onClick={onExport}
               className="flex items-center gap-1 text-app-micro text-app-text-muted hover:text-app-text px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-hover transition-colors"
               title={m.label_export_as_image()}
             >
               <Download className="size-3" /> {m.label_export()}
-            </button>
+            </Button>
           )}
           {onRegenerate && (
-            <button
+            <Button
               type="button"
               onClick={onRegenerate}
               disabled={loading}
@@ -517,17 +516,17 @@ export function AnalysisDisplay({
               title={m.aidisplay_regenerate()}
             >
               <RefreshCw className="size-3" /> {m.label_regenerate()}
-            </button>
+            </Button>
           )}
           {onClear && (
-            <button
+            <Button
               type="button"
               onClick={onClear}
               className="flex items-center gap-1 text-app-micro text-app-text-muted hover:text-status-danger px-1.5 py-0.5 rounded border border-transparent hover:border-app-border-hover transition-colors"
               title={m.aipanel_clear_title()}
             >
               <Trash2 className="size-3" /> {m.label_clear()}
-            </button>
+            </Button>
           )}
         </div>
       )}

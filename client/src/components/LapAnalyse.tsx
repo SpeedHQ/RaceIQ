@@ -19,6 +19,7 @@ import { useConvertedTelemetry } from "../hooks/useConvertedTelemetry";
 import { useCookieState } from "../hooks/useCookieState";
 import { useLapPlayback } from "../hooks/useLapPlayback";
 import { useLocalStorage } from "../hooks/useLocalStorage";
+import { useNarrowViewport } from "../hooks/useNarrowViewport";
 import { useUnits } from "../hooks/useUnits";
 import { buildExportCsv } from "../lib/lap-export";
 import { client } from "../lib/rpc";
@@ -58,23 +59,10 @@ interface ImportedLap {
 
 // ── Main Component ───────────────────────────────────────────────────
 
-function useIsPhoneViewport() {
-  const [isPhone, setIsPhone] = useState(() => typeof window !== "undefined" && Math.min(window.innerWidth, window.innerHeight) <= 768);
-  useEffect(() => {
-    const check = () => setIsPhone(Math.min(window.innerWidth, window.innerHeight) <= 768);
-    window.addEventListener("resize", check);
-    window.addEventListener("orientationchange", check);
-    return () => {
-      window.removeEventListener("resize", check);
-      window.removeEventListener("orientationchange", check);
-    };
-  }, []);
-  return isPhone;
-}
 
 export function LapAnalyse() {
-  const isPhone = useIsPhoneViewport();
-  if (isPhone) return <MobileNotSupported feature={m.lapanalyse_feature_name()} />;
+  const isNarrow = useNarrowViewport();
+  if (isNarrow) return <MobileNotSupported feature={m.lapanalyse_feature_name()} />;
   return <LapAnalyseInner />;
 }
 

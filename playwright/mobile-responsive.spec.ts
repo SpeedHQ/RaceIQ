@@ -78,6 +78,16 @@ for (const viewport of VIEWPORTS) {
       }
       await p.getByRole("button", { name: /Settings|TestDriver/ }).click();
       await expect(p.getByRole("heading", { name: "Settings" })).toBeVisible();
+      const overlay = p.getByRole("button", { name: "Close settings" });
+      await expect(overlay).toHaveCSS("position", "absolute");
+      await expect(overlay).toHaveCSS("inset", "0px");
+      await expect(overlay).toHaveCSS("width", `${viewport.width}px`);
+      await expect(overlay).toHaveCSS("height", `${viewport.height}px`);
+      if (viewport.width >= 768) {
+        const background = await overlay.evaluate((element) => getComputedStyle(element).backgroundColor);
+        await overlay.hover({ position: { x: 4, y: 4 } });
+        await expect(overlay).toHaveCSS("background-color", background);
+      }
       await p.waitForTimeout(200);
       await p.screenshot({
         path: `${SCREENSHOT_DIR}/${viewport.name}/settings-modal.png`,

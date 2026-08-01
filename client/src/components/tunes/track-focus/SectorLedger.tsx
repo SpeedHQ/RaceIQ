@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { SetupRangeBar } from "@/components/SetupRangeBar";
+import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { type LapTrace, sampleAt } from "../../../lib/stint-traces";
 import { SpeedRangeLegend } from "./SpeedRangeLegend";
 
@@ -90,9 +91,9 @@ function buildRows(traces: LapTrace[], bestLapId: number | null, sectors: Sector
 
 function deltaColor(dv: number | null): string {
   if (dv == null) return "text-app-text-dim";
-    if (dv > 0.3) return "text-(--severity-critical)";
-    if (dv > 0.1) return "text-(--severity-caution)";
-    return "text-(--severity-nominal)";
+  if (dv > 0.3) return "text-(--severity-critical)";
+  if (dv > 0.1) return "text-(--severity-caution)";
+  return "text-(--severity-nominal)";
 }
 
 /**
@@ -113,31 +114,26 @@ export function SectorLedger({ traces, bestLapId, sectorBoundaryFracs, cursorFra
     <div className="space-y-2">
       <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Sector Ledger</div>
       <div className="rounded border border-app-border overflow-x-auto">
-        <table className="w-full text-app-detail border-collapse">
-          <thead>
-            <tr>
-              {["Sector", "Best time", "Speed range", "Δ worst"].map((h) => (
-                <th key={h} className="text-left text-app-caption uppercase tracking-wider text-app-text-dim px-2.5 py-1.5 border-b border-app-border whitespace-nowrap">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
+        <Table density="compact" fit>
+          <THead>
+            {["Sector", "Best time", "Speed range", "Δ worst"].map((h) => (
+              <TH key={h} nowrap>
+                {h}
+              </TH>
+            ))}
+          </THead>
+          <TBody>
             {rows.map((r) => {
               const isActive = cursorFrac != null && cursorFrac >= r.sector.startFrac && cursorFrac <= r.sector.endFrac;
               return (
-                <tr
-                  key={r.sector.index}
-                  onClick={() => onCursorFrac(r.sector.midFrac)}
-                  className={`cursor-pointer border-b border-app-border last:border-0 hover:bg-app-surface-hover ${isActive ? "bg-app-surface-alt" : ""}`}
-                >
-                  <td className="text-left px-2.5 py-1.5 whitespace-nowrap">
-                    <span className="font-semibold text-app-text">{r.sector.label}</span>
-                  </td>
-                  <td className="text-left px-2.5 py-1.5 font-mono tabular-nums text-app-text">{r.bestTimeS != null ? `${r.bestTimeS.toFixed(3)}s` : "—"}</td>
-                  <td
-                    className="text-left px-2.5 py-1.5"
+                <TRow key={r.sector.index} onClick={() => onCursorFrac(r.sector.midFrac)} selected={isActive}>
+                  <TD nowrap emphasis tone="primary">
+                    {r.sector.label}
+                  </TD>
+                  <TD numeric tone="primary">
+                    {r.bestTimeS != null ? `${r.bestTimeS.toFixed(3)}s` : "—"}
+                  </TD>
+                  <TD
                     title={
                       r.minSpeedBest != null && r.medianSpeedBest != null && r.topSpeedBest != null
                         ? `min ${r.minSpeedBest.toFixed(0)} · median ${r.medianSpeedBest.toFixed(0)} · max ${r.topSpeedBest.toFixed(0)} km/h`
@@ -155,15 +151,15 @@ export function SectorLedger({ traces, bestLapId, sectorBoundaryFracs, cursorFra
                     ) : (
                       <span className="font-mono text-app-text">—</span>
                     )}
-                  </td>
-                  <td className={`text-left px-2.5 py-1.5 font-mono tabular-nums ${deltaColor(r.deltaWorst)}`}>
-                    {r.deltaWorst != null ? `${r.deltaWorst >= 0 ? "+" : ""}${r.deltaWorst.toFixed(3)}` : "—"}
-                  </td>
-                </tr>
+                  </TD>
+                  <TD numeric>
+                    <span className={deltaColor(r.deltaWorst)}>{r.deltaWorst != null ? `${r.deltaWorst >= 0 ? "+" : ""}${r.deltaWorst.toFixed(3)}` : "—"}</span>
+                  </TD>
+                </TRow>
               );
             })}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       </div>
       <div className="mt-2">
         <SpeedRangeLegend />

@@ -4,6 +4,7 @@ import { m } from "@/paraglide/messages";
 import { client } from "../../lib/rpc";
 import { errorFromResponse } from "../../lib/rpc-error";
 import { AppInput } from "../ui/AppInput";
+import { Button } from "../ui/button";
 
 interface IRacingCatalogCar {
   ordinal: number;
@@ -70,7 +71,7 @@ export function IRacingCars() {
 
       {!isLoading && (
         <div className="flex items-center gap-1 flex-wrap">
-          <button
+          <Button
             type="button"
             aria-pressed={filterCategory === null}
             className={`px-3 py-1 text-xs font-semibold rounded transition-colors ${
@@ -79,11 +80,11 @@ export function IRacingCars() {
             onClick={() => setFilterCategory(null)}
           >
             {m.iracingcars_all_categories()} ({cars.length})
-          </button>
+          </Button>
           {categories.map((category) => {
             const count = cars.filter((car) => car.category === category).length;
             return (
-              <button
+              <Button
                 type="button"
                 key={category}
                 data-catalog-category={category}
@@ -92,7 +93,7 @@ export function IRacingCars() {
                 onClick={() => setFilterCategory(filterCategory === category ? null : category)}
               >
                 {categoryLabel(category)} ({count})
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -120,7 +121,12 @@ export function IRacingCars() {
                       }}
                     />
                   )}
-                  <span className="catalog-category-badge absolute bottom-2 right-2 rounded border px-2 py-0.5 text-app-caption font-bold shadow-sm backdrop-blur-sm" data-catalog-category={car.category}>{categoryLabel(car.category)}</span>
+                  <span
+                    className="catalog-category-badge absolute bottom-2 right-2 rounded border px-2 py-0.5 text-app-caption font-bold shadow-sm backdrop-blur-sm"
+                    data-catalog-category={car.category}
+                  >
+                    {categoryLabel(car.category)}
+                  </span>
                 </div>
                 <div className="p-3">
                   <h2 className="text-sm font-semibold leading-tight text-app-text">{car.name}</h2>

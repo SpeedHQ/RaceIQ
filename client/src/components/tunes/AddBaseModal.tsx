@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { createPortal } from "react-dom";
 import { useAddBase } from "../../hooks/queries";
+import { Button } from "../ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { SetupFilePicker, type SetupFilePickerValue } from "./SetupFilePicker";
 
 /**
@@ -40,29 +41,15 @@ export function AddBaseModal({
     }
   };
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[680px] max-w-[94vw] flex flex-col gap-4 p-5"
-        onKeyDown={(e) => {
-          if (e.key === "Escape") onClose();
-        }}
-      >
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-semibold text-app-text">Add base</p>
-          <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text text-xl leading-none">
-            ×
-          </button>
-        </div>
-        <p className="text-xs text-app-text-dim -mt-2">
-          Pick a saved setup to start a second (or Nth) root in this session's version tree — an independent starting point alongside the existing versions, not a fork of any of them.
-        </p>
-
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="lg" showCloseButton={false} overlayClassName="bg-app-bg/60">
+        <DialogHeader>
+          <DialogTitle className="text-sm font-semibold text-app-text">Add base</DialogTitle>
+          <DialogDescription className="text-xs text-app-text-dim">
+            Pick a saved setup to start a second (or Nth) root in this session's version tree — an independent starting point alongside the existing versions, not a fork of any of them.
+          </DialogDescription>
+        </DialogHeader>
         <SetupFilePicker gameId={gameId} value={picked} onChange={setPicked} lockedCar={lockedCar} />
 
         <label className="flex flex-col gap-1">
@@ -77,22 +64,15 @@ export function AddBaseModal({
 
         {error && <div className="text-xs text-status-danger">{error}</div>}
 
-        <div className="flex justify-end gap-2 pt-1">
-          <button type="button" onClick={onClose} className="px-3 py-1.5 text-xs rounded border border-app-border text-app-text-dim hover:text-app-text">
+        <DialogFooter className="border-0 bg-transparent p-0 -mx-0 -mb-0">
+          <Button variant="app-outline" size="app-sm" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={addBase.isPending || !picked.setupPath}
-            title={!picked.setupPath ? "Pick a setup file" : undefined}
-          className="px-3 py-1.5 text-xs rounded bg-app-accent hover:bg-app-accent-hover disabled:opacity-40 text-app-on-filled font-semibold"
-          >
+          </Button>
+          <Button variant="app-primary" size="app-sm" onClick={submit} disabled={addBase.isPending || !picked.setupPath} title={!picked.setupPath ? "Pick a setup file" : undefined}>
             {addBase.isPending ? "Adding…" : "Add base"}
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body,
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
