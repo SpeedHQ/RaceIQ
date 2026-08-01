@@ -95,7 +95,7 @@ interface CompatibilityReview {
 }
 
 interface AvailableLink {
-  kind: "direct" | "derived" | "simplified";
+  kind: "direct" | "normalized" | "derived" | "simplified";
   nativeUnit: string;
   sources: string[] | Record<string, string[]>;
   freshness: "continuous" | "pit-snapshot" | "session-update" | "static";
@@ -163,7 +163,7 @@ interface CatalogMetadata {
 }
 
 export interface BuiltTelemetryCatalog {
-  format: "raceiq-semantic-telemetry-catalog-v5";
+  format: "raceiq-semantic-telemetry-catalog-v6";
   metadata: CatalogMetadata;
   generatedFrom: readonly string[];
   groups: readonly CatalogGroup[];
@@ -271,8 +271,8 @@ const PACKAGE_VERSION = JSON.parse(
   await Bun.file(PACKAGE_JSON_PATH).text(),
 ).version as string;
 const GENERATOR_NAME = "RaceIQ telemetry-catalog generator";
-const CATALOG_FORMAT = "raceiq-semantic-telemetry-catalog-v5";
-const CATALOG_SCHEMA_VERSION = "v5";
+const CATALOG_FORMAT = "raceiq-semantic-telemetry-catalog-v6";
+const CATALOG_SCHEMA_VERSION = "v6";
 const DERIVATION_VERSION = `${PACKAGE_VERSION}`;
 
 const PARSER_FILES: Record<GameId, string> = {
@@ -2919,6 +2919,12 @@ function packetNativeMetadata(
   if (gameId === "iracing" && ["Accel", "Brake", "Clutch"].includes(key)) {
     return { nativeUnit: "%", normalization: "0-1 SDK value * 255 and round" };
   }
+  if (gameId === "iracing" && key === "Speed") {
+    return {
+      nativeUnit: "m/s",
+      normalization: "clamp native m/s speed to non-negative canonical m/s",
+    };
+  }
   if (gameId === "iracing" && key === "Steer") {
     return {
       nativeUnit: "rad",
@@ -2935,6 +2941,81 @@ function packetNativeMetadata(
     return { nativeUnit: "kPa", normalization: "kilopascals * 0.1450377377" };
   }
   return { nativeUnit: canonicalUnit };
+}
+
+
+function isPacketSemanticDerivation(
+  gameId: GameId,
+  key: string,
+  expressions: readonly string[],
+): boolean {
+  if (
+    gameId === "iracing" &&
+    (key === "CurrentLap" || key === "DistanceTraveled" || key === "TireWear")
+  ) {
+    return true;
+  }
+  if (
+    gameId === "f1-2025" &&
+    (key === "Power" || key === "TireCombinedSlip")
+  ) {
+    return true;
+  }
+  return expressions.some((expression) =>
+    /integrateDistance|tireWear|sector boundary|lap start/i.test(
+      expression,
+    ),
+  );
+}
+
+function isPacketRepresentationNormalization(
+  gameId: GameId,
+  key: string,
+  native: { normalization?: string },
+  expressions: readonly string[],
+): boolean {
+  if (native.normalization) return true;
+  if (
+    (gameId === "acc" || gameId === "ac-evo") &&
+    (key === "CarOrdinal" || key === "TrackOrdinal")
+  ) {
+    return true;
+  }
+  return expressions.some((expression) =>
+    /input255|canonicalGear|clamp|Math\.(?:round|trunc)|Boolean\(|===|!==|\?/.test(
+      expression,
+    ),
+  );
+}
+
+function classifyPacketMapping(
+  gameId: GameId,
+  key: string,
+  native: { normalization?: string },
+  expressions: readonly string[],
+): AvailableLink["kind"] {
+  if (
+    (gameId === "iracing" &&
+      (key === "TireTemp" || key === "TireCarcassTemp")) ||
+    (gameId === "acc" && key === "WeatherType") ||
+    (gameId === "f1-2025" && key === "WheelRotationSpeed")
+  ) {
+    return "simplified";
+  }
+  if (isPacketSemanticDerivation(gameId, key, expressions)) return "derived";
+  if (
+    isPacketRepresentationNormalization(gameId, key, native, expressions)
+  ) {
+    return "normalized";
+  }
+  if (
+    expressions.some((expression) =>
+      /[+\-*/?:]|Math\./.test(expression),
+    )
+  ) {
+    return "derived";
+  }
+  return "direct";
 }
 
 function packetGameLink(
@@ -3006,20 +3087,9 @@ function packetGameLink(
   const directIRacingCarcassBand =
     gameId === "iracing" &&
     /^TireCarcassTemp(Left|Middle|Right)$/.test(set.key);
-  const derived =
-    !directIRacingCarcassBand &&
-    (Boolean(native.normalization) ||
-      expressions.some((expression) =>
-        /[+\-*/?:]|Math\.|clamp|input255|canonicalGear|tireWear|coldPressure|integrateDistance/.test(
-          expression,
-        ),
-      ));
-  const lookupDerived =
-    (gameId === "acc" || gameId === "ac-evo") &&
-    (set.key === "CarOrdinal" || set.key === "TrackOrdinal");
-  const simplified =
-    gameId === "iracing" &&
-    (set.key === "TireTemp" || set.key === "TireCarcassTemp");
+  const mappingKind = directIRacingCarcassBand
+    ? "direct"
+    : classifyPacketMapping(gameId, set.key, native, expressions);
   const sourceShape =
     set.shape === "per-wheel"
       ? Object.fromEntries(
@@ -3029,16 +3099,40 @@ function packetGameLink(
           ]),
         )
       : allSources;
-  const normalization = simplified
+  const tireAverageSimplification =
+    mappingKind === "simplified" &&
+    gameId === "iracing" &&
+    (set.key === "TireTemp" || set.key === "TireCarcassTemp");
+  const normalization = tireAverageSimplification
     ? "average available left, middle, and right carcass temperatures per tire"
     : native.normalization ?? [...new Set(expressions)].join(" | ");
+  let description =
+    allSources.length > 0
+      ? `${gameId} maps ${allSources.length} native source channel${allSources.length === 1 ? "" : "s"} into this value.`
+      : `${gameId} provides this value from parser/session state.`;
+  let limitations: readonly string[] | undefined;
+  if (tireAverageSimplification) {
+    description =
+      "Averages available iRacing left, middle, and right carcass-temperature bands per tire.";
+    limitations = [
+      "Averaging removes across-tread temperature-gradient detail.",
+    ];
+  } else if (gameId === "acc" && set.key === "WeatherType") {
+    description =
+      "Infers wet weather from rain-tyre selection rather than observing weather directly.";
+    limitations = [
+      "Rain-tyre selection is a lossy weather proxy and cannot distinguish dry conditions or weather intensity.",
+    ];
+  } else if (gameId === "f1-2025" && set.key === "WheelRotationSpeed") {
+    description =
+      "Estimates wheel angular speed using an assumed 0.36 m radius and falls back to vehicle speed when per-wheel motion is unavailable.";
+    limitations = [
+      "Assumed wheel radius and vehicle-speed fallback cannot preserve actual per-wheel rotation.",
+    ];
+  }
 
   return {
-    kind: simplified
-      ? "simplified"
-      : derived || lookupDerived
-        ? "derived"
-        : "direct",
+    kind: mappingKind,
     nativeUnit: native.nativeUnit,
     sources: sourceShape,
     freshness:
@@ -3047,13 +3141,9 @@ function packetGameLink(
         : gameId === "iracing" && /Tire.*Temp|TireWear|TirePressure/.test(set.key)
         ? "pit-snapshot"
         : "continuous",
-    ...(normalization && (derived || simplified || lookupDerived)
-      ? { normalization }
-      : {}),
-    description:
-      allSources.length > 0
-        ? `${gameId} maps ${allSources.length} native source channel${allSources.length === 1 ? "" : "s"} into this value.`
-        : `${gameId} provides this value from parser/session state.`,
+    ...(normalization && mappingKind !== "direct" ? { normalization } : {}),
+    description,
+    ...(limitations ? { limitations } : {}),
   };
 }
 
@@ -3487,13 +3577,13 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
   "f1.currentLapInvalid": {
     unit: "boolean",
     description: "Whether F1 has invalidated current lap.",
-    kind: "derived",
+    kind: "normalized",
     normalization: "valid = currentLapInvalid === 0",
   },
   "f1.tyreCompound": {
     unit: "text",
     description: "F1 display name resolved from visual compound code.",
-    kind: "derived",
+    kind: "normalized",
     normalization: "map F1 visual compound code to display name",
   },
   "f1.tyreVisualCompound": {
@@ -3531,7 +3621,7 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
   "f1.grid[].pitStatus": {
     unit: "enum",
     description: "F1 pit-status code for each competitor.",
-    kind: "derived",
+    kind: "normalized",
     normalization: "map F1 pit-status code to common pit-state enum",
   },
   "f1.grid[].tyreCompound": {
@@ -3645,7 +3735,7 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
   "acc.lastSectorTime": {
     unit: "ms",
     description: "ACC native time for most recently completed sector.",
-    kind: "derived",
+    kind: "normalized",
     normalization: "milliseconds / 1000",
   },
   "acc.isValidLap": {
@@ -3655,25 +3745,25 @@ const EXTENSION_METADATA: Record<string, Omit<ExtensionMetadata, "semanticId">> 
   "acc.acEvo.timingIsInvalid": {
     unit: "boolean",
     description: "Whether AC Evo timing state marks current lap invalid.",
-    kind: "derived",
+    kind: "normalized",
     normalization: "valid = !timingIsInvalid",
   },
   "acc.acEvo.predictedLapTimeMs": {
     unit: "ms",
     description: "AC Evo predicted current-lap completion time.",
-    kind: "derived",
+    kind: "normalized",
     normalization: "milliseconds / 1000",
   },
   "acc.acEvo.idealLapTime": {
     unit: "text",
     description: "AC Evo preformatted ideal-lap time.",
-    kind: "derived",
+    kind: "normalized",
     normalization: "parse formatted duration as seconds",
   },
   "acc.acEvo.lapLengthKm": {
     unit: "km",
     description: "AC Evo current lap length.",
-    kind: "derived",
+    kind: "normalized",
     normalization: "kilometres * 1000",
   },
   "acc.acEvo.sessionCurrentLap": {
@@ -4437,7 +4527,7 @@ function addIRacingYamlField(
         !requiresCurrentSessionSelection &&
         (field.unit === variable.canonicalUnit || field.unit === "structured")
           ? "direct"
-          : "derived",
+          : "normalized",
       nativeUnit: field.unit,
       sources: [sourcePath],
       freshness: "session-update",
@@ -4458,7 +4548,7 @@ function addIRacingYamlField(
   } else if (Array.isArray(existing.sources)) {
     if (!existing.sources.includes(sourcePath)) existing.sources.push(sourcePath);
     if (requiresCurrentSessionSelection) {
-      existing.kind = "derived";
+      existing.kind = "normalized";
       appendNormalization(
         existing,
         "select YAML entry matching current session number",
@@ -4467,7 +4557,7 @@ function addIRacingYamlField(
       field.unit === "value-with-unit" &&
       field.unit !== variable.canonicalUnit
     ) {
-      existing.kind = "derived";
+      existing.kind = "normalized";
       appendNormalization(
         existing,
         `parse YAML value-with-unit as ${variable.canonicalUnit}`,
@@ -4579,6 +4669,23 @@ function derivedLink(
 ): AvailableLink {
   return {
     kind: "derived",
+    nativeUnit,
+    sources,
+    freshness,
+    normalization,
+    description,
+  };
+}
+
+function normalizedLink(
+  nativeUnit: string,
+  sources: string[],
+  normalization: string,
+  description: string,
+  freshness: AvailableLink["freshness"] = "continuous",
+): AvailableLink {
+  return {
+    kind: "normalized",
     nativeUnit,
     sources,
     freshness,
@@ -4908,7 +5015,7 @@ function addCrossSourceProjections(
 
   const lapsRemaining = variables.get("session.laps-remaining");
   if (lapsRemaining) {
-    lapsRemaining.games.iracing = derivedLink(
+    lapsRemaining.games.iracing = normalizedLink(
       "count",
       ["iRacing.SessionLapsRemainEx", "iRacing.SessionLapsRemain"],
       "prefer improved SessionLapsRemainEx; fallback to deprecated SessionLapsRemain",
@@ -5013,13 +5120,13 @@ function addCrossSourceProjections(
 
   const fuelPercent = variables.get("fuel.fuel-percent");
   if (fuelPercent) {
-    fuelPercent.games["fm-2023"] = derivedLink(
+    fuelPercent.games["fm-2023"] = normalizedLink(
       "fraction",
       ["TelemetryPacket.Fuel"],
       "fraction * 100",
       "RaceIQ converts Forza fuel fraction to percentage.",
     );
-    fuelPercent.games["f1-2025"] = derivedLink(
+    fuelPercent.games["f1-2025"] = normalizedLink(
       "fraction",
       ["TelemetryPacket.Fuel"],
       "fraction * 100",
@@ -5425,9 +5532,14 @@ function enrichCatalogContracts(
         mapping.kind === "direct" &&
         mapping.nativeUnit !== variable.canonicalUnit
       ) {
-        mapping.kind = "derived";
+        mapping.kind = "normalized";
         mapping.normalization ??=
           `convert ${mapping.nativeUnit} to ${variable.canonicalUnit}`;
+      }
+      if (mapping.kind === "normalized" && !mapping.normalization) {
+        throw new Error(
+          `Normalized telemetry mapping ${gameId}:${variable.id} requires normalization metadata`,
+        );
       }
       const artifact =
         mapping.kind === "simplified"
@@ -5451,14 +5563,11 @@ function enrichCatalogContracts(
       if (mapping.kind !== "direct") {
         const execution = {
           kind:
-            mapping.kind === "simplified"
-              ? ("simplification" as const)
-              : mapping.normalization &&
-                  /convert|normalize unit|milliseconds|fraction \*|\/ 1000/i.test(
-                    mapping.normalization,
-                  )
-                ? ("conversion" as const)
-                : ("derivation" as const),
+            mapping.kind === "normalized"
+              ? ("conversion" as const)
+              : mapping.kind === "derived"
+                ? ("derivation" as const)
+                : ("simplification" as const),
           id: `${gameId}:${variable.id}:${mapping.kind}`,
           version: DERIVATION_VERSION,
           deterministic: true,
@@ -5705,7 +5814,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
           pitRoadBoolean ||
           canonicalIRacingUnit(nativeUnit) !== semantic.canonicalUnit;
         semantic.games.iracing = {
-          kind: needsUnitNormalization ? "derived" : "direct",
+          kind: needsUnitNormalization ? "normalized" : "direct",
           nativeUnit,
           sources: [sdkSource],
           freshness: iRacingFreshness(raw.name),
@@ -5725,7 +5834,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
       } else if (Array.isArray(link.sources) && !link.sources.includes(sdkSource)) {
         link.sources.push(sdkSource);
         if (lapFraction) {
-          link.kind = "derived";
+          link.kind = "normalized";
           link.nativeUnit = "fraction";
           link.normalization = "clamp SDK 0-1 lap distance to 0-1 fraction";
         }
@@ -5796,7 +5905,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     if (existing.kind === "unavailable") {
       const needsUnitNormalization = unit !== variable.canonicalUnit;
       variable.games.iracing = {
-        kind: needsUnitNormalization ? "derived" : "direct",
+        kind: needsUnitNormalization ? "normalized" : "direct",
         nativeUnit: unit,
         sources: sourceShape,
         freshness: iRacingFreshness(raw.name),
@@ -5914,7 +6023,9 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     // Reproducible-build timestamp: intentionally independent of wall clock.
     generatedAt: "1970-01-01T00:00:00.000Z",
   };
-  const catalogWithoutHash = {
+  const catalogWithoutHash: Omit<BuiltTelemetryCatalog, "metadata"> & {
+    metadata: Omit<CatalogMetadata, "contentHash">;
+  } = {
     format: CATALOG_FORMAT,
     metadata: metadataWithoutHash,
     generatedFrom: [
@@ -6126,7 +6237,7 @@ function compatibilityVariables(
       const mapping = recordValue(games[gameId]);
       if (
         !mapping ||
-        !["direct", "derived", "simplified", "unavailable"].includes(
+        !["direct", "normalized", "derived", "simplified", "unavailable"].includes(
           typeof mapping.kind === "string" ? mapping.kind : "",
         )
       ) {

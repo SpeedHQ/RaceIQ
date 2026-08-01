@@ -2,7 +2,9 @@ import { describe, expect, test } from "bun:test";
 import {
   getTelemetryVariable,
   TELEMETRY_CATALOG,
+  type TelemetryCatalogData,
 } from "../shared/telemetry-catalog";
+import type { TelemetryDerivation } from "../shared/telemetry-derivations";
 import {
   compileTelemetryResolver,
   TELEMETRY_DERIVATION_VERSION,
@@ -47,6 +49,69 @@ describe("compiled telemetry resolver", () => {
         },
       });
       expect(resolver.derivationVersion).toBe(TELEMETRY_DERIVATION_VERSION);
+    }
+  });
+
+  test("uses normalized packet values without running a derivation DAG", () => {
+    let evaluations = 0;
+    const derivation = {
+      id: "test.override-normalized-speed",
+      version: "1",
+      output: {
+        semanticId: "motion.speed",
+        unit: "m/s",
+        valueType: "number" as const,
+      },
+      inputs: [],
+      missingDataPolicy: "unavailable" as const,
+      deterministic: true,
+      codeHash: "sha256:test-override-normalized-speed",
+      evaluate: () => {
+        evaluations += 1;
+        return { state: "ok" as const, value: 999 };
+      },
+    };
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "acc",
+      requested: [{ semanticId: "motion.speed" }],
+      derivations: [derivation],
+    });
+    const resolved = resolver
+      .createFrameView(packet("acc", { Speed: 42 }), 1_000)
+      .resolveNumber(resolver.slot("motion.speed"));
+
+    expect(resolved).toMatchObject({
+      value: 42,
+      mappingStatus: "normalized",
+      confidence: 0.99,
+      confidenceComponents: {
+        semanticFidelity: 0.99,
+        freshness: 1,
+        inputCompleteness: 1,
+      },
+    });
+    expect(resolved.provenance.derivation).toBeUndefined();
+    expect(evaluations).toBe(0);
+  });
+
+  test("executes normalized fuel-percentage conversions", () => {
+    for (const simulator of ["fm-2023", "f1-2025"] as const) {
+      const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+        simulator,
+        requested: [{ semanticId: "fuel.fuel-percent" }],
+      });
+      const slot = resolver.slot("fuel.fuel-percent");
+      const frame = resolver.createFrameView(
+        packet(simulator, { Fuel: 0.375 }),
+        1_000,
+      );
+
+      expect(frame.readNumber(slot)).toBe(37.5);
+      expect(frame.resolveNumber(slot)).toMatchObject({
+        value: 37.5,
+        mappingStatus: "normalized",
+        state: "ok",
+      });
     }
   });
 
@@ -130,27 +195,37 @@ describe("compiled telemetry resolver", () => {
 
   test("evaluates and memoizes deterministic derivations", () => {
     let evaluations = 0;
-    const derivation = {
+    const derivation: TelemetryDerivation = {
       id: "test.double-speed",
       version: "1",
-      output: { semanticId: "fuel.fuel-percent", unit: "%", valueType: "number" as const },
-      inputs: [{ semanticId: "motion.speed", acceptedMappings: ["direct" as const], required: true }],
+      output: {
+        semanticId: "timing.current-lap",
+        unit: "s",
+        valueType: "number" as const,
+      },
+      inputs: [
+        {
+          semanticId: "motion.speed",
+          acceptedMappings: ["normalized" as const],
+          required: true,
+        },
+      ],
       missingDataPolicy: "unavailable" as const,
       deterministic: true,
       codeHash: "sha256:test-double-speed",
-      evaluate(context: { number(id: string): number | undefined; unavailable(): { state: "missing" }; value<T>(value: T): { state: "ok"; value: T } }) {
+      evaluate(context) {
         evaluations += 1;
         const speed = context.number("motion.speed");
         return speed === undefined ? context.unavailable() : context.value(speed * 2);
       },
     };
     const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
-      simulator: "acc",
-      requested: [{ semanticId: "fuel.fuel-percent" }],
+      simulator: "iracing",
+      requested: [{ semanticId: "timing.current-lap" }],
       derivations: [derivation],
     });
-    const slot = resolver.slot("fuel.fuel-percent");
-    const frame = resolver.createFrameView(packet("acc", { Speed: 30 }), 1_000);
+    const slot = resolver.slot("timing.current-lap");
+    const frame = resolver.createFrameView(packet("iracing", { Speed: 30 }), 1_000);
 
     expect(frame.readNumber(slot)).toBe(60);
     expect(frame.readNumber(slot)).toBe(60);
@@ -166,8 +241,18 @@ describe("compiled telemetry resolver", () => {
     const a = {
       id: "cycle-a",
       version: "1",
-      output: { semanticId: "motion.speed", unit: "m/s", valueType: "number" as const },
-      inputs: [{ semanticId: "fuel.fuel-percent", acceptedMappings: ["derived" as const], required: true }],
+      output: {
+        semanticId: "timing.current-lap",
+        unit: "s",
+        valueType: "number" as const,
+      },
+      inputs: [
+        {
+          semanticId: "timing.distance-traveled",
+          acceptedMappings: ["derived" as const],
+          required: true,
+        },
+      ],
       missingDataPolicy: "unavailable" as const,
       deterministic: true,
       codeHash: "sha256:cycle-a",
@@ -176,8 +261,18 @@ describe("compiled telemetry resolver", () => {
     const b = {
       id: "cycle-b",
       version: "1",
-      output: { semanticId: "fuel.fuel-percent", unit: "%", valueType: "number" as const },
-      inputs: [{ semanticId: "motion.speed", acceptedMappings: ["derived" as const], required: true }],
+      output: {
+        semanticId: "timing.distance-traveled",
+        unit: "m",
+        valueType: "number" as const,
+      },
+      inputs: [
+        {
+          semanticId: "timing.current-lap",
+          acceptedMappings: ["derived" as const],
+          required: true,
+        },
+      ],
       missingDataPolicy: "unavailable" as const,
       deterministic: true,
       codeHash: "sha256:cycle-b",
@@ -186,8 +281,8 @@ describe("compiled telemetry resolver", () => {
 
     expect(() =>
       compileTelemetryResolver(TELEMETRY_CATALOG, {
-        simulator: "acc",
-        requested: [{ semanticId: "fuel.fuel-percent" }],
+        simulator: "iracing",
+        requested: [{ semanticId: "timing.current-lap" }],
         derivations: [a, b],
       }),
     ).toThrow("Telemetry derivation cycle");
@@ -266,6 +361,33 @@ describe("compiled telemetry resolver", () => {
     );
 
     expect(frame.readNumber(slot)).toBe(61);
+  });
+
+  test("does not return raw native units when normalized packet data is absent", () => {
+    const resolver = compileTelemetryResolver<{
+      packet: TelemetryPacket;
+      nativeValues: Record<string, unknown>;
+    }>(TELEMETRY_CATALOG, {
+      simulator: "acc",
+      requested: [{ semanticId: "motion.speed" }],
+    });
+    const slot = resolver.slot("motion.speed");
+    const frame = resolver.createFrameView(
+      {
+        packet: packet("acc", {
+          Speed: undefined as unknown as number,
+        }),
+        nativeValues: { "Physics.speedKmh": 219.6 },
+      },
+      1_000,
+    );
+
+    expect(frame.readNumber(slot)).toBeUndefined();
+    expect(frame.resolveNumber(slot)).toMatchObject({
+      value: null,
+      mappingStatus: "normalized",
+      state: "missing",
+    });
   });
 
   test("assembles and reuses ordered native per-wheel storage", () => {
@@ -355,24 +477,53 @@ describe("compiled telemetry resolver", () => {
     expect(frame.readNumber(slot)).toBe(0.5);
   });
 
-  test("derives iRacing lap fraction with canonical metre track length", () => {
+  test("normalizes iRacing value-with-unit track length text", () => {
     const resolver = compileTelemetryResolver<{
       packet: TelemetryPacket;
       nativeValues: Record<string, unknown>;
     }>(TELEMETRY_CATALOG, {
       simulator: "iracing",
-      requested: [{ semanticId: "timing.lap-fraction" }],
+      requested: [{ semanticId: "timing.track-length" }],
     });
-    const slot = resolver.slot("timing.lap-fraction");
+    const slot = resolver.slot("timing.track-length");
     const frame = resolver.createFrameView(
       {
-        packet: packet("iracing", { DistanceTraveled: 7_500 }),
-        nativeValues: { trackLengthM: 5_000 },
+        packet: packet("iracing"),
+        nativeValues: {
+          "SessionInfo.WeekendInfo.TrackLength": "5.1 km",
+        },
       },
       1_000,
     );
 
-    expect(frame.readNumber(slot)).toBe(0.5);
+    expect(frame.resolveNumber(slot)).toMatchObject({
+      value: 5_100,
+      mappingStatus: "normalized",
+      state: "ok",
+    });
+  });
+
+  test("normalizes iRacing lap fraction from its equivalent SDK source", () => {
+    const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
+      simulator: "iracing",
+      requested: [{ semanticId: "timing.lap-fraction" }],
+    });
+    const slot = resolver.slot("timing.lap-fraction");
+    const frame = resolver.createFrameView(
+      packet("iracing", {
+        iracing: {
+          lapDistancePct: 0.5,
+        } as TelemetryPacket["iracing"],
+      }),
+      1_000,
+    );
+
+    expect(frame.resolveNumber(slot)).toMatchObject({
+      value: 0.5,
+      mappingStatus: "normalized",
+      state: "ok",
+      confidenceComponents: { semanticFidelity: 0.99 },
+    });
   });
 
   test("returns typed error for an unregistered mapping executor", () => {
@@ -388,6 +539,52 @@ describe("compiled telemetry resolver", () => {
       value: null,
       mappingStatus: "derived",
       state: "error",
+    });
+  });
+
+  test("returns typed error instead of raw native data for unsupported normalization", () => {
+    const semanticId = "timing.sector.current-lap.times";
+    const variable = getTelemetryVariable(semanticId);
+    const mapping = variable.games["f1-2025"];
+    if (mapping.kind === "unavailable" || !mapping.execution) {
+      throw new Error("Expected executable F1 sector-time mapping");
+    }
+    const catalog = {
+      ...TELEMETRY_CATALOG,
+      variables: TELEMETRY_CATALOG.variables.map((candidate) =>
+        candidate.id === semanticId
+          ? {
+              ...candidate,
+              games: {
+                ...candidate.games,
+                "f1-2025": {
+                  ...mapping,
+                  kind: "normalized" as const,
+                  execution: {
+                    ...mapping.execution,
+                    kind: "conversion" as const,
+                  },
+                },
+              },
+            }
+          : candidate,
+      ),
+    } as unknown as TelemetryCatalogData;
+    const resolver = compileTelemetryResolver(catalog, {
+      simulator: "f1-2025",
+      requested: [{ semanticId }],
+    });
+    const resolved = resolver
+      .createFrameView(packet("f1-2025"), 1_000)
+      .resolveValue(resolver.slot(semanticId));
+
+    expect(resolved).toMatchObject({
+      value: null,
+      mappingStatus: "normalized",
+      state: "error",
+      limitations: [
+        "unsupported-normalized-executor:f1-2025:timing.sector.current-lap.times",
+      ],
     });
   });
 
@@ -466,13 +663,13 @@ describe("compiled telemetry resolver", () => {
     });
     const slot = resolver.slot("tires.tire-compound");
     const valid = resolver.createFrameView(
-      packet("f1-2025", { TyreCompound: 7 as unknown as string }),
+      packet("f1-2025", { TyreCompound: 7 }),
       1_000,
     );
     expect(valid.readValue<string>(slot)).toBe("7");
 
     const invalid = resolver.createFrameView(
-      packet("f1-2025", { TyreCompound: 999 as unknown as string }),
+      packet("f1-2025", { TyreCompound: 999 }),
       1_000,
       valid,
     );
