@@ -1636,25 +1636,25 @@ export function TrackDetail({
                               <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} sectorCount={sectorCount} showSessionFilter={isF125} />
                               {/* Lap table (md+) */}
                               <Card className="flex-1 min-w-0 overflow-y-auto">
-                                <Table fit tableClassName="w-full">
+                                <Table fit>
                                   <THead>
-                                    <TH className="w-8 px-3">
+                                    <TH>
                                       <input type="checkbox" checked={selectedLaps.size === filteredLaps.length && filteredLaps.length > 0} onChange={toggleAllLaps} className="accent-app-accent" />
                                     </TH>
                                     <TH>{m.label_car()}</TH>
                                     {!hideClassCol && <TH>{m.track_detail_class()}</TH>}
                                     {hasSessionTypes && <TH>{m.label_type()}</TH>}
-                                    <TH className="cursor-pointer hover:text-app-text select-none w-px whitespace-nowrap" onClick={() => handleSort("lap")}>
+                                    <TH nowrap onClick={() => handleSort("lap")}>
                                       {m.track_detail_lap_num()} {sortBy === "lap" ? (sortAsc ? "▲" : "▼") : ""}
                                     </TH>
-                                    <TH className="cursor-pointer hover:text-app-text select-none text-right w-px whitespace-nowrap" onClick={() => handleSort("time")}>
+                                    <TH align="end" nowrap onClick={() => handleSort("time")}>
                                       {m.label_time()} {sortBy === "time" ? (sortAsc ? "▲" : "▼") : ""}
                                     </TH>
-                                    <TH className="w-px" />
+                                    <TH />
                                     {Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`).map((label) => (
                                       <TH key={label}>{label}</TH>
                                     ))}
-                                    <TH className="cursor-pointer hover:text-app-text select-none" onClick={() => handleSort("date")}>
+                                    <TH onClick={() => handleSort("date")}>
                                       {m.sessions_col_date()} {sortBy === "date" ? (sortAsc ? "▲" : "▼") : ""}
                                     </TH>
                                     <TH>{m.sessions_col_notes()}</TH>
@@ -1666,11 +1666,11 @@ export function TrackDetail({
                                       return filteredLaps.map((lap) => {
                                         const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false;
                                         return (
-                                          <TRow key={lap.lapId} className={selectedLaps.has(lap.lapId) ? "bg-app-accent/5" : ""}>
-                                            <TD className="px-3">
+                                          <TRow key={lap.lapId} selected={selectedLaps.has(lap.lapId)}>
+                                            <TD>
                                               <input type="checkbox" checked={selectedLaps.has(lap.lapId)} onChange={() => toggleLapSelect(lap.lapId)} className="accent-app-accent" />
                                             </TD>
-                                            <TD className="truncate max-w-[200px]">{lap.carName}</TD>
+                                            <TD truncate="wide">{lap.carName}</TD>
                                             {!hideClassCol && (
                                               <TD>
                                                 <span className="font-bold font-mono" style={{ color: carClassColor(lap.carClass) }}>
@@ -1688,8 +1688,8 @@ export function TrackDetail({
                                                 )}
                                               </TD>
                                             )}
-                                            <TD className="font-mono text-app-text-secondary whitespace-nowrap">{lap.lapNumber}</TD>
-                                            <TD className="text-right whitespace-nowrap">
+                                            <TD numeric nowrap>{lap.lapNumber}</TD>
+                                            <TD align="end" nowrap>
                                               <div className="flex items-center justify-end gap-1">
                                                 <span className={`font-mono tabular-nums ${isFastest ? "font-bold" : ""}`} style={{ color: isFastest ? "var(--lap-record)" : undefined }}>
                                                   {formatLapTime(lap.lapTime)}
@@ -1706,7 +1706,7 @@ export function TrackDetail({
                                                 )}
                                               </div>
                                             </TD>
-                                            <TD className="w-px whitespace-nowrap">
+                                            <TD nowrap>
                                               <Button
                                                 variant="app-outline"
                                                 size="app-sm"
@@ -1720,16 +1720,16 @@ export function TrackDetail({
                                               </Button>
                                             </TD>
                                             {Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`).map((label, index) => (
-                                              <TD key={label} className="font-mono tabular-nums text-app-text/90">
+                                              <TD key={label} numeric tone="primary">
                                                 {lap.sectorTimes?.[index] != null ? formatLapTime(lap.sectorTimes[index]) : "—"}
                                               </TD>
                                             ))}
-                                            <TD className="text-app-text-secondary whitespace-nowrap font-mono">
+                                            <TD nowrap numeric>
                                               {lap.createdAt
                                                 ? `${new Date(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })} ${new Date(lap.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
                                                 : "—"}
                                             </TD>
-                                            <TD className="text-app-text-secondary max-w-[200px] truncate" title={lap.notes ?? undefined}>
+                                            <TD truncate="wide" title={lap.notes ?? undefined}>
                                               {lap.notes ?? ""}
                                             </TD>
                                           </TRow>
@@ -1737,9 +1737,9 @@ export function TrackDetail({
                                       });
                                     })()}
                                     {filteredLaps.length === 0 && (
-                                      <TRow>
-                                        <TD colSpan={6} className="px-3 py-4 text-center text-sm text-app-text-dim">
-                                          {m.track_detail_no_laps_match_filters()}
+                                      <TRow variant="separator">
+                                        <TD align="center" colSpan={6} tone="dim">
+                                          <div className="py-2">{m.track_detail_no_laps_match_filters()}</div>
                                         </TD>
                                       </TRow>
                                     )}

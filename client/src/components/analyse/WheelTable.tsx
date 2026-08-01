@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/AppTable";
 
 interface WheelTableRow {
@@ -22,9 +23,9 @@ interface WheelTableProps {
 }
 
 export function WheelTable({ title, showHeaders = true, borderTop = false, rows }: WheelTableProps) {
-  const borderCls = borderTop ? "pt-2 border-t border-app-border" : "";
+  const headerContentClass = borderTop ? "block pt-2 border-t border-app-border" : undefined;
   return (
-    <Table fit className="rounded-none overflow-visible" tableClassName="w-full tabular-nums table-fixed text-app-compact font-mono">
+    <Table density="telemetry" fit variant="embedded">
       <colgroup>
         <col className="w-[85px]" />
         <col />
@@ -33,33 +34,43 @@ export function WheelTable({ title, showHeaders = true, borderTop = false, rows 
         <col />
       </colgroup>
       {showHeaders && (
-        <TableHeader rowClassName="text-app-text-muted border-0">
-          <TableHead className={`p-0 font-semibold text-left text-app-caption uppercase tracking-wider ${borderCls}`}>{title}</TableHead>
-          <TableHead className={`p-0 font-normal text-right ${borderCls}`}>FL</TableHead>
-          <TableHead className={`p-0 font-normal text-right ${borderCls}`}>FR</TableHead>
-          <TableHead className={`p-0 font-normal text-right ${borderCls}`}>RL</TableHead>
-          <TableHead className={`p-0 font-normal text-right ${borderCls}`}>RR</TableHead>
+        <TableHeader>
+          <TableHead>
+            <span className={cn("block text-app-caption font-semibold uppercase tracking-wider", headerContentClass)}>{title}</span>
+          </TableHead>
+          <TableHead align="end">
+            <span className={headerContentClass}>FL</span>
+          </TableHead>
+          <TableHead align="end">
+            <span className={headerContentClass}>FR</span>
+          </TableHead>
+          <TableHead align="end">
+            <span className={headerContentClass}>RL</span>
+          </TableHead>
+          <TableHead align="end">
+            <span className={headerContentClass}>RR</span>
+          </TableHead>
         </TableHeader>
       )}
-      <TableBody className="divide-y-0">
+      <TableBody>
         {rows.map((row, i) => (
-          <TableRow key={i} className="hover:bg-transparent transition-none">
-            <TableCell className="p-0 text-app-text-muted text-left">{row.label}</TableCell>
+          <TableRow key={i}>
+            <TableCell tone="muted">{row.label}</TableCell>
             {row.span2 ? (
               <>
-                <TableCell colSpan={2} className="p-0 text-right">
+                <TableCell align="end" colSpan={2}>
                   {row.fl}
                 </TableCell>
-                <TableCell colSpan={2} className="p-0 text-right">
+                <TableCell align="end" colSpan={2}>
                   {row.rl}
                 </TableCell>
               </>
             ) : (
               <>
-                <TableCell className="p-0 text-right">{row.fl}</TableCell>
-                <TableCell className="p-0 text-right">{row.fr}</TableCell>
-                <TableCell className="p-0 text-right">{row.rl}</TableCell>
-                <TableCell className="p-0 text-right">{row.rr}</TableCell>
+                <TableCell align="end">{row.fl}</TableCell>
+                <TableCell align="end">{row.fr}</TableCell>
+                <TableCell align="end">{row.rl}</TableCell>
+                <TableCell align="end">{row.rr}</TableCell>
               </>
             )}
           </TableRow>

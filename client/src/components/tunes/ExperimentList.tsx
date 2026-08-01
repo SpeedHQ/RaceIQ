@@ -94,40 +94,40 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
   return (
     <Card className="overflow-x-auto">
       <Table>
-        <THead rowClassName="border-b border-app-border">
-          <TH className="w-12 text-right">#</TH>
+        <THead>
+          <TH align="end">#</TH>
           <TH>Session</TH>
           <TH>Varying</TH>
           <TH>Car</TH>
           <TH>Track</TH>
           <TH>Base setup</TH>
-          <TH className="whitespace-nowrap">Last active</TH>
-          <TH className="sr-only">Actions</TH>
+          <TH>Last active</TH>
+          <TH visuallyHidden>Actions</TH>
         </THead>
         <TBody>
           {sessions.length === 0 && (
-            <TRow>
-              <TD colSpan={8} className="px-3 py-6 text-center text-xs text-app-text-dim">
-                {isLoading ? "Loading experiments…" : "No experiments yet. Create one above to get started."}
+            <TRow variant="separator">
+              <TD align="center" colSpan={8} tone="dim">
+                <div className="py-4">{isLoading ? "Loading experiments…" : "No experiments yet. Create one above to get started."}</div>
               </TD>
             </TRow>
           )}
           {sessions.map((s) => {
             const base = s.baseSetupPath?.split(/[\\/]/).pop() ?? "—";
             return (
-              <TRow key={s.id} onClick={() => onOpen(s.id)} className="cursor-pointer border-b border-app-border/60 last:border-0 hover:bg-app-surface-hover/60">
-                <TD className="text-right font-mono tabular-nums text-app-text-dim">{s.seq}</TD>
-                <TD className="font-medium text-app-text">{s.name}</TD>
+              <TRow key={s.id} onClick={() => onOpen(s.id)}>
+                <TD align="end" numeric tone="dim">{s.seq}</TD>
+                <TD emphasis tone="primary">{s.name}</TD>
                 <TD>
                   <FocusBadge focus={s.focus} />
                 </TD>
-                <TD className="text-app-text-dim">{carName(s.carName)}</TD>
-                <TD className="text-app-text-dim">{s.trackName ?? "—"}</TD>
-                <TD className="max-w-[220px] truncate font-mono text-xs text-app-text-dim" title={s.baseSetupPath ?? undefined}>
+                <TD tone="dim">{carName(s.carName)}</TD>
+                <TD tone="dim">{s.trackName ?? "—"}</TD>
+                <TD numeric tone="dim" truncate="wide" title={s.baseSetupPath ?? undefined}>
                   {base}
                 </TD>
-                <TD className="whitespace-nowrap text-app-text-dim">{new Date(s.updatedAt).toLocaleDateString()}</TD>
-                <TD className="text-right">
+                <TD nowrap tone="dim">{new Date(s.updatedAt).toLocaleDateString()}</TD>
+                <TD align="end">
                   <span className="text-xs font-semibold text-app-accent">Resume →</span>
                 </TD>
               </TRow>

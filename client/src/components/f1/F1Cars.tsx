@@ -480,14 +480,14 @@ function TableView() {
         <TH>{m.label_chassis()}</TH>
         <TH>PU</TH>
         <TH>{m.label_drivers()}</TH>
-        <TH className="text-right px-2">OVR</TH>
-        <TH className="text-right px-2">PAC</TH>
-        <TH className="text-right px-2">SPD</TH>
-        <TH className="text-right px-2">COR</TH>
-        <TH className="text-right px-2">BRK</TH>
-        <TH className="text-right px-2">TRC</TH>
-        <TH className="text-right px-2">AER</TH>
-        <TH className="text-right px-2">REL</TH>
+        <TH align="end">OVR</TH>
+        <TH align="end">PAC</TH>
+        <TH align="end">SPD</TH>
+        <TH align="end">COR</TH>
+        <TH align="end">BRK</TH>
+        <TH align="end">TRC</TH>
+        <TH align="end">AER</TH>
+        <TH align="end">REL</TH>
       </THead>
       <TBody>
         {teams.map((team) => (
@@ -503,7 +503,7 @@ function TableView() {
                 {team.chassis}
               </span>
             </TD>
-            <TD className="text-app-text/90 text-xs">{team.powerUnit}</TD>
+            <TD tone="primary">{team.powerUnit}</TD>
             <TD>
               <div className="flex flex-col gap-0.5">
                 {team.drivers.map((d) => (
@@ -533,7 +533,7 @@ function TableView() {
 
 function StatCell({ value, bold }: { value: number; bold?: boolean }) {
   return (
-    <TD className="text-right px-2">
+    <TD align="end">
       <span className={`font-mono text-xs ${getRatingColor(value)} ${bold ? "font-bold" : ""}`}>{value}</span>
     </TD>
   );

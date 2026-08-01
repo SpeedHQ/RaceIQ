@@ -67,7 +67,7 @@ export function AnalysisModalShell({
           <DialogTitle className="sr-only">{m.label_ai_analysis()}</DialogTitle>
           <Sparkles className="size-3.5 text-ai-accent shrink-0" />
           <Tabs value={selectedTab} onValueChange={interactive ? onTabChange : undefined} className="contents">
-            <TabsList className="flex items-center gap-2 border-0 p-0">
+            <TabsList className="flex items-center gap-2">
               {modalTabs.map((tab) => {
                 const active = tab.key === selectedTab;
                 return (

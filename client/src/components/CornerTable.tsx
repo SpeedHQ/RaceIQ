@@ -1,5 +1,5 @@
 import { m } from "../paraglide/messages";
-import { Table } from "./ui/AppTable";
+import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 
 interface CornerDelta {
   label: string;
@@ -19,14 +19,12 @@ export function CornerTable({ corners }: Props) {
 
   return (
     <div className="overflow-auto">
-      <Table fit tableClassName="w-full">
-        <thead>
-          <tr className="text-app-label text-app-text-muted uppercase tracking-wider border-b border-app-border">
-            <th className="text-left p-2">{m.label_corner()}</th>
-            <th className="text-right p-2">{m.label_delta()}</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table fit>
+        <THead>
+          <TH>{m.label_corner()}</TH>
+          <TH align="end">{m.label_delta()}</TH>
+        </THead>
+        <TBody>
           {corners.map((c) => {
             const isGaining = c.deltaSeconds < 0;
             const isNeutral = Math.abs(c.deltaSeconds) < 0.005;
@@ -34,16 +32,18 @@ export function CornerTable({ corners }: Props) {
             const sign = c.deltaSeconds > 0 ? "+" : "";
 
             return (
-              <tr key={c.label} className="border-b border-app-border/50 hover:bg-app-surface-hover/30">
-                <td className="p-2 font-mono text-app-text">{c.label}</td>
-                <td className={`p-2 font-mono text-right ${colorClass}`}>
-                  {sign}
-                  {c.deltaSeconds.toFixed(3)}s
-                </td>
-              </tr>
+              <TRow key={c.label}>
+                <TD tone="primary">{c.label}</TD>
+                <TD align="end" numeric>
+                  <span className={colorClass}>
+                    {sign}
+                    {c.deltaSeconds.toFixed(3)}s
+                  </span>
+                </TD>
+              </TRow>
             );
           })}
-        </tbody>
+        </TBody>
       </Table>
     </div>
   );

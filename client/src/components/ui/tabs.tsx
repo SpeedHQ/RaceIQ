@@ -25,7 +25,7 @@ function Tabs({ className, ...props }: TabsProps) {
 }
 function TabsList({ className, variant = "default", ...props }: TabsListProps) {
   const variants = {
-    default: "flex flex-wrap gap-1 border-b border-app-border pb-2",
+    default: "flex flex-wrap gap-1",
     pills: "flex flex-wrap gap-1 rounded-lg bg-app-surface-alt p-1",
   } as const;
   return <TabsPrimitive.List data-slot="tabs-list" data-variant={variant} className={cn(variants[variant], className)} {...props} />;

@@ -110,10 +110,10 @@ function SessionLapTable({
     <>
       <Table>
         <THead>
-          <TH className="w-10 px-2" />
+          <TH />
           <TH />
           {(["lap", "time"] as const).map((f) => (
-            <TH key={f} className="cursor-pointer select-none hover:text-app-text/90" onClick={() => toggleLapSort(f)}>
+            <TH key={f} onClick={() => toggleLapSort(f)}>
               {f === "lap" ? m.label_lap() : m.label_time()}
               {lapSortKey === f && <span className="ml-0.5">{lapSortDir === "asc" ? "↑" : "↓"}</span>}
             </TH>
@@ -121,7 +121,7 @@ function SessionLapTable({
           {sectorLabels.map((label) => (
             <TH key={label}>{label}</TH>
           ))}
-          <TH className="w-[40%]">{m.sessions_col_notes()}</TH>
+          <TH>{m.sessions_col_notes()}</TH>
         </THead>
         <TBody>
           {sortedLaps.map((lap) => {
@@ -135,11 +135,13 @@ function SessionLapTable({
                   setContextMenu({ x: e.clientX, y: e.clientY, lapId: lap.id });
                 }}
               >
-                <TD className="px-2 text-center">
+                <TD align="center">
                   <input type="checkbox" checked={selectedLaps.has(lap.id)} onChange={() => toggleLapSelection(lap.id)} className="accent-app-accent w-4 h-4" />
                 </TD>
                 <TD />
-                <TD className="font-mono text-app-text/90">{lap.lapNumber}</TD>
+                <TD numeric tone="primary">
+                  {lap.lapNumber}
+                </TD>
                 <TD>
                   <div className="flex items-center gap-2">
                     <span className={`font-mono tabular-nums ${isBest ? "text-(--lap-pace-best) font-bold" : "text-app-text/90"}`}>{formatLapTime(lap.lapTime)}</span>
@@ -167,8 +169,8 @@ function SessionLapTable({
                 {sectorLabels.map((label, index) => {
                   const val = lap.sectorTimes?.[index] ?? 0;
                   return (
-                    <TD key={label} className={`font-mono ${sectorColor(val, bestSectors[index])}`}>
-                      {val > 0 ? formatLapTime(val) : "—"}
+                    <TD key={label} numeric>
+                      <span className={sectorColor(val, bestSectors[index])}>{val > 0 ? formatLapTime(val) : "—"}</span>
                     </TD>
                   );
                 })}
@@ -706,9 +708,10 @@ export function SessionsPage() {
         )}
       </div>
 
-      <Table className="hidden md:table flex-1 overflow-auto">
-        <THead>
-          <TH className="w-10 px-2">
+      <div className="hidden md:block flex-1 overflow-auto">
+        <Table fit>
+          <THead>
+            <TH>
             <input
               type="checkbox"
               checked={pageItems.length > 0 && pageItems.every((s) => selectedSessions.has(s.id))}
@@ -732,21 +735,21 @@ export function SessionsPage() {
           <SortHeader label={m.label_track()} field="track" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
           <SortHeader label={m.label_car()} field="car" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
           {isF1 && <SortHeader label={m.label_type()} field="type" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />}
-          <TH className="w-[40%]">{m.sessions_col_notes()}</TH>
+            <TH>{m.sessions_col_notes()}</TH>
         </THead>
         <TBody>
           {isLoading ? (
-            <tr>
-              <td colSpan={colCount} className="px-3 py-8 text-center text-app-text/90">
-                {m.common_loading()}
-              </td>
-            </tr>
+            <TRow variant="separator">
+              <TD align="center" colSpan={colCount} tone="primary">
+                <div className="py-6">{m.common_loading()}</div>
+              </TD>
+            </TRow>
           ) : pageItems.length === 0 ? (
-            <tr>
-              <td colSpan={colCount} className="px-3 py-8 text-center text-app-text/90">
-                {tab === "imported" ? m.sessions_none_imported() : m.sessions_none()}
-              </td>
-            </tr>
+            <TRow variant="separator">
+              <TD align="center" colSpan={colCount} tone="primary">
+                <div className="py-6">{tab === "imported" ? m.sessions_none_imported() : m.sessions_none()}</div>
+              </TD>
+            </TRow>
           ) : (
             pageItems.map((session) => {
               const isExpanded = expandedSessions.has(session.id);
@@ -760,8 +763,8 @@ export function SessionsPage() {
               });
               return (
                 <Fragment key={session.id}>
-                  <TRow onClick={() => toggleExpand(session.id)} className={isExpanded ? "bg-app-surface-alt/30" : ""}>
-                    <TD className="px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                  <TRow onClick={() => toggleExpand(session.id)} selected={isExpanded}>
+                    <TD align="center" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={selectedSessions.has(session.id)}
@@ -770,7 +773,7 @@ export function SessionsPage() {
                         className="accent-app-accent w-4 h-4"
                       />
                     </TD>
-                    <TD className="text-app-text/90 whitespace-nowrap">
+                    <TD nowrap tone="primary">
                       <div className="flex items-center gap-2">
                         <span>
                           {new Date(session.createdAt).toLocaleDateString()}{" "}
@@ -800,16 +803,16 @@ export function SessionsPage() {
                         </Button>
                       </div>
                     </TD>
-                    <TD className="text-app-text/90 tabular-nums">{session.lapCount ?? 0}</TD>
-                    <TD className="text-app-text/90 tabular-nums">
+                    <TD numeric tone="primary">{session.lapCount ?? 0}</TD>
+                    <TD numeric tone="primary">
                       {(() => {
                         const t = session.bestLapTime || (sortedLaps.length > 0 ? Math.min(...sortedLaps.map((l) => l.lapTime)) : 0);
                         return t ? formatLapTime(t) : "—";
                       })()}
                     </TD>
-                    <TD className="text-app-text/90">{trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}</TD>
-                    <TD className="text-app-text/90">{carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}</TD>
-                    {isF1 && <TD className="text-app-text/90">{formatSessionType(session.sessionType)}</TD>}
+                    <TD tone="primary">{trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}</TD>
+                    <TD tone="primary">{carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}</TD>
+                    {isF1 && <TD tone="primary">{formatSessionType(session.sessionType)}</TD>}
                     <TD>
                       <NoteCell
                         value={session.notes ?? undefined}
@@ -821,8 +824,8 @@ export function SessionsPage() {
                     </TD>
                   </TRow>
                   {isExpanded && sessionLaps.length > 0 && (
-                    <tr>
-                      <td colSpan={colCount} className="p-0">
+                    <TRow variant="separator">
+                      <TD colSpan={colCount}>
                         <div className="bg-app-surface-alt/20 border-b border-app-border pl-8">
                           <SessionLapTable
                             session={session}
@@ -834,8 +837,8 @@ export function SessionsPage() {
                             toggleLapSelection={toggleLapSelection}
                           />
                         </div>
-                      </td>
-                    </tr>
+                      </TD>
+                    </TRow>
                   )}
                 </Fragment>
               );
@@ -843,6 +846,7 @@ export function SessionsPage() {
           )}
         </TBody>
       </Table>
+      </div>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-xs text-app-text/90">

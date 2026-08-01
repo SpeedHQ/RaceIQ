@@ -147,18 +147,19 @@ export function ChatsPage() {
       )}
 
       {!loading && rows.length > 0 && (
-        <Table className="flex-1 min-h-0 overflow-auto border border-app-border bg-app-surface" tableClassName="min-w-max md:min-w-0">
-          <TableHeader className="bg-app-surface-alt/80 backdrop-blur z-10" rowClassName="text-left text-app-text-muted">
-            <TableHead className="font-semibold">{m.label_type()}</TableHead>
-            <TableHead className="font-semibold">{m.label_track()}</TableHead>
-            <TableHead className="font-semibold">{m.chats_col_cars()}</TableHead>
-            <TableHead className="font-semibold">{m.chats_col_laps()}</TableHead>
-            <TableHead className="font-semibold">{m.chats_col_updated()}</TableHead>
-            <TableHead className="font-semibold text-right">{m.label_actions()}</TableHead>
-          </TableHeader>
+        <div className="flex-1 min-h-0 overflow-auto border border-app-border bg-app-surface">
+          <Table fit>
+            <TableHeader>
+              <TableHead>{m.label_type()}</TableHead>
+              <TableHead>{m.label_track()}</TableHead>
+              <TableHead>{m.chats_col_cars()}</TableHead>
+              <TableHead>{m.chats_col_laps()}</TableHead>
+              <TableHead>{m.chats_col_updated()}</TableHead>
+              <TableHead align="end">{m.label_actions()}</TableHead>
+            </TableHeader>
           <TableBody>
             {rows.map((row) => (
-              <TableRow key={row.threadId} className="border-b border-app-border/40 hover:bg-app-surface-hover/40 transition-colors">
+              <TableRow key={row.threadId}>
                 <TableCell>
                   <span
                     className={`text-app-caption font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
@@ -172,8 +173,8 @@ export function ChatsPage() {
                     {row.type === "tune" ? "setup" : row.type}
                   </span>
                 </TableCell>
-                <TableCell className="text-app-text">{row.trackName || "—"}</TableCell>
-                <TableCell className="text-app-text-secondary">
+                <TableCell tone="primary">{row.trackName || "—"}</TableCell>
+                <TableCell>
                   {row.type === "tune" && row.tune ? (
                     <span className="truncate max-w-[180px] block">{row.tune.carName || "—"}</span>
                   ) : (
@@ -185,7 +186,7 @@ export function ChatsPage() {
                     ))
                   )}
                 </TableCell>
-                <TableCell className="text-app-text-secondary font-mono text-app-compact">
+                <TableCell numeric>
                   {row.type === "tune" && row.tune ? (
                     <span className="truncate max-w-[220px] block">
                       #{row.tune.seq} — {row.tune.name}
@@ -199,8 +200,8 @@ export function ChatsPage() {
                     ))
                   )}
                 </TableCell>
-                <TableCell className="text-app-text-muted">{formatRelative(row.updatedAt)}</TableCell>
-                <TableCell className="text-right">
+                <TableCell tone="muted">{formatRelative(row.updatedAt)}</TableCell>
+                <TableCell align="end">
                   <div className="flex items-center justify-end gap-1">
                     <Button
                       onClick={() => handleOpen(row)}
@@ -222,6 +223,7 @@ export function ChatsPage() {
             ))}
           </TableBody>
         </Table>
+        </div>
       )}
     </div>
   );
