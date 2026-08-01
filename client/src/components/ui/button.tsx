@@ -32,8 +32,7 @@ const buttonVariants = cva(
         "form-section-toggle": "w-full !justify-between !py-2 text-left",
         "analysis-summary": "w-full !justify-start !gap-2 bg-status-success/10 !px-2 !py-1.5 text-left hover:bg-status-success/15",
         "settings-nav": "shrink-0 md:w-full !justify-start !px-4 !py-2 text-app-subtext whitespace-nowrap transition-colors text-app-text-muted hover:text-app-text hover:bg-app-surface-hover",
-        "settings-nav-selected":
-          "shrink-0 md:w-full !justify-start !px-4 !py-2 text-app-subtext whitespace-nowrap transition-colors text-app-accent bg-app-accent/10 border-b-2 md:border-b-0 md:border-r-2 border-app-accent",
+        "settings-nav-selected": "shrink-0 md:w-full !justify-start !px-4 !py-2 text-app-subtext whitespace-nowrap transition-colors text-app-accent bg-app-accent/10 border-0",
         "focus-option": "!w-full !justify-start !border !py-2 text-left transition-colors border-app-border hover:border-app-accent/50",
         "focus-option-selected": "!w-full !justify-start !border !py-2 text-left transition-colors border-app-accent bg-app-accent/10",
         "search-select-trigger":

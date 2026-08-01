@@ -190,7 +190,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
         <Button
           variant="app-ghost"
           size="app-md"
-          className="ml-auto"
+          className="ml-auto md:hidden"
           onClick={() => {
             onClose?.();
             openOnboarding();
