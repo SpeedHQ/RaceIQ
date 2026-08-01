@@ -17,6 +17,8 @@
 - Highlight the active sector-blip setting with a cyan border
 - Keep analysis and comparison pages usable on wide, low-height displays
 - Resize the comparison track map with a persisted splitter and keep the AI Analysis control right-aligned
+- Keep the iRacing analysis car indicator aligned with track direction in fixed and follow map views
+- Show corner and straight times on iRacing analysis laps without world-position telemetry
 
 ### Internal
 - Added complete telemetry-first semantic catalog with units, descriptions, per-game fidelity mappings, full parser/setup source inventories, stable iRacing SessionInfo setup leaves, detailed sector relationships, and persisted detailed tire temperatures
