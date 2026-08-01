@@ -10,7 +10,10 @@
 ### Fixes
 
 - Show all registered games in storage settings, including games with no recording files
-- Make every app workspace reflow across phone, tablet, odd-shaped, and desktop windows without blocking device or rotation gates
+- Match primary button backgrounds to the neutral gray button surface
+- Highlight the active sector-blip setting with a cyan border
+- Keep desktop-only analysis and comparison pages available on wide, low-height displays
+- Resize the comparison track map with a persisted splitter and keep the AI Analysis control right-aligned
 
 ### Internal
 - Restored live-dashboard Storybook runtime context and added same-renderer local visual comparison before canonical Linux baseline generation

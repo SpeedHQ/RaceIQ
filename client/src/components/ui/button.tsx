@@ -19,7 +19,7 @@ const buttonVariants = cva(
 
         // App design-token variants (use app-* CSS vars)
         "app-outline": "!border-app-border-input text-app-text-secondary hover:text-app-text rounded",
-        "app-primary": "bg-app-accent text-app-on-filled hover:bg-app-accent-hover rounded disabled:bg-app-accent/40 disabled:opacity-100",
+        "app-primary": "!bg-app-surface-alt !text-app-accent border border-app-border hover:!bg-app-surface-hover hover:!text-app-accent-hover rounded disabled:opacity-50",
         "app-ghost": "text-app-text-secondary hover:text-app-text rounded",
         "app-danger": "bg-status-danger text-app-on-filled hover:bg-status-danger-hover rounded",
         "menu-action": "w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover",

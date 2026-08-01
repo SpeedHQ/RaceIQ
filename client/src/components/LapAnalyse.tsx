@@ -54,7 +54,10 @@ interface ImportedLap {
 
 // ── Main Component ───────────────────────────────────────────────────
 
+
 export function LapAnalyse() {
+  const isNarrow = useNarrowViewport();
+  if (isNarrow) return <MobileNotSupported feature={m.lapanalyse_feature_name()} />;
   return <LapAnalyseInner />;
 }
 

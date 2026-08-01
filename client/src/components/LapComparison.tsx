@@ -26,6 +26,7 @@ interface TrackGroup {
   laps: LapMeta[];
 }
 
+
 export interface LapComparisonSearch {
   track?: number;
   carA?: number;
@@ -46,6 +47,8 @@ export function ComparisonLoadStatus({ loading, error, hasComparison }: { loadin
 }
 
 export function LapComparison({ initialSearch }: { initialSearch?: LapComparisonSearch } = {}) {
+  const isNarrow = useNarrowViewport();
+  if (isNarrow) return <MobileNotSupported feature={m.lapcompare_feature_name()} />;
   return <LapComparisonInner initialSearch={initialSearch} />;
 }
 
@@ -84,6 +87,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
   const prevCarBRef = useRef<number | null | undefined>(undefined);
   const hoveredDistanceRef = useRef<number | null>(null);
   const mapRedrawRef = useRef<(() => void) | null>(null);
+  const aiPanelRef = useRef<CompareAiPanelHandle | null>(null);
   const comparisonLayoutRef = useRef<HTMLDivElement>(null);
   const [comparisonLayoutWidth, setComparisonLayoutWidth] = useState(0);
   const [savedMapWidth, setSavedMapWidth] = useLocalStorage("compare-left-column-width", COMPARE_MAP_DEFAULT_WIDTH);
@@ -424,7 +428,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
         </div>
 
         {/* AI panel toggle */}
-        <div className="flex w-full flex-col gap-1 @3xl/workspace:w-auto">
+        <div className="ml-auto flex flex-col gap-1 self-end">
           <Button
             variant="app-outline"
             size="app-lg"
@@ -447,9 +451,9 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
       ) : lapAId === lapBId ? (
         <div className="flex-1 flex items-center justify-center text-app-text-dim text-sm">{m.compare_select_different_laps()}</div>
       ) : comparison?.traces?.distance ? (
-        <div className="relative flex flex-none flex-col gap-4 overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:flex-row @5xl/workspace:overflow-hidden">
+        <div ref={comparisonLayoutRef} className="flex gap-4 flex-1 min-h-0 overflow-hidden">
           {/* Left: track map */}
-          <div className="h-[42rem] w-full shrink-0 @5xl/workspace:h-auto @5xl/workspace:min-h-0 @5xl/workspace:w-[clamp(20rem,42cqw,27.5rem)]">
+          <div className="shrink-0 min-h-0" style={{ width: mapWidth }}>
             <CompareTrackMap
               outline={trackOutline ?? syntheticOutline}
               telemetryA={comparison.telemetryA}

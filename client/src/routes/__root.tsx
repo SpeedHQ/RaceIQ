@@ -112,24 +112,6 @@ function StaleLapButton() {
 }
 
 export function MobileNotSupported({ feature = m.root_this_view() }: { feature?: string }) {
-  const [show, setShow] = useState(false);
-  useEffect(() => {
-    const check = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      const shortEdge = Math.min(w, h);
-      setShow(shortEdge <= 768);
-    };
-    check();
-    window.addEventListener("resize", check);
-    window.addEventListener("orientationchange", check);
-    return () => {
-      window.removeEventListener("resize", check);
-      window.removeEventListener("orientationchange", check);
-    };
-  }, []);
-
-  if (!show) return null;
 
   return (
     <div className="flex-1 flex items-center justify-center p-8 text-center">
@@ -153,9 +135,8 @@ export function RotatePrompt() {
     const check = () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
-      // Prompt when the device is phone-sized (short edge <= 768) and in portrait.
-      const shortEdge = Math.min(w, h);
-      setShow(h > w && shortEdge <= 768);
+      // Prompt only when portrait width cannot support desktop-only views.
+      setShow(h > w && isNarrowViewport(w));
     };
     check();
     window.addEventListener("resize", check);
