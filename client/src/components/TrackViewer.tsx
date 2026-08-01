@@ -11,6 +11,7 @@ import { tuneMatchesTrack } from "./track/CatalogTrackSetups";
 import { TrackCard } from "./track/TrackCard";
 import type { TrackInfo } from "./track/types";
 import { AppInput } from "./ui/AppInput";
+import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 
 type SortKey = "name" | "laps";
 
@@ -110,16 +111,15 @@ export function TrackViewer() {
         />
         <div className="flex items-center gap-1.5 text-sm text-app-text-muted @3xl/workspace:gap-1 @3xl/workspace:text-app-label">
           <span className="uppercase tracking-wider">{m.trackviewer_sort_label()}</span>
-          {(["name", "laps"] as SortKey[]).map((key) => (
-            <button
-              type="button"
-              key={key}
-              onClick={() => setSortKey(key)}
-              className={`rounded px-3 py-2 capitalize @3xl/workspace:px-2 @3xl/workspace:py-0.5 ${sortKey === key ? "bg-app-surface-alt border border-app-border text-app-text" : "text-app-text-dim hover:text-app-text-muted"}`}
-            >
-              {key}
-            </button>
-          ))}
+          <Tabs value={sortKey} onValueChange={(value) => setSortKey(value as SortKey)}>
+            <TabsList>
+              {(["name", "laps"] as SortKey[]).map((key) => (
+                <TabsTrigger key={key} value={key}>
+                  {key === "name" ? "Name" : m.label_laps()}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
         </div>
         <div className="text-app-label text-app-text-muted uppercase tracking-wider whitespace-nowrap">
           {withOutline.length} {m.trackviewer_with_outlines()}, {withoutOutline.length} {m.trackviewer_without_outlines_suffix()}

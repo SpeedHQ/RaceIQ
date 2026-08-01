@@ -2,7 +2,6 @@ import { useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { withDefaults } from "@/components/TuneForm";
 import { buildRows, type RawUserTune } from "@/components/tune/browser/buildRows";
-import type { ComboOption } from "@/components/tune/browser/ComboBox";
 import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
 import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
 import { TuneSettingsPanel } from "@/components/tune/TuneSettingsPanel";
@@ -31,7 +30,6 @@ export function Fm23TuneBrowser() {
   // Import a tune from a JSON file (same shape the tune editor exports).
   const handleImportFile = async (file: File) => {
     try {
-      // biome-ignore lint/suspicious/noExplicitAny: importing arbitrary user-provided tune JSON
       const parsed: any = JSON.parse(await file.text());
       const s = parsed.settings ?? parsed;
       for (const key of REQUIRED_SECTIONS) {
@@ -51,7 +49,6 @@ export function Fm23TuneBrowser() {
         description: parsed.description || m.tune_source_imported_from_json(),
         settings: withDefaults(normalizedSettings),
         unitSystem: parsed.unitSystem === "imperial" ? "imperial" : "metric",
-        // biome-ignore lint/suspicious/noExplicitAny: create-tune mutation accepts a loose payload
       } as any);
     } catch (err) {
       console.error("[TuneImport] failed:", err);
@@ -77,14 +74,14 @@ export function Fm23TuneBrowser() {
     return map;
   }, [trackOrdinals, names]);
 
-  const carOptions: ComboOption[] = useMemo(() => {
+  const carOptions = useMemo(() => {
     const counts = new Map<number, number>();
     for (const r of rows) counts.set(r.carOrdinal, (counts.get(r.carOrdinal) ?? 0) + 1);
     const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: carNames[ord] ?? `Car #${ord}`, count })).sort((a, b) => b.count - a.count);
     return [{ value: "any", label: m.tune_filter_any_car(), count: rows.length }, ...opts];
   }, [rows, carNames]);
 
-  const trackOptions: ComboOption[] = useMemo(() => {
+  const trackOptions = useMemo(() => {
     const counts = new Map<number, number>();
     for (const r of rows) if (r.trackOrdinal != null) counts.set(r.trackOrdinal, (counts.get(r.trackOrdinal) ?? 0) + 1);
     const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: names?.trackNames[String(ord)] ?? `Track ${ord}`, count })).sort((a, b) => b.count - a.count);

@@ -25,16 +25,17 @@ function Tabs({ className, ...props }: TabsProps) {
 }
 function TabsList({ className, variant = "default", ...props }: TabsListProps) {
   const variants = {
-    default: "flex flex-wrap gap-1 border-b border-app-border pb-2",
-    pills: "flex flex-wrap gap-1 rounded-lg bg-app-surface-alt p-1",
+    default: "flex flex-wrap gap-1",
+    pills: "flex flex-wrap gap-1 bg-app-surface-alt p-1",
   } as const;
-  return <TabsPrimitive.List data-slot="tabs-list" data-variant={variant} className={cn(variants[variant], className)} {...props} />;
+  return <TabsPrimitive.List data-slot="tabs-list" data-variant={variant} className={cn(variants[variant], className, "rounded")} {...props} />;
 }
 
 function TabsTrigger({ className, variant = "default", ...props }: TabsTriggerProps) {
   const variants = {
-    default: "rounded-md px-3 py-1.5 text-xs font-semibold text-app-text-muted transition-colors outline-none hover:bg-app-surface-hover hover:text-app-text data-[active]:bg-app-accent/20 data-[active]:text-app-accent",
-    pills: "rounded-md px-3 py-1.5 text-xs font-semibold text-app-text-muted transition-colors outline-none hover:text-app-text data-[active]:bg-app-surface data-[active]:text-app-text",
+    default:
+      "px-3 py-1.5 text-app-label font-semibold text-app-text-muted transition-colors outline-none hover:bg-app-surface-hover hover:text-app-text data-[active]:bg-app-accent/20 data-[active]:text-app-accent",
+    pills: "px-3 py-1.5 text-app-label font-semibold text-app-text-muted transition-colors outline-none hover:text-app-text data-[active]:bg-app-surface data-[active]:text-app-text",
   } as const;
   return (
     <TabsPrimitive.Tab
@@ -44,6 +45,7 @@ function TabsTrigger({ className, variant = "default", ...props }: TabsTriggerPr
         variants[variant],
         "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className,
+        "rounded",
       )}
       {...props}
     />
@@ -54,5 +56,5 @@ function TabsContent({ className, ...props }: TabsContentProps) {
   return <TabsPrimitive.Panel data-slot="tabs-content" className={cn("outline-none", className)} {...props} />;
 }
 
-export { Tabs, TabsList, TabsTrigger, TabsContent };
 export type { TabsContentProps, TabsListProps, TabsProps, TabsTriggerProps };
+export { Tabs, TabsContent, TabsList, TabsTrigger };

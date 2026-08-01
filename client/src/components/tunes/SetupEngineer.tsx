@@ -68,7 +68,7 @@ export function SetupEngineerControls({ state, lapId }: { state: SetupEngineerSt
   return (
     <div className="flex items-center gap-2">
       <select
-        className="bg-app-dropdown border border-app-border rounded px-2 py-1 text-xs max-w-[220px]"
+        className="bg-app-dropdown border border-app-border rounded px-2 py-1 text-app-detail max-w-[220px]"
         value={filePath}
         onChange={(e) => setFilePath(e.target.value)}
         disabled={loadingFiles || noFiles}
@@ -143,8 +143,8 @@ export function SetupEngineerResult({ state }: { state: SetupEngineerState }) {
                 <div className="text-xs text-app-text-dim">No changes recommended.</div>
               ) : (
                 <ul className="space-y-1">
-                  {result.intents.map((it, i) => (
-                    <li key={`${it.component}-${i}`} className="text-xs text-app-text">
+                  {result.intents.map((it) => (
+                    <li key={`${it.component}|${it.direction}|${it.magnitude}|${it.reason}`} className="text-xs text-app-text">
                       <span className="font-mono text-(--focus-setup)">{it.component}</span>: {it.direction} ({it.magnitude}) <span className="text-app-text-dim">({it.reason})</span>
                     </li>
                   ))}
@@ -155,8 +155,8 @@ export function SetupEngineerResult({ state }: { state: SetupEngineerState }) {
             <div className="text-xs text-app-text-dim">No changes recommended.</div>
           ) : (
             <ul className="space-y-1">
-              {result.applied.map((a, i) => (
-                <li key={`${a.component}-${i}`} className="text-xs text-app-text">
+              {result.applied.map((a) => (
+                <li key={`applied|${a.component}|${a.from}|${a.to}|${a.reason}`} className="text-xs text-app-text">
                   <span className="font-mono text-(--focus-setup)">{a.component}</span>: {a.from} → {a.to} <span className="text-app-text-dim">({a.reason})</span>
                 </li>
               ))}
@@ -168,8 +168,8 @@ export function SetupEngineerResult({ state }: { state: SetupEngineerState }) {
             <div className="border-t border-app-border pt-2 space-y-1">
               <div className="text-app-compact text-app-text-muted uppercase tracking-wider">Deterministic (LLM-free) recommendation</div>
               <ul className="space-y-1">
-                {result.rulesIntents.map((it, i) => (
-                  <li key={`rules-${it.component}-${i}`} className="text-xs text-app-text">
+                {result.rulesIntents.map((it) => (
+                  <li key={`rules|${it.component}|${it.direction}|${it.magnitude}|${it.reason}`} className="text-xs text-app-text">
                     <span className="font-mono text-(--focus-driver)">{it.component}</span>: {it.direction} ({it.magnitude}) <span className="text-app-text-dim">({it.reason})</span>
                   </li>
                 ))}
@@ -179,8 +179,8 @@ export function SetupEngineerResult({ state }: { state: SetupEngineerState }) {
 
           {result.skipped.length > 0 && (
             <ul className="space-y-1">
-              {result.skipped.map((s, i) => (
-                <li key={`${s.component}-${i}`} className="text-xs text-status-warning">
+              {result.skipped.map((s) => (
+                <li key={`skipped|${s.component}|${s.reason}`} className="text-xs text-status-warning">
                   Skipped {s.component}: {s.reason}
                 </li>
               ))}

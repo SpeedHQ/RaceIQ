@@ -22,7 +22,7 @@ function makeLaps(sessionId: number, count: number, base: number): LapMeta[] {
     invalidReason: i === 0 ? "outlap" : undefined,
     carOrdinal: 42,
     trackOrdinal: 7,
-    sectorTimes: [30.1, 33.5, 30.6],
+    sectorTimes: sessionId === 2 ? undefined : [30.1, 33.5, 30.6],
     createdAt: new Date(Date.now() - (count - i) * 95_000).toISOString(),
   })) as unknown as LapMeta[];
 }

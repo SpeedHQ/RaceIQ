@@ -338,7 +338,7 @@ export function StepWheel() {
       </p>
       <div className="grid grid-cols-3 gap-3">
         {wheels.map((w) => (
-          <button
+          <Button
             type="button"
             key={w.id}
             onClick={() => select(w.src)}
@@ -350,7 +350,7 @@ export function StepWheel() {
             <div className="mt-2 h-24 flex items-center justify-center rounded-md border border-app-border bg-app-surface overflow-hidden">
               <img src={w.src} alt={w.name} className="h-full object-contain" />
             </div>
-          </button>
+          </Button>
         ))}
       </div>
     </div>
@@ -388,7 +388,7 @@ export function StepUnits() {
       <h2 className="text-sm font-semibold text-app-text mb-1">{m.label_units()}</h2>
       <p className="text-sm text-app-text-muted mb-4">{m.ob_units_desc()}</p>
       <div className="grid grid-cols-2 gap-3">
-        <button
+        <Button
           type="button"
           onClick={() => selectUnit("imperial")}
           className={`rounded-lg border p-4 text-left transition-all ${
@@ -397,8 +397,8 @@ export function StepUnits() {
         >
           <div className="text-sm font-medium text-app-text">{m.ob_units_imperial()}</div>
           <div className="text-xs text-app-text-muted mt-1">mph, ft, lb</div>
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
           onClick={() => selectUnit("metric")}
           className={`rounded-lg border p-4 text-left transition-all ${
@@ -407,7 +407,7 @@ export function StepUnits() {
         >
           <div className="text-sm font-medium text-app-text">{m.ob_units_metric()}</div>
           <div className="text-xs text-app-text-muted mt-1">km/h, m, kg</div>
-        </button>
+        </Button>
       </div>
 
       <div className="mt-5 pt-5 border-t border-app-border">
@@ -415,7 +415,7 @@ export function StepUnits() {
         <p className="text-xs text-app-text-muted mb-3">{m.ob_units_temperature_desc()}</p>
 
         <div className="flex items-center gap-2">
-          <button
+          <Button
             type="button"
             onClick={() => selectTemperatureUnit("F")}
             className={`rounded-lg border px-4 py-2 text-sm transition-all ${
@@ -423,8 +423,8 @@ export function StepUnits() {
             }`}
           >
             °F
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={() => selectTemperatureUnit("C")}
             className={`rounded-lg border px-4 py-2 text-sm transition-all ${
@@ -432,7 +432,7 @@ export function StepUnits() {
             }`}
           >
             °C
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -539,7 +539,7 @@ export function StepStartup() {
       <p className="text-sm text-app-text-muted mb-4">{m.ob_startup_desc()}</p>
 
       <div className="flex items-center gap-3">
-        <button
+        <Button
           type="button"
           role="switch"
           disabled={!enabled}
@@ -558,7 +558,7 @@ export function StepStartup() {
               displaySettings.launchOnLogin ? "translate-x-4" : "translate-x-0"
             }`}
           />
-        </button>
+        </Button>
         <span className="text-sm text-app-text-muted">{!enabled ? m.settings_launch_installed_only() : displaySettings.launchOnLogin ? m.common_enabled() : m.common_disabled()}</span>
       </div>
     </div>
@@ -602,13 +602,13 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
         {/* Header — hidden on welcome */}
         {step > 0 && (
           <div className="shrink-0 px-4 pt-4 pb-4 @3xl/onboarding:px-6 @3xl/onboarding:pt-6">
-            <h1 className="text-base font-semibold text-app-text @3xl/onboarding:text-lg">{m.ob_configure_title()}</h1>
+            <h1 className="text-app-heading font-semibold text-app-text @3xl/onboarding:text-app-title">{m.ob_configure_title()}</h1>
             <div className="flex items-center gap-2 mt-4 overflow-x-auto pb-1">
               {MODAL_STEPS.slice(1).map((s, idx) => {
                 const i = idx + 1;
                 return (
                   <div key={s.id} className="flex items-center gap-2 shrink-0">
-                    <button
+                    <Button
                       type="button"
                       onClick={() => setStep(i)}
                       className={`flex items-center gap-1.5 text-xs font-medium transition-colors whitespace-nowrap ${
@@ -633,7 +633,7 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
                         )}
                       </span>
                       {s.label()}
-                    </button>
+                    </Button>
                     {idx < MODAL_STEPS.length - 2 && <div className={`w-8 h-px ${i < step ? "bg-status-success/50" : "bg-app-border"}`} />}
                   </div>
                 );

@@ -5,7 +5,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import { m } from "@/paraglide/messages";
 import { useSettings } from "../hooks/queries";
 import { type ChatStreamError, type ChatStreamStatus, readChatStream } from "../lib/chat-stream";
-import { isAiConfigured } from "../lib/is-ai-configured";
+import { isAiAnalysisConfigured, launchAiFeature } from "../lib/is-ai-configured";
 import { resolveCssColor } from "../lib/rendering/css-values";
 import { client } from "../lib/rpc";
 import { useUiStore } from "../stores/ui";
@@ -89,7 +89,7 @@ export interface AiPanelHandle {
 export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel({ lapId, carName, trackName, segments, onAnalysisLoaded, onJumpToFrac, onHighlightsChange, panelOpen = false }, ref) {
   const { displaySettings } = useSettings();
   const openSettings = useUiStore((s) => s.openSettings);
-  const aiConfigured = isAiConfigured(displaySettings);
+  const aiConfigured = isAiAnalysisConfigured(displaySettings);
 
   // Analysis state
   const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
@@ -322,6 +322,21 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
       .finally(() => setChatRemountKey((k) => k + 1));
   }, [lapId]);
 
+  const configureAi = useCallback(() => openSettings("ai"), [openSettings]);
+  const runAnalysis = useCallback((regenerate = false) => launchAiFeature(aiConfigured, () => void fetchAnalysis(regenerate), configureAi), [aiConfigured, configureAi, fetchAnalysis]);
+  const regenerateAnalysis = useCallback(
+    () =>
+      launchAiFeature(
+        aiConfigured,
+        () => {
+          clearChat();
+          void fetchAnalysis(true);
+        },
+        configureAi,
+      ),
+    [aiConfigured, clearChat, configureAi, fetchAnalysis],
+  );
+
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {/* Analysis area. Once the chat is mounted below it this shrinks to its
@@ -334,10 +349,10 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
             <Sparkles className="size-5 text-app-text-dim" />
             <div>
               <p className="text-app-compact text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
-              <p className="text-app-caption text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
+              <p className="text-app-caption text-app-text-muted mt-0.5">{m.ai_configure_feature_description()}</p>
             </div>
-            <Button variant="ai-action" size="app-md" onClick={() => openSettings("ai")}>
-              {m.aipanel_set_up_ai()}
+            <Button variant="app-primary" size="app-md" onClick={() => openSettings("ai")}>
+              {m.ai_configure_feature()}
             </Button>
           </div>
         )}
@@ -376,7 +391,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           <div className="flex flex-col items-center justify-center py-12 gap-3">
             <Sparkles className="size-5" style={{ color: "var(--ai-accent)" }} />
             <p className="text-app-compact text-app-text-muted">{m.aipanel_no_analysis()}</p>
-            <Button variant="app-primary" size="app-md" onClick={() => fetchAnalysis(false)} className="text-app-compact">
+            <Button variant="app-primary" size="app-md" onClick={() => runAnalysis(false)} className="text-app-compact">
               <Sparkles className="size-3" />
               {m.aipanel_analyse_lap()}
             </Button>
@@ -388,8 +403,8 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           <div className="flex justify-start">
             <div className="rounded-lg px-2.5 py-2 bg-status-danger/10 border border-status-danger/20">
               <p className="text-app-compact text-status-danger">{error}</p>
-              <Button variant="app-outline" size="app-sm" onClick={() => fetchAnalysis(false)} className="mt-1">
-                {m.label_retry()}
+              <Button variant={aiConfigured ? "app-outline" : "app-primary"} size="app-sm" onClick={() => runAnalysis(false)} className="mt-1">
+                {aiConfigured ? m.label_retry() : m.ai_configure_feature()}
               </Button>
             </div>
           </div>
@@ -435,10 +450,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 onJumpToFrac={onJumpToFrac}
                 onHighlightsChange={onHighlightsChange}
                 onExport={handleExport}
-                onRegenerate={() => {
-                  clearChat();
-                  fetchAnalysis(true);
-                }}
+                onRegenerate={regenerateAnalysis}
                 onClear={() => {
                   clearChat();
                   setAnalysis(null);

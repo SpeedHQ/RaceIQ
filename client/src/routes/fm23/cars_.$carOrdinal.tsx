@@ -4,6 +4,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { CarWireframe } from "../../components/CarWireframe";
+import { Button } from "../../components/ui/button";
 import { getCarModel, loadCarModelConfigs } from "../../data/car-models";
 import { client } from "../../lib/rpc";
 
@@ -111,13 +112,7 @@ function CarModelPage() {
 
   const { data: carInfo } = useQuery({
     queryKey: ["car", ordinal],
-    queryFn: () =>
-      client.api.cars[":ordinal"]
-        .$get(
-          { param: { ordinal: String(ordinal) } },
-          { headers: { "X-Game-Id": "fm-2023" } },
-        )
-        .then((r) => (r.ok ? r.json() : null)),
+    queryFn: () => client.api.cars[":ordinal"].$get({ param: { ordinal: String(ordinal) } }, { headers: { "X-Game-Id": "fm-2023" } }).then((r) => (r.ok ? r.json() : null)),
   });
 
   const staticPacket = useMemo(() => makeStaticPacket(ordinal), [ordinal]);
@@ -129,9 +124,12 @@ function CarModelPage() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4 text-app-text-dim">
         <div className="text-lg">{m.carmodel_no_model()}</div>
-        <button onClick={() => navigate({ to: "/$gameid/cars", params: { gameid: "fm23" } })} className="px-4 py-2 rounded bg-app-surface-alt border border-app-border-input text-app-text-secondary hover:text-app-text">
+        <Button
+          onClick={() => navigate({ to: "/$gameid/cars", params: { gameid: "fm23" } })}
+          className="px-4 py-2 rounded bg-app-surface-alt border border-app-border-input text-app-text-secondary hover:text-app-text"
+        >
           {m.carmodel_back_to_cars()}
-        </button>
+        </Button>
       </div>
     );
   }
@@ -139,12 +137,12 @@ function CarModelPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center gap-3 p-3 border-b border-app-border shrink-0">
-        <button
+        <Button
           onClick={() => navigate({ to: "/$gameid/cars", params: { gameid: "fm23" } })}
           className="text-app-label text-app-text-secondary hover:text-app-text px-2 py-1 rounded bg-app-surface-alt hover:bg-app-surface-hover transition-colors"
         >
           &larr; Cars
-        </button>
+        </Button>
         <div>
           <div className="text-app-heading font-semibold text-app-text">{carInfo?.name ?? `Car ${ordinal}`}</div>
           <div className="text-app-label text-app-text-muted">

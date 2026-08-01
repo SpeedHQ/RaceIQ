@@ -1,52 +1,175 @@
-import type { HTMLAttributes, ReactNode, TableHTMLAttributes, TdHTMLAttributes, ThHTMLAttributes } from "react";
+import type { ComponentPropsWithRef, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-type TableProps = TableHTMLAttributes<HTMLTableElement> & {
-  fit?: boolean;
-  tableClassName?: string;
-  variant?: "default" | "settings";
+type LockedStyleProps<T> = Omit<T, "className" | "style"> & {
+  className?: never;
+  style?: never;
 };
 
-export function Table({ children, className, fit = false, tableClassName, variant = "default", ...props }: TableProps) {
+type RuntimeStyleOverrides = {
+  className?: unknown;
+  rowClassName?: unknown;
+  style?: unknown;
+  tableClassName?: unknown;
+};
+
+type TableProps = LockedStyleProps<ComponentPropsWithRef<"table">> & {
+  density?: "default" | "compact" | "telemetry";
+  fit?: boolean;
+  layout?: "auto" | "fixed";
+  variant?: "default" | "settings" | "embedded";
+};
+
+type THeadProps = LockedStyleProps<ComponentPropsWithRef<"thead">>;
+type TBodyProps = LockedStyleProps<ComponentPropsWithRef<"tbody">>;
+type TRowProps = LockedStyleProps<ComponentPropsWithRef<"tr">> & {
+  selected?: boolean;
+  tooltip?: string;
+  variant?: "default" | "separator" | "static";
+};
+type CellAlign = "start" | "center" | "end";
+type CellTone = "default" | "primary" | "muted" | "dim" | "accent" | "success" | "warning" | "danger" | "best";
+type TruncateWidth = "narrow" | "wide";
+type TableShowFrom = "sm" | "workspace-sm" | "workspace-md" | "workspace-lg" | "workspace-xl";
+type THProps = Omit<LockedStyleProps<ComponentPropsWithRef<"th">>, "align"> & {
+  align?: CellAlign;
+  nowrap?: boolean;
+  showFrom?: TableShowFrom;
+  sticky?: "start";
+  visuallyHidden?: boolean;
+};
+type SortableTHProps = Omit<THProps, "aria-sort" | "children" | "onClick" | "onKeyDown" | "tabIndex"> & {
+  children: ReactNode;
+  direction?: "ascending" | "descending";
+  onSort: () => void;
+};
+type TDProps = Omit<LockedStyleProps<ComponentPropsWithRef<"td">>, "align"> & {
+  align?: CellAlign;
+  emphasis?: boolean;
+  numeric?: boolean;
+  nowrap?: boolean;
+  showFrom?: TableShowFrom;
+  sticky?: "start";
+  tone?: CellTone;
+  truncate?: TruncateWidth;
+};
+
+const alignClasses: Record<CellAlign, string> = {
+  start: "text-left",
+  center: "text-center",
+  end: "text-right",
+};
+
+const toneClasses: Record<CellTone, string> = {
+  default: "text-app-text-secondary",
+  primary: "text-app-text",
+  muted: "text-app-text-muted",
+  dim: "text-app-text-dim",
+  accent: "text-app-accent",
+  success: "text-status-success",
+  warning: "text-status-warning",
+  danger: "text-status-danger",
+  best: "text-(--lap-pace-best)",
+};
+
+const showFromClasses: Record<TableShowFrom, string> = {
+  sm: "hidden sm:table-cell",
+  "workspace-sm": "hidden @sm/workspace:table-cell",
+  "workspace-md": "hidden @3xl/workspace:table-cell",
+  "workspace-lg": "hidden @5xl/workspace:table-cell",
+  "workspace-xl": "hidden @7xl/workspace:table-cell",
+};
+
+export function Table(inputProps: TableProps) {
+  const {
+    children,
+    className: consumerClassName,
+    density = "default",
+    fit = false,
+    layout = "auto",
+    style: consumerStyle,
+    tableClassName,
+    variant = "default",
+    ...props
+  } = inputProps as TableProps & RuntimeStyleOverrides;
+  void consumerClassName;
+  void consumerStyle;
+  void tableClassName;
+
   const variantClasses = {
     default: "",
     settings: "bg-app-surface/40 ring-1 ring-app-border",
+    embedded: "rounded-none",
   } as const;
+  const densityClasses = {
+    default: "",
+    compact: "text-app-compact [&_th]:px-2 [&_th]:py-1.5 [&_td]:px-2 [&_td]:py-1.5",
+    telemetry: "table-fixed font-mono text-app-compact [&_th]:p-0 [&_td]:p-0 [&_tbody]:divide-y-0 [&_tbody>tr]:hover:bg-transparent [&_thead>tr]:border-0",
+  } as const;
+
   return (
-    <div className={cn("rounded-lg", variantClasses[variant], fit ? "" : "overflow-x-auto", className)}>
-      <table data-variant={variant} className={cn("w-full text-sm", fit ? "min-w-0" : "min-w-max @3xl/workspace:min-w-0", tableClassName)} {...props}>
+    <div data-slot="table-container" className={cn("rounded-lg", variantClasses[variant], fit ? "" : "overflow-x-auto")}>
+      <table
+        {...props}
+        data-density={density}
+        data-slot="table"
+        data-variant={variant}
+        className={cn(
+          "w-full text-app-detail [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-app-surface [&_thead>tr]:border-b [&_thead>tr]:border-app-border [&_thead>tr]:text-app-label [&_thead>tr]:uppercase [&_thead>tr]:tracking-wider [&_thead>tr]:text-app-text-muted [&_tbody]:divide-y [&_tbody]:divide-app-border/40",
+          fit ? "min-w-0" : "min-w-max @3xl/workspace:min-w-0",
+          layout === "fixed" && "table-fixed",
+          densityClasses[density],
+        )}
+      >
         {children}
       </table>
     </div>
   );
 }
 
-export function THead({ children, className, rowClassName, ...props }: HTMLAttributes<HTMLTableSectionElement> & { rowClassName?: string }) {
+export function THead(inputProps: THeadProps) {
+  const { children, className: consumerClassName, rowClassName, style: consumerStyle, ...props } = inputProps as THeadProps & RuntimeStyleOverrides;
+  void consumerClassName;
+  void consumerStyle;
+  void rowClassName;
+
   return (
-    <thead className={cn("bg-app-surface sticky top-0 z-10", className)} {...props}>
-      <tr className={cn("text-app-caption uppercase tracking-wider text-app-text-muted border-b border-app-border", rowClassName)}>{children}</tr>
+    <thead {...props} data-slot="table-header" className="bg-app-surface sticky top-0 z-10">
+      <tr className="text-app-label uppercase tracking-wider text-app-text-muted border-b border-app-border">{children}</tr>
     </thead>
   );
 }
 
-export function TBody({ children, className, ...props }: HTMLAttributes<HTMLTableSectionElement>) {
+export function TBody(inputProps: TBodyProps) {
+  const { children, className: consumerClassName, style: consumerStyle, ...props } = inputProps as TBodyProps & RuntimeStyleOverrides;
+  void consumerClassName;
+  void consumerStyle;
+
   return (
-    <tbody className={cn("divide-y divide-app-border/40", className)} {...props}>
+    <tbody {...props} data-slot="table-body" className="divide-y divide-app-border/40">
       {children}
     </tbody>
   );
 }
 
-export function TRow({
-  children,
-  className,
-  tooltip,
-  ...props
-}: HTMLAttributes<HTMLTableRowElement> & {
-  tooltip?: string;
-}) {
+export function TRow(inputProps: TRowProps) {
+  const { children, className: consumerClassName, selected = false, style: consumerStyle, tooltip, variant = "default", ...props } = inputProps as TRowProps & RuntimeStyleOverrides;
+  void consumerClassName;
+  void consumerStyle;
+
   return (
-    <tr className={cn("group/row relative hover:bg-app-surface-hover/50 transition-colors", props.onClick && "cursor-pointer", className)} {...props}>
+    <tr
+      {...props}
+      data-selected={selected || undefined}
+      data-slot="table-row"
+      className={cn(
+        "group/row relative transition-colors",
+        variant === "default" && "hover:bg-app-surface-hover/50",
+        variant === "separator" && "text-app-label text-app-text-dim",
+        selected && "bg-app-accent/10",
+        props.onClick && "cursor-pointer",
+      )}
+    >
       {children}
       {tooltip && (
         <td className="p-0 w-0 overflow-visible">
@@ -59,17 +182,96 @@ export function TRow({
   );
 }
 
-export function TH({ children, className, ...props }: { children?: ReactNode; className?: string } & ThHTMLAttributes<HTMLTableCellElement>) {
+export function TH(inputProps: THProps) {
+  const {
+    align = "start",
+    children,
+    className: consumerClassName,
+    nowrap = false,
+    showFrom,
+    sticky,
+    style: consumerStyle,
+    visuallyHidden = false,
+    ...props
+  } = inputProps as THProps & RuntimeStyleOverrides;
+  void consumerClassName;
+  void consumerStyle;
+
   return (
-    <th className={cn("px-3 py-2 text-left", className)} {...props}>
+    <th
+      {...props}
+      data-slot="table-head"
+      className={cn(
+        "px-3 py-2",
+        alignClasses[align],
+        showFrom && showFromClasses[showFrom],
+        nowrap && "whitespace-nowrap",
+        visuallyHidden && "sr-only",
+        sticky === "start" && "sticky left-0 z-20 bg-app-surface",
+        props.onClick && "cursor-pointer select-none hover:text-app-text",
+      )}
+    >
       {children}
     </th>
   );
 }
 
-export function TD({ children, className, ...props }: { children?: ReactNode; className?: string } & TdHTMLAttributes<HTMLTableCellElement>) {
+export function SortableTH({ children, direction, onSort, ...props }: SortableTHProps) {
   return (
-    <td className={cn("px-3 py-2", className)} {...props}>
+    <TH
+      {...props}
+      aria-sort={direction}
+      onClick={onSort}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        onSort();
+      }}
+      tabIndex={0}
+    >
+      <span className={cn("inline-flex items-center gap-1 transition-colors", direction && "text-app-accent")}>
+        {children}
+        {direction && <span aria-hidden="true">{direction === "ascending" ? "↑" : "↓"}</span>}
+      </span>
+    </TH>
+  );
+}
+
+export function TD(inputProps: TDProps) {
+  const {
+    align = "start",
+    children,
+    className: consumerClassName,
+    emphasis = false,
+    numeric = false,
+    nowrap = false,
+    sticky,
+    showFrom,
+    style: consumerStyle,
+    tone = "default",
+    truncate,
+    ...props
+  } = inputProps as TDProps & RuntimeStyleOverrides;
+  void consumerClassName;
+  void consumerStyle;
+
+  return (
+    <td
+      {...props}
+      data-slot="table-cell"
+      className={cn(
+        "px-3 py-2",
+        alignClasses[align],
+        toneClasses[tone],
+        emphasis && "font-semibold",
+        showFrom && showFromClasses[showFrom],
+        numeric && "font-mono tabular-nums",
+        nowrap && "whitespace-nowrap",
+        sticky === "start" && "sticky left-0 z-10 bg-inherit",
+        truncate === "narrow" && "max-w-[140px] truncate",
+        truncate === "wide" && "max-w-[200px] truncate",
+      )}
+    >
       {children}
     </td>
   );

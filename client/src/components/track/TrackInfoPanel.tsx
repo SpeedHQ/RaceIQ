@@ -185,8 +185,7 @@ export function TrackInfoPanel({
         </div>
         {segments.length > 0 ? (
           <Table>
-            {/* THead supplies the <tr> itself — wrapping these in a TRow nests
-                <tr> inside <tr> and the header cells fall out of the columns. */}
+            {/* THead owns its row; pass header cells directly. */}
             <THead>
               <TH>{m.trackinfo_col_section()}</TH>
               <TH>{m.trackinfo_col_type()}</TH>
@@ -202,10 +201,12 @@ export function TrackInfoPanel({
                       {s.type === "corner" ? "🔶" : "🔷"} {labels[i]}
                     </span>
                   </TD>
-                  <TD className="text-app-text-muted">{s.type === "corner" ? m.trackinfo_type_corner() : m.trackinfo_type_straight()}</TD>
-                  <TD className="text-app-text-muted">{s.direction === "left" ? m.trackinfo_dir_left() : s.direction === "right" ? m.trackinfo_dir_right() : "—"}</TD>
-                  <TD className="text-app-text-muted tabular-nums">{sectorBounds ? `S${sectorOf(s.startFrac, s.endFrac)}` : "—"}</TD>
-                  <TD className="text-app-text-muted tabular-nums">
+                  <TD tone="muted">{s.type === "corner" ? m.trackinfo_type_corner() : m.trackinfo_type_straight()}</TD>
+                  <TD tone="muted">{s.direction === "left" ? m.trackinfo_dir_left() : s.direction === "right" ? m.trackinfo_dir_right() : "—"}</TD>
+                  <TD numeric tone="muted">
+                    {sectorBounds ? `S${sectorOf(s.startFrac, s.endFrac)}` : "—"}
+                  </TD>
+                  <TD numeric tone="muted">
                     {(s.startFrac * 100).toFixed(1)}% – {(s.endFrac * 100).toFixed(1)}%
                   </TD>
                 </TRow>

@@ -40,8 +40,8 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
     <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-x-hidden overflow-y-auto p-3 @3xl/workspace:p-4">
       <div className="space-y-2">
         <div>
-          <h1 className="text-lg font-semibold text-app-text">Experiments</h1>
-          <p className="mt-0.5 text-xs text-app-text-dim">An experiment tracks one car + track as you iterate setups — base setup, stints driven, and (soon) versions with lap deltas.</p>
+          <h1 className="text-app-title font-semibold text-app-text">Experiments</h1>
+          <p className="mt-0.5 text-app-subtext text-app-text-dim">An experiment tracks one car + track as you iterate setups — base setup, stints driven, and (soon) versions with lap deltas.</p>
         </div>
         <Button variant="app-primary" size="app-md" onClick={() => setCreating(true)} className="self-start">
           + New experiment
@@ -93,41 +93,53 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
 
   return (
     <Card className="min-w-0 max-w-full overflow-x-auto">
-      <Table fit tableClassName="table-fixed border-collapse">
-        <THead rowClassName="border-b border-app-border">
-          <TH className="hidden w-12 text-right @sm/workspace:table-cell">#</TH>
+      <Table fit layout="fixed">
+        <THead>
+          <TH align="end" showFrom="workspace-sm">
+            #
+          </TH>
           <TH>Session</TH>
-          <TH className="hidden @3xl/workspace:table-cell">Varying</TH>
-          <TH className="hidden @3xl/workspace:table-cell">Car</TH>
-          <TH className="hidden @5xl/workspace:table-cell">Track</TH>
-          <TH className="hidden @5xl/workspace:table-cell">Base setup</TH>
-          <TH className="hidden whitespace-nowrap @7xl/workspace:table-cell">Last active</TH>
-          <TH className="w-20 sr-only">Actions</TH>
+          <TH showFrom="workspace-md">Varying</TH>
+          <TH showFrom="workspace-md">Car</TH>
+          <TH showFrom="workspace-lg">Track</TH>
+          <TH showFrom="workspace-lg">Base setup</TH>
+          <TH showFrom="workspace-xl">Last active</TH>
+          <TH visuallyHidden>Actions</TH>
         </THead>
         <TBody>
           {sessions.length === 0 && (
-            <TRow>
-              <TD colSpan={8} className="px-3 py-6 text-center text-xs text-app-text-dim">
-                {isLoading ? "Loading experiments…" : "No experiments yet. Create one above to get started."}
+            <TRow variant="separator">
+              <TD align="center" colSpan={8} tone="dim">
+                <div className="py-4">{isLoading ? "Loading experiments…" : "No experiments yet. Create one above to get started."}</div>
               </TD>
             </TRow>
           )}
           {sessions.map((s) => {
             const base = s.baseSetupPath?.split(/[\\/]/).pop() ?? "—";
             return (
-              <TRow key={s.id} onClick={() => onOpen(s.id)} className="cursor-pointer border-b border-app-border/60 last:border-0 hover:bg-app-surface-hover/60">
-                <TD className="hidden text-right font-mono tabular-nums text-app-text-dim @sm/workspace:table-cell">{s.seq}</TD>
-                <TD className="truncate font-medium text-app-text">{s.name}</TD>
-                <TD className="hidden @3xl/workspace:table-cell">
+              <TRow key={s.id} onClick={() => onOpen(s.id)}>
+                <TD align="end" showFrom="workspace-sm" numeric tone="dim">
+                  {s.seq}
+                </TD>
+                <TD emphasis tone="primary" truncate="wide">
+                  {s.name}
+                </TD>
+                <TD showFrom="workspace-md">
                   <FocusBadge focus={s.focus} />
                 </TD>
-                <TD className="hidden truncate text-app-text-dim @3xl/workspace:table-cell">{carName(s.carName)}</TD>
-                <TD className="hidden truncate text-app-text-dim @5xl/workspace:table-cell">{s.trackName ?? "—"}</TD>
-                <TD className="hidden max-w-[220px] truncate font-mono text-xs text-app-text-dim @5xl/workspace:table-cell" title={s.baseSetupPath ?? undefined}>
+                <TD showFrom="workspace-md" tone="dim">
+                  {carName(s.carName)}
+                </TD>
+                <TD showFrom="workspace-lg" tone="dim">
+                  {s.trackName ?? "—"}
+                </TD>
+                <TD showFrom="workspace-lg" numeric tone="dim" truncate="wide" title={s.baseSetupPath ?? undefined}>
                   {base}
                 </TD>
-                <TD className="hidden whitespace-nowrap text-app-text-dim @7xl/workspace:table-cell">{new Date(s.updatedAt).toLocaleDateString()}</TD>
-                <TD className="w-20 text-right">
+                <TD showFrom="workspace-xl" nowrap tone="dim">
+                  {new Date(s.updatedAt).toLocaleDateString()}
+                </TD>
+                <TD align="end">
                   <span className="text-xs font-semibold text-app-accent">Resume →</span>
                 </TD>
               </TRow>

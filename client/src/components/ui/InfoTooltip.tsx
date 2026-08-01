@@ -1,5 +1,6 @@
 import { Info } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { Button } from "./button";
 
 export function Tooltip({ children, content, position = "top" }: { children: ReactNode; content: ReactNode; position?: "top" | "bottom" }) {
   const posClass = position === "top" ? "bottom-full mb-2" : "top-full mt-2";
@@ -49,7 +50,7 @@ export function InfoTooltip({
 
   return (
     <span ref={ref} className="group/tip relative inline-flex items-center shrink-0">
-      <button
+      <Button
         type="button"
         onClick={(e) => {
           e.stopPropagation();
@@ -59,7 +60,7 @@ export function InfoTooltip({
         className="inline-flex items-center p-0 m-0 bg-transparent border-0 cursor-help"
       >
         <Info className="w-3 h-3 text-app-text-dim" />
-      </button>
+      </Button>
       <span
         className={`absolute left-0 ${posClass} ${widthClass} ${tapOpen ? "block" : "hidden group-hover/tip:block"} bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-app-caption text-app-text-secondary z-50 pointer-events-none normal-case tracking-normal leading-relaxed`}
       >

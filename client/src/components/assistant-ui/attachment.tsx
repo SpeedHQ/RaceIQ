@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { Button } from "../ui/button";
 
 const useFileSrc = (file: File | undefined) => {
   const [src, setSrc] = useState<string | undefined>(undefined);
@@ -70,7 +71,7 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
       <DialogTrigger
         nativeButton={false}
         className="aui-attachment-preview-trigger hover:bg-accent/50 cursor-pointer transition-colors"
-        render={isValidElement(children) ? children : <button type="button" />}
+        render={isValidElement(children) ? children : <Button type="button" />}
       />
       <DialogContent className="aui-attachment-preview-dialog-content max-w-3xl p-2 [&>button]:rounded-full [&>button]:bg-foreground/60 [&>button]:p-1 [&>button]:opacity-100 [&>button]:ring-0! [&>button]:hover:[&_svg]:text-destructive [&_svg]:text-background">
         <DialogTitle className="aui-sr-only sr-only">Image Attachment Preview</DialogTitle>

@@ -1,5 +1,4 @@
 import type { Meta, StoryObj } from "@storybook/react";
-import type { ComboOption } from "../components/tune/browser/ComboBox";
 import { SetupBrowser } from "../components/tune/browser/SetupBrowser";
 import type { SourceTab, TuneRow } from "../components/tune/browser/types";
 
@@ -83,13 +82,13 @@ const trackNames: Record<number, string> = {
   12: "Nürburgring",
 };
 
-const trackOptions: ComboOption[] = [
+const trackOptions = [
   { value: "any", label: "Any track", count: rows.length },
   { value: "7", label: "Spa-Francorchamps", count: 2 },
   { value: "12", label: "Nürburgring", count: 1 },
 ];
 
-const carOptions: ComboOption[] = [
+const carOptions = [
   { value: "any", label: "Any car", count: rows.length },
   { value: "2860", label: "Aston Martin Vantage GT3", count: 2 },
   { value: "1742", label: "Chevrolet Corvette C8.R", count: 2 },

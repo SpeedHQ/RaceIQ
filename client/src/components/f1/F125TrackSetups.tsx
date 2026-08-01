@@ -3,6 +3,7 @@ import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SETUP_GROUPS } from "@/components/f1/f125-setup-groups";
 import { SetupRangeBar } from "@/components/SetupRangeBar";
+import { Table, TBody, TD, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
@@ -113,8 +114,7 @@ export function F125SetupsWithGuide({ trackOrdinal, trackName }: { trackOrdinal:
     <div className="flex flex-col gap-2 h-full">
       <div className="flex gap-1 shrink-0">
         {(["setups", "ranges"] as const).map((tab) => (
-          <button
-            type="button"
+          <Button
             key={tab}
             onClick={() => setSubTab(tab)}
             className={`text-app-compact px-3 py-1 rounded border transition-colors ${
@@ -122,7 +122,7 @@ export function F125SetupsWithGuide({ trackOrdinal, trackName }: { trackOrdinal:
             }`}
           >
             {tabLabels[tab]}
-          </button>
+          </Button>
         ))}
       </div>
       {subTab === "setups" ? <F125TrackSetups trackOrdinal={trackOrdinal} trackName={trackName} /> : <F125SetupRanges trackOrdinal={trackOrdinal} />}
@@ -175,9 +175,10 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
           const isActive = g.source === activeGuide?.source;
           const sectionCount = g.sections?.length ?? 0;
           return (
-            <button
-              type="button"
+            <Button
               key={g.source}
+              variant="plain"
+              size="content"
               onClick={() => {
                 setSelectedSource(g.source);
                 setMobileView("detail");
@@ -187,7 +188,7 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
               }`}
             >
               <div className="flex items-center gap-1.5 mb-1">
-                <span className={`text-sm font-medium ${isActive ? "text-app-accent" : "text-app-text"}`}>{sourceDisplayName(g.source)}</span>
+                <span className={`text-app-subtext font-medium ${isActive ? "text-app-accent" : "text-app-text"}`}>{sourceDisplayName(g.source)}</span>
                 {sectionCount > 0 && <span className="px-1 py-0.5 text-app-nano font-bold uppercase rounded bg-status-info/20 text-status-info">{m.label_text()}</span>}
                 {g.videoUrl && (
                   <span className="provider-badge px-1 py-0.5 text-app-nano font-bold uppercase rounded" data-provider-brand="youtube">
@@ -195,23 +196,23 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
                   </span>
                 )}
               </div>
-              <table className="w-full text-xs text-app-text-secondary">
-                <tbody>
+              <Table density="compact" fit variant="embedded">
+                <TBody>
                   {g.setupTips && (
-                    <tr>
-                      <td className="pr-2 text-app-text-dim">{m.f1setup_setup_tips_label()}</td>
-                      <td>Yes</td>
-                    </tr>
+                    <TRow>
+                      <TD tone="dim">{m.f1setup_setup_tips_label()}</TD>
+                      <TD>Yes</TD>
+                    </TRow>
                   )}
                   {g.drivingTips && (
-                    <tr>
-                      <td className="pr-2 text-app-text-dim">{m.f1setup_driving_tips_label()}</td>
-                      <td>Yes</td>
-                    </tr>
+                    <TRow>
+                      <TD tone="dim">{m.f1setup_driving_tips_label()}</TD>
+                      <TD>Yes</TD>
+                    </TRow>
                   )}
-                </tbody>
-              </table>
-            </button>
+                </TBody>
+              </Table>
+            </Button>
           );
         })}
       </div>
@@ -225,21 +226,19 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
           </Button>
           {/* Content tabs + source link */}
           <div className="flex items-center gap-2 mb-2 shrink-0 flex-wrap">
-            <button
-              type="button"
+            <Button
               onClick={() => setContentTab("guide")}
-              className={`text-app-caption px-2 py-0.5 rounded border transition-colors ${contentTab === "guide" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
+              className={`text-app-label px-2 py-0.5 rounded border transition-colors ${contentTab === "guide" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
             >
               {m.f1setup_guide_tab()}
-            </button>
+            </Button>
             {activeGuide.setupTips && (
-              <button
-                type="button"
+              <Button
                 onClick={() => setContentTab("setup")}
-                className={`text-app-caption px-2 py-0.5 rounded border transition-colors ${contentTab === "setup" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
+                className={`text-app-label px-2 py-0.5 rounded border transition-colors ${contentTab === "setup" ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
               >
                 {m.f1setup_setup_tips_tab()}
-              </button>
+              </Button>
             )}
             {activeGuide.source && (
               <a href={activeGuide.source} target="_blank" rel="noopener noreferrer" className="text-app-caption text-app-text-muted hover:text-app-text underline underline-offset-2">
@@ -367,8 +366,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
           <div className="text-app-label text-app-text-muted uppercase tracking-wider shrink-0">Setups ({filteredSetups.length})</div>
           <div className="flex gap-0.5 ml-auto">
             {(["", "f1laps", "simracingsetup"] as const).map((p) => (
-              <button
-                type="button"
+              <Button
                 key={p}
                 onClick={() => {
                   setFilterProvider(p);
@@ -377,14 +375,13 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
                 className={`text-app-compact px-2 py-1 rounded border transition-colors ${filterProvider === p ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
               >
                 {p === "" ? "All" : p === "f1laps" ? `F1Laps (${f1lapsCount})` : `SRS (${srsCount})`}
-              </button>
+              </Button>
             ))}
           </div>
           <span className="text-app-border mx-0.5">|</span>
           <div className="flex gap-0.5">
             {(["Dry", "Wet"] as const).map((w) => (
-              <button
-                type="button"
+              <Button
                 key={w}
                 onClick={() => {
                   setFilterWeather(filterWeather === w ? "" : w);
@@ -393,7 +390,7 @@ export function F125TrackSetups({ trackOrdinal }: { trackOrdinal: number; trackN
                 className={`text-app-compact px-2 py-1 rounded border transition-colors ${filterWeather === w ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
               >
                 {w === "Dry" ? `☀ ${dryCount}` : `🌧 ${wetCount}`}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -664,14 +661,13 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
       {/* Mobile tab bar */}
       <div className="flex items-center gap-1 border-b border-app-border @3xl/workspace:hidden">
         {["List", "Compare"].map((label, i) => (
-          <button
-            type="button"
+          <Button
             key={label}
             onClick={() => gotoCarouselPage(i)}
             className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 -mb-px transition-colors ${carouselPage === i ? "border-app-accent text-app-accent" : "border-transparent text-app-text-muted"}`}
           >
             {label}
-          </button>
+          </Button>
         ))}
       </div>
       {/* Carousel on mobile, side-by-side at md+ */}
@@ -682,8 +678,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
           <div className="flex items-center gap-1 mb-1.5">
             <div className="flex gap-0.5">
               {(["Dry", "Wet"] as const).map((w) => (
-                <button
-                  type="button"
+                <Button
                   key={w}
                   onClick={() => setWeather(w)}
                   className={`text-app-compact px-2 py-1 rounded border transition-colors ${
@@ -691,20 +686,19 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
                   }`}
                 >
                   {w === "Dry" ? `☀ ${dryCount}` : `🌧 ${wetCount}`}
-                </button>
+                </Button>
               ))}
             </div>
             <span className="text-app-border mx-0.5">|</span>
             <div className="flex gap-0.5 ml-auto">
               {(["", "f1laps", "simracingsetup"] as const).map((p) => (
-                <button
-                  type="button"
+                <Button
                   key={p}
                   onClick={() => setFilterProvider(p)}
                   className={`text-app-compact px-2 py-1 rounded border transition-colors ${filterProvider === p ? "border-app-accent/50 bg-app-accent/15 text-app-accent" : "border-app-border text-app-text-secondary hover:text-app-text"}`}
                 >
                   {p === "" ? `All (${allWeatherSetups.length})` : p === "f1laps" ? `F1Laps (${f1lapsCount})` : `SRS (${srsCount})`}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -714,8 +708,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
               <>
                 {dragRange.size > 0 && <span className="text-app-caption text-app-accent">{dragRange.size} in range</span>}
                 {pickedSetup && <span className="text-app-caption text-status-success">{pickedSetup.author || "Selected"}</span>}
-                <button
-                  type="button"
+                <Button
                   onClick={() => {
                     setDragRange(new Set());
                     setPickedIdx(null);
@@ -723,7 +716,7 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
                   className="text-app-caption text-app-text-dim hover:text-app-text"
                 >
                   {m.label_clear()}
-                </button>
+                </Button>
               </>
             ) : (
               <span className="text-app-caption text-app-text-dim">{m.f1setup_drag_filter_hint()}</span>
@@ -907,13 +900,13 @@ function F125SetupRanges({ trackOrdinal }: { trackOrdinal: number }) {
         </div>
       </div>
       {/* Bottom swipe banner (mobile only) */}
-      <button
+      <Button
         type="button"
         onClick={() => gotoCarouselPage(carouselPage === 0 ? 1 : 0)}
         className="mt-3 flex select-none items-center justify-center gap-2 rounded-lg border border-app-border/40 bg-app-surface-alt/50 py-3 text-xs text-app-text-muted uppercase tracking-wider @3xl/workspace:hidden"
       >
         <span>{carouselPage === 0 ? "Swipe here to view comparison →" : "← Swipe here to view list"}</span>
-      </button>
+      </Button>
     </div>
   );
 }

@@ -4,11 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccTrackGuide, AccTrackSetups } from "@/components/acc/AccTrackSetups";
 import { F125Leaderboard } from "@/components/f1/F125Leaderboard";
 import { F125SetupsWithGuide, F125TrackGuide } from "@/components/f1/F125TrackSetups";
-import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { SearchMultiSelect } from "@/components/ui/SearchMultiSelect";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBulkDeleteLaps } from "@/hooks/queries";
 import { drawTrack } from "@/lib/canvas/draw-track";
 import { SECTOR_COLOR_VARS, VISUALIZATION_COLOR_VARS } from "@/lib/colors";
@@ -64,12 +65,12 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   if (laps.length === 0) {
     return (
-      <Card className="w-full min-w-0 @3xl/workspace:w-2/5">
-        <CardHeader className="flex shrink-0 items-center justify-between rounded-none border-b border-app-border p-3 py-2">
+      <div className="w-full min-w-0 @3xl/workspace:w-2/5">
+        <div className="flex shrink-0 items-center justify-between rounded-none border-b border-app-border bg-app-surface p-3 py-2">
           <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_stats()}</div>
           <div className="text-app-compact text-app-text-dim font-mono">{m.track_detail_last_100()}</div>
-        </CardHeader>
-        <CardContent className="flex-1 p-3 flex flex-col gap-3">
+        </div>
+        <div className="flex-1 p-3 flex flex-col gap-3">
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             {[
               { key: "best", label: m.label_best() },
@@ -84,8 +85,8 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
           </div>
           <div className="relative h-2 bg-app-surface-alt rounded-full overflow-visible" />
           <div className="text-app-subtext text-app-text-dim py-4 text-center">{m.track_detail_no_laps_recorded()}</div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
@@ -224,15 +225,15 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
   const showLapNumBreakdown = lapNumData.length > 1;
 
   return (
-    <Card className="w-full min-w-0 @3xl/workspace:w-2/5">
+    <div className="w-full min-w-0 @3xl/workspace:w-2/5">
       {/* Fixed header — outside scroll container */}
-      <CardHeader className="flex shrink-0 items-center justify-between rounded-none border-b border-app-border p-3 py-2">
+      <div className="flex shrink-0 items-center justify-between rounded-none border-b border-app-border bg-app-surface p-3 py-2">
         <div className="flex items-center gap-2">
           <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_stats()}</div>
           {hasRaceFilter && (
             <div className="flex rounded overflow-hidden border border-app-border text-xs">
               {(["race", "quali"] as const).map((f) => (
-                <button
+                <Button
                   type="button"
                   key={f}
                   onClick={() => setLapFilter(lapFilter === f ? null : f)}
@@ -245,15 +246,15 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
                   }`}
                 >
                   {f === "race" ? m.track_detail_race() : m.track_detail_quali()}
-                </button>
+                </Button>
               ))}
             </div>
           )}
         </div>
         <div className="text-app-compact text-app-text-dim font-mono">{m.track_detail_last_100()}</div>
-      </CardHeader>
+      </div>
       {/* Scrollable body */}
-      <CardContent className="flex flex-1 flex-col gap-3 p-3 @3xl/workspace:overflow-y-auto">
+      <div className="flex flex-1 flex-col gap-3 p-3 @3xl/workspace:overflow-y-auto">
         <div className="flex flex-wrap gap-x-4 gap-y-1">
           {[
             { key: "best", label: m.label_best(), value: minT, color: "var(--lap-record)" },
@@ -555,9 +556,9 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
             })}
           </div>
         )}
-      </CardContent>
+      </div>
       {/* end scrollable body */}
-    </Card>
+    </div>
   );
 }
 
@@ -982,13 +983,15 @@ export function TrackDetail({
       {/* Header */}
       <div className="mb-4 flex flex-col gap-3 @3xl/workspace:flex-row @3xl/workspace:items-center">
         <div className="flex items-center gap-3 min-w-0">
-          <button
+          <Button
             type="button"
+            variant="app-ghost"
+            size="app-sm"
             onClick={onBack}
-            className="shrink-0 text-app-label text-app-text-secondary hover:text-app-text px-2 py-1 rounded bg-app-surface-alt hover:bg-app-surface-hover transition-colors"
+            className="shrink-0 text-app-label text-app-text-secondary hover:text-app-text rounded bg-app-surface-alt hover:bg-app-surface-hover transition-colors"
           >
             &larr; {m.common_back()}
-          </button>
+          </Button>
           <div className="min-w-0">
             <div className="text-app-heading font-semibold text-app-text">{track.name}</div>
             <div className="text-app-label text-app-text-muted">
@@ -998,34 +1001,25 @@ export function TrackDetail({
           </div>
         </div>
         {/* View mode tabs */}
-        <div className="flex items-center gap-1 flex-wrap">
-          {validTabs.map((tab) => (
-            <button
-              type="button"
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`text-app-label uppercase tracking-wider px-3 py-1.5 rounded transition-colors ${
-                activeTab === tab
-                  ? tab === "debug"
-                    ? "bg-status-warning/15 text-status-warning"
-                    : "bg-app-accent/15 text-app-accent"
-                  : "text-app-text-muted hover:text-app-text-secondary hover:bg-app-surface-hover"
-              }`}
-            >
-              {tab === "laps" && trackLaps.length > 0
-                ? `${m.label_laps()} (${trackLaps.length})`
-                : tab === "info"
-                  ? m.track_detail_info_tab()
-                  : tab === "guide"
-                    ? m.track_detail_guides_tab()
-                    : tab === "setups"
-                      ? m.track_detail_setup_tab()
-                      : tab === "debug"
-                        ? m.trackdetail_debug_tab()
-                        : tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
-          ))}
-        </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            {validTabs.map((tab) => (
+              <TabsTrigger key={tab} value={tab}>
+                {tab === "laps" && trackLaps.length > 0
+                  ? `${m.label_laps()} (${trackLaps.length})`
+                  : tab === "info"
+                    ? m.track_detail_info_tab()
+                    : tab === "guide"
+                      ? m.track_detail_guides_tab()
+                      : tab === "setups"
+                        ? m.track_detail_setup_tab()
+                        : tab === "debug"
+                          ? m.trackdetail_debug_tab()
+                          : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Debug: full-page view with segments/sectors sidebar */}
@@ -1057,30 +1051,30 @@ export function TrackDetail({
                   </div>
                   {isDevelopment &&
                     (!editing ? (
-                      <button
+                      <Button
                         type="button"
                         onClick={startEditing}
                         className="text-app-compact text-app-accent hover:text-app-accent-hover px-2 py-0.5 rounded bg-app-accent/10 border border-app-accent/30"
                       >
                         {m.common_edit()}
-                      </button>
+                      </Button>
                     ) : (
                       <div className="flex gap-1">
-                        <button
+                        <Button
                           type="button"
                           onClick={saveSegments}
                           disabled={saving}
                           className="text-app-compact text-status-success px-2 py-0.5 rounded bg-status-success/10 border border-status-success/30 hover:bg-status-success/20 disabled:opacity-50"
                         >
                           {saving ? "..." : m.common_save()}
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
                           onClick={() => setEditing(false)}
                           className="text-app-compact text-app-text-secondary hover:text-app-text px-2 py-0.5 rounded bg-app-surface-alt border border-app-border-input"
                         >
                           {m.common_cancel()}
-                        </button>
+                        </Button>
                       </div>
                     ))}
                 </div>
@@ -1107,21 +1101,21 @@ export function TrackDetail({
                     return (
                       <div key={`${seg.startFrac}-${seg.endFrac}`} className="px-2 py-1.5 rounded space-y-1 bg-(--segment-color)/10" style={colorStyle}>
                         <div className="flex items-center gap-1">
-                          <button type="button" onClick={() => toggleSegType(i)} className="shrink-0 text-app-compact font-bold px-1 rounded bg-(--segment-color)/20 text-(--segment-color)">
+                          <Button type="button" onClick={() => toggleSegType(i)} className="shrink-0 text-app-compact font-bold px-1 rounded bg-(--segment-color)/20 text-(--segment-color)">
                             {isCorner ? "T" : "S"}
-                          </button>
+                          </Button>
                           <span className="flex-1 min-w-0 truncate text-app-label font-mono font-bold text-(--segment-color)" title={m.trackdetail_segment_name_readonly()}>
                             {segDisplayNames[i]}
                           </span>
-                          <button
+                          <Button
                             type="button"
                             onClick={() => addSegment(i)}
                             className="shrink-0 w-5 h-5 flex items-center justify-center text-app-compact rounded bg-app-surface-alt border border-app-border-input text-app-text-muted hover:text-app-text"
                             title={m.trackdetail_split_segment()}
                           >
                             +
-                          </button>
-                          <button
+                          </Button>
+                          <Button
                             type="button"
                             onClick={() => removeSegment(i)}
                             disabled={(editing ? editSegments : displaySectors.segments).length <= 1}
@@ -1129,7 +1123,7 @@ export function TrackDetail({
                             title={m.trackdetail_remove_segment()}
                           >
                             ×
-                          </button>
+                          </Button>
                         </div>
                         <div className="flex items-center gap-2 text-app-label font-mono text-app-text-secondary">
                           <input
@@ -1165,31 +1159,31 @@ export function TrackDetail({
                 <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.trackdetail_sector_boundaries()}</div>
                 {isDevelopment &&
                   (!editingSectors ? (
-                    <button
+                    <Button
                       type="button"
                       onClick={startEditingSectors}
                       disabled={!sectorBounds}
                       className="text-app-compact text-app-accent hover:text-app-accent-hover px-2 py-0.5 rounded bg-app-accent/10 border border-app-accent/30 disabled:opacity-50"
                     >
                       {m.common_edit()}
-                    </button>
+                    </Button>
                   ) : (
                     <div className="flex gap-1">
-                      <button
+                      <Button
                         type="button"
                         onClick={saveSectorBounds}
                         disabled={savingSectors}
                         className="text-app-compact text-status-success px-2 py-0.5 rounded bg-status-success/10 border border-status-success/30 hover:bg-status-success/20 disabled:opacity-50"
                       >
                         {savingSectors ? "..." : m.common_save()}
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
                         onClick={() => setEditingSectors(false)}
                         className="text-app-compact text-app-text-secondary hover:text-app-text px-2 py-0.5 rounded bg-app-surface-alt border border-app-border-input"
                       >
                         {m.common_cancel()}
-                      </button>
+                      </Button>
                     </div>
                   ))}
               </div>
@@ -1283,16 +1277,16 @@ export function TrackDetail({
               <div className={`flex shrink-0 flex-col gap-3 @3xl/workspace:flex-row ${activeTab === "guide" && isF125 ? "@3xl/workspace:h-[160px]" : "@3xl/workspace:h-[320px]"}`}>
                 {/* Info summary left of map, same shape as the laps leaderboard */}
                 {activeTab === "info" && (
-                  <Card className="order-2 min-h-[200px] w-full shrink-0 overflow-auto @3xl/workspace:order-1 @3xl/workspace:min-h-0 @3xl/workspace:w-[560px]">
+                  <div className="order-2 min-h-[200px] w-full shrink-0 overflow-auto @3xl/workspace:order-1 @3xl/workspace:min-h-0 @3xl/workspace:w-[560px]">
                     <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="summary" />
-                  </Card>
+                  </div>
                 )}
 
                 {/* Leaderboard left of map on laps tab */}
                 {activeTab === "laps" && (
-                  <Card className="order-2 min-h-[200px] w-full shrink-0 overflow-hidden @3xl/workspace:order-1 @3xl/workspace:min-h-0 @3xl/workspace:w-[560px]">
+                  <div className="order-2 min-h-[200px] w-full shrink-0 overflow-hidden @3xl/workspace:order-1 @3xl/workspace:min-h-0 @3xl/workspace:w-[560px]">
                     {isF125 ? <F125Leaderboard trackOrdinal={track.ordinal} /> : <CommunityLeaderboard trackName={track.name} trackVariant={track.variant} />}
-                  </Card>
+                  </div>
                 )}
                 <div className="relative order-1 h-[260px] min-w-0 flex-1 rounded-lg border border-app-border bg-app-bg @3xl/workspace:order-2 @3xl/workspace:h-auto">
                   {outline ? (
@@ -1322,22 +1316,22 @@ export function TrackDetail({
                   )}
                   {outline && (
                     <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
-                      <button
+                      <Button
                         type="button"
                         onClick={() => setZoom((z) => Math.min(z + 0.25, 4))}
                         className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
                       >
                         +
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
                         onClick={() => setZoom((z) => Math.max(z - 0.25, 0.5))}
                         className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
                       >
                         -
-                      </button>
+                      </Button>
                       {zoom !== 1 && (
-                        <button
+                        <Button
                           type="button"
                           onClick={() => {
                             setZoom(1);
@@ -1346,12 +1340,12 @@ export function TrackDetail({
                           className="px-1.5 py-1 text-app-micro font-mono bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded"
                         >
                           {zoom % 1 === 0 ? `${zoom}x` : `${zoom.toFixed(2)}x`}
-                        </button>
+                        </Button>
                       )}
                       {(sectorBounds || displaySectors) && (
                         <>
                           <div className="h-px" />
-                          <button
+                          <Button
                             type="button"
                             onClick={() => setMapDisplayMode((m) => (m === "segments" ? "sectors" : "segments"))}
                             className={`px-1.5 py-1 text-app-micro font-mono rounded border transition-colors ${
@@ -1360,7 +1354,7 @@ export function TrackDetail({
                             title={mapDisplayMode === "sectors" ? m.track_detail_show_segments() : m.track_detail_show_sectors()}
                           >
                             {mapDisplayMode === "sectors" ? m.overlay_sectors() : m.overlay_segments()}
-                          </button>
+                          </Button>
                         </>
                       )}
                     </div>
@@ -1482,7 +1476,7 @@ export function TrackDetail({
                                   (() => {
                                     const [lapA, lapB] = Array.from(selectedLaps);
                                     return (
-                                      <button
+                                      <Button
                                         type="button"
                                         onClick={() =>
                                           navTo({
@@ -1499,35 +1493,35 @@ export function TrackDetail({
                                         className="text-app-compact px-2 py-0.5 rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled font-medium"
                                       >
                                         {m.trackdetail_compare()}
-                                      </button>
+                                      </Button>
                                     );
                                   })()}
                                 {!confirmDelete ? (
-                                  <button
+                                  <Button
                                     type="button"
                                     onClick={() => setConfirmDelete(true)}
                                     className="text-app-compact px-2 py-0.5 rounded bg-status-danger/80 hover:bg-status-danger text-app-on-filled font-medium"
                                   >
                                     {m.trackdetail_delete()} ({selectedLaps.size})
-                                  </button>
+                                  </Button>
                                 ) : (
                                   <div className="flex items-center gap-1">
                                     <span className="text-app-compact text-status-danger">{m.trackdetail_confirm()}</span>
-                                    <button
+                                    <Button
                                       type="button"
                                       onClick={handleBulkDelete}
                                       disabled={deleting}
                                       className="text-app-compact px-2 py-0.5 rounded bg-status-danger hover:bg-status-danger-hover text-app-on-filled font-medium disabled:opacity-50"
                                     >
                                       {deleting ? "..." : m.trackdetail_yes()}
-                                    </button>
-                                    <button
+                                    </Button>
+                                    <Button
                                       type="button"
                                       onClick={() => setConfirmDelete(false)}
                                       className="text-app-compact px-2 py-0.5 rounded bg-app-surface-alt text-app-text-secondary hover:text-app-text"
                                     >
                                       {m.common_cancel()}
-                                    </button>
+                                    </Button>
                                   </div>
                                 )}
                               </div>
@@ -1544,14 +1538,14 @@ export function TrackDetail({
                               {filterRow}
                               <div className="flex items-center gap-1 border-b border-app-border">
                                 {[m.trackdetail_stats_page(), m.label_laps()].map((label, i) => (
-                                  <button
+                                  <Button
                                     type="button"
                                     key={label}
                                     onClick={() => gotoCarouselPage(i)}
                                     className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 -mb-px transition-colors ${carouselPage === i ? "border-app-accent text-app-accent" : "border-transparent text-app-text-muted"}`}
                                   >
                                     {label}
-                                  </button>
+                                  </Button>
                                 ))}
                               </div>
                               <div
@@ -1641,28 +1635,28 @@ export function TrackDetail({
                             <div className="hidden min-h-0 flex-1 gap-3 overflow-hidden @3xl/workspace:flex">
                               <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} sectorCount={sectorCount} showSessionFilter={isF125} />
                               {/* Lap table (md+) */}
-                              <Card className="flex-1 min-w-0 overflow-y-auto">
-                                <Table fit tableClassName="w-full text-sm">
+                              <div className="flex-1 min-w-0 overflow-y-auto">
+                                <Table fit>
                                   <THead>
-                                    <TH className="w-8 px-3">
+                                    <TH>
                                       <input type="checkbox" checked={selectedLaps.size === filteredLaps.length && filteredLaps.length > 0} onChange={toggleAllLaps} className="accent-app-accent" />
                                     </TH>
                                     <TH>{m.label_car()}</TH>
                                     {!hideClassCol && <TH>{m.track_detail_class()}</TH>}
                                     {hasSessionTypes && <TH>{m.label_type()}</TH>}
-                                    <TH className="cursor-pointer hover:text-app-text select-none w-px whitespace-nowrap" onClick={() => handleSort("lap")}>
-                                      {m.track_detail_lap_num()} {sortBy === "lap" ? (sortAsc ? "▲" : "▼") : ""}
-                                    </TH>
-                                    <TH className="cursor-pointer hover:text-app-text select-none text-right w-px whitespace-nowrap" onClick={() => handleSort("time")}>
-                                      {m.label_time()} {sortBy === "time" ? (sortAsc ? "▲" : "▼") : ""}
-                                    </TH>
-                                    <TH className="w-px" />
+                                    <SortableTH direction={sortBy === "lap" ? (sortAsc ? "ascending" : "descending") : undefined} nowrap onSort={() => handleSort("lap")}>
+                                      {m.track_detail_lap_num()}
+                                    </SortableTH>
+                                    <SortableTH align="end" direction={sortBy === "time" ? (sortAsc ? "ascending" : "descending") : undefined} nowrap onSort={() => handleSort("time")}>
+                                      {m.label_time()}
+                                    </SortableTH>
+                                    <TH />
                                     {Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`).map((label) => (
                                       <TH key={label}>{label}</TH>
                                     ))}
-                                    <TH className="cursor-pointer hover:text-app-text select-none" onClick={() => handleSort("date")}>
-                                      {m.sessions_col_date()} {sortBy === "date" ? (sortAsc ? "▲" : "▼") : ""}
-                                    </TH>
+                                    <SortableTH direction={sortBy === "date" ? (sortAsc ? "ascending" : "descending") : undefined} onSort={() => handleSort("date")}>
+                                      {m.sessions_col_date()}
+                                    </SortableTH>
                                     <TH>{m.sessions_col_notes()}</TH>
                                   </THead>
                                   <TBody>
@@ -1672,11 +1666,11 @@ export function TrackDetail({
                                       return filteredLaps.map((lap) => {
                                         const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false;
                                         return (
-                                          <TRow key={lap.lapId} className={selectedLaps.has(lap.lapId) ? "bg-app-accent/5" : ""}>
-                                            <TD className="px-3">
+                                          <TRow key={lap.lapId} selected={selectedLaps.has(lap.lapId)}>
+                                            <TD>
                                               <input type="checkbox" checked={selectedLaps.has(lap.lapId)} onChange={() => toggleLapSelect(lap.lapId)} className="accent-app-accent" />
                                             </TD>
-                                            <TD className="truncate max-w-[200px]">{lap.carName}</TD>
+                                            <TD truncate="wide">{lap.carName}</TD>
                                             {!hideClassCol && (
                                               <TD>
                                                 <span className="font-bold font-mono" style={{ color: carClassColor(lap.carClass) }}>
@@ -1694,8 +1688,10 @@ export function TrackDetail({
                                                 )}
                                               </TD>
                                             )}
-                                            <TD className="font-mono text-app-text-secondary whitespace-nowrap">{lap.lapNumber}</TD>
-                                            <TD className="text-right whitespace-nowrap">
+                                            <TD numeric nowrap>
+                                              {lap.lapNumber}
+                                            </TD>
+                                            <TD align="end" nowrap>
                                               <div className="flex items-center justify-end gap-1">
                                                 <span className={`font-mono tabular-nums ${isFastest ? "font-bold" : ""}`} style={{ color: isFastest ? "var(--lap-record)" : undefined }}>
                                                   {formatLapTime(lap.lapTime)}
@@ -1712,7 +1708,7 @@ export function TrackDetail({
                                                 )}
                                               </div>
                                             </TD>
-                                            <TD className="w-px whitespace-nowrap">
+                                            <TD nowrap>
                                               <Button
                                                 variant="app-outline"
                                                 size="app-sm"
@@ -1726,16 +1722,16 @@ export function TrackDetail({
                                               </Button>
                                             </TD>
                                             {Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`).map((label, index) => (
-                                              <TD key={label} className="font-mono tabular-nums text-app-text/90">
+                                              <TD key={label} numeric tone="primary">
                                                 {lap.sectorTimes?.[index] != null ? formatLapTime(lap.sectorTimes[index]) : "—"}
                                               </TD>
                                             ))}
-                                            <TD className="text-app-text-secondary whitespace-nowrap font-mono">
+                                            <TD nowrap numeric>
                                               {lap.createdAt
                                                 ? `${new Date(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })} ${new Date(lap.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
                                                 : "—"}
                                             </TD>
-                                            <TD className="text-app-text-secondary max-w-[200px] truncate" title={lap.notes ?? undefined}>
+                                            <TD truncate="wide" title={lap.notes ?? undefined}>
                                               {lap.notes ?? ""}
                                             </TD>
                                           </TRow>
@@ -1743,15 +1739,15 @@ export function TrackDetail({
                                       });
                                     })()}
                                     {filteredLaps.length === 0 && (
-                                      <TRow>
-                                        <TD colSpan={6} className="px-3 py-4 text-center text-sm text-app-text-dim">
-                                          {m.track_detail_no_laps_match_filters()}
+                                      <TRow variant="separator">
+                                        <TD align="center" colSpan={6} tone="dim">
+                                          <div className="py-2">{m.track_detail_no_laps_match_filters()}</div>
                                         </TD>
                                       </TRow>
                                     )}
                                   </TBody>
                                 </Table>
-                              </Card>
+                              </div>
                             </div>
                             {/* end stats+table flex */}
                           </>

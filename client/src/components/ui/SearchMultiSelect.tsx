@@ -146,11 +146,13 @@ export function SearchMultiSelect<K extends string | number>({
                     const selected = isSelected(opt.key);
                     const highlighted = index === highlightIdx;
                     return (
-                      <button
+                      <Button
                         key={opt.key}
                         id={`${listboxId}-${index}`}
                         type="button"
                         role="option"
+                        variant="plain"
+                        size="content"
                         aria-selected={selected}
                         data-highlighted={highlighted ? "" : undefined}
                         data-selected={selected ? "" : undefined}
@@ -168,7 +170,7 @@ export function SearchMultiSelect<K extends string | number>({
                           </span>
                         )}
                         {renderItem ? renderItem(opt, selected) : <span className="truncate">{opt.label}</span>}
-                      </button>
+                      </Button>
                     );
                   })}
                   {filtered.length === 0 && <div className="px-3 py-2 text-sm text-app-text-muted">{m.common_no_results()}</div>}

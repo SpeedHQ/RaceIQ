@@ -3,6 +3,7 @@ import { useState } from "react";
 import { DevStateViewer } from "../components/DevStateViewer";
 import { ImportDumpPanel } from "../components/dev/ImportDumpPanel";
 import { E2EViewer } from "../components/settings/E2EViewer";
+import { Button } from "../components/ui/button";
 
 function DevPage() {
   const [activeTab, setActiveTab] = useState<"state" | "e2e" | "import">("state");
@@ -18,13 +19,13 @@ function DevPage() {
       {/* Tab navigation */}
       <div className="flex gap-1 border-b border-app-border px-4 py-2 bg-app-surface-alt">
         {tabs.map((tab) => (
-          <button
+          <Button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`px-4 py-2 text-sm font-medium transition-colors ${activeTab === tab.id ? "text-app-accent border-b-2 border-app-accent -mb-2" : "text-app-text-muted hover:text-app-text"}`}
           >
             {tab.label}
-          </button>
+          </Button>
         ))}
       </div>
 

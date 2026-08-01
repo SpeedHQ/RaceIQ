@@ -4,7 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center border border-transparent bg-clip-padding text-app-subtext font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
@@ -18,46 +18,48 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
 
         // App design-token variants (use app-* CSS vars)
-        "app-outline": "!border-app-border-input text-app-text-secondary hover:text-app-text rounded",
-        "app-primary": "!bg-app-surface-alt !text-app-accent border border-app-border hover:!bg-app-surface-hover hover:!text-app-accent-hover rounded disabled:opacity-50",
-        "app-ghost": "text-app-text-secondary hover:text-app-text rounded",
-        "app-danger": "bg-status-danger text-app-on-filled hover:bg-status-danger-hover rounded",
-        "menu-action": "w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover",
-        "ai-action": "bg-[var(--ai-accent)] text-app-on-filled hover:bg-[var(--ai-accent-hover)] rounded text-app-compact",
-        "close-action": "size-7 !rounded-md text-app-text-muted hover:bg-app-surface-hover hover:text-app-text",
+        "app-outline": "!border-app-border-input text-app-text-secondary hover:text-app-text",
+        "app-primary": "!bg-app-surface-alt !text-app-accent border border-app-border hover:!bg-app-surface-hover hover:!text-app-accent-hover disabled:opacity-50",
+        "app-ghost": "text-app-text-secondary hover:text-app-text",
+        plain: "block whitespace-normal border-0 bg-transparent text-inherit hover:bg-transparent",
+        "app-danger": "bg-status-danger text-app-on-filled hover:bg-status-danger-hover",
+        "menu-action": "w-full !justify-start !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover",
+        "ai-action": "bg-[var(--ai-accent)] text-app-on-filled hover:bg-[var(--ai-accent-hover)] text-app-compact",
+        "close-action": "size-7 text-app-text-muted hover:bg-app-surface-hover hover:text-app-text",
         "destructive-outline": "!border-status-danger/40 text-status-danger hover:border-status-danger/60 hover:bg-status-danger/10",
         "selected-toggle": "border-app-accent bg-app-accent/15 text-app-accent hover:bg-app-accent/25",
         "full-width-action": "w-full",
-        "form-section-toggle": "w-full !justify-between !rounded-none !py-2 text-left",
+        "form-section-toggle": "w-full !justify-between !py-2 text-left",
         "analysis-summary": "w-full !justify-start !gap-2 bg-status-success/10 !px-2 !py-1.5 text-left hover:bg-status-success/15",
         "settings-nav":
-          "shrink-0 @3xl/settings:w-full !justify-start !rounded-none !px-4 !py-2 text-sm whitespace-nowrap transition-colors text-app-text-muted hover:text-app-text hover:bg-app-surface-hover",
+          "shrink-0 @3xl/settings:w-full !justify-start !px-4 !py-2 text-app-subtext whitespace-nowrap transition-colors text-app-text-muted hover:text-app-text hover:bg-app-surface-hover",
         "settings-nav-selected":
-          "shrink-0 @3xl/settings:w-full !justify-start !rounded-none !px-4 !py-2 text-sm whitespace-nowrap transition-colors text-app-accent bg-app-accent/10 border-b-2 @3xl/settings:border-b-0 @3xl/settings:border-r-2 border-app-accent",
-        "focus-option": "!w-full !justify-start !rounded-lg !border !py-2 text-left transition-colors border-app-border hover:border-app-accent/50",
-        "focus-option-selected": "!w-full !justify-start !rounded-lg !border !py-2 text-left transition-colors border-app-accent bg-app-accent/10",
+          "shrink-0 @3xl/settings:w-full !justify-start !px-4 !py-2 text-app-subtext whitespace-nowrap transition-colors text-app-accent bg-app-accent/10 border-b-2 @3xl/settings:border-b-0 @3xl/settings:border-r-2 border-app-accent",
+        "focus-option": "!w-full !justify-start !border !py-2 text-left transition-colors border-app-border hover:border-app-accent/50",
+        "focus-option-selected": "!w-full !justify-start !border !py-2 text-left transition-colors border-app-accent bg-app-accent/10",
         "search-select-trigger":
-          "rounded border border-app-border-input px-3 py-2 text-sm text-app-text-secondary outline-none transition-colors hover:text-app-text focus-visible:border-app-accent focus-visible:ring-1 focus-visible:ring-app-accent/30 @3xl/workspace:px-2 @3xl/workspace:py-0.5 @3xl/workspace:text-app-compact",
+          "border border-app-border-input px-3 py-2 text-app-subtext text-app-text-secondary outline-none transition-colors hover:text-app-text focus-visible:border-app-accent focus-visible:ring-1 focus-visible:ring-app-accent/30 @3xl/workspace:px-2 @3xl/workspace:py-0.5 @3xl/workspace:text-app-compact",
         "search-select-clear":
-          "px-2 py-2 text-sm text-app-text-dim outline-none transition-colors hover:text-app-text focus-visible:text-app-text @3xl/workspace:px-1 @3xl/workspace:py-0.5 @3xl/workspace:text-app-compact",
-        "focus-toggle": "!rounded-none text-xs transition-colors text-app-text-dim hover:text-app-text hover:bg-app-surface-hover/30",
-        "focus-toggle-driver": "!rounded-none text-xs transition-colors bg-(--focus-driver)/20 text-(--focus-driver) font-semibold",
-        "focus-toggle-setup": "!rounded-none text-xs transition-colors bg-(--focus-setup)/20 text-(--focus-setup) font-semibold",
+          "px-2 py-2 text-app-subtext text-app-text-dim outline-none transition-colors hover:text-app-text focus-visible:text-app-text @3xl/workspace:px-1 @3xl/workspace:py-0.5 @3xl/workspace:text-app-compact",
+        "focus-toggle": "text-app-label transition-colors text-app-text-dim hover:text-app-text hover:bg-app-surface-hover/30",
+        "focus-toggle-driver": "text-app-label transition-colors bg-(--focus-driver)/20 text-(--focus-driver) font-semibold",
+        "focus-toggle-setup": "text-app-label transition-colors bg-(--focus-setup)/20 text-(--focus-setup) font-semibold",
       },
       size: {
         default: "h-8 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
-        xs: "h-6 gap-1 rounded-[min(var(--radius-md),10px)] px-2 text-xs in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
-        sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-app-detail in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
+        xs: "h-6 gap-1 px-2 text-app-label in-data-[slot=button-group]:has-[[data-slot=button]]:px-2 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3",
+        sm: "h-7 gap-1 px-2.5 text-app-detail in-data-[slot=button-group]:has-[[data-slot=button]]:px-2.5 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
         lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-3 has-data-[icon=inline-start]:pl-3",
         icon: "size-8",
-        "icon-xs": "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
-        "icon-sm": "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
+        "icon-xs": "size-6 in-data-[slot=button-group]:has-[[data-slot=button]]:size-6 [&_svg:not([class*='size-'])]:size-3",
+        "icon-sm": "size-7 in-data-[slot=button-group]:has-[[data-slot=button]]:size-7",
         "icon-lg": "size-9",
-        "icon-destructive": "size-7 rounded-full",
+        "icon-destructive": "size-7",
         // App sizes (no fixed height — padding-driven like existing header buttons)
-        "app-sm": "px-2 py-0.5 text-app-caption gap-1 [&_svg:not([class*='size-'])]:size-3",
-        "app-md": "px-3 py-1.5 text-xs gap-1.5",
-        "app-lg": "px-4 py-2 text-sm gap-1.5",
+        "app-sm": "px-2 py-0.5 text-app-label gap-1 [&_svg:not([class*='size-'])]:size-3",
+        "app-md": "px-3 py-1.5 text-app-label gap-1.5",
+        "app-lg": "px-4 py-2 text-app-subtext gap-1.5",
+        content: "h-auto p-0 text-inherit",
       },
     },
     defaultVariants: {
@@ -68,7 +70,7 @@ const buttonVariants = cva(
 );
 
 function Button({ className, variant = "default", size = "default", type = "button", ...props }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
-  return <ButtonPrimitive data-slot="button" className={cn(buttonVariants({ variant, size, className }))} type={type} {...props} />;
+  return <ButtonPrimitive data-slot="button" className={cn(buttonVariants({ variant, size }), className, "rounded")} type={type} {...props} />;
 }
 
 export { Button, buttonVariants };

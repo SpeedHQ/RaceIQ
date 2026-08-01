@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Label } from "@/components/ui/label";
+import { Button } from "../ui/button";
 
 interface E2EFile {
   name: string;
@@ -21,14 +22,22 @@ interface Lap {
   isValid: boolean;
 }
 
+interface TrackSVGData {
+  pathData: string;
+  startX: number;
+  startY: number;
+  currentX: number;
+  currentY: number;
+}
+
 function generateTrackSVG(
   packets: Array<{ x: number; y: number }>,
   allPackets: Array<{ x: number; y: number }>,
   currentPacket?: { x: number; y: number },
   boundPackets?: Array<{ x: number; y: number }>, // Use these packets for bounds calculation
-): string {
+): TrackSVGData | null {
   if (packets.length === 0) {
-    return '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><text x="10" y="30" fill="var(--app-text-muted)">No packets</text></svg>';
+    return null;
   }
 
   // Calculate bounds from specified packets (or all packets if not provided)
@@ -67,24 +76,13 @@ function generateTrackSVG(
   const currentX = currentPacket ? margin + (currentPacket.x - minX) * scale : startX;
   const currentY = currentPacket ? margin + (currentPacket.y - minY) * scale : startY;
 
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet" style="width: 100%; height: 100%; max-width: 100%; max-height: 100%;">
-  <style>
-    .track { stroke: var(--app-accent); stroke-width: 2; fill: none; }
-    .start { fill: var(--track-start); }
-    .current { fill: var(--status-danger); }
-  </style>
-  <rect width="800" height="600" fill="var(--app-surface-alt)"/>
-  <path class="track" d="${pathData}"/>
-  <circle cx="${startX}" cy="${startY}" r="5" class="start" opacity="0.6"/>
-  <circle cx="${currentX}" cy="${currentY}" r="4" class="current" opacity="0.9"/>
-</svg>`;
+  return { pathData, startX, startY, currentX, currentY };
 }
 
 export function E2EViewer() {
   const [files, setFiles] = useState<E2EFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [svgContent, setSvgContent] = useState<string>("");
+  const [svgData, setSvgData] = useState<TrackSVGData | null>(null);
   const [loading, setLoading] = useState(false);
   const [packetIndex, setPacketIndex] = useState(0);
   const [metadata, setMetadata] = useState<PacketMetadata | null>(null);
@@ -134,14 +132,14 @@ export function E2EViewer() {
       if (packetsData.packets && packetsData.packets.length > 0) {
         const allPackets = packetsData.packets;
         const svg = generateTrackSVG(allPackets, allPackets, undefined, undefined);
-        setSvgContent(svg);
+        setSvgData(svg);
         setPacketIndex(0);
         setSpeed(0);
         setPosition({ x: 0, y: 0 });
       }
     } catch (e) {
       console.error("Failed to load recording:", e);
-      setSvgContent("");
+      setSvgData(null);
       setMetadata(null);
       setLaps([]);
       setSelectedLap(null);
@@ -206,13 +204,13 @@ export function E2EViewer() {
       const visiblePackets = packetIndex === 0 ? lapPackets : lapPackets.slice(0, displayIndex - selectedLap.startPacketIndex + 1);
       // For lap view, both allPackets and boundPackets are the lap packets only
       const dynamicSvg = generateTrackSVG(visiblePackets, lapPackets, packet, lapPackets);
-      setSvgContent(dynamicSvg);
+      setSvgData(dynamicSvg);
     } else {
       // Raw view: show all packets
       const visiblePackets = packetIndex === 0 ? metadata.packets : metadata.packets.slice(0, displayIndex + 1);
       // For raw view, show all packets with no specific bounds constraint
       const dynamicSvg = generateTrackSVG(visiblePackets, metadata.packets, packet, undefined);
-      setSvgContent(dynamicSvg);
+      setSvgData(dynamicSvg);
     }
   }, [packetIndex, metadata, selectedLap]);
 
@@ -234,7 +232,7 @@ export function E2EViewer() {
               <p className="text-sm text-app-text-muted p-2">No recordings found</p>
             ) : (
               sortedFiles.map((file) => (
-                <button
+                <Button
                   key={file.name}
                   onClick={() => handleSelectFile(file.name)}
                   className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
@@ -243,7 +241,7 @@ export function E2EViewer() {
                 >
                   <div className="font-mono truncate">{file.name}</div>
                   <div className="text-app-text-muted text-xs">{(file.size / 1024 / 1024).toFixed(1)} MB</div>
-                </button>
+                </Button>
               ))
             )}
           </div>
@@ -256,7 +254,7 @@ export function E2EViewer() {
             <div className="flex-1 border border-app-border rounded bg-app-surface-alt p-4 overflow-hidden mb-4 flex flex-col min-h-0">
               {loading ? (
                 <div className="h-full flex items-center justify-center text-app-text-muted">Loading...</div>
-              ) : svgContent ? (
+              ) : svgData ? (
                 <>
                   {selectedLap && (
                     <div className="text-xs text-app-text-muted mb-2 pb-2 border-b border-app-border shrink-0">
@@ -264,7 +262,14 @@ export function E2EViewer() {
                     </div>
                   )}
                   {!selectedLap && laps.length > 0 && <div className="text-xs text-app-text-muted mb-2 pb-2 border-b border-app-border shrink-0">Raw recording</div>}
-                  <div className="flex-1 flex items-center justify-center w-full min-h-0 overflow-hidden" dangerouslySetInnerHTML={{ __html: svgContent }} />
+                  <div className="flex-1 flex items-center justify-center w-full min-h-0 overflow-hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet" className="w-full h-full max-w-full max-h-full">
+                      <rect width="800" height="600" fill="var(--app-surface-alt)" />
+                      <path d={svgData.pathData} stroke="var(--app-accent)" strokeWidth="2" fill="none" />
+                      <circle cx={svgData.startX} cy={svgData.startY} r="5" fill="var(--track-start)" opacity="0.6" />
+                      <circle cx={svgData.currentX} cy={svgData.currentY} r="4" fill="var(--status-danger)" opacity="0.9" />
+                    </svg>
+                  </div>
                 </>
               ) : (
                 <div className="h-full flex items-center justify-center text-app-text-muted">No SVG loaded</div>
@@ -330,16 +335,16 @@ export function E2EViewer() {
                 <div className="space-y-1">
                   <Label className="text-sm font-medium">Laps ({laps.length})</Label>
                   <div className="flex flex-wrap gap-2">
-                    <button
+                    <Button
                       onClick={() => setSelectedLap(null)}
                       className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
                         selectedLap === null ? "bg-app-accent text-app-on-filled" : "bg-app-surface text-app-text hover:bg-app-surface-hover border border-app-border"
                       }`}
                     >
                       Raw
-                    </button>
+                    </Button>
                     {laps.map((lap) => (
-                      <button
+                      <Button
                         key={lap.lapNumber}
                         onClick={() => handleSelectLap(lap)}
                         className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
@@ -348,7 +353,7 @@ export function E2EViewer() {
                         title={`Lap ${lap.lapNumber}: ${lap.lapTime.toFixed(2)}s`}
                       >
                         L{lap.lapNumber} {lap.lapTime > 0 && `${lap.lapTime.toFixed(1)}s`}
-                      </button>
+                      </Button>
                     ))}
                   </div>
                 </div>

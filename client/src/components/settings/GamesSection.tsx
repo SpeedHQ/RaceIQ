@@ -1,6 +1,7 @@
 import { getAllGames } from "@shared/games/registry";
 import { m } from "@/paraglide/messages";
 import { useSaveSettings, useSettings } from "../../hooks/queries";
+import { Button } from "../ui/button";
 
 export function GamesSection() {
   const { displaySettings } = useSettings();
@@ -21,7 +22,7 @@ export function GamesSection() {
         {games.map((game) => {
           const visible = !hiddenGames.includes(game.id);
           return (
-            <button
+            <Button
               key={game.id}
               onClick={() => toggle(game.id)}
               className={`w-full flex items-center justify-between rounded-lg border px-4 py-3 text-left transition-all ${
@@ -33,7 +34,7 @@ export function GamesSection() {
               <span className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${visible ? "bg-app-accent" : "bg-app-border"}`}>
                 <span className={`inline-block h-3.5 w-3.5 rounded-full bg-app-text shadow transition-transform ${visible ? "translate-x-[18px]" : "translate-x-[3px]"}`} />
               </span>
-            </button>
+            </Button>
           );
         })}
       </div>

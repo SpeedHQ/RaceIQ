@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { m } from "@/paraglide/messages";
 import { Table, TBody, TD, TH, THead, TRow } from "../ui/AppTable";
+import { Button } from "../ui/button";
 
 interface F1Driver {
   name: string;
@@ -325,8 +326,7 @@ export function F1Cars() {
     <div className="flex-1 overflow-auto p-4 space-y-4">
       <div className="flex items-center gap-2">
         <div className="flex items-center rounded-lg border border-app-border overflow-hidden">
-          <button
-            type="button"
+          <Button
             onClick={() => setView("table")}
             title={m.label_table_view()}
             className={`px-2.5 py-1.5 transition-colors ${view === "table" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text"}`}
@@ -335,9 +335,8 @@ export function F1Cars() {
               <rect x="3" y="3" width="18" height="18" rx="2" />
               <path d="M3 9h18M3 15h18M9 3v18" />
             </svg>
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
             onClick={() => setView("grid")}
             title={m.label_grid_view()}
             className={`px-2.5 py-1.5 transition-colors ${view === "grid" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text"}`}
@@ -348,7 +347,7 @@ export function F1Cars() {
               <rect x="3" y="14" width="7" height="7" />
               <rect x="14" y="14" width="7" height="7" />
             </svg>
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -481,14 +480,14 @@ function TableView() {
         <TH>{m.label_chassis()}</TH>
         <TH>PU</TH>
         <TH>{m.label_drivers()}</TH>
-        <TH className="text-right px-2">OVR</TH>
-        <TH className="text-right px-2">PAC</TH>
-        <TH className="text-right px-2">SPD</TH>
-        <TH className="text-right px-2">COR</TH>
-        <TH className="text-right px-2">BRK</TH>
-        <TH className="text-right px-2">TRC</TH>
-        <TH className="text-right px-2">AER</TH>
-        <TH className="text-right px-2">REL</TH>
+        <TH align="end">OVR</TH>
+        <TH align="end">PAC</TH>
+        <TH align="end">SPD</TH>
+        <TH align="end">COR</TH>
+        <TH align="end">BRK</TH>
+        <TH align="end">TRC</TH>
+        <TH align="end">AER</TH>
+        <TH align="end">REL</TH>
       </THead>
       <TBody>
         {teams.map((team) => (
@@ -504,7 +503,7 @@ function TableView() {
                 {team.chassis}
               </span>
             </TD>
-            <TD className="text-app-text/90 text-xs">{team.powerUnit}</TD>
+            <TD tone="primary">{team.powerUnit}</TD>
             <TD>
               <div className="flex flex-col gap-0.5">
                 {team.drivers.map((d) => (
@@ -534,7 +533,7 @@ function TableView() {
 
 function StatCell({ value, bold }: { value: number; bold?: boolean }) {
   return (
-    <TD className="text-right px-2">
+    <TD align="end">
       <span className={`font-mono text-xs ${getRatingColor(value)} ${bold ? "font-bold" : ""}`}>{value}</span>
     </TD>
   );

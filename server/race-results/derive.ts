@@ -30,7 +30,7 @@ function normalizeClassification(
 ): ResultClassification {
   if (sessionType === "qualifying") return "qualifying";
   if (source.classification) return source.classification;
-  if (source.finishingPosition != null && source.finishingPosition > 0) return "finished";
+  if (sessionType === "race" && source.finishingPosition != null && source.finishingPosition > 0) return "finished";
   return "unknown";
 }
 

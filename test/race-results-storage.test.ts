@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { insertSession, getSessionResult, replacePitEvents, upsertSessionResult } from "../server/db/queries";
+import { insertSession, getSessionResult, replacePitEvents, type SessionResultInput, upsertSessionResult } from "../server/db/queries";
 import { getRecentRaceResults } from "../server/race-results/aggregates";
 
 describe("persisted race result metadata", () => {
@@ -18,7 +18,7 @@ describe("persisted race result metadata", () => {
       fuelStrategy: null,
       provenance: { finishingPosition: "f1.grid" },
       reasons: [],
-    } as const;
+    } satisfies SessionResultInput;
     const first = await upsertSessionResult(input);
     const second = await upsertSessionResult(input);
     expect(second.id).toBe(first.id);
