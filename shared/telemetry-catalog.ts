@@ -8,6 +8,7 @@ import { KNOWN_GAME_IDS, type GameId, type TelemetryPacket } from "./types";
 
 export type TelemetryLinkKind =
   | "direct"
+  | "normalized"
   | "derived"
   | "simplified"
   | "unavailable";
@@ -154,7 +155,7 @@ export interface TelemetryCatalogMetadata {
 }
 
 export interface TelemetryCatalogData {
-  format: "raceiq-semantic-telemetry-catalog-v5";
+  format: "raceiq-semantic-telemetry-catalog-v6";
   metadata: TelemetryCatalogMetadata;
   generatedFrom: readonly string[];
   groups: readonly TelemetryCatalogGroup[];
@@ -309,7 +310,7 @@ function sameCardinality(
 }
 
 export function assertTelemetryCatalogComplete(): void {
-  if (TELEMETRY_CATALOG.format !== "raceiq-semantic-telemetry-catalog-v5") {
+  if (TELEMETRY_CATALOG.format !== "raceiq-semantic-telemetry-catalog-v6") {
     throw new Error(`Unexpected catalog format ${TELEMETRY_CATALOG.format}`);
   }
   const metadata = TELEMETRY_CATALOG.metadata;
@@ -460,7 +461,9 @@ export function assertTelemetryCatalogComplete(): void {
         throw new Error(`${variable.id} has empty ${gameId} source mapping`);
       }
       if (
-        (mapping.kind === "derived" || mapping.kind === "simplified") &&
+        (mapping.kind === "normalized" ||
+          mapping.kind === "derived" ||
+          mapping.kind === "simplified") &&
         !mapping.normalization
       ) {
         throw new Error(
@@ -515,12 +518,14 @@ export function assertTelemetryCatalogComplete(): void {
           );
         }
         if (
+          (mapping.kind === "normalized" &&
+            execution.kind !== "conversion") ||
           (mapping.kind === "simplified" &&
             (execution.kind !== "simplification" ||
               mapping.limitations.length === 0 ||
               mapping.provenance.origin !== "projection")) ||
           (mapping.kind === "derived" &&
-            !["conversion", "derivation"].includes(execution.kind))
+            execution.kind !== "derivation")
         ) {
           throw new Error(
             `${variable.id} ${gameId} has incompatible execution contract`,

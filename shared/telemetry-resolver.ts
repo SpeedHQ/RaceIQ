@@ -22,7 +22,7 @@ type RuntimeCatalog = TelemetryCatalogData & { metadata?: { catalogVersion?: str
 type NativeObject = Record<string, unknown>;
 type Mapping = TelemetryVariableDefinition["games"][GameId];
 type Reader = (frame: NativeObject) => unknown;
-interface Plan { semanticId: string; variable: TelemetryVariableDefinition; mapping: Mapping; reader?: Reader; derivation?: TelemetryDerivation; unsupportedExecutor: boolean; staleAfterMs: number }
+interface Plan { semanticId: string; variable: TelemetryVariableDefinition; mapping: Mapping; reader?: Reader; derivation?: TelemetryDerivation; executorError?: string; staleAfterMs: number }
 const DEFAULT_STALE_MS = { continuous: 1_000, "pit-snapshot": 30_000, "session-update": 300_000, static: Number.POSITIVE_INFINITY } as const;
 function sources(mapping: Exclude<Mapping, { kind: "unavailable" }>): readonly string[] { return Array.isArray(mapping.sources) ? mapping.sources : Object.values(mapping.sources).flat(); }
 function readPath(value: unknown, path: readonly string[]): unknown {
@@ -264,22 +264,58 @@ function trustedNativeExecutor(
   variable: TelemetryVariableDefinition,
   mapping: Exclude<Mapping, { kind: "unavailable" }>,
 ): Reader | undefined {
+  if (
+    mapping.kind !== "normalized" ||
+    mapping.execution?.kind !== "conversion"
+  ) {
+    return undefined;
+  }
+
+  const sourcePaths = sources(mapping);
+  const nativeUnit = mapping.nativeUnit.trim().toLowerCase();
+  if (variable.id === "fuel.fuel-percent" && nativeUnit === "fraction") {
+    return (frame) => {
+      for (const source of sourcePaths) {
+        const value = sourceValue(frame, source);
+        if (typeof value === "number" && Number.isFinite(value)) {
+          return value * 100;
+        }
+      }
+      return undefined;
+    };
+  }
+  if (variable.id === "timing.lap-fraction" && nativeUnit === "fraction") {
+    return (frame) => {
+      for (const source of sourcePaths) {
+        const value = sourceValue(frame, source);
+        if (typeof value === "number" && Number.isFinite(value)) {
+          return Math.max(0, Math.min(1, value));
+        }
+      }
+      return undefined;
+    };
+  }
   if (variable.id !== "timing.track-length") return undefined;
-  const executionId = mapping.execution?.id;
-  const source =
-    executionId === "ac-evo:timing.track-length:derived"
-      ? "acc.acEvo.lapLengthKm"
-      : executionId === "iracing:timing.track-length:derived"
-        ? "iracing.trackLengthM"
-        : undefined;
-  if (!source) return undefined;
-  const multiplier =
-    executionId === "ac-evo:timing.track-length:derived" ? 1_000 : 1;
+
+  const multiplier = nativeUnit === "km" ? 1_000 : nativeUnit === "m" ? 1 : undefined;
+  if (multiplier === undefined) return undefined;
+
   return (frame) => {
-    const value = sourceValue(frame, source);
-    return typeof value === "number" && Number.isFinite(value)
-      ? value * multiplier
-      : undefined;
+    for (const source of sourcePaths) {
+      const value = sourceValue(frame, source);
+      if (typeof value === "number" && Number.isFinite(value)) {
+        return value * multiplier;
+      }
+      if (typeof value !== "string") continue;
+      const match = value.trim().match(
+        /^([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*(km|m)$/i,
+      );
+      if (!match) continue;
+      const amount = Number(match[1]);
+      if (!Number.isFinite(amount)) continue;
+      return amount * (match[2].toLowerCase() === "km" ? 1_000 : 1);
+    }
+    return undefined;
   };
 }
 
@@ -307,7 +343,12 @@ function readerFor(
           fields && index < fields.length
             ? packetField(frame, fields[index])
             : undefined;
-        if (value === undefined && keyedSources && ordering) {
+        if (
+          value === undefined &&
+          mapping.kind !== "normalized" &&
+          keyedSources &&
+          ordering
+        ) {
           for (const source of
             sourcesForOrderingKey(keyedSources, ordering[index]) ?? []) {
             value = sourceValue(frame, source);
@@ -326,6 +367,7 @@ function readerFor(
     if (field) {
       const value = packetField(frame, field);
       if (value !== undefined) return value;
+      if (mapping.kind === "normalized") return undefined;
     }
     for (const source of sourcePaths) {
       const value = sourceValue(frame, source);
@@ -454,7 +496,7 @@ class FrameView<NativeFrame> implements TelemetryFrameView<NativeFrame> {
     if (slot < 0 || slot >= this.resolver.plans.length) throw new RangeError(`Unknown semantic slot ${slot}`); if (this.generations[slot] === this.generation) return; this.generations[slot] = this.generation;
     const plan = this.resolver.plans[slot];
     try {
-      if (plan.unsupportedExecutor) {
+      if (plan.executorError) {
         this.values[slot] = undefined;
         this.states[slot] = 5;
         return;
@@ -534,10 +576,10 @@ class FrameView<NativeFrame> implements TelemetryFrameView<NativeFrame> {
     let state: ResolutionState = this.states[slot] === 1 ? "ok" : this.states[slot] === 2 ? "missing" : this.states[slot] === 3 ? "invalid" : this.states[slot] === 4 ? "not-applicable" : this.states[slot] === 6 ? "stale" : "error";
     if (expected === "number" && typeof value !== "number") { value = null; if (state === "ok") state = "invalid"; }
     if (expected === "boolean") { if (typeof value === "number" && Number.isFinite(value)) value = value !== 0; else if (typeof value !== "boolean") { value = null; if (state === "ok") state = "invalid"; } }
-    const mappingStatus = plan.mapping.kind; const fidelity = mappingStatus === "direct" ? 1 : mappingStatus === "derived" ? 0.95 : mappingStatus === "simplified" ? 0.7 : 0;
+    const mappingStatus = plan.mapping.kind; const fidelity = mappingStatus === "direct" ? 1 : mappingStatus === "normalized" ? 0.99 : mappingStatus === "derived" ? 0.95 : mappingStatus === "simplified" ? 0.7 : 0;
     const timestamp = this.sourceTimestamp(); const freshness = this.states[slot] === 6 ? 0 : this.isFresh(slot) ? 1 : 0; if (state === "ok" && freshness === 0) state = "stale"; const completeness = state === "ok" || (state === "stale" && value !== null) ? 1 : 0;
     const source = plan.mapping.kind === "unavailable" ? undefined : sources(plan.mapping)[0];
-    return { semanticId: plan.semanticId, value, unit: plan.mapping.kind === "unavailable" ? null : plan.variable.canonicalUnit, mappingStatus, state, confidence: fidelity * freshness * completeness, confidenceComponents: { semanticFidelity: fidelity, freshness, inputCompleteness: completeness, ...(plan.derivation ? { derivationReliability: plan.derivation.deterministic ? 1 : 0.8 } : {}) }, provenance: { simulator: this.resolver.simulator, parserId: this.resolver.parserId, parserVersion: this.resolver.parserVersion, ...(source && plan.mapping.kind !== "unavailable" ? { sourceChannel: source, sourceUnit: plan.mapping.nativeUnit } : {}), resolverVersion: TELEMETRY_RESOLVER_VERSION, catalogVersion: this.resolver.catalogVersion, catalogHash: this.resolver.catalogHash, ...(plan.derivation ? { derivation: { id: plan.derivation.id, version: plan.derivation.version, codeHash: plan.derivation.codeHash } } : {}), observedAt: this.timestamp, sourceTimestamp: typeof timestamp === "number" ? timestamp : undefined }, schemaVersion: this.resolver.schemaVersion, limitations: plan.mapping.kind === "unavailable" ? [plan.mapping.description] : ((plan.mapping as typeof plan.mapping & { limitations?: readonly string[] }).limitations ?? []) };
+    return { semanticId: plan.semanticId, value, unit: plan.mapping.kind === "unavailable" ? null : plan.variable.canonicalUnit, mappingStatus, state, confidence: fidelity * freshness * completeness, confidenceComponents: { semanticFidelity: fidelity, freshness, inputCompleteness: completeness, ...(plan.derivation ? { derivationReliability: plan.derivation.deterministic ? 1 : 0.8 } : {}) }, provenance: { simulator: this.resolver.simulator, parserId: this.resolver.parserId, parserVersion: this.resolver.parserVersion, ...(source && plan.mapping.kind !== "unavailable" ? { sourceChannel: source, sourceUnit: plan.mapping.nativeUnit } : {}), resolverVersion: TELEMETRY_RESOLVER_VERSION, catalogVersion: this.resolver.catalogVersion, catalogHash: this.resolver.catalogHash, ...(plan.derivation ? { derivation: { id: plan.derivation.id, version: plan.derivation.version, codeHash: plan.derivation.codeHash } } : {}), observedAt: this.timestamp, sourceTimestamp: typeof timestamp === "number" ? timestamp : undefined }, schemaVersion: this.resolver.schemaVersion, limitations: plan.mapping.kind === "unavailable" ? [plan.mapping.description] : plan.executorError ? [...plan.mapping.limitations, plan.executorError] : plan.mapping.limitations };
   }
 }
 
@@ -550,10 +592,9 @@ class Resolver<NativeFrame> implements CompiledTelemetryResolver<NativeFrame> {
       id: string,
       mapping: Mapping,
     ): TelemetryDerivation | undefined =>
-      custom.get(id) ??
-      (mapping.kind === "unavailable"
-        ? undefined
-        : getTelemetryDerivationForOutput(id));
+      mapping.kind === "derived"
+        ? custom.get(id) ?? getTelemetryDerivationForOutput(id)
+        : undefined;
     const visit = (id: string): void => {
       if (ordered.has(id)) return;
       if (visiting.has(id)) {
@@ -583,14 +624,23 @@ class Resolver<NativeFrame> implements CompiledTelemetryResolver<NativeFrame> {
         mapping.kind === "unavailable"
           ? undefined
           : trustedNativeExecutor(variable, mapping);
-      const unsupportedExecutor =
-        (mapping.kind === "derived" || mapping.kind === "simplified") &&
+      const unsupportedExecution =
+        mapping.kind === "normalized" &&
+        mapping.execution?.kind !== "conversion";
+      const unavailableExecutor =
+        (mapping.kind === "normalized" ||
+          mapping.kind === "derived" ||
+          mapping.kind === "simplified") &&
         !variable.packetFields?.length &&
         derivation === undefined &&
         nativeExecutor === undefined;
+      const executorError =
+        unsupportedExecution || unavailableExecutor
+          ? `unsupported-${mapping.kind}-executor:${options.simulator}:${id}`
+          : undefined;
       const reader =
         mapping.kind === "unavailable" ||
-        unsupportedExecutor ||
+        executorError !== undefined ||
         derivation !== undefined
           ? undefined
           : nativeExecutor ?? readerFor(variable, mapping);
@@ -612,7 +662,7 @@ class Resolver<NativeFrame> implements CompiledTelemetryResolver<NativeFrame> {
         mapping,
         reader,
         derivation,
-        unsupportedExecutor,
+        executorError,
         staleAfterMs:
           options.staleAfterMs?.[id] ??
           (mapping.kind === "unavailable"

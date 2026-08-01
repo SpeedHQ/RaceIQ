@@ -23,7 +23,7 @@ export interface SetupConceptDefinition {
 export interface SetupSourceMapping {
   semanticId: string;
   nativeUnit: string;
-  kind?: "direct" | "derived" | "simplified";
+  kind?: "direct" | "normalized" | "derived" | "simplified";
   normalization?: string;
 }
 
@@ -762,25 +762,25 @@ export const SETUP_PARSER_SOURCE_MAPPINGS: Record<
   "f1.setup.frontLeftTyrePressure": {
     semanticId: "setup.tires.starting-pressure",
     nativeUnit: "psi",
-    kind: "derived",
+    kind: "normalized",
     normalization: "psi * 6.894757",
   },
   "f1.setup.frontRightTyrePressure": {
     semanticId: "setup.tires.starting-pressure",
     nativeUnit: "psi",
-    kind: "derived",
+    kind: "normalized",
     normalization: "psi * 6.894757",
   },
   "f1.setup.rearLeftTyrePressure": {
     semanticId: "setup.tires.starting-pressure",
     nativeUnit: "psi",
-    kind: "derived",
+    kind: "normalized",
     normalization: "psi * 6.894757",
   },
   "f1.setup.rearRightTyrePressure": {
     semanticId: "setup.tires.starting-pressure",
     nativeUnit: "psi",
-    kind: "derived",
+    kind: "normalized",
     normalization: "psi * 6.894757",
   },
   "f1.setup.fuelLoad": {
@@ -800,7 +800,7 @@ export const SETUP_FILE_SOURCE_MAPPINGS: Record<
   "basicSetup.tyres.tyrePressure": {
     semanticId: "setup.tires.starting-pressure",
     nativeUnit: "click",
-    kind: "derived",
+    kind: "normalized",
     normalization: "kPa = (20.3 + click * 0.1) psi * 6.894757",
   },
   "basicSetup.alignment.camber": {

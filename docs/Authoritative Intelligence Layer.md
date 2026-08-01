@@ -2,7 +2,7 @@
 
 ## Executive summary
 
-PR #201 should be treated as the **semantic control plane** for RaceIQ telemetry, not merely as a naming exercise. It establishes simulator-independent semantic identifiers, canonical units, per-game mappings, mapping quality states such as `direct`, `derived`, `simplified`, and `unavailable`, and operational metadata including freshness, retention, provenance, source type, and element cardinality. Those capabilities are the prerequisite for building intelligence that can distinguish a genuinely equivalent signal from an approximate one. fileciteturn4file0L3-L14
+PR #201 should be treated as the **semantic control plane** for RaceIQ telemetry, not merely as a naming exercise. It establishes simulator-independent semantic identifiers, canonical units, per-game mappings, mapping quality states such as `direct`, `normalized`, `derived`, `simplified`, and `unavailable`, and operational metadata including freshness, retention, provenance, source type, and element cardinality. Those capabilities are the prerequisite for building intelligence that can distinguish a genuinely equivalent signal from an approximate one. fileciteturn4file0L3-L14
 
 The recommended architecture is:
 
@@ -95,14 +95,14 @@ The exact property names should remain those already selected in PR #201, but th
 | Type | Scalar, boolean, enum, string, vector, fixed array, variable array | Typed resolution and storage |
 | Quantity | Canonical unit, dimension, allowed range | Safe conversion and validation |
 | Source mapping | Simulator, native channel or path, native unit | Compiled parser-to-semantic access |
-| Mapping status | `direct`, `derived`, `simplified`, `unavailable` | Feature eligibility and confidence |
+| Mapping status | `direct`, `normalized`, `derived`, `simplified`, and `unavailable` | Feature eligibility and confidence |
 | Temporal behavior | Freshness, update cadence, timestamp basis | Staleness detection and window alignment |
 | Retention | Ephemeral, frame, lap, session, durable | State management and storage policy |
 | Provenance | Parser/source/version or derivation origin | Reproducibility and conflict resolution |
 | Structure | Element count, wheel index, band index, enum domain | Correct handling of arrays and compound values |
 | Limitations | Lost detail, simulator-specific interpretation, approximation | Preventing false cross-simulator equivalence |
 
-A semantic mapping must represent more than “where the number comes from.” For example, a single generic tire-temperature value is not necessarily interchangeable with a carcass-center temperature, an inner tire temperature, or a three-band surface measurement. PR #201’s distinction between direct and simplified mappings is therefore an essential model-input constraint, not documentation metadata. fileciteturn4file0L3-L14
+A semantic mapping must represent more than “where the number comes from.” For example, a single generic tire-temperature value is not necessarily interchangeable with a carcass-center temperature, an inner tire temperature, or a three-band surface measurement. PR #201’s distinction between `direct`, `normalized`, and `simplified` mappings is therefore an essential model-input constraint, not documentation metadata. fileciteturn4file0L3-L14
 
 ### Example mapping view
 
@@ -111,12 +111,12 @@ The generated JSON, rather than a hand-maintained table, should be the source of
 | Semantic concept | iRacing example | ACC-family example | rFactor/LMU-family example | Intelligence implication |
 |---|---|---|---|---|
 | `vehicle.tire.front-left.carcass-temperature` | `LFtempCM` | Core-temperature element for front-left tire | Wheel-temperature element or simulator-specific approximation | Do not train a detailed carcass model on a `simplified` source without an explicit reduced-feature path |
-| Vehicle speed semantic ID | Native speed channel | Native speed channel, commonly exposed in km/h | Native vehicle-speed member | Normalize once to the catalog unit; preserve native unit in provenance |
-| Driver throttle semantic ID | Native throttle channel | Native gas/throttle channel | Native unfiltered or filtered throttle member | Record whether the source is raw, filtered, or normalized |
-| Driver brake semantic ID | Native brake channel | Native brake channel | Native unfiltered or filtered brake member | Input range and filtering behavior must be part of mapping metadata |
+| Vehicle speed semantic ID | Native speed channel | Native speed channel, commonly exposed in km/h | Native vehicle-speed member | Mark `normalized` when converting units; preserve native unit in provenance. Mark `direct` only when canonical representation already matches |
+| Driver throttle semantic ID | Native throttle channel | Native gas/throttle channel | Native unfiltered or filtered throttle member | Mark range/enum/boolean canonicalization `normalized`; source filtering that changes meaning is not representation-only |
+| Driver brake semantic ID | Native brake channel | Native brake channel | Native unfiltered or filtered brake member | Input range conversion is `normalized`; filtering behavior remains source-semantic metadata |
 | Steering semantic ID | Native steering-wheel-angle channel | Native steering-angle channel | Native steering member | Wheel angle, normalized control position, and road-wheel angle are not interchangeable |
 | Wheel speed semantic ID | Per-wheel native speed | Per-wheel speed array | Per-wheel rotation or speed member | Required for slip calculations; element ordering must be explicit |
-| Yaw-rate semantic ID | Native yaw-rate channel or deterministic transformation | Native angular-velocity element | Native local rotational velocity | Axis convention and sign must be normalized before shared models |
+| Yaw-rate semantic ID | Native yaw-rate channel or deterministic transformation | Native angular-velocity element | Native local rotational velocity | Mark sign/axis convention changes `normalized`; mark geometry or multi-axis synthesis `derived` |
 
 This matrix should be generated in CI using a command such as:
 
@@ -130,7 +130,7 @@ pnpm telemetry-catalog matrix \
 The generated report should fail CI when:
 
 - A source channel references a parser field that no longer exists.
-- A direct mapping omits a required unit conversion.
+- A normalized mapping omits required unit conversion or source canonicalization.
 - Two definitions reuse one semantic ID with incompatible value types or dimensions.
 - A mapping changes from `direct` to `simplified` without an explicit reviewed compatibility change.
 - An array mapping lacks element-order metadata.
@@ -210,11 +210,12 @@ This avoids repeated string hashing, object traversal, unit-dispatch branching, 
 
 ### Return contract
 
-The mapping status from PR #201 should be kept separate from runtime availability. A source can be a `direct` mapping but currently be stale, missing, or invalid.
+The mapping status from PR #201 should be kept separate from runtime availability. A source can be a `direct` mapping and still be stale, missing, or invalid. A mapping can also be `normalized`, `derived`, or `simplified`, each with distinct execution and semantic-fidelity implications.
 
 ```ts
 export type MappingStatus =
   | "direct"
+  | "normalized"
   | "derived"
   | "simplified"
   | "unavailable";
@@ -284,7 +285,21 @@ export interface ResolvedValue<T> {
 }
 ```
 
-A direct value should not automatically receive “100% confidence” in every sense. Direct means that the simulator exposes a field that maps directly to the concept; it does not establish perfect physical accuracy, sampling quality, or applicability. Keeping confidence components separate prevents semantic fidelity from being confused with model certainty.
+The five mapping states have non-overlapping meanings:
+
+- `direct`: the simulator value already has the canonical semantic meaning and representation. It requires no execution metadata.
+- `normalized`: the same source semantic is transformed only for representation or convention. This includes unit or range conversion, clamp or round, value-with-unit text parsing, enum or boolean canonicalization, sign or axis convention, and equivalent-source selection. It requires `conversion` execution metadata and never synthesizes independent signals or uses temporal state.
+- `derived`: a new semantic is synthesized using multiple non-equivalent inputs, temporal state or history, integration, aggregation, geometry, inference, or a domain formula. It requires `derivation` execution metadata.
+- `simplified`: a lossy substitute for the requested semantic. It requires `simplification` execution metadata and explicit limitations.
+- `unavailable`: the source cannot provide the semantic.
+
+Resolver fidelity follows this order: `direct` (`1.0`), `normalized` (`0.99`), `derived` (`0.95`), and `simplified` (`0.7`). Mapping fidelity remains separate from runtime availability and physical sensor accuracy.
+
+Adding `normalized` changes the serialized mapping enum, so catalog schema/format version 6 is the clean-cutover contract; older four-state documents are not accepted through aliases or compatibility shims.
+
+Normalized mappings preserve source provenance and executable conversion metadata. When no canonical packet field exists, the resolver must use a trusted generic or registered conversion executor or return a typed error; it must never return raw native units as canonical data.
+
+A direct value should not automatically receive “100% confidence” in every sense. `direct` means the simulator exposes a field that maps directly to the semantic concept. `normalized` means representation-only canonicalization into the shared semantic contract, and confidence remains separate from unit/value normalization quality. Keeping confidence components separated prevents semantic fidelity from becoming a proxy for physical certainty.
 
 ### Compiled resolver API
 
@@ -386,7 +401,7 @@ interface CompiledOperation {
 }
 ```
 
-For common direct conversions, runtime resolution becomes approximately:
+For common normalized conversions, runtime resolution becomes approximately:
 
 ```ts
 canonicalValue = nativeValue * scale + offset;
@@ -521,12 +536,12 @@ export const frontLeftSlipRatioV1: DerivationDefinition = {
   inputs: [
     {
       semanticId: "vehicle.speed",
-      acceptedMappings: ["direct", "derived"],
+      acceptedMappings: ["direct", "normalized", "derived"],
       required: true,
     },
     {
       semanticId: "vehicle.wheel.front-left.linear-speed",
-      acceptedMappings: ["direct", "derived"],
+      acceptedMappings: ["direct", "normalized", "derived"],
       required: true,
     },
   ],
@@ -557,7 +572,7 @@ A hybrid approach is preferable to choosing either an unrestricted DSL or unrest
 
 | Authoring mechanism | Appropriate uses | Advantages | Risks |
 |---|---|---|---|
-| Declarative expression AST stored as JSON | Unit conversion, arithmetic, clamping, vector selection, basic window operations | Portable, inspectable, safe, compilable | Becomes unwieldy for complex state |
+| Declarative conversion AST stored as JSON | Unit/range conversion, clamping, rounding, value-with-unit parsing, enum/boolean canonicalization, sign/axis convention, equivalent-source selection | Portable, inspectable, safe, compilable | Must not grow into multi-signal or temporal derivation |
 | Trusted TypeScript implementation | Vehicle dynamics, state machines, complex temporal logic | Testable, fast, expressive | Requires code review and trusted deployment |
 | Arbitrary JavaScript strings in catalog data | None | Superficially flexible | Injection risk, poor tooling, nondeterminism, hard migration |
 
@@ -580,17 +595,18 @@ A safe declarative expression might be:
 
 The build system should compile this AST into the same operation plan as hand-written adapters. It should not call `eval()`.
 
+This example is a `normalized` mapping with `conversion` execution because it preserves the speed semantic while changing only units. It is not a derived value. Multi-input formulas and temporal operations belong in the derivation registry.
+
 ### Derivation DAG and reproducibility
 
 At initialization, the registry should:
 
-1. Match available direct mappings.
+1. Match available direct and normalized mappings.
 2. Select eligible derivations for unavailable requested outputs.
 3. Resolve each derivation’s semantic inputs recursively.
 4. Reject cycles.
 5. Topologically order the resulting dependency graph.
-6. Compile direct operations and derivations into one execution plan.
-7. Report ambiguous producers rather than silently selecting one.
+6. Compile direct access, normalized conversions, and derivations into one execution plan.
 
 Reproducibility requires the following information to be immutable or persisted:
 
@@ -820,15 +836,15 @@ A model package should declare its semantic feature manifest:
     "features": [
       {
         "semanticId": "driver.control.steering-angle",
-        "acceptedMappings": ["direct", "derived"]
+        "acceptedMappings": ["direct", "normalized", "derived"]
       },
       {
         "semanticId": "vehicle.motion.yaw-rate",
-        "acceptedMappings": ["direct", "derived"]
+        "acceptedMappings": ["direct", "normalized", "derived"]
       },
       {
         "semanticId": "vehicle.motion.lateral-acceleration",
-        "acceptedMappings": ["direct", "derived", "simplified"]
+        "acceptedMappings": ["direct", "normalized", "derived", "simplified"]
       }
     ]
   }
@@ -1121,7 +1137,7 @@ A robust authority model is not simply “deterministic beats ML.” It asks whe
 | Order | Evidence class | Appropriate authority |
 |---:|---|---|
 | Highest | Data validation and safety invariants | Reject impossible, malformed, stale, or unauthorized inputs |
-| High | Direct normalized source observation | Establish what the simulator reported |
+| High | Direct or normalized source observation | Establish what the simulator reported |
 | High | Deterministic derivation | Establish a precisely defined value when inputs and formula are valid |
 | Medium to high | Explicit rule | Apply reviewed domain or product policy |
 | Conditional | Calibrated ML inference | Infer latent states or predict outcomes with measured uncertainty |
@@ -1489,7 +1505,7 @@ PR #202 should remain narrow enough to review and benchmark:
 |---|---|
 | Typed catalog loading | ML inference |
 | Semantic ID to numeric slot compilation | Full evidence engine |
-| Direct and simplified source access | Complex temporal derivations |
+| Direct, normalized, and simplified source access | Complex temporal derivations |
 | Unit normalization | LLM integration |
 | Freshness and runtime state | Durable model-feature storage |
 | Hot-path and diagnostic APIs | Broad consumer migration |

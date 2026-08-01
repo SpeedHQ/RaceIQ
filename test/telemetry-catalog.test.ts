@@ -136,6 +136,12 @@ describe("semantic telemetry catalog", () => {
         });
         expect(mapping.execution?.declaredInputs.length).toBeGreaterThan(0);
         expect(mapping.execution?.codeHash).toMatch(/^[a-f0-9]{64}$/);
+        if (mapping.kind === "normalized") {
+          expect(mapping.execution?.kind).toBe("conversion");
+        }
+        if (mapping.kind === "derived") {
+          expect(mapping.execution?.kind).toBe("derivation");
+        }
         if (mapping.kind === "simplified") {
           expect(mapping.execution?.kind).toBe("simplification");
           expect(mapping.limitations.length).toBeGreaterThan(0);
@@ -320,7 +326,7 @@ describe("semantic telemetry catalog", () => {
 
     expect(average.canonicalUnit).toBe("°C");
     expect(average.games["fm-2023"]).toMatchObject({
-      kind: "derived",
+      kind: "normalized",
       nativeUnit: "°F",
       normalization: "(fahrenheit - 32) * 5 / 9",
     });
@@ -493,17 +499,17 @@ describe("semantic telemetry catalog", () => {
       sources: ["ACEvo.SetupFile.basicSetup.alignment.camber"],
     });
     expect(camber.games.iracing).toMatchObject({
-      kind: "derived",
+      kind: "normalized",
       nativeUnit: "value-with-unit",
     });
 
     const startingPressure = getTelemetryVariable(
       "setup.tires.starting-pressure",
     );
-    expect(startingPressure.games["f1-2025"].kind).toBe("derived");
-    expect(startingPressure.games.acc.kind).toBe("derived");
-    expect(startingPressure.games["ac-evo"].kind).toBe("derived");
-    expect(startingPressure.games.iracing.kind).toBe("derived");
+    expect(startingPressure.games["f1-2025"].kind).toBe("normalized");
+    expect(startingPressure.games.acc.kind).toBe("normalized");
+    expect(startingPressure.games["ac-evo"].kind).toBe("normalized");
+    expect(startingPressure.games.iracing.kind).toBe("normalized");
 
     expect(
       TELEMETRY_CATALOG.variables.some(
@@ -529,7 +535,7 @@ describe("semantic telemetry catalog", () => {
       parentId: "engine",
     });
     expect(oilLevel.games.iracing).toMatchObject({
-      kind: "derived",
+      kind: "normalized",
       nativeUnit: "l",
       sources: ["iRacing.OilLevel"],
       normalization: "normalize unit notation l to L",
@@ -582,7 +588,7 @@ describe("semantic telemetry catalog", () => {
       "timing.sector.last-completed-time",
     );
     expect(lastCompleted.games.acc).toMatchObject({
-      kind: "derived",
+      kind: "normalized",
       nativeUnit: "ms",
       sources: ["acc.lastSectorTime"],
       normalization: "milliseconds / 1000",
@@ -627,7 +633,7 @@ describe("semantic telemetry catalog", () => {
         ),
       ),
     ).toMatchObject({
-      "f1-2025": "derived",
+      "f1-2025": "normalized",
       acc: "unavailable",
       "ac-evo": "direct",
     });
@@ -701,7 +707,7 @@ describe("semantic telemetry catalog", () => {
     expect(lapFraction.games["f1-2025"].kind).toBe("derived");
     expect(lapFraction.games["ac-evo"].kind).toBe("derived");
     expect(lapFraction.games.iracing).toMatchObject({
-      kind: "derived",
+      kind: "normalized",
       sources: ["iracing.lapDistancePct", "iRacing.LapDistPct"],
     });
 
@@ -711,13 +717,45 @@ describe("semantic telemetry catalog", () => {
       sources: ["f1.trackLength"],
     });
     const iracingTrackLength = trackLength.games.iracing;
-    expect(iracingTrackLength.kind).toBe("derived");
+    expect(iracingTrackLength.kind).toBe("normalized");
     if (iracingTrackLength.kind !== "unavailable") {
       expect(iracingTrackLength.sources).toContain("iracing.trackLengthM");
       expect(iracingTrackLength.sources).toContain(
         "iRacing.SessionInfo.WeekendInfo.TrackLength",
       );
     }
+
+    const speed = getTelemetryVariable("motion.speed");
+    const brake = getTelemetryVariable("inputs.brake");
+    for (const gameId of ["f1-2025", "acc", "ac-evo", "iracing"] as const) {
+      expect(speed.games[gameId].kind).toBe("normalized");
+      expect(brake.games[gameId].kind).toBe("normalized");
+    }
+    expect(getTelemetryVariable("timing.current-lap").games.iracing.kind).toBe(
+      "derived",
+    );
+    expect(getTelemetryVariable("engine.power").games["f1-2025"]).toMatchObject({
+      kind: "derived",
+      execution: { kind: "derivation" },
+    });
+    expect(
+      getTelemetryVariable("tires.tire-combined-slip").games["f1-2025"],
+    ).toMatchObject({
+      kind: "derived",
+      execution: { kind: "derivation" },
+    });
+    expect(getTelemetryVariable("weather.weather-type").games.acc).toMatchObject({
+      kind: "simplified",
+      execution: { kind: "simplification" },
+      limitations: expect.arrayContaining([expect.any(String)]),
+    });
+    expect(
+      getTelemetryVariable("tires.wheel-rotation-speed").games["f1-2025"],
+    ).toMatchObject({
+      kind: "simplified",
+      execution: { kind: "simplification" },
+      limitations: expect.arrayContaining([expect.any(String)]),
+    });
 
     const playerCarIndex = getTelemetryVariable("identity.player-car-index");
     expect(playerCarIndex.games.iracing).toMatchObject({
@@ -886,12 +924,12 @@ describe("semantic telemetry catalog", () => {
     expect(getTelemetryVariable("race.is-race-on").games).toMatchObject({
       "f1-2025": { kind: "unavailable", reason: "parser-placeholder" },
       iracing: {
-        kind: "derived",
+        kind: "normalized",
         sources: ["iRacing.IsOnTrack"],
       },
     });
     expect(getTelemetryVariable("tires.tire-pressure").games.iracing).toMatchObject({
-      kind: "derived",
+      kind: "normalized",
       nativeUnit: "kPa",
       sources: {
         FL: ["iRacing.LFcoldPressure"],
@@ -902,10 +940,10 @@ describe("semantic telemetry catalog", () => {
     });
 
     expect(getTelemetryVariable("session.session-type").games.iracing.kind).toBe(
-      "derived",
+      "normalized",
     );
     expect(getTelemetryVariable("timing.total-laps").games.iracing.kind).toBe(
-      "derived",
+      "normalized",
     );
     expect(
       getTelemetrySources("fm-2023").find(

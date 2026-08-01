@@ -7,6 +7,7 @@ export type DerivationMissingDataPolicy =
 
 export type MappingStatus =
   | "direct"
+  | "normalized"
   | "derived"
   | "simplified"
   | "unavailable";
@@ -86,12 +87,12 @@ const FUEL_PERCENT_DERIVATION: TelemetryDerivation = {
   inputs: [
     {
       semanticId: "fuel.fuel",
-      acceptedMappings: ["direct", "derived"],
+      acceptedMappings: ["direct", "normalized", "derived"],
       required: true,
     },
     {
       semanticId: "fuel.fuel-capacity",
-      acceptedMappings: ["direct", "derived"],
+      acceptedMappings: ["direct", "normalized", "derived"],
       required: false,
     },
   ],
@@ -128,12 +129,12 @@ const LAP_FRACTION_DERIVATION: TelemetryDerivation = {
   inputs: [
     {
       semanticId: "timing.distance-traveled",
-      acceptedMappings: ["direct", "derived"],
+      acceptedMappings: ["direct", "normalized", "derived"],
       required: true,
     },
     {
       semanticId: "timing.track-length",
-      acceptedMappings: ["direct", "derived"],
+      acceptedMappings: ["direct", "normalized", "derived"],
       required: true,
     },
   ],
