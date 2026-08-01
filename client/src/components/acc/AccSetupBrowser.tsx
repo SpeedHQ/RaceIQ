@@ -1,7 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { detectPlatform, PLATFORM_LABEL, PlatformIcon } from "@/components/acc/acc-links";
-import type { ComboOption } from "@/components/tune/browser/ComboBox";
 import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
 import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
 import { client } from "@/lib/rpc";
@@ -294,14 +293,14 @@ export function AccSetupBrowser() {
     return { rows, carNames, trackNames };
   }, [setups, cars]);
 
-  const carOptions: ComboOption[] = useMemo(() => {
+  const carOptions = useMemo(() => {
     const counts = new Map<number, number>();
     for (const r of rows) counts.set(r.carOrdinal, (counts.get(r.carOrdinal) ?? 0) + 1);
     const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: carNames[ord] ?? `Car ${ord}`, count })).sort((a, b) => b.count - a.count);
     return [{ value: "any", label: m.setup_any_car(), count: rows.length }, ...opts];
   }, [rows, carNames, uiLocale]);
 
-  const trackOptions: ComboOption[] = useMemo(() => {
+  const trackOptions = useMemo(() => {
     const counts = new Map<number, number>();
     for (const r of rows) if (r.trackOrdinal != null) counts.set(r.trackOrdinal, (counts.get(r.trackOrdinal) ?? 0) + 1);
     const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: trackNames[ord] ?? `Track ${ord}`, count })).sort((a, b) => b.count - a.count);

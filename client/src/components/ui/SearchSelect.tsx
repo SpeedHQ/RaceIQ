@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { m } from "@/paraglide/messages";
 import { AppInput } from "./AppInput";
@@ -7,8 +7,8 @@ import { Button } from "./button";
 interface SearchSelectOption {
   value: string;
   label: string;
-  group?: string; // optional group header label
-  disabled?: boolean; // shown but not selectable
+  group?: string;
+  disabled?: boolean;
 }
 
 interface SearchSelectProps {
@@ -18,12 +18,12 @@ interface SearchSelectProps {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
-  focusColor?: string; // e.g. "orange-500", "blue-500"
-  fallbackLabel?: string; // shown when value is set but no option matches
+  focusColor?: string;
+  fallbackLabel?: string;
 }
 
 const OVERLAY_SURFACE_CLASS = "rounded-lg border border-app-border-input bg-app-surface-alt text-app-text shadow-lg";
-const OVERLAY_ITEM_CLASS = "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm outline-none transition-colors";
+const OVERLAY_ITEM_CLASS = "flex min-h-8 w-full items-center !justify-start gap-2 px-3 py-1.5 text-left text-sm leading-snug whitespace-normal outline-none transition-colors";
 
 export function SearchSelect({ value, onChange, options, placeholder = "Search...", disabled = false, className = "", focusColor, fallbackLabel }: SearchSelectProps) {
   const [open, setOpen] = useState(false);
@@ -35,8 +35,8 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
   const [panelRect, setPanelRect] = useState<{ top: number; left: number; width: number; above: boolean } | null>(null);
   const [highlightIdx, setHighlightIdx] = useState(-1);
 
-  const selectedLabel = options.find((o) => o.value === value)?.label ?? fallbackLabel ?? "";
-  const filtered = search ? options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase())) : options;
+  const selectedLabel = options.find((option) => option.value === value)?.label ?? fallbackLabel ?? "";
+  const filtered = useMemo(() => (search ? options.filter((option) => option.label.toLowerCase().includes(search.toLowerCase())) : options), [options, search]);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -45,18 +45,17 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
   }, []);
 
   const handleSelect = useCallback(
-    (val: string) => {
-      onChange(val);
+    (selectedValue: string) => {
+      onChange(selectedValue);
       close();
     },
     [close, onChange],
   );
 
-  // Close on outside click, including clicks in the portaled panel.
   useEffect(() => {
     if (!open) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node;
+    const handler = (event: MouseEvent) => {
+      const target = event.target as Node;
       if (containerRef.current?.contains(target) || panelRef.current?.contains(target)) return;
       close();
     };
@@ -64,7 +63,6 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
     return () => document.removeEventListener("mousedown", handler);
   }, [close, open]);
 
-  // Position the portaled panel against the trigger, with viewport-aware vertical and horizontal collision handling.
   useLayoutEffect(() => {
     if (!open) {
       setPanelRect(null);
@@ -90,7 +88,7 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
   useEffect(() => {
     const selectedIndex = filtered.findIndex((option) => option.value === value && !option.disabled);
     setHighlightIdx(selectedIndex);
-  }, [search, open, value]);
+  }, [filtered, open, value]);
 
   const moveHighlight = (direction: 1 | -1) => {
     if (filtered.length === 0) return;
@@ -104,24 +102,24 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
       moveHighlight(1);
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
       moveHighlight(-1);
-    } else if (e.key === "Home") {
-      e.preventDefault();
+    } else if (event.key === "Home") {
+      event.preventDefault();
       setHighlightIdx(filtered.findIndex((option) => !option.disabled));
-    } else if (e.key === "End") {
-      e.preventDefault();
+    } else if (event.key === "End") {
+      event.preventDefault();
       setHighlightIdx([...filtered].findLastIndex((option) => !option.disabled));
-    } else if (e.key === "Enter" && highlightIdx >= 0 && filtered[highlightIdx] && !filtered[highlightIdx].disabled) {
-      e.preventDefault();
+    } else if (event.key === "Enter" && highlightIdx >= 0 && filtered[highlightIdx] && !filtered[highlightIdx].disabled) {
+      event.preventDefault();
       handleSelect(filtered[highlightIdx].value);
-    } else if (e.key === "Escape") {
-      e.preventDefault();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
       close();
     }
   };
@@ -139,8 +137,8 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
         aria-autocomplete="list"
         aria-activedescendant={open && highlightIdx >= 0 ? `${listboxId}-${highlightIdx}` : undefined}
         value={open ? search : selectedLabel}
-        onChange={(e) => {
-          setSearch(e.target.value);
+        onChange={(event) => {
+          setSearch(event.target.value);
           if (!open) setOpen(true);
         }}
         onFocus={() => {
@@ -191,6 +189,8 @@ export function SearchSelect({ value, onChange, options, placeholder = "Search..
                     id={`${listboxId}-${index}`}
                     type="button"
                     role="option"
+                    variant="plain"
+                    size="content"
                     aria-selected={selected}
                     disabled={option.disabled}
                     data-highlighted={highlighted ? "" : undefined}

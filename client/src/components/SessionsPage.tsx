@@ -63,6 +63,7 @@ type LapSortKey = "lap" | "time";
 function SessionLapTable({
   session,
   laps,
+  sectorCount,
   lapSortKey,
   lapSortDir,
   toggleLapSort,
@@ -71,6 +72,7 @@ function SessionLapTable({
 }: {
   session: SessionMeta;
   laps: LapMeta[];
+  sectorCount: number;
   lapSortKey: LapSortKey;
   lapSortDir: SortDir;
   toggleLapSort: (k: LapSortKey) => void;
@@ -81,7 +83,7 @@ function SessionLapTable({
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; lapId: number } | null>(null);
-  const sectorCount = storedLapsSectorCount(laps);
+
   const sectorLabels = Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`);
 
   const bestSectors = useMemo(() => {
@@ -108,7 +110,17 @@ function SessionLapTable({
 
   return (
     <>
-      <Table>
+      <Table layout="fixed">
+        <colgroup>
+          <col className="w-11" />
+          <col className="w-6" />
+          <col className="w-[8%]" />
+          <col className="w-[22%]" />
+          {sectorLabels.map((label) => (
+            <col key={label} className="w-[12%]" />
+          ))}
+          <col />
+        </colgroup>
         <THead>
           <TH />
           <TH />
@@ -253,6 +265,7 @@ export function SessionsPage() {
   const navigate = useNavigate();
   const { data: sessions = [], isLoading } = useSessions();
   const { data: allLaps = [] } = useLaps();
+  const sectorCount = Math.max(3, storedLapsSectorCount(allLaps));
   const qc = useQueryClient();
   useDeleteLap();
 
@@ -685,6 +698,7 @@ export function SessionsPage() {
                     <SessionLapTable
                       session={session}
                       laps={sessionLaps}
+                      sectorCount={sectorCount}
                       lapSortKey={lapSortKey}
                       lapSortDir={lapSortDir}
                       toggleLapSort={toggleLapSort}
@@ -831,6 +845,7 @@ export function SessionsPage() {
                             <SessionLapTable
                               session={session}
                               laps={sessionLaps}
+                              sectorCount={sectorCount}
                               lapSortKey={lapSortKey}
                               lapSortDir={lapSortDir}
                               toggleLapSort={toggleLapSort}

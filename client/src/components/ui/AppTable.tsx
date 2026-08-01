@@ -16,6 +16,7 @@ type RuntimeStyleOverrides = {
 type TableProps = LockedStyleProps<ComponentPropsWithRef<"table">> & {
   density?: "default" | "compact" | "telemetry";
   fit?: boolean;
+  layout?: "auto" | "fixed";
   variant?: "default" | "settings" | "embedded";
 };
 
@@ -24,7 +25,7 @@ type TBodyProps = LockedStyleProps<ComponentPropsWithRef<"tbody">>;
 type TRowProps = LockedStyleProps<ComponentPropsWithRef<"tr">> & {
   selected?: boolean;
   tooltip?: string;
-  variant?: "default" | "separator";
+  variant?: "default" | "separator" | "static";
 };
 type CellAlign = "start" | "center" | "end";
 type CellTone = "default" | "primary" | "muted" | "dim" | "accent" | "success" | "warning" | "danger" | "best";
@@ -76,6 +77,7 @@ export function Table(inputProps: TableProps) {
     className: consumerClassName,
     density = "default",
     fit = false,
+    layout = "auto",
     style: consumerStyle,
     tableClassName,
     variant = "default",
@@ -106,6 +108,7 @@ export function Table(inputProps: TableProps) {
         className={cn(
           "w-full text-app-detail [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-app-surface [&_thead>tr]:border-b [&_thead>tr]:border-app-border [&_thead>tr]:text-app-label [&_thead>tr]:uppercase [&_thead>tr]:tracking-wider [&_thead>tr]:text-app-text-muted [&_tbody]:divide-y [&_tbody]:divide-app-border/40",
           fit ? "min-w-0" : "min-w-max md:min-w-0",
+          layout === "fixed" && "table-fixed",
           densityClasses[density],
         )}
       >

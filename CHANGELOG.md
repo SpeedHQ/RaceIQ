@@ -8,6 +8,8 @@
 
 ### Fixes
 
+- Keep setup track names neutral and expanded setup details free of accent backgrounds
+- Keep expanded session lap tables aligned and show sector columns when lap sector timing is unavailable
 - Show all registered games in storage settings, including games with no recording files
 - Match primary button backgrounds to the neutral gray button surface
 - Highlight the active sector-blip setting with a cyan border
@@ -17,6 +19,8 @@
 - Use one consistent table layout, spacing, alignment, and borderless sortable-header style throughout dashboards and analysis views
 - Open Forza setups directly in the tune browser without obsolete Car Tunes and Wheel / FFB tabs
 - Place setup car and track filters beside setup actions for faster access
+- Use compact, borderless searchable filters for setup cars and tracks
+- Remove the setup source-row container styling and keep refresh aligned with its filters
 
 ### Internal
 - Renamed generic session recorder API to reflect support for UDP and shared-memory telemetry

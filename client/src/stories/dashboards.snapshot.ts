@@ -68,9 +68,9 @@ for (const story of stories) {
 test("session child tables keep sector headers and columns aligned", async ({ page }) => {
   await openStoryForSnapshot(page, "/iframe.html?id=dashboards-sessions--recorded&viewMode=story");
 
-  const parentRows = page.locator('table[data-slot="table"]:visible > tbody > tr');
-  await parentRows.nth(0).click();
-  await parentRows.nth(1).click();
+  const parentTable = page.locator('table[data-slot="table"]:visible').first();
+  await parentTable.locator(":scope > tbody > tr").nth(0).click();
+  await parentTable.locator(":scope > tbody > tr").nth(2).click();
 
   const layout = await page.locator('table[data-slot="table"]:visible').evaluateAll((tables) =>
     tables.slice(1).map((table) =>

@@ -41,7 +41,7 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
 
   return (
     <>
-      <TRow aria-expanded={isOpen} onClick={onToggle} onKeyDown={handleKeyDown} selected={isOpen} tabIndex={0}>
+      <TRow aria-expanded={isOpen} onClick={onToggle} onKeyDown={handleKeyDown} tabIndex={0}>
         <TD align="center" numeric tone={rank === 1 && hasTime ? "accent" : "muted"}>
           <span className="text-sm font-bold">{rank}</span>
         </TD>
@@ -54,7 +54,7 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
         <TD showFrom="sm" truncate="wide">
           {carName}
         </TD>
-        <TD showFrom="sm" tone={trackName ? "accent" : "dim"} truncate="wide">
+        <TD showFrom="sm" tone={trackName ? "default" : "dim"} truncate="wide">
           {trackName ?? "—"}
         </TD>
         <TD showFrom="sm">
@@ -78,7 +78,7 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
         </TD>
       </TRow>
       {isOpen && (
-        <TRow selected>
+        <TRow variant="static">
           <TD colSpan={8} tone="primary">
             <div className="px-1 sm:px-8 pb-2 pt-1">
               {row.description && <p className="text-xs text-app-text-muted leading-relaxed whitespace-pre-line mb-3.5 max-w-[70ch]">{row.description}</p>}
@@ -117,7 +117,7 @@ export function TuneBrowserRow({ row, rank, carName, trackName, isOpen, onToggle
                       )}
                     </>
                   ) : (
-                    <Button type="button" className="text-app-compact uppercase tracking-wide px-4 py-2 rounded bg-app-accent text-app-on-filled font-bold" onClick={() => onClone?.(row)}>
+                    <Button type="button" variant="app-primary" size="app-md" onClick={() => onClone?.(row)}>
                       {m.browser_clone_garage()}
                     </Button>
                   )}

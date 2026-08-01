@@ -1,6 +1,6 @@
 import { type ReactNode, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
-import { ComboBox, type ComboOption } from "./ComboBox";
+import { SearchSelect } from "@/components/ui/SearchSelect";
 import { TuneBrowserRow } from "./TuneBrowserRow";
 import type { SourceTab, TuneRow } from "./types";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
@@ -10,8 +10,8 @@ export interface SetupBrowserProps {
   rows: TuneRow[];
   carNames: Record<number, string>;
   trackNames: Record<number, string>;
-  trackOptions: ComboOption[];
-  carOptions: ComboOption[];
+  trackOptions: Array<{ value: string; label: string }>;
+  carOptions: Array<{ value: string; label: string }>;
   sources: SourceTab[];
   renderSettings: (row: TuneRow) => ReactNode;
   onClone?: (row: TuneRow) => void;
@@ -43,8 +43,8 @@ const TAB_ACTIVE: Record<string, string> = {
 
 export function SetupBrowser(props: SetupBrowserProps) {
   const { rows, trackOptions, carOptions, sources } = props;
-  const [track, setTrack] = useState("any");
-  const [car, setCar] = useState("any");
+  const [track, setTrack] = useState("");
+  const [car, setCar] = useState("");
   const [source, setSource] = useState<SourceTab["key"]>("all");
   const [author, setAuthor] = useState("");
   const [sortAsc, setSortAsc] = useState(true);
@@ -55,8 +55,8 @@ export function SetupBrowser(props: SetupBrowserProps) {
   const visible = useMemo(() => {
     const authorQuery = author.trim().toLowerCase();
     const filtered = rows.filter((r) => {
-      if (track !== "any" && r.trackOrdinal !== Number(track)) return false;
-      if (car !== "any" && r.carOrdinal !== Number(car)) return false;
+      if (track && r.trackOrdinal !== Number(track)) return false;
+      if (car && r.carOrdinal !== Number(car)) return false;
       if (source !== "all" && r.source !== source) return false;
       if (authorQuery && !r.author.toLowerCase().includes(authorQuery)) return false;
       return true;
@@ -78,11 +78,11 @@ export function SetupBrowser(props: SetupBrowserProps) {
     setOpenKey(null);
   };
   const pickTrack = (v: string) => {
-    setTrack(v);
+    setTrack(v === "any" ? "" : v);
     resetView();
   };
   const pickCar = (v: string) => {
-    setCar(v);
+    setCar(v === "any" ? "" : v);
     resetView();
   };
   const pickSource = (v: SourceTab["key"]) => {
@@ -122,18 +122,17 @@ export function SetupBrowser(props: SetupBrowserProps) {
           </>
         )}
         {props.onNewTune && (
-          <Button type="button" className="text-app-compact font-bold uppercase tracking-wide bg-app-accent text-app-on-filled px-3.5 py-2 rounded" onClick={props.onNewTune}>
+          <Button type="button" variant="app-primary" size="app-md" onClick={props.onNewTune}>
             {m.setup_new_tune()}
           </Button>
         )}
-        <div className="ml-auto flex items-end gap-2.5">
-          <ComboBox label={m.setup_track_label()} variant="track" value={track} options={trackOptions} onChange={pickTrack} placeholder={m.setup_any_track()} />
-          <span className="hidden sm:block text-app-text-dim pb-3">{m.setup_arrow()}</span>
-          <ComboBox label={m.setup_car_label()} variant="car" value={car} options={carOptions} onChange={pickCar} placeholder={m.setup_any_car()} />
+        <div className="ml-auto flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          <SearchSelect className="w-full sm:w-48" value={track} options={trackOptions} onChange={pickTrack} placeholder={m.setup_any_track()} />
+          <SearchSelect className="w-full sm:w-48" value={car} options={carOptions} onChange={pickCar} placeholder={m.setup_any_car()} />
         </div>
       </div>
 
-      <div className="flex gap-1.5 items-center flex-wrap px-2.5 py-2 bg-app-surface border border-b-0 border-app-border rounded-t-lg">
+      <div className="flex gap-1.5 items-center flex-wrap px-2.5 py-2">
         {sources.map((s) => (
           <Button
             type="button"
@@ -151,7 +150,6 @@ export function SetupBrowser(props: SetupBrowserProps) {
           onChange={(e) => pickAuthor(e.target.value)}
           className="text-app-compact bg-app-bg border border-app-border-input rounded px-2.5 py-1.5 text-app-text placeholder:text-app-text-dim outline-none focus:border-app-accent w-40"
         />
-        <div className="flex-1" />
         {props.onRefresh && (
           <Button
             type="button"
