@@ -14,6 +14,9 @@
 - Keep desktop-only analysis and comparison pages available on wide, low-height displays
 - Resize the comparison track map with a persisted splitter and keep the AI Analysis control right-aligned
 - Keep table text, guide cards, and setup rows consistently scaled without overflowing, and align Tracks sorting with Track Detail tabs without extra divider spacing
+- Use one consistent table layout, spacing, alignment, and borderless sortable-header style throughout dashboards and analysis views
+- Open Forza setups directly in the tune browser without obsolete Car Tunes and Wheel / FFB tabs
+- Place setup car and track filters beside setup actions for faster access
 
 ### Internal
 - Renamed generic session recorder API to reflect support for UDP and shared-memory telemetry

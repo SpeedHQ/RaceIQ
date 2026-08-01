@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccTrackGuide, AccTrackSetups } from "@/components/acc/AccTrackSetups";
 import { F125Leaderboard } from "@/components/f1/F125Leaderboard";
 import { F125SetupsWithGuide, F125TrackGuide } from "@/components/f1/F125TrackSetups";
-import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
@@ -1644,19 +1644,19 @@ export function TrackDetail({
                                     <TH>{m.label_car()}</TH>
                                     {!hideClassCol && <TH>{m.track_detail_class()}</TH>}
                                     {hasSessionTypes && <TH>{m.label_type()}</TH>}
-                                    <TH nowrap onClick={() => handleSort("lap")}>
-                                      {m.track_detail_lap_num()} {sortBy === "lap" ? (sortAsc ? "▲" : "▼") : ""}
-                                    </TH>
-                                    <TH align="end" nowrap onClick={() => handleSort("time")}>
-                                      {m.label_time()} {sortBy === "time" ? (sortAsc ? "▲" : "▼") : ""}
-                                    </TH>
+                                    <SortableTH direction={sortBy === "lap" ? (sortAsc ? "ascending" : "descending") : undefined} nowrap onSort={() => handleSort("lap")}>
+                                      {m.track_detail_lap_num()}
+                                    </SortableTH>
+                                    <SortableTH align="end" direction={sortBy === "time" ? (sortAsc ? "ascending" : "descending") : undefined} nowrap onSort={() => handleSort("time")}>
+                                      {m.label_time()}
+                                    </SortableTH>
                                     <TH />
                                     {Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`).map((label) => (
                                       <TH key={label}>{label}</TH>
                                     ))}
-                                    <TH onClick={() => handleSort("date")}>
-                                      {m.sessions_col_date()} {sortBy === "date" ? (sortAsc ? "▲" : "▼") : ""}
-                                    </TH>
+                                    <SortableTH direction={sortBy === "date" ? (sortAsc ? "ascending" : "descending") : undefined} onSort={() => handleSort("date")}>
+                                      {m.sessions_col_date()}
+                                    </SortableTH>
                                     <TH>{m.sessions_col_notes()}</TH>
                                   </THead>
                                   <TBody>
@@ -1688,7 +1688,9 @@ export function TrackDetail({
                                                 )}
                                               </TD>
                                             )}
-                                            <TD numeric nowrap>{lap.lapNumber}</TD>
+                                            <TD numeric nowrap>
+                                              {lap.lapNumber}
+                                            </TD>
                                             <TD align="end" nowrap>
                                               <div className="flex items-center justify-end gap-1">
                                                 <span className={`font-mono tabular-nums ${isFastest ? "font-bold" : ""}`} style={{ color: isFastest ? "var(--lap-record)" : undefined }}>

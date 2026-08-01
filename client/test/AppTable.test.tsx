@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Table, TBody, TD, TH, THead, TRow } from "../src/components/ui/AppTable";
+import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "../src/components/ui/AppTable";
 
 const consumerOverrides = {
   className: "consumer-override",
@@ -34,13 +34,13 @@ describe("AppTable styling contract", () => {
     const markup = renderToStaticMarkup(
       <Table density="compact" fit variant="embedded">
         <THead>
-          <TH align="end" nowrap>
+          <TH align="end" nowrap showFrom="sm">
             Heading
           </TH>
         </THead>
         <TBody>
           <TRow selected>
-            <TD align="end" emphasis numeric nowrap tone="success" truncate="narrow">
+            <TD align="end" emphasis numeric nowrap showFrom="sm" tone="success" truncate="narrow">
               Value
             </TD>
           </TRow>
@@ -54,10 +54,30 @@ describe("AppTable styling contract", () => {
     expect(markup).toContain("text-right");
     expect(markup).toContain("font-mono");
     expect(markup).toContain("text-status-success");
+    expect(markup).toContain("hidden sm:table-cell");
     expect(markup).toContain("max-w-[140px]");
     expect(markup).toMatch(/<th[^>]*whitespace-nowrap[^>]*>Heading/);
     expect(markup).not.toContain('nowrap=""');
     expect(markup).not.toContain('align="end"');
     expect(markup).not.toContain('tone="success"');
+  });
+
+  test("renders sortable headers with locked header styling and accessible sort state", () => {
+    const markup = renderToStaticMarkup(
+      <Table>
+        <THead>
+          <SortableTH direction="ascending" onSort={() => undefined} {...consumerOverrides}>
+            Lap time
+          </SortableTH>
+        </THead>
+      </Table>,
+    );
+
+    expect(markup).toContain('aria-sort="ascending"');
+    expect(markup).toContain("Lap time");
+    expect(markup).toContain("↑");
+    expect(markup).not.toContain("<button");
+    expect(markup).not.toContain("consumer-override");
+    expect(markup).not.toContain("rgb(255,0,0)");
   });
 });

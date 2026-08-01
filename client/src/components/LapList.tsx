@@ -6,7 +6,7 @@ import { storedLapsSectorCount } from "../lib/lap-sectors";
 import { useGameRoute } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
 import { Button } from "./ui/button";
-import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
+import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 function formatLapTime(seconds: number): string {
   if (seconds <= 0) return "--:--.---";
   const m = Math.floor(seconds / 60);
@@ -53,8 +53,6 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
     return sortDir === "asc" ? valA - valB : valB - valA;
   });
 
-  const arrow = (key: SortKey) => (sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
-
   const bestLapTime = laps.reduce((best, l) => (l.isValid && l.lapTime < best ? l.lapTime : best), Infinity);
 
   const sectorCount = storedLapsSectorCount(laps);
@@ -77,14 +75,12 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
     <div className="overflow-auto">
       <Table fit>
         <THead>
-          <TH onClick={() => toggleSort("lap")}>
+          <SortableTH direction={sortKey === "lap" ? (sortDir === "asc" ? "ascending" : "descending") : undefined} onSort={() => toggleSort("lap")}>
             {m.label_lap()}
-            {arrow("lap")}
-          </TH>
-          <TH onClick={() => toggleSort("time")}>
+          </SortableTH>
+          <SortableTH direction={sortKey === "time" ? (sortDir === "asc" ? "ascending" : "descending") : undefined} onSort={() => toggleSort("time")}>
             {m.label_time()}
-            {arrow("time")}
-          </TH>
+          </SortableTH>
           {sectorLabels.map((label) => (
             <TH key={label}>{label}</TH>
           ))}
@@ -106,9 +102,7 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
                   const time = lap.sectorTimes?.[index] ?? 0;
                   return (
                     <TD key={label} emphasis numeric>
-                      <span className={hasSectors ? sectorColor(time, bestSectors[index], avgSectors[index]) : undefined}>
-                        {hasSectors ? formatLapTime(time) : "-"}
-                      </span>
+                      <span className={hasSectors ? sectorColor(time, bestSectors[index], avgSectors[index]) : undefined}>{hasSectors ? formatLapTime(time) : "-"}</span>
                     </TD>
                   );
                 })}

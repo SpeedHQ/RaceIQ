@@ -39,35 +39,35 @@ export function F1GridTable({ f1, playerCarIndex }: { f1: F1ExtendedData; player
             <TableHead align="center">{m.f1grid_header_pit()}</TableHead>
           </TableHeader>
           <TableBody>
-          {sorted.map((entry) => {
-            const isPlayer = entry.name !== "" && playerCarIndex !== undefined;
-            return (
-              <TableRow key={entry.position} selected={isPlayer}>
-                <TableCell emphasis>{entry.position}</TableCell>
-                <TableCell tone="primary" truncate="narrow">
-                  {entry.name || `${m.label_car()} ${entry.position}`}
-                </TableCell>
-                <TableCell align="end" numeric tone="muted">
-                  {entry.position === 1 ? m.f1grid_leader() : formatGap(entry.gapToLeader)}
-                </TableCell>
-                <TableCell align="end" numeric tone="muted">
-                  {formatGap(entry.gapToCarAhead)}
-                </TableCell>
-                <TableCell align="end" numeric>
-                  {formatTime(entry.bestLapTime)}
-                </TableCell>
-                <TableCell align="center">
-                  <span className="tire-compound-dot inline-block w-2.5 h-2.5 rounded-full" data-tire-compound={(entry.tyreCompound || "unknown").toLowerCase()} />
-                </TableCell>
-                <TableCell align="end" numeric tone="dim">
-                  {entry.tyreAge}
-                </TableCell>
-                <TableCell align="center" tone="dim">
-                  {entry.pitStatus === 1 ? m.f1grid_pit_in() : entry.pitStatus === 2 ? m.f1grid_pit_pitting() : entry.numPitStops > 0 ? entry.numPitStops : ""}
-                </TableCell>
-              </TableRow>
-            );
-          })}
+            {sorted.map((entry) => {
+              const isPlayer = entry.name !== "" && playerCarIndex !== undefined;
+              return (
+                <TableRow key={entry.position} selected={isPlayer}>
+                  <TableCell emphasis>{entry.position}</TableCell>
+                  <TableCell tone="primary" truncate="narrow">
+                    {entry.name || `${m.label_car()} ${entry.position}`}
+                  </TableCell>
+                  <TableCell align="end" numeric tone="muted">
+                    {entry.position === 1 ? m.f1grid_leader() : formatGap(entry.gapToLeader)}
+                  </TableCell>
+                  <TableCell align="end" numeric tone="muted">
+                    {formatGap(entry.gapToCarAhead)}
+                  </TableCell>
+                  <TableCell align="end" numeric>
+                    {formatTime(entry.bestLapTime)}
+                  </TableCell>
+                  <TableCell align="center">
+                    <span className="tire-compound-dot inline-block w-2.5 h-2.5 rounded-full" data-tire-compound={(entry.tyreCompound || "unknown").toLowerCase()} />
+                  </TableCell>
+                  <TableCell align="end" numeric tone="dim">
+                    {entry.tyreAge}
+                  </TableCell>
+                  <TableCell align="center" tone="dim">
+                    {entry.pitStatus === 1 ? m.f1grid_pit_in() : entry.pitStatus === 2 ? m.f1grid_pit_pitting() : entry.numPitStops > 0 ? entry.numPitStops : ""}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>

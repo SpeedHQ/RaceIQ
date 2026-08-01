@@ -1,8 +1,9 @@
 import { type ReactNode, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { ComboBox, type ComboOption } from "./ComboBox";
-import { TUNE_GRID, TuneBrowserRow } from "./TuneBrowserRow";
+import { TuneBrowserRow } from "./TuneBrowserRow";
 import type { SourceTab, TuneRow } from "./types";
+import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
 
 export interface SetupBrowserProps {
@@ -125,12 +126,11 @@ export function SetupBrowser(props: SetupBrowserProps) {
             {m.setup_new_tune()}
           </Button>
         )}
-      </div>
-
-      <div className="flex items-end gap-2.5 mb-3">
-        <ComboBox label={m.setup_track_label()} variant="track" value={track} options={trackOptions} onChange={pickTrack} placeholder={m.setup_any_track()} />
-        <span className="hidden sm:block text-app-text-dim pb-3">{m.setup_arrow()}</span>
-        <ComboBox label={m.setup_car_label()} variant="car" value={car} options={carOptions} onChange={pickCar} placeholder={m.setup_any_car()} />
+        <div className="ml-auto flex items-end gap-2.5">
+          <ComboBox label={m.setup_track_label()} variant="track" value={track} options={trackOptions} onChange={pickTrack} placeholder={m.setup_any_track()} />
+          <span className="hidden sm:block text-app-text-dim pb-3">{m.setup_arrow()}</span>
+          <ComboBox label={m.setup_car_label()} variant="car" value={car} options={carOptions} onChange={pickCar} placeholder={m.setup_any_car()} />
+        </div>
       </div>
 
       <div className="flex gap-1.5 items-center flex-wrap px-2.5 py-2 bg-app-surface border border-b-0 border-app-border rounded-t-lg">
@@ -164,39 +164,49 @@ export function SetupBrowser(props: SetupBrowserProps) {
         )}
       </div>
 
-      <div className="border border-app-border rounded-b-lg overflow-hidden">
-        <div className={`${TUNE_GRID} px-3 py-2.5 bg-app-bg text-app-micro uppercase tracking-wider text-app-text-dim`}>
-          <span>{m.setup_table_rank()}</span>
-          <span>{m.setup_table_tune()}</span>
-          <span className="hidden sm:block">{m.label_car()}</span>
-          <span className="hidden sm:block">{m.label_track()}</span>
-          <span className="hidden sm:block">{m.label_category()}</span>
-          <span className="hidden sm:block">{m.label_author()}</span>
-          <Button type="button" className="justify-self-end uppercase tracking-wider text-app-accent inline-flex items-center gap-1" onClick={() => setSortAsc((a) => !a)}>
-            {m.label_lap_time()} <span className="text-app-nano">{sortAsc ? "▲" : "▼"}</span>
-          </Button>
-          <span className="hidden sm:block" />
-        </div>
-        {pageRows.map((row, i) => (
-          <TuneBrowserRow
-            key={row.key}
-            row={row}
-            rank={safePage * PAGE_SIZE + i + 1}
-            carName={props.carNames[row.carOrdinal] ?? `Car #${row.carOrdinal}`}
-            trackName={row.trackOrdinal != null ? (props.trackNames[row.trackOrdinal] ?? `Track #${row.trackOrdinal}`) : null}
-            isOpen={openKey === row.key}
-            onToggle={() => setOpenKey(openKey === row.key ? null : row.key)}
-            onClone={props.onClone}
-            onEdit={props.onEdit}
-            onDelete={props.onDelete}
-            onDuplicate={props.onDuplicate}
-            isDuplicating={props.isDuplicating}
-            renderSettings={props.renderSettings}
-            readOnly={props.readOnly}
-          />
-        ))}
-        {visible.length === 0 && <div className="text-center py-12 text-app-text-dim text-sm">{m.setup_no_matches()}</div>}
-      </div>
+      <Table>
+        <THead>
+          <TH>{m.setup_table_rank()}</TH>
+          <TH>{m.setup_table_tune()}</TH>
+          <TH showFrom="sm">{m.label_car()}</TH>
+          <TH showFrom="sm">{m.label_track()}</TH>
+          <TH showFrom="sm">{m.label_category()}</TH>
+          <TH showFrom="sm">{m.label_author()}</TH>
+          <SortableTH align="end" direction={sortAsc ? "ascending" : "descending"} onSort={() => setSortAsc((ascending) => !ascending)}>
+            {m.label_lap_time()}
+          </SortableTH>
+          <TH showFrom="sm" visuallyHidden>
+            {m.label_actions()}
+          </TH>
+        </THead>
+        <TBody>
+          {pageRows.map((row, index) => (
+            <TuneBrowserRow
+              key={row.key}
+              row={row}
+              rank={safePage * PAGE_SIZE + index + 1}
+              carName={props.carNames[row.carOrdinal] ?? `Car #${row.carOrdinal}`}
+              trackName={row.trackOrdinal != null ? (props.trackNames[row.trackOrdinal] ?? `Track #${row.trackOrdinal}`) : null}
+              isOpen={openKey === row.key}
+              onToggle={() => setOpenKey(openKey === row.key ? null : row.key)}
+              onClone={props.onClone}
+              onEdit={props.onEdit}
+              onDelete={props.onDelete}
+              onDuplicate={props.onDuplicate}
+              isDuplicating={props.isDuplicating}
+              renderSettings={props.renderSettings}
+              readOnly={props.readOnly}
+            />
+          ))}
+          {visible.length === 0 && (
+            <TRow variant="separator">
+              <TD align="center" colSpan={8} tone="primary">
+                <div className="py-10">{m.setup_no_matches()}</div>
+              </TD>
+            </TRow>
+          )}
+        </TBody>
+      </Table>
 
       {visible.length > 0 && (
         <div className="flex items-center justify-center gap-3.5 mt-3.5">

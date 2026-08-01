@@ -9,7 +9,7 @@ import { errorFromResponse } from "../lib/rpc-error";
 import { useRequiredGameId } from "../stores/game";
 import { PiBadge, piClass } from "./forza/PiBadge";
 import { AppInput } from "./ui/AppInput";
-import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
+import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 
@@ -267,9 +267,7 @@ function CompareModal({
         <div className="overflow-auto">
           <Table density="compact" fit>
             <THead>
-              <TH sticky="start">
-                {m.cars_stat_column()}
-              </TH>
+              <TH sticky="start">{m.cars_stat_column()}</TH>
               {cars.map((car) => (
                 <TH key={car.ordinal} align="center">
                   {car.specs?.imageUrl && <img src={car.specs.imageUrl} alt={car.name} loading="lazy" className="mx-auto mb-1 h-14 w-full object-contain" />}
@@ -303,20 +301,6 @@ function CompareModal({
         </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function ColHeader({ k, label, className = "", sort, sortDir, onSort }: { k: SortKey; label: string; className?: string; sort: SortKey; sortDir: 1 | -1; onSort: (k: SortKey) => void }) {
-  const active = sort === k;
-  return (
-    <Button
-      type="button"
-      onClick={() => onSort(k)}
-      className={`text-left text-app-caption uppercase tracking-wider font-semibold transition-colors ${active ? "text-app-accent" : "text-app-text/90 hover:text-app-text"} ${className}`}
-    >
-      {label}
-      {active ? (sortDir === 1 ? " ↑" : " ↓") : ""}
-    </Button>
   );
 }
 
@@ -632,49 +616,49 @@ export function CarsPage() {
         <Table density="compact">
           <THead>
             <TH />
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="name" label="Car" />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="pi" label="PI" />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="hp" label="HP" />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="torque" label="Torque" />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="weightKg" label={isMetric ? "Wt (kg)" : "Wt (lb)"} />
-            </TH>
+            <SortableTH direction={sort === "name" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("name")}>
+              Car
+            </SortableTH>
+            <SortableTH direction={sort === "pi" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("pi")}>
+              PI
+            </SortableTH>
+            <SortableTH direction={sort === "hp" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("hp")}>
+              HP
+            </SortableTH>
+            <SortableTH direction={sort === "torque" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("torque")}>
+              Torque
+            </SortableTH>
+            <SortableTH direction={sort === "weightKg" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("weightKg")}>
+              {isMetric ? "Wt (kg)" : "Wt (lb)"}
+            </SortableTH>
             <TH>{m.cars_drive_label()}</TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="topSpeedMph" label={`Top Spd (${units.speedLabel})`} />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="zeroToSixty" label="0–60" />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="zeroToHundred" label="0–100" />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="braking60" label={isMetric ? "Brk 60 (m)" : "Brk 60 (ft)"} />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="speedRating" label="Spd" />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="brakingRating" label="Brk" />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="handlingRating" label="Hdl" />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="accelRating" label="Acc" />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="division" label="Division" />
-            </TH>
+            <SortableTH direction={sort === "topSpeedMph" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("topSpeedMph")}>
+              Top Spd ({units.speedLabel})
+            </SortableTH>
+            <SortableTH direction={sort === "zeroToSixty" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("zeroToSixty")}>
+              0–60
+            </SortableTH>
+            <SortableTH direction={sort === "zeroToHundred" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("zeroToHundred")}>
+              0–100
+            </SortableTH>
+            <SortableTH direction={sort === "braking60" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("braking60")}>
+              {isMetric ? "Brk 60 (m)" : "Brk 60 (ft)"}
+            </SortableTH>
+            <SortableTH direction={sort === "speedRating" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("speedRating")}>
+              Spd
+            </SortableTH>
+            <SortableTH direction={sort === "brakingRating" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("brakingRating")}>
+              Brk
+            </SortableTH>
+            <SortableTH direction={sort === "handlingRating" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("handlingRating")}>
+              Hdl
+            </SortableTH>
+            <SortableTH direction={sort === "accelRating" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("accelRating")}>
+              Acc
+            </SortableTH>
+            <SortableTH direction={sort === "division" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("division")}>
+              Division
+            </SortableTH>
           </THead>
           <TBody>
             {filtered.length === 0 ? (
@@ -717,18 +701,40 @@ export function CarsPage() {
                         "—"
                       )}
                     </TD>
-                    <TD numeric tone="primary">{car.specs?.hp || "—"}</TD>
-                    <TD numeric tone="primary">{car.specs?.torque || "—"}</TD>
-                    <TD numeric tone="primary">{fmtWeight(car.specs?.weightKg ?? 0, car.specs?.weightLbs ?? 0)}</TD>
+                    <TD numeric tone="primary">
+                      {car.specs?.hp || "—"}
+                    </TD>
+                    <TD numeric tone="primary">
+                      {car.specs?.torque || "—"}
+                    </TD>
+                    <TD numeric tone="primary">
+                      {fmtWeight(car.specs?.weightKg ?? 0, car.specs?.weightLbs ?? 0)}
+                    </TD>
                     <TD tone="primary">{car.specs?.drivetrain || "—"}</TD>
-                    <TD numeric tone="primary">{fmtSpeed(car.specs?.topSpeedMph ?? 0)}</TD>
-                    <TD numeric tone="primary">{car.specs?.zeroToSixty ? `${car.specs.zeroToSixty}s` : "—"}</TD>
-                    <TD numeric tone="primary">{car.specs?.zeroToHundred ? `${car.specs.zeroToHundred}s` : "—"}</TD>
-                    <TD numeric tone="primary">{fmtBrake(car.specs?.braking60 ?? 0)}</TD>
-                    <TD numeric tone="primary">{car.specs?.speedRating || "—"}</TD>
-                    <TD numeric tone="primary">{car.specs?.brakingRating || "—"}</TD>
-                    <TD numeric tone="primary">{car.specs?.handlingRating || "—"}</TD>
-                    <TD numeric tone="primary">{car.specs?.accelRating || "—"}</TD>
+                    <TD numeric tone="primary">
+                      {fmtSpeed(car.specs?.topSpeedMph ?? 0)}
+                    </TD>
+                    <TD numeric tone="primary">
+                      {car.specs?.zeroToSixty ? `${car.specs.zeroToSixty}s` : "—"}
+                    </TD>
+                    <TD numeric tone="primary">
+                      {car.specs?.zeroToHundred ? `${car.specs.zeroToHundred}s` : "—"}
+                    </TD>
+                    <TD numeric tone="primary">
+                      {fmtBrake(car.specs?.braking60 ?? 0)}
+                    </TD>
+                    <TD numeric tone="primary">
+                      {car.specs?.speedRating || "—"}
+                    </TD>
+                    <TD numeric tone="primary">
+                      {car.specs?.brakingRating || "—"}
+                    </TD>
+                    <TD numeric tone="primary">
+                      {car.specs?.handlingRating || "—"}
+                    </TD>
+                    <TD numeric tone="primary">
+                      {car.specs?.accelRating || "—"}
+                    </TD>
                     <TD tone="primary" truncate="narrow">
                       {car.specs?.division || "—"}
                     </TD>

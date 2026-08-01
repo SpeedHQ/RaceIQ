@@ -190,9 +190,13 @@ export const SemanticVariants: Story = {
     <div className="flex max-w-md flex-col gap-3">
       <div className="flex flex-wrap gap-2">
         <Button variant="menu-action">Menu action</Button>
-        <Button variant="close-action" aria-label="Close">×</Button>
+        <Button variant="close-action" aria-label="Close">
+          ×
+        </Button>
         <Button variant="destructive-outline">Delete</Button>
-        <Button variant="selected-toggle" aria-pressed="true">Selected</Button>
+        <Button variant="selected-toggle" aria-pressed="true">
+          Selected
+        </Button>
         <Button variant="full-width-action">Full width</Button>
       </div>
       <div className="flex flex-wrap gap-2">
@@ -201,16 +205,34 @@ export const SemanticVariants: Story = {
         <Badge variant="ai-status">AI status</Badge>
       </div>
       <Card variant="transparent-panel">
-        <CardHeader><CardTitle>Settings section</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Settings section</CardTitle>
+        </CardHeader>
         <CardContent>Transparent panel contract.</CardContent>
       </Card>
       <Tabs defaultValue="one">
-        <TabsList variant="pills"><TabsTrigger value="one" variant="pills">One</TabsTrigger><TabsTrigger value="two" variant="pills">Two</TabsTrigger></TabsList>
+        <TabsList variant="pills">
+          <TabsTrigger value="one" variant="pills">
+            One
+          </TabsTrigger>
+          <TabsTrigger value="two" variant="pills">
+            Two
+          </TabsTrigger>
+        </TabsList>
         <TabsContent value="one">Active tab content</TabsContent>
       </Tabs>
-      <Table variant="settings"><TBody><TRow><TD>Settings row</TD></TRow></TBody></Table>
+      <Table variant="settings">
+        <TBody>
+          <TRow>
+            <TD>Settings row</TD>
+          </TRow>
+        </TBody>
+      </Table>
       <Dialog defaultOpen>
-        <DialogContent layout="scrollable" size="sm"><DialogTitle>Scrollable dialog</DialogTitle><DialogDescription>Dialog shell contract.</DialogDescription></DialogContent>
+        <DialogContent layout="scrollable" size="sm">
+          <DialogTitle>Scrollable dialog</DialogTitle>
+          <DialogDescription>Dialog shell contract.</DialogDescription>
+        </DialogContent>
       </Dialog>
     </div>
   ),

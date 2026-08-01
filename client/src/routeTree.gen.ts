@@ -71,8 +71,6 @@ import { Route as GameidTracksTrackOrdinalTabRouteImport } from './routes/$gamei
 import { Route as AcEvoSetupsEditTuneIdRouteImport } from './routes/ac-evo/setups/edit.$tuneId'
 import { Route as AccSetupsEditTuneIdRouteImport } from './routes/acc/setups/edit.$tuneId'
 import { Route as Fm23SetupsEditTuneIdRouteImport } from './routes/fm23/setups/edit.$tuneId'
-import { Route as Fm23SetupsWheelIndexRouteImport } from './routes/fm23/setups/wheel/index'
-import { Route as Fm23SetupsWheelProfileIdRouteImport } from './routes/fm23/setups/wheel/$profileId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -388,17 +386,6 @@ const Fm23SetupsEditTuneIdRoute = Fm23SetupsEditTuneIdRouteImport.update({
   path: '/edit/$tuneId',
   getParentRoute: () => Fm23SetupsRoute,
 } as any)
-const Fm23SetupsWheelIndexRoute = Fm23SetupsWheelIndexRouteImport.update({
-  id: '/wheel/',
-  path: '/wheel/',
-  getParentRoute: () => Fm23SetupsRoute,
-} as any)
-const Fm23SetupsWheelProfileIdRoute =
-  Fm23SetupsWheelProfileIdRouteImport.update({
-    id: '/wheel/$profileId',
-    path: '/wheel/$profileId',
-    getParentRoute: () => Fm23SetupsRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -462,9 +449,7 @@ export interface FileRoutesByFullPath {
   '/ac-evo/setups/edit/$tuneId': typeof AcEvoSetupsEditTuneIdRoute
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
-  '/fm23/setups/wheel/$profileId': typeof Fm23SetupsWheelProfileIdRoute
   '/$gameid/tracks/$trackOrdinal/': typeof GameidTracksTrackOrdinalIndexRoute
-  '/fm23/setups/wheel/': typeof Fm23SetupsWheelIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -516,9 +501,7 @@ export interface FileRoutesByTo {
   '/ac-evo/setups/edit/$tuneId': typeof AcEvoSetupsEditTuneIdRoute
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
-  '/fm23/setups/wheel/$profileId': typeof Fm23SetupsWheelProfileIdRoute
   '/$gameid/tracks/$trackOrdinal': typeof GameidTracksTrackOrdinalIndexRoute
-  '/fm23/setups/wheel': typeof Fm23SetupsWheelIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -583,9 +566,7 @@ export interface FileRoutesById {
   '/ac-evo/setups/edit/$tuneId': typeof AcEvoSetupsEditTuneIdRoute
   '/acc/setups/edit/$tuneId': typeof AccSetupsEditTuneIdRoute
   '/fm23/setups/edit/$tuneId': typeof Fm23SetupsEditTuneIdRoute
-  '/fm23/setups/wheel/$profileId': typeof Fm23SetupsWheelProfileIdRoute
   '/$gameid/tracks/$trackOrdinal/': typeof GameidTracksTrackOrdinalIndexRoute
-  '/fm23/setups/wheel/': typeof Fm23SetupsWheelIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -651,9 +632,7 @@ export interface FileRouteTypes {
     | '/ac-evo/setups/edit/$tuneId'
     | '/acc/setups/edit/$tuneId'
     | '/fm23/setups/edit/$tuneId'
-    | '/fm23/setups/wheel/$profileId'
     | '/$gameid/tracks/$trackOrdinal/'
-    | '/fm23/setups/wheel/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -705,9 +684,7 @@ export interface FileRouteTypes {
     | '/ac-evo/setups/edit/$tuneId'
     | '/acc/setups/edit/$tuneId'
     | '/fm23/setups/edit/$tuneId'
-    | '/fm23/setups/wheel/$profileId'
     | '/$gameid/tracks/$trackOrdinal'
-    | '/fm23/setups/wheel'
   id:
     | '__root__'
     | '/'
@@ -771,9 +748,7 @@ export interface FileRouteTypes {
     | '/ac-evo/setups/edit/$tuneId'
     | '/acc/setups/edit/$tuneId'
     | '/fm23/setups/edit/$tuneId'
-    | '/fm23/setups/wheel/$profileId'
     | '/$gameid/tracks/$trackOrdinal/'
-    | '/fm23/setups/wheel/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1227,20 +1202,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Fm23SetupsEditTuneIdRouteImport
       parentRoute: typeof Fm23SetupsRoute
     }
-    '/fm23/setups/wheel/': {
-      id: '/fm23/setups/wheel/'
-      path: '/wheel'
-      fullPath: '/fm23/setups/wheel/'
-      preLoaderRoute: typeof Fm23SetupsWheelIndexRouteImport
-      parentRoute: typeof Fm23SetupsRoute
-    }
-    '/fm23/setups/wheel/$profileId': {
-      id: '/fm23/setups/wheel/$profileId'
-      path: '/wheel/$profileId'
-      fullPath: '/fm23/setups/wheel/$profileId'
-      preLoaderRoute: typeof Fm23SetupsWheelProfileIdRouteImport
-      parentRoute: typeof Fm23SetupsRoute
-    }
   }
 }
 
@@ -1424,8 +1385,6 @@ interface Fm23SetupsRouteChildren {
   Fm23SetupsNewRoute: typeof Fm23SetupsNewRoute
   Fm23SetupsIndexRoute: typeof Fm23SetupsIndexRoute
   Fm23SetupsEditTuneIdRoute: typeof Fm23SetupsEditTuneIdRoute
-  Fm23SetupsWheelProfileIdRoute: typeof Fm23SetupsWheelProfileIdRoute
-  Fm23SetupsWheelIndexRoute: typeof Fm23SetupsWheelIndexRoute
 }
 
 const Fm23SetupsRouteChildren: Fm23SetupsRouteChildren = {
@@ -1433,8 +1392,6 @@ const Fm23SetupsRouteChildren: Fm23SetupsRouteChildren = {
   Fm23SetupsNewRoute: Fm23SetupsNewRoute,
   Fm23SetupsIndexRoute: Fm23SetupsIndexRoute,
   Fm23SetupsEditTuneIdRoute: Fm23SetupsEditTuneIdRoute,
-  Fm23SetupsWheelProfileIdRoute: Fm23SetupsWheelProfileIdRoute,
-  Fm23SetupsWheelIndexRoute: Fm23SetupsWheelIndexRoute,
 }
 
 const Fm23SetupsRouteWithChildren = Fm23SetupsRoute._addFileChildren(

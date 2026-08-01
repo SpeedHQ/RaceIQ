@@ -380,48 +380,60 @@ function GridSection({ f1, playerPosition }: { f1: F1ExtendedData; playerPositio
             <TableHead align="center">{m.f1grid_header_pit()}</TableHead>
           </TableHeader>
           <TableBody>
-          {focused.map((entry) => {
-            if ("separator" in entry) {
+            {focused.map((entry) => {
+              if ("separator" in entry) {
+                return (
+                  <TableRow key={`sep-${entry.position}`} variant="separator">
+                    <TableCell align="center" colSpan={10} tone="dim">
+                      {m.f1grid_separator()}
+                    </TableCell>
+                  </TableRow>
+                );
+              }
+              const isPlayer = entry.position === playerPosition;
               return (
-                <TableRow key={`sep-${entry.position}`} variant="separator">
-                  <TableCell align="center" colSpan={10} tone="dim">
-                    {m.f1grid_separator()}
+                <TableRow key={entry.position} selected={isPlayer}>
+                  <TableCell emphasis numeric tone="primary">
+                    {entry.position}
+                  </TableCell>
+                  <TableCell emphasis={isPlayer} tone={isPlayer ? "accent" : "default"} truncate="narrow">
+                    {entry.name || `${m.label_car()} ${entry.position}`}
+                  </TableCell>
+                  <TableCell align="end" numeric>
+                    {entry.lastS1 > 0 ? entry.lastS1.toFixed(3) : "—"}
+                  </TableCell>
+                  <TableCell align="end" numeric>
+                    {entry.lastS2 > 0 ? entry.lastS2.toFixed(3) : "—"}
+                  </TableCell>
+                  <TableCell align="end" numeric>
+                    {entry.lastS3 > 0 ? entry.lastS3.toFixed(3) : "—"}
+                  </TableCell>
+                  <TableCell align="end" numeric tone="muted">
+                    {entry.position === 1 ? m.f1grid_leader() : formatGap(entry.gapToLeader)}
+                  </TableCell>
+                  <TableCell align="end" numeric tone="muted">
+                    {formatGap(entry.gapToCarAhead)}
+                  </TableCell>
+                  <TableCell align="center">
+                    <span className="tire-compound-dot inline-block w-2.5 h-2.5 rounded-full" data-tire-compound={(entry.tyreCompound || "unknown").toLowerCase()} />
+                  </TableCell>
+                  <TableCell align="end" numeric tone="muted">
+                    {entry.tyreAge}
+                  </TableCell>
+                  <TableCell align="center" tone="muted">
+                    {entry.pitStatus === 1 ? (
+                      <span className="text-status-warning font-bold">IN</span>
+                    ) : entry.pitStatus === 2 ? (
+                      <span className="text-status-warning">PIT</span>
+                    ) : entry.numPitStops > 0 ? (
+                      entry.numPitStops
+                    ) : (
+                      ""
+                    )}
                   </TableCell>
                 </TableRow>
               );
-            }
-            const isPlayer = entry.position === playerPosition;
-            return (
-              <TableRow key={entry.position} selected={isPlayer}>
-                <TableCell emphasis numeric tone="primary">
-                  {entry.position}
-                </TableCell>
-                <TableCell emphasis={isPlayer} tone={isPlayer ? "accent" : "default"} truncate="narrow">
-                  {entry.name || `${m.label_car()} ${entry.position}`}
-                </TableCell>
-                <TableCell align="end" numeric>{entry.lastS1 > 0 ? entry.lastS1.toFixed(3) : "—"}</TableCell>
-                <TableCell align="end" numeric>{entry.lastS2 > 0 ? entry.lastS2.toFixed(3) : "—"}</TableCell>
-                <TableCell align="end" numeric>{entry.lastS3 > 0 ? entry.lastS3.toFixed(3) : "—"}</TableCell>
-                <TableCell align="end" numeric tone="muted">{entry.position === 1 ? m.f1grid_leader() : formatGap(entry.gapToLeader)}</TableCell>
-                <TableCell align="end" numeric tone="muted">{formatGap(entry.gapToCarAhead)}</TableCell>
-                <TableCell align="center">
-                  <span className="tire-compound-dot inline-block w-2.5 h-2.5 rounded-full" data-tire-compound={(entry.tyreCompound || "unknown").toLowerCase()} />
-                </TableCell>
-                <TableCell align="end" numeric tone="muted">{entry.tyreAge}</TableCell>
-                <TableCell align="center" tone="muted">
-                  {entry.pitStatus === 1 ? (
-                    <span className="text-status-warning font-bold">IN</span>
-                  ) : entry.pitStatus === 2 ? (
-                    <span className="text-status-warning">PIT</span>
-                  ) : entry.numPitStops > 0 ? (
-                    entry.numPitStops
-                  ) : (
-                    ""
-                  )}
-                </TableCell>
-              </TableRow>
-            );
-          })}
+            })}
           </TableBody>
         </Table>
       </div>

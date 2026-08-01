@@ -1,4 +1,4 @@
-import type { HTMLAttributes, TableHTMLAttributes, TdHTMLAttributes, ThHTMLAttributes } from "react";
+import type { ComponentPropsWithRef, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 type LockedStyleProps<T> = Omit<T, "className" | "style"> & {
@@ -13,15 +13,15 @@ type RuntimeStyleOverrides = {
   tableClassName?: unknown;
 };
 
-type TableProps = LockedStyleProps<TableHTMLAttributes<HTMLTableElement>> & {
+type TableProps = LockedStyleProps<ComponentPropsWithRef<"table">> & {
   density?: "default" | "compact" | "telemetry";
   fit?: boolean;
   variant?: "default" | "settings" | "embedded";
 };
 
-type THeadProps = LockedStyleProps<HTMLAttributes<HTMLTableSectionElement>>;
-type TBodyProps = LockedStyleProps<HTMLAttributes<HTMLTableSectionElement>>;
-type TRowProps = LockedStyleProps<HTMLAttributes<HTMLTableRowElement>> & {
+type THeadProps = LockedStyleProps<ComponentPropsWithRef<"thead">>;
+type TBodyProps = LockedStyleProps<ComponentPropsWithRef<"tbody">>;
+type TRowProps = LockedStyleProps<ComponentPropsWithRef<"tr">> & {
   selected?: boolean;
   tooltip?: string;
   variant?: "default" | "separator";
@@ -29,17 +29,24 @@ type TRowProps = LockedStyleProps<HTMLAttributes<HTMLTableRowElement>> & {
 type CellAlign = "start" | "center" | "end";
 type CellTone = "default" | "primary" | "muted" | "dim" | "accent" | "success" | "warning" | "danger" | "best";
 type TruncateWidth = "narrow" | "wide";
-type THProps = Omit<LockedStyleProps<ThHTMLAttributes<HTMLTableCellElement>>, "align"> & {
+type THProps = Omit<LockedStyleProps<ComponentPropsWithRef<"th">>, "align"> & {
   align?: CellAlign;
   nowrap?: boolean;
+  showFrom?: "sm";
   sticky?: "start";
   visuallyHidden?: boolean;
 };
-type TDProps = Omit<LockedStyleProps<TdHTMLAttributes<HTMLTableCellElement>>, "align"> & {
+type SortableTHProps = Omit<THProps, "aria-sort" | "children" | "onClick" | "onKeyDown" | "tabIndex"> & {
+  children: ReactNode;
+  direction?: "ascending" | "descending";
+  onSort: () => void;
+};
+type TDProps = Omit<LockedStyleProps<ComponentPropsWithRef<"td">>, "align"> & {
   align?: CellAlign;
   emphasis?: boolean;
   numeric?: boolean;
   nowrap?: boolean;
+  showFrom?: "sm";
   sticky?: "start";
   tone?: CellTone;
   truncate?: TruncateWidth;
@@ -96,7 +103,11 @@ export function Table(inputProps: TableProps) {
         data-density={density}
         data-slot="table"
         data-variant={variant}
-        className={cn("w-full text-app-detail", fit ? "min-w-0" : "min-w-max md:min-w-0", densityClasses[density])}
+        className={cn(
+          "w-full text-app-detail [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-app-surface [&_thead>tr]:border-b [&_thead>tr]:border-app-border [&_thead>tr]:text-app-label [&_thead>tr]:uppercase [&_thead>tr]:tracking-wider [&_thead>tr]:text-app-text-muted [&_tbody]:divide-y [&_tbody]:divide-app-border/40",
+          fit ? "min-w-0" : "min-w-max md:min-w-0",
+          densityClasses[density],
+        )}
       >
         {children}
       </table>
@@ -130,15 +141,7 @@ export function TBody(inputProps: TBodyProps) {
 }
 
 export function TRow(inputProps: TRowProps) {
-  const {
-    children,
-    className: consumerClassName,
-    selected = false,
-    style: consumerStyle,
-    tooltip,
-    variant = "default",
-    ...props
-  } = inputProps as TRowProps & RuntimeStyleOverrides;
+  const { children, className: consumerClassName, selected = false, style: consumerStyle, tooltip, variant = "default", ...props } = inputProps as TRowProps & RuntimeStyleOverrides;
   void consumerClassName;
   void consumerStyle;
 
@@ -173,6 +176,7 @@ export function TH(inputProps: THProps) {
     children,
     className: consumerClassName,
     nowrap = false,
+    showFrom,
     sticky,
     style: consumerStyle,
     visuallyHidden = false,
@@ -188,6 +192,7 @@ export function TH(inputProps: THProps) {
       className={cn(
         "px-3 py-2",
         alignClasses[align],
+        showFrom === "sm" && "hidden sm:table-cell",
         nowrap && "whitespace-nowrap",
         visuallyHidden && "sr-only",
         sticky === "start" && "sticky left-0 z-20 bg-app-surface",
@@ -196,6 +201,27 @@ export function TH(inputProps: THProps) {
     >
       {children}
     </th>
+  );
+}
+
+export function SortableTH({ children, direction, onSort, ...props }: SortableTHProps) {
+  return (
+    <TH
+      {...props}
+      aria-sort={direction}
+      onClick={onSort}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        onSort();
+      }}
+      tabIndex={0}
+    >
+      <span className={cn("inline-flex items-center gap-1 transition-colors", direction && "text-app-accent")}>
+        {children}
+        {direction && <span aria-hidden="true">{direction === "ascending" ? "↑" : "↓"}</span>}
+      </span>
+    </TH>
   );
 }
 
@@ -208,6 +234,7 @@ export function TD(inputProps: TDProps) {
     numeric = false,
     nowrap = false,
     sticky,
+    showFrom,
     style: consumerStyle,
     tone = "default",
     truncate,
@@ -225,6 +252,7 @@ export function TD(inputProps: TDProps) {
         alignClasses[align],
         toneClasses[tone],
         emphasis && "font-semibold",
+        showFrom === "sm" && "hidden sm:table-cell",
         numeric && "font-mono tabular-nums",
         nowrap && "whitespace-nowrap",
         sticky === "start" && "sticky left-0 z-10 bg-inherit",

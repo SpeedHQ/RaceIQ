@@ -9,6 +9,7 @@ import { m } from "../../paraglide/messages";
 
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
+import { Table, TBody, TD, TH, THead, TRow } from "../ui/AppTable";
 export interface SegmentTiming {
   name: string;
   type: "corner" | "straight";
@@ -392,20 +393,18 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
       {/* Segment Times Table */}
       {segments.length > 0 ? (
         <div className="overflow-auto flex-1 min-h-0">
-          <table className="w-full text-app-detail">
-            <thead className="sticky top-0 z-10 bg-[var(--app-surface)]">
-              <tr className="text-app-label text-app-text-muted uppercase tracking-wider border-b border-app-border">
-                <th className="text-left px-2 py-1.5">{m.compare_segment()}</th>
-                <th className="text-right px-2 py-1.5" style={{ color: COLOR_A }}>
-                  A
-                </th>
-                <th className="text-right px-2 py-1.5" style={{ color: COLOR_B }}>
-                  B
-                </th>
-                <th className="text-right px-2 py-1.5">+/-</th>
-              </tr>
-            </thead>
-            <tbody ref={segmentTableRef}>
+          <Table density="compact" fit variant="embedded">
+            <THead>
+              <TH>{m.compare_segment()}</TH>
+              <TH align="end">
+                <span style={{ color: COLOR_A }}>A</span>
+              </TH>
+              <TH align="end">
+                <span style={{ color: COLOR_B }}>B</span>
+              </TH>
+              <TH align="end">+/-</TH>
+            </THead>
+            <TBody ref={segmentTableRef}>
               {segments.map((s) => {
                 const fasterA = s.timeA > 0 && s.timeB > 0 && s.timeA < s.timeB;
                 const fasterB = s.timeA > 0 && s.timeB > 0 && s.timeB < s.timeA;
@@ -414,22 +413,24 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
                 const segmentDeltaColor = isNeutral ? "var(--app-text-secondary)" : deltaColor(delta);
                 const sign = delta > 0 ? "+" : "";
                 return (
-                  <tr key={s.name} className="border-b border-app-border/50 hover:bg-app-surface-hover/30">
-                    <td className="px-2 py-1 font-mono text-app-text whitespace-nowrap">{s.name}</td>
-                    <td className="px-2 py-1 font-mono text-right" style={{ color: fasterA ? "var(--delta-gain)" : "var(--app-text-secondary)" }}>
+                  <TRow key={s.name}>
+                    <TD nowrap numeric tone="primary">
+                      {s.name}
+                    </TD>
+                    <TD align="end" numeric tone={fasterA ? "success" : "default"}>
                       {formatSectionTime(s.timeA)}
-                    </td>
-                    <td className="px-2 py-1 font-mono text-right" style={{ color: fasterB ? "var(--delta-gain)" : "var(--app-text-secondary)" }}>
+                    </TD>
+                    <TD align="end" numeric tone={fasterB ? "success" : "default"}>
                       {formatSectionTime(s.timeB)}
-                    </td>
-                    <td className="px-2 py-1 font-mono text-right" style={{ color: segmentDeltaColor }}>
-                      {s.timeA > 0 && s.timeB > 0 ? `${sign}${delta.toFixed(3)}` : "-"}
-                    </td>
-                  </tr>
+                    </TD>
+                    <TD align="end" numeric>
+                      <span style={{ color: segmentDeltaColor }}>{s.timeA > 0 && s.timeB > 0 ? `${sign}${delta.toFixed(3)}` : "-"}</span>
+                    </TD>
+                  </TRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         </div>
       ) : null}
     </Card>

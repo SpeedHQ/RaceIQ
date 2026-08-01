@@ -116,8 +116,12 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
             const base = s.baseSetupPath?.split(/[\\/]/).pop() ?? "—";
             return (
               <TRow key={s.id} onClick={() => onOpen(s.id)}>
-                <TD align="end" numeric tone="dim">{s.seq}</TD>
-                <TD emphasis tone="primary">{s.name}</TD>
+                <TD align="end" numeric tone="dim">
+                  {s.seq}
+                </TD>
+                <TD emphasis tone="primary">
+                  {s.name}
+                </TD>
                 <TD>
                   <FocusBadge focus={s.focus} />
                 </TD>
@@ -126,7 +130,9 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
                 <TD numeric tone="dim" truncate="wide" title={s.baseSetupPath ?? undefined}>
                   {base}
                 </TD>
-                <TD nowrap tone="dim">{new Date(s.updatedAt).toLocaleDateString()}</TD>
+                <TD nowrap tone="dim">
+                  {new Date(s.updatedAt).toLocaleDateString()}
+                </TD>
                 <TD align="end">
                   <span className="text-xs font-semibold text-app-accent">Resume →</span>
                 </TD>

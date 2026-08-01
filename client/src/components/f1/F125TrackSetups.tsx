@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { SETUP_GROUPS } from "@/components/f1/f125-setup-groups";
 import { SetupRangeBar } from "@/components/SetupRangeBar";
 import { Button } from "@/components/ui/button";
+import { Table, TBody, TD, TRow } from "@/components/ui/AppTable";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
 import { useUiStore } from "@/stores/ui";
@@ -195,22 +196,22 @@ export function F125TrackGuide({ trackOrdinal }: { trackOrdinal: number }) {
                   </span>
                 )}
               </div>
-              <table className="w-full text-app-detail text-app-text-secondary">
-                <tbody>
+              <Table density="compact" fit variant="embedded">
+                <TBody>
                   {g.setupTips && (
-                    <tr>
-                      <td className="pr-2 text-app-text-dim">{m.f1setup_setup_tips_label()}</td>
-                      <td>Yes</td>
-                    </tr>
+                    <TRow>
+                      <TD tone="dim">{m.f1setup_setup_tips_label()}</TD>
+                      <TD>Yes</TD>
+                    </TRow>
                   )}
                   {g.drivingTips && (
-                    <tr>
-                      <td className="pr-2 text-app-text-dim">{m.f1setup_driving_tips_label()}</td>
-                      <td>Yes</td>
-                    </tr>
+                    <TRow>
+                      <TD tone="dim">{m.f1setup_driving_tips_label()}</TD>
+                      <TD>Yes</TD>
+                    </TRow>
                   )}
-                </tbody>
-              </table>
+                </TBody>
+              </Table>
             </Button>
           );
         })}
