@@ -40,7 +40,9 @@ function pkt(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
   } as TelemetryPacket;
 }
 
-function makePipeline() {
+function makePipeline(
+  onSessionFinalized?: (sessionId: number, gameId: TelemetryPacket["gameId"]) => Promise<void>,
+) {
   const db = new CapturingDbAdapter();
   const ws = new CapturingWsAdapter();
   const pipeline = new Pipeline(db, ws, {
@@ -48,6 +50,7 @@ function makePipeline() {
     skipHistorySeeding: true,
     skipDevState: true,
     recorder: new NullSessionRecorderAdapter(),
+    onSessionFinalized,
   });
   return { pipeline, ws };
 }
@@ -91,5 +94,22 @@ describe("Pipeline live issue gating", () => {
     pipeline.setLiveIssuesEnabled(false);
     await pipeline.processPacket(pkt());
     expect(ws.broadcastedPackets[1].liveIssues).toBeUndefined();
+  });
+
+  test("finalizes one result after session detector closes", async () => {
+    const finalized: Array<{ sessionId: number; gameId: string }> = [];
+    const { pipeline } = makePipeline(async (sessionId, gameId) => {
+      finalized.push({ sessionId, gameId });
+    });
+    await pipeline.processPacket(pkt());
+
+    await Promise.all([
+      pipeline.finalizeCurrentSession(),
+      pipeline.finalizeCurrentSession(),
+    ]);
+    await pipeline.finalizeCurrentSession();
+
+    expect(finalized).toEqual([{ sessionId: 1, gameId: "fm-2023" }]);
+    expect(pipeline.lapDetector?.session).toBeNull();
   });
 });

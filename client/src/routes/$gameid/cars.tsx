@@ -1,19 +1,24 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
-import { CarsPage } from "../../components/CarsPage";
 import { AcEvoCars } from "../../components/ac-evo/AcEvoCars";
 import { AccCars } from "../../components/acc/AccCars";
+import { CarsPage } from "../../components/CarsPage";
 import { F1Cars } from "../../components/f1/F1Cars";
 import { IRacingCars } from "../../components/iracing/IRacingCars";
+import { RaceResultSummary } from "../../components/race-results/ResultSummary";
+import { useRequiredGameId } from "../../stores/game";
 
 type CarsSearch = { compare?: string };
 
 function CarsRoute() {
   const { gameid } = useParams({ from: "/$gameid/cars" });
-  if (gameid === "ac-evo") return <AcEvoCars />;
-  if (gameid === "acc") return <AccCars />;
-  if (gameid === "f125") return <F1Cars />;
-  if (gameid === "iracing") return <IRacingCars />;
-  return <CarsPage />;
+  const gameId = useRequiredGameId();
+  const page = gameid === "ac-evo" ? <AcEvoCars /> : gameid === "acc" ? <AccCars /> : gameid === "f125" ? <F1Cars /> : gameid === "iracing" ? <IRacingCars /> : <CarsPage />;
+  return (
+    <>
+      <RaceResultSummary className="mx-4 mt-4" gameId={gameId} title="Race results across all cars" />
+      {page}
+    </>
+  );
 }
 
 export const Route = createFileRoute("/$gameid/cars")({

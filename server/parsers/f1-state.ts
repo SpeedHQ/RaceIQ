@@ -82,7 +82,7 @@ export class F1StateAccumulator {
     sector1Time: number; // seconds (0 if not set)
     sector2Time: number; // seconds (0 if not set)
     currentLapInvalid: number; penalties: number; totalWarnings: number;
-    cornerCuttingWarnings: number; driverStatus: number;
+    cornerCuttingWarnings: number; driverStatus: number; resultStatus: number;
     pitLaneTimerActive: number; pitLaneTimeInLaneInMS: number;
     speedTrapFastestSpeed: number; gridPosition: number;
     // All cars lap data for grid
@@ -91,6 +91,14 @@ export class F1StateAccumulator {
       position: number; pitStatus: number; numPitStops: number;
       totalDistance: number;
     }>;
+  } | null = null;
+  private finalClassification: {
+    position: number;
+    gridPosition: number;
+    resultStatus: number;
+    resultReason: number;
+    bestLapTime: number;
+    numPitStops: number;
   } | null = null;
 
   private carStatus: {
@@ -199,6 +207,7 @@ export class F1StateAccumulator {
     this.motion = null;
     this.carTelemetry = null;
     this.lapData = null;
+    this.finalClassification = null;
     this.carStatus = null;
     this.carDamage = null;
     this.carSetup = null;
@@ -235,6 +244,7 @@ export class F1StateAccumulator {
       case 5: this.parseCarSetup(data); break;
       case 6: this.parseCarTelemetry(data); break;
       case 7: this.parseCarStatus(data); break;
+      case 8: this.parseFinalClassification(data); break;
       case 10: this.parseCarDamage(data); break;
       case 11: this.parseSessionHistory(data); break;
       case 13: this.parseMotionEx(data); break;
@@ -382,11 +392,26 @@ export class F1StateAccumulator {
       totalWarnings: data.readUInt8(playerOffset + 39),             // m_totalWarnings
       cornerCuttingWarnings: data.readUInt8(playerOffset + 40),     // m_cornerCuttingWarnings
       driverStatus: data.readUInt8(playerOffset + 44),              // m_driverStatus
+      resultStatus: data.readUInt8(playerOffset + 45),              // m_resultStatus
       pitLaneTimerActive: data.readUInt8(playerOffset + 46),        // m_pitLaneTimerActive
       pitLaneTimeInLaneInMS: data.readUInt16LE(playerOffset + 47),  // m_pitLaneTimeInLaneInMS
       speedTrapFastestSpeed: data.readFloatLE(playerOffset + 52),   // m_speedTrapFastestSpeed
       gridPosition: data.readUInt8(playerOffset + 43),              // m_gridPosition
       allCars,
+    };
+  }
+  private parseFinalClassification(data: Buffer): void {
+    const carSize = 46;
+    const numCars = data.length > 0 ? data.readUInt8(0) : 0;
+    const offset = 1 + this.playerCarIndex * carSize;
+    if (this.playerCarIndex >= numCars || data.length < offset + carSize) return;
+    this.finalClassification = {
+      position: data.readUInt8(offset),
+      gridPosition: data.readUInt8(offset + 2),
+      numPitStops: data.readUInt8(offset + 4),
+      resultStatus: data.readUInt8(offset + 5),
+      resultReason: data.readUInt8(offset + 6),
+      bestLapTime: data.readUInt32LE(offset + 7) / 1000,
     };
   }
 
@@ -932,11 +957,14 @@ export class F1StateAccumulator {
       penalties: ld.penalties,
       totalWarnings: ld.totalWarnings,
       cornerCuttingWarnings: ld.cornerCuttingWarnings,
+      resultStatus: this.finalClassification?.resultStatus ?? ld.resultStatus,
+      resultReason: this.finalClassification?.resultReason,
+      resultSource: this.finalClassification ? "final-classification" : "lap-data",
       driverStatus: ld.driverStatus,
       pitLaneTimerActive: ld.pitLaneTimerActive,
       pitLaneTimeInLaneInMS: ld.pitLaneTimeInLaneInMS,
       speedTrapFastestSpeed: ld.speedTrapFastestSpeed,
-      gridPosition: ld.gridPosition,
+      gridPosition: this.finalClassification?.gridPosition ?? ld.gridPosition,
       // Extended Session fields
       safetyCarStatus: sess?.safetyCarStatus,
       trackLength: sess?.trackLength,
@@ -1089,13 +1117,13 @@ export class F1StateAccumulator {
           : undefined,
 
       DistanceTraveled: ld.lapDistance,
-      BestLap: ld.bestLapTime,
+      BestLap: this.finalClassification?.bestLapTime ?? ld.bestLapTime,
       LastLap: ld.lastLapTime,
       CurrentLap: ld.currentLapTime,
       CurrentRaceTime: header.sessionTime,
 
       LapNumber: ld.currentLapNum,
-      RacePosition: ld.position,
+      RacePosition: this.finalClassification?.position ?? ld.position,
 
       // F1: throttle/brake are 0.0-1.0 float, normalize to 0-255
       Accel: Math.round(ct.throttle * 255),

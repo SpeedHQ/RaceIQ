@@ -7,6 +7,7 @@ import { client } from "../lib/rpc";
 import { getGameRoute, useGameId } from "../stores/game";
 import { useUiStore } from "../stores/ui";
 import { type GameStats, HomePageView, type PeriodKey, type PeriodStats } from "./HomePage";
+import { RaceResultSummary } from "./race-results/ResultSummary";
 import { buildRecapText } from "./SessionRecap";
 
 export function HomePageContainer() {
@@ -38,7 +39,6 @@ export function HomePageContainer() {
         .slice(0, 10),
     [allLaps],
   );
-
 
   const gameQueries = useQueries({
     queries: (["fm-2023", "f1-2025", "acc", "ac-evo", "iracing"] as const).map((g) => ({
@@ -146,37 +146,44 @@ export function HomePageContainer() {
   };
 
   return (
-    <HomePageView
-      gameId={gameId}
-      gameDisplayName={gameAdapter?.displayName ?? null}
-      displaySettings={displaySettings}
-      allLaps={allLaps}
-      recentLaps={recentLaps}
-      carNames={carNames}
-      trackNames={trackNames}
-      gameStats={gameStats}
-      hiddenGames={hiddenGames}
-      latestSession={latestSession}
-      latestRecap={latestRecap}
-      latestRecapLoading={latestRecapLoading}
-      latestRecapError={latestRecapError}
-      latestRecapOutline={latestRecapOutline}
-      latestRecapBounds={latestRecapBounds}
-      recapCopied={recapCopied}
-      onCopyRecap={copyRecap}
-      onAnalyseRecap={analyseRecap}
-      onAnalyseLap={(lap) => {
-        if (!lap.gameId) return;
-        window.location.href = `${getGameRoute(lap.gameId)}/analyse?track=${lap.trackOrdinal ?? ""}&car=${lap.carOrdinal ?? ""}&lap=${lap.id}`;
-      }}
-      periodTab={periodTab}
-      periodStats={periodStats}
-      onPeriodTabChange={setPeriodTab}
-      onOpenSettings={() => openSettings("games")}
-      lapsLoading={lapsLoading}
-      lapsError={lapsError}
-      sessionsLoading={sessionsLoading}
-      sessionsError={sessionsError}
-    />
+    <>
+      <HomePageView
+        gameId={gameId}
+        gameDisplayName={gameAdapter?.displayName ?? null}
+        displaySettings={displaySettings}
+        allLaps={allLaps}
+        recentLaps={recentLaps}
+        carNames={carNames}
+        trackNames={trackNames}
+        gameStats={gameStats}
+        hiddenGames={hiddenGames}
+        latestSession={latestSession}
+        latestRecap={latestRecap}
+        latestRecapLoading={latestRecapLoading}
+        latestRecapError={latestRecapError}
+        latestRecapOutline={latestRecapOutline}
+        latestRecapBounds={latestRecapBounds}
+        recapCopied={recapCopied}
+        onCopyRecap={copyRecap}
+        onAnalyseRecap={analyseRecap}
+        onAnalyseLap={(lap) => {
+          if (!lap.gameId) return;
+          window.location.href = `${getGameRoute(lap.gameId)}/analyse?track=${lap.trackOrdinal ?? ""}&car=${lap.carOrdinal ?? ""}&lap=${lap.id}`;
+        }}
+        periodTab={periodTab}
+        periodStats={periodStats}
+        onPeriodTabChange={setPeriodTab}
+        onOpenSettings={() => openSettings("games")}
+        lapsLoading={lapsLoading}
+        lapsError={lapsError}
+        sessionsLoading={sessionsLoading}
+        sessionsError={sessionsError}
+      />
+      {gameId && (
+        <div className="mx-auto max-w-[1400px] px-4 pb-4 md:px-6 md:pb-6">
+          <RaceResultSummary gameId={gameId} title="Race results" />
+        </div>
+      )}
+    </>
   );
 }

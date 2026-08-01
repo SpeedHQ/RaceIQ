@@ -18,6 +18,7 @@ import { LAP_DETECTOR_ID } from "./lap-detector";
 import { detectCorners } from "./corner-detection";
 import { telemetryToSymptoms } from "./ai/tune-symptoms";
 import { symptomsToIssues, detectLiveIssues } from "./ai/tune-issues";
+import { reconcileSessionResult } from "./race-results/reconcile";
 
 export class Pipeline {
   private sectorTracker = new SectorTracker();
@@ -38,6 +39,10 @@ export class Pipeline {
   /** Issues computed in onLapComplete (has packets, no lapId yet), consumed in
    *  onLapSaved (has lapId/lapNumber, no packets) to build the "lap-issues" push. */
   private _pendingLapIssues: TuneIssue[] | null = null;
+  private _recordingSession: { sessionId: number; gameId: GameId } | null = null;
+  private _onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
+  private _finalizedResultSessions = new Set<number>();
+  private _resultFinalizations = new Map<number, Promise<void>>();
 
   /** Expose the current lap detector for external readers (routes, UDP handler). */
   get lapDetector(): ILapDetector | null {
@@ -72,6 +77,7 @@ export class Pipeline {
       skipHistorySeeding?: boolean;
       skipDevState?: boolean;
       recorder?: SessionRecorderAdapter;
+      onSessionFinalized?: (sessionId: number, gameId: GameId) => Promise<void>;
     },
   ) {
     this.db = db;
@@ -80,21 +86,69 @@ export class Pipeline {
     this._bypassPacketRateFilter = options?.bypassPacketRateFilter ?? false;
     this._skipHistorySeeding = options?.skipHistorySeeding ?? false;
     this._skipDevState = options?.skipDevState ?? false;
+    this._onSessionFinalized = options?.onSessionFinalized;
+  }
+
+  private _reconcileRecordedSession(
+    session: { sessionId: number; gameId: GameId },
+  ): Promise<void> {
+    if (this._finalizedResultSessions.has(session.sessionId)) {
+      return Promise.resolve();
+    }
+    const pending = this._resultFinalizations.get(session.sessionId);
+    if (pending) return pending;
+
+    const finalization = (async () => {
+      await this._onSessionFinalized?.(session.sessionId, session.gameId);
+      this._finalizedResultSessions.add(session.sessionId);
+    })();
+    this._resultFinalizations.set(session.sessionId, finalization);
+    void finalization
+      .finally(() => {
+        if (this._resultFinalizations.get(session.sessionId) === finalization) {
+          this._resultFinalizations.delete(session.sessionId);
+        }
+      })
+      .catch(() => {});
+    return finalization;
+  }
+
+  private async _finishRecordedSession(
+    session = this._recordingSession,
+  ): Promise<void> {
+    if (session && this._recordingSession?.sessionId === session.sessionId) {
+      this._recordingSession = null;
+    }
+    await this.recorder.stop();
+    if (session) await this._reconcileRecordedSession(session);
   }
 
   private _buildCallbacks(): LapDetectorCallbacks {
     return {
       onSessionStart: async (session) => {
-        // Close previous session recording before opening a new one.
+        const previousSession = this._recordingSession;
+        this._recordingSession = null;
         await this.recorder.stop();
         this.recorder.start(session.gameId);
         this.recorder.writeMetaFrame();
+        this._recordingSession = {
+          sessionId: session.sessionId,
+          gameId: session.gameId,
+        };
         if (this.recorder.path) {
           await this.db.updateSessionRawFile(
             session.sessionId,
             this.recorder.path,
             this._lapDetector?.detectorId ?? LAP_DETECTOR_ID,
           );
+        }
+        if (previousSession) {
+          void this._reconcileRecordedSession(previousSession).catch((error) => {
+            console.error(
+              `[Race Results] Failed to reconcile session ${previousSession.sessionId}:`,
+              error,
+            );
+          });
         }
 
         await this.sectorTracker.reset(session.trackOrdinal, session.gameId, session.carOrdinal);
@@ -189,6 +243,22 @@ export class Pipeline {
    */
   async flushIncompleteLap(): Promise<void> {
     await this._lapDetector?.flushIncompleteLap?.();
+  }
+
+  /** Finalize detector, durable capture, then authoritative session result. */
+  async finalizeCurrentSession(): Promise<void> {
+    const session = this._recordingSession;
+    await this._lapDetector?.finalizeCurrentSession?.();
+    await this._finishRecordedSession(session);
+  }
+
+  /** Detect game-specific stale finalization and finish its durable capture. */
+  async flushStaleSession(): Promise<void> {
+    const session = this._recordingSession;
+    await this._lapDetector?.flushStaleLap?.();
+    if (session && !this._lapDetector?.session) {
+      await this._finishRecordedSession(session);
+    }
   }
 
   /** Seed in-memory session laps from DB (called once on session start). */
@@ -317,7 +387,18 @@ export class Pipeline {
 
 // Backward-compatible singleton exports — unchanged for all callers
 const _defaultWs = new RealWsAdapter();
-const _default = new Pipeline(new RealDbAdapter(), _defaultWs);
+const _default = new Pipeline(new RealDbAdapter(), _defaultWs, {
+  onSessionFinalized: async (sessionId, gameId) => {
+    try {
+      await reconcileSessionResult(sessionId, gameId);
+    } catch (error) {
+      console.error(
+        `[Race Results] Failed to reconcile session ${sessionId}:`,
+        error,
+      );
+    }
+  },
+});
 
 // Wire session laps provider so WS manager can send laps on client connect
 import { wsManager } from "./ws";
@@ -330,7 +411,7 @@ export const lapDetector = {
   get session() { return _default.lapDetector?.session ?? null; },
   get fuelHistory() { return _default.lapDetector?.fuelHistory ?? []; },
   get tireWearHistory() { return _default.lapDetector?.tireWearHistory ?? []; },
-  async finalizeCurrentSession() { await _default.lapDetector?.finalizeCurrentSession?.(); },
+  async finalizeCurrentSession() { await _default.finalizeCurrentSession(); },
 };
 
 /** In-memory session laps for the current session. */
@@ -347,7 +428,11 @@ export function setLiveIssuesEnabled(enabled: boolean): void {
 // closed). `.unref()` so bun test's event loop can exit once the tests are
 // done — without it every test that transitively imports this module hangs
 // the runner waiting for a never-arriving interval tick.
-const _maintenanceInterval = setInterval(() => _default.lapDetector?.flushStaleLap?.(), 5_000);
+const _maintenanceInterval = setInterval(() => {
+  void _default.flushStaleSession().catch((error) => {
+    console.error("[Pipeline] Stale session finalization failed:", error);
+  });
+}, 5_000);
 _maintenanceInterval.unref?.();
 
 /** Stop the module-level maintenance interval. Call in test/bench contexts to allow clean exit. */
@@ -362,7 +447,7 @@ export function isSessionActive(): boolean {
 
 /** Flush and close the active session recorder. Call on graceful shutdown. */
 export async function flushSessionRecorder(): Promise<void> {
-  await _default.flushSessionRecorder();
+  await _default.finalizeCurrentSession();
 }
 
 /** Flush buffered writes to disk. Call periodically so lap offsets stay consistent with file size. */

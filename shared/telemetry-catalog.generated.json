@@ -103,6 +103,8 @@
         "diagnostics.pace-mode",
         "diagnostics.push-to-pass",
         "diagnostics.push-to-talk",
+        "diagnostics.result-reason",
+        "diagnostics.result-source",
         "diagnostics.sim-build-target",
         "diagnostics.sim-build-type",
         "diagnostics.sim-build-version",
@@ -438,6 +440,7 @@
         "race.player.push-to-pass-count",
         "race.race-laps",
         "race.race-position",
+        "race.result-status",
         "race.safety-car-status",
         "race.session-summary.caution-flags",
         "race.session-summary.caution-laps",
@@ -4888,6 +4891,84 @@
           "freshness": "session-update",
           "normalization": "parse YAML count as index",
           "description": "iRacing YAML field is catalogued but raw value is not recorded by source-frame v2."
+        }
+      }
+    },
+    {
+      "id": "diagnostics.result-reason",
+      "label": "Result Reason",
+      "description": "Result Reason source value reported by f1-2025 in count.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.resultReason"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        }
+      }
+    },
+    {
+      "id": "diagnostics.result-source",
+      "label": "Result Source",
+      "description": "Result Source source value reported by f1-2025 in unitless.",
+      "parentId": "diagnostics",
+      "canonicalUnit": "unitless",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "unitless",
+          "sources": [
+            "f1.resultSource"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         }
       }
     },
@@ -16509,12 +16590,13 @@
           "description": "fm-2023 maps 1 native source channel into this value."
         },
         "f1-2025": {
-          "kind": "direct",
+          "kind": "derived",
           "nativeUnit": "count",
           "sources": [
             "F1.LapData.position"
           ],
           "freshness": "continuous",
+          "normalization": "this.finalClassification?.position ?? ld.position",
           "description": "f1-2025 maps 1 native source channel into this value."
         },
         "acc": {
@@ -16544,6 +16626,45 @@
           "freshness": "continuous",
           "normalization": "Math.max(0, Math.trunc(scalar(values, \"PlayerCarPosition\", 0)))",
           "description": "iracing maps 1 native source channel into this value."
+        }
+      }
+    },
+    {
+      "id": "race.result-status",
+      "label": "Result Status",
+      "description": "Result Status source value reported by f1-2025 in count.",
+      "parentId": "race",
+      "canonicalUnit": "count",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "direct",
+          "nativeUnit": "count",
+          "sources": [
+            "f1.resultStatus"
+          ],
+          "freshness": "continuous",
+          "description": "f1-2025 parser exposes 1 linked field."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
         }
       }
     },
@@ -23307,12 +23428,13 @@
           "description": "fm-2023 maps 1 native source channel into this value."
         },
         "f1-2025": {
-          "kind": "direct",
+          "kind": "derived",
           "nativeUnit": "s",
           "sources": [
             "F1.LapData.bestLapTime"
           ],
           "freshness": "continuous",
+          "normalization": "this.finalClassification?.bestLapTime ?? ld.bestLapTime",
           "description": "f1-2025 maps 1 native source channel into this value."
         },
         "acc": {
@@ -34436,6 +34558,42 @@
         "count": 1,
         "description": "Rear Wing Damage source value reported by f1-2025 in %.",
         "semanticId": "damage.rear-wing-damage",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.resultReason",
+        "label": "Result Reason",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Result Reason source value reported by f1-2025 in count.",
+        "semanticId": "diagnostics.result-reason",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.resultSource",
+        "label": "Result Source",
+        "unit": "unitless",
+        "dataType": "\"lap-data\" | \"final-classification\"",
+        "count": 1,
+        "description": "Result Source source value reported by f1-2025 in unitless.",
+        "semanticId": "diagnostics.result-source",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "f1.resultStatus",
+        "label": "Result Status",
+        "unit": "count",
+        "dataType": "number",
+        "count": 1,
+        "description": "Result Status source value reported by f1-2025 in count.",
+        "semanticId": "race.result-status",
         "sourceKind": "extension",
         "recordedByRaceIQ": true,
         "retention": "exact"
@@ -53042,7 +53200,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 144,
-    "semanticVariables": 709,
+    "semanticVariables": 712,
     "sourceCounts": {
       "fm-2023": {
         "total": 95,
@@ -53054,13 +53212,13 @@
         "recorded": 95
       },
       "f1-2025": {
-        "total": 285,
+        "total": 288,
         "packet": 119,
-        "extension": 166,
+        "extension": 169,
         "sdk": 0,
         "yaml": 0,
         "setup": 0,
-        "recorded": 285
+        "recorded": 288
       },
       "acc": {
         "total": 200,

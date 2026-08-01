@@ -18,6 +18,7 @@ import { sessions, laps } from "../server/db/schema";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { importSessionBin } from "../server/import-session-bin";
+import { getSessionResult } from "../server/db/queries";
 import { buildLapsZip, importLapsZip } from "../server/zip";
 
 initGameAdapters();
@@ -68,6 +69,7 @@ describe("lap export → import round-trip (real capture)", () => {
     expect(withCapture.length).toBeGreaterThan(0);
 
     const sid = withCapture[0].sessionId;
+    expect(await getSessionResult(sid, "fm-2023")).not.toBeNull();
     const rows = withCapture.filter((r) => r.sessionId === sid);
 
     const session = await db.select().from(sessions).where(eq(sessions.id, sid)).get();

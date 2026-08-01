@@ -144,7 +144,9 @@ class UdpListener {
         } else {
           console.log("[Game] state change to null");
           // Finalize session immediately when game disconnects
-          void lapDetector.finalizeCurrentSession();
+          void lapDetector.finalizeCurrentSession().catch((error) => {
+            console.error("[Pipeline] Session finalization failed:", error);
+          });
         }
       }
       this._lastDetectedGame = runningGame;

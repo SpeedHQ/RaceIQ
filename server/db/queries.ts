@@ -1,7 +1,8 @@
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, compareAnalyses, profiles, tunes, lineSpreadCache, driverProfiles, driverProfileRuns } from "./schema";
+import { sessions, laps, trackCorners, trackOutlines, lapAnalyses, compareAnalyses, profiles, tunes, lineSpreadCache, driverProfiles, driverProfileRuns, sessionResults, pitEvents } from "./schema";
 import type { TelemetryPacket, LapMeta, SessionMeta, GameId } from "../../shared/types";
+import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultStatus } from "../../shared/race-results";
 import type { Corner } from "../corner-detection";
 import { fillNormSuspension } from "../telemetry-utils";
 import { getServerGame } from "../games/registry";
@@ -179,6 +180,163 @@ export async function updateSession(
   updates: { sessionType?: string; notes?: string | null }
 ): Promise<void> {
   await db.update(sessions).set(updates).where(eq(sessions.id, id)).run();
+}
+
+const UNAVAILABLE_RACE_RESULT_EVIDENCE: RaceResultEvidence = {
+  fieldStatus: {
+    sessionType: "unavailable",
+    classification: "unavailable",
+    finishingPosition: "unavailable",
+    qualifyingPosition: "unavailable",
+    isPodium: "unavailable",
+    isFastestLap: "unavailable",
+    pitEvents: "unavailable",
+    tyreStrategy: "unavailable",
+    fuelStrategy: "unavailable",
+  },
+  conflicts: [],
+};
+
+export type SessionResultInput = {
+  sessionId: number;
+  sessionType: string;
+  classification: RaceResultStatus;
+  outcomeStatus: RaceResultOutcomeStatus;
+  finishingPosition: number | null;
+  qualifyingPosition: number | null;
+  isPodium: boolean | null;
+  isFastestLap: boolean | null;
+  pitCount: number;
+  tyreStrategy: unknown;
+  fuelStrategy: unknown;
+  provenance: unknown;
+  evidence: RaceResultEvidence;
+  reasons: string[];
+};
+
+export type PitEventInput = {
+  sequence: number;
+  lapNumber: number | null;
+  elapsedSeconds: number | null;
+  durationSeconds: number | null;
+  service: string;
+  tyreChange: unknown;
+  fuelAdded: number | null;
+  fuelBefore: number | null;
+  fuelAfter: number | null;
+  linkage: string;
+  source: unknown;
+};
+
+export async function upsertSessionResult(
+  input: SessionResultInput,
+  events?: PitEventInput[],
+): Promise<{ id: number; changed: boolean }> {
+  return db.transaction(async (tx) => {
+    const existing = await tx
+      .select({ id: sessionResults.id })
+      .from(sessionResults)
+      .where(eq(sessionResults.sessionId, input.sessionId))
+      .get();
+    const values = {
+      sessionId: input.sessionId,
+      sessionType: input.sessionType,
+      classification: input.classification,
+      outcomeStatus: input.outcomeStatus,
+      finishingPosition: input.finishingPosition,
+      qualifyingPosition: input.qualifyingPosition,
+      isPodium: input.isPodium,
+      isFastestLap: input.isFastestLap,
+      pitCount: input.pitCount,
+      tyreStrategy: input.tyreStrategy,
+      fuelStrategy: input.fuelStrategy,
+      provenance: input.provenance,
+      evidence: input.evidence,
+      reasons: input.reasons,
+      updatedAt: new Date().toISOString(),
+    };
+    const id = existing
+      ? existing.id
+      : (await tx.insert(sessionResults).values(values).returning({ id: sessionResults.id }).get()).id;
+    if (existing) {
+      await tx.update(sessionResults).set(values).where(eq(sessionResults.id, existing.id)).run();
+    }
+    if (events !== undefined) {
+      await tx.delete(pitEvents).where(eq(pitEvents.resultId, id));
+      if (events.length > 0) {
+        await tx.insert(pitEvents).values(events.map((event) => ({ resultId: id, ...event })));
+      }
+    }
+    return { id, changed: true };
+  });
+}
+
+export async function replacePitEvents(resultId: number, events: PitEventInput[]): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.delete(pitEvents).where(eq(pitEvents.resultId, resultId));
+    if (events.length > 0) {
+      await tx.insert(pitEvents).values(events.map((event) => ({ resultId, ...event })));
+    }
+  });
+}
+
+export async function getSessionResult(sessionId: number, gameId: GameId) {
+  const row = await db
+    .select({ result: sessionResults, gameId: sessions.gameId })
+    .from(sessionResults)
+    .innerJoin(sessions, eq(sessionResults.sessionId, sessions.id))
+    .where(and(eq(sessionResults.sessionId, sessionId), eq(sessions.gameId, gameId)))
+    .get();
+  if (!row) return null;
+  const events = await db
+    .select()
+    .from(pitEvents)
+    .where(eq(pitEvents.resultId, row.result.id))
+    .orderBy(pitEvents.sequence)
+    .all();
+  return {
+    ...row.result,
+    gameId: row.gameId as GameId,
+    outcomeStatus: row.result.outcomeStatus ?? "unavailable",
+    provenance: row.result.provenance ?? {},
+    evidence: row.result.evidence ?? UNAVAILABLE_RACE_RESULT_EVIDENCE,
+    reasons: row.result.reasons ?? [],
+    events,
+  };
+}
+export async function getRecentSessionResults(gameId: GameId, limit: number) {
+  const rows = await db
+    .select({ result: sessionResults, gameId: sessions.gameId })
+    .from(sessionResults)
+    .innerJoin(sessions, eq(sessionResults.sessionId, sessions.id))
+    .where(eq(sessions.gameId, gameId))
+    .orderBy(desc(sessions.id))
+    .limit(limit)
+    .all();
+  if (rows.length === 0) return [];
+
+  const storedEvents = await db
+    .select()
+    .from(pitEvents)
+    .where(inArray(pitEvents.resultId, rows.map((row) => row.result.id)))
+    .orderBy(pitEvents.resultId, pitEvents.sequence)
+    .all();
+  const eventsByResult = new Map<number, typeof storedEvents>();
+  for (const event of storedEvents) {
+    const events = eventsByResult.get(event.resultId);
+    if (events) events.push(event);
+    else eventsByResult.set(event.resultId, [event]);
+  }
+
+  return rows.map((row) => ({
+    ...row.result,
+    gameId: row.gameId as GameId,
+    outcomeStatus: row.result.outcomeStatus ?? "unavailable",
+    provenance: row.result.provenance ?? {},
+    evidence: row.result.evidence ?? UNAVAILABLE_RACE_RESULT_EVIDENCE,
+    reasons: row.result.reasons ?? [],
+    events: eventsByResult.get(row.result.id) ?? [],
+  }));
 }
 
 export async function updateLapNotes(id: number, notes: string | null): Promise<void> {
@@ -1014,6 +1172,53 @@ async function loadDecompressedRawFile(rawFile: string): Promise<Buffer> {
     rawFileCache.delete(oldest);
   }
   return buf;
+}
+
+/**
+ * Re-parse every frame from a completed session capture. Result reconciliation
+ * needs the session tail because authoritative finish packets may arrive after
+ * the final persisted lap range.
+ */
+export async function getSessionTelemetry(
+  sessionId: number,
+  gameId: GameId,
+): Promise<TelemetryPacket[]> {
+  const session = await db
+    .select({ rawFile: sessions.rawFile })
+    .from(sessions)
+    .where(and(eq(sessions.id, sessionId), eq(sessions.gameId, gameId)))
+    .get();
+  if (!session?.rawFile) return [];
+
+  const serverGame = getServerGame(gameId);
+  const state = serverGame.createParserState?.() ?? null;
+  const buf = await loadDecompressedRawFile(session.rawFile);
+  const packets: TelemetryPacket[] = [];
+  let offset = 12; // recorder meta frame
+
+  while (offset + 4 <= buf.length) {
+    const frameLen = buf.readUInt32LE(offset);
+    offset += 4;
+    if (frameLen <= 0 || offset + frameLen > buf.length) break;
+    const frame = buf.subarray(offset, offset + frameLen);
+    offset += frameLen;
+    try {
+      const packet = serverGame.tryParse(frame, state);
+      if (!packet) continue;
+      const sharedAdapter = tryGetGame(packet.gameId);
+      if (sharedAdapter?.coordSystem === "standard-xyz") {
+        packet.PositionX = -packet.PositionX;
+        packet.VelocityX = -packet.VelocityX;
+        packet.AccelerationX = -packet.AccelerationX;
+      }
+      fillNormSuspension(packet);
+      packets.push(packet);
+    } catch {
+      // Match lap replay: one malformed native frame does not discard session.
+    }
+  }
+
+  return packets;
 }
 
 async function parseRawLapFrames(

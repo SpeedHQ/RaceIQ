@@ -6,6 +6,7 @@ import { getAllServerGames, getServerGame } from "./games/registry";
 import { Pipeline } from "./pipeline";
 import { RealDbAdapter, type DbAdapter, type WsAdapter } from "./pipeline-adapters";
 import { META_FRAME_MAGIC } from "./udp-recorder";
+import { reconcileSessionResult } from "./race-results/reconcile";
 
 export class NoopWsAdapter implements WsAdapter {
   broadcast(): void {}
@@ -233,6 +234,15 @@ export async function importSessionFrames(
   if (options.requireLaps && db.laps.length === 0) {
     await db.rollback();
     throw new Error("No complete, importable laps were found");
+  }
+
+  try {
+    for (const sessionId of db.sessionIds) {
+      await reconcileSessionResult(sessionId, gameId);
+    }
+  } catch (error) {
+    await db.rollback();
+    throw error;
   }
 
   return {
