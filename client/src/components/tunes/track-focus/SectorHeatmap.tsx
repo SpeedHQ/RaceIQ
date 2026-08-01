@@ -1,6 +1,8 @@
 import type { LapMeta } from "@shared/types";
 import { useMemo } from "react";
 import { severityRangeColor } from "@/lib/colors";
+import { Table, TBody, TD, TH, THead, TRow } from "../../ui/AppTable";
+import { Button } from "../../ui/button";
 
 interface SectorHeatmapProps {
   laps: LapMeta[];
@@ -38,33 +40,34 @@ export function SectorHeatmap({ laps, focusLapId, onFocusLap }: SectorHeatmapPro
 
   return (
     <div className="overflow-x-auto">
-      <table className="border-collapse w-full text-app-compact">
-        <thead>
-          <tr>
-            <th className="text-left text-app-text-muted font-semibold pr-2 pb-1 sticky left-0 bg-app-surface">Lap</th>
-            {laps.map((lap) => (
-              <th key={lap.id} className="text-app-text-dim font-normal px-1 pb-1 text-center min-w-[34px]">
-                {lap.lapNumber}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
+      <Table density="compact" fit variant="embedded">
+        <THead>
+          <TH sticky="start">Lap</TH>
+          {laps.map((lap) => (
+            <TH key={lap.id} align="center">
+              {lap.lapNumber}
+            </TH>
+          ))}
+        </THead>
+        <TBody>
           {Array.from({ length: sectorCount }, (_, si) => `S${si + 1}`).map((label, si) => (
-            <tr key={label}>
-              <td className="text-app-text-muted font-semibold pr-2 py-0.5 sticky left-0 bg-app-surface">{label}</td>
+            <TRow key={label}>
+              <TD sticky="start" emphasis tone="muted">
+                {label}
+              </TD>
               {laps.map((lap) => {
                 const raw = lap.sectorTimes?.[si];
                 const best = bestBySector[si];
                 const delta = lap.isValid && raw != null && best != null ? raw - best : null;
                 const isFocus = lap.id === focusLapId;
                 return (
-                  <td key={lap.id} className="p-0.5">
-                    <button
-                      type="button"
+                  <TD key={lap.id}>
+                    <Button
+                      variant="app-ghost"
+                      size="app-sm"
                       title={`S${si + 1} L${lap.lapNumber} ${delta == null ? "n/a" : `${delta >= 0 ? "+" : ""}${delta.toFixed(2)}s`}`}
                       onClick={() => onFocusLap(lap.id)}
-                      className="w-full h-6 rounded-sm block"
+                      className="!h-6 !w-full !rounded-sm !border-0 !p-0 block"
                       style={{
                         background: cellColor(delta),
                         opacity: delta == null ? 0.3 : 0.85,
@@ -72,13 +75,13 @@ export function SectorHeatmap({ laps, focusLapId, onFocusLap }: SectorHeatmapPro
                         outlineOffset: -2,
                       }}
                     />
-                  </td>
+                  </TD>
                 );
               })}
-            </tr>
+            </TRow>
           ))}
-        </tbody>
-      </table>
+        </TBody>
+      </Table>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import type { DriverProfileSummary } from "../../../../server/ai/schemas";
 import { parseDriverProfileSummary } from "../../../../server/ai/schemas";
 import { useDriverProfile, useDriverProfileRuns, useRunDriverProfile } from "../../hooks/queries";
 import { useRequiredGameId } from "../../stores/game";
+import { Button } from "../ui/button";
 import { DriverProfileView } from "./DriverProfileView";
 
 /**
@@ -42,21 +43,21 @@ export function DriverProfilePage() {
     <div className="mx-auto max-w-6xl px-4 py-6">
       <header className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <h1 className="text-lg font-semibold text-app-text">Driver Profile</h1>
-          <p className="text-sm text-app-text-muted">How your driving is changing</p>
+          <h1 className="text-app-title font-semibold text-app-text">Driver Profile</h1>
+          <p className="text-app-subtext text-app-text-muted">How your driving is changing</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className="rounded-md border border-app-border bg-app-surface px-3 py-2 text-xs text-app-text">
+          <Button type="button" className="rounded-md border border-app-border bg-app-surface px-3 py-2 text-app-label text-app-text">
             All {profileQuery.data?.gameName ?? "Forza Motorsport"} laps
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="rounded-md bg-app-accent px-3 py-2 text-xs font-medium text-app-on-filled hover:bg-app-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-md bg-app-accent px-3 py-2 text-app-label font-medium text-app-on-filled hover:bg-app-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
             onClick={refresh}
             disabled={!canRefresh || runPending}
           >
             {runPending ? "Refreshing…" : "Refresh AI summary"}
-          </button>
+          </Button>
         </div>
       </header>
 

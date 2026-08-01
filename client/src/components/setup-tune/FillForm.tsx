@@ -1,4 +1,8 @@
 import { useState } from "react";
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { Card } from "../ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { arityLabels, arityLength, type FieldDef, getByPath, type SectionDef, setByPath } from "./setup-schema";
 
 // Renders each setup section as a collapsible card with numeric inputs.
@@ -99,24 +103,24 @@ function SectionCard({
   const hasData = present != null && typeof present === "object";
 
   return (
-    <div className="rounded-lg ring-1 ring-app-border bg-app-surface">
-      <button type="button" onClick={() => setOpen((o) => !o)} className="w-full flex items-center justify-between px-3 py-2 text-left">
+    <Card size="sm" variant="form-section">
+      <Button variant="form-section-toggle" size="app-md" onClick={() => setOpen((o) => !o)}>
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-app-text">{section.label}</span>
-          <span className={`text-app-micro font-semibold uppercase px-1.5 py-0.5 rounded ${hasData ? "bg-status-success/20 text-status-success" : "bg-app-bg text-app-text-muted"}`}>
+          <Badge variant={hasData ? "success" : "form-section-empty"} size="compact">
             {hasData ? "set" : "—"}
-          </span>
+          </Badge>
         </div>
-        <span className="text-app-text-muted text-xs">{open ? "▾" : "▸"}</span>
-      </button>
+        <span className="text-xs text-app-text-muted">{open ? "▾" : "▸"}</span>
+      </Button>
       {open && (
-        <div className="px-3 pb-3 pt-1 space-y-3 border-t border-app-border">
+        <div className="space-y-3 border-t border-app-border px-3 pb-3 pt-1">
           {section.fields.map((f) =>
             f.arity === "scalar" ? <ScalarInput key={f.path} field={f} settings={settings} onChange={onChange} /> : <ArrayInput key={f.path} field={f} settings={settings} onChange={onChange} />,
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -134,42 +138,44 @@ export function FillForm({ sections, settings, onChange }: { sections: SectionDe
   // Group sections into tabs; anything the tab map doesn't know about lands
   // in an "Other" tab so game-specific sections are never silently dropped.
   const known = new Set(TAB_DEFS.flatMap((t) => t.keys));
-  const tabs = [
-    ...TAB_DEFS.map((t) => ({ label: t.label, sections: sections.filter((s) => t.keys.includes(s.key)) })),
-    { label: "Other", sections: sections.filter((s) => !known.has(s.key)) },
-  ].filter((t) => t.sections.length > 0);
+  const tabs = [...TAB_DEFS.map((t) => ({ label: t.label, sections: sections.filter((s) => t.keys.includes(s.key)) })), { label: "Other", sections: sections.filter((s) => !known.has(s.key)) }].filter(
+    (t) => t.sections.length > 0,
+  );
 
   const [active, setActive] = useState(0);
-  const activeTab = tabs[Math.min(active, tabs.length - 1)];
+  const activeValue = tabs[Math.min(active, tabs.length - 1)]?.label;
 
   return (
     <div className="col-span-2 space-y-2">
-      <div className="flex flex-wrap gap-1 border-b border-app-border pb-2" role="tablist">
-        {tabs.map((t, i) => {
-          const hasData = t.sections.some((s) => {
-            const present = getByPath(settings, s.key);
-            return present != null && typeof present === "object";
-          });
-          return (
-            <button
-              key={t.label}
-              type="button"
-              role="tab"
-              aria-selected={i === active}
-              onClick={() => setActive(i)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                i === active ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text hover:bg-app-surface-hover"
-              }`}
-            >
-              {t.label}
-              {hasData && <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-status-success align-middle" />}
-            </button>
-          );
-        })}
-      </div>
-      {activeTab?.sections.map((s) => (
-        <SectionCard key={s.key} section={s} settings={settings} onChange={onChange} defaultOpen={true} />
-      ))}
+      <Tabs
+        value={activeValue}
+        onValueChange={(value) => {
+          const next = tabs.findIndex((t) => t.label === value);
+          if (next >= 0) setActive(next);
+        }}
+      >
+        <TabsList>
+          {tabs.map((t) => {
+            const hasData = t.sections.some((s) => {
+              const present = getByPath(settings, s.key);
+              return present != null && typeof present === "object";
+            });
+            return (
+              <TabsTrigger key={t.label} value={t.label}>
+                {t.label}
+                {hasData && <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-status-success align-middle" />}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+        {tabs.map((t) => (
+          <TabsContent key={t.label} value={t.label} className="space-y-2">
+            {t.sections.map((s) => (
+              <SectionCard key={s.key} section={s} settings={settings} onChange={onChange} defaultOpen={true} />
+            ))}
+          </TabsContent>
+        ))}
+      </Tabs>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { m } from "@/paraglide/messages";
+import { Button } from "../ui/button";
 import type { RaceStrategy } from "../../data/tune-catalog";
 import { CONDITION_COLORS } from "./tune-constants.tsx";
 
@@ -13,7 +14,7 @@ export function StrategyPanel({ strategies, tuneId }: { strategies: RaceStrategy
         <h4 className="text-xs font-semibold uppercase tracking-wider text-app-accent">{m.tune_race_strategy()}</h4>
         <div className="flex gap-1">
           {strategies.map((s) => (
-            <button
+            <Button
               key={`${tuneId}-${s.condition}`}
               onClick={() => setActiveCondition(s.condition)}
               className={`text-app-caption font-semibold uppercase px-2 py-0.5 rounded transition-colors ${
@@ -21,7 +22,7 @@ export function StrategyPanel({ strategies, tuneId }: { strategies: RaceStrategy
               }`}
             >
               {s.condition}
-            </button>
+            </Button>
           ))}
         </div>
       </div>

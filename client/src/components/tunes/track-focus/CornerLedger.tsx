@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { SetupRangeBar } from "@/components/SetupRangeBar";
+import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import type { TrackCorner } from "../../../hooks/queries";
 import type { LapTrace } from "../../../lib/stint-traces";
 import { detectCorners, ZONE_HALF_WIDTH } from "./detect-corners";
@@ -227,21 +228,19 @@ export function CornerLedger({ traces, bestLapId, cornerFracs, corners, cursorFr
     <div className="space-y-2">
       <div className="text-app-compact font-semibold text-app-text-muted uppercase tracking-wider">Corner Ledger</div>
       <div className="rounded border border-app-border overflow-x-auto">
-        <table className="w-full text-app-detail border-collapse">
-          <thead>
-            <tr>
-              {["Corner", "Speed range", "Δ worst", "Brake pt var", "Throttle pt var", "Consistency"].map((h) => (
-                <th key={h} className="text-left text-app-caption uppercase tracking-wider text-app-text-dim px-2.5 py-1.5 border-b border-app-border whitespace-nowrap">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
+        <Table density="compact" fit>
+          <THead>
+            {["Corner", "Speed range", "Δ worst", "Brake pt var", "Throttle pt var", "Consistency"].map((h) => (
+              <TH key={h} nowrap>
+                {h}
+              </TH>
+            ))}
+          </THead>
+          <TBody>
             {rows.map((r) => {
               const isActive = cursorFrac != null && Math.abs(cursorFrac - r.frac) < ZONE_HALF_WIDTH;
               return (
-                <tr
+                <TRow
                   key={r.corner.index}
                   onClick={() => {
                     onCursorFrac(r.frac);
@@ -251,13 +250,12 @@ export function CornerLedger({ traces, bestLapId, cornerFracs, corners, cursorFr
                   }}
                   onMouseEnter={() => onHoverPoints?.({ brake: r.brakeOnsets, throttle: r.throttleOnsets })}
                   onMouseLeave={() => onHoverPoints?.(pinnedFrac == null ? null : pointsFor(pinnedFrac))}
-                  className={`cursor-pointer border-b border-app-border last:border-0 hover:bg-app-surface-hover ${pinnedFrac === r.frac ? "bg-app-accent/10 ring-1 ring-inset ring-app-accent/40" : isActive ? "bg-app-surface-alt" : ""}`}
+                  selected={pinnedFrac === r.frac || isActive}
                 >
-                  <td className="text-left px-2.5 py-1.5 whitespace-nowrap">
-                    <span className="font-semibold text-app-text">{r.corner.label}</span>
-                  </td>
-                  <td
-                    className="text-left px-2.5 py-1.5"
+                  <TD nowrap emphasis tone="primary">
+                    {r.corner.label}
+                  </TD>
+                  <TD
                     title={
                       r.minSpeedBest != null && r.medianSpeedBest != null && r.topSpeedBest != null
                         ? `min ${r.minSpeedBest.toFixed(0)} · median ${r.medianSpeedBest.toFixed(0)} · max ${r.topSpeedBest.toFixed(0)} km/h`
@@ -275,20 +273,24 @@ export function CornerLedger({ traces, bestLapId, cornerFracs, corners, cursorFr
                     ) : (
                       <span className="font-mono text-app-text">—</span>
                     )}
-                  </td>
-                  <td className={`text-left px-2.5 py-1.5 font-mono tabular-nums ${deltaColor(r.deltaBest)}`}>
-                    {r.deltaBest != null ? `${r.deltaBest >= 0 ? "+" : ""}${r.deltaBest.toFixed(1)}` : "—"}
-                  </td>
-                  <td className={`text-left px-2.5 py-1.5 font-mono tabular-nums ${brakeVarColor(r.brakeVarPct)}`}>{r.brakeVarPct != null ? `±${r.brakeVarPct.toFixed(1)}%` : "—"}</td>
-                  <td className={`text-left px-2.5 py-1.5 font-mono tabular-nums ${brakeVarColor(r.throttleVarPct)}`}>{r.throttleVarPct != null ? `±${r.throttleVarPct.toFixed(1)}%` : "—"}</td>
-                  <td className="text-left px-2.5 py-1.5">
+                  </TD>
+                  <TD numeric>
+                    <span className={deltaColor(r.deltaBest)}>{r.deltaBest != null ? `${r.deltaBest >= 0 ? "+" : ""}${r.deltaBest.toFixed(1)}` : "—"}</span>
+                  </TD>
+                  <TD numeric>
+                    <span className={brakeVarColor(r.brakeVarPct)}>{r.brakeVarPct != null ? `±${r.brakeVarPct.toFixed(1)}%` : "—"}</span>
+                  </TD>
+                  <TD numeric>
+                    <span className={brakeVarColor(r.throttleVarPct)}>{r.throttleVarPct != null ? `±${r.throttleVarPct.toFixed(1)}%` : "—"}</span>
+                  </TD>
+                  <TD>
                     <Verdict brakeVarPct={r.brakeVarPct} throttleVarPct={r.throttleVarPct} />
-                  </td>
-                </tr>
+                  </TD>
+                </TRow>
               );
             })}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       </div>
       <div className="mt-2">
         <SpeedRangeLegend />

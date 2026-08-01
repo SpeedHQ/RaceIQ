@@ -88,7 +88,7 @@ export function UpdatesSection() {
           <p className="text-sm font-medium text-app-accent">
             {m.updates_available()} v{latestVersion}
           </p>
-          <Button onClick={handleInstall} className="bg-app-accent text-app-on-filled hover:bg-app-accent-hover">
+          <Button onClick={handleInstall} variant="app-primary">
             {m.label_install_update()}
           </Button>
         </div>

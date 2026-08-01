@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { F125SetupValues } from "@/components/f1/f125-setup-groups";
-import type { ComboOption } from "@/components/tune/browser/ComboBox";
 import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
 import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
 import { client } from "@/lib/rpc";
@@ -84,14 +83,14 @@ export function F125SetupBrowser() {
     return { rows, carNames, trackNames };
   }, [tracks]);
 
-  const trackOptions: ComboOption[] = useMemo(() => {
+  const trackOptions = useMemo(() => {
     const counts = new Map<number, number>();
     for (const r of rows) if (r.trackOrdinal != null) counts.set(r.trackOrdinal, (counts.get(r.trackOrdinal) ?? 0) + 1);
     const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: trackNames[ord] ?? `Track ${ord}`, count })).sort((a, b) => b.count - a.count);
     return [{ value: "any", label: m.setup_any_track(), count: rows.length }, ...opts];
   }, [rows, trackNames, uiLocale]);
 
-  const carOptions: ComboOption[] = useMemo(() => {
+  const carOptions = useMemo(() => {
     const counts = new Map<number, number>();
     for (const r of rows) counts.set(r.carOrdinal, (counts.get(r.carOrdinal) ?? 0) + 1);
     const opts = [...counts.entries()].map(([ord, count]) => ({ value: String(ord), label: carNames[ord] ?? `Team ${ord}`, count })).sort((a, b) => b.count - a.count);

@@ -220,12 +220,12 @@ export function SetupTuneForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col min-h-full">
       <div className="sticky top-0 z-10 bg-app-bg border-b border-app-border flex items-center gap-3 px-4 py-2">
-        <Button type="button" variant="app-ghost" size="app-sm" onClick={onCancel}>
+        <Button variant="app-ghost" size="app-sm" onClick={onCancel}>
           &larr;
         </Button>
         <h2 className="text-sm font-semibold text-app-text">{title}</h2>
         <div className="flex items-center gap-2 ml-auto">
-          <Button type="button" variant="app-outline" size="app-sm" onClick={onCancel}>
+          <Button variant="app-outline" size="app-sm" onClick={onCancel}>
             {m.common_cancel()}
           </Button>
           <Button type="submit" variant="app-primary" size="app-sm" disabled={!name || isSubmitting}>
@@ -239,7 +239,7 @@ export function SetupTuneForm({
             settings come from the structured form or a pasted JSON blob. */}
         <div className="col-span-2 flex items-center gap-2" role="radiogroup" aria-label="Input mode">
           <span className="text-xs font-medium text-app-text-muted mr-1">{m.setupform_input_label()}</span>
-          <button
+          <Button
             type="button"
             role="radio"
             aria-checked={mode === "form"}
@@ -249,8 +249,8 @@ export function SetupTuneForm({
             }`}
           >
             {m.setupform_fill_form()}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             role="radio"
             aria-checked={mode === "json"}
@@ -260,7 +260,7 @@ export function SetupTuneForm({
             }`}
           >
             {m.setupform_paste_json()}
-          </button>
+          </Button>
           {jsonError && <span className="text-app-caption text-status-danger ml-2">{jsonError}</span>}
         </div>
 

@@ -171,41 +171,33 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
       {/* Nav — horizontal tabs on mobile, sidebar on md+ */}
       <nav className="md:w-48 shrink-0 md:border-r border-b md:border-b-0 border-app-border bg-app-surface-alt/50 py-2 flex md:flex-col overflow-x-auto md:overflow-x-visible">
         {NAV_ITEMS.filter((item) => !("devOnly" in item) || isDevelopment).map((item) => (
-          <button
-            type="button"
-            key={item.id}
-            onClick={() => setActiveSection(item.id)}
-            className={`shrink-0 md:w-full text-left px-4 py-2 text-sm whitespace-nowrap transition-colors ${
-              activeSection === item.id
-                ? "text-app-accent bg-app-accent/10 border-b-2 md:border-b-0 md:border-r-2 border-app-accent"
-                : "text-app-text-muted hover:text-app-text hover:bg-app-surface-hover"
-            }`}
-          >
+          <Button variant={activeSection === item.id ? "settings-nav-selected" : "settings-nav"} size="app-md" key={item.id} onClick={() => setActiveSection(item.id)}>
             {(NAV_LABELS[item.id] ?? (() => item.label))()}
-          </button>
+          </Button>
         ))}
         <div className="hidden md:block mt-auto pt-2 border-t border-app-border mx-2">
-          <button
-            type="button"
-            className="w-full text-left px-4 py-2 text-sm text-app-text-muted hover:text-app-text hover:bg-app-surface-hover transition-colors"
+          <Button
+            variant="full-width-action"
+            size="app-md"
             onClick={() => {
               onClose?.();
               openOnboarding();
             }}
           >
             {m.settings_setup_wizard()}
-          </button>
+          </Button>
         </div>
-        <button
-          type="button"
-          className="md:hidden shrink-0 px-4 py-2 text-sm whitespace-nowrap text-app-text-muted hover:text-app-text transition-colors border-l border-app-border ml-auto"
+        <Button
+          variant="app-ghost"
+          size="app-md"
+          className="ml-auto"
           onClick={() => {
             onClose?.();
             openOnboarding();
           }}
         >
           {m.settings_setup_wizard()}
-        </button>
+        </Button>
       </nav>
 
       {/* Right content */}
@@ -238,7 +230,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             <div className="max-w-xs">
               <Label className={`${displaySettings.isCompiled ? "text-app-text-secondary" : "text-app-text-muted"}`}>{m.label_launch_on_login()}</Label>
               <div className="flex items-center gap-3 mt-1.5">
-                <button
+                <Button
                   type="button"
                   role="switch"
                   disabled={!displaySettings.isCompiled}
@@ -257,7 +249,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                       displaySettings.launchOnLogin ? "translate-x-4" : "translate-x-0"
                     }`}
                   />
-                </button>
+                </Button>
                 <span className="text-sm text-app-text-muted">
                   {!displaySettings.isCompiled ? m.settings_launch_installed_only() : displaySettings.launchOnLogin ? m.common_enabled() : m.common_disabled()}
                 </span>
@@ -338,12 +330,12 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             </div>
 
             <div className="mt-6 pt-6 border-t border-app-border">
-              <button type="button" onClick={() => setShowSetupGuide(!showSetupGuide)} className="flex items-center gap-2 text-sm text-app-accent hover:text-app-accent/80 transition-colors">
+              <Button variant="app-ghost" size="app-sm" onClick={() => setShowSetupGuide(!showSetupGuide)}>
                 <svg aria-hidden="true" className={`w-4 h-4 transition-transform ${showSetupGuide ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
                 {m.settings_forza_guide_toggle()}
-              </button>
+              </Button>
 
               {showSetupGuide && (
                 <div className="mt-4 rounded-lg border border-app-border bg-app-surface-alt p-4 max-w-lg">
@@ -377,12 +369,12 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             </div>
 
             <div className="mt-3">
-              <button type="button" onClick={() => setShowF1SetupGuide(!showF1SetupGuide)} className="flex items-center gap-2 text-sm text-app-accent hover:text-app-accent/80 transition-colors">
+              <Button variant="app-ghost" size="app-sm" onClick={() => setShowF1SetupGuide(!showF1SetupGuide)}>
                 <svg aria-hidden="true" className={`w-4 h-4 transition-transform ${showF1SetupGuide ? "rotate-90" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
                 {m.settings_f1_guide_toggle()}
-              </button>
+              </Button>
 
               {showF1SetupGuide && (
                 <div className="mt-4 rounded-lg border border-app-border bg-app-surface-alt p-4 max-w-lg">
@@ -479,10 +471,10 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
 
               <div className="flex items-center gap-2">
                 <Label className="text-app-text-secondary mr-2">{m.settings_temperature_unit_label()}</Label>
-                <Button size="sm" variant={temperatureUnit === "F" ? "default" : "outline"} onClick={() => setTemperatureUnit("F")} className="w-12">
+                <Button size="sm" variant={temperatureUnit === "F" ? "default" : "outline"} onClick={() => setTemperatureUnit("F")}>
                   °F
                 </Button>
-                <Button size="sm" variant={temperatureUnit === "C" ? "default" : "outline"} onClick={() => setTemperatureUnit("C")} className="w-12">
+                <Button size="sm" variant={temperatureUnit === "C" ? "default" : "outline"} onClick={() => setTemperatureUnit("C")}>
                   °C
                 </Button>
               </div>
@@ -507,7 +499,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
               <Label className="text-app-text-secondary">{m.settings_sound_sector_blip()}</Label>
               <Button
                 size="sm"
-                variant={soundEnabled ? "default" : "outline"}
+                variant={soundEnabled ? "selected-toggle" : "outline"}
                 onClick={() => {
                   setSoundEnabledState(true);
                   setSoundEnabled(true);
@@ -517,7 +509,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
               </Button>
               <Button
                 size="sm"
-                variant={!soundEnabled ? "default" : "outline"}
+                variant={!soundEnabled ? "selected-toggle" : "outline"}
                 onClick={() => {
                   setSoundEnabledState(false);
                   setSoundEnabled(false);

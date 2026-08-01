@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { WHEEL_COLOR_VARS } from "@/lib/colors";
 import { indexAtFrac, type LapTrace, type TireAverages, type TireTraces } from "../../../lib/stint-traces";
+import { Button } from "../../ui/button";
 import { Lane } from "./Lane";
 import { useMeasuredWidth } from "./use-measured-width";
 
@@ -39,9 +40,39 @@ interface MetricConfig {
 }
 
 const METRICS: MetricConfig[] = [
-  { mode: "temp", title: "Tyres — avg temperature (°C)", avgUnit: "°C", laneUnit: "temp per lap (°C)", defaultDomain: [60, 120], fixedAvgDomain: [60, 120], refLines: REF_LINES_TEMP, pad: 2, fmt: (v) => `${v.toFixed(1)}°C` },
-  { mode: "pressure", title: "Tyres — avg pressure (bar)", avgUnit: "bar", laneUnit: "pressure per lap (bar)", defaultDomain: [1.5, 2.5], fixedAvgDomain: null, refLines: null, pad: 0.02, fmt: (v) => `${v.toFixed(2)} bar` },
-  { mode: "brake", title: "Brakes — avg brake temp (°C)", avgUnit: "°C", laneUnit: "brake temp per lap (°C)", defaultDomain: [100, 600], fixedAvgDomain: null, refLines: null, pad: 2, fmt: (v) => `${v.toFixed(0)}°C` },
+  {
+    mode: "temp",
+    title: "Tyres — avg temperature (°C)",
+    avgUnit: "°C",
+    laneUnit: "temp per lap (°C)",
+    defaultDomain: [60, 120],
+    fixedAvgDomain: [60, 120],
+    refLines: REF_LINES_TEMP,
+    pad: 2,
+    fmt: (v) => `${v.toFixed(1)}°C`,
+  },
+  {
+    mode: "pressure",
+    title: "Tyres — avg pressure (bar)",
+    avgUnit: "bar",
+    laneUnit: "pressure per lap (bar)",
+    defaultDomain: [1.5, 2.5],
+    fixedAvgDomain: null,
+    refLines: null,
+    pad: 0.02,
+    fmt: (v) => `${v.toFixed(2)} bar`,
+  },
+  {
+    mode: "brake",
+    title: "Brakes — avg brake temp (°C)",
+    avgUnit: "°C",
+    laneUnit: "brake temp per lap (°C)",
+    defaultDomain: [100, 600],
+    fixedAvgDomain: null,
+    refLines: null,
+    pad: 2,
+    fmt: (v) => `${v.toFixed(0)}°C`,
+  },
 ];
 
 function avgOf(t: LapTrace, mode: Mode): TireAverages | null {
@@ -94,15 +125,7 @@ export function TiresPanel({ traces, bestLapId = null, cornerFracs = [], cursorF
   return (
     <div className="space-y-5">
       {METRICS.map((cfg) => (
-        <TireMetricSection
-          key={cfg.mode}
-          cfg={cfg}
-          laps={laps}
-          bestLapId={bestLapId}
-          cornerFracs={cornerFracs}
-          cursorFrac={cursorFrac}
-          onCursorFrac={onCursorFrac}
-        />
+        <TireMetricSection key={cfg.mode} cfg={cfg} laps={laps} bestLapId={bestLapId} cornerFracs={cornerFracs} cursorFrac={cursorFrac} onCursorFrac={onCursorFrac} />
       ))}
     </div>
   );
@@ -256,14 +279,10 @@ function TireMetricSection({
 
       {/* Per-corner lanes: collapsed by default — the averages chart above is the summary. */}
       {lapsWithTrace.length > 0 && (
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="flex items-center gap-1.5 text-app-caption uppercase tracking-wider text-app-text-dim hover:text-app-text border border-app-border rounded px-2 py-1"
-        >
+        <Button variant="app-outline" size="app-sm" onClick={() => setExpanded((v) => !v)} className="flex items-center gap-1.5 uppercase tracking-wider text-app-text-dim hover:text-app-text">
           <span className={`inline-block transition-transform ${expanded ? "rotate-90" : ""}`}>▸</span>
           {expanded ? "Hide per-wheel detail" : "Show per-wheel detail"}
-        </button>
+        </Button>
       )}
       {expanded &&
         lapsWithTrace.length > 0 &&

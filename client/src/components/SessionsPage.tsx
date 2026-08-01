@@ -14,7 +14,7 @@ import { MotecImportModal } from "./analyse/MotecImportModal";
 import { formatLapTime } from "./LiveTelemetry";
 import { SessionRecapModal } from "./SessionRecapModal";
 import { AppInput } from "./ui/AppInput";
-import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
+import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 import { Button } from "./ui/button";
 import { NoteModal } from "./ui/NoteModal";
 
@@ -35,7 +35,7 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
   return (
     <>
       {open && <NoteModal value={value} onSave={onSave} onClose={() => setOpen(false)} />}
-      <button
+      <Button
         type="button"
         className="relative cursor-pointer group block w-full text-left"
         onClick={(e) => {
@@ -53,7 +53,7 @@ function NoteCell({ value, onSave }: { value?: string; onSave: (v: string) => vo
           </svg>
           {m.common_edit()}
         </span>
-      </button>
+      </Button>
     </>
   );
 }
@@ -63,6 +63,7 @@ type LapSortKey = "lap" | "time";
 function SessionLapTable({
   session,
   laps,
+  sectorCount,
   lapSortKey,
   lapSortDir,
   toggleLapSort,
@@ -71,6 +72,7 @@ function SessionLapTable({
 }: {
   session: SessionMeta;
   laps: LapMeta[];
+  sectorCount: number;
   lapSortKey: LapSortKey;
   lapSortDir: SortDir;
   toggleLapSort: (k: LapSortKey) => void;
@@ -81,7 +83,7 @@ function SessionLapTable({
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; lapId: number } | null>(null);
-  const sectorCount = storedLapsSectorCount(laps);
+
   const sectorLabels = Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`);
 
   const bestSectors = useMemo(() => {
@@ -108,20 +110,29 @@ function SessionLapTable({
 
   return (
     <>
-      <Table>
+      <Table layout="fixed">
+        <colgroup>
+          <col className="w-11" />
+          <col className="w-6" />
+          <col className="w-[8%]" />
+          <col className="w-[22%]" />
+          {sectorLabels.map((label) => (
+            <col key={label} className="w-[12%]" />
+          ))}
+          <col />
+        </colgroup>
         <THead>
-          <TH className="w-10 px-2" />
           <TH />
-          {(["lap", "time"] as const).map((f) => (
-            <TH key={f} className="cursor-pointer select-none hover:text-app-text/90" onClick={() => toggleLapSort(f)}>
-              {f === "lap" ? m.label_lap() : m.label_time()}
-              {lapSortKey === f && <span className="ml-0.5">{lapSortDir === "asc" ? "↑" : "↓"}</span>}
-            </TH>
+          <TH />
+          {(["lap", "time"] as const).map((field) => (
+            <SortableTH key={field} direction={lapSortKey === field ? (lapSortDir === "asc" ? "ascending" : "descending") : undefined} onSort={() => toggleLapSort(field)}>
+              {field === "lap" ? m.label_lap() : m.label_time()}
+            </SortableTH>
           ))}
           {sectorLabels.map((label) => (
             <TH key={label}>{label}</TH>
           ))}
-          <TH className="w-[40%]">{m.sessions_col_notes()}</TH>
+          <TH>{m.sessions_col_notes()}</TH>
         </THead>
         <TBody>
           {sortedLaps.map((lap) => {
@@ -135,11 +146,13 @@ function SessionLapTable({
                   setContextMenu({ x: e.clientX, y: e.clientY, lapId: lap.id });
                 }}
               >
-                <TD className="px-2 text-center">
+                <TD align="center">
                   <input type="checkbox" checked={selectedLaps.has(lap.id)} onChange={() => toggleLapSelection(lap.id)} className="accent-app-accent w-4 h-4" />
                 </TD>
                 <TD />
-                <TD className="font-mono text-app-text/90">{lap.lapNumber}</TD>
+                <TD numeric tone="primary">
+                  {lap.lapNumber}
+                </TD>
                 <TD>
                   <div className="flex items-center gap-2">
                     <span className={`font-mono tabular-nums ${isBest ? "text-(--lap-pace-best) font-bold" : "text-app-text/90"}`}>{formatLapTime(lap.lapTime)}</span>
@@ -167,8 +180,8 @@ function SessionLapTable({
                 {sectorLabels.map((label, index) => {
                   const val = lap.sectorTimes?.[index] ?? 0;
                   return (
-                    <TD key={label} className={`font-mono ${sectorColor(val, bestSectors[index])}`}>
-                      {val > 0 ? formatLapTime(val) : "—"}
+                    <TD key={label} numeric>
+                      <span className={sectorColor(val, bestSectors[index])}>{val > 0 ? formatLapTime(val) : "—"}</span>
                     </TD>
                   );
                 })}
@@ -190,7 +203,7 @@ function SessionLapTable({
       {/* Dev context menu */}
       {contextMenu && (
         <>
-          <button
+          <Button
             type="button"
             aria-label={m.common_close()}
             className="fixed inset-0 z-40 cursor-default"
@@ -201,9 +214,10 @@ function SessionLapTable({
             }}
           />
           <div className="fixed z-50 bg-app-surface border border-app-border rounded shadow-lg py-1 text-sm" style={{ left: contextMenu.x, top: contextMenu.y }}>
-            <button
-              type="button"
-              className="w-full px-3 py-1.5 text-left hover:bg-app-surface-hover text-app-text"
+            <Button
+              variant="app-ghost"
+              size="app-sm"
+              className="w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover"
               onClick={async () => {
                 const res = await fetch(`/api/laps/${contextMenu.lapId}/recheck`, { method: "POST" });
                 const data = await res.json();
@@ -213,10 +227,11 @@ function SessionLapTable({
               }}
             >
               {m.sessions_recheck_validity()}
-            </button>
-            <button
-              type="button"
-              className="w-full px-3 py-1.5 text-left hover:bg-app-surface-hover text-app-text"
+            </Button>
+            <Button
+              variant="app-ghost"
+              size="app-sm"
+              className="w-full !justify-start !rounded-none !px-3 !py-1.5 text-left text-app-text hover:bg-app-surface-hover"
               onClick={async () => {
                 const lapId = contextMenu.lapId;
                 setContextMenu(null);
@@ -228,7 +243,7 @@ function SessionLapTable({
               }}
             >
               {m.sessions_export_lap()}
-            </button>
+            </Button>
           </div>
         </>
       )}
@@ -244,20 +259,13 @@ function formatSessionType(type?: string): string {
   return type.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function SortHeader({ label, field, sortKey, sortDir, toggleSort }: { label: string; field: SortKey; sortKey: SortKey; sortDir: SortDir; toggleSort: (f: SortKey) => void }) {
-  return (
-    <TH className="cursor-pointer select-none hover:text-app-text/90" onClick={() => toggleSort(field)}>
-      {label} {sortKey === field ? (sortDir === "asc" ? "▲" : "▼") : ""}
-    </TH>
-  );
-}
-
 export function SessionsPage() {
   const gameId = useGameId();
   const gameRoute = useGameRoute();
   const navigate = useNavigate();
   const { data: sessions = [], isLoading } = useSessions();
   const { data: allLaps = [] } = useLaps();
+  const sectorCount = Math.max(3, storedLapsSectorCount(allLaps));
   const qc = useQueryClient();
   useDeleteLap();
 
@@ -509,27 +517,28 @@ export function SessionsPage() {
         {motecEnabled && (
           <div className="flex items-center rounded border border-app-border overflow-hidden shrink-0">
             {(["recorded", "imported"] as const satisfies readonly SessionsTab[]).map((t) => (
-              <button
+              <Button
                 key={t}
-                type="button"
+                variant="app-ghost"
+                size="app-md"
                 onClick={() => {
                   setTab(t);
                   setPage(0);
                   setSelectedSessions(new Set());
                   setSelectedLaps(new Set());
                 }}
-                className={`px-3 py-1.5 text-sm font-semibold transition-colors ${tab === t ? "bg-app-accent text-app-on-filled" : "text-app-text/90 hover:text-app-text"}`}
+                className={`!rounded-none text-app-subtext font-semibold transition-colors ${tab === t ? "bg-app-accent text-app-on-filled" : "text-app-text/90 hover:text-app-text"}`}
               >
                 {t === "recorded" ? m.sessions_tab_recorded() : m.sessions_tab_imported()}
-              </button>
+              </Button>
             ))}
           </div>
         )}
         <AppInput type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={m.sessions_search_placeholder()} className="flex-1 min-w-[200px] sm:flex-none sm:w-64" />
-        <h1 className="text-sm font-semibold text-app-text/90 shrink-0">
+        <h1 className="text-app-title font-semibold text-app-text/90 shrink-0">
           {m.label_sessions()}
           {!isLoading && (
-            <span className="text-app-text/90 font-normal ml-2">
+            <span className="text-app-subtext text-app-text/90 font-normal ml-2">
               {filtered.length === sessions.length ? `${sessions.length} ${m.sessions_total()}` : `${filtered.length} ${m.sessions_filtered_count()} ${sessions.length}`}
             </span>
           )}
@@ -553,8 +562,9 @@ export function SessionsPage() {
               if (!sessA || !sessB) return null;
               if (sessA.trackOrdinal !== sessB.trackOrdinal) return null;
               return (
-                <button
-                  type="button"
+                <Button
+                  variant="app-primary"
+                  size="app-md"
                   onClick={() => {
                     // Compare is shared across all game routes.
                     // TanStack Router types don't know about the dynamic gameRoute
@@ -572,18 +582,17 @@ export function SessionsPage() {
                     };
                     navigate(args);
                   }}
-                  className="px-3 py-1.5 text-sm rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled font-semibold transition-colors"
                 >
                   {m.sessions_compare_two()}
-                </button>
+                </Button>
               );
             })()}
           {(selectedSessions.size > 0 || selectedLaps.size > 0) && (
-            <button type="button" onClick={deleteSelected} className="px-3 py-1.5 text-sm rounded bg-status-danger hover:bg-status-danger-hover text-app-on-filled font-semibold transition-colors">
+            <Button variant="app-danger" size="app-md" onClick={deleteSelected}>
               {m.common_delete()} {selectedSessions.size > 0 ? `${selectedSessions.size} ${m.sessions_count_sessions()}` : ""}
               {selectedSessions.size > 0 && selectedLaps.size > 0 ? " + " : ""}
               {selectedLaps.size > 0 ? `${selectedLaps.size} ${m.sessions_count_laps()}` : ""}
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -689,6 +698,7 @@ export function SessionsPage() {
                     <SessionLapTable
                       session={session}
                       laps={sessionLaps}
+                      sectorCount={sectorCount}
                       lapSortKey={lapSortKey}
                       lapSortDir={lapSortDir}
                       toggleLapSort={toggleLapSort}
@@ -703,143 +713,156 @@ export function SessionsPage() {
         )}
       </div>
 
-      <Table className="hidden md:table flex-1 overflow-auto">
-        <THead>
-          <TH className="w-10 px-2">
-            <input
-              type="checkbox"
-              checked={pageItems.length > 0 && pageItems.every((s) => selectedSessions.has(s.id))}
-              onChange={() => {
-                const allSelected = pageItems.every((s) => selectedSessions.has(s.id));
-                setSelectedSessions((prev) => {
-                  const next = new Set(prev);
-                  for (const s of pageItems) {
-                    if (allSelected) next.delete(s.id);
-                    else next.add(s.id);
-                  }
-                  return next;
+      <div className="hidden md:block flex-1 overflow-auto">
+        <Table fit>
+          <THead>
+            <TH>
+              <input
+                type="checkbox"
+                checked={pageItems.length > 0 && pageItems.every((s) => selectedSessions.has(s.id))}
+                onChange={() => {
+                  const allSelected = pageItems.every((s) => selectedSessions.has(s.id));
+                  setSelectedSessions((prev) => {
+                    const next = new Set(prev);
+                    for (const s of pageItems) {
+                      if (allSelected) next.delete(s.id);
+                      else next.add(s.id);
+                    }
+                    return next;
+                  });
+                }}
+                className="accent-app-accent w-4 h-4"
+              />
+            </TH>
+            {(
+              [
+                ["date", m.sessions_col_date()],
+                ["laps", m.label_laps()],
+                ["best", m.sessions_col_best_lap()],
+                ["track", m.label_track()],
+                ["car", m.label_car()],
+                ...(isF1 ? ([["type", m.label_type()]] as const) : []),
+              ] as const
+            ).map(([field, label]) => (
+              <SortableTH key={field} direction={sortKey === field ? (sortDir === "asc" ? "ascending" : "descending") : undefined} onSort={() => toggleSort(field)}>
+                {label}
+              </SortableTH>
+            ))}
+            <TH>{m.sessions_col_notes()}</TH>
+          </THead>
+          <TBody>
+            {isLoading ? (
+              <TRow variant="separator">
+                <TD align="center" colSpan={colCount} tone="primary">
+                  <div className="py-6">{m.common_loading()}</div>
+                </TD>
+              </TRow>
+            ) : pageItems.length === 0 ? (
+              <TRow variant="separator">
+                <TD align="center" colSpan={colCount} tone="primary">
+                  <div className="py-6">{tab === "imported" ? m.sessions_none_imported() : m.sessions_none()}</div>
+                </TD>
+              </TRow>
+            ) : (
+              pageItems.map((session) => {
+                const isExpanded = expandedSessions.has(session.id);
+                const sessionLaps = lapsBySession.get(session.id) ?? [];
+                const sortedLaps = [...sessionLaps].sort((a, b) => {
+                  let cmp = 0;
+                  if (lapSortKey === "lap") cmp = a.lapNumber - b.lapNumber;
+                  else if (lapSortKey === "time") cmp = a.lapTime - b.lapTime;
+                  else if (lapSortKey === "valid") cmp = (b.isValid ? 1 : 0) - (a.isValid ? 1 : 0);
+                  return lapSortDir === "asc" ? cmp : -cmp;
                 });
-              }}
-              className="accent-app-accent w-4 h-4"
-            />
-          </TH>
-          <SortHeader label={m.sessions_col_date()} field="date" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
-          <SortHeader label={m.label_laps()} field="laps" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
-          <SortHeader label={m.sessions_col_best_lap()} field="best" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
-          <SortHeader label={m.label_track()} field="track" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
-          <SortHeader label={m.label_car()} field="car" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />
-          {isF1 && <SortHeader label={m.label_type()} field="type" sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort} />}
-          <TH className="w-[40%]">{m.sessions_col_notes()}</TH>
-        </THead>
-        <TBody>
-          {isLoading ? (
-            <tr>
-              <td colSpan={colCount} className="px-3 py-8 text-center text-app-text/90">
-                {m.common_loading()}
-              </td>
-            </tr>
-          ) : pageItems.length === 0 ? (
-            <tr>
-              <td colSpan={colCount} className="px-3 py-8 text-center text-app-text/90">
-                {tab === "imported" ? m.sessions_none_imported() : m.sessions_none()}
-              </td>
-            </tr>
-          ) : (
-            pageItems.map((session) => {
-              const isExpanded = expandedSessions.has(session.id);
-              const sessionLaps = lapsBySession.get(session.id) ?? [];
-              const sortedLaps = [...sessionLaps].sort((a, b) => {
-                let cmp = 0;
-                if (lapSortKey === "lap") cmp = a.lapNumber - b.lapNumber;
-                else if (lapSortKey === "time") cmp = a.lapTime - b.lapTime;
-                else if (lapSortKey === "valid") cmp = (b.isValid ? 1 : 0) - (a.isValid ? 1 : 0);
-                return lapSortDir === "asc" ? cmp : -cmp;
-              });
-              return (
-                <Fragment key={session.id}>
-                  <TRow onClick={() => toggleExpand(session.id)} className={isExpanded ? "bg-app-surface-alt/30" : ""}>
-                    <TD className="px-2 text-center" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={selectedSessions.has(session.id)}
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        onChange={(e) => toggleSessionSelection(session.id, e as any)}
-                        className="accent-app-accent w-4 h-4"
-                      />
-                    </TD>
-                    <TD className="text-app-text/90 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <span>
-                          {new Date(session.createdAt).toLocaleDateString()}{" "}
-                          <span className="text-app-text/90">{new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                        </span>
-                        <Button
-                          variant="app-outline"
-                          size="app-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setRecapSessionId(session.id);
-                          }}
-                        >
-                          Recap
-                        </Button>
-                        <Button
-                          variant="app-outline"
-                          size="app-sm"
-                          disabled={exporting}
-                          title={m.sessions_export_session()}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            runExport({ sessionIds: [session.id] });
-                          }}
-                        >
-                          {m.label_export()}
-                        </Button>
-                      </div>
-                    </TD>
-                    <TD className="text-app-text/90 tabular-nums">{session.lapCount ?? 0}</TD>
-                    <TD className="text-app-text/90 tabular-nums">
-                      {(() => {
-                        const t = session.bestLapTime || (sortedLaps.length > 0 ? Math.min(...sortedLaps.map((l) => l.lapTime)) : 0);
-                        return t ? formatLapTime(t) : "—";
-                      })()}
-                    </TD>
-                    <TD className="text-app-text/90">{trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}</TD>
-                    <TD className="text-app-text/90">{carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}</TD>
-                    {isF1 && <TD className="text-app-text/90">{formatSessionType(session.sessionType)}</TD>}
-                    <TD>
-                      <NoteCell
-                        value={session.notes ?? undefined}
-                        onSave={(notes) => {
-                          client.api.sessions[":id"].notes.$patch({ param: { id: String(session.id) }, json: { notes: notes || null } });
-                          qc.invalidateQueries({ queryKey: queryKeys.sessions });
-                        }}
-                      />
-                    </TD>
-                  </TRow>
-                  {isExpanded && sessionLaps.length > 0 && (
-                    <tr>
-                      <td colSpan={colCount} className="p-0">
-                        <div className="bg-app-surface-alt/20 border-b border-app-border pl-8">
-                          <SessionLapTable
-                            session={session}
-                            laps={sessionLaps}
-                            lapSortKey={lapSortKey}
-                            lapSortDir={lapSortDir}
-                            toggleLapSort={toggleLapSort}
-                            selectedLaps={selectedLaps}
-                            toggleLapSelection={toggleLapSelection}
-                          />
+                return (
+                  <Fragment key={session.id}>
+                    <TRow onClick={() => toggleExpand(session.id)} selected={isExpanded}>
+                      <TD align="center" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedSessions.has(session.id)}
+                          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                          onChange={(e) => toggleSessionSelection(session.id, e as any)}
+                          className="accent-app-accent w-4 h-4"
+                        />
+                      </TD>
+                      <TD nowrap tone="primary">
+                        <div className="flex items-center gap-2">
+                          <span>
+                            {new Date(session.createdAt).toLocaleDateString()}{" "}
+                            <span className="text-app-text/90">{new Date(session.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                          </span>
+                          <Button
+                            variant="app-outline"
+                            size="app-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRecapSessionId(session.id);
+                            }}
+                          >
+                            Recap
+                          </Button>
+                          <Button
+                            variant="app-outline"
+                            size="app-sm"
+                            disabled={exporting}
+                            title={m.sessions_export_session()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              runExport({ sessionIds: [session.id] });
+                            }}
+                          >
+                            {m.label_export()}
+                          </Button>
                         </div>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              );
-            })
-          )}
-        </TBody>
-      </Table>
+                      </TD>
+                      <TD numeric tone="primary">
+                        {session.lapCount ?? 0}
+                      </TD>
+                      <TD numeric tone="primary">
+                        {(() => {
+                          const t = session.bestLapTime || (sortedLaps.length > 0 ? Math.min(...sortedLaps.map((l) => l.lapTime)) : 0);
+                          return t ? formatLapTime(t) : "—";
+                        })()}
+                      </TD>
+                      <TD tone="primary">{trackNames[session.trackOrdinal] ?? `Track ${session.trackOrdinal}`}</TD>
+                      <TD tone="primary">{carNames[session.carOrdinal] ?? (session.carOrdinal === 0 ? "—" : `Car ${session.carOrdinal}`)}</TD>
+                      {isF1 && <TD tone="primary">{formatSessionType(session.sessionType)}</TD>}
+                      <TD>
+                        <NoteCell
+                          value={session.notes ?? undefined}
+                          onSave={(notes) => {
+                            client.api.sessions[":id"].notes.$patch({ param: { id: String(session.id) }, json: { notes: notes || null } });
+                            qc.invalidateQueries({ queryKey: queryKeys.sessions });
+                          }}
+                        />
+                      </TD>
+                    </TRow>
+                    {isExpanded && sessionLaps.length > 0 && (
+                      <TRow variant="separator">
+                        <TD colSpan={colCount}>
+                          <div className="bg-app-surface-alt/20 border-b border-app-border pl-8">
+                            <SessionLapTable
+                              session={session}
+                              laps={sessionLaps}
+                              sectorCount={sectorCount}
+                              lapSortKey={lapSortKey}
+                              lapSortDir={lapSortDir}
+                              toggleLapSort={toggleLapSort}
+                              selectedLaps={selectedLaps}
+                              toggleLapSelection={toggleLapSelection}
+                            />
+                          </div>
+                        </TD>
+                      </TRow>
+                    )}
+                  </Fragment>
+                );
+              })
+            )}
+          </TBody>
+        </Table>
+      </div>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-xs text-app-text/90">
@@ -847,22 +870,18 @@ export function SessionsPage() {
             {m.sessions_showing_prefix()} {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} {m.sessions_showing_of()} {filtered.length}
           </span>
           <div className="flex gap-1">
-            <button
-              type="button"
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={page === 0}
-              className="px-2 py-1 rounded bg-app-surface border border-app-border hover:bg-app-accent/10 disabled:opacity-30 disabled:cursor-not-allowed"
-            >
+            <Button variant="app-outline" size="app-sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} className="!py-1 disabled:opacity-30 disabled:cursor-not-allowed">
               {m.sessions_prev()}
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="app-outline"
+              size="app-sm"
               onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
               disabled={page >= totalPages - 1}
-              className="px-2 py-1 rounded bg-app-surface border border-app-border hover:bg-app-accent/10 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="!py-1 disabled:opacity-30 disabled:cursor-not-allowed"
             >
               {m.common_next()}
-            </button>
+            </Button>
           </div>
         </div>
       )}

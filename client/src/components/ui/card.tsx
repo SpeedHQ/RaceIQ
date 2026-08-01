@@ -2,13 +2,23 @@ import type * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-function Card({ className, size = "default", ...props }: React.ComponentProps<"div"> & { size?: "default" | "sm" }) {
+type CardVariant = "default" | "settings-section" | "transparent-panel" | "tune-summary" | "form-section";
+function Card({ className, size = "default", variant = "default", ...props }: React.ComponentProps<"div"> & { size?: "default" | "sm"; variant?: CardVariant }) {
+  const variants: Record<CardVariant, string> = {
+    default: "",
+    "settings-section": "gap-0 rounded-xl bg-app-surface/40 p-0",
+    "form-section": "gap-0 rounded-lg",
+    "transparent-panel": "bg-transparent ring-0",
+    "tune-summary": "gap-3 rounded-lg bg-app-surface-alt/60",
+  };
   return (
     <div
       data-slot="card"
       data-size={size}
+      data-variant={variant}
       className={cn(
-        "group/card flex flex-col gap-4 overflow-hidden rounded-xl bg-card py-4 text-sm text-card-foreground ring-1 ring-foreground/10 has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+        "group/card flex flex-col gap-4 overflow-hidden rounded-xl py-4 text-app-body text-app-text ring-1 ring-app-border has-data-[slot=card-footer]:pb-0 has-[>img:first-child]:pt-0 data-[size=sm]:gap-3 data-[size=sm]:py-3 data-[size=sm]:has-data-[slot=card-footer]:pb-0 *:[img:first-child]:rounded-t-xl *:[img:last-child]:rounded-b-xl",
+        variants[variant],
         className,
       )}
       {...props}
@@ -30,11 +40,11 @@ function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
-  return <div data-slot="card-title" className={cn("text-base leading-snug font-medium group-data-[size=sm]/card:text-sm", className)} {...props} />;
+  return <div data-slot="card-title" className={cn("text-app-heading leading-snug font-medium group-data-[size=sm]/card:text-app-subtext", className)} {...props} />;
 }
 
 function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
-  return <div data-slot="card-description" className={cn("text-sm text-muted-foreground", className)} {...props} />;
+  return <div data-slot="card-description" className={cn("text-app-subtext text-muted-foreground", className)} {...props} />;
 }
 
 function CardAction({ className, ...props }: React.ComponentProps<"div">) {

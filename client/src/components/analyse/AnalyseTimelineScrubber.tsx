@@ -2,6 +2,7 @@ import type { TelemetryPacket } from "@shared/types";
 import { memo, type RefObject, useMemo } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { formatLapTime } from "@/lib/format";
+import { Button } from "../ui/button";
 
 interface SectorTimesData {
   times: number[];
@@ -94,17 +95,17 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
         </span>
       </div>
       <div className="flex items-center gap-3">
-        <button
+        <Button
           type="button"
           onClick={onTogglePlay}
           className="text-lg w-8 h-8 flex items-center justify-center rounded bg-app-surface-alt hover:bg-app-surface-hover text-app-text transition-colors"
           title={playing ? "Pause (Space)" : "Play (Space)"}
         >
           {playing ? "\u275A\u275A" : "\u25B6"}
-        </button>
+        </Button>
         <div className="flex gap-1">
           {[0.1, 0.25, 0.5, 1, 1.5, 2, 2.5].map((s) => (
-            <button
+            <Button
               type="button"
               key={s}
               onClick={() => onSpeedChange(s)}
@@ -113,7 +114,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
               }`}
             >
               {s}x
-            </button>
+            </Button>
           ))}
         </div>
         <div
@@ -186,11 +187,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
                 );
               })}
             {/* Progress fill */}
-            <div
-              ref={progressRef}
-              className="absolute top-0 h-full rounded-full bg-app-accent/40"
-              style={{ width: `${cursorPct}%` }}
-            />
+            <div ref={progressRef} className="absolute top-0 h-full rounded-full bg-app-accent/40" style={{ width: `${cursorPct}%` }} />
           </div>
           {/* Thumb */}
           <div

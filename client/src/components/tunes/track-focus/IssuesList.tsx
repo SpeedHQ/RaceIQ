@@ -1,5 +1,6 @@
 import type { TuneIssue } from "@shared/types";
 import { useMemo } from "react";
+import { Button } from "../../ui/button";
 
 interface IssuesListProps {
   issues: TuneIssue[];
@@ -42,15 +43,16 @@ export function IssuesList({ issues, onIssueClick }: IssuesListProps) {
               const clickable = it.distanceFrac != null;
               return (
                 <li key={`${it.kind}-${corner}-${it.detail}`}>
-                  <button
-                    type="button"
+                  <Button
+                    variant="app-ghost"
+                    size="app-sm"
                     disabled={!clickable}
                     onClick={() => it.distanceFrac != null && onIssueClick(it.distanceFrac)}
-                    className={`flex items-start gap-2 text-left w-full text-sm rounded px-1.5 py-1 ${clickable ? "hover:bg-app-surface-hover cursor-pointer" : "cursor-default"}`}
+                    className={`!w-full !justify-start !px-1.5 !py-1 flex items-start gap-2 text-left text-sm ${clickable ? "hover:bg-app-surface-hover cursor-pointer" : "cursor-default"}`}
                   >
                     <span className="mt-1.5 w-2 h-2 rounded-full shrink-0" style={{ background: SEV_COLOR[it.severity] ?? SEV_COLOR.info }} />
                     <span className="text-app-text">{it.detail}</span>
-                  </button>
+                  </Button>
                 </li>
               );
             })}

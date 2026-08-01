@@ -1,15 +1,17 @@
 import { type ReactNode, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
-import { ComboBox, type ComboOption } from "./ComboBox";
-import { TUNE_GRID, TuneBrowserRow } from "./TuneBrowserRow";
+import { SearchSelect } from "@/components/ui/SearchSelect";
+import { TuneBrowserRow } from "./TuneBrowserRow";
 import type { SourceTab, TuneRow } from "./types";
+import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { Button } from "@/components/ui/button";
 
 export interface SetupBrowserProps {
   rows: TuneRow[];
   carNames: Record<number, string>;
   trackNames: Record<number, string>;
-  trackOptions: ComboOption[];
-  carOptions: ComboOption[];
+  trackOptions: Array<{ value: string; label: string }>;
+  carOptions: Array<{ value: string; label: string }>;
   sources: SourceTab[];
   renderSettings: (row: TuneRow) => ReactNode;
   onClone?: (row: TuneRow) => void;
@@ -41,8 +43,8 @@ const TAB_ACTIVE: Record<string, string> = {
 
 export function SetupBrowser(props: SetupBrowserProps) {
   const { rows, trackOptions, carOptions, sources } = props;
-  const [track, setTrack] = useState("any");
-  const [car, setCar] = useState("any");
+  const [track, setTrack] = useState("");
+  const [car, setCar] = useState("");
   const [source, setSource] = useState<SourceTab["key"]>("all");
   const [author, setAuthor] = useState("");
   const [sortAsc, setSortAsc] = useState(true);
@@ -53,8 +55,8 @@ export function SetupBrowser(props: SetupBrowserProps) {
   const visible = useMemo(() => {
     const authorQuery = author.trim().toLowerCase();
     const filtered = rows.filter((r) => {
-      if (track !== "any" && r.trackOrdinal !== Number(track)) return false;
-      if (car !== "any" && r.carOrdinal !== Number(car)) return false;
+      if (track && r.trackOrdinal !== Number(track)) return false;
+      if (car && r.carOrdinal !== Number(car)) return false;
       if (source !== "all" && r.source !== source) return false;
       if (authorQuery && !r.author.toLowerCase().includes(authorQuery)) return false;
       return true;
@@ -76,11 +78,11 @@ export function SetupBrowser(props: SetupBrowserProps) {
     setOpenKey(null);
   };
   const pickTrack = (v: string) => {
-    setTrack(v);
+    setTrack(v === "any" ? "" : v);
     resetView();
   };
   const pickCar = (v: string) => {
-    setCar(v);
+    setCar(v === "any" ? "" : v);
     resetView();
   };
   const pickSource = (v: SourceTab["key"]) => {
@@ -95,6 +97,33 @@ export function SetupBrowser(props: SetupBrowserProps) {
   return (
     <div className="w-full p-4 pb-20 text-app-text">
       <div className="flex items-center gap-2 flex-wrap pb-4">
+        {sources.map((s) => (
+          <Button
+            type="button"
+            key={s.key}
+            className={`text-app-caption uppercase tracking-wide px-2.5 py-1.5 rounded border ${source === s.key ? (TAB_ACTIVE[s.key] ?? TAB_ACTIVE.all) : "border-app-border text-app-text-muted hover:text-app-text-secondary"}`}
+            onClick={() => pickSource(s.key)}
+          >
+            {s.label}
+          </Button>
+        ))}
+        <input
+          type="text"
+          value={author}
+          placeholder={m.setup_search_author()}
+          onChange={(e) => pickAuthor(e.target.value)}
+          className="text-app-compact bg-app-bg border border-app-border-input rounded px-2.5 py-1.5 text-app-text placeholder:text-app-text-dim outline-none focus:border-app-accent w-40"
+        />
+        {props.onRefresh && (
+          <Button
+            type="button"
+            className="text-app-caption uppercase tracking-wide text-app-text-muted hover:text-app-text-secondary disabled:opacity-50 rounded"
+            onClick={props.onRefresh}
+            disabled={props.refreshing}
+          >
+            {props.refreshing ? m.setup_refreshing() : m.setup_refresh_button()}
+          </Button>
+        )}
         {props.headerExtra}
         {props.onImportFile && (
           <>
@@ -109,115 +138,92 @@ export function SetupBrowser(props: SetupBrowserProps) {
                 e.target.value = "";
               }}
             />
-            <button
+            <Button
               type="button"
               className="text-app-compact font-semibold uppercase tracking-wide border border-app-border text-app-text-secondary hover:text-app-text px-3.5 py-2 rounded disabled:opacity-50"
               onClick={() => importInputRef.current?.click()}
               disabled={props.importing}
             >
               {props.importing ? m.setup_importing() : m.setup_import_button()}
-            </button>
+            </Button>
           </>
         )}
         {props.onNewTune && (
-          <button type="button" className="text-app-compact font-bold uppercase tracking-wide bg-app-accent text-app-on-filled px-3.5 py-2 rounded" onClick={props.onNewTune}>
+          <Button type="button" variant="app-primary" size="app-md" onClick={props.onNewTune}>
             {m.setup_new_tune()}
-          </button>
+          </Button>
         )}
-      </div>
-
-      <div className="flex items-end gap-2.5 mb-3">
-        <ComboBox label={m.setup_track_label()} variant="track" value={track} options={trackOptions} onChange={pickTrack} placeholder={m.setup_any_track()} />
-        <span className="hidden sm:block text-app-text-dim pb-3">{m.setup_arrow()}</span>
-        <ComboBox label={m.setup_car_label()} variant="car" value={car} options={carOptions} onChange={pickCar} placeholder={m.setup_any_car()} />
-      </div>
-
-      <div className="flex gap-1.5 items-center flex-wrap px-2.5 py-2 bg-app-surface border border-b-0 border-app-border rounded-t-lg">
-        {sources.map((s) => (
-          <button
-            type="button"
-            key={s.key}
-            className={`text-app-caption uppercase tracking-wide px-2.5 py-1.5 rounded border ${source === s.key ? (TAB_ACTIVE[s.key] ?? TAB_ACTIVE.all) : "border-app-border text-app-text-muted hover:text-app-text-secondary"}`}
-            onClick={() => pickSource(s.key)}
-          >
-            {s.label}
-          </button>
-        ))}
-        <input
-          type="text"
-          value={author}
-          placeholder={m.setup_search_author()}
-          onChange={(e) => pickAuthor(e.target.value)}
-          className="text-app-compact bg-app-bg border border-app-border-input rounded px-2.5 py-1.5 text-app-text placeholder:text-app-text-dim outline-none focus:border-app-accent w-40"
-        />
-        <div className="flex-1" />
-        {props.onRefresh && (
-          <button
-            type="button"
-            className="text-app-caption uppercase tracking-wide text-app-text-muted hover:text-app-text-secondary disabled:opacity-50"
-            onClick={props.onRefresh}
-            disabled={props.refreshing}
-          >
-            {props.refreshing ? m.setup_refreshing() : m.setup_refresh_button()}
-          </button>
-        )}
-      </div>
-
-      <div className="border border-app-border rounded-b-lg overflow-hidden">
-        <div className={`${TUNE_GRID} px-3 py-2.5 bg-app-bg text-app-micro uppercase tracking-wider text-app-text-dim`}>
-          <span>{m.setup_table_rank()}</span>
-          <span>{m.setup_table_tune()}</span>
-          <span className="hidden sm:block">{m.label_car()}</span>
-          <span className="hidden sm:block">{m.label_track()}</span>
-          <span className="hidden sm:block">{m.label_category()}</span>
-          <span className="hidden sm:block">{m.label_author()}</span>
-          <button type="button" className="justify-self-end uppercase tracking-wider text-app-accent inline-flex items-center gap-1" onClick={() => setSortAsc((a) => !a)}>
-            {m.label_lap_time()} <span className="text-app-nano">{sortAsc ? "▲" : "▼"}</span>
-          </button>
-          <span className="hidden sm:block" />
+        <div className="ml-auto flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          <SearchSelect className="w-full sm:w-48" value={track} options={trackOptions} onChange={pickTrack} placeholder={m.setup_any_track()} />
+          <SearchSelect className="w-full sm:w-48" value={car} options={carOptions} onChange={pickCar} placeholder={m.setup_any_car()} />
         </div>
-        {pageRows.map((row, i) => (
-          <TuneBrowserRow
-            key={row.key}
-            row={row}
-            rank={safePage * PAGE_SIZE + i + 1}
-            carName={props.carNames[row.carOrdinal] ?? `Car #${row.carOrdinal}`}
-            trackName={row.trackOrdinal != null ? (props.trackNames[row.trackOrdinal] ?? `Track #${row.trackOrdinal}`) : null}
-            isOpen={openKey === row.key}
-            onToggle={() => setOpenKey(openKey === row.key ? null : row.key)}
-            onClone={props.onClone}
-            onEdit={props.onEdit}
-            onDelete={props.onDelete}
-            onDuplicate={props.onDuplicate}
-            isDuplicating={props.isDuplicating}
-            renderSettings={props.renderSettings}
-            readOnly={props.readOnly}
-          />
-        ))}
-        {visible.length === 0 && <div className="text-center py-12 text-app-text-dim text-sm">{m.setup_no_matches()}</div>}
       </div>
+
+      <Table>
+        <THead>
+          <TH>{m.setup_table_rank()}</TH>
+          <TH>{m.setup_table_tune()}</TH>
+          <TH showFrom="sm">{m.label_car()}</TH>
+          <TH showFrom="sm">{m.label_track()}</TH>
+          <TH showFrom="sm">{m.label_category()}</TH>
+          <TH showFrom="sm">{m.label_author()}</TH>
+          <SortableTH align="end" direction={sortAsc ? "ascending" : "descending"} onSort={() => setSortAsc((ascending) => !ascending)}>
+            {m.label_lap()}
+          </SortableTH>
+          <TH showFrom="sm" visuallyHidden>
+            {m.label_actions()}
+          </TH>
+        </THead>
+        <TBody>
+          {pageRows.map((row, index) => (
+            <TuneBrowserRow
+              key={row.key}
+              row={row}
+              rank={safePage * PAGE_SIZE + index + 1}
+              carName={props.carNames[row.carOrdinal] ?? `Car #${row.carOrdinal}`}
+              trackName={row.trackOrdinal != null ? (props.trackNames[row.trackOrdinal] ?? `Track #${row.trackOrdinal}`) : null}
+              isOpen={openKey === row.key}
+              onToggle={() => setOpenKey(openKey === row.key ? null : row.key)}
+              onClone={props.onClone}
+              onEdit={props.onEdit}
+              onDelete={props.onDelete}
+              onDuplicate={props.onDuplicate}
+              isDuplicating={props.isDuplicating}
+              renderSettings={props.renderSettings}
+              readOnly={props.readOnly}
+            />
+          ))}
+          {visible.length === 0 && (
+            <TRow variant="separator">
+              <TD align="center" colSpan={8} tone="primary">
+                <div className="py-10">{m.setup_no_matches()}</div>
+              </TD>
+            </TRow>
+          )}
+        </TBody>
+      </Table>
 
       {visible.length > 0 && (
         <div className="flex items-center justify-center gap-3.5 mt-3.5">
-          <button
+          <Button
             type="button"
             className="font-mono text-app-compact uppercase tracking-wide bg-app-surface border border-app-border rounded-md px-3.5 py-2 hover:border-app-accent hover:text-app-accent disabled:opacity-40 disabled:cursor-not-allowed"
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={safePage === 0}
           >
             {m.setup_prev_button()}
-          </button>
+          </Button>
           <span className="font-mono text-app-compact text-app-text-muted tabular-nums">
             {safePage * PAGE_SIZE + 1}–{Math.min(visible.length, (safePage + 1) * PAGE_SIZE)} of {visible.length} · page {safePage + 1}/{totalPages}
           </span>
-          <button
+          <Button
             type="button"
             className="font-mono text-app-compact uppercase tracking-wide bg-app-surface border border-app-border rounded-md px-3.5 py-2 hover:border-app-accent hover:text-app-accent disabled:opacity-40 disabled:cursor-not-allowed"
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
             disabled={safePage >= totalPages - 1}
           >
             {m.setup_next_button()}
-          </button>
+          </Button>
         </div>
       )}
       <p className="text-app-caption text-app-text-dim mt-2.5">{m.setup_sort_info()}</p>

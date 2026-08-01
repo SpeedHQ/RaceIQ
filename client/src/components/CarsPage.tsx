@@ -9,7 +9,9 @@ import { errorFromResponse } from "../lib/rpc-error";
 import { useRequiredGameId } from "../stores/game";
 import { PiBadge, piClass } from "./forza/PiBadge";
 import { AppInput } from "./ui/AppInput";
-import { Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
+import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
+import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 
 interface CarSpecs {
   hp: number;
@@ -247,74 +249,58 @@ function CompareModal({
   const colWidth = Math.max(180, Math.floor(560 / cars.length));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-app-bg/70 pt-8 pb-4 px-4 overflow-auto" onClick={onClose}>
-      <div
-        className="bg-app-bg border border-app-border rounded-xl shadow-2xl w-full overflow-auto"
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent
+        size="wide"
+        showCloseButton={false}
+        className="!top-8 !max-w-none !translate-y-0 overflow-auto rounded-xl bg-app-bg p-0"
         style={{ maxWidth: 160 + colWidth * cars.length, maxHeight: "90vh" }}
-        onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-app-border sticky top-0 bg-app-bg z-10">
-          <h2 className="text-sm font-bold text-app-text/90">{m.cars_compare_modal_title()}</h2>
-          <button onClick={onClose} className="text-app-text/90 hover:text-app-text text-lg leading-none">
+        <DialogHeader className="sticky top-0 z-10 flex flex-row items-center justify-between border-b border-app-border bg-app-bg px-4 py-3">
+          <DialogTitle className="text-app-heading font-bold text-app-text/90">{m.cars_compare_modal_title()}</DialogTitle>
+          <Button variant="close-action" size="icon-sm" onClick={onClose} aria-label={m.common_close()}>
             ×
-          </button>
-        </div>
+          </Button>
+        </DialogHeader>
 
         <div className="overflow-auto">
-          <table className="w-full text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-app-border">
-                <th className="text-left px-4 py-2 text-app-text/90 font-medium sticky left-0 bg-app-bg" style={{ minWidth: 160 }}>
-                  {m.cars_stat_column()}
-                </th>
-                {cars.map((car) => (
-                  <th key={car.ordinal} className="px-3 py-2 text-center" style={{ minWidth: colWidth }}>
-                    {car.specs?.imageUrl && <img src={car.specs.imageUrl} alt={car.name} loading="lazy" className="h-14 w-full object-contain mx-auto mb-1" />}
-                    <div className="font-semibold text-app-text/90 leading-tight">{car.name}</div>
-                    {car.specs?.pi && <PiBadge showNumber={false} pi={car.specs.pi} />}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
+          <Table density="compact" fit>
+            <THead>
+              <TH sticky="start">{m.cars_stat_column()}</TH>
+              {cars.map((car) => (
+                <TH key={car.ordinal} align="center">
+                  {car.specs?.imageUrl && <img src={car.specs.imageUrl} alt={car.name} loading="lazy" className="mx-auto mb-1 h-14 w-full object-contain" />}
+                  <div className="font-semibold leading-tight text-app-text/90">{car.name}</div>
+                  {car.specs?.pi && <PiBadge showNumber={false} pi={car.specs.pi} />}
+                </TH>
+              ))}
+            </THead>
+            <TBody>
               {rows.map((row, ri) => {
                 const bestIdxs = getBestIdx(row);
                 return (
-                  <tr key={ri} className={ri % 2 === 0 ? "bg-app-surface/30" : ""}>
-                    <td className="px-4 py-1.5 text-app-text/90 sticky left-0 bg-inherit font-medium" style={{ minWidth: 160 }}>
+                  <TRow key={ri}>
+                    <TD emphasis sticky="start" tone="primary">
                       {row.label}
-                    </td>
+                    </TD>
                     {cars.map((car, ci) => {
                       const val = car.specs ? row.getValue(car.specs) : "—";
                       const isBest = bestIdxs.includes(ci);
                       return (
-                      <td key={car.ordinal} className={`px-3 py-1.5 text-center tabular-nums ${isBest ? "text-status-success font-semibold" : "text-app-text/90"}`}>
+                        <TD key={car.ordinal} align="center" emphasis={isBest} numeric tone={isBest ? "success" : "primary"}>
                           {val}
-                        </td>
+                        </TD>
                       );
                     })}
-                  </tr>
+                  </TRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function ColHeader({ k, label, className = "", sort, sortDir, onSort }: { k: SortKey; label: string; className?: string; sort: SortKey; sortDir: 1 | -1; onSort: (k: SortKey) => void }) {
-  const active = sort === k;
-  return (
-    <button
-      onClick={() => onSort(k)}
-      className={`text-left text-app-caption uppercase tracking-wider font-semibold transition-colors ${active ? "text-app-accent" : "text-app-text/90 hover:text-app-text"} ${className}`}
-    >
-      {label}
-      {active ? (sortDir === 1 ? " ↑" : " ↓") : ""}
-    </button>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -426,20 +412,24 @@ export function CarsPage() {
       <div className="flex items-center flex-wrap gap-2">
         {/* View mode toggle */}
         <div className="flex items-center rounded-lg border border-app-border overflow-hidden">
-          <button
+          <Button
+            variant="app-ghost"
+            size="icon-sm"
             onClick={() => setViewMode("table")}
             title={m.label_table_view()}
-            className={`px-2.5 py-1.5 transition-colors ${viewMode === "table" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text"}`}
+            className={`!h-auto !w-auto !rounded-none !p-2.5 transition-colors ${viewMode === "table" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text"}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2" />
               <path d="M3 9h18M3 15h18M9 3v18" />
             </svg>
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="app-ghost"
+            size="icon-sm"
             onClick={() => setViewMode("grid")}
             title={m.label_grid_view()}
-            className={`px-2.5 py-1.5 transition-colors ${viewMode === "grid" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text"}`}
+            className={`!h-auto !w-auto !rounded-none !p-2.5 transition-colors ${viewMode === "grid" ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text"}`}
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="7" height="7" />
@@ -447,32 +437,36 @@ export function CarsPage() {
               <rect x="3" y="14" width="7" height="7" />
               <rect x="14" y="14" width="7" height="7" />
             </svg>
-          </button>
+          </Button>
         </div>
 
         <AppInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder={m.cars_search_placeholder()} className="flex-1 min-w-[180px] sm:flex-none sm:w-52" />
 
         <div className="flex items-center flex-wrap gap-1">
           {PI_CLASSES.map((cls) => (
-            <button
+            <Button
               key={cls}
+              variant="app-ghost"
+              size="app-sm"
               onClick={() => setClassFilter(classFilter === cls ? null : cls)}
-              className={`text-xs font-bold px-3 py-1.5 rounded transition-colors ${classFilter === cls ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text border border-app-border"}`}
+              className={`!px-3 !py-1.5 text-xs font-bold ${classFilter === cls ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text border border-app-border"}`}
             >
               {cls}
-            </button>
+            </Button>
           ))}
         </div>
 
         <div className="flex items-center flex-wrap gap-1">
           {DRIVETRAINS.map((d) => (
-            <button
+            <Button
               key={d}
+              variant="app-ghost"
+              size="app-sm"
               onClick={() => setDriveFilter(driveFilter === d ? null : d)}
-              className={`text-xs font-semibold px-3 py-1.5 rounded transition-colors ${driveFilter === d ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text border border-app-border"}`}
+              className={`!px-3 !py-1.5 text-xs font-semibold ${driveFilter === d ? "bg-app-accent/20 text-app-accent" : "bg-app-surface text-app-text/90 hover:text-app-text border border-app-border"}`}
             >
               {d}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -508,16 +502,18 @@ export function CarsPage() {
                         <div className="text-xs text-app-text/90">{m.cars_no_image()}</div>
                       )}
                       {configsReady && getCarModel(car.ordinal).hasModel && (
-                        <button
+                        <Button
+                          variant="app-primary"
+                          size="app-sm"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate({ to: "/fm23/cars/$carOrdinal", params: { carOrdinal: String(car.ordinal) } });
                           }}
-                          className="absolute top-2 right-2 px-1.5 py-0.5 text-app-micro font-bold rounded bg-app-accent/80 hover:bg-app-accent-hover text-app-on-filled border border-app-accent/30 transition-colors"
+                          className="absolute top-2 right-2 !px-1.5 !py-0.5 text-app-micro font-bold bg-app-accent/80 hover:bg-app-accent-hover border border-app-accent/30"
                           title={m.cars_view_3d_model()}
                         >
                           3D
-                        </button>
+                        </Button>
                       )}
                     </div>
 
@@ -599,78 +595,78 @@ export function CarsPage() {
           )}
 
           {/* Card detail modal */}
-          {detailCar && (
-            <div className="fixed inset-0 z-50 flex items-start justify-center bg-app-bg/70 pt-12 pb-4 px-4 overflow-auto" onClick={() => setDetailCar(null)}>
-              <div className="bg-app-bg border border-app-border rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-between px-4 py-3 border-b border-app-border">
-                  <div className="flex items-center gap-2">
+          <Dialog open={!!detailCar} onOpenChange={(open) => !open && setDetailCar(null)}>
+            {detailCar && (
+              <DialogContent size="lg" showCloseButton={false} className="max-w-2xl overflow-hidden p-0">
+                <DialogHeader className="flex flex-row items-center justify-between border-b border-app-border px-4 py-3">
+                  <DialogTitle className="flex items-center gap-2 text-sm font-bold text-app-text/90">
                     {detailCar.specs?.pi && <PiBadge showNumber={false} pi={detailCar.specs.pi} />}
-                    <span className="text-sm font-bold text-app-text/90">{detailCar.name}</span>
-                  </div>
-                  <button onClick={() => setDetailCar(null)} className="text-app-text/90 hover:text-app-text text-lg leading-none">
+                    {detailCar.name}
+                  </DialogTitle>
+                  <Button variant="close-action" size="icon-sm" onClick={() => setDetailCar(null)} aria-label={m.common_close()}>
                     ×
-                  </button>
-                </div>
+                  </Button>
+                </DialogHeader>
                 <CarDetail car={detailCar} fmtSpeed={fmtSpeed} fmtBrake={fmtBrake} fmtWeight={fmtWeight} isMetric={isMetric} />
-              </div>
-            </div>
-          )}
+              </DialogContent>
+            )}
+          </Dialog>
         </>
       ) : (
-        <Table>
+        <Table density="compact">
           <THead>
-            <TH className="w-8 px-4" />
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="name" label="Car" />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="pi" label="PI" />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="hp" label="HP" />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="torque" label="Torque" />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="weightKg" label={isMetric ? "Wt (kg)" : "Wt (lb)"} />
-            </TH>
+            <TH />
+            <SortableTH direction={sort === "name" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("name")}>
+              Car
+            </SortableTH>
+            <SortableTH direction={sort === "pi" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("pi")}>
+              PI
+            </SortableTH>
+            <SortableTH direction={sort === "hp" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("hp")}>
+              HP
+            </SortableTH>
+            <SortableTH direction={sort === "torque" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("torque")}>
+              Torque
+            </SortableTH>
+            <SortableTH direction={sort === "weightKg" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("weightKg")}>
+              {isMetric ? "Wt (kg)" : "Wt (lb)"}
+            </SortableTH>
             <TH>{m.cars_drive_label()}</TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="topSpeedMph" label={`Top Spd (${units.speedLabel})`} />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="zeroToSixty" label="0–60" />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="zeroToHundred" label="0–100" />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="braking60" label={isMetric ? "Brk 60 (m)" : "Brk 60 (ft)"} />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="speedRating" label="Spd" />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="brakingRating" label="Brk" />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="handlingRating" label="Hdl" />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="accelRating" label="Acc" />
-            </TH>
-            <TH>
-              <ColHeader sort={sort} sortDir={sortDir} onSort={toggleSort} k="division" label="Division" />
-            </TH>
+            <SortableTH direction={sort === "topSpeedMph" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("topSpeedMph")}>
+              Top Spd ({units.speedLabel})
+            </SortableTH>
+            <SortableTH direction={sort === "zeroToSixty" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("zeroToSixty")}>
+              0–60
+            </SortableTH>
+            <SortableTH direction={sort === "zeroToHundred" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("zeroToHundred")}>
+              0–100
+            </SortableTH>
+            <SortableTH direction={sort === "braking60" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("braking60")}>
+              {isMetric ? "Brk 60 (m)" : "Brk 60 (ft)"}
+            </SortableTH>
+            <SortableTH direction={sort === "speedRating" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("speedRating")}>
+              Spd
+            </SortableTH>
+            <SortableTH direction={sort === "brakingRating" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("brakingRating")}>
+              Brk
+            </SortableTH>
+            <SortableTH direction={sort === "handlingRating" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("handlingRating")}>
+              Hdl
+            </SortableTH>
+            <SortableTH direction={sort === "accelRating" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("accelRating")}>
+              Acc
+            </SortableTH>
+            <SortableTH direction={sort === "division" ? (sortDir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("division")}>
+              Division
+            </SortableTH>
           </THead>
           <TBody>
             {filtered.length === 0 ? (
-              <tr>
-                <td colSpan={16} className="text-center py-12 text-app-text/90 text-sm">
-                  {m.cars_no_match()}
-                </td>
-              </tr>
+              <TRow variant="separator">
+                <TD align="center" colSpan={16} tone="primary">
+                  <div className="py-10">{m.cars_no_match()}</div>
+                </TD>
+              </TRow>
             ) : (
               filtered.map((car) => (
                 <Fragment key={car.ordinal}>
@@ -683,9 +679,9 @@ export function CarsPage() {
                         return s;
                       })
                     }
-                    className={selected.has(car.ordinal) ? "bg-app-accent/5" : ""}
+                    selected={selected.has(car.ordinal)}
                   >
-                    <TD className="px-4 w-8">
+                    <TD align="center">
                       <div onClick={(e) => toggleSelect(car.ordinal, e)} className="flex items-center justify-center">
                         <input type="checkbox" checked={selected.has(car.ordinal)} onChange={() => {}} className="w-3.5 h-3.5 accent-app-accent cursor-pointer" />
                       </div>
@@ -693,7 +689,7 @@ export function CarsPage() {
                     <TD>
                       <span className="text-xs text-app-text/90 truncate">{car.name}</span>
                     </TD>
-                    <TD className="tabular-nums text-xs text-app-text/90">
+                    <TD numeric tone="primary">
                       {car.specs?.pi ? (
                         <>
                           <span className="text-(--badge-color)" data-pi-class={piClass(car.specs.pi)}>
@@ -705,26 +701,50 @@ export function CarsPage() {
                         "—"
                       )}
                     </TD>
-                    <TD className="tabular-nums text-xs text-app-text/90">{car.specs?.hp || "—"}</TD>
-                    <TD className="tabular-nums text-xs text-app-text/90">{car.specs?.torque || "—"}</TD>
-                    <TD className="tabular-nums text-xs text-app-text/90">{fmtWeight(car.specs?.weightKg ?? 0, car.specs?.weightLbs ?? 0)}</TD>
-                    <TD className="text-xs text-app-text/90">{car.specs?.drivetrain || "—"}</TD>
-                    <TD className="tabular-nums text-xs text-app-text/90">{fmtSpeed(car.specs?.topSpeedMph ?? 0)}</TD>
-                    <TD className="tabular-nums text-xs text-app-text/90">{car.specs?.zeroToSixty ? `${car.specs.zeroToSixty}s` : "—"}</TD>
-                    <TD className="tabular-nums text-xs text-app-text/90">{car.specs?.zeroToHundred ? `${car.specs.zeroToHundred}s` : "—"}</TD>
-                    <TD className="tabular-nums text-xs text-app-text/90">{fmtBrake(car.specs?.braking60 ?? 0)}</TD>
-                    <TD className="tabular-nums text-xs text-app-text/90">{car.specs?.speedRating || "—"}</TD>
-                    <TD className="tabular-nums text-xs text-app-text/90">{car.specs?.brakingRating || "—"}</TD>
-                    <TD className="tabular-nums text-xs text-app-text/90">{car.specs?.handlingRating || "—"}</TD>
-                    <TD className="tabular-nums text-xs text-app-text/90">{car.specs?.accelRating || "—"}</TD>
-                    <TD className="text-xs text-app-text/90 truncate">{car.specs?.division || "—"}</TD>
+                    <TD numeric tone="primary">
+                      {car.specs?.hp || "—"}
+                    </TD>
+                    <TD numeric tone="primary">
+                      {car.specs?.torque || "—"}
+                    </TD>
+                    <TD numeric tone="primary">
+                      {fmtWeight(car.specs?.weightKg ?? 0, car.specs?.weightLbs ?? 0)}
+                    </TD>
+                    <TD tone="primary">{car.specs?.drivetrain || "—"}</TD>
+                    <TD numeric tone="primary">
+                      {fmtSpeed(car.specs?.topSpeedMph ?? 0)}
+                    </TD>
+                    <TD numeric tone="primary">
+                      {car.specs?.zeroToSixty ? `${car.specs.zeroToSixty}s` : "—"}
+                    </TD>
+                    <TD numeric tone="primary">
+                      {car.specs?.zeroToHundred ? `${car.specs.zeroToHundred}s` : "—"}
+                    </TD>
+                    <TD numeric tone="primary">
+                      {fmtBrake(car.specs?.braking60 ?? 0)}
+                    </TD>
+                    <TD numeric tone="primary">
+                      {car.specs?.speedRating || "—"}
+                    </TD>
+                    <TD numeric tone="primary">
+                      {car.specs?.brakingRating || "—"}
+                    </TD>
+                    <TD numeric tone="primary">
+                      {car.specs?.handlingRating || "—"}
+                    </TD>
+                    <TD numeric tone="primary">
+                      {car.specs?.accelRating || "—"}
+                    </TD>
+                    <TD tone="primary" truncate="narrow">
+                      {car.specs?.division || "—"}
+                    </TD>
                   </TRow>
                   {expanded.has(car.ordinal) && (
-                    <tr>
-                      <td colSpan={16} className="p-0 border-b border-app-border/40">
+                    <TRow variant="separator">
+                      <TD colSpan={16}>
                         <CarDetail car={car} fmtSpeed={fmtSpeed} fmtBrake={fmtBrake} fmtWeight={fmtWeight} isMetric={isMetric} />
-                      </td>
-                    </tr>
+                      </TD>
+                    </TRow>
                   )}
                 </Fragment>
               ))
@@ -739,16 +759,18 @@ export function CarsPage() {
           <span className="text-xs text-app-text/90">
             {selected.size} {m.cars_selected()}
           </span>
-          <button
+          <Button
+            variant="app-outline"
+            size="app-sm"
             onClick={() => setComparing(true)}
             disabled={selected.size < 2}
-            className="text-xs font-semibold px-3 py-1 rounded-full bg-app-accent/20 text-app-accent border border-app-accent/30 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-app-accent/30 transition-colors"
+            className="!rounded-full !border-app-accent/30 !px-3 !py-1 text-xs font-semibold text-app-accent bg-app-accent/20 hover:bg-app-accent/30 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {m.cars_compare_button()} ({selected.size})
-          </button>
-          <button onClick={() => setSelected(new Set())} className="text-xs text-app-text/90 hover:text-app-text transition-colors">
+          </Button>
+          <Button variant="app-ghost" size="app-sm" onClick={() => setSelected(new Set())}>
             {m.common_clear()}
-          </button>
+          </Button>
         </div>
       )}
 
