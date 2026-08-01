@@ -9,6 +9,7 @@
 
 ### Fixes
 - Report missing AI model settings instead of silently selecting a provider default
+- Keep AI chat drafts editable and show submitted prompts with the loading state immediately across chat surfaces
 
 - Keep the Compare loading message hidden after comparison data is available
 - Cover the full page when settings are open so background content is consistently dimmed and dismissible

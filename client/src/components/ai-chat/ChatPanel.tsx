@@ -3,7 +3,7 @@ import { AssistantChatTransport, createResumableSessionStorage, useChatRuntime, 
 import { contextWindowFor } from "@shared/ai/context-window";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UIMessage } from "ai";
-import { useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import { Thread, type ThreadProps } from "@/components/assistant-ui/thread";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { client } from "@/lib/rpc";
@@ -127,6 +127,7 @@ function TokenUsageFooter({
   const { displaySettings } = useSettings();
   const queryClient = useQueryClient();
   const isRunning = useAuiState((s) => s.thread.isRunning);
+  const hasChat = useAuiState((s) => s.thread.messages.length > 0);
   const [compactMsg, setCompactMsg] = useState<string | null>(null);
 
   const settings = displaySettings as { aiProvider?: string; aiModel?: string; chatProvider?: string; chatModel?: string };
@@ -264,7 +265,7 @@ function TokenUsageFooter({
         <Button
           type="button"
           onClick={onNewChat}
-          disabled={compacting || isRunning}
+          disabled={!hasChat || compacting || isRunning}
           className="ml-auto px-1.5 py-0.5 rounded border border-app-border/50 hover:bg-app-surface-hover/20 disabled:opacity-40"
           title="Compact this chat into a summary and continue in a fresh chat (keeps this chat as read-only history)"
         >
@@ -337,39 +338,32 @@ function ChatPanelThread({
   onForked: (newGen: number) => void;
   readOnly: boolean;
 }) {
-  // Resumable wiring: survives client unmount/refresh by re-attaching to the
-  // server-side detached run (server/ai/chat-run-registry.ts) instead of
-  // aborting it. `resumeApi` ignores the AI SDK's own stream-id argument —
-  // our registry is keyed by threadId, not per-stream id, and the reconnect
-  // endpoint is the same replay-then-live-tail stream regardless — so this is
-  // a no-op (no header ever set, storage never primed) for chat surfaces that
-  // don't yet start detached runs (lap chat, compare chat).
-  //
-  // Keyed on `activeThreadId`, NOT the base `compactThreadId` — detached runs
-  // register under the active generation's thread id server-side, so once a
-  // lineage has been forked (base !== active), keying resume/cancel on the
-  // base would silently stop finding the live run. Constructed fresh every
-  // render like the plain transport below it (not memoized) — the AI SDK
-  // re-resolves `body` per send, and `useChatRuntime`'s internal
-  // `useDynamicChatTransport` already re-points at whichever transport
-  // instance was passed on the latest render via a ref, so a fresh instance
-  // per render is the existing, working pattern here.
-  const transport = activeThreadId
-    ? new AssistantChatTransport({
-        api,
-        body: extraBody,
-        resumable: {
-          storage: createResumableSessionStorage({ key: `chat-resume-${activeThreadId}` }),
-          resumeApi: () => `/api/chats/${encodeURIComponent(activeThreadId)}/run/stream`,
-        },
-      })
-    : new AssistantChatTransport({ api, body: extraBody });
+  const transport = useMemo(
+    () =>
+      activeThreadId
+        ? new AssistantChatTransport({
+            api,
+            body: extraBody,
+            resumable: {
+              storage: createResumableSessionStorage({ key: `chat-resume-${activeThreadId}` }),
+              resumeApi: () => `/api/chats/${encodeURIComponent(activeThreadId)}/run/stream`,
+            },
+          })
+        : new AssistantChatTransport({ api, body: extraBody }),
+    [activeThreadId, api, extraBody],
+  );
 
   const runtime = useChatRuntime({
     messages: initialMessages,
     transport,
     onFinish,
   });
+  // useChatRuntime's remote thread updates its resource directly, but the
+  // provider-level client subscription can miss those optimistic updates.
+  // Bridge active-thread notifications into this provider render so the user
+  // turn and running state appear as soon as send starts, not after finish.
+  const [, refreshThread] = useReducer((revision: number) => revision + 1, 0);
+  useEffect(() => runtime.thread.subscribe(refreshThread), [runtime]);
   const [compacting, setCompacting] = useState(false);
 
   return (
@@ -382,7 +376,14 @@ function ChatPanelThread({
             </div>
           )}
           <div className="flex-1 min-h-0 flex flex-col">
-            <Thread components={components} inputDisabled={compacting || readOnly} />
+            <Thread
+              components={components}
+              inputDisabled={compacting || readOnly}
+              onSend={(text) => {
+                runtime.thread.composer.setText(text);
+                runtime.thread.composer.send();
+              }}
+            />
           </div>
           <TokenUsageFooter
             compactThreadId={compactThreadId}
