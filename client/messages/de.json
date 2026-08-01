@@ -262,6 +262,8 @@
   "aipanel_request_failed": "Anfrage fehlgeschlagen",
   "aipanel_add_api_key": "Füge einen API-Schlüssel hinzu, um Runden zu analysieren",
   "aipanel_set_up_ai": "KI einrichten",
+  "ai_configure_feature": "KI konfigurieren, um diese Funktion zu nutzen",
+  "ai_configure_feature_description": "Wähle einen KI-Anbieter und ein Modell, um diese Funktion zu nutzen",
   "aipanel_using_tool": "Tool wird verwendet:",
   "aipanel_generating_analysis": "Analyse wird erstellt…",
   "aipanel_thinking": "Denke nach…",

@@ -133,7 +133,7 @@ export function AnalyseLapHeader({
         {selectedLapId && hasTelemetry && (
           <div className="flex items-center gap-2 text-sm">
             {hasF1Setup ? (
-              <Button variant="app-outline" size="app-sm" onClick={onShowSetup}>
+              <Button variant="app-outline" size="app-md" onClick={onShowSetup}>
                 {m.analyse_car_setup_button()}
               </Button>
             ) : (

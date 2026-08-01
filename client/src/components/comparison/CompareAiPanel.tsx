@@ -2,7 +2,7 @@ import type { UIMessage } from "ai";
 import { RefreshCw, Sparkles, Trash2, X } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
 import { useSettings } from "../../hooks/queries";
-import { isAiConfigured } from "../../lib/is-ai-configured";
+import { isAiAnalysisConfigured, launchAiFeature } from "../../lib/is-ai-configured";
 import { client } from "../../lib/rpc";
 import { m } from "../../paraglide/messages";
 import { useUiStore } from "../../stores/ui";
@@ -197,8 +197,30 @@ function useInputsAnalysis(lapAId: number, lapBId: number, panelOpen: boolean) {
   return { analysis, loading, error, run };
 }
 
-function InputsSection({ lapAId, lapBId, panelOpen, onView }: { lapAId: number; lapBId: number; panelOpen: boolean; onView: (analysis: InputsAnalysis) => void }) {
+function useAiRunAction(aiConfigured: boolean, run: (regenerate?: boolean) => Promise<void>, configureAi: () => void) {
+  return useCallback(
+    (regenerate = false) => launchAiFeature(aiConfigured, () => void run(regenerate), configureAi),
+    [aiConfigured, configureAi, run],
+  );
+}
+
+function InputsSection({
+  lapAId,
+  lapBId,
+  panelOpen,
+  aiConfigured,
+  configureAi,
+  onView,
+}: {
+  lapAId: number;
+  lapBId: number;
+  panelOpen: boolean;
+  aiConfigured: boolean;
+  configureAi: () => void;
+  onView: (analysis: InputsAnalysis) => void;
+}) {
   const { analysis, loading, error, run } = useInputsAnalysis(lapAId, lapBId, panelOpen);
+  const runAi = useAiRunAction(aiConfigured, run, configureAi);
 
   return (
     <div className="rounded-lg border border-app-border-input/40 bg-app-surface-alt/30 px-2.5 py-2">
@@ -206,20 +228,16 @@ function InputsSection({ lapAId, lapBId, panelOpen, onView }: { lapAId: number; 
         <span className="w-2 h-2 rounded-full bg-gradient-to-r from-(--comparison-lap-a) to-(--comparison-lap-b)" />
         <span className="text-app-compact font-semibold text-app-text truncate flex-1">{m.compare_inputs_comparison_ab()}</span>
         {analysis && (
-          <Button type="button" onClick={() => run(true)} disabled={loading} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title={m.label_regenerate()}>
+          <Button type="button" onClick={() => runAi(true)} disabled={loading} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title={aiConfigured ? m.label_regenerate() : m.ai_configure_feature()}>
             <RefreshCw className="size-3" />
           </Button>
         )}
       </div>
 
       {!analysis && !loading && !error && (
-        <Button
-          type="button"
-          onClick={() => run(false)}
-          className="w-full flex items-center justify-center gap-1.5 text-app-compact px-2 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled transition-colors"
-        >
+        <Button type="button" variant="app-primary" size="app-md" onClick={() => runAi(false)} className="w-full">
           <Sparkles className="size-3" />
-          {m.compare_inputs_compare_button()}
+          {aiConfigured ? m.compare_inputs_compare_button() : m.ai_configure_feature()}
         </Button>
       )}
 
@@ -233,8 +251,8 @@ function InputsSection({ lapAId, lapBId, panelOpen, onView }: { lapAId: number; 
       {error && (
         <div className="text-app-caption text-status-danger mb-1">
           {error}
-          <Button variant="app-outline" size="app-sm" onClick={() => run(false)} className="ml-2">
-            {m.compare_retry()}
+          <Button variant={aiConfigured ? "app-outline" : "app-primary"} size="app-sm" onClick={() => runAi(false)} className="ml-2">
+            {aiConfigured ? m.compare_retry() : m.ai_configure_feature()}
           </Button>
         </div>
       )}
@@ -250,16 +268,21 @@ function LapSection({
   lap,
   dotClass,
   panelOpen,
+  aiConfigured,
+  configureAi,
   onAnalysisChange,
   onView,
 }: {
   lap: LapHeader;
   dotClass: string;
   panelOpen: boolean;
+  aiConfigured: boolean;
+  configureAi: () => void;
   onAnalysisChange: (hasAnalysis: boolean) => void;
   onView: (label: string, summary: AnalysisSummary) => void;
 }) {
   const { summary, loading, error, run } = useLapAnalysis(lap.id, panelOpen);
+  const runAi = useAiRunAction(aiConfigured, run, configureAi);
 
   useEffect(() => {
     onAnalysisChange(!!summary);
@@ -271,20 +294,16 @@ function LapSection({
         <span className={`w-2 h-2 rounded-full ${dotClass}`} />
         <span className="text-app-compact font-semibold text-app-text truncate flex-1">{lap.label}</span>
         {summary && (
-          <Button type="button" onClick={() => run(true)} disabled={loading} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title={m.label_regenerate()}>
+          <Button type="button" onClick={() => runAi(true)} disabled={loading} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title={aiConfigured ? m.label_regenerate() : m.ai_configure_feature()}>
             <RefreshCw className="size-3" />
           </Button>
         )}
       </div>
 
       {!summary && !loading && !error && (
-        <Button
-          type="button"
-          onClick={() => run(false)}
-          className="w-full flex items-center justify-center gap-1.5 text-app-compact px-2 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled transition-colors"
-        >
+        <Button type="button" variant="app-primary" size="app-md" onClick={() => runAi(false)} className="w-full">
           <Sparkles className="size-3" />
-          {m.compare_analyse_lap_button()}
+          {aiConfigured ? m.compare_analyse_lap_button() : m.ai_configure_feature()}
         </Button>
       )}
 
@@ -298,8 +317,8 @@ function LapSection({
       {error && (
         <div className="text-app-caption text-status-danger mb-1">
           {error}
-          <Button variant="app-outline" size="app-sm" onClick={() => run(false)} className="ml-2">
-            {m.compare_retry()}
+          <Button variant={aiConfigured ? "app-outline" : "app-primary"} size="app-sm" onClick={() => runAi(false)} className="ml-2">
+            {aiConfigured ? m.compare_retry() : m.ai_configure_feature()}
           </Button>
         </div>
       )}
@@ -445,7 +464,7 @@ function AnalysisModal({ label, summary, onClose }: { label: string; summary: An
 export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelProps>(function CompareAiPanel({ lapA, lapB, panelOpen = false, segments: trackSegments, onJumpToFrac }, ref) {
   const { displaySettings } = useSettings();
   const openSettings = useUiStore((s) => s.openSettings);
-  const aiConfigured = isAiConfigured(displaySettings);
+  const aiConfigured = isAiAnalysisConfigured(displaySettings);
 
   const [hasA, setHasA] = useState(false);
   const [hasB, setHasB] = useState(false);
@@ -468,33 +487,17 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
     [clearChat],
   );
 
-  if (!aiConfigured) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 gap-3 text-center px-3">
-        <Sparkles className="size-5 text-app-text-dim" />
-        <div>
-          <p className="text-app-compact text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
-          <p className="text-app-caption text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
-        </div>
-        <Button
-          type="button"
-          onClick={() => openSettings("ai")}
-          className="flex items-center gap-1.5 text-app-compact px-3 py-1.5 rounded bg-ai-accent hover:bg-ai-accent-hover text-app-on-filled font-medium transition-colors"
-        >
-          {m.compare_setup_ai_button()}
-        </Button>
-      </div>
-    );
-  }
+  const configureAi = useCallback(() => openSettings("ai"), [openSettings]);
+
 
   const bothReady = hasA && hasB;
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
       <div className="flex-1 overflow-y-auto min-h-0 px-3 py-3 space-y-3">
-        <LapSection lap={lapA} dotClass="bg-(--comparison-lap-a)" panelOpen={panelOpen} onAnalysisChange={setHasA} onView={(label, s) => setViewing({ kind: "lap", label, summary: s })} />
-        <LapSection lap={lapB} dotClass="bg-(--comparison-lap-b)" panelOpen={panelOpen} onAnalysisChange={setHasB} onView={(label, s) => setViewing({ kind: "lap", label, summary: s })} />
-        <InputsSection lapAId={lapA.id} lapBId={lapB.id} panelOpen={panelOpen} onView={(a) => setViewing({ kind: "inputs", analysis: a })} />
+        <LapSection lap={lapA} dotClass="bg-(--comparison-lap-a)" panelOpen={panelOpen} aiConfigured={aiConfigured} configureAi={configureAi} onAnalysisChange={setHasA} onView={(label, s) => setViewing({ kind: "lap", label, summary: s })} />
+        <LapSection lap={lapB} dotClass="bg-(--comparison-lap-b)" panelOpen={panelOpen} aiConfigured={aiConfigured} configureAi={configureAi} onAnalysisChange={setHasB} onView={(label, s) => setViewing({ kind: "lap", label, summary: s })} />
+        <InputsSection lapAId={lapA.id} lapBId={lapB.id} panelOpen={panelOpen} aiConfigured={aiConfigured} configureAi={configureAi} onView={(a) => setViewing({ kind: "inputs", analysis: a })} />
 
         {!bothReady && <div className="text-app-caption text-app-text-muted text-center py-2 border border-dashed border-app-border-input/40 rounded">{m.compare_analyse_both_laps()}</div>}
       </div>

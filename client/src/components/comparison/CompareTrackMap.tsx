@@ -1,15 +1,13 @@
 import type { GameId, TelemetryPacket } from "@shared/types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
 import { deltaColor } from "../../lib/colors";
 import { type BoundaryData, COLOR_A, COLOR_B, computeZoom, drawInputsHUD, drawTrackCanvas, findTelemetryAtDistance, formatSectionTime, type Point } from "../../lib/comparison-utils";
+import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
 import { client } from "../../lib/rpc";
 import { flipBoundaries, flipPoints, needsTrackFlip } from "../../lib/track-coords";
 import { m } from "../../paraglide/messages";
-
-import { Card } from "../ui/card";
-import { Button } from "../ui/button";
 import { Table, TBody, TD, TH, THead, TRow } from "../ui/AppTable";
+import { Button } from "../ui/button";
 export interface SegmentTiming {
   name: string;
   type: "corner" | "straight";
@@ -358,7 +356,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
   }, [drawBoth]);
 
   return (
-    <Card className="h-full">
+    <div className="flex h-full flex-col overflow-hidden text-app-body text-app-text">
       {/* Overview — full track, static */}
       <div ref={overviewContainerRef} className="relative border-b border-app-border h-[220px] shrink-0">
         <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_overview()}</span>
@@ -433,6 +431,6 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
           </Table>
         </div>
       ) : null}
-    </Card>
+    </div>
   );
 }

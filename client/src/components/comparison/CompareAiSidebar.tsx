@@ -17,7 +17,7 @@ interface CompareAiSidebarProps {
 
 export function CompareAiSidebar({ lapA, lapB, panelRef, onClose, segments, onJumpToFrac }: CompareAiSidebarProps) {
   return (
-    <div className="w-[22rem] h-full shrink-0 border-l border-app-border bg-app-surface/50 flex flex-col overflow-hidden">
+    <div className="w-[22rem] h-full shrink-0 border-y border-l border-app-border bg-app-surface/50 flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-3 py-2 border-b border-app-border shrink-0">
         <div className="flex items-center gap-1.5">
           <Sparkles className="size-3 text-ai-accent" />

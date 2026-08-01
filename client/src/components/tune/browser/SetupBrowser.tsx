@@ -97,6 +97,33 @@ export function SetupBrowser(props: SetupBrowserProps) {
   return (
     <div className="w-full p-4 pb-20 text-app-text">
       <div className="flex items-center gap-2 flex-wrap pb-4">
+        {sources.map((s) => (
+          <Button
+            type="button"
+            key={s.key}
+            className={`text-app-caption uppercase tracking-wide px-2.5 py-1.5 rounded border ${source === s.key ? (TAB_ACTIVE[s.key] ?? TAB_ACTIVE.all) : "border-app-border text-app-text-muted hover:text-app-text-secondary"}`}
+            onClick={() => pickSource(s.key)}
+          >
+            {s.label}
+          </Button>
+        ))}
+        <input
+          type="text"
+          value={author}
+          placeholder={m.setup_search_author()}
+          onChange={(e) => pickAuthor(e.target.value)}
+          className="text-app-compact bg-app-bg border border-app-border-input rounded px-2.5 py-1.5 text-app-text placeholder:text-app-text-dim outline-none focus:border-app-accent w-40"
+        />
+        {props.onRefresh && (
+          <Button
+            type="button"
+            className="text-app-caption uppercase tracking-wide text-app-text-muted hover:text-app-text-secondary disabled:opacity-50 rounded"
+            onClick={props.onRefresh}
+            disabled={props.refreshing}
+          >
+            {props.refreshing ? m.setup_refreshing() : m.setup_refresh_button()}
+          </Button>
+        )}
         {props.headerExtra}
         {props.onImportFile && (
           <>
@@ -132,36 +159,6 @@ export function SetupBrowser(props: SetupBrowserProps) {
         </div>
       </div>
 
-      <div className="flex gap-1.5 items-center flex-wrap px-2.5 py-2">
-        {sources.map((s) => (
-          <Button
-            type="button"
-            key={s.key}
-            className={`text-app-caption uppercase tracking-wide px-2.5 py-1.5 rounded border ${source === s.key ? (TAB_ACTIVE[s.key] ?? TAB_ACTIVE.all) : "border-app-border text-app-text-muted hover:text-app-text-secondary"}`}
-            onClick={() => pickSource(s.key)}
-          >
-            {s.label}
-          </Button>
-        ))}
-        <input
-          type="text"
-          value={author}
-          placeholder={m.setup_search_author()}
-          onChange={(e) => pickAuthor(e.target.value)}
-          className="text-app-compact bg-app-bg border border-app-border-input rounded px-2.5 py-1.5 text-app-text placeholder:text-app-text-dim outline-none focus:border-app-accent w-40"
-        />
-        {props.onRefresh && (
-          <Button
-            type="button"
-            className="text-app-caption uppercase tracking-wide text-app-text-muted hover:text-app-text-secondary disabled:opacity-50"
-            onClick={props.onRefresh}
-            disabled={props.refreshing}
-          >
-            {props.refreshing ? m.setup_refreshing() : m.setup_refresh_button()}
-          </Button>
-        )}
-      </div>
-
       <Table>
         <THead>
           <TH>{m.setup_table_rank()}</TH>
@@ -171,7 +168,7 @@ export function SetupBrowser(props: SetupBrowserProps) {
           <TH showFrom="sm">{m.label_category()}</TH>
           <TH showFrom="sm">{m.label_author()}</TH>
           <SortableTH align="end" direction={sortAsc ? "ascending" : "descending"} onSort={() => setSortAsc((ascending) => !ascending)}>
-            {m.label_lap_time()}
+            {m.label_lap()}
           </SortableTH>
           <TH showFrom="sm" visuallyHidden>
             {m.label_actions()}

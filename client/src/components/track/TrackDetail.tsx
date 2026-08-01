@@ -6,7 +6,7 @@ import { F125Leaderboard } from "@/components/f1/F125Leaderboard";
 import { F125SetupsWithGuide, F125TrackGuide } from "@/components/f1/F125TrackSetups";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { SearchMultiSelect } from "@/components/ui/SearchMultiSelect";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -65,12 +65,12 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   if (laps.length === 0) {
     return (
-      <Card className="w-full md:w-2/5 min-w-0">
-        <CardHeader className="flex shrink-0 items-center justify-between rounded-none border-b border-app-border p-3 py-2">
+      <div className="w-full md:w-2/5 min-w-0">
+        <div className="flex shrink-0 items-center justify-between rounded-none border-b border-app-border bg-app-surface p-3 py-2">
           <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_stats()}</div>
           <div className="text-app-compact text-app-text-dim font-mono">{m.track_detail_last_100()}</div>
-        </CardHeader>
-        <CardContent className="flex-1 p-3 flex flex-col gap-3">
+        </div>
+        <div className="flex-1 p-3 flex flex-col gap-3">
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             {[
               { key: "best", label: m.label_best() },
@@ -85,8 +85,8 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
           </div>
           <div className="relative h-2 bg-app-surface-alt rounded-full overflow-visible" />
           <div className="text-app-subtext text-app-text-dim py-4 text-center">{m.track_detail_no_laps_recorded()}</div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
@@ -225,9 +225,9 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
   const showLapNumBreakdown = lapNumData.length > 1;
 
   return (
-    <Card className="w-full md:w-2/5 min-w-0">
+    <div className="w-full md:w-2/5 min-w-0">
       {/* Fixed header — outside scroll container */}
-      <CardHeader className="flex shrink-0 items-center justify-between rounded-none border-b border-app-border p-3 py-2">
+      <div className="flex shrink-0 items-center justify-between rounded-none border-b border-app-border bg-app-surface p-3 py-2">
         <div className="flex items-center gap-2">
           <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_stats()}</div>
           {hasRaceFilter && (
@@ -252,9 +252,9 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
           )}
         </div>
         <div className="text-app-compact text-app-text-dim font-mono">{m.track_detail_last_100()}</div>
-      </CardHeader>
+      </div>
       {/* Scrollable body */}
-      <CardContent className="flex-1 md:overflow-y-auto p-3 flex flex-col gap-3">
+      <div className="flex-1 md:overflow-y-auto p-3 flex flex-col gap-3">
         <div className="flex flex-wrap gap-x-4 gap-y-1">
           {[
             { key: "best", label: m.label_best(), value: minT, color: "var(--lap-record)" },
@@ -556,9 +556,9 @@ function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLa
             })}
           </div>
         )}
-      </CardContent>
+      </div>
       {/* end scrollable body */}
-    </Card>
+    </div>
   );
 }
 
@@ -1277,16 +1277,16 @@ export function TrackDetail({
               <div className={`shrink-0 flex flex-col md:flex-row gap-3 ${activeTab === "guide" && isF125 ? "md:h-[160px]" : "md:h-[320px]"}`}>
                 {/* Info summary left of map, same shape as the laps leaderboard */}
                 {activeTab === "info" && (
-                  <Card className="order-2 md:order-1 w-full md:w-[560px] shrink-0 overflow-auto min-h-[200px] md:min-h-0">
+                  <div className="order-2 md:order-1 w-full md:w-[560px] shrink-0 overflow-auto min-h-[200px] md:min-h-0">
                     <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="summary" />
-                  </Card>
+                  </div>
                 )}
 
                 {/* Leaderboard left of map on laps tab */}
                 {activeTab === "laps" && (
-                  <Card className="order-2 md:order-1 w-full md:w-[560px] shrink-0 overflow-hidden min-h-[200px] md:min-h-0">
+                  <div className="order-2 md:order-1 w-full md:w-[560px] shrink-0 overflow-hidden min-h-[200px] md:min-h-0">
                     {isF125 ? <F125Leaderboard trackOrdinal={track.ordinal} /> : <CommunityLeaderboard trackName={track.name} trackVariant={track.variant} />}
-                  </Card>
+                  </div>
                 )}
                 <div className="order-1 md:order-2 bg-app-bg rounded-lg border border-app-border relative flex-1 min-w-0 h-[260px] md:h-auto">
                   {outline ? (
@@ -1635,7 +1635,7 @@ export function TrackDetail({
                             <div className="hidden md:flex gap-3 flex-1 min-h-0 overflow-hidden">
                               <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} sectorCount={sectorCount} showSessionFilter={isF125} />
                               {/* Lap table (md+) */}
-                              <Card className="flex-1 min-w-0 overflow-y-auto">
+                              <div className="flex-1 min-w-0 overflow-y-auto">
                                 <Table fit>
                                   <THead>
                                     <TH>
@@ -1747,7 +1747,7 @@ export function TrackDetail({
                                     )}
                                   </TBody>
                                 </Table>
-                              </Card>
+                              </div>
                             </div>
                             {/* end stats+table flex */}
                           </>

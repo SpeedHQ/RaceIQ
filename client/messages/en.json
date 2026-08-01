@@ -262,6 +262,8 @@
   "aipanel_request_failed": "Request failed",
   "aipanel_add_api_key": "Add an API key to start analysing laps",
   "aipanel_set_up_ai": "Set up AI",
+  "ai_configure_feature": "Configure AI to use this feature",
+  "ai_configure_feature_description": "Choose an AI provider and model to use this feature",
   "aipanel_using_tool": "Using tool:",
   "aipanel_generating_analysis": "Generating analysis…",
   "aipanel_thinking": "Thinking…",
