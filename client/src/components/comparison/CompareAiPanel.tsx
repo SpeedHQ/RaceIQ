@@ -223,7 +223,7 @@ function InputsSection({
   const runAi = useAiRunAction(aiConfigured, run, configureAi);
 
   return (
-    <div className="rounded-lg border border-app-border-input/40 bg-app-surface-alt/30 px-2.5 py-2">
+    <div className="rounded-lg border border-app-border-input/40 px-2.5 py-2">
       <div className="flex items-center gap-2 mb-1.5">
         <span className="w-2 h-2 rounded-full bg-gradient-to-r from-(--comparison-lap-a) to-(--comparison-lap-b)" />
         <span className="text-app-compact font-semibold text-app-text truncate flex-1">{m.compare_inputs_comparison_ab()}</span>
@@ -289,7 +289,7 @@ function LapSection({
   }, [summary, onAnalysisChange]);
 
   return (
-    <div className="rounded-lg border border-app-border-input/40 bg-app-surface-alt/30 px-2.5 py-2">
+    <div className="rounded-lg border border-app-border-input/40 px-2.5 py-2">
       <div className="flex items-center gap-2 mb-1.5">
         <span className={`w-2 h-2 rounded-full ${dotClass}`} />
         <span className="text-app-compact font-semibold text-app-text truncate flex-1">{lap.label}</span>
@@ -376,7 +376,7 @@ function InputsModal({
                   <div
                     key={`${seg.name}-${seg.type ?? ""}-${seg.deltaSeconds ?? ""}`}
                     onClick={() => match && onJumpToFrac?.((match.startFrac + match.endFrac) / 2)}
-                    className={`rounded-lg border border-app-border-input/40 bg-app-surface-alt/40 px-2.5 py-2 ${clickable ? "cursor-pointer hover:border-app-accent/40 hover:bg-app-surface-hover/60 transition-colors" : ""}`}
+                    className={`rounded-lg border border-app-border-input/40 px-2.5 py-2 ${clickable ? "cursor-pointer hover:border-app-accent/40 hover:bg-app-surface-hover/60 transition-colors" : ""}`}
                   >
                     <div className="flex items-center gap-2 mb-1.5">
                       <span className={`size-1.5 rounded-full ${SEVERITY_DOT[seg.severity] ?? SEVERITY_DOT.minor}`} />
@@ -419,7 +419,7 @@ function InputsModal({
               <div className="text-app-caption font-semibold text-app-text uppercase tracking-wider mb-1">{m.label_coaching()}</div>
               <div className="space-y-1.5">
                 {analysis.coaching.map((c) => (
-                  <div key={`${c.targetLap}-${c.tip}`} className="rounded border border-app-border-input/40 bg-app-surface-alt/30 px-2 py-1.5">
+                  <div key={`${c.targetLap}-${c.tip}`} className="rounded border border-app-border-input/40 px-2 py-1.5">
                     <div className="flex items-baseline gap-2">
                       <span
                         className={`text-app-micro font-semibold uppercase tracking-wider px-1 py-0.5 rounded ${
