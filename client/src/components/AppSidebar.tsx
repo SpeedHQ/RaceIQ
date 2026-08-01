@@ -86,8 +86,8 @@ function SidebarLink({ collapsed, exact = false, icon: Icon, label, onClick, to 
   );
 }
 
-function SidebarAction({ children, collapsed, label, onClick }: { children: ReactNode; collapsed: boolean; label: string; onClick: () => void }) {
-  const className = `w-full justify-start ${collapsed ? "justify-center px-0" : ""}`;
+function SidebarAction({ children, collapsed, label, onClick, className: customClassName }: { children: ReactNode; collapsed: boolean; label: string; onClick: () => void; className?: string }) {
+  const className = `w-full justify-start ${collapsed ? "justify-center px-0" : ""} ${customClassName ?? ""}`;
 
   if (!collapsed) {
     return (
@@ -225,7 +225,7 @@ export function AppSidebar({
               <X className="size-4" />
             </Button>
           ) : (
-            <SidebarAction collapsed={showCollapsed} label={toggleLabel} onClick={() => onCollapsedChange?.(!collapsed)}>
+            <SidebarAction collapsed={showCollapsed} label={toggleLabel} onClick={() => onCollapsedChange?.(!collapsed)} className="w-auto">
               {showCollapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
             </SidebarAction>
           )}
