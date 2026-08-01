@@ -9,6 +9,7 @@
 
 ### Fixes
 
+- Restore lap and session history when upgrading databases affected by overlapping schema migrations
 - Show all registered games in storage settings, including games with no recording files
 - Match primary button backgrounds to the neutral gray button surface
 - Highlight the active sector-blip setting with a cyan border
