@@ -114,13 +114,19 @@ describe("reprocessSession", () => {
     return row!.id;
   }
 
-  async function insertTestLap(sessId: number, lapNumber: number, notes?: string): Promise<void> {
+  async function insertTestLap(
+    sessId: number,
+    lapNumber: number,
+    notes?: string,
+    legacyTelemetry?: Buffer,
+  ): Promise<void> {
     await db.insert(laps).values({
       sessionId: sessId,
       lapNumber,
       lapTime: 90.0,
       isValid: true,
       notes: notes ?? null,
+      legacyTelemetry: legacyTelemetry ?? null,
     }).run();
   }
 
@@ -180,6 +186,38 @@ describe("reprocessSession", () => {
     const remaining = await db.select().from(laps).where(eq(laps.sessionId, sessionId)).all();
     expect(remaining).toHaveLength(0);
   });
+  test("replace strategy retains unmatched historical fallback rows", async () => {
+    const binPath = join(tmpDir, "session.bin");
+    emptyBin(binPath);
+    sessionId = await insertTestSession(binPath, "0.9.0");
+    const legacyTelemetry = Buffer.from([0x1f, 0x8b, 0x08, 0x00, 0x52, 0x49, 0x51]);
+    await insertTestLap(
+      sessionId,
+      1,
+      "historical fallback",
+      legacyTelemetry,
+    );
+
+    const result = await reprocessSession(sessionId);
+
+    expect(result.strategy).toBe("replace");
+    expect(result.lapsDetected).toBe(0);
+    const remaining = await db
+      .select({
+        notes: laps.notes,
+        legacyTelemetry: laps.legacyTelemetry,
+      })
+      .from(laps)
+      .where(eq(laps.sessionId, sessionId))
+      .all();
+    expect(remaining).toEqual([
+      {
+        notes: "historical fallback",
+        legacyTelemetry,
+      },
+    ]);
+  });
+
 
   test("updates lap_detector_version on session after reprocess", async () => {
     const binPath = join(tmpDir, "session.bin");

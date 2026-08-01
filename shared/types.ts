@@ -676,7 +676,21 @@ export interface LivePitData {
   tireLapsRemaining: number | null;
 }
 
-export interface LapMeta {
+/**
+ * Immutable runtime versions needed to interpret and replay stored telemetry.
+ * Legacy rows may omit every field; new sessions and laps persist one complete
+ * identity snapshot from the runtime that produced them.
+ */
+export interface TelemetryVersionIdentity {
+  readonly catalogVersion: string;
+  readonly catalogHash: string;
+  readonly catalogSchemaVersion: string;
+  readonly parserVersion: string;
+  readonly resolverVersion: string;
+  readonly derivationVersion: string;
+}
+
+export interface LapMeta extends Partial<TelemetryVersionIdentity> {
   id: number;
   sessionId: number;
   lapNumber: number;
@@ -731,7 +745,7 @@ export interface LapMeta {
   rawFrameCount?: number | null;
 }
 
-export interface SessionMeta {
+export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
   id: number;
   carOrdinal: number;
   trackOrdinal: number;

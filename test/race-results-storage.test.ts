@@ -7,7 +7,7 @@ import {
   type SessionResultInput,
 } from "../server/db/queries";
 import { getRecentRaceResults } from "../server/race-results/aggregates";
-import type { RaceResultEvidence } from "../shared/race-results";
+import type { RaceResultEvidence, RaceResultProvenance } from "../shared/race-results";
 
 const evidence: RaceResultEvidence = {
   fieldStatus: {
@@ -22,6 +22,20 @@ const evidence: RaceResultEvidence = {
     fuelStrategy: "unavailable",
   },
   conflicts: [],
+};
+const provenance: RaceResultProvenance = {
+  catalogVersion: "catalog-7",
+  catalogHash: "sha256:catalog",
+  catalogSchemaVersion: "schema-2",
+  parserVersion: "f1-parser-3",
+  resolverVersion: "resolver-4",
+  derivationId: "race-result-derivation",
+  derivationVersion: "3",
+  derivationCodeHash: "sha256:derivation",
+  rawInput: { objectId: "session.bin", contentHash: "sha256:raw", byteOffset: 64, byteLength: 128 },
+  canonicalInput: { sessionId: "session-1", firstSequence: 0, lastSequence: 10, contentHash: "sha256:canonical" },
+  authorityPolicyId: "race-result-outcome-authority",
+  authorityPolicyVersion: "1",
 };
 
 describe("persisted race result metadata", () => {
@@ -39,7 +53,7 @@ describe("persisted race result metadata", () => {
       pitCount: 2,
       tyreStrategy: { compounds: ["soft", "medium"] },
       fuelStrategy: null,
-      provenance: { finishingPosition: "f1.grid" },
+      provenance,
       evidence,
       reasons: [],
     };
@@ -54,6 +68,7 @@ describe("persisted race result metadata", () => {
     expect(result?.id).toBe(first.id);
     expect(result?.events.map((event) => event.sequence)).toEqual([1, 2]);
     expect(result?.events[1]?.fuelAdded).toBe(5);
+    expect(result?.provenance).toEqual(provenance);
   });
 
   test("does not expose a result across game scope", async () => {
@@ -70,7 +85,7 @@ describe("persisted race result metadata", () => {
       pitCount: 0,
       tyreStrategy: null,
       fuelStrategy: null,
-      provenance: {},
+      provenance,
       evidence: {
         ...evidence,
         fieldStatus: { ...evidence.fieldStatus, classification: "unavailable" },
@@ -95,7 +110,7 @@ describe("persisted race result metadata", () => {
       pitCount: 0,
       tyreStrategy: null,
       fuelStrategy: null,
-      provenance: {},
+      provenance,
       evidence,
       reasons: [],
     });

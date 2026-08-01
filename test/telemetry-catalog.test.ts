@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { buildTelemetryCatalog } from "../scripts/generate-telemetry-catalog";
+import {
+  assertDirectToSimplifiedCompatibilityReviews,
+  buildTelemetryCatalog,
+  buildTelemetryCatalogArtifacts,
+  telemetryCatalogSourceHash,
+} from "../scripts/generate-telemetry-catalog";
 import {
   assertTelemetryCatalogComplete,
   getTelemetryChildren,
@@ -8,7 +13,11 @@ import {
   getSourcesWithoutSemanticDefinition,
   IRACING_SESSION_INFO_SOURCE_VARIABLES,
   IRACING_TELEMETRY_SOURCE_VARIABLES,
+  isTelemetryEnumValue,
   TELEMETRY_CATALOG,
+  TELEMETRY_CATALOG_HASH,
+  TELEMETRY_CATALOG_SCHEMA_VERSION,
+  TELEMETRY_CATALOG_VERSION,
 } from "../shared/telemetry-catalog";
 import { KNOWN_GAME_IDS } from "../shared/types";
 
@@ -18,6 +27,201 @@ describe("semantic telemetry catalog", () => {
       JSON.stringify(TELEMETRY_CATALOG),
     );
     expect(() => assertTelemetryCatalogComplete()).not.toThrow();
+  });
+
+  test("emits deterministic versioned artifacts from one catalog build", async () => {
+    expect(TELEMETRY_CATALOG.metadata).toMatchObject({
+      catalogVersion: TELEMETRY_CATALOG_VERSION,
+      schemaVersion: TELEMETRY_CATALOG_SCHEMA_VERSION,
+      contentHash: TELEMETRY_CATALOG_HASH,
+      generator: {
+        name: "RaceIQ telemetry-catalog generator",
+        version: TELEMETRY_CATALOG_VERSION,
+      },
+    });
+    expect(TELEMETRY_CATALOG.metadata.generator.commit).toMatch(
+      /^[a-f0-9]{64}$/,
+    );
+    expect(TELEMETRY_CATALOG.metadata.contentHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(TELEMETRY_CATALOG.metadata.generatedAt).toBe(
+      "1970-01-01T00:00:00.000Z",
+    );
+
+    const first = await buildTelemetryCatalogArtifacts();
+    const second = await buildTelemetryCatalogArtifacts();
+    expect([...second]).toEqual([...first]);
+    expect(
+      [...first.keys()].map((path) =>
+        path.replaceAll("\\", "/").split("/").at(-1),
+      ),
+    ).toEqual([
+      "telemetry-catalog.generated.json",
+      "telemetry-catalog.generated.ts",
+      "TELEMETRY_CATALOG.md",
+      "telemetry-catalog-matrix.md",
+    ]);
+    expect(
+      [...first].find(([path]) =>
+        path.endsWith("telemetry-catalog-matrix.md"),
+      )?.[1],
+    ).toContain("| Semantic ID | Type | Dimensions | Unit | Cardinality |");
+  });
+
+  test("normalizes source line endings before provenance hashing", () => {
+    const lf = "alpha\nbeta\n";
+    expect(telemetryCatalogSourceHash(lf)).toBe(
+      telemetryCatalogSourceHash(lf.replaceAll("\n", "\r\n")),
+    );
+  });
+
+  test("enforces resolver-ready value and mapping compatibility contracts", () => {
+    for (const variable of TELEMETRY_CATALOG.variables) {
+      expect(variable.valueType).toMatch(
+        /^(number|boolean|string|enum|structured)$/,
+      );
+      expect(variable.dimensions.length).toBeGreaterThan(0);
+      expect(variable.cardinality).toBeDefined();
+      expect(Array.isArray(variable.limitations)).toBe(true);
+      if (variable.shape === "per-wheel") {
+        expect(variable.cardinality).toEqual({ kind: "fixed", count: 4 });
+        expect(variable.ordering).toEqual(["FL", "FR", "RL", "RR"]);
+      }
+      if (variable.shape === "vector") {
+        expect(variable.cardinality).toEqual({ kind: "fixed", count: 3 });
+        expect(variable.ordering).toEqual(["x", "y", "z"]);
+      }
+      if (variable.shape === "array") {
+        expect(variable.cardinality.kind).toBe("variable");
+        expect(variable.ordering).toEqual(["source-order"]);
+      }
+      if (variable.shape === "structured") {
+        expect(variable.valueType).toBe("structured");
+        expect(variable.ordering?.length).toBeGreaterThan(0);
+        expect(variable.structuredSchema?.indices.length).toBeGreaterThan(0);
+        expect(variable.structuredSchema?.fields.length).toBeGreaterThan(0);
+        expect(variable.structuredSchema?.indices[0].cardinality).toEqual(
+          variable.cardinality,
+        );
+      } else {
+        expect(variable.structuredSchema).toBeUndefined();
+      }
+      if (variable.valueType === "enum") {
+        expect(variable.enumDomain?.length).toBeGreaterThan(0);
+        for (const value of variable.enumDomain ?? []) {
+          expect(value.trim()).not.toBe("");
+          expect(value).not.toBe("*");
+          expect(isTelemetryEnumValue(variable.id, value)).toBe(true);
+        }
+        expect(isTelemetryEnumValue(variable.id, "__outside-domain__")).toBe(
+          false,
+        );
+      } else {
+        expect(variable.enumDomain).toBeUndefined();
+      }
+
+      for (const mapping of Object.values(variable.games)) {
+        if (mapping.kind === "unavailable") continue;
+        expect(mapping.provenance.artifact.length).toBeGreaterThan(0);
+        expect(mapping.provenance.commit).toMatch(/^[a-f0-9]{64}$/);
+        expect(Array.isArray(mapping.limitations)).toBe(true);
+        if (mapping.kind === "direct") {
+          expect(mapping.nativeUnit).toBe(variable.canonicalUnit);
+          expect(mapping.execution).toBeUndefined();
+          continue;
+        }
+        expect(mapping.normalization?.length).toBeGreaterThan(0);
+        expect(mapping.execution).toMatchObject({
+          deterministic: true,
+          version: TELEMETRY_CATALOG_VERSION,
+        });
+        expect(mapping.execution?.declaredInputs.length).toBeGreaterThan(0);
+        expect(mapping.execution?.codeHash).toMatch(/^[a-f0-9]{64}$/);
+        if (mapping.kind === "simplified") {
+          expect(mapping.execution?.kind).toBe("simplification");
+          expect(mapping.limitations.length).toBeGreaterThan(0);
+        }
+      }
+    }
+  });
+
+  test("rejects unconstrained structured and enum value contracts", () => {
+    const structured = getTelemetryVariable("race.competitor.position");
+    const structuredSchema = structured.structuredSchema;
+    structured.structuredSchema = undefined;
+    try {
+      expect(() => assertTelemetryCatalogComplete()).toThrow(
+        "race.competitor.position has incompatible cardinality or ordering",
+      );
+    } finally {
+      structured.structuredSchema = structuredSchema;
+    }
+
+    const enumVariable = getTelemetryVariable("fuel.ers-deploy-mode");
+    const enumDomain = enumVariable.enumDomain;
+    enumVariable.enumDomain = [];
+    try {
+      expect(() => assertTelemetryCatalogComplete()).toThrow(
+        "fuel.ers-deploy-mode has invalid enum domain",
+      );
+    } finally {
+      enumVariable.enumDomain = enumDomain;
+    }
+  });
+
+  test("requires review only when a mapping loses direct fidelity", () => {
+    const catalog = (kind: "direct" | "simplified", review?: unknown) => ({
+      variables: [
+        {
+          id: "motion.speed",
+          games: Object.fromEntries([
+            ...KNOWN_GAME_IDS.map((gameId) => [
+              gameId,
+              { kind: "unavailable" },
+            ]),
+            [
+              "fm-2023",
+              {
+                kind,
+                ...(review === undefined
+                  ? {}
+                  : { compatibilityReview: review }),
+              },
+            ],
+          ]),
+        },
+      ],
+    });
+
+    expect(() =>
+      assertDirectToSimplifiedCompatibilityReviews(
+        catalog("direct"),
+        catalog("direct"),
+      ),
+    ).not.toThrow();
+    expect(() =>
+      assertDirectToSimplifiedCompatibilityReviews(
+        catalog("simplified"),
+        catalog("simplified"),
+      ),
+    ).not.toThrow();
+    expect(() =>
+      assertDirectToSimplifiedCompatibilityReviews(
+        catalog("simplified"),
+        catalog("direct"),
+      ),
+    ).toThrow(
+      "Direct-to-simplified telemetry mappings require explicit compatibilityReview",
+    );
+    expect(() =>
+      assertDirectToSimplifiedCompatibilityReviews(
+        catalog("simplified", {
+          id: "CATALOG-205",
+          rationale:
+            "Source detail is intentionally reduced to the common semantic.",
+        }),
+        catalog("direct"),
+      ),
+    ).not.toThrow();
   });
 
   test("covers every normalized packet field and every parser source inventory", () => {

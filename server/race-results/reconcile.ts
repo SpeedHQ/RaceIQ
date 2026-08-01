@@ -1,15 +1,50 @@
+import { createHash } from "crypto";
 import type { GameId, TelemetryPacket } from "../../shared/types";
 import {
   getLapsByIds,
   getLapsForSession,
   getSessions,
   getSessionResult,
+  getSessionRawFile,
   getSessionTelemetry,
   upsertSessionResult,
 } from "../db/queries";
 import { deriveRaceResult, normalizeSessionType } from "./derive";
 import { extractRaceSource } from "./source";
 import type { PitEvent } from "./types";
+import type { RaceResultCanonicalInputIdentity, RaceResultRawInputIdentity } from "../../shared/race-results";
+import { loadRawCaptureIdentity, rawCaptureObjectId } from "../raw-capture-identity";
+
+
+function canonicalInputIdentity(sessionId: number, packets: readonly TelemetryPacket[]): RaceResultCanonicalInputIdentity | null {
+  if (packets.length === 0) return null;
+  const hash = createHash("sha256");
+  for (const packet of packets) {
+    hash.update(JSON.stringify(packet));
+    hash.update("\n");
+  }
+  return {
+    sessionId: String(sessionId),
+    firstSequence: 0,
+    lastSequence: packets.length - 1,
+    contentHash: `sha256:${hash.digest("hex")}`,
+  };
+}
+
+async function rawInputIdentity(
+  sessionId: number,
+  rawFile: string | null | undefined,
+): Promise<RaceResultRawInputIdentity | null> {
+  if (!rawFile) return null;
+  try {
+    const capture = await loadRawCaptureIdentity(rawFile);
+    return capture
+      ? { objectId: rawCaptureObjectId(sessionId), contentHash: capture.contentHash }
+      : null;
+  } catch {
+    return null;
+  }
+}
 
 export interface ReconcileSessionReport {
   sessionId: number;
@@ -90,6 +125,11 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
     ...source,
     reasons: [...source.reasons, ...readReasons],
   });
+  derived.provenance = {
+    ...derived.provenance,
+    rawInput: await rawInputIdentity(sessionId, await getSessionRawFile(sessionId, gameId)),
+    canonicalInput: canonicalInputIdentity(sessionId, packets),
+  };
   const storedEvents = derived.events.map(toStoredPitEvent);
   const existing = await getSessionResult(sessionId, gameId);
   const unchanged = existing != null &&

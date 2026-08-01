@@ -1,4 +1,10 @@
 import type {
+  RaceResultClaimEvidence,
+  RaceResultClaimScope,
+  RaceResultSourceStatus,
+} from "../../shared/race-results";
+import { arbitrateRaceResultClaim, RACE_RESULT_OUTCOME_POLICY } from "./authority";
+import type {
   DerivedRaceResult,
   PitEvent,
   RaceSourceObservation,
@@ -24,19 +30,70 @@ export function normalizeSessionType(value: string | null | undefined): ResultSe
   return "other";
 }
 
-function resolveClassification(
+function classificationAuthority(status: RaceResultSourceStatus): string {
+  if (status === "direct") return "simulator-final";
+  if (status === "derived") return "canonical-derivation";
+  return "simulator-live";
+}
+
+function classificationStatus(authority: string | undefined): RaceResultSourceStatus {
+  if (authority === "simulator-final") return "direct";
+  if (authority === "canonical-derivation") return "derived";
+  if (authority) return "simplified";
+  return "unavailable";
+}
+
+function classificationEvidence(
   source: RaceSourceObservation,
   sessionType: ResultSessionType,
-): { classification: ResultClassification; status: "direct" | "derived" | "simplified" | "unavailable" } {
-  if (source.classification) {
-    const sourceStatus = source.evidence.fieldStatus.classification;
-    return {
-      classification: source.classification,
-      status: sourceStatus === "unavailable" ? "derived" : sourceStatus,
-    };
+): { scope: RaceResultClaimScope; claims: RaceResultClaimEvidence<ResultClassification>[]; now: number } {
+  const claims = (source.claims ?? []).filter(
+    (claim): claim is RaceResultClaimEvidence<ResultClassification> => claim.claimId === "race-result.classification",
+  );
+  const scope: RaceResultClaimScope = claims[0]
+    ? {
+        claimId: claims[0].claimId,
+        entityId: claims[0].entityId,
+        validFrom: claims[0].validFrom,
+        validTo: claims[0].validTo,
+      }
+    : {
+        claimId: "race-result.classification",
+        entityId: `${source.gameId}:player`,
+        validFrom: 0,
+        validTo: Number.MAX_SAFE_INTEGER,
+      };
+  if (claims.length === 0 && source.classification) {
+    const status = source.evidence.fieldStatus.classification;
+    claims.push({
+      ...scope,
+      id: "classification:source",
+      value: source.classification,
+      authority: classificationAuthority(status === "unavailable" ? "derived" : status),
+      kind: "deterministic",
+      confidence: status === "direct" ? 1 : 0.7,
+      observedAt: 0,
+      valid: true,
+      applicable: true,
+      validated: true,
+      provenance: source.provenance,
+    });
+  } else if (claims.length === 0 && sessionType === "qualifying") {
+    claims.push({
+      ...scope,
+      id: "classification:qualifying-fallback",
+      value: "qualifying",
+      authority: "canonical-derivation",
+      kind: "deterministic",
+      confidence: 1,
+      observedAt: 0,
+      valid: true,
+      applicable: true,
+      validated: true,
+      provenance: source.provenance,
+    });
   }
-  if (sessionType === "qualifying") return { classification: "qualifying", status: "derived" };
-  return { classification: "unknown", status: "unavailable" };
+  return { scope, claims, now: claims.reduce((latest, claim) => Math.max(latest, claim.observedAt), 0) };
 }
 
 function derivePodium(position: number | null, classification: ResultClassification): boolean | null {
@@ -53,8 +110,21 @@ function stableEvents(events: PitEvent[] | undefined): PitEvent[] {
 
 export function deriveRaceResult(source: RaceSourceObservation): DerivedRaceResult {
   const sessionType = normalizeSessionType(source.sessionType);
-  const classificationResult = resolveClassification(source, sessionType);
-  const classification = classificationResult.classification;
+  const classificationInput = classificationEvidence(source, sessionType);
+  const classificationDecision = arbitrateRaceResultClaim(
+    classificationInput.scope,
+    classificationInput.claims,
+    RACE_RESULT_OUTCOME_POLICY,
+    classificationInput.now,
+  );
+  const classification = (classificationDecision.value ?? "unknown") as ResultClassification;
+  const winningEvidence = classificationInput.claims.find(
+    (claim) => classificationDecision.acceptedEvidenceIds[0] === claim.id,
+  );
+  const classificationResult = {
+    classification,
+    status: classificationStatus(winningEvidence?.authority),
+  };
   const events = stableEvents(source.pitEvents);
   const reasons = [...new Set(source.reasons)];
   const conflicts = [...source.evidence.conflicts];
@@ -76,7 +146,7 @@ export function deriveRaceResult(source: RaceSourceObservation): DerivedRaceResu
   if (classificationResult.status === "unavailable") reasons.push("classification-unavailable");
   if (conflicts.length > 0) reasons.push("source-conflict");
 
-  const outcomeStatus = classification === "unknown"
+  const outcomeStatus = classification === "unknown" || classificationDecision.status === "abstained" || classificationDecision.status === "unavailable"
     ? "unavailable"
     : classificationResult.status === "direct" && conflicts.length === 0
       ? "confirmed"
@@ -93,17 +163,14 @@ export function deriveRaceResult(source: RaceSourceObservation): DerivedRaceResu
     events,
     tyreStrategy: source.tyreStrategy ?? null,
     fuelStrategy: source.fuelStrategy ?? null,
-    provenance: {
-      ...source.provenance,
-      derivation: {
-        id: "race-result-derivation",
-        version: "2",
-        classificationFallback: classificationResult.status === "derived",
-      },
-    },
+    provenance: source.provenance,
     outcomeStatus,
     evidence: {
       fieldStatus,
+      decisions: {
+        ...source.evidence.decisions,
+        classification: classificationDecision,
+      },
       conflicts: [...new Set(conflicts)],
     },
     reasons: [...new Set(reasons)],

@@ -2,11 +2,26 @@ import { describe, expect, test } from "bun:test";
 import { deriveRaceResult, normalizeSessionType } from "../server/race-results/derive";
 import { classifyPitService, derivePitLedger } from "../server/race-results/pit-ledger";
 import type { RaceSourceObservation } from "../server/race-results/types";
+import type { RaceResultProvenance } from "../shared/race-results";
+const provenance: RaceResultProvenance = {
+  catalogVersion: "test",
+  catalogHash: "sha256:test",
+  catalogSchemaVersion: "test",
+  parserVersion: "test",
+  resolverVersion: "test",
+  derivationId: "race-result-derivation",
+  derivationVersion: "3",
+  derivationCodeHash: "sha256:test",
+  rawInput: null,
+  canonicalInput: null,
+  authorityPolicyId: "race-result-outcome-authority",
+  authorityPolicyVersion: "1",
+};
 
 const source = (overrides: Partial<RaceSourceObservation> = {}): RaceSourceObservation => ({
   gameId: "f1-2025",
   packets: [],
-  provenance: {},
+  provenance,
   evidence: {
     fieldStatus: {
       sessionType: "unavailable",
@@ -36,6 +51,7 @@ describe("race result derivation", () => {
     expect(deriveRaceResult(source({ sessionType: "race", classification: "finished", finishingPosition: 1 })).isPodium).toBe(true);
     expect(deriveRaceResult(source({ sessionType: "race", classification: "finished", finishingPosition: 3 })).isPodium).toBe(true);
     expect(deriveRaceResult(source({ sessionType: "race", classification: "finished", finishingPosition: 4 })).isPodium).toBe(false);
+    expect(deriveRaceResult(source({ sessionType: "race", classification: "finished", finishingPosition: 1 })).outcomeStatus).toBe("provisional");
   });
 
   test("does not infer outcome from missing fields", () => {
@@ -45,10 +61,24 @@ describe("race result derivation", () => {
     expect(result.isPodium).toBeNull();
     expect(result.isFastestLap).toBeNull();
     expect(result.reasons).toContain("finishing-position-unknown");
+    expect(result.outcomeStatus).toBe("unavailable");
   });
 
   test("keeps qualifying distinct from race classification", () => {
     expect(deriveRaceResult(source({ sessionType: "qualifying", finishingPosition: 2 })).classification).toBe("qualifying");
+  });
+
+  test("retains confirmed outcome for direct conflict-free classification", () => {
+    const baseEvidence = source().evidence;
+    expect(deriveRaceResult(source({
+      sessionType: "race",
+      classification: "finished",
+      finishingPosition: 2,
+      evidence: {
+        ...baseEvidence,
+        fieldStatus: { ...baseEvidence.fieldStatus, classification: "direct" },
+      },
+    })).outcomeStatus).toBe("confirmed");
   });
 });
 

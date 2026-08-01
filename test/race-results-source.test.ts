@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { extractRaceSource } from "../server/race-results/source";
+import { deriveRaceResult } from "../server/race-results/derive";
 import type { TelemetryPacket } from "../shared/types";
 
 const packet = (overrides: Partial<TelemetryPacket> = {}): TelemetryPacket => ({
@@ -64,6 +65,24 @@ describe("race result source extraction", () => {
     expect(result.finishingPosition).toBe(1);
     expect(result.evidence.fieldStatus.classification).toBe("direct");
     expect(result.evidence.conflicts).toEqual([]);
+    expect(result.claims?.map((claim) => [claim.authority, claim.value])).toEqual([
+      ["simulator-live", "dnf"],
+      ["simulator-final", "finished"],
+    ]);
+    expect(result.claims?.every((claim) =>
+      claim.claimId === "race-result.classification" &&
+      claim.entityId === "f1-2025:player" &&
+      claim.kind === "deterministic" &&
+      claim.valid &&
+      claim.applicable &&
+      claim.validated &&
+      claim.provenance === result.provenance
+    )).toBe(true);
+    expect(result.provenance.authorityPolicyId).toBe("race-result-outcome-authority");
+    const derived = deriveRaceResult(result);
+    expect(derived.classification).toBe("finished");
+    expect(derived.outcomeStatus).toBe("confirmed");
+    expect(derived.evidence.decisions?.classification.alternatives.map((alternative) => alternative.value)).toEqual(["finished", "dnf"]);
   });
 
   test("does not invent pit ledger for Forza", () => {

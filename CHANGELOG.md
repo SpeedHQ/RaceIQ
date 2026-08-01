@@ -10,6 +10,7 @@
 ### Fixes
 
 - Show all registered games in storage settings, including games with no recording files
+- Keep older lap telemetry available when legacy storage is the only replay source or a raw capture fails
 
 ### Internal
 - Added complete telemetry-first semantic catalog with units, descriptions, per-game fidelity mappings, full parser/setup source inventories, stable iRacing SessionInfo setup leaves, detailed sector relationships, and persisted detailed tire temperatures

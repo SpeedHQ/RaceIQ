@@ -1,7 +1,8 @@
-import type { RaceResultEvidence, RaceResultSourceStatus } from "../../shared/race-results";
+import type { RaceResultClaimEvidence, RaceResultEvidence, RaceResultSourceStatus } from "../../shared/race-results";
 import type { GameId, TelemetryPacket } from "../../shared/types";
 import { derivePitLedger, type PitServiceSignals } from "./pit-ledger";
 import type { RaceSourceObservation, ResultClassification } from "./types";
+import { createRaceResultProvenance } from "./provenance";
 
 const SOURCE_EXTRACTOR = {
   id: "race-result-source",
@@ -84,8 +85,15 @@ function extractF1Result(packets: TelemetryPacket[]) {
   const finalClassifications = new Set<ResultClassification>();
   const liveClassifications = new Set<ResultClassification>();
   const sessionTypes = new Map<string, string>();
+  const classificationClaims: Array<{
+    classification: ResultClassification;
+    source: "final-classification" | "lap-data";
+    observedAt: number;
+    sequence: number;
+  }> = [];
 
-  for (const packet of packets) {
+  for (let packetIndex = 0; packetIndex < packets.length; packetIndex++) {
+    const packet = packets[packetIndex]!;
     const f1 = packet.f1;
     if (f1?.sessionType && f1.sessionType !== "unknown") {
       sessionType = f1.sessionType;
@@ -93,6 +101,14 @@ function extractF1Result(packets: TelemetryPacket[]) {
     }
     const observedClassification = classifyF1Result(f1?.resultStatus);
     if (observedClassification) {
+      const observedAt = packet.TimestampMS ?? packet.CurrentRaceTime * 1000;
+      const claimSource = f1?.resultSource === "final-classification" ? "final-classification" : "lap-data";
+      classificationClaims.push({
+        classification: observedClassification,
+        source: claimSource,
+        observedAt: Number.isFinite(observedAt) ? observedAt : packetIndex,
+        sequence: packetIndex,
+      });
       if (f1?.resultSource === "final-classification") {
         finalClassifications.add(observedClassification);
         finalClassification = observedClassification;
@@ -137,6 +153,7 @@ function extractF1Result(packets: TelemetryPacket[]) {
     qualifyingPositionSource: finalGridPosition != null ? "final-classification" as const : liveGridPosition != null ? "lap-data" as const : null,
     resultReason,
     isFastestLap,
+    classificationClaims,
     conflicts,
   };
 }
@@ -200,6 +217,36 @@ export function extractRaceSource(gameId: GameId, packets: TelemetryPacket[]): R
     tyreStrategy: status(tyreStrategy != null, "simplified"),
     fuelStrategy: status(fuelStrategy != null, "simplified"),
   };
+  const provenance = createRaceResultProvenance(gameId, {
+    extractor: SOURCE_EXTRACTOR,
+    fields: {
+      sessionType: fieldStatus.sessionType === "direct" ? (gameId === "f1-2025" ? "f1.sessionType" : "acc.acEvo.sessionType") : null,
+      classification: classification == null ? null : `f1.resultStatus:${f1?.classificationSource ?? "unknown"}`,
+      finishingPosition: finishingPosition == null ? null : `TelemetryPacket.RacePosition:${f1?.finishingPositionSource ?? "continuous"}`,
+      qualifyingPosition: qualifyingPosition == null ? null : `f1.gridPosition:${f1?.qualifyingPositionSource ?? "unknown"}`,
+      isFastestLap: isFastestLap == null ? null : "player-vs-f1.grid.bestLapTime",
+      pitEvents: pitSignals ? `${gameId}-pit-transition` : null,
+      tyreStrategy: tyreStrategy == null ? null : "initial-compound-only",
+      fuelStrategy: fuelStrategy == null ? null : "initial-acc.fuelPerLap-only",
+      resultReason: f1?.resultReason == null ? null : "f1.finalClassification.resultReason",
+    },
+  });
+  const classificationClaims: RaceResultClaimEvidence<ResultClassification>[] = (f1?.classificationClaims ?? []).map((claim) => ({
+    id: `classification:${claim.source}:${claim.sequence}`,
+    claimId: "race-result.classification",
+    entityId: `${gameId}:player`,
+    validFrom: 0,
+    validTo: Number.MAX_SAFE_INTEGER,
+    value: claim.classification,
+    authority: claim.source === "final-classification" ? "simulator-final" : "simulator-live",
+    kind: "deterministic",
+    confidence: claim.source === "final-classification" ? 1 : 0.7,
+    observedAt: claim.observedAt,
+    valid: true,
+    applicable: true,
+    validated: true,
+    provenance,
+  }));
 
   return {
     gameId,
@@ -210,23 +257,11 @@ export function extractRaceSource(gameId: GameId, packets: TelemetryPacket[]): R
     isFastestLap,
     fastestLapSource: isFastestLap == null ? null : "player-vs-f1-grid-best-lap",
     packets,
+    claims: classificationClaims,
     pitEvents: pitSignals ? derivePitLedger(pitSignals) : undefined,
     tyreStrategy,
     fuelStrategy,
-    provenance: {
-      extractor: SOURCE_EXTRACTOR,
-      fields: {
-        sessionType: fieldStatus.sessionType === "direct" ? (gameId === "f1-2025" ? "f1.sessionType" : "acc.acEvo.sessionType") : null,
-        classification: classification == null ? null : `f1.resultStatus:${f1?.classificationSource ?? "unknown"}`,
-        finishingPosition: finishingPosition == null ? null : `TelemetryPacket.RacePosition:${f1?.finishingPositionSource ?? "continuous"}`,
-        qualifyingPosition: qualifyingPosition == null ? null : `f1.gridPosition:${f1?.qualifyingPositionSource ?? "unknown"}`,
-        isFastestLap: isFastestLap == null ? null : "player-vs-f1.grid.bestLapTime",
-        pitEvents: pitSignals ? `${gameId}-pit-transition` : null,
-        tyreStrategy: tyreStrategy == null ? null : "initial-compound-only",
-        fuelStrategy: fuelStrategy == null ? null : "initial-acc.fuelPerLap-only",
-        resultReason: f1?.resultReason == null ? null : "f1.finalClassification.resultReason",
-      },
-    },
+    provenance,
     evidence: {
       fieldStatus,
       conflicts: f1?.conflicts ?? [],

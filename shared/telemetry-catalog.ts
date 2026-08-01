@@ -1,4 +1,9 @@
-import catalogJson from "./telemetry-catalog.generated.json";
+import {
+  TELEMETRY_CATALOG_GENERATED,
+  TELEMETRY_CATALOG_HASH as GENERATED_TELEMETRY_CATALOG_HASH,
+  TELEMETRY_CATALOG_SCHEMA_VERSION as GENERATED_TELEMETRY_CATALOG_SCHEMA_VERSION,
+  TELEMETRY_CATALOG_VERSION as GENERATED_TELEMETRY_CATALOG_VERSION,
+} from "./telemetry-catalog.generated";
 import { KNOWN_GAME_IDS, type GameId, type TelemetryPacket } from "./types";
 
 export type TelemetryLinkKind =
@@ -7,6 +12,57 @@ export type TelemetryLinkKind =
   | "simplified"
   | "unavailable";
 
+export type TelemetryValueType =
+  | "number"
+  | "boolean"
+  | "string"
+  | "enum"
+  | "structured";
+
+export type TelemetryValueCardinality =
+  | { kind: "scalar" }
+  | { kind: "fixed"; count: number }
+  | { kind: "variable"; min: number; max?: number };
+
+export interface TelemetryStructuredIndexSchema {
+  id: string;
+  cardinality: TelemetryValueCardinality;
+  ordering: "numeric-ascending" | "source-order" | "semantic-order";
+}
+
+export interface TelemetryStructuredFieldSchema {
+  id: string;
+  valueType: Exclude<TelemetryValueType, "structured">;
+  dimensions: readonly string[];
+  enumDomain?: readonly string[];
+}
+
+export interface TelemetryStructuredValueSchema {
+  indices: readonly TelemetryStructuredIndexSchema[];
+  fields: readonly TelemetryStructuredFieldSchema[];
+}
+
+export interface TelemetryMappingExecution {
+  kind: "conversion" | "derivation" | "simplification";
+  id: string;
+  version: string;
+  codeHash: string;
+  deterministic: boolean;
+  declaredInputs: readonly string[];
+  missingDataPolicy: "propagate-missing" | "drop-missing" | "require-all";
+}
+
+export interface TelemetryMappingProvenance {
+  origin: "parser" | "projection" | "schema" | "yaml" | "derivation";
+  artifact: string;
+  commit: string;
+}
+
+export interface TelemetryCompatibilityReview {
+  id: string;
+  rationale: string;
+}
+
 export interface AvailableTelemetryLink {
   kind: Exclude<TelemetryLinkKind, "unavailable">;
   nativeUnit: string;
@@ -14,6 +70,10 @@ export interface AvailableTelemetryLink {
   freshness: "continuous" | "pit-snapshot" | "session-update" | "static";
   normalization?: string;
   description: string;
+  limitations: readonly string[];
+  provenance: TelemetryMappingProvenance;
+  execution?: TelemetryMappingExecution;
+  compatibilityReview?: TelemetryCompatibilityReview;
 }
 
 export interface UnavailableTelemetryLink {
@@ -45,6 +105,14 @@ export interface TelemetryVariableDefinition {
   description: string;
   parentId: string;
   canonicalUnit: string;
+  valueType: TelemetryValueType;
+  dimensions: readonly string[];
+  cardinality: TelemetryValueCardinality;
+  ordering?: readonly string[];
+  range?: { min: number; max: number };
+  enumDomain?: readonly string[];
+  structuredSchema?: TelemetryStructuredValueSchema;
+  limitations: readonly string[];
   shape: "scalar" | "per-wheel" | "vector" | "array" | "structured";
   packetFields?: readonly (keyof TelemetryPacket)[];
   games: Record<GameId, TelemetryGameLink>;
@@ -73,8 +141,21 @@ export interface TelemetrySourceCoverage {
   recorded: number;
 }
 
+export interface TelemetryCatalogMetadata {
+  catalogVersion: string;
+  schemaVersion: string;
+  generator: {
+    name: string;
+    version: string;
+    commit: string;
+  };
+  generatedAt: string;
+  contentHash: string;
+}
+
 export interface TelemetryCatalogData {
   format: "raceiq-semantic-telemetry-catalog-v5";
+  metadata: TelemetryCatalogMetadata;
   generatedFrom: readonly string[];
   groups: readonly TelemetryCatalogGroup[];
   variables: readonly TelemetryVariableDefinition[];
@@ -92,7 +173,13 @@ export interface TelemetryCatalogData {
  * captured iRacing SDK variable table, and known SessionInfo YAML schema.
  */
 export const TELEMETRY_CATALOG =
-  catalogJson as unknown as TelemetryCatalogData;
+  TELEMETRY_CATALOG_GENERATED as unknown as TelemetryCatalogData;
+
+export const TELEMETRY_CATALOG_VERSION =
+  GENERATED_TELEMETRY_CATALOG_VERSION;
+export const TELEMETRY_CATALOG_SCHEMA_VERSION =
+  GENERATED_TELEMETRY_CATALOG_SCHEMA_VERSION;
+export const TELEMETRY_CATALOG_HASH = GENERATED_TELEMETRY_CATALOG_HASH;
 
 const groupsById = new Map(
   TELEMETRY_CATALOG.groups.map((group) => [group.id, group]),
@@ -107,6 +194,18 @@ export function getTelemetryVariable(
   const variable = variablesById.get(variableId);
   if (!variable) throw new Error(`Unknown telemetry variable ${variableId}`);
   return variable;
+}
+
+export function isTelemetryEnumValue(
+  variableId: string,
+  value: string | number,
+): boolean {
+  const variable = getTelemetryVariable(variableId);
+  if (variable.valueType !== "enum" || !variable.enumDomain) return false;
+  const normalized = String(value).trim().toLowerCase();
+  return variable.enumDomain.some(
+    (candidate) => candidate.toLowerCase() === normalized,
+  );
 }
 
 export function getTelemetryNode(
@@ -170,10 +269,79 @@ export function getIRacingSdkSourcesWithoutSemanticDefinition(): TelemetrySource
   );
 }
 
+function hasFiniteEnumDomain(domain: readonly string[] | undefined): boolean {
+  if (!domain?.length) return false;
+  const normalized = domain.map((value) => value.trim().toLowerCase());
+  return (
+    normalized.every(
+      (value) => value.length > 0 && !/^(?:\*|any|unknown)$/.test(value),
+    ) && new Set(normalized).size === normalized.length
+  );
+}
+
+function validCardinality(cardinality: TelemetryValueCardinality): boolean {
+  return cardinality.kind === "scalar"
+    ? true
+    : cardinality.kind === "fixed"
+      ? Number.isInteger(cardinality.count) && cardinality.count > 0
+      : Number.isInteger(cardinality.min) &&
+        cardinality.min >= 0 &&
+        (cardinality.max === undefined ||
+          (Number.isInteger(cardinality.max) &&
+            cardinality.max >= cardinality.min));
+}
+
+function sameCardinality(
+  left: TelemetryValueCardinality,
+  right: TelemetryValueCardinality,
+): boolean {
+  return (
+    left.kind === right.kind &&
+    (left.kind === "scalar" ||
+      (left.kind === "fixed" &&
+        right.kind === "fixed" &&
+        left.count === right.count) ||
+      (left.kind === "variable" &&
+        right.kind === "variable" &&
+        left.min === right.min &&
+        left.max === right.max))
+  );
+}
+
 export function assertTelemetryCatalogComplete(): void {
   if (TELEMETRY_CATALOG.format !== "raceiq-semantic-telemetry-catalog-v5") {
     throw new Error(`Unexpected catalog format ${TELEMETRY_CATALOG.format}`);
   }
+  const metadata = TELEMETRY_CATALOG.metadata;
+  if (
+    !metadata.catalogVersion ||
+    !metadata.schemaVersion ||
+    !metadata.generator.name ||
+    !metadata.generator.version ||
+    !/^[a-f0-9]{64}$/.test(metadata.generator.commit) ||
+    !/^[a-f0-9]{64}$/.test(metadata.contentHash) ||
+    Number.isNaN(Date.parse(metadata.generatedAt))
+  ) {
+    throw new Error("Telemetry catalog metadata is incomplete");
+  }
+  if (
+    metadata.catalogVersion !== TELEMETRY_CATALOG_VERSION ||
+    metadata.schemaVersion !== TELEMETRY_CATALOG_SCHEMA_VERSION ||
+    metadata.contentHash !== TELEMETRY_CATALOG_HASH
+  ) {
+    throw new Error("Generated telemetry catalog constants do not match metadata");
+  }
+  const normalizedFields = new Set(
+    TELEMETRY_CATALOG.variables.flatMap(
+      (variable) => variable.packetFields ?? [],
+    ),
+  );
+  const sourcePathsByGame = Object.fromEntries(
+    KNOWN_GAME_IDS.map((gameId) => [
+      gameId,
+      new Set(TELEMETRY_CATALOG.sources[gameId].map((source) => source.path)),
+    ]),
+  ) as Record<GameId, Set<string>>;
 
   const nodeIds = new Set<string>();
   for (const group of TELEMETRY_CATALOG.groups) {
@@ -192,6 +360,88 @@ export function assertTelemetryCatalogComplete(): void {
       !variable.canonicalUnit
     ) {
       throw new Error(`${variable.id} must declare label, unit, and description`);
+    }
+    if (
+      !variable.valueType ||
+      variable.dimensions.length === 0 ||
+      !variable.cardinality ||
+      !Array.isArray(variable.limitations)
+    ) {
+      throw new Error(`${variable.id} has incomplete value contract`);
+    }
+    const structuredSchema = variable.structuredSchema;
+    if (
+      (variable.shape === "structured") !==
+        (variable.valueType === "structured") ||
+      (variable.shape === "scalar" &&
+        variable.cardinality.kind !== "scalar") ||
+      (variable.shape === "per-wheel" &&
+        (variable.cardinality.kind !== "fixed" ||
+          variable.cardinality.count !== 4 ||
+          variable.ordering?.join(",") !== "FL,FR,RL,RR")) ||
+      (variable.shape === "vector" &&
+        (variable.cardinality.kind !== "fixed" ||
+          variable.cardinality.count !== 3 ||
+          variable.ordering?.join(",") !== "x,y,z")) ||
+      (variable.shape === "array" &&
+        (variable.cardinality.kind !== "variable" ||
+          !variable.ordering?.length)) ||
+      (variable.shape === "structured" &&
+        (!variable.ordering?.length ||
+          !structuredSchema?.indices.length ||
+          !structuredSchema.fields.length ||
+          !sameCardinality(
+            variable.cardinality,
+            structuredSchema.indices[0].cardinality,
+          ))) ||
+      (variable.shape !== "structured" && structuredSchema)
+    ) {
+      throw new Error(`${variable.id} has incompatible cardinality or ordering`);
+    }
+    if (!validCardinality(variable.cardinality)) {
+      throw new Error(`${variable.id} has invalid cardinality`);
+    }
+    if (structuredSchema) {
+      const indexIds = new Set<string>();
+      for (const index of structuredSchema.indices) {
+        if (
+          !index.id ||
+          indexIds.has(index.id) ||
+          !validCardinality(index.cardinality)
+        ) {
+          throw new Error(`${variable.id} has invalid structured index schema`);
+        }
+        indexIds.add(index.id);
+      }
+      const fieldIds = new Set<string>();
+      for (const field of structuredSchema.fields) {
+        if (
+          !field.id ||
+          fieldIds.has(field.id) ||
+          field.dimensions.length === 0 ||
+          (field.valueType === "enum" &&
+            !hasFiniteEnumDomain(field.enumDomain)) ||
+          (field.valueType !== "enum" && field.enumDomain)
+        ) {
+          throw new Error(`${variable.id} has invalid structured field schema`);
+        }
+        fieldIds.add(field.id);
+      }
+    }
+    if (
+      (variable.valueType === "enum" &&
+        !hasFiniteEnumDomain(variable.enumDomain)) ||
+      (variable.valueType !== "enum" && variable.enumDomain)
+    ) {
+      throw new Error(`${variable.id} has invalid enum domain`);
+    }
+    if (
+      variable.range &&
+      (!Number.isFinite(variable.range.min) ||
+        !Number.isFinite(variable.range.max) ||
+        variable.range.min > variable.range.max)
+    ) {
+      throw new Error(`${variable.id} has invalid range`);
     }
     const parent = groupsById.get(variable.parentId);
     if (!parent || !parent.children.includes(variable.id)) {
@@ -216,6 +466,100 @@ export function assertTelemetryCatalogComplete(): void {
         throw new Error(
           `${variable.id} ${gameId} ${mapping.kind} mapping lacks normalization`,
         );
+      }
+      if (
+        !mapping.provenance.artifact ||
+        !mapping.provenance.origin ||
+        !/^[a-f0-9]{64}$/.test(mapping.provenance.commit) ||
+        !Array.isArray(mapping.limitations)
+      ) {
+        throw new Error(`${variable.id} ${gameId} lacks mapping provenance`);
+      }
+      const compatibilityReview = mapping.compatibilityReview;
+      if (
+        compatibilityReview !== undefined &&
+        (!compatibilityReview ||
+          typeof compatibilityReview.id !== "string" ||
+          !compatibilityReview.id.trim() ||
+          typeof compatibilityReview.rationale !== "string" ||
+          !compatibilityReview.rationale.trim())
+      ) {
+        throw new Error(
+          `${variable.id} ${gameId} has invalid compatibility review`,
+        );
+      }
+      if (
+        mapping.kind === "direct" &&
+        mapping.nativeUnit !== variable.canonicalUnit
+      ) {
+        throw new Error(
+          `${variable.id} ${gameId} direct mapping requires unit conversion`,
+        );
+      }
+      if (mapping.kind === "direct" && mapping.execution) {
+        throw new Error(`${variable.id} ${gameId} direct mapping has execution`);
+      }
+      if (mapping.kind !== "direct") {
+        const execution = mapping.execution;
+        if (
+          !execution ||
+          !execution.id ||
+          !execution.version ||
+          !execution.deterministic ||
+          !/^[a-f0-9]{64}$/.test(execution.codeHash) ||
+          execution.declaredInputs.length === 0 ||
+          execution.declaredInputs.some((input) => !sources.includes(input))
+        ) {
+          throw new Error(
+            `${variable.id} ${gameId} lacks executable mapping identity`,
+          );
+        }
+        if (
+          (mapping.kind === "simplified" &&
+            (execution.kind !== "simplification" ||
+              mapping.limitations.length === 0 ||
+              mapping.provenance.origin !== "projection")) ||
+          (mapping.kind === "derived" &&
+            !["conversion", "derivation"].includes(execution.kind))
+        ) {
+          throw new Error(
+            `${variable.id} ${gameId} has incompatible execution contract`,
+          );
+        }
+        for (const input of execution.declaredInputs) {
+          if (
+            input.startsWith("TelemetryPacket.") &&
+            !normalizedFields.has(
+              input.slice("TelemetryPacket.".length) as keyof TelemetryPacket,
+            )
+          ) {
+            throw new Error(
+              `${variable.id} ${gameId} references missing packet input ${input}`,
+            );
+          }
+          const extensionInput =
+            /^(?:f1|acc|iracing)\./.test(input) ? input : undefined;
+          const iracingInput =
+            gameId === "iracing" && input.startsWith("iRacing.")
+              ? input.slice("iRacing.".length)
+              : undefined;
+          const cataloguedIRacingInput =
+            iracingInput &&
+            (!iracingInput.startsWith("SessionInfo.") ||
+              /^[A-Z]/.test(iracingInput.slice("SessionInfo.".length)))
+              ? iracingInput
+              : undefined;
+          if (
+            (extensionInput &&
+              !sourcePathsByGame[gameId].has(extensionInput)) ||
+            (cataloguedIRacingInput &&
+              !sourcePathsByGame.iracing.has(cataloguedIRacingInput))
+          ) {
+            throw new Error(
+              `${variable.id} ${gameId} references missing source input ${input}`,
+            );
+          }
+        }
       }
       if (
         sources.some((source) => source.startsWith("RaceIQ.ParserState."))
@@ -295,11 +639,6 @@ export function assertTelemetryCatalogComplete(): void {
     }
   }
 
-  const normalizedFields = new Set(
-    TELEMETRY_CATALOG.variables.flatMap(
-      (variable) => variable.packetFields ?? [],
-    ),
-  );
   if (
     normalizedFields.size !==
     TELEMETRY_CATALOG.coverage.normalizedPacketFields

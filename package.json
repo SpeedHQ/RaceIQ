@@ -43,6 +43,7 @@
     "laps:import": "bun scripts/import-laps.ts",
     "ibt:probe": "bun scripts/probe-ibt.ts",
     "telemetry:catalog": "bun scripts/generate-telemetry-catalog.ts",
+    "telemetry:catalog:check": "bun scripts/generate-telemetry-catalog.ts --check --repeat",
     "iracing:cars:seed": "bun scripts/seed-iracing-cars.ts",
     "iracing:tracks:seed": "bun scripts/seed-iracing-tracks.ts",
     "gzip:recording": "bun scripts/gzip-recording.ts",

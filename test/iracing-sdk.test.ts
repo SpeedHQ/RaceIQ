@@ -135,6 +135,11 @@ function sampleFrame(): IRacingSourceFrameV2 {
       AirTemp: 23,
       Precipitation: 0,
       TrackWetness: 0,
+      CarPath: " gt3 test car ",
+      CarIdxOnPitRoad: [true, false, true],
+      EngineWarnings: 0xf0000001,
+      CarIdxLapDistPct: [0.125, 0.5, 0.875],
+      LapDeltaToBestLap: -0.012345678901234,
     },
   };
 }
@@ -247,10 +252,98 @@ describe("native iRacing SDK decoding", () => {
     expect(table.read(row, "Missing")).toBeUndefined();
   });
 
+  test("reads every validated descriptor with exact native value shapes", () => {
+    const headers = Buffer.concat([
+      descriptor(IRSDKVariableType.Char, 0, 16, "CarPath"),
+      descriptor(IRSDKVariableType.Bool, 16, 3, "CarIdxOnPitRoad"),
+      descriptor(IRSDKVariableType.BitField, 20, 1, "EngineWarnings"),
+      descriptor(IRSDKVariableType.Float, 24, 3, "CarIdxLapDistPct"),
+      descriptor(IRSDKVariableType.Double, 40, 1, "LapDeltaToBestLap"),
+    ]);
+    const row = Buffer.alloc(48);
+    writeCString(row, 0, 16, " gt3 test car ");
+    row.writeUInt8(1, 16);
+    row.writeUInt8(0, 17);
+    row.writeUInt8(1, 18);
+    row.writeUInt32LE(0xf0000001, 20);
+    row.writeFloatLE(0.125, 24);
+    row.writeFloatLE(0.5, 28);
+    row.writeFloatLE(0.875, 32);
+    row.writeDoubleLE(-0.012345678901234, 40);
+
+    const table = new IRacingVariableTable(headers, row.length);
+    expect(table.names).toEqual([
+      "CarPath",
+      "CarIdxOnPitRoad",
+      "EngineWarnings",
+      "CarIdxLapDistPct",
+      "LapDeltaToBestLap",
+    ]);
+    expect(table.readAll(row)).toEqual({
+      CarPath: " gt3 test car ",
+      CarIdxOnPitRoad: [true, false, true],
+      EngineWarnings: 0xf0000001,
+      CarIdxLapDistPct: [0.125, 0.5, 0.875],
+      LapDeltaToBestLap: -0.012345678901234,
+    });
+  });
+
+  test("live SDK snapshots retain channels outside the normalization list", () => {
+    const headers = Buffer.concat([
+      descriptor(IRSDKVariableType.Float, 0, 1, "Speed"),
+      descriptor(IRSDKVariableType.Float, 4, 1, "LFbrakeLinePress"),
+    ]);
+    const row = Buffer.alloc(8);
+    row.writeFloatLE(55.5, 0);
+    row.writeFloatLE(1200.25, 4);
+    const variableTable = new IRacingVariableTable(headers, row.length);
+    const header = {
+      version: 2,
+      status: 1,
+      sessionInfoUpdate: 1,
+      sessionInfoLength: 16,
+      sessionInfoOffset: 400,
+      variableCount: 2,
+      variableHeaderOffset: 112,
+      bufferCount: 1,
+      bufferLength: row.length,
+      buffers: [{ tickCount: 42, offset: 416 }],
+    };
+    const reader = new IRacingSdkReader();
+    const internals = reader as unknown as {
+      _running: boolean;
+      _connected: boolean;
+      _mappingSize: number;
+      _variableTable: IRacingVariableTable;
+      _sessionInfo: string;
+      _readHeader: () => typeof header;
+      _refreshMetadata: (value: typeof header) => void;
+      _copy: (offset: number, length: number) => Buffer;
+    };
+    internals._running = true;
+    internals._connected = true;
+    internals._mappingSize = 424;
+    internals._variableTable = variableTable;
+    internals._sessionInfo = "WeekendInfo: {}";
+    internals._readHeader = () => header;
+    internals._refreshMetadata = () => {};
+    internals._copy = () => row;
+
+    expect(reader.readLatest()).toMatchObject({
+      tick: 42,
+      values: {
+        Speed: 55.5,
+        LFbrakeLinePress: 1200.25,
+      },
+    });
+  });
+
   test("ignores descriptors that point outside the SDK row", () => {
     const headers = descriptor(IRSDKVariableType.Double, 28, 1, "OutOfBounds");
     const table = new IRacingVariableTable(headers, 32);
     expect(table.has("OutOfBounds")).toBe(false);
+    expect(table.names).toEqual([]);
+    expect(table.readAll(Buffer.alloc(32))).toEqual({});
   });
 
   test("extracts the driver, car, track, and engine from session YAML", () => {
@@ -417,6 +510,28 @@ describe("iRacing raw source frame parser integration", () => {
     expect(decodeIRacingSourceFrame(sessionFrame, decoder)).toEqual(first);
     expect(decodeIRacingSourceFrame(deltaFrame, decoder)).toEqual(next);
     expect(decodeIRacingSourceFrame(unchangedDeltaFrame, decoder)).toEqual(next);
+  });
+
+  test("delta frames preserve detailed native channel names and value shapes", () => {
+    const encoder = new IRacingSourceFrameEncoder();
+    const decoder = createIRacingSourceDecoderState();
+    const first = sampleFrame();
+    const next = sampleFrame();
+    next.values = {
+      ...next.values,
+      CarPath: " gt3 evo car ",
+      CarIdxOnPitRoad: [false, true, false],
+      EngineWarnings: 0x80000002,
+      CarIdxLapDistPct: [0.25, 0.625, 0.9375],
+      LapDeltaToBestLap: 0.001234567890123,
+    };
+
+    expect(decodeIRacingSourceFrame(encoder.encode(first), decoder)).toEqual(
+      first,
+    );
+    expect(decodeIRacingSourceFrame(encoder.encode(next), decoder)).toEqual(
+      next,
+    );
   });
 
   test("parsing a historical frame cannot overwrite live identity", () => {
