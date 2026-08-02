@@ -70,38 +70,6 @@ describe("settings-aware model provider", () => {
     expect(typeof adapter.mastraModel).toBe("object");
   });
 
-  test("returns no Mastra context for Codex", async () => {
-    const codex = await resolveAi("chat", settings({ chatProvider: "codex", chatModel: "codex-model" }));
-
-    expect(createModelContext(codex)).toBeUndefined();
-  });
-
-  test("rejects Codex when Mastra model is requested", async () => {
-    saveSettings(settings({ chatProvider: "codex", chatModel: "codex-model" }));
-    const codexSettingsContext = new RequestContext();
-
-    await expect(getModel("chat", codexSettingsContext)).rejects.toMatchObject({
-      code: "unsupported-operation",
-      provider: "codex",
-    });
-  });
-  test("dispatches native Codex chat without running Mastra", async () => {
-    const codexAi = {
-      feature: "chat" as const,
-      provider: "codex" as const,
-      model: "codex",
-      generateText: async () => ({ analysis: "", usage: { inputTokens: 0, outputTokens: 0, costUsd: 0, durationMs: 0, model: "codex" } }),
-      generateStructured: async () => ({ analysis: "", usage: { inputTokens: 0, outputTokens: 0, costUsd: 0, durationMs: 0, model: "codex" } }),
-    };
-    setResolvedAiInternals(codexAi, {
-      createChatResponse: async () => new Response("ok", { status: 200 }),
-    });
-
-    const response = await runAiChat(codexAi, { systemPrompt: "", messages: [] }, async () => {
-      throw new Error("Mastra must not run");
-    });
-    expect(response.status).toBe(200);
-  });
 
   test("normalizes Mastra structured output and passes bound context", async () => {
     const openAi = {
@@ -123,54 +91,5 @@ describe("settings-aware model provider", () => {
     expect(result).toMatchObject({ analysis: "ok", usage: { model: "gpt-4o-mini" } });
   });
 
-  test("dispatches Codex comparison through native structured generation", async () => {
-    let called = false;
-    const codex = {
-      feature: "analysis" as const,
-      provider: "codex" as const,
-      model: "codex",
-      generateText: async () => {
-        throw new Error("comparison must use structured generation");
-      },
-      generateStructured: async () => {
-        called = true;
-        return {
-          analysis: "{\"ok\":true}",
-          usage: { inputTokens: 1, outputTokens: 2, costUsd: 0, durationMs: 3, model: "codex" },
-        };
-      },
-    };
-
-    const result = await runAiStructured(codex, {
-      prompt: "compare",
-      schema: {},
-    }, async () => {
-      throw new Error("Codex comparison must not run through Mastra");
-    });
-
-    expect(called).toBe(true);
-    expect(result).toMatchObject({ analysis: "{\"ok\":true}", usage: { model: "codex" } });
-  });
-
-  test("dispatches Codex prose through native text generation", async () => {
-    const codex = {
-      feature: "analysis" as const,
-      provider: "codex" as const,
-      model: "codex",
-      generateText: async () => ({
-        analysis: "prose",
-        usage: { inputTokens: 1, outputTokens: 2, costUsd: 0, durationMs: 3, model: "codex" },
-      }),
-      generateStructured: async () => ({
-        analysis: "",
-        usage: { inputTokens: 0, outputTokens: 0, costUsd: 0, durationMs: 0, model: "codex" },
-      }),
-    };
-
-    const result = await runAiText(codex, { prompt: "consult" }, async () => {
-      throw new Error("Mastra must not run");
-    });
-    expect(result).toMatchObject({ analysis: "prose", usage: { model: "codex" } });
-  });
 
 });

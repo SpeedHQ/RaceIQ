@@ -5,9 +5,6 @@
 import { extractJson } from "./extract-json";
 import { AiProviderError } from "./provider-error";
 import { buildGoogleThinkingProviderOptions } from "./google-provider-options";
-import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
 export interface AiResult {
   analysis: string;
   usage: {
@@ -19,12 +16,11 @@ export interface AiResult {
   };
 }
 
-export type AiProvider = "gemini" | "openai" | "local" | "codex";
+export type AiProvider = "gemini" | "openai" | "local";
 
 const AI_PROVIDERS = [
   { id: "gemini", name: "Google Gemini" },
   { id: "openai", name: "OpenAI" },
-  { id: "codex", name: "OpenAI Codex (ChatGPT subscription)" },
   { id: "local", name: "Local (LM Studio / Ollama)" },
 ];
 
@@ -37,217 +33,6 @@ export type ModelListResult = {
   error: string | null;
 };
 
-export type CodexResult = {
-  text: string;
-  model: string;
-  inputTokens: number;
-  outputTokens: number;
-};
-
-export type CodexStatus = { ready: true } | { ready: false; reason: string };
-
-export type CodexCliOptions = {
-  executable?: string;
-  timeoutMs?: number;
-  env?: Record<string, string>;
-};
-
-const DEFAULT_CODEX_EXECUTABLE = "codex";
-const DEFAULT_CODEX_TIMEOUT_MS = 90_000;
-const CODEX_STATUS_TIMEOUT_MS = 5_000;
-const MAX_CODEX_ERROR_DETAIL = 240;
-
-function codexExecutable(options?: CodexCliOptions): string {
-  return options?.executable?.trim() || process.env.CODEX_CLI_PATH?.trim() || DEFAULT_CODEX_EXECUTABLE;
-}
-
-function codexEnvironment(options?: CodexCliOptions): Record<string, string> {
-  const env = { ...process.env, ...(options?.env ?? {}) };
-  delete env.OPENAI_API_KEY;
-  return env as Record<string, string>;
-}
-
-function compactCodexDetail(...values: string[]): string {
-  return values
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .slice(0, MAX_CODEX_ERROR_DETAIL);
-}
-
-function isMissingExecutable(error: unknown): boolean {
-  const candidate = error as { code?: string; message?: string } | undefined;
-  return candidate?.code === "ENOENT" || /(?:not found|no such file)/i.test(candidate?.message ?? "");
-}
-
-type CodexProcessResult = {
-  exitCode: number;
-  stdout: string;
-  stderr: string;
-};
-
-async function terminateCodexProcess(proc: Bun.Subprocess): Promise<void> {
-  if (process.platform === "win32") {
-    proc.kill();
-  } else {
-    try {
-      // Codex may launch helper processes. Detached spawn gives it a private
-      // process group; kill the group so timeout cleanup cannot orphan them.
-      process.kill(-proc.pid, "SIGKILL");
-    } catch {
-      proc.kill();
-    }
-  }
-  await proc.exited.catch(() => undefined);
-}
-
-async function runCodexProcess(
-  args: string[],
-  options: CodexCliOptions = {},
-  stdin?: string,
-): Promise<CodexProcessResult> {
-  const proc = Bun.spawn(args, {
-    stdin: stdin == null ? "ignore" : "pipe",
-    stdout: "pipe",
-    stderr: "pipe",
-    env: codexEnvironment(options),
-    detached: process.platform !== "win32",
-  });
-  if (stdin != null) {
-    proc.stdin!.write(stdin);
-    proc.stdin!.end();
-  }
-
-  const output = Promise.all([
-    proc.exited,
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
-  ] as const);
-  const timeoutMs = options.timeoutMs ?? DEFAULT_CODEX_TIMEOUT_MS;
-  const timeoutGate = Promise.withResolvers<null>();
-  const timeoutHandle = setTimeout(() => timeoutGate.resolve(null), timeoutMs);
-  const result = await Promise.race([output, timeoutGate.promise]);
-  clearTimeout(timeoutHandle);
-  if (result === null) {
-    await terminateCodexProcess(proc);
-    // All descendants share the detached group's pipes. Awaiting output after
-    // group termination confirms pipe closure instead of racing a fixed delay.
-    await output.catch(() => undefined);
-    throw new Error(`Codex timed out after ${timeoutMs >= 1000 ? `${timeoutMs / 1000} seconds` : `${timeoutMs}ms`}`);
-  }
-  const [exitCode, stdout, stderr] = result;
-  return { exitCode, stdout, stderr };
-}
-
-export function parseCodexJsonl(raw: string): CodexResult {
-  let text = "";
-  let inputTokens = 0;
-  let outputTokens = 0;
-  let sawCompletion = false;
-  let lineNumber = 0;
-
-  for (const line of raw.split(/\r?\n/)) {
-    lineNumber += 1;
-    if (!line.trim()) continue;
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(line);
-    } catch {
-      throw new Error(`Codex returned malformed JSONL on line ${lineNumber}`);
-    }
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      throw new Error(`Codex returned malformed JSONL on line ${lineNumber}`);
-    }
-    const event = parsed as Record<string, unknown>;
-    const item = event.item;
-    if (
-      event.type === "item.completed"
-      && item
-      && typeof item === "object"
-      && !Array.isArray(item)
-      && "type" in item
-      && item.type === "agent_message"
-      && "text" in item
-      && typeof item.text === "string"
-    ) {
-      text = item.text;
-    }
-    if (event.type === "turn.completed") {
-      sawCompletion = true;
-      const usage = event.usage;
-      if (usage && typeof usage === "object" && !Array.isArray(usage)) {
-        const input = "input_tokens" in usage ? usage.input_tokens : 0;
-        const output = "output_tokens" in usage ? usage.output_tokens : 0;
-        inputTokens = typeof input === "number" ? input : 0;
-        outputTokens = typeof output === "number" ? output : 0;
-      }
-    }
-  }
-
-  if (!text.trim()) throw new Error("Codex returned empty response");
-  if (!sawCompletion) throw new Error("Codex response did not include turn.completed");
-  return { text, model: "codex", inputTokens, outputTokens };
-}
-
-export async function getCodexStatus(options: CodexCliOptions = {}): Promise<CodexStatus> {
-  const executable = codexExecutable(options);
-  try {
-    const result = await runCodexProcess(
-      [executable, "login", "status"],
-      { ...options, timeoutMs: options.timeoutMs ?? CODEX_STATUS_TIMEOUT_MS },
-    );
-    if (result.exitCode === 0) return { ready: true };
-    const detail = compactCodexDetail(result.stdout, result.stderr);
-    return {
-      ready: false,
-      reason: detail || "Codex is not authenticated. Run `codex login`.",
-    };
-  } catch (error) {
-    if (isMissingExecutable(error)) {
-      return { ready: false, reason: `Codex executable not found: ${executable}` };
-    }
-    const detail = error instanceof Error ? error.message : String(error);
-    return { ready: false, reason: `Unable to check Codex login status: ${detail}` };
-  }
-}
-
-export async function runCodexCli(
-  prompt: string,
-  model?: string,
-  options: CodexCliOptions = {},
-): Promise<AiResult> {
-  const startedAt = Date.now();
-  const executable = codexExecutable(options);
-  const args = [executable, "exec", "--json", "--ephemeral", "--skip-git-repo-check"];
-  const selectedModel = model?.trim();
-  if (selectedModel && selectedModel !== "codex-default") args.push("--model", selectedModel);
-  args.push("-");
-  let result: CodexProcessResult;
-  try {
-    result = await runCodexProcess(args, options, prompt);
-  } catch (error) {
-    if (isMissingExecutable(error)) {
-      throw new Error(`Codex executable not found: ${executable}`);
-    }
-    throw error;
-  }
-  if (result.exitCode !== 0) {
-    const detail = compactCodexDetail(result.stderr);
-    throw new Error(`Codex CLI failed. Run \`codex login\` to authenticate.${detail ? ` ${detail}` : ""}`);
-  }
-  const parsed = parseCodexJsonl(result.stdout);
-  return {
-    analysis: parsed.text,
-    usage: {
-      inputTokens: parsed.inputTokens,
-      outputTokens: parsed.outputTokens,
-      costUsd: 0,
-      durationMs: Date.now() - startedAt,
-      model: selectedModel || parsed.model,
-    },
-  };
-}
 
 
 /** Fetch available Gemini models from the API. Filters to generateContent-capable models. */
@@ -642,23 +427,6 @@ export async function runOpenAi(
   schemaName: string = "lap_analysis",
 ): Promise<AiResult> {
   return runOpenAiCompatible({ prompt, apiKey, model, schema, schemaName });
-}
-const CODEX_MODELS_CACHE_FILE = "models_cache.json";
-
-export function getCodexModels() {
-  try {
-    const codexHome = process.env.CODEX_HOME?.trim() || join(homedir(), ".codex");
-    const cache = JSON.parse(readFileSync(join(codexHome, CODEX_MODELS_CACHE_FILE), "utf8")) as {
-      models?: { slug?: unknown; display_name?: unknown; visibility?: unknown }[];
-    };
-    const models = (cache.models ?? [])
-      .filter((model) => model.visibility === "list" && typeof model.slug === "string" && typeof model.display_name === "string")
-      .map((model) => ({ id: model.slug as string, name: model.display_name as string }));
-    if (models.length > 0) return models;
-  } catch {
-    // Older Codex CLI versions may not have a model cache yet.
-  }
-  return [{ id: "codex-default", name: "Codex configured default" }];
 }
 
 

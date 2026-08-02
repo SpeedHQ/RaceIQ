@@ -1,7 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
-import { join } from "path";
-import { tmpdir } from "os";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 
 import { loadSettings } from "../server/settings";
 import { settingsRoutes } from "../server/routes/settings-routes";
@@ -54,61 +52,47 @@ describe("settings with unit system", () => {
     expect(loaded.tireHealthThresholds).toBeUndefined();
     expect(loaded.suspensionThresholds).toBeUndefined();
   });
+
+  test("loadSettings migrates removed Codex selections without resetting other settings", () => {
+    if (!existsSync(SETTINGS_DIR)) mkdirSync(SETTINGS_DIR, { recursive: true });
+    writeFileSync(SETTINGS_PATH, JSON.stringify({
+      onboardingComplete: true,
+      udpPort: 5300,
+      aiProvider: "codex",
+      aiModel: "codex-analysis",
+      aiThinkingBudget: 12000,
+      chatProvider: "codex",
+      chatModel: "codex-chat",
+      chatThinkingBudget: 8000,
+      autoTuneProvider: "codex",
+      autoTuneModel: "codex-tune",
+      driverProfileProvider: "codex",
+      driverProfileModel: "codex-profile",
+      driverProfileThinkingBudget: 6000,
+      localEndpoint: "http://127.0.0.1:4321/v1",
+      hiddenGames: ["ac", "acc"],
+    }));
+
+    const settings = loadSettings();
+
+    expect(settings.aiProvider).toBe("");
+    expect(settings.aiModel).toBe("");
+    expect(settings.chatProvider).toBe("");
+    expect(settings.chatModel).toBe("");
+    expect(settings.autoTuneProvider).toBe("");
+    expect(settings.autoTuneModel).toBe("");
+    expect(settings.driverProfileProvider).toBe("");
+    expect(settings.driverProfileModel).toBe("");
+    expect(settings.aiThinkingBudget).toBe(12000);
+    expect(settings.chatThinkingBudget).toBe(8000);
+    expect(settings.driverProfileThinkingBudget).toBe(6000);
+    expect(settings.onboardingComplete).toBe(true);
+    expect(settings.localEndpoint).toBe("http://127.0.0.1:4321/v1");
+    expect(settings.hiddenGames).toEqual(["ac", "acc"]);
+  });
 });
 
-describe("Codex provider discovery", () => {
-  const originalCodexPath = process.env.CODEX_CLI_PATH;
-  const originalArgsFile = process.env.CODEX_ARGS_FILE;
-
-  afterEach(() => {
-    if (originalCodexPath === undefined) delete process.env.CODEX_CLI_PATH;
-    else process.env.CODEX_CLI_PATH = originalCodexPath;
-    if (originalArgsFile === undefined) delete process.env.CODEX_ARGS_FILE;
-    else process.env.CODEX_ARGS_FILE = originalArgsFile;
-  });
-
-  test("reports Codex unavailable without exposing secrets when executable is missing", async () => {
-    process.env.CODEX_CLI_PATH = join(tmpdir(), `raceiq-missing-codex-${crypto.randomUUID()}`);
-    const response = await settingsRoutes.request("/api/ai-providers");
-    expect(response.status).toBe(200);
-    const providers = await response.json() as Array<{ id: string; ready?: boolean; error?: string | null }>;
-    expect(providers.find((provider) => provider.id === "codex")).toMatchObject({
-      id: "codex",
-      ready: false,
-    });
-    expect(providers.find((provider) => provider.id === "codex")?.error).toContain("not found");
-  });
-
-  test("reports Codex ready when login status succeeds with expected command", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "raceiq-codex-ready-"));
-    const executable = join(dir, "codex");
-    const argsFile = join(dir, "args");
-    writeFileSync(executable, "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CODEX_ARGS_FILE\"\nexit 0\n");
-    chmodSync(executable, 0o755);
-    process.env.CODEX_CLI_PATH = executable;
-    process.env.CODEX_ARGS_FILE = argsFile;
-
-    const response = await settingsRoutes.request("/api/ai-providers");
-    const providers = await response.json() as Array<{ id: string; ready?: boolean; error?: string | null }>;
-    expect(providers.find((provider) => provider.id === "codex")).toMatchObject({
-      id: "codex",
-      ready: true,
-      error: null,
-    });
-    expect(readFileSync(argsFile, "utf8").trim().split("\n")).toEqual(["login", "status"]);
-  });
-  test("sanitizes Codex CLI diagnostics exposed by provider discovery", async () => {
-    const dir = mkdtempSync(join(tmpdir(), "raceiq-codex-secret-"));
-    const executable = join(dir, "codex");
-    writeFileSync(executable, "#!/bin/sh\nprintf 'token=super-secret-token\\n' >&2\nexit 1\n");
-    chmodSync(executable, 0o755);
-    process.env.CODEX_CLI_PATH = executable;
-
-    const response = await settingsRoutes.request("/api/ai-providers");
-    const serialized = await response.text();
-    expect(serialized).not.toContain("super-secret-token");
-    expect(serialized).toContain("Codex is not authenticated");
-  });
+describe("AI model discovery", () => {
 
 
   test("keeps local model discovery available when endpoint returns an error", async () => {
@@ -125,12 +109,4 @@ describe("Codex provider discovery", () => {
     }
   });
 
-  test("returns visible Codex subscription models", async () => {
-    const response = await settingsRoutes.request("/api/ai-models?providers=codex");
-    expect(response.status).toBe(200);
-    const models = await response.json() as { codex: { id: string; name: string }[] };
-    expect(models.codex.length).toBeGreaterThan(0);
-    expect(models.codex.every((model) => model.id !== "codex-auto-review")).toBe(true);
-    expect(models.codex.every((model) => model.name.length > 0)).toBe(true);
-  });
 });

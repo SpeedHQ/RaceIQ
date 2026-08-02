@@ -5,13 +5,13 @@ import { convertPacket, type DisplayPacket } from "../lib/convert-packet";
 export interface DisplaySettings {
   unit: "metric" | "imperial";
   temperatureUnit: "C" | "F";
-  aiProvider: "gemini" | "openai" | "codex" | "local";
+  aiProvider: "gemini" | "openai" | "local";
   aiModel: string;
   aiThinkingBudget: number | null;
-  chatProvider: "gemini" | "openai" | "codex" | "local";
+  chatProvider: "gemini" | "openai" | "local";
   chatModel: string;
   chatThinkingBudget: number | null;
-  autoTuneProvider: "gemini" | "openai" | "codex" | "local";
+  autoTuneProvider: "gemini" | "openai" | "local";
   autoTuneModel: string;
   localEndpoint: string;
   wsRefreshRate: string;
@@ -25,10 +25,6 @@ export interface DisplaySettings {
   geminiApiKeySet?: boolean;
   /** Server-injected: whether an OpenAI API key is stored */
   openaiApiKeySet?: boolean;
-  /** Server-injected: whether the Codex CLI is installed and authenticated */
-  codexReady?: boolean;
-  /** Server-injected: Codex readiness failure without credential details */
-  codexError?: string | null;
   /** Server-injected: whether an Anthropic API key is stored */
   anthropicApiKeySet?: boolean;
   /** Driver display name */

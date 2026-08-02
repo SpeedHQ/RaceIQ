@@ -1,8 +1,6 @@
-import { createCodexChatResponse } from "./codex-chat-stream";
 import { AiProviderError } from "./provider-error";
 import { getMastraModelId, type BoundMastraModel } from "../../mastra/model";
 import {
-  runCodexCli,
   runGeminiRequest,
   runOpenAiCompatible,
   type AiResult,
@@ -10,16 +8,11 @@ import {
 import type {
   AiFeature,
   AiProvider,
-  ChatMessage,
-  ChatRequest,
   ResolvedAi,
   StructuredRequest,
   TextRequest,
 } from "./ai-types";
 import { setResolvedAiInternals } from "./resolved-ai-internals";
-export { createCodexChatResponse } from "./codex-chat-stream";
-export { getCodexStatus, parseCodexJsonl, runCodexCli } from "./providers";
-export type { CodexCliOptions, CodexResult, CodexStatus } from "./providers";
 
 export type ProviderAdapterConfig = {
   feature: AiFeature;
@@ -157,44 +150,11 @@ export class LocalProviderAdapter {
   }
 }
 
-export class CodexProviderAdapter {
-  readonly feature: AiFeature;
-  readonly provider: AiProvider = "codex";
-  readonly model: string;
-
-  constructor(config: ProviderAdapterConfig) {
-    this.feature = config.feature;
-    this.model = config.model;
-  }
-
-  generateText(input: TextRequest): Promise<AiResult> {
-    return runCodexCli(promptFor(input), this.model);
-  }
-
-  generateStructured<T>(input: StructuredRequest<T>): Promise<AiResult> {
-    const schema = JSON.stringify(input.schema);
-    const prompt = `${promptFor(input)}\n\nReturn only JSON matching this schema:\n${schema}`;
-    return runCodexCli(prompt, this.model);
-  }
-
-  createChatResponse(input: ChatRequest): Promise<Response> {
-    return createCodexChatResponse({
-      systemPrompt: input.systemPrompt,
-      messages: input.messages.map((message) => {
-        const uiMessage = message as ChatMessage & { parts?: unknown };
-        return { role: uiMessage.role, content: uiMessage.content, parts: uiMessage.parts };
-      }),
-      model: this.model,
-      onAssistantResponse: input.onAssistantResponse,
-    });
-  }
-}
 
 export type AnyProviderAdapter =
   | GeminiProviderAdapter
   | OpenAiProviderAdapter
-  | LocalProviderAdapter
-  | CodexProviderAdapter;
+  | LocalProviderAdapter;
 
 export function resolvedAiFromAdapter(adapter: AnyProviderAdapter): ResolvedAi {
   const resolved: ResolvedAi = {
@@ -206,9 +166,6 @@ export function resolvedAiFromAdapter(adapter: AnyProviderAdapter): ResolvedAi {
   };
   setResolvedAiInternals(resolved, {
     model: "mastraModel" in adapter ? adapter.mastraModel : undefined,
-    createChatResponse: adapter instanceof CodexProviderAdapter
-      ? adapter.createChatResponse.bind(adapter)
-      : undefined,
   });
   return resolved;
 }

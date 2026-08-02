@@ -19,10 +19,6 @@ describe("isAiConfigured", () => {
     expect(isAiConfigured({})).toBe(false);
   });
 
-  test("requires Codex readiness when provider is codex", () => {
-    expect(isAiConfigured({ aiProvider: "codex", codexReady: false })).toBe(false);
-    expect(isAiConfigured({ aiProvider: "codex", codexReady: true })).toBe(true);
-  });
 });
 
 describe("isAiAnalysisConfigured", () => {

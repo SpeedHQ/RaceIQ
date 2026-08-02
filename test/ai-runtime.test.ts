@@ -66,15 +66,11 @@ describe("resolveAi", () => {
     expect(JSON.stringify(openai)).not.toContain("openai-secret");
   });
 
-  test("resolves Local and Codex with explicitly configured models", async () => {
+  test("resolves Local with an explicitly configured model", async () => {
     const local = await resolveAi("chat", settings({ chatProvider: "local", chatModel: "local-model", localEndpoint: "http://local.test/v1" }));
-    const codex = await resolveAi("chat", settings({ chatProvider: "codex", chatModel: "codex" }));
 
     expect(local.provider).toBe("local");
     expect(local.model).toBe("local-model");
-    expect(codex.provider).toBe("codex");
-    expect("createChatResponse" in codex).toBe(false);
-    expect("mastraModel" in codex).toBe(false);
   });
 
   test("throws typed errors for missing provider and API key", async () => {

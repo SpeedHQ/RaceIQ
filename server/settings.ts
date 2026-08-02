@@ -11,8 +11,8 @@ const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
 // stored settings files where the user hadn't picked a provider yet. Fresh
 // installs and defaults resolve to "" (no provider selected) — the user must
 // explicitly pick a provider in Settings before any AI feature runs.
-const AiProviderSchema = z.enum(["", "gemini", "openai", "codex", "local"]).default("");
-const ChatProviderSchema = z.enum(["", "gemini", "openai", "codex", "local"]).default("");
+const AiProviderSchema = z.enum(["", "gemini", "openai", "local"]).default("");
+const ChatProviderSchema = z.enum(["", "gemini", "openai", "local"]).default("");
 
 const AppSettingsSchema = z.object({
   onboardingComplete: z.boolean().default(false),
@@ -107,6 +107,18 @@ export function loadSettings(): AppSettings {
     delete parsed.tireTemperatureThresholds;
     delete parsed.tireHealthThresholds;
     delete parsed.suspensionThresholds;
+    // Migrate removed Codex provider selections to an unconfigured state.
+    for (const [providerKey, modelKey] of [
+      ["aiProvider", "aiModel"],
+      ["chatProvider", "chatModel"],
+      ["autoTuneProvider", "autoTuneModel"],
+      ["driverProfileProvider", "driverProfileModel"],
+    ] as const) {
+      if (parsed[providerKey] === "codex") {
+        parsed[providerKey] = "";
+        parsed[modelKey] = "";
+      }
+    }
 
     const result = AppSettingsSchema.parse(parsed);
     // Always sync launchOnLogin from the actual registry state

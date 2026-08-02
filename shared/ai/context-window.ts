@@ -24,10 +24,6 @@ export function contextWindowFor(provider: string, model: string, localContext?:
     case "claude-cli":
     case "anthropic":
       return 200_000;
-    case "codex":
-      // Codex models expose a known 400k context family; custom/blank model
-      // names remain unknown so the meter does not invent a limit.
-      return m.includes("codex") ? 400_000 : undefined;
     case "local":
       return localContext && localContext > 0 ? localContext : undefined;
     default:
