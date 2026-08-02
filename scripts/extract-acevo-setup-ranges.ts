@@ -21,7 +21,7 @@
  *     #7 fuel: #1 fuel load
  *
  * Only components with verified anchors are emitted; keys match the AC Evo
- * snapshot field names used by RULES["ac-evo"] in server/ai/tune-rules.ts.
+ * snapshot field names used by AC Evo catalog in server/setups/rules/catalog.ts.
  * ARB #1.#1 blocks are click-based: {#1 step, #2 min, #3 max} are UI clicks
  * with a #9 click→N/m LUT (verified against the known Audi GT3 ARB table:
  * front 1–3 → 16000/28000/40000 N/m, rear 1–3 → 49000/60000/69000 N/m).

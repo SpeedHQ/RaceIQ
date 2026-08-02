@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, test } from "bun:test";
 import { createExperiment, getExperiment, setSessionHead } from "../server/db/experiment-queries";
 import { createExperimentVersion, resolveActiveTestId } from "../server/db/experiment-version-queries";
 import { setSessionHead as _setHead } from "../server/db/experiment-queries";
-import { loadActiveExperimentContext } from "../server/ai/setup-engineer-context";
+import { loadActiveExperimentContext } from "../server/experiments/setup-lineage";
 import { computeChildLabel, nextFreeLabel } from "../server/ai/version-label";
 import { getActiveExperiment, setActiveExperiment } from "../server/experiment-active";
 

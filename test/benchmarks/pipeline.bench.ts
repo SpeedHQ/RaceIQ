@@ -39,7 +39,7 @@ import { readUdpDump } from "../helpers/recording";
 import { parseAccBuffers } from "../../server/games/acc/parser";
 import { readWString } from "../../server/games/acc/utils";
 import { STATIC } from "../../server/games/acc/structs";
-import { readAccFrames } from "../../server/games/acc/frame-reader";
+import { readKunosFrames } from "../../server/games/kunos/frame-reader";
 import { getAccCarByModel } from "../../shared/acc-car-data";
 import { getAccTrackByName } from "../../shared/acc-track-data";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../../server/games/ac-evo/parser";
@@ -85,7 +85,7 @@ console.log(`[bench] f1 loaded  — ${f1Packets.length} packets (${f1Buffers.len
 
 // --- Load and extract ACC data ---
 const ACC_DUMP = "test/artifacts/sessions/acc-2026-04-10T02-55-22-777Z.bin.gz";
-const accFrames = readAccFrames(ACC_DUMP, N_FRAMES);
+const accFrames = readKunosFrames(ACC_DUMP, N_FRAMES);
 if (accFrames.length === 0) throw new Error("No ACC frames found in dump");
 const accCm = readWString(accFrames[0].staticData, STATIC.carModel.offset, STATIC.carModel.size);
 const accTn = readWString(accFrames[0].staticData, STATIC.track.offset, STATIC.track.size);
@@ -100,7 +100,7 @@ console.log(`[bench] acc loaded — ${accPackets.length} packets, car: ${accCm ?
 
 // --- Load and extract AC Evo data (same recorder format as ACC) ---
 const ACEVO_DUMP = "test/artifacts/sessions/ac-evo-2026-04-15T17-12-25-825Z.bin.gz";
-const acEvoFrames = readAccFrames(ACEVO_DUMP, N_FRAMES);
+const acEvoFrames = readKunosFrames(ACEVO_DUMP, N_FRAMES);
 if (acEvoFrames.length === 0) throw new Error("No AC Evo frames found in dump");
 const acEvoCache = createAcEvoParserCache();
 const acEvoPackets = acEvoFrames

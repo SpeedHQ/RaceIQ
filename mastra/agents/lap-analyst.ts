@@ -32,6 +32,11 @@ export const lapAnalystAgent = new Agent({
     getTrackGuideTool,
     listTrackGuidesTool,
   },
+  // Tool stays registered for models that can tool-call reliably. On local
+  // models (Gemma 4) that loop the tool, the analyse route inlines the
+  // same data into the prompt — model can ignore the tool and still get
+  // the context. See server/routes/laps/chat-routes.ts.
+  tools: { compareF1SetupToCatalogTool, getCornerMetricsTool, getTrackGuideTool, listTrackGuidesTool },
   // Live scoring in Studio: deterministic suite always, LLM-judge when
   // EVAL_LOCAL_JUDGE=1 (LM Studio running). See mastra/evals/index.ts.
   scorers: liveAnalystScorers,

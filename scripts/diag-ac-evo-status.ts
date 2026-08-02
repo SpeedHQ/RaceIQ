@@ -15,7 +15,7 @@ import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { developmentReleaseFeatures } from "./development-release-features";
 import { getServerGame } from "../server/games/registry";
-import { META_FRAME_MAGIC } from "../server/session-recorder";
+import { META_FRAME_MAGIC } from "../server/session-capture/framing";
 import { ACEVO_STATUS, GRAPHICS_EVO } from "../server/games/ac-evo/structs";
 import { unpackTriplet } from "../server/games/shared/pack-triplet";
 import { LapDetectorAcEvo } from "../server/lap-detector-ac-evo";

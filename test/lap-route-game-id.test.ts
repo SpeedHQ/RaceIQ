@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { db } from "../server/db/index";
 import { laps, sessions } from "../server/db/schema";
-import { lapRoutes } from "../server/routes/lap-routes";
+import { lapRoutes } from "../server/routes/laps";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 

@@ -23,7 +23,7 @@ UDP adapters preserve the original source datagram. ACC and AC Evo pack their th
 
 ## Canonical session file
 
-`server/session-recorder.ts` writes one append-only file per session:
+`server/session-capture/recorder.ts` writes one append-only file per session:
 
 ```text
 [0xFFFFFFFF u32][payload length = 4 u32][total frames u32]
@@ -61,15 +61,15 @@ The framing keeps `SessionRecorder` game-agnostic. Each server adapter's `tryPar
 
 ## Replay, import, and reprocessing
 
-`server/reprocess.ts` opens the stored capture, gunzips it when needed, walks length-prefixed records, calls the registered game parser, and feeds a fresh lap detector backed by a capturing database adapter. Matching lap counts update raw indexes and metadata in place; changed counts rebuild detected lap rows while preserving eligible user data and legacy archive rows.
+`server/session-capture/reprocess.ts` opens the stored capture, gunzips it when needed, walks length-prefixed records, calls the registered game parser, and feeds a fresh lap detector backed by a capturing database adapter. Matching lap counts update raw indexes and metadata in place; changed counts rebuild detected lap rows while preserving eligible user data and legacy archive rows.
 
-`server/import-session-bin.ts` uses the same parser and pipeline path for uploaded `.bin` or `.bin.gz` data. It rewrites accepted input as a canonical RaceIQ session capture, so later replay and reprocessing do not depend on the upload format.
+`server/session-capture/import-capture.ts` uses the same parser and pipeline path for uploaded `.bin` or `.bin.gz` data. It rewrites accepted input as a canonical RaceIQ session capture, so later replay and reprocessing do not depend on the upload format.
 
 Development dump files are different, adapter-specific capture formats. Use [Telemetry recordings](../contributing/telemetry-recordings.md) for fixture capture and import commands; do not treat those dump containers as production session framing.
 
 ## Compression and cleanup
 
-`server/session-compressor.ts` gzips inactive `.bin` files older than 24 hours and updates `sessions.rawFile` to the `.bin.gz` path. Reprocess and import readers restore the same byte stream transparently. User-triggered compression may also sweep unreferenced `.bin` files.
+`server/session-capture/compressor.ts` gzips inactive `.bin` files older than 24 hours and updates `sessions.rawFile` to the `.bin.gz` path. Reprocess and import readers restore the same byte stream transparently. User-triggered compression may also sweep unreferenced `.bin` files.
 
 See [Session storage](../operations/session-storage.md) for lifecycle, orphan handling, and operational constraints.
 
@@ -93,10 +93,11 @@ That trade-off does not imply higher measurement fidelity. Sample cadence, dupli
 
 ## Implementation map
 
-- `server/session-recorder.ts` — canonical append-only writer
+- `server/session-capture/recorder.ts` — canonical append-only writer
 - `server/pipeline.ts` — raw write ordering and lap offsets
 - `server/games/shared/pack-triplet.ts` — ACC and AC Evo records
 - `server/games/iracing/source-frame.ts` — iRacing records
-- `server/import-session-bin.ts` — canonical import pipeline
-- `server/reprocess.ts` — detector replay and index refresh
-- `server/session-compressor.ts` — background gzip
+- `server/session-capture/import-capture.ts` — capture detection and canonical import entry
+- `server/session-capture/import-pipeline.ts` — parser, detector, and persistence pipeline
+- `server/session-capture/reprocess.ts` — detector replay and index refresh
+- `server/session-capture/compressor.ts` — background gzip

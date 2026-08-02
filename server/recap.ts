@@ -1,5 +1,5 @@
 import type { GameId, SessionRecap } from "../shared/types";
-import { stddevPopulation, consistencyRating } from "./lap-stats";
+import { stddevPopulation, consistencyRating } from "./lap-analysis/stats"
 
 /** Plain lap data needed to compute a recap. Null sectors are legacy laps. */
 export interface RecapLapInput {

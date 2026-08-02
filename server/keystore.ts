@@ -112,9 +112,3 @@ export async function setSecret(key: string, value: string): Promise<void> {
     ps(["write", `${SERVICE}:${key}`, value]);
   }
 }
-
-export async function deleteSecret(key: string): Promise<void> {
-  if (IS_MAC) { macDelete(key); return; }
-  if (!WIN_STORE_AVAILABLE) { warnUnavailableOnce(); return; }
-  ps(["delete", `${SERVICE}:${key}`]);
-}

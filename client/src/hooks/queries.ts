@@ -5,8 +5,8 @@ import type { GameId, LapMeta, SessionMeta, SessionRecap, TelemetryPacket, TuneI
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo } from "react";
-import type { DriverFingerprint } from "../../../server/ai/driver-profile-aggregate";
 import type { DriverProfileSummary } from "../../../server/ai/schemas";
+import type { DriverFingerprint } from "../../../server/driver-profile/fingerprint";
 import type { CatalogTune } from "../data/tune-catalog";
 import type { SectorTimeline } from "../lib/lap-sectors";
 import { client } from "../lib/rpc";

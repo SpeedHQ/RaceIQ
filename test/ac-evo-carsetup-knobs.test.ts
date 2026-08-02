@@ -20,7 +20,7 @@ const FIXTURE = join(import.meta.dir, "artifacts", "carsetup", "Default-12312.ca
 const AUDI_D3 = join(import.meta.dir, "artifacts", "carsetup", "audi-default-3.carsetup");
 
 describe("carSetupToKnobValues", () => {
-  it("maps decoded Audi fixture to tune-rules knob paths (grounded in-game values)", async () => {
+  it("maps decoded Audi fixture to rule-catalog knob paths (grounded in-game values)", async () => {
     const setup = await readCarSetupFile(FIXTURE);
     expect(setup).not.toBeNull();
     const knobs = carSetupToKnobValues(setup!);
@@ -61,7 +61,7 @@ describe("carSetupToKnobValues", () => {
   });
 
   it("feeds getKnobState real current values for the ac-evo knob table", async () => {
-    const { getAllKnobStates } = await import("../server/ai/tune-rules");
+    const { getAllKnobStates } = await import("../server/setups/rules/engine");
     const setup = await readCarSetupFile(FIXTURE);
     const knobs = carSetupToKnobValues(setup!);
     const states = getAllKnobStates("ac-evo", knobs);
@@ -90,7 +90,7 @@ describe("resolveGuardedSetupFile with .carsetup", () => {
   });
 
   it("decodes .carsetup into knob values and flags read-only", async () => {
-    const { resolveGuardedSetupFile } = await import("../server/ai/setup-engineer-context");
+    const { resolveGuardedSetupFile } = await import("../server/setups/file-guard");
     const guarded = await resolveGuardedSetupFile("ac-evo", join(setupsDir, "Default-12312.carsetup"));
     expect(guarded.ok).toBe(true);
     if (!guarded.ok) return;
@@ -101,7 +101,7 @@ describe("resolveGuardedSetupFile with .carsetup", () => {
   });
 
   it("keeps setup null (not a crash) when the .carsetup doesn't decode", async () => {
-    const { resolveGuardedSetupFile } = await import("../server/ai/setup-engineer-context");
+    const { resolveGuardedSetupFile } = await import("../server/setups/file-guard");
     const guarded = await resolveGuardedSetupFile("ac-evo", join(setupsDir, "corrupt.carsetup"));
     expect(guarded.ok).toBe(true);
     if (!guarded.ok) return;
@@ -127,7 +127,7 @@ describe("writeAppliedSetup .carsetup", () => {
   });
 
   it("byte-patches a real .carsetup base and writes a NEW sibling file, never overwriting the original", async () => {
-    const { writeAppliedSetup } = await import("../server/ai/setup-io");
+    const { writeAppliedSetup } = await import("../server/setups/io");
     const original = await readCarSetupFile(join(setupsDir, "Default-12312.carsetup"));
     const knobs = carSetupToKnobValues(original!);
 
@@ -152,7 +152,7 @@ describe("writeAppliedSetup .carsetup", () => {
   });
 
   it("falls back to an advisory snapshot branch when the base has no realPath", async () => {
-    const { writeAppliedSetup } = await import("../server/ai/setup-io");
+    const { writeAppliedSetup } = await import("../server/setups/io");
     const written = writeAppliedSetup("ac-evo", {
       baseDir: null,
       realPath: null,
@@ -165,9 +165,9 @@ describe("writeAppliedSetup .carsetup", () => {
   });
 
   it("integration: decode -> applyIntents -> write reproduces the same apply_changes pipeline the Setup Engineer tool uses on a .carsetup session", async () => {
-    const { resolveGuardedSetupFile } = await import("../server/ai/setup-engineer-context");
-    const { writeAppliedSetup, readActiveSetup } = await import("../server/ai/setup-io");
-    const { applyIntents } = await import("../server/ai/tune-rules");
+    const { resolveGuardedSetupFile } = await import("../server/setups/file-guard");
+    const { writeAppliedSetup, readActiveSetup } = await import("../server/setups/io");
+    const { applyIntents } = await import("../server/setups/rules/engine");
 
     // Same read path loadActiveExperimentContext uses for an ac-evo session whose
     // base is a .carsetup file.

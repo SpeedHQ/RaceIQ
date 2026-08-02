@@ -49,7 +49,7 @@ export interface CatalogEntry {
   provider?: string;
 }
 
-export interface CatalogReference extends CatalogEntry {
+interface CatalogReference extends CatalogEntry {
   rank: number;
   /** Only fields that differ from `currentSetup`, in `reference - current` form. */
   delta?: Partial<F1Setup>;
@@ -152,7 +152,7 @@ export function topCatalogReferences(
   }));
 }
 
-export function diffSetups(reference: F1Setup, current: F1Setup): Partial<F1Setup> {
+function diffSetups(reference: F1Setup, current: F1Setup): Partial<F1Setup> {
   const out: Partial<F1Setup> = {};
   for (const key of Object.keys(reference)) {
     const r = reference[key];

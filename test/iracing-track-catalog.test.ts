@@ -16,7 +16,7 @@ import { getTrackOutlineByOrdinal } from "../shared/track-data";
 import { registerDiscoveredTrack } from "../server/db/discovered-tracks";
 import { db } from "../server/db/index";
 import { discoveredTracks } from "../server/db/schema";
-import { trackRoutes } from "../server/routes/track-routes";
+import { trackRoutes } from "../server/routes/tracks";
 
 const FUTURE_TRACK_ID = 987_654_322;
 

@@ -1,18 +1,14 @@
 import { expect, test } from "bun:test";
 import { unlinkSync } from "fs";
 import { gzipSync } from "zlib";
-import {
-  deleteSession,
-  getSessionResult,
-  insertSession,
-  updateSessionRawFile,
-} from "../server/db/queries";
+import { deleteSession, insertSession, updateSessionRawFile } from "../server/db/session-queries";
+import { getSessionResult } from "../server/db/session-result-queries";
 import { initServerGameAdapters } from "../server/games/init";
 import { reconcileSessionResult } from "../server/race-results/reconcile";
 import {
   loadRawCaptureIdentity,
   rawCaptureObjectId,
-} from "../server/raw-capture-identity";
+} from "../server/session-capture/identity";
 
 initServerGameAdapters();
 

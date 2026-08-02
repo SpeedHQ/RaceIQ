@@ -7,14 +7,10 @@ import {
   IRacingSourceFrameEncoder,
   type IRacingSourceFrameV2,
 } from "../server/games/iracing/source-frame";
-import {
-  deleteSession,
-  insertLap,
-  insertSession,
-  updateSessionRawFile,
-} from "../server/db/queries";
+import { deleteSession, insertSession, updateSessionRawFile } from "../server/db/session-queries";
+import { insertLap } from "../server/db/lap-mutation-queries";
 import { queryLapTelemetryBySemanticId } from "../server/telemetry-replay";
-import { META_FRAME_MAGIC } from "../server/udp-recorder";
+import { META_FRAME_MAGIC } from "../server/session-capture/framing"
 import { canonicalizeTelemetryScalar } from "../shared/telemetry-replay";
 import { initGameAdapters } from "../shared/games/init";
 

@@ -1,7 +1,7 @@
 /**
  * iRacing dump-mode recorder.
  *
- * This is intentionally separate from AcRecorder: iRacing emits one
+ * This is intentionally separate from KunosRecorder: iRacing emits one
  * packed source frame per SDK tick, not an ACC-style shared-memory triplet,
  * and its files must be identifiable without relying on filenames.
  *

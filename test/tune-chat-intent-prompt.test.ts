@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { buildTuneChatIntentPrompt } from "../server/ai/tune-intent";
-import { applyIntents, knownComponents } from "../server/ai/tune-rules";
+import { applyIntents } from "../server/setups/rules/engine";
+import { knownComponents } from "../server/setups/rules/catalog";
 import type { TuneIntent } from "../server/ai/schemas";
 import type { TuneSymptoms } from "../server/ai/tune-symptoms";
 
@@ -27,7 +28,7 @@ describe("buildTuneChatIntentPrompt", () => {
     expect(prompt).toContain("loose on entry into the slow hairpin");
     expect(prompt).toContain("soften the rear ARB");
     expect(prompt).toContain("Spa");
-    // Allowed components are enumerated verbatim from tune-rules
+    // Allowed components are enumerated verbatim from setup rule catalog.
     for (const comp of knownComponents("acc")) {
       expect(prompt).toContain(comp);
     }

@@ -15,17 +15,23 @@
  *   manifest.json                              — describes every entry
  *   <gameId>-<track>-session<id>.bin.gz        — one gzip'd frame slice per session
  */
-import { gzipSync, gunzipSync } from "zlib";
 import { zipSync, unzipSync } from "fflate";
-import { getLapsRaw } from "./db/queries";
+import { getLapsRaw } from "./db/lap-read-queries";
 import { getCarName, getTrackName } from "../shared/car-data";
 import {
   detectGameIdFromBuffer,
   detectGameIdFromFilename,
   importSessionBin,
-  type ImportedLap,
-} from "./import-session-bin";
-import { META_FRAME_MAGIC } from "./session-recorder";
+} from "./session-capture/import-capture";
+import type { ImportedLap } from "./session-capture/import-pipeline";
+import {
+  advanceSessionFrames,
+  encodeMetaFrame,
+  gzipBufferSync,
+  gunzipBufferSync,
+  readFrameStreamStart,
+  sessionFrameAt,
+} from "./session-capture/framing";
 import { isIRacingSessionFrame } from "./games/iracing/source-frame";
 import type { GameId } from "../shared/types";
 
@@ -62,41 +68,16 @@ type RawLapRow = Awaited<ReturnType<typeof getLapsRaw>>[number];
 
 /** 12-byte meta frame the recorder writes at offset 0 of every capture. */
 function metaFrame(): Buffer {
-  const header = Buffer.allocUnsafe(12);
-  header.writeUInt32LE(META_FRAME_MAGIC, 0);
-  header.writeUInt32LE(4, 4);
-  header.writeUInt32LE(0, 8);
-  return header;
+  return encodeMetaFrame();
 }
 
 async function readCapture(rawFile: string): Promise<Buffer> {
   const file = Bun.file(rawFile);
   if (!(await file.exists())) throw new Error(`Raw capture file is missing: ${rawFile}`);
   const buf = Buffer.from(await file.arrayBuffer());
-  return rawFile.endsWith(".gz") ? Buffer.from(gunzipSync(buf)) : buf;
+  return rawFile.endsWith(".gz") ? gunzipBufferSync(buf) : buf;
 }
 
-/**
- * Walk `count` length-prefixed frames forward from `offset`, returning the byte
- * offset just past the last one (clamped to EOF).
- */
-function advanceFrames(buf: Buffer, offset: number, count: number): number {
-  let at = offset;
-  for (let i = 0; i < count; i++) {
-    if (at + 4 > buf.length) break;
-    const len = buf.readUInt32LE(at);
-    if (len <= 0 || at + 4 + len > buf.length) break;
-    at += 4 + len;
-  }
-  return at;
-}
-
-function frameAt(buf: Buffer, offset: number): Buffer | null {
-  if (offset < 0 || offset + 4 > buf.length) return null;
-  const length = buf.readUInt32LE(offset);
-  if (length <= 0 || offset + 4 + length > buf.length) return null;
-  return buf.subarray(offset + 4, offset + 4 + length);
-}
 
 /**
  * iRacing value frames depend on the latest packed session frame. Exports can
@@ -107,13 +88,10 @@ function latestIRacingSessionRecord(
   buf: Buffer,
   beforeOffset: number,
 ): Buffer | null {
-  let offset =
-    buf.length >= 8 && buf.readUInt32LE(0) === META_FRAME_MAGIC
-      ? 8 + buf.readUInt32LE(4)
-      : 0;
+  let offset = readFrameStreamStart(buf);
   let latest: Buffer | null = null;
   while (offset < beforeOffset) {
-    const frame = frameAt(buf, offset);
+    const frame = sessionFrameAt(buf, offset);
     if (!frame) break;
     const recordEnd = offset + 4 + frame.length;
     if (recordEnd > beforeOffset) break;
@@ -180,7 +158,7 @@ export async function buildLapsZip(
     );
     if (startByte >= buf.length) continue;
     // +1 frame: the next-lap trigger that completes the final lap on replay.
-    const endByte = advanceFrames(
+    const endByte = advanceSessionFrames(
       buf,
       last.rawByteOffset as number,
       (last.rawFrameCount as number) + 1
@@ -188,7 +166,7 @@ export async function buildLapsZip(
 
     const first = usable[0];
     const gameId = first.gameId as GameId;
-    const firstFrame = frameAt(buf, startByte);
+    const firstFrame = sessionFrameAt(buf, startByte);
     const sessionPrefix =
       gameId === "iracing" &&
       firstFrame &&
@@ -207,7 +185,7 @@ export async function buildLapsZip(
     // filename-based game detection.
     const fileName = `${gameId}-${slugify(trackName) || `track${first.trackOrdinal ?? 0}`}-session${sessionId}.bin.gz`;
 
-    files[fileName] = new Uint8Array(gzipSync(slice));
+    files[fileName] = new Uint8Array(gzipBufferSync(slice));
 
     // Everything inside the exported span comes back on import — list it all.
     const covered = allRows

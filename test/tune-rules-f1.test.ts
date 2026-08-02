@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { applyIntents, knownComponents } from "../server/ai/tune-rules";
+import { applyIntents } from "../server/setups/rules/engine";
+import { knownComponents } from "../server/setups/rules/catalog";
 import type { TuneIntent } from "../server/ai/schemas";
 
 function intent(component: string, direction: TuneIntent["direction"], magnitude: TuneIntent["magnitude"] = "medium"): TuneIntent {

@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import type { TelemetryPacket } from "../shared/types";
-import { PitTracker } from "../server/sector-tracker";
+import { PitTracker } from "../server/live-strategy/pit-tracker";
 
 function pkt(overrides: Partial<TelemetryPacket>): TelemetryPacket {
   return {

@@ -4,8 +4,9 @@ import { z } from "zod";
 
 import { GameIdQuerySchema, IdParamSchema } from "../../shared/schemas";
 import { GameIdSchema } from "../../shared/types";
-import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions, getSessionRecapData, getSessionResult } from "../db/queries";
-import { reprocessSession } from "../reprocess";
+import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions, getSessionRecapData } from "../db/session-queries";
+import { getSessionResult } from "../db/session-result-queries";
+import { reprocessSession } from "../session-capture/reprocess";
 import { LAP_DETECTOR_ID } from "../lap-detector";
 import { LAP_DETECTOR_V2_ID } from "../lap-detector-acc";
 import { LAP_DETECTOR_AC_EVO_ID } from "../lap-detector-ac-evo";

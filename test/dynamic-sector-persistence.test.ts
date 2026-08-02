@@ -1,11 +1,7 @@
 import { expect, test } from "bun:test";
-import {
-  deleteSession,
-  getLapById,
-  getLaps,
-  insertLap,
-  insertSession,
-} from "../server/db/queries";
+import { deleteSession, insertSession } from "../server/db/session-queries";
+import { getLapById, getLaps } from "../server/db/lap-read-queries";
+import { insertLap } from "../server/db/lap-mutation-queries";
 
 test("ordered six-sector times round-trip without a three-sector projection", async () => {
   const sessionId = await insertSession(990_134, 991_134, "iracing");

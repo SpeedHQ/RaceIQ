@@ -1,0 +1,49 @@
+/** Representative lap and derived setup-engineer context for an experiment. */
+import type { LapMeta, TelemetryPacket } from "../../shared/types";
+import { detectCorners } from "../lap-analysis/corners";
+import { getLapById } from "../db/lap-read-queries";
+import { getLapsForExperiment } from "../db/experiment-lap-queries";
+import { telemetryToSymptoms, type TuneSymptoms } from "../ai/tune-symptoms";
+import { telemetryToTrackConditions, type TrackConditions } from "../ai/track-conditions";
+
+export type RepresentativeLap = LapMeta & {
+  telemetry: TelemetryPacket[];
+  parseError?: string;
+};
+
+/**
+ * The session's representative lap — the fastest valid lap it owns, with enough
+ * telemetry to analyse (≥30 frames). Single source of truth so symptom and
+ * track-condition reads always describe the same lap. Returns null when no such
+ * lap exists yet.
+ */
+export async function loadRepresentativeLap(
+  experimentId: number,
+): Promise<RepresentativeLap | null> {
+  const sessionLaps = await getLapsForExperiment(experimentId);
+  let best: (typeof sessionLaps)[number] | null = null;
+  for (const lap of sessionLaps) {
+    if (!lap.isValid || lap.lapTime <= 0) continue;
+    if (best == null || lap.lapTime < best.lapTime) best = lap;
+  }
+  if (!best) return null;
+
+  const lap = await getLapById(best.id);
+  if (!lap || lap.telemetry.length < 30) return null;
+  return lap;
+}
+
+/** Deterministic symptom report for the experiment's representative lap. */
+export async function computeSessionSymptoms(experimentId: number): Promise<TuneSymptoms | null> {
+  const lap = await loadRepresentativeLap(experimentId);
+  if (!lap) return null;
+  const corners = detectCorners(lap.telemetry);
+  return telemetryToSymptoms(lap.telemetry, corners);
+}
+
+/** Deterministic weather/track-surface context for the representative lap. */
+export async function computeSessionTrackConditions(experimentId: number): Promise<TrackConditions | null> {
+  const lap = await loadRepresentativeLap(experimentId);
+  if (!lap) return null;
+  return telemetryToTrackConditions(lap.telemetry);
+}

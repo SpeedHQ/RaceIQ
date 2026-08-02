@@ -26,7 +26,8 @@ import {
 } from "../server/import-ibt";
 import { normalizeIRacingFrame } from "../server/games/iracing/normalizer";
 import { IRacingTelemetrySource } from "../server/games/iracing/source";
-import { deleteSession, getLapsRaw } from "../server/db/queries";
+import { deleteSession } from "../server/db/session-queries";
+import { getLapsRaw } from "../server/db/lap-read-queries";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import {

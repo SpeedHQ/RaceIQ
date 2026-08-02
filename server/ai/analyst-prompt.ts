@@ -1,7 +1,6 @@
 import type { TelemetryPacket, Tune, GameId } from "../../shared/types";
-import { carSpecsMap } from "../../shared/car-data";
-import { generateExport, type UnitSystem, type TemperatureUnit } from "../export";
-import { getPromptCarName, getPromptTrackName } from "./compare-engineer";
+import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-analysis/report"
+import { getCarName, getTrackName, carSpecsMap } from "../../shared/car-data";
 import { buildCornerData } from "./corner-data";
 import { analyzeLap } from "../../shared/lib/lap-insights";
 import { formatTuneForPrompt } from "./format-tune";

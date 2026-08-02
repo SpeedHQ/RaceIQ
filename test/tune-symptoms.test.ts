@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { Corner } from "../server/corner-detection";
+import type { Corner } from "../server/lap-analysis/corners"
 import { telemetryToSymptoms } from "../server/ai/tune-symptoms";
 import type { TelemetryPacket } from "../shared/types";
 

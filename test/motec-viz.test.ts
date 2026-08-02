@@ -25,7 +25,7 @@ import { getServerGame } from "../server/games/registry";
 import { loadCenterline } from "../shared/track-segment-generate";
 import { parseLd } from "../server/motec/ld";
 import { synthesizeAcEvoCapture, SYNTH_HZ } from "../server/motec/to-ac-evo";
-import { META_FRAME_MAGIC } from "../server/session-recorder";
+import { META_FRAME_MAGIC } from "../server/session-capture/framing"
 import { buildLd } from "./helpers/motec-ld";
 import {
   alignToReference,

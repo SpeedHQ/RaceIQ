@@ -1,0 +1,175 @@
+import { MessageList } from "@mastra/core/agent";
+import { zValidator } from "@hono/zod-validator";
+import { Hono } from "hono";
+
+import { IdParamSchema } from "../../../shared/schemas";
+import type { Tune } from "../../../shared/types";
+import { getLapById } from "../../db/lap-read-queries";
+import { deleteAnalysis as deleteAnalysisQuery, getAnalysis } from "../../db/analysis-queries";
+import { getCorners } from "../../db/track-queries";
+import { getTuneById as getDbTune } from "../../db/tune-queries";
+import { detectCorners } from "../../lap-analysis/corners";
+import { loadSettings } from "../../settings";
+import { buildChatSystemPrompt } from "../../ai/chat-prompt";
+import { buildGoogleReasoningProviderOptions } from "../../ai/google-provider-options";
+import { streamAgentTurnResponse } from "../../ai/agent-stream";
+import { lapChatAgent } from "../../ai/agents";
+import {
+  CHAT_RESOURCE_ID,
+  chatThreadId,
+  generationThreadId,
+  getChatMemory,
+  listThreadGenerations,
+  resolveActiveThread,
+} from "../../ai/chat-agent";
+import { getSecret } from "../../keystore";
+import { ChatBodySchema } from "./support";
+
+export const chatRoutes = new Hono()
+  .get("/api/laps/:id/chat", zValidator("param", IdParamSchema), async (c) => {
+    const { id } = c.req.valid("param");
+    try {
+      const memory = getChatMemory();
+      const base = chatThreadId(id);
+      const genParam = Number(c.req.query("gen"));
+      const threadId = Number.isInteger(genParam) && genParam >= 1
+        ? generationThreadId(base, genParam)
+        : await resolveActiveThread(base);
+      const thread = await memory.getThreadById({ threadId });
+      if (!thread) return c.json({ messages: [] });
+      const result = await memory.recall({ threadId });
+      const raw = result.messages ?? [];
+
+      const list = new MessageList({ threadId, resourceId: CHAT_RESOURCE_ID });
+      list.add(raw, "memory");
+      const uiMessages = list.get.all.aiV5
+        .ui()
+        .filter((m) => m.role === "user" || m.role === "assistant");
+
+      return c.json({ messages: uiMessages });
+    } catch (err: any) {
+      console.error("[Chat] Failed to load messages:", err.message);
+      return c.json({ messages: [] });
+    }
+  })
+
+  .post("/api/laps/:id/chat", zValidator("param", IdParamSchema), zValidator("json", ChatBodySchema), async (c) => {
+    const { id } = c.req.valid("param");
+    const { messages } = c.req.valid("json");
+
+    const lap = await getLapById(id);
+    if (!lap) return c.json({ error: "Lap not found" }, 404);
+    if (lap.telemetry.length === 0) return c.json({ error: "No telemetry data" }, 400);
+
+    const settings = loadSettings();
+    const trackOrdinal = lap.trackOrdinal ?? 0;
+    // Curated corners from `track_corners` first; fall back to telemetry
+    // detection (T1..Tn) when the track has no entries — lets the client
+    // resolve "T13" card clicks to the correct position instead of lap start.
+    let corners = trackOrdinal > 0 && lap.gameId ? await getCorners(trackOrdinal, lap.gameId) : [];
+    if (corners.length === 0 && lap.telemetry.length > 0) {
+      corners = detectCorners(lap.telemetry);
+    }
+
+    // Load tune if linked
+    let parsedTune: Tune | undefined;
+    if (lap.tuneId) {
+      const dbTune = await getDbTune(lap.tuneId);
+      if (dbTune) {
+        parsedTune = {
+          ...dbTune,
+          strengths: dbTune.strengths ? JSON.parse(dbTune.strengths) : [],
+          weaknesses: dbTune.weaknesses ? JSON.parse(dbTune.weaknesses) : [],
+          bestTracks: dbTune.bestTracks ? JSON.parse(dbTune.bestTracks) : [],
+          strategies: dbTune.strategies ? JSON.parse(dbTune.strategies) : [],
+          settings: JSON.parse(dbTune.settings),
+        } as Tune;
+      }
+    }
+
+    // Load cached analysis for context
+    const cached = await getAnalysis(id);
+    const analysisJson = cached?.analysis;
+
+    // Build chat prompt
+    const systemPrompt = buildChatSystemPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, analysisJson, settings.language);
+
+    // Provider/key/model plumbing — inlined from the old startChatStream
+    // helper (removed, was the NDJSON transport's shared provider setup)
+    // since this route now speaks the AI SDK v5 UI-message-stream
+    // protocol instead).
+    const chatProvider = settings.chatProvider;
+    if (!chatProvider) {
+      return c.json({ error: "No AI provider selected. Choose one in Settings → AI Chat." }, 400);
+    }
+    if (chatProvider === "gemini") {
+      const key = await getSecret("gemini-api-key");
+      if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
+      process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
+      delete process.env.OPENAI_BASE_URL;
+    } else if (chatProvider === "openai") {
+      const key = await getSecret("openai-api-key");
+      if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Chat." }, 400);
+      process.env.OPENAI_API_KEY = key;
+      delete process.env.OPENAI_BASE_URL;
+    } else if (chatProvider === "local") {
+      process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
+      process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
+    }
+
+    const chatModelLabel = settings.chatModel
+      || (chatProvider === "openai"
+        ? "gpt-4o-mini"
+        : chatProvider === "local"
+          ? "local-model"
+          : "gemini-flash-latest");
+
+    const threadId = await resolveActiveThread(chatThreadId(id));
+    const turnStartedAt = Date.now();
+    try {
+      const stream = await lapChatAgent.stream(
+        [{ role: "system", content: systemPrompt }, ...messages],
+        {
+          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+          providerOptions: {
+            openai: { reasoningEffort: "medium" },
+            google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
+          },
+        },
+      );
+
+      return streamAgentTurnResponse({
+        agentStream: stream,
+        originalMessages: messages,
+        memory: getChatMemory(),
+        threadId,
+        turnStartedAt,
+      });
+    } catch (err: any) {
+      console.error("[Chat] Stream failed:", err.message);
+      return c.json({ error: err.message }, 500);
+    }
+  })
+
+  .delete("/api/laps/:id/chat", zValidator("param", IdParamSchema), async (c) => {
+    const { id } = c.req.valid("param");
+    try {
+      const memory = getChatMemory();
+      const base = chatThreadId(id);
+      const gens = await listThreadGenerations(base);
+      const ids = new Set(gens.map((g) => g.threadId));
+      ids.add(base);
+      for (const threadId of ids) {
+        await memory.deleteThread(threadId);
+      }
+    } catch (err: any) {
+      console.error("[Chat] Failed to clear thread:", err.message);
+    }
+    // Also clear cached analysis
+    try {
+      await deleteAnalysisQuery(id);
+    } catch (err: any) {
+      console.error("[Chat] Failed to clear analysis:", err.message);
+    }
+    return c.json({ ok: true });
+  });

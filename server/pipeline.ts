@@ -8,14 +8,15 @@ import {
   RealSessionRecorderAdapter,
 } from "./pipeline-adapters";
 import type { ILapDetector, LapDetectorCallbacks } from "./lap-detector-interface";
-import { SectorTracker, PitTracker } from "./sector-tracker";
+import { SectorTracker } from "./live-strategy/sector-tracker";
+import { PitTracker } from "./live-strategy/pit-tracker";
 import { feedPosition } from "./track-calibration";
 import { getTrackOutlineByOrdinal } from "../shared/track-data";
 import { tryGetGame } from "../shared/games/registry";
 import { getServerGame } from "./games/registry";
 import { fillNormSuspension } from "./telemetry-utils";
 import { LAP_DETECTOR_ID } from "./lap-detector";
-import { detectCorners } from "./corner-detection";
+import { detectCorners } from "./lap-analysis/corners"
 import { telemetryToSymptoms } from "./ai/tune-symptoms";
 import { symptomsToIssues, detectLiveIssues } from "./ai/tune-issues";
 
@@ -347,10 +348,6 @@ export const lapDetector = {
   async finalizeCurrentSession() { await _default.lapDetector?.finalizeCurrentSession?.(); },
 };
 
-/** In-memory session laps for the current session. */
-export function getSessionLaps(): readonly LapMeta[] {
-  return _default.sessionLaps;
-}
 
 /** Toggle the Live Tuning Dashboard's per-packet transient issue detector. */
 export function setLiveIssuesEnabled(enabled: boolean): void {

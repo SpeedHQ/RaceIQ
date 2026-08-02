@@ -37,9 +37,9 @@ Low-confidence data never blocks a recommendation. The response reports its limi
 - `mastra/workflows/setup-engineer-turn.ts`: prerequisite workflow
 - `mastra/agents/setup-engineer.ts`: agent instructions and tool registration
 - `mastra/tools/setup-engineer.ts`: experiment actions and optional analyses
-- `server/ai/clean-lap-aggregate.ts`: lap selection and aggregate context
-- `server/lap-consistency.ts`: per-corner consistency analysis
-- `server/ai/setup-io.ts`: file and snapshot setup adapters
+- `server/experiments/lap-evidence/aggregate.ts`: lap selection and aggregate context
+- `server/lap-analysis/consistency.ts`: per-corner consistency analysis
+- `server/setups/io.ts`: file and snapshot setup adapters
 - `server/experiment-undo.ts`: action reversal
 - `server/db/experiment-action-queries.ts`: action history persistence
 

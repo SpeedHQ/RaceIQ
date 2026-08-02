@@ -17,7 +17,7 @@ import { db } from "../server/db";
 import { laps as lapsTable, sessions, tunes } from "../server/db/schema";
 import { eq, isNull } from "drizzle-orm";
 import { getAcEvoTrackByName } from "../shared/ac-evo-track-data";
-import { META_FRAME_MAGIC } from "../server/session-recorder";
+import { META_FRAME_MAGIC } from "../server/session-capture/framing"
 import { buildLd, buildLdx, syntheticStint } from "./helpers/motec-ld";
 
 initGameAdapters();

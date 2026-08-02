@@ -5,7 +5,7 @@
  *            (see server/dev-studio.ts). `bun run mastra:studio` serves the
  *            Studio UI on :3000 and reads this API over HTTP — the server is the
  *            sole DuckDB writer, so there is no second-process file lock.
- *   Runtime: imported by `server/routes/lap-routes.ts` to call agents.
+ *   Runtime: imported by `server/routes/laps/chat-routes.ts` to call agents.
  *   Prod:    never imported (NODE_ENV-gated) — DuckDB stays out of raceiq.exe.
  *
  * Each agent has its own file under `mastra/agents/` for clarity. Add a new

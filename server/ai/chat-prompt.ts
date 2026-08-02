@@ -3,8 +3,9 @@
  * Includes the same telemetry context as the analysis prompt,
  * plus the original analysis as reference.
  */
-import type { TelemetryPacket, GameId } from "../../shared/types";
-import { generateExport, type UnitSystem, type TemperatureUnit } from "../export";
+import type { TelemetryPacket, Tune, GameId } from "../../shared/types";
+import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-analysis/report"
+import { getCarName, getTrackName } from "../../shared/car-data";
 import { buildCornerData } from "./corner-data";
 import { analyzeLap } from "../../shared/lib/lap-insights";
 import { tryGetServerGame } from "../games/registry";

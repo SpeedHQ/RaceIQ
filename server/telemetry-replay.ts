@@ -13,23 +13,20 @@ import {
   type TelemetryRawReference,
 } from "../shared/telemetry-replay";
 import type { TelemetryPacket } from "../shared/types";
-import {
-  getLapById,
-  getLapReplaySource,
-  type LapReplaySource,
-} from "./db/queries";
+import { getLapById } from "./db/lap-read-queries";
+import { getLapReplaySource, type LapReplaySource } from "./db/telemetry-replay-storage";
 import {
   createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,
   type IRacingValue,
 } from "./games/iracing/source-frame";
-import { META_FRAME_MAGIC } from "./udp-recorder";
+import { readFrameStreamStart } from "./session-capture/framing";
 import {
   loadRawCaptureIdentity,
   rawCaptureObjectId,
   sha256ContentHash,
   type RawCaptureIdentity,
-} from "./raw-capture-identity";
+} from "./session-capture/identity";
 
 interface ReplayNativeFrame {
   packet: TelemetryPacket;
@@ -51,10 +48,7 @@ function loadIRacingNativeFrames(
   }
   const decoderState = createIRacingSourceDecoderState();
   const nativeFrames: Readonly<Record<string, IRacingValue>>[] = [];
-  let offset = 0;
-  if (capture.length >= 8 && capture.readUInt32LE(0) === META_FRAME_MAGIC) {
-    offset = 8 + capture.readUInt32LE(4);
-  }
+  let offset = readFrameStreamStart(capture);
   let replayFrames = 0;
   while (offset + 4 <= capture.length) {
     const frameOffset = offset;

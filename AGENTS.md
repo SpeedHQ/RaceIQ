@@ -80,19 +80,19 @@ only and does not change `settings.json`; production builds ignore the flag.
 ### Three-layer monorepo: `server/`, `client/`, `shared/`
 
 **Server (Bun + Hono)**
-- `server/index.ts` — Entry point: Bun.serve with HTTP + WebSocket upgrade on port 3117
+- `server/index.ts` — Thin executable entry; `server/runtime/boot.ts` owns ordered startup
 - `server/udp.ts` — UDP socket listening for game telemetry packets
 - `server/parsers/` — Game-specific binary packet parsers (dispatched via game adapter registry)
 - `server/games/` — Server game adapters (parser binding, AI prompts) — see [Adding a New Game](#adding-a-new-game)
-- `server/routes.ts` — Hono app composition; individual route files live in `server/routes/` (laps, sessions, settings, cars, tracks, tunes, ACC, F1 2025, misc)
+- `server/routes.ts` — Hono app composition; bounded route groups live in `server/routes/`
 - `server/ws.ts` — WebSocket manager, 30Hz throttled broadcast to all connected clients
 - `server/pipeline.ts` — Telemetry processing pipeline (normalize → suspension fill → lap detect → sector track → pit track → track calibration → broadcast)
 - `server/lap-detector.ts` — Detects lap boundaries from telemetry stream (per-game factory via adapter)
-- `server/sector-tracker.ts` — Server-side sector timing (distance-fraction splits, estimated lap time vs reference)
-- `server/corner-detection.ts` — Identifies racing corners from telemetry data (game-aware steering)
+- `server/live-strategy/` — Live sector timing and pit/fuel/tire estimates
+- `server/lap-analysis/corners.ts` — Game-aware racing-corner identification
 - `server/ai/` — AI analysis system (see [AI Analysis System](#ai-analysis-system))
 - `server/db/schema.ts` — Drizzle ORM schema (profiles, sessions, laps, corners, lapAnalyses, compareAnalyses, trackOutlines)
-- `server/db/queries.ts` — Database query helpers
+- `server/db/*-queries.ts` — Responsibility-scoped database query modules
 - `server/db/migrations.ts` — Hand-rolled migration list (SQL array, version-tracked)
 - `server/db/index.ts` — Runs migrations on startup via custom runner
 - `server/tray.ts` — System tray integration (Windows)

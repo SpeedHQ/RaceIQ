@@ -66,9 +66,9 @@ The packed bytes enter the common session recorder. Replay and import call the s
 ## Implementation map
 
 - `server/games/acc/shared-memory.ts` — reader and processor wiring
-- `server/games/acc/buffered-memory-reader.ts` — Windows mappings and polling
-- `server/games/acc/triplet-assembler.ts` — latest-page assembly
-- `server/games/acc/triplet-pipeline.ts` — status, dump, parse processors
+- `server/games/kunos/buffered-memory-reader.ts` — Windows mappings and polling
+- `server/games/kunos/triplet-assembler.ts` — latest-page assembly
+- `server/games/kunos/triplet-pipeline.ts` — status, dump, parse processors
 - `server/games/acc/structs.ts` — offsets and layout sizes
 - `server/games/acc/parser.ts` — source normalization
 - `server/games/shared/pack-triplet.ts` — packed replay frame

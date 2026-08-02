@@ -2,6 +2,6 @@
  * AC Evo shared memory recorder.
  * Separate singleton from the ACC recorder so recordings don't collide.
  */
-import { AcRecorder } from "../acc/recorder";
+import { KunosRecorder } from "../kunos/recorder";
 
-export const acEvoRecorder = new AcRecorder();
+export const acEvoRecorder = new KunosRecorder();

@@ -13,17 +13,11 @@ import {
 } from "../shared/telemetry-resolver";
 import { db } from "../server/db";
 import { laps } from "../server/db/schema";
-import {
-  compressTelemetry,
-  deleteSession,
-  getLapById,
-  getLapsByIds,
-  getSessions,
-  insertLap,
-  insertSession,
-  updateLapRawIndex,
-  updateSessionRawFile,
-} from "../server/db/queries";
+import { compressTelemetry } from "../server/db/telemetry-codec";
+import { deleteSession, getSessions, insertSession, updateSessionRawFile } from "../server/db/session-queries";
+import { getLapById, getLapsByIds } from "../server/db/lap-read-queries";
+import { insertLap } from "../server/db/lap-mutation-queries";
+import { updateLapRawIndex } from "../server/db/lap-reprocessing-queries";
 import { initServerGameAdapters } from "../server/games/init";
 import { RealDbAdapter } from "../server/pipeline-adapters";
 import { queryLapTelemetryBySemanticId } from "../server/telemetry-replay";

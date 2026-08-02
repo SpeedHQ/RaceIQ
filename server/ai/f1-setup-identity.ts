@@ -19,7 +19,7 @@ function safeParseF1Setup(raw: string): F1CarSetup | null {
 }
 
 /** Scan telemetry packets for the first `f1.setup` object. */
-export function firstPacketF1Setup(packets: TelemetryPacket[]): F1CarSetup | null {
+function firstPacketF1Setup(packets: TelemetryPacket[]): F1CarSetup | null {
   for (const p of packets) {
     const s = p.f1?.setup;
     if (s && typeof s === "object") return s as unknown as F1CarSetup;

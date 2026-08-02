@@ -1,4 +1,4 @@
-import { readAccFrames } from "./frame-reader";
+import { readKunosFrames } from "../kunos/frame-reader";
 import { STATIC } from "./structs";
 import { parseAccBuffers } from "./parser";
 import { readWString } from "./utils";
@@ -24,7 +24,7 @@ export async function replayRecording(
   const speed = options.speed ?? 1.0;
   const loop = options.loop ?? false;
 
-  const frames = readAccFrames(filePath);
+  const frames = readKunosFrames(filePath);
   if (frames.length === 0) throw new Error(`Recording file has no frames: ${filePath}`);
 
   // Resolve car/track ordinals from first frame's static data

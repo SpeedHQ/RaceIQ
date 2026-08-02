@@ -1,7 +1,8 @@
 import type { ServerGameAdapter } from "../types";
 import type { TelemetryPacket } from "../../../shared/types";
 import { f1Adapter } from "../../../shared/games/f1-2025";
-import { F1StateAccumulator, parseF1Header } from "../../parsers/f1-state";
+import { F1StateAccumulator } from "../../parsers/f1-state";
+import { parseF1Header } from "../../parsers/f1-wire";
 import { getF1CarName } from "../../../shared/f1-car-data";
 import { getF1TrackName, getF1TrackInfo } from "../../../shared/f1-track-data";
 import { LapDetector } from "../../lap-detector";

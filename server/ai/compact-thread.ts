@@ -16,7 +16,7 @@ import { loadSettings } from "../settings";
 import { getSecret } from "../keystore";
 
 export const MIN_COMPACT_MESSAGES = 6;
-export const COMPACT_SUMMARY_PREFIX = "🗜️ **Conversation compacted.**\n\n";
+const COMPACT_SUMMARY_PREFIX = "🗜️ **Conversation compacted.**\n\n";
 
 const SUMMARY_SYSTEM =
   "You are compacting a race-engineering chat. Produce a concise summary that " +
@@ -34,7 +34,7 @@ export class NothingToCompactError extends Error {
 
 type Memory = ReturnType<typeof getChatMemory>;
 
-export interface CompactDeps {
+interface CompactDeps {
   memory?: Memory;
   summarize?: (transcript: string) => Promise<string>;
 }

@@ -1,15 +1,16 @@
 import { describe, test, expect } from "bun:test";
-import { AcRecorder, readAccFrames } from "../server/games/acc/recorder";
+import { KunosRecorder } from "../server/games/kunos/recorder";
+import { readKunosFrames } from "../server/games/kunos/frame-reader";
 import { PHYSICS, GRAPHICS, STATIC } from "../server/games/acc/structs";
 import { mkdtempSync, rmSync } from "fs";
 import { join } from "path";
 import os from "os";
 
-describe("readAccFrames", () => {
+describe("readKunosFrames", () => {
   test("emits one triplet per [physics, graphics, static] group", async () => {
     const dir = mkdtempSync(join(os.tmpdir(), "acc-test-"));
     try {
-      const recorder = new AcRecorder();
+      const recorder = new KunosRecorder();
       const filePath = recorder.start(dir);
 
       const physics = Buffer.alloc(PHYSICS.SIZE, 0x01);
@@ -25,7 +26,7 @@ describe("readAccFrames", () => {
       }
       await recorder.stop();
 
-      const frames = readAccFrames(filePath);
+      const frames = readKunosFrames(filePath);
       expect(frames).toHaveLength(3);
       expect(frames[0].physics).toEqual(physics);
       expect(frames[0].graphics).toEqual(graphics);
@@ -38,7 +39,7 @@ describe("readAccFrames", () => {
   test("deduplicates identical static frames but captures every change", async () => {
     const dir = mkdtempSync(join(os.tmpdir(), "acc-test-"));
     try {
-      const recorder = new AcRecorder();
+      const recorder = new KunosRecorder();
       const filePath = recorder.start(dir);
 
       const physics = Buffer.alloc(PHYSICS.SIZE, 0x01);
@@ -65,7 +66,7 @@ describe("readAccFrames", () => {
 
       // Replay still yields a full triplet per poll: the reader carries the
       // last-seen static forward across sparse static frames.
-      const frames = readAccFrames(filePath);
+      const frames = readKunosFrames(filePath);
       expect(frames).toHaveLength(3);
       expect(frames[0].staticData).toEqual(staticA);
       expect(frames[1].staticData).toEqual(staticA);
@@ -78,7 +79,7 @@ describe("readAccFrames", () => {
   test("dedup does not mirror caller-mutated buffers (defensive copy)", async () => {
     const dir = mkdtempSync(join(os.tmpdir(), "acc-test-"));
     try {
-      const recorder = new AcRecorder();
+      const recorder = new KunosRecorder();
       const filePath = recorder.start(dir);
 
       const physics = Buffer.alloc(PHYSICS.SIZE, 0x01);
@@ -97,7 +98,7 @@ describe("readAccFrames", () => {
       recorder.writeStatic(shared);
 
       await recorder.stop();
-      const frames = readAccFrames(filePath);
+      const frames = readKunosFrames(filePath);
       expect(frames).toHaveLength(2);
       expect(frames[0].staticData.toString("utf8", 0, 5)).not.toBe("monza");
       expect(frames[1].staticData.toString("utf8", 0, 5)).toBe("monza");
@@ -109,10 +110,10 @@ describe("readAccFrames", () => {
   test("returns empty array for file with no frames", async () => {
     const dir = mkdtempSync(join(os.tmpdir(), "acc-test-"));
     try {
-      const recorder = new AcRecorder();
+      const recorder = new KunosRecorder();
       const filePath = recorder.start(dir);
       await recorder.stop();
-      const frames = readAccFrames(filePath);
+      const frames = readKunosFrames(filePath);
       expect(frames).toHaveLength(0);
     } finally {
       rmSync(dir, { recursive: true });

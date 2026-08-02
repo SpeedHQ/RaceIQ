@@ -1,5 +1,4 @@
-import { getSessionResult } from "../db/queries";
-import { reconcileSessionResult } from "./reconcile";
+import { getRecentSessionResults } from "../db/session-result-queries";
 import type { RaceResult } from "../../shared/race-results";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import type { GameId } from "../../shared/types";

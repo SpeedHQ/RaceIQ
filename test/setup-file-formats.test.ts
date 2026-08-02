@@ -5,7 +5,7 @@ import {
   setupFileFormat,
   setupFileRejectReason,
 } from "../shared/setup-file-formats";
-import { tuneCrudRoutes } from "../server/routes/tune-crud-routes";
+import { tuneCrudRoutes } from "../server/routes/tunes";
 
 /**
  * Experiments accept exactly one setup format per game: ACC saves nested JSON,

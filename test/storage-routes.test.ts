@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { miscRoutes } from "../server/routes/misc-routes";
+import { miscRoutes } from "../server/routes/system";
 import { initGameAdapters } from "../shared/games/init";
 import { getAllGames } from "../shared/games/registry";
 import { existsSync } from "fs";

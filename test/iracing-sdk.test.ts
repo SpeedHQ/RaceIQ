@@ -47,7 +47,7 @@ import {
 import { LapDetectorIRacing } from "../server/lap-detector-iracing";
 import { parsePacket } from "../server/parsers";
 import { CapturingDbAdapter } from "../server/pipeline-adapters";
-import { SectorTracker } from "../server/sector-tracker";
+import { SectorTracker } from "../server/live-strategy/sector-tracker";
 import { initGameAdapters } from "../shared/games/init";
 import {
   injectDiscoveredIRacingIdentity,

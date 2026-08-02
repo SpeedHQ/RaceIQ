@@ -2,13 +2,12 @@
  * Thin barrel for the tune route modules.
  *
  * The former ~1960-line router chain now lives in four modules:
- *   - tune-crud-routes.ts      — /api/tunes CRUD, setup-files, place-setup,
- *                                import(-file), clone, duplicate, auto
+ *   - tunes/                  — /api/tunes CRUD, setup-files, place-setup,
+ *                               import(-file), clone, duplicate, auto
  *   - tune-chat-routes.ts      — /api/laps/:id/issues, /api/live-analysis,
  *                                /api/experiments/:id/chat (Setup Engineer)
- *   - experiment-routes.ts — /api/experiments lifecycle, tests, bases,
- *                                capture-setup, import-laps, head, actions,
- *                                undo, lap-metrics, trailing :id GET/PATCH
+ *   - experiments/            — /api/experiments lifecycle, versions, laps,
+ *                                history, comparison, trailing :id GET/PATCH
  *   - tune-catalog-routes.ts   — /api/catalog/tunes, community refresh,
  *                                laptimes, tune-assignments, /api/laps/:id/tune
  * Shared helpers/schemas live in tune-shared.ts.
@@ -20,9 +19,9 @@
  * type flowing for Hono RPC client inference.
  */
 import { Hono } from "hono";
-import { tuneCrudRoutes } from "./tune-crud-routes";
+import { tuneCrudRoutes } from "./tunes";
 import { tuneChatRoutes } from "./tune-chat-routes";
-import { experimentRoutes } from "./experiment-routes";
+import { experimentRoutes } from "./experiments";
 import { tuneCatalogRoutes } from "./tune-catalog-routes";
 
 export const tuneRoutes = new Hono()

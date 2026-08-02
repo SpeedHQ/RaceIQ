@@ -2,7 +2,7 @@ import { describe, test, expect, afterEach } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { SessionRecorder } from "../server/session-recorder";
+import { SessionRecorder } from "../server/session-capture/recorder"
 import { readUdpDump } from "./helpers/recording";
 
 describe("SessionRecorder + readUdpDump", () => {

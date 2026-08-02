@@ -1,8 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  compressTelemetry,
-  decompressTelemetry,
-} from "../server/db/queries";
+import { compressTelemetry, decompressTelemetry } from "../server/db/telemetry-codec";
 import type { TelemetryPacket } from "../shared/types";
 
 describe("detailed telemetry storage", () => {

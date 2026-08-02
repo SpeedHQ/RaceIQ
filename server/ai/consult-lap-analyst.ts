@@ -13,8 +13,8 @@
  * provider the engineer runs on).
  */
 import type { GameId } from "../../shared/types";
-import { getCorners } from "../db/queries";
-import { detectCorners } from "../corner-detection";
+import { getCorners } from "../db/track-queries";
+import { detectCorners } from "../lap-analysis/corners"
 import { getSecret } from "../keystore";
 import { loadSettings } from "../settings";
 import { buildAnalystPrompt } from "./analyst-prompt";
@@ -24,7 +24,7 @@ import { resolveTrack } from "../track-info";
 // has no such back-edge. We lose the dev-only observability wrapper here, which
 // the setup-engineer consult doesn't need.
 import { lapAnalystAgent } from "../../mastra/agents/lap-analyst";
-import { loadRepresentativeLap } from "./setup-engineer-context";
+import { loadRepresentativeLap } from "../experiments/representative-lap";
 
 export interface LapAnalystConsult {
   available: boolean;

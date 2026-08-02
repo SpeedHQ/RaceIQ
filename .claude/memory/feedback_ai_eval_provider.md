@@ -10,7 +10,7 @@ Use Gemini (model `gemini-flash-latest`, Mastra ID `google/gemini-flash-latest`)
 
 **How to apply:**
 - Fresh `AppSettings` defaults: `aiProvider: "gemini"`, `aiModel: "gemini-flash-latest"`, same for `chatProvider` / `chatModel` (see `server/settings.ts`).
-- Fallback strings in `mastra/model.ts`, `server/ai/chat-agent.ts`, `server/ai/providers.ts::runGemini`, `server/routes/lap-routes.ts` all use `gemini-flash-latest`.
+- Fallback strings in `mastra/model.ts`, `server/ai/chat-agent.ts`, `server/ai/providers.ts::runGemini`, and `server/routes/laps/{analysis,chat,comparison}-routes.ts` all use `gemini-flash-latest`.
 - Eval harness (`mastra/evals/eval-agents.ts`) and CI workflow env vars (`.github/workflows/build-test.yml`) use `EVALS_PROVIDER=gemini`, `EVALS_MODEL=gemini-flash-latest`.
 - API key env var: `GEMINI_API_KEY` (or `GOOGLE_GENERATIVE_AI_API_KEY`).
 - Do not insert OpenAI/Anthropic examples unless the user explicitly asks.

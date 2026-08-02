@@ -65,10 +65,6 @@ export async function getGeminiModelsDetailed(apiKey: string): Promise<ModelList
   }
 }
 
-export async function getGeminiModels(apiKey: string): Promise<{ id: string; name: string }[]> {
-  const result = await getGeminiModelsDetailed(apiKey);
-  return result.models;
-}
 
 /** Run analysis via Claude CLI (pipe mode). */
 export async function runClaudeCli(prompt: string, model?: string): Promise<AiResult> {
@@ -204,46 +200,6 @@ export const ANALYSIS_SCHEMA = {
   required: ["verdict", "pace", "handling", "corners", "braking", "throttle", "coaching"],
 };
 
-/**
- * JSON schema for the per-segment inputs-comparison analysis.
- * Matches the `InputsAnalysis` shape consumed by CompareAiPanel.
- */
-export const INPUTS_COMPARE_SCHEMA = {
-  type: "object",
-  properties: {
-    verdict: { type: "string", description: "1-2 sentence top-line summary of input differences." },
-    segments: {
-      type: "array",
-      description: "ONE entry per track segment, in the order given by the prompt. MUST NOT be empty.",
-      items: {
-        type: "object",
-        properties: {
-          name: { type: "string", description: "Segment name from the prompt's segment list." },
-          type: { type: "string", enum: ["corner", "straight"] },
-          deltaSeconds: { type: "number", description: "Lap A time minus Lap B time for this segment, in seconds. Positive = A slower." },
-          throttle: { type: "string", description: "1 sentence on throttle differences." },
-          brake: { type: "string", description: "1 sentence on brake differences." },
-          steering: { type: "string", description: "1 sentence on steering differences." },
-          severity: { type: "string", enum: ["minor", "moderate", "major"] },
-        },
-        required: ["name", "type", "deltaSeconds", "throttle", "brake", "steering", "severity"],
-      },
-    },
-    coaching: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          tip: { type: "string", description: "Actionable change in 1 sentence." },
-          detail: { type: "string", description: "Why and how, 1-2 sentences." },
-          targetLap: { type: "string", enum: ["A", "B"] },
-        },
-        required: ["tip", "detail", "targetLap"],
-      },
-    },
-  },
-  required: ["verdict", "segments", "coaching"],
-};
 
 export type GeminiRequestOptions = {
   prompt: string;
@@ -492,9 +448,4 @@ export async function getLocalModelsDetailed(endpoint: string): Promise<ModelLis
     console.error("[AI] Local models list request errored:", message);
     return { models: [], error: message };
   }
-}
-
-export async function getLocalModels(endpoint: string): Promise<{ id: string; name: string }[]> {
-  const result = await getLocalModelsDetailed(endpoint);
-  return result.models;
 }

@@ -3,7 +3,7 @@ import { parseAcEvoBuffers, createAcEvoParserCache, type AcEvoParserCache } from
 import { PHYSICS, GRAPHICS_EVO, STATIC_EVO, ACEVO_STATUS } from "../server/games/ac-evo/structs";
 
 /**
- * Physics-rate DistanceTraveled derivation (integrateDistance in parser.ts).
+ * Physics-rate DistanceTraveled derivation (`integrateDistance` in distance.ts).
  *
  * AC Evo stores telemetry at ~100Hz but `current_km` (the raw distance source)
  * updates at only 60Hz, so distance-keyed charts would stack ~40% of frames on
@@ -110,9 +110,9 @@ describe("AC Evo integrateDistance — physics-rate DistanceTraveled", () => {
   test("calibrates k into the valid clamp window", () => {
     const cache = createAcEvoParserCache();
     straight(cache, { frames: 60, speedKmh: 200, packetStep: 3, kmEvery: 5 });
-    expect(cache._distK).toBeGreaterThanOrEqual(1 / 1000);
-    expect(cache._distK).toBeLessThanOrEqual(1 / 100);
-    expect(cache._distK).toBeGreaterThan(0);
+    expect(cache.distanceState.secondsPerPhysicsStep).toBeGreaterThanOrEqual(1 / 1000);
+    expect(cache.distanceState.secondsPerPhysicsStep).toBeLessThanOrEqual(1 / 100);
+    expect(cache.distanceState.secondsPerPhysicsStep).toBeGreaterThan(0);
   });
 
   test("lap reset: current_km dropping to ~0 drops DistanceTraveled by a full lap and resumes monotonic", () => {

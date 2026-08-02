@@ -13,8 +13,6 @@ import {
 
 export const RACE_RESULT_DERIVATION_ID = "race-result-derivation";
 export const RACE_RESULT_DERIVATION_VERSION = "3";
-export const RACE_RESULT_DERIVATION_DEFINITION =
-  "race-result-derivation@3:classification-direct-or-qualifying-fallback;podium-finished-position<=3";
 export const RACE_RESULT_DERIVATION_CODE_HASH = "sha256:cffa4cebb957096212111001a2dcc14186df97a4bf74734fc853db6054c4c8e8";
 
 export function createRaceResultProvenance(

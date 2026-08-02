@@ -1,7 +1,7 @@
 /**
  * Raw driving observations for a pool of laps, rendered for a prompt.
  *
- * This is the *presentation* half of `server/lap-metrics.ts` and inherits its
+ * This is the *presentation* half of `server/lap-analysis/metrics.ts` and inherits its
  * central rule (issue #120): an observation is a concrete fact about how a lap
  * was driven, and nothing more.
  *
@@ -20,7 +20,7 @@
  * property of the lap, not of anyone's theory about it.
  */
 
-import type { LapMetrics, SegmentStat } from "../lap-metrics";
+import type { LapMetrics, SegmentStat } from "../lap-analysis/metrics"
 
 /** Default cap on printed corners, to bound the prompt. */
 const MAX_CORNERS = 12;

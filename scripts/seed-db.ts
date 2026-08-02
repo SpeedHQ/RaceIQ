@@ -1,17 +1,17 @@
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { resolve } from "node:path";
 import { db, client, initDb } from "../server/db/index";
-import { importSessionBin, NoopWsAdapter } from "../server/import-session-bin";
+import { importSessionBin } from "../server/session-capture/import-capture";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { developmentReleaseFeatures } from "./development-release-features";
 import { sessions, laps, profiles, tunes, tuneAssignments, experiments, experimentVersions, experimentFocusEvents, lapAnalyses, compareAnalyses } from "../server/db/schema";
 import { eq, inArray, like } from "drizzle-orm";
-import { deleteSession } from "../server/db/queries";
+import { deleteSession } from "../server/db/session-queries";
 import { getServerGame } from "../server/games/registry";
 import { readIRacingFrames } from "../server/games/iracing/recorder";
 import { Pipeline, stopMaintenanceTasks } from "../server/pipeline";
-import { RealDbAdapter, RealSessionRecorderAdapter } from "../server/pipeline-adapters";
+import { NullWsAdapter, RealDbAdapter, RealSessionRecorderAdapter } from "../server/pipeline-adapters";
 import { loadSettings, saveSettings } from "../server/settings";
 import type { GameId } from "../shared/types";
 
@@ -95,7 +95,7 @@ async function seedIRacingSession(fixturePath: string): Promise<void> {
   );
   const adapter = getServerGame("iracing");
   const parserState = adapter.createParserState?.() ?? null;
-  const pipeline = new Pipeline(new RealDbAdapter(), new NoopWsAdapter(), {
+  const pipeline = new Pipeline(new RealDbAdapter(), new NullWsAdapter(), {
     bypassPacketRateFilter: true,
     skipHistorySeeding: true,
     skipDevState: true,

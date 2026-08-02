@@ -18,7 +18,8 @@
  */
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import { getLapById, getCorners } from "../../server/db/queries";
+import { getLapById } from "../../server/db/lap-read-queries";
+import { getCorners } from "../../server/db/track-queries";
 import { loadSettings } from "../../server/settings";
 import { computeCornerMetrics, type CornerMetrics } from "../../server/ai/corner-data";
 

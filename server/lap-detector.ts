@@ -20,8 +20,8 @@ import {
 } from "../shared/track-data";
 import { getIRacingSharedTrackName } from "../shared/iracing-track-data";
 import { lapPath } from "../shared/lib/lap-path";
-import { assessLapRecording } from "./lap-quality";
-import { persistLapMetrics } from "./experiment-lap-metrics";
+import { assessLapRecording } from "./lap-analysis/quality";
+import { persistLapMetrics } from "./lap-analysis/metrics-store";
 import { reconcileAutoExclusionsForLap } from "./experiment-auto-exclude";
 import { computeLapSectors as computeLapSectorsHelper } from "./compute-lap-sectors";
 import { detectSessionBoundary, detectLapBoundary, detectLapReset } from "./lap-detection";
@@ -120,10 +120,6 @@ export class LapDetector implements ILapDetector {
   private _fuelHistory: LapFuelData[] = []; // rolling window (last 50 laps)
   private tireWearAtLapStart = { fl: -1, fr: -1, rl: -1, rr: -1 };
   private _tireWearHistory: LapTireWearData[] = []; // rolling window (last 50 laps)
-  // ACC: track native sector time transitions live (same pattern as F1 in-packet sector times)
-  private accS1: number = 0;
-  private accS2: number = 0;
-  private accPrevSectorIdx: number = 0;
   private _lapByteOffset: number | null = null;
   private _lapFrameCount: number = 0;
   private _currentRawByteOffset: number | null = null;
@@ -258,22 +254,6 @@ export class LapDetector implements ILapDetector {
       // previous session's stale offset).
       this._lapByteOffset = this._currentRawByteOffset;
       this._lapFrameCount = 0;
-      // Seed ACC sector index from actual position so we don't fire a false transition
-      // if the car starts mid-track (grid box, pit exit) rather than at sector 0.
-      if (packet.gameId === "acc" && packet.acc) {
-        this.accPrevSectorIdx = packet.acc.currentSectorIndex;
-      }
-    }
-
-    // ACC: track sector index transitions live to capture s1/s2 times as they happen
-    if (packet.gameId === "acc" && packet.acc) {
-      const idx = packet.acc.currentSectorIndex;
-      const t = packet.acc.lastSectorTime / 1000;
-      if (idx !== this.accPrevSectorIdx && t > 0) {
-        if (this.accPrevSectorIdx === 0) this.accS1 = t;
-        else if (this.accPrevSectorIdx === 1) this.accS2 = t;
-        this.accPrevSectorIdx = idx;
-      }
     }
 
     // Buffer the packet for the current lap
@@ -384,20 +364,6 @@ export class LapDetector implements ILapDetector {
     // Use LastLap from the first packet of the new lap as authoritative lap time
     const lapTime = newLapFirstPacket.LastLap;
 
-    // ACC: iCurrentTime can reset and start counting the new lap before completedLaps
-    // increments, so the tail of the buffer may contain packets with a reset CurrentLap.
-    // Split at the peak CurrentLap — everything after is overflow for the next lap.
-    let overflowPackets: TelemetryPacket[] = [];
-    if (newLapFirstPacket.gameId === "acc") {
-      let peakIdx = 0;
-      for (let i = 1; i < this.lapBuffer.length; i++) {
-        if (this.lapBuffer[i].CurrentLap >= this.lapBuffer[peakIdx].CurrentLap) peakIdx = i;
-      }
-      if (peakIdx < this.lapBuffer.length - 1) {
-        overflowPackets = this.lapBuffer.slice(peakIdx + 1);
-        this.lapBuffer = this.lapBuffer.slice(0, peakIdx + 1);
-      }
-    }
 
     // Running-start trim: strip pre-start-line packets
     this.trimRunningStartPackets();
@@ -513,7 +479,7 @@ export class LapDetector implements ILapDetector {
       }
     }
 
-    this.resetLapState(newLapFirstPacket, overflowPackets);
+    this.resetLapState(newLapFirstPacket);
   }
 
   /** Best-effort save of an incomplete lap when the session ends mid-lap. */
@@ -654,10 +620,7 @@ export class LapDetector implements ILapDetector {
   ): Promise<number[] | null> {
     if (!this.currentSession) return null;
     const { trackOrdinal, gameId } = this.currentSession;
-    const accLiveSectors = this.accS1 > 0 && this.accS2 > 0
-      ? { s1: this.accS1, s2: this.accS2 }
-      : undefined;
-    return computeLapSectorsHelper(trackOrdinal, gameId, packets, lapTime, accLiveSectors);
+    return computeLapSectorsHelper(trackOrdinal, gameId, packets, lapTime);
   }
 
   private resetLapState(newLapFirstPacket: TelemetryPacket, seedPackets: TelemetryPacket[] = []): void {
@@ -676,10 +639,6 @@ export class LapDetector implements ILapDetector {
       rl: newLapFirstPacket.TireWearRL,
       rr: newLapFirstPacket.TireWearRR,
     };
-    this.accS1 = 0;
-    this.accS2 = 0;
-    // Preserve sector index from new lap's first packet so we don't fire a false transition
-    this.accPrevSectorIdx = newLapFirstPacket.acc?.currentSectorIndex ?? 0;
   }
 
   getDebugState(): Record<string, unknown> {
@@ -700,9 +659,6 @@ export class LapDetector implements ILapDetector {
       fuelHistoryLength: this._fuelHistory?.length ?? 0,
       tireWearAtLapStart: this.tireWearAtLapStart,
       tireWearHistoryLength: this._tireWearHistory?.length ?? 0,
-      accS1: this.accS1,
-      accS2: this.accS2,
-      accPrevSectorIdx: this.accPrevSectorIdx,
     };
   }
 }
@@ -879,111 +835,6 @@ export function averageOutlines(
   return result;
 }
 
-/**
- * Auto-compute 3 sectors from track geometry by finding the two largest
- * braking zones (clusters of high direction change). Returns sector
- * boundaries as fractions of total outline length.
- */
-export function computeSectorsFromGeometry(
-  points: { x: number; z: number; speed?: number }[]
-): { s1End: number; s2End: number } {
-  const n = points.length;
-  if (n < 30) return { s1End: 0.333, s2End: 0.666 };
-
-  // Compute direction change (curvature) at each point
-  const curvature: number[] = [];
-  const window = Math.max(2, Math.floor(n / 80));
-
-  for (let i = 0; i < n; i++) {
-    const prev = (i - window + n) % n;
-    const next = (i + window) % n;
-    const dx1 = points[i].x - points[prev].x;
-    const dz1 = points[i].z - points[prev].z;
-    const dx2 = points[next].x - points[i].x;
-    const dz2 = points[next].z - points[i].z;
-    const angle1 = Math.atan2(dz1, dx1);
-    const angle2 = Math.atan2(dz2, dx2);
-    let diff = angle2 - angle1;
-    while (diff > Math.PI) diff -= 2 * Math.PI;
-    while (diff < -Math.PI) diff += 2 * Math.PI;
-    curvature.push(Math.abs(diff));
-  }
-
-  // Smooth curvature
-  const smoothWindow = Math.max(2, Math.floor(n / 40));
-  const smoothed: number[] = [];
-  for (let i = 0; i < n; i++) {
-    let sum = 0;
-    for (let j = -smoothWindow; j <= smoothWindow; j++) {
-      sum += curvature[(i + j + n) % n];
-    }
-    smoothed.push(sum / (smoothWindow * 2 + 1));
-  }
-
-  // Find peaks: local maxima of smoothed curvature above median
-  const sorted = [...smoothed].sort((a, b) => a - b);
-  const threshold = sorted[Math.floor(n * 0.75)]; // 75th percentile
-
-  // Collect peak clusters (high-curvature zones)
-  type Cluster = { centerFrac: number; peakValue: number };
-  const clusters: Cluster[] = [];
-  let inCluster = false;
-  let clusterStart = 0;
-  let clusterPeak = 0;
-  let clusterPeakIdx = 0;
-
-  for (let i = 0; i < n; i++) {
-    if (smoothed[i] > threshold) {
-      if (!inCluster) {
-        inCluster = true;
-        clusterStart = i;
-        clusterPeak = smoothed[i];
-        clusterPeakIdx = i;
-      } else if (smoothed[i] > clusterPeak) {
-        clusterPeak = smoothed[i];
-        clusterPeakIdx = i;
-      }
-    } else if (inCluster) {
-      inCluster = false;
-      const centerIdx = Math.floor((clusterStart + clusterPeakIdx) / 2);
-      clusters.push({
-        centerFrac: centerIdx / n,
-        peakValue: clusterPeak,
-      });
-    }
-  }
-  // Close final cluster if still open
-  if (inCluster) {
-    const centerIdx = Math.floor((clusterStart + clusterPeakIdx) / 2);
-    clusters.push({
-      centerFrac: centerIdx / n,
-      peakValue: clusterPeak,
-    });
-  }
-
-  if (clusters.length < 2) {
-    // Not enough features detected — use equal thirds
-    return { s1End: 0.333, s2End: 0.666 };
-  }
-
-  // Sort by peak curvature descending, take top 2
-  clusters.sort((a, b) => b.peakValue - a.peakValue);
-  const top2 = clusters.slice(0, 2).sort((a, b) => a.centerFrac - b.centerFrac);
-
-  let s1End = top2[0].centerFrac;
-  let s2End = top2[1].centerFrac;
-
-  // Ensure minimum sector size of 15%
-  if (s1End < 0.15) s1End = 0.15;
-  if (s2End < s1End + 0.15) s2End = s1End + 0.15;
-  if (s2End > 0.85) s2End = 0.85;
-  if (s1End > s2End - 0.15) s1End = s2End - 0.15;
-
-  return {
-    s1End: Math.round(s1End * 1000) / 1000,
-    s2End: Math.round(s2End * 1000) / 1000,
-  };
-}
 
 function formatLapTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);

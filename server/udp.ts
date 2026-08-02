@@ -11,12 +11,12 @@
  * or F1 2025 format based on packet structure and header signatures.
  */
 import { resolve } from "path";
-import { parsePacket } from "./parser";
+import { parsePacket } from "./parsers/index";
 import { wsManager } from "./ws";
 import { processPacket, flushSessionRecorderBuffer } from "./pipeline";
 import { getRunningGame } from "./games/registry";
 import { lapDetector } from "./pipeline";
-import { SessionRecorder } from "./session-recorder";
+import { SessionRecorder } from "./session-capture/recorder";
 import type { GameId } from "../shared/types";
 
 const MIN_PACKET_LENGTH = 29; // Minimum: F1 header size
@@ -38,6 +38,7 @@ class UdpListener {
   private _lastDetectedGame: ReturnType<typeof getRunningGame> = null;
   private _lastRaceOn = false;
   private _lastWsPacketCount = 0;
+  private _statusTimer: ReturnType<typeof setInterval> | null = null;
 
   get droppedPackets(): number {
     return this._droppedPackets;
@@ -108,8 +109,10 @@ class UdpListener {
 
     console.log(`[UDP] Listening on ${hostname}:${port}`);
 
-    // Update packets/sec every second
-    setInterval(() => {
+    // Update packets/sec every second. Own the handle so restart replaces,
+    // rather than stacks, status/flush loops.
+    clearInterval(this._statusTimer ?? undefined);
+    this._statusTimer = setInterval(() => {
       this._packetsPerSec = this._packetsInWindow;
       this._packetsInWindow = 0;
       this._lastWindowStart = Date.now();
@@ -201,6 +204,10 @@ class UdpListener {
   }
 
   async stop(): Promise<void> {
+    if (this._statusTimer) {
+      clearInterval(this._statusTimer);
+      this._statusTimer = null;
+    }
     if (this._socket) {
       this._socket.stop();
       this._socket = null;

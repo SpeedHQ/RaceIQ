@@ -13,7 +13,7 @@
  */
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import { getLapById } from "../../server/db/queries";
+import { getLapById } from "../../server/db/lap-read-queries";
 import {
   topCatalogReferences,
   getCatalogFolderForTrack,

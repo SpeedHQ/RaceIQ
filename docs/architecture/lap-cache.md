@@ -4,7 +4,7 @@ RaceIQ caches parsed `TelemetryPacket[]` by lap ID in memory. Analysis,
 comparison, and chat workflows can reuse decoded telemetry instead of reading
 and parsing the same raw session slice repeatedly.
 
-Implementation lives in `server/db/queries.ts`.
+Implementation lives in `server/db/lap-read-queries.ts` and `server/db/telemetry-replay-storage.ts`.
 
 ## Contract
 

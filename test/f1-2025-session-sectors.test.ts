@@ -19,7 +19,7 @@ import { getServerGame } from "../server/games/registry";
 import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../server/pipeline-adapters";
 import { Pipeline } from "../server/pipeline";
 import { computeLapSectors } from "../server/compute-lap-sectors";
-import { META_FRAME_MAGIC } from "../server/session-recorder";
+import { META_FRAME_MAGIC } from "../server/session-capture/framing"
 import { stopMaintenanceTasks } from "../server/pipeline";
 import type { TelemetryPacket } from "../shared/types";
 

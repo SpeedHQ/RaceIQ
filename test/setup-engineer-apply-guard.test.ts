@@ -21,17 +21,21 @@ import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
 // unless `stubsActive` is set, and only this file's tests set it. Real
 // namespaces are captured by static import, which evaluates before any
 // `mock.module` call below.
-import * as RealSetupIo from "../server/ai/setup-io";
+import * as RealSetupIo from "../server/setups/io";
 import * as RealTestQueries from "../server/db/experiment-version-queries";
 import * as RealSessionQueries from "../server/db/experiment-queries";
 import * as RealChatAgent from "../server/ai/chat-agent";
-import * as RealEngineerContext from "../server/ai/setup-engineer-context";
-import * as RealQueries from "../server/db/queries";
+import * as RealAppliedMarkdown from "../server/setups/applied-change-markdown";
+import * as RealRepresentativeLap from "../server/experiments/representative-lap";
+import * as RealTrackConditions from "../server/ai/track-conditions";
+import * as RealSetupLineage from "../server/experiments/setup-lineage";
+import * as RealLapReadQueries from "../server/db/lap-read-queries";
+import * as RealExperimentLapQueries from "../server/db/experiment-lap-queries";
 import * as RealActionQueries from "../server/db/experiment-action-queries";
 import * as RealUndo from "../server/experiment-undo";
 import * as RealConsult from "../server/ai/consult-lap-analyst";
-import * as RealCleanLap from "../server/ai/clean-lap-aggregate";
-import * as RealComparison from "../server/comparison";
+import * as RealCleanLap from "../server/experiments/lap-evidence/aggregate";
+import * as RealComparison from "../server/lap-analysis/comparison"
 import * as RealSettings from "../server/settings";
 import * as RealMastraModel from "../mastra/model";
 
@@ -81,7 +85,7 @@ const fakeCtx = {
   setup: baseAccSetup(),
 };
 
-mock.module("../server/ai/setup-io", () => ({
+mock.module("../server/setups/io", () => ({
   ...RealSetupIo,
   readActiveSetup: gate(RealSetupIo.readActiveSetup, readActiveSetup),
   writeAppliedSetup: gate(RealSetupIo.writeAppliedSetup, writeAppliedSetup),
@@ -105,19 +109,31 @@ mock.module("../server/ai/chat-agent", () => ({
   saveAssistantChatMessage: gate(RealChatAgent.saveAssistantChatMessage, mock(async () => {})),
   getChatMemory: gate(RealChatAgent.getChatMemory, mock(() => null)),
 }));
-mock.module("../server/ai/setup-engineer-context", () => ({
-  ...RealEngineerContext,
-  buildAppliedChangesMarkdown: gate(RealEngineerContext.buildAppliedChangesMarkdown, mock(() => "")),
-  computeSessionSymptoms: gate(RealEngineerContext.computeSessionSymptoms, mock(async () => [])),
-  computeSessionTrackConditions: gate(RealEngineerContext.computeSessionTrackConditions, mock(async () => null)),
-  formatTrackConditions: gate(RealEngineerContext.formatTrackConditions, mock(() => "")),
-  loadActiveExperimentContext: gate(RealEngineerContext.loadActiveExperimentContext, mock(async () => fakeCtx)),
+mock.module("../server/setups/applied-change-markdown", () => ({
+  ...RealAppliedMarkdown,
+  buildAppliedChangesMarkdown: gate(RealAppliedMarkdown.buildAppliedChangesMarkdown, mock(() => "")),
 }));
-mock.module("../server/db/queries", () => ({
-  ...RealQueries,
-  setLapExperimentExcluded: gate(RealQueries.setLapExperimentExcluded, mock(async () => {})),
-  getLapById: gate(RealQueries.getLapById, mock(async () => null)),
-  getLapsForExperiment: gate(RealQueries.getLapsForExperiment, mock(async () => [])),
+mock.module("../server/experiments/representative-lap", () => ({
+  ...RealRepresentativeLap,
+  computeSessionSymptoms: gate(RealRepresentativeLap.computeSessionSymptoms, mock(async () => [])),
+  computeSessionTrackConditions: gate(RealRepresentativeLap.computeSessionTrackConditions, mock(async () => null)),
+}));
+mock.module("../server/ai/track-conditions", () => ({
+  ...RealTrackConditions,
+  formatTrackConditions: gate(RealTrackConditions.formatTrackConditions, mock(() => "")),
+}));
+mock.module("../server/experiments/setup-lineage", () => ({
+  ...RealSetupLineage,
+  loadActiveExperimentContext: gate(RealSetupLineage.loadActiveExperimentContext, mock(async () => fakeCtx)),
+}));
+mock.module("../server/db/lap-read-queries", () => ({
+  ...RealLapReadQueries,
+  getLapById: gate(RealLapReadQueries.getLapById, mock(async () => null)),
+}));
+mock.module("../server/db/experiment-lap-queries", () => ({
+  ...RealExperimentLapQueries,
+  setLapExperimentExcluded: gate(RealExperimentLapQueries.setLapExperimentExcluded, mock(async () => {})),
+  getLapsForExperiment: gate(RealExperimentLapQueries.getLapsForExperiment, mock(async () => [])),
 }));
 mock.module("../server/db/experiment-action-queries", () => ({
   ...RealActionQueries,
@@ -131,11 +147,11 @@ mock.module("../server/ai/consult-lap-analyst", () => ({
   ...RealConsult,
   consultLapAnalystForSession: gate(RealConsult.consultLapAnalystForSession, mock(async () => ({ ok: true, text: "" }))),
 }));
-mock.module("../server/ai/clean-lap-aggregate", () => ({
+mock.module("../server/experiments/lap-evidence/aggregate", () => ({
   ...RealCleanLap,
   loadCleanLapAggregate: gate(RealCleanLap.loadCleanLapAggregate, mock(async () => null)),
 }));
-mock.module("../server/comparison", () => ({
+mock.module("../server/lap-analysis/comparison", () => ({
   ...RealComparison,
   compareLaps: gate(RealComparison.compareLaps, mock(() => ({}))),
 }));

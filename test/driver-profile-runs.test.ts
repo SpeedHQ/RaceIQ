@@ -4,13 +4,7 @@ import { existsSync, readFileSync, writeFileSync } from "fs";
 import { loadSettings } from "../server/settings";
 import { db, client } from "../server/db";
 import { driverProfileRuns } from "../server/db/schema";
-import {
-  createDriverProfileRun,
-  updateDriverProfileRun,
-  getDriverProfileRun,
-  listDriverProfileRuns,
-  findDriverProfileRunByScopePool,
-} from "../server/db/queries";
+import { createDriverProfileRun, updateDriverProfileRun, getDriverProfileRun, listDriverProfileRuns, findDriverProfileRunByScopePool } from "../server/db/driver-profile-queries";
 
 const SETTINGS_PATH = `${process.env.DATA_DIR ?? "./data"}/settings.json`;
 const scope = { gameId: "fm-2023" as const, carOrdinal: 42, trackOrdinal: 7 };

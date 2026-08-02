@@ -15,9 +15,9 @@ import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
 import { CapturingDbAdapter } from "../server/pipeline-adapters";
 import { LapDetectorAcEvo } from "../server/lap-detector-ac-evo";
-import { META_FRAME_MAGIC } from "../server/session-recorder";
+import { META_FRAME_MAGIC } from "../server/session-capture/framing"
 import { stopMaintenanceTasks } from "../server/pipeline";
-import { parseRawLapFramesForTest } from "../server/db/queries";
+import { parseRawLapFramesForTest } from "../server/db/telemetry-replay-storage";
 import type { TelemetryPacket } from "../shared/types";
 
 initGameAdapters();

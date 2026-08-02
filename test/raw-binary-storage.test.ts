@@ -6,14 +6,15 @@ import { describe, test, expect, afterEach, beforeEach } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { SessionRecorder, META_FRAME_MAGIC } from "../server/session-recorder";
-import { reprocessSession } from "../server/reprocess";
+import { SessionRecorder } from "../server/session-capture/recorder";
+import { META_FRAME_MAGIC } from "../server/session-capture/framing";
+import { reprocessSession } from "../server/session-capture/reprocess";
 import { db } from "../server/db/index";
 import { sessions, laps } from "../server/db/schema";
 import { eq } from "drizzle-orm";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
-import { countStaleSessions } from "../server/db/queries";
+import { countStaleSessions } from "../server/db/session-queries";
 
 initGameAdapters();
 initServerGameAdapters();

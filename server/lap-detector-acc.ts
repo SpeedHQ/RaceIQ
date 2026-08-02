@@ -3,11 +3,11 @@ import type { ILapDetector, LapDetectorOptions } from "./lap-detector-interface"
 import type { SessionState } from "./lap-detector";
 import type { LapDetectorCallbacks } from "./lap-detector-interface";
 import type { DbAdapter } from "./pipeline-adapters";
-import { assessLapRecording } from "./lap-quality";
-import { persistLapMetrics } from "./experiment-lap-metrics";
+import { assessLapRecording } from "./lap-analysis/quality"
+import { persistLapMetrics } from "./lap-analysis/metrics-store"
 import { reconcileAutoExclusionsForLap } from "./experiment-auto-exclude";
 import { computeLapSectors } from "./compute-lap-sectors";
-import { accFirstPacketIsMidLap, classifyAccPitLap } from "./acc-lap-rules";
+import { accFirstPacketIsMidLap, classifyAccPitLap } from "./games/kunos/lap-rules";
 
 export const LAP_DETECTOR_ACC_ID = "acc_lapdetector_v2";
 // Alias for stale-session checks in index.ts and session-routes.ts

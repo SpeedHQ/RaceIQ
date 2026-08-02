@@ -149,14 +149,6 @@ export const carRoutes = new Hono()
     return c.text(getCarName(ordinal, gameId));
   })
 
-  // GET /api/track-name/:ordinal — plain text track name
-  .get("/api/track-name/:ordinal", zValidator("param", OrdinalParamSchema), zValidator("query", GameIdQuerySchema), (c) => {
-    const { ordinal } = c.req.valid("param");
-    const gameId = c.req.query("gameId");
-    const serverAdapter = gameId ? tryGetServerGame(gameId) : undefined;
-    if (serverAdapter) return c.text(serverAdapter.getTrackName(ordinal));
-    return c.text(getTrackName(ordinal, gameId));
-  })
 
   // GET /api/resolve-names — batch resolve track + car ordinals to names
   .get("/api/resolve-names",

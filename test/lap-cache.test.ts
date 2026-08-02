@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterAll } from "bun:test";
-import { _telemetryCacheForTest as cache } from "../server/db/queries";
+import { _telemetryCacheForTest as cache } from "../server/db/telemetry-replay-storage";
 import type { TelemetryPacket } from "../shared/types";
 
 function stub(id: number, count = 100): TelemetryPacket[] {

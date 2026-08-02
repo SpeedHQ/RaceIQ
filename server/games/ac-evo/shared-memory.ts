@@ -1,16 +1,16 @@
 /**
  * AC Evo Shared Memory Reader.
  *
- * Reuses ACC's BufferedAccMemoryReader + TripletAssembler + TripletPipeline
+ * Reuses Kunos BufferedKunosMemoryReader + TripletAssembler + TripletPipeline
  * infrastructure (same shared memory format). Key differences:
  *   - Uses acEvoProcessChecker (watches AssettoCorsaEVO.exe)
  *   - Uses AcEvoParsingProcessor which resolves car/track ordinals from
  *     STATIC display names via the AC Evo CSV lookups
  */
-import { BufferedAccMemoryReader } from "../acc/buffered-memory-reader";
-import { TripletAssembler } from "../acc/triplet-assembler";
-import { TripletPipeline, DumpToBinProcessor } from "../acc/triplet-pipeline";
-import type { TripletProcessor } from "../acc/triplet-pipeline";
+import { BufferedKunosMemoryReader } from "../kunos/buffered-memory-reader";
+import { TripletAssembler } from "../kunos/triplet-assembler";
+import { TripletPipeline, DumpToBinProcessor } from "../kunos/triplet-pipeline";
+import type { TripletProcessor } from "../kunos/triplet-pipeline";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "./parser";
 import type { AcEvoParserCache } from "./parser";
 import { processPacket } from "../../pipeline";
@@ -39,7 +39,7 @@ class AcEvoParsingProcessor implements TripletProcessor {
 }
 
 export class AcEvoSharedMemoryReader {
-  private _bufferedReader: BufferedAccMemoryReader;
+  private _bufferedReader: BufferedKunosMemoryReader;
   private _tripletAssembler: TripletAssembler;
   private _pipeline: TripletPipeline;
   private _running = false;
@@ -49,7 +49,7 @@ export class AcEvoSharedMemoryReader {
   private _holdsTimerResolution = false;
 
   constructor(recordingEnabled = false) {
-    this._bufferedReader = new BufferedAccMemoryReader({
+    this._bufferedReader = new BufferedKunosMemoryReader({
       // AC Evo v0.6 uses acevo_pmf_* names (confirmed via handle.exe against
       // AssettoCorsaEVO.exe — ACC's acpmf_* names are not owned by the game).
       physicsName: "Local\\acevo_pmf_physics",

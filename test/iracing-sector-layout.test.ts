@@ -2,7 +2,7 @@ import { describe, expect, spyOn, test } from "bun:test";
 import { computeIRacingSectorTimeline } from "../server/compute-lap-sectors";
 import { normalizeIRacingFrame } from "../server/games/iracing/normalizer";
 import type { IRacingSourceFrameV2 } from "../server/games/iracing/source-frame";
-import { SectorTracker } from "../server/sector-tracker";
+import { SectorTracker } from "../server/live-strategy/sector-tracker";
 import { initGameAdapters } from "../shared/games/init";
 import type { TelemetryPacket } from "../shared/types";
 

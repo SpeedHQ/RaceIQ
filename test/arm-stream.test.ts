@@ -12,17 +12,17 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { compareArmSamples, describeComparison, prepareArm } from "../server/ai/compare-arms";
-import type { ArmInput } from "../server/ai/compare-arms";
+import { compareArmSamples, describeComparison, prepareArm } from "../server/experiments/comparison/compare";
+import type { ArmInput } from "../server/experiments/comparison/compare";
 import {
   FRAME_BUDGET_PER_ARM,
   type FrameLapMeta,
   type LapFrameLoader,
   selectWithinFrameBudget,
   streamArmSamples,
-} from "../server/ai/arm-stream";
-import { OUTCOME_METRICS, type PairwiseFramesOutcomeMetric } from "../server/ai/outcome-metrics";
-import type { Corner } from "../server/corner-detection";
+} from "../server/experiments/comparison/stream";
+import { OUTCOME_METRICS, type PairwiseFramesOutcomeMetric } from "../server/experiments/comparison/metrics";
+import type { Corner } from "../server/lap-analysis/corners";
 import type { TelemetryPacket } from "../shared/types";
 
 // ── synthetic laps (same shape as test/compare-arms.test.ts) ────────────────

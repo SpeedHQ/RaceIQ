@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import type { TelemetryPacket } from "../shared/types";
-import { SectorTracker } from "../server/sector-tracker";
+import { SectorTracker } from "../server/live-strategy/sector-tracker";
 
 /** Build a minimal telemetry packet for testing. */
 function pkt(overrides: Partial<TelemetryPacket>): TelemetryPacket {

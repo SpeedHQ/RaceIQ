@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { resolve } from "path";
 import { errorFromResponse } from "../client/src/lib/rpc-error";
-import { tuneCrudRoutes } from "../server/routes/tune-crud-routes";
+import { tuneCrudRoutes } from "../server/routes/tunes";
 
 /**
  * End-to-end route tests for importing a binary AC EVO `.carsetup`, driven
