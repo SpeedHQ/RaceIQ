@@ -57,7 +57,7 @@ export function releaseFeatureFlags(isDevelopment: boolean): ReleaseFeatureFlags
 
 `gameAdaptersForFeatures(flags)` and `serverGameAdaptersForFeatures(flags)` return the exact adapter lists registered by `initGameAdapters(flags)` and `initServerGameAdapters(flags)`. Both initializers default to `releaseFeatureFlags(true)` so existing tests and development tooling retain iRacing unless a caller explicitly supplies production flags.
 
-Client startup resolves flags from `import.meta.env.DEV`; server startup resolves them from `IS_DEV`. `supportsGameFeature(prefix, feature, flags)` receives the resolved flags, with its existing two-argument form defaulting to development flags for test and development compatibility. Windows supervision uses `nativeTelemetryGameIds(flags)` and conditionally calls the iRacing supervisor only when `iracingAdapter` is enabled.
+Client startup and route helpers share a client-bound flag object resolved from `import.meta.env.DEV`; server startup resolves flags from `IS_DEV`. Tests pass explicit flags to route helpers. Windows supervision uses `nativeTelemetryGameIds(flags)` and conditionally calls the iRacing supervisor only when `iracingAdapter` is enabled.
 
 ## Error Handling
 

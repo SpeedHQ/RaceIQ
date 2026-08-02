@@ -15,7 +15,7 @@
 - Production omits iRacing from client/shared and server adapter registries and skips iRacing process detection/source supervision.
 - ACC and AC Evo Experiments and native-source supervision remain unchanged.
 - Existing iRacing implementation/import tooling stays in source and may remain in compiled artifact bytes.
-- Default initialization and helper arguments preserve development/test behavior.
+- Adapter initializers default to development behavior; client route helpers default to client environment flags and tests pass explicit flags.
 - Work only in `.worktrees/featureflags-release-gates` on `feature/featureflags-release-gates`.
 
 ---
@@ -95,13 +95,14 @@ git commit -m "feat: define release feature flags"
 **Files:**
 - Modify: `shared/games/init.ts`
 - Modify: `server/games/init.ts`
+- Create: `client/src/lib/release-features.ts`
 - Modify: `client/src/main.tsx`
 - Modify: `server/index.ts`
 - Create: `test/release-game-registration.test.ts`
 
 **Interfaces:**
-- Consumes: `ReleaseFeatureFlags`, `releaseFeatureFlags` from Task 1; client `import.meta.env.DEV`; server `IS_DEV` from `server/env.ts`.
-- Produces: `gameAdaptersForFeatures(flags)`, `serverGameAdaptersForFeatures(flags)`, and feature-aware initializers with development defaults.
+- Consumes: `ReleaseFeatureFlags`, `releaseFeatureFlags` from Task 1; client `isDevelopment` from `client/src/lib/env.ts`; server `IS_DEV` from `server/env.ts`.
+- Produces: `gameAdaptersForFeatures(flags)`, `serverGameAdaptersForFeatures(flags)`, feature-aware initializers with development defaults, and client-bound `clientReleaseFeatures`.
 
 - [ ] **Step 1: Write failing adapter-selection tests**
 
@@ -144,12 +145,16 @@ In `server/games/init.ts`, export `serverGameAdaptersForFeatures(flags = release
 
 - [ ] **Step 4: Bind client and server environments**
 
-In `client/src/main.tsx`:
+Create `client/src/lib/release-features.ts`:
 
 ```ts
-const releaseFeatures = releaseFeatureFlags(import.meta.env.DEV);
-initGameAdapters(releaseFeatures);
+import { releaseFeatureFlags } from "@shared/release-feature-flags";
+import { isDevelopment } from "./env";
+
+export const clientReleaseFeatures = releaseFeatureFlags(isDevelopment);
 ```
+
+In `client/src/main.tsx`, pass `clientReleaseFeatures` to `initGameAdapters`.
 
 In `server/index.ts`, resolve once from `IS_DEV` and pass the same object to both initializers:
 
@@ -168,7 +173,7 @@ Expected: 4 pass, 0 fail.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add shared/games/init.ts server/games/init.ts client/src/main.tsx server/index.ts test/release-game-registration.test.ts
+git add shared/games/init.ts server/games/init.ts client/src/lib/release-features.ts client/src/main.tsx server/index.ts test/release-game-registration.test.ts
 git commit -m "feat: gate iRacing adapter registration"
 ```
 
@@ -178,14 +183,15 @@ git commit -m "feat: gate iRacing adapter registration"
 
 **Files:**
 - Modify: `client/src/lib/game-routes.ts`
+- Modify: `client/src/lib/release-features.ts`
 - Modify: `server/games/init.ts`
 - Modify: `server/index.ts`
 - Modify: `test/client-game-routes.test.ts`
 - Modify: `test/release-game-registration.test.ts`
 
 **Interfaces:**
-- Consumes: resolved `ReleaseFeatureFlags` from Tasks 1-2.
-- Produces: `supportsGameFeature(prefix, feature, flags = releaseFeatureFlags(true))`, `setupEngineerGameIdForRoutePrefix(prefix, flags = releaseFeatureFlags(true))`, and `nativeTelemetryGameIds(flags = releaseFeatureFlags(true))`.
+- Consumes: resolved `ReleaseFeatureFlags` from Tasks 1-2 and `clientReleaseFeatures` for production UI defaults.
+- Produces: `supportsGameFeature(prefix, feature, flags = clientReleaseFeatures)`, `setupEngineerGameIdForRoutePrefix(prefix, flags = clientReleaseFeatures)`, and `nativeTelemetryGameIds(flags = releaseFeatureFlags(true))`.
 
 - [ ] **Step 1: Extend failing route and detection contracts**
 
@@ -223,7 +229,7 @@ Keep `f125` in `ROUTE_FEATURES.experiments`. Add a special release-policy check 
 if (prefix === "f125" && feature === "experiments" && !flags.f1Experiments) return false;
 ```
 
-Pass `flags` through `setupEngineerGameIdForRoutePrefix` to `supportsGameFeature`. Defaults remain `releaseFeatureFlags(true)`.
+Pass `flags` through `setupEngineerGameIdForRoutePrefix` to `supportsGameFeature`. Both route helpers default to `clientReleaseFeatures`; tests pass explicit development/production flags.
 
 - [ ] **Step 4: Gate native iRacing supervision**
 
