@@ -10,7 +10,7 @@ import { eq, inArray, like } from "drizzle-orm";
 import { deleteSession } from "../server/db/queries";
 import { getServerGame } from "../server/games/registry";
 import { readIRacingFrames } from "../server/games/iracing/recorder";
-import { Pipeline } from "../server/pipeline";
+import { Pipeline, stopMaintenanceTasks } from "../server/pipeline";
 import { RealDbAdapter, RealSessionRecorderAdapter } from "../server/pipeline-adapters";
 import { loadSettings, saveSettings } from "../server/settings";
 import type { GameId } from "../shared/types";
@@ -207,9 +207,17 @@ async function main(): Promise<void> {
         await seedIRacingSession(fixturePath);
         continue;
       }
+      const existingSessionIds = new Set(
+        (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, game)).all()).map((row) => row.id),
+      );
       const result = await importSessionBin(readFileSync(fixturePath), game);
-      const sessionIds = [...new Set(result.laps.map((lap) => lap.sessionId))];
-      await db.update(sessions).set({ notes: SEED_MARKER, source: "seed" }).where(inArray(sessions.id, sessionIds)).run();
+      const seededSessionIds = (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, game)).all())
+        .map((row) => row.id)
+        .filter((id) => !existingSessionIds.has(id));
+      if (seededSessionIds.length === 0) {
+        throw new Error(`No ${game} telemetry imported from ${fixturePath}`);
+      }
+      await db.update(sessions).set({ notes: SEED_MARKER, source: "seed" }).where(inArray(sessions.id, seededSessionIds)).run();
       importedLapIds.push(...result.laps.filter((lap) => lap.isValid).map((lap) => lap.lapId));
       console.log(`[DB Seed] ${game}: ${result.laps.length} laps from ${fixture}`);
     }
@@ -219,4 +227,9 @@ async function main(): Promise<void> {
   console.log(`[DB Seed] Complete: ${importedLapIds.length} valid laps, ${options.games.join(", ")}.`);
 }
 
-await main();
+try {
+  await main();
+} finally {
+  stopMaintenanceTasks();
+  client.close();
+}

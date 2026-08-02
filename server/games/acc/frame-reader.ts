@@ -17,7 +17,7 @@ const SUPPORTED_VERSIONS = new Set([2, 3]);
  */
 export function readAccFrames(filePath: string, limit?: number): { physics: Buffer; graphics: Buffer; staticData: Buffer }[] {
   const raw = readFileSync(filePath);
-  const data: Buffer = filePath.endsWith(".gz") ? Buffer.from(gunzipSync(raw)) : Buffer.from(raw);
+  const data = filePath.endsWith(".gz") ? gunzipSync(raw) : raw;
 
   if (data.length < HEADER_SIZE || !data.subarray(0, 8).equals(ACC_MAGIC)) return [];
   const version = data.readUInt32LE(8);
@@ -26,23 +26,10 @@ export function readAccFrames(filePath: string, limit?: number): { physics: Buff
     return [];
   }
 
-  // If frameCount=0 (killed process) and no limit requested, scan to count.
-  // If a limit is provided, skip the scan and just iterate until satisfied.
-  let frameCount = data.readUInt32LE(12);
-  if (frameCount === 0 && limit === undefined && data.length > HEADER_SIZE + 100) {
-    let scanOffset = HEADER_SIZE;
-    while (scanOffset + FRAME_HEADER <= data.length) {
-      const frameType = data.readUInt8(scanOffset);
-      if (frameType > 2) break;
-      const bufferSize = data.readUInt32LE(scanOffset + 1);
-      if (bufferSize > 500000) break;
-      if (scanOffset + FRAME_HEADER + bufferSize > data.length) break;
-      frameCount++;
-      scanOffset += FRAME_HEADER + bufferSize;
-    }
-  }
-  // When a limit is set and frameCount=0, use a large sentinel so the loop
-  // runs until the limit is hit or data is exhausted.
+  // A zero count means the recorder process ended before patching the header.
+  // Frame lengths already make EOF authoritative, so avoid a redundant full-file
+  // scan and read until EOF in that case.
+  const frameCount = data.readUInt32LE(12);
   const maxFrameIdx = frameCount === 0 ? Number.MAX_SAFE_INTEGER : frameCount;
 
   // The writer emits [physics, graphics, static?] per poll, where static
@@ -70,7 +57,9 @@ export function readAccFrames(filePath: string, limit?: number): { physics: Buff
     offset += FRAME_HEADER;
     if (offset + bufferSize > data.length) break;
 
-    const bufferData = Buffer.from(data.subarray(offset, offset + bufferSize));
+    // Frames are immutable parser inputs. Slices avoid duplicating every frame
+    // while retaining the decompressed backing buffer for the result lifetime.
+    const bufferData = data.subarray(offset, offset + bufferSize);
     offset += bufferSize;
 
     switch (frameType) {

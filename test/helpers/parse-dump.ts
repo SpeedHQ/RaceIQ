@@ -128,6 +128,15 @@ export function readUdpPackets(dumpPath: string): ParsedFrames {
   return { packets, carModel: null, trackName: null };
 }
 
+const DEFAULT_ACC_FRAME_STRIDE = 4;
+
+export interface ParseDumpOptions {
+  /** Capture broadcast packets and attach them to laps. Disable when a fixture only asserts lap metadata/events. */
+  capturePackets?: boolean;
+  /** Override default ACCTEST downsampling. Fixtures are recorded above pipeline broadcast rate. */
+  accFrameStride?: number;
+}
+
 /**
  * Feed a recorded dump through the full server pipeline and return all captured laps, sessions, and WebSocket events.
  * Uses CapturingDbAdapter (no real DB writes) and CapturingWsAdapter (captures all WS events).
@@ -137,12 +146,13 @@ export function readUdpPackets(dumpPath: string): ParsedFrames {
  */
 export async function parseDump(
   gameId: GameId,
-  dumpPath: string
+  dumpPath: string,
+  options: ParseDumpOptions = {}
 ): Promise<DumpResult> {
   ensureInit();
 
   const db = new CapturingDbAdapter();
-  const ws = new CapturingWsAdapter();
+  const ws = new CapturingWsAdapter(options.capturePackets ?? true);
   const pipeline = new Pipeline(db, ws, {
     bypassPacketRateFilter: true,
     recorder: new NullSessionRecorderAdapter(),
@@ -152,14 +162,55 @@ export async function parseDump(
   let trackName: string | null = null;
 
   if (gameId === "acc") {
-    let raw: Buffer;
+    let frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
     try {
-      raw = Buffer.from(readFileSync(dumpPath));
-      if (dumpPath.endsWith(".gz")) raw = Buffer.from(gunzipSync(raw));
+      frames = readAccFrames(dumpPath);
     } catch {
       return { laps: [], sessions: [], carModel: null, trackName: null, wsNotifications: [], wsDevStates: [], rawPackets: [] };
     }
-    if (raw.length >= 4 && raw.readUInt32LE(0) === META_FRAME_MAGIC) {
+
+    if (frames.length > 0) {
+      // ACCTEST recorder format. Parse and process each frame immediately so
+      // full-session packet objects are not retained in a second array.
+      let carOrdinal = 0;
+      let trackOrdinal = 0;
+      const frameStride = Math.max(1, Math.floor(options.accFrameStride ?? DEFAULT_ACC_FRAME_STRIDE));
+      let frameIndex = 0;
+      let processedFrames = 0;
+      for (const frame of frames) {
+        if (frameIndex++ % frameStride !== 0) continue;
+        if (carOrdinal === 0 || trackOrdinal === 0) {
+          const cm = readWString(frame.staticData, STATIC.carModel.offset, STATIC.carModel.size);
+          const tn = readWString(frame.staticData, STATIC.track.offset, STATIC.track.size);
+          if (cm) {
+            carModel = cm;
+            carOrdinal = getAccCarByModel(cm)?.id ?? 0;
+          }
+          if (tn) {
+            trackName = tn;
+            trackOrdinal = getAccTrackByName(tn)?.id ?? 0;
+          }
+        }
+        const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, { carOrdinal, trackOrdinal });
+        if (packet) await pipeline.processPacket(packet);
+        // Pipeline writes resolve synchronously with capture adapters. Yield
+        // periodically so long recordings do not defer GC until suite timeout.
+        if ((++processedFrames & 1023) === 0) {
+          await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        }
+      }
+    } else {
+      let raw: Buffer;
+      try {
+        raw = readFileSync(dumpPath);
+        if (dumpPath.endsWith(".gz")) raw = gunzipSync(raw);
+      } catch {
+        return { laps: [], sessions: [], carModel: null, trackName: null, wsNotifications: [], wsDevStates: [], rawPackets: [] };
+      }
+      if (raw.length < 4 || raw.readUInt32LE(0) !== META_FRAME_MAGIC) {
+        return { laps: [], sessions: [], carModel: null, trackName: null, wsNotifications: [], wsDevStates: [], rawPackets: [] };
+      }
+
       // Session bin format (packed triplets)
       const serverGame = getServerGame(gameId);
       const parserState = serverGame.createParserState?.() ?? null;
@@ -167,20 +218,15 @@ export async function parseDump(
       while (offset < raw.length) {
         if (offset + 4 > raw.length) break;
         const frameLen = raw.readUInt32LE(offset);
-        if (frameLen === META_FRAME_MAGIC) { offset += 8 + raw.readUInt32LE(offset + 4); continue; }
+        if (frameLen === META_FRAME_MAGIC) {
+          offset += 8 + raw.readUInt32LE(offset + 4);
+          continue;
+        }
         offset += 4;
         if (offset + frameLen > raw.length) break;
         const packet = serverGame.tryParse(raw.subarray(offset, offset + frameLen), parserState);
         offset += frameLen;
         if (packet) await pipeline.processPacket(packet);
-      }
-    } else {
-      // ACCTEST recorder format
-      const parsed = readAccPackets(dumpPath);
-      carModel = parsed.carModel;
-      trackName = parsed.trackName;
-      for (const packet of parsed.packets) {
-        await pipeline.processPacket(packet);
       }
     }
   } else if (gameId === "ac-evo") {
