@@ -342,13 +342,13 @@ export function StepWheel() {
             type="button"
             key={w.id}
             onClick={() => select(w.src)}
-            className={`relative rounded-lg border p-3 text-left transition-all ${
+            className={`relative w-full min-w-0 !h-auto flex-col !items-stretch !justify-start rounded-lg border p-3 text-left transition-all ${
               currentSrc === w.src ? "border-app-accent bg-app-accent/10 ring-1 ring-app-accent/30" : "border-app-border bg-app-surface-alt hover:border-app-border-hover"
             }`}
           >
-            <div className="text-sm font-medium text-app-text truncate">{w.name}</div>
+            <div className="min-w-0 text-sm font-medium text-app-text truncate">{w.name}</div>
             <div className="mt-2 h-24 flex items-center justify-center rounded-md border border-app-border bg-app-surface overflow-hidden">
-              <img src={w.src} alt={w.name} className="h-full object-contain" />
+              <img src={w.src} alt={w.name} className="h-full max-w-full object-contain" />
             </div>
           </Button>
         ))}
@@ -608,12 +608,8 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
                 const i = idx + 1;
                 return (
                   <div key={s.id} className="flex items-center gap-2 shrink-0">
-                    <Button
-                      type="button"
-                      onClick={() => setStep(i)}
-                      className={`flex items-center gap-1.5 text-xs font-medium transition-colors whitespace-nowrap ${
-                        i === step ? "text-app-accent" : i < step ? "text-app-text-secondary" : "text-app-text-muted/50"
-                      }`}
+                    <div
+                      className={`flex items-center gap-1.5 text-xs font-medium whitespace-nowrap ${i === step ? "text-app-accent" : i < step ? "text-app-text-secondary" : "text-app-text-muted/50"}`}
                     >
                       <span
                         className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold border transition-colors ${
@@ -633,7 +629,7 @@ export function OnboardingModal({ onClose }: { onClose?: () => void } = {}) {
                         )}
                       </span>
                       {s.label()}
-                    </Button>
+                    </div>
                     {idx < MODAL_STEPS.length - 2 && <div className={`w-8 h-px ${i < step ? "bg-status-success/50" : "bg-app-border"}`} />}
                   </div>
                 );

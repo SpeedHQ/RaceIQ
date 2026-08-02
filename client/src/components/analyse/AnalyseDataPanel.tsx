@@ -111,7 +111,7 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
       }}
       className="flex h-full w-[22rem] shrink-0 flex-col overflow-hidden border-l border-app-border bg-app-surface/50"
     >
-      <TabsList className="w-full shrink-0">
+      <TabsList variant="underline" className="w-full shrink-0">
         <TabsTrigger value="live" className="flex-1">
           {m.analyse_tab_data()}
         </TabsTrigger>

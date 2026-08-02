@@ -9,6 +9,8 @@
 
 ### Fixes
 - Hide unfinished F1 Experiments and iRacing integrations from production releases
+- Clean up settings and onboarding wizard controls so navigation, progress indicators, and wheel cards render correctly
+- Render experiment focus choices as wrapping cards, remove the experiment table shell, and underline Analyse tabs
 - Report missing AI model settings instead of silently selecting a provider default
 - Expose Codex subscription models and preserve comparison and setup analysis across AI features
 - Keep AI chat drafts editable and show submitted prompts with the loading state immediately across chat surfaces

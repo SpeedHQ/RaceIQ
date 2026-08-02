@@ -15,7 +15,7 @@ function InsightRow({ insight, onJump }: { insight: LapInsight; onJump: (idx: nu
 
   return (
     <div className="w-full rounded hover:bg-app-surface-hover/60 transition-colors group">
-      <Button type="button" onClick={() => onJump(insight.frameIndices[eventIdx])} className={`block w-full text-left px-2 ${hasMultiple ? "pt-1.5" : "py-1.5"}`}>
+      <Button type="button" variant="plain" size="content" onClick={() => onJump(insight.frameIndices[eventIdx])} className={`block w-full text-left px-2 ${hasMultiple ? "pt-1.5" : "py-1.5"}`}>
         <div className="flex items-start gap-1.5">
           <span className="mt-1 w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: SEVERITY_COLOR[insight.severity] }} />
           <div className="min-w-0 flex-1">
