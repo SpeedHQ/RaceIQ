@@ -6,18 +6,28 @@ Keep unfinished F1 Experiments and iRacing integration available during developm
 
 ## Feature Policy
 
-Add one pure shared feature policy with two flags:
+One committed root environment-file pair is the source of truth for client and server:
 
-- `f1Experiments`: enabled outside production; disabled in production.
-- `iracingAdapter`: enabled outside production; disabled in production.
+`.env.development`:
 
-Environment detection stays at runtime boundaries:
+```dotenv
+RACEIQ_FEATURE_F1_EXPERIMENTS=true
+RACEIQ_FEATURE_IRACING_ADAPTER=true
+```
 
-- Client supplies `import.meta.env.DEV`.
-- Server supplies `process.env.NODE_ENV !== "production"` through existing `IS_DEV`.
-- Tests supply an explicit boolean and default adapter initialization to development behavior.
+`.env.production`:
 
-The shared policy contains no direct `import.meta` or `process.env` access, so browser and server consumers use the same rules without cross-runtime globals.
+```dotenv
+RACEIQ_FEATURE_F1_EXPERIMENTS=false
+RACEIQ_FEATURE_IRACING_ADAPTER=false
+```
+
+The shared feature policy parses these explicit string values into two flags:
+
+- `f1Experiments`
+- `iracingAdapter`
+
+It does not infer feature state from `import.meta.env.DEV`, `NODE_ENV`, or any other environment classification. The same named values control browser routes, shared/server adapter registration, and native-source supervision.
 
 ## F1 Experiments
 
@@ -44,7 +54,7 @@ Existing iRacing implementation and import tooling remain in source for developm
 
 ## Interfaces
 
-A shared pure resolver returns immutable flags from an explicit environment input:
+A shared strict resolver returns immutable flags from an explicit environment-shaped input:
 
 ```ts
 export interface ReleaseFeatureFlags {
@@ -52,15 +62,24 @@ export interface ReleaseFeatureFlags {
   readonly iracingAdapter: boolean;
 }
 
-export function releaseFeatureFlags(isDevelopment: boolean): ReleaseFeatureFlags;
+export interface ReleaseFeatureFlagEnvironment {
+  readonly RACEIQ_FEATURE_F1_EXPERIMENTS: string | undefined;
+  readonly RACEIQ_FEATURE_IRACING_ADAPTER: string | undefined;
+}
+
+export function releaseFeatureFlags(env: ReleaseFeatureFlagEnvironment): ReleaseFeatureFlags;
 ```
 
-`gameAdaptersForFeatures(flags)` and `serverGameAdaptersForFeatures(flags)` return the exact adapter lists registered by `initGameAdapters(flags)` and `initServerGameAdapters(flags)`. Both initializers default to `releaseFeatureFlags(true)` so existing tests and development tooling retain iRacing unless a caller explicitly supplies production flags.
+Only exact `true` and `false` strings are accepted. Client startup passes the two `import.meta.env.RACEIQ_*` values. Server startup passes the corresponding `process.env` values. Tests and adapter helpers pass explicit parsed flags; adapter initialization has no environment-derived default.
 
-Client startup and route helpers share a client-bound flag object resolved from `import.meta.env.DEV`; server startup resolves flags from `IS_DEV`. Tests pass explicit flags to route helpers. Windows supervision uses `nativeTelemetryGameIds(flags)` and conditionally calls the iRacing supervisor only when `iracingAdapter` is enabled.
+Vite uses the repository root as `envDir` and exposes the `RACEIQ_` prefix. Development commands explicitly load `.env.development`. The production build explicitly loads `.env.production`, and `scripts/build.ts` passes both values to Bun `--define` arguments so the compiled server contains the same production flags as the client bundle without requiring external env files at runtime.
+
+`gameAdaptersForFeatures(flags)` and `serverGameAdaptersForFeatures(flags)` return the exact adapter lists registered by `initGameAdapters(flags)` and `initServerGameAdapters(flags)`. Client routes consume the client-bound flags. Windows supervision uses `nativeTelemetryGameIds(flags)` and conditionally calls the iRacing supervisor only when `iracingAdapter` is enabled.
 
 ## Error Handling
 
+- Missing or malformed feature values fail immediately with an error naming the invalid variable.
+- Build and startup never silently infer defaults from development or production mode.
 - Direct production F1 experiment URLs use existing unsupported-route behavior.
 - Direct production iRacing routes fail existing unknown/unsupported game handling because iRacing is absent from the shared registry.
 - No new redirect, notice, or fallback is introduced.
@@ -69,14 +88,16 @@ Client startup and route helpers share a client-bound flag object resolved from 
 
 Automated contracts prove:
 
-- Both flags are true for development and false for production.
+- The committed development env file parses both flags as true.
+- The committed production env file parses both flags as false.
+- Missing, empty, and non-boolean values fail with the variable name.
 - Development F1 Experiments remain supported; production F1 Experiments are unsupported.
 - ACC and AC Evo Experiments remain supported in both environments.
 - Development adapter initialization registers iRacing.
 - Production shared/server initialization does not register iRacing or its process names.
 - Production supervisor configuration contains ACC and AC Evo but not iRacing.
 
-Run focused feature-policy, route-helper, and adapter-registration tests. Run client production build and server production build. Browser-smoke the production client: F1 remains selectable without Experiments; iRacing is absent; ACC still exposes Experiments. Development smoke confirms both F1 Experiments and iRacing remain visible and usable.
+Run focused env-parser, route-helper, adapter-registration, and changelog tests. Run client and server production builds. Browser-smoke the production client: F1 remains selectable without Experiments; iRacing is absent; ACC still exposes Experiments. Development smoke confirms both F1 Experiments and iRacing remain visible and usable.
 
 ## Non-goals
 
