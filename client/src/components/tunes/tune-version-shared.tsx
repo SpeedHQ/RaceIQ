@@ -74,9 +74,10 @@ export function AppliedChangesList({ json, comment }: { json: string | null; com
  *  classifyKunosPitLap (server/games/kunos/lap-rules.ts) for ACC/AC-Evo. */
 const PIT_STATUS_REASONS = new Set(["outlap", "inlap", "pit lap"]);
 
-/** Compact labels for the verbose reasons the detectors write (lap-quality.ts,
- *  lap-detection.ts) — the column is narrow, so the sentence form goes in the
- *  tooltip and the short form goes on screen. Unlisted reasons show as-is. */
+/** Compact labels for the verbose reasons written by
+ *  server/lap-analysis/quality.ts and server/lap-detection/detector.ts — the
+ *  column is narrow, so the sentence form goes in the tooltip and the short
+ *  form goes on screen. Unlisted reasons show as-is. */
 const INVALID_REASON_LABELS: Record<string, string> = {
   "too few telemetry packets": "No telemetry",
   "telemetry distance too short": "Short distance",

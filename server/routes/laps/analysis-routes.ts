@@ -20,6 +20,7 @@ import { toClientAiError } from "../../ai/provider-error";
 import { extractJson } from "../../ai/extract-json";
 import { getSecret } from "../../runtime/platform/keystore";
 import { AnalyseQuerySchema, buildF1SetupReferenceBlock } from "./support";
+import { parseTuneRow } from "../tune-shared";
 
 export const analysisRoutes = new Hono()
   .post("/api/laps/:id/analyse", zValidator("param", IdParamSchema), zValidator("query", AnalyseQuerySchema), async (c) => {
@@ -94,14 +95,7 @@ export const analysisRoutes = new Hono()
     if (lap.tuneId) {
       const dbTune = await getDbTune(lap.tuneId);
       if (dbTune) {
-        parsedTune = {
-          ...dbTune,
-          strengths: dbTune.strengths ? JSON.parse(dbTune.strengths) : [],
-          weaknesses: dbTune.weaknesses ? JSON.parse(dbTune.weaknesses) : [],
-          bestTracks: dbTune.bestTracks ? JSON.parse(dbTune.bestTracks) : [],
-          strategies: dbTune.strategies ? JSON.parse(dbTune.strategies) : [],
-          settings: JSON.parse(dbTune.settings),
-        } as Tune;
+        parsedTune = parseTuneRow(dbTune) as unknown as Tune;
       }
     }
 

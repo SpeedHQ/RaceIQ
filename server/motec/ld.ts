@@ -14,18 +14,20 @@
  * int16/int32 variants exist in other MoTeC exports and are handled too.
  */
 
-/** Fixed header field offsets. Derived from the ldHead struct layout. */
 const HEAD = {
   metaPtr: 8,
-  dataPtr: 12,
   eventPtr: 36,
-  numChannels: 86,
   date: 94,
   time: 126,
   driver: 158,
   vehicleId: 222,
   venue: 350,
 } as const;
+
+const TEXT_DECODER = new TextDecoder("latin1");
+
+/** Guard against a corrupt `nextPtr` sending us round a cycle forever. */
+const MAX_CHANNELS = 4096;
 
 /** Event block: 64s name, 64s session, 1024s comment, u16 venue_ptr. */
 const EVENT = { name: 0, session: 64, comment: 128 } as const;
@@ -48,9 +50,7 @@ const CHAN = {
 } as const;
 
 const STR_LEN = { name: 32, shortName: 8, unit: 12, head: 64, date: 16 } as const;
-
-/** Guard against a corrupt `nextPtr` sending us round a cycle forever. */
-const MAX_CHANNELS = 4096;
+const CHANNEL_META_SIZE = 124;
 
 export interface LdChannel {
   name: string;
@@ -89,13 +89,11 @@ function readString(buf: Uint8Array, offset: number, maxLen: number): string {
   if (offset + maxLen > buf.length) return "";
   const slice = buf.subarray(offset, offset + maxLen);
   const nul = slice.indexOf(0);
-  const bytes = nul === -1 ? slice : slice.subarray(0, nul);
-  return new TextDecoder("latin1").decode(bytes).trim();
+  return TEXT_DECODER.decode(nul === -1 ? slice : slice.subarray(0, nul)).trim();
 }
 
 function readSamples(
   view: DataView,
-  byteLength: number,
   dataPtr: number,
   count: number,
   dtypeA: number,
@@ -104,7 +102,7 @@ function readSamples(
   // dtypeA 7 marks the float family; anything else is integer.
   const isFloat = dtypeA === 7;
   const width = isFloat ? (dtype === 2 ? 2 : 4) : dtype === 3 ? 4 : 2;
-  const usable = Math.max(0, Math.min(count, Math.floor((byteLength - dataPtr) / width)));
+  const usable = Math.max(0, Math.min(count, Math.floor((view.byteLength - dataPtr) / width)));
   const out = new Float64Array(usable);
   for (let i = 0; i < usable; i++) {
     const at = dataPtr + i * width;
@@ -124,7 +122,10 @@ function modalDuration(durations: number[]): number {
   let best = durations[0] ?? 0;
   let bestCount = 0;
   for (const candidate of durations) {
-    const count = durations.filter((d) => Math.abs(d - candidate) <= candidate * 0.02).length;
+    let count = 0;
+    for (const duration of durations) {
+      if (Math.abs(duration - candidate) <= candidate * 0.02) count++;
+    }
     if (count > bestCount) {
       bestCount = count;
       best = candidate;
@@ -147,7 +148,12 @@ export function parseLd(buf: Uint8Array): LdLog {
   const raw: Array<Omit<LdChannel, "effectiveFreq">> = [];
   let ptr = metaPtr;
   const seen = new Set<number>();
-  while (ptr > 0 && ptr + 124 <= buf.byteLength && !seen.has(ptr) && raw.length < MAX_CHANNELS) {
+  while (
+    ptr > 0 &&
+    ptr + CHANNEL_META_SIZE <= buf.byteLength &&
+    !seen.has(ptr) &&
+    raw.length < MAX_CHANNELS
+  ) {
     seen.add(ptr);
     const count = view.getUint32(ptr + CHAN.sampleCount, true);
     const dataPtr = view.getUint32(ptr + CHAN.dataPtr, true);
@@ -159,7 +165,6 @@ export function parseLd(buf: Uint8Array): LdLog {
 
     const samples = readSamples(
       view,
-      buf.byteLength,
       dataPtr,
       count,
       view.getUint16(ptr + CHAN.dtypeA, true),
@@ -192,9 +197,12 @@ export function parseLd(buf: Uint8Array): LdLog {
   if (raw.length === 0) throw new Error("MoTeC .ld file contains no channels");
 
   // --- duration + per-channel rate correction ---
-  const durations = raw
-    .filter((c) => c.declaredFreq > 0 && c.samples.length > 0)
-    .map((c) => c.samples.length / c.declaredFreq);
+  const durations: number[] = [];
+  for (const channel of raw) {
+    if (channel.declaredFreq > 0 && channel.samples.length > 0) {
+      durations.push(channel.samples.length / channel.declaredFreq);
+    }
+  }
   const duration = modalDuration(durations);
 
   const channels: LdChannel[] = raw.map((c) => {
@@ -227,10 +235,3 @@ export function findChannel(log: LdLog, name: string): LdChannel | undefined {
   return log.channels.find((c) => c.name.toLowerCase() === target);
 }
 
-/** Sample a channel at an absolute time (seconds), holding the last value. */
-export function sampleAt(channel: LdChannel, seconds: number): number {
-  if (channel.samples.length === 0) return 0;
-  const idx = Math.round(seconds * channel.effectiveFreq);
-  const clamped = Math.max(0, Math.min(channel.samples.length - 1, idx));
-  return channel.samples[clamped] ?? 0;
-}

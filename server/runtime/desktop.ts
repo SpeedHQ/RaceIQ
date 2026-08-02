@@ -1,8 +1,8 @@
 import { spawn } from "child_process";
-import { startTray } from "./platform/tray";
+import { IS_DARWIN, IS_WINDOWS } from "./platform/shell";
 
 export function preventMacSleep(): void {
-  if (process.platform !== "darwin") return;
+  if (!IS_DARWIN) return;
   try {
     const caffeinate = spawn("caffeinate", ["-i"], { stdio: "ignore", detached: true });
     caffeinate.unref();
@@ -17,19 +17,13 @@ export function preventMacSleep(): void {
   }
 }
 
-export function startWindowsDesktop(port: number): void {
-  if (process.platform === "win32") {
-    startTray(port);
-  }
-}
-
 export function openFirstRunDashboard(port: number): void {
   const url = `http://localhost:${port}`;
   console.log(`[Server] First run detected — opening ${url}`);
   try {
-    if (process.platform === "win32") {
+    if (IS_WINDOWS) {
       spawn("cmd", ["/c", "start", url], { stdio: "ignore", detached: true }).unref();
-    } else if (process.platform === "darwin") {
+    } else if (IS_DARWIN) {
       spawn("open", [url], { stdio: "ignore", detached: true }).unref();
     } else {
       spawn("xdg-open", [url], { stdio: "ignore", detached: true }).unref();

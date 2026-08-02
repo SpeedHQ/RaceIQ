@@ -33,7 +33,7 @@ import {
   type PreparedArm,
 } from "./compare";
 import { type FrameLapMeta, type LapFrameLoader, streamArmSamples } from "./stream";
-import { blunderFencesForArms, getOutcomeMetric, type OutcomeMetricId } from "./metrics";
+import { comparisonFences, getOutcomeMetric, type OutcomeMetricId } from "./metrics";
 
 /**
  * Frames for one lap, through the shared LRU telemetry cache.
@@ -114,14 +114,13 @@ export async function loadArmComparison(
     armLabel(bTestId),
   ]);
 
-  // Shared fence width, per-arm placement (`blunderFencesForArms`). Computed
-  // here, where both pools are known, and handed to whichever path runs below —
-  // the streaming and in-memory paths must censor identically or the equivalence
-  // test/arm-stream.test.ts pins is a fiction.
-  const [fenceA, fenceB] =
-    metric.curation.outlierRule === "blunder-fence"
-      ? blunderFencesForArms([aMetas.map((m) => m.lapTime), bMetas.map((m) => m.lapTime)])
-      : [undefined, undefined];
+  // Compute the shared fence policy before choosing metadata or streaming;
+  // both paths must censor identical lap pools.
+  const [fenceA, fenceB] = comparisonFences(
+    metric,
+    aMetas.map((m) => m.lapTime),
+    bMetas.map((m) => m.lapTime),
+  );
 
   if (metric.sampling === "metadata") {
     const prepare = (label: string, metas: LapMeta[], fence: number | null | undefined): PreparedArm =>

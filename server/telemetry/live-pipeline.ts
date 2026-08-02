@@ -4,7 +4,6 @@ import {
   type WsAdapter,
   type SessionRecorderAdapter,
   RealDbAdapter,
-  RealWsAdapter,
   RealSessionRecorderAdapter,
 } from "./pipeline-ports";
 import type { ILapDetector, LapDetectorCallbacks } from "../lap-detection/types";
@@ -13,12 +12,13 @@ import { PitTracker } from "../live-strategy/pit-tracker";
 import { feedCalibrationPosition } from "../tracks/calibration";
 import { getTrackOutlineByOrdinal } from "../../shared/track-data";
 import { getServerGame } from "../games/registry";
-import { fillNormSuspension } from "./normalization";
+import { normalizeTelemetryPacket } from "./normalization";
 import { LAP_DETECTOR_ID } from "../lap-detection/detector";
 import { detectCorners } from "../lap-analysis/corners"
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
 import { symptomsToIssues, detectLiveIssues } from "../ai/tune-issues";
 import { reconcileSessionResult } from "../race-results/reconcile";
+import { wsManager } from "../runtime/websocket-manager";
 
 const CURRENT_SESSION_LAP_SNAPSHOT_LIMIT = 500;
 
@@ -319,16 +319,12 @@ export class LiveTelemetryPipeline {
 
     const adapter = getServerGame(packet.gameId);
 
-    // Normalize coordinates so all games use the same display convention.
-    if (adapter.coordSystem === "standard-xyz") {
-      // Convert right-handed source coordinates to the display convention.
-      packet.PositionX = -packet.PositionX;
-      packet.VelocityX = -packet.VelocityX;
-      packet.AccelerationX = -packet.AccelerationX;
-    }
-
-    // Derive normalized travel when the source does not provide it.
-    fillNormSuspension(packet, adapter.runtime.normSuspensionTravelMm);
+    // Normalize coordinates and derived channels using the adapter profile.
+    normalizeTelemetryPacket(
+      packet,
+      adapter.coordSystem === "standard-xyz",
+      adapter.runtime.normSuspensionTravelMm,
+    );
 
     const detector = this._getOrCreateDetector(packet.gameId);
     await detector.feed(packet, rawByteOffset);
@@ -403,7 +399,12 @@ export class LiveTelemetryPipeline {
 }
 
 // Module-level pipeline used by live runtime callers.
-const _defaultWs = new RealWsAdapter();
+const _defaultWs: WsAdapter = {
+  broadcast: (packet, sectors, pit, liveIssues) =>
+    wsManager.broadcast(packet, sectors, pit, liveIssues),
+  broadcastNotification: (event) => wsManager.broadcastNotification(event),
+  broadcastDevState: (state) => wsManager.broadcastDevState(state),
+};
 const _default = new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
   onSessionFinalized: async (sessionId, gameId) => {
     try {
@@ -418,7 +419,6 @@ const _default = new LiveTelemetryPipeline(new RealDbAdapter(), _defaultWs, {
 });
 
 // Wire session laps provider so WS manager can send laps on client connect
-import { wsManager } from "../runtime/websocket-manager";
 wsManager.setSessionLapsProvider(() => _default.sessionLaps);
 
 export const processPacket = (packet: TelemetryPacket, sourceFrame?: Buffer) =>

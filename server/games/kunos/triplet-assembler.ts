@@ -117,10 +117,6 @@ export class TripletAssembler {
     console.log("[TripletAssembler] Stopped");
   }
 
-  running(): boolean {
-    return this._running;
-  }
-
   private _logMetrics(): void {
     if (this._metrics.totalPolls === 0) return;
 

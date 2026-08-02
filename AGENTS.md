@@ -109,7 +109,7 @@ Drizzle is used **only as a query builder and type-safe schema reference** — N
 ### Pipeline dependency injection
 
 The pipeline uses `DbAdapter` and `WsAdapter` interfaces for testability:
-- Production: `RealDbAdapter` (SQLite), `RealWsAdapter` (Bun WebSocket)
+- Production: `RealDbAdapter` (SQLite), plus a module-level `WsAdapter` delegating to `wsManager`
 - Tests: `NullDbAdapter`/`NullWsAdapter` (no-op) or `CapturingDbAdapter`/`CapturingWsAdapter` (record calls)
 
 ### AI Analysis System

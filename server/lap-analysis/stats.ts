@@ -3,12 +3,15 @@
  * setup-engineer clean-lap aggregate. Pure — no DB, no throwing.
  */
 
-export function stddevPopulation(values: number[]): number {
+export function populationVariance(values: number[]): number {
   const n = values.length;
   if (n === 0) return 0;
-  const mean = values.reduce((sum, v) => sum + v, 0) / n;
-  const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / n;
-  return Math.sqrt(variance);
+  const mean = values.reduce((sum, value) => sum + value, 0) / n;
+  return values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / n;
+}
+
+export function stddevPopulation(values: number[]): number {
+  return Math.sqrt(populationVariance(values));
 }
 
 export function consistencyRating(stdDevSec: number, bestLapSec: number): 1 | 2 | 3 | 4 | 5 {

@@ -26,7 +26,7 @@ import { resolveTrack } from "../tracks/info";
 import { lapAnalystAgent } from "../../mastra/agents/lap-analyst";
 import { loadRepresentativeLap } from "../experiments/representative-lap";
 
-export interface LapAnalystConsult {
+interface LapAnalystConsult {
   available: boolean;
   summary: string;
 }

@@ -6,10 +6,13 @@ import {
 } from "./framing";
 import { importSessionFrames, type ImportedLap } from "./import-pipeline";
 
+const GAME_IDS_BY_FILENAME_PRECEDENCE = [...KNOWN_GAME_IDS].sort(
+  (a, b) => b.length - a.length,
+);
+
 /** Detect a gameId from an uploaded filename prefix (`<gameId>-...` / `<gameId>_...`). */
 export function detectGameIdFromFilename(name: string): GameId | null {
-  const sorted = [...KNOWN_GAME_IDS].sort((a, b) => b.length - a.length);
-  for (const id of sorted) {
+  for (const id of GAME_IDS_BY_FILENAME_PRECEDENCE) {
     if (name.startsWith(`${id}-`) || name.startsWith(`${id}_`)) return id;
   }
   return null;

@@ -12,7 +12,6 @@
  * Fuel and tire wear deltas are tracked per-lap for strategy overlays.
  */
 import type { TelemetryPacket, GameId } from "../../shared/types";
-import type { DbAdapter } from "../telemetry/pipeline-ports";
 import type { ILapDetector, LapDetectorOptions } from "./types";
 import {
   extractCurbSegments,
@@ -60,7 +59,6 @@ export interface LapSavedEvent {
   sectors: number[] | null;
   estimatedBestLapTime: number; // best lap time in session (0 if none yet)
 }
-
 export interface LapSavedNotification extends LapSavedEvent {
   type: "lap-saved";
 }
@@ -79,29 +77,19 @@ export interface LapCompleteEvent {
 export class LapDetector implements ILapDetector {
   readonly detectorId = LAP_DETECTOR_ID;
   private readonly bypassPacketRateFilter: boolean;
-  private db: DbAdapter;
-
-  constructor(dbOrOpts: DbAdapter | LapDetectorOptions, options?: { bypassPacketRateFilter?: boolean }) {
-    if (dbOrOpts && typeof (dbOrOpts as LapDetectorOptions).db !== "undefined") {
-      // New-style: LapDetectorOptions object
-      const opts = dbOrOpts as LapDetectorOptions;
-      this.db = opts.db;
-      this.bypassPacketRateFilter = opts.bypassPacketRateFilter ?? false;
-      if (opts.callbacks) {
-        if (opts.callbacks.onSessionStart) this.onSessionStart = opts.callbacks.onSessionStart;
-        if (opts.callbacks.onLapComplete) this.onLapComplete_ = opts.callbacks.onLapComplete;
-        if (opts.callbacks.onLapSaved) this.onLapSaved = opts.callbacks.onLapSaved;
-      }
-    } else {
-      // Legacy positional style: new LapDetector(db, options?)
-      this.db = dbOrOpts as DbAdapter;
-      this.bypassPacketRateFilter = options?.bypassPacketRateFilter ?? false;
-    }
-  }
+  private db: LapDetectorOptions["db"];
 
   onSessionStart?: (session: SessionState) => void | Promise<void>;
   onLapComplete_?: (event: LapCompleteEvent) => void;
   onLapSaved?: (event: LapSavedEvent) => void;
+
+  constructor(opts: LapDetectorOptions) {
+    this.db = opts.db;
+    this.bypassPacketRateFilter = opts.bypassPacketRateFilter ?? false;
+    this.onSessionStart = opts.callbacks?.onSessionStart;
+    this.onLapComplete_ = opts.callbacks?.onLapComplete;
+    this.onLapSaved = opts.callbacks?.onLapSaved;
+  }
 
   private currentSession: SessionState | null = null;
   private currentLapNumber: number = -1; // -1 = no lap yet (awaiting first packet)
@@ -191,7 +179,7 @@ export class LapDetector implements ILapDetector {
     // Check for new session conditions
     if (this.shouldStartNewSession(packet, now)) {
       // If we have a lap in progress, save it before starting new session
-      await this.finalizeLapIfNeeded(packet);
+      await this.finalizeLapIfNeeded();
       await this.startNewSession(packet);
     }
 
@@ -224,8 +212,7 @@ export class LapDetector implements ILapDetector {
       if (this.lapIsValid) {
         console.log(`[Lap] Rewind: timestamp ${this.lastTimestampMS} -> ${packet.TimestampMS}. Marking lap invalid.`);
       }
-      this.lapIsValid = false;
-      this.invalidReason = "rewind";
+      this.invalidateLap("rewind");
     }
 
     // Lap boundary detection
@@ -236,8 +223,7 @@ export class LapDetector implements ILapDetector {
         this.resetLapState(packet);
       } else if (lapResult.action === "complete-skip") {
         console.log(`[Lap] Lap skip: ${this.currentLapNumber} -> ${packet.LapNumber}. Marking invalid.`);
-        this.lapIsValid = false;
-        this.invalidReason = lapResult.invalidReason;
+        this.invalidateLap(lapResult.invalidReason);
         await this.onLapComplete(packet);
       } else {
         await this.onLapComplete(packet);
@@ -453,8 +439,7 @@ export class LapDetector implements ILapDetector {
       ).then(async (lapId) => {
         // Precompute fuel/tyre metrics now (frames in memory) so /lap-metrics
         // never decodes on first open.
-        try { await persistLapMetrics(this.db, lapId, lapPackets); } catch (e) { console.error("[Lap] persistLapMetrics failed:", e); }
-        try { await reconcileAutoExclusionsForLap(this.db, lapId); } catch (e) { console.error("[Lap] reconcileAutoExclusionsForLap failed:", e); }
+        await this.persistLapFollowups(lapId, lapPackets);
         console.log(
           `[Lap] Saved lap ${lapNum} | Time: ${formatLapTime(lapTime)} | Valid: ${valid}${invalidReason ? ` (${invalidReason})` : ""} | Packets: ${packetCount} | DB ID: ${lapId}`
         );
@@ -484,7 +469,7 @@ export class LapDetector implements ILapDetector {
   }
 
   /** Best-effort save of an incomplete lap when the session ends mid-lap. */
-  private async finalizeLapIfNeeded(_nextPacket: TelemetryPacket): Promise<void> {
+  private async finalizeLapIfNeeded(): Promise<void> {
     // Try to save current in-progress lap when session changes
     if (
       this.currentSession &&
@@ -514,8 +499,7 @@ export class LapDetector implements ILapDetector {
             "incomplete",
             null
           ).then(async (lapId) => {
-            try { await persistLapMetrics(this.db, lapId, lapPackets); } catch (e) { console.error("[Lap] persistLapMetrics failed:", e); }
-        try { await reconcileAutoExclusionsForLap(this.db, lapId); } catch (e) { console.error("[Lap] reconcileAutoExclusionsForLap failed:", e); }
+            await this.persistLapFollowups(lapId, lapPackets);
             console.log(`[Lap] Saved incomplete lap (session ended)`);
           }).catch((err) => {
             console.error("[Lap] Failed to save incomplete lap:", err);
@@ -574,8 +558,7 @@ export class LapDetector implements ILapDetector {
         isComplete ? this.invalidReason : "incomplete",
         null
       ).then(async (lapId) => {
-        try { await persistLapMetrics(this.db, lapId, lapPackets); } catch (e) { console.error("[Lap] persistLapMetrics failed:", e); }
-        try { await reconcileAutoExclusionsForLap(this.db, lapId); } catch (e) { console.error("[Lap] reconcileAutoExclusionsForLap failed:", e); }
+        await this.persistLapFollowups(lapId, lapPackets);
         console.log(
           `[Lap] Flushed stale lap ${lapNum} | Time: ${formatLapTime(lapTime)} | ${isComplete ? "Complete" : "Incomplete"} | Packets: ${packetCount} | DB ID: ${lapId} (${(silenceMs / 1000).toFixed(0)}s silence)`
         );
@@ -624,9 +607,30 @@ export class LapDetector implements ILapDetector {
     return computeLapSectorsHelper(trackOrdinal, gameId, packets, lapTime);
   }
 
-  private resetLapState(newLapFirstPacket: TelemetryPacket, seedPackets: TelemetryPacket[] = []): void {
+  private async persistLapFollowups(
+    lapId: number,
+    lapPackets: TelemetryPacket[],
+  ): Promise<void> {
+    try {
+      await persistLapMetrics(this.db, lapId, lapPackets);
+    } catch (error) {
+      console.error("[Lap] persistLapMetrics failed:", error);
+    }
+    try {
+      await reconcileAutoExclusionsForLap(this.db, lapId);
+    } catch (error) {
+      console.error("[Lap] reconcileAutoExclusionsForLap failed:", error);
+    }
+  }
+
+  private invalidateLap(reason: string): void {
+    this.lapIsValid = false;
+    this.invalidReason = reason;
+  }
+
+  private resetLapState(newLapFirstPacket: TelemetryPacket): void {
     this.currentLapNumber = newLapFirstPacket.LapNumber;
-    this.lapBuffer = [...seedPackets];
+    this.lapBuffer = [];
     this.lapIsValid = true;
     this.invalidReason = null;
     this.lastLastLap = newLapFirstPacket.LastLap;

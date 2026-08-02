@@ -63,7 +63,7 @@ export class SessionRecorder {
    * Format: [0xFFFFFFFF uint32 LE][4 uint32 LE][totalFrames uint32 LE]
    * totalFrames is written as 0 initially and patched to the real count on stop().
    */
-  writeMetaFrame(_unused?: Buffer): void {
+  writeMetaFrame(): void {
     if (!this._active || this._metaPending || this._file) return;
     this._metaPending = true;
     this._byteOffset += META_FRAME_BYTES;
@@ -121,8 +121,11 @@ export class SessionRecorder {
       try {
         const countBuf = encodeFrameLength(count);
         const fd = openSync(path, "r+");
-        writeSync(fd, countBuf, 0, 4, 8);
-        closeSync(fd);
+        try {
+          writeSync(fd, countBuf, 0, countBuf.length, 8);
+        } finally {
+          closeSync(fd);
+        }
       } catch {
         // Non-fatal: header patch failing doesn't corrupt the record data
       }

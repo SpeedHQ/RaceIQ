@@ -17,19 +17,14 @@ export interface WSData {
 
 const GRIP_MAX_SAMPLES = 600; // 60s of history at 10Hz sampling
 
-export interface GripHistoryData {
-  fl: number[];
-  fr: number[];
-  rl: number[];
-  rr: number[];
-}
-
 export interface FourWheelHistory {
   fl: number[];
   fr: number[];
   rl: number[];
   rr: number[];
 }
+
+export interface GripHistoryData extends FourWheelHistory {}
 
 export interface TelemetryHistoryData {
   grip: FourWheelHistory;
@@ -41,6 +36,25 @@ export interface TelemetryHistoryData {
   throttle: number[];
   brake: number[];
   speed: number[];
+}
+
+function pushFourWheelSample(
+  target: FourWheelHistory,
+  fl: number,
+  fr: number,
+  rl: number,
+  rr: number,
+): void {
+  target.fl.push(fl);
+  target.fr.push(fr);
+  target.rl.push(rl);
+  target.rr.push(rr);
+  if (target.fl.length > GRIP_MAX_SAMPLES) {
+    target.fl.shift();
+    target.fr.shift();
+    target.rl.shift();
+    target.rr.shift();
+  }
 }
 
 class WebSocketManager {
@@ -195,27 +209,19 @@ class WebSocketManager {
     this.gripSampleCounter++;
     if (this.gripSampleCounter % 6 === 0) {
       const h = this.gripHistory;
-      h.fl.push(Math.abs(packet.TireCombinedSlipFL));
-      h.fr.push(Math.abs(packet.TireCombinedSlipFR));
-      h.rl.push(Math.abs(packet.TireCombinedSlipRL));
-      h.rr.push(Math.abs(packet.TireCombinedSlipRR));
-      if (h.fl.length > GRIP_MAX_SAMPLES) {
-        h.fl.shift(); h.fr.shift(); h.rl.shift(); h.rr.shift();
-      }
+      const slipFL = Math.abs(packet.TireCombinedSlipFL);
+      const slipFR = Math.abs(packet.TireCombinedSlipFR);
+      const slipRL = Math.abs(packet.TireCombinedSlipRL);
+      const slipRR = Math.abs(packet.TireCombinedSlipRR);
+      pushFourWheelSample(h, slipFL, slipFR, slipRL, slipRR);
 
       const t = this.telemetryHistory;
-      const push4 = (target: FourWheelHistory, fl: number, fr: number, rl: number, rr: number) => {
-        target.fl.push(fl); target.fr.push(fr); target.rl.push(rl); target.rr.push(rr);
-        if (target.fl.length > GRIP_MAX_SAMPLES) {
-          target.fl.shift(); target.fr.shift(); target.rl.shift(); target.rr.shift();
-        }
-      };
-      push4(t.grip, Math.abs(packet.TireCombinedSlipFL), Math.abs(packet.TireCombinedSlipFR), Math.abs(packet.TireCombinedSlipRL), Math.abs(packet.TireCombinedSlipRR));
-      push4(t.temp, packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR);
-      push4(t.wear, packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR);
-      push4(t.slipAngle, packet.TireSlipAngleFL, packet.TireSlipAngleFR, packet.TireSlipAngleRL, packet.TireSlipAngleRR);
-      push4(t.slipRatio, packet.TireSlipRatioFL, packet.TireSlipRatioFR, packet.TireSlipRatioRL, packet.TireSlipRatioRR);
-      push4(t.suspension, packet.NormSuspensionTravelFL, packet.NormSuspensionTravelFR, packet.NormSuspensionTravelRL, packet.NormSuspensionTravelRR);
+      pushFourWheelSample(t.grip, slipFL, slipFR, slipRL, slipRR);
+      pushFourWheelSample(t.temp, packet.TireTempFL, packet.TireTempFR, packet.TireTempRL, packet.TireTempRR);
+      pushFourWheelSample(t.wear, packet.TireWearFL, packet.TireWearFR, packet.TireWearRL, packet.TireWearRR);
+      pushFourWheelSample(t.slipAngle, packet.TireSlipAngleFL, packet.TireSlipAngleFR, packet.TireSlipAngleRL, packet.TireSlipAngleRR);
+      pushFourWheelSample(t.slipRatio, packet.TireSlipRatioFL, packet.TireSlipRatioFR, packet.TireSlipRatioRL, packet.TireSlipRatioRR);
+      pushFourWheelSample(t.suspension, packet.NormSuspensionTravelFL, packet.NormSuspensionTravelFR, packet.NormSuspensionTravelRL, packet.NormSuspensionTravelRR);
       t.throttle.push(packet.Accel / 255);
       t.brake.push(packet.Brake / 255);
       t.speed.push(packet.Speed * 2.23694);
@@ -224,13 +230,13 @@ class WebSocketManager {
   }
 
   /** Start the broadcast timer at the configured Hz. */
-  startBroadcastTimer(): void {
+  private startBroadcastTimer(): void {
     this.stopBroadcastTimer();
     this._broadcastTimer = setInterval(() => this._pushToClients(), this.broadcastIntervalMs);
   }
 
   /** Stop the broadcast timer. */
-  stopBroadcastTimer(): void {
+  private stopBroadcastTimer(): void {
     if (this._broadcastTimer) {
       clearInterval(this._broadcastTimer);
       this._broadcastTimer = null;

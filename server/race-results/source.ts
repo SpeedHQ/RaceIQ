@@ -3,6 +3,7 @@ import type { GameId, TelemetryPacket } from "../../shared/types";
 import { derivePitLedger, type PitServiceSignals } from "./pit-ledger";
 import type { RaceSourceObservation, ResultClassification } from "./types";
 import { createRaceResultProvenance } from "./provenance";
+import { resolveRaceResultAuthorityFromSourceStatus } from "./authority";
 
 const SOURCE_EXTRACTOR = {
   id: "race-result-source",
@@ -238,7 +239,7 @@ export function extractRaceSource(gameId: GameId, packets: TelemetryPacket[]): R
     validFrom: 0,
     validTo: Number.MAX_SAFE_INTEGER,
     value: claim.classification,
-    authority: claim.source === "final-classification" ? "simulator-final" : "simulator-live",
+    authority: resolveRaceResultAuthorityFromSourceStatus(claim.source === "final-classification" ? "direct" : "simplified"),
     kind: "deterministic",
     confidence: claim.source === "final-classification" ? 1 : 0.7,
     observedAt: claim.observedAt,
@@ -255,7 +256,6 @@ export function extractRaceSource(gameId: GameId, packets: TelemetryPacket[]): R
     finishingPosition,
     qualifyingPosition,
     isFastestLap,
-    fastestLapSource: isFastestLap == null ? null : "player-vs-f1-grid-best-lap",
     packets,
     claims: classificationClaims,
     pitEvents: pitSignals ? derivePitLedger(pitSignals) : undefined,

@@ -3,7 +3,7 @@ import { promisify } from "util";
 
 /** Magic length value that marks a session-capture meta frame. */
 export const META_FRAME_MAGIC = 0xffffffff;
-export const META_FRAME_PAYLOAD_BYTES = 4;
+const META_FRAME_PAYLOAD_BYTES = 4;
 export const META_FRAME_BYTES = 8 + META_FRAME_PAYLOAD_BYTES;
 
 const gunzipAsync = promisify(gunzip);
@@ -17,6 +17,7 @@ export function encodeMetaFrame(totalFrames = 0): Buffer {
   header.writeUInt32LE(totalFrames, 8);
   return header;
 }
+
 export function encodeFrameLength(length: number): Buffer {
   const prefix = Buffer.allocUnsafe(4);
   prefix.writeUInt32LE(length, 0);
@@ -34,10 +35,53 @@ export function readFrameStreamStart(bytes: Uint8Array): number {
 }
 
 /** Legacy importer behavior: recorder magic always reserves the fixed 12-byte header. */
-export function readRecorderFrameStreamStart(bytes: Buffer): number {
+function readRecorderFrameStreamStart(bytes: Buffer): number {
   return bytes.length >= 4 && bytes.readUInt32LE(0) === META_FRAME_MAGIC
     ? META_FRAME_BYTES
     : 0;
+}
+
+interface SessionFrameRecord {
+  /** Byte offset of the record length prefix in the backing byte stream. */
+  offset: number;
+  frame: Buffer;
+}
+interface SessionFrameIterationOptions {
+  skipMetaFrames?: boolean;
+  allowEmptyFrames?: boolean;
+}
+
+
+/**
+ * Iterate complete length-prefixed records, stopping at a truncated tail.
+ * Options retain reprocessor behavior; normal imports use strict framing.
+ */
+export function* iterateSessionFrameRecords(
+  bytes: Buffer,
+  offset = readRecorderFrameStreamStart(bytes),
+  options?: SessionFrameIterationOptions,
+): Generator<SessionFrameRecord> {
+  while (offset + 4 <= bytes.length) {
+    const frameOffset = offset;
+    const length = bytes.readUInt32LE(offset);
+    if (options?.skipMetaFrames && length === META_FRAME_MAGIC) {
+      if (offset + 8 > bytes.length) break;
+      offset += 8 + bytes.readUInt32LE(offset + 4);
+      continue;
+    }
+    offset += 4;
+    if (
+      (!options?.allowEmptyFrames && length === 0) ||
+      offset + length > bytes.length
+    ) {
+      break;
+    }
+    yield {
+      offset: frameOffset,
+      frame: bytes.subarray(offset, offset + length),
+    };
+    offset += length;
+  }
 }
 
 /** Iterate complete length-prefixed telemetry frames, stopping at truncated tail. */
@@ -45,14 +89,14 @@ export function* iterateSessionFrames(
   bytes: Buffer,
   offset = readRecorderFrameStreamStart(bytes),
 ): Generator<Buffer> {
-  while (offset + 4 <= bytes.length) {
-    const length = bytes.readUInt32LE(offset);
-    offset += 4;
-    if (length <= 0 || offset + length > bytes.length) break;
-    yield bytes.subarray(offset, offset + length);
-    offset += length;
+  while (true) {
+    const frame = sessionFrameAt(bytes, offset);
+    if (!frame) break;
+    yield frame;
+    offset += 4 + frame.length;
   }
 }
+
 export function sessionFrameAt(bytes: Buffer, offset: number): Buffer | null {
   if (offset < 0 || offset + 4 > bytes.length) return null;
   const length = bytes.readUInt32LE(offset);
@@ -74,31 +118,27 @@ export function advanceSessionFrames(
   return at;
 }
 
-
 export function isGzip(bytes: Uint8Array): boolean {
   return bytes.length >= 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
 }
 
 export function gzipBufferSync(bytes: Buffer): Buffer {
-  return Buffer.from(gzipSync(bytes));
+  return gzipSync(bytes);
 }
 
 export async function gzipBuffer(bytes: Buffer): Promise<Buffer> {
-  return Buffer.from(await gzipAsync(bytes));
+  return gzipAsync(bytes);
 }
 
 export function gunzipBufferSync(bytes: Buffer): Buffer {
-  return Buffer.from(gunzipSync(bytes));
+  return gunzipSync(bytes);
 }
 
 export async function gunzipBuffer(bytes: Buffer): Promise<Buffer> {
-  return Buffer.from(await gunzipAsync(bytes));
+  return gunzipAsync(bytes);
 }
 
 export function decompressIfGzipSync(bytes: Buffer): Buffer {
   return isGzip(bytes) ? gunzipBufferSync(bytes) : bytes;
 }
 
-export async function decompressIfGzip(bytes: Buffer): Promise<Buffer> {
-  return isGzip(bytes) ? gunzipBuffer(bytes) : bytes;
-}

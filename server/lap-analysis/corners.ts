@@ -1,5 +1,5 @@
 import type { TelemetryPacket } from "../../shared/types";
-import { tryGetGame } from "../../shared/games/registry";
+import { speedMphFromPacket, steerScaleFor } from "./metrics";
 
 export interface Corner {
   index: number;
@@ -35,14 +35,6 @@ function rollingAverage(data: number[], window: number): number[] {
   return result;
 }
 
-/**
- * Compute speed in mph from velocity components.
- */
-function speedMph(p: TelemetryPacket): number {
-  return (
-    Math.sqrt(p.VelocityX ** 2 + p.VelocityY ** 2 + p.VelocityZ ** 2) * 2.237
-  );
-}
 
 /**
  * Auto-detect corners from telemetry packets using the algorithm from the spec:
@@ -59,11 +51,8 @@ function speedMph(p: TelemetryPacket): number {
 export function detectCorners(packets: TelemetryPacket[]): Corner[] {
   if (packets.length < 30) return [];
 
-  // Resolve steering center from game adapter
-  const gameId = packets[0].gameId;
-  const adapter = gameId ? tryGetGame(gameId) : undefined;
-  const steerCenter = adapter?.steeringCenter ?? 127;
-  const steerRange = adapter?.steeringRange ?? 127;
+  // Resolve steering scale from the same adapter-backed helper as input metrics.
+  const { center: steerCenter, range: steerRange } = steerScaleFor(packets[0].gameId);
 
   // Scale thresholds relative to steering range (15/127 and 10/127 of full range)
   const entryThreshold = (15 / 127) * steerRange;
@@ -72,7 +61,7 @@ export function detectCorners(packets: TelemetryPacket[]): Corner[] {
   const distanceAtLapStart = packets[0].DistanceTraveled;
 
   // Extract raw data
-  const rawSpeeds = packets.map(speedMph);
+  const rawSpeeds = packets.map(speedMphFromPacket);
   const rawSteering = packets.map((p) => p.Steer);
   const distances = packets.map((p) => p.DistanceTraveled - distanceAtLapStart);
 

@@ -19,7 +19,7 @@ interface Point {
 }
 
 /** Everything known about one game's take on one track layout. */
-export interface TrackInfo {
+interface TrackInfo {
   /** Meta slug naming the layout, e.g. `silverstone`. Undefined when the game can't resolve one. */
   slug?: string;
   /** Display name for the track. Always present — falls back to the game's own roster name. */

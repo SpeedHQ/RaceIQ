@@ -23,8 +23,7 @@ import { formatTireTempSymptoms } from "./tune-tire-symptoms";
 import { formatDamperSymptoms } from "./tune-damper-symptoms";
 import { formatWeightTransferSymptoms } from "./tune-weight-transfer";
 
-/** Render the deterministic symptom report as compact prompt text. Shared by the
- *  telemetry-driven and chat-driven intent prompts. */
+/** Render the deterministic symptom report as compact prompt text. */
 function renderSymptomReport(symptoms: TuneSymptoms): string {
   const agg = symptoms.aggregate;
   const cornerLines = symptoms.corners
@@ -143,9 +142,7 @@ Respond with JSON matching the schema: { "summary": string, "intents": [ { "comp
 
 /**
  * Dispatch a single grammar-constrained intent turn to the configured auto-tune
- * provider. Shared by `requestTuneIntents` (telemetry) and
- * `requestTuneIntentsFromChat` (conversation) so the provider plumbing lives in
- * one place. Returns the raw model text + resolved model id.
+ * provider. Returns the raw model text + resolved model id.
  */
 async function runTuneIntentProvider(
   prompt: string,
@@ -192,33 +189,6 @@ export async function requestTuneIntents(
   carModel?: string,
 ): Promise<{ intents: TuneIntents; model: string }> {
   const prompt = buildTunePrompt(gameId, symptoms, trackName, carModel);
-  const { raw, model } = await runTuneIntentProvider(prompt, getTuneIntentJsonSchema());
-
-  const parsed = parseTuneIntents(raw);
-  if (!parsed.success) {
-    throw new Error("AI returned an invalid tune-intent response. Try again or switch models.");
-  }
-  return { intents: parsed.data, model };
-}
-
-/**
- * Pre-drive intent request: propose setup intents from the setup CHAT
- * conversation + current setup values (and telemetry symptoms when a lap
- * exists). No stint required — this is how the driver tunes from feel before
- * running a lap. The LLM only names component + direction + magnitude; the
- * deterministic `applyIntents` rules still own every click (parity §4d).
- */
-export async function requestTuneIntentsFromChat(
-  gameId: GameId,
-  opts: {
-    conversation: string;
-    currentSetupSummary: string | null;
-    symptoms?: TuneSymptoms | null;
-    trackName?: string;
-    carModel?: string;
-  },
-): Promise<{ intents: TuneIntents; model: string }> {
-  const prompt = buildTuneChatIntentPrompt(gameId, opts);
   const { raw, model } = await runTuneIntentProvider(prompt, getTuneIntentJsonSchema());
 
   const parsed = parseTuneIntents(raw);

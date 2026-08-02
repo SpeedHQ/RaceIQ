@@ -3,14 +3,17 @@ import type { ServerGameAdapter } from "./types";
 
 const adapters: ServerGameAdapter[] = [];
 const adapterMap = new Map<string, ServerGameAdapter>();
-/** gameId → lowercase process names, built at registration time */
+/** gameId → normalized process names, built at registration time */
 const processNameMap = new Map<string, string[]>();
 
 export function registerServerGame(adapter: ServerGameAdapter): void {
   adapters.push(adapter);
   adapterMap.set(adapter.id, adapter);
   if (adapter.processNames?.length) {
-    processNameMap.set(adapter.id, adapter.processNames.map((n) => n.toLowerCase()));
+    processNameMap.set(
+      adapter.id,
+      adapter.processNames.map((name) => name.replace(/\.exe$/i, "").toLowerCase()),
+    );
   }
 }
 
@@ -64,12 +67,7 @@ _processCacheInterval.unref?.();
 
 /** Check if a specific game's process is running. */
 export function isGameRunning(gameId: string): boolean {
-  const registeredNames = processNameMap.get(gameId);
-  if (!registeredNames?.length) return false;
-  return registeredNames.some((name) => {
-    const bare = name.replace(/\.exe$/i, "");
-    return _processNames.has(name) || _processNames.has(bare);
-  });
+  return processNameMap.get(gameId)?.some((name) => _processNames.has(name)) ?? false;
 }
 
 /** Find which registered game is currently running. Returns null if none detected. */
@@ -77,10 +75,7 @@ export function getRunningGame(): ServerGameAdapter | null {
   if (_processNames.size === 0) return null;
   for (const adapter of adapters) {
     const names = processNameMap.get(adapter.id);
-    if (names?.some((name) => {
-      const bare = name.replace(/\.exe$/i, "");
-      return _processNames.has(name) || _processNames.has(bare);
-    })) return adapter;
+    if (names?.some((name) => _processNames.has(name))) return adapter;
   }
   return null;
 }

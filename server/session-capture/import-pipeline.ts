@@ -141,12 +141,17 @@ export class ImportCaptureAdapter implements DbAdapter {
   }
 }
 
+async function rollbackImport(
+  capture: ImportCaptureAdapter,
+  error: unknown,
+): Promise<never> {
+  await capture.rollback();
+  throw error;
+}
 
-export type SessionFrameSource =
-  | Iterable<Buffer>
-  | AsyncIterable<Buffer>;
+type SessionFrameSource = Iterable<Buffer> | AsyncIterable<Buffer>;
 
-export interface ImportSessionFramesOptions {
+interface ImportSessionFramesOptions {
   /** Roll back the imported session and capture when no complete lap exists. */
   requireLaps?: boolean;
 }
@@ -196,12 +201,13 @@ export async function importSessionFrames(
   }
 
   if (failure) {
-    await db.rollback();
-    throw failure;
+    return rollbackImport(db, failure);
   }
   if (options.requireLaps && db.laps.length === 0) {
-    await db.rollback();
-    throw new Error("No complete, importable laps were found");
+    return rollbackImport(
+      db,
+      new Error("No complete, importable laps were found"),
+    );
   }
 
   try {
@@ -209,8 +215,7 @@ export async function importSessionFrames(
       await reconcileSessionResult(sessionId, gameId);
     }
   } catch (error) {
-    await db.rollback();
-    throw error;
+    return rollbackImport(db, error);
   }
 
   return {

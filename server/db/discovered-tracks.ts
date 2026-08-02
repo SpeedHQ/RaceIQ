@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "./index";
 import { discoveredTracks } from "./schema";
 
-export interface DiscoveredTrackRow {
+interface DiscoveredTrackRow {
   id: number;
   gameId: string;
   ordinal: number;

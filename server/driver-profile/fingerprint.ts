@@ -82,12 +82,12 @@ export function emptyFingerprint(
  */
 export function buildDriverFingerprint(input: {
   scope: ProfileScope;
-  laps: LapMeta[];
-  perLapInsights: LapInsight[][];
-  perLapStyle?: (LapStyleSummary | undefined)[];
+  laps: readonly LapMeta[];
+  perLapInsights: readonly (readonly LapInsight[])[];
+  perLapStyle?: readonly (LapStyleSummary | undefined)[];
   trend?: DriverTrend;
   pool?: Partial<LapPoolReport>;
-  notes?: string[];
+  notes?: readonly string[];
 }): DriverFingerprint {
   const { scope } = input;
   const notes = [...(input.notes ?? [])];

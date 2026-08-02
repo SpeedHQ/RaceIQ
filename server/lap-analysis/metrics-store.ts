@@ -55,21 +55,23 @@ function rowToMetrics(row: MetricsRow): LapMetrics | null {
 }
 
 async function persist(metrics: LapMetrics): Promise<void> {
+  const insights = JSON.stringify(metrics.insights);
+  const segmentStats = JSON.stringify(metrics.segmentStats);
   await db
     .insert(lapMetrics)
     .values({
       lapId: metrics.lapId,
       algoVersion: metrics.algoVersion,
-      insights: JSON.stringify(metrics.insights),
-      segmentStats: JSON.stringify(metrics.segmentStats),
+      insights,
+      segmentStats,
       computedAt: metrics.computedAt,
     })
     .onConflictDoUpdate({
       target: lapMetrics.lapId,
       set: {
         algoVersion: metrics.algoVersion,
-        insights: JSON.stringify(metrics.insights),
-        segmentStats: JSON.stringify(metrics.segmentStats),
+        insights,
+        segmentStats,
         computedAt: metrics.computedAt,
       },
     });

@@ -2,7 +2,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { db } from "./index";
 import { lapAnalyses, compareAnalyses } from "./schema";
 
-export interface AnalysisRow {
+interface AnalysisRow {
   analysis: string;
   inputTokens: number;
   outputTokens: number;

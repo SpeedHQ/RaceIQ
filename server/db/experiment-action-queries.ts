@@ -12,7 +12,7 @@ import { db } from "./index";
 import { experimentActions } from "./schema";
 
 /** The mutating op kinds the log records. Matches the Phase 9 design list. */
-export type ExperimentActionKind =
+type ExperimentActionKind =
   | "apply-changes"
   | "branch"
   | "add-base"

@@ -1,9 +1,13 @@
 import type {
   RaceResultClaimEvidence,
   RaceResultClaimScope,
-  RaceResultSourceStatus,
 } from "../../shared/race-results";
-import { arbitrateRaceResultClaim, RACE_RESULT_OUTCOME_POLICY } from "./authority";
+import {
+  arbitrateRaceResultClaim,
+  RACE_RESULT_OUTCOME_POLICY,
+  resolveRaceResultAuthorityFromSourceStatus,
+  resolveRaceResultSourceStatusFromAuthority,
+} from "./authority";
 import type {
   DerivedRaceResult,
   PitEvent,
@@ -28,19 +32,6 @@ export function normalizeSessionType(value: string | null | undefined): ResultSe
   if (normalized.startsWith("qualif")) return "qualifying";
   if (normalized.startsWith("race")) return "race";
   return "other";
-}
-
-function classificationAuthority(status: RaceResultSourceStatus): string {
-  if (status === "direct") return "simulator-final";
-  if (status === "derived") return "canonical-derivation";
-  return "simulator-live";
-}
-
-function classificationStatus(authority: string | undefined): RaceResultSourceStatus {
-  if (authority === "simulator-final") return "direct";
-  if (authority === "canonical-derivation") return "derived";
-  if (authority) return "simplified";
-  return "unavailable";
 }
 
 function classificationEvidence(
@@ -84,7 +75,7 @@ function classificationEvidence(
         ...scope,
         id: "classification:source",
         value: source.classification,
-        authority: classificationAuthority(status === "unavailable" ? "derived" : status),
+        authority: resolveRaceResultAuthorityFromSourceStatus(status),
         kind: "deterministic",
         confidence: status === "direct" ? 1 : 0.7,
         observedAt: 0,
@@ -139,7 +130,7 @@ export function deriveRaceResult(source: RaceSourceObservation): DerivedRaceResu
   );
   const classificationResult = {
     classification,
-    status: classificationStatus(winningEvidence?.authority),
+    status: resolveRaceResultSourceStatusFromAuthority(winningEvidence?.authority),
   };
   const events = stableEvents(source.pitEvents);
   const reasons = [...new Set(source.reasons)];

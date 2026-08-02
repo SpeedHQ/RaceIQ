@@ -45,56 +45,88 @@ export function generateExport(
   const speedLabel = speedUnit === "kmh" ? "km/h" : "mph";
   const tempLabel = tempUnit === "C" ? "C" : "F";
 
-  // Speed calculations
-  const speeds = packets.map((p) => Math.sqrt(p.VelocityX ** 2 + p.VelocityY ** 2 + p.VelocityZ ** 2) * speedFactor);
-  const minSpeed = Math.min(...speeds);
-  const maxSpeed = Math.max(...speeds);
-  const avgSpeed = speeds.reduce((a, b) => a + b, 0) / speeds.length;
-
-  // RPM
-  const rpms = packets.map((p) => p.CurrentEngineRpm);
-  const minRpm = Math.min(...rpms);
-  const maxRpm = Math.max(...rpms);
-  const avgRpm = rpms.reduce((a, b) => a + b, 0) / rpms.length;
-
-  // Throttle/Brake (0-255 -> percentage)
-  const throttles = packets.map((p) => p.Accel / 255);
-  const avgThrottle = throttles.reduce((a, b) => a + b, 0) / throttles.length;
-  const fullThrottle = throttles.filter((t) => t > 0.95).length / throttles.length;
-
-  const brakes = packets.map((p) => p.Brake / 255);
-  const avgBrake = brakes.reduce((a, b) => a + b, 0) / brakes.length;
-  const fullBrake = brakes.filter((b) => b > 0.95).length / brakes.length;
-
-  // Convert from the source unit declared by the active adapter.
-  const avgTireTempFL = convertTemp(packets.reduce((a, p) => a + p.TireTempFL, 0) / packets.length, tempUnit, srcTemp);
-  const avgTireTempFR = convertTemp(packets.reduce((a, p) => a + p.TireTempFR, 0) / packets.length, tempUnit, srcTemp);
-  const avgTireTempRL = convertTemp(packets.reduce((a, p) => a + p.TireTempRL, 0) / packets.length, tempUnit, srcTemp);
-  const avgTireTempRR = convertTemp(packets.reduce((a, p) => a + p.TireTempRR, 0) / packets.length, tempUnit, srcTemp);
-
-  // Gear distribution
+  // Collect all packet aggregates in one pass; speeds remain available for
+  // braking-zone detection.
+  const speeds = new Array<number>(packets.length);
+  let minSpeed = Infinity;
+  let maxSpeed = -Infinity;
+  let speedSum = 0;
+  let minRpm = Infinity;
+  let maxRpm = -Infinity;
+  let rpmSum = 0;
+  let throttleSum = 0;
+  let fullThrottleCount = 0;
+  let brakeSum = 0;
+  let fullBrakeCount = 0;
+  let tireTempFLSum = 0;
+  let tireTempFRSum = 0;
+  let tireTempRLSum = 0;
+  let tireTempRRSum = 0;
+  let suspensionFLSum = 0;
+  let suspensionFRSum = 0;
+  let suspensionRLSum = 0;
+  let suspensionRRSum = 0;
   const gearCounts = new Map<number, number>();
-  for (const p of packets) {
-    gearCounts.set(p.Gear, (gearCounts.get(p.Gear) ?? 0) + 1);
+
+  for (let index = 0; index < packets.length; index++) {
+    const packet = packets[index];
+    const speed =
+      Math.sqrt(packet.VelocityX ** 2 + packet.VelocityY ** 2 + packet.VelocityZ ** 2) *
+      speedFactor;
+    speeds[index] = speed;
+    minSpeed = Math.min(minSpeed, speed);
+    maxSpeed = Math.max(maxSpeed, speed);
+    speedSum += speed;
+
+    minRpm = Math.min(minRpm, packet.CurrentEngineRpm);
+    maxRpm = Math.max(maxRpm, packet.CurrentEngineRpm);
+    rpmSum += packet.CurrentEngineRpm;
+
+    const throttle = packet.Accel / 255;
+    throttleSum += throttle;
+    if (throttle > 0.95) fullThrottleCount++;
+    const brake = packet.Brake / 255;
+    brakeSum += brake;
+    if (brake > 0.95) fullBrakeCount++;
+
+    tireTempFLSum += packet.TireTempFL;
+    tireTempFRSum += packet.TireTempFR;
+    tireTempRLSum += packet.TireTempRL;
+    tireTempRRSum += packet.TireTempRR;
+    suspensionFLSum += packet.SuspensionTravelMFL;
+    suspensionFRSum += packet.SuspensionTravelMFR;
+    suspensionRLSum += packet.SuspensionTravelMRL;
+    suspensionRRSum += packet.SuspensionTravelMRR;
+    gearCounts.set(packet.Gear, (gearCounts.get(packet.Gear) ?? 0) + 1);
   }
+
+  const packetCount = packets.length;
+  const avgSpeed = speedSum / packetCount;
+  const avgRpm = rpmSum / packetCount;
+  const avgThrottle = throttleSum / packetCount;
+  const fullThrottle = fullThrottleCount / packetCount;
+  const avgBrake = brakeSum / packetCount;
+  const fullBrake = fullBrakeCount / packetCount;
+  const avgTireTempFL = convertTemp(tireTempFLSum / packetCount, tempUnit, srcTemp);
+  const avgTireTempFR = convertTemp(tireTempFRSum / packetCount, tempUnit, srcTemp);
+  const avgTireTempRL = convertTemp(tireTempRLSum / packetCount, tempUnit, srcTemp);
+  const avgTireTempRR = convertTemp(tireTempRRSum / packetCount, tempUnit, srcTemp);
+  const avgSuspFL = suspensionFLSum / packetCount;
+  const avgSuspFR = suspensionFRSum / packetCount;
+  const avgSuspRL = suspensionRLSum / packetCount;
+  const avgSuspRR = suspensionRRSum / packetCount;
+
   const gearDist = Array.from(gearCounts.entries())
     .filter(([gear]) => gear > 0) // Skip neutral/reverse
     .sort(([a], [b]) => a - b)
     .map(([gear, count]) => {
-      const pct = ((count / packets.length) * 100).toFixed(0);
+      const pct = ((count / packetCount) * 100).toFixed(0);
       const gearName = gear === 11 ? "R" : `${gear}`;
       return `${gearName}: ${pct}%`;
     })
     .join(" | ");
 
-  // Top 5 braking zones by speed delta
   const brakingZones = findBrakingZones(packets, speeds);
-
-  // Suspension travel
-  const avgSuspFL = packets.reduce((a, p) => a + p.SuspensionTravelMFL, 0) / packets.length;
-  const avgSuspFR = packets.reduce((a, p) => a + p.SuspensionTravelMFR, 0) / packets.length;
-  const avgSuspRL = packets.reduce((a, p) => a + p.SuspensionTravelMRL, 0) / packets.length;
-  const avgSuspRR = packets.reduce((a, p) => a + p.SuspensionTravelMRR, 0) / packets.length;
 
   // Tire wear (use last packet values)
   const last = packets[packets.length - 1];
@@ -140,7 +172,7 @@ Paste this into a Claude conversation for tuning advice.`;
   return output;
 }
 
-export interface BrakingZone {
+interface BrakingZone {
   startSpeed: number;
   endSpeed: number;
   distance: number; // DistanceTraveled at brake point
@@ -151,22 +183,24 @@ function findBrakingZones(packets: TelemetryPacket[], speeds: number[]): Braking
   let inBraking = false;
   let brakeStartIdx = 0;
   let peakSpeed = 0;
+  let minSpeedInZone = Infinity;
 
   for (let i = 1; i < packets.length; i++) {
     const braking = packets[i].Brake > 50; // ~20% brake threshold
 
-    if (braking && !inBraking) {
-      // Start of braking zone
-      inBraking = true;
-      brakeStartIdx = i;
-      peakSpeed = speeds[i - 1];
-    } else if (!braking && inBraking) {
-      // End of braking zone
+    if (braking) {
+      if (!inBraking) {
+        inBraking = true;
+        brakeStartIdx = i;
+        peakSpeed = speeds[i - 1];
+        minSpeedInZone = speeds[i];
+      } else {
+        minSpeedInZone = Math.min(minSpeedInZone, speeds[i]);
+      }
+    } else if (inBraking) {
       inBraking = false;
-      const minSpeedInZone = Math.min(...speeds.slice(brakeStartIdx, i));
       const delta = peakSpeed - minSpeedInZone;
       if (delta > 10) {
-        // Only record significant braking
         zones.push({
           startSpeed: peakSpeed,
           endSpeed: minSpeedInZone,

@@ -80,14 +80,6 @@ export class BufferedKunosMemoryReader implements IRealtimeKunosMemoryReader {
     this._opts = opts;
   }
 
-  connected(): boolean {
-    return this._connected;
-  }
-
-  running(): boolean {
-    return this._running;
-  }
-
   getDebugBuffers(): { physics: Buffer; graphics: Buffer; staticData: Buffer } | null {
     if (!this._physicsBuffer || !this._graphicsBuffer || !this._staticBuffer) {
       return null;
@@ -143,11 +135,6 @@ export class BufferedKunosMemoryReader implements IRealtimeKunosMemoryReader {
       graphics: this._graphicsBuffer,
       staticData: this._staticBuffer,
     };
-  }
-
-  nextFrame(): { physics?: Buffer; graphics?: Buffer; staticData?: Buffer } | null {
-    // Not used — TripletAssembler polls directly
-    return null;
   }
 
   private _tryConnect(): void {

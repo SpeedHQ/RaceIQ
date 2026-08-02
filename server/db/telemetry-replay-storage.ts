@@ -2,7 +2,7 @@ import { eq, and } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps } from "./schema";
 import type { TelemetryPacket, GameId, TelemetryVersionIdentity } from "../../shared/types";
-import { fillNormSuspension } from "../telemetry/normalization";
+import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import { getServerGame } from "../games/registry";
 import { gunzip } from "zlib";
 import { promisify } from "util";
@@ -105,7 +105,7 @@ export const _telemetryCacheForTest = {
  * Frame 0 is a meta frame (magic-prefixed); lap frames start at rawByteOffset.
  */
 
-export interface LapParseErrorDetails {
+interface LapParseErrorDetails {
   rawFile: string;
   rawByteOffset: number;
   rawFrameCount: number;
@@ -173,6 +173,35 @@ export async function getSessionRawFile(
   return session?.rawFile ?? null;
 }
 
+type ReplayGame = ReturnType<typeof getServerGame>;
+
+function normalizeReplayPacket(packet: TelemetryPacket, game: ReplayGame): void {
+  normalizeTelemetryPacket(
+    packet,
+    game.coordSystem === "standard-xyz",
+    game.runtime.normSuspensionTravelMm,
+  );
+}
+
+function appendDelayedFinishPacket(
+  packets: TelemetryPacket[],
+  trailing: TelemetryPacket | null,
+  game: ReplayGame,
+): void {
+  const last = packets[packets.length - 1];
+  if (!game.appendsDelayedFinishFrame || !trailing || !last) return;
+
+  const finishTime = trailing.LastLap ?? 0;
+  if (finishTime <= (last.CurrentLap ?? 0)) return;
+
+  packets.push({
+    ...trailing,
+    CurrentLap: finishTime,
+    LapNumber: last.LapNumber,
+    DistanceTraveled: Math.max(trailing.DistanceTraveled, last.DistanceTraveled),
+  });
+}
+
 /**
  * Re-parse every frame from a completed session capture. Result reconciliation
  * needs the session tail because authoritative finish packets may arrive after
@@ -201,12 +230,7 @@ export async function getSessionTelemetry(
     try {
       const packet = serverGame.tryParse(sourceFrame, state);
       if (!packet) continue;
-      if (serverGame.coordSystem === "standard-xyz") {
-        packet.PositionX = -packet.PositionX;
-        packet.VelocityX = -packet.VelocityX;
-        packet.AccelerationX = -packet.AccelerationX;
-      }
-      fillNormSuspension(packet, serverGame.runtime.normSuspensionTravelMm);
+      normalizeReplayPacket(packet, serverGame);
       packets.push(packet);
     } catch {
       // Match lap replay: one malformed native frame does not discard session.
@@ -289,38 +313,14 @@ export async function parseRawLapFrames(
     try {
       const packet = serverGame.tryParse(sourceFrame, state);
       if (!packet) continue;
-      // Apply the same adapter-directed normalization used for live data.
-      if (serverGame.coordSystem === "standard-xyz") {
-        packet.PositionX = -packet.PositionX;
-        packet.VelocityX = -packet.VelocityX;
-        packet.AccelerationX = -packet.AccelerationX;
-      }
-      fillNormSuspension(packet, serverGame.runtime.normSuspensionTravelMm);
+      normalizeReplayPacket(packet, serverGame);
       if (i < rawFrameCount) {
         packets.push(packet);
       } else {
         // Extra trailing frame = the next-lap trigger. It carries real
         // speed/throttle/etc. values for the finish-line crossing, but its
-        // CurrentLap has already reset for the new lap. Append it as a
-        // synthesized "finish" packet with CurrentLap rewritten to this
-        // lap's time (from LastLap), and LapNumber patched back to the
-        // outgoing lap so consumers don't see a stray new-lap entry.
-        const last = packets[packets.length - 1];
-        const finishTime = packet.LastLap ?? 0;
-        // Some native detectors already store the exact outgoing frame range,
-        // so their next-lap timing frame must not be appended here.
-        if (
-          serverGame.appendsDelayedFinishFrame &&
-          last &&
-          finishTime > (last.CurrentLap ?? 0)
-        ) {
-          packets.push({
-            ...packet,
-            CurrentLap: finishTime,
-            LapNumber: last.LapNumber,
-            DistanceTraveled: Math.max(packet.DistanceTraveled, last.DistanceTraveled),
-          });
-        }
+        // CurrentLap has already reset for the new lap.
+        appendDelayedFinishPacket(packets, packet, serverGame);
       }
     } catch (err) {
       // A single malformed frame shouldn't kill the whole lap parse. Log
@@ -506,12 +506,7 @@ export async function parseSessionLapsBatched(
     try {
       const packet = serverGame.tryParse(sourceFrame, state);
       if (!packet) continue;
-      if (serverGame.coordSystem === "standard-xyz") {
-        packet.PositionX = -packet.PositionX;
-        packet.VelocityX = -packet.VelocityX;
-        packet.AccelerationX = -packet.AccelerationX;
-      }
-      fillNormSuspension(packet, serverGame.runtime.normSuspensionTravelMm);
+      normalizeReplayPacket(packet, serverGame);
       parsed[i] = packet;
     } catch { /* single bad frame — skip, matches per-lap tolerance */ }
   }
@@ -525,21 +520,9 @@ export async function parseSessionLapsBatched(
       const p = parsed[i];
       if (p) packets.push(p);
     }
-    // Trailing frame = next-lap trigger; synthesize a finish packet (same logic
-    // as parseRawLapFrames' extra-frame branch).
-    const trailing = parsed[end];
-    const last = packets[packets.length - 1];
-    if (serverGame.appendsDelayedFinishFrame && trailing && last) {
-      const finishTime = trailing.LastLap ?? 0;
-      if (finishTime > (last.CurrentLap ?? 0)) {
-        packets.push({
-          ...trailing,
-          CurrentLap: finishTime,
-          LapNumber: last.LapNumber,
-          DistanceTraveled: Math.max(trailing.DistanceTraveled, last.DistanceTraveled),
-        });
-      }
-    }
+    // Trailing frame = next-lap trigger; synthesize a finish packet using the
+    // same adapter policy as the individual decoder.
+    appendDelayedFinishPacket(packets, parsed[end], serverGame);
     if (packets.length > 0) out.set(lap.id, packets);
   }
 

@@ -12,6 +12,7 @@ import {
   setIracingSource,
 } from "./live-readers";
 import { superviseSource } from "./source-supervisor";
+import { IS_WINDOWS } from "./platform/shell";
 
 const SOURCE_POLL_MS = 2000;
 
@@ -22,7 +23,7 @@ export interface NativeSourceSupervisor {
 export function startNativeSourceSupervisor(
   recordingGameId: string | null,
 ): NativeSourceSupervisor {
-  if (process.platform !== "win32") {
+  if (!IS_WINDOWS) {
     return { stop: async () => {} };
   }
 

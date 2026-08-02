@@ -2,6 +2,7 @@ import { execSync } from "child_process";
 import { resolve } from "path";
 import { wsManager, type WSData } from "./websocket-manager";
 import type { AppType } from "../routes/index";
+import { IS_WINDOWS } from "./platform/shell";
 
 type HttpApp = Pick<AppType, "fetch">;
 
@@ -14,7 +15,7 @@ export interface HttpServerOptions {
 
 export function clearHttpPort(port: number): void {
   try {
-    if (process.platform === "win32") {
+    if (IS_WINDOWS) {
       execSync(
         `powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort ${port} -State Listen -EA 0 | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -EA 0 }"`,
         { stdio: "ignore", windowsHide: true },

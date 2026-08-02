@@ -18,7 +18,6 @@ import { getLapsForExclusionScope, setLapAutoExclusion, getLapExperimentScope } 
 import { notifyDriverProfileLap } from "../driver-profile/runner";
 import type { ExclusionScopeLap } from "../experiments/auto-exclude";
 import { getTuneAssignment } from "../db/tune-queries";
-import { wsManager } from "../runtime/websocket-manager";
 import { SessionRecorder } from "../session-capture/recorder";
 import { resolveDataDir } from "../runtime/config/data-dir";
 
@@ -176,19 +175,6 @@ export class RealDbAdapter implements DbAdapter {
   }
   getLapExperimentScope(lapId: number): Promise<{ experimentId: number | null; tuneId: number | null }> {
     return getLapExperimentScope(lapId);
-  }
-}
-
-/** Delegates to wsManager singleton. Used in production. */
-export class RealWsAdapter implements WsAdapter {
-  broadcast(packet: TelemetryPacket, sectors?: LiveSectorData | null, pit?: LivePitData | null, liveIssues?: TuneIssue[]): void {
-    wsManager.broadcast(packet, sectors, pit, liveIssues);
-  }
-  broadcastNotification(event: Record<string, unknown>): void {
-    wsManager.broadcastNotification(event);
-  }
-  broadcastDevState(state: Record<string, unknown>): void {
-    wsManager.broadcastDevState(state);
   }
 }
 

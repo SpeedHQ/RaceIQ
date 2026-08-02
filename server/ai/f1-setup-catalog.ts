@@ -36,7 +36,7 @@ import usa from "../../shared/tunes/f1-25/f1laps/usa/setups.json";
 
 export type F1Setup = Record<string, number>;
 
-export interface CatalogEntry {
+interface CatalogEntry {
   team: string;
   author: string;
   lapTime: string;
@@ -129,7 +129,7 @@ export function parseLapTime(raw: string): number {
   return parseInt(m[1], 10) * 60 + parseFloat(m[2]);
 }
 
-export function loadCatalogEntries(trackOrdinal: number): CatalogEntry[] {
+function loadCatalogEntries(trackOrdinal: number): CatalogEntry[] {
   const meta = TRACK_CATALOG[trackOrdinal];
   if (!meta) return [];
   const raw = meta.raw as Array<Omit<CatalogEntry, "lapTimeSeconds">>;

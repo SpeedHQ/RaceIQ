@@ -1,4 +1,1 @@
-export {
-  describeComparison,
-  serializeComparison,
-} from "./compare";
+export { serializeComparison } from "./compare";

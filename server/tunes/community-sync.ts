@@ -20,12 +20,13 @@ import {
  */
 
 const DEFAULT_BASE_URL = "https://speedhq-tunes.pages.dev";
+const MANIFEST_PATH = "manifest.json";
 const SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 /** Games the CDN publishes today. Built-in catalog is FM-only, matching this. */
 const SYNCED_GAME_IDS = ["fm-2023"] as const;
 
-function baseUrl(): string {
+function getCommunityTunesBaseUrl(): string {
   return process.env.COMMUNITY_TUNES_URL ?? DEFAULT_BASE_URL;
 }
 
@@ -54,6 +55,8 @@ const CdnTuneSchema = z.object({
   settings: z.record(z.string(), z.unknown()),
 });
 
+type Manifest = z.infer<typeof ManifestSchema>;
+
 interface SyncResult {
   synced: boolean;
   count: number;
@@ -61,6 +64,90 @@ interface SyncResult {
 }
 
 let syncInProgress = false;
+let intervalHandle: ReturnType<typeof setInterval> | null = null;
+
+function resolveCommunityTunesUrl(baseUrl: string, path: string): string {
+  return new URL(path, `${baseUrl}/`).toString();
+}
+
+function syncSkippedResult(storedVersion: string | null): SyncResult {
+  return { synced: false, count: 0, version: storedVersion };
+}
+
+async function fetchManifest(): Promise<Manifest | null> {
+  const manifestRes = await fetch(
+    `${getCommunityTunesBaseUrl()}/${MANIFEST_PATH}`,
+  );
+  if (!manifestRes.ok) {
+    console.warn(
+      `[CommunityTunes] manifest fetch failed: HTTP ${manifestRes.status}`,
+    );
+    return null;
+  }
+  return ManifestSchema.parse(await manifestRes.json());
+}
+
+async function fetchCommunityTuneRows(
+  gameId: string,
+  path: string,
+): Promise<CommunityTuneRow[] | null> {
+  const tunesUrl = resolveCommunityTunesUrl(getCommunityTunesBaseUrl(), path);
+  const tunesRes = await fetch(tunesUrl);
+  if (!tunesRes.ok) {
+    console.warn(
+      `[CommunityTunes] tunes fetch failed for ${gameId}: HTTP ${tunesRes.status}; keeping cache`,
+    );
+    return null;
+  }
+
+  return toCommunityTuneRows(gameId, await tunesRes.json());
+}
+
+function toCommunityTuneRows(
+  gameId: string,
+  raw: unknown,
+): CommunityTuneRow[] | null {
+  if (!Array.isArray(raw)) {
+    console.warn(
+      `[CommunityTunes] tunes payload for ${gameId} is not an array; keeping cache`,
+    );
+    return null;
+  }
+
+  const rows: CommunityTuneRow[] = [];
+  let skipped = 0;
+  for (const item of raw) {
+    const parsed = CdnTuneSchema.safeParse(item);
+    if (!parsed.success) {
+      skipped++;
+      continue;
+    }
+    const t = parsed.data;
+    rows.push({
+      id: t.id,
+      gameId: t.gameId,
+      carOrdinal: t.carOrdinal,
+      trackOrdinal: t.trackOrdinal ?? null,
+      name: t.name,
+      author: t.author,
+      category: t.category,
+      description: t.description,
+      sourceName: t.sourceName,
+      settings: JSON.stringify(t.settings),
+    });
+  }
+
+  if (skipped > 0) {
+    console.warn(`[CommunityTunes] ${gameId}: skipped ${skipped} invalid row(s)`);
+  }
+  if (rows.length === 0) {
+    console.warn(
+      `[CommunityTunes] ${gameId}: zero valid rows — treating as full takedown`,
+    );
+  }
+
+  return rows;
+}
 
 /**
  * Run one sync pass. Returns `{synced:false}` when the manifest version matches
@@ -76,21 +163,18 @@ export async function syncCommunityTunes(
 ): Promise<SyncResult> {
   const stored = getCommunityTunesSyncState();
   if (syncInProgress) {
-    return { synced: false, count: 0, version: stored.version };
+    return syncSkippedResult(stored.version);
   }
+
   syncInProgress = true;
   try {
-    const manifestRes = await fetch(`${baseUrl()}/manifest.json`);
-    if (!manifestRes.ok) {
-      console.warn(
-        `[CommunityTunes] manifest fetch failed: HTTP ${manifestRes.status}`,
-      );
-      return { synced: false, count: 0, version: stored.version };
+    const manifest = await fetchManifest();
+    if (!manifest) {
+      return syncSkippedResult(stored.version);
     }
-    const manifest = ManifestSchema.parse(await manifestRes.json());
 
     if (!options.force && manifest.version === stored.version) {
-      return { synced: false, count: 0, version: stored.version };
+      return syncSkippedResult(stored.version);
     }
 
     let total = 0;
@@ -105,55 +189,9 @@ export async function syncCommunityTunes(
         continue;
       }
 
-      const tunesUrl = new URL(entry.path, `${baseUrl()}/`).toString();
-      const tunesRes = await fetch(tunesUrl);
-      if (!tunesRes.ok) {
-        console.warn(
-          `[CommunityTunes] tunes fetch failed for ${gameId}: HTTP ${tunesRes.status}; keeping cache`,
-        );
-        return { synced: false, count: 0, version: stored.version };
-      }
-
-      const raw = await tunesRes.json();
-      if (!Array.isArray(raw)) {
-        console.warn(
-          `[CommunityTunes] tunes payload for ${gameId} is not an array; keeping cache`,
-        );
-        return { synced: false, count: 0, version: stored.version };
-      }
-
-      const rows: CommunityTuneRow[] = [];
-      let skipped = 0;
-      for (const item of raw) {
-        const parsed = CdnTuneSchema.safeParse(item);
-        if (!parsed.success) {
-          skipped++;
-          continue;
-        }
-        const t = parsed.data;
-        rows.push({
-          id: t.id,
-          gameId: t.gameId,
-          carOrdinal: t.carOrdinal,
-          trackOrdinal: t.trackOrdinal ?? null,
-          name: t.name,
-          author: t.author,
-          category: t.category,
-          description: t.description,
-          sourceName: t.sourceName,
-          settings: JSON.stringify(t.settings),
-        });
-      }
-
-      if (skipped > 0) {
-        console.warn(
-          `[CommunityTunes] ${gameId}: skipped ${skipped} invalid row(s)`,
-        );
-      }
-      if (rows.length === 0) {
-        console.warn(
-          `[CommunityTunes] ${gameId}: zero valid rows — treating as full takedown`,
-        );
+      const rows = await fetchCommunityTuneRows(gameId, entry.path);
+      if (!rows) {
+        return syncSkippedResult(stored.version);
       }
 
       const written = await replaceCommunityTunes(gameId, rows);
@@ -170,13 +208,11 @@ export async function syncCommunityTunes(
       "[CommunityTunes] sync failed; keeping existing cache:",
       err instanceof Error ? err.message : err,
     );
-    return { synced: false, count: 0, version: stored.version };
+    return syncSkippedResult(stored.version);
   } finally {
     syncInProgress = false;
   }
 }
-
-let intervalHandle: ReturnType<typeof setInterval> | null = null;
 
 /**
  * Kick off a non-blocking startup sync and schedule the recurring 6h refresh.

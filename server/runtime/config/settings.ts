@@ -12,7 +12,6 @@ const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
 // installs and defaults resolve to "" (no provider selected) — the user must
 // explicitly pick a provider in Settings before any AI feature runs.
 const AiProviderSchema = z.enum(["", "gemini", "openai", "local"]).default("");
-const ChatProviderSchema = z.enum(["", "gemini", "openai", "local"]).default("");
 
 const AppSettingsSchema = z.object({
   onboardingComplete: z.boolean().default(false),
@@ -27,7 +26,7 @@ const AppSettingsSchema = z.object({
   aiProvider: AiProviderSchema.default(""),
   aiModel: z.string().default(""),
   aiThinkingBudget: z.number().int().min(0).nullable().default(null),
-  chatProvider: ChatProviderSchema.default(""),
+  chatProvider: AiProviderSchema.default(""),
   chatModel: z.string().default(""),
   chatThinkingBudget: z.number().int().min(0).nullable().default(null),
   // Auto-tune analyst provider/model. Independent of the lap-analysis
@@ -63,15 +62,19 @@ export type AppSettings = z.infer<typeof AppSettingsSchema>;
 
 const DEFAULTS: AppSettings = AppSettingsSchema.parse({});
 
+function ensureSettingsDir(): void {
+  if (!existsSync(SETTINGS_DIR)) {
+    mkdirSync(SETTINGS_DIR, { recursive: true });
+  }
+}
+
 /** Returns true if settings file doesn't exist yet (fresh install) */
 export function isFirstRun(): boolean {
   return !existsSync(SETTINGS_PATH);
 }
 
 export function loadSettings(): AppSettings {
-  if (!existsSync(SETTINGS_DIR)) {
-    mkdirSync(SETTINGS_DIR, { recursive: true });
-  }
+  ensureSettingsDir();
   if (!existsSync(SETTINGS_PATH)) {
     saveSettings(DEFAULTS);
     return { ...DEFAULTS };
@@ -120,9 +123,7 @@ export function loadSettings(): AppSettings {
 }
 
 export function saveSettings(settings: AppSettings): void {
-  if (!existsSync(SETTINGS_DIR)) {
-    mkdirSync(SETTINGS_DIR, { recursive: true });
-  }
+  ensureSettingsDir();
   // Validate before writing
   const validated = AppSettingsSchema.parse(settings);
   const tmpPath = `${SETTINGS_PATH}.tmp`;

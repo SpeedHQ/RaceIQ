@@ -7,10 +7,8 @@ import { getSessionResult, upsertSessionResult } from "../db/session-result-quer
 import { getSessionRawFile, getSessionTelemetry } from "../db/telemetry-replay-storage";
 import { deriveRaceResult, normalizeSessionType } from "./derive";
 import { extractRaceSource } from "./source";
-import type { PitEvent } from "./types";
 import type { RaceResultCanonicalInputIdentity, RaceResultRawInputIdentity } from "../../shared/race-results";
 import { loadRawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
-
 
 function canonicalInputIdentity(sessionId: number, packets: readonly TelemetryPacket[]): RaceResultCanonicalInputIdentity | null {
   if (packets.length === 0) return null;
@@ -58,23 +56,6 @@ export interface BackfillReport {
   errors: number;
   results: ReconcileSessionReport[];
 }
-
-function toStoredPitEvent(event: PitEvent) {
-  return {
-    sequence: event.sequence,
-    lapNumber: event.lapNumber,
-    elapsedSeconds: event.elapsedSeconds,
-    durationSeconds: event.durationSeconds,
-    service: event.service,
-    tyreChange: event.tyreChange,
-    fuelAdded: event.fuelAdded,
-    fuelBefore: event.fuelBefore,
-    fuelAfter: event.fuelAfter,
-    linkage: event.linkage,
-    source: event.source,
-  };
-}
-
 
 export async function reconcileSessionResult(sessionId: number, gameId: GameId): Promise<ReconcileSessionReport> {
   const sessions = await getSessions(gameId);
@@ -126,7 +107,6 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
     rawInput: await rawInputIdentity(sessionId, await getSessionRawFile(sessionId, gameId)),
     canonicalInput: canonicalInputIdentity(sessionId, packets),
   };
-  const storedEvents = derived.events.map(toStoredPitEvent);
   const existing = await getSessionResult(sessionId, gameId);
   const unchanged = existing != null &&
     existing.sessionType === derived.sessionType &&
@@ -173,7 +153,7 @@ export async function reconcileSessionResult(sessionId: number, gameId: GameId):
     provenance: derived.provenance,
     evidence: derived.evidence,
     reasons: derived.reasons,
-  }, storedEvents);
+  }, derived.events);
 
   const status = unchanged
     ? "unchanged"
@@ -197,13 +177,21 @@ export async function backfillRaceResults(options: { gameId: GameId; limit: numb
       results.push({ sessionId: session.id, status: "error", eventCount: 0, reasons: [error instanceof Error ? error.message : "unknown-error"] });
     }
   }
+  const counts: Record<ReconcileSessionReport["status"], number> = {
+    enriched: 0,
+    unchanged: 0,
+    skipped: 0,
+    ambiguous: 0,
+    error: 0,
+  };
+  for (const result of results) counts[result.status]++;
   return {
     processed: results.length,
-    enriched: results.filter((result) => result.status === "enriched").length,
-    unchanged: results.filter((result) => result.status === "unchanged").length,
-    skipped: results.filter((result) => result.status === "skipped").length,
-    ambiguous: results.filter((result) => result.status === "ambiguous").length,
-    errors: results.filter((result) => result.status === "error").length,
+    enriched: counts.enriched,
+    unchanged: counts.unchanged,
+    skipped: counts.skipped,
+    ambiguous: counts.ambiguous,
+    errors: counts.error,
     results,
   };
 }

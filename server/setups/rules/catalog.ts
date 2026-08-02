@@ -14,7 +14,11 @@ export interface FieldDef {
   integer?: boolean;
 }
 
-const CLICK_STEP: Record<TuneMagnitude, number> = { small: 1, medium: 2, large: 4 };
+function scaledSteps(step: number): Record<TuneMagnitude, number> {
+  return { small: step, medium: step * 2, large: step * 4 };
+}
+
+const CLICK_STEP = scaledSteps(1);
 
 /** Component strings are prompt grammar and persisted applied-change labels. */
 const RULES: Record<string, Record<string, FieldDef>> = {
@@ -97,7 +101,7 @@ const RULES: Record<string, Record<string, FieldDef>> = {
   },
 };
 
-export interface CarRange {
+interface CarRange {
   min: number;
   max: number;
   step: number;
@@ -134,7 +138,7 @@ export function getRuleTable(gameId: GameId, carModel?: string): Record<string, 
       ...def,
       min: range.min,
       max: range.max,
-      step: { small: range.step, medium: range.step * 2, large: range.step * 4 },
+      step: scaledSteps(range.step),
       integer: Number.isInteger(range.step) && Number.isInteger(range.min) ? def.integer : false,
     };
   }

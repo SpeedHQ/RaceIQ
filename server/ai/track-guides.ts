@@ -125,7 +125,7 @@ function findGuide(trackNameOrId: string): TrackGuideFile | null {
   return null;
 }
 
-export interface TrackGuideOptions {
+interface TrackGuideOptions {
   /** Shared track slug (meta filename, e.g. "spa") — enables canonical naming. */
   slug?: string;
 }

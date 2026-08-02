@@ -1,5 +1,5 @@
 import type { GameId, SessionRecap } from "../../shared/types";
-import { stddevPopulation, consistencyRating } from "./stats"
+import { stddevPopulation, consistencyRating } from "./stats";
 
 /** Plain lap data needed to compute a recap. Null sectors are legacy laps. */
 export interface RecapLapInput {
@@ -52,18 +52,22 @@ export function computeRecap(input: ComputeRecapInput): SessionRecap {
   const { session, laps, carName, trackName, trackLengthM, allTimeBestSec, allTimeBestSectors } = input;
 
   const lapsTotal = laps.length;
-  const validLaps = laps.filter(isValidLap);
+  const validLaps: RecapLapInput[] = [];
+  const validLapTimes: number[] = [];
+  let bestLap: RecapLapInput | null = null;
+  let firstValidLap: RecapLapInput | null = null;
+  let timeOnTrackSec = 0;
+  for (const lap of laps) {
+    if (!isValidLap(lap)) continue;
+    validLaps.push(lap);
+    validLapTimes.push(lap.lapTime);
+    timeOnTrackSec += lap.lapTime;
+    if (bestLap === null || lap.lapTime < bestLap.lapTime) bestLap = lap;
+    if (firstValidLap === null || lap.lapNumber < firstValidLap.lapNumber) firstValidLap = lap;
+  }
   const lapsValid = validLaps.length;
-
-  // Track the best lap itself, not just its time — the client deep-links to analysing it.
-  const bestLap = validLaps.reduce<RecapLapInput | null>((best, l) => (best === null || l.lapTime < best.lapTime ? l : best), null);
   const bestLapSec = bestLap?.lapTime ?? null;
   const bestLapId = bestLap?.id ?? null;
-
-  // Valid laps only. Invalid laps are frequently detector artifacts — a real session
-  // carried a single invalid 13207s lap, which rendered as "0 laps · 3h 40m on track".
-  // Counting only valid laps keeps these two honest and consistent with every other metric.
-  const timeOnTrackSec = validLaps.reduce((sum, l) => sum + l.lapTime, 0);
 
   const distanceM = trackLengthM !== null ? trackLengthM * lapsValid : null;
 
@@ -88,11 +92,12 @@ export function computeRecap(input: ComputeRecapInput): SessionRecap {
       lap.sectorTimes.every((time) => time > 0),
   );
   if (completeSectorLaps.length > 0 && bestLapSec !== null) {
-    const sessionBests = Array.from({ length: sectorCount }, (_, index) =>
-      Math.min(
-        ...completeSectorLaps.map((lap) => lap.sectorTimes![index]),
-      ),
-    );
+    const sessionBests = new Array<number>(sectorCount).fill(Infinity);
+    for (const lap of completeSectorLaps) {
+      for (let index = 0; index < sectorCount; index++) {
+        sessionBests[index] = Math.min(sessionBests[index], lap.sectorTimes![index]);
+      }
+    }
     const sumSec = sessionBests.reduce((sum, time) => sum + time, 0);
     theoretical = {
       bestSectorTimes: sessionBests,
@@ -140,16 +145,13 @@ export function computeRecap(input: ComputeRecapInput): SessionRecap {
   }
 
   let improvementSec: number | null = null;
-  if (lapsValid >= 2 && bestLapSec !== null) {
-    const firstValidLap = validLaps.reduce((earliest, l) =>
-      l.lapNumber < earliest.lapNumber ? l : earliest,
-    );
+  if (lapsValid >= 2 && bestLapSec !== null && firstValidLap !== null) {
     improvementSec = Math.max(0, firstValidLap.lapTime - bestLapSec);
   }
 
   let consistency: SessionRecap["consistency"] = null;
   if (lapsValid >= 3 && bestLapSec !== null) {
-    const stdDevSec = stddevPopulation(validLaps.map((l) => l.lapTime));
+    const stdDevSec = stddevPopulation(validLapTimes);
     consistency = { stdDevSec, rating: consistencyRating(stdDevSec, bestLapSec) };
   }
 

@@ -54,7 +54,7 @@ import {
   MIN_TELEMETRY_FRAMES,
   type MetricSample,
   type PairwiseFramesOutcomeMetric,
-  pickReferenceLap,
+  referenceLapPreference,
 } from "./metrics";
 
 /**
@@ -163,20 +163,6 @@ export function selectWithinFrameBudget(candidates: FrameLapMeta[], budget: numb
   };
 }
 
-/** Reference-lap preference order: the median lap time, then outwards from it. */
-function referencePreference(candidates: FrameLapMeta[]): FrameLapMeta[] {
-  const byTime = [...candidates].sort((a, b) => a.lapTime - b.lapTime || a.id - b.id);
-  const start = pickReferenceLap(byTime.map((m) => ({ lap: m })));
-  if (!start) return [];
-  const startIdx = byTime.findIndex((m) => m.id === start.lap.id);
-
-  const order: FrameLapMeta[] = [byTime[startIdx]];
-  for (let step = 1; order.length < byTime.length; step++) {
-    if (startIdx + step < byTime.length) order.push(byTime[startIdx + step]);
-    if (startIdx - step >= 0) order.push(byTime[startIdx - step]);
-  }
-  return order;
-}
 
 /**
  * Sample one arm on a pairwise-frames metric, holding at most 2 laps of
@@ -223,7 +209,7 @@ export async function streamArmSamples(args: StreamArmArgs): Promise<PreparedArm
   // ── one lap live: the reference ──────────────────────────────────────────
   let reference: { id: number; telemetry: TelemetryPacket[] } | null = null;
   let framesDecoded = 0;
-  for (const candidate of referencePreference(budgeted.selected)) {
+  for (const candidate of referenceLapPreference(budgeted.selected)) {
     const telemetry = await loadFrames(candidate.id);
     if (telemetry && telemetry.length >= MIN_TELEMETRY_FRAMES) {
       // A direct JS reference, so correctness never depends on the telemetry

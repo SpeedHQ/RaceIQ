@@ -2,7 +2,7 @@ type JsonSchema = Record<string, unknown>;
 
 const DEFAULT_THINKING_CONFIG = { thinkingBudget: 2048, includeThoughts: false } as const;
 
-export function supportsGoogleThinkingBudget(modelId: string): boolean {
+function supportsGoogleThinkingBudget(modelId: string): boolean {
   const model = modelId.trim().toLowerCase();
   if (model.length === 0) return true;
   return !model.startsWith("gemma-") && !model.includes("/gemma-");

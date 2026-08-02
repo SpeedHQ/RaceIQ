@@ -17,6 +17,11 @@ export const LAP_METRICS_ALGO_VERSION = 1;
 
 const MPH_TO_KMH = 1.609344;
 
+/** Convert one packet's velocity vector from metres per second to miles per hour. */
+export function speedMphFromPacket(packet: TelemetryPacket): number {
+  return Math.sqrt(packet.VelocityX ** 2 + packet.VelocityY ** 2 + packet.VelocityZ ** 2) * 2.237;
+}
+
 /** ~20-feature input descriptor for one slice of a lap. */
 export interface InputStats {
   // Aggregates
@@ -115,29 +120,6 @@ export function computeStatsRange(
   const lo = Math.max(0, Math.min(startIdx, throttle.length - 1));
   const hi = Math.max(lo + 1, Math.min(endIdx, throttle.length));
   const n = hi - lo;
-  const empty: InputStats = {
-    throttleAvg: 0,
-    throttleMax: 0,
-    fullThrottlePctDist: 0,
-    brakeAvg: 0,
-    brakeMax: 0,
-    brakingPctDist: 0,
-    brakeApplications: 0,
-    steerAbsAvg: 0,
-    steerAbsMax: 0,
-    steeringSmoothness: 0,
-    brakeOnDist: null,
-    brakeOffDist: null,
-    peakBrakeValue: 0,
-    peakBrakeDist: null,
-    fullThrottleDist: null,
-    liftOffThrottleDist: null,
-    minSpeed: 0,
-    minSpeedDist: null,
-    maxSpeed: 0,
-    maxSpeedDist: null,
-  };
-  if (n === 0) return empty;
 
   let tSum = 0,
     tMax = 0,
@@ -251,14 +233,26 @@ function extractChannels(packets: TelemetryPacket[]): LapChannels {
   const first = packets[0];
   const d0 = first.DistanceTraveled;
   const t0 = first.TimestampMS;
-  return {
-    distances: packets.map((p) => p.DistanceTraveled - d0),
-    elapsed: packets.map((p) => (p.TimestampMS - t0) / 1000),
-    throttle: packets.map((p) => p.Accel / 255),
-    brake: packets.map((p) => p.Brake / 255),
-    steer: packets.map((p) => p.Steer),
-    speedMph: packets.map((p) => Math.sqrt(p.VelocityX ** 2 + p.VelocityY ** 2 + p.VelocityZ ** 2) * 2.237),
+  const channels: LapChannels = {
+    distances: new Array(packets.length),
+    elapsed: new Array(packets.length),
+    throttle: new Array(packets.length),
+    brake: new Array(packets.length),
+    steer: new Array(packets.length),
+    speedMph: new Array(packets.length),
   };
+
+  for (let index = 0; index < packets.length; index++) {
+    const packet = packets[index];
+    channels.distances[index] = packet.DistanceTraveled - d0;
+    channels.elapsed[index] = (packet.TimestampMS - t0) / 1000;
+    channels.throttle[index] = packet.Accel / 255;
+    channels.brake[index] = packet.Brake / 255;
+    channels.steer[index] = packet.Steer;
+    channels.speedMph[index] = speedMphFromPacket(packet);
+  }
+
+  return channels;
 }
 
 /**
@@ -271,7 +265,7 @@ function extractChannels(packets: TelemetryPacket[]): LapChannels {
  *
  * Pure: no DB, no track lookup. `getOrComputeLapMetrics` supplies the segments.
  */
-export function computeLapSegmentStats(
+function computeLapSegmentStats(
   packets: TelemetryPacket[],
   segments: NamedSegment[],
   steerScale: SteerScale,
@@ -394,11 +388,28 @@ export function deriveFuelPerLap(packets: TelemetryPacket[]): number | undefined
  */
 export function deriveTyreWear(packets: TelemetryPacket[]): number | undefined {
   for (let i = packets.length - 1; i >= 0; i--) {
-    const p = packets[i];
-    const tyres = [p.TireWearFL, p.TireWearFR, p.TireWearRL, p.TireWearRR];
-    if (tyres.some((w) => typeof w !== "number" || !Number.isFinite(w) || w < 0)) continue;
-    const worst = Math.max(...(tyres as number[]));
-    return round2(worst * 100);
+    const packet = packets[i];
+    const frontLeft = packet.TireWearFL;
+    const frontRight = packet.TireWearFR;
+    const rearLeft = packet.TireWearRL;
+    const rearRight = packet.TireWearRR;
+    if (
+      typeof frontLeft !== "number" ||
+      !Number.isFinite(frontLeft) ||
+      frontLeft < 0 ||
+      typeof frontRight !== "number" ||
+      !Number.isFinite(frontRight) ||
+      frontRight < 0 ||
+      typeof rearLeft !== "number" ||
+      !Number.isFinite(rearLeft) ||
+      rearLeft < 0 ||
+      typeof rearRight !== "number" ||
+      !Number.isFinite(rearRight) ||
+      rearRight < 0
+    ) {
+      continue;
+    }
+    return round2(Math.max(frontLeft, frontRight, rearLeft, rearRight) * 100);
   }
   return undefined;
 }

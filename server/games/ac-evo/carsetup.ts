@@ -405,7 +405,7 @@ export function summarizeCarSetup(
  * Flatten a decoded `.carsetup` into a plain object keyed by the knob path
  * names `server/setups/rules/catalog.ts` and `shared/games/ac-evo/setup-ranges.json`
  * use (`frontARB`, `brakeBias`, `frontLeftTyrePressure`, ...), so
- * `getKnobState`/`describeKnobs` return real current values instead of "?".
+ * `getAllKnobStates`/`describeKnobs` return real current values instead of "?".
  *
  * Only fields whose meaning is verified (see summarizeCarSetup) are emitted.
  * ARB stiffness values (N/m) are converted to click numbers via

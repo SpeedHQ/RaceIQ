@@ -30,10 +30,10 @@
 import type { TelemetryPacket } from "../../shared/types";
 import type { TireCorner } from "./tune-tire-symptoms";
 
-export type TravelUse = "stiff" | "optimal" | "soft";
-export type DamperBias = "bump_biased" | "rebound_biased" | "balanced";
+type TravelUse = "stiff" | "optimal" | "soft";
+type DamperBias = "bump_biased" | "rebound_biased" | "balanced";
 
-export interface DamperCornerSymptom {
+interface DamperCornerSymptom {
   corner: TireCorner;
   /** Mean normalized travel over moving frames (0 = droop, 1 = bump). */
   meanCompression: number;
@@ -55,7 +55,7 @@ export interface DamperCornerSymptom {
   damperBias: DamperBias;
 }
 
-export interface DamperSymptoms {
+interface DamperSymptoms {
   corners: DamperCornerSymptom[];
   /** Mean working-band front axle − rear axle, percent. +ve = fronts busier. */
   frontMinusRearRangePct: number;
@@ -71,20 +71,20 @@ export interface DamperSymptoms {
 // and above which it's called soft. Between the two it's "optimal". Coarse
 // heuristic — a well-controlled GT car works roughly this band on a smooth
 // track; widen per-car later if a lookup lands.
-export const STIFF_RANGE_PCT = 25;
-export const SOFT_RANGE_PCT = 70;
+const STIFF_RANGE_PCT = 25;
+const SOFT_RANGE_PCT = 70;
 // Bump/rebound velocity ratio beyond which the damper is called asymmetric
 // rather than "balanced". 1.35 ≈ a third faster one way than the other.
-export const DAMPER_ASYM_RATIO = 1.35;
+const DAMPER_ASYM_RATIO = 1.35;
 // Normalized-travel velocity (per tick) above which a frame counts as a
 // fast (bump/kerb) event rather than slow body movement. Fixed coarse
 // threshold for the ACC/AC-EVO channels; never a numeric target.
-export const FAST_DAMPER_VEL = 0.02;
+const FAST_DAMPER_VEL = 0.02;
 // Percent of frames at full compression that flags a corner as bottoming.
-export const BOTTOMING_PCT = 2;
+const BOTTOMING_PCT = 2;
 // Travel treated as full compression / full droop.
-export const BUMP_STOP = 0.95;
-export const DROOP_STOP = 0.05;
+const BUMP_STOP = 0.95;
+const DROOP_STOP = 0.05;
 // Minimum moving frames before a corner's dampers are trusted.
 const MIN_FRAMES = 30;
 

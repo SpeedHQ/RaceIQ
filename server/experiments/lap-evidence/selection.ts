@@ -1,1 +1,1 @@
-export { computeConsistency, percentile, selectCleanLaps } from "./aggregate";
+export { selectCleanLaps } from "./aggregate";
