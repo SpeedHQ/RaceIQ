@@ -10,6 +10,7 @@ import {
 import type {
   AiFeature,
   AiProvider,
+  ChatMessage,
   ChatRequest,
   ResolvedAi,
   StructuredRequest,
@@ -179,8 +180,12 @@ export class CodexProviderAdapter {
   createChatResponse(input: ChatRequest): Promise<Response> {
     return createCodexChatResponse({
       systemPrompt: input.systemPrompt,
-      messages: input.messages.map((message) => ({ role: message.role, content: message.content })),
+      messages: input.messages.map((message) => {
+        const uiMessage = message as ChatMessage & { parts?: unknown };
+        return { role: uiMessage.role, content: uiMessage.content, parts: uiMessage.parts };
+      }),
       model: this.model,
+      onAssistantResponse: input.onAssistantResponse,
     });
   }
 }

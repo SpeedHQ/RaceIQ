@@ -55,6 +55,48 @@ describe("Codex chat UI stream", () => {
     }
   });
 
+  test("includes UI message part text in the Codex prompt", async () => {
+    const priorExecutable = process.env.CODEX_CLI_PATH;
+    const promptFile = join(tmpdir(), `raceiq-codex-prompt-${crypto.randomUUID()}`);
+    process.env.CODEX_CLI_PATH = makeFakeExecutable(`cat > "$CODEX_PROMPT_FILE"\nprintf '%s\\n' '${completeOutput("chat answer")}'`);
+    process.env.CODEX_PROMPT_FILE = promptFile;
+    try {
+      await createCodexChatResponse({
+        systemPrompt: "system",
+        messages: [{
+          role: "user",
+          content: undefined,
+          parts: [{ type: "text", text: "make two copies of v1" }],
+        }],
+      });
+      expect(await Bun.file(promptFile).text()).toContain("make two copies of v1");
+    } finally {
+      if (priorExecutable === undefined) delete process.env.CODEX_CLI_PATH;
+      else process.env.CODEX_CLI_PATH = priorExecutable;
+      delete process.env.CODEX_PROMPT_FILE;
+      rmSync(promptFile, { force: true });
+    }
+  });
+
+  test("persists the assistant text before returning the response", async () => {
+    const priorExecutable = process.env.CODEX_CLI_PATH;
+    process.env.CODEX_CLI_PATH = makeFakeExecutable(`printf '%s\\n' '${completeOutput("persisted answer")}'`);
+    let persisted = "";
+    try {
+      await createCodexChatResponse({
+        systemPrompt: "system",
+        messages: [{ role: "user", content: "question" }],
+        onAssistantResponse: async (text) => {
+          persisted = text;
+        },
+      });
+      expect(persisted).toBe("persisted answer");
+    } finally {
+      if (priorExecutable === undefined) delete process.env.CODEX_CLI_PATH;
+      else process.env.CODEX_CLI_PATH = priorExecutable;
+    }
+  });
+
   test("rejects provider failure before constructing a response stream", async () => {
     const priorExecutable = process.env.CODEX_CLI_PATH;
     process.env.CODEX_CLI_PATH = makeFakeExecutable("printf 'provider failed' >&2; exit 7");

@@ -37,6 +37,7 @@ export type ChatMessage = {
 export type ChatRequest = {
   systemPrompt: string;
   messages: readonly ChatMessage[];
+  onAssistantResponse?: (text: string) => void | Promise<void>;
 };
 
 export interface ResolvedAi {

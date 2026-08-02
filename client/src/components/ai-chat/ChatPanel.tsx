@@ -468,7 +468,7 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
 
   return (
     <ChatPanelThread
-      key={`${remountKey ?? ""}:${effectiveGen}:${history?.length ?? 0}`}
+      key={`${remountKey ?? ""}:${effectiveGen}`}
       api={api}
       initialMessages={history ?? []}
       onFinish={onFinish}

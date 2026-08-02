@@ -17,6 +17,7 @@ import {
   resolveActiveThread,
   generationThreadId,
   listThreadGenerations,
+  saveAssistantChatMessage,
 } from "../ai/chat-agent";
 import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
 import { startDetachedAgentTurn } from "../ai/agent-stream";
@@ -240,6 +241,9 @@ export const tuneChatRoutes = new Hono()
         return await runAiChat(ai, {
           systemPrompt: systemSegments.join("\n\n"),
           messages,
+          onAssistantResponse: async (text) => {
+            await saveAssistantChatMessage(threadId, text);
+          },
         }, async (chatContext) => {
           chatContext.set("gameId", gameId);
           chatContext.set("sessionId", id);

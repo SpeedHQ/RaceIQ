@@ -151,7 +151,9 @@ export function buildReplayStream(run: ChatRun): ReadableStream<UIMessageChunk> 
         flush().catch((err) => console.error("[chat-run-registry] flush failed:", err));
       };
       const onFinish = () => {
-        close();
+        // A run can finish before the HTTP consumer attaches. Flush its
+        // buffered chunks before closing, otherwise the replay is empty.
+        flush().then(close).catch((err) => console.error("[chat-run-registry] finish flush failed:", err));
       };
 
       run.subscribers.add(onChunk);
@@ -165,9 +167,8 @@ export function buildReplayStream(run: ChatRun): ReadableStream<UIMessageChunk> 
         run.finishListeners.delete(onFinish);
       };
 
-      // Replay whatever's already buffered; if the run had already finished
-      // by the time we got here, `close` (chained after `flush`) still runs
-      // in order since both push onto `flushChain`.
+      // Replay whatever's already buffered; the finish path flushes before
+      // closing when the run completed before this subscriber attached.
       flush().catch((err) => console.error("[chat-run-registry] initial flush failed:", err));
     },
     cancel() {
