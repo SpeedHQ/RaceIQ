@@ -368,12 +368,12 @@ export async function updateLapValidity(id: number, isValid: boolean, invalidRea
 
 /**
  * Flip a lap's `experimentExcluded` flag (Setup Engineer `set_lap_excluded` tool,
- * docs/setup-engineer-flow-design.md §Phase 3, and the `/api/laps/:id/experiment-excluded`
+ * docs/architecture/setup-engineer.md, and the `/api/laps/:id/experiment-excluded`
  * REST route, §Phase 7). Returns the PRIOR value plus the lap's `experimentId`
  * so the caller can log an inverse via `recordAction` for undo.
  *
  * Stamps `experimentExcludedSource = 'manual'` in BOTH directions (excluding and
- * un-excluding) — docs/superpowers/specs/2026-07-24-experiment-auto-exclude-design.md.
+ * un-excluding) — docs/architecture/setup-engineer.md.
  * This pins the lap against the auto-exclude reconciliation pass
  * (server/experiment-auto-exclude.ts) so a user's un-exclude click sticks instead of
  * the fastest-5 rule silently re-excluding it on the next lap save.
@@ -447,7 +447,7 @@ export async function setLapAutoExclusion(lapId: number, excluded: boolean): Pro
  * Read back the `(experiment_id, tune_id)` scope key a just-inserted lap
  * was stamped with, so the caller can decide whether to run
  * `reconcileAutoExclusions` (skipped when either is null — see
- * docs/superpowers/specs/2026-07-24-experiment-auto-exclude-design.md §Trigger).
+ * docs/architecture/setup-engineer.md §Trigger).
  */
 export async function getLapExperimentScope(
   lapId: number,
@@ -895,8 +895,7 @@ export async function getLapMetaForExperimentVersion(experimentVersionId: number
 }
 
 /**
- * Candidate laps for "Add laps from history" (Phase 6, docs/setup-engineer-flow-design.md
- * §Phase 6): laps matching this tuning session's game + car + track that aren't
+ * Candidate laps for "Add laps from history" (docs/architecture/setup-engineer.md): laps matching this tuning session's game + car + track that aren't
  * already stamped to ANY tuning session. Ordinal-only match — a name-seeded
  * session already resolves `trackOrdinal` from `trackName` at creation
  * (createExperiment), so by the time this query runs that fallback is

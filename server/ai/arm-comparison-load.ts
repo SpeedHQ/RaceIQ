@@ -37,9 +37,8 @@ import { blunderFencesForArms, getOutcomeMetric, type OutcomeMetricId } from "./
  * Frames for one lap, through the shared LRU telemetry cache.
  *
  * Deliberately `getLapById` rather than a raw parse: the cache is bounded by a
- * 256MB evict-on-insert budget (docs/lap-cache.md), so it cannot grow without
- * limit, and going around it would make every repeat comparison re-decode the
- * whole stint.
+ * 256MB evict-on-insert budget (`docs/architecture/lap-cache.md`), so it cannot
+ * grow without limit, and bypassing it would re-decode the stint on each use.
  */
 const loadLapFrames: LapFrameLoader = async (lapId) => {
   const lap = await getLapById(lapId);

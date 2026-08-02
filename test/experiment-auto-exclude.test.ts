@@ -8,7 +8,7 @@ import {
 } from "../server/experiment-auto-exclude";
 
 /** Auto-exclude fastest-5 curation
- *  (docs/superpowers/specs/2026-07-24-experiment-auto-exclude-design.md).
+ *  (docs/architecture/setup-engineer.md).
  *  Tests the reconciliation logic directly against a capturing in-memory
  *  writer — following the shape of test/experiment-lap-metrics.test.ts. */
 

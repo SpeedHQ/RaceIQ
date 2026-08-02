@@ -11,7 +11,7 @@ import { ChatPanel } from "@/components/ai-chat/ChatPanel";
  * branched a version server-side inside apply_changes/branch_from_version).
  *
  * Personalisation: the conversation itself is the feel input. The Setup
- * Engineer is a tool-using agent (docs/setup-engineer-tools-plan.md §3) — it
+ * Engineer is a tool-using agent (docs/architecture/setup-engineer.md) — it
  * calls `get_setup`/`get_symptoms`/`get_version_history` for context,
  * `preview_change` while discussing options, and `apply_changes` once the
  * driver confirms. "Generate setup from this chat" just sends a confirmation

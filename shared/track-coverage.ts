@@ -148,7 +148,7 @@ function mark(state: VerifyState): string {
 
 /**
  * Per-game, per-track detail — one table per game, committed into
- * docs/track-curation.md between the detail markers.
+ * docs/contributing/track-curation.md between the detail markers.
  *
  * Geometry is per game because each title digitises its own centerline: the
  * same circuit's corners land at different distances (and sometimes a different

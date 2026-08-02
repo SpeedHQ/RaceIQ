@@ -3,14 +3,14 @@
  *
  * Usage:
  *   bun run tracks:coverage           # print the table
- *   bun run tracks:coverage --write   # refresh the tables committed in docs/track-curation.md
+ *   bun run tracks:coverage --write   # refresh tables in docs/contributing/track-curation.md
  *
  *   # sign off data you have actually checked against a real turn-by-turn guide
  *   bun run tracks:coverage --verify meta:spa --by "racingcircuits.info"
  *   bun run tracks:coverage --verify segments:f1-2025/spa --by "svg render"
  *
  * Run with --write after curating a track; test/track-coverage.test.ts fails if
- * docs/track-curation.md drifts from the repo. --verify only ever records a
+ * docs/contributing/track-curation.md drifts from the repo. --verify only ever records a
  * human's word for it: nothing in the pipeline may stamp the ledger on its own.
  */
 
@@ -32,7 +32,7 @@ export function parseVerifyTarget(spec: string): { kind: "meta" | "segments"; sl
   return { kind, slug, gameId: gameId as GameId };
 }
 
-export const CURATION_DOC = resolve(import.meta.dir, "..", "docs", "track-curation.md");
+export const CURATION_DOC = resolve(import.meta.dir, "..", "docs", "contributing", "track-curation.md");
 export const COVERAGE_START = "<!-- track-coverage:start -->";
 export const COVERAGE_END = "<!-- track-coverage:end -->";
 export const DETAIL_START = "<!-- track-detail:start -->";
@@ -50,12 +50,12 @@ export function spliceBlock(md: string, table: string, startMark: string, endMar
   return `${md.slice(0, start)}${startMark}${eol}${normalizedTable}${eol}${md.slice(end)}`;
 }
 
-/** Summary table block in docs/track-curation.md. */
+/** Summary table block in docs/contributing/track-curation.md. */
 export function spliceCoverage(md: string, table: string): string {
   return spliceBlock(md, table, COVERAGE_START, COVERAGE_END);
 }
 
-/** Per-game detail tables in docs/track-curation.md. */
+/** Per-game detail tables in docs/contributing/track-curation.md. */
 export function spliceDetail(md: string, tables: string): string {
   return spliceBlock(md, tables, DETAIL_START, DETAIL_END);
 }
@@ -90,7 +90,7 @@ if (import.meta.main) {
         console.log(`\n${label} updated.`);
       }
     };
-    refresh(CURATION_DOC, "docs/track-curation.md", (md) =>
+    refresh(CURATION_DOC, "docs/contributing/track-curation.md", (md) =>
       spliceDetail(spliceCoverage(md, table), renderDetailTables(rows)),
     );
   }

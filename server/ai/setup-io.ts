@@ -1,5 +1,5 @@
 /**
- * Setup source/sink adapter (docs/setup-engineer-flow-design.md Phase 10).
+ * Setup source/sink adapter (docs/architecture/setup-engineer.md).
  *
  * The Setup Engineer tools were originally ACC/AC-EVO-file-specific: "the
  * active setup" always meant a `.json` file under the game's Setups folder.

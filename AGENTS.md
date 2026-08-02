@@ -4,7 +4,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## Project Overview
 
-RaceIQ is a full-stack racing telemetry analysis app supporting multiple racing games (currently Forza Motorsport, F1 2025, and Assetto Corsa Competizione). It receives real-time UDP telemetry packets from games at 60 Hz, stores lap data in SQLite, and provides a React dashboard with live visualizations, lap comparison, AI-powered analysis, and 3D car attitude rendering.
+RaceIQ is a full-stack racing telemetry analysis app for Forza Motorsport 2023, F1 25, Assetto Corsa Competizione, Assetto Corsa Evo, and iRacing. UDP and native Windows telemetry sources feed a Bun server, SQLite storage, and a React dashboard. See [architecture overview](docs/architecture/overview.md).
 
 ## Commands
 
@@ -59,7 +59,7 @@ bun run lighthouse             # run Lighthouse audit on local dev server
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SERVER_PORT` | `3117` | HTTP/WebSocket server port |
-| `UDP_PORT` | `5300` | Game telemetry UDP listen port |
+| `UDP_PORT` | `5301` | Game telemetry UDP listen port |
 | `DATA_DIR` | `./data` | Database and settings directory |
 
 ### Development Onboarding Flag
@@ -150,7 +150,7 @@ The AI system uses Mastra agents backed by Codex API with streaming and prompt c
 - `shared/types.ts` — Telemetry packet types, enums, shared interfaces
 - `shared/games/` — Game adapter registry and per-game adapters — see [Adding a New Game](#adding-a-new-game)
 - `shared/car-data.ts` — Car model ID-to-name mapping (dispatches via game adapter)
-- `shared/track-outlines/` — Track geometry data (JSON coords, sector definitions, named segments)
+- `shared/tracks/` — Track metadata, geometry, guides, and verification data
 - `shared/tunes/` — Vehicle setup data (JSON)
 
 ### Data Flow
@@ -225,23 +225,15 @@ The app uses a registry-based adapter pattern to support multiple racing games. 
 - `server/games/registry.ts` — `registerServerGame()`, `getServerGame()`, `getAllServerGames()`
 
 **Current adapters:**
-- `shared/games/fm-2023/` + `server/games/fm-2023/` — Forza Motorsport 2023 (stateless parser, size-based packet detection)
-- `shared/games/f1-2025/` + `server/games/f1-2025/` — F1 2025 (stateful multi-packet accumulator, magic bytes detection)
-- `shared/games/acc/` + `server/games/acc/` — Assetto Corsa Competizione (shared memory reader on Windows)
+- `shared/games/fm-2023/` + `server/games/fm-2023/` — Forza Motorsport 2023
+- `shared/games/f1-2025/` + `server/games/f1-2025/` — F1 25
+- `shared/games/acc/` + `server/games/acc/` — Assetto Corsa Competizione
+- `shared/games/ac-evo/` + `server/games/ac-evo/` — Assetto Corsa Evo
+- `shared/games/iracing/` + `server/games/iracing/` — iRacing
 
 ### Adding a New Game
 
-To add support for a new racing game (e.g. Gran Turismo):
-
-1. **Add game ID** — Add `"gt7"` to `KNOWN_GAME_IDS` in `shared/types.ts`
-2. **Create shared adapter** — `shared/games/gt7/index.ts` implementing `GameAdapter` (identity, car/track resolution, steering config, coord system)
-3. **Create server adapter** — `server/games/gt7/index.ts` implementing `ServerGameAdapter` (`canHandle()`, `tryParse()`, `createParserState()`, AI prompts)
-4. **Create UDP parser** — `server/parsers/gt7.ts` with binary parsing logic
-5. **Register adapters** — Import and call `registerGame()` in `shared/games/init.ts`, `registerServerGame()` in `server/games/init.ts`
-6. **Create client routes** — `client/src/routes/gt7.tsx` (layout with `<GameProvider gameId="gt7">`) and sub-routes in `client/src/routes/gt7/`
-7. **Add game data** — Car/track CSVs in `shared/`, track outlines in `shared/track-outlines/gt7/`
-
-See existing adapters (`fm-2023`, `f1-2025`, `acc`) for reference. Everything else (navigation tabs, car/track name resolution, corner detection, AI prompts, parser dispatch) is handled automatically by the registry.
+Follow the registry and boundary model in [architecture overview](docs/architecture/overview.md). Implement shared and server adapters, register both, then add game-specific parsing, routes, data, and focused tests. Never introduce an implicit fallback game.
 
 ### Pre-commit Hooks (Lefthook)
 
@@ -303,9 +295,9 @@ initServerGameAdapters();
 
 Project memory is stored in `.Codex/memory/` in the repo root (not the default `~/.Codex/projects/` path). This is version-controlled so all contributors share context. Read and write memory files there.
 
-### Architecture Diagrams
+### Documentation
 
-See `docs/ARCHITECTURE.md` for detailed Mermaid diagrams covering: system overview, telemetry data flow, ingest pipeline detail, game adapter class diagram, AI analysis system, database schema (ER diagram), client architecture, server route modules, startup sequence, parser dispatch strategy, and comparison engine.
+Use [docs landing page](docs/README.md) for maintained documentation, [architecture overview](docs/architecture/overview.md) for system boundaries, and [track curation](docs/contributing/track-curation.md) before changing track metadata or segment geometry.
 
 Respond terse like smart caveman. All technical substance stay. Only fluff die.
 

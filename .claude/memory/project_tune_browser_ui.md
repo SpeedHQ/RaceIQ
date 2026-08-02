@@ -7,7 +7,7 @@ metadata:
   originSessionId: ed5e66de-b28f-43a0-923c-8839cbb1b8f6
 ---
 
-New tune browsing UI ("timing-tower" design, mockup 5 of scratchpad/tunes-mockups). Plan: `docs/superpowers/plans/2026-07-12-tune-browser-ui.md`.
+Tune browsing UI uses the timing-tower design with a game-specific container around a reusable presentation layer.
 
 **Architecture:** game-agnostic presentational `TuneBrowser` (client/src/components/tune/browser/) + per-game container `Fm23TuneBrowser` (client/src/components/tune/fm23/). Tune feature is PER-GAME, never shared: FM = full (builtin JSON + community CDN + user tunes); F1 = own track-based setups (route redirects to /f125/tracks?tab=setups); ACC = none. Other games opt in by writing their own container.
 

@@ -54,7 +54,7 @@ const RULES: Record<string, Record<string, FieldDef>> = {
     "Rear Tyre Pressure RR": { paths: ["basicSetup.tyres.tyrePressure.3"], step: CLICK_STEP, min: 0, max: 60 },
 
     // Ride height, dampers, and diff preload — added for the Setup Engineer
-    // grounding fix (docs/setup-engineer-tools-plan.md §2). Paths verified
+    // grounding fix (docs/architecture/setup-engineer.md). Paths verified
     // against a real ACC setup JSON export. Ranges are conservative
     // ACC click-index clamps and may need per-car-class scaling later (plan
     // §5 risk) — GT3 cars generally sit well inside these bounds.

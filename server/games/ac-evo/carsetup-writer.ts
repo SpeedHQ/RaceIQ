@@ -12,7 +12,7 @@
  * table are writable here — the same set `describeKnobs`/`getAllKnobStates`
  * expose to the Setup Engineer. Anything else throws (never a silent skip).
  *
- * See docs/superpowers/specs/2026-07-23-carsetup-encoder-design.md.
+ * See docs/contributing/setup-range-data.md.
  */
 import { ARB_CLICK_BY_KNM, carSetupToKnobValues, parseCarSetup, type CarSetupFile, type WireField } from "./carsetup";
 

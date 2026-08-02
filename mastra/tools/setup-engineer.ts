@@ -1,5 +1,5 @@
 /**
- * Setup Engineer tools (docs/setup-engineer-tools-plan.md §3, Phase 2).
+ * Setup Engineer tools (docs/architecture/setup-engineer.md).
  *
  * `preview_change` / `apply_changes` run the SAME deterministic `applyIntents`
  * the old rules-based autotune used, so the number the agent states is always

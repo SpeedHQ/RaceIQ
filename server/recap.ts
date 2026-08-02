@@ -46,8 +46,7 @@ function isValidLap(lap: RecapLapInput): boolean {
 
 /**
  * Compute a SessionRecap from plain fetched data. Pure — no DB, no throwing.
- * Every edge case in docs/superpowers/specs/2026-07-15-session-recap-design.md
- * resolves to a defined value; see the "Metric rules" section there.
+ * All edge cases resolve to a defined value; focused tests own the metric rules.
  */
 export function computeRecap(input: ComputeRecapInput): SessionRecap {
   const { session, laps, carName, trackName, trackLengthM, allTimeBestSec, allTimeBestSectors } = input;

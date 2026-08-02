@@ -4,7 +4,7 @@ description: Community tunes synced from SpeedHQ Cloudflare Pages CDN into RaceI
 type: project
 ---
 
-Community-tunes consumer (branch `feat/community-tunes-cdn`, spec `docs/specs/2026-07-11-community-tunes-cdn-design.md`).
+Community-tunes consumer (branch `feat/community-tunes-cdn`, spec `docs/integrations/community-tunes.md`).
 
 - DB: `community_tunes` table (migration v20 in `server/db/migrations.ts`, Drizzle model `communityTunes` in `server/db/schema.ts`). Columns: id PK, game_id, car_ordinal, track_ordinal?, name, author, category, description, source_name, settings(JSON text), synced_at. strengths/weaknesses NOT persisted — community cards render empty for those.
 - Sync: `server/community-tunes-sync.ts` `syncCommunityTunes()` — fetch `${COMMUNITY_TUNES_URL ?? "https://speedhq-tunes.pages.dev"}/manifest.json`, skip if version == stored (settings `communityTunesVersion`), else fetch tunes.json, zod-validate (skip invalid), transactional replace-all via `replaceCommunityTunes()` in `server/db/community-tune-queries.ts`. Failure keeps cache. `startCommunityTunesSync()` wired in `server/index.ts` (startup + 6h interval).

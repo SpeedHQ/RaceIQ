@@ -1,10 +1,10 @@
 # Contributing
 
-## Requirements
+RaceIQ welcomes code, documentation, game data, telemetry fixtures, setup data, and bug reports. Start with [project documentation](docs/README.md) and keep each change focused.
 
-- [Bun](https://bun.sh)
+## Development setup
 
-## Development
+RaceIQ uses Bun, Hono, SQLite with Drizzle types, React, TanStack Router and Query, Zustand, Tailwind CSS, and shared Base UI/shadcn primitives.
 
 ```bash
 bun install
@@ -12,65 +12,46 @@ cd client && bun install && cd ..
 bun run dev
 ```
 
-- Server + API: `http://localhost:3117`
-- Client (Vite HMR): `http://localhost:5173`
-- Data is stored in `./data/`
+Default services:
 
-## Tech Stack
+- HTTP and WebSocket: `3117`
+- UDP telemetry: `5301`
+- Vite development client: `5173`
+- Data directory: `./data`
 
-| Layer | Technology |
-|-------|-----------|
-| Runtime | [Bun](https://bun.sh) |
-| Server | [Hono](https://hono.dev) |
-| Database | SQLite + [Drizzle ORM](https://orm.drizzle.team) |
-| Frontend | React 19, Vite, TypeScript |
-| Routing | TanStack Router (file-based) |
-| State | Zustand (client), TanStack Query (server) |
-| Styling | Tailwind CSS v4 + shadcn/ui |
-| Charts | uPlot |
-| 3D | Three.js + React Three Fiber |
-| AI | Claude API |
+See [development guide](docs/contributing/development.md) for environment variables, disposable database seeding, and schema changes.
 
-## Environment Variables
+## Contributor guides
 
-| Variable | Default | Description |
-|---|---|---|
-| `SERVER_PORT` | `3117` | HTTP/WebSocket port |
-| `UDP_PORT` | `5300` | Telemetry UDP port |
-| `DATA_DIR` | `./data` | Database and settings directory |
+- [Frontend development](docs/contributing/frontend.md)
+- [Track curation](docs/contributing/track-curation.md)
+- [Setup range data](docs/contributing/setup-range-data.md)
+- [Telemetry recordings](docs/contributing/telemetry-recordings.md)
+- [Test troubleshooting](docs/contributing/test-troubleshooting.md)
+- [Architecture overview](docs/architecture/overview.md)
 
-## Tests
+## Track and game data
+
+`bun run extract:tracks` extracts Forza Motorsport and F1 25 track data. Game-specific commands cover other sources:
 
 ```bash
-bun test
-bun test test/parser.test.ts   # single file
+bun run extract:tracks:forza
+bun run extract:tracks:f1
+bun run extract:tracks:acc
+bun run extract:tracks:ac-evo
+bun run extract:ac-evo
 ```
 
-## Track Data
+Generated track geometry and metadata live under `shared/tracks/`; game registries live under `shared/games/`. Corner names, numbering, sectors, and segment geometry are hand-curated; read [track curation](docs/contributing/track-curation.md) before editing them. Curated data is authoritative and detector output is a fallback.
 
-Built-in track outlines and metadata are extracted from game files:
+## Database changes
 
-```bash
-bun run extract:tracks        # all supported games
-bun run extract:tracks:forza  # Forza Motorsport only
-bun run extract:tracks:f1     # F1 2025 only
-```
+Drizzle schema definitions do not run production migrations. Update both `server/db/schema.ts` and the embedded migration list in `server/db/migrations.ts`. See [development guide](docs/contributing/development.md#database-changes).
 
-Extracted data is written to `shared/track-outlines/` and `shared/tracks.csv`.
+## Change quality
 
-Corner names, numbering and segment geometry are a separate, hand-curated layer on top
-of that. Before editing corner data — or before "fixing" the segment detector — read
-[docs/track-curation.md](docs/track-curation.md). Curated geometry is the source of
-truth; the detector is a fallback and is not expected to be 100% accurate.
-
-```bash
-bun run tracks:coverage            # curated / verified coverage per game
-bun run tracks:coverage --write    # refresh the table in CLAUDE.md
-```
-
-## Database
-
-```bash
-bun run db:push       # push schema changes
-bun run db:generate   # generate migration files
-```
+- Follow existing architecture and naming conventions.
+- Preserve game capability boundaries and avoid implicit `fm-2023` fallbacks.
+- Keep shared frontend appearance in semantic component variants; keep feature composition in consumers.
+- Add or update tests only for changed observable behavior.
+- Add a concise entry under `## Unreleased` in `CHANGELOG.md` for each pull request.

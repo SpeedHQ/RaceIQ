@@ -1,5 +1,5 @@
 /**
- * The curation-coverage tables in docs/track-curation.md are a committed
+ * The curation-coverage tables in docs/contributing/track-curation.md are a committed
  * statistic. Curating a track (or adding a game's centerlines) changes them, so
  * this test fails until `bun run tracks:coverage --write` is run.
  */
@@ -36,7 +36,7 @@ import {
 describe("track curation coverage", () => {
   const doc = readFileSync(CURATION_DOC, "utf8");
 
-  test("docs/track-curation.md has the generated-block markers", () => {
+  test("docs/contributing/track-curation.md has the generated-block markers", () => {
     expect(doc).toContain(COVERAGE_START);
     expect(doc).toContain(COVERAGE_END);
     expect(doc).toContain(DETAIL_START);
@@ -54,7 +54,7 @@ describe("track curation coverage", () => {
   test("CLAUDE.md keeps no coverage numbers of its own", () => {
     const claudeMd = readFileSync(resolve(import.meta.dir, "..", "CLAUDE.md"), "utf8");
     expect(claudeMd).not.toContain(COVERAGE_START);
-    expect(claudeMd).toContain("docs/track-curation.md");
+    expect(claudeMd).toContain("docs/contributing/track-curation.md");
   });
 
   test("detail rows account for every track the summary counts", () => {

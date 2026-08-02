@@ -17,7 +17,7 @@
  * spikes, single-sample brake peaks, impact loads). Both halves are asserted so
  * neither can be quietly overstated later.
  *
- * See docs/telemetry-fidelity.md for the write-up.
+ * See docs/research/telemetry-fidelity.md for the write-up.
  */
 import { describe, expect, test } from "bun:test";
 import { detectCorners } from "../server/corner-detection";
@@ -82,7 +82,7 @@ describe("telemetry fidelity vs MoTeC-rate logging", () => {
   test("our real captured rate is ~63.5Hz, not the 100Hz the assembler polls at", () => {
     // server/games/acc/triplet-assembler.ts polls on a 10ms setInterval, but what
     // actually lands on disk is ~63.5Hz. If this moves, either the timer behaviour
-    // changed or someone fixed the emit path — update docs/telemetry-fidelity.md.
+    // changed or someone fixed the emit path — update docs/research/telemetry-fidelity.md.
     expect(captureHz).toBeGreaterThan(55);
     expect(captureHz).toBeLessThan(70);
     // Still comfortably above the lap detector's 30Hz session-quality floor.
@@ -92,7 +92,7 @@ describe("telemetry fidelity vs MoTeC-rate logging", () => {
   test("a third of emitted frames are duplicates, so our effective rate is ~39.5Hz", () => {
     // The assembler emits on every poll with no gate on the physics page having
     // advanced, so the same CurrentRaceTime is written repeatedly. This is the
-    // cheapest size win available (docs/telemetry-fidelity.md section 6) and the
+    // cheapest size win available (docs/research/telemetry-fidelity.md) and the
     // reason the honest headline rate is ~39.5Hz, not 63.5Hz.
     const all = allPackets;
     let duplicates = 0;

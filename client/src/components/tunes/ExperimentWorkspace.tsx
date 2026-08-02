@@ -42,7 +42,7 @@ import { VersionGraph } from "./VersionGraph";
  * worst-tyre % worn per lap, from the game's tyre-wear channel. The spun flag is
  * omitted (parity Phase 2 spin detection). The right panel's setup chat
  * (TuneSetupChat) is a tool-using Setup Engineer agent
- * (docs/setup-engineer-tools-plan.md §3) — it reads the current setup and
+ * (docs/architecture/setup-engineer.md) — it reads the current setup and
  * symptoms itself via tools and calls apply_changes when the driver confirms,
  * so this component no longer drives a separate generate-from-chat mutation.
  */
