@@ -1,12 +1,13 @@
 import { AssistantRuntimeProvider, useAuiState } from "@assistant-ui/react";
-import { AssistantChatTransport, createResumableSessionStorage, useChatRuntime, useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
+import { AssistantChatTransport, useChatRuntime, useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
 import { contextWindowFor } from "@shared/ai/context-window";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UIMessage } from "ai";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Thread, type ThreadProps } from "@/components/assistant-ui/thread";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { client } from "@/lib/rpc";
+import { clearChatHistory } from "../../lib/chat-history";
 import { useSettings } from "../../hooks/queries";
 import { isAiConfigured } from "../../lib/is-ai-configured";
 import { useUiStore } from "../../stores/ui";
@@ -33,23 +34,8 @@ import { Button } from "../ui/button";
 
 // Rough $/1M tokens for a cost estimate (input, output). Chat models are cheap;
 // this is a ballpark shown as "≈", not billing.
-/** Status shape returned by `GET /api/chats/:threadId/run` (server/routes/chat-run-routes.ts). */
-interface ChatRunStatus {
-  status: "none" | "active" | "finished";
-  runId?: string;
-}
 
-async function fetchChatRunStatus(threadId: string): Promise<ChatRunStatus> {
-  try {
-    const res = await fetch(`/api/chats/${encodeURIComponent(threadId)}/run`);
-    if (!res.ok) return { status: "none" };
-    return (await res.json()) as ChatRunStatus;
-  } catch {
-    return { status: "none" };
-  }
-}
-
-interface ChatGeneration {
+export interface ChatGeneration {
   threadId: string;
   generation: number;
   active: boolean;
@@ -60,14 +46,71 @@ interface ChatGenerationsResponse {
   generations: ChatGeneration[];
 }
 
+export interface GenerationViewSelection {
+  baseThreadId: string;
+  generation: number;
+}
+
+export interface GenerationView {
+  ready: boolean;
+  activeGeneration: number;
+  activeThreadId: string;
+  viewingGeneration: number;
+  viewingThreadId: string;
+  readOnly: boolean;
+}
+
+export function resolveGenerationView(
+  compactThreadId: string | undefined,
+  generationsData: ChatGenerationsResponse | undefined,
+  selection: GenerationViewSelection | null,
+): GenerationView | { ready: false } {
+  if (compactThreadId && !generationsData) return { ready: false };
+  const generations = generationsData?.generations ?? [];
+  const active = generations.find((generation) => generation.active) ?? generations.at(-1);
+  const activeGeneration = active?.generation ?? 1;
+  const activeThreadId = active?.threadId ?? compactThreadId ?? "";
+  const selected = selection && selection.baseThreadId === compactThreadId
+    ? generations.find((generation) => generation.generation === selection.generation)
+    : undefined;
+  const viewingGeneration = selected?.generation ?? activeGeneration;
+  const viewingThreadId = selected?.threadId ?? activeThreadId;
+  const readOnly = !!compactThreadId && viewingGeneration !== activeGeneration;
+  return {
+    ready: true,
+    activeGeneration,
+    activeThreadId,
+    viewingGeneration,
+    viewingThreadId,
+    readOnly,
+  };
+}
+
+export function preserveRuntimeMessages(current: UIMessage[] | undefined, incoming: UIMessage[]): UIMessage[] {
+  return current ?? incoming;
+}
+
+export function chatRuntimeKey(remountKey: string | undefined, viewingThreadId: string): string {
+  return `${remountKey ?? ""}:${viewingThreadId}`;
+}
+
+function isChatGenerationsResponse(value: unknown): value is ChatGenerationsResponse {
+  if (!value || typeof value !== "object" || !("activeThreadId" in value) || !("generations" in value)) return false;
+  if (typeof value.activeThreadId !== "string" || !Array.isArray(value.generations)) return false;
+  return value.generations.every((generation) => {
+    if (!generation || typeof generation !== "object") return false;
+    return "threadId" in generation && typeof generation.threadId === "string"
+      && "generation" in generation && typeof generation.generation === "number"
+      && "active" in generation && typeof generation.active === "boolean";
+  });
+}
+
 async function fetchChatGenerations(base: string): Promise<ChatGenerationsResponse> {
-  try {
-    const res = await fetch(`/api/chats/${encodeURIComponent(base)}/generations`);
-    if (!res.ok) return { activeThreadId: base, generations: [{ threadId: base, generation: 1, active: true }] };
-    return (await res.json()) as ChatGenerationsResponse;
-  } catch {
-    return { activeThreadId: base, generations: [{ threadId: base, generation: 1, active: true }] };
-  }
+  const res = await fetch(`/api/chats/${encodeURIComponent(base)}/generations`);
+  if (!res.ok) throw new Error(`Chat generations failed (${res.status})`);
+  const data: unknown = await res.json();
+  if (!isChatGenerationsResponse(data)) throw new Error("Invalid chat generations response");
+  return data;
 }
 
 const RATE_PER_MTOK: Record<string, { in: number; out: number }> = {
@@ -112,6 +155,8 @@ function TokenUsageFooter({
   activeGen,
   onViewGen,
   onForked,
+  onClear,
+  readOnly,
 }: {
   compactThreadId?: string;
   historyQueryKey: unknown[];
@@ -122,13 +167,16 @@ function TokenUsageFooter({
   activeGen: number;
   onViewGen: (gen: number) => void;
   onForked: (newGen: number) => void;
+  onClear: () => Promise<void>;
+  readOnly: boolean;
 }) {
-  const usage = useThreadTokenUsage();
   const { displaySettings } = useSettings();
+  const usage = useThreadTokenUsage();
+  const [compactMsg, setCompactMsg] = useState<string | null>(null);
+  const [clearConfirm, setClearConfirm] = useState(false);
   const queryClient = useQueryClient();
   const isRunning = useAuiState((s) => s.thread.isRunning);
   const hasChat = useAuiState((s) => s.thread.messages.length > 0);
-  const [compactMsg, setCompactMsg] = useState<string | null>(null);
 
   const settings = displaySettings as { aiProvider?: string; aiModel?: string; chatProvider?: string; chatModel?: string };
   const provider = settings.chatProvider ?? settings.aiProvider ?? "gemini";
@@ -177,7 +225,6 @@ function TokenUsageFooter({
   const rate = RATE_PER_MTOK[provider] ?? RATE_PER_MTOK.gemini;
   const cost = ((usage?.inputTokens ?? 0) * rate.in + (usage?.outputTokens ?? 0) * rate.out) / 1_000_000;
 
-  const activeThreadId = generations.find((g) => g.active)?.threadId ?? compactThreadId;
 
   async function onNewChat() {
     if (!compactThreadId || compacting || isRunning) return;
@@ -198,6 +245,16 @@ function TokenUsageFooter({
       setCompactMsg("Compact failed");
     } finally {
       setCompacting(false);
+      setTimeout(() => setCompactMsg(null), 4000);
+    }
+  }
+
+  async function confirmClear() {
+    setClearConfirm(false);
+    try {
+      await onClear();
+    } catch {
+      setCompactMsg("Clear failed");
       setTimeout(() => setCompactMsg(null), 4000);
     }
   }
@@ -249,18 +306,6 @@ function TokenUsageFooter({
           </Button>
         </span>
       )}
-      {activeThreadId && isRunning && (
-        <Button
-          type="button"
-          onClick={() => {
-            void fetch(`/api/chats/${encodeURIComponent(activeThreadId)}/run/cancel`, { method: "POST" });
-          }}
-          className="px-1.5 py-0.5 rounded border border-app-border/50 hover:bg-app-surface-hover/20"
-          title="Stop the agent turn on the server (not just this view)"
-        >
-          Cancel
-        </Button>
-      )}
       {compactThreadId && (
         <Button
           type="button"
@@ -271,6 +316,28 @@ function TokenUsageFooter({
         >
           {compacting ? "Compacting…" : "Compact & New chat"}
         </Button>
+      )}
+      {compactThreadId && !readOnly && !clearConfirm && (
+        <Button
+          type="button"
+          onClick={() => setClearConfirm(true)}
+          disabled={!hasChat || compacting || isRunning}
+          className="px-1.5 py-0.5 rounded border border-status-danger/50 text-status-danger hover:bg-status-danger/10 disabled:opacity-40"
+          title="Delete all messages and chat generations"
+        >
+          Clear chat
+        </Button>
+      )}
+      {compactThreadId && !readOnly && clearConfirm && (
+        <span className="flex items-center gap-1">
+          <span className="text-status-danger">Clear all?</span>
+          <Button type="button" onClick={() => void confirmClear()} disabled={compacting || isRunning} className="px-1.5 py-0.5 rounded border border-status-danger/50 text-status-danger hover:bg-status-danger/10">
+            Clear
+          </Button>
+          <Button type="button" onClick={() => setClearConfirm(false)} disabled={compacting || isRunning} className="px-1.5 py-0.5 rounded border border-app-border/50 hover:bg-app-surface-hover/20">
+            Cancel
+          </Button>
+        </span>
       )}
       {compactMsg && <span className="text-app-text-dim">{compactMsg}</span>}
     </div>
@@ -286,22 +353,16 @@ export interface ChatPanelProps {
   fetchHistory: (gen?: number) => Promise<UIMessage[]>;
   /** react-query key for the history fetch (generation is appended internally). */
   historyQueryKey: unknown[];
-  /** Combined with history length to force a runtime remount when the
-   *  persisted thread changes underneath the panel (e.g. after a clear). */
+  /** Combined with resource identity to force a runtime remount when the
+   *  persisted thread changes underneath the panel. */
   remountKey?: string;
   onFinish?: () => void;
   /** Per-page tool UI passthrough to <Thread/>. */
   components?: ThreadProps["components"];
   emptyState?: React.ReactNode;
   className?: string;
-  /** Extra fields merged into every chat POST body (e.g. a live-updating
-   *  "what the user currently sees" context string). Re-read on every render,
-   *  so a caller can keep this current (via its own state/props) without
-   *  forcing a runtime remount — see AssistantChatTransport's `body`, which
-   *  AI SDK re-resolves on every message send rather than once at mount. */
   extraBody?: Record<string, unknown>;
-  /** Persisted BASE thread id (lineage id, generation-suffix stripped) — used
-   *  to enable the footer's "New chat" button and generation switcher. */
+  /** Persisted BASE thread id (lineage id, generation-suffix stripped). */
   compactThreadId?: string;
 }
 
@@ -317,9 +378,9 @@ function ChatPanelThread({
   generations,
   viewingGen,
   activeGen,
-  activeThreadId,
   onViewGen,
   onForked,
+  onClear,
   readOnly,
 }: {
   api: string;
@@ -333,28 +394,24 @@ function ChatPanelThread({
   generations: ChatGeneration[];
   viewingGen: number;
   activeGen: number;
-  activeThreadId?: string;
   onViewGen: (gen: number) => void;
   onForked: (newGen: number) => void;
+  onClear: () => Promise<void>;
   readOnly: boolean;
 }) {
+  const extraBodyRef = useRef(extraBody);
+  extraBodyRef.current = extraBody;
   const transport = useMemo(
-    () =>
-      activeThreadId
-        ? new AssistantChatTransport({
-            api,
-            body: extraBody,
-            resumable: {
-              storage: createResumableSessionStorage({ key: `chat-resume-${activeThreadId}` }),
-              resumeApi: () => `/api/chats/${encodeURIComponent(activeThreadId)}/run/stream`,
-            },
-          })
-        : new AssistantChatTransport({ api, body: extraBody }),
-    [activeThreadId, api, extraBody],
+    () => new AssistantChatTransport({
+      api,
+      body: () => extraBodyRef.current ?? {},
+    }),
+    [api],
   );
-
+  const initialMessagesRef = useRef<UIMessage[] | undefined>(undefined);
+  initialMessagesRef.current = preserveRuntimeMessages(initialMessagesRef.current, initialMessages);
   const runtime = useChatRuntime({
-    messages: initialMessages,
+    messages: initialMessagesRef.current,
     transport,
     onFinish,
   });
@@ -373,10 +430,10 @@ function ChatPanelThread({
             <Thread
               components={components}
               inputDisabled={compacting || readOnly}
-              onSend={(text) => {
-                runtime.thread.composer.setText(text);
-                runtime.thread.composer.send();
-              }}
+              onSend={(text) => runtime.thread.append({
+                role: "user",
+                content: [{ type: "text", text }],
+              })}
             />
           </div>
           <TokenUsageFooter
@@ -387,6 +444,8 @@ function ChatPanelThread({
             generations={generations}
             viewingGen={viewingGen}
             activeGen={activeGen}
+            onClear={onClear}
+            readOnly={readOnly}
             onViewGen={onViewGen}
             onForked={onForked}
           />
@@ -402,91 +461,88 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
   const aiConfigured = isAiConfigured(displaySettings);
   const queryClient = useQueryClient();
 
-  const { data: gensData } = useQuery({
+  const generationsQuery = useQuery({
     queryKey: ["chat-generations", compactThreadId],
     queryFn: () => fetchChatGenerations(compactThreadId!),
     enabled: !!compactThreadId,
     staleTime: 5_000,
   });
-  const generations = gensData?.generations ?? (compactThreadId ? [{ threadId: compactThreadId, generation: 1, active: true }] : []);
-  const activeGen = generations.length ? generations[generations.length - 1].generation : 1;
-  const activeThreadId = gensData?.activeThreadId ?? compactThreadId;
-
-  // Defaults to the active generation; explicit selection (switcher, or right
-  // after a fork) overrides until cleared by a base-id change.
-  const [viewingGen, setViewingGen] = useState<number | null>(null);
-  const effectiveGen = viewingGen ?? activeGen;
-  const readOnly = !!compactThreadId && effectiveGen !== activeGen;
-
-  const fullHistoryQueryKey = [...historyQueryKey, effectiveGen];
-  const { data: history, isSuccess } = useQuery({
-    queryKey: fullHistoryQueryKey,
-    queryFn: () => fetchHistory(effectiveGen > 1 ? effectiveGen : undefined),
+  const [selection, setSelection] = useState<GenerationViewSelection | null>(null);
+  const [clearNonce, setClearNonce] = useState(0);
+  const selectionForBase = selection?.baseThreadId === compactThreadId ? selection : null;
+  const generationView = resolveGenerationView(compactThreadId, generationsQuery.data, selectionForBase);
+  const generations = generationsQuery.data?.generations ?? [];
+  const activeGen = generationView.ready ? generationView.activeGeneration : 1;
+  const viewingGen = generationView.ready ? generationView.viewingGeneration : 1;
+  const viewingThreadId = generationView.ready ? generationView.viewingThreadId : compactThreadId ?? "";
+  const activeHistoryQuery = useQuery({
+    queryKey: [...historyQueryKey, "active"],
+    queryFn: () => fetchHistory(undefined),
+    enabled: true,
   });
-
-  // True live resume: on mount, ask the server whether a detached run is
-  // still active for the ACTIVE thread (server/routes/chat-run-routes.ts) —
-  // covers the case where the client's own sessionStorage-primed stream id
-  // (set by AssistantChatTransport's `resumable` wiring on the original POST)
-  // never got set, e.g. a different tab/session, or storage was cleared. When
-  // active, prime the same sessionStorage slot ChatPanelThread's transport
-  // reads on mount so `useChatRuntime`'s built-in resume effect (which only
-  // fires when a stream id is already present) fires and tails the run live.
-  // Must happen synchronously during THIS render, before ChatPanelThread
-  // mounts below — child effects run before parent effects, so priming this
-  // from an effect here would fire too late.
-  const { data: runStatus, isFetched: runStatusFetched } = useQuery({
-    queryKey: ["chat-run-status", activeThreadId],
-    queryFn: () => fetchChatRunStatus(activeThreadId!),
-    enabled: !!activeThreadId,
-    staleTime: 0,
-    gcTime: 0,
+  const selectedHistoryQuery = useQuery({
+    queryKey: [...historyQueryKey, "generation", selectionForBase?.generation],
+    queryFn: () => fetchHistory(selectionForBase!.generation),
+    enabled: generationView.ready && !!selectionForBase,
   });
-  if (activeThreadId && runStatus?.status === "active" && runStatus.runId) {
-    createResumableSessionStorage({ key: `chat-resume-${activeThreadId}` }).setStreamId(runStatus.runId);
+  const historyQuery = selectionForBase ? selectedHistoryQuery : activeHistoryQuery;
+  const runtimeHistoryQueryKey = selectionForBase
+    ? [...historyQueryKey, "generation", selectionForBase.generation]
+    : [...historyQueryKey, "active"];
+
+  async function onClear() {
+    await clearChatHistory(api);
+    queryClient.removeQueries({ queryKey: historyQueryKey });
+    setSelection(null);
+    setClearNonce((nonce) => nonce + 1);
+    await queryClient.invalidateQueries({ queryKey: ["chat-generations", compactThreadId] });
   }
 
   if (!aiConfigured) {
-    return (
-      emptyState ?? (
-        <div className="pt-2 space-y-1.5">
-          <p className="text-app-compact text-app-text-dim">Add an AI provider key to chat.</p>
-          <Button type="button" onClick={() => openSettings("ai")} className="w-full px-3 py-1.5 text-xs rounded bg-ai-accent hover:bg-ai-accent-hover text-app-on-filled font-medium">
-            Set up AI
-          </Button>
-        </div>
-      )
+    return emptyState ?? (
+      <div className="pt-2 space-y-1.5">
+        <p className="text-app-compact text-app-text-dim">Add an AI provider key to chat.</p>
+        <Button type="button" onClick={() => openSettings("ai")} className="w-full px-3 py-1.5 text-xs rounded bg-ai-accent hover:bg-ai-accent-hover text-app-on-filled font-medium">
+          Set up AI
+        </Button>
+      </div>
     );
   }
 
-  // Wait for the persisted-thread fetch before mounting the runtime — useChatRuntime
-  // only reads `messages` on first render, so mounting before history resolves would
-  // seed an empty thread and silently drop prior turns for the rest of the session.
-  if (!isSuccess || (!!compactThreadId && !runStatusFetched)) {
-    return <div className="h-full min-h-0 flex flex-col pt-2 gap-1.5 text-app-compact text-app-text-dim">Loading…</div>;
+  const firstLoadPending = !generationView.ready || historyQuery.isPending;
+  const firstLoadFailed = generationsQuery.isError || historyQuery.isError;
+  if (firstLoadPending) {
+    return <div role="status" aria-label="Loading chat history…" className="h-full min-h-0 flex flex-col pt-2 gap-1.5 text-app-compact text-app-text-dim">Loading chat history…</div>;
   }
-
+  if (firstLoadFailed) {
+    return (
+      <div className="h-full min-h-0 flex flex-col items-start pt-2 gap-1.5 text-app-compact text-app-text-dim">
+        <span>Couldn’t load chat history.</span>
+        <Button type="button" onClick={() => { void generationsQuery.refetch(); void historyQuery.refetch(); }}>Retry</Button>
+      </div>
+    );
+  }
   return (
     <ChatPanelThread
-      key={`${remountKey ?? ""}:${effectiveGen}`}
+      key={chatRuntimeKey(`${remountKey ?? ""}:clear-${clearNonce}`, viewingThreadId)}
       api={api}
-      initialMessages={history ?? []}
+      initialMessages={historyQuery.data ?? []}
       onFinish={onFinish}
       components={components}
       className={className}
       extraBody={extraBody}
       compactThreadId={compactThreadId}
-      historyQueryKey={fullHistoryQueryKey}
+      historyQueryKey={runtimeHistoryQueryKey}
       generations={generations}
-      viewingGen={effectiveGen}
+      viewingGen={viewingGen}
       activeGen={activeGen}
-      activeThreadId={activeThreadId}
-      onViewGen={(gen) => setViewingGen(gen)}
+      onViewGen={(generation) => setSelection({ baseThreadId: compactThreadId!, generation })}
       onForked={(newGen) => {
         void queryClient.invalidateQueries({ queryKey: historyQueryKey });
-        setViewingGen(newGen);
+        setSelection({ baseThreadId: compactThreadId!, generation: newGen });
       }}
-      readOnly={readOnly}
+      onClear={onClear}
+      readOnly={generationView.readOnly}
     />
   );
 }

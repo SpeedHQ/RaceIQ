@@ -20,9 +20,7 @@ import {
   saveAssistantChatMessage,
 } from "../ai/chat-agent";
 import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
-import { startDetachedAgentTurn } from "../ai/agent-stream";
-import { reserveChatRun, buildReplayStream } from "../ai/chat-run-registry";
-import { createUIMessageStreamResponse } from "ai";
+import { streamAgentTurnResponse } from "../ai/agent-stream";
 import { resolveAi } from "../ai/ai-runtime";
 import { runAiChat } from "../ai/model-provider";
 import type { ResolvedAi } from "../ai/ai-types";
@@ -113,9 +111,10 @@ export const tuneChatRoutes = new Hono()
           .filter((m) => m.role === "user" || m.role === "assistant");
 
         return c.json({ messages: uiMessages });
-      } catch (err: any) {
-        console.error("[TuneChat] Failed to load messages:", err.message);
-        return c.json({ messages: [] });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[TuneChat] Failed to load messages:", message);
+        return c.json({ error: message }, 500);
       }
     }
   )
@@ -134,8 +133,7 @@ export const tuneChatRoutes = new Hono()
 
       // Resolved once, up front, before the early-persist block below creates
       // the base thread — resolving after it would materialize the base and
-      // defeat the active-generation probe. Reused for early-persist,
-      // reserveChatRun, memory, and the detached agent turn.
+      // Reused for early persistence, memory, and the direct agent turn.
       const threadId = await resolveActiveThread(tuneSessionThreadId(id));
 
       const session = await getExperiment(id);
@@ -247,35 +245,25 @@ export const tuneChatRoutes = new Hono()
         }, async (chatContext) => {
           chatContext.set("gameId", gameId);
           chatContext.set("sessionId", id);
-          // Reserve (or re-attach to) this thread's detached run BEFORE
-          // calling the agent. Duplicate posts attach to existing run.
-          const { run, isNew } = reserveChatRun(threadId);
-          if (isNew) {
-            const stream = await agent.stream(
-              [{ role: "system", content: systemSegments.join("\n\n") }, ...messages],
-              {
-                memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-                requestContext: chatContext,
-                abortSignal: run.abortController.signal,
-                providerOptions: {
-                  openai: { reasoningEffort: "medium" },
-                  google: buildGoogleReasoningProviderOptions(ai.model, settings.chatThinkingBudget) as never,
-                },
+          const stream = await agent.stream(
+            [{ role: "system", content: systemSegments.join("\n\n") }, ...messages],
+            {
+              memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+              requestContext: chatContext,
+              abortSignal: c.req.raw.signal,
+              providerOptions: {
+                openai: { reasoningEffort: "medium" },
+                google: buildGoogleReasoningProviderOptions(ai.model, settings.chatThinkingBudget) as never,
               },
-            );
-
-            startDetachedAgentTurn(run, {
-              agentStream: stream,
-              originalMessages: messages,
-              memory: getChatMemory(),
-              threadId,
-              turnStartedAt,
-            });
-          }
-
-          const response = createUIMessageStreamResponse({ stream: buildReplayStream(run) });
-          response.headers.set("x-resumable-stream-id", run.runId);
-          return response;
+            },
+          );
+          return streamAgentTurnResponse({
+            agentStream: stream,
+            originalMessages: messages,
+            memory: getChatMemory(),
+            threadId,
+            turnStartedAt,
+          });
         });
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);

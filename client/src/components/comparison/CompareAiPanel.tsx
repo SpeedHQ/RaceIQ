@@ -1,8 +1,8 @@
-import type { UIMessage } from "ai";
 import { ChevronDown, ChevronUp, RefreshCw, Sparkles, X } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
 import { useSettings } from "../../hooks/queries";
 import { isAiAnalysisConfigured, launchAiFeature } from "../../lib/is-ai-configured";
+import { fetchChatHistory } from "../../lib/chat-history";
 import { client } from "../../lib/rpc";
 import { m } from "../../paraglide/messages";
 import { useUiStore } from "../../stores/ui";
@@ -63,12 +63,8 @@ interface AnalysisSummary {
   raw: ParsedAnalysis;
 }
 
-async function fetchCompareChatHistory(lapAId: number, lapBId: number, gen?: number): Promise<UIMessage[]> {
-  const url = gen && gen > 1 ? `/api/laps/${lapAId}/compare/${lapBId}/chat?gen=${gen}` : `/api/laps/${lapAId}/compare/${lapBId}/chat`;
-  const res = await fetch(url);
-  if (!res.ok) return [];
-  const data = (await res.json()) as { messages?: UIMessage[] };
-  return (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant");
+async function fetchCompareChatHistory(lapAId: number, lapBId: number, gen?: number) {
+  return fetchChatHistory(`/api/laps/${lapAId}/compare/${lapBId}/chat`, gen);
 }
 
 function summarize(parsed: ParsedAnalysis): AnalysisSummary {

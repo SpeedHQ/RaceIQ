@@ -16,7 +16,7 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 import { ArrowDownIcon, ArrowUpIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, DownloadIcon, MicIcon, MoreHorizontalIcon, PencilIcon, RefreshCwIcon, SquareIcon } from "lucide-react";
-import { type ComponentProps, type ComponentType, createContext, type FC, type PropsWithChildren, useContext, useState } from "react";
+import { type ComponentProps, type ComponentType, type FC, type PropsWithChildren, createContext, useContext, useState } from "react";
 import { ComposerAddAttachment, ComposerAttachments, UserMessageAttachments } from "@/components/assistant-ui/attachment";
 import { ThreadFollowupSuggestions } from "@/components/assistant-ui/follow-up-suggestions";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
@@ -48,7 +48,6 @@ export type ThreadProps = {
   components?: ThreadComponents | undefined;
   /** Disables the composer input + send (e.g. while a server-side Compact runs). */
   inputDisabled?: boolean | undefined;
-  /** Sends a controlled draft through the active thread runtime. */
   onSend: (text: string) => void;
 };
 
@@ -56,8 +55,9 @@ const EMPTY_COMPONENTS: ThreadComponents = {};
 
 const ThreadComponentsContext = createContext<ThreadComponents>(EMPTY_COMPONENTS);
 
+
 const InputDisabledContext = createContext(false);
-const SendMessageContext = createContext<((text: string) => void) | null>(null);
+const ComposerSubmitContext = createContext<((text: string) => void) | null>(null);
 
 // Startup exposes a loading placeholder thread; treat it as a new chat so
 // the composer mounts centered. Loads after startup keep the docked layout.
@@ -69,14 +69,13 @@ export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS, inputDi
   return (
     <ThreadComponentsContext.Provider value={components}>
       <InputDisabledContext.Provider value={inputDisabled}>
-        <SendMessageContext.Provider value={onSend}>
+        <ComposerSubmitContext.Provider value={onSend}>
           <ThreadRoot isEmpty={isEmpty} />
-        </SendMessageContext.Provider>
+        </ComposerSubmitContext.Provider>
       </InputDisabledContext.Provider>
     </ThreadComponentsContext.Provider>
   );
 };
-
 const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
   const { Welcome = ThreadWelcome } = useContext(ThreadComponentsContext);
 
@@ -97,7 +96,9 @@ const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
           </AuiIf>
 
           <div data-slot="aui_message-group" className="mb-14 flex flex-col gap-y-6 empty:hidden">
-            <ThreadPrimitive.Messages>{() => <ThreadMessage />}</ThreadPrimitive.Messages>
+            <ThreadPrimitive.Messages>
+              {() => <ThreadMessage />}
+            </ThreadPrimitive.Messages>
           </div>
 
           <ThreadPrimitive.ViewportFooter
@@ -165,7 +166,7 @@ const ThreadSuggestionItem: FC = () => {
 
 const Composer: FC = () => {
   const inputDisabled = useContext(InputDisabledContext);
-  const sendMessage = useContext(SendMessageContext);
+  const sendMessage = useContext(ComposerSubmitContext);
   const [draft, setDraft] = useState("");
 
   const submit: ComponentProps<typeof ComposerPrimitive.Root>["onSubmit"] = (event) => {
@@ -203,7 +204,6 @@ const Composer: FC = () => {
     </ComposerPrimitive.Root>
   );
 };
-
 const ComposerAction: FC<{ canSend: boolean }> = ({ canSend }) => {
   return (
     <div className="aui-composer-action-wrapper relative flex items-center justify-between">
@@ -318,7 +318,7 @@ const AssistantMessage: FC = () => {
     <MessagePrimitive.Root
       data-slot="aui_assistant-message-root"
       data-role="assistant"
-      className="fade-in slide-in-from-bottom-1 animate-in relative -mb-7.5 pb-7.5 duration-150 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
+      className="fade-in slide-in-from-bottom-1 animate-in relative -mb-7.5 pb-7.5 duration-150"
     >
       <div data-slot="aui_assistant-message-content" className="text-foreground px-2 leading-relaxed wrap-break-word">
         <MessagePrimitive.GroupedParts

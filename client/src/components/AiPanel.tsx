@@ -1,10 +1,10 @@
-import type { UIMessage } from "ai";
 import { toPng } from "html-to-image";
 import { Sparkles } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { useSettings } from "../hooks/queries";
 import { type ChatStreamError, type ChatStreamStatus, readChatStream } from "../lib/chat-stream";
+import { fetchChatHistory } from "../lib/chat-history";
 import { isAiAnalysisConfigured, launchAiFeature } from "../lib/is-ai-configured";
 import { resolveCssColor } from "../lib/rendering/css-values";
 import { client } from "../lib/rpc";
@@ -70,12 +70,8 @@ interface AiPanelProps {
   panelOpen?: boolean;
 }
 
-async function fetchLapChatHistory(lapId: number, gen?: number): Promise<UIMessage[]> {
-  const url = gen && gen > 1 ? `/api/laps/${lapId}/chat?gen=${gen}` : `/api/laps/${lapId}/chat`;
-  const res = await fetch(url);
-  if (!res.ok) return [];
-  const data = (await res.json()) as { messages?: UIMessage[] };
-  return (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant");
+async function fetchLapChatHistory(lapId: number, gen?: number) {
+  return fetchChatHistory(`/api/laps/${lapId}/chat`, gen);
 }
 
 export interface AiPanelHandle {

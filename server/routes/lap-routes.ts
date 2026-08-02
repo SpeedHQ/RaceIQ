@@ -872,9 +872,10 @@ export const lapRoutes = new Hono()
         .filter((m) => m.role === "user" || m.role === "assistant");
 
       return c.json({ messages: uiMessages });
-    } catch (err: any) {
-      console.error("[Chat] Failed to load messages:", err.message);
-      return c.json({ messages: [] });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[Chat] Failed to load messages:", message);
+      return c.json({ error: message }, 500);
     }
   })
 
@@ -1286,9 +1287,10 @@ export const lapRoutes = new Hono()
         .filter((m) => m.role === "user" || m.role === "assistant");
 
       return c.json({ messages: uiMessages });
-    } catch (err: any) {
-      console.error("[CompareChat] Failed to load messages:", err.message);
-      return c.json({ messages: [] });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[CompareChat] Failed to load messages:", message);
+      return c.json({ error: message }, 500);
     }
   })
 

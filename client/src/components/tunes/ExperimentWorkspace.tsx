@@ -363,7 +363,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
               </div>
             </div>
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-              <TuneSetupChat sessionId={session.id} headVersionId={session?.headVersionId ?? null} />
+              <TuneSetupChat sessionId={session.id} />
             </div>
           </div>
         )}
