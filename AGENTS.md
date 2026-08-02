@@ -305,7 +305,7 @@ Project memory is stored in `.Codex/memory/` in the repo root (not the default `
 
 ### Architecture Diagrams
 
-See `ARCHITECTURE.md` for detailed Mermaid diagrams covering: system overview, telemetry data flow, ingest pipeline detail, game adapter class diagram, AI analysis system, database schema (ER diagram), client architecture, server route modules, startup sequence, parser dispatch strategy, and comparison engine.
+See `docs/ARCHITECTURE.md` for detailed Mermaid diagrams covering: system overview, telemetry data flow, ingest pipeline detail, game adapter class diagram, AI analysis system, database schema (ER diagram), client architecture, server route modules, startup sequence, parser dispatch strategy, and comparison engine.
 
 Respond terse like smart caveman. All technical substance stay. Only fluff die.
 

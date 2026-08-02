@@ -219,7 +219,7 @@ export interface LayoutIdentity {
  *  re-typing 74 rows here, and keeps one copy of a hand-checked mapping. */
 function parsePlanLayoutTable(): Record<string, { layout: string; layoutName: string }> {
   const out: Record<string, { layout: string; layoutName: string }> = {};
-  const planPath = resolve(process.cwd(), "track-meta-migration-plan.md");
+  const planPath = resolve(process.cwd(), "docs", "track-meta-migration-plan.md");
   if (!existsSync(planPath)) return out;
   for (const line of readFileSync(planPath, "utf-8").split("\n")) {
     const m = line.match(/^\|\s*`([^`]+)`\s*\|\s*`([^`]+)`\s*\|\s*([^|]+?)\s*\|\s*$/);

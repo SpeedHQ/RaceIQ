@@ -117,7 +117,7 @@ The command imports representative Forza Motorsport, F1 2025, ACC, AC Evo, and i
 
 AI analysis is optional. Add your API key in the RaceIQ settings panel — multiple providers are supported. Analysis is sent directly to the provider's API, no intermediary server.
 
-Want to run AI entirely on your own PC? See the [Local AI](guides/local-ai.md) guide.
+Want to run AI entirely on your own PC? See the [Local AI](docs/guides/local-ai.md) guide.
 
 ## Sponsorship
 
