@@ -70,7 +70,7 @@ export interface ReleaseFeatureFlagEnvironment {
 export function releaseFeatureFlags(env: ReleaseFeatureFlagEnvironment): ReleaseFeatureFlags;
 ```
 
-Only exact `true` and `false` strings are accepted. Client startup passes the two `import.meta.env.RACEIQ_*` values. Server startup passes the corresponding `process.env` values. Tests and adapter helpers pass explicit parsed flags; adapter initialization has no environment-derived default.
+Only exact `true` and `false` strings are accepted. Client startup passes the two `import.meta.env.RACEIQ_*` values. Server startup passes the corresponding `process.env` values. Focused tests pass explicit parsed flags; legacy Bun test/tool adapter initialization parses the current `process.env`, which the test preload and development commands populate from `.env.development`.
 
 Vite uses the repository root as `envDir` and exposes the `RACEIQ_` prefix. Development commands explicitly load `.env.development`. The production build explicitly loads `.env.production`, and `scripts/build.ts` passes both values to Bun `--define` arguments so the compiled server contains the same production flags as the client bundle without requiring external env files at runtime.
 
