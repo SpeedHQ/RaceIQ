@@ -1,8 +1,8 @@
 import { AssistantRuntimeProvider, useAuiState } from "@assistant-ui/react";
 import { AssistantChatTransport, useChatRuntime, useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
 import { contextWindowFor } from "@shared/ai/context-window";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UIMessage } from "ai";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import { Thread, type ThreadProps } from "@/components/assistant-ui/thread";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,10 +16,11 @@ import { Button } from "../ui/button";
 /**
  * ChatPanel — shared assistant-ui chat shell extracted from TuneSetupChat.tsx
  * (plan: migrate Lap Chat + Compare Chat onto the same modern streaming stack
- * as Setup Engineer chat). Renders via assistant-ui + the AI SDK v5
+ * as Setup Engineer chat). Renders via assistant-ui + the AI SDK v7
  * UI-message-stream protocol; the server route wraps a Mastra agent stream
- * with `streamAgentTurnResponse` (server/ai/agent-stream.ts) — assistant-ui's
+ * with `streamAgentTurnResponse` (server/ai/agent-stream.ts) — canonical
  * `useChatRuntime` + `AssistantChatTransport` speak that protocol directly.
+ * The local composer explicitly marks each submitted message with `startRun`.
  *
  * Page-specific tool rendering stays out of this shared shell — pass a
  * `components` prop through to `<Thread/>` for per-page tool UI overrides.
@@ -89,6 +90,7 @@ export function resolveGenerationView(
 export function preserveRuntimeMessages(current: UIMessage[] | undefined, incoming: UIMessage[]): UIMessage[] {
   return current ?? incoming;
 }
+
 
 export function chatRuntimeKey(remountKey: string | undefined, viewingThreadId: string): string {
   return `${remountKey ?? ""}:${viewingThreadId}`;
@@ -366,6 +368,7 @@ export interface ChatPanelProps {
   compactThreadId?: string;
 }
 
+
 function ChatPanelThread({
   api,
   initialMessages,
@@ -401,6 +404,8 @@ function ChatPanelThread({
 }) {
   const extraBodyRef = useRef(extraBody);
   extraBodyRef.current = extraBody;
+  const initialMessagesRef = useRef<UIMessage[] | undefined>(undefined);
+  initialMessagesRef.current = preserveRuntimeMessages(initialMessagesRef.current, initialMessages);
   const transport = useMemo(
     () => new AssistantChatTransport({
       api,
@@ -408,8 +413,6 @@ function ChatPanelThread({
     }),
     [api],
   );
-  const initialMessagesRef = useRef<UIMessage[] | undefined>(undefined);
-  initialMessagesRef.current = preserveRuntimeMessages(initialMessagesRef.current, initialMessages);
   const runtime = useChatRuntime({
     messages: initialMessagesRef.current,
     transport,
@@ -433,6 +436,7 @@ function ChatPanelThread({
               onSend={(text) => runtime.thread.append({
                 role: "user",
                 content: [{ type: "text", text }],
+                startRun: true,
               })}
             />
           </div>

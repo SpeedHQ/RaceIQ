@@ -64,4 +64,3 @@ describe("chat runtime messages", () => {
     expect(preserveRuntimeMessages(mounted, refreshed)).toBe(mounted);
   });
 });
-

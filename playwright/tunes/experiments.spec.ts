@@ -84,6 +84,10 @@ test.describe("Setup Engineer experiments", () => {
             write('data: {"type":"reasoning-start","id":"reasoning-1"}\n\n');
             write('data: {"type":"reasoning-delta","id":"reasoning-1","delta":"Thinking chunk"}\n\n');
             write('data: {"type":"reasoning-end","id":"reasoning-1"}\n\n');
+            write('data: {"type":"tool-input-start","toolCallId":"tool-1","toolName":"preview_change"}\n\n');
+            write('data: {"type":"tool-input-delta","toolCallId":"tool-1","inputTextDelta":"{}"}\n\n');
+            write('data: {"type":"tool-input-available","toolCallId":"tool-1","toolName":"preview_change","input":{}}\n\n');
+            write('data: {"type":"tool-output-available","toolCallId":"tool-1","output":{"summary":"preview ready"}}\n\n');
             await new Promise((resolve) => setTimeout(resolve, 100));
             textSent = true;
             write('data: {"type":"text-start","id":"text-1"}\n\n');
@@ -142,13 +146,14 @@ test.describe("Setup Engineer experiments", () => {
     await input.fill("Stream this reply");
     await input.press("Enter");
     await expect.poll(() => page.evaluate(() => (window as Window & { __raceTextSent?: boolean }).__raceTextSent)).toBe(true);
+    await expect(page.getByText("Used tool: preview_change", { exact: false })).toBeVisible({ timeout: 15000 });
     await expect(page.getByText("First chunk", { exact: false })).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole("button", { name: "Stop generating" })).toBeVisible({ timeout: 15000 });
 
     await page.evaluate(() => {
       (window as Window & { __releaseRaceEngineerStream?: () => void }).__releaseRaceEngineerStream?.();
     });
-    await expect(page.getByText("First chunk", { exact: false })).toBeVisible();
+    await expect(page.getByText("First chunk second chunk", { exact: false })).toBeVisible();
     await expect(page.getByRole("button", { name: "Send message" })).toBeVisible({ timeout: 15000 });
     expect(consoleErrors.filter((message) => message.includes("Maximum update depth exceeded"))).toEqual([]);
   });

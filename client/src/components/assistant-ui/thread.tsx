@@ -8,40 +8,33 @@ import {
   BranchPickerPrimitive,
   ComposerPrimitive,
   ErrorPrimitive,
-  groupPartByType,
   MessagePrimitive,
   SuggestionPrimitive,
   ThreadPrimitive,
+  type ReasoningMessagePartComponent,
   type ToolCallMessagePartComponent,
   useAuiState,
 } from "@assistant-ui/react";
 import { ArrowDownIcon, ArrowUpIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, DownloadIcon, MicIcon, MoreHorizontalIcon, PencilIcon, RefreshCwIcon, SquareIcon } from "lucide-react";
-import { type ComponentProps, type ComponentType, type FC, type PropsWithChildren, createContext, useContext, useState } from "react";
+import { type ComponentProps, type ComponentType, type FC, createContext, useContext, useState } from "react";
 import { ComposerAddAttachment, ComposerAttachments, UserMessageAttachments } from "@/components/assistant-ui/attachment";
 import { ThreadFollowupSuggestions } from "@/components/assistant-ui/follow-up-suggestions";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ReasoningContent, ReasoningRoot, ReasoningText, ReasoningTrigger } from "@/components/assistant-ui/reasoning";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
-import { ToolGroupContent, ToolGroupRoot, ToolGroupTrigger } from "@/components/assistant-ui/tool-group";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
-
 /**
  * Optional component overrides for the thread. `AssistantMessage` and
- * `Welcome` replace whole sections; the remaining slots override how the
- * assistant message renders tool calls and part groups. Tool UIs registered
- * by name (toolkit `render`, `useAssistantDataUI`) take precedence over
- * `ToolFallback`.
+ * `Welcome` replace whole sections; `ToolFallback` handles tools without a
+ * page-specific renderer. Tool UIs registered by name take precedence.
  */
 export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
   Welcome?: ComponentType | undefined;
   ToolFallback?: ToolCallMessagePartComponent | undefined;
-  ToolGroup?: ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>> | undefined;
-  ReasoningGroup?: ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>> | undefined;
 };
 
 export type ThreadProps = {
@@ -259,37 +252,9 @@ function useReasoningDurationSec(): number | undefined {
   });
 }
 
-// Collapse the reasoning group the instant answer text begins: `streaming`
-// flips false as soon as the message's last part is no longer `reasoning`
-// (i.e. at text-start), rather than at message-end. `ReasoningRoot` keeps its
-// scroll-lock / "first manual toggle wins" behavior.
-const ReasoningGroupFallback: FC<PropsWithChildren<{ group: ThreadGroupPart }>> = ({ group, children }) => {
-  const startIndex = group.indices[0] ?? 0;
-  const endIndex = group.indices[group.indices.length - 1] ?? -1;
-  const isReasoningStreaming = useAuiState((s) => {
-    if (s.message.status?.type !== "running") return false;
-    const lastIndex = s.message.parts.length - 1;
-    if (lastIndex < 0) return false;
-    const lastType = s.message.parts[lastIndex]?.type;
-    if (lastType !== "reasoning") return false;
-    return lastIndex >= startIndex && lastIndex <= endIndex;
-  });
-  const durationSec = useReasoningDurationSec();
-
-  return (
-    <ReasoningRoot streaming={isReasoningStreaming}>
-      <ReasoningTrigger active={isReasoningStreaming} duration={isReasoningStreaming ? undefined : durationSec} />
-      <ReasoningContent aria-busy={isReasoningStreaming}>
-        <ReasoningText>{children}</ReasoningText>
-      </ReasoningContent>
-    </ReasoningRoot>
-  );
-};
-
-// Reasoning parts render standalone (no grouping): one collapsible per part.
-// Auto-opens while the reasoning tail is still streaming, then collapses the
-// instant answer text begins (last part flips off `reasoning`).
-const ReasoningPart: FC<PropsWithChildren> = ({ children }) => {
+// Keep reasoning visible while it streams, then collapse it when answer text
+// starts. MessagePrimitive.Parts supplies the live part text through context.
+const ReasoningPart: ReasoningMessagePartComponent = () => {
   const isReasoningStreaming = useAuiState((s) => {
     if (s.message.status?.type !== "running") return false;
     const parts = s.message.parts;
@@ -301,14 +266,14 @@ const ReasoningPart: FC<PropsWithChildren> = ({ children }) => {
     <ReasoningRoot streaming={isReasoningStreaming}>
       <ReasoningTrigger active={isReasoningStreaming} duration={isReasoningStreaming ? undefined : durationSec} />
       <ReasoningContent aria-busy={isReasoningStreaming}>
-        <ReasoningText>{children}</ReasoningText>
+        <ReasoningText><MarkdownText /></ReasoningText>
       </ReasoningContent>
     </ReasoningRoot>
   );
 };
 
 const AssistantMessage: FC = () => {
-  const { ToolFallback: ToolFallbackComponent = ToolFallback, ToolGroup, ReasoningGroup } = useContext(ThreadComponentsContext);
+  const { ToolFallback: ToolFallbackComponent = ToolFallback } = useContext(ThreadComponentsContext);
 
   const ACTION_BAR_PT = "pt-1.5";
   // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
@@ -321,62 +286,13 @@ const AssistantMessage: FC = () => {
       className="fade-in slide-in-from-bottom-1 animate-in relative -mb-7.5 pb-7.5 duration-150"
     >
       <div data-slot="aui_assistant-message-content" className="text-foreground px-2 leading-relaxed wrap-break-word">
-        <MessagePrimitive.GroupedParts
-          groupBy={groupPartByType({
-            reasoning: [],
-            "tool-call": ["group-chainOfThought", "group-tool"],
-            "standalone-tool-call": [],
-          })}
-        >
-          {({ part, children }) => {
-            switch (part.type) {
-              case "group-chainOfThought":
-                return <div data-slot="aui_chain-of-thought">{children}</div>;
-              case "group-tool":
-                if (ToolGroup) {
-                  return <ToolGroup group={part}>{children}</ToolGroup>;
-                }
-                return (
-                  <ToolGroupRoot variant="ghost">
-                    <ToolGroupTrigger count={part.indices.length} active={part.status.type === "running"} />
-                    <ToolGroupContent>{children}</ToolGroupContent>
-                  </ToolGroupRoot>
-                );
-              case "group-reasoning": {
-                if (ReasoningGroup) {
-                  return <ReasoningGroup group={part}>{children}</ReasoningGroup>;
-                }
-                return <ReasoningGroupFallback group={part}>{children}</ReasoningGroupFallback>;
-              }
-              case "text":
-                return <MarkdownText />;
-              case "reasoning":
-                return (
-                  <ReasoningPart>
-                    <MarkdownText />
-                  </ReasoningPart>
-                );
-              case "tool-call":
-                return part.toolUI ?? <ToolFallbackComponent {...part} />;
-              case "data":
-                return part.dataRendererUI;
-              case "indicator":
-                return (
-                  <span
-                    data-slot="aui_assistant-message-indicator"
-                    role="status"
-                    className="animate-pulse font-sans inline-flex items-center gap-1.5 text-app-text-muted"
-                    aria-label="Assistant is working"
-                  >
-                    {"●"}
-                    <span>Engineer working…</span>
-                  </span>
-                );
-              default:
-                return null;
-            }
+        <MessagePrimitive.Parts
+          components={{
+            Text: MarkdownText,
+            Reasoning: ReasoningPart,
+            tools: { Fallback: ToolFallbackComponent },
           }}
-        </MessagePrimitive.GroupedParts>
+        />
         <MessageError />
       </div>
 
