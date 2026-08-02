@@ -1,10 +1,10 @@
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
 import type { TelemetryPacket } from "@shared/types";
-import { Suspense, useMemo, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { m } from "@/paraglide/messages";
 import { THREE_COLORS } from "@/lib/wireframe-utils";
+import { m } from "@/paraglide/messages";
 
 const MODEL_PATH = "/models/f1_2025_mclaren_mcl39.glb";
 
@@ -12,17 +12,17 @@ function F1CarBody({ packet }: { packet: TelemetryPacket }) {
   const { scene } = useGLTF(MODEL_PATH);
   const groupRef = useRef<THREE.Group>(null);
 
-  const model = useMemo(() => {
+  const { model, material } = useMemo(() => {
     const clone = scene.clone(true);
+    const material = new THREE.MeshBasicMaterial({
+      color: THREE_COLORS.wireframeStructure,
+      wireframe: true,
+      transparent: true,
+      opacity: 0.4,
+    });
     clone.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
-        const mesh = child as THREE.Mesh;
-        mesh.material = new THREE.MeshBasicMaterial({
-          color: THREE_COLORS.wireframeStructure,
-          wireframe: true,
-          transparent: true,
-          opacity: 0.4,
-        });
+        (child as THREE.Mesh).material = material;
       }
     });
 
@@ -32,8 +32,15 @@ function F1CarBody({ packet }: { packet: TelemetryPacket }) {
     box.getSize(size);
     console.log(`[F1Car] GLB size: ${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}`);
 
-    return clone;
+    return { model: clone, material };
   }, [scene]);
+
+  useEffect(
+    () => () => {
+      material.dispose();
+    },
+    [material],
+  );
 
   // Auto-scale and center
   const { scale, offset } = useMemo(() => {
@@ -58,7 +65,7 @@ function F1CarBody({ packet }: { packet: TelemetryPacket }) {
   return (
     <group ref={groupRef}>
       <group scale={scale} position={[offset.x, offset.y, offset.z]}>
-        <primitive object={model} />
+        <primitive object={model} dispose={null} />
       </group>
     </group>
   );

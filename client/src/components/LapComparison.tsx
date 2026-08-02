@@ -86,6 +86,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
   const mapRedrawRef = useRef<(() => void) | null>(null);
   const aiPanelRef = useRef<CompareAiPanelHandle | null>(null);
   const comparisonLayoutRef = useRef<HTMLDivElement>(null);
+  const mapResizeCleanupRef = useRef<(() => void) | null>(null);
   const [comparisonLayoutWidth, setComparisonLayoutWidth] = useState(0);
   const [savedMapWidth, setSavedMapWidth] = useLocalStorage("compare-left-column-width", COMPARE_MAP_DEFAULT_WIDTH);
   const [aiPanelOpen, setAiPanelOpen] = useState<boolean>(() => {
@@ -115,6 +116,13 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
     observer.observe(layout);
     return () => observer.disconnect();
   }, [comparison]);
+  useEffect(
+    () => () => {
+      mapResizeCleanupRef.current?.();
+      mapResizeCleanupRef.current = null;
+    },
+    [],
+  );
   const mapWidth = comparisonLayoutWidth > 0 ? clampCompareMapWidth(savedMapWidth, comparisonLayoutWidth, aiPanelOpen) : savedMapWidth;
   const handleCursorMove = useCallback((d: number | null) => {
     hoveredDistanceRef.current = d;
@@ -488,6 +496,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
             }}
             onMouseDown={(event) => {
               event.preventDefault();
+              mapResizeCleanupRef.current?.();
               const startX = event.clientX;
               const startWidth = mapWidth;
               const onMove = (moveEvent: MouseEvent) => {
@@ -496,7 +505,13 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
               const onUp = () => {
                 window.removeEventListener("mousemove", onMove);
                 window.removeEventListener("mouseup", onUp);
+                mapResizeCleanupRef.current = null;
               };
+              const cleanup = () => {
+                window.removeEventListener("mousemove", onMove);
+                window.removeEventListener("mouseup", onUp);
+              };
+              mapResizeCleanupRef.current = cleanup;
               window.addEventListener("mousemove", onMove);
               window.addEventListener("mouseup", onUp);
             }}

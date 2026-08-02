@@ -1,5 +1,5 @@
 import type { TelemetryPacket } from "@shared/types";
-import { memo, type RefObject, useMemo } from "react";
+import { memo, type RefObject, useEffect, useMemo, useRef } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { formatLapTime } from "@/lib/format";
 import { Button } from "../ui/button";
@@ -47,6 +47,15 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
   onSeek,
   onVisualFracChange,
 }: TimelineScrubberProps) {
+  const scrubCleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(
+    () => () => {
+      scrubCleanupRef.current?.();
+      scrubCleanupRef.current = null;
+    },
+    [],
+  );
   const timelineData = useMemo(() => {
     if (displayTelemetry.length === 0) return null;
     const startTime = displayTelemetry[0].CurrentLap;
@@ -133,6 +142,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
             }
           }}
           onMouseDown={(e) => {
+            scrubCleanupRef.current?.();
             const bar = e.currentTarget;
             const seek = (clientX: number) => {
               const rect = bar.getBoundingClientRect();
@@ -159,7 +169,13 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
               onVisualFracChange(null);
               window.removeEventListener("mousemove", onMove);
               window.removeEventListener("mouseup", onUp);
+              scrubCleanupRef.current = null;
             };
+            const cleanup = () => {
+              window.removeEventListener("mousemove", onMove);
+              window.removeEventListener("mouseup", onUp);
+            };
+            scrubCleanupRef.current = cleanup;
             window.addEventListener("mousemove", onMove);
             window.addEventListener("mouseup", onUp);
           }}

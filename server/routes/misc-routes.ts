@@ -18,7 +18,7 @@ import { getCurrentDetectedGame } from "../parsers";
 import { loadSettings } from "../settings";
 import { client as dbClient } from "../db";
 import { getChatMemory, CHAT_RESOURCE_ID } from "../ai/chat-agent";
-import { log } from "../logger";
+import { log, readRecentLogText } from "../logger";
 import pkg from "../../package.json";
 
 const ClientLogSchema = z.object({
@@ -459,11 +459,7 @@ export const miscRoutes = new Hono()
 
   // GET /api/diagnostics — download a zip with diagnostics.json + logs.txt
   .get("/api/diagnostics", async (c) => {
-    const logFile = join(USER_DATA_DIR, "raceiq.log");
-    let logs = "";
-    try {
-      logs = readFileSync(logFile, "utf8");
-    } catch {}
+    const logs = readRecentLogText();
 
     const session = lapDetector.session;
     // Detect game from actual UDP packets being parsed, then fall back to process list

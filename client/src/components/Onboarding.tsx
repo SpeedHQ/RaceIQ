@@ -1,7 +1,7 @@
 import { LOCALES } from "@shared/locales";
 import type { TelemetryPacket } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SiDiscord, SiGithub } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,8 +24,42 @@ const WHEEL_STYLE_KEY = "forza-wheel-style";
 function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
   const [cursorIdx, setCursorIdx] = useState(() => Math.floor(telemetry.length * 0.3));
   const rafIdRef = useRef<number>(0);
-  const pausedRef = useRef(false);
+  const isRunningRef = useRef(false);
+  const isDisposedRef = useRef(false);
+  const lastTimeRef = useRef(0);
+  const telemetryLengthRef = useRef(telemetry.length);
+  telemetryLengthRef.current = telemetry.length;
   const trackOrdinal = telemetry[0]?.TrackOrdinal;
+
+  const pauseAnimation = useCallback(() => {
+    if (!isRunningRef.current) return;
+    isRunningRef.current = false;
+    cancelAnimationFrame(rafIdRef.current);
+  }, []);
+
+  const resumeAnimation = useCallback(() => {
+    if (isDisposedRef.current || isRunningRef.current) return;
+
+    isRunningRef.current = true;
+    lastTimeRef.current = 0;
+
+    const frameDuration = 1000 / 60;
+    const tick = (time: number) => {
+      if (!isRunningRef.current || isDisposedRef.current) return;
+
+      rafIdRef.current = requestAnimationFrame(tick);
+      if (time - lastTimeRef.current < frameDuration) return;
+
+      lastTimeRef.current = time;
+      setCursorIdx((prev) => {
+        const totalPackets = telemetryLengthRef.current;
+        const next = prev + 1;
+        return next >= totalPackets ? 0 : next;
+      });
+    };
+
+    rafIdRef.current = requestAnimationFrame(tick);
+  }, []);
 
   // Fetch track outline
   useQuery({
@@ -62,55 +96,37 @@ function WelcomeViewport({ telemetry }: { telemetry: TelemetryPacket[] }) {
 
   // Expose frame control for Playwright recording
   useEffect(() => {
-    (window as unknown as Record<string, unknown>).__setFrame = (n: number) => setCursorIdx(n);
-    (window as unknown as Record<string, unknown>).__pauseAnimation = () => {
-      pausedRef.current = true;
-      cancelAnimationFrame(rafIdRef.current);
+    isDisposedRef.current = false;
+    const expose = window as unknown as Record<string, unknown>;
+    expose.__setFrame = (n: number) => {
+      if (!isDisposedRef.current) setCursorIdx(n);
     };
-    (window as unknown as Record<string, unknown>).__resumeAnimation = () => {
-      pausedRef.current = false;
-      let lastTime = 0;
-      const frameDuration = 1000 / 60;
-      function tick(time: number) {
-        if (pausedRef.current) return;
-        rafIdRef.current = requestAnimationFrame(tick);
-        if (time - lastTime < frameDuration) return;
-        lastTime = time;
-        setCursorIdx((prev) => {
-          const next = prev + 1;
-          return next >= telemetry.length ? 0 : next;
-        });
-      }
-      rafIdRef.current = requestAnimationFrame(tick);
+    expose.__pauseAnimation = () => {
+      pauseAnimation();
     };
-    (window as unknown as Record<string, unknown>).__totalFrames = telemetry.length;
+    expose.__resumeAnimation = () => {
+      resumeAnimation();
+    };
+    expose.__totalFrames = telemetryLengthRef.current;
     return () => {
-      (window as unknown as Record<string, unknown>).__setFrame = undefined;
-      (window as unknown as Record<string, unknown>).__pauseAnimation = undefined;
-      (window as unknown as Record<string, unknown>).__totalFrames = undefined;
+      isDisposedRef.current = true;
+      expose.__setFrame = undefined;
+      expose.__pauseAnimation = undefined;
+      expose.__resumeAnimation = undefined;
+      expose.__totalFrames = undefined;
+      pauseAnimation();
     };
+  }, [pauseAnimation, resumeAnimation]);
+
+  useEffect(() => {
+    (window as unknown as Record<string, unknown>).__totalFrames = telemetry.length;
   }, [telemetry.length]);
 
   useEffect(() => {
     if (telemetry.length === 0) return;
-    pausedRef.current = false;
-    let lastTime = 0;
-    const frameDuration = 1000 / 60;
-
-    function tick(time: number) {
-      if (pausedRef.current) return;
-      rafIdRef.current = requestAnimationFrame(tick);
-      if (time - lastTime < frameDuration) return;
-      lastTime = time;
-      setCursorIdx((prev) => {
-        const next = prev + 1;
-        return next >= telemetry.length ? 0 : next;
-      });
-    }
-
-    rafIdRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafIdRef.current);
-  }, [telemetry]);
+    resumeAnimation();
+    return () => pauseAnimation();
+  }, [pauseAnimation, resumeAnimation, telemetry]);
 
   // Build driving line from telemetry positions — downsample for perf
   const lapLine = useMemo(() => {

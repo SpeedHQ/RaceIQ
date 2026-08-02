@@ -8,11 +8,15 @@ import { buildWebSocketUrl, type DevWebSocketTarget } from "./websocket-url";
 
 declare const __RACEIQ_DEV_WS_TARGET__: DevWebSocketTarget;
 
-function fetchVersionInfo() {
-  client.api.version
-    .$get()
+const VERSION_REQUEST_TIMEOUT_MS = 10_000;
+
+function fetchVersionInfo(signal: AbortSignal) {
+  return client.api.version
+    .$get(undefined, { init: { signal } })
     .then((r) => r.json())
-    .then((d) => useTelemetryStore.getState().setVersionInfo(d as unknown as VersionInfo))
+    .then((d) => {
+      if (!signal.aborted) useTelemetryStore.getState().setVersionInfo(d as unknown as VersionInfo);
+    })
     .catch(() => {});
 }
 
@@ -20,9 +24,40 @@ export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
   const packetCountRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const versionRequestControllerRef = useRef<AbortController | null>(null);
+  const versionRequestTimeoutRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
+    const abortVersionRequest = () => {
+      if (versionRequestTimeoutRef.current !== undefined) {
+        window.clearTimeout(versionRequestTimeoutRef.current);
+        versionRequestTimeoutRef.current = undefined;
+      }
+      versionRequestControllerRef.current?.abort();
+      versionRequestControllerRef.current = null;
+    };
+
+    const startVersionRequest = () => {
+      abortVersionRequest();
+
+      const controller = new AbortController();
+      versionRequestControllerRef.current = controller;
+      const timeout = window.setTimeout(() => controller.abort(), VERSION_REQUEST_TIMEOUT_MS);
+      versionRequestTimeoutRef.current = timeout;
+
+      fetchVersionInfo(controller.signal).finally(() => {
+        if (versionRequestControllerRef.current === controller) {
+          versionRequestControllerRef.current = null;
+        }
+        if (versionRequestTimeoutRef.current === timeout) {
+          window.clearTimeout(timeout);
+          versionRequestTimeoutRef.current = undefined;
+        }
+      });
+    };
+
     function connect() {
+      abortVersionRequest();
       // Close any existing connection before opening a new one
       if (wsRef.current) {
         wsRef.current.onclose = null; // prevent reconnect loop
@@ -40,7 +75,7 @@ export function useWebSocket() {
       ws.onopen = () => {
         // setConnected handles reconnecting → complete transition internally
         store.setConnected(true);
-        fetchVersionInfo();
+        startVersionRequest();
       };
 
       ws.onmessage = (event) => {
@@ -51,7 +86,7 @@ export function useWebSocket() {
             useTelemetryStore.getState().setServerStatus(status);
           } else if (data.type === "update-available") {
             useTelemetryStore.getState().setUpdateAvailable(data.version as string);
-            fetchVersionInfo();
+            startVersionRequest();
           } else if (data.type === "update-progress") {
             useTelemetryStore.getState().setUpdateProgress({ stage: data.stage, percent: data.percent ?? 0 });
           } else if (data.type === "onboarding_complete") {
@@ -93,6 +128,7 @@ export function useWebSocket() {
       };
 
       ws.onclose = () => {
+        abortVersionRequest();
         const s = useTelemetryStore.getState();
         s.setConnected(false);
         s.setServerStatus(null);
@@ -121,6 +157,7 @@ export function useWebSocket() {
     return () => {
       clearInterval(interval);
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      abortVersionRequest();
       if (wsRef.current) {
         wsRef.current.onclose = null; // prevent reconnect on cleanup
         wsRef.current.close();

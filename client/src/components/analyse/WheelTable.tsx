@@ -36,7 +36,7 @@ function nodeSignature(value: ReactNode): string {
 }
 
 function getRowKey(row: WheelTableRow, seen: Map<string, number>): string {
-  const stableBase = row.id ?? [nodeSignature(row.label), row.span2 ? "span2" : "span4", nodeSignature(row.fl), nodeSignature(row.fr), nodeSignature(row.rl), nodeSignature(row.rr)].join("|");
+  const stableBase = row.id ?? [nodeSignature(row.label), row.span2 ? "span2" : "span4"].join("|");
   const count = seen.get(stableBase) ?? 0;
   seen.set(stableBase, count + 1);
   return `${stableBase}#${count}`;

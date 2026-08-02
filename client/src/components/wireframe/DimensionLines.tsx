@@ -1,32 +1,45 @@
 import { Line } from "@react-three/drei";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import type { CarModelEnrichment } from "../../data/car-models";
 import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
 import { THREE_COLORS } from "../../lib/wireframe-utils";
 
 function DimensionLabel({ position, text, color }: { position: [number, number, number]; text: string; color: string }) {
-  const texture = useMemo(() => {
+  const { ctx, texture, material } = useMemo(() => {
     const canvas = document.createElement("canvas");
     canvas.width = 256;
     canvas.height = 64;
-    const ctx = getSemanticCanvasContext(canvas)!;
+    const ctx = getSemanticCanvasContext(canvas);
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.SpriteMaterial({
+      map: texture,
+      transparent: true,
+      depthTest: false,
+    });
+    return { ctx, texture, material };
+  }, []);
+
+  useEffect(() => {
+    if (!ctx) return;
     ctx.clearRect(0, 0, 256, 64);
     ctx.font = "var(--font-weight-bold) var(--text-4xl) var(--font-mono)";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = color;
     ctx.fillText(text, 128, 32);
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.needsUpdate = true;
-    return tex;
-  }, [text, color]);
+    texture.needsUpdate = true;
+  }, [color, ctx, text, texture]);
 
-  return (
-    <sprite position={position} scale={[1.2, 0.3, 1]}>
-      <spriteMaterial map={texture} transparent depthTest={false} />
-    </sprite>
+  useEffect(
+    () => () => {
+      material.dispose();
+      texture.dispose();
+    },
+    [material, texture],
   );
+
+  return <sprite material={material} position={position} scale={[1.2, 0.3, 1]} dispose={null} />;
 }
 
 export function DimensionLines({ carModel }: { carModel: CarModelEnrichment }) {

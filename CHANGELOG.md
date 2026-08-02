@@ -9,6 +9,8 @@
 
 ### Fixes
 
+- Prevent 2D and 3D Analyse playback from exhausting browser memory during telemetry updates
+- Keep repeated client errors and diagnostics logs from consuming unbounded memory, network, and disk space
 - Restore lap and session history when upgrading databases affected by overlapping schema migrations
 - Keep the Compare loading message hidden after comparison data is available
 - Cover the full page when settings are open so background content is consistently dimmed and dismissible
