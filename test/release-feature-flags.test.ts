@@ -53,6 +53,14 @@ describe("release feature flags", () => {
     });
   });
 
+  test("loads development flags for direct Bun tools", async () => {
+    const { developmentReleaseFeatures } = await import("../scripts/development-release-features");
+    expect(developmentReleaseFeatures).toEqual({
+      f1Experiments: true,
+      iracingAdapter: true,
+    });
+  });
+
   test("rejects missing flags with the variable name", () => {
     expect(() =>
       releaseFeatureFlags({

@@ -14,6 +14,8 @@ const config: StorybookConfig = {
   },
   viteFinal(config) {
     return mergeConfig(config, {
+      envDir: path.resolve(__dirname, "../.."),
+      envPrefix: ["VITE_", "RACEIQ_"],
       resolve: {
         alias: {
           "@": path.resolve(__dirname, "../src"),

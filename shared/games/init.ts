@@ -8,8 +8,8 @@ import { releaseFeatureFlags, type ReleaseFeatureFlags } from "../release-featur
 
 export function gameAdaptersForFeatures(
   flags: ReleaseFeatureFlags = releaseFeatureFlags({
-    RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
-    RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
+    RACEIQ_FEATURE_F1_EXPERIMENTS: import.meta.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
+    RACEIQ_FEATURE_IRACING_ADAPTER: import.meta.env.RACEIQ_FEATURE_IRACING_ADAPTER,
   }),
 ) {
   const adapters = [forzaAdapter, f1Adapter, accAdapter, acEvoAdapter];
@@ -20,8 +20,8 @@ export function gameAdaptersForFeatures(
 /** Register game adapters. Call once at app startup. */
 export function initGameAdapters(
   flags: ReleaseFeatureFlags = releaseFeatureFlags({
-    RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
-    RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
+    RACEIQ_FEATURE_F1_EXPERIMENTS: import.meta.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
+    RACEIQ_FEATURE_IRACING_ADAPTER: import.meta.env.RACEIQ_FEATURE_IRACING_ADAPTER,
   }),
 ): void {
   for (const adapter of gameAdaptersForFeatures(flags)) registerGame(adapter);

@@ -70,9 +70,9 @@ export interface ReleaseFeatureFlagEnvironment {
 export function releaseFeatureFlags(env: ReleaseFeatureFlagEnvironment): ReleaseFeatureFlags;
 ```
 
-Only exact `true` and `false` strings are accepted. Client startup passes the two `import.meta.env.RACEIQ_*` values. Server startup passes the corresponding `process.env` values. Focused tests pass explicit parsed flags; legacy Bun test/tool adapter initialization parses the current `process.env`, which the test preload and development commands populate from `.env.development`.
+Only exact `true` and `false` strings are accepted. Client startup passes the two `import.meta.env.RACEIQ_*` values. Shared browser defaults read the same `import.meta.env` values. Server startup passes the corresponding `process.env` values. Focused tests pass explicit parsed flags; the test preload populates Bun's environment from `.env.development`. Direct Bun tools pass a shared development flag object parsed from that committed file instead of depending on the caller's shell environment.
 
-Vite uses the repository root as `envDir` and exposes the `RACEIQ_` prefix. Development commands explicitly load `.env.development`. The production build explicitly loads `.env.production`, and `scripts/build.ts` passes both values to Bun `--define` arguments so the compiled server contains the same production flags as the client bundle without requiring external env files at runtime.
+Vite and Storybook use the repository root as `envDir` and expose the `RACEIQ_` prefix. Development commands explicitly load `.env.development`. The production build explicitly loads `.env.production`, and `scripts/build.ts` passes both values to Bun `--define` arguments so the compiled server contains the same production flags as the client bundle without requiring external env files at runtime.
 
 `gameAdaptersForFeatures(flags)` and `serverGameAdaptersForFeatures(flags)` return the exact adapter lists registered by `initGameAdapters(flags)` and `initServerGameAdapters(flags)`. Client routes consume the client-bound flags. Windows supervision uses `nativeTelemetryGameIds(flags)` and conditionally calls the iRacing supervisor only when `iracingAdapter` is enabled.
 

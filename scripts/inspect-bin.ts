@@ -13,6 +13,7 @@ import { readFileSync } from "fs";
 import { basename } from "path";
 import { gunzipSync } from "zlib";
 import { initServerGameAdapters } from "../server/games/init";
+import { developmentReleaseFeatures } from "./development-release-features";
 import {
   importSessionBin,
   detectGameIdFromBuffer,
@@ -32,7 +33,7 @@ if (!path) {
   process.exit(1);
 }
 
-initServerGameAdapters();
+initServerGameAdapters(developmentReleaseFeatures);
 
 // ── Stage 1: header ──────────────────────────────────────────────
 const raw = readFileSync(path);
