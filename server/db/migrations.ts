@@ -458,7 +458,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
 
   // ── v30: Setup Engineer flow — exclusions, F1 snapshot, action log ─────────
   // Three additive changes for the solidified tuning-session flow
-  // (docs/setup-engineer-flow-design.md §Phase 0):
+  // (docs/architecture/setup-engineer.md):
   //  • laps.tuning_excluded    — user flag dropping a lap from the tuning aggregate.
   //  • tuning_tests.setup_snapshot — F1's captured/target F1CarSetup JSON (null for
   //    file-based ACC/AC-Evo nodes, which keep using setup_path).
@@ -532,7 +532,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   },
 
   // ── v34: auto-exclude source tracking for fastest-5 curation ───────────────
-  // (docs/superpowers/specs/2026-07-24-tuning-auto-exclude-design.md)
+  // (docs/architecture/setup-engineer.md)
   // `laps.tuning_excluded` was a purely manual flag, so the tuning aggregate
   // disagreed with the fastest-5 curation the review paths (`/line-spread`,
   // `useStintTraces`) actually analysed. This column tracks WHO set the flag:

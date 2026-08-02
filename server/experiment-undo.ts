@@ -1,5 +1,5 @@
 /**
- * Undo (docs/setup-engineer-flow-design.md §Phase 9) — reverses the newest
+ * Undo (docs/architecture/setup-engineer.md) — reverses the newest
  * not-yet-undone `experiment_actions` row for a session by applying its
  * `kind`-specific inverse, then flips `undone`. Shared by the HTTP endpoint
  * (`POST /api/experiments/:id/undo`) and the AI's `undo_last_action`

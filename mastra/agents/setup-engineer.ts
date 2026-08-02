@@ -1,5 +1,5 @@
 /**
- * Setup Engineer agent (docs/setup-engineer-tools-plan.md §3, Phase 2).
+ * Setup Engineer agent (docs/architecture/setup-engineer.md).
  *
  * Static singleton — registered in `mastra/index.ts` so it appears in the
  * Mastra dev Studio playground alongside the other agents. It is NOT bound to

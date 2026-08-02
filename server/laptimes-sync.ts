@@ -11,7 +11,7 @@ import type { GameId } from "@shared/types";
  * name matching between the two sources isn't reliable enough for that).
  * Cached in memory only — a restart just re-fetches once.
  *
- * See docs/specs/2026-07-11-community-tunes-cdn-design.md.
+ * See docs/integrations/community-tunes.md.
  */
 
 const DEFAULT_BASE_URL = "https://speedhq-tunes.pages.dev";

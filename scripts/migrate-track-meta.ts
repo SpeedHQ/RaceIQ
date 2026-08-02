@@ -214,18 +214,88 @@ export interface LayoutIdentity {
   layoutName: string;
 }
 
-/** Slug suffixes carry layout meaning but aren't derivable, so the reviewed
- *  slug -> layout table in the migration plan is the source. Parsing it beats
- *  re-typing 74 rows here, and keeps one copy of a hand-checked mapping. */
+/**
+ * Slug suffixes carry layout meaning but aren't derivable, so this hand-reviewed map
+ * is the source of truth for layout identity, avoiding runtime dependency on the doc.
+ */
+const PLAN_LAYOUT_TABLE: Record<string, { layout: string; layoutName: string }> = {
+  "brands-hatch": { layout: "gp", layoutName: "Grand Prix" },
+  "brands-hatch-s": { layout: "indy", layoutName: "Indy" },
+  "catalunya": { layout: "gp", layoutName: "Grand Prix" },
+  "catalunya-s": { layout: "national", layoutName: "National" },
+  "catalunya-s2": { layout: "national-alt", layoutName: "National Alt" },
+  "daytona": { layout: "sports-car", layoutName: "Sports Car" },
+  "daytona-oval": { layout: "oval", layoutName: "Tri-Oval" },
+  "eaglerock": { layout: "club", layoutName: "Club" },
+  "eaglerock-oval": { layout: "oval", layoutName: "Oval" },
+  "eaglerock-r": { layout: "club-reverse", layoutName: "Club Reverse" },
+  "fujimi-kaido": { layout: "full", layoutName: "Full" },
+  "fujimi-kaido-r": { layout: "full-reverse", layoutName: "Full Reverse" },
+  "grand-oak": { layout: "national", layoutName: "National" },
+  "grand-oak-r": { layout: "national-reverse", layoutName: "National Reverse" },
+  "grand-oak-s": { layout: "club", layoutName: "Club" },
+  "hakone": { layout: "gp", layoutName: "Grand Prix" },
+  "hakone-s": { layout: "club", layoutName: "Club" },
+  "hakone-sr": { layout: "club-reverse", layoutName: "Club Reverse" },
+  "hockenheim": { layout: "full", layoutName: "Full" },
+  "hockenheim-s": { layout: "national", layoutName: "National" },
+  "hockenheim-s2": { layout: "short", layoutName: "Short" },
+  "homestead": { layout: "road", layoutName: "Road" },
+  "homestead-oval": { layout: "speedway", layoutName: "Speedway" },
+  "indianapolis": { layout: "gp", layoutName: "Grand Prix" },
+  "indianapolis-oval": { layout: "oval", layoutName: "The Brickyard Speedway" },
+  "kyalami": { layout: "gp", layoutName: "Grand Prix" },
+  "laguna-seca": { layout: "full", layoutName: "Full" },
+  "laguna-seca-s": { layout: "short", layoutName: "Short" },
+  "le-mans": { layout: "full", layoutName: "Full" },
+  "le-mans-old": { layout: "old-mulsanne", layoutName: "Old Mulsanne" },
+  "lime-rock": { layout: "full", layoutName: "Full" },
+  "lime-rock-alt": { layout: "full-alt", layoutName: "Full Alt" },
+  "lime-rock-sc": { layout: "south-chicane", layoutName: "South Chicane" },
+  "maple-valley": { layout: "full", layoutName: "Full" },
+  "maple-valley-s": { layout: "short", layoutName: "Short" },
+  "maple-valley-sr": { layout: "short-reverse", layoutName: "Short Reverse" },
+  "mid-ohio": { layout: "full", layoutName: "Full" },
+  "mid-ohio-s": { layout: "short", layoutName: "Short" },
+  "mount-panorama": { layout: "full", layoutName: "Circuit" },
+  "mugello": { layout: "full", layoutName: "Full" },
+  "mugello-s": { layout: "club", layoutName: "Club" },
+  "nurburgring": { layout: "gp", layoutName: "GP" },
+  "nurburgring-full": { layout: "full", layoutName: "Full (GP + Nordschleife)" },
+  "nurburgring-nord": { layout: "nordschleife", layoutName: "Nordschleife" },
+  "nurburgring-s": { layout: "sprint", layoutName: "Sprint" },
+  "road-america": { layout: "full", layoutName: "Full" },
+  "road-america-s": { layout: "east", layoutName: "East Route" },
+  "road-atlanta": { layout: "full", layoutName: "Full" },
+  "road-atlanta-s": { layout: "club", layoutName: "Club" },
+  "sebring": { layout: "full", layoutName: "Full" },
+  "sebring-s": { layout: "short", layoutName: "Short" },
+  "silverstone": { layout: "gp", layoutName: "Grand Prix" },
+  "silverstone-s": { layout: "national", layoutName: "National" },
+  "silverstone-s2": { layout: "international", layoutName: "International" },
+  "spa": { layout: "full", layoutName: "Full" },
+  "sunset-peninsula": { layout: "full", layoutName: "Full" },
+  "sunset-peninsula-oval": { layout: "speedway", layoutName: "Speedway" },
+  "sunset-peninsula-r": { layout: "full-reverse", layoutName: "Full Reverse" },
+  "sunset-peninsula-s": { layout: "club", layoutName: "Club" },
+  "sunset-peninsula-sr": { layout: "club-reverse", layoutName: "Club Reverse" },
+  "suzuka": { layout: "full", layoutName: "Full" },
+  "suzuka-s": { layout: "east", layoutName: "East" },
+  "vir": { layout: "full", layoutName: "Full" },
+  "vir-ge": { layout: "grand-east", layoutName: "Grand East" },
+  "vir-gw": { layout: "grand-west", layoutName: "Grand West" },
+  "vir-n": { layout: "north", layoutName: "North" },
+  "vir-s": { layout: "south", layoutName: "South" },
+  "watkins-glen": { layout: "full", layoutName: "Full" },
+  "watkins-glen-s": { layout: "short", layoutName: "Short" },
+  "yas-marina": { layout: "full", layoutName: "Full" },
+  "yas-marina-n": { layout: "north", layoutName: "North" },
+  "yas-marina-nc": { layout: "north-corkscrew", layoutName: "North Corkscrew" },
+  "yas-marina-s": { layout: "south", layoutName: "South" },
+};
+
 function parsePlanLayoutTable(): Record<string, { layout: string; layoutName: string }> {
-  const out: Record<string, { layout: string; layoutName: string }> = {};
-  const planPath = resolve(process.cwd(), "docs", "track-meta-migration-plan.md");
-  if (!existsSync(planPath)) return out;
-  for (const line of readFileSync(planPath, "utf-8").split("\n")) {
-    const m = line.match(/^\|\s*`([^`]+)`\s*\|\s*`([^`]+)`\s*\|\s*([^|]+?)\s*\|\s*$/);
-    if (m) out[m[1]] = { layout: m[2], layoutName: m[3] };
-  }
-  return out;
+  return PLAN_LAYOUT_TABLE;
 }
 
 const VARIANT_LAYOUTS: Record<string, { layout: string; layoutName: string }> = {

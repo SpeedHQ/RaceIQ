@@ -16,7 +16,7 @@ import {
  * transactional replace-all. The cache is persistent and never expires: any
  * network or validation failure leaves the previously-synced rows in place.
  *
- * See docs/specs/2026-07-11-community-tunes-cdn-design.md.
+ * See docs/integrations/community-tunes.md.
  */
 
 const DEFAULT_BASE_URL = "https://speedhq-tunes.pages.dev";

@@ -11,7 +11,7 @@
  * static — the gathered context is injected as data, so the model only has to
  * reason and act.
  *
- * Phase 3 (docs/setup-engineer-flow-design.md): the symptom/track-conditions
+ * See docs/architecture/setup-engineer.md:: the symptom/track-conditions
  * single-lap reads are replaced by ONE `loadCleanLapAggregate` call, which
  * reduces the session/branch's laps to a statistically clean pool (spread,
  * confidence, per-corner consistency) instead of trusting the fastest lap in

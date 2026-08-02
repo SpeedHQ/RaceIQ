@@ -1,6 +1,6 @@
 /**
  * Shared session-bound context for the tool-using Setup Engineer agent
- * (docs/setup-engineer-tools-plan.md §3, Phase 2).
+ * (docs/architecture/setup-engineer.md).
  *
  * Deliberately NOT part of `server/routes/tune-routes.ts` so the Mastra tools
  * (`mastra/tools/setup-engineer.ts`) can import just this — a small module —

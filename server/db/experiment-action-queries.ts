@@ -1,6 +1,5 @@
 /**
- * Tuning-action log queries (migration v30, docs/setup-engineer-flow-design.md
- * §Phase 9). The append-only log that backs session-scoped undo: every mutating
+ * Tuning-action log queries (migration v30; see docs/architecture/setup-engineer.md). The append-only log that backs session-scoped undo: every mutating
  * op records its inverse via `recordAction`, `undo` walks newest-first via
  * `listActions` and flips `undone` via `markUndone`.
  *

@@ -238,7 +238,7 @@ export class LapDetectorAcc implements ILapDetector {
     // /lap-metrics never decodes on first open.
     await persistLapMetrics(this.db, lapId, packets);
     // Reconcile the fastest-5 auto-exclude curation for this lap's tuning
-    // scope (docs/superpowers/specs/2026-07-24-experiment-auto-exclude-design.md).
+    // scope (docs/architecture/setup-engineer.md).
     // No-ops when the lap has no tuning session or tune assigned.
     await reconcileAutoExclusionsForLap(this.db, lapId);
     if (!opts?.silent) {

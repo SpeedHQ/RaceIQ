@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-RaceIQ is a full-stack racing telemetry analysis app supporting multiple racing games (currently Forza Motorsport, F1 2025, and Assetto Corsa Competizione). It receives real-time UDP telemetry packets from games at 60 Hz, stores lap data in SQLite, and provides a React dashboard with live visualizations, lap comparison, AI-powered analysis, and 3D car attitude rendering.
+RaceIQ is a full-stack racing telemetry analysis app for Forza Motorsport 2023, F1 25, Assetto Corsa Competizione, Assetto Corsa Evo, and iRacing. UDP and native Windows telemetry sources feed a Bun server, SQLite storage, and a React dashboard. See [architecture overview](docs/architecture/overview.md).
 
 ## Commands
 
@@ -63,7 +63,7 @@ bun run lighthouse             # run Lighthouse audit on local dev server
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `SERVER_PORT` | `3117` | HTTP/WebSocket server port |
-| `UDP_PORT` | `5300` | Game telemetry UDP listen port |
+| `UDP_PORT` | `5301` | Game telemetry UDP listen port |
 | `DATA_DIR` | `./data` | Database and settings directory |
 
 ## Architecture
@@ -185,7 +185,7 @@ ran v39 before the `car`/`driver` rename.
 - `shared/types.ts` — Telemetry packet types, enums, shared interfaces
 - `shared/games/` — Game adapter registry and per-game adapters — see [Adding a New Game](#adding-a-new-game)
 - `shared/car-data.ts` — Car model ID-to-name mapping (dispatches via game adapter)
-- `shared/track-outlines/` — Track geometry data (JSON coords, sector definitions, named segments)
+- `shared/tracks/` — Track metadata, geometry, guides, and verification data
 - `shared/tunes/` — Vehicle setup data (JSON)
 
 ### Data Flow
@@ -260,23 +260,15 @@ The app uses a registry-based adapter pattern to support multiple racing games. 
 - `server/games/registry.ts` — `registerServerGame()`, `getServerGame()`, `getAllServerGames()`
 
 **Current adapters:**
-- `shared/games/fm-2023/` + `server/games/fm-2023/` — Forza Motorsport 2023 (stateless parser, size-based packet detection)
-- `shared/games/f1-2025/` + `server/games/f1-2025/` — F1 2025 (stateful multi-packet accumulator, magic bytes detection)
-- `shared/games/acc/` + `server/games/acc/` — Assetto Corsa Competizione (shared memory reader on Windows)
+- `shared/games/fm-2023/` + `server/games/fm-2023/` — Forza Motorsport 2023
+- `shared/games/f1-2025/` + `server/games/f1-2025/` — F1 25
+- `shared/games/acc/` + `server/games/acc/` — Assetto Corsa Competizione
+- `shared/games/ac-evo/` + `server/games/ac-evo/` — Assetto Corsa Evo
+- `shared/games/iracing/` + `server/games/iracing/` — iRacing
 
 ### Adding a New Game
 
-To add support for a new racing game (e.g. Gran Turismo):
-
-1. **Add game ID** — Add `"gt7"` to `KNOWN_GAME_IDS` in `shared/types.ts`
-2. **Create shared adapter** — `shared/games/gt7/index.ts` implementing `GameAdapter` (identity, car/track resolution, steering config, coord system)
-3. **Create server adapter** — `server/games/gt7/index.ts` implementing `ServerGameAdapter` (`canHandle()`, `tryParse()`, `createParserState()`, AI prompts)
-4. **Create UDP parser** — `server/parsers/gt7.ts` with binary parsing logic
-5. **Register adapters** — Import and call `registerGame()` in `shared/games/init.ts`, `registerServerGame()` in `server/games/init.ts`
-6. **Create client routes** — `client/src/routes/gt7.tsx` (layout with `<GameProvider gameId="gt7">`) and sub-routes in `client/src/routes/gt7/`
-7. **Add game data** — Car/track CSVs in `shared/`, track outlines in `shared/track-outlines/gt7/`
-
-See existing adapters (`fm-2023`, `f1-2025`, `acc`) for reference. Everything else (navigation tabs, car/track name resolution, corner detection, AI prompts, parser dispatch) is handled automatically by the registry.
+Follow the registry and boundary model in [architecture overview](docs/architecture/overview.md). Implement shared and server adapters, register both, then add game-specific parsing, routes, data, and focused tests. Never introduce an implicit fallback game.
 
 ### Track Segments: curated geometry is the source of truth
 
@@ -306,13 +298,13 @@ Three separate claims, weakest to strongest — **curated is not the same as cor
 | **Meta human-verified** | A person checked that roster against a real turn-by-turn guide and signed it off. |
 | **Segments human-verified** | A person checked that game's rendered geometry (`shared/tracks/<gameId>/<slug>-segments.json`, easiest via the committed `test/e2e/output/track-segments/<slug>-<gameId>.svg`) and signed it off. Kept separate from meta because a correct roster says nothing about whether the corners landed in the right *place* — f1-2025 segments in particular are known to be inaccurate. |
 
-**Counts live in `docs/track-curation.md`, not here.** That doc owns the generated per-game summary and the per-track breakdown of who signed off what. No coverage numbers in CLAUDE.md — they go stale and nobody notices.
+**Counts live in `docs/contributing/track-curation.md`, not here.** That document owns the generated per-game summary and per-track verification breakdown.
 
 ⚠️ **When you curate a track (or add a game's centerlines), refresh the stats:**
 
 ```bash
 bun run tracks:coverage            # print the table
-bun run tracks:coverage --write    # rewrite the generated blocks in docs/track-curation.md
+bun run tracks:coverage --write    # rewrite generated blocks in docs/contributing/track-curation.md
 ```
 
 **Signing off verification** — only after actually comparing against a real source, never as a side effect of generating or regenerating anything:
@@ -327,7 +319,7 @@ Signatures live in `shared/tracks/verified.json` and pin a hash of the file sign
 
 `test/track-coverage.test.ts` fails if the committed table drifts from the repo, so this cannot silently rot. Source of truth: `shared/track-coverage.ts` + `shared/track-verified.ts`.
 
-📖 Full write-up — layer hierarchy, why the detector is a fallback, sanctioned gaps, verification rules: **[docs/track-curation.md](docs/track-curation.md)**.
+📖 Full write-up — layer hierarchy, detector fallback, sanctioned gaps, and verification rules: **[track curation](docs/contributing/track-curation.md)**.
 
 ### Pre-commit Hooks (Lefthook)
 
@@ -385,7 +377,7 @@ initServerGameAdapters();
 
 Project memory is stored in `.claude/memory/` in the repo root (not the default `~/.claude/projects/` path). This is version-controlled so all contributors share context. Read and write memory files there.
 
-### Architecture Diagrams
+### Documentation
 
-See `docs/ARCHITECTURE.md` for detailed Mermaid diagrams covering: system overview, telemetry data flow, ingest pipeline detail, game adapter class diagram, AI analysis system, database schema (ER diagram), client architecture, server route modules, startup sequence, parser dispatch strategy, and comparison engine.
+Use [docs landing page](docs/README.md) for maintained documentation and [architecture overview](docs/architecture/overview.md) for current service, adapter, and data-flow boundaries.
 

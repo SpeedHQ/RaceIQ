@@ -4,7 +4,7 @@
  * Deliberately dependency-free — no React, no TanStack Query, no rpc client —
  * so a test can import it without dragging in the whole client module graph.
  * (Importing `hooks/queries.ts` into a bun test hangs the suite at module load;
- * see docs/test-suite-hangs.md.)
+ * see `docs/contributing/test-troubleshooting.md`.)
  */
 
 /**

@@ -17,7 +17,7 @@
  * spikes, single-sample brake peaks, impact loads). Both halves are asserted so
  * neither can be quietly overstated later.
  *
- * See docs/telemetry-fidelity.md for the write-up.
+ * See docs/research/telemetry-fidelity.md for the write-up.
  */
 import { describe, expect, test } from "bun:test";
 import { detectCorners } from "../server/corner-detection";
@@ -82,22 +82,22 @@ describe("telemetry fidelity vs MoTeC-rate logging", () => {
   test("our real captured rate is ~63.5Hz, not the 100Hz the assembler polls at", () => {
     // server/games/acc/triplet-assembler.ts polls on a 10ms setInterval, but what
     // actually lands on disk is ~63.5Hz. If this moves, either the timer behaviour
-    // changed or someone fixed the emit path — update docs/telemetry-fidelity.md.
+    // changed or someone fixed the emit path — update docs/research/telemetry-fidelity.md.
     expect(captureHz).toBeGreaterThan(55);
     expect(captureHz).toBeLessThan(70);
     // Still comfortably above the lap detector's 30Hz session-quality floor.
     expect(captureHz).toBeGreaterThan(30);
   });
 
-  // The two shared-memory pages advance at different rates in the sim, so
-  // "duplicate frame" is only meaningful per page. An earlier draft of this test
-  // measured CurrentRaceTime — which is derived from the *graphics* page — and
-  // mislabelled the result as stale physics. It is not: physics is fresh nearly
-  // every poll. See docs/telemetry-fidelity.md sections 1 and 6.
-  const pageRepeats = (key: "physicsPacketId" | "graphicsPacketId"): number => {
-    let repeats = 0;
-    for (let i = 1; i < allPackets.length; i++) {
-      if (allPackets[i].acc?.acEvo?.[key] === allPackets[i - 1].acc?.acEvo?.[key]) repeats++;
+  test("a third of emitted frames are duplicates, so our effective rate is ~39.5Hz", () => {
+    // The assembler emits on every poll with no gate on the physics page having
+    // advanced, so the same CurrentRaceTime is written repeatedly. This is the
+    // cheapest size win available (docs/research/telemetry-fidelity.md) and the
+    // reason the honest headline rate is ~39.5Hz, not 63.5Hz.
+    const all = allPackets;
+    let duplicates = 0;
+    for (let i = 1; i < all.length; i++) {
+      if (all[i].CurrentRaceTime === all[i - 1].CurrentRaceTime) duplicates++;
     }
     return repeats / allPackets.length;
   };

@@ -497,7 +497,7 @@ export const experimentVersions = sqliteTable(
 
 /**
  * Tuning actions — append-only action log backing session-scoped undo
- * (migration v30, docs/setup-engineer-flow-design.md §Phase 9). Every mutating
+ * (migration v30; see docs/architecture/setup-engineer.md). Every mutating
  * op (apply/branch/add-base/import/set-head/delete/restore/rename/exclude)
  * records its inverse here. `inversePayload` holds only small JSON refs (created
  * versionId, prior head, prior lap stamps) — no blobs — so full-session depth is

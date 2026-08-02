@@ -3,7 +3,7 @@ import { isPitCycleLap } from "../shared/lap-filters";
 
 /**
  * Tuning auto-exclude: fastest-5 lap curation
- * (docs/superpowers/specs/2026-07-24-experiment-auto-exclude-design.md).
+ * (docs/architecture/setup-engineer.md).
  *
  * Persists the fastest-5 decision (the same rule `shared/review-laps.ts` uses
  * to curate laps for the per-frame heavy review paths) onto

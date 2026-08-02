@@ -3,7 +3,7 @@
  *
  * Source of truth: `content/cars/<ks_folder>/data/setup/*.carsetuplimits`
  * (protobuf). Verified layout (anchored via unit strings "N/m"/"Ns/m"/"PSI"/
- * "DEG"/"deg"/"mm" and cross-car diffs — see docs/per-car-setup-ranges-plan.md):
+ * "DEG"/"deg"/"mm" and cross-car diffs — see docs/contributing/setup-range-data.md):
  *
  *   Each leaf setting message: { #1 f32 step, #2 f32 min, #3 f32 max,
  *                                #4 varint clickable?, #7 str unit }

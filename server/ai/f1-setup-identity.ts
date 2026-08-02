@@ -2,7 +2,7 @@ import type { F1CarSetup, TelemetryPacket } from "../../shared/types";
 
 /**
  * Setup-identity helpers for F1 2025 "Add laps from history" auto-sort
- * (docs/setup-engineer-flow-design.md §Phase 6 follow-up): each F1 lap
+ * (docs/architecture/setup-engineer.md): each F1 lap
  * carries its own in-car setup, so instead of a manual target the import
  * groups laps by a canonical fingerprint of that setup — laps that only
  * differ by fuel load or tyre-pressure noise are treated as the same setup.

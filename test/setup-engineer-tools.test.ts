@@ -1,6 +1,6 @@
 /**
  * Pure/query-level tests for the Setup Engineer tools' grounding mechanism
- * (docs/setup-engineer-tools-plan.md §3, Phase 2).
+ * (docs/architecture/setup-engineer.md).
  *
  * Deliberately does NOT import the composed app (server/index.ts) or
  * `mastra/tools/setup-engineer.ts` itself — the tool file wires DB/fs/memory
