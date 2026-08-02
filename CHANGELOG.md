@@ -9,6 +9,8 @@
 
 ### Fixes
 
+- Open Analyse from home and session recaps without a full-page white flash
+- Keep Analyse responsive while loading and playing large laps or recovering from server disconnects
 - Prevent 2D and 3D Analyse playback from exhausting browser memory during telemetry updates
 - Keep repeated client errors and diagnostics logs from consuming unbounded memory, network, and disk space
 - Restore lap and session history when upgrading databases affected by overlapping schema migrations
@@ -36,6 +38,7 @@
 - Remove the setup source-row container styling and keep refresh aligned with its filters
 
 ### Internal
+- Distinguish clean page reloads from unexpected browser termination in client diagnostics
 - Keep production builds from bundling development-only Mastra dependencies
 - Added complete telemetry-first semantic catalog with units, descriptions, per-game fidelity mappings, full parser/setup source inventories, stable iRacing SessionInfo setup leaves, detailed sector relationships, and persisted detailed tire temperatures
 - Restored live-dashboard Storybook runtime context and added same-renderer local visual comparison before canonical Linux baseline generation

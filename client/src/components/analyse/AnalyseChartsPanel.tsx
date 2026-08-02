@@ -35,7 +35,6 @@ export interface ChartsPanelHandle {
 
 interface ChartsPanelProps {
   displayTelemetry: DisplayPacket[];
-  cursorIdx: number;
   totalPackets: number;
   visualTimeFrac: number | null;
   onVisualFracChange: (frac: number | null) => void;
@@ -129,7 +128,7 @@ function buildChartData(displayTelemetry: DisplayPacket[]): ChartData | null {
 
 export const AnalyseChartsPanel = memo(
   forwardRef<ChartsPanelHandle, ChartsPanelProps>(function AnalyseChartsPanel(
-    { displayTelemetry, cursorIdx, totalPackets, visualTimeFrac, onVisualFracChange, onClickIndex, onScrubStart, speedLabel, tempLabel },
+    { displayTelemetry, totalPackets, visualTimeFrac, onVisualFracChange, onClickIndex, onScrubStart, speedLabel, tempLabel },
     ref,
   ) {
     const chartData = useMemo(() => buildChartData(displayTelemetry), [displayTelemetry]);
@@ -206,7 +205,6 @@ export const AnalyseChartsPanel = memo(
     if (!chartData) return null;
 
     const common = {
-      cursorIdx,
       totalPackets,
       timeFracs: chartData.timeFracs,
       times: chartData.times,

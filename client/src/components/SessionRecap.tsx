@@ -1,4 +1,5 @@
 import type { GameId, SessionRecap as SessionRecapDto } from "@shared/types";
+import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { useSessionRecap, useTrackOutline, useTrackSectorBoundaries } from "../hooks/queries";
@@ -257,6 +258,7 @@ export function SessionRecapView({ recap, gameId, linkToAnalyse = false, copied 
 }
 
 export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = false }: { sessionId: number; gameId?: GameId | null; linkToAnalyse?: boolean }) {
+  const navigate = useNavigate();
   const storeGameId = useGameId();
   const gameId = gameIdProp ?? storeGameId;
   const { data: recap, isLoading, isError } = useSessionRecap(sessionId, gameId);
@@ -273,7 +275,10 @@ export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = fa
   };
   const analyse = () => {
     if (recap.bestLapId == null) return;
-    window.location.href = `${getGameRoute(recap.gameId)}/analyse?track=${recap.trackOrdinal}&car=${recap.carOrdinal}&lap=${recap.bestLapId}`;
+    void navigate({
+      to: `${getGameRoute(recap.gameId)}/analyse` as never,
+      search: { track: recap.trackOrdinal, car: recap.carOrdinal, lap: recap.bestLapId } as never,
+    });
   };
   return <SessionRecapView recap={recap} gameId={recap.gameId} linkToAnalyse={linkToAnalyse} copied={copied} onCopy={copy} onAnalyse={analyse} outlineData={outlineData} bounds={bounds} />;
 }
