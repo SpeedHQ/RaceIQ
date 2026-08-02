@@ -9,7 +9,7 @@ import { applyLocale } from "@/lib/locale";
 import { m } from "@/paraglide/messages";
 import { useSaveSettings, useSettings } from "../hooks/queries";
 import { useUiStore } from "../stores/ui";
-import { playBlip, preloadSound } from "./SectorTimes";
+import { playBlip, preloadSound, removeCachedSound } from "./SectorTimes";
 
 import { AboutSection } from "./settings/AboutSection";
 import { AiSection } from "./settings/AiSection";
@@ -549,7 +549,9 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                   <Button
                     size="sm"
                     onClick={() => {
+                      const previousUrl = getSoundUrl();
                       setSoundUrl(soundUrl);
+                      if (previousUrl !== soundUrl) removeCachedSound(previousUrl);
                       if (soundUrl) preloadSound(soundUrl);
                     }}
                   >

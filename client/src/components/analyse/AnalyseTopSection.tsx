@@ -1,5 +1,5 @@
 import type { TelemetryPacket } from "@shared/types";
-import type { CSSProperties, RefObject } from "react";
+import { type CSSProperties, type RefObject, useEffect, useRef } from "react";
 import type { DisplayPacket } from "../../lib/convert-packet";
 import { m } from "../../paraglide/messages";
 import type { AnalysisHighlight } from "../AiPanel";
@@ -86,6 +86,15 @@ export function AnalyseTopSection({
   cursorRef,
   displayTelemetryRef,
 }: AnalyseTopSectionProps) {
+  const resizeCleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(
+    () => () => {
+      resizeCleanupRef.current?.();
+      resizeCleanupRef.current = null;
+    },
+    [],
+  );
   const responsiveSizeVars = {
     "--analyse-top-height": `${topHeight}px`,
     "--analyse-left-width": `${leftColWidth}px`,
@@ -125,6 +134,7 @@ export function AnalyseTopSection({
         }}
         onMouseDown={(e) => {
           e.preventDefault();
+          resizeCleanupRef.current?.();
           const startX = e.clientX;
           const startW = leftColWidth;
           const onMove = (ev: MouseEvent) => {
@@ -133,7 +143,13 @@ export function AnalyseTopSection({
           const onUp = () => {
             window.removeEventListener("mousemove", onMove);
             window.removeEventListener("mouseup", onUp);
+            resizeCleanupRef.current = null;
           };
+          const cleanup = () => {
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+          };
+          resizeCleanupRef.current = cleanup;
           window.addEventListener("mousemove", onMove);
           window.addEventListener("mouseup", onUp);
         }}
@@ -176,6 +192,7 @@ export function AnalyseTopSection({
         }}
         onMouseDown={(e) => {
           e.preventDefault();
+          resizeCleanupRef.current?.();
           const startX = e.clientX;
           const startW = rightColWidth;
           const onMove = (ev: MouseEvent) => {
@@ -184,7 +201,13 @@ export function AnalyseTopSection({
           const onUp = () => {
             window.removeEventListener("mousemove", onMove);
             window.removeEventListener("mouseup", onUp);
+            resizeCleanupRef.current = null;
           };
+          const cleanup = () => {
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+          };
+          resizeCleanupRef.current = cleanup;
           window.addEventListener("mousemove", onMove);
           window.addEventListener("mouseup", onUp);
         }}

@@ -81,6 +81,7 @@ export const AnalyseSegmentList = memo(function AnalyseSegmentList({ telemetry, 
     if (!segmentData) return null;
     const cursorDistFrac = segmentData.cumDist[cursorIdx] / segmentData.totalDist;
     return segmentData.staticSegments.map((seg) => ({
+      key: `${seg.type}-${seg.name}-${seg.startFrac}-${seg.endFrac}`,
       name: seg.name,
       type: seg.type,
       time: seg.time,
@@ -96,10 +97,7 @@ export const AnalyseSegmentList = memo(function AnalyseSegmentList({ telemetry, 
   return (
     <div className="space-y-0.5">
       {segmentTimes.map((seg) => (
-        <div
-          key={`${seg.type}-${seg.name}`}
-          className={`flex items-center justify-between px-1.5 py-1 rounded text-app-compact font-mono ${seg.active ? "bg-app-surface-alt ring-1 ring-inset ring-app-text-dim" : ""}`}
-        >
+        <div key={seg.key} className={`flex items-center justify-between px-1.5 py-1 rounded text-app-compact font-mono ${seg.active ? "bg-app-surface-alt ring-1 ring-inset ring-app-text-dim" : ""}`}>
           <div className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: seg.type === "corner" ? "var(--track-corner-marker)" : "var(--track-straight-marker)" }} />
             <span className={seg.active ? "text-app-text" : "text-app-text-secondary"}>{seg.name}</span>

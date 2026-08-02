@@ -19,6 +19,8 @@ import { detectCorners } from "./corner-detection";
 import { telemetryToSymptoms } from "./ai/tune-symptoms";
 import { symptomsToIssues, detectLiveIssues } from "./ai/tune-issues";
 
+const CURRENT_SESSION_LAP_SNAPSHOT_LIMIT = 500;
+
 export class Pipeline {
   private sectorTracker = new SectorTracker();
   private pitTracker = new PitTracker();
@@ -163,6 +165,12 @@ export class Pipeline {
             trackOrdinal: session.trackOrdinal,
             sectorTimes: event.sectors ?? undefined,
           });
+          if (this._sessionLaps.length > CURRENT_SESSION_LAP_SNAPSHOT_LIMIT) {
+            this._sessionLaps.splice(
+              0,
+              this._sessionLaps.length - CURRENT_SESSION_LAP_SNAPSHOT_LIMIT,
+            );
+          }
           this._broadcastSessionLaps();
         }
       },
@@ -199,10 +207,16 @@ export class Pipeline {
     gameId: GameId
   ): Promise<void> {
     try {
-      const allLaps = await this.db.getLaps(gameId, 200);
-      this._sessionLaps = allLaps.filter(
-        (l) => l.sessionId === sessionId && l.trackOrdinal === trackOrdinal && l.carOrdinal === carOrdinal
-      );
+      const allLaps = await this.db.getLaps(gameId, CURRENT_SESSION_LAP_SNAPSHOT_LIMIT);
+      const sessionLaps = allLaps
+        .filter(
+          (l) => l.sessionId === sessionId && l.trackOrdinal === trackOrdinal && l.carOrdinal === carOrdinal,
+        )
+        .sort((a, b) => a.id - b.id);
+      if (sessionLaps.length > CURRENT_SESSION_LAP_SNAPSHOT_LIMIT) {
+        sessionLaps.splice(0, sessionLaps.length - CURRENT_SESSION_LAP_SNAPSHOT_LIMIT);
+      }
+      this._sessionLaps = sessionLaps;
     } catch {
       this._sessionLaps = [];
     }

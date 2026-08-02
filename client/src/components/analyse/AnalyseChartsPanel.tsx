@@ -1,5 +1,6 @@
 import { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef } from "react";
 import { WHEEL_COLOR_VARS } from "@/lib/colors";
+import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import type { DisplayPacket } from "../../lib/convert-packet";
 import { m } from "../../paraglide/messages";
@@ -146,16 +147,13 @@ export const AnalyseChartsPanel = memo(
         const scroll = scrollRef.current;
         if (!overlay || !scroll) return;
 
-        const dpr = window.devicePixelRatio || 1;
         const w = scroll.clientWidth;
         const h = scroll.scrollHeight;
-        overlay.width = w * dpr;
-        overlay.height = h * dpr;
-        overlay.style.width = `${w}px`;
-        overlay.style.height = `${h}px`;
+        if (w <= 0 || h <= 0) return;
+        syncCanvasSize(overlay, w, h, window.devicePixelRatio || 1);
         const ctx = getSemanticCanvasContext(overlay);
         if (!ctx) return;
-        ctx.scale(dpr, dpr);
+        ctx.setTransform(overlay.width / w, 0, 0, overlay.height / h, 0, 0);
         ctx.clearRect(0, 0, w, h);
 
         const timeFracs = chartDataRef.current?.timeFracs;

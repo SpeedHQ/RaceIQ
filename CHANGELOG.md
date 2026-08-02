@@ -9,6 +9,8 @@
 
 ### Fixes
 
+- Prevent 2D and 3D Analyse playback from exhausting browser memory during telemetry updates
+- Keep repeated client errors and diagnostics logs from consuming unbounded memory, network, and disk space
 - Restore lap and session history when upgrading databases affected by overlapping schema migrations
 - Show all registered games in storage settings, including games with no recording files
 - Match primary button backgrounds to the neutral gray button surface

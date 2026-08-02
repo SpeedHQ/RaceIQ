@@ -1,7 +1,8 @@
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
-import { severityRangeColor } from "@/lib/colors";
 import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useRef } from "react";
+import { severityRangeColor } from "@/lib/colors";
+import { syncCanvasSize } from "@/lib/rendering/canvas-size";
+import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { m } from "@/paraglide/messages";
 
 /**
@@ -21,10 +22,8 @@ export function GForceCircle({ packet }: { packet: TelemetryPacket }) {
     const ctx = getSemanticCanvasContext(canvas);
     if (!ctx) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = size * dpr;
-    canvas.height = size * dpr;
-    ctx.scale(dpr, dpr);
+    syncCanvasSize(canvas, size, size, window.devicePixelRatio || 1, false);
+    ctx.setTransform(canvas.width / size, 0, 0, canvas.height / size, 0, 0);
     ctx.clearRect(0, 0, size, size);
 
     const cx = size / 2;

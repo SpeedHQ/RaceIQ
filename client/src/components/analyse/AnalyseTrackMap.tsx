@@ -4,6 +4,9 @@ import { tryGetGame } from "@shared/games/registry";
 import { lapPath } from "@shared/lib/lap-path";
 import type { TelemetryPacket } from "@shared/types";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef } from "react";
+import { SECTOR_COLOR_VARS } from "@/lib/colors";
+import { syncCanvasSize } from "@/lib/rendering/canvas-size";
+import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { flipPoints, needsTrackFlip } from "../../lib/track-coords";
 
 export interface Point {
@@ -128,12 +131,10 @@ export const AnalyseTrackMap = forwardRef<
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
+    if (rect.width <= 0 || rect.height <= 0) return;
     const w = rect.width;
     const h = rect.height;
+    syncCanvasSize(canvas, w, h, window.devicePixelRatio || 1, false);
 
     const telemetryPointsWithIdx = resolvedPositions
       .map((point, idx) => ({ ...point, idx }))
@@ -192,13 +193,14 @@ export const AnalyseTrackMap = forwardRef<
       return [offsetX + (maxX - x) * scale, offsetZ + (z - minZ) * scale];
     }
 
-    // A detached HTML canvas keeps buffered drawing on the DOM main thread,
-    // where theme variables can be resolved with getComputedStyle.
-    const bufferCanvas = document.createElement("canvas");
-    bufferCanvas.width = offW * dpr;
-    bufferCanvas.height = offH * dpr;
+    // Reuse the detached HTML canvas so data/theme redraws do not allocate a
+    // new backing store when its dimensions are unchanged.
+    const bufferCanvas = bufferCanvasRef.current ?? document.createElement("canvas");
+    syncCanvasSize(bufferCanvas, offW, offH, window.devicePixelRatio || 1, false);
     const ctx = getSemanticCanvasContext(bufferCanvas)!;
-    ctx.scale(dpr, dpr);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, bufferCanvas.width, bufferCanvas.height);
+    ctx.setTransform(bufferCanvas.width / offW, 0, 0, bufferCanvas.height / offH, 0, 0);
 
     // Draw track boundary surface
     if (hasBounds) {
@@ -538,7 +540,7 @@ export const AnalyseTrackMap = forwardRef<
         mainCtx.clearRect(0, 0, canvas.width, canvas.height);
         mainCtx.restore();
         mainCtx.save();
-        mainCtx.scale(dpr, dpr);
+        mainCtx.setTransform(canvas.width / w, 0, 0, canvas.height / h, 0, 0);
         mainCtx.drawImage(bufferCanvas, 0, 0, w, h);
         mainCtx.restore();
       }
@@ -567,13 +569,14 @@ export const AnalyseTrackMap = forwardRef<
 
       const ctx = getSemanticCanvasContext(canvas);
       if (!ctx) return;
-      const dpr = window.devicePixelRatio || 1;
+      const scaleX = canvas.width / t.w;
+      const scaleY = canvas.height / t.h;
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.restore();
       ctx.save();
-      ctx.scale(dpr, dpr);
+      ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
 
       const pkt = telemetry[idx];
       const position = resolvedPositions[idx];
@@ -630,14 +633,10 @@ export const AnalyseTrackMap = forwardRef<
       const carCanvas = carCanvasRef.current;
       const t = transformRef.current;
       if (!carCanvas || !t) return;
-      const dpr = window.devicePixelRatio || 1;
-      carCanvas.width = t.w * dpr;
-      carCanvas.height = t.h * dpr;
-      carCanvas.style.width = `${t.w}px`;
-      carCanvas.style.height = `${t.h}px`;
+      syncCanvasSize(carCanvas, t.w, t.h, window.devicePixelRatio || 1, false);
       const ctx = getSemanticCanvasContext(carCanvas);
       if (!ctx) return;
-      ctx.scale(dpr, dpr);
+      ctx.setTransform(carCanvas.width / t.w, 0, 0, carCanvas.height / t.h, 0, 0);
       ctx.clearRect(0, 0, t.w, t.h);
 
       const pkt = telemetry[idx];
@@ -746,21 +745,20 @@ export const AnalyseTrackMap = forwardRef<
     let animId: number;
     const draw = () => {
       const pos = carPosRef.current;
-      const ctx2 = getSemanticCanvasContext(pulse);
-      if (!ctx2 || !pos) {
+      if (!pos) {
         animId = requestAnimationFrame(draw);
         return;
       }
-      const dpr = window.devicePixelRatio || 1;
-      pulse.width = pos.w * dpr;
-      pulse.height = pos.h * dpr;
-      pulse.style.width = `${pos.w}px`;
-      pulse.style.height = `${pos.h}px`;
-      ctx2.scale(dpr, dpr);
+      syncCanvasSize(pulse, pos.w, pos.h, window.devicePixelRatio || 1, false);
+      const ctx2 = getSemanticCanvasContext(pulse);
+      if (!ctx2) {
+        animId = requestAnimationFrame(draw);
+        return;
+      }
+      ctx2.setTransform(pulse.width / pos.w, 0, 0, pulse.height / pos.h, 0, 0);
       ctx2.clearRect(0, 0, pos.w, pos.h);
       const cycle = Date.now() % 2500;
       if (cycle > 1000) {
-        ctx2.restore();
         animId = requestAnimationFrame(draw);
         return;
       }
