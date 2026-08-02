@@ -62,7 +62,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
 
   // Mark this session active while the workspace is open so every lap the
   // driver records is stamped with this experiment_id at insert (server
-  // side). The active id lives in server memory (server/experiment-active.ts), so a
+  // side). The active id lives in server memory (server/experiments/active.ts), so a
   // dev-server hot reload or restart silently drops it and every lap after that
   // lands unstamped — modelled as a TanStack query with a refetchInterval so
   // activation is re-asserted on a heartbeat (plus on window focus/reconnect)
@@ -106,7 +106,7 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
     }
     for (const l of liveSessionLaps) {
       // Live lap objects from the telemetry pipeline never carry the exclusion
-      // fields (server/pipeline.ts builds them without them), so keep the
+      // fields (server/telemetry/live-pipeline.ts builds them without them), so keep the
       // persisted lap's flag AND its source when both exist — otherwise the
       // exclude toggle looks dead for laps of the current stint.
       // The source must survive: selectEvaluationLaps only reads a lap as

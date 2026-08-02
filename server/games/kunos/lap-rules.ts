@@ -13,13 +13,13 @@ import type { PitCycleReason } from "../../../shared/lap-filters";
  * packet we see will have `CurrentLap > 0`. Non-Kunos games (Forza, F1) start
  * CurrentLap at 0 on each new session, so this heuristic is Kunos-only.
  */
-export function accFirstPacketIsMidLap(packet: TelemetryPacket): boolean {
+export function kunosFirstPacketIsMidLap(packet: TelemetryPacket): boolean {
   const isKunos = packet.gameId === "acc" || packet.gameId === "ac-evo";
   return isKunos && packet.CurrentLap > 5;
 }
 
 /**
- * Classifies an ACC lap based on where the pit lane touches it. Returns the
+ * Classifies a Kunos lap based on where the pit lane touches it. Returns the
  * invalid reason string if the lap should be marked invalid, or `null` if the
  * lap never touched pit (and is thus pit-wise valid).
  *
@@ -36,10 +36,10 @@ export function accFirstPacketIsMidLap(packet: TelemetryPacket): boolean {
  * the lap, so scanning the whole lap is safe for real ACC data too.
  *
  * Applies to any lap regardless of lap number — a mid-race pit stop produces
- * inlap → pit lap → outlap on laps N → N+1 → N+2. Non-ACC packets always
+ * inlap → pit lap → outlap on laps N → N+1 → N+2. Non-Kunos packets always
  * return null because this rule depends on `packet.acc.pitStatus`.
  */
-export function classifyAccPitLap(
+export function classifyKunosPitLap(
   packets: TelemetryPacket[]
 ): PitCycleReason | null {
   if (packets.length === 0) return null;

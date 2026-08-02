@@ -15,7 +15,7 @@ Publisher conversion and validation happen before deployment. RaceIQ does not sc
 
 ## Consumer behavior
 
-`server/community-tunes-sync.ts` performs synchronization:
+`server/tunes/community-sync.ts` performs synchronization:
 
 1. Fetch the manifest.
 2. Compare its version with stored sync state.
@@ -37,4 +37,4 @@ The local cache does not expire. Network, manifest, payload, or validation failu
 
 Publisher maintainers own source collection, conversion, validation, and deployment. RaceIQ owns manifest consumption, persistence, refresh behavior, and catalog presentation. Changes to payload shape or identity rules require coordinated updates on both sides.
 
-See `server/community-tunes-sync.ts`, `server/db/community-tune-queries.ts`, and `test/community-tunes-sync.test.ts` for current implementation details.
+See `server/tunes/community-sync.ts`, `server/db/community-tune-queries.ts`, and `test/community-tunes-sync.test.ts` for current implementation details.

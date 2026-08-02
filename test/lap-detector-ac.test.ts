@@ -1,7 +1,7 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { parseDump } from "./helpers/parse-dump";
-import { LapDetectorAcc } from "../server/lap-detector-acc";
-import { stopMaintenanceTasks } from "../server/pipeline";
+import { LapDetectorAcc } from "../server/games/acc/lap-detector"
+import { stopMaintenanceTasks } from "../server/telemetry/live-pipeline"
 
 afterAll(() => stopMaintenanceTasks());
 import type { TelemetryPacket } from "../shared/types";
@@ -30,7 +30,7 @@ function makeFakeDb() {
     getTuneAssignment: async () => null,
     getTrackOutlineSectors: async () => null,
     // These fake laps never carry a tuning session / tune, so
-    // reconcileAutoExclusionsForLap (server/experiment-auto-exclude.ts) always
+    // reconcileAutoExclusionsForLap (server/experiments/auto-exclude.ts) always
     // no-ops after seeing null/null here.
     getLapExperimentScope: async () => ({ experimentId: null, tuneId: null }),
   } as any;

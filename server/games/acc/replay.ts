@@ -2,7 +2,7 @@ import { readKunosFrames } from "../kunos/frame-reader";
 import { STATIC } from "./structs";
 import { parseAccBuffers } from "./parser";
 import { readWString } from "./utils";
-import { processPacket } from "../../pipeline";
+import { processPacket } from "../../telemetry/live-pipeline";
 import { getAccCarByModel } from "../../../shared/acc-car-data";
 import { getAccTrackByName } from "../../../shared/acc-track-data";
 

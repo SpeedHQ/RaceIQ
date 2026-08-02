@@ -5,7 +5,7 @@
  * Usage:
  *   bun run laps:import data/laps-export.zip
  */
-import { importLapsZip } from "../server/zip";
+import { importLapsZip } from "../server/laps/archive"
 import { readFileSync } from "fs";
 import { resolve } from "path";
 

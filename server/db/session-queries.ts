@@ -7,7 +7,7 @@ import type { SessionMeta, GameId, TelemetryVersionIdentity } from "../../shared
 import { tryGetGame } from "../../shared/games/registry";
 import { existsSync, unlinkSync } from "fs";
 import { getTrackLengthMeters } from "../../shared/track-data";
-import type { RecapLapInput, RecapSessionInput } from "../recap";
+import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
 
 export async function insertSession(
   carOrdinal: number,
@@ -217,7 +217,7 @@ export async function getSessions(gameId?: GameId): Promise<SessionMeta[]> {
  * Fetch-only data needed for a session recap: the session row, its laps, the
  * track's length (metres, null when no outline), and the best valid lap time
  * for the same track + car + game from every OTHER session. No math here —
- * see server/recap.ts::computeRecap for the rules.
+ * see server/lap-analysis/recap.ts::computeRecap for the rules.
  *
  * Returns null when the session doesn't exist or its gameId doesn't match.
  */

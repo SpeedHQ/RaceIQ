@@ -21,9 +21,9 @@ import {
   ACC_PACKED_MAGIC,
   ACEVO_PACKED_MAGIC,
   packTriplet,
-} from "../../games/shared/pack-triplet";
-import { Pipeline } from "../../pipeline";
-import { NullWsAdapter } from "../../pipeline-adapters";
+} from "../../games/kunos/pack-triplet";
+import { LiveTelemetryPipeline } from "../../telemetry/live-pipeline";
+import { NullWsAdapter } from "../../telemetry/pipeline-ports";
 import { detectGameIdFromFilename } from "../../session-capture/import-capture";
 import { ImportCaptureAdapter } from "../../session-capture/import-pipeline";
 
@@ -71,7 +71,7 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
     let trackName: string | null = null;
 
     const db = new ImportCaptureAdapter();
-    const pipeline = new Pipeline(db, new NullWsAdapter(), {
+    const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
       bypassPacketRateFilter: true,
     });
     const start = Date.now();
@@ -103,7 +103,7 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
           trackOrdinal,
         });
         if (!packet) continue;
-        const rawBuf = packTriplet(
+        const sourceFrame = packTriplet(
           ACC_PACKED_MAGIC,
           packet.CarOrdinal,
           packet.TrackOrdinal ?? 0,
@@ -111,7 +111,7 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
           frame.graphics,
           frame.staticData
         );
-        await pipeline.processPacket(packet, rawBuf);
+        await pipeline.processPacket(packet, sourceFrame);
         packetCount++;
       }
     } else if (gameId === "ac-evo") {
@@ -141,7 +141,7 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
         }
         const packet = parseAcEvoBuffers(frame.physics, frame.graphics, frame.staticData, cache);
         if (!packet) continue;
-        const rawBuf = packTriplet(
+        const sourceFrame = packTriplet(
           ACEVO_PACKED_MAGIC,
           packet.CarOrdinal,
           packet.TrackOrdinal ?? -1,
@@ -149,7 +149,7 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
           frame.graphics,
           frame.staticData
         );
-        await pipeline.processPacket(packet, rawBuf);
+        await pipeline.processPacket(packet, sourceFrame);
         packetCount++;
       }
     } else {
@@ -164,10 +164,10 @@ importRoutes.post("/api/dev/import-dump", async (c) => {
         const len = buffer.readUInt32LE(offset);
         offset += 4;
         if (offset + len > buffer.length) break;
-        const chunk = buffer.slice(offset, offset + len);
-        const packet = serverAdapter.tryParse(chunk, parserState);
+        const sourceFrame = buffer.slice(offset, offset + len);
+        const packet = serverAdapter.tryParse(sourceFrame, parserState);
         if (packet) {
-          await pipeline.processPacket(packet, chunk);
+          await pipeline.processPacket(packet, sourceFrame);
           packetCount++;
         }
         offset += len;

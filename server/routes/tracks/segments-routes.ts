@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { IS_DEV } from "../../env";
+import { IS_DEV } from "../../runtime/config/env";
 import { OrdinalParamSchema, GameIdQuerySchema } from "../../../shared/schemas";
 import { formatTurnNumbers, turnNumbers } from "../../../shared/segment-label";
 import type { NamedSegment } from "../../../shared/track-named-segments";

@@ -38,7 +38,9 @@ export function generateExport(
 
   const speedUnit = unitToSpeed(unit);
   const tempUnit = temperatureUnit ?? unitToTemp(unit);
-  const srcTemp = first.gameId === "fm-2023" ? ("F" as const) : ("C" as const);
+  const srcTemp = adapter?.telemetry.tireTemperature.packetUnit === "fahrenheit"
+    ? ("F" as const)
+    : ("C" as const);
   const speedFactor = speedUnit === "kmh" ? 3.6 : 2.237;
   const speedLabel = speedUnit === "kmh" ? "km/h" : "mph";
   const tempLabel = tempUnit === "C" ? "C" : "F";
@@ -64,7 +66,7 @@ export function generateExport(
   const avgBrake = brakes.reduce((a, b) => a + b, 0) / brakes.length;
   const fullBrake = brakes.filter((b) => b > 0.95).length / brakes.length;
 
-  // Tire temps — Forza sends Fahrenheit, F1/ACC send Celsius
+  // Convert from the source unit declared by the active adapter.
   const avgTireTempFL = convertTemp(packets.reduce((a, p) => a + p.TireTempFL, 0) / packets.length, tempUnit, srcTemp);
   const avgTireTempFR = convertTemp(packets.reduce((a, p) => a + p.TireTempFR, 0) / packets.length, tempUnit, srcTemp);
   const avgTireTempRL = convertTemp(packets.reduce((a, p) => a + p.TireTempRL, 0) / packets.length, tempUnit, srcTemp);
@@ -102,7 +104,7 @@ export function generateExport(
   const secs = lap.lapTime % 60;
   const lapTimeStr = `${mins}:${secs.toFixed(3).padStart(6, "0")}`;
 
-  let output = `=== Forza Motorsport Lap Export ===
+  let output = `=== RaceIQ Lap Export ===
 Car: #${first.CarOrdinal} | Class: ${className} (PI ${first.CarPerformanceIndex}) | Drivetrain: ${drivetrainName}
 Track: #${lap.trackOrdinal ?? 0} | Lap: ${lap.lapNumber} | Time: ${lapTimeStr} | Valid: ${lap.isValid ? "Yes" : "No"}
 

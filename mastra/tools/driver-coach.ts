@@ -5,7 +5,7 @@ import { computeChildLabel, nextFreeLabel } from "../../server/ai/version-label"
 import { recordAction } from "../../server/db/experiment-action-queries";
 import { getExperiment, setSessionHead } from "../../server/db/experiment-queries";
 import { createExperimentVersion, listExperimentVersions, nextVersion } from "../../server/db/experiment-version-queries";
-import { wsManager } from "../../server/ws";
+import { wsManager } from "../../server/runtime/websocket-manager";
 import type { DrillChange } from "../../shared/types";
 import { readSetupEngineerContext } from "./setup-engineer-request-context";
 import { setupEngineerTools } from "./setup-engineer";

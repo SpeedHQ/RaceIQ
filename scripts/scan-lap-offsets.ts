@@ -37,10 +37,10 @@ while (off + 4 <= buf.length) {
   const len = buf.readUInt32LE(off);
   if (off + 4 + len > buf.length) break;
   const frameStart = off;
-  const frameBuf = buf.subarray(off + 4, off + 4 + len);
+  const sourceFrame = buf.subarray(off + 4, off + 4 + len);
   off += 4 + len;
   try {
-    const pkt: any = adapter.tryParse(frameBuf, state);
+    const pkt: any = adapter.tryParse(sourceFrame, state);
     if (pkt && pkt.LapNumber !== prevLap) {
       seenLaps.add(pkt.LapNumber);
       console.log(`  Frame ${frameIdx}: offset=${frameStart} LapNumber=${pkt.LapNumber} CurrentLap=${pkt.CurrentLap?.toFixed(2)} Distance=${pkt.DistanceTraveled?.toFixed(0)}`);

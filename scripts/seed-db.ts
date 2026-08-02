@@ -10,9 +10,9 @@ import { eq, inArray, like } from "drizzle-orm";
 import { deleteSession } from "../server/db/session-queries";
 import { getServerGame } from "../server/games/registry";
 import { readIRacingFrames } from "../server/games/iracing/recorder";
-import { Pipeline, stopMaintenanceTasks } from "../server/pipeline";
-import { NullWsAdapter, RealDbAdapter, RealSessionRecorderAdapter } from "../server/pipeline-adapters";
-import { loadSettings, saveSettings } from "../server/settings";
+import { LiveTelemetryPipeline, stopMaintenanceTasks } from "../server/telemetry/live-pipeline"
+import { NullWsAdapter, RealDbAdapter, RealSessionRecorderAdapter } from "../server/telemetry/pipeline-ports"
+import { loadSettings, saveSettings } from "../server/runtime/config/settings";
 import type { GameId } from "../shared/types";
 
 const SEED_MARKER = "raceiq-demo-seed-v1";
@@ -95,17 +95,17 @@ async function seedIRacingSession(fixturePath: string): Promise<void> {
   );
   const adapter = getServerGame("iracing");
   const parserState = adapter.createParserState?.() ?? null;
-  const pipeline = new Pipeline(new RealDbAdapter(), new NullWsAdapter(), {
+  const pipeline = new LiveTelemetryPipeline(new RealDbAdapter(), new NullWsAdapter(), {
     bypassPacketRateFilter: true,
     skipHistorySeeding: true,
     skipDevState: true,
     recorder: new RealSessionRecorderAdapter(),
   });
   let packetCount = 0;
-  for (const frame of readIRacingFrames(fixturePath)) {
-    const packet = adapter.tryParse(frame, parserState);
+  for (const sourceFrame of readIRacingFrames(fixturePath)) {
+    const packet = adapter.tryParse(sourceFrame, parserState);
     if (!packet) continue;
-    await pipeline.processPacket(packet, frame);
+    await pipeline.processPacket(packet, sourceFrame);
     packetCount++;
   }
   await pipeline.flushIncompleteLap();

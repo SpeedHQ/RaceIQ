@@ -4,7 +4,7 @@ import { join } from "path";
 import { parseDump } from "../../helpers/parse-dump";
 import { generateRecordingVisualizations } from "../../helpers/lap-viz";
 import { assertSectorTimesMatchLapTime, assertLapTimesProper, assertValidLapHasSectors } from "../../helpers/lap-assertions";
-import type { LapSavedNotification } from "../../../server/lap-detector";
+import type { LapSavedNotification } from "../../../server/lap-detection/types"
 import { assertBrandHatchSectorBounds, lapSummary, RECORDINGS_DIR } from "./shared";
 
 const recordingFile = "acc-2026-04-10T02-59-28-972Z.bin.gz";

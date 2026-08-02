@@ -32,11 +32,11 @@ import * as RealSetupLineage from "../server/experiments/setup-lineage";
 import * as RealLapReadQueries from "../server/db/lap-read-queries";
 import * as RealExperimentLapQueries from "../server/db/experiment-lap-queries";
 import * as RealActionQueries from "../server/db/experiment-action-queries";
-import * as RealUndo from "../server/experiment-undo";
+import * as RealUndo from "../server/experiments/undo"
 import * as RealConsult from "../server/ai/consult-lap-analyst";
 import * as RealCleanLap from "../server/experiments/lap-evidence/aggregate";
 import * as RealComparison from "../server/lap-analysis/comparison"
-import * as RealSettings from "../server/settings";
+import * as RealSettings from "../server/runtime/config/settings";
 import * as RealMastraModel from "../mastra/model";
 
 let stubsActive = false;
@@ -139,7 +139,7 @@ mock.module("../server/db/experiment-action-queries", () => ({
   ...RealActionQueries,
   recordAction: gate(RealActionQueries.recordAction, recordAction),
 }));
-mock.module("../server/experiment-undo", () => ({
+mock.module("../server/experiments/undo", () => ({
   ...RealUndo,
   undoLastAction: gate(RealUndo.undoLastAction, mock(async () => ({ ok: true }))),
 }));
@@ -155,7 +155,7 @@ mock.module("../server/lap-analysis/comparison", () => ({
   ...RealComparison,
   compareLaps: gate(RealComparison.compareLaps, mock(() => ({}))),
 }));
-mock.module("../server/settings", () => ({
+mock.module("../server/runtime/config/settings", () => ({
   ...RealSettings,
   loadSettings: gate(RealSettings.loadSettings, mock(() => ({ ai: {} }))),
 }));

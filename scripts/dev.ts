@@ -1,4 +1,4 @@
-import { parseOnboardingOverride } from "../server/runtime-options";
+import { parseOnboardingOverride } from "../server/runtime/options";
 
 async function run(command: string[]): Promise<void> {
   const process = Bun.spawn(command, {

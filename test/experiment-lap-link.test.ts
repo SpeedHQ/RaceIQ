@@ -6,7 +6,7 @@ import { getLapsForExperiment } from "../server/db/experiment-lap-queries";
 import { insertLap } from "../server/db/lap-mutation-queries";
 import { insertSession } from "../server/db/session-queries";
 import { createExperiment } from "../server/db/experiment-queries";
-import { getActiveExperiment, setActiveExperiment } from "../server/experiment-active";
+import { getActiveExperiment, setActiveExperiment } from "../server/experiments/active"
 
 /**
  * Explicit lap ↔ experiment link (migration v25). Tests the DB layer +

@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
-import { parsePacket } from "../server/parsers";
+import { parsePacket } from "../server/games/packet-dispatch";
 
 // Register game adapters before tests run
 initGameAdapters();

@@ -5,7 +5,7 @@ import { buildCornerData } from "./corner-data";
 import { analyzeLap } from "../../shared/lib/lap-insights";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
-import { resolveTrack } from "../track-info";
+import { resolveTrack } from "../tracks/info";
 import { buildTrackGuideContext, guideCornerLabels } from "./track-guides";
 import { telemetryToTrackConditions, formatTrackConditions } from "./track-conditions";
 import { segmentPromptLabels } from "../../shared/segment-label";
@@ -74,7 +74,7 @@ function collectCornerLabels(corners: CornerDef[], segments?: PromptSegment[], g
   return out;
 }
 
-const FORZA_SYSTEM_PROMPT = `You are an expert Forza Motorsport racing engineer and driving coach. Analyse the telemetry data provided and give specific, actionable feedback.
+const GENERIC_ANALYST_SYSTEM_PROMPT = `You are a simulator-neutral racing engineer and driving coach. Analyse the telemetry data provided and give specific, actionable feedback without assuming which simulator produced it.
 
 Your response MUST be valid JSON matching this exact schema. Output ONLY the JSON object, no markdown fences, no extra text.
 
@@ -97,6 +97,9 @@ Your response MUST be valid JSON matching this exact schema. Output ONLY the JSO
   ],
   "coaching": [
     { "tip": "short imperative title", "detail": "1-2 sentence explanation referencing specific data" }
+  ],
+  "setup": [
+    { "component": "setup component explicitly present in provided data", "symptom": "what the telemetry shows", "fix": "evidence-backed adjustment and why", "current": "provided current value with unit", "target": "supported target value with unit", "direction": "increase|decrease|adjust" }
   ]
 }
 
@@ -107,15 +110,16 @@ CATEGORY GUIDELINES:
 - "braking": Per-corner braking analysis for every corner in the corner data. Use corner label names exactly. "good" = no issues. If detail describes a problem, MUST be "warning" or "critical".
 - "throttle": Per-corner throttle analysis for every corner. Use corner label names exactly. "good" = clean application. If detail describes a problem, MUST be "warning" or "critical".
 - "coaching": 3-5 actionable driving tips. Reference specific telemetry values.
+- "setup": 0-8 evidence-backed adjustments. Include a component only when tune data or supplied game context explicitly establishes that it is adjustable. If no such setup data is provided, return an empty array.
 
 RULES:
 - Reference specific numbers from the data — don't be vague
 - Use the driver's preferred units: {{UNITS}}
 - Be specific and actionable, not generic
 - Address the driver as "you"
-- When tune settings are provided, correlate telemetry symptoms (e.g., understeer, tire temps, suspension bottoming) with specific setup values and recommend concrete adjustments with target numbers
-- Reference the actual tune values when suggesting changes (e.g., "Front springs at 750 lb/in are too stiff for this track — try 650-680 lb/in")
-- For Forza-style tune recommendations, adjustable tune values are front/rear axle settings only. Never recommend individual FL/FR/RL/RR tire pressure, damping, spring, anti-roll bar, ride-height, aero, or alignment changes. If per-tire telemetry differs, translate it into a front/rear axle adjustment or a driving/coaching note.
+- When tune settings are provided, correlate telemetry symptoms with those actual setup values
+- Never invent game-specific setup options, current values, target values, units, adjustment granularity, valid ranges, or tuning rules
+- Do not assume simulator-specific setup semantics; omit unsupported setup claims instead
 - Output ONLY valid JSON, nothing else
 - Escape any special characters in string values (quotes, newlines)
 - Do not include trailing commas in arrays or objects`;
@@ -124,8 +128,8 @@ function getSystemPrompt(gameId: GameId, unit: UnitSystem, temperatureUnit: Temp
   const speedDistanceWeight = unit === "metric" ? "km/h, meters, kg, bar" : "mph, feet, lb, psi";
   const units = `${speedDistanceWeight}, °${temperatureUnit}`;
   const adapter = tryGetServerGame(gameId);
-  const base = adapter ? adapter.aiSystemPrompt : FORZA_SYSTEM_PROMPT;
-  return `${base.replace("{{UNITS}}", units)}\n- Temperature unit in this session: °${temperatureUnit}${aiLanguageInstruction(language, { json: true })}`;
+  const base = adapter ? adapter.aiSystemPrompt : GENERIC_ANALYST_SYSTEM_PROMPT;
+  return `${base.replace("{{UNITS}}", units)}\n- Temperature unit in this session: °${temperatureUnit}${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(language, { json: true })}`;
 }
 
 export function buildAnalystPrompt(

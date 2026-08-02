@@ -71,5 +71,5 @@ The packed bytes enter the common session recorder. Replay and import call the s
 - `server/games/kunos/triplet-pipeline.ts` — status, dump, parse processors
 - `server/games/acc/structs.ts` — offsets and layout sizes
 - `server/games/acc/parser.ts` — source normalization
-- `server/games/shared/pack-triplet.ts` — packed replay frame
-- `server/lap-detector-acc.ts` — ACC lap boundaries
+- `server/games/kunos/pack-triplet.ts` — packed replay frame
+- `server/games/acc/lap-detector.ts` — ACC policy over shared Kunos lap lifecycle

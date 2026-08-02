@@ -9,8 +9,8 @@
  * helpers directly since we want a single structured turn, not a chat agent.
  */
 import type { GameId } from "../../shared/types";
-import { loadSettings } from "../settings";
-import { getSecret } from "../keystore";
+import { loadSettings } from "../runtime/config/settings";
+import { getSecret } from "../runtime/platform/keystore";
 import { runGemini, runOpenAi } from "./providers";
 import {
   getTuneIntentJsonSchema,

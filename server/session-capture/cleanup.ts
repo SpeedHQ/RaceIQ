@@ -12,7 +12,7 @@
 import { readdir, stat, unlink } from "fs/promises";
 import { existsSync } from "fs";
 import { resolve, join } from "path";
-import { resolveDataDir } from "../data-dir";
+import { resolveDataDir } from "../runtime/config/data-dir";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
 import { sql } from "drizzle-orm";

@@ -20,7 +20,7 @@ import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
 import { getGame } from "../shared/games/registry";
-import { stopMaintenanceTasks } from "../server/pipeline";
+import { stopMaintenanceTasks } from "../server/telemetry/live-pipeline"
 import { META_FRAME_MAGIC } from "../server/session-capture/framing"
 import { detectGameIdFromBuffer } from "../server/session-capture/import-capture"
 import { getAccTrackName } from "../shared/acc-track-data";

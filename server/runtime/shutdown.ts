@@ -1,9 +1,9 @@
 import { accRecorder } from "../games/kunos/recorder";
 import { acEvoRecorder } from "../games/ac-evo/recorder";
 import { iracingRecorder } from "../games/iracing/recorder";
-import { flushSessionRecorder } from "../pipeline";
+import { flushSessionRecorder } from "../telemetry/live-pipeline";
 import { stopSessionCompressor } from "../session-capture/compressor";
-import { udpListener } from "../udp";
+import { udpListener } from "./udp-listener";
 import type { NativeSourceSupervisor } from "./native-sources";
 
 export interface ShutdownOptions {

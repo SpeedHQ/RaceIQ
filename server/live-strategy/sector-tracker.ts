@@ -8,7 +8,7 @@
 import type { TelemetryPacket, GameId, LiveSectorData } from "../../shared/types";
 import { getGame } from "../../shared/games/registry";
 import type { GameAdapter } from "../../shared/games/types";
-import { resolveTrack } from "../track-info";
+import { resolveTrack } from "../tracks/info";
 
 interface SectorBounds {
   starts: number[];

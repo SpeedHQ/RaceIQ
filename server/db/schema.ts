@@ -194,7 +194,7 @@ export const laps = sqliteTable(
 		resolverVersion: text("resolver_version"),
 		derivationVersion: text("derivation_version"),
 		// Explicit experiment link (migration v25). Stamped at insert from the
-		// in-memory active tuning session (server/experiment-active.ts) so a tuning
+		// in-memory active tuning session (server/experiments/active.ts) so a tuning
 		// session can span many race sessions. The `.references()` here is
 		// type-level intent only — migration v25 adds a plain nullable column with
 		// NO runtime FK (SQLite can't ALTER-ADD a column with inline REFERENCES),
@@ -209,7 +209,7 @@ export const laps = sqliteTable(
 		experimentExcluded: integer("experiment_excluded"),
 		// Source of the exclusion decision (migration v34): 'auto' | 'manual' | NULL.
 		// 'manual' pins the lap so the auto-exclude reconciliation pass
-		// (server/experiment-auto-exclude.ts) never touches it; 'auto' means the
+		// (server/experiments/auto-exclude.ts) never touches it; 'auto' means the
 		// fastest-5 rule owns the state pair and may flip it on a later lap save.
 		experimentExcludedSource: text("experiment_excluded_source"),
 		// Persisted per-lap metrics (migration v32), derived once from the lap's
@@ -320,7 +320,7 @@ export const lineSpreadCache = sqliteTable(
 
 /**
  * Community tunes synced from the SpeedHQ CDN (Cloudflare Pages).
- * Populated by a replace-all sync per game_id — see server/community-tunes-sync.ts.
+ * Populated by a replace-all sync per game_id — see server/tunes/community-sync.ts.
  * The catalog endpoint merges these rows with the built-in JSON catalog.
  * strengths/weaknesses/bestTracks/strategies are intentionally not persisted;
  * community cards render from name/author/category/description/settings only.

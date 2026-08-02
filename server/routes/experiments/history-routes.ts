@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { IdParamSchema } from "../../../shared/schemas";
 import { getExperiment } from "../../db/experiment-queries";
 import { listActions } from "../../db/experiment-action-queries";
-import { undoLastAction } from "../../experiment-undo";
+import { undoLastAction } from "../../experiments/undo";
 import { tuneSessionThreadId, saveChatMessages } from "../../ai/chat-agent";
 
 export const experimentHistoryRoutes = new Hono()

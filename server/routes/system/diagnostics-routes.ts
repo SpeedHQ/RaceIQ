@@ -6,16 +6,16 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { zipSync, strToU8 } from "fflate";
 
-import { lapDetector } from "../../pipeline";
-import { wsManager } from "../../ws";
-import { IS_COMPILED, USER_DATA_DIR, ROOT_DIR } from "../../paths";
-import { udpListener } from "../../udp";
+import { lapDetector } from "../../telemetry/live-pipeline";
+import { wsManager } from "../../runtime/websocket-manager";
+import { IS_COMPILED, USER_DATA_DIR, ROOT_DIR } from "../../runtime/config/paths";
+import { udpListener } from "../../runtime/udp-listener";
 import { getRunningGame } from "../../games/registry";
-import { getCurrentDetectedGame } from "../../parsers";
-import { loadSettings } from "../../settings";
+import { getCurrentDetectedGame } from "../../games/packet-dispatch";
+import { loadSettings } from "../../runtime/config/settings";
 import { client as dbClient } from "../../db";
 import { getChatMemory, CHAT_RESOURCE_ID } from "../../ai/chat-agent";
-import { log, readRecentLogText } from "../../logger";
+import { log, readRecentLogText } from "../../runtime/logger";
 import pkg from "../../../package.json";
 
 const ClientLogSchema = z.object({

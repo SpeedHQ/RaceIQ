@@ -3,7 +3,7 @@ import { existsSync } from "fs";
 import { join } from "path";
 import { parseDump } from "../../helpers/parse-dump";
 import { lapSummary, RECORDINGS_DIR } from "./shared";
-import type { LapSavedNotification } from "../../../server/lap-detector";
+import type { LapSavedNotification } from "../../../server/lap-detection/types"
 
 const recordingFile = "acc-2026-04-12T21-16-07-841Z.bin.gz";
 const recording = join(RECORDINGS_DIR, recordingFile);

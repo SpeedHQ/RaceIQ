@@ -1,5 +1,5 @@
-import { parsePacket } from "../../parsers";
-import { processPacket } from "../../pipeline";
+import { parsePacket } from "../packet-dispatch";
+import { processPacket } from "../../telemetry/live-pipeline";
 import { IRacingSdkReader, type IRacingSdkSnapshot } from "./sdk-reader";
 import { parseIRacingSessionInfo } from "./session-info";
 import {

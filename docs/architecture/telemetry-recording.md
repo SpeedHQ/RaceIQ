@@ -94,8 +94,8 @@ That trade-off does not imply higher measurement fidelity. Sample cadence, dupli
 ## Implementation map
 
 - `server/session-capture/recorder.ts` — canonical append-only writer
-- `server/pipeline.ts` — raw write ordering and lap offsets
-- `server/games/shared/pack-triplet.ts` — ACC and AC Evo records
+- `server/telemetry/live-pipeline.ts` — raw write ordering and lap offsets
+- `server/games/kunos/pack-triplet.ts` — ACC and AC Evo records
 - `server/games/iracing/source-frame.ts` — iRacing records
 - `server/session-capture/import-capture.ts` — capture detection and canonical import entry
 - `server/session-capture/import-pipeline.ts` — parser, detector, and persistence pipeline

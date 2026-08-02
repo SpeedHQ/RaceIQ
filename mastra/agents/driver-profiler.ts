@@ -5,7 +5,8 @@
  * measurements and advice; this agent may only explain trend credibility.
  */
 import { Agent } from "@mastra/core/agent";
-import { getModel } from "../../server/ai/model-provider";
+import { getMastraModelId } from "../model";
+import { loadSettings } from "../../server/runtime/config/settings";
 import { renderDriverProfileSummarySchemaForPrompt } from "../../server/ai/schemas";
 
 const DRIVER_PROFILER_INSTRUCTIONS = `You are a concise driver trend analyst. The prompt contains a deterministic global trend for the selected game, including window counts, normalized relative pace, consistency, spread, clean rate, directions, and deterministic advice.

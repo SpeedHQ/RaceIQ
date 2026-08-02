@@ -5,7 +5,7 @@ import {
   expect,
   test,
 } from "bun:test";
-import { stopMaintenanceTasks } from "../../server/pipeline";
+import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline"
 import type { DumpResult } from "../helpers/parse-dump";
 import { parseDump } from "../helpers/parse-dump";
 

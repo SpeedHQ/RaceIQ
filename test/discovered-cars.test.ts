@@ -10,8 +10,8 @@ import {
   DISCOVERED_CAR_ORDINAL_BASE,
 } from "../server/db/discovered-cars";
 import { injectDiscoveredAcEvoCars, getAcEvoCarName } from "../shared/ac-evo-car-data";
-import { LapDetectorAcEvo } from "../server/lap-detector-ac-evo";
-import { CapturingDbAdapter } from "../server/pipeline-adapters";
+import { LapDetectorAcEvo } from "../server/games/ac-evo/lap-detector"
+import { CapturingDbAdapter } from "../server/telemetry/pipeline-ports"
 import type { TelemetryPacket } from "../shared/types";
 
 // Follows DATA_DIR so this never touches the real dev database — `bun run

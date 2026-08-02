@@ -4,7 +4,7 @@ import type { LapInsight } from "../../shared/lib/lap-insights";
 import { db } from "../db";
 import { lapMetrics } from "../db/schema";
 import { getLapById, getLapsByIds } from "../db/lap-read-queries";
-import { resolveTrack } from "../track-info";
+import { resolveTrack } from "../tracks/info";
 import {
   computeLapMetrics,
   deriveFuelPerLap,

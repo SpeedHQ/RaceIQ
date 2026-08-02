@@ -6,7 +6,7 @@
  */
 import { describe, test, expect, afterAll } from "bun:test";
 import { getLineSpreadCache, setLineSpreadCache, lineSpreadLapSetHash } from "../server/db/line-spread-cache-queries";
-import { stopMaintenanceTasks } from "../server/pipeline";
+import { stopMaintenanceTasks } from "../server/telemetry/live-pipeline"
 
 afterAll(() => stopMaintenanceTasks());
 

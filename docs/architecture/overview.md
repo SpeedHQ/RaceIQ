@@ -39,16 +39,16 @@ Each shared `GameAdapter` owns identity, route prefix, telemetry capabilities, c
 
 ## Telemetry data flow
 
-1. UDP sources enter through `server/udp.ts`; native sources enter through their adapter-owned readers.
+1. UDP sources enter through `server/runtime/udp-listener.ts`; native sources enter through their adapter-owned readers.
 2. Adapter parsing produces typed `TelemetryPacket` values using each source's coordinate conventions.
-3. `server/pipeline.ts` applies coordinate normalization, lap detection, sector and pit tracking, track calibration, persistence callbacks, and live broadcast.
+3. `server/telemetry/live-pipeline.ts` applies coordinate normalization, lap detection, sector and pit tracking, track calibration, persistence callbacks, and live broadcast.
 4. Completed sessions and laps are stored in SQLite; raw telemetry is retained through game-specific recording paths for replay and reprocessing.
-5. `server/ws.ts` broadcasts live telemetry to `client/src/stores/telemetry.ts`.
+5. `server/runtime/websocket-manager.ts` broadcasts live telemetry to `client/src/stores/telemetry.ts`.
 6. React components render live state from the store. Historical and administrative data comes through typed Hono RPC and TanStack Query.
 
 ## Persistence and API
 
-`server/db/schema.ts` is the typed schema reference. Runtime migrations are embedded in `server/db/migrations.ts` and applied at startup. `server/routes.ts` composes feature route modules under `/api`; the client uses `client/src/lib/rpc.ts` rather than untyped fetch calls.
+`server/db/schema.ts` is the typed schema reference. Runtime migrations are embedded in `server/db/migrations.ts` and applied at startup. `server/routes/index.ts` composes feature route modules under `/api`; the client uses `client/src/lib/rpc.ts` rather than untyped fetch calls.
 
 ## Boundaries
 

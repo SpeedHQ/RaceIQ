@@ -53,4 +53,4 @@ Cancel, commit, and preview expiry remove the staged file. Confirmed previews ex
 - `server/games/iracing/normalizer.ts` — canonical telemetry mapping
 - `server/games/iracing/index.ts` — server adapter
 - `server/games/iracing/ibt-reader.ts` — streaming IBT decoder
-- `server/import-ibt.ts` — preview, staging, commit, and cleanup
+- `server/games/iracing/import-ibt.ts` — preview, staging, commit, and cleanup

@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 
-import { lapDetector } from "../../pipeline";
-import { wsManager } from "../../ws";
-import { extractionState } from "../../game-extraction/forza";
-import { f1ExtractionState } from "../../game-extraction/f1";
+import { lapDetector } from "../../telemetry/live-pipeline";
+import { wsManager } from "../../runtime/websocket-manager";
+import { extractionState } from "../../games/fm-2023/extraction";
+import { f1ExtractionState } from "../../games/f1-2025/extraction";
 
 export const telemetryHistoryRoutes = new Hono()
   // GET /api/fuel-history

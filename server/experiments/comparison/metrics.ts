@@ -4,7 +4,7 @@
  *
  * A `experiment_versions` row is an experiment arm. Until now the only thing the app
  * could compare arms on was lap time, and the lap pool feeding any comparison
- * was curated by one global rule: the fastest 5 (`server/experiment-auto-exclude.ts`
+ * was curated by one global rule: the fastest 5 (`server/experiments/auto-exclude.ts`
  * / `fastestLaps` in `shared/review-laps.ts`).
  *
  * ⚠️ **That rule is metric-specific, and treating it as global is a real bug.**

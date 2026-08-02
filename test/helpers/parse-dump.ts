@@ -1,8 +1,8 @@
 import type { GameId, TelemetryPacket } from "../../shared/types";
-import type { CapturedLap, CapturedSession } from "../../server/pipeline-adapters";
-import type { LapSavedNotification } from "../../server/lap-detector";
-import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../../server/pipeline-adapters";
-import { Pipeline } from "../../server/pipeline";
+import type { CapturedLap, CapturedSession } from "../../server/telemetry/pipeline-ports"
+import type { LapSavedNotification } from "../../server/lap-detection/types"
+import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../../server/telemetry/pipeline-ports"
+import { LiveTelemetryPipeline } from "../../server/telemetry/live-pipeline"
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { getAllServerGames, getServerGame } from "../../server/games/registry";
@@ -153,7 +153,7 @@ export async function parseDump(
 
   const db = new CapturingDbAdapter();
   const ws = new CapturingWsAdapter(options.capturePackets ?? true);
-  const pipeline = new Pipeline(db, ws, {
+  const pipeline = new LiveTelemetryPipeline(db, ws, {
     bypassPacketRateFilter: true,
     recorder: new NullSessionRecorderAdapter(),
   });
@@ -193,7 +193,7 @@ export async function parseDump(
         }
         const packet = parseAccBuffers(frame.physics, frame.graphics, frame.staticData, { carOrdinal, trackOrdinal });
         if (packet) await pipeline.processPacket(packet);
-        // Pipeline writes resolve synchronously with capture adapters. Yield
+        // Capture adapter writes resolve synchronously. Yield
         // periodically so long recordings do not defer GC until suite timeout.
         if ((++processedFrames & 1023) === 0) {
           await new Promise<void>((resolve) => setTimeout(resolve, 0));

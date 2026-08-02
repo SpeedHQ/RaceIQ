@@ -1,5 +1,7 @@
 import type { TelemetryPacket, GameId } from "../../shared/types";
-import { fillNormSuspension } from "../telemetry-utils";
+import { tryGetGame } from "../../shared/games/registry";
+import type { ServerGameAdapter } from "../games/types";
+import { fillNormSuspension } from "../telemetry/normalization";
 
 // Fixed column order for CSV telemetry storage
 const TELEMETRY_FIELDS: (keyof TelemetryPacket)[] = [
@@ -130,7 +132,12 @@ export function decompressTelemetry(blob: Buffer): TelemetryPacket[] {
       if (meta.acc) p.acc = meta.acc as TelemetryPacket["acc"];
       if (meta.f1) p.f1 = meta.f1 as TelemetryPacket["f1"];
     }
-    fillNormSuspension(p);
+    fillNormSuspension(
+      p,
+      p.gameId
+        ? (tryGetGame(p.gameId) as Partial<ServerGameAdapter> | undefined)?.runtime?.normSuspensionTravelMm
+        : undefined,
+    );
     result[i] = p;
   }
   return result;

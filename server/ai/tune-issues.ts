@@ -93,7 +93,7 @@ function mean(xs: number[]): number {
 
 /**
  * Stateless, per-packet live issue detector. Called at packet rate (gated by
- * `Pipeline.liveIssuesEnabled`) so it must stay cheap and side-effect-free —
+ * `LiveTelemetryPipeline.liveIssuesEnabled`) so it must stay cheap and side-effect-free —
  * no history, no smoothing across calls. Transients are deliberately noisy;
  * the client debounces/expires them rather than this function.
  *

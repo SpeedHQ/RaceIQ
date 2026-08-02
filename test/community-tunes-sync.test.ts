@@ -7,8 +7,8 @@ import {
   getCommunityTuneById,
   replaceCommunityTunes,
 } from "../server/db/community-tune-queries";
-import { setCommunityTunesSyncState } from "../server/settings";
-import { syncCommunityTunes } from "../server/community-tunes-sync";
+import { setCommunityTunesSyncState } from "../server/runtime/config/settings";
+import { syncCommunityTunes } from "../server/tunes/community-sync"
 
 // Follows DATA_DIR so this never mutates the real dev database/settings —
 // `bun run test` isolates DATA_DIR to a throwaway directory (see package.json).

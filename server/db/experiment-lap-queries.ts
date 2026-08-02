@@ -23,7 +23,7 @@ export async function setLapExperimentExcluded(
 }
 
 /**
- * Read the scope laps `reconcileAutoExclusions` (server/experiment-auto-exclude.ts)
+ * Read the scope laps `reconcileAutoExclusions` (server/experiments/auto-exclude.ts)
  * ranks over: every lap sharing `(experiment_id, tune_id)`, with just the
  * columns the fastest-5 rule needs.
  */

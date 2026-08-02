@@ -4,7 +4,7 @@ import { createExperimentVersion, resolveActiveTestId } from "../server/db/exper
 import { setSessionHead as _setHead } from "../server/db/experiment-queries";
 import { loadActiveExperimentContext } from "../server/experiments/setup-lineage";
 import { computeChildLabel, nextFreeLabel } from "../server/ai/version-label";
-import { getActiveExperiment, setActiveExperiment } from "../server/experiment-active";
+import { getActiveExperiment, setActiveExperiment } from "../server/experiments/active"
 
 describe("head + active-test resolution", () => {
   let sessionId: number;

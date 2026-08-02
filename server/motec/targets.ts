@@ -17,8 +17,8 @@
  *
  * ## Adding a game
  *
- * 1. Write `server/motec/to-<game>.ts` exporting a `synthesize`-shaped function
- *    and a limitations list, modelled on `to-ac-evo.ts`.
+ * 1. Write `server/games/<game>/motec.ts` exporting a `synthesize`-shaped
+ *    function and a limitations list, modelled on `server/games/ac-evo/motec.ts`.
  * 2. Add a {@link registerMotecTarget} call in {@link initMotecTargets}.
  * 3. Nothing else. The import route validates against the registry and the
  *    client dialog renders a game picker on its own once there is more than one.
@@ -32,11 +32,13 @@ import type { GameId } from "@shared/types";
 import { getGame } from "@shared/games/registry";
 import type { LdLog } from "./ld";
 import {
-  MOTEC_IMPORT_LIMITATIONS,
-  synthesizeAcEvoCapture,
   type MotecCarTrackOverride,
   type SynthesizeResult,
-} from "./to-ac-evo";
+} from "./types";
+import {
+  MOTEC_IMPORT_LIMITATIONS,
+  synthesizeAcEvoCapture,
+} from "../games/ac-evo/motec";
 
 /**
  * Transcodes a parsed log into a session capture for one game.

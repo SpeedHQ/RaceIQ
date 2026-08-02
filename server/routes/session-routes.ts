@@ -7,12 +7,12 @@ import { GameIdSchema } from "../../shared/types";
 import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions, getSessionRecapData } from "../db/session-queries";
 import { getSessionResult } from "../db/session-result-queries";
 import { reprocessSession } from "../session-capture/reprocess";
-import { LAP_DETECTOR_ID } from "../lap-detector";
-import { LAP_DETECTOR_V2_ID } from "../lap-detector-acc";
-import { LAP_DETECTOR_AC_EVO_ID } from "../lap-detector-ac-evo";
-import { LAP_DETECTOR_IRACING_ID } from "../lap-detector-iracing";
-import { wsManager } from "../ws";
-import { computeRecap } from "../recap";
+import { LAP_DETECTOR_ID } from "../lap-detection/detector";
+import { LAP_DETECTOR_ACC_ID } from "../games/acc/lap-detector";
+import { LAP_DETECTOR_AC_EVO_ID } from "../games/ac-evo/lap-detector";
+import { LAP_DETECTOR_IRACING_ID } from "../games/iracing/lap-detector";
+import { wsManager } from "../runtime/websocket-manager";
+import { computeRecap } from "../lap-analysis/recap";
 import { tryGetGame } from "../../shared/games/registry";
 import { getCarName, getTrackName } from "../../shared/car-data";
 import { backfillRaceResults, reconcileSessionResult } from "../race-results/reconcile";
@@ -20,7 +20,7 @@ import { getRaceResultAggregate, getRecentRaceResults } from "../race-results/ag
 
 const ALL_DETECTOR_IDS = [
   LAP_DETECTOR_ID,
-  LAP_DETECTOR_V2_ID,
+  LAP_DETECTOR_ACC_ID,
   LAP_DETECTOR_AC_EVO_ID,
   LAP_DETECTOR_IRACING_ID,
 ];

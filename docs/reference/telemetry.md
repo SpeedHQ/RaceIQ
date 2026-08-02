@@ -9,8 +9,8 @@ Regenerate with `bun run telemetry:catalog` when parser coverage changes.
 
 ## Input paths
 
-- **Forza Motorsport 2023** (`fm-2023`) — UDP packets on port `5301` (`server/udp.ts`).
-- **F1 25** (`f1-2025`) — UDP packets on port `5301` (`server/udp.ts`).
+- **Forza Motorsport 2023** (`fm-2023`) — UDP packets on port `5301` (`server/runtime/udp-listener.ts`).
+- **F1 25** (`f1-2025`) — UDP packets on port `5301` (`server/runtime/udp-listener.ts`).
 - **Assetto Corsa Competizione** (`acc`) — Windows shared-memory triplets (`acpmf_*`).
 - **Assetto Corsa Evo** (`ac-evo`) — Windows shared-memory triplets (`acevo_pmf_*`).
 - **iRacing** (`iracing`) — Windows SDK memory map (`Local\\IRSDKMemMapFileName`).

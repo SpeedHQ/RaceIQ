@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps } from "./schema";
 import type { TelemetryVersionIdentity } from "../../shared/types";
-import { getActiveExperiment } from "../experiment-active";
+import { getActiveExperiment } from "../experiments/active";
 import { resolveActiveTestId } from "./experiment-version-queries";
 
 export async function updateLapNotes(id: number, notes: string | null): Promise<void> {
@@ -28,7 +28,7 @@ export async function updateLapValidity(id: number, isValid: boolean, invalidRea
  * Stamps `experimentExcludedSource = 'manual'` in BOTH directions (excluding and
  * un-excluding) — docs/architecture/setup-engineer.md.
  * This pins the lap against the auto-exclude reconciliation pass
- * (server/experiment-auto-exclude.ts) so a user's un-exclude click sticks instead of
+ * (server/experiments/auto-exclude.ts) so a user's un-exclude click sticks instead of
  * the fastest-5 rule silently re-excluding it on the next lap save.
  */
 

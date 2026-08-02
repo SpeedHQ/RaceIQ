@@ -22,7 +22,7 @@ import { eq } from "drizzle-orm";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { META_FRAME_MAGIC } from "../server/session-capture/framing"
-import { buildLapsZip, LAPS_ZIP_VERSION, type LapsZipManifest } from "../server/zip";
+import { buildLapsZip, LAPS_ZIP_VERSION, type LapsZipManifest } from "../server/laps/archive"
 import {
   createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,

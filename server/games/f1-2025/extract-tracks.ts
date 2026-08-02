@@ -8,7 +8,8 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync, unlinkSync } from "fs";
 import { join } from "path";
 import * as fzstd from "fzstd";
-import { USER_TRACKS_DIR } from "../../paths";
+import { USER_TRACKS_DIR } from "../../runtime/config/paths";
+import { findSteamInstall } from "../shared/steam-install";
 
 const ERP_MAGIC = 0x4b505245;
 
@@ -19,22 +20,6 @@ interface ProgressEvent {
 }
 
 type ProgressCallback = (event: ProgressEvent) => void;
-
-// ── Steam install detection ──────���─────────────────────────────────
-
-function findF1Install(): string | null {
-  const vdfPath = "C:/Program Files (x86)/Steam/steamapps/libraryfolders.vdf";
-  if (!existsSync(vdfPath)) return null;
-  const content = readFileSync(vdfPath, "utf8");
-  const pathRegex = /"path"\s+"([^"]+)"/g;
-  let match;
-  while ((match = pathRegex.exec(content)) !== null) {
-    const libPath = match[1].replace(/\\\\/g, "/").replace(/\\/g, "/");
-    const f1Path = `${libPath}/steamapps/common/F1 25`;
-    if (existsSync(f1Path)) return f1Path;
-  }
-  return null;
-}
 
 // Track directory name → F1 track ID (matches shared/f1-tracks.csv)
 const TRACK_DIR_TO_ID: Record<string, number> = {
@@ -306,7 +291,7 @@ export async function extractF1Tracks(
   outDir: string,
   onProgress?: ProgressCallback,
 ): Promise<{ extracted: number }> {
-  const f1Dir = findF1Install();
+  const f1Dir = findSteamInstall("F1 25");
   if (!f1Dir) throw new Error("F1 25 not found");
 
   const tracksDir = join(f1Dir, "2025_asset_groups", "environment_package", "tracks");

@@ -9,7 +9,7 @@
  *   - driver:    GRAPHICS_EVO.driver_name / driver_surname
  */
 
-import type { TelemetryPacket, AccExtendedData, AcEvoExtendedData, GameId } from "../../../shared/types";
+import type { TelemetryPacket, KunosExtendedData, AcEvoExtendedData, GameId } from "../../../shared/types";
 import { createAcEvoDistanceState, integrateDistance, type AcEvoDistanceState } from "./distance";
 import { calibratePlayerSlot, createPlayerSlotState, type PlayerSlotState } from "./player-slot";
 import {
@@ -402,7 +402,7 @@ export function parseAcEvoBuffers(
 
   const isRaceOn = status === ACEVO_STATUS.AC_LIVE ? 1 : 0;
 
-  const acc: AccExtendedData = {
+  const acc: KunosExtendedData = {
     tireCompound: tyreCompound || "dry_compound",
     tireCoreTemp: [coreFL, coreFR, coreRL, coreRR],
     tireInnerTemp: [innerFL, innerFR, innerRL, innerRR],

@@ -1,7 +1,7 @@
 /**
  * MoTeC `.ld` import entry point.
  *
- * Transcodes the log to an AC Evo session capture (see `to-ac-evo.ts`) and feeds
+ * Transcodes the log to an AC Evo session capture (see `../games/ac-evo/motec.ts`) and feeds
  * it through the ordinary import pipeline, so imported laps are built by the
  * same lap detector, sector timer and metrics code as recorded ones — and are
  * re-materialisable afterwards, because the pipeline's recorder persists the
@@ -14,7 +14,7 @@
  *
  * `.ld` is a container format, not a schema: the channel names, units and
  * corner-suffix conventions inside one are chosen by whichever exporter wrote
- * it. The mapping in `to-ac-evo.ts` was derived from an AC Evo export and has
+ * it. The mapping in `../games/ac-evo/motec.ts` was derived from an AC Evo export and has
  * only ever been checked against one. Pointing it at an iRacing or rFactor log
  * would produce frames that parse cleanly and mean the wrong things — silently.
  *
@@ -31,7 +31,7 @@ import { importSessionBin } from "../session-capture/import-capture";
 import type { ImportedLap } from "../session-capture/import-pipeline";
 import { parseLd } from "./ld";
 import { parseLdxBeacons } from "./ldx";
-import type { MotecCarTrack } from "./to-ac-evo";
+import type { MotecCarTrack } from "./types";
 import {
   getDefaultMotecTarget,
   initMotecTargets,

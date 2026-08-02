@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 
-import { loadSettings } from "../server/settings";
+import { loadSettings } from "../server/runtime/config/settings";
 import { db, client } from "../server/db";
 import { driverProfileRuns } from "../server/db/schema";
 import { createDriverProfileRun, updateDriverProfileRun, getDriverProfileRun, listDriverProfileRuns, findDriverProfileRunByScopePool } from "../server/db/driver-profile-queries";

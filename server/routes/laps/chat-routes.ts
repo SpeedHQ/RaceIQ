@@ -9,7 +9,7 @@ import { deleteAnalysis as deleteAnalysisQuery, getAnalysis } from "../../db/ana
 import { getCorners } from "../../db/track-queries";
 import { getTuneById as getDbTune } from "../../db/tune-queries";
 import { detectCorners } from "../../lap-analysis/corners";
-import { loadSettings } from "../../settings";
+import { loadSettings } from "../../runtime/config/settings";
 import { buildChatSystemPrompt } from "../../ai/chat-prompt";
 import { buildGoogleReasoningProviderOptions } from "../../ai/google-provider-options";
 import { streamAgentTurnResponse } from "../../ai/agent-stream";
@@ -22,7 +22,7 @@ import {
   listThreadGenerations,
   resolveActiveThread,
 } from "../../ai/chat-agent";
-import { getSecret } from "../../keystore";
+import { getSecret } from "../../runtime/platform/keystore";
 import { ChatBodySchema } from "./support";
 
 export const chatRoutes = new Hono()

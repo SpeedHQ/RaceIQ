@@ -9,6 +9,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from "fs";
 import { join, resolve, dirname } from "path";
 import { fileURLToPath } from "url";
+import { findSteamInstall } from "../shared/steam-install";
 
 const _scriptDir = dirname(fileURLToPath(import.meta.url));
 
@@ -19,34 +20,6 @@ export interface ProgressEvent {
 }
 
 export type ProgressCallback = (event: ProgressEvent) => void;
-
-// ── Steam install detection ──────────────────────────────────────────
-
-function findAccInstall(): string | null {
-  // Try VDF
-  const vdfPath = "C:/Program Files (x86)/Steam/steamapps/libraryfolders.vdf";
-  if (existsSync(vdfPath)) {
-    const content = readFileSync(vdfPath, "utf8");
-    const pathRegex = /"path"\s+"([^"]+)"/g;
-    let match;
-    while ((match = pathRegex.exec(content)) !== null) {
-      const libPath = match[1].replace(/\\\\/g, "/").replace(/\\/g, "/");
-      const accPath = `${libPath}/steamapps/common/Assetto Corsa Competizione`;
-      if (existsSync(accPath)) return accPath;
-    }
-  }
-
-  // Hardcoded fallbacks
-  const fallbacks = [
-    "C:/Program Files (x86)/Steam/steamapps/common/Assetto Corsa Competizione",
-    "E:/SteamLibrary/steamapps/common/Assetto Corsa Competizione",
-  ];
-  for (const p of fallbacks) {
-    if (existsSync(p)) return p;
-  }
-
-  return null;
-}
 
 // ── Track directory → ordinal mapping ───────────────────────────────
 
@@ -287,7 +260,10 @@ export async function extractAccTracks(
   outDir: string,
   onProgress?: ProgressCallback,
 ): Promise<{ extracted: number }> {
-  const accDir = findAccInstall();
+  const accDir = findSteamInstall("Assetto Corsa Competizione", [
+    "C:/Program Files (x86)/Steam/steamapps/common/Assetto Corsa Competizione",
+    "E:/SteamLibrary/steamapps/common/Assetto Corsa Competizione",
+  ]);
   if (!accDir) throw new Error("Assetto Corsa Competizione not found. Is it installed via Steam?");
 
   const cacheDir = join(accDir, "AC2", "Content", "Cache");

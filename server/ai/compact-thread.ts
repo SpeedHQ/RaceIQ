@@ -12,8 +12,8 @@ import {
   parseThreadGeneration,
   generationThreadId,
 } from "./chat-agent";
-import { loadSettings } from "../settings";
-import { getSecret } from "../keystore";
+import { loadSettings } from "../runtime/config/settings";
+import { getSecret } from "../runtime/platform/keystore";
 
 export const MIN_COMPACT_MESSAGES = 6;
 const COMPACT_SUMMARY_PREFIX = "🗜️ **Conversation compacted.**\n\n";

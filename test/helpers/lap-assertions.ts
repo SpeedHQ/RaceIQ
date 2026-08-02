@@ -1,7 +1,7 @@
 import { expect } from "bun:test";
-import type { CapturedLap } from "../../server/pipeline-adapters";
+import type { CapturedLap } from "../../server/telemetry/pipeline-ports"
 import type { TelemetryPacket } from "../../shared/types";
-import type { LapSavedNotification } from "../../server/lap-detector";
+import type { LapSavedNotification } from "../../server/lap-detection/types"
 
 /**
  * Assert that a lap's sector times sum to the total lap time.

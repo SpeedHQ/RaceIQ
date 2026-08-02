@@ -27,7 +27,7 @@ import { aiLanguageInstruction } from "../../shared/locales";
 import { TRACK_GUIDE_PROMPT } from "../../shared/prompt-snippets";
 import { getChatMemory } from "../../server/ai/chat-agent";
 import { getMastraModelId } from "../model";
-import { loadSettings } from "../../server/settings";
+import { loadSettings } from "../../server/runtime/config/settings";
 import { driverCoachTools } from "../tools/driver-coach";
 import { liveCoachScorers } from "../evals";
 

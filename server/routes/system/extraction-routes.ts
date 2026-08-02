@@ -6,12 +6,12 @@ import {
   extractionState,
   FM2023_OUT_DIR,
   runForzaExtraction,
-} from "../../game-extraction/forza";
+} from "../../games/fm-2023/extraction";
 import {
   f1ExtractionState,
   F1_25_OUT_DIR,
   runF1Extraction,
-} from "../../game-extraction/f1";
+} from "../../games/f1-2025/extraction";
 
 export const extractionRoutes = new Hono()
   // GET /api/extraction/status — FM2023 extraction status

@@ -1,9 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { and, eq } from "drizzle-orm";
-import {
-  computeIRacingSectorTimeline,
-  computeLapSectors,
-} from "../server/compute-lap-sectors";
+import { computeIRacingSectorTimeline,
+computeLapSectors, } from "../server/lap-analysis/sectors"
 import { getDiscoveredCarName, listDiscoveredCars } from "../server/db/discovered-cars";
 import {
   getDiscoveredTrackName,
@@ -26,7 +24,7 @@ import {
   type IRacingFrameReader,
   IRacingTelemetrySource,
 } from "../server/games/iracing/source";
-import { LAP_DETECTOR_IRACING_ID } from "../server/lap-detector-iracing";
+import { LAP_DETECTOR_IRACING_ID } from "../server/games/iracing/lap-detector";
 import {
   canHandleIRacingSourceFrame,
   createIRacingSourceDecoderState,
@@ -44,9 +42,9 @@ import {
   IRSDK_VAR_HEADER_SIZE,
   IRSDKVariableType,
 } from "../server/games/iracing/variable-table";
-import { LapDetectorIRacing } from "../server/lap-detector-iracing";
-import { parsePacket } from "../server/parsers";
-import { CapturingDbAdapter } from "../server/pipeline-adapters";
+import { LapDetectorIRacing } from "../server/games/iracing/lap-detector";
+import { parsePacket } from "../server/games/packet-dispatch";
+import { CapturingDbAdapter } from "../server/telemetry/pipeline-ports"
 import { SectorTracker } from "../server/live-strategy/sector-tracker";
 import { initGameAdapters } from "../shared/games/init";
 import {

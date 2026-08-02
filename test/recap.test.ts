@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { computeRecap, type RecapLapInput, type RecapSessionInput } from "../server/recap";
+import { computeRecap, type RecapLapInput, type RecapSessionInput } from "../server/lap-analysis/recap"
 
 const baseSession: RecapSessionInput = {
   id: 1,

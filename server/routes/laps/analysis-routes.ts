@@ -9,16 +9,16 @@ import { getAnalysis, saveAnalysis } from "../../db/analysis-queries";
 import { getCorners } from "../../db/track-queries";
 import { getTuneById as getDbTune } from "../../db/tune-queries";
 import { detectCorners } from "../../lap-analysis/corners";
-import { computeNativeSectorTimeline, computeLapSectors } from "../../compute-lap-sectors";
-import { loadSettings } from "../../settings";
-import { resolveTrack } from "../../track-info";
+import { computeNativeSectorTimeline, computeLapSectors } from "../../lap-analysis/sectors";
+import { loadSettings } from "../../runtime/config/settings";
+import { resolveTrack } from "../../tracks/info";
 import { buildAnalystPrompt } from "../../ai/analyst-prompt";
 import { lapAnalystAgent } from "../../ai/agents";
 import { getAnalystJsonSchema } from "../../ai/schemas";
 import { buildGoogleProviderOptions } from "../../ai/google-provider-options";
 import { toClientAiError } from "../../ai/provider-error";
 import { extractJson } from "../../ai/extract-json";
-import { getSecret } from "../../keystore";
+import { getSecret } from "../../runtime/platform/keystore";
 import { AnalyseQuerySchema, buildF1SetupReferenceBlock } from "./support";
 
 export const analysisRoutes = new Hono()

@@ -8,7 +8,7 @@ import {
   setExperimentVersionNotes,
 } from "../server/db/experiment-version-queries";
 import { recordAction, listActions } from "../server/db/experiment-action-queries";
-import { undoLastAction } from "../server/experiment-undo";
+import { undoLastAction } from "../server/experiments/undo"
 
 /** Phase 9 — undo inverse logic. Exercises the shared `undoLastAction` core
  *  used by both the HTTP endpoint and the AI's `undo_last_action` tool:

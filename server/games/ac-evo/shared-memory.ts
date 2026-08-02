@@ -13,10 +13,9 @@ import { TripletPipeline, DumpToBinProcessor } from "../kunos/triplet-pipeline";
 import type { TripletProcessor } from "../kunos/triplet-pipeline";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "./parser";
 import type { AcEvoParserCache } from "./parser";
-import { processPacket } from "../../pipeline";
+import { processPacket } from "../../telemetry/live-pipeline";
 import { acEvoRecorder } from "./recorder";
-import { packTriplet, ACEVO_PACKED_MAGIC } from "../shared/pack-triplet";
-import { acquireHighResolutionTimer, releaseHighResolutionTimer } from "../shared/win-timer-resolution";
+import { packTriplet, ACEVO_PACKED_MAGIC } from "../kunos/pack-triplet";
 import { PHYSICS, GRAPHICS_EVO, STATIC_EVO } from "./structs";
 
 class AcEvoParsingProcessor implements TripletProcessor {
@@ -28,8 +27,8 @@ class AcEvoParsingProcessor implements TripletProcessor {
       if (packet) {
         // -1 sentinel = unresolved. Never default to 0: ordinal 0 is a real
         // car/track (Ferrari SF90 Stradale / Monza GP).
-        const rawBuf = packTriplet(ACEVO_PACKED_MAGIC, packet.CarOrdinal, packet.TrackOrdinal ?? -1, triplet.physics, triplet.graphics, triplet.staticData);
-        await processPacket(packet, rawBuf);
+        const sourceFrame = packTriplet(ACEVO_PACKED_MAGIC, packet.CarOrdinal, packet.TrackOrdinal ?? -1, triplet.physics, triplet.graphics, triplet.staticData);
+        await processPacket(packet, sourceFrame);
       }
     } catch (err) {
       console.error("[AC Evo ParsingProcessor] Error:", err instanceof Error ? err.message : err);
