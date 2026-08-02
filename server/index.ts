@@ -10,7 +10,6 @@ import { wsManager, type WSData } from "./ws";
 import { loadSettings } from "./settings";
 import { initServerGameAdapters, nativeTelemetryGameIds } from "./games/init";
 import { initGameAdapters } from "../shared/games/init";
-import { IS_DEV } from "./env";
 import { releaseFeatureFlags } from "../shared/release-feature-flags";
 import { accRecorder } from "./games/acc/recorder";
 import { acEvoRecorder } from "./games/ac-evo/recorder";
@@ -21,7 +20,10 @@ import { injectDiscoveredAcEvoCars } from "../shared/ac-evo-car-data";
 import { getOnboardingOverride } from "./runtime-options";
 
 // Register all game adapters (shared + server)
-const releaseFeatures = releaseFeatureFlags(IS_DEV);
+const releaseFeatures = releaseFeatureFlags({
+  RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
+  RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
+});
 initGameAdapters(releaseFeatures);
 initServerGameAdapters(releaseFeatures);
 

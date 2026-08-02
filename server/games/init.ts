@@ -8,13 +8,19 @@ import { iracingServerAdapter } from "./iracing";
 import { releaseFeatureFlags, type ReleaseFeatureFlags } from "../../shared/release-feature-flags";
 
 export function nativeTelemetryGameIds(
-  flags = releaseFeatureFlags(true),
+  flags = releaseFeatureFlags({
+    RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
+    RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
+  }),
 ): readonly ["acc", "ac-evo"] | readonly ["acc", "ac-evo", "iracing"] {
   return flags.iracingAdapter ? ["acc", "ac-evo", "iracing"] : ["acc", "ac-evo"];
 }
 
 export function serverGameAdaptersForFeatures(
-  flags: ReleaseFeatureFlags = releaseFeatureFlags(true),
+  flags: ReleaseFeatureFlags = releaseFeatureFlags({
+    RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
+    RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
+  }),
 ) {
   const adapters = [
     f1ServerAdapter,
@@ -28,7 +34,10 @@ export function serverGameAdaptersForFeatures(
 
 /** Register server game adapters. Call once at server startup. */
 export function initServerGameAdapters(
-  flags: ReleaseFeatureFlags = releaseFeatureFlags(true),
+  flags: ReleaseFeatureFlags = releaseFeatureFlags({
+    RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
+    RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
+  }),
 ): void {
   for (const adapter of serverGameAdaptersForFeatures(flags)) {
     registerServerGame(adapter);
