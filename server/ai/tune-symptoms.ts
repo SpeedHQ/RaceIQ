@@ -8,15 +8,15 @@
  * setup knowledge lives here, only physics-derived observations.
  */
 import type { TelemetryPacket } from "../../shared/types";
-import type { Corner } from "../lap-analysis/corners"
-import { tireTempSymptoms, type TireTempSymptoms } from "./tune-tire-symptoms";
-import { damperSymptoms, type DamperSymptoms } from "./tune-damper-symptoms";
-import {
-  weightTransferSymptoms,
-  cornerWeightTransfer,
-  type WeightTransferSymptoms,
-  type CornerLoad,
-} from "./tune-weight-transfer";
+import type { Corner } from "../lap-analysis/corners";
+import { tireTempSymptoms } from "./tune-tire-symptoms";
+import { damperSymptoms } from "./tune-damper-symptoms";
+import { weightTransferSymptoms, cornerWeightTransfer } from "./tune-weight-transfer";
+
+export type TireTempSymptoms = NonNullable<ReturnType<typeof tireTempSymptoms>>;
+export type DamperSymptoms = NonNullable<ReturnType<typeof damperSymptoms>>;
+export type CornerLoad = ReturnType<typeof cornerWeightTransfer>;
+export type WeightTransferSymptoms = NonNullable<ReturnType<typeof weightTransferSymptoms>>;
 
 export type Balance = "oversteer" | "understeer" | "neutral";
 export type Phase = "entry" | "mid" | "exit";
@@ -89,10 +89,8 @@ export const BRAKE_ON = 0.2;
 export const BOTTOM_TRAVEL = 0.95;
 // Nominal ACC hot-pressure target window mid (psi).
 export const ACC_PRESSURE_TARGET = 27.5;
-// Speed-band thresholds (km/h). Fixed for now; §4a notes these may become
-// adapter-overridable (AC-Evo road cars vs ACC GT3) or track-relative later.
-export const SLOW_CORNER_KPH = 100;
-export const FAST_CORNER_KPH = 160;
+const SLOW_CORNER_KPH = 100;
+const FAST_CORNER_KPH = 160;
 
 /** Bucket an apex speed into slow/medium/fast; undefined when speed unknown. */
 export function classifySpeedBand(minSpeedKph?: number): SpeedBand | undefined {

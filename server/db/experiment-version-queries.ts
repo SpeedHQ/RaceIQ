@@ -4,7 +4,7 @@ import { laps, experiments, experimentVersions } from "./schema";
 import { setSessionHead } from "./experiment-queries";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus, versionKindForFocus, type VersionKind } from "../../shared/experiment-focus";
 
-export interface CreateExperimentVersionData {
+interface CreateExperimentVersionData {
   experimentId: number;
   version: number;
   label: string;
@@ -77,7 +77,7 @@ export async function listExperimentVersions(sessionId: number, opts: { includeD
 /** Walk `parentVersionId` children transitively from `rootId` (inclusive) over an
  *  already-fetched test list — pure/pure-ish helper shared by delete/restore
  *  so the subtree definition can't drift between the two ops. */
-export function collectSubtreeIds(
+function collectSubtreeIds(
   tests: { id: number; parentVersionId: number | null }[],
   rootId: number,
 ): number[] {
@@ -105,7 +105,7 @@ export function collectSubtreeIds(
  *  `status='deleted'` — where a trashed head gets moved to. `null` when no
  *  surviving ancestor exists (falls back to the mainline tip via
  *  `resolveActiveTestId`). */
-export function findNearestSurvivingAncestor(
+function findNearestSurvivingAncestor(
   tests: { id: number; parentVersionId: number | null; status: string }[],
   fromId: number,
   trashedIds: Set<number>,
@@ -122,12 +122,12 @@ export function findNearestSurvivingAncestor(
 }
 
 /** Bulk status flip used by delete/restore. No-op on an empty id list. */
-export async function setTestsStatus(ids: number[], status: string): Promise<void> {
+async function setTestsStatus(ids: number[], status: string): Promise<void> {
   if (!ids.length) return;
   await db.update(experimentVersions).set({ status }).where(inArray(experimentVersions.id, ids)).run();
 }
 
-export interface DeleteSubtreeResult {
+interface DeleteSubtreeResult {
   deletedIds: number[];
   headMoved: boolean;
   prevHeadTestId: number | null;

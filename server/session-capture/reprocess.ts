@@ -5,14 +5,18 @@
 import { getServerGame } from "../games/registry";
 import { CapturingDbAdapter, currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
 import type { GameId } from "../../shared/types";
-import { gunzipBuffer, META_FRAME_MAGIC, readFrameStreamStart } from "./framing";
+import {
+  gunzipBuffer,
+  iterateSessionFrameRecords,
+  readFrameStreamStart,
+} from "./framing";
 import { getLapsForSession, updateLapRawIndex, insertReprocessedLap, deleteLapsForSession } from "../db/lap-reprocessing-queries";
 import { updateSessionRawFile } from "../db/session-queries";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
 
-export interface ReprocessResult {
+interface ReprocessResult {
   sessionId: number;
   lapsDetected: number;
   lapsUpdated: number;
@@ -49,7 +53,7 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
     ? await gunzipBuffer(rawBuffer)
     : rawBuffer;
 
-  let offset = readFrameStreamStart(buf);
+  const frameStreamStart = readFrameStreamStart(buf);
 
   // Replay all frames through a capturing lap detector
   const capturingDb = new CapturingDbAdapter();
@@ -59,24 +63,14 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
   });
   const parserState = serverGame.createParserState?.() ?? null;
 
-  while (offset < buf.length) {
-    if (offset + 4 > buf.length) break;
-    const frameLen = buf.readUInt32LE(offset);
-    if (frameLen === META_FRAME_MAGIC) {
-      if (offset + 8 > buf.length) break;
-      const payloadLen = buf.readUInt32LE(offset + 4);
-      offset += 8 + payloadLen;
-      continue;
-    }
-    offset += 4;
-    if (offset + frameLen > buf.length) break;
-    const sourceFrame = buf.subarray(offset, offset + frameLen);
-    const frameStart = offset - 4; // byte offset of this frame's length prefix
-    offset += frameLen;
-
-    const packet = serverGame.tryParse(sourceFrame, parserState);
+  for (const { offset, frame } of iterateSessionFrameRecords(
+    buf,
+    frameStreamStart,
+    { skipMetaFrames: true, allowEmptyFrames: true },
+  )) {
+    const packet = serverGame.tryParse(frame, parserState);
     if (packet) {
-      await detector.feed(packet, frameStart);
+      await detector.feed(packet, offset);
     }
   }
 

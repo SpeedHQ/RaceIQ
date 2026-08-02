@@ -11,6 +11,29 @@ import { parseCarSetup } from "../games/ac-evo/carsetup-wire";
 
 export type AccGameId = "acc" | "ac-evo";
 
+/** Whether a resolved path is inside a resolved setup root. */
+export function isPathWithinSetupsFolder(
+  candidatePath: string,
+  basePath: string,
+  allowBase = false,
+): boolean {
+  return candidatePath.startsWith(basePath + sep)
+    || (allowBase && candidatePath === basePath);
+}
+
+/** Sanitize a requested sibling setup filename stem. */
+export function sanitizeSetupStem(filePath: string): string {
+  const base = (filePath.split(/[\\/]/).pop() ?? "").replace(/\.carsetup$/i, "");
+  return base.replace(/[^a-zA-Z0-9 _.-]/g, "").trim() || "setup-engineer";
+}
+
+function errorDetails(error: unknown): { code?: string; message?: string } {
+  if (error == null || typeof error !== "object") return {};
+  const code = "code" in error && typeof error.code === "string" ? error.code : undefined;
+  const message = "message" in error && typeof error.message === "string" ? error.message : undefined;
+  return { code, message };
+}
+
 /**
  * Locations where a game stores user setup files under the user's profile.
  * Candidate dirs come from the game adapter (`getSetupsDirCandidates`), so
@@ -51,8 +74,7 @@ export type GuardedSetup =
       baseDir: string;
       realPath: string;
       setup: any;
-      /** True when the source is a binary `.carsetup` — knob values are
-       *  readable (decoded) but the file can never be written back. */
+      /** True when source is binary `.carsetup`; `setup` contains decoded knob values. */
       readOnly?: true;
     }
   | { ok: false; status: 400 | 404 | 409 | 500; error: string };
@@ -74,38 +96,39 @@ export async function resolveGuardedSetupFile(gameId: AccGameId, filePath: strin
   try {
     realPath = realpathSync(absPath);
     realBase = realpathSync(resolve(baseDir));
-  } catch (err: any) {
-    if (err?.code === "ENOENT") return { ok: false, status: 404, error: "Setup file not found" };
-    return { ok: false, status: 500, error: `Read failed: ${err.message}` };
+  } catch (err: unknown) {
+    const { code, message } = errorDetails(err);
+    if (code === "ENOENT") return { ok: false, status: 404, error: "Setup file not found" };
+    return { ok: false, status: 500, error: `Read failed: ${message}` };
   }
 
-  if (!(realPath + sep).startsWith(realBase + sep)) {
+  if (!isPathWithinSetupsFolder(realPath, realBase)) {
     return { ok: false, status: 400, error: "Path must be inside the Setups folder" };
   }
 
-  const isCarsetup = realPath.toLowerCase().endsWith(".carsetup");
-  if (!realPath.toLowerCase().endsWith(".json") && !isCarsetup) {
+  const lowerPath = realPath.toLowerCase();
+  const isCarsetup = lowerPath.endsWith(".carsetup");
+  if (!lowerPath.endsWith(".json") && !isCarsetup) {
     return { ok: false, status: 400, error: "Only .json or .carsetup setup files are supported" };
   }
 
-  // Read is separated from parse so a failed read isn't mislabelled as bad JSON.
-  // OneDrive "online-only" (Files On-Demand) setups have metadata on disk but no
-  // local content — reads fail with EUNKNOWN/EIO under Bun. Retry briefly (covers
-  // a transient lock or mid-hydration), then return an actionable message.
-  let raw: string | null = null;
-  let readErr: any = null;
+  // Read is separated from parse so a failed read isn't mislabelled as invalid
+  // setup content. OneDrive online-only reads fail with EUNKNOWN/EIO under Bun;
+  // retry briefly for transient locks or mid-hydration.
+  let raw: Buffer | null = null;
+  let readErr: unknown = null;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      raw = readFileSync(realPath, "utf-8");
+      raw = readFileSync(realPath);
       readErr = null;
       break;
-    } catch (err: any) {
+    } catch (err: unknown) {
       readErr = err;
     }
   }
 
   if (raw == null) {
-    const code = readErr?.code;
+    const { code, message } = errorDetails(readErr);
     if (code === "EUNKNOWN" || code === "EIO" || code === "EACCES" || code === "EBUSY") {
       return {
         ok: false,
@@ -116,16 +139,15 @@ export async function resolveGuardedSetupFile(gameId: AccGameId, filePath: strin
           "is running, or right-click the file in Explorer → \"Always keep on this device\", then try again.",
       };
     }
-    return { ok: false, status: 500, error: `Couldn't read setup file: ${readErr?.message ?? "unknown error"}` };
+    return { ok: false, status: 500, error: `Couldn't read setup file: ${message ?? "unknown error"}` };
   }
 
-  // .carsetup (AC EVO Saved Games\ACE format) is binary protobuf — decode it
-  // so the tuning model sees real knob values (advisory only: there's no
-  // encoder, so these sessions can never write a setup back — readOnly).
+  // AC EVO `.carsetup` files are binary protobuf. Decode the bytes already
+  // read by the guarded/retried path rather than reopening the file.
   if (isCarsetup) {
     let setup: Record<string, number> | null = null;
     try {
-      const parsed = parseCarSetup(readFileSync(realPath));
+      const parsed = parseCarSetup(raw);
       if (parsed) setup = carSetupToKnobValues(parsed);
     } catch {
       // Decode failure must not break session load — fall back to setup: null.
@@ -135,15 +157,11 @@ export async function resolveGuardedSetupFile(gameId: AccGameId, filePath: strin
 
   let setup: any;
   try {
-    setup = JSON.parse(raw);
-  } catch (err: any) {
-    return { ok: false, status: 400, error: `Invalid setup JSON: ${err.message}` };
+    setup = JSON.parse(raw.toString("utf-8"));
+  } catch (err: unknown) {
+    return { ok: false, status: 400, error: `Invalid setup JSON: ${errorDetails(err).message}` };
   }
 
   return { ok: true, baseDir, realPath, setup };
 }
 
-/** Filename stem (no directory, no .json/.carsetup) of a setup path — for the versioned save name. */
-export function setupPathStem(filePath: string): string {
-  return (filePath.split(/[\\/]/).pop() ?? "setup").replace(/\.(json|carsetup)$/i, "");
-}

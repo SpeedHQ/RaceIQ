@@ -20,9 +20,9 @@ export function assessLapRecording(
     return { valid: false, reason: "too few telemetry packets" };
   }
 
-  const startDist = packets[0].DistanceTraveled;
-  const endDist = packets[packets.length - 1].DistanceTraveled;
-  const lapDistance = endDist - startDist;
+  const first = packets[0];
+  const last = packets[packets.length - 1];
+  const lapDistance = last.DistanceTraveled - first.DistanceTraveled;
 
   if (lapDistance < 100) {
     return { valid: false, reason: "telemetry distance too short" };
@@ -32,7 +32,10 @@ export function assessLapRecording(
   // Use peak CurrentLap across the buffer rather than the last packet — in ACC,
   // iCurrentTime can reset to ~0 and start counting the new lap before completedLaps
   // increments, so the last few packets may show the new lap's elapsed time instead.
-  const peakTelemetryLapTime = Math.max(...packets.map((p) => p.CurrentLap));
+  let peakTelemetryLapTime = -Infinity;
+  for (const packet of packets) {
+    peakTelemetryLapTime = Math.max(peakTelemetryLapTime, packet.CurrentLap);
+  }
   if (peakTelemetryLapTime > 0 && Math.abs(peakTelemetryLapTime - lapTime) > 2) {
     return { valid: false, reason: "telemetry lap time mismatch" };
   }
@@ -40,15 +43,13 @@ export function assessLapRecording(
   // Start and end positions must be close (circuit lap should return to start/finish).
   // ACC lap counter can reset to 0 after session changes, so only reject if it looks
   // like an actual formation lap (very short, < 30 seconds).
-  if (packets[0].gameId === "acc" && packets[0].LapNumber === 0 && lapTime < 30) {
+  if (first.gameId === "acc" && first.LapNumber === 0 && lapTime < 30) {
     return { valid: false, reason: "starting lap" };
   }
 
   // Start and end positions must be close (circuit lap should return to start/finish).
   // Skip for ACC — carCoordinates are in a different scale to DistanceTraveled.
-  if (packets[0].gameId !== "acc") {
-    const first = packets[0];
-    const last = packets[packets.length - 1];
+  if (first.gameId !== "acc") {
     const dx = last.PositionX - first.PositionX;
     const dz = last.PositionZ - first.PositionZ;
     const gap = Math.sqrt(dx * dx + dz * dz);

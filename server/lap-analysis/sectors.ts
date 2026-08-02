@@ -11,6 +11,36 @@ export interface NativeSectorTimeline {
 
 type IRacingSectorTimeline = NativeSectorTimeline;
 
+function computeDistanceSectorTimes(
+  packets: TelemetryPacket[],
+  lapTime: number,
+  s1End: number,
+  s2End: number,
+): number[] | null {
+  const startDist = packets[0].DistanceTraveled;
+  const lapDist = packets[packets.length - 1].DistanceTraveled - startDist;
+  if (lapDist < 100) return null;
+
+  let sector = 0;
+  let sectorStart = packets[0].CurrentLap;
+  let s1 = 0;
+  let s2 = 0;
+  for (const packet of packets) {
+    const fraction = (packet.DistanceTraveled - startDist) / lapDist;
+    const expected = fraction < s1End ? 0 : fraction < s2End ? 1 : 2;
+    if (expected <= sector) continue;
+
+    const elapsed = packet.CurrentLap - sectorStart;
+    if (sector === 0) s1 = elapsed;
+    else if (sector === 1) s2 = elapsed;
+    sectorStart = packet.CurrentLap;
+    sector = expected;
+  }
+
+  const s3 = lapTime - s1 - s2;
+  return s1 > 0 && s2 > 0 && s3 > 0 ? [s1, s2, s3] : null;
+}
+
 export function computeNativeSectorTimeline(
   packets: TelemetryPacket[],
   lapTime: number,
@@ -19,9 +49,8 @@ export function computeNativeSectorTimeline(
     lapFraction?: number;
   } | undefined,
 ): NativeSectorTimeline | null {
-  const starts = packets
-    .map(getLayout)
-    .find((layout) => layout?.starts.length)?.starts;
+  const layouts = packets.map(getLayout);
+  const starts = layouts.find((layout) => layout?.starts.length)?.starts;
   if (
     !starts ||
     starts.length < 2 ||
@@ -40,20 +69,19 @@ export function computeNativeSectorTimeline(
   }
 
   const boundaryIndices = starts.slice(1).map((boundary) =>
-    packets.findIndex(
-      (packet) => (getLayout(packet)?.lapFraction ?? -1) >= boundary,
-    ),
+    layouts.findIndex((layout) => (layout?.lapFraction ?? -1) >= boundary),
   );
   if (boundaryIndices.some((index) => index <= 0)) return null;
 
   const startTime = packets[0].CurrentLap;
-  const boundaryTimes = boundaryIndices.map(
-    (index) => packets[index].CurrentLap - startTime,
-  );
-  const times = boundaryTimes.map((time, index) =>
-    time - (index === 0 ? 0 : boundaryTimes[index - 1]),
-  );
-  times.push(lapTime - (boundaryTimes.at(-1) ?? 0));
+  const times: number[] = [];
+  let previousBoundaryTime = 0;
+  for (const boundaryIndex of boundaryIndices) {
+    const boundaryTime = packets[boundaryIndex].CurrentLap - startTime;
+    times.push(boundaryTime - previousBoundaryTime);
+    previousBoundaryTime = boundaryTime;
+  }
+  times.push(lapTime - previousBoundaryTime);
   if (times.some((time) => time <= 0)) return null;
 
   return {
@@ -82,7 +110,6 @@ export function computeIRacingSectorTimeline(
 /**
  * Pure function that computes the source-defined sector times from a lap's telemetry buffer.
  *
- * @param db           DB adapter (for track outline sector boundaries)
  * @param trackOrdinal Track ordinal from the session
  * @param gameId       Game identifier
  * @param packets      All telemetry packets for the completed lap
@@ -127,7 +154,10 @@ export async function computeLapSectors(
     // lap number). Look up the entry for THIS lap by scanning the buffer for
     // the largest LapNumber we saw (the lap we're about to emit) and
     // reading its SessionHistory entry from the final packet.
-    const completedLapNum = Math.max(...packets.map((p) => p.LapNumber ?? 0));
+    let completedLapNum = 0;
+    for (const packet of packets) {
+      completedLapNum = Math.max(completedLapNum, packet.LapNumber ?? 0);
+    }
     if (completedLapNum > 0) {
       // Walk packets from the end — later packets have more up-to-date
       // SessionHistory because the game finalises the lap entry on the
@@ -184,77 +214,18 @@ export async function computeLapSectors(
     }
   }
 
-  // Fall back to distance-fraction computation.
-  // Guard: if the first packet's CurrentLap is already well into the lap (car started
-  // mid-lap, e.g. a pit lap where recording began in the pit lane), the measured
-  // lapDist is only the remaining distance to the line — sector fractions are meaningless.
-  const lapStartTime = packets[0].CurrentLap;
+  // Fall back to distance fractions when native/live splits are incomplete.
+  // A lap captured more than 10 seconds after its start has no trustworthy
+  // remaining-distance fraction, so incomplete native data cannot be repaired.
   if (s1 === 0 || s2 === 0) {
-    if (lapStartTime > 10) {
-      // Started too far into the lap to derive reliable sector splits — bail out.
-      return null;
-    }
-
-    const startDist = packets[0].DistanceTraveled;
-    const lapDist = packets[packets.length - 1].DistanceTraveled - startDist;
-    if (lapDist < 100) return null;
-
-    let sector = 0;
-    let sectorStart = packets[0].CurrentLap;
-    s1 = 0;
-    s2 = 0;
-    for (const p of packets) {
-      const frac = (p.DistanceTraveled - startDist) / lapDist;
-      const expected = frac < s1End ? 0 : frac < s2End ? 1 : 2;
-      if (expected > sector) {
-        const t = p.CurrentLap - sectorStart;
-        if (sector === 0) s1 = t;
-        else if (sector === 1) s2 = t;
-        sectorStart = p.CurrentLap;
-        sector = expected;
-      }
-    }
+    if (packets[0].CurrentLap > 10) return null;
+    return computeDistanceSectorTimes(packets, lapTime, s1End, s2End);
   }
 
-  if (s1 > 0 && s2 > 0) {
-    const s3 = lapTime - s1 - s2;
-    if (s3 <= 0) {
-      // Native sectors invalid — fall through to distance-fraction fallback
-      s1 = 0;
-      s2 = 0;
-    } else {
-      return [s1, s2, s3];
-    }
-  }
+  const s3 = lapTime - s1 - s2;
+  if (s3 > 0) return [s1, s2, s3];
 
-  // If we get here, native sectors didn't work, try distance-fraction one more time
-  if (s1 === 0 || s2 === 0) {
-    const startDist = packets[0].DistanceTraveled;
-    const lapDist = packets[packets.length - 1].DistanceTraveled - startDist;
-    if (lapDist >= 100) {
-      let sector = 0;
-      let sectorStart = packets[0].CurrentLap;
-      let s1Retry = 0, s2Retry = 0;
-      for (const p of packets) {
-        const frac = (p.DistanceTraveled - startDist) / lapDist;
-        const expected = frac < s1End ? 0 : frac < s2End ? 1 : 2;
-        if (expected > sector) {
-          const t = p.CurrentLap - sectorStart;
-          if (sector === 0) s1Retry = t;
-          else if (sector === 1) s2Retry = t;
-          sectorStart = p.CurrentLap;
-          sector = expected;
-        }
-      }
-
-      if (s1Retry > 0 && s2Retry > 0) {
-        const s3 = lapTime - s1Retry - s2Retry;
-        if (s3 > 0) {
-          return [s1Retry, s2Retry, s3];
-        }
-      }
-    }
-  }
-
-  return null;
+  // Complete but internally inconsistent native/live splits may still be
+  // replaced by a valid distance-derived timeline, matching the legacy retry.
+  return computeDistanceSectorTimes(packets, lapTime, s1End, s2End);
 }

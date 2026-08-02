@@ -21,8 +21,7 @@ export interface CatalogTune {
   gameId: string;
 }
 
-/** Parse JSON text columns from a DB tune row into proper arrays/objects */
-export interface ParsedTune {
+interface ParsedTune {
   id: number;
   gameId: string;
   name: string;
@@ -43,6 +42,7 @@ export interface ParsedTune {
   lapId: number | null;
 }
 
+/** Parse JSON text columns from a DB tune row into proper arrays/objects. */
 export function parseTuneRow(row: any): ParsedTune {
   return {
     ...row,

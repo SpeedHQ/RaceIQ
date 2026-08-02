@@ -5,6 +5,7 @@ import { getLapById } from "../db/lap-read-queries";
 import { getLapsForExperiment } from "../db/experiment-lap-queries";
 import { telemetryToSymptoms, type TuneSymptoms } from "../ai/tune-symptoms";
 import { telemetryToTrackConditions, type TrackConditions } from "../ai/track-conditions";
+import { MIN_TELEMETRY_FRAMES } from "./lap-policy";
 
 export type RepresentativeLap = LapMeta & {
   telemetry: TelemetryPacket[];
@@ -29,7 +30,7 @@ export async function loadRepresentativeLap(
   if (!best) return null;
 
   const lap = await getLapById(best.id);
-  if (!lap || lap.telemetry.length < 30) return null;
+  if (!lap || lap.telemetry.length < MIN_TELEMETRY_FRAMES) return null;
   return lap;
 }
 

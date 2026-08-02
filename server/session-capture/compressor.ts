@@ -6,25 +6,38 @@
  * to .bin.gz. Skips if a session is active to avoid competing with live writes.
  */
 import { unlinkSync, existsSync } from "fs";
-import { readdir, stat } from "fs/promises";
-import { resolve, join } from "path";
 import { getUncompressedSessions, updateSessionRawFile } from "../db/session-queries";
 import { isSessionActive } from "../telemetry/live-pipeline";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { resolveDataDir } from "../runtime/config/data-dir";
 import { gzipBuffer } from "./framing";
-import { cleanupOrphanSessionFiles } from "./cleanup";
+import {
+  cleanupOrphanSessionFiles,
+  listSessionCaptureFiles,
+} from "./cleanup";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const INTERVAL_MS = 5 * 60 * 1000;
 
-async function compressSession(id: number, binPath: string): Promise<void> {
-  const gzPath = binPath + ".gz";
-  const data = await Bun.file(binPath).arrayBuffer();
-  const compressed = await gzipBuffer(Buffer.from(data));
+interface CompressedFile {
+  gzPath: string;
+  sizeSummary: string;
+}
+
+async function writeCompressedFile(binPath: string): Promise<CompressedFile> {
+  const gzPath = `${binPath}.gz`;
+  const source = Buffer.from(await Bun.file(binPath).arrayBuffer());
+  const compressed = await gzipBuffer(source);
   await Bun.write(gzPath, compressed);
+  return {
+    gzPath,
+    sizeSummary: `${(source.byteLength / 1024).toFixed(0)}KB → ${(compressed.byteLength / 1024).toFixed(0)}KB`,
+  };
+}
+
+async function compressSession(id: number, binPath: string): Promise<void> {
+  const compressedFile = await writeCompressedFile(binPath);
 
   // Fetch current lapDetectorVersion to preserve it in the update
   const row = await db
@@ -33,9 +46,15 @@ async function compressSession(id: number, binPath: string): Promise<void> {
     .where(eq(sessions.id, id))
     .get();
 
-  await updateSessionRawFile(id, gzPath, row?.lapDetectorVersion ?? "");
+  await updateSessionRawFile(
+    id,
+    compressedFile.gzPath,
+    row?.lapDetectorVersion ?? "",
+  );
   unlinkSync(binPath);
-  console.log(`[Compressor] ${binPath} → ${gzPath} (${(data.byteLength / 1024).toFixed(0)}KB → ${(compressed.byteLength / 1024).toFixed(0)}KB)`);
+  console.log(
+    `[Compressor] ${binPath} → ${compressedFile.gzPath} (${compressedFile.sizeSummary})`,
+  );
 }
 
 /**
@@ -43,37 +62,11 @@ async function compressSession(id: number, binPath: string): Promise<void> {
  * Writes .bin.gz, removes .bin. No DB update since there's nothing to point.
  */
 async function compressOrphanFile(binPath: string): Promise<void> {
-  const gzPath = binPath + ".gz";
-  const data = await Bun.file(binPath).arrayBuffer();
-  const compressed = await gzipBuffer(Buffer.from(data));
-  await Bun.write(gzPath, compressed);
+  const compressedFile = await writeCompressedFile(binPath);
   unlinkSync(binPath);
-  console.log(`[Compressor] (orphan) ${binPath} → ${gzPath} (${(data.byteLength / 1024).toFixed(0)}KB → ${(compressed.byteLength / 1024).toFixed(0)}KB)`);
-}
-
-/**
- * Walk data/sessions/<gameId>/*.bin. Returns absolute paths of every
- * uncompressed recording file on disk, regardless of whether a DB row points
- * at it. User-triggered compression uses this so orphaned .bin files (tests,
- * failed past compressions, deleted sessions) still get swept up.
- */
-async function findUncompressedFilesOnDisk(): Promise<string[]> {
-  const sessionsDir = resolve(resolveDataDir(), "sessions");
-  if (!existsSync(sessionsDir)) return [];
-  const results: string[] = [];
-  const gameDirs = await readdir(sessionsDir);
-  for (const gameDir of gameDirs) {
-    const dirPath = join(sessionsDir, gameDir);
-    try {
-      if (!(await stat(dirPath)).isDirectory()) continue;
-    } catch { continue; }
-    const files = await readdir(dirPath);
-    for (const file of files) {
-      if (!file.endsWith(".bin")) continue;
-      results.push(join(dirPath, file));
-    }
-  }
-  return results;
+  console.log(
+    `[Compressor] (orphan) ${binPath} → ${compressedFile.gzPath} (${compressedFile.sizeSummary})`,
+  );
 }
 
 /** Background-style compression: respects the 24-hour age filter. */
@@ -97,7 +90,9 @@ async function runCompression(userTriggered = false): Promise<void> {
   // Background (age-gated) runs stay DB-driven so we don't compress brand-new
   // files still being written by a just-finished session.
   const orphanPaths = userTriggered
-    ? (await findUncompressedFilesOnDisk()).filter((p) => !dbPaths.has(p))
+    ? (await listSessionCaptureFiles()).filter(
+        (path) => path.endsWith(".bin") && !dbPaths.has(path),
+      )
     : [];
 
   const total = candidates.length + orphanPaths.length;

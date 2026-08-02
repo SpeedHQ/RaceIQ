@@ -1,6 +1,7 @@
 import type { TelemetryPacket } from "../../shared/types";
 import { lapPath } from "../../shared/lib/lap-path";
 import type { Corner } from "./corners";
+import { populationVariance } from "./stats";
 
 export const LINE_SPREAD_THRESHOLD_M = 1.5;
 /** Mean lateral spread (metres) at which the line-consistency score hits 0.
@@ -66,6 +67,14 @@ interface ResampledLap {
   span: number;
 }
 
+function medianSpan(laps: ResampledLap[]): number {
+  const spans = laps.map((lap) => lap.span).sort((a, b) => a - b);
+  const middle = Math.floor(spans.length / 2);
+  return spans.length % 2 === 0
+    ? (spans[middle - 1] + spans[middle]) / 2
+    : spans[middle];
+}
+
 function normChannel(v: number): number {
   return v > 1 ? v / 255 : v;
 }
@@ -101,9 +110,15 @@ function resampleLap(packets: TelemetryPacket[], lapId: number): ResampledLap | 
 
   const { x, z } = lapPath(packets);
   const base = packets[0].DistanceTraveled;
-  const dist = packets.map((p) => p.DistanceTraveled - base);
-  const brake = packets.map((p) => normChannel(p.Brake));
-  const throttle = packets.map((p) => normChannel(p.Accel));
+  const dist = new Array<number>(packets.length);
+  const brake = new Array<number>(packets.length);
+  const throttle = new Array<number>(packets.length);
+  for (let index = 0; index < packets.length; index++) {
+    const packet = packets[index];
+    dist[index] = packet.DistanceTraveled - base;
+    brake[index] = normChannel(packet.Brake);
+    throttle[index] = normChannel(packet.Accel);
+  }
 
   const span = dist[dist.length - 1];
   if (!(span > 0)) return null;
@@ -124,12 +139,6 @@ function resampleLap(packets: TelemetryPacket[], lapId: number): ResampledLap | 
   return { lapId, x: rx, z: rz, brake: rBrake, throttle: rThrottle, span };
 }
 
-function populationVariance(values: number[]): number {
-  const n = values.length;
-  if (n === 0) return 0;
-  const mean = values.reduce((a, b) => a + b, 0) / n;
-  return values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / n;
-}
 
 function round3(v: number): number {
   return Math.round(v * 1000) / 1000;
@@ -233,11 +242,8 @@ export function computeLineSpreadTrace(laps: TelemetryPacket[][], lapIds: number
     spreadM.push(percentile(dev, 0.9) - percentile(dev, 0.1));
   }
 
-  // Reference lap length = median of per-lap spans (same approach as
-  // computeLapConsistencyDelta) so corner fractions line up with the bins.
-  const spans = resampled.map((r) => r.span).sort((a, b) => a - b);
-  const mid = Math.floor(spans.length / 2);
-  const referenceSpan = spans.length % 2 === 0 ? (spans[mid - 1] + spans[mid]) / 2 : spans[mid];
+  // Median lap length keeps corner fractions aligned to resampled bins.
+  const referenceSpan = medianSpan(resampled);
 
   const perCorner: CornerLineSpread[] = corners.map((corner) => {
     if (!(referenceSpan > 0)) return { corner: corner.label, lateralSpreadM: 0, lowTrust: false };
@@ -327,9 +333,7 @@ export function computeLapConsistencyDelta(laps: TelemetryPacket[][], corners: C
   }
 
   // Reference lap length = median of per-lap spans.
-  const spans = resampled.map((r) => r.span).sort((a, b) => a - b);
-  const mid = Math.floor(spans.length / 2);
-  const referenceSpan = spans.length % 2 === 0 ? (spans[mid - 1] + spans[mid]) / 2 : spans[mid];
+  const referenceSpan = medianSpan(resampled);
 
   const perCorner: CornerConsistency[] = corners.map((corner) => {
     if (!(referenceSpan > 0)) {

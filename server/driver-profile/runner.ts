@@ -15,7 +15,17 @@ import {
 import { buildGoogleProviderOptions } from "../ai/google-provider-options";
 import type { DriverFingerprint } from "./fingerprint";
 import { loadDriverProfile } from "./load";
-import { createDriverProfileRun, findDriverProfileRunByScopePool, getDriverProfile, getDriverProfileRun, listDriverProfileRuns, saveDriverProfile, updateDriverProfileRun, type DriverProfileRunRow, type DriverProfileRunStatus, type DriverProfileScopeKey } from "../db/driver-profile-queries";
+import {
+  createDriverProfileRun,
+  findDriverProfileRunByScopePool,
+  getDriverProfileRun,
+  listDriverProfileRuns,
+  saveDriverProfile,
+  updateDriverProfileRun,
+  type DriverProfileRunRow,
+  type DriverProfileRunStatus,
+  type DriverProfileScopeKey,
+} from "../db/driver-profile-queries";
 import { getLapMetaForProfileScope } from "../db/lap-read-queries";
 import { type AnalysisUsage } from "../db/analysis-queries";
 
@@ -38,10 +48,10 @@ export interface DriverProfileRunOptions {
 }
 
 const BACKGROUND_LAP_BATCH = 5;
-const pendingLaps = new Map<string, { count: number; poolKey: string }>();
+const pendingLaps = new Map<string, number>();
 const activeRuns = new Map<string, Promise<DriverProfileRunResult>>();
 
-export function driverProfilePoolKey(lapIds: number[]): string {
+export function driverProfilePoolKey(lapIds: readonly number[]): string {
   return createHash("sha1")
     .update(`driver-trend-summary-v1|${lapIds.slice(0, 60).sort((a, b) => a - b).join(",")}`)
     .digest("hex")
@@ -56,8 +66,6 @@ export function resolveDriverProfileScopeNames(scope: DriverProfileScope): { gam
   return { gameName: game?.displayName ?? scope.gameId };
 }
 
-
-
 function now(): string {
   return new Date().toISOString();
 }
@@ -65,6 +73,23 @@ function now(): string {
 function normalizedError(err: unknown): { message: string; details: ClientAiError | null } {
   const details = toClientAiError(err);
   return { message: details.message || "Driver profile generation failed", details };
+}
+
+async function failDriverProfileRun(
+  scope: DriverProfileScope,
+  runId: number,
+  fingerprint: DriverFingerprint,
+  error: string,
+  durationMs: number,
+): Promise<DriverProfileRunResult> {
+  await updateDriverProfileRun(runId, scopeKey(scope), "running", {
+    status: "failed",
+    error,
+    fingerprint: JSON.stringify(fingerprint),
+    durationMs,
+    completedAt: now(),
+  });
+  return { status: "failed", run: await getDriverProfileRun(runId), fingerprint, error };
 }
 
 async function providerConfiguration(): Promise<
@@ -120,15 +145,13 @@ async function runDriverProfileInternal(
   try {
     fingerprint = await loadDriverProfile({ gameId: scope.gameId });
     if (!fingerprint.ok) {
-      const error = "Not enough valid laps to build a driver profile.";
-      await updateDriverProfileRun(runId, scopeKey(scope), "running", {
-        status: "failed",
-        error,
-        fingerprint: JSON.stringify(fingerprint),
-        durationMs: Date.now() - startedAt,
-        completedAt: now(),
-      });
-      return { status: "failed", run: await getDriverProfileRun(runId), fingerprint, error };
+      return await failDriverProfileRun(
+        scope,
+        runId,
+        fingerprint,
+        "Not enough valid laps to build a driver profile.",
+        Date.now() - startedAt,
+      );
     }
 
     const prompt = buildDriverProfilerPrompt({
@@ -145,15 +168,13 @@ async function runDriverProfileInternal(
 
     const parsed = parseDriverProfileSummary(result.analysis);
     if (!parsed.success) {
-      const error = "Model produced output that did not match the expected driver profile summary shape.";
-      await updateDriverProfileRun(runId, scopeKey(scope), "running", {
-        status: "failed",
-        error,
-        fingerprint: JSON.stringify(fingerprint),
-        durationMs: Date.now() - startedAt,
-        completedAt: now(),
-      });
-      return { status: "failed", run: await getDriverProfileRun(runId), fingerprint, error };
+      return await failDriverProfileRun(
+        scope,
+        runId,
+        fingerprint,
+        "Model produced output that did not match the expected driver profile summary shape.",
+        Date.now() - startedAt,
+      );
     }
 
     const summary = parsed.data;
@@ -171,27 +192,23 @@ async function runDriverProfileInternal(
     // replace a cache or successful run produced for the newer pool.
     const latestCandidates = await getLapMetaForProfileScope(scope.gameId);
     if (driverProfilePoolKey(latestCandidates.map((lap) => lap.id)) !== poolKey) {
-      const error = "Profile data changed while generation was running; stale result discarded.";
-      await updateDriverProfileRun(runId, scopeKey(scope), "running", {
-        status: "failed",
-        error,
-        fingerprint: JSON.stringify(fingerprint),
-        durationMs: usage.durationMs,
-        completedAt: now(),
-      });
-      return { status: "failed", run: await getDriverProfileRun(runId), fingerprint, error };
+      return await failDriverProfileRun(
+        scope,
+        runId,
+        fingerprint,
+        "Profile data changed while generation was running; stale result discarded.",
+        usage.durationMs,
+      );
     }
-    const priorCache = await getDriverProfile(scope);
     const history = await listDriverProfileRuns(scope, 100);
     if (history.some((item) => item.id > runId && item.status === "succeeded")) {
-      const error = "A newer successful profile run already exists; stale result discarded.";
-      await updateDriverProfileRun(runId, scopeKey(scope), "running", { status: "failed", error, fingerprint: JSON.stringify(fingerprint), durationMs: usage.durationMs, completedAt: now() });
-      return { status: "failed", run: await getDriverProfileRun(runId), fingerprint, error };
-    }
-    if (priorCache?.poolKey === poolKey && history.some((item) => item.id > runId && item.status === "succeeded")) {
-      const error = "A newer successful profile cache already exists; stale result discarded.";
-      await updateDriverProfileRun(runId, scopeKey(scope), "running", { status: "failed", error, fingerprint: JSON.stringify(fingerprint), durationMs: usage.durationMs, completedAt: now() });
-      return { status: "failed", run: await getDriverProfileRun(runId), fingerprint, error };
+      return await failDriverProfileRun(
+        scope,
+        runId,
+        fingerprint,
+        "A newer successful profile run already exists; stale result discarded.",
+        usage.durationMs,
+      );
     }
 
     await saveDriverProfile(scope, {
@@ -245,12 +262,13 @@ export function runDriverProfile(
   return promise;
 }
 
-function scheduleScope(scope: DriverProfileScope, poolKey: string): void {
+function scheduleScope(scope: DriverProfileScope): void {
   const key = scopeKey(scope);
-  const pending = pendingLaps.get(key);
-  pendingLaps.set(key, { count: (pending?.count ?? 0) + 1, poolKey });
-  const next = pendingLaps.get(key);
-  if (!next || next.count < BACKGROUND_LAP_BATCH) return;
+  const count = (pendingLaps.get(key) ?? 0) + 1;
+  if (count < BACKGROUND_LAP_BATCH) {
+    pendingLaps.set(key, count);
+    return;
+  }
   pendingLaps.delete(key);
   void runDriverProfile(scope, { trigger: "background" }).catch((err) => {
     console.error("[AI] Background driver profile run failed:", err);
@@ -265,8 +283,8 @@ export function notifyDriverProfileLap(gameId: GameId): void {
   const settings = loadSettings();
   if (!settings.driverProfileBackgroundEnabled) return;
   void getLapMetaForProfileScope(gameId)
-    .then((globalLaps) => {
-      scheduleScope({ gameId }, driverProfilePoolKey(globalLaps.map((lap) => lap.id)));
+    .then(() => {
+      scheduleScope({ gameId });
     })
     .catch((err) => {
       console.error("[AI] Failed to schedule background driver profile:", err);

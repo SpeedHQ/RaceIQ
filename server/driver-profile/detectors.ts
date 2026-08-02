@@ -1,6 +1,7 @@
 import { aggregateLapStyles, type LapStyleSummary } from "../../shared/lib/driving-style";
 import { clamp } from "../../shared/stint-trace";
 import type { InsightCategory, InsightSeverity, LapInsight } from "../../shared/lib/lap-insights";
+import { median, round4 } from "./math";
 /** Per-detector rollup, normalised per lap so pool size cancels out. */
 export interface DetectorStat {
   id: string;
@@ -113,7 +114,7 @@ export const MIN_LAPS_FOR_STYLE = 3;
  * `lapIds` is only used to pick `sampleDetail` deterministically (lowest lap id
  * that reported the detector); pass ids parallel to `perLapInsights`.
  */
-export function rollUpDetectors(perLapInsights: LapInsight[][], lapIds: number[]): DetectorStat[] {
+export function rollUpDetectors(perLapInsights: readonly (readonly LapInsight[])[], lapIds: readonly number[]): DetectorStat[] {
   const lapCount = perLapInsights.length;
   if (lapCount === 0) return [];
 
@@ -219,7 +220,7 @@ const BRAKING_LATE_IDS = [
  * this badly". See its doc comment for why it has no continuous equivalent.
  */
 export function computeStyleAxes(
-  detectors: DetectorStat[],
+  detectors: readonly DetectorStat[],
   paceConsistency: number | null,
   styleSummaries: readonly LapStyleSummary[] = [],
 ): StyleAxes {
@@ -263,7 +264,7 @@ export function computeStyleAxes(
  *
  * Ties break on id so output is stable.
  */
-export function rankWeaknesses(detectors: DetectorStat[]): {
+export function rankWeaknesses(detectors: readonly DetectorStat[]): {
   weaknesses: RankedWeakness[];
   unquantifiedWeaknesses: RankedWeakness[];
 } {
@@ -284,22 +285,6 @@ export function rankWeaknesses(detectors: DetectorStat[]): {
   weaknesses.sort(bySeverityThenId);
   unquantifiedWeaknesses.sort(bySeverityThenId);
   return { weaknesses, unquantifiedWeaknesses };
-}
-
-// ---------------------------------------------------------------------------
-// Small pure helpers
-// ---------------------------------------------------------------------------
-
-function median(values: number[]): number | null {
-  if (values.length === 0) return null;
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
-}
-
-/** Round to 4dp so float noise can't make two identical inputs compare unequal. */
-function round4(v: number): number {
-  return Math.round(v * 1e4) / 1e4;
 }
 
 const SEVERITY_WEIGHT: Record<InsightSeverity, number> = { info: 1, warning: 2, critical: 3 };

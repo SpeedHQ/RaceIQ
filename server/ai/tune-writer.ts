@@ -10,7 +10,7 @@
 import { existsSync, mkdirSync, realpathSync, writeFileSync } from "fs";
 import { dirname, resolve, sep } from "path";
 
-export interface WriteSetupResult {
+interface WriteSetupResult {
   path: string;
   fileName: string;
 }

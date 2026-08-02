@@ -9,6 +9,10 @@ import type { TelemetryPacket, GameId, LiveSectorData } from "../../shared/types
 import { getGame } from "../../shared/games/registry";
 import type { GameAdapter } from "../../shared/games/types";
 import { resolveTrack } from "../tracks/info";
+import {
+  interpolateMonotonic,
+  sectorFromDistanceFraction,
+} from "./tracker-math";
 
 interface SectorBounds {
   starts: number[];
@@ -51,9 +55,7 @@ export class SectorTracker {
     this.sectorCount = 3;
     this.lapDistStart = 0;
     this.lapDistTotal = 0;
-    this.currentSector = 0;
-    this.sectorStartTime = 0;
-    this.currentTimes = [0, 0, 0];
+    this.resetLapProgress(0);
     this.bestTimes = [Infinity, Infinity, Infinity];
     this.lastTimes = [0, 0, 0];
     this.lastLap = 0;
@@ -131,9 +133,7 @@ export class SectorTracker {
     // Handle backward distance jump (demo loop / teleport)
     if (packet.DistanceTraveled < this.lapDistStart - 100) {
       this.lapDistStart = packet.DistanceTraveled;
-      this.currentSector = 0;
-      this.sectorStartTime = packet.CurrentLap;
-      this.currentTimes = Array(this.sectorCount).fill(0);
+      this.resetLapProgress(packet.CurrentLap);
     }
 
     // Detect lap boundary via CurrentLap timer reset (covers Forza time-trial,
@@ -177,9 +177,7 @@ export class SectorTracker {
       }
 
       this.lapDistStart = packet.DistanceTraveled;
-      this.currentSector = 0;
-      this.sectorStartTime = 0;
-      this.currentTimes = Array(this.sectorCount).fill(0);
+      this.resetLapProgress(0);
     }
     this.lastLap = packet.LapNumber;
 
@@ -187,7 +185,7 @@ export class SectorTracker {
     // ACC: use the game's own currentSectorIndex (track-position-based, accurate from any lap start).
     // Other games: fall back to distance-fraction against lapDistTotal.
     if (this.currentGameId === "acc" && packet.acc?.currentSectorIndex !== undefined) {
-      this.updateAccSector(packet);
+      this.advanceSector(packet.acc.currentSectorIndex, packet.CurrentLap);
     } else {
       // Native sector starts are fractions and their telemetry supplies the
       // matching lap fraction directly. Other games derive it from distance.
@@ -197,20 +195,11 @@ export class SectorTracker {
           ? (packet.DistanceTraveled - this.lapDistStart) / this.lapDistTotal
           : undefined;
 
-      let expectedSector = this.currentSector;
-      if (frac !== undefined) {
-        expectedSector = 0;
-        for (let index = 1; index < this.bounds.starts.length; index++) {
-          if (frac < this.bounds.starts[index]) break;
-          expectedSector = index;
-        }
-      }
+      const expectedSector = frac === undefined
+        ? this.currentSector
+        : sectorFromDistanceFraction(this.bounds.starts, frac);
 
-      if (expectedSector > this.currentSector) {
-        this.currentTimes[this.currentSector] = packet.CurrentLap - this.sectorStartTime;
-        this.sectorStartTime = packet.CurrentLap;
-        this.currentSector = expectedSector;
-      }
+      this.advanceSector(expectedSector, packet.CurrentLap);
     }
 
     // Current sector running time
@@ -223,8 +212,12 @@ export class SectorTracker {
     if (this.refLap && packet.CurrentLap > 0) {
       const lapDist = packet.DistanceTraveled - this.lapDistStart;
       if (lapDist > 0) {
-        const refTime = this.interpolateRefTime(lapDist);
-        if (refTime >= 0) {
+        const refTime = interpolateMonotonic(
+          this.refLap.times,
+          this.refLap.distances,
+          lapDist,
+        );
+        if (refTime !== null && refTime >= 0) {
           deltaToBest = packet.CurrentLap - refTime;
           estimatedLap = this.refLap.lapTime + deltaToBest;
         }
@@ -250,26 +243,6 @@ export class SectorTracker {
     };
   }
 
-  /** Binary search + linear interpolation to find reference time at a given lap distance. */
-  private interpolateRefTime(lapDist: number): number {
-    const ref = this.refLap;
-    if (!ref || ref.distances.length < 2) return -1;
-    const d = ref.distances;
-    const t = ref.times;
-    // Beyond reference lap range
-    if (lapDist >= d[d.length - 1]) return -1;
-    if (lapDist <= d[0]) return t[0];
-    // Binary search for bracket
-    let lo = 0, hi = d.length - 1;
-    while (lo < hi - 1) {
-      const mid = (lo + hi) >> 1;
-      if (d[mid] <= lapDist) lo = mid; else hi = mid;
-    }
-    // Linear interpolation
-    const frac = (lapDist - d[lo]) / (d[hi] - d[lo]);
-    return t[lo] + frac * (t[hi] - t[lo]);
-  }
-
   /** Build a reference lap structure from packet data. */
   private buildRefLapFromPackets(packets: TelemetryPacket[], lapTime: number): ReferenceLap {
     const lapDistStart = packets[0].DistanceTraveled;
@@ -283,13 +256,18 @@ export class SectorTracker {
     return { distances, times, lapTime };
   }
 
-  private updateAccSector(packet: TelemetryPacket): void {
-    const idx = packet.acc!.currentSectorIndex!;
-    if (idx > this.currentSector) {
-      this.currentTimes[this.currentSector] = packet.CurrentLap - this.sectorStartTime;
-      this.sectorStartTime = packet.CurrentLap;
-      this.currentSector = idx;
-    }
+  private resetLapProgress(sectorStartTime: number): void {
+    this.currentSector = 0;
+    this.sectorStartTime = sectorStartTime;
+    this.currentTimes = Array(this.sectorCount).fill(0);
+  }
+
+  private advanceSector(nextSector: number, currentLapTime: number): void {
+    if (nextSector <= this.currentSector) return;
+
+    this.currentTimes[this.currentSector] = currentLapTime - this.sectorStartTime;
+    this.sectorStartTime = currentLapTime;
+    this.currentSector = nextSector;
   }
 
   private setNativeSectorLayout(
@@ -306,8 +284,7 @@ export class SectorTracker {
     if (!changed) return;
 
     this.sectorCount = starts.length;
-    this.currentSector = 0;
-    this.currentTimes = Array(this.sectorCount).fill(0);
+    this.resetLapProgress(this.sectorStartTime);
     this.lastTimes = Array(this.sectorCount).fill(0);
     this.bestTimes = Array(this.sectorCount).fill(Infinity);
   }
@@ -345,7 +322,7 @@ export class SectorTracker {
     this.initialized = false;
   }
 
-  /** Expose track length so PitTracker can use it */
+  /** Expose track length to telemetry consumers. */
   getTrackLength(): number {
     return this.bounds?.trackLength ?? 0;
   }

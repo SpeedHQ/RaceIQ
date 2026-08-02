@@ -1,6 +1,22 @@
 import type { TelemetryPacket } from "../../shared/types";
 
 /**
+ * Apply adapter-specific runtime normalization to one packet in one pass.
+ */
+export function normalizeTelemetryPacket(
+  packet: TelemetryPacket,
+  standardXyz: boolean,
+  suspensionRange?: SuspensionTravelRangeMm,
+): void {
+  if (standardXyz) {
+    packet.PositionX = -packet.PositionX;
+    packet.VelocityX = -packet.VelocityX;
+    packet.AccelerationX = -packet.AccelerationX;
+  }
+  fillNormSuspension(packet, suspensionRange);
+}
+
+/**
  * Compute normalized suspension travel when a source only supplies absolute
  * spring travel. The adapter owns the appropriate millimeter range.
  */
@@ -11,16 +27,35 @@ export interface SuspensionTravelRangeMm {
   max: number;
 }
 
+function normalizeSuspensionTravel(value: number, min: number, span: number): number {
+  return Math.max(0, Math.min(1, (value * 1000 - min) / span));
+}
+
 export function fillNormSuspension(
-  p: TelemetryPacket,
+  packet: TelemetryPacket,
   range: SuspensionTravelRangeMm = DEFAULT_SUSPENSION_RANGE_MM,
 ): void {
-  if (p.NormSuspensionTravelFL !== 0 || p.SuspensionTravelMFL <= 0) return;
+  if (packet.NormSuspensionTravelFL !== 0 || packet.SuspensionTravelMFL <= 0) return;
   const { min, max } = range;
   const span = max - min;
-  const norm = (v: number) => Math.max(0, Math.min(1, (v * 1000 - min) / span));
-  p.NormSuspensionTravelFL = norm(p.SuspensionTravelMFL);
-  p.NormSuspensionTravelFR = norm(p.SuspensionTravelMFR);
-  p.NormSuspensionTravelRL = norm(p.SuspensionTravelMRL);
-  p.NormSuspensionTravelRR = norm(p.SuspensionTravelMRR);
+  packet.NormSuspensionTravelFL = normalizeSuspensionTravel(
+    packet.SuspensionTravelMFL,
+    min,
+    span,
+  );
+  packet.NormSuspensionTravelFR = normalizeSuspensionTravel(
+    packet.SuspensionTravelMFR,
+    min,
+    span,
+  );
+  packet.NormSuspensionTravelRL = normalizeSuspensionTravel(
+    packet.SuspensionTravelMRL,
+    min,
+    span,
+  );
+  packet.NormSuspensionTravelRR = normalizeSuspensionTravel(
+    packet.SuspensionTravelMRR,
+    min,
+    span,
+  );
 }

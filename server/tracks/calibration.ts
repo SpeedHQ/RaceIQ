@@ -11,7 +11,7 @@ interface Point {
   z: number;
 }
 
-export interface Transform {
+interface Transform {
   scale: number;
   rotation: number; // radians
   tx: number;
@@ -28,6 +28,54 @@ interface CalibrationState {
 // One calibration per track — persists for the server lifetime.
 // Re-calibrates each time the player completes a full lap.
 const calibrations = new Map<number, CalibrationState>();
+// Cache for static transforms (TUMFTM center-line → recorded source outline)
+const staticTransforms = new Map<number, Transform>();
+// Tracks which ordinals have been curb-refined to avoid re-running
+const curbRefined = new Set<number>();
+
+const MIN_POINT_SEPARATION_SQ = 25; // 5m squared
+const MIN_CALIBRATION_POINTS = 50;
+const ALIGN_SAMPLE_LIMIT = 200;
+const STATIC_ALIGNMENT_SAMPLES = 500;
+const STATIC_ALIGNMENT_OFFSET_STEPS = 36;
+const CURB_ALIGNMENT_SAMPLES = 300;
+const CURB_ALIGNMENT_OFFSET_STEPS = 36;
+const CURB_OFFSET_CHECK_SAMPLES = 50;
+const CURB_ANCHOR_WEIGHT = 3;
+const CURB_ANCHOR_MAX_DIST = 50;
+
+/**
+ * Keep points that are at least `minSeparationSq` away from the previous kept point.
+ */
+function pushIfFarEnough(points: Point[], point: Point, minSeparationSq: number): void {
+  const last = points[points.length - 1];
+  if (!last) {
+    points.push(point);
+    return;
+  }
+
+  const dx = point.x - last.x;
+  const dz = point.z - last.z;
+  if (dx * dx + dz * dz > minSeparationSq) points.push(point);
+}
+
+/**
+ * Filter zero points and downsample by fixed spatial spacing.
+ */
+function collectSpatiallyDistinct(points: Point[], minSeparationSq: number): Point[] {
+  const filtered: Point[] = [];
+  for (const p of points) {
+    if (p.x === 0 && p.z === 0) continue;
+    pushIfFarEnough(filtered, p, minSeparationSq);
+  }
+  return filtered;
+}
+
+function squaredDistance(a: Point, b: Point): number {
+  const dx = a.x - b.x;
+  const dz = a.z - b.z;
+  return dx * dx + dz * dz;
+}
 
 /**
  * Find the closest point index on an outline for a given position.
@@ -36,15 +84,23 @@ function closestPointIdx(outline: Point[], p: Point): number {
   let bestIdx = 0;
   let bestDist = Infinity;
   for (let i = 0; i < outline.length; i++) {
-    const dx = outline[i].x - p.x;
-    const dz = outline[i].z - p.z;
-    const d = dx * dx + dz * dz;
-    if (d < bestDist) {
-      bestDist = d;
+    const dist = squaredDistance(outline[i], p);
+    if (dist < bestDist) {
+      bestDist = dist;
       bestIdx = i;
     }
   }
   return bestIdx;
+}
+
+/**
+ * Build a calibration transform from source points and target outline.
+ */
+function buildAlignmentTransform(sourcePoints: Point[], outline: Point[]): Transform {
+  const n = Math.min(sourcePoints.length, outline.length, ALIGN_SAMPLE_LIMIT);
+  const srcSampled = downsample(sourcePoints, n);
+  const tgtSampled = downsample(outline, n);
+  return procrustes(srcSampled, tgtSampled);
 }
 
 /**
@@ -79,25 +135,21 @@ function procrustes(source: Point[], target: Point[]): Transform {
   const cSrc = centroid(source);
   const cTgt = centroid(target);
 
-  // Center both sets
-  const srcC = source.map((p) => ({ x: p.x - cSrc.x, z: p.z - cSrc.z }));
-  const tgtC = target.map((p) => ({ x: p.x - cTgt.x, z: p.z - cTgt.z }));
-
-  // Optimal rotation via cross/dot product sums (closed-form 2D SVD).
-  // num = sum of cross products (sine component), den = sum of dot products (cosine).
+  // Center values inline: avoids allocating two point arrays for every fit.
+  // Each accumulator retains the same point order as the expanded formulation.
   let num = 0, den = 0;
-  for (let i = 0; i < n; i++) {
-    num += srcC[i].x * tgtC[i].z - srcC[i].z * tgtC[i].x;
-    den += srcC[i].x * tgtC[i].x + srcC[i].z * tgtC[i].z;
-  }
-  const rotation = Math.atan2(num, den);
-
-  // Compute scale
   let srcNorm = 0, tgtNorm = 0;
   for (let i = 0; i < n; i++) {
-    srcNorm += srcC[i].x * srcC[i].x + srcC[i].z * srcC[i].z;
-    tgtNorm += tgtC[i].x * tgtC[i].x + tgtC[i].z * tgtC[i].z;
+    const srcX = source[i].x - cSrc.x;
+    const srcZ = source[i].z - cSrc.z;
+    const tgtX = target[i].x - cTgt.x;
+    const tgtZ = target[i].z - cTgt.z;
+    num += srcX * tgtZ - srcZ * tgtX;
+    den += srcX * tgtX + srcZ * tgtZ;
+    srcNorm += srcX * srcX + srcZ * srcZ;
+    tgtNorm += tgtX * tgtX + tgtZ * tgtZ;
   }
+  const rotation = Math.atan2(num, den);
   const scale = srcNorm > 0 ? Math.sqrt(tgtNorm / srcNorm) : 1;
 
   // Translation: apply rotation + scale to source centroid, then offset to target centroid
@@ -139,6 +191,59 @@ function invertTransform(t: Transform): Transform {
 }
 
 /**
+ * Sample points on a closed polygon by normalized arc-length fraction.
+ */
+function sampleByArc(points: Point[], arcLens: number[], sampleCount: number, fractionOffset = 0): Point[] {
+  const out: Point[] = new Array(sampleCount);
+  for (let i = 0; i < sampleCount; i++) {
+    out[i] = interpolateAtFrac(points, arcLens, i / sampleCount + fractionOffset);
+  }
+  return out;
+}
+
+/**
+ * Compute sum of squared distance between transformed source samples and target samples.
+ */
+function alignmentErrorFromSamples(sourceSamples: Point[], targetSamples: Point[], transform: Transform): number {
+  let error = 0;
+  for (let i = 0; i < sourceSamples.length; i++) {
+    const mapped = applyTransform(sourceSamples[i], transform);
+    const dx = mapped.x - targetSamples[i].x;
+    const dz = mapped.z - targetSamples[i].z;
+    error += dx * dx + dz * dz;
+  }
+  return error;
+}
+
+/**
+ * Compute alignment error at a rotation-offset on arc-length fractions.
+ */
+function alignmentErrorAtOffset(
+  source: Point[],
+  sourceArc: number[],
+  target: Point[],
+  targetArc: number[],
+  transform: Transform,
+  sampleCount: number,
+  fractionOffset: number,
+  sampleLimit: number
+): number {
+  let error = 0;
+  const limit = Math.min(sampleCount, sampleLimit);
+  for (let i = 0; i < limit; i++) {
+    const mapped = applyTransform(
+      interpolateAtFrac(source, sourceArc, i / sampleCount),
+      transform
+    );
+    const targetPoint = interpolateAtFrac(target, targetArc, i / sampleCount + fractionOffset);
+    const dx = mapped.x - targetPoint.x;
+    const dz = mapped.z - targetPoint.z;
+    error += dx * dx + dz * dz;
+  }
+  return error;
+}
+
+/**
  * Feed a telemetry position. Collects points and auto-calibrates after a lap.
  */
 export function feedCalibrationPosition(
@@ -157,27 +262,15 @@ export function feedCalibrationPosition(
   if (sourcePos.x === 0 && sourcePos.z === 0) return;
 
   // Detect lap boundary — trigger calibration
-  if (lapNumber > state.lastLap && state.sourcePoints.length > 50) {
+  if (lapNumber > state.lastLap && state.sourcePoints.length > MIN_CALIBRATION_POINTS) {
     calibrate(trackOrdinal, outline);
     state.sourcePoints = [];
     state.collecting = true;
   }
   state.lastLap = lapNumber;
 
-  // Spatial downsampling: only keep points >5m apart to avoid
-  // clustering at slow corners and gaps on straights
-  if (state.collecting) {
-    const last = state.sourcePoints[state.sourcePoints.length - 1];
-    if (!last) {
-      state.sourcePoints.push(sourcePos);
-    } else {
-      const dx = sourcePos.x - last.x;
-      const dz = sourcePos.z - last.z;
-      if (dx * dx + dz * dz > 25) { // 25 = 5m squared
-        state.sourcePoints.push(sourcePos);
-      }
-    }
-  }
+  // Spatial downsampling avoids clustering at slow corners and gaps on straights.
+  if (state.collecting) pushIfFarEnough(state.sourcePoints, sourcePos, MIN_POINT_SEPARATION_SQ);
 }
 
 /**
@@ -185,14 +278,9 @@ export function feedCalibrationPosition(
  */
 function calibrate(trackOrdinal: number, outline: Point[]): void {
   const state = calibrations.get(trackOrdinal);
-  if (!state || state.sourcePoints.length < 50) return;
+  if (!state || state.sourcePoints.length < MIN_CALIBRATION_POINTS) return;
 
-  // Downsample both to same count for alignment
-  const n = Math.min(state.sourcePoints.length, outline.length, 200);
-  const srcSampled = downsample(state.sourcePoints, n);
-  const tgtSampled = downsample(outline, n);
-
-  const transform = procrustes(srcSampled, tgtSampled);
+  const transform = buildAlignmentTransform(state.sourcePoints, outline);
   state.transform = transform;
   state.collecting = false;
 
@@ -212,23 +300,8 @@ export function calibrateFromPositions(
   positions: Point[],
   outline: Point[]
 ): boolean {
-  // Filter zero positions and spatially downsample (>5m apart)
-  const filtered: Point[] = [];
-  for (const p of positions) {
-    if (p.x === 0 && p.z === 0) continue;
-    const last = filtered[filtered.length - 1];
-    if (!last) {
-      filtered.push(p);
-    } else {
-      const dx = p.x - last.x;
-      const dz = p.z - last.z;
-      if (dx * dx + dz * dz > 25) {
-        filtered.push(p);
-      }
-    }
-  }
-
-  if (filtered.length < 50) return false;
+  const filtered = collectSpatiallyDistinct(positions, MIN_POINT_SEPARATION_SQ);
+  if (filtered.length < MIN_CALIBRATION_POINTS) return false;
 
   // Set up calibration state with collected points
   let state = calibrations.get(trackOrdinal);
@@ -238,12 +311,8 @@ export function calibrateFromPositions(
   }
   state.sourcePoints = filtered;
 
-  // Run Procrustes alignment
-  const n = Math.min(filtered.length, outline.length, 200);
-  const srcSampled = downsample(filtered, n);
-  const tgtSampled = downsample(outline, n);
-
-  const transform = procrustes(srcSampled, tgtSampled);
+  // Run Procrustes alignment with the same sampling as live calibration.
+  const transform = buildAlignmentTransform(filtered, outline);
   state.transform = transform;
   state.collecting = false;
 
@@ -280,26 +349,13 @@ export function transformToSourceSpace(
   trackOrdinal: number,
   points: Point[]
 ): Point[] | null {
-  // Try live calibration first
-  const state = calibrations.get(trackOrdinal);
-  if (state?.transform) {
-    const inv = invertTransform(state.transform);
-    return points.map((p) => applyTransform(p, inv));
-  }
-
-  // Try static alignment
-  const staticTransform = staticTransforms.get(trackOrdinal);
-  if (staticTransform) {
-    return points.map((p) => applyTransform(p, staticTransform));
-  }
-
-  return null;
+  const liveTransform = calibrations.get(trackOrdinal)?.transform;
+  const transform = liveTransform
+    ? invertTransform(liveTransform)
+    : staticTransforms.get(trackOrdinal);
+  return transform ? points.map((point) => applyTransform(point, transform)) : null;
 }
 
-// Cache for static transforms (TUMFTM center-line → recorded source outline)
-const staticTransforms = new Map<number, Transform>();
-// Tracks which ordinals have been curb-refined to avoid re-running
-const curbRefined = new Set<number>();
 
 /**
  * Compute cumulative arc length for a closed polygon, normalized to [0, 1].
@@ -313,7 +369,8 @@ function normalizedArcLengths(pts: Point[]): number[] {
   }
   const total = dists[dists.length - 1];
   if (total === 0) return dists;
-  return dists.map(d => d / total);
+  for (let i = 0; i < dists.length; i++) dists[i] /= total;
+  return dists;
 }
 
 /**
@@ -354,37 +411,19 @@ export function computeStaticAlignment(
   const tgtArc = normalizedArcLengths(sourceOutline);
 
   // Sample N evenly spaced points from the source (TUMFTM)
-  const N = Math.min(tumftmOutline.length, 500);
-  const srcSampled: Point[] = [];
-  for (let i = 0; i < N; i++) {
-    srcSampled.push(interpolateAtFrac(tumftmOutline, srcArc, i / N));
-  }
+  const N = Math.min(tumftmOutline.length, STATIC_ALIGNMENT_SAMPLES);
+  const srcSampled = sampleByArc(tumftmOutline, srcArc, N);
 
   // Try different rotational offsets to find the best start-point alignment.
-  // Test 36 offsets (every 10% of the track) and pick the one with lowest error.
+  // Test fixed rotational offsets and pick the one with lowest error.
   let bestTransform: Transform | null = null;
   let bestError = Infinity;
-  const offsets = 36;
 
-  for (let oi = 0; oi < offsets; oi++) {
-    const offset = oi / offsets;
-
-    // Sample target points at corresponding arc-length fractions + offset
-    const tgtSampled: Point[] = [];
-    for (let i = 0; i < N; i++) {
-      tgtSampled.push(interpolateAtFrac(sourceOutline, tgtArc, i / N + offset));
-    }
-
+  for (let oi = 0; oi < STATIC_ALIGNMENT_OFFSET_STEPS; oi++) {
+    const offset = oi / STATIC_ALIGNMENT_OFFSET_STEPS;
+    const tgtSampled = sampleByArc(sourceOutline, tgtArc, N, offset);
     const transform = procrustes(srcSampled, tgtSampled);
-
-    // Compute alignment error (sum of squared distances after transform)
-    let error = 0;
-    for (let i = 0; i < N; i++) {
-      const mapped = applyTransform(srcSampled[i], transform);
-      const dx = mapped.x - tgtSampled[i].x;
-      const dz = mapped.z - tgtSampled[i].z;
-      error += dx * dx + dz * dz;
-    }
+    const error = alignmentErrorFromSamples(srcSampled, tgtSampled, transform);
 
     if (error < bestError) {
       bestError = error;
@@ -419,12 +458,11 @@ export function refineAlignmentWithCurbs(
   if (curbRefined.has(trackOrdinal)) return; // already refined
 
   // Step 1: Get existing static alignment as starting point
-  const existing = staticTransforms.get(trackOrdinal);
-  if (!existing) {
-    // Need baseline alignment first
+  let baseline = staticTransforms.get(trackOrdinal);
+  if (!baseline) {
     computeStaticAlignment(trackOrdinal, tumftmOutline, sourceOutline);
+    baseline = staticTransforms.get(trackOrdinal);
   }
-  const baseline = staticTransforms.get(trackOrdinal);
   if (!baseline) return;
 
   // Step 2: Collect curb positions in source space and find corresponding TUMFTM boundary points
@@ -446,23 +484,21 @@ export function refineAlignmentWithCurbs(
       // Match against whichever boundary edge is closer (don't rely on side field)
       const nearestIdxLeft = closestPointIdx(tumftmBoundaries.leftEdge, approxTumftm);
       const nearestIdxRight = closestPointIdx(tumftmBoundaries.rightEdge, approxTumftm);
-      const distLeft = Math.sqrt(
-        (tumftmBoundaries.leftEdge[nearestIdxLeft].x - approxTumftm.x) ** 2 +
-        (tumftmBoundaries.leftEdge[nearestIdxLeft].z - approxTumftm.z) ** 2
-      );
-      const distRight = Math.sqrt(
-        (tumftmBoundaries.rightEdge[nearestIdxRight].x - approxTumftm.x) ** 2 +
-        (tumftmBoundaries.rightEdge[nearestIdxRight].z - approxTumftm.z) ** 2
-      );
-      const boundary = distLeft <= distRight ? tumftmBoundaries.leftEdge : tumftmBoundaries.rightEdge;
-      const nearestIdx = distLeft <= distRight ? nearestIdxLeft : nearestIdxRight;
-      const nearestDist = Math.sqrt(
-        (boundary[nearestIdx].x - approxTumftm.x) ** 2 +
-        (boundary[nearestIdx].z - approxTumftm.z) ** 2
-      );
+      const distLeft = Math.sqrt(squaredDistance(
+        tumftmBoundaries.leftEdge[nearestIdxLeft],
+        approxTumftm
+      ));
+      const distRight = Math.sqrt(squaredDistance(
+        tumftmBoundaries.rightEdge[nearestIdxRight],
+        approxTumftm
+      ));
+      const useLeft = distLeft <= distRight;
+      const boundary = useLeft ? tumftmBoundaries.leftEdge : tumftmBoundaries.rightEdge;
+      const nearestIdx = useLeft ? nearestIdxLeft : nearestIdxRight;
+      const nearestDist = useLeft ? distLeft : distRight;
 
-      // Only use if reasonably close (within ~50m in TUMFTM space) to avoid mismatches
-      if (nearestDist < 50) {
+      // Only use if reasonably close to avoid mismatches.
+      if (nearestDist < CURB_ANCHOR_MAX_DIST) {
         srcPoints.push(boundary[nearestIdx]);
         tgtPoints.push(sourcePt);
       }
@@ -479,40 +515,37 @@ export function refineAlignmentWithCurbs(
   const tgtArc = normalizedArcLengths(sourceOutline);
 
   // Use existing alignment's offset to get the right start-point matching
-  const N = Math.min(tumftmOutline.length, 300);
+  const N = Math.min(tumftmOutline.length, CURB_ALIGNMENT_SAMPLES);
 
-  // Find the best offset from the existing transform by testing which offset
-  // gives the lowest error with the current transform
+  // Find the offset producing the lowest error with the current transform.
   let bestOffset = 0;
   let bestOffsetError = Infinity;
-  for (let oi = 0; oi < 36; oi++) {
-    const offset = oi / 36;
-    let error = 0;
-    for (let i = 0; i < Math.min(N, 50); i++) {
-      const src = interpolateAtFrac(tumftmOutline, srcArc, i / N);
-      const tgt = interpolateAtFrac(sourceOutline, tgtArc, i / N + offset);
-      const mapped = applyTransform(src, baseline);
-      const dx = mapped.x - tgt.x;
-      const dz = mapped.z - tgt.z;
-      error += dx * dx + dz * dz;
-    }
+  for (let oi = 0; oi < CURB_ALIGNMENT_OFFSET_STEPS; oi++) {
+    const offset = oi / CURB_ALIGNMENT_OFFSET_STEPS;
+    const error = alignmentErrorAtOffset(
+      tumftmOutline,
+      srcArc,
+      sourceOutline,
+      tgtArc,
+      baseline,
+      N,
+      offset,
+      CURB_OFFSET_CHECK_SAMPLES
+    );
     if (error < bestOffsetError) {
       bestOffsetError = error;
       bestOffset = offset;
     }
   }
 
-  // Sample center-line correspondences
-  const combinedSrc: Point[] = [];
-  const combinedTgt: Point[] = [];
-  for (let i = 0; i < N; i++) {
-    combinedSrc.push(interpolateAtFrac(tumftmOutline, srcArc, i / N));
-    combinedTgt.push(interpolateAtFrac(sourceOutline, tgtArc, i / N + bestOffset));
-  }
+  // Sample center-line correspondences.
+  const centerSrc = sampleByArc(tumftmOutline, srcArc, N);
+  const centerTgt = sampleByArc(sourceOutline, tgtArc, N, bestOffset);
+  const combinedSrc = centerSrc.slice();
+  const combinedTgt = centerTgt.slice();
 
-  // Add curb anchor points (weighted: add each 3x to give boundary data more influence)
-  const CURB_WEIGHT = 3;
-  for (let w = 0; w < CURB_WEIGHT; w++) {
+  // Weight curb anchors without constructing repeated temporary arrays.
+  for (let w = 0; w < CURB_ANCHOR_WEIGHT; w++) {
     combinedSrc.push(...srcPoints);
     combinedTgt.push(...tgtPoints);
   }
@@ -520,37 +553,14 @@ export function refineAlignmentWithCurbs(
   // Step 4: Run refined Procrustes
   const refinedTransform = procrustes(combinedSrc, combinedTgt);
 
-  // Compute RMSE for the refined transform
-  let error = 0;
-  for (let i = 0; i < N; i++) {
-    const mapped = applyTransform(
-      interpolateAtFrac(tumftmOutline, srcArc, i / N),
-      refinedTransform
-    );
-    const tgt = interpolateAtFrac(sourceOutline, tgtArc, i / N + bestOffset);
-    const dx = mapped.x - tgt.x;
-    const dz = mapped.z - tgt.z;
-    error += dx * dx + dz * dz;
-  }
-  const rmse = Math.sqrt(error / N);
+  const rmse = Math.sqrt(
+    alignmentErrorFromSamples(centerSrc, centerTgt, refinedTransform) / N
+  );
 
-  // Only adopt the refined transform if it's actually better
   const oldTransform = staticTransforms.get(trackOrdinal);
-  let oldRmse = Infinity;
-  if (oldTransform) {
-    let oldError = 0;
-    for (let i = 0; i < N; i++) {
-      const mapped = applyTransform(
-        interpolateAtFrac(tumftmOutline, srcArc, i / N),
-        oldTransform
-      );
-      const tgt = interpolateAtFrac(sourceOutline, tgtArc, i / N + bestOffset);
-      const dx = mapped.x - tgt.x;
-      const dz = mapped.z - tgt.z;
-      oldError += dx * dx + dz * dz;
-    }
-    oldRmse = Math.sqrt(oldError / N);
-  }
+  const oldRmse = oldTransform
+    ? Math.sqrt(alignmentErrorFromSamples(centerSrc, centerTgt, oldTransform) / N)
+    : Infinity;
 
   console.log(
     `[Calibration] Curb-refined alignment for track ${trackOrdinal}: ` +

@@ -1,27 +1,35 @@
 /** Deterministic setup mutation and live knob inspection. */
 import type { GameId } from "../../../shared/types";
 import type { TuneIntent, TuneMagnitude } from "../../ai/schemas";
-import { getRuleTable, knownComponents } from "./catalog";
+import { getRuleTable, type FieldDef } from "./catalog";
 
-function getByPath(obj: any, path: string): unknown {
+function isPathContainer(value: unknown): value is Record<string, unknown> {
+  return value != null && typeof value === "object";
+}
+
+function getByPath(obj: unknown, path: string): unknown {
   let current = obj;
   for (const segment of path.split(".")) {
-    if (current == null || typeof current !== "object") return undefined;
+    if (!isPathContainer(current)) return undefined;
     current = current[segment];
   }
   return current;
 }
 
-function setByPath(obj: any, path: string, value: number): boolean {
+function setByPath(obj: unknown, path: string, value: number): boolean {
   const segments = path.split(".");
   let current = obj;
   for (let i = 0; i < segments.length - 1; i++) {
-    const segment = segments[i];
-    if (current[segment] == null || typeof current[segment] !== "object") return false;
-    current = current[segment];
+    if (!isPathContainer(current)) return false;
+    current = current[segments[i]];
   }
+  if (!isPathContainer(current)) return false;
   current[segments[segments.length - 1]] = value;
   return true;
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 export interface AppliedChange {
@@ -34,20 +42,20 @@ export interface AppliedChange {
   reason: string;
 }
 
-export interface ApplyResult {
+export interface ApplyResult<T = unknown> {
   /** Mutated deep clone of input setup. */
-  setup: any;
+  setup: T;
   applied: AppliedChange[];
   skipped: { component: string; reason: string }[];
 }
 
 /** Apply intents to a deep clone, preserving whole-knob and clamp semantics. */
-export function applyIntents(
+export function applyIntents<T>(
   gameId: GameId,
-  currentSetup: unknown,
+  currentSetup: T,
   intents: TuneIntent[],
   carModel?: string,
-): ApplyResult {
+): ApplyResult<T> {
   const setup = structuredClone(currentSetup);
   const table = getRuleTable(gameId, carModel);
   const applied: AppliedChange[] = [];
@@ -69,27 +77,30 @@ export function applyIntents(
     }
 
     // Read every path first: one missing/non-numeric path skips whole knob.
-    const raws: number[] = [];
+    const firstPath = def.paths[0];
+    const current = getByPath(setup, firstPath);
+    if (!isFiniteNumber(current)) {
+      skipped.push({ component: intent.component, reason: `Missing/invalid value at ${firstPath}` });
+      continue;
+    }
     let badPath: string | undefined;
-    for (const path of def.paths) {
-      const value = getByPath(setup, path);
-      if (typeof value !== "number" || !Number.isFinite(value)) {
+    for (let i = 1; i < def.paths.length; i++) {
+      const path = def.paths[i];
+      if (!isFiniteNumber(getByPath(setup, path))) {
         badPath = path;
         break;
       }
-      raws.push(value);
     }
     if (badPath) {
       skipped.push({ component: intent.component, reason: `Missing/invalid value at ${badPath}` });
       continue;
     }
 
-    const raw = raws[0];
     const delta = def.step[intent.magnitude] * (intent.direction === "increase" ? 1 : -1);
-    let next = raw + delta;
+    let next = current + delta;
     if (def.integer !== false) next = Math.round(next);
     next = Math.max(def.min, Math.min(def.max, next));
-    if (next === raw) {
+    if (next === current) {
       skipped.push({ component: intent.component, reason: "At clamp limit — no change" });
       continue;
     }
@@ -109,7 +120,7 @@ export function applyIntents(
     applied.push({
       component: intent.component,
       paths: def.paths,
-      from: raw,
+      from: current,
       to: next,
       direction: intent.direction,
       reason: intent.reason,
@@ -127,20 +138,11 @@ export interface KnobState {
   max: number;
 }
 
-/** Read one knob's current value and hard clamp range. */
-export function getKnobState(
-  gameId: GameId,
-  setup: unknown,
-  component: string,
-  carModel?: string,
-): KnobState | null {
-  const table = getRuleTable(gameId, carModel);
-  const def = table?.[component];
-  if (!def) return null;
+function knobState(component: string, def: FieldDef, setup: unknown): KnobState {
   const raw = getByPath(setup, def.paths[0]);
   return {
     component,
-    current: typeof raw === "number" && Number.isFinite(raw) ? raw : null,
+    current: isFiniteNumber(raw) ? raw : null,
     min: def.min,
     max: def.max,
   };
@@ -148,9 +150,9 @@ export function getKnobState(
 
 /** Knob states for every component exposed by game/car catalog. */
 export function getAllKnobStates(gameId: GameId, setup: unknown, carModel?: string): KnobState[] {
-  return knownComponents(gameId, carModel)
-    .map((component) => getKnobState(gameId, setup, component, carModel))
-    .filter((knob): knob is KnobState => knob !== null);
+  const table = getRuleTable(gameId, carModel);
+  if (!table) return [];
+  return Object.entries(table).map(([component, def]) => knobState(component, def, setup));
 }
 
 export interface KnobDescription extends KnobState {
@@ -162,11 +164,8 @@ export interface KnobDescription extends KnobState {
 export function describeKnobs(gameId: GameId, setup: unknown, carModel?: string): KnobDescription[] {
   const table = getRuleTable(gameId, carModel);
   if (!table) return [];
-  return knownComponents(gameId, carModel)
-    .map((component) => {
-      const state = getKnobState(gameId, setup, component, carModel);
-      if (!state) return null;
-      return { ...state, step: table[component]!.step };
-    })
-    .filter((knob): knob is KnobDescription => knob !== null);
+  return Object.entries(table).map(([component, def]) => ({
+    ...knobState(component, def, setup),
+    step: def.step,
+  }));
 }

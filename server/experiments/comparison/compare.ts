@@ -40,8 +40,9 @@ import {
   MIN_TELEMETRY_FRAMES,
   type MetricSample,
   type OutcomeMetric,
-  blunderFencesForArms,
+  comparisonFences,
 } from "./metrics";
+import { percentileSorted } from "../statistics";
 
 /**
  * Minimum samples per arm for any confident statement. Three is the point at
@@ -305,14 +306,7 @@ export function bootstrapMeanDiffCI(
   for (let i = 0; i < samples; i++) diffs.push(resampleMean(b, rand) - resampleMean(a, rand));
   diffs.sort((x, y) => x - y);
 
-  const pick = (p: number): number => {
-    const idx = (diffs.length - 1) * p;
-    const lo = Math.floor(idx);
-    const hi = Math.ceil(idx);
-    if (lo === hi) return diffs[lo];
-    return diffs[lo] + (diffs[hi] - diffs[lo]) * (idx - lo);
-  };
-  return [pick(alpha / 2), pick(1 - alpha / 2)];
+  return [percentileSorted(diffs, alpha / 2), percentileSorted(diffs, 1 - alpha / 2)];
 }
 
 // ── the comparison ──────────────────────────────────────────────────────────
@@ -399,11 +393,11 @@ export function prepareArm(arm: ArmInput, metric: OutcomeMetric, opts?: { fence?
  * or the metric's policy is silently bypassed.
  */
 export function compareArms(a: ArmInput, b: ArmInput, metric: OutcomeMetric, opts?: CompareArmsOptions): ArmComparison {
-  // Shared fence width, per-arm placement — see `blunderFencesForArms`.
-  const [fenceA, fenceB] =
-    metric.curation.outlierRule === "blunder-fence"
-      ? blunderFencesForArms([a.laps.map((e) => e.lap.lapTime), b.laps.map((e) => e.lap.lapTime)])
-      : [undefined, undefined];
+  const [fenceA, fenceB] = comparisonFences(
+    metric,
+    a.laps.map((e) => e.lap.lapTime),
+    b.laps.map((e) => e.lap.lapTime),
+  );
   return compareArmSamples(
     prepareArm(a, metric, { fence: fenceA }),
     prepareArm(b, metric, { fence: fenceB }),

@@ -27,8 +27,6 @@ class UdpListener {
   private _receiving = false;
   private _packetsInWindow = 0;
   private _packetsPerSec = 0;
-  // @ts-ignore — used for packet rate tracking (written but read by interval timer)
-  private _lastWindowStart = Date.now();
   private _socket: { stop(): void } | null = null;
   private _port = 5301;
   private _hostname = "0.0.0.0";
@@ -51,16 +49,8 @@ class UdpListener {
     return this._receiving;
   }
 
-  get totalPackets(): number {
-    return this._totalPackets;
-  }
-
   get port(): number {
     return this._port;
-  }
-
-  get hostname(): string {
-    return this._hostname;
   }
 
   /**
@@ -114,7 +104,6 @@ class UdpListener {
     this._statusTimer = setInterval(() => {
       this._packetsPerSec = this._packetsInWindow;
       this._packetsInWindow = 0;
-      this._lastWindowStart = Date.now();
 
       // Flush the session recorder's in-memory write buffer so rawByteOffset
       // stored on lap rows always has corresponding bytes on disk. Without

@@ -1,7 +1,8 @@
 /**
  * Active tuning session — a single in-memory id for this local, single-user app.
  *
- * Mirrors the module-toggle style of pipeline.ts's setLiveIssuesEnabled: plain
+ * Mirrors the module-toggle style of server/telemetry/live-pipeline.ts's
+ * setLiveIssuesEnabled: plain
  * module-level state, no DB. When a experiment workspace is open the client
  * activates its id here; queries.ts::insertLap reads it and stamps every newly
  * recorded lap with that experiment_id. This decouples experiment
@@ -10,12 +11,12 @@
  *
  * Only ever one session is active at a time (single user, one workspace open).
  */
-let _activeExperimentId: number | null = null;
+let activeExperimentId: number | null = null;
 
 export function setActiveExperiment(id: number | null): void {
-	_activeExperimentId = id;
+  activeExperimentId = id;
 }
 
 export function getActiveExperiment(): number | null {
-	return _activeExperimentId;
+  return activeExperimentId;
 }

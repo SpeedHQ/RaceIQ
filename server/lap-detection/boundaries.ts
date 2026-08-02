@@ -76,7 +76,6 @@ export function detectSessionBoundary(
 // ── Lap boundary detection ────────────────────────────────────────────────────
 
 export type LapBoundaryResult =
-  | { action: "none" }
   | { action: "complete" }
   | { action: "complete-skip"; invalidReason: string }  // lap skip (>1 lap jumped)
   | { action: "reset-rewind" };                          // lap number went backward

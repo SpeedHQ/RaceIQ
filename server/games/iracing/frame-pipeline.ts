@@ -1,9 +1,8 @@
+import { AsyncProcessorPipeline, type AsyncProcessor } from "../shared/pipeline";
 import type { IRacingRecorder } from "./recorder";
 
-export interface IRacingFrameProcessor {
-  /** Return false to stop processing this frame. */
-  process(frame: Buffer): Promise<boolean | void>;
-}
+/** Processor that may halt downstream handling by returning false. */
+export interface IRacingFrameProcessor extends AsyncProcessor<Buffer> {}
 
 /**
  * Writes canonical iRacing source frames to the game-specific recorder.
@@ -35,17 +34,7 @@ export class ParsingProcessor implements IRacingFrameProcessor {
   }
 }
 
-export class IRacingFramePipeline {
-  private readonly processors: IRacingFrameProcessor[] = [];
-
-  register(...processors: IRacingFrameProcessor[]): void {
-    this.processors.push(...processors);
-  }
-
-  async process(frame: Buffer): Promise<void> {
-    for (const processor of this.processors) {
-      const result = await processor.process(frame);
-      if (result === false) break;
-    }
-  }
-}
+export class IRacingFramePipeline extends AsyncProcessorPipeline<
+  Buffer,
+  IRacingFrameProcessor
+> {}

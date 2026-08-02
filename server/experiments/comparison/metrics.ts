@@ -57,6 +57,8 @@ import type { TelemetryPacket } from "../../../shared/types";
 import { type EvaluableLap, type EvaluationReason, REVIEW_LAP_CAP, selectEvaluationLaps } from "../../../shared/review-laps";
 import type { Corner } from "../../lap-analysis/corners";
 import { computeLapConsistencyDelta, LINE_SPREAD_FULL_SCALE_M } from "../../lap-analysis/consistency";
+import { medianSorted, percentileSorted } from "../statistics";
+import { MIN_TELEMETRY_FRAMES } from "../lap-policy";
 
 /** Which way is better for a metric. Never used to judge an arm — only to say
  *  which arm a *statistically distinguishable* difference points at. */
@@ -129,30 +131,14 @@ const MIN_FENCE_SAMPLES = 4;
 const FENCE_IQR_MULT = 3;
 const FENCE_MIN_REL_GAP = 1.05;
 
-function percentileAsc(sortedAsc: number[], p: number): number {
-  const n = sortedAsc.length;
-  if (n === 0) return 0;
-  const idx = (n - 1) * p;
-  const lo = Math.floor(idx);
-  const hi = Math.ceil(idx);
-  if (lo === hi) return sortedAsc[lo];
-  return sortedAsc[lo] + (sortedAsc[hi] - sortedAsc[lo]) * (idx - lo);
-}
-
-function medianAsc(sortedAsc: number[]): number {
-  const n = sortedAsc.length;
-  if (n === 0) return 0;
-  const mid = Math.floor(n / 2);
-  return n % 2 === 0 ? (sortedAsc[mid - 1] + sortedAsc[mid]) / 2 : sortedAsc[mid];
-}
 
 /** The blunder threshold for a lap-time pool, or null when the fence can't fire. */
 export function blunderFence(lapTimes: number[]): number | null {
   if (lapTimes.length < MIN_FENCE_SAMPLES) return null;
   const sorted = [...lapTimes].sort((a, b) => a - b);
-  const iqr = percentileAsc(sorted, 0.75) - percentileAsc(sorted, 0.25);
+  const iqr = percentileSorted(sorted, 0.75) - percentileSorted(sorted, 0.25);
   const best = sorted[0];
-  return Math.max(medianAsc(sorted) + FENCE_IQR_MULT * iqr, best * FENCE_MIN_REL_GAP);
+  return Math.max(medianSorted(sorted) + FENCE_IQR_MULT * iqr, best * FENCE_MIN_REL_GAP);
 }
 
 /**
@@ -187,16 +173,16 @@ export function blunderFencesForArms(armLapTimes: number[][]): (number | null)[]
   const residuals: number[] = [];
   for (const arm of armLapTimes) {
     if (arm.length === 0) continue;
-    const med = medianAsc([...arm].sort((x, y) => x - y));
+    const med = medianSorted([...arm].sort((x, y) => x - y));
     for (const t of arm) residuals.push(t - med);
   }
   const sortedRes = residuals.sort((x, y) => x - y);
-  const pooledIqr = percentileAsc(sortedRes, 0.75) - percentileAsc(sortedRes, 0.25);
+  const pooledIqr = percentileSorted(sortedRes, 0.75) - percentileSorted(sortedRes, 0.25);
 
   return armLapTimes.map((arm) => {
     if (arm.length === 0) return null;
     const sorted = [...arm].sort((x, y) => x - y);
-    return Math.max(medianAsc(sorted) + FENCE_IQR_MULT * pooledIqr, sorted[0] * FENCE_MIN_REL_GAP);
+    return Math.max(medianSorted(sorted) + FENCE_IQR_MULT * pooledIqr, sorted[0] * FENCE_MIN_REL_GAP);
   });
 }
 
@@ -321,12 +307,19 @@ export type OutcomeMetric = MetadataOutcomeMetric | PairwiseFramesOutcomeMetric;
 export function metricNeedsTelemetry(metric: OutcomeMetric): boolean {
   return metric.sampling === "pairwise-frames";
 }
+/** Shared fence policy for two arms, used by both in-memory and DB-backed comparisons. */
+export function comparisonFences(
+  metric: OutcomeMetric,
+  aLapTimes: number[],
+  bLapTimes: number[],
+): [number | null | undefined, number | null | undefined] {
+  return metric.curation.outlierRule === "blunder-fence"
+    ? (blunderFencesForArms([aLapTimes, bLapTimes]) as [number | null, number | null])
+    : [undefined, undefined];
+}
 
-/**
- * Fewest frames a lap must have to be worth measuring. Below this the
- * resampler has nothing to align against.
- */
-export const MIN_TELEMETRY_FRAMES = 30;
+/** Public comparison alias for the domain-wide analysable-lap threshold. */
+export { MIN_TELEMETRY_FRAMES };
 
 function withTelemetry(input: MetricInput): { lap: EvaluableLap; telemetry: TelemetryPacket[] }[] {
   const out: { lap: EvaluableLap; telemetry: TelemetryPacket[] }[] = [];
@@ -336,6 +329,30 @@ function withTelemetry(input: MetricInput): { lap: EvaluableLap; telemetry: Tele
     }
   }
   return out;
+}
+
+type ReferenceCandidate = EvaluableLap | { lap: EvaluableLap };
+
+function referenceCandidateLap(candidate: ReferenceCandidate): EvaluableLap {
+  return "lap" in candidate ? candidate.lap : candidate;
+}
+
+/** Median-lap-time candidate first, then alternate later and earlier laps. */
+export function referenceLapPreference<T extends ReferenceCandidate>(entries: T[]): T[] {
+  const byTime = [...entries].sort((a, b) => {
+    const aLap = referenceCandidateLap(a);
+    const bLap = referenceCandidateLap(b);
+    return aLap.lapTime - bLap.lapTime || aLap.id - bLap.id;
+  });
+  if (byTime.length === 0) return [];
+
+  const startIdx = Math.floor((byTime.length - 1) / 2);
+  const order = [byTime[startIdx]];
+  for (let step = 1; order.length < byTime.length; step++) {
+    if (startIdx + step < byTime.length) order.push(byTime[startIdx + step]);
+    if (startIdx - step >= 0) order.push(byTime[startIdx - step]);
+  }
+  return order;
 }
 
 /**
@@ -350,9 +367,7 @@ function withTelemetry(input: MetricInput): { lap: EvaluableLap; telemetry: Tele
  * construction and would drag the arm's mean down.
  */
 export function pickReferenceLap<T extends { lap: EvaluableLap }>(entries: T[]): T | null {
-  if (entries.length === 0) return null;
-  const byTime = [...entries].sort((a, b) => a.lap.lapTime - b.lap.lapTime || a.lap.id - b.lap.id);
-  return byTime[Math.floor((byTime.length - 1) / 2)];
+  return referenceLapPreference(entries)[0] ?? null;
 }
 
 /**
@@ -466,7 +481,7 @@ const consistencySpreadSec: MetadataOutcomeMetric = {
   extract: (input) => {
     const times = input.laps.map((e) => e.lap.lapTime).sort((a, b) => a - b);
     if (times.length === 0) return [];
-    const med = medianAsc(times);
+    const med = medianSorted(times);
     return input.laps.map((e) => ({ lapId: e.lap.id, value: Math.abs(e.lap.lapTime - med) }));
   },
 };

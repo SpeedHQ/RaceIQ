@@ -24,6 +24,7 @@ import {
 } from "../../ai/chat-agent";
 import { getSecret } from "../../runtime/platform/keystore";
 import { ChatBodySchema } from "./support";
+import { parseTuneRow } from "../tune-shared";
 
 export const chatRoutes = new Hono()
   .get("/api/laps/:id/chat", zValidator("param", IdParamSchema), async (c) => {
@@ -76,14 +77,7 @@ export const chatRoutes = new Hono()
     if (lap.tuneId) {
       const dbTune = await getDbTune(lap.tuneId);
       if (dbTune) {
-        parsedTune = {
-          ...dbTune,
-          strengths: dbTune.strengths ? JSON.parse(dbTune.strengths) : [],
-          weaknesses: dbTune.weaknesses ? JSON.parse(dbTune.weaknesses) : [],
-          bestTracks: dbTune.bestTracks ? JSON.parse(dbTune.bestTracks) : [],
-          strategies: dbTune.strategies ? JSON.parse(dbTune.strategies) : [],
-          settings: JSON.parse(dbTune.settings),
-        } as Tune;
+        parsedTune = parseTuneRow(dbTune) as unknown as Tune;
       }
     }
 

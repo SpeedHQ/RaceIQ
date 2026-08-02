@@ -5,14 +5,25 @@ import type {
   RaceResultClaimEvidence,
   RaceResultClaimScope,
   RaceResultEvidenceRejectionReason,
+  RaceResultSourceStatus,
 } from "../../shared/race-results";
 
-export const RACE_RESULT_AUTHORITY_POLICY_ID = "race-result-outcome-authority";
-export const RACE_RESULT_AUTHORITY_POLICY_VERSION = "1";
+export function resolveRaceResultSourceStatusFromAuthority(authority: string | undefined): RaceResultSourceStatus {
+  if (authority === "simulator-final") return "direct";
+  if (authority === "canonical-derivation") return "derived";
+  if (authority) return "simplified";
+  return "unavailable";
+}
+
+export function resolveRaceResultAuthorityFromSourceStatus(status: RaceResultSourceStatus): string {
+  if (status === "direct") return "simulator-final";
+  if (status === "derived" || status === "unavailable") return "canonical-derivation";
+  return "simulator-live";
+}
 
 export const RACE_RESULT_OUTCOME_POLICY: RaceResultAuthorityPolicy = {
-  id: RACE_RESULT_AUTHORITY_POLICY_ID,
-  version: RACE_RESULT_AUTHORITY_POLICY_VERSION,
+  id: "race-result-outcome-authority",
+  version: "1",
   strategy: "highest-authority",
   permittedAuthorities: [
     { authority: "simulator-final" },

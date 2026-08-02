@@ -33,21 +33,19 @@ interface ReplayNativeFrame {
   nativeValues?: Readonly<Record<string, IRacingValue>>;
 }
 
-
-function loadIRacingNativeFrames(
+function* iterateIRacingNativeFrames(
   source: LapReplaySource,
   capture: Buffer | undefined,
-): Readonly<Record<string, IRacingValue>>[] {
+): Generator<Readonly<Record<string, IRacingValue>>, undefined, void> {
   if (
     source.gameId !== "iracing" ||
     !capture ||
     source.rawByteOffset == null ||
     source.rawFrameCount == null
   ) {
-    return [];
+    return undefined;
   }
   const decoderState = createIRacingSourceDecoderState();
-  const nativeFrames: Readonly<Record<string, IRacingValue>>[] = [];
   let offset = readFrameStreamStart(capture);
   let replayFrames = 0;
   while (offset + 4 <= capture.length) {
@@ -61,9 +59,9 @@ function loadIRacingNativeFrames(
     if (frameOffset < source.rawByteOffset) continue;
     if (replayFrames > source.rawFrameCount) break;
     replayFrames += 1;
-    if (decoded) nativeFrames.push({ ...decoded.values });
+    if (decoded) yield decoded.values;
   }
-  return nativeFrames;
+  return undefined;
 }
 
 function resolveRawReference(
@@ -154,7 +152,7 @@ export async function queryLapTelemetryBySemanticId(
   const receivedAt = receivedTimestamp(source.createdAt);
   const rawCapture = source.rawFile ? await loadRawCaptureIdentity(source.rawFile) : undefined;
   const rawReference = resolveRawReference(source, rawCapture);
-  const nativeFrames = loadIRacingNativeFrames(source, rawCapture?.bytes);
+  const nativeFrames = iterateIRacingNativeFrames(source, rawCapture?.bytes);
   const envelopes: CanonicalTelemetryEnvelope[] = new Array(lap.telemetry.length);
   const target: ResolvedValue<unknown>[] = [];
   const nativeFrame: ReplayNativeFrame = { packet: lap.telemetry[0] };
@@ -164,7 +162,7 @@ export async function queryLapTelemetryBySemanticId(
     const packet = lap.telemetry[sequence];
     const observedAt = packet.TimestampMS ?? receivedAt;
     nativeFrame.packet = packet;
-    nativeFrame.nativeValues = nativeFrames[sequence];
+    nativeFrame.nativeValues = nativeFrames.next().value;
     view = resolver.createFrameView(nativeFrame, observedAt, view);
     const resolved = view.resolveMany(slots, target);
     const values: CanonicalTelemetryValue[] = new Array(resolved.length);

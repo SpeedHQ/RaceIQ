@@ -1,11 +1,12 @@
 import { writeFileSync, existsSync, readdirSync } from "fs";
-import { join, resolve, dirname } from "path";
-import { fileURLToPath } from "url";
+import { join, resolve } from "path";
 import { tmpdir } from "os";
 import { spawn } from "child_process";
 import pkg from "../../../package.json";
 import { wsManager } from "../websocket-manager";
 import { isNewer } from "./version";
+import { IS_WINDOWS } from "../platform/shell";
+import { ROOT_DIR } from "../config/paths";
 export { isNewer };
 
 const VERSION = pkg.version;
@@ -15,16 +16,14 @@ const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
 // Dev/test overrides:
 // LOCAL_INSTALLER=path/to/RaceIQ-Setup.exe — skip download, use local installer
 // DEV_FORCE_UPDATE=1 — pretend an update is available (version 99.0.0)
-// In dev mode, auto-detect installer in project root (e.g. RaceIQ-Setup-v0.3.2.exe)
-const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 
 function findLocalInstaller(): string | undefined {
   if (process.env.LOCAL_INSTALLER) return process.env.LOCAL_INSTALLER;
   if (process.env.NODE_ENV === "production") return undefined;
   try {
-    const match = readdirSync(PROJECT_ROOT).find((f) => /^RaceIQ-Setup.*\.exe$/.test(f));
+    const match = readdirSync(ROOT_DIR).find((f) => /^RaceIQ-Setup.*\.exe$/.test(f));
     if (match) {
-      const fullPath = join(PROJECT_ROOT, match);
+      const fullPath = join(ROOT_DIR, match);
       console.log(`[Update] Dev mode: found local installer ${fullPath}`);
       return fullPath;
     }
@@ -79,9 +78,17 @@ export function getUpdateState(): UpdateState {
 
 const GH_HEADERS = { "User-Agent": `raceiq/${VERSION}` };
 
+function notifyUpdateAvailable(version: string): void {
+  wsManager.broadcastNotification({ type: "update-available", version });
+  if (trayCommandFile) {
+    try {
+      writeFileSync(trayCommandFile, `update-available:${version}`);
+    } catch {}
+  }
+}
+
 interface GitHubRelease {
   tag_name: string;
-  body?: string;
   published_at?: string;
   assets: { name: string; browser_download_url: string }[];
 }
@@ -133,10 +140,7 @@ export async function checkForUpdate(): Promise<UpdateState> {
     const { newReleases, currentReleaseNotes, currentReleaseDate } = await fetchReleases(VERSION).catch(() => ({ newReleases: [] as ReleaseInfo[], currentReleaseNotes: null, currentReleaseDate: null }));
     const lastChecked = new Date().toISOString();
     state = { current: VERSION, latest: fakeVersion, updateAvailable: true, downloadUrl: LOCAL_INSTALLER ?? null, newReleases, currentReleaseNotes, currentReleaseDate, lastChecked, checked: true };
-    wsManager.broadcastNotification({ type: "update-available", version: fakeVersion });
-    if (trayCommandFile) {
-      try { writeFileSync(trayCommandFile, `update-available:${fakeVersion}`); } catch {}
-    }
+    notifyUpdateAvailable(fakeVersion);
     console.log(`[Update] DEV_FORCE_UPDATE: faking update to v${fakeVersion}${LOCAL_INSTALLER ? ` (local: ${LOCAL_INSTALLER})` : ""}`);
     return state;
   }
@@ -144,7 +148,7 @@ export async function checkForUpdate(): Promise<UpdateState> {
   try {
     const res = await fetch(
       `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
-      { headers: { "User-Agent": `raceiq/${VERSION}` } },
+      { headers: GH_HEADERS },
     );
     if (!res.ok) return { ...state, checked: true };
 
@@ -161,14 +165,7 @@ export async function checkForUpdate(): Promise<UpdateState> {
     state = { current: VERSION, latest, updateAvailable, downloadUrl, newReleases, currentReleaseNotes, currentReleaseDate, lastChecked, checked: true };
 
     if (updateAvailable) {
-      // Notify browser clients via WebSocket
-      wsManager.broadcastNotification({ type: "update-available", version: latest });
-      // Notify tray via command file
-      if (trayCommandFile) {
-        try {
-          writeFileSync(trayCommandFile, `update-available:${latest}`);
-        } catch {}
-      }
+      notifyUpdateAvailable(latest);
     }
   } catch {
     state = { ...state, checked: true };
@@ -194,7 +191,7 @@ export function startUpdateCheckSchedule(): void {
 
 /** Downloads the Inno Setup installer and runs it silently. Inno handles process kill, file swap, registry update, and relaunch. */
 export async function applyUpdate(): Promise<void> {
-  if (process.platform !== "win32") {
+  if (!IS_WINDOWS) {
     throw new Error("Auto-update is only supported on Windows");
   }
   if (!state.updateAvailable || !state.latest) {

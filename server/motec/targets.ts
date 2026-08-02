@@ -19,7 +19,7 @@
  *
  * 1. Write `server/games/<game>/motec.ts` exporting a `synthesize`-shaped
  *    function and a limitations list, modelled on `server/games/ac-evo/motec.ts`.
- * 2. Add a {@link registerMotecTarget} call in {@link initMotecTargets}.
+ * 2. Add the target to the registry in {@link initMotecTargets}.
  * 3. Nothing else. The import route validates against the registry and the
  *    client dialog renders a game picker on its own once there is more than one.
  *
@@ -47,7 +47,7 @@ import {
  * ordinary import pipeline, so imported laps are built by the same lap
  * detector, sector timer and metrics code as recorded ones.
  */
-export type MotecSynthesizer = (
+type MotecSynthesizer = (
   log: LdLog,
   beacons: number[],
   override?: MotecCarTrackOverride,
@@ -74,10 +74,6 @@ export interface MotecTarget {
 }
 
 const targets = new Map<GameId, MotecTarget>();
-
-export function registerMotecTarget(target: MotecTarget): void {
-  targets.set(target.gameId, target);
-}
 
 /** All importable games, in registration order. */
 export function getMotecTargets(): MotecTarget[] {
@@ -106,11 +102,12 @@ let initialised = false;
 export function initMotecTargets(): void {
   if (initialised) return;
   initialised = true;
+  const game = getGame("ac-evo");
 
-  registerMotecTarget({
+  targets.set("ac-evo", {
     gameId: "ac-evo",
-    displayName: getGame("ac-evo").displayName,
-    routePrefix: getGame("ac-evo").routePrefix,
+    displayName: game.displayName,
+    routePrefix: game.routePrefix,
     carsEndpoint: "/api/ac-evo/cars",
     limitations: MOTEC_IMPORT_LIMITATIONS,
     synthesize: synthesizeAcEvoCapture,

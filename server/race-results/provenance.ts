@@ -6,14 +6,11 @@ import {
 } from "../../shared/telemetry-catalog";
 import { TELEMETRY_PARSER_VERSIONS, TELEMETRY_RESOLVER_VERSION } from "../../shared/telemetry-resolver";
 import type { GameId } from "../../shared/types";
-import {
-  RACE_RESULT_AUTHORITY_POLICY_ID,
-  RACE_RESULT_AUTHORITY_POLICY_VERSION,
-} from "./authority";
+import { RACE_RESULT_OUTCOME_POLICY } from "./authority";
 
-export const RACE_RESULT_DERIVATION_ID = "race-result-derivation";
-export const RACE_RESULT_DERIVATION_VERSION = "3";
-export const RACE_RESULT_DERIVATION_CODE_HASH = "sha256:cffa4cebb957096212111001a2dcc14186df97a4bf74734fc853db6054c4c8e8";
+const RACE_RESULT_DERIVATION_ID = "race-result-derivation";
+const RACE_RESULT_DERIVATION_VERSION = "3";
+const RACE_RESULT_DERIVATION_CODE_HASH = "sha256:cffa4cebb957096212111001a2dcc14186df97a4bf74734fc853db6054c4c8e8";
 
 export function createRaceResultProvenance(
   gameId: GameId,
@@ -30,8 +27,8 @@ export function createRaceResultProvenance(
     derivationCodeHash: RACE_RESULT_DERIVATION_CODE_HASH,
     rawInput: null,
     canonicalInput: null,
-    authorityPolicyId: RACE_RESULT_AUTHORITY_POLICY_ID,
-    authorityPolicyVersion: RACE_RESULT_AUTHORITY_POLICY_VERSION,
+    authorityPolicyId: RACE_RESULT_OUTCOME_POLICY.id,
+    authorityPolicyVersion: RACE_RESULT_OUTCOME_POLICY.version,
     ...overrides,
   };
 }

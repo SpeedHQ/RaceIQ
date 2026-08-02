@@ -114,7 +114,7 @@ export async function importMotec(
   options?: MotecImportOptions,
 ): Promise<MotecImportResult> {
   const target = resolveMotecTarget(options?.gameId);
-  const log = parseLd(new Uint8Array(ldBytes));
+  const log = parseLd(ldBytes);
   const beacons = ldxText ? parseLdxBeacons(ldxText) : [];
 
   const capture = target.synthesize(log, beacons, {
@@ -125,7 +125,8 @@ export async function importMotec(
 
   // Stamp every session the import touched. Normally one, but the pipeline
   // rotates sessions on a car/track change, so don't assume.
-  const sessionIds = [...new Set(laps.map((l) => l.sessionId))];
+  const sessionIds = new Set<number>();
+  for (const lap of laps) sessionIds.add(lap.sessionId);
   for (const sessionId of sessionIds) {
     await db
       .update(sessions)

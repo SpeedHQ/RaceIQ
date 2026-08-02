@@ -19,13 +19,17 @@ const TIME_ATTR_RE = /\bTime\s*=\s*"(-?\d+(?:\.\d+)?)"/i;
  * Returns an empty array for a missing, malformed, or beacon-less sidecar.
  */
 export function parseLdxBeacons(xml: string): number[] {
-  const times: number[] = [];
-  for (const tag of xml.match(MARKER_RE) ?? []) {
-    const match = TIME_ATTR_RE.exec(tag);
+  const times = new Set<number>();
+  for (
+    let marker = MARKER_RE.exec(xml);
+    marker !== null;
+    marker = MARKER_RE.exec(xml)
+  ) {
+    const match = TIME_ATTR_RE.exec(marker[0]);
     if (!match) continue;
     const micros = Number(match[1]);
     if (!Number.isFinite(micros) || micros < 0) continue;
-    times.push(micros / 1_000_000);
+    times.add(micros / 1_000_000);
   }
-  return [...new Set(times)].sort((a, b) => a - b);
+  return Array.from(times).sort((a, b) => a - b);
 }

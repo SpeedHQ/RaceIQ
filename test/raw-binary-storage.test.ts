@@ -326,7 +326,7 @@ describe("countStaleSessions", () => {
   test("counts session with null lapDetectorVersion as stale when rawFile is set", async () => {
     await insertSession("/some/path.bin", null);
 
-    const count = await countStaleSessions(["lapdetector_v1", "ac_lapdetector_v2"]);
+    const count = await countStaleSessions(["lapdetector_v1"]);
     // At least 1 — other test data may exist in shared DB, so use >=
     expect(count).toBeGreaterThanOrEqual(1);
   });

@@ -15,11 +15,12 @@ import { wsManager, type WSData } from "./websocket-manager";
 import { udpListener } from "./udp-listener";
 import { PUBLIC_DIR, IS_COMPILED } from "./config/paths";
 import { getOnboardingOverride } from "./options";
-import { preventMacSleep, openFirstRunDashboard, startWindowsDesktop } from "./desktop";
+import { preventMacSleep, openFirstRunDashboard } from "./desktop";
 import { clearHttpPort, startHttpServer } from "./http-server";
 import { startNativeSourceSupervisor, type NativeSourceSupervisor } from "./native-sources";
 import { installShutdown } from "./shutdown";
 import { startMaintenanceJobs, startSyncAndStaleSessionJobs } from "./startup-jobs";
+import { startTray } from "./platform/tray";
 
 export interface BootOptions {
   httpPort?: number;
@@ -122,7 +123,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   startSyncAndStaleSessionJobs();
 
   nativeSources = startNativeSourceSupervisor(recordingGameId);
-  startWindowsDesktop(httpPort);
+  startTray(httpPort);
 
   if (firstRun) {
     openFirstRunDashboard(httpPort);

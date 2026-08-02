@@ -143,18 +143,10 @@ export const trackSectorBoundaryRoutes = new Hono()
         ?? getTrackSectorsByOrdinal(ordinal);
 
       // Compute track length from outline
-      let trackLength = 0;
       const outline = gameId
         ? getTrackOutlineByOrdinal(ordinal, gameId, sharedName)
         : null;
-      if (outline && outline.length > 1) {
-        for (let i = 1; i < outline.length; i++) {
-          const dx = outline[i].x - outline[i - 1].x;
-          const dz = outline[i].z - outline[i - 1].z;
-          trackLength += Math.sqrt(dx * dx + dz * dz);
-        }
-      }
-
+      const trackLength = computeOutlineLength(outline);
       return c.json({ ...sectors, trackLength });
     }
   )

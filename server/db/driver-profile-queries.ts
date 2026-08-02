@@ -25,18 +25,6 @@ export function driverProfileScopeKey(scope: DriverProfileScopeKey): string {
 }
 
 
-export interface DriverProfileRow {
-  scopeKey: string;
-  poolKey: string;
-  fingerprint: string;
-  plan: string;
-  inputTokens: number;
-  outputTokens: number;
-  costUsd: number;
-  durationMs: number;
-  model: string;
-  createdAt: string;
-}
 
 
 export type DriverProfileRunStatus = "queued" | "running" | "succeeded" | "failed";
@@ -64,7 +52,7 @@ export interface DriverProfileRunRow {
 }
 
 
-export interface CreateDriverProfileRunInput {
+interface CreateDriverProfileRunInput {
   poolKey: string;
   status?: DriverProfileRunStatus;
   fingerprint?: string | null;
@@ -81,7 +69,7 @@ export interface CreateDriverProfileRunInput {
 }
 
 
-export interface UpdateDriverProfileRunInput {
+interface UpdateDriverProfileRunInput {
   status?: DriverProfileRunStatus;
   fingerprint?: string | null;
   plan?: string | null;
@@ -96,25 +84,6 @@ export interface UpdateDriverProfileRunInput {
 }
 
 
-export async function getDriverProfile(scope: DriverProfileScopeKey): Promise<DriverProfileRow | null> {
-  const row = await db
-    .select({
-      scopeKey: driverProfiles.scopeKey,
-      poolKey: driverProfiles.poolKey,
-      fingerprint: driverProfiles.fingerprint,
-      plan: driverProfiles.plan,
-      inputTokens: driverProfiles.inputTokens,
-      outputTokens: driverProfiles.outputTokens,
-      costUsd: driverProfiles.costUsd,
-      durationMs: driverProfiles.durationMs,
-      model: driverProfiles.model,
-      createdAt: driverProfiles.createdAt,
-    })
-    .from(driverProfiles)
-    .where(eq(driverProfiles.scopeKey, driverProfileScopeKey(scope)))
-    .get();
-  return row ?? null;
-}
 
 /** Save or replace the cached DriverProfileSummary snapshot for a scope. */
 

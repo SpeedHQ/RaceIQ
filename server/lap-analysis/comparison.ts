@@ -1,5 +1,6 @@
 import type { TelemetryPacket } from "../../shared/types";
 import type { Corner } from "./corners";
+import { speedMphFromPacket } from "./metrics";
 
 /** A single aligned data point at a given distance. */
 export interface AlignedTrace {
@@ -31,35 +32,6 @@ export interface CornerDelta {
   timeB: number; // section time for lap B in seconds
 }
 
-/**
- * Convert a TelemetryPacket to per-lap distance (meters from lap start).
- */
-function lapDistance(packet: TelemetryPacket, distanceAtLapStart: number): number {
-  return packet.DistanceTraveled - distanceAtLapStart;
-}
-
-/**
- * Speed in mph from velocity vector.
- */
-function speedMph(p: TelemetryPacket): number {
-  return Math.sqrt(p.VelocityX ** 2 + p.VelocityY ** 2 + p.VelocityZ ** 2) * 2.237;
-}
-
-/**
- * Compute elapsed time in seconds from first packet of the lap.
- */
-function elapsedSeconds(packet: TelemetryPacket, firstPacket: TelemetryPacket): number {
-  return (packet.TimestampMS - firstPacket.TimestampMS) / 1000;
-}
-
-/**
- * Linear interpolation: find the value at targetX given two known points.
- */
-function lerp(x0: number, y0: number, x1: number, y1: number, targetX: number): number {
-  if (x1 === x0) return y0;
-  const t = (targetX - x0) / (x1 - x0);
-  return y0 + t * (y1 - y0);
-}
 
 /**
  * Build per-packet arrays of values we want to interpolate.
@@ -82,79 +54,109 @@ interface LapData {
 function extractLapData(packets: TelemetryPacket[]): LapData {
   const first = packets[0];
   const distanceAtLapStart = first.DistanceTraveled;
-
-  return {
-    distances: packets.map((p) => lapDistance(p, distanceAtLapStart)),
-    speeds: packets.map(speedMph),
-    throttles: packets.map((p) => p.Accel / 255),
-    brakes: packets.map((p) => p.Brake / 255),
-    steers: packets.map((p) => p.Steer),
-    rpms: packets.map((p) => p.CurrentEngineRpm),
-    gears: packets.map((p) => p.Gear),
-    posXs: packets.map((p) => p.VelocityX), // Using position proxy; actual X from integration
-    posZs: packets.map((p) => p.VelocityZ),
-    times: packets.map((p) => elapsedSeconds(p, first)),
-    tireWears: packets.map((p) => (p.TireWearFL + p.TireWearFR + p.TireWearRL + p.TireWearRR) / 4),
-    fuels: packets.map((p) => p.Fuel),
+  const data: LapData = {
+    distances: new Array(packets.length),
+    speeds: new Array(packets.length),
+    throttles: new Array(packets.length),
+    brakes: new Array(packets.length),
+    steers: new Array(packets.length),
+    rpms: new Array(packets.length),
+    gears: new Array(packets.length),
+    posXs: new Array(packets.length),
+    posZs: new Array(packets.length),
+    times: new Array(packets.length),
+    tireWears: new Array(packets.length),
+    fuels: new Array(packets.length),
   };
-}
 
-/**
- * Interpolate a single channel onto a 1-meter distance grid.
- * sourceDist must be monotonically non-decreasing.
- */
-function interpolateChannel(
-  sourceDist: number[],
-  sourceValues: number[],
-  gridDist: number[]
-): number[] {
-  const result: number[] = new Array(gridDist.length);
-  let j = 0; // pointer into source arrays
-
-  for (let i = 0; i < gridDist.length; i++) {
-    const d = gridDist[i];
-
-    // Advance j so sourceDist[j] <= d < sourceDist[j+1]
-    while (j < sourceDist.length - 2 && sourceDist[j + 1] < d) {
-      j++;
-    }
-
-    // Clamp at boundaries
-    if (d <= sourceDist[0]) {
-      result[i] = sourceValues[0];
-    } else if (d >= sourceDist[sourceDist.length - 1]) {
-      result[i] = sourceValues[sourceValues.length - 1];
-    } else {
-      result[i] = lerp(
-        sourceDist[j],
-        sourceValues[j],
-        sourceDist[j + 1],
-        sourceValues[j + 1],
-        d
-      );
-    }
+  for (let index = 0; index < packets.length; index++) {
+    const packet = packets[index];
+    data.distances[index] = packet.DistanceTraveled - distanceAtLapStart;
+    data.speeds[index] = speedMphFromPacket(packet);
+    data.throttles[index] = packet.Accel / 255;
+    data.brakes[index] = packet.Brake / 255;
+    data.steers[index] = packet.Steer;
+    data.rpms[index] = packet.CurrentEngineRpm;
+    data.gears[index] = packet.Gear;
+    data.posXs[index] = packet.VelocityX;
+    data.posZs[index] = packet.VelocityZ;
+    data.times[index] = (packet.TimestampMS - first.TimestampMS) / 1000;
+    data.tireWears[index] =
+      (packet.TireWearFL + packet.TireWearFR + packet.TireWearRL + packet.TireWearRR) / 4;
+    data.fuels[index] = packet.Fuel;
   }
 
-  return result;
+  return data;
+}
+
+function interpolateSample(
+  values: number[],
+  lower: number,
+  upper: number,
+  interpolation: number,
+): number {
+  if (lower === upper) return values[lower];
+  return values[lower] + interpolation * (values[upper] - values[lower]);
 }
 
 /**
- * Align a lap's data to a 1-meter distance grid.
+ * Align all channels to the 1-metre distance grid in one pass.
+ * Source distances must be monotonically non-decreasing.
  */
 function alignLap(data: LapData, grid: number[]): AlignedTrace {
-  return {
-    speed: interpolateChannel(data.distances, data.speeds, grid),
-    throttle: interpolateChannel(data.distances, data.throttles, grid),
-    brake: interpolateChannel(data.distances, data.brakes, grid),
-    steer: interpolateChannel(data.distances, data.steers, grid),
-    rpm: interpolateChannel(data.distances, data.rpms, grid),
-    gear: interpolateChannel(data.distances, data.gears, grid).map(Math.round),
-    posX: interpolateChannel(data.distances, data.posXs, grid),
-    posZ: interpolateChannel(data.distances, data.posZs, grid),
-    elapsedTime: interpolateChannel(data.distances, data.times, grid),
-    tireWear: interpolateChannel(data.distances, data.tireWears, grid),
-    fuel: interpolateChannel(data.distances, data.fuels, grid),
+  const trace: AlignedTrace = {
+    speed: new Array(grid.length),
+    throttle: new Array(grid.length),
+    brake: new Array(grid.length),
+    steer: new Array(grid.length),
+    rpm: new Array(grid.length),
+    gear: new Array(grid.length),
+    posX: new Array(grid.length),
+    posZ: new Array(grid.length),
+    elapsedTime: new Array(grid.length),
+    tireWear: new Array(grid.length),
+    fuel: new Array(grid.length),
   };
+  const lastSourceIndex = data.distances.length - 1;
+  let sourceIndex = 0;
+
+  for (let gridIndex = 0; gridIndex < grid.length; gridIndex++) {
+    const distance = grid[gridIndex];
+    while (
+      sourceIndex < lastSourceIndex - 1 &&
+      data.distances[sourceIndex + 1] < distance
+    ) {
+      sourceIndex++;
+    }
+
+    let lower = sourceIndex;
+    let upper = sourceIndex + 1;
+    if (distance <= data.distances[0]) {
+      lower = upper = 0;
+    } else if (distance >= data.distances[lastSourceIndex]) {
+      lower = upper = lastSourceIndex;
+    }
+
+    const x0 = data.distances[lower];
+    const x1 = data.distances[upper];
+    if (x1 === x0) upper = lower;
+    const interpolation = x1 === x0 ? 0 : (distance - x0) / (x1 - x0);
+    trace.speed[gridIndex] = interpolateSample(data.speeds, lower, upper, interpolation);
+    trace.throttle[gridIndex] = interpolateSample(data.throttles, lower, upper, interpolation);
+    trace.brake[gridIndex] = interpolateSample(data.brakes, lower, upper, interpolation);
+    trace.steer[gridIndex] = interpolateSample(data.steers, lower, upper, interpolation);
+    trace.rpm[gridIndex] = interpolateSample(data.rpms, lower, upper, interpolation);
+    trace.gear[gridIndex] = Math.round(
+      interpolateSample(data.gears, lower, upper, interpolation),
+    );
+    trace.posX[gridIndex] = interpolateSample(data.posXs, lower, upper, interpolation);
+    trace.posZ[gridIndex] = interpolateSample(data.posZs, lower, upper, interpolation);
+    trace.elapsedTime[gridIndex] = interpolateSample(data.times, lower, upper, interpolation);
+    trace.tireWear[gridIndex] = interpolateSample(data.tireWears, lower, upper, interpolation);
+    trace.fuel[gridIndex] = interpolateSample(data.fuels, lower, upper, interpolation);
+  }
+
+  return trace;
 }
 
 /**

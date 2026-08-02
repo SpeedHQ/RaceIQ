@@ -3,6 +3,7 @@ import { writeFileSync, unlinkSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { setTrayCommandFile } from "../update/check";
+import { IS_WINDOWS } from "./shell";
 
 export function shouldStartTray(
   platform: NodeJS.Platform = process.platform,
@@ -12,7 +13,7 @@ export function shouldStartTray(
 }
 
 export function startTray(port: number): void {
-  if (!shouldStartTray()) return;
+  if (!IS_WINDOWS) return;
 
   const commandFilePath = join(tmpdir(), `raceiq-tray-cmd-${process.pid}.txt`);
 

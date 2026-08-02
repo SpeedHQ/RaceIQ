@@ -4,7 +4,7 @@ import { experimentFocusEvents, experiments } from "./schema";
 import { tryGetServerGame } from "../games/registry";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiment-focus";
 
-export interface CreateExperimentData {
+interface CreateExperimentData {
   gameId: string;
   name: string;
   carOrdinal?: number | null;

@@ -66,18 +66,81 @@ export interface LapsZipManifest {
 
 type RawLapRow = Awaited<ReturnType<typeof getLapsRaw>>[number];
 
-/** 12-byte meta frame the recorder writes at offset 0 of every capture. */
-function metaFrame(): Buffer {
-  return encodeMetaFrame();
+const MANIFEST_FILE_NAME = "manifest.json";
+const manifestTextEncoder = new TextEncoder();
+const manifestTextDecoder = new TextDecoder();
+
+function parseManifestFile(files: Record<string, Uint8Array>): LapsZipManifest | null {
+  const manifestBytes = files[MANIFEST_FILE_NAME];
+  if (!manifestBytes) return null;
+  try {
+    return JSON.parse(manifestTextDecoder.decode(manifestBytes)) as LapsZipManifest;
+  } catch {
+    return null;
+  }
 }
 
-async function readCapture(rawFile: string): Promise<Buffer> {
-  const file = Bun.file(rawFile);
-  if (!(await file.exists())) throw new Error(`Raw capture file is missing: ${rawFile}`);
-  const buf = Buffer.from(await file.arrayBuffer());
-  return rawFile.endsWith(".gz") ? gunzipBufferSync(buf) : buf;
+function encodeManifestFile(manifest: LapsZipManifest): Uint8Array {
+  return manifestTextEncoder.encode(JSON.stringify(manifest, null, 2));
 }
 
+/**
+ * Read capture bytes from disk and decompress gzip raw files.
+ * Returns null when the file is missing or unreadable.
+ */
+async function readCapture(rawFile: string): Promise<Buffer | null> {
+  try {
+    const file = Bun.file(rawFile);
+    if (!(await file.exists())) return null;
+    const bytes = Buffer.from(await file.arrayBuffer());
+    return rawFile.endsWith(".gz") ? gunzipBufferSync(bytes) : bytes;
+  } catch {
+    return null;
+  }
+}
+
+function captureFileName(memberName: string): string {
+  const idx = memberName.lastIndexOf("/");
+  return idx >= 0 ? memberName.slice(idx + 1) : memberName;
+}
+
+function fileNamesForZip(files: Record<string, Uint8Array>): string[] {
+  return Object.keys(files)
+    .filter((name) => name.endsWith(".bin") || name.endsWith(".bin.gz"))
+    .sort();
+}
+
+function parseCaptureGameId(
+  memberName: string,
+  bytes: Buffer,
+  manifestGame: ReadonlyMap<string, GameId>,
+): GameId | null {
+  return (
+    detectGameIdFromBuffer(bytes) ??
+    manifestGame.get(memberName) ??
+    detectGameIdFromFilename(captureFileName(memberName))
+  );
+}
+
+function selectedLapsBySession(
+  rows: ReadonlyArray<RawLapRow>,
+  wantedIds: ReadonlySet<number>,
+): Map<number, RawLapRow[]> {
+  const map = new Map<number, RawLapRow[]>();
+  for (const row of rows) {
+    if (!wantedIds.has(row.id)) continue;
+    const sessionRows = map.get(row.sessionId);
+    if (sessionRows) sessionRows.push(row);
+    else map.set(row.sessionId, [row]);
+  }
+  return map;
+}
+
+function usableRawLaps(rows: RawLapRow[]): RawLapRow[] {
+  return rows.filter(
+    (row) => row.rawFile && row.rawByteOffset != null && (row.rawFrameCount ?? 0) > 0,
+  );
+}
 
 /**
  * iRacing value frames depend on the latest packed session frame. Exports can
@@ -125,37 +188,29 @@ export async function buildLapsZip(
 ): Promise<{ bytes: Uint8Array; manifest: LapsZipManifest }> {
   const wanted = new Set(lapIds);
   const allRows = await getLapsRaw();
-  const selected = allRows.filter((r) => wanted.has(r.id));
-  if (selected.length === 0) throw new Error("No laps matched the requested ids");
-
-  const bySession = new Map<number, RawLapRow[]>();
-  for (const row of selected) {
-    const list = bySession.get(row.sessionId);
-    if (list) list.push(row);
-    else bySession.set(row.sessionId, [row]);
-  }
+  const sessions = selectedLapsBySession(allRows, wanted);
+  if (sessions.size === 0) throw new Error("No laps matched the requested ids");
 
   const files: Record<string, Uint8Array> = {};
   const entries: ManifestEntry[] = [];
 
-  for (const [sessionId, rows] of bySession) {
-    const usable = rows.filter(
-      (r) => r.rawFile && r.rawByteOffset != null && (r.rawFrameCount ?? 0) > 0
-    );
+  for (const [sessionId, rows] of sessions) {
+    const usable = usableRawLaps(rows);
     if (usable.length === 0) continue;
 
     const rawFile = usable[0].rawFile as string;
-    let buf: Buffer;
-    try {
-      buf = await readCapture(rawFile);
-    } catch {
-      continue; // capture gone from disk — nothing to export for this session
-    }
+    const buf = await readCapture(rawFile);
+    if (!buf) continue; // capture gone from disk — nothing to export for this session
 
-    const startByte = Math.min(...usable.map((r) => r.rawByteOffset as number));
-    const last = usable.reduce((a, b) =>
-      (b.rawByteOffset as number) > (a.rawByteOffset as number) ? b : a
-    );
+    const first = usable[0];
+    let startByte = first.rawByteOffset as number;
+    let last = first;
+    for (let i = 1; i < usable.length; i++) {
+      const row = usable[i];
+      const offset = row.rawByteOffset as number;
+      if (offset < startByte) startByte = offset;
+      if (offset > (last.rawByteOffset as number)) last = row;
+    }
     if (startByte >= buf.length) continue;
     // +1 frame: the next-lap trigger that completes the final lap on replay.
     const endByte = advanceSessionFrames(
@@ -164,7 +219,6 @@ export async function buildLapsZip(
       (last.rawFrameCount as number) + 1
     );
 
-    const first = usable[0];
     const gameId = first.gameId as GameId;
     const firstFrame = sessionFrameAt(buf, startByte);
     const sessionPrefix =
@@ -173,11 +227,12 @@ export async function buildLapsZip(
       !isIRacingSessionFrame(firstFrame)
         ? latestIRacingSessionRecord(buf, startByte)
         : null;
-    const slice = Buffer.concat([
-      metaFrame(),
-      ...(sessionPrefix ? [sessionPrefix] : []),
-      buf.subarray(startByte, endByte),
-    ]);
+    const telemetrySlice = buf.subarray(startByte, endByte);
+    const slice = Buffer.concat(
+      sessionPrefix
+        ? [encodeMetaFrame(), sessionPrefix, telemetrySlice]
+        : [encodeMetaFrame(), telemetrySlice],
+    );
 
     const trackName = getTrackName(first.trackOrdinal ?? -1, gameId);
     const carName = getCarName(first.carOrdinal ?? -1, gameId);
@@ -185,7 +240,7 @@ export async function buildLapsZip(
     // filename-based game detection.
     const fileName = `${gameId}-${slugify(trackName) || `track${first.trackOrdinal ?? 0}`}-session${sessionId}.bin.gz`;
 
-    files[fileName] = new Uint8Array(gzipBufferSync(slice));
+    files[fileName] = gzipBufferSync(slice);
 
     // Everything inside the exported span comes back on import — list it all.
     const covered = allRows
@@ -224,7 +279,7 @@ export async function buildLapsZip(
     exportedAt: new Date().toISOString(),
     entries,
   };
-  files["manifest.json"] = new TextEncoder().encode(JSON.stringify(manifest, null, 2));
+  files[MANIFEST_FILE_NAME] = encodeManifestFile(manifest);
 
   // level 0 for the .bin.gz members (already gzip'd), default for the manifest.
   const bytes = zipSync(files, { level: 6 });
@@ -236,7 +291,8 @@ export function lapsZipFilename(manifest: LapsZipManifest): string {
   const date = manifest.exportedAt.slice(0, 10);
   const lapCount = manifest.entries.reduce((sum, e) => sum + e.laps.length, 0);
   const tracks = new Set(manifest.entries.map((e) => e.trackName));
-  const trackPart = tracks.size === 1 ? `${slugify([...tracks][0])}-` : "";
+  const trackPart =
+    tracks.size === 1 ? `${slugify(tracks.values().next().value as string)}-` : "";
   return `raceiq-${trackPart}${lapCount}lap${lapCount === 1 ? "" : "s"}-${date}.zip`;
 }
 
@@ -256,15 +312,7 @@ export interface ImportZipResult {
 export async function importLapsZip(zipData: Uint8Array): Promise<ImportZipResult> {
   const files = unzipSync(zipData);
 
-  let manifest: LapsZipManifest | null = null;
-  const manifestBytes = files["manifest.json"];
-  if (manifestBytes) {
-    try {
-      manifest = JSON.parse(new TextDecoder().decode(manifestBytes)) as LapsZipManifest;
-    } catch {
-      manifest = null;
-    }
-  }
+  const manifest = parseManifestFile(files);
   const manifestGame = new Map<string, GameId>();
   for (const entry of manifest?.entries ?? []) manifestGame.set(entry.file, entry.gameId);
 
@@ -272,9 +320,7 @@ export async function importLapsZip(zipData: Uint8Array): Promise<ImportZipResul
   const errors: string[] = [];
   let skipped = 0;
 
-  const names = Object.keys(files)
-    .filter((n) => n.endsWith(".bin") || n.endsWith(".bin.gz"))
-    .sort();
+  const names = fileNamesForZip(files);
 
   if (names.length === 0) {
     throw new Error(
@@ -283,11 +329,13 @@ export async function importLapsZip(zipData: Uint8Array): Promise<ImportZipResul
   }
 
   for (const name of names) {
-    const bytes = Buffer.from(files[name]);
-    const gameId =
-      detectGameIdFromBuffer(bytes) ??
-      manifestGame.get(name) ??
-      detectGameIdFromFilename(name.split("/").pop() ?? name);
+    const memberBytes = files[name];
+    const bytes = Buffer.from(
+      memberBytes.buffer,
+      memberBytes.byteOffset,
+      memberBytes.byteLength,
+    );
+    const gameId = parseCaptureGameId(name, bytes, manifestGame);
     if (!gameId) {
       skipped++;
       errors.push(`${name}: could not determine which game this capture came from`);

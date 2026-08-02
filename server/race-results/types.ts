@@ -33,7 +33,6 @@ export interface RaceSourceObservation {
   finishingPosition?: number | null;
   qualifyingPosition?: number | null;
   isFastestLap?: boolean | null;
-  fastestLapSource?: string | null;
   packets: TelemetryPacket[];
   claims?: RaceResultClaimEvidence[];
   pitEvents?: PitEvent[];

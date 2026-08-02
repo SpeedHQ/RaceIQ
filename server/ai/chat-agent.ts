@@ -261,42 +261,24 @@ export async function resolveActiveThread(
 }
 
 /**
- * Persist a plain-markdown **assistant** message into a chat thread so it shows
- * up in the thread history the GET chat route reads back. Ensures the thread
- * exists first (mirrors how the streaming chat route auto-creates it via the
- * agent), then writes one message shaped as MastraMessageContentV2 — both a flat
- * `content` string and a `parts: [{type:"text"}]` array — so the GET route's
- * `mc.content ?? mc.parts.map(p => p.text).join("")` extractor reads it back
- * verbatim. Returns the saved message id.
+ * Persist plain-markdown messages into a chat thread.
  *
- * Used by the generate-from-chat route to post the applied-tweaks summary inline
- * in the setup conversation instead of a transient client-only card.
+ * Backward-compatible helper for single assistant message calls:
+ * preserve existing exports while routing through the typed batch writer.
  */
-export async function saveAssistantChatMessage(
-  threadId: string,
-  markdown: string,
-): Promise<string> {
+export async function saveAssistantChatMessage(threadId: string, markdown: string): Promise<string> {
   const [id] = await saveChatMessages(threadId, [{ role: "assistant", markdown }]);
   return id;
 }
 
-/** Persist a plain-markdown **user** message into a chat thread. Same shape as
- * {@link saveAssistantChatMessage}; used to record deterministic user actions
- * (e.g. "Switch head to X" on checkout) as their own distinct entry. */
-export async function saveUserChatMessage(
-  threadId: string,
-  markdown: string,
-): Promise<string> {
-  const [id] = await saveChatMessages(threadId, [{ role: "user", markdown }]);
-  return id;
-}
-
-/** Persist an ordered batch of plain-markdown messages into a chat thread in a
+/**
+ * Persist an ordered batch of plain-markdown messages into a chat thread in a
  * single write. Batching keeps the requested order deterministic (each message
  * gets a strictly increasing createdAt) — a separate write per message can land
  * on the same millisecond and reorder on read. Distinct roles also stop the
  * MessageList reader collapsing consecutive same-role messages into one entry,
- * so a user+assistant pair renders as two separate turns. */
+ * so a user+assistant pair renders as two separate turns.
+ */
 export async function saveChatMessages(
   threadId: string,
   entries: Array<{ role: "user" | "assistant"; markdown: string }>,

@@ -1,5 +1,6 @@
 import { repeatabilityStats } from "../../shared/lib/stint-stats";
 import type { LapMeta } from "../../shared/types";
+import { median, round4 } from "./math";
 
 export const DRIVER_TREND_WINDOW_LAPS = 30;
 
@@ -45,18 +46,6 @@ export interface DriverTrend {
   advice: DriverTrendAdvice[];
 }
 
-function median(values: number[]): number | null {
-  if (values.length === 0) return null;
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
-}
-
-/** Round to 4dp so float noise cannot make two identical inputs compare unequal. */
-function round4(v: number): number {
-  return Math.round(v * 1e4) / 1e4;
-}
-
 function trendContextKey(lap: LapMeta): string {
   return `${lap.gameId ?? "?"}|${lap.carOrdinal ?? "?"}|${lap.trackOrdinal ?? "?"}`;
 }
@@ -69,28 +58,32 @@ function direction(delta: number | null, improveAt: number, declineAt: number): 
 }
 
 function trendWindow(laps: readonly LapMeta[], benchmarks: ReadonlyMap<string, number>): DriverTrendWindow {
-  const chartLaps = [...laps].reverse().map((lap) => {
-    const benchmark = benchmarks.get(trendContextKey(lap));
+  let valid = 0;
+  const comparableContexts = new Set<string>();
+  const chartLaps = laps.map((lap) => {
+    if (lap.isValid) valid++;
+    const context = trendContextKey(lap);
+    const benchmark = benchmarks.get(context);
+    if (benchmark !== undefined) comparableContexts.add(context);
     const relativePacePct =
       benchmark !== undefined && Number.isFinite(lap.lapTime) && lap.lapTime > 0
         ? Math.max(0, (lap.lapTime / benchmark - 1) * 100)
         : null;
     return { id: lap.id, createdAt: lap.createdAt, isValid: lap.isValid, relativePacePct };
-  });
+  }).reverse();
   const paceValues = chartLaps.flatMap((lap) => (lap.relativePacePct === null ? [] : [lap.relativePacePct]));
   const repeatability = repeatabilityStats(paceValues.map((pace) => 1 + pace / 100));
-  const contextValues = laps.filter((lap) => benchmarks.has(trendContextKey(lap))).map(trendContextKey);
   return {
     laps: chartLaps,
     total: laps.length,
-    valid: laps.filter((lap) => lap.isValid).length,
-    dirty: laps.filter((lap) => !lap.isValid).length,
-    cleanRate: laps.length === 0 ? null : laps.filter((lap) => lap.isValid).length / laps.length,
+    valid,
+    dirty: laps.length - valid,
+    cleanRate: laps.length === 0 ? null : valid / laps.length,
     normalized: repeatability.n,
     consistency: repeatability.consistency === null ? null : round4(repeatability.consistency),
     medianPacePct: median(paceValues.map((pace) => round4(pace))),
     spreadPct: repeatability.sd === null ? null : round4(repeatability.sd * 100),
-    contexts: new Set(contextValues).size,
+    contexts: comparableContexts.size,
   };
 }
 

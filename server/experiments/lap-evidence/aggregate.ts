@@ -32,6 +32,8 @@ import { telemetryToTrackConditions, type TrackConditions } from "../../ai/track
 import { loadRepresentativeLap } from "../representative-lap";
 import { computeLapConsistencyDelta, computeLineSpreadTrace, type CornerConsistency, type LineSpreadTrace } from "../../lap-analysis/consistency";
 import { stddevPopulation } from "../../lap-analysis/stats";
+import { medianSorted, percentileSorted as percentile } from "../statistics";
+import { MIN_TELEMETRY_FRAMES } from "../lap-policy";
 
 /** Overall confidence in the clean-lap pool backing an aggregate. */
 export type Confidence = "high" | "medium" | "low" | "very-low";
@@ -95,26 +97,11 @@ export function baselineFallbackNote(
 // marginal value per lap is low and the per-lap telemetry fetch cost isn't
 // worth it.
 const MAX_CLEAN_LAPS = 8;
-// Minimum telemetry frames for a lap to be analysable (matches
-// loadRepresentativeLap's gate).
-const MIN_TELEMETRY_FRAMES = 30;
 
-/** Linear-interpolation percentile of an unsorted array; 0 when empty. */
-export function percentile(sortedAsc: number[], p: number): number {
-  const n = sortedAsc.length;
-  if (n === 0) return 0;
-  const idx = (n - 1) * p;
-  const lo = Math.floor(idx);
-  const hi = Math.ceil(idx);
-  if (lo === hi) return sortedAsc[lo];
-  return sortedAsc[lo] + (sortedAsc[hi] - sortedAsc[lo]) * (idx - lo);
-}
 
 function median(values: number[]): number | null {
   if (values.length === 0) return null;
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+  return medianSorted([...values].sort((a, b) => a - b));
 }
 
 /**
@@ -301,6 +288,40 @@ function emptyConsistency(confidence: Confidence): ConsistencyReport {
     lineSpread: null,
   };
 }
+async function representativeLapFallback(
+  sessionId: number,
+  sourceScope: CleanLapAggregate["sourceScope"],
+  headOwnLapCount: number | null,
+  lapBreakdown: LapBreakdownRow[],
+): Promise<CleanLapAggregate> {
+  const lap = await loadRepresentativeLap(sessionId);
+  if (!lap) {
+    return {
+      ok: false,
+      lapIds: [],
+      symptoms: null,
+      trackConditions: null,
+      consistency: emptyConsistency("very-low"),
+      fallbackSingleLap: true,
+      sourceScope,
+      headOwnLapCount,
+      lapBreakdown,
+    };
+  }
+
+  const corners = detectCorners(lap.telemetry);
+  return {
+    ok: true,
+    lapIds: [lap.id],
+    symptoms: telemetryToSymptoms(lap.telemetry, corners),
+    trackConditions: telemetryToTrackConditions(lap.telemetry),
+    consistency: emptyConsistency("very-low"),
+    fallbackSingleLap: true,
+    sourceScope,
+    headOwnLapCount,
+    lapBreakdown,
+  };
+}
 
 /**
  * Load and reduce a tuning session (or one of its branch tests) to a clean-lap
@@ -337,32 +358,7 @@ export async function loadCleanLapAggregate(
   const droppedOutliers = breakdown.filter((r) => r.reason === "auto-outlier").length;
 
   if (clean.length < 2) {
-    const lap = await loadRepresentativeLap(sessionId);
-    if (!lap) {
-      return {
-        ok: false,
-        lapIds: [],
-        symptoms: null,
-        trackConditions: null,
-        consistency: emptyConsistency("very-low"),
-        fallbackSingleLap: true,
-        sourceScope,
-        headOwnLapCount,
-        lapBreakdown: breakdown,
-      };
-    }
-    const corners = detectCorners(lap.telemetry);
-    return {
-      ok: true,
-      lapIds: [lap.id],
-      symptoms: telemetryToSymptoms(lap.telemetry, corners),
-      trackConditions: telemetryToTrackConditions(lap.telemetry),
-      consistency: emptyConsistency("very-low"),
-      fallbackSingleLap: true,
-      sourceScope,
-      headOwnLapCount,
-      lapBreakdown: breakdown,
-    };
+    return representativeLapFallback(sessionId, sourceScope, headOwnLapCount, breakdown);
   }
 
   // Fastest-first, capped.
@@ -379,32 +375,7 @@ export async function loadCleanLapAggregate(
   if (loadedLaps.length < 2) {
     // Telemetry too thin to analyse as a pool — fall back to the single
     // representative lap rather than aggregating over <2 laps.
-    const lap = await loadRepresentativeLap(sessionId);
-    if (!lap) {
-      return {
-        ok: false,
-        lapIds: [],
-        symptoms: null,
-        trackConditions: null,
-        consistency: emptyConsistency("very-low"),
-        fallbackSingleLap: true,
-        sourceScope,
-        headOwnLapCount,
-        lapBreakdown: breakdown,
-      };
-    }
-    const corners = detectCorners(lap.telemetry);
-    return {
-      ok: true,
-      lapIds: [lap.id],
-      symptoms: telemetryToSymptoms(lap.telemetry, corners),
-      trackConditions: telemetryToTrackConditions(lap.telemetry),
-      consistency: emptyConsistency("very-low"),
-      fallbackSingleLap: true,
-      sourceScope,
-      headOwnLapCount,
-      lapBreakdown: breakdown,
-    };
+    return representativeLapFallback(sessionId, sourceScope, headOwnLapCount, breakdown);
   }
 
   const fastestLoaded = loadedLaps.find((l) => l.meta.id === fastestMeta.id) ?? loadedLaps[0]!;

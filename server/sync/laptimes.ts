@@ -15,6 +15,7 @@ import type { GameId } from "@shared/types";
  */
 
 const DEFAULT_BASE_URL = "https://speedhq-tunes.pages.dev";
+const MANIFEST_PATH = "/manifest.json";
 const SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 /**
@@ -27,6 +28,10 @@ const MANIFEST_KEY_BY_GAME: Partial<Record<GameId, string>> = {
   acc: "acc",
   "ac-evo": "ac-evo",
 };
+
+const MANIFEST_ENTRIES = Object.entries(MANIFEST_KEY_BY_GAME) as Array<
+  [GameId, string]
+>;
 
 function baseUrl(): string {
   return process.env.COMMUNITY_TUNES_URL ?? DEFAULT_BASE_URL;
@@ -47,7 +52,13 @@ const LaptimeEntrySchema = z.object({
   laptime: z.string(),
 });
 
-export type LaptimeEntry = z.infer<typeof LaptimeEntrySchema>;
+type LaptimeEntry = z.infer<typeof LaptimeEntrySchema>;
+type LaptimeManifest = z.infer<typeof ManifestSchema>;
+type LaptimeSyncResult = {
+  synced: boolean;
+  count: number;
+  version: string | null;
+};
 
 const cache = new Map<GameId, LaptimeEntry[]>();
 let cachedVersion: string | null = null;
@@ -57,10 +68,61 @@ export function getLaptimes(gameId: GameId): LaptimeEntry[] {
   return cache.get(gameId) ?? [];
 }
 
-export interface LaptimeSyncResult {
-  synced: boolean;
-  count: number;
-  version: string | null;
+function resolveManifestUrl(base: string): string {
+  return `${base}${MANIFEST_PATH}`;
+}
+
+function resolveLaptimeUrl(base: string, path: string): string {
+  return new URL(path, `${base}/`).toString();
+}
+
+function skippedResult(version: string | null): LaptimeSyncResult {
+  return { synced: false, count: totalCached(), version };
+}
+
+async function fetchManifest(): Promise<LaptimeManifest | null> {
+  const manifestRes = await fetch(resolveManifestUrl(baseUrl()));
+  if (!manifestRes.ok) {
+    console.warn(`[Laptimes] manifest fetch failed: HTTP ${manifestRes.status}`);
+    return null;
+  }
+  return ManifestSchema.parse(await manifestRes.json());
+}
+
+async function fetchGamePayload(
+  manifestKey: string,
+  path: string,
+): Promise<{ value: unknown } | null> {
+  const laptimesUrl = resolveLaptimeUrl(baseUrl(), path);
+  const res = await fetch(laptimesUrl);
+  if (!res.ok) {
+    console.warn(`[Laptimes] ${manifestKey} fetch failed: HTTP ${res.status}; keeping cache`);
+    return null;
+  }
+  return { value: await res.json() };
+}
+
+function parseLaptimeRows(manifestKey: string, raw: unknown): LaptimeEntry[] | null {
+  if (!Array.isArray(raw)) {
+    console.warn(`[Laptimes] ${manifestKey} payload is not an array; keeping cache`);
+    return null;
+  }
+
+  const rows: LaptimeEntry[] = [];
+  let skipped = 0;
+  for (const item of raw) {
+    const parsed = LaptimeEntrySchema.safeParse(item);
+    if (!parsed.success) {
+      skipped++;
+      continue;
+    }
+    rows.push(parsed.data);
+  }
+  if (skipped > 0) {
+    console.warn(`[Laptimes] ${manifestKey}: skipped ${skipped} invalid row(s)`);
+  }
+
+  return rows;
 }
 
 /**
@@ -73,57 +135,35 @@ export async function syncLaptimes(
   options: { force?: boolean } = {},
 ): Promise<LaptimeSyncResult> {
   if (syncInProgress) {
-    return { synced: false, count: totalCached(), version: cachedVersion };
+    return skippedResult(cachedVersion);
   }
   syncInProgress = true;
   try {
-    const manifestRes = await fetch(`${baseUrl()}/manifest.json`);
-    if (!manifestRes.ok) {
-      console.warn(`[Laptimes] manifest fetch failed: HTTP ${manifestRes.status}`);
-      return { synced: false, count: totalCached(), version: cachedVersion };
+    const manifest = await fetchManifest();
+    if (!manifest) {
+      return skippedResult(cachedVersion);
     }
-    const manifest = ManifestSchema.parse(await manifestRes.json());
 
     if (!options.force && manifest.version === cachedVersion) {
-      return { synced: false, count: totalCached(), version: cachedVersion };
+      return skippedResult(cachedVersion);
     }
 
     let total = 0;
-    for (const [gameId, manifestKey] of Object.entries(MANIFEST_KEY_BY_GAME) as [
-      GameId,
-      string,
-    ][]) {
+    for (const [gameId, manifestKey] of MANIFEST_ENTRIES) {
       const entry = manifest.laptimes?.[manifestKey];
       if (!entry) {
         console.warn(`[Laptimes] manifest has no leaderboard entry for "${manifestKey}"`);
         continue;
       }
 
-      const laptimesUrl = new URL(entry.path, `${baseUrl()}/`).toString();
-      const res = await fetch(laptimesUrl);
-      if (!res.ok) {
-        console.warn(`[Laptimes] ${manifestKey} fetch failed: HTTP ${res.status}; keeping cache`);
+      const payload = await fetchGamePayload(manifestKey, entry.path);
+      if (!payload) {
         continue;
       }
 
-      const raw = await res.json();
-      if (!Array.isArray(raw)) {
-        console.warn(`[Laptimes] ${manifestKey} payload is not an array; keeping cache`);
+      const rows = parseLaptimeRows(manifestKey, payload.value);
+      if (!rows) {
         continue;
-      }
-
-      const rows: LaptimeEntry[] = [];
-      let skipped = 0;
-      for (const item of raw) {
-        const parsed = LaptimeEntrySchema.safeParse(item);
-        if (!parsed.success) {
-          skipped++;
-          continue;
-        }
-        rows.push(parsed.data);
-      }
-      if (skipped > 0) {
-        console.warn(`[Laptimes] ${manifestKey}: skipped ${skipped} invalid row(s)`);
       }
 
       cache.set(gameId, rows);
@@ -132,11 +172,13 @@ export async function syncLaptimes(
     }
 
     cachedVersion = manifest.version;
-    console.log(`[Laptimes] sync complete: ${total} total entry(ies) at version ${manifest.version}`);
+    console.log(
+      `[Laptimes] sync complete: ${total} total entry(ies) at version ${manifest.version}`,
+    );
     return { synced: true, count: total, version: manifest.version };
   } catch (err) {
     console.warn("[Laptimes] sync failed; keeping existing cache:", err instanceof Error ? err.message : err);
-    return { synced: false, count: totalCached(), version: cachedVersion };
+    return skippedResult(cachedVersion);
   } finally {
     syncInProgress = false;
   }

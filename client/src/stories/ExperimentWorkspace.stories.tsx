@@ -80,9 +80,9 @@ const statusExampleLapsBase = [
   { id: 211, lapNumber: 21, invalidReason: "telemetry distance too short" }, // lap-quality.ts
   { id: 212, lapNumber: 22, invalidReason: "start/end positions too far apart" }, // lap-quality.ts
   { id: 213, lapNumber: 1, invalidReason: "starting lap" }, // lap-quality.ts: first lap of session, no valid start line crossing
-  { id: 214, lapNumber: 23, invalidReason: "rewind" }, // lap-detector.ts: mid-lap timestamp rewind
-  { id: 215, lapNumber: 24, invalidReason: "incomplete" }, // lap-detector.ts: session ended mid-lap
-  { id: 216, lapNumber: 25, invalidReason: "lap skip (25 → 27)" }, // lap-detection.ts: dropped packets, lap counter jumped
+  { id: 214, lapNumber: 23, invalidReason: "rewind" }, // server/lap-detection/detector.ts: mid-lap timestamp rewind
+  { id: 215, lapNumber: 24, invalidReason: "incomplete" }, // server/lap-detection/detector.ts: session ended mid-lap
+  { id: 216, lapNumber: 25, invalidReason: "lap skip (25 → 27)" }, // server/lap-detection/boundaries.ts: dropped packets, lap counter jumped
 ];
 const statusLapCount = statusExampleLapsBase.length;
 const statusExampleLaps = statusExampleLapsBase.map((l, i) => ({

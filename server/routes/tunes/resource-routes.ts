@@ -36,6 +36,29 @@ const CreateTuneSchema = z.object({
 // be changeable via update.
 const UpdateTuneSchema = CreateTuneSchema.omit({ gameId: true }).partial();
 
+async function createTune(body: z.infer<typeof CreateTuneSchema>) {
+  if (!validateSettingsForGame(body.gameId, body.settings)) return null;
+
+  const id = await insertTune({
+    gameId: body.gameId,
+    name: body.name,
+    author: body.author,
+    carOrdinal: body.carOrdinal,
+    category: body.category,
+    trackOrdinal: body.trackOrdinal,
+    description: body.description,
+    strengths: body.strengths ? JSON.stringify(body.strengths) : undefined,
+    weaknesses: body.weaknesses ? JSON.stringify(body.weaknesses) : undefined,
+    bestTracks: body.bestTracks ? JSON.stringify(body.bestTracks) : undefined,
+    strategies: body.strategies ? JSON.stringify(body.strategies) : undefined,
+    settings: JSON.stringify(body.settings),
+    unitSystem: body.unitSystem,
+    source: body.source,
+    catalogId: body.catalogId,
+  });
+  return parseTuneRow(await getTuneById(id));
+}
+
 export const tuneResourceRoutes = new Hono()
   // GET /api/tunes — list user tunes, optional ?gameId= and ?carOrdinal= filters
   .get(
@@ -66,29 +89,11 @@ export const tuneResourceRoutes = new Hono()
     "/api/tunes",
     zValidator("json", CreateTuneSchema),
     async (c) => {
-      const body = c.req.valid("json");
-      if (!validateSettingsForGame(body.gameId, body.settings)) {
+      const created = await createTune(c.req.valid("json"));
+      if (!created) {
         return c.json({ error: "Invalid settings structure" }, 400);
       }
-      const id = await insertTune({
-        gameId: body.gameId,
-        name: body.name,
-        author: body.author,
-        carOrdinal: body.carOrdinal,
-        category: body.category,
-        trackOrdinal: body.trackOrdinal,
-        description: body.description,
-        strengths: body.strengths ? JSON.stringify(body.strengths) : undefined,
-        weaknesses: body.weaknesses ? JSON.stringify(body.weaknesses) : undefined,
-        bestTracks: body.bestTracks ? JSON.stringify(body.bestTracks) : undefined,
-        strategies: body.strategies ? JSON.stringify(body.strategies) : undefined,
-        settings: JSON.stringify(body.settings),
-        unitSystem: body.unitSystem,
-        source: body.source,
-        catalogId: body.catalogId,
-      });
-      const created = await getTuneById(id);
-      return c.json(parseTuneRow(created), 201);
+      return c.json(created, 201);
     },
   )
 
@@ -144,29 +149,11 @@ export const tuneResourceRoutes = new Hono()
     "/api/tunes/import",
     zValidator("json", CreateTuneSchema),
     async (c) => {
-      const body = c.req.valid("json");
-      if (!validateSettingsForGame(body.gameId, body.settings)) {
+      const created = await createTune(c.req.valid("json"));
+      if (!created) {
         return c.json({ error: "Invalid settings structure" }, 400);
       }
-      const id = await insertTune({
-        gameId: body.gameId,
-        name: body.name,
-        author: body.author,
-        carOrdinal: body.carOrdinal,
-        category: body.category,
-        trackOrdinal: body.trackOrdinal,
-        description: body.description,
-        strengths: body.strengths ? JSON.stringify(body.strengths) : undefined,
-        weaknesses: body.weaknesses ? JSON.stringify(body.weaknesses) : undefined,
-        bestTracks: body.bestTracks ? JSON.stringify(body.bestTracks) : undefined,
-        strategies: body.strategies ? JSON.stringify(body.strategies) : undefined,
-        settings: JSON.stringify(body.settings),
-        unitSystem: body.unitSystem,
-        source: body.source,
-        catalogId: body.catalogId,
-      });
-      const created = await getTuneById(id);
-      return c.json(parseTuneRow(created), 201);
+      return c.json(created, 201);
     },
   )
 

@@ -1,11 +1,12 @@
 import { cacheGet, cacheSet, LapParseError, parseRawLapFrames, parseSessionLapsBatched } from "./telemetry-replay-storage";
 import { decompressTelemetry } from "./telemetry-codec";
+import { toLapMeta } from "./lap-meta";
 import { eq, desc, and, or, sql, inArray } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps, tunes } from "./schema";
 import type { TelemetryPacket, LapMeta, GameId } from "../../shared/types";
 
-export interface LapStats {
+interface LapStats {
   totalLaps: number;
   validLaps: number;
   totalTimeSec: number;
@@ -106,34 +107,7 @@ export async function getLaps(gameId?: GameId, limit: number = 200): Promise<Lap
     ? await query.where(eq(sessions.gameId, gameId)).all()
     : await query.all();
 
-  return rows.map((r) => ({
-    ...r,
-    isValid: Boolean(r.isValid),
-    invalidReason: r.invalidReason ?? undefined,
-    pi: r.pi ?? 0,
-    carSetup: r.carSetup ?? undefined,
-    tuneId: r.tuneId ?? undefined,
-    tuneName: r.tuneName ?? undefined,
-    notes: r.notes ?? undefined,
-    gameId: r.gameId as GameId,
-    sectorTimes: r.sectorTimes ?? undefined,
-    source: (r.source as "motec" | null) ?? null,
-    experimentId: r.experimentId ?? null,
-    experimentVersionId: r.experimentVersionId ?? null,
-    experimentExcluded: Boolean(r.experimentExcluded),
-    // Selector (shared/review-laps.ts) only treats a lap as manually excluded
-    // when the source is "manual" — must travel with the flag or the client
-    // re-ranks the excluded lap into the fastest-N.
-    experimentExcludedSource: (r.experimentExcludedSource as "auto" | "manual" | null) ?? null,
-    fuelPerLap: r.fuelPerLap ?? null,
-    tyreWear: r.tyreWear ?? null,
-    catalogVersion: r.catalogVersion ?? undefined,
-    catalogHash: r.catalogHash ?? undefined,
-    catalogSchemaVersion: r.catalogSchemaVersion ?? undefined,
-    parserVersion: r.parserVersion ?? undefined,
-    resolverVersion: r.resolverVersion ?? undefined,
-    derivationVersion: r.derivationVersion ?? undefined,
-  }));
+  return rows.map(toLapMeta);
 }
 
 /**
@@ -185,25 +159,7 @@ export async function getLapMetaForProfileScope(gameId: GameId, carOrdinal?: num
     .orderBy(desc(laps.id))
     .all();
 
-  return rows.map((r) => ({
-    ...r,
-    isValid: Boolean(r.isValid),
-    invalidReason: r.invalidReason ?? undefined,
-    pi: r.pi ?? 0,
-    carSetup: r.carSetup ?? undefined,
-    tuneId: r.tuneId ?? undefined,
-    tuneName: r.tuneName ?? undefined,
-    notes: r.notes ?? undefined,
-    gameId: r.gameId as GameId,
-    sectorTimes: r.sectorTimes ?? undefined,
-    source: (r.source as "motec" | null) ?? null,
-    experimentId: r.experimentId ?? null,
-    experimentVersionId: r.experimentVersionId ?? null,
-    experimentExcluded: Boolean(r.experimentExcluded),
-    experimentExcludedSource: (r.experimentExcludedSource as "auto" | "manual" | null) ?? null,
-    fuelPerLap: r.fuelPerLap ?? null,
-    tyreWear: r.tyreWear ?? null,
-  }));
+  return rows.map(toLapMeta);
 }
 
 /**
@@ -218,7 +174,7 @@ export async function getLapMetaForProfileScope(gameId: GameId, carOrdinal?: num
  * going forward.
  */
 
-export type LapSummary = {
+type LapSummary = {
   lapId: number;
   lapNumber: number;
   lapTime: number;

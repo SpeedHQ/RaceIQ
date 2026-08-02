@@ -21,7 +21,7 @@ import type { GameId } from "../../shared/types";
 import type { TuneIntent, TuneMagnitude } from "./schemas";
 import type { Balance, Phase, SpeedBand, TuneSymptoms } from "./tune-symptoms";
 
-export interface RecommendOptions {
+interface RecommendOptions {
   /** Free-text driver feel ("loose on entry", "understeer in slow hairpins").
    *  Biases scores; never overrides telemetry. Max ~500 chars upstream. */
   driverNotes?: string;

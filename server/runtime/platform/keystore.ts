@@ -3,16 +3,15 @@
  *   macOS:   Keychain via `security` CLI
  *   Windows: Credential Manager via PowerShell
  */
-import { execFileSync, execSync } from "child_process";
+import { execSync } from "child_process";
 import { existsSync, readFileSync, unlinkSync } from "fs";
-import { resolve, dirname } from "path";
+import { resolve, dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { tmpdir } from "os";
-import { join } from "path";
 import { randomUUID } from "crypto";
 import { IS_COMPILED } from "../config/paths";
+import { IS_DARWIN, IS_WINDOWS, runPowerShellScript } from "./shell";
 
-const IS_MAC = process.platform === "darwin";
 const SERVICE = "RaceIQ";
 
 // ── Windows helpers ──────────────────────────────────────────
@@ -27,7 +26,7 @@ const SCRIPT_PATH = IS_COMPILED
  * point shelling out to PowerShell — bail out instead of retrying and spamming
  * warnings on every settings read.
  */
-const WIN_STORE_AVAILABLE = process.platform === "win32" && existsSync(SCRIPT_PATH);
+const WIN_STORE_AVAILABLE = IS_WINDOWS && existsSync(SCRIPT_PATH);
 
 let warnedUnavailable = false;
 function warnUnavailableOnce(): void {
@@ -39,11 +38,7 @@ function warnUnavailableOnce(): void {
 }
 
 function ps(args: string[]): string {
-  return execFileSync(
-    "powershell",
-    ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", SCRIPT_PATH, ...args],
-    { encoding: "utf-8", windowsHide: true, timeout: 5000 },
-  ).trim();
+  return runPowerShellScript(SCRIPT_PATH, args);
 }
 
 // ── macOS helpers ────────────────────────────────────────────
@@ -74,7 +69,7 @@ function macDelete(account: string): void {
 // ── Public API ───────────────────────────────────────────────
 
 export async function getSecret(key: string): Promise<string> {
-  if (IS_MAC) {
+  if (IS_DARWIN) {
     try { return macGet(key); } catch { return ""; }
   }
   if (!WIN_STORE_AVAILABLE) { warnUnavailableOnce(); return ""; }
@@ -97,7 +92,7 @@ export async function getSecret(key: string): Promise<string> {
 }
 
 export async function setSecret(key: string, value: string): Promise<void> {
-  if (IS_MAC) {
+  if (IS_DARWIN) {
     if (!value) {
       macDelete(key);
     } else {

@@ -3,9 +3,7 @@
  */
 
 import { extractJson } from "./extract-json";
-import { AiProviderError } from "./provider-error";
-import { buildGoogleThinkingProviderOptions } from "./google-provider-options";
-export interface AiResult {
+interface AiResult {
   analysis: string;
   usage: {
     inputTokens: number;
@@ -16,7 +14,6 @@ export interface AiResult {
   };
 }
 
-export type AiProvider = "gemini" | "openai" | "local";
 
 const AI_PROVIDERS = [
   { id: "gemini", name: "Google Gemini" },
@@ -28,14 +25,13 @@ export function getProviders() {
   return AI_PROVIDERS;
 }
 
-export type ModelListResult = {
+type ModelListResult = {
   models: { id: string; name: string; contextLength?: number }[];
   error: string | null;
 };
 
 
 
-/** Fetch available Gemini models from the API. Filters to generateContent-capable models. */
 /** Fetch available Gemini models from the API. Filters to generateContent-capable models. */
 export async function getGeminiModelsDetailed(apiKey: string): Promise<ModelListResult> {
   try {
@@ -116,7 +112,7 @@ export async function runClaudeCli(prompt: string, model?: string): Promise<AiRe
 }
 
 // JSON schema for structured output — used by Gemini and OpenAI
-export const ANALYSIS_SCHEMA = {
+const ANALYSIS_SCHEMA = {
   type: "object",
   properties: {
     verdict: { type: "string", description: "2-3 sentences assessing overall lap quality, pace, and where the biggest time gains are" },
