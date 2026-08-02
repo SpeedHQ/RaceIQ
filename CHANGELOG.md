@@ -45,6 +45,7 @@
 - Restored the ACC live-dashboard fuel bar in fixture-backed previews
 - Consolidated live dashboard routing across all supported games while preserving game-specific URLs
 - Deterministic iRacing recording and replay coverage through the production parser pipeline
+- Preserve complete iRacing SessionInfo YAML in recordings while keeping historical captures replayable and telemetry deltas compact
 - Consolidated per-game car, track, and compare routes into shared dynamic game routes
 - Added a disposable development database seed from committed telemetry fixtures
 - Consolidated shared sessions, chats, analysis, driver, and experiment routes across all supported games

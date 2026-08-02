@@ -7,9 +7,9 @@
 - Catalog version: `0.13.0`
 - Schema version: `v6`
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
-- Generator commit: `4b63556c593f6a8fe75e8d5b0500d31873d905c4db4c3abd45e7f60375e812a3`
+- Generator commit: `072a8a2728cab789d71155fcf37f9aa1079020f1b1713077b93643d7d4d8590e`
 - Generated at: `1970-01-01T00:00:00.000Z` (reproducible-build epoch)
-- Content SHA-256: `4eee8928dd3b6409f5da9537fed2e18e8601d413b81a1e6a391301bfac9ba135`
+- Content SHA-256: `12eb89dbd74b85c6d6e1c46f8d2d2b9e611ce2366ad96ead54e8bf9c14e01e52`
 
 ## Coverage
 
@@ -19,7 +19,7 @@
 | f1-2025 | 288 | 288 | 119 | 169 | 0 | 0 | 0 |
 | acc | 200 | 167 | 124 | 43 | 0 | 0 | 33 |
 | ac-evo | 255 | 219 | 124 | 95 | 0 | 0 | 36 |
-| iracing | 923 | 208 | 119 | 15 | 324 | 465 | 0 |
+| iracing | 953 | 703 | 119 | 15 | 324 | 495 | 0 |
 
 ## Semantic variables
 
@@ -117,6 +117,7 @@
 | `diagnostics.radio.transmitting-frequency-index` | Transmitting radio frequency index | number | dimensionless | index | scalar |  |  |  |
 | `diagnostics.radio.transmitting-radio-index` | Transmitting radio index | number | dimensionless | index | scalar |  |  |  |
 | `diagnostics.radio.tuned-frequency-number` | Tuned frequency number | structured | dimensionless | index | variable:0-* | radio-index:source-order | indices: radio-index (variable:0-*, source-order); fields: value:number |  |
+| `diagnostics.raw-session-metadata` | Complete SessionInfo YAML | structured | dimensionless | structured | variable:0-* | source-path:source-order | indices: source-path (variable:0-*, source-order); fields: value:string |  |
 | `diagnostics.result-reason` | Result Reason | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.result-source` | Result Source | number | unit:unitless | unitless | scalar |  |  |  |
 | `diagnostics.sim-build-target` | Build Target | string | dimensionless | text | scalar |  |  |  |
@@ -131,6 +132,7 @@
 | `diagnostics.tires-available` | Tires Available | number | unit:unitless | unitless | fixed:4 | FL, FR, RL, RR |  |  |
 | `diagnostics.tires-used` | Tires Used | number | unit:unitless | unitless | fixed:4 | FL, FR, RL, RR |  |  |
 | `diagnostics.total-warnings` | Total Warnings | number | dimensionless | count | scalar |  |  |  |
+| `diagnostics.track-content-version` | Track Version | string | dimensionless | text | scalar |  |  |  |
 | `diagnostics.vehicle-fia-flags` | Vehicle FIA Flags | number | dimensionless | count | scalar |  |  |  |
 | `diagnostics.vid-cap-active` | Vid Cap Active | boolean | dimensionless | boolean | scalar |  |  |  |
 | `diagnostics.vid-cap-enabled` | Vid Cap Enabled | boolean | dimensionless | boolean | scalar |  |  |  |
@@ -214,6 +216,7 @@
 | `identity.is-in-garage` | Is In Garage | boolean | dimensionless | boolean | scalar |  |  |  |
 | `identity.is-on-track-car` | Is On Track Car | boolean | dimensionless | boolean | scalar |  |  |  |
 | `identity.player-car-class-id` | Player car-class ID | number | dimensionless | id | scalar |  |  |  |
+| `identity.player-car-electric` | Driver Car Is Electric | boolean | dimensionless | boolean | scalar |  |  |  |
 | `identity.player-car-index` | Player car index | number | dimensionless | index | scalar |  |  |  |
 | `identity.player-car-version` | Player car version | string | dimensionless | text | scalar |  |  |  |
 | `identity.player-driver-id` | Player driver ID | number | dimensionless | id | scalar |  |  |  |
@@ -244,6 +247,9 @@
 | `inputs.front-wheel-angle` | Front wheel angle | number | angle | rad | scalar |  |  |  |
 | `inputs.gear` | Gear | number | dimensionless | index | scalar |  |  |  |
 | `inputs.gear-box-damage` | Gear Box Damage | number | dimensionless | % | scalar |  |  |  |
+| `inputs.gearbox.forward-gear-count` | Driver Car Gear Num Forward | number | dimensionless | count | scalar |  |  |  |
+| `inputs.gearbox.neutral-position-count` | Driver Car Gear Neutral | number | dimensionless | count | scalar |  |  |  |
+| `inputs.gearbox.reverse-position-count` | Driver Car Gear Reverse | number | dimensionless | count | scalar |  |  |  |
 | `inputs.handbrake-percent` | Handbrake Percent | number | dimensionless | % | scalar |  |  |  |
 | `inputs.handbrake-raw` | Handbrake Raw | number | dimensionless | % | scalar |  |  |  |
 | `inputs.norm-ai-brake-diff` | Norm AI Brake Diff | number | unit:-128–127 | -128–127 | scalar |  |  |  |
@@ -305,6 +311,7 @@
 | `race.competitor.car-class-license-level` | Competitor class license level | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.car-class-name` | Competitor car-class name | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.car-design` | Competitor car design | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
+| `race.competitor.car-electric` | Car Is Electric | structured | dimensionless | boolean | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:boolean |  |
 | `race.competitor.car-id` | Competitor car ID | structured | dimensionless | id | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.car-index` | Competitor car index | structured | dimensionless | index | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.car-name` | Competitor car name | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
@@ -318,7 +325,9 @@
 | `race.competitor.class-power-adjust` | Competitor class power adjustment | structured | dimensionless | % | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.class-relative-speed` | Competitor class relative speed | structured | dimensionless | ratio | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.class-weight-penalty` | Competitor class weight penalty | structured | mass | kg | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `race.competitor.club-id` | Club ID | structured | dimensionless | id | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.club-name` | Competitor club name | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
+| `race.competitor.division-id` | Division ID | structured | dimensionless | id | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `race.competitor.division-name` | Competitor division name | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.driver-abbreviated-name` | Competitor abbreviated name | structured | dimensionless | text | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:string |  |
 | `race.competitor.driver-id` | Competitor driver ID | structured | dimensionless | id | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
@@ -409,6 +418,7 @@
 | `session.configuration.course-cautions` | Course Cautions | string | dimensionless | text | scalar |  |  |  |
 | `session.configuration.date` | Date | string | dimensionless | text | scalar |  |  |  |
 | `session.configuration.earth-rotation-speedup-factor` | Earth Rotation Speedup Factor | string | dimensionless | text | scalar |  |  |  |
+| `session.configuration.enforce-tire-compound-change` | Session Enforce Tire Compound Change | structured | dimensionless | boolean | variable:0-* | session-index:source-order | indices: session-index (variable:0-*, source-order); fields: value:boolean |  |
 | `session.configuration.fast-repair-limit` | Fast Repairs Limit | number | dimensionless | value-with-unit | scalar |  |  |  |
 | `session.configuration.green-white-checkered-limit` | Green White Checkered Limit | string | dimensionless | text | scalar |  |  |  |
 | `session.configuration.hardcore-level` | Hardcore Level | number | dimensionless | count | scalar |  |  |  |
@@ -498,8 +508,11 @@
 | `setup.drivetrain.on-throttle-lock` | On-throttle differential | number | dimensionless | % | scalar |  |  |  |
 | `setup.electronics.abs` | Configured ABS | number | unit:level | level | scalar |  |  |  |
 | `setup.electronics.display-page` | Display page | number | dimensionless | index | scalar |  |  |  |
+| `setup.electronics.endurance-lights` | Endurance lights | number | unit:configuration | configuration | scalar |  |  |  |
 | `setup.electronics.engine-map` | Configured engine map | number | unit:level | level | scalar |  |  |  |
 | `setup.electronics.fuel-mix` | Configured fuel mix | number | unit:level | level | scalar |  |  |  |
+| `setup.electronics.left-side-led-strips` | Left-side LED strips | number | unit:configuration | configuration | scalar |  |  |  |
+| `setup.electronics.right-side-led-strips` | Right-side LED strips | number | unit:configuration | configuration | scalar |  |  |  |
 | `setup.electronics.telemetry-laps` | Telemetry laps | number | dimensionless | count | scalar |  |  |  |
 | `setup.electronics.throttle-shape` | Throttle shape | number | unit:level | level | scalar |  |  |  |
 | `setup.electronics.traction-control` | Configured traction control | number | unit:level | level | scalar |  |  |  |
@@ -518,15 +531,19 @@
 | `setup.suspension.bumpstops` | Bump-stop selection | number | unit:level | level | fixed:4 | FL, FR, RL, RR |  |  |
 | `setup.suspension.front-anti-roll-bar.arms` | Front anti-roll-bar arms | number | dimensionless | count | scalar |  |  |  |
 | `setup.suspension.front-anti-roll-bar.blades` | Front anti-roll-bar blades | number | unit:level | level | scalar |  |  |  |
+| `setup.suspension.front-anti-roll-bar.connection` | Front anti-roll-bar connection | number | unit:configuration | configuration | scalar |  |  |  |
 | `setup.suspension.front-anti-roll-bar.diameter` | Front anti-roll-bar diameter | number | length | mm | scalar |  |  |  |
 | `setup.suspension.front-anti-roll-bar.outer-diameter` | Front anti-roll-bar outer diameter | number | length | mm | scalar |  |  |  |
+| `setup.suspension.front-anti-roll-bar.rate` | Front anti-roll-bar rate | number | unit:configuration | configuration | scalar |  |  |  |
 | `setup.suspension.front-anti-roll-bar.setting` | Front anti-roll-bar setting | number | unit:configuration | configuration | scalar |  |  |  |
 | `setup.suspension.helper-springs` | Helper springs | number | unit:level | level | fixed:4 | FL, FR, RL, RR |  |  |
 | `setup.suspension.packers` | Packers | number | length | mm | fixed:4 | FL, FR, RL, RR |  |  |
 | `setup.suspension.rear-anti-roll-bar.arms` | Rear anti-roll-bar arms | number | dimensionless | count | scalar |  |  |  |
 | `setup.suspension.rear-anti-roll-bar.blades` | Rear anti-roll-bar blades | number | unit:level | level | scalar |  |  |  |
+| `setup.suspension.rear-anti-roll-bar.connection` | Rear anti-roll-bar connection | number | unit:configuration | configuration | scalar |  |  |  |
 | `setup.suspension.rear-anti-roll-bar.diameter` | Rear anti-roll-bar diameter | number | length | mm | scalar |  |  |  |
 | `setup.suspension.rear-anti-roll-bar.outer-diameter` | Rear anti-roll-bar outer diameter | number | length | mm | scalar |  |  |  |
+| `setup.suspension.rear-anti-roll-bar.rate` | Rear anti-roll-bar rate | number | unit:configuration | configuration | scalar |  |  |  |
 | `setup.suspension.rear-anti-roll-bar.setting` | Rear anti-roll-bar setting | number | unit:configuration | configuration | scalar |  |  |  |
 | `setup.suspension.ride-height` | Configured ride height | number | length | mm | fixed:4 | FL, FR, RL, RR |  |  |
 | `setup.suspension.shock-deflection` | Static shock deflection | number | length | mm | fixed:4 | FL, FR, RL, RR |  |  |
@@ -541,6 +558,7 @@
 | `setup.tires.tread-remaining` | Tread remaining bands | structured | dimensionless | % | fixed:4 | FL, FR, RL, RR | indices: wheel-position (fixed:4, semantic-order); fields: value:number |  |
 | `setup.weight.corner-weight` | Corner weight | number | mass × length × time^-2 | N | fixed:4 | FL, FR, RL, RR |  |  |
 | `setup.weight.cross-weight` | Cross weight | number | dimensionless | % | scalar |  |  |  |
+| `setup.weight.front-distribution` | Front weight distribution | number | dimensionless | value-with-unit | scalar |  |  |  |
 | `suspension.cg-height` | Center-of-gravity height | number | length | m | scalar |  |  |  |
 | `suspension.norm-suspension-travel` | Norm Suspension Travel | number | dimensionless | ratio | fixed:4 | FL, FR, RL, RR |  |  |
 | `suspension.ride-height` | Live ride height | number | length | m | variable:0-* | source-order |  |  |
@@ -555,6 +573,7 @@
 | `timing.car-dist-behind` | Car Dist Behind | number | length | m | scalar |  |  |  |
 | `timing.competitor.best-lap-number` | Competitor best lap number | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `timing.competitor.best-lap-time` | Competitor best lap time | structured | time | s | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
+| `timing.competitor.class-estimated-lap-time` | Car Class Est Lap Time | structured | time | s | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `timing.competitor.current-lap-number` | Competitor current lap number | structured | dimensionless | count | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `timing.competitor.current-lap-time` | Competitor current lap time | structured | time | s | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
 | `timing.competitor.estimated-time` | Competitor estimated lap-position time | structured | time | s | variable:0-64 | competitor-index:numeric-ascending | indices: competitor-index (variable:0-64, numeric-ascending); fields: value:number |  |
@@ -598,6 +617,7 @@
 | `timing.n-lap-average.best-time` | Best N-lap average time | number | time | s | scalar |  |  |  |
 | `timing.n-lap-average.clean-lap-count` | N-lap average clean-lap count | number | dimensionless | count | scalar |  |  |  |
 | `timing.n-lap-average.current-time` | Current N-lap average time | number | time | s | scalar |  |  |  |
+| `timing.official-track-length` | Official track length | number | length | m | scalar |  |  |  |
 | `timing.pit-lane-time-in-lane-in-ms` | Pit Lane Time In Lane In MS | number | time | ms | scalar |  |  |  |
 | `timing.pit-stop-window-ideal-lap` | Pit Stop Window Ideal Lap | number | dimensionless | count | scalar |  |  |  |
 | `timing.pit-stop-window-latest-lap` | Pit Stop Window Latest Lap | number | dimensionless | count | scalar |  |  |  |

@@ -2,7 +2,7 @@ import type { TelemetryPacket } from "../../../shared/types";
 import {
   createIRacingSourceDecoderState,
   type IRacingSourceDecoderState,
-  type IRacingSourceFrameV2,
+  type IRacingSourceFrame,
   type IRacingValue,
 } from "./source-frame";
 import {
@@ -141,7 +141,7 @@ function normalizeSectorStarts(
 }
 
 export function normalizeIRacingFrame(
-  frame: IRacingSourceFrameV2,
+  frame: IRacingSourceFrame,
   state?: IRacingParserState | null,
 ): TelemetryPacket {
   const { session, values } = frame;

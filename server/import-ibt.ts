@@ -463,9 +463,11 @@ async function* ibtFrames(
         sessionCache.set(sessionNum, session);
       }
       yield frameEncoder.encode({
-        schemaVersion: 2,
+        schemaVersion: 3,
         session,
         values: snapshot.values,
+        sessionInfo: snapshot.sessionInfo,
+        sessionInfoUpdate: snapshot.sessionInfoUpdate,
       });
     }
   } finally {
