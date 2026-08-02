@@ -2,12 +2,15 @@
  * Known iRacing SessionInfo YAML leaves.
  *
  * iRacing does not publish a permanently closed YAML schema. This list covers
- * documented core sections plus stable CarSetup leaves observed across common
- * car schemas. One explicit fallback remains for genuinely car/build-specific
- * leaves. Real-capture leaf discovery belongs to issue #200.
+ * documented core sections plus stable CarSetup leaves observed in committed
+ * captures. Generator validation checks every captured leaf against an exact
+ * entry or the explicit fallback for genuinely car/build-specific setup data.
  */
 
-export type IRacingSessionInfoRetention = "normalized" | "not-recorded";
+export type IRacingSessionInfoRetention =
+  | "exact"
+  | "normalized"
+  | "not-recorded";
 
 export interface IRacingSessionInfoCatalogField {
   path: string;
@@ -17,6 +20,16 @@ export interface IRacingSessionInfoCatalogField {
   retention: IRacingSessionInfoRetention;
   semanticId?: string;
 }
+
+export const IRACING_SESSION_INFO_RAW_SOURCE: IRacingSessionInfoCatalogField = {
+  path: "SessionInfo",
+  label: "Complete SessionInfo YAML",
+  unit: "structured",
+  description:
+    "Complete raw iRacing SessionInfo YAML text preserved verbatim by source-frame v3.",
+  semanticId: "diagnostics.raw-session-metadata",
+  retention: "exact",
+};
 
 const SECTIONS: ReadonlyArray<{
   prefix: string;
@@ -60,6 +73,7 @@ const SECTIONS: ReadonlyArray<{
       "TrackID",
       "TrackLatitude",
       "TrackLength",
+      "TrackLengthOfficial",
       "TrackLongitude",
       "TrackName",
       "TrackNorthOffset",
@@ -70,6 +84,7 @@ const SECTIONS: ReadonlyArray<{
       "TrackSkies",
       "TrackSurfaceTemp",
       "TrackType",
+      "TrackVersion",
       "TrackWeatherType",
       "TrackWindDir",
       "TrackWindVel",
@@ -127,6 +142,7 @@ const SECTIONS: ReadonlyArray<{
       "ResultsNumCautionLaps",
       "ResultsNumLeadChanges",
       "ResultsOfficial",
+      "SessionEnforceTireCompoundChange",
       "SessionLaps",
       "SessionName",
       "SessionNum",
@@ -232,6 +248,10 @@ const SECTIONS: ReadonlyArray<{
       "DriverCarIdleRPM",
       "DriverCarRedLine",
       "DriverCarEngCylinderCount",
+      "DriverCarGearNeutral",
+      "DriverCarGearNumForward",
+      "DriverCarGearReverse",
+      "DriverCarIsElectric",
       "DriverCarFuelKgPerLtr",
       "DriverCarFuelMaxLtr",
       "DriverCarMaxFuelPct",
@@ -256,6 +276,7 @@ const SECTIONS: ReadonlyArray<{
       "AbbrevName",
       "CarClassColor",
       "CarClassDryTireSetLimit",
+      "CarClassEstLapTime",
       "CarClassID",
       "CarClassLicenseLevel",
       "CarClassMaxFuelPct",
@@ -268,6 +289,7 @@ const SECTIONS: ReadonlyArray<{
       "CarIdx",
       "CarIsAI",
       "CarIsPaceCar",
+      "CarIsElectric",
       "CarNumber",
       "CarNumberDesignStr",
       "CarNumberRaw",
@@ -277,8 +299,10 @@ const SECTIONS: ReadonlyArray<{
       "CarSponsor_1",
       "CarSponsor_2",
       "ClubName",
+      "ClubID",
       "CurDriverIncidentCount",
       "DivisionName",
+      "DivisionID",
       "HelmetDesignStr",
       "Initials",
       "IRating",
@@ -305,8 +329,18 @@ const SECTIONS: ReadonlyArray<{
 const DESCRIPTION_OVERRIDES: Record<string, string> = {
   "WeekendInfo.TrackLength":
     "Official track length with unit embedded in iRacing YAML value.",
+  "WeekendInfo.TrackLengthOfficial":
+    "Official sanctioned track length with unit embedded in iRacing YAML value.",
+  "WeekendInfo.TrackVersion":
+    "iRacing content-build version for the active track configuration.",
   "WeekendInfo.TrackPitSpeedLimit":
     "Configured pit-lane speed limit with unit embedded in YAML value.",
+  "SessionInfo.Sessions[].SessionEnforceTireCompoundChange":
+    "Whether this session enforces a tire-compound change.",
+  "SessionInfo.Sessions[].ResultsPositions[].Incidents":
+    "Incident points assessed to this competitor in the session.",
+  "SessionInfo.Sessions[].ResultsPositions[].LapsLed":
+    "Completed laps led by this competitor in the session.",
   "SessionInfo.Sessions[].ResultsPositions[].FastestTime":
     "Competitor's fastest completed lap time in this session.",
   "SessionInfo.Sessions[].ResultsPositions[].LastTime":
@@ -317,6 +351,22 @@ const DESCRIPTION_OVERRIDES: Record<string, string> = {
     "Fastest completed lap time represented by this session result entry.",
   "QualifyResultsInfo.Results[].FastestTime":
     "Competitor's fastest qualifying lap time.",
+  "DriverInfo.DriverCarGearNeutral":
+    "Number of neutral positions in the player car gearbox.",
+  "DriverInfo.DriverCarGearNumForward":
+    "Number of forward gears in the player car gearbox.",
+  "DriverInfo.DriverCarGearReverse":
+    "Number of reverse gears in the player car gearbox.",
+  "DriverInfo.DriverCarIsElectric":
+    "Whether the player car uses an electric drivetrain.",
+  "DriverInfo.Drivers[].CarClassEstLapTime":
+    "iRacing's estimated lap time for this competitor's car class.",
+  "DriverInfo.Drivers[].CarIsElectric":
+    "Whether this competitor's car uses an electric drivetrain.",
+  "DriverInfo.Drivers[].ClubID":
+    "iRacing club identifier assigned to this competitor.",
+  "DriverInfo.Drivers[].DivisionID":
+    "iRacing division identifier assigned to this competitor.",
   "DriverInfo.DriverCarEstLapTime":
     "iRacing's estimated lap time for player car and current track.",
   "DriverInfo.DriverPitTrkPct":
@@ -327,29 +377,6 @@ const DESCRIPTION_OVERRIDES: Record<string, string> = {
     "Lap fraction where this sector starts and previous sector ends.",
 };
 
-const NORMALIZED_PATHS = new Set([
-  "WeekendInfo.TrackName",
-  "WeekendInfo.TrackID",
-  "WeekendInfo.TrackLength",
-  "WeekendInfo.TrackDisplayName",
-  "WeekendInfo.TrackDisplayShortName",
-  "WeekendInfo.SessionID",
-  "WeekendInfo.SubSessionID",
-  "DriverInfo.DriverCarIdx",
-  "DriverInfo.DriverCarIdleRPM",
-  "DriverInfo.DriverCarRedLine",
-  "DriverInfo.DriverCarEngCylinderCount",
-  "DriverInfo.Drivers[].CarIdx",
-  "DriverInfo.Drivers[].CarID",
-  "DriverInfo.Drivers[].CarPath",
-  "DriverInfo.Drivers[].CarScreenName",
-  "DriverInfo.Drivers[].CarScreenNameShort",
-  "DriverInfo.Drivers[].CarClassID",
-  "DriverInfo.Drivers[].CarClassShortName",
-  "DriverInfo.Drivers[].CarClassRelSpeed",
-  "SplitTimeInfo.Sectors[].SectorNum",
-  "SplitTimeInfo.Sectors[].SectorStartPct",
-]);
 
 function humanize(value: string): string {
   return value
@@ -370,22 +397,31 @@ function unitFor(path: string): string {
     DriverCarIdx: "index",
     PaceCarIdx: "index",
     DriverCarMaxFuelPct: "value-with-unit",
+    DriverCarGearNeutral: "count",
+    DriverCarGearNumForward: "count",
+    DriverCarGearReverse: "count",
+    DriverCarIsElectric: "boolean",
     CarClassRelSpeed: "value-with-unit",
+    CarClassEstLapTime: "s",
+    CarIsElectric: "boolean",
     ResultsLapsComplete: "count",
     ResultsOfficial: "boolean",
     ResultsNumCautionFlags: "count",
     ResultsNumCautionLaps: "count",
     ResultsNumLeadChanges: "count",
+    Incidents: "count",
     JokerLapsComplete: "count",
     LapsComplete: "count",
     LapsDriven: "count",
+    LapsLed: "count",
+    SessionEnforceTireCompoundChange: "boolean",
     SessionNumLapsToAvg: "count",
     SessionRunGroupsUsed: "count",
     SessionSkipped: "boolean",
   };
   if (exactUnits[field]) return exactUnits[field];
   if (
-    /^(TrackLength|TrackAltitude|TrackPitSpeedLimit|TrackAirPressure|TrackAirTemp|TrackFogLevel|TrackPrecipitation|TrackRelativeHumidity|TrackSurfaceTemp|TrackWindDir|TrackWindVel|WeatherTemp|RelativeHumidity|FogLevel|WindDirection|WindSpeed|CarClassMaxFuelPct|CarClassWeightPenalty|CarClassPowerAdjust|CarClassDryTireSetLimit|SessionLaps|SessionTime|IncidentLimit|FastRepairsLimit)$/.test(
+    /^(TrackLength|TrackLengthOfficial|TrackAltitude|TrackPitSpeedLimit|TrackAirPressure|TrackAirTemp|TrackFogLevel|TrackPrecipitation|TrackRelativeHumidity|TrackSurfaceTemp|TrackWindDir|TrackWindVel|WeatherTemp|RelativeHumidity|FogLevel|WindDirection|WindSpeed|CarClassMaxFuelPct|CarClassWeightPenalty|CarClassPowerAdjust|CarClassDryTireSetLimit|SessionLaps|SessionTime|IncidentLimit|FastRepairsLimit)$/.test(
       field,
     )
   ) {
@@ -446,7 +482,7 @@ function setupField(
     unit,
     description,
     semanticId,
-    retention: "not-recorded",
+    retention: "exact",
   };
 }
 
@@ -846,6 +882,135 @@ const IN_CAR_DIAL_LEAVES: readonly SetupLeaf[] = [
   },
 ];
 
+const CAPTURED_STABLE_SETUP_FIELDS: readonly IRacingSessionInfoCatalogField[] = [
+  setupField(
+    "Chassis.BrakesInCar.AbsSetting",
+    "ABS",
+    "level",
+    "Configured ABS level from iRacing in-car controls.",
+    "setup.electronics.abs",
+  ),
+  setupField(
+    "Chassis.BrakesInCar.BrakePads",
+    "Brake pads",
+    "enum",
+    "Configured brake-pad compound from iRacing in-car controls.",
+    "setup.brakes.pad-compound",
+  ),
+  setupField(
+    "Chassis.BrakesInCar.BrakePressureBias",
+    "Brake bias",
+    "value-with-unit",
+    "Configured brake-pressure bias from iRacing in-car controls.",
+    "setup.brakes.bias",
+  ),
+  setupField(
+    "Chassis.BrakesInCar.DashDisplayPage",
+    "Display page",
+    "configuration",
+    "Configured dashboard display page.",
+    "setup.electronics.display-page",
+  ),
+  setupField(
+    "Chassis.BrakesInCar.EngineMapSetting",
+    "Engine map",
+    "level",
+    "Configured engine-map level from iRacing in-car controls.",
+    "setup.electronics.engine-map",
+  ),
+  setupField(
+    "Chassis.BrakesInCar.FrontMasterCyl",
+    "Front master cylinder",
+    "value-with-unit",
+    "Configured front brake master-cylinder setting.",
+    "setup.brakes.front-master-cylinder",
+  ),
+  setupField(
+    "Chassis.BrakesInCar.RearMasterCyl",
+    "Rear master cylinder",
+    "value-with-unit",
+    "Configured rear brake master-cylinder setting.",
+    "setup.brakes.rear-master-cylinder",
+  ),
+  setupField(
+    "Chassis.BrakesInCar.TcSetting",
+    "Traction control",
+    "level",
+    "Configured traction-control level from iRacing in-car controls.",
+    "setup.electronics.traction-control",
+  ),
+  setupField(
+    "Chassis.Front.FarbConnection",
+    "Front anti-roll-bar connection",
+    "configuration",
+    "Configured front anti-roll-bar connection.",
+    "setup.suspension.front-anti-roll-bar.connection",
+  ),
+  setupField(
+    "Chassis.Front.FarbRate",
+    "Front anti-roll-bar rate",
+    "configuration",
+    "Configured front anti-roll-bar rate.",
+    "setup.suspension.front-anti-roll-bar.rate",
+  ),
+  setupField(
+    "Chassis.Front.NoseWeight",
+    "Front weight distribution",
+    "value-with-unit",
+    "Configured front weight distribution.",
+    "setup.weight.front-distribution",
+  ),
+  setupField(
+    "Chassis.Front.TotalToeIn",
+    "Front total toe",
+    "value-with-unit",
+    "Configured total front toe-in.",
+    "setup.alignment.toe",
+  ),
+  setupField(
+    "Chassis.Front.EnduranceLights",
+    "Endurance lights",
+    "configuration",
+    "Configured endurance-light package.",
+    "setup.electronics.endurance-lights",
+  ),
+  setupField(
+    "Chassis.Front.LeftSideLedStrips",
+    "Left-side LED strips",
+    "configuration",
+    "Configured left-side LED strip state.",
+    "setup.electronics.left-side-led-strips",
+  ),
+  setupField(
+    "Chassis.Front.RightSideLedStrips",
+    "Right-side LED strips",
+    "configuration",
+    "Configured right-side LED strip state.",
+    "setup.electronics.right-side-led-strips",
+  ),
+  setupField(
+    "Chassis.Rear.DiffClutchPlates",
+    "Differential clutch plates",
+    "count",
+    "Configured differential clutch-plate count.",
+    "setup.drivetrain.differential-clutch-plates",
+  ),
+  setupField(
+    "Chassis.Rear.RarbConnection",
+    "Rear anti-roll-bar connection",
+    "configuration",
+    "Configured rear anti-roll-bar connection.",
+    "setup.suspension.rear-anti-roll-bar.connection",
+  ),
+  setupField(
+    "Chassis.Rear.RarbRate",
+    "Rear anti-roll-bar rate",
+    "configuration",
+    "Configured rear anti-roll-bar rate.",
+    "setup.suspension.rear-anti-roll-bar.rate",
+  ),
+];
+
 const IRACING_CAR_SETUP_FIELDS: readonly IRacingSessionInfoCatalogField[] = [
   setupField(
     "UpdateCount",
@@ -854,6 +1019,7 @@ const IRACING_CAR_SETUP_FIELDS: readonly IRacingSessionInfoCatalogField[] = [
     "Revision counter for active iRacing setup.",
     "setup.metadata.update-count",
   ),
+  ...CAPTURED_STABLE_SETUP_FIELDS,
   ...setupCornerFields("TiresAero", [
     {
       field: "StartingPressure",
@@ -1038,9 +1204,7 @@ export const IRACING_SESSION_INFO_CATALOG_FIELDS: readonly IRacingSessionInfoCat
         description:
           DESCRIPTION_OVERRIDES[path] ??
           `${humanize(field)} from iRacing ${context}.`,
-        retention: NORMALIZED_PATHS.has(path)
-          ? ("normalized" as const)
-          : ("not-recorded" as const),
+        retention: "exact" as const,
       };
     }),
   ),
@@ -1052,6 +1216,6 @@ export const IRACING_SESSION_INFO_CATALOG_FIELDS: readonly IRacingSessionInfoCat
     description:
       "Fallback for car- or build-specific setup leaves not represented by stable catalogued paths.",
     semanticId: "setup.metadata.unmapped-source-values",
-    retention: "not-recorded",
+    retention: "exact",
   },
 ];

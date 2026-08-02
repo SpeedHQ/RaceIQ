@@ -22,6 +22,20 @@ Every source frame repeats the compact car, class, track, engine, and session
 identity. This is intentional: a stored lap remains parseable in isolation and
 does not depend on an earlier session-info frame.
 
+### Source-frame history and SessionInfo retention
+
+Source-frame v2 recordings retain only the normalized `SessionInfo` summary.
+Raw YAML omitted by v2 was never written and cannot be recovered from those
+captures.
+
+Source-frame v3 records the exact UTF-8 `SessionInfo` YAML in self-contained
+session frames. A YAML revision or content change emits a new session frame;
+unchanged telemetry continues through compact value-delta frames. Capture
+diagnostics drive the catalog's normalized leaf coverage, while preserved v3
+YAML remains an exact source for dynamic fields. Raw YAML stays in source
+frames and is never attached to normalized `TelemetryPacket` values or
+broadcast on every WebSocket tick.
+
 ## Recorded IBT import
 
 The Analyse page's **Import session** action also accepts iRacing `.ibt`

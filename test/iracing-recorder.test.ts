@@ -16,8 +16,14 @@ import { gunzipSync } from "zlib";
 import {
   IRACING_DUMP_MAGIC,
   IRACING_DUMP_VERSION,
+  IRacingRecorder,
   readIRacingFrames,
 } from "../server/games/iracing/recorder";
+import {
+  IRACING_MAX_SOURCE_FRAME_SIZE,
+  IRacingSourceFrameEncoder,
+  type IRacingSourceFrameV3,
+} from "../server/games/iracing/source-frame";
 import {
   DumpToBinProcessor,
   IRacingFramePipeline,
@@ -32,6 +38,36 @@ const FIXTURE =
 
 initGameAdapters();
 initServerGameAdapters();
+
+function recorderFrame(sessionInfo: string): IRacingSourceFrameV3 {
+  return {
+    schemaVersion: 3,
+    session: {
+      sessionId: 123,
+      subSessionId: 456,
+      sessionNum: 2,
+      driverCarIdx: 7,
+      trackId: 99,
+      trackName: "Road America",
+      trackLengthM: 6515,
+      sectorStarts: [0, 0.34, 0.67],
+      carId: 42,
+      carName: "GT3 Test Car",
+      carClassId: 8,
+      carClassName: "GT3",
+      engineIdleRpm: 900,
+      engineRedlineRpm: 8500,
+      engineCylinderCount: 8,
+    },
+    values: {
+      SessionTime: 125.5,
+      SessionTick: 7530,
+      Speed: 72.5,
+    },
+    sessionInfo,
+    sessionInfoUpdate: 7,
+  };
+}
 
 describe("iRacing recorder container", () => {
   let tempDir = "";
@@ -93,6 +129,47 @@ describe("iRacing recorder container", () => {
     writeFileSync(truncated, raw.subarray(0, raw.length - 3));
 
     expect(readIRacingFrames(truncated)).toHaveLength(137);
+  });
+
+  test("records v3 session frames larger than the historical guard", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "iracing-recorder-test-"));
+    const recorder = new IRacingRecorder();
+    const path = recorder.start(tempDir);
+    const sessionInfo =
+      "WeekendInfo:\n  Notes: " + "x".repeat(600 * 1024) + "\n";
+    const frame = new IRacingSourceFrameEncoder().encode(
+      recorderFrame(sessionInfo),
+    );
+
+    expect(frame.length).toBeGreaterThan(512 * 1024);
+    expect(frame.length).toBeLessThanOrEqual(IRACING_MAX_SOURCE_FRAME_SIZE);
+    recorder.writeFrame(frame);
+    await recorder.stop();
+
+    const recorded = readIRacingFrames(path);
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]).toEqual(frame);
+  });
+
+  test("rejects frames beyond the shared source-frame size limit", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "iracing-recorder-test-"));
+    const recorder = new IRacingRecorder();
+    const path = recorder.start(tempDir);
+
+    expect(() =>
+      recorder.writeFrame(Buffer.allocUnsafe(IRACING_MAX_SOURCE_FRAME_SIZE + 1)),
+    ).toThrow(/iRacing dump frame is too large/);
+    await recorder.stop();
+
+    expect(readIRacingFrames(path)).toEqual([]);
+    const invalidContainer = Buffer.alloc(21);
+    IRACING_DUMP_MAGIC.copy(invalidContainer, 0);
+    invalidContainer.writeUInt32LE(IRACING_DUMP_VERSION, 8);
+    invalidContainer.writeUInt32LE(1, 12);
+    invalidContainer.writeUInt8(0, 16);
+    invalidContainer.writeUInt32LE(IRACING_MAX_SOURCE_FRAME_SIZE + 1, 17);
+    writeFileSync(path, invalidContainer);
+    expect(readIRacingFrames(path)).toEqual([]);
   });
 
   test("records through DumpToBinProcessor before parser dispatch", async () => {

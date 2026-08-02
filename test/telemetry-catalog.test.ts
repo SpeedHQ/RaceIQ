@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import {
   assertDirectToSimplifiedCompatibilityReviews,
   buildTelemetryCatalog,
   buildTelemetryCatalogArtifacts,
   telemetryCatalogSourceHash,
 } from "../scripts/generate-telemetry-catalog";
+import { collectIRacingSessionInfoLeafPaths } from "../scripts/iracing-session-info-capture";
 import {
   assertTelemetryCatalogComplete,
   getTelemetryChildren,
@@ -232,7 +234,7 @@ describe("semantic telemetry catalog", () => {
 
   test("covers every normalized packet field and every parser source inventory", () => {
     expect(TELEMETRY_CATALOG.coverage.normalizedPacketFields).toBe(144);
-    expect(TELEMETRY_CATALOG.coverage.semanticVariables).toBe(709);
+    expect(TELEMETRY_CATALOG.coverage.semanticVariables).toBe(732);
     expect(TELEMETRY_CATALOG.coverage.sourceCounts).toEqual({
       "fm-2023": {
         total: 95,
@@ -271,13 +273,13 @@ describe("semantic telemetry catalog", () => {
         recorded: 219,
       },
       iracing: {
-        total: 923,
+        total: 953,
         packet: 119,
         extension: 15,
         sdk: 324,
-        yaml: 465,
+        yaml: 495,
         setup: 0,
-        recorded: 208,
+        recorded: 703,
       },
     });
 
@@ -411,18 +413,37 @@ describe("semantic telemetry catalog", () => {
     });
   });
 
-  test("catalogues known iRacing SessionInfo YAML without claiming raw v2 retention", () => {
-    expect(IRACING_SESSION_INFO_SOURCE_VARIABLES).toHaveLength(465);
+  test("catalogues iRacing SessionInfo YAML as exact v3 recording sources", () => {
+    expect(IRACING_SESSION_INFO_SOURCE_VARIABLES).toHaveLength(495);
     expect(
       IRACING_SESSION_INFO_SOURCE_VARIABLES.filter(
-        (variable) => variable.retention === "normalized",
+        (variable) => variable.retention === "exact",
       ),
-    ).toHaveLength(21);
+    ).toHaveLength(IRACING_SESSION_INFO_SOURCE_VARIABLES.length);
     expect(
       IRACING_SESSION_INFO_SOURCE_VARIABLES.filter(
         (variable) => variable.recordedByRaceIQ,
       ),
-    ).toHaveLength(0);
+    ).toHaveLength(IRACING_SESSION_INFO_SOURCE_VARIABLES.length);
+    expect(
+      IRACING_SESSION_INFO_SOURCE_VARIABLES.filter(
+        (variable) =>
+          variable.retention === "normalized" ||
+          variable.retention === "not-recorded",
+      ),
+    ).toEqual([]);
+
+    expect(
+      IRACING_SESSION_INFO_SOURCE_VARIABLES.find(
+        (variable) => variable.path === "SessionInfo",
+      ),
+    ).toMatchObject({
+      unit: "structured",
+      dataType: "string",
+      retention: "exact",
+      recordedByRaceIQ: true,
+      semanticId: "diagnostics.raw-session-metadata",
+    });
 
     expect(
       IRACING_SESSION_INFO_SOURCE_VARIABLES.find(
@@ -432,7 +453,8 @@ describe("semantic telemetry catalog", () => {
       ),
     ).toMatchObject({
       unit: "fraction",
-      retention: "normalized",
+      retention: "exact",
+      recordedByRaceIQ: true,
       semanticId: "timing.sector.layout.start-fractions",
     });
     expect(
@@ -443,8 +465,29 @@ describe("semantic telemetry catalog", () => {
       ),
     ).toMatchObject({
       unit: "s",
-      retention: "not-recorded",
+      retention: "exact",
+      recordedByRaceIQ: true,
       semanticId: "timing.competitor.best-lap-time",
+    });
+    expect(
+      IRACING_SESSION_INFO_SOURCE_VARIABLES.find(
+        (variable) =>
+          variable.path === "SessionInfo.WeekendInfo.TrackLengthOfficial",
+      ),
+    ).toMatchObject({
+      unit: "value-with-unit",
+      retention: "exact",
+      recordedByRaceIQ: true,
+      semanticId: "timing.official-track-length",
+    });
+    expect(getTelemetryVariable("timing.official-track-length")).toMatchObject({
+      canonicalUnit: "m",
+      games: {
+        iracing: {
+          kind: "normalized",
+          normalization: "parse YAML value-with-unit as m",
+        },
+      },
     });
     expect(
       IRACING_SESSION_INFO_SOURCE_VARIABLES.find(
@@ -452,16 +495,105 @@ describe("semantic telemetry catalog", () => {
       ),
     ).toMatchObject({
       unit: "structured",
-      retention: "not-recorded",
+      retention: "exact",
+      recordedByRaceIQ: true,
       semanticId: "setup.metadata.unmapped-source-values",
     });
+  });
+
+  test("normalizes captured YAML array leaves and covers dynamic setup paths", () => {
+    const capturedLeaves = collectIRacingSessionInfoLeafPaths(`
+WeekendInfo:
+  TrackID: 99
+SessionInfo:
+  Sessions:
+  - SessionNum: 0
+    ResultsPositions:
+    - CarIdx: 7
+      FastestTime: 121.25
+CarSetup:
+  Chassis:
+    Front:
+      ArbDiameter: 35.0 mm
+    BuildSpecific:
+      NewAdjustment: 4 clicks
+`);
+
+    expect(capturedLeaves).toEqual([
+      "CarSetup.Chassis.BuildSpecific.NewAdjustment",
+      "CarSetup.Chassis.Front.ArbDiameter",
+      "SessionInfo.Sessions[].ResultsPositions[].CarIdx",
+      "SessionInfo.Sessions[].ResultsPositions[].FastestTime",
+      "SessionInfo.Sessions[].SessionNum",
+      "WeekendInfo.TrackID",
+    ]);
+
+    const catalogPaths = new Set(
+      IRACING_SESSION_INFO_SOURCE_VARIABLES.map((source) =>
+        source.path.replace(/^SessionInfo\./, ""),
+      ),
+    );
+    const wildcards = [...catalogPaths]
+      .filter((path) => path.endsWith(".**"))
+      .map((path) => path.slice(0, -2));
+    const uncovered = capturedLeaves.filter(
+      (path) =>
+        !catalogPaths.has(path) &&
+        !wildcards.some((prefix) => path.startsWith(prefix)),
+    );
+
+    expect(uncovered).toEqual([]);
+    expect(catalogPaths.has("CarSetup.Chassis.Front.ArbDiameter")).toBe(true);
+    expect(
+      catalogPaths.has("CarSetup.Chassis.BuildSpecific.NewAdjustment"),
+    ).toBe(false);
+    expect(
+      wildcards.some((prefix) =>
+        "CarSetup.Chassis.BuildSpecific.NewAdjustment".startsWith(prefix),
+      ),
+    ).toBe(true);
+  });
+
+  test("represents every committed capture-derived SessionInfo leaf", () => {
+    const manifest = JSON.parse(
+      readFileSync(
+        "data/diagnostics/iracing-session-info/racinginsights-v1-6d9873a-paths.json",
+        "utf8",
+      ),
+    ) as {
+      format: string;
+      source: {
+        url: string;
+        commit: string;
+        license: string;
+      };
+      leafPaths: string[];
+    };
+    expect(manifest.format).toBe(
+      "raceiq-iracing-session-info-paths-v1",
+    );
+    expect(manifest.source.url).toMatch(/^https:\/\//);
+    expect(manifest.source.commit).toMatch(/^[a-f0-9]{40}$/);
+    expect(manifest.source.license.length).toBeGreaterThan(0);
+    expect(manifest.leafPaths).toEqual(
+      [...new Set(manifest.leafPaths)].sort(),
+    );
+
+    const catalogPaths = new Set(
+      IRACING_SESSION_INFO_SOURCE_VARIABLES.map((source) =>
+        source.path.replace(/^SessionInfo\./, ""),
+      ),
+    );
+    expect(
+      manifest.leafPaths.filter((path) => !catalogPaths.has(path)),
+    ).toEqual([]);
   });
 
   test("maps stable iRacing setup leaves before one narrow fallback", () => {
     const setupSources = IRACING_SESSION_INFO_SOURCE_VARIABLES.filter(
       (source) => source.path.startsWith("SessionInfo.CarSetup."),
     );
-    expect(setupSources).toHaveLength(260);
+    expect(setupSources).toHaveLength(278);
     expect(
       setupSources.filter((source) => source.path.includes("**")),
     ).toHaveLength(1);
@@ -483,6 +615,54 @@ describe("semantic telemetry catalog", () => {
       ),
     ).toMatchObject({
       semanticId: "setup.tires.starting-pressure",
+    });
+    expect(
+      setupSources.find(
+        (source) =>
+          source.path ===
+          "SessionInfo.CarSetup.Chassis.BrakesInCar.AbsSetting",
+      ),
+    ).toMatchObject({
+      unit: "level",
+      semanticId: "setup.electronics.abs",
+    });
+    expect(
+      setupSources.find(
+        (source) =>
+          source.path ===
+          "SessionInfo.CarSetup.Chassis.Front.EnduranceLights",
+      ),
+    ).toMatchObject({
+      unit: "configuration",
+      semanticId: "setup.electronics.endurance-lights",
+    });
+    expect(
+      setupSources.find(
+        (source) =>
+          source.path ===
+          "SessionInfo.CarSetup.Chassis.Front.LeftSideLedStrips",
+      ),
+    ).toMatchObject({
+      semanticId: "setup.electronics.left-side-led-strips",
+    });
+    expect(
+      setupSources.find(
+        (source) =>
+          source.path ===
+          "SessionInfo.CarSetup.Chassis.Front.RightSideLedStrips",
+      ),
+    ).toMatchObject({
+      semanticId: "setup.electronics.right-side-led-strips",
+    });
+    expect(
+      setupSources.find(
+        (source) =>
+          source.path ===
+          "SessionInfo.CarSetup.Chassis.Rear.DiffClutchPlates",
+      ),
+    ).toMatchObject({
+      unit: "count",
+      semanticId: "setup.drivetrain.differential-clutch-plates",
     });
 
     const camber = getTelemetryVariable("setup.alignment.camber");

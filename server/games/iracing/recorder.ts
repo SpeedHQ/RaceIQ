@@ -16,13 +16,13 @@ import { existsSync, mkdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { gunzipSync } from "zlib";
 
+import { IRACING_MAX_SOURCE_FRAME_SIZE } from "./source-frame";
 export const IRACING_DUMP_MAGIC = Buffer.from("IRIQDMP\0", "ascii");
 export const IRACING_DUMP_VERSION = 2;
 
 const HEADER_SIZE = 16;
 const FRAME_HEADER_SIZE = 5;
 const SOURCE_FRAME_TYPE = 0;
-const MAX_FRAME_SIZE = 512 * 1024;
 
 function defaultRecordingDir(): string {
   return resolve(process.cwd(), "test", "artifacts", "laps");
@@ -79,7 +79,7 @@ export class IRacingRecorder {
       console.warn("[iRacing Recorder] _file is null, cannot write");
       return;
     }
-    if (frame.length > MAX_FRAME_SIZE) {
+    if (frame.length > IRACING_MAX_SOURCE_FRAME_SIZE) {
       throw new Error(`iRacing dump frame is too large (${frame.length} bytes)`);
     }
 
@@ -157,7 +157,7 @@ export function readIRacingFrames(filePath: string, limit?: number): Buffer[] {
     if (
       frameType !== SOURCE_FRAME_TYPE ||
       frameSize === 0 ||
-      frameSize > MAX_FRAME_SIZE ||
+      frameSize > IRACING_MAX_SOURCE_FRAME_SIZE ||
       offset + frameSize > data.length
     ) {
       break;

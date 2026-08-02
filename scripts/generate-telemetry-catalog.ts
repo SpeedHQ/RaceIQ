@@ -2,7 +2,10 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { parse } from "@babel/parser";
 import { resolve } from "node:path";
-import { IRACING_SESSION_INFO_CATALOG_FIELDS } from "../shared/games/iracing/session-info-catalog";
+import {
+  IRACING_SESSION_INFO_CATALOG_FIELDS,
+  IRACING_SESSION_INFO_RAW_SOURCE,
+} from "../shared/games/iracing/session-info-catalog";
 import { getSchemaForGame } from "../shared/setup-schema";
 import {
   SETUP_CONCEPT_DEFINITIONS,
@@ -10,6 +13,10 @@ import {
   SETUP_GROUP_DEFINITIONS,
   SETUP_PARSER_SOURCE_MAPPINGS,
 } from "../shared/telemetry-setup-catalog";
+import {
+  assertIRacingSessionInfoCaptureCoverage,
+  readIRacingSessionInfoCaptures,
+} from "./iracing-session-info-capture";
 
 const GAME_IDS = [
   "fm-2023",
@@ -264,6 +271,10 @@ const OUTPUT_MATRIX_PATH = resolve(ROOT, "shared/telemetry-catalog-matrix.md");
 const IRACING_DIAGNOSTIC = resolve(
   ROOT,
   "data/diagnostics/iracing-all-vars-2026-07-29T02-06-39-162Z.json",
+);
+const IRACING_SESSION_INFO_CAPTURE_DIRECTORY = resolve(
+  ROOT,
+  "data/diagnostics/iracing-session-info",
 );
 const PACKAGE_JSON_PATH = resolve(ROOT, "package.json");
 
@@ -697,6 +708,13 @@ const SEMANTIC_DEFINITIONS: Record<string, SemanticDefinition> = {
   "timing.track-length": {
     label: "Track length",
     description: "Official or source-reported lap length.",
+    parentId: "identity.track",
+    canonicalUnit: "m",
+    shape: "scalar",
+  },
+  "timing.official-track-length": {
+    label: "Official track length",
+    description: "Sanctioned lap length for current track configuration.",
     parentId: "identity.track",
     canonicalUnit: "m",
     shape: "scalar",
@@ -4194,6 +4212,8 @@ const IRACING_YAML_ALIASES: Record<string, string> = {
   "WeekendInfo.TrackDisplayShortName": "identity.track-name",
   "WeekendInfo.TrackID": "identity.track-ordinal",
   "WeekendInfo.TrackLength": "timing.track-length",
+  "WeekendInfo.TrackLengthOfficial": "timing.official-track-length",
+  "WeekendInfo.TrackVersion": "diagnostics.track-content-version",
   "WeekendInfo.TrackAltitude": "identity.track.altitude",
   "WeekendInfo.TrackCity": "identity.track.city",
   "WeekendInfo.TrackCleanup": "weather.track-cleanup-mode",
@@ -4304,6 +4324,8 @@ const IRACING_YAML_ALIASES: Record<string, string> = {
   "SessionInfo.Sessions[].SessionTime": "session.schedule.time-limit",
   "SessionInfo.Sessions[].SessionTrackRubberState":
     "weather.track-rubber-state",
+  "SessionInfo.Sessions[].SessionEnforceTireCompoundChange":
+    "session.configuration.enforce-tire-compound-change",
   "SessionInfo.Sessions[].ResultsAverageLapTime":
     "timing.session-average-lap-time",
   "SessionInfo.Sessions[].ResultsLapsComplete":
@@ -4363,6 +4385,12 @@ const IRACING_YAML_ALIASES: Record<string, string> = {
   "DriverInfo.DriverCarIdleRPM": "engine.engine-idle-rpm",
   "DriverInfo.DriverCarRedLine": "engine.engine-max-rpm",
   "DriverInfo.DriverCarFuelMaxLtr": "fuel.fuel-capacity",
+  "DriverInfo.DriverCarGearNeutral":
+    "inputs.gearbox.neutral-position-count",
+  "DriverInfo.DriverCarGearNumForward": "inputs.gearbox.forward-gear-count",
+  "DriverInfo.DriverCarGearReverse":
+    "inputs.gearbox.reverse-position-count",
+  "DriverInfo.DriverCarIsElectric": "identity.player-car-electric",
   "DriverInfo.DriverUserID": "identity.player-driver-id",
   "DriverInfo.PaceCarIdx": "race.pace-car-index",
   "DriverInfo.DriverHeadPosX": "motion.driver-head-position.x",
@@ -4426,6 +4454,11 @@ const IRACING_YAML_ALIASES: Record<string, string> = {
     "race.competitor.class-weight-penalty",
   "DriverInfo.Drivers[].CarClassDryTireSetLimit":
     "race.competitor.class-dry-tire-set-limit",
+  "DriverInfo.Drivers[].CarClassEstLapTime":
+    "timing.competitor.class-estimated-lap-time",
+  "DriverInfo.Drivers[].CarIsElectric": "race.competitor.car-electric",
+  "DriverInfo.Drivers[].ClubID": "race.competitor.club-id",
+  "DriverInfo.Drivers[].DivisionID": "race.competitor.division-id",
   "DriverInfo.Drivers[].CarDesignStr": "race.competitor.car-design",
   "DriverInfo.Drivers[].CarNumberDesignStr":
     "race.competitor.car-number-design",
@@ -4541,9 +4574,11 @@ function addIRacingYamlField(
             }
         : {}),
       description:
-        field.retention === "normalized"
-          ? "iRacing YAML field is normalized into current source-frame session summary."
-          : "iRacing YAML field is catalogued but raw value is not recorded by source-frame v2.",
+        field.retention === "exact"
+          ? "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3."
+          : field.retention === "normalized"
+            ? "iRacing YAML field is normalized into the source-frame session summary."
+            : "iRacing YAML field is catalogued but not retained by the source frame.",
     };
   } else if (Array.isArray(existing.sources)) {
     if (!existing.sources.includes(sourcePath)) existing.sources.push(sourcePath);
@@ -4576,7 +4611,50 @@ function addIRacingYamlField(
     description: field.description,
     semanticId,
     sourceKind: "yaml",
-    recordedByRaceIQ: false,
+    recordedByRaceIQ: field.retention === "exact",
+    retention: field.retention,
+  });
+}
+
+function addIRacingRawYamlSource(
+  variables: Map<string, CatalogVariable>,
+  groups: Map<string, CatalogGroup>,
+  inventories: Record<GameId, SourceVariable[]>,
+): void {
+  const field = IRACING_SESSION_INFO_RAW_SOURCE;
+  const semanticId = field.semanticId!;
+  const games = unavailableGames(
+    "No equivalent raw SessionInfo YAML source is provided by this parser.",
+  );
+  games.iracing = {
+    kind: "direct",
+    nativeUnit: field.unit,
+    sources: ["iRacing.SessionInfo"],
+    freshness: "session-update",
+    description:
+      "Complete SessionInfo YAML is preserved verbatim by iRacing source-frame v3.",
+  };
+  variables.set(semanticId, {
+    id: semanticId,
+    label: field.label,
+    description: field.description,
+    parentId: "diagnostics",
+    canonicalUnit: field.unit,
+    shape: "structured",
+    games,
+  });
+  attachChild(groups, "diagnostics", semanticId);
+
+  addSource(inventories, "iracing", {
+    path: field.path,
+    label: field.label,
+    unit: field.unit,
+    dataType: "string",
+    count: 1,
+    description: field.description,
+    semanticId,
+    sourceKind: "yaml",
+    recordedByRaceIQ: true,
     retention: field.retention,
   });
 }
@@ -5475,7 +5553,13 @@ function mappingArtifact(
   gameId: GameId,
   sources: readonly string[],
 ): Pick<MappingProvenance, "origin" | "artifact"> {
-  if (sources.some((source) => source.includes(".SessionInfo."))) {
+  if (
+    sources.some(
+      (source) =>
+        source === "iRacing.SessionInfo" ||
+        source.includes(".SessionInfo."),
+    )
+  ) {
     return {
       origin: "yaml",
       artifact: "shared/games/iracing/session-info-catalog.ts",
@@ -5590,6 +5674,19 @@ function enrichCatalogContracts(
 }
 
 export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
+  const iracingSessionInfoCaptures =
+    await readIRacingSessionInfoCaptures(
+      IRACING_SESSION_INFO_CAPTURE_DIRECTORY,
+    );
+  assertIRacingSessionInfoCaptureCoverage(
+    iracingSessionInfoCaptures,
+    IRACING_SESSION_INFO_CATALOG_FIELDS,
+  );
+  const iracingSessionInfoCaptureArtifacts =
+    iracingSessionInfoCaptures.map(
+      ({ fileName }) =>
+        `data/diagnostics/iracing-session-info/${fileName}`,
+    );
   const typesSource = await readFile(TYPES_PATH, "utf8");
   const typesTree = ast(typesSource);
   const packetFields = interfaceFields(
@@ -5957,6 +6054,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
       });
     }
   }
+  addIRacingRawYamlSource(variables, groups, inventories);
 
   for (const field of IRACING_SESSION_INFO_CATALOG_FIELDS) {
     addIRacingYamlField(variables, groups, inventories, field);
@@ -5990,6 +6088,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
   const provenanceArtifacts = [
     ...new Set([
       "scripts/generate-telemetry-catalog.ts",
+      "scripts/iracing-session-info-capture.ts",
       "shared/games/iracing/session-info-catalog.ts",
       "shared/setup-schema.ts",
       ...Object.values(PARSER_FILES),
@@ -6033,8 +6132,10 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
       "shared/setup-schema.ts",
       "shared/telemetry-setup-catalog.ts",
       "shared/games/iracing/session-info-catalog.ts",
+      "scripts/iracing-session-info-capture.ts",
       ...Object.values(PARSER_FILES),
       "data/diagnostics/iracing-all-vars-2026-07-29T02-06-39-162Z.json",
+      ...iracingSessionInfoCaptureArtifacts,
     ],
     groups: [...groups.values()].sort((a, b) => a.id.localeCompare(b.id)),
     variables: [...variables.values()].sort((a, b) => a.id.localeCompare(b.id)),

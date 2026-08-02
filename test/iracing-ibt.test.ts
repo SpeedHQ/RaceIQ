@@ -32,6 +32,7 @@ import { initServerGameAdapters } from "../server/games/init";
 import {
   createIRacingSourceDecoderState,
   decodeIRacingSourceFrame,
+  type IRacingSourceFrameV3,
 } from "../server/games/iracing/source-frame";
 import {
   IRSDK_VAR_HEADER_SIZE,
@@ -109,25 +110,8 @@ function telemetryRow(row: SyntheticRow): Buffer {
   return buffer;
 }
 
-function writeSyntheticIbt(
-  path: string,
-  suppliedRows?: SyntheticRow[],
-  identity: SyntheticIdentity = DEFAULT_IDENTITY,
-): void {
-  const variableHeaders = Buffer.concat([
-    descriptor(IRSDKVariableType.Double, 0, "SessionTime"),
-    descriptor(IRSDKVariableType.Int, 8, "SessionTick"),
-    descriptor(IRSDKVariableType.Int, 12, "SessionNum"),
-    descriptor(IRSDKVariableType.Bool, 16, "IsOnTrack"),
-    descriptor(IRSDKVariableType.Bool, 17, "OnPitRoad"),
-    descriptor(IRSDKVariableType.Float, 20, "Speed"),
-    descriptor(IRSDKVariableType.Int, 24, "Lap"),
-    descriptor(IRSDKVariableType.Float, 28, "LapDistPct"),
-    descriptor(IRSDKVariableType.Float, 32, "LapLastLapTime"),
-    descriptor(IRSDKVariableType.Float, 36, "LapCurrentLapTime"),
-    descriptor(IRSDKVariableType.Float, 40, "LFbrakeLinePress"),
-  ]);
-  const sessionInfo = Buffer.from(`
+function syntheticSessionInfo(identity: SyntheticIdentity): string {
+  return `
 WeekendInfo:
   TrackID: ${identity.trackId}
   TrackLength: 6.515 km
@@ -153,7 +137,31 @@ SplitTimeInfo:
     CarScreenName: ${identity.carName}
     CarClassID: 8
     CarClassShortName: GT3
-\0`);
+`;
+}
+
+function writeSyntheticIbt(
+  path: string,
+  suppliedRows?: SyntheticRow[],
+  identity: SyntheticIdentity = DEFAULT_IDENTITY,
+): void {
+  const variableHeaders = Buffer.concat([
+    descriptor(IRSDKVariableType.Double, 0, "SessionTime"),
+    descriptor(IRSDKVariableType.Int, 8, "SessionTick"),
+    descriptor(IRSDKVariableType.Int, 12, "SessionNum"),
+    descriptor(IRSDKVariableType.Bool, 16, "IsOnTrack"),
+    descriptor(IRSDKVariableType.Bool, 17, "OnPitRoad"),
+    descriptor(IRSDKVariableType.Float, 20, "Speed"),
+    descriptor(IRSDKVariableType.Int, 24, "Lap"),
+    descriptor(IRSDKVariableType.Float, 28, "LapDistPct"),
+    descriptor(IRSDKVariableType.Float, 32, "LapLastLapTime"),
+    descriptor(IRSDKVariableType.Float, 36, "LapCurrentLapTime"),
+    descriptor(IRSDKVariableType.Float, 40, "LFbrakeLinePress"),
+  ]);
+  const sessionInfo = Buffer.from(
+    `${syntheticSessionInfo(identity)}\0`,
+    "utf8",
+  );
   const sourceRows: SyntheticRow[] = suppliedRows ?? [
     {
       sessionTime: 10,
@@ -321,6 +329,8 @@ describe("IRacingIbtReader", () => {
       Lap: 3,
     });
     expect(first?.values.LFbrakeLinePress).toBeCloseTo(1200.25);
+    expect(first?.sessionInfo).toBe(syntheticSessionInfo(DEFAULT_IDENTITY));
+    expect(first?.sessionInfoUpdate).toBe(0);
     expect(reader.recordsRead).toBe(1);
     expect(reader.done).toBe(false);
 
@@ -351,6 +361,7 @@ describe("IRacingIbtReader", () => {
     expect(await source.pollOnce()).toBe(true);
     expect(await source.pollOnce()).toBe(false);
     expect(delivered).toHaveLength(2);
+    expect(delivered[1].length).toBeLessThan(delivered[0].length / 10);
 
     const decoder = createIRacingSourceDecoderState();
     const frame = decodeIRacingSourceFrame(delivered[0], decoder);
@@ -365,6 +376,14 @@ describe("IRacingIbtReader", () => {
       carName: "GT3 Test Car",
     });
     expect(frame).not.toBeNull();
+    expect(frame).toMatchObject({
+      schemaVersion: 3,
+      sessionInfo: syntheticSessionInfo(DEFAULT_IDENTITY),
+      sessionInfoUpdate: 0,
+    });
+    expect((frame as IRacingSourceFrameV3 | null)?.sessionInfo).toBe(
+      syntheticSessionInfo(DEFAULT_IDENTITY),
+    );
     expect(frame?.values.LFbrakeLinePress).toBeCloseTo(1200.25);
     const packet = normalizeIRacingFrame(frame!);
     expect(packet.gameId).toBe("iracing");
@@ -372,10 +391,20 @@ describe("IRacingIbtReader", () => {
     expect(packet.Speed).toBeCloseTo(50.5);
     expect(packet.LapNumber).toBe(3);
     expect(packet.iracing?.lapDistancePct).toBeCloseTo(0.25);
+    expect(packet).not.toHaveProperty("sessionInfo");
+    expect(packet).not.toHaveProperty("sessionInfoUpdate");
+    expect(packet.iracing).not.toHaveProperty("sessionInfo");
+    expect(packet.iracing).not.toHaveProperty("sessionInfoUpdate");
 
     const secondFrame = decodeIRacingSourceFrame(delivered[1], decoder);
     expect(secondFrame?.values.Speed).toBeCloseTo(51.5);
     expect(secondFrame?.values.LFbrakeLinePress).toBeCloseTo(1201.5);
+    expect(
+      (secondFrame as IRacingSourceFrameV3 | null)?.sessionInfo,
+    ).toBe(syntheticSessionInfo(DEFAULT_IDENTITY));
+    expect(
+      (secondFrame as IRacingSourceFrameV3 | null)?.sessionInfoUpdate,
+    ).toBe(0);
 
     await source.stop();
   });
