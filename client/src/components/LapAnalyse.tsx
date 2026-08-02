@@ -697,7 +697,7 @@ function LapAnalyseInner() {
       {telemetry.length > 0 && (
         <div className="relative flex flex-none flex-col overflow-visible @5xl/workspace:min-h-0 @5xl/workspace:flex-1 @5xl/workspace:flex-row @5xl/workspace:overflow-hidden">
           {/* Left: main content (map, charts, scrubber) */}
-          <div className="flex min-w-0 flex-none flex-col overflow-visible @5xl/workspace:h-full @5xl/workspace:flex-1 @5xl/workspace:overflow-hidden">
+          <div className="@container/analyse-main flex min-w-0 flex-none flex-col overflow-visible @5xl/workspace:h-full @5xl/workspace:flex-1 @5xl/workspace:overflow-x-hidden @5xl/workspace:overflow-y-auto">
             {/* Top section: Track Map + Metrics */}
             <AnalyseTopSection
               topHeight={topHeight}
@@ -765,42 +765,43 @@ function LapAnalyseInner() {
                 window.addEventListener("mouseup", onUp);
               }}
             />
-
-            {/* Lap time + Timeline scrubber */}
-            <AnalyseTimelineScrubber
-              displayTelemetry={displayTelemetry}
-              cursorIdx={cursorIdx}
-              totalPackets={telemetry.length}
-              currentTime={currentTime}
-              totalTime={totalTime}
-              lapNumber={selectedLap?.lapNumber ?? "?"}
-              sectorTimes={sectorTimes}
-              playing={playing}
-              playbackSpeed={playbackSpeed}
-              visualTimeFrac={visualTimeFrac}
-              progressRef={progressRef}
-              thumbRef={thumbRef}
-              onTogglePlay={() => setPlaying((p) => !p)}
-              onSpeedChange={setPlaybackSpeed}
-              onSeek={handleChartClick}
-              onVisualFracChange={setVisualTimeFrac}
-            />
-
-            {/* Stacked charts — with own scroll */}
-            {displayTelemetry.length > 0 && (
-              <AnalyseChartsPanel
-                ref={chartsPanelRef}
+            <div className="contents @5xl/workspace:flex @5xl/workspace:min-h-64 @5xl/workspace:flex-1 @5xl/workspace:flex-col">
+              {/* Lap time + Timeline scrubber */}
+              <AnalyseTimelineScrubber
                 displayTelemetry={displayTelemetry}
                 cursorIdx={cursorIdx}
                 totalPackets={telemetry.length}
+                currentTime={currentTime}
+                totalTime={totalTime}
+                lapNumber={selectedLap?.lapNumber ?? "?"}
+                sectorTimes={sectorTimes}
+                playing={playing}
+                playbackSpeed={playbackSpeed}
                 visualTimeFrac={visualTimeFrac}
+                progressRef={progressRef}
+                thumbRef={thumbRef}
+                onTogglePlay={() => setPlaying((p) => !p)}
+                onSpeedChange={setPlaybackSpeed}
+                onSeek={handleChartClick}
                 onVisualFracChange={setVisualTimeFrac}
-                onClickIndex={handleChartClick}
-                onScrubStart={handleScrubStart}
-                speedLabel={units.speedLabel}
-                tempLabel={units.tempLabel}
               />
-            )}
+
+              {/* Stacked charts — with own scroll */}
+              {displayTelemetry.length > 0 && (
+                <AnalyseChartsPanel
+                  ref={chartsPanelRef}
+                  displayTelemetry={displayTelemetry}
+                  cursorIdx={cursorIdx}
+                  totalPackets={telemetry.length}
+                  visualTimeFrac={visualTimeFrac}
+                  onVisualFracChange={setVisualTimeFrac}
+                  onClickIndex={handleChartClick}
+                  onScrubStart={handleScrubStart}
+                  speedLabel={units.speedLabel}
+                  tempLabel={units.tempLabel}
+                />
+              )}
+            </div>
           </div>
 
           {/* Right panel – full height */}

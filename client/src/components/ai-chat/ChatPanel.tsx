@@ -10,6 +10,7 @@ import { client } from "@/lib/rpc";
 import { useSettings } from "../../hooks/queries";
 import { isAiConfigured } from "../../lib/is-ai-configured";
 import { useUiStore } from "../../stores/ui";
+import { Button } from "../ui/button";
 
 /**
  * ChatPanel — shared assistant-ui chat shell extracted from TuneSetupChat.tsx
@@ -224,7 +225,7 @@ function TokenUsageFooter({
       {hasUsage && cost > 0 && <span>≈ ${cost < 0.01 ? cost.toFixed(4) : cost.toFixed(3)}</span>}
       {maxGen > 1 && (
         <span className="flex items-center gap-0.5">
-          <button
+          <Button
             type="button"
             onClick={() => onViewGen(Math.max(1, viewingGen - 1))}
             disabled={viewingGen <= 1}
@@ -232,11 +233,11 @@ function TokenUsageFooter({
             title="Previous chat generation"
           >
             ‹
-          </button>
+          </Button>
           <span>
             gen {viewingGen}/{maxGen}
           </span>
-          <button
+          <Button
             type="button"
             onClick={() => onViewGen(Math.min(maxGen, viewingGen + 1))}
             disabled={viewingGen >= maxGen}
@@ -244,11 +245,11 @@ function TokenUsageFooter({
             title="Next chat generation"
           >
             ›
-          </button>
+          </Button>
         </span>
       )}
       {activeThreadId && isRunning && (
-        <button
+        <Button
           type="button"
           onClick={() => {
             void fetch(`/api/chats/${encodeURIComponent(activeThreadId)}/run/cancel`, { method: "POST" });
@@ -257,10 +258,10 @@ function TokenUsageFooter({
           title="Stop the agent turn on the server (not just this view)"
         >
           Cancel
-        </button>
+        </Button>
       )}
       {compactThreadId && (
-        <button
+        <Button
           type="button"
           onClick={onNewChat}
           disabled={compacting || isRunning}
@@ -268,7 +269,7 @@ function TokenUsageFooter({
           title="Compact this chat into a summary and continue in a fresh chat (keeps this chat as read-only history)"
         >
           {compacting ? "Compacting…" : "Compact & New chat"}
-        </button>
+        </Button>
       )}
       {compactMsg && <span className="text-app-text-dim">{compactMsg}</span>}
     </div>
@@ -455,9 +456,9 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
       emptyState ?? (
         <div className="pt-2 space-y-1.5">
           <p className="text-app-compact text-app-text-dim">Add an AI provider key to chat.</p>
-          <button type="button" onClick={() => openSettings("ai")} className="w-full px-3 py-1.5 text-xs rounded bg-ai-accent hover:bg-ai-accent-hover text-app-on-filled font-medium">
+          <Button type="button" onClick={() => openSettings("ai")} className="w-full px-3 py-1.5 text-xs rounded bg-ai-accent hover:bg-ai-accent-hover text-app-on-filled font-medium">
             Set up AI
-          </button>
+          </Button>
         </div>
       )
     );

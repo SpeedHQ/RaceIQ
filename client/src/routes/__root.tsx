@@ -1,6 +1,6 @@
 import { getAllGames } from "@shared/games/registry";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { createRootRoute, Outlet, useLocation } from "@tanstack/react-router";
+import { createRootRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { Menu, RefreshCw, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { applyLocale } from "@/lib/locale";
@@ -11,6 +11,7 @@ import { OnboardingModal } from "../components/Onboarding";
 import { ResponsiveWorkspace } from "../components/ResponsiveWorkspace";
 import { Settings } from "../components/Settings";
 import { UpdateModal } from "../components/UpdateModal";
+import { Button } from "../components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { useSettings } from "../hooks/queries";
 import { useLocalStorage } from "../hooks/useLocalStorage";
@@ -42,9 +43,9 @@ function ReprocessProgressModal({ total, done, onClose }: { total: number; done:
           <RefreshCw className={`size-5 text-status-info ${complete ? "" : "animate-spin"}`} />
           <DialogTitle className="flex-1 text-sm font-semibold text-app-text">{complete ? m.root_reprocessing_complete() : m.root_reprocessing()}</DialogTitle>
           {complete && (
-            <button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text-secondary transition-colors" aria-label="Close">
+            <Button type="button" onClick={onClose} className="text-app-text-dim hover:text-app-text-secondary transition-colors" aria-label="Close">
               <X className="size-4" />
-            </button>
+            </Button>
           )}
         </DialogHeader>
         <div className="mb-3 h-2 w-full rounded-full bg-app-text/10 overflow-hidden">
@@ -95,14 +96,14 @@ function StaleLapButton() {
             {staleLapDetection.sessionCount} session{staleLapDetection.sessionCount !== 1 ? "s were" : " was"} recorded with an older lap detector. Reparsing will improve lap boundaries and timing
             accuracy.
           </p>
-          <button
+          <Button
             type="button"
             onClick={handleReprocess}
             className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium bg-status-info/20 hover:bg-status-info/30 border border-status-info/30 text-status-info transition-colors"
           >
             <RefreshCw className="size-3" />
             Reparse {staleLapDetection.sessionCount} session{staleLapDetection.sessionCount !== 1 ? "s" : ""}
-          </button>
+          </Button>
         </div>
       )}
       {reprocessProgress && <ReprocessProgressModal total={reprocessProgress.total} done={reprocessProgress.done} onClose={handleDismissModal} />}
@@ -197,10 +198,12 @@ function AppShell() {
 
         <div className="flex min-w-0 min-h-0 flex-1 flex-col">
           <header className="flex min-h-14 items-center justify-between border-b border-app-border px-3 @3xl/shell:hidden">
-            <span className="text-sm font-semibold text-app-text">RaceIQ</span>
-            <button type="button" onClick={() => setMobileNavOpen(true)} className="p-3 text-app-text-secondary hover:text-app-text" aria-label="Open navigation">
+            <Link to="/" className="text-sm font-semibold text-app-text transition-colors hover:text-app-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent">
+              RaceIQ
+            </Link>
+            <Button type="button" onClick={() => setMobileNavOpen(true)} className="p-3 text-app-text-secondary hover:text-app-text" aria-label="Open navigation">
               <Menu className="size-6" />
-            </button>
+            </Button>
           </header>
           <main className="min-h-0 min-w-0 flex-1 overflow-hidden">
             <ResponsiveWorkspace>
@@ -211,7 +214,7 @@ function AppShell() {
 
         {mobileNavOpen && (
           <div className="fixed inset-0 z-50 flex justify-end @3xl/shell:hidden">
-            <button type="button" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} className="absolute inset-0 bg-app-bg/60" />
+            <Button type="button" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)} className="absolute inset-0 bg-app-bg/60" />
             <div className="relative h-full">
               <AppSidebar
                 collapsed={false}
@@ -233,13 +236,13 @@ function AppShell() {
 
         {showSettings && (
           <div className="fixed inset-0 z-50 flex items-stretch justify-center @3xl/shell:items-start @3xl/shell:py-12">
-            <button type="button" aria-label="Close settings" onClick={closeSettings} className="absolute inset-0 bg-app-bg/60" />
+            <Button type="button" size="content" aria-label="Close settings" onClick={closeSettings} className="absolute inset-0 bg-app-bg/60 hover:bg-app-bg/60" />
             <div className="relative h-full w-full overflow-hidden bg-app-bg @3xl/shell:max-w-2xl @3xl/shell:rounded-lg @3xl/shell:border @3xl/shell:border-app-border">
               <div className="flex items-center justify-between border-b border-app-border bg-app-surface px-4 py-3">
-                <h1 className="text-sm font-semibold text-app-text">{m.nav_settings()}</h1>
-                <button type="button" onClick={closeSettings} className="text-lg leading-none text-app-text-muted hover:text-app-text">
+                <h1 className="text-app-heading font-semibold text-app-text">{m.nav_settings()}</h1>
+                <Button type="button" onClick={closeSettings} className="text-app-heading leading-none text-app-text-muted hover:text-app-text">
                   &times;
-                </button>
+                </Button>
               </div>
               <div className="h-[calc(100%-3rem)]">
                 <Settings initialSection={settingsSection as "games" | "ai" | "updates" | "about" | undefined} onClose={closeSettings} />

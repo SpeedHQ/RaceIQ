@@ -10,6 +10,13 @@
 ### Fixes
 
 - Restore lap and session history when upgrading databases affected by overlapping schema migrations
+- Keep the Compare loading message hidden after comparison data is available
+- Cover the full page when settings are open so background content is consistently dimmed and dismissible
+- Guide drivers to AI settings with neutral primary actions when their provider, credentials, or model is not configured
+- Use semantic tabs for Analyse visualization modes and Data/Insights navigation
+- Keep Compare panel framing consistent by removing the track-map card outline and completing the AI Analysis panel border
+- Keep setup track names neutral and expanded setup details free of accent backgrounds
+- Keep expanded session lap tables aligned and show sector columns when lap sector timing is unavailable
 - Show all registered games in storage settings, including games with no recording files
 - Keep older lap telemetry available when legacy storage is the only replay source or a raw capture fails
 - Make every app workspace reflow across phone, tablet, odd-shaped, and desktop windows without blocking device or rotation gates
@@ -19,8 +26,15 @@
 - Resize the comparison track map with a persisted splitter and keep the AI Analysis control right-aligned
 - Keep the iRacing analysis car indicator aligned with track direction in fixed and follow map views
 - Show corner and straight times on iRacing analysis laps without world-position telemetry
+- Keep table text, guide cards, and setup rows consistently scaled without overflowing, and align Tracks sorting with Track Detail tabs without extra divider spacing
+- Use one consistent table layout, spacing, alignment, and borderless sortable-header style throughout dashboards and analysis views
+- Open Forza setups directly in the tune browser without obsolete Car Tunes and Wheel / FFB tabs
+- Place setup car and track filters beside setup actions for faster access
+- Use compact, borderless searchable filters for setup cars and tracks
+- Remove the setup source-row container styling and keep refresh aligned with its filters
 
 ### Internal
+- Keep production builds from bundling development-only Mastra dependencies
 - Added complete telemetry-first semantic catalog with units, descriptions, per-game fidelity mappings, full parser/setup source inventories, stable iRacing SessionInfo setup leaves, detailed sector relationships, and persisted detailed tire temperatures
 - Restored live-dashboard Storybook runtime context and added same-renderer local visual comparison before canonical Linux baseline generation
 - Expanded visual regression coverage to 97 fixture-seeded responsive app states plus 17 Storybook states, covering every game, high-risk screens, track and experiment details, reusable primitives, navigation, dialogs, and viewport-positioned menus

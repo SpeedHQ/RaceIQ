@@ -10,7 +10,7 @@ function AppInput({ className, ...props }: AppInputProps) {
     <input
       className={cn(
         "rounded border border-app-border-input bg-app-surface-alt px-2 py-1.5",
-        "text-sm text-app-text placeholder:text-app-text-dim",
+        "text-app-subtext text-app-text placeholder:text-app-text-dim",
         "outline-none focus:ring-1 focus:ring-app-border-input",
         "disabled:opacity-50 disabled:cursor-not-allowed",
         className,

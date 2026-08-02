@@ -5,7 +5,7 @@ import { useDeleteLap } from "../hooks/queries";
 import { storedLapsSectorCount } from "../lib/lap-sectors";
 import { useGameRoute } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
-import { Table } from "./ui/AppTable";
+import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
 import { Button } from "./ui/button";
 
 function formatLapTime(seconds: number): string {
@@ -54,8 +54,6 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
     return sortDir === "asc" ? valA - valB : valB - valA;
   });
 
-  const arrow = (key: SortKey) => (sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
-
   const bestLapTime = laps.reduce((best, l) => (l.isValid && l.lapTime < best ? l.lapTime : best), Infinity);
 
   const sectorCount = storedLapsSectorCount(laps);
@@ -76,42 +74,40 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
 
   return (
     <div className="overflow-auto">
-      <Table fit tableClassName="w-full text-sm">
-        <thead>
-          <tr className="text-xs text-app-text-muted uppercase tracking-wider border-b border-app-border">
-            <th className="text-left p-2 cursor-pointer hover:text-app-text select-none" onClick={() => toggleSort("lap")}>
-              {m.label_lap()}
-              {arrow("lap")}
-            </th>
-            <th className="text-left p-2 cursor-pointer hover:text-app-text select-none" onClick={() => toggleSort("time")}>
-              {m.label_time()}
-              {arrow("time")}
-            </th>
-            {sectorLabels.map((label) => (
-              <th key={label} className="text-left p-2">
-                {label}
-              </th>
-            ))}
-            <th className="text-center p-2">{m.laps_col_valid()}</th>
-            <th className="text-right p-2">{m.label_actions()}</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Table fit>
+        <THead>
+          <SortableTH direction={sortKey === "lap" ? (sortDir === "asc" ? "ascending" : "descending") : undefined} onSort={() => toggleSort("lap")}>
+            {m.label_lap()}
+          </SortableTH>
+          <SortableTH direction={sortKey === "time" ? (sortDir === "asc" ? "ascending" : "descending") : undefined} onSort={() => toggleSort("time")}>
+            {m.label_time()}
+          </SortableTH>
+          {sectorLabels.map((label) => (
+            <TH key={label}>{label}</TH>
+          ))}
+          <TH align="center">{m.laps_col_valid()}</TH>
+          <TH align="end">{m.label_actions()}</TH>
+        </THead>
+        <TBody>
           {sortedLaps.map((lap) => {
             const hasSectors = lap.sectorTimes?.length === sectorCount && lap.sectorTimes.every((time) => time > 0);
             return (
-              <tr key={lap.id} className="border-b border-app-border/50 hover:bg-app-surface-hover/30">
-                <td className="p-2 font-mono text-app-text">{lap.lapNumber}</td>
-                <td className={`p-2 font-mono font-bold ${lap.isValid && lap.lapTime === bestLapTime ? "text-(--lap-pace-best)" : "text-app-text"}`}>{formatLapTime(lap.lapTime)}</td>
+              <TRow key={lap.id}>
+                <TD numeric tone="primary">
+                  {lap.lapNumber}
+                </TD>
+                <TD emphasis numeric tone={lap.isValid && lap.lapTime === bestLapTime ? "best" : "primary"}>
+                  {formatLapTime(lap.lapTime)}
+                </TD>
                 {sectorLabels.map((label, index) => {
                   const time = lap.sectorTimes?.[index] ?? 0;
                   return (
-                    <td key={label} className={`p-2 font-mono text-xs font-bold ${hasSectors ? sectorColor(time, bestSectors[index], avgSectors[index]) : "text-app-text-secondary"}`}>
-                      {hasSectors ? formatLapTime(time) : "-"}
-                    </td>
+                    <TD key={label} emphasis numeric>
+                      <span className={hasSectors ? sectorColor(time, bestSectors[index], avgSectors[index]) : undefined}>{hasSectors ? formatLapTime(time) : "-"}</span>
+                    </TD>
                   );
                 })}
-                <td className="p-2 text-center">
+                <TD align="center">
                   {lap.isValid ? (
                     <span className="text-status-success">&#10003;</span>
                   ) : (
@@ -119,8 +115,8 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
                       &#10007;
                     </span>
                   )}
-                </td>
-                <td className="p-2 text-right">
+                </TD>
+                <TD align="end">
                   <div className="flex items-center justify-end gap-2">
                     <Button
                       variant="selected-toggle"
@@ -143,11 +139,11 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
                       {m.common_delete()}
                     </Button>
                   </div>
-                </td>
-              </tr>
+                </TD>
+              </TRow>
             );
           })}
-        </tbody>
+        </TBody>
       </Table>
     </div>
   );

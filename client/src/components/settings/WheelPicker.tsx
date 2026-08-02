@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
+import { Button } from "../ui/button";
 
 interface WheelOption {
   id: string;
@@ -24,7 +25,7 @@ export function WheelPicker({ value, onChange }: { value: string; onChange: (v: 
   return (
     <div className="grid grid-cols-3 gap-3 max-w-lg">
       {wheels.map((w) => (
-        <button
+        <Button
           key={w.id}
           onClick={() => onChange(w.src)}
           className={`relative rounded-lg border p-3 text-left transition-all ${
@@ -35,7 +36,7 @@ export function WheelPicker({ value, onChange }: { value: string; onChange: (v: 
           <div className="mt-2 h-20 flex items-center justify-center rounded-md border border-app-border bg-app-surface overflow-hidden">
             <img src={w.src} alt={w.name} className="h-full object-contain" />
           </div>
-        </button>
+        </Button>
       ))}
       {wheels.length === 0 && <p className="text-sm text-app-text-muted col-span-3">{m.wheel_no_images()}</p>}
     </div>

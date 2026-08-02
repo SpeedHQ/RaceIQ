@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { m } from "@/paraglide/messages";
 import type { InsightCategory, LapInsight } from "../lib/lap-insights";
+import { Button } from "./ui/button";
 
 const SEVERITY_COLOR: Record<string, string> = {
   info: "var(--app-text-dim)",
@@ -14,11 +15,7 @@ function InsightRow({ insight, onJump }: { insight: LapInsight; onJump: (idx: nu
 
   return (
     <div className="w-full rounded hover:bg-app-surface-hover/60 transition-colors group">
-      <button
-        type="button"
-        onClick={() => onJump(insight.frameIndices[eventIdx])}
-        className={`block w-full text-left px-2 ${hasMultiple ? "pt-1.5" : "py-1.5"}`}
-      >
+      <Button type="button" onClick={() => onJump(insight.frameIndices[eventIdx])} className={`block w-full text-left px-2 ${hasMultiple ? "pt-1.5" : "py-1.5"}`}>
         <div className="flex items-start gap-1.5">
           <span className="mt-1 w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: SEVERITY_COLOR[insight.severity] }} />
           <div className="min-w-0 flex-1">
@@ -26,10 +23,10 @@ function InsightRow({ insight, onJump }: { insight: LapInsight; onJump: (idx: nu
             <div className="text-app-caption text-app-text-muted">{insight.detail}</div>
           </div>
         </div>
-      </button>
+      </Button>
       {hasMultiple && (
         <div className="flex items-center gap-1 mt-1 ml-5 pb-1.5">
-          <button
+          <Button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
@@ -40,11 +37,11 @@ function InsightRow({ insight, onJump }: { insight: LapInsight; onJump: (idx: nu
             className="text-app-micro text-app-text-muted hover:text-app-text px-1"
           >
             ‹
-          </button>
+          </Button>
           <span className="text-app-micro text-app-text-dim tabular-nums">
             {eventIdx + 1}/{insight.frameIndices.length}
           </span>
-          <button
+          <Button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
@@ -55,7 +52,7 @@ function InsightRow({ insight, onJump }: { insight: LapInsight; onJump: (idx: nu
             className="text-app-micro text-app-text-muted hover:text-app-text px-1"
           >
             ›
-          </button>
+          </Button>
         </div>
       )}
     </div>

@@ -1,14 +1,12 @@
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
-import { SECTOR_COLOR_VARS } from "@/lib/colors";
-import {
-  deadReckonIRacingPosition,
-  pointAtLapFraction,
-} from "@shared/lib/lap-path";
+import { deadReckonIRacingPosition, pointAtLapFraction } from "@shared/lib/lap-path";
 import type { TelemetryPacket, TuneIssue } from "@shared/types";
 import { useEffect, useRef, useState } from "react";
+import { SECTOR_COLOR_VARS } from "@/lib/colors";
+import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { m } from "@/paraglide/messages";
 import { client } from "../lib/rpc";
 import { useGameId } from "../stores/game";
+import { Button } from "./ui/button";
 
 interface Props {
   packet: TelemetryPacket | null;
@@ -71,7 +69,7 @@ export function LiveTrackMap({ packet, issues }: Props) {
 
   // Auto-detect track changes from packet.TrackOrdinal and fetch outline
   useEffect(() => {
-    if (!packet || !packet.TrackOrdinal) return;
+    if (!packet?.TrackOrdinal) return;
     const trackOrd = packet.TrackOrdinal;
     if (trackOrd === lastTrackOrdRef.current) return;
     lastTrackOrdRef.current = trackOrd;
@@ -199,19 +197,13 @@ export function LiveTrackMap({ packet, issues }: Props) {
       pos = { x: packet.PositionX, z: packet.PositionZ };
     } else if (packet.gameId === "iracing") {
       const previousPacket = deadReckonedPacketRef.current;
-      const lapChanged =
-        deadReckonedLapRef.current != null &&
-        deadReckonedLapRef.current !== packet.LapNumber;
+      const lapChanged = deadReckonedLapRef.current != null && deadReckonedLapRef.current !== packet.LapNumber;
       if (!deadReckonedPosRef.current || lapChanged) {
         deadReckonedPosRef.current = { x: 0, z: 0 };
         liveTraceRef.current = [];
         lastTracePos.current = null;
       } else if (previousPacket) {
-        deadReckonedPosRef.current = deadReckonIRacingPosition(
-          previousPacket,
-          packet,
-          deadReckonedPosRef.current,
-        );
+        deadReckonedPosRef.current = deadReckonIRacingPosition(previousPacket, packet, deadReckonedPosRef.current);
       }
       deadReckonedPacketRef.current = packet;
       deadReckonedLapRef.current = packet.LapNumber;
@@ -613,15 +605,8 @@ export function LiveTrackMap({ packet, issues }: Props) {
       let hasPos = false;
 
       const nativeLapFraction = packet.iracing?.lapDistancePct;
-      if (
-        packet.gameId === "iracing" &&
-        outline &&
-        Number.isFinite(nativeLapFraction)
-      ) {
-        const point = pointAtLapFraction(
-          displayOutline,
-          nativeLapFraction!,
-        );
+      if (packet.gameId === "iracing" && outline && Number.isFinite(nativeLapFraction)) {
+        const point = pointAtLapFraction(displayOutline, nativeLapFraction!);
         if (point) {
           [cx, cy] = toCanvas(point.x, point.z);
           hasPos = true;
@@ -707,14 +692,14 @@ export function LiveTrackMap({ packet, issues }: Props) {
     <div className="relative">
       <canvas ref={canvasRef} className="w-full" style={{ height: 250 }} />
       {isRecorded && (
-        <button
+        <Button
           type="button"
           onClick={handleDeleteMap}
           className="absolute top-2 right-2 px-2 py-1 text-xs text-app-text-secondary hover:text-status-danger rounded border border-app-border-input hover:border-status-danger/60 hover:bg-status-danger/10 transition-colors"
           title="Delete recorded track map and re-record from driving"
         >
           {m.label_reset_map()}
-        </button>
+        </Button>
       )}
     </div>
   );

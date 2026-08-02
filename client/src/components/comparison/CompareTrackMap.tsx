@@ -6,8 +6,8 @@ import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
 import { client } from "../../lib/rpc";
 import { flipBoundaries, flipPoints, needsTrackFlip } from "../../lib/track-coords";
 import { m } from "../../paraglide/messages";
-
-import { Card } from "../ui/card";
+import { Table, TBody, TD, TH, THead, TRow } from "../ui/AppTable";
+import { Button } from "../ui/button";
 export interface SegmentTiming {
   name: string;
   type: "corner" | "straight";
@@ -356,9 +356,9 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
   }, [drawBoth]);
 
   return (
-    <Card className="h-full">
+    <div className="flex h-full flex-col overflow-y-auto text-app-body text-app-text">
       {/* Overview — full track, static */}
-      <div ref={overviewContainerRef} className="relative border-b border-app-border h-[220px] shrink-0">
+      <div ref={overviewContainerRef} className="relative min-h-32 basis-56 shrink border-b border-app-border">
         <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_overview()}</span>
         {alignedOutline.length < 2 ? (
           <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">{m.compare_no_outline()}</div>
@@ -367,10 +367,9 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
         )}
       </div>
       {/* Zoomed — follows cursor position */}
-      <div ref={zoomContainerRef} className="relative border-b border-app-border h-[320px] shrink-0">
+      <div ref={zoomContainerRef} className="relative min-h-40 basis-80 shrink border-b border-app-border">
         <span className="absolute top-2 left-2 text-app-caption text-app-text-dim uppercase tracking-wider z-10">{m.compare_zoomed()}</span>
-        <button
-          type="button"
+        <Button
           onClick={() => {
             const next = !followCarRef.current;
             followCarRef.current = next;
@@ -382,7 +381,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
           }`}
         >
           {followCar ? m.compare_follow_view() : m.compare_fixed_view()}
-        </button>
+        </Button>
         {alignedOutline.length < 2 ? (
           <div className="absolute inset-0 flex items-center justify-center text-app-text-dim text-sm">{m.compare_no_outline()}</div>
         ) : (
@@ -391,21 +390,19 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
       </div>
       {/* Segment Times Table */}
       {segments.length > 0 ? (
-        <div className="overflow-auto flex-1 min-h-0">
-          <table className="w-full text-xs">
-            <thead className="sticky top-0 z-10 bg-[var(--app-surface)]">
-              <tr className="text-app-caption text-app-text-muted uppercase tracking-wider border-b border-app-border">
-                <th className="text-left px-2 py-1.5">{m.compare_segment()}</th>
-                <th className="text-right px-2 py-1.5" style={{ color: COLOR_A }}>
-                  A
-                </th>
-                <th className="text-right px-2 py-1.5" style={{ color: COLOR_B }}>
-                  B
-                </th>
-                <th className="text-right px-2 py-1.5">+/-</th>
-              </tr>
-            </thead>
-            <tbody ref={segmentTableRef}>
+        <div className="min-h-24 flex-1 overflow-auto">
+          <Table density="compact" fit variant="embedded">
+            <THead>
+              <TH>{m.compare_segment()}</TH>
+              <TH align="end">
+                <span style={{ color: COLOR_A }}>A</span>
+              </TH>
+              <TH align="end">
+                <span style={{ color: COLOR_B }}>B</span>
+              </TH>
+              <TH align="end">+/-</TH>
+            </THead>
+            <TBody ref={segmentTableRef}>
               {segments.map((s) => {
                 const fasterA = s.timeA > 0 && s.timeB > 0 && s.timeA < s.timeB;
                 const fasterB = s.timeA > 0 && s.timeB > 0 && s.timeB < s.timeA;
@@ -414,24 +411,26 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
                 const segmentDeltaColor = isNeutral ? "var(--app-text-secondary)" : deltaColor(delta);
                 const sign = delta > 0 ? "+" : "";
                 return (
-                  <tr key={s.name} className="border-b border-app-border/50 hover:bg-app-surface-hover/30">
-                    <td className="px-2 py-1 font-mono text-app-text whitespace-nowrap">{s.name}</td>
-                    <td className="px-2 py-1 font-mono text-right" style={{ color: fasterA ? "var(--delta-gain)" : "var(--app-text-secondary)" }}>
+                  <TRow key={s.name}>
+                    <TD nowrap numeric tone="primary">
+                      {s.name}
+                    </TD>
+                    <TD align="end" numeric tone={fasterA ? "success" : "default"}>
                       {formatSectionTime(s.timeA)}
-                    </td>
-                    <td className="px-2 py-1 font-mono text-right" style={{ color: fasterB ? "var(--delta-gain)" : "var(--app-text-secondary)" }}>
+                    </TD>
+                    <TD align="end" numeric tone={fasterB ? "success" : "default"}>
                       {formatSectionTime(s.timeB)}
-                    </td>
-                    <td className="px-2 py-1 font-mono text-right" style={{ color: segmentDeltaColor }}>
-                      {s.timeA > 0 && s.timeB > 0 ? `${sign}${delta.toFixed(3)}` : "-"}
-                    </td>
-                  </tr>
+                    </TD>
+                    <TD align="end" numeric>
+                      <span style={{ color: segmentDeltaColor }}>{s.timeA > 0 && s.timeB > 0 ? `${sign}${delta.toFixed(3)}` : "-"}</span>
+                    </TD>
+                  </TRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         </div>
       ) : null}
-    </Card>
+    </div>
   );
 }

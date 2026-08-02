@@ -51,14 +51,18 @@ export function F125Leaderboard({ trackOrdinal }: { trackOrdinal: number }) {
           <THead>
             <TH>{m.f125lb_player()}</TH>
             <TH>{m.f125lb_team()}</TH>
-            <TH className="text-right">{m.label_time()}</TH>
+            <TH align="end">{m.label_time()}</TH>
           </THead>
           <TBody>
             {leaderboard.map((e) => (
               <TRow key={e.rank}>
-                <TD className="font-medium">{e.player}</TD>
-                <TD className="text-app-text-secondary">{e.team}</TD>
-                <TD className="text-right font-mono">{e.lapTime}</TD>
+                <TD emphasis tone="primary">
+                  {e.player}
+                </TD>
+                <TD>{e.team}</TD>
+                <TD align="end" numeric>
+                  {e.lapTime}
+                </TD>
               </TRow>
             ))}
           </TBody>

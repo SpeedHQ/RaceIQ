@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { client } from "@/lib/rpc";
 import { useGameId } from "@/stores/game";
 import type { TrackBoundaries, TrackCurb } from "../types";
@@ -78,13 +79,13 @@ export function CurbDebugSection({
         )}
       </div>
 
-      <button
+      <Button
         onClick={handleExtract}
         disabled={extracting}
-          className="mt-2 w-full px-2 py-1.5 text-app-label uppercase tracking-wider font-semibold rounded border transition-colors bg-(--surface-curb)/15 border-(--surface-curb)/50 text-(--surface-curb) hover:bg-(--surface-curb)/25 disabled:opacity-50"
+        className="mt-2 w-full px-2 py-1.5 text-app-label uppercase tracking-wider font-semibold rounded border transition-colors bg-(--surface-curb)/15 border-(--surface-curb)/50 text-(--surface-curb) hover:bg-(--surface-curb)/25 disabled:opacity-50"
       >
         {extracting ? "Extracting..." : "Extract Curbs from Laps"}
-      </button>
+      </Button>
       <p className="text-app-micro text-app-text-dim mt-1">Scans all stored laps for rumble strip data and recalibrates track boundaries.</p>
 
       {result && (

@@ -62,7 +62,7 @@ export function shouldUseMastraRuntime(
   return nodeEnv !== "production" && argv.some((arg) => /(?:^|[\\/])server[\\/]index\.ts$/.test(arg));
 }
 
-if (shouldUseMastraRuntime()) {
+if (process.env.NODE_ENV !== "production" && shouldUseMastraRuntime()) {
   try {
     const { mastra } = await import("../../mastra");
     lapAnalystAgent = mastra.getAgent("lap-analyst") as unknown as LapAnalystAgent;

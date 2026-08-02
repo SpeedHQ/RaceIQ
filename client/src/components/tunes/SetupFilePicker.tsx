@@ -40,7 +40,7 @@ export function SetupContentModal({ gameId, path, fileName, onClose }: { gameId:
       <DialogContent size="lg" className="@container/setup-file flex h-[60vh] w-[min(94vw,720px)] max-w-[720px] flex-col">
         <DialogHeader className="min-w-0 pr-8">
           <DialogTitle className="truncate">{data?.fileName ?? fileName}</DialogTitle>
-          {data?.presetId && <DialogDescription className="truncate text-app-compact">Preset {data.presetId}</DialogDescription>}
+          {data?.presetId && <DialogDescription className="truncate">Preset {data.presetId}</DialogDescription>}
         </DialogHeader>
         <div className="min-h-0 flex-1 overflow-auto">
           {isLoading && <div className="text-sm text-muted-foreground">Loading…</div>}

@@ -117,7 +117,7 @@ export const TabsUncontrolled: Story = {
     const canvas = within(canvasElement);
     const overview = canvas.getByRole("tab", { name: "Overview" });
     const setup = canvas.getByRole("tab", { name: "Setup" });
-    await expect(canvas.getByRole("tab", { name: "Archived" })).toHaveAttribute("aria-disabled", "true");
+    await expect(canvas.getByRole("tab", { name: "Archived" })).toBeDisabled();
     await userEvent.click(overview);
     await userEvent.keyboard("{ArrowRight}");
     await expect(setup).toHaveFocus();
@@ -226,6 +226,7 @@ export const ButtonVariants: Story = {
     await expect(canvas.getByRole("button", { name: "Reset form" })).toHaveAttribute("type", "reset");
     await userEvent.tab();
     await expect(primary).toHaveFocus();
+    await expect(getComputedStyle(primary).boxShadow).toContain("3px");
   },
 };
 export const SemanticVariants: Story = {
@@ -323,7 +324,7 @@ export const DialogSizes: Story = {
     const body = within(document.body);
     await expect(body.getByRole("dialog")).toBeVisible();
     await userEvent.click(body.getByRole("button", { name: "Close" }));
-    await expect(body.getByRole("dialog")).toHaveAttribute("data-closed");
+    await expect(body.queryByRole("dialog")).not.toBeInTheDocument();
   },
 };
 
@@ -384,7 +385,7 @@ export const TableShell: Story = {
         <h2 className="text-app-heading font-semibold">Recent laps</h2>
         <p className="mt-1 text-app-subtext text-app-text-secondary">Latest recorded laps for this track.</p>
       </div>
-      <Table className="border border-app-border bg-app-surface">
+      <Table>
         <THead>
           <TH scope="col">Driver</TH>
           <TH scope="col">Lap</TH>
@@ -393,18 +394,18 @@ export const TableShell: Story = {
         <TBody>
           <TRow>
             <TD>A. Cooper</TD>
-            <TD className="font-mono">1:42.318</TD>
-            <TD className="text-status-success">-0.214</TD>
+            <TD numeric>1:42.318</TD>
+            <TD tone="success">-0.214</TD>
           </TRow>
           <TRow>
             <TD>M. Rossi</TD>
-            <TD className="font-mono">1:42.532</TD>
-            <TD className="text-app-text-secondary">+0.000</TD>
+            <TD numeric>1:42.532</TD>
+            <TD>+0.000</TD>
           </TRow>
           <TRow>
             <TD>J. Smith</TD>
-            <TD className="font-mono">1:43.087</TD>
-            <TD className="text-status-warning">+0.555</TD>
+            <TD numeric>1:43.087</TD>
+            <TD tone="warning">+0.555</TD>
           </TRow>
         </TBody>
       </Table>

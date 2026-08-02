@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import type { DriverFingerprint, DriverTrend, DriverTrendLap, DriverTrendWindow, RankedWeakness, StyleAxes } from "../../../server/ai/driver-profile-aggregate";
 import type { DriverProfileSummary } from "../../../server/ai/schemas";
 import { DriverProfileView } from "../components/driver/DriverProfileView";
+import { Button } from "../components/ui/button";
 import type { DriverProfileRun, DriverProfileState } from "../hooks/queries";
 
 const GAME_ID = "fm-2023" as const;
@@ -140,12 +141,12 @@ const meta = {
             <p className="text-sm text-app-text-muted">How your driving is changing</p>
           </div>
           <div className="flex gap-2">
-            <button type="button" className="rounded-md border border-app-border bg-app-surface px-3 py-2 text-xs text-app-text">
+            <Button type="button" className="rounded-md border border-app-border bg-app-surface px-3 py-2 text-xs text-app-text">
               All Forza Motorsport laps
-            </button>
-            <button type="button" className="rounded-md bg-app-accent px-3 py-2 text-xs font-medium text-app-on-filled hover:bg-app-accent-hover">
+            </Button>
+            <Button type="button" className="rounded-md bg-app-accent px-3 py-2 text-xs font-medium text-app-on-filled hover:bg-app-accent-hover">
               Refresh AI summary
-            </button>
+            </Button>
           </div>
         </header>
         <Story />

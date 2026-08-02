@@ -230,7 +230,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             <div className="max-w-xs">
               <Label className={`${displaySettings.isCompiled ? "text-app-text-secondary" : "text-app-text-muted"}`}>{m.label_launch_on_login()}</Label>
               <div className="flex items-center gap-3 mt-1.5">
-                <button
+                <Button
                   type="button"
                   role="switch"
                   disabled={!displaySettings.isCompiled}
@@ -249,7 +249,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                       displaySettings.launchOnLogin ? "translate-x-4" : "translate-x-0"
                     }`}
                   />
-                </button>
+                </Button>
                 <span className="text-sm text-app-text-muted">
                   {!displaySettings.isCompiled ? m.settings_launch_installed_only() : displaySettings.launchOnLogin ? m.common_enabled() : m.common_disabled()}
                 </span>

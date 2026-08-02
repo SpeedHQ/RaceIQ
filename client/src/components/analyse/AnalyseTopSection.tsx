@@ -87,9 +87,9 @@ export function AnalyseTopSection({
   displayTelemetryRef,
 }: AnalyseTopSectionProps) {
   const responsiveSizeVars = {
-    "--analyse-top-height": `${topHeight}px`,
-    "--analyse-left-width": `${leftColWidth}px`,
-    "--analyse-right-width": `${rightColWidth}px`,
+    "--analyse-top-height": `min(${topHeight}px, max(15.625rem, calc(100dvh - 18rem)))`,
+    "--analyse-left-width": `clamp(3.75rem, ${leftColWidth}px, min(12rem, calc(100cqw - 29.25rem)))`,
+    "--analyse-right-width": `clamp(12.5rem, ${rightColWidth}px, calc(100cqw - var(--analyse-left-width) - 16.75rem))`,
   } as CSSProperties;
 
   return (

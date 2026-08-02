@@ -52,7 +52,7 @@ function RecentLapsTable({
         <TH>{m.label_car()}</TH>
         <TH>{m.label_lap()}</TH>
         <TH>{m.label_time()}</TH>
-        <TH className="text-right">{m.home_col_when()}</TH>
+        <TH align="end">{m.home_col_when()}</TH>
       </THead>
       <TBody>
         {laps.map((lap) => {
@@ -73,21 +73,25 @@ function RecentLapsTable({
                   </Badge>
                 </TD>
               )}
-              <TD className="text-app-text/90 truncate max-w-[160px]" title={track}>
+              <TD tone="primary" truncate="narrow" title={track}>
                 {track || "—"}
               </TD>
-              <TD className="text-app-text/90 truncate max-w-[140px]" title={car}>
+              <TD tone="primary" truncate="narrow" title={car}>
                 {car || "—"}
               </TD>
-              <TD className="font-mono text-app-text/90">{lap.lapNumber}</TD>
-              <TD className="font-mono font-bold text-app-text/90 tabular-nums whitespace-nowrap">
+              <TD numeric tone="primary">
+                {lap.lapNumber}
+              </TD>
+              <TD emphasis numeric nowrap tone="primary">
                 <span className="flex items-center gap-1">
                   {formatLapTime(lap.lapTime)}
                   <span className={`text-sm ${lap.isValid ? "text-status-success" : "text-status-danger"}`}>{lap.isValid ? "\u2713" : "\u2717"}</span>
                 </span>
               </TD>
 
-              <TD className="text-right text-xs text-app-text/90">{ago}</TD>
+              <TD align="end" nowrap tone="primary">
+                {ago}
+              </TD>
             </TRow>
           );
         })}

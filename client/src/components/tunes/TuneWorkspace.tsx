@@ -98,10 +98,10 @@ export function TuneWorkspace({ gameId, embedded = false }: { gameId: "acc" | "a
             className="mb-2"
           />
         )}
-        <label className="text-xs text-app-text-dim">
+        <label className="text-app-label text-app-text-dim">
           Session
           <select
-            className="mt-1 w-full bg-app-dropdown border border-app-border rounded px-2 py-1 text-sm"
+            className="mt-1 w-full bg-app-dropdown border border-app-border rounded px-2 py-1 text-app-detail"
             value={source}
             onChange={(e) => setSource(e.target.value === "live" ? "live" : e.target.value ? Number(e.target.value) : "")}
             disabled={loadingSessions && sortedSessions.length === 0}

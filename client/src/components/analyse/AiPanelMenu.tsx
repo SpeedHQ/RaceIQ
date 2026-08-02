@@ -30,7 +30,7 @@ export function AiPanelMenu({ onClearChat, onClearAnalysis, onClearAll }: AiPane
       </Button>
       {open && (
         <div className="absolute right-0 top-full mt-1 z-50 bg-app-surface border border-app-border-input rounded-lg shadow-xl py-1 min-w-[160px]">
-          <button
+          <Button
             onClick={() => {
               onClearChat();
               setOpen(false);
@@ -38,8 +38,8 @@ export function AiPanelMenu({ onClearChat, onClearAnalysis, onClearAll }: AiPane
             className="w-full text-left px-3 py-1.5 text-app-compact text-app-text-secondary hover:text-app-text hover:bg-app-surface-hover transition-colors"
           >
             {m.aipanel_clear_chat_only()}
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => {
               onClearAnalysis();
               setOpen(false);
@@ -47,17 +47,17 @@ export function AiPanelMenu({ onClearChat, onClearAnalysis, onClearAll }: AiPane
             className="w-full text-left px-3 py-1.5 text-app-compact text-app-text-secondary hover:text-app-text hover:bg-app-surface-hover transition-colors"
           >
             {m.aipanel_clear_analysis_keep_chat()}
-          </button>
+          </Button>
           <div className="border-t border-app-border-input my-1" />
-          <button
+          <Button
             onClick={() => {
               onClearAll();
               setOpen(false);
             }}
-          className="w-full text-left px-3 py-1.5 text-app-compact text-status-danger hover:text-status-danger/80 hover:bg-app-surface-hover transition-colors"
+            className="w-full text-left px-3 py-1.5 text-app-compact text-status-danger hover:text-status-danger/80 hover:bg-app-surface-hover transition-colors"
           >
             {m.aipanel_clear_all()}
-          </button>
+          </Button>
         </div>
       )}
     </div>

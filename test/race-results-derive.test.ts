@@ -54,6 +54,10 @@ describe("race result derivation", () => {
     expect(deriveRaceResult(source({ sessionType: "race", classification: "finished", finishingPosition: 1 })).outcomeStatus).toBe("provisional");
   });
 
+  test("does not classify practice positions as race finishes", () => {
+    expect(deriveRaceResult(source({ sessionType: "practice", finishingPosition: 2 })).classification).toBe("unknown");
+  });
+
   test("does not infer outcome from missing fields", () => {
     const result = deriveRaceResult(source({ sessionType: "race" }));
     expect(result.classification).toBe("unknown");

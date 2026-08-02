@@ -56,7 +56,7 @@ describe("persisted race result metadata", () => {
       provenance,
       evidence,
       reasons: [],
-    };
+    } satisfies SessionResultInput;
     const first = await upsertSessionResult(input);
     const second = await upsertSessionResult(input);
     expect(second.id).toBe(first.id);

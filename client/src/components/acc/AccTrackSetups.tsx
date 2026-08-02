@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { detectPlatform, PLATFORM_LABEL, PlatformIcon } from "@/components/acc/acc-links";
 import { m } from "@/paraglide/messages";
 import { client } from "../../lib/rpc";
+import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { SearchSelect } from "../ui/SearchSelect";
 
@@ -298,14 +299,13 @@ export function AccTrackSetups({ trackOrdinal }: { trackOrdinal: number }) {
                 );
               })()}
               {setup.setupFile && (
-                <button
-                  type="button"
+                <Button
                   onClick={() => installMutation.mutate(setup)}
                   disabled={installMutation.isPending}
                   className="px-3 py-1.5 text-app-compact font-semibold bg-status-success/15 text-status-success rounded hover:bg-status-success/25 transition-colors disabled:opacity-50"
                 >
                   {installMutation.isPending ? "Installing..." : installMutation.isSuccess ? "Installed" : "Install to ACC"}
-                </button>
+                </Button>
               )}
               {setup.videoUrl && setup.videoUrl !== setup.downloadUrl && (
                 <a

@@ -8,6 +8,7 @@ const VIEWPORTS = [
   { name: "square", width: 900, height: 900 },
   { name: "tablet-landscape", width: 1024, height: 768 },
   { name: "wide-short", width: 1180, height: 600 },
+  { name: "workspace-wide-short", width: 1232, height: 600 },
   { name: "workspace-wide-before", width: 1231, height: 800 },
   { name: "workspace-wide", width: 1232, height: 800 },
   { name: "desktop", width: 1280, height: 800 },

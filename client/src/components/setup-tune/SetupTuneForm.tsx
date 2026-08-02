@@ -237,33 +237,32 @@ export function SetupTuneForm({
       <div className="p-6 grid grid-cols-2 gap-4 max-w-3xl">
         {/* Mode picker — first thing the user sees. Determines whether the
             settings come from the structured form or a pasted JSON blob. */}
-        <fieldset className="col-span-2">
-          <legend className="sr-only">Input mode</legend>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-app-text-muted mr-1">{m.setupform_input_label()}</span>
-            <label>
-              <input className="peer sr-only" type="radio" name="setup-input-mode" checked={mode === "form"} onChange={() => switchMode("form")} />
-              <span
-                className={`block px-3 py-1 text-xs rounded border peer-focus-visible:ring-1 peer-focus-visible:ring-app-accent ${
-                  mode === "form" ? "bg-app-accent/20 border-app-accent text-app-text" : "bg-app-surface border-app-border text-app-text-muted hover:text-app-text"
-                }`}
-              >
-                {m.setupform_fill_form()}
-              </span>
-            </label>
-            <label>
-              <input className="peer sr-only" type="radio" name="setup-input-mode" checked={mode === "json"} onChange={() => switchMode("json")} />
-              <span
-                className={`block px-3 py-1 text-xs rounded border peer-focus-visible:ring-1 peer-focus-visible:ring-app-accent ${
-                  mode === "json" ? "bg-app-accent/20 border-app-accent text-app-text" : "bg-app-surface border-app-border text-app-text-muted hover:text-app-text"
-                }`}
-              >
-                {m.setupform_paste_json()}
-              </span>
-            </label>
-            {jsonError && <span className="text-app-caption text-status-danger ml-2">{jsonError}</span>}
-          </div>
-        </fieldset>
+        <div className="col-span-2 flex items-center gap-2" role="radiogroup" aria-label="Input mode">
+          <span className="text-xs font-medium text-app-text-muted mr-1">{m.setupform_input_label()}</span>
+          <Button
+            type="button"
+            role="radio"
+            aria-checked={mode === "form"}
+            onClick={() => switchMode("form")}
+            className={`px-3 py-1 text-xs rounded border ${
+              mode === "form" ? "bg-app-accent/20 border-app-accent text-app-text" : "bg-app-surface border-app-border text-app-text-muted hover:text-app-text"
+            }`}
+          >
+            {m.setupform_fill_form()}
+          </Button>
+          <Button
+            type="button"
+            role="radio"
+            aria-checked={mode === "json"}
+            onClick={() => switchMode("json")}
+            className={`px-3 py-1 text-xs rounded border ${
+              mode === "json" ? "bg-app-accent/20 border-app-accent text-app-text" : "bg-app-surface border-app-border text-app-text-muted hover:text-app-text"
+            }`}
+          >
+            {m.setupform_paste_json()}
+          </Button>
+          {jsonError && <span className="text-app-caption text-status-danger ml-2">{jsonError}</span>}
+        </div>
 
         <label className="col-span-2 space-y-1">
           <span className="text-xs font-medium text-app-text-muted">{m.tune_form_name()}</span>

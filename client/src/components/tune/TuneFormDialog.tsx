@@ -67,12 +67,12 @@ function NumberField({ label, value, onChange, step }: { label: string; value: n
 function SettingsSection({ title, isOpen, onToggle, children }: { title: string; isOpen: boolean; onToggle: () => void; children: React.ReactNode }) {
   return (
     <div className="rounded-lg ring-1 ring-app-border overflow-hidden">
-      <button type="button" onClick={onToggle} className="w-full text-left px-3 py-2 flex items-center justify-between bg-app-surface/85 hover:bg-app-surface-hover transition-colors">
+      <Button type="button" onClick={onToggle} className="w-full text-left px-3 py-2 flex items-center justify-between bg-app-surface/85 hover:bg-app-surface-hover transition-colors">
         <span className="text-xs font-semibold uppercase tracking-wider text-app-accent">{title}</span>
         <svg className={`w-3 h-3 text-app-text-muted transition-transform ${isOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
-      </button>
+      </Button>
       {isOpen && <div className="p-3 space-y-1">{children}</div>}
     </div>
   );
@@ -242,7 +242,7 @@ export function TuneFormDialog({
                 {carDropOpen && (
                   <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-auto rounded-lg bg-app-surface border border-app-border z-50 shadow-lg">
                     {filteredFormCars.map((c) => (
-                      <button
+                      <Button
                         key={c.ordinal}
                         type="button"
                         onMouseDown={(e) => e.preventDefault()}
@@ -254,7 +254,7 @@ export function TuneFormDialog({
                         className={`w-full text-left px-3 py-1.5 text-xs hover:bg-app-accent/20 transition-colors ${carOrdinal === c.ordinal ? "text-app-accent" : "text-app-text"}`}
                       >
                         {c.name}
-                      </button>
+                      </Button>
                     ))}
                     {filteredFormCars.length === 0 && <div className="px-3 py-2 text-xs text-app-text-muted">{m.tune_no_cars_found()}</div>}
                   </div>

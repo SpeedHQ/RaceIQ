@@ -63,35 +63,51 @@ function classificationEvidence(
         validFrom: 0,
         validTo: Number.MAX_SAFE_INTEGER,
       };
-  if (claims.length === 0 && source.classification) {
-    const status = source.evidence.fieldStatus.classification;
-    claims.push({
-      ...scope,
-      id: "classification:source",
-      value: source.classification,
-      authority: classificationAuthority(status === "unavailable" ? "derived" : status),
-      kind: "deterministic",
-      confidence: status === "direct" ? 1 : 0.7,
-      observedAt: 0,
-      valid: true,
-      applicable: true,
-      validated: true,
-      provenance: source.provenance,
-    });
-  } else if (claims.length === 0 && sessionType === "qualifying") {
-    claims.push({
-      ...scope,
-      id: "classification:qualifying-fallback",
-      value: "qualifying",
-      authority: "canonical-derivation",
-      kind: "deterministic",
-      confidence: 1,
-      observedAt: 0,
-      valid: true,
-      applicable: true,
-      validated: true,
-      provenance: source.provenance,
-    });
+  if (claims.length === 0) {
+    if (sessionType === "qualifying") {
+      claims.push({
+        ...scope,
+        id: "classification:qualifying-fallback",
+        value: "qualifying",
+        authority: "canonical-derivation",
+        kind: "deterministic",
+        confidence: 1,
+        observedAt: 0,
+        valid: true,
+        applicable: true,
+        validated: true,
+        provenance: source.provenance,
+      });
+    } else if (source.classification) {
+      const status = source.evidence.fieldStatus.classification;
+      claims.push({
+        ...scope,
+        id: "classification:source",
+        value: source.classification,
+        authority: classificationAuthority(status === "unavailable" ? "derived" : status),
+        kind: "deterministic",
+        confidence: status === "direct" ? 1 : 0.7,
+        observedAt: 0,
+        valid: true,
+        applicable: true,
+        validated: true,
+        provenance: source.provenance,
+      });
+    } else if (sessionType === "race" && source.finishingPosition != null && source.finishingPosition > 0) {
+      claims.push({
+        ...scope,
+        id: "classification:position-fallback",
+        value: "finished",
+        authority: "canonical-derivation",
+        kind: "deterministic",
+        confidence: 1,
+        observedAt: 0,
+        valid: true,
+        applicable: true,
+        validated: true,
+        provenance: source.provenance,
+      });
+    }
   }
   return { scope, claims, now: claims.reduce((latest, claim) => Math.max(latest, claim.observedAt), 0) };
 }

@@ -4,7 +4,8 @@ import type { LapMeta } from "@shared/types";
 import { useMemo, useState } from "react";
 import { type ExperimentLapMetric, useSetLapExcluded } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
-import { Table } from "../ui/AppTable";
+import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "../ui/AppTable";
+import { Button } from "../ui/button";
 /**
  * Shared rendering pieces for a tuning test ("setup version"): the
  * applied-changes summary and the per-lap breakdown table. Both
@@ -192,45 +193,45 @@ export function LapBreakdown({
   const toggleSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
   const cycleStatusFilter = () => setStatusFilter((s) => STATUS_FILTERS[(STATUS_FILTERS.indexOf(s) + 1) % STATUS_FILTERS.length]);
   if (laps.length === 0) {
-    return <div className="px-3 py-2 text-xs text-app-text-dim">No laps recorded against this version yet.</div>;
+    return <div className="px-3 py-2 text-app-subtext text-app-text-dim">No laps recorded against this version yet.</div>;
   }
   return (
-    <Table fit tableClassName="w-full text-xs">
-      <thead>
-        <tr className="text-app-caption uppercase tracking-wider text-app-text-muted">
-          <th className="px-3 py-1 font-medium text-left">
-            <button type="button" onClick={() => toggleSort("lap")} className={`uppercase tracking-wider hover:text-app-text ${sort.key === "lap" ? "text-app-text" : ""}`} title="Sort by lap">
-              Lap
-              {sort.key === "lap" && <span className="ml-1">{sort.dir === 1 ? "▲" : "▼"}</span>}
-            </button>
-          </th>
-          <th className="px-3 py-1 font-medium text-left">
-            <button type="button" onClick={cycleStatusFilter} className={`uppercase tracking-wider hover:text-app-text ${statusFilter !== "all" ? "text-app-text" : ""}`} title="Filter by status">
-              {STATUS_FILTER_LABELS[statusFilter]}
-            </button>
-          </th>
-          {(
-            [
-              ["time", "Time", "right"],
-              ["fuel", "Fuel used", "right"],
-              ["wear", "Tyre wear", "right"],
-            ] as [SortKey, string, "left" | "right"][]
-          ).map(([key, label, align]) => (
-            <th key={key} className={`px-3 py-1 font-medium ${align === "left" ? "text-left" : "text-right"}`}>
-              <button
-                type="button"
-                onClick={() => toggleSort(key)}
-                className={`uppercase tracking-wider hover:text-app-text ${sort.key === key ? "text-app-text" : ""}`}
-                title={`Sort by ${label.toLowerCase()}`}
-              >
-                {label}
-                {sort.key === key && <span className="ml-1">{sort.dir === 1 ? "▲" : "▼"}</span>}
-              </button>
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-app-border/30">
+    <Table density="compact" fit>
+      <THead>
+        <SortableTH direction={sort.key === "lap" ? (sort.dir === 1 ? "ascending" : "descending") : undefined} onSort={() => toggleSort("lap")} title="Sort by lap">
+          Lap
+        </SortableTH>
+        <TH
+          onClick={cycleStatusFilter}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            cycleStatusFilter();
+          }}
+          tabIndex={0}
+          title="Filter by status"
+        >
+          <span className={statusFilter !== "all" ? "text-app-accent" : undefined}>{STATUS_FILTER_LABELS[statusFilter]}</span>
+        </TH>
+        {(
+          [
+            ["time", "Time", "right"],
+            ["fuel", "Fuel used", "right"],
+            ["wear", "Tyre wear", "right"],
+          ] as [SortKey, string, "left" | "right"][]
+        ).map(([key, label, align]) => (
+          <SortableTH
+            key={key}
+            align={align === "left" ? "start" : "end"}
+            direction={sort.key === key ? (sort.dir === 1 ? "ascending" : "descending") : undefined}
+            onSort={() => toggleSort(key)}
+            title={`Sort by ${label.toLowerCase()}`}
+          >
+            {label}
+          </SortableTH>
+        ))}
+      </THead>
+      <TBody>
         {sortedLaps.map((l) => {
           const isFastest = bestT != null && l.isValid && l.lapTime === bestT;
           const metric = metricsById.get(l.id);
@@ -244,19 +245,21 @@ export function LapBreakdown({
           const reason = selection.reasonById.get(l.id);
           const strike = excluded ? "line-through decoration-app-text-dim/60 opacity-60" : "";
           return (
-            <tr key={l.id}>
-              <td className={`px-3 py-1 font-mono ${strike} ${l.isValid ? "text-app-text-muted" : "text-status-danger"}`} title={!l.isValid ? (l.invalidReason ?? "invalid") : undefined}>
-                {showSession && (
-                  <span className="text-app-text-dim mr-1" title={`Imported from session ${l.sessionId}`}>
-                    S{l.sessionId}·
-                  </span>
-                )}
-                {l.lapNumber}
-              </td>
+            <TRow key={l.id}>
+              <TD numeric tone={l.isValid ? "muted" : "danger"} title={!l.isValid ? (l.invalidReason ?? "invalid") : undefined}>
+                <span className={strike}>
+                  {showSession && (
+                    <span className="text-app-text-dim mr-1" title={`Imported from session ${l.sessionId}`}>
+                      S{l.sessionId}·
+                    </span>
+                  )}
+                  {l.lapNumber}
+                </span>
+              </TD>
               {/* Fixed-width status slot first, then the exclude toggle and the
-                  eval badges: status is borderless text, and reserving its width
-                  keeps the controls to its right in one column across rows. */}
-              <td className="px-3 py-1 text-left">
+                eval badges: status is borderless text, and reserving its width
+                keeps the controls to its right in one column across rows. */}
+              <TD>
                 <div className="flex items-center gap-1">
                   <span className="w-[130px] shrink-0 flex items-center gap-2">
                     {status && (
@@ -291,7 +294,7 @@ export function LapBreakdown({
                     (selectEvaluationLaps → "invalid"), so a manual exclude
                     toggle there is a no-op control — hide it. */}
                   {l.isValid && (
-                    <button
+                    <Button
                       type="button"
                       onClick={() => setExcluded.mutate({ lapId: l.id, excluded: !excluded, experimentId })}
                       disabled={setExcluded.isPending}
@@ -301,18 +304,24 @@ export function LapBreakdown({
                       }`}
                     >
                       {excluded ? "Excluded" : "Exclude"}
-                    </button>
+                    </Button>
                   )}
                 </div>
-              </td>
+              </TD>
               {/* Fastest lap is marked by colouring the time itself purple. */}
-              <td className={`px-3 py-1 text-right font-mono tabular-nums ${isFastest ? "text-(--lap-pace-best)" : "text-app-text/90"} ${strike}`}>{formatLapTime(l.lapTime)}</td>
-              <td className={`px-3 py-1 text-right font-mono tabular-nums text-app-text/90 ${strike}`}>{fuel != null ? `${fuel.toFixed(2)} L` : <span className="text-app-text-dim">—</span>}</td>
-              <td className={`px-3 py-1 text-right font-mono tabular-nums text-app-text/90 ${strike}`}>{wear != null ? `${wear.toFixed(0)}%` : <span className="text-app-text-dim">—</span>}</td>
-            </tr>
+              <TD align="end" numeric tone={isFastest ? "best" : "primary"}>
+                <span className={strike}>{formatLapTime(l.lapTime)}</span>
+              </TD>
+              <TD align="end" numeric tone="primary">
+                <span className={strike}>{fuel != null ? `${fuel.toFixed(2)} L` : <span className="text-app-text-dim">—</span>}</span>
+              </TD>
+              <TD align="end" numeric tone="primary">
+                <span className={strike}>{wear != null ? `${wear.toFixed(0)}%` : <span className="text-app-text-dim">—</span>}</span>
+              </TD>
+            </TRow>
           );
         })}
-      </tbody>
+      </TBody>
     </Table>
   );
 }

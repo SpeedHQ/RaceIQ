@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { resolve } from "node:path";
 import { db, client, initDb } from "../server/db/index";
-import { importSessionBin } from "../server/import-session-bin";
+import { importSessionBin, NoopWsAdapter } from "../server/import-session-bin";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { sessions, laps, profiles, tunes, tuneAssignments, experiments, experimentVersions, experimentFocusEvents, lapAnalyses, compareAnalyses } from "../server/db/schema";
@@ -9,6 +9,8 @@ import { eq, inArray, like } from "drizzle-orm";
 import { deleteSession } from "../server/db/queries";
 import { getServerGame } from "../server/games/registry";
 import { readIRacingFrames } from "../server/games/iracing/recorder";
+import { Pipeline } from "../server/pipeline";
+import { RealDbAdapter, RealSessionRecorderAdapter } from "../server/pipeline-adapters";
 import { loadSettings, saveSettings } from "../server/settings";
 import type { GameId } from "../shared/types";
 
@@ -87,21 +89,35 @@ async function removeSeedData(): Promise<void> {
 }
 
 async function seedIRacingSession(fixturePath: string): Promise<void> {
+  const existingSessionIds = new Set(
+    (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, "iracing")).all()).map((row) => row.id),
+  );
   const adapter = getServerGame("iracing");
-  const state = adapter.createParserState?.() ?? null;
-  const firstPacket = readIRacingFrames(fixturePath)
-    .map((frame) => adapter.tryParse(frame, state))
-    .find((packet) => packet !== null);
-  if (!firstPacket) throw new Error(`No iRacing telemetry found in ${fixturePath}`);
-  await db.insert(sessions).values({
-    carOrdinal: firstPacket.CarOrdinal,
-    trackOrdinal: firstPacket.TrackOrdinal ?? 0,
-    gameId: "iracing",
-    sessionType: "practice",
-    notes: SEED_MARKER,
-    source: "seed",
-  }).run();
-  console.log(`[DB Seed] iracing: telemetry session from ${fixturePath}`);
+  const parserState = adapter.createParserState?.() ?? null;
+  const pipeline = new Pipeline(new RealDbAdapter(), new NoopWsAdapter(), {
+    bypassPacketRateFilter: true,
+    skipHistorySeeding: true,
+    skipDevState: true,
+    recorder: new RealSessionRecorderAdapter(),
+  });
+  let packetCount = 0;
+  for (const frame of readIRacingFrames(fixturePath)) {
+    const packet = adapter.tryParse(frame, parserState);
+    if (!packet) continue;
+    await pipeline.processPacket(packet, frame);
+    packetCount++;
+  }
+  await pipeline.flushIncompleteLap();
+  await pipeline.flushSessionRecorder();
+
+  const seededSessionIds = (await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.gameId, "iracing")).all())
+    .map((row) => row.id)
+    .filter((id) => !existingSessionIds.has(id));
+  if (seededSessionIds.length === 0 || packetCount === 0) {
+    throw new Error(`No iRacing telemetry imported from ${fixturePath}`);
+  }
+  await db.update(sessions).set({ notes: SEED_MARKER, source: "seed" }).where(inArray(sessions.id, seededSessionIds)).run();
+  console.log(`[DB Seed] iracing: ${packetCount} telemetry packets from ${fixturePath}`);
 }
 
 function markOnboardingComplete(): void {

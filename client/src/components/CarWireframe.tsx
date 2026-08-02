@@ -14,6 +14,7 @@ import { flipBoundaries, needsTrackFlip } from "../lib/track-coords";
 import { tireTempColor } from "../lib/vehicle-dynamics";
 import { DEFAULT_TOGGLES, VIEW_PRESETS, type ViewPreset, type ViewToggles } from "../lib/wireframe-data";
 import { useGameId } from "../stores/game";
+import { Button } from "./ui/button";
 import { CarScene } from "./wireframe/CarScene";
 import { ToggleButton } from "./wireframe/ToggleButton";
 
@@ -238,19 +239,19 @@ export const CarWireframe = React.memo(function CarWireframe({
 
       {/* Model edit controls (minimal/car viewer mode) */}
       {!hideControls && minimal && !editMode && carModel.hasModel && (
-        <button
+        <Button
           onClick={() => setEditMode(true)}
           className="absolute bottom-2 left-2 px-2 py-1 text-app-caption rounded bg-app-surface-alt/80 border border-app-border-input text-app-text-muted hover:text-app-text transition-colors"
         >
           {m.label_edit_model()}
-        </button>
+        </Button>
       )}
       {!hideControls && minimal && editMode && (
         <div className="absolute bottom-2 left-2 bg-app-bg/90 rounded-lg border border-app-border p-2 text-app-caption font-mono space-y-1.5" style={{ minWidth: 220 }}>
           <div className="flex items-center justify-between">
             <span className="text-app-text-muted uppercase tracking-wider">{m.label_model_offset()}</span>
             <div className="flex gap-1">
-              <button
+              <Button
                 onClick={async () => {
                   setSaveStatus("saving");
                   try {
@@ -272,14 +273,12 @@ export const CarWireframe = React.memo(function CarWireframe({
                   }
                 }}
                 className={`px-1.5 py-0.5 rounded border transition-colors ${
-                  saveStatus === "saved"
-                    ? "bg-status-success text-app-on-filled border-status-success"
-                    : "bg-status-success/80 hover:bg-status-success text-app-on-filled border-status-success/30"
+                  saveStatus === "saved" ? "bg-status-success text-app-on-filled border-status-success" : "bg-status-success/80 hover:bg-status-success text-app-on-filled border-status-success/30"
                 }`}
               >
                 {saveStatus === "saving" ? "..." : saveStatus === "saved" ? m.carwire_saved() : "Save"}
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => {
                   setEditMode(false);
                   setModelOffsetX(carModel.glbOffsetX ?? 0);
@@ -287,7 +286,7 @@ export const CarWireframe = React.memo(function CarWireframe({
                 className="px-1.5 py-0.5 rounded bg-app-surface-alt border border-app-border-input text-app-text-muted hover:text-app-text transition-colors"
               >
                 {m.label_cancel()}
-              </button>
+              </Button>
             </div>
           </div>
           <div className="flex items-center gap-2">

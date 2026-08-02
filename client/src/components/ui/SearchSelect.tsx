@@ -2,12 +2,13 @@ import { Popover } from "@base-ui/react/popover";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { AppInput } from "./AppInput";
+import { Button } from "./button";
 
 interface SearchSelectOption {
   value: string;
   label: string;
-  group?: string; // optional group header label
-  disabled?: boolean; // shown but not selectable
+  group?: string;
+  disabled?: boolean;
 }
 
 interface SearchSelectProps {
@@ -18,12 +19,12 @@ interface SearchSelectProps {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
-  focusColor?: string; // e.g. "orange-500", "blue-500"
-  fallbackLabel?: string; // shown when value is set but no option matches
+  focusColor?: string;
+  fallbackLabel?: string;
 }
 
 const OVERLAY_SURFACE_CLASS = "rounded-lg border border-app-border-input bg-app-surface-alt text-app-text shadow-lg";
-const OVERLAY_ITEM_CLASS = "flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm outline-none transition-colors";
+const OVERLAY_ITEM_CLASS = "flex min-h-8 w-full items-center !justify-start gap-2 px-3 py-1.5 text-left text-sm leading-snug whitespace-normal outline-none transition-colors hover:bg-app-accent/20";
 
 export function SearchSelect({ id, value, onChange, options, placeholder = "Search...", disabled = false, className = "", focusColor, fallbackLabel }: SearchSelectProps) {
   const [open, setOpen] = useState(false);
@@ -139,6 +140,7 @@ export function SearchSelect({ id, value, onChange, options, placeholder = "Sear
           <Popover.Portal>
             <Popover.Positioner anchor={inputRef} positionMethod="fixed" align="start" sideOffset={4} collisionPadding={8} className="z-[60] outline-none">
               <Popover.Popup
+                initialFocus={false}
                 id={listboxId}
                 role="listbox"
                 aria-label={placeholder}
@@ -151,10 +153,12 @@ export function SearchSelect({ id, value, onChange, options, placeholder = "Sear
                   return (
                     <div key={option.value}>
                       {showGroup && <div className="border-t border-app-border-input bg-app-surface px-3 py-1 text-xs font-medium text-app-text-muted first:border-t-0">{option.group}</div>}
-                      <button
+                      <Button
                         id={`${listboxId}-${index}`}
                         type="button"
                         role="option"
+                        variant="plain"
+                        size="content"
                         aria-selected={selected}
                         disabled={option.disabled}
                         data-highlighted={highlighted ? "" : undefined}
@@ -163,17 +167,11 @@ export function SearchSelect({ id, value, onChange, options, placeholder = "Sear
                         onMouseEnter={() => !option.disabled && setHighlightIdx(index)}
                         onClick={() => handleSelect(option.value)}
                         className={`${OVERLAY_ITEM_CLASS} ${
-                          option.disabled
-                            ? "cursor-not-allowed text-app-text-dim opacity-50"
-                            : highlighted
-                              ? "bg-app-accent/20 text-app-text"
-                              : selected
-                                ? "text-app-accent"
-                                : "text-app-text hover:bg-app-accent/10"
+                          option.disabled ? "cursor-not-allowed text-app-text-dim opacity-50" : highlighted ? "bg-app-accent/20 text-app-text" : selected ? "text-app-accent" : "text-app-text"
                         }`}
                       >
                         {option.label}
-                      </button>
+                      </Button>
                     </div>
                   );
                 })}

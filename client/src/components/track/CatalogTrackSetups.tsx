@@ -7,6 +7,7 @@ import { SearchSelect } from "@/components/ui/SearchSelect";
 import { useCatalogTunes, useResolveNames, useUserTunes } from "@/hooks/queries";
 import { tracksMatch } from "@/lib/track-match";
 import { m } from "@/paraglide/messages";
+import { Button } from "../ui/button";
 
 // Normalised community-or-user setup row for the panel list.
 interface SetupRow {
@@ -240,7 +241,7 @@ export function CatalogTrackSetups({ gameId, trackName, trackVariant, trackOrdin
           {setups.map((t, i) => {
             const badge = CATEGORY_BADGE[t.category] ?? DEFAULT_BADGE;
             return (
-              <button
+              <Button
                 key={t.id}
                 type="button"
                 onClick={() => selectSetup(t.id)}
@@ -256,7 +257,7 @@ export function CatalogTrackSetups({ gameId, trackName, trackVariant, trackOrdin
                 <span className={`text-app-nano px-1 py-0.5 rounded font-bold shrink-0 ${badge.cls}`} title={t.category}>
                   {badge.label}
                 </span>
-              </button>
+              </Button>
             );
           })}
         </div>

@@ -365,7 +365,7 @@ export function UserTuneCard({
 
   return (
     <Card>
-      <button type="button" onClick={onToggle} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-app-surface-hover transition-colors">
+      <Button onClick={onToggle} className="w-full text-left px-4 py-3 flex items-center justify-between hover:bg-app-surface-hover transition-colors">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-app-text">{tune.name}</span>
@@ -383,7 +383,7 @@ export function UserTuneCard({
         <svg className={`w-4 h-4 text-app-text-muted shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
-      </button>
+      </Button>
 
       {isExpanded && (
         <CardContent className="space-y-4 border-t border-app-border px-4 pb-4 pt-0">
@@ -727,7 +727,7 @@ export function TuneForm({
             {carDropOpen && (
               <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-auto rounded-lg bg-app-surface border border-app-border z-50 shadow-lg">
                 {filteredFormCars.map((c) => (
-                  <button
+                  <Button
                     key={c.ordinal}
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
@@ -739,7 +739,7 @@ export function TuneForm({
                     className={`w-full text-left px-3 py-1.5 text-xs hover:bg-app-accent/20 transition-colors ${carOrdinal === c.ordinal ? "text-app-accent" : "text-app-text"}`}
                   >
                     {c.name}
-                  </button>
+                  </Button>
                 ))}
                 {filteredFormCars.length === 0 && <div className="px-3 py-2 text-xs text-app-text-muted">{m.tune_no_cars_found()}</div>}
               </div>
@@ -849,9 +849,9 @@ export function TuneForm({
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-app-text-muted">{m.tuneform_tune_parameters()}</h3>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setJsonMode(false)} className="hidden">
+              <Button type="button" onClick={() => setJsonMode(false)} className="hidden">
                 {m.tune_json_import()}
-              </button>
+              </Button>
               {!jsonMode && (
                 <div className="flex rounded-md ring-1 ring-app-border overflow-hidden">
                   <Button
