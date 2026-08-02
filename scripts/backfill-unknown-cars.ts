@@ -11,7 +11,8 @@
  * Usage: bun run scripts/backfill-unknown-cars.ts
  */
 import { initServerGameAdapters } from "../server/games/init";
-initServerGameAdapters();
+import { developmentReleaseFeatures } from "./development-release-features";
+initServerGameAdapters(developmentReleaseFeatures);
 
 import { gunzipSync } from "zlib";
 import { eq, and } from "drizzle-orm";

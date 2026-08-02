@@ -14,6 +14,7 @@ import { writeFileSync, mkdirSync, existsSync } from "fs";
 import { resolve } from "path";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
+import { developmentReleaseFeatures } from "./development-release-features";
 import { buildAnalystPrompt } from "../server/ai/analyst-prompt";
 import { compareLapHeader } from "../server/ai/compare-engineer";
 import { getCarName, getTrackName } from "../shared/car-data";
@@ -36,8 +37,8 @@ if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
   process.exit(1);
 }
 
-initGameAdapters();
-initServerGameAdapters();
+initGameAdapters(developmentReleaseFeatures);
+initServerGameAdapters(developmentReleaseFeatures);
 
 const sha = Bun.spawnSync(["git", "rev-parse", "--short", "HEAD"]).stdout
   .toString()

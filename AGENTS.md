@@ -250,6 +250,15 @@ Installed via `postinstall` script. Runs in parallel on staged client files:
 - **typecheck** — full client build (`cd client && bun run build`)
 
 
+### Pull Request Creation
+
+When creating or updating a pull request:
+
+1. Review `git status` and the complete diff before opening or updating the PR.
+2. Commit every change relevant to the PR, including tests, documentation, configuration, and changelog updates. Do not stop after committing only the initially requested file.
+3. Check for related untracked and unstaged files, and include all relevant work in the PR commit.
+4. Verify the PR branch has no relevant uncommitted or untracked changes before creating or updating the PR. Leave unrelated local work untouched and call it out explicitly.
+
 ### Pull Request Changelog
 
 Every pull request must include a concise bullet in `CHANGELOG.md` under `## Unreleased`. Use `### Internal` for implementation, CI, tooling, and maintenance changes that are not user-visible; keep `### Breaking`, `### Features`, and `### Fixes` for user-facing changes. Run `bun test test/changelog.test.ts --timeout 60000` before requesting review.

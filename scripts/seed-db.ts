@@ -4,6 +4,7 @@ import { db, client, initDb } from "../server/db/index";
 import { importSessionBin, NoopWsAdapter } from "../server/import-session-bin";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
+import { developmentReleaseFeatures } from "./development-release-features";
 import { sessions, laps, profiles, tunes, tuneAssignments, experiments, experimentVersions, experimentFocusEvents, lapAnalyses, compareAnalyses } from "../server/db/schema";
 import { eq, inArray, like } from "drizzle-orm";
 import { deleteSession } from "../server/db/queries";
@@ -177,8 +178,8 @@ async function insertDemoRows(profileId: number, importedLapIds: number[]): Prom
 async function main(): Promise<void> {
   const options = parseOptions();
   await initDb();
-  initGameAdapters();
-  initServerGameAdapters();
+  initGameAdapters(developmentReleaseFeatures);
+  initServerGameAdapters(developmentReleaseFeatures);
   await assertSafeTarget(options.force);
   if (options.reset) await removeSeedData();
   if (await seedRowCount()) {

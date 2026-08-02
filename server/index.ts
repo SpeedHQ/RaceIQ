@@ -8,8 +8,9 @@ import app from "./routes";
 import { udpListener } from "./udp";
 import { wsManager, type WSData } from "./ws";
 import { loadSettings } from "./settings";
-import { initServerGameAdapters } from "./games/init";
+import { initServerGameAdapters, nativeTelemetryGameIds } from "./games/init";
 import { initGameAdapters } from "../shared/games/init";
+import { releaseFeatureFlags } from "../shared/release-feature-flags";
 import { accRecorder } from "./games/acc/recorder";
 import { acEvoRecorder } from "./games/ac-evo/recorder";
 import { iracingRecorder } from "./games/iracing/recorder";
@@ -19,8 +20,12 @@ import { injectDiscoveredAcEvoCars } from "../shared/ac-evo-car-data";
 import { getOnboardingOverride } from "./runtime-options";
 
 // Register all game adapters (shared + server)
-initGameAdapters();
-initServerGameAdapters();
+const releaseFeatures = releaseFeatureFlags({
+  RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
+  RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
+});
+initGameAdapters(releaseFeatures);
+initServerGameAdapters(releaseFeatures);
 
 import { existsSync } from "fs";
 import { resolve } from "path";
@@ -315,7 +320,7 @@ export let acEvoReader: AcEvoSharedMemoryReader | null = null;
 export let iracingSource: IRacingTelemetrySource | null = null;
 
 if (process.platform === "win32") {
-  console.log("[Supervisor] Watching for native telemetry games (acc, ac-evo, iracing) — 2s poll");
+  console.log(`[Supervisor] Watching for native telemetry games (${nativeTelemetryGameIds(releaseFeatures).join(", ")}) — 2s poll`);
   setInterval(() => {
     superviseSource(
       isGameRunning("acc"),
@@ -331,16 +336,18 @@ if (process.platform === "win32") {
       () => acEvoReader,
       (r) => { acEvoReader = r; },
     );
-    superviseSource(
-      isGameRunning("iracing"),
-      "iRacing",
-      () => new IRacingTelemetrySource({
-        recordingEnabled: recordingGameId === "iracing",
-        registerIdentity: registerLiveIRacingIdentity,
-      }),
-      () => iracingSource,
-      (source) => { iracingSource = source; },
-    );
+    if (releaseFeatures.iracingAdapter) {
+      superviseSource(
+        isGameRunning("iracing"),
+        "iRacing",
+        () => new IRacingTelemetrySource({
+          recordingEnabled: recordingGameId === "iracing",
+          registerIdentity: registerLiveIRacingIdentity,
+        }),
+        () => iracingSource,
+        (source) => { iracingSource = source; },
+      );
+    }
   }, 2000);
 
   startTray(HTTP_PORT);

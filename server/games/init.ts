@@ -5,22 +5,43 @@ import { f1ServerAdapter } from "./f1-2025";
 import { accServerAdapter } from "./acc";
 import { acEvoServerAdapter } from "./ac-evo";
 import { iracingServerAdapter } from "./iracing";
+import { releaseFeatureFlags, type ReleaseFeatureFlags } from "../../shared/release-feature-flags";
 
-/** Register all server game adapters. Call once at server startup. */
-export function initServerGameAdapters(): void {
-  // F1 is registered first — its canHandle() check is more specific (magic bytes),
-  // so it should be tried before Forza's size-based check.
-  registerServerGame(f1ServerAdapter);
-  registerServerGame(forzaServerAdapter);
-  registerServerGame(accServerAdapter);
-  registerServerGame(acEvoServerAdapter);
-  registerServerGame(iracingServerAdapter);
+export function nativeTelemetryGameIds(
+  flags = releaseFeatureFlags({
+    RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
+    RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
+  }),
+): readonly ["acc", "ac-evo"] | readonly ["acc", "ac-evo", "iracing"] {
+  return flags.iracingAdapter ? ["acc", "ac-evo", "iracing"] : ["acc", "ac-evo"];
+}
 
-  // Also update the shared registry with server adapters, which override
-  // the stub name-resolution methods with real fs-backed implementations.
-  registerGame(f1ServerAdapter);
-  registerGame(forzaServerAdapter);
-  registerGame(accServerAdapter);
-  registerGame(acEvoServerAdapter);
-  registerGame(iracingServerAdapter);
+export function serverGameAdaptersForFeatures(
+  flags: ReleaseFeatureFlags = releaseFeatureFlags({
+    RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
+    RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
+  }),
+) {
+  const adapters = [
+    f1ServerAdapter,
+    forzaServerAdapter,
+    accServerAdapter,
+    acEvoServerAdapter,
+  ];
+  if (flags.iracingAdapter) adapters.push(iracingServerAdapter);
+  return adapters;
+}
+
+/** Register server game adapters. Call once at server startup. */
+export function initServerGameAdapters(
+  flags: ReleaseFeatureFlags = releaseFeatureFlags({
+    RACEIQ_FEATURE_F1_EXPERIMENTS: process.env.RACEIQ_FEATURE_F1_EXPERIMENTS,
+    RACEIQ_FEATURE_IRACING_ADAPTER: process.env.RACEIQ_FEATURE_IRACING_ADAPTER,
+  }),
+): void {
+  for (const adapter of serverGameAdaptersForFeatures(flags)) {
+    registerServerGame(adapter);
+    // Server adapters override shared stub name-resolution methods.
+    registerGame(adapter);
+  }
 }

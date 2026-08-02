@@ -7,6 +7,7 @@
  */
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
+import { developmentReleaseFeatures } from "./development-release-features";
 import { parseDump } from "../test/helpers/parse-dump";
 import type { GameId } from "../shared/types";
 import { existsSync, readdirSync } from "fs";
@@ -42,7 +43,7 @@ if (!path || !existsSync(path)) {
 }
 
 console.error(`Probing: ${path}`);
-initGameAdapters();
-initServerGameAdapters();
+initGameAdapters(developmentReleaseFeatures);
+initServerGameAdapters(developmentReleaseFeatures);
 const laps = await parseDump(gameId, path);
 console.log(JSON.stringify(laps, null, 2));
