@@ -7,6 +7,12 @@ import { acEvoServerAdapter } from "./ac-evo";
 import { iracingServerAdapter } from "./iracing";
 import { releaseFeatureFlags, type ReleaseFeatureFlags } from "../../shared/release-feature-flags";
 
+export function nativeTelemetryGameIds(
+  flags = releaseFeatureFlags(true),
+): readonly ["acc", "ac-evo"] | readonly ["acc", "ac-evo", "iracing"] {
+  return flags.iracingAdapter ? ["acc", "ac-evo", "iracing"] : ["acc", "ac-evo"];
+}
+
 export function serverGameAdaptersForFeatures(
   flags: ReleaseFeatureFlags = releaseFeatureFlags(true),
 ) {

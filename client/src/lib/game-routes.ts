@@ -1,5 +1,7 @@
 import { getAllGames, tryGetGame } from "@shared/games/registry";
+import type { ReleaseFeatureFlags } from "@shared/release-feature-flags";
 import type { GameId } from "@shared/types";
+import { clientReleaseFeatures } from "./release-features";
 
 export type AnalyseSearch = {
   track?: number;
@@ -83,10 +85,11 @@ export function validateTuneReviewSearch(search: Record<string, unknown>): TuneR
   };
 }
 
-export function supportsGameFeature(prefix: string, feature: GameRouteFeature): boolean {
+export function supportsGameFeature(prefix: string, feature: GameRouteFeature, flags: ReleaseFeatureFlags = clientReleaseFeatures): boolean {
+  if (prefix === "f125" && feature === "experiments" && !flags.f1Experiments) return false;
   return ROUTE_FEATURES[feature].includes(prefix);
 }
-export function setupEngineerGameIdForRoutePrefix(prefix: string): "acc" | "ac-evo" | "f1-2025" | undefined {
-  if (!supportsGameFeature(prefix, "experiments")) return undefined;
+export function setupEngineerGameIdForRoutePrefix(prefix: string, flags: ReleaseFeatureFlags = clientReleaseFeatures): "acc" | "ac-evo" | "f1-2025" | undefined {
+  if (!supportsGameFeature(prefix, "experiments", flags)) return undefined;
   return gameIdForRoutePrefix(prefix) as "acc" | "ac-evo" | "f1-2025";
 }
