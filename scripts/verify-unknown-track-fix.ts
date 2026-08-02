@@ -1,8 +1,9 @@
 import { readFileSync } from "fs";
 import { initServerGameAdapters } from "../server/games/init";
+import { developmentReleaseFeatures } from "./development-release-features";
 import { importSessionBin } from "../server/import-session-bin";
 
-initServerGameAdapters();
+initServerGameAdapters(developmentReleaseFeatures);
 import { getAcEvoTrackName } from "../shared/ac-evo-track-data";
 import { getSessions } from "../server/db/queries";
 

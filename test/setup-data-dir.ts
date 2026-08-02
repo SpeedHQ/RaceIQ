@@ -11,6 +11,15 @@
 import { afterAll } from "bun:test";
 import { resolve } from "node:path";
 
+const releaseEnvironment = await Bun.file(resolve(import.meta.dir, "..", ".env.development")).text();
+for (const line of releaseEnvironment.split(/\r?\n/)) {
+  const separator = line.indexOf("=");
+  if (separator < 1) continue;
+  const name = line.slice(0, separator);
+  if (name !== "RACEIQ_FEATURE_F1_EXPERIMENTS" && name !== "RACEIQ_FEATURE_IRACING_ADAPTER") continue;
+  process.env[name] = line.slice(separator + 1);
+}
+
 const TEST_DATA_DIR = resolve(import.meta.dir, "..", ".data-test");
 
 if (!process.env.DATA_DIR) {

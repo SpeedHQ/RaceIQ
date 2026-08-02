@@ -11,8 +11,18 @@ import {
   validateTuneReviewSearch,
   validateTuneSearch,
 } from "../client/src/lib/game-routes";
+import { releaseFeatureFlags } from "../shared/release-feature-flags";
 
-initGameAdapters();
+const developmentEnv = {
+  RACEIQ_FEATURE_F1_EXPERIMENTS: "true",
+  RACEIQ_FEATURE_IRACING_ADAPTER: "true",
+};
+const productionEnv = {
+  RACEIQ_FEATURE_F1_EXPERIMENTS: "false",
+  RACEIQ_FEATURE_IRACING_ADAPTER: "false",
+};
+
+initGameAdapters(releaseFeatureFlags(developmentEnv));
 
 describe("game route helpers", () => {
   test("resolves every supported route prefix and game id", () => {
@@ -68,12 +78,23 @@ describe("game route helpers", () => {
     });
   });
 
+  test("gates F1 experiments by release environment", () => {
+    const development = releaseFeatureFlags(developmentEnv);
+    const production = releaseFeatureFlags(productionEnv);
+    expect(supportsGameFeature("f125", "experiments", development)).toBe(true);
+    expect(supportsGameFeature("f125", "experiments", production)).toBe(false);
+    expect(setupEngineerGameIdForRoutePrefix("f125", development)).toBe("f1-2025");
+    expect(setupEngineerGameIdForRoutePrefix("f125", production)).toBeUndefined();
+    expect(supportsGameFeature("acc", "experiments", production)).toBe(true);
+    expect(supportsGameFeature("ac-evo", "experiments", production)).toBe(true);
+  });
+
   test("keeps feature support explicit", () => {
     expect(supportsGameFeature("iracing", "driver")).toBe(false);
     expect(supportsGameFeature("iracing", "experiments")).toBe(false);
     expect(supportsGameFeature("iracing", "raw")).toBe(true);
     expect(supportsGameFeature("ac-evo", "experiments")).toBe(true);
-    expect(setupEngineerGameIdForRoutePrefix("f125")).toBe("f1-2025");
+    expect(setupEngineerGameIdForRoutePrefix("f125", releaseFeatureFlags(developmentEnv))).toBe("f1-2025");
     expect(setupEngineerGameIdForRoutePrefix("iracing")).toBeUndefined();
     expect(supportsGameFeature("unknown", "raw")).toBe(false);
   });
