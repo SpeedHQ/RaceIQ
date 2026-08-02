@@ -56,7 +56,7 @@ import {
   STATIC_EVO,
 } from "../games/ac-evo/structs";
 import { ACEVO_PACKED_MAGIC, packTriplet } from "../games/shared/pack-triplet";
-import { META_FRAME_MAGIC } from "../session-recorder";
+import { encodeFrameLength, encodeMetaFrame } from "../session-capture/framing";
 import { getAcEvoCarByModel, getAcEvoCarName } from "../../shared/ac-evo-car-data";
 import {
   getAcEvoTrackByName,
@@ -630,16 +630,11 @@ export function synthesizeAcEvoCapture(
   }
 
   // --- session-capture framing: meta frame, then [u32 len][frame] records ---
-  const meta = Buffer.alloc(12);
-  meta.writeUInt32LE(META_FRAME_MAGIC, 0);
-  meta.writeUInt32LE(4, 4);
-  meta.writeUInt32LE(records.length, 8);
+  const meta = encodeMetaFrame(records.length);
 
   const parts: Buffer[] = [meta];
   for (const rec of records) {
-    const len = Buffer.alloc(4);
-    len.writeUInt32LE(rec.length, 0);
-    parts.push(len, rec);
+    parts.push(encodeFrameLength(rec.length), rec);
   }
 
   return {

@@ -140,7 +140,7 @@ const TuneMagnitudeEnum = z.enum(["small", "medium", "large"]);
 
 /**
  * One high-level change the tuner wants. `component` must be one of the
- * keys the rules table (`server/ai/tune-rules.ts`) knows how to apply; the
+ * keys the setup rule catalog knows how to apply; the
  * rules layer clamps unknown/out-of-range components to a no-op.
  */
 const TuneIntentSchema = z.object({

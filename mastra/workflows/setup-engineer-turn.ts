@@ -27,12 +27,16 @@
 import { createStep, createWorkflow } from "@mastra/core/workflows";
 import { z } from "zod";
 
-import { describeKnobs } from "../../server/ai/tune-rules";
+import { describeKnobs } from "../../server/setups/rules/engine";
 import { formatSymptoms } from "../../server/ai/tune-chat-prompt";
-import { formatTrackConditions, loadActiveExperimentContext } from "../../server/ai/setup-engineer-context";
-import { loadCleanLapAggregate, baselineFallbackNote } from "../../server/ai/clean-lap-aggregate";
+import { formatTrackConditions } from "../../server/ai/track-conditions";
+import { loadActiveExperimentContext } from "../../server/experiments/setup-lineage";
+import {
+  loadCleanLapAggregate,
+  baselineFallbackNote,
+} from "../../server/experiments/lap-evidence/aggregate";
 import { formatLapObservations } from "../../server/ai/lap-observations";
-import { getOrComputeLapMetricsBatch } from "../../server/lap-metrics";
+import { getOrComputeLapMetricsBatch } from "../../server/lap-analysis/metrics-store";
 import { listExperimentVersions } from "../../server/db/experiment-version-queries";
 
 const InputSchema = z.object({

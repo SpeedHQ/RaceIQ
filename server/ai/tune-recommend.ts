@@ -3,8 +3,8 @@
  *
  * The LLM-free counterpart to `requestTuneIntents` (tune-intent.ts). Given the
  * same `TuneSymptoms` report, it emits the same `{component, direction,
- * magnitude, reason}` intents that `applyIntents` consumes — so tune-rules.ts
- * and tune-writer.ts are untouched, and the whole one-button flow works with no
+ * magnitude, reason}` intents that `applyIntents` consumes, so rule engine and
+ * setup writer remain deterministic and the whole one-button flow works with no
  * network call or local model (the user's local model 400s).
  *
  * Approach: walk every corner/phase symptom, map each to a component nudge with
@@ -14,7 +14,7 @@
  * bump an agreeing telemetry symptom or add a single small, flagged intent, but
  * never override the physics.
  *
- * Every component string here must exist in tune-rules.ts's `knownComponents`
+ * Every component string here must exist in setup rule catalog's `knownComponents`
  * for the game, or `applyIntents` clamps it to a safe no-op.
  */
 import type { GameId } from "../../shared/types";

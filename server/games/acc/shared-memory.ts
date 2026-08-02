@@ -1,8 +1,8 @@
 /**
- * ACC Shared Memory Reader using Bun FFI with BufferedAccMemoryReader + TripletAssembler.
+ * ACC Shared Memory Reader using Bun FFI with BufferedKunosMemoryReader + TripletAssembler.
  *
  * Architecture:
- *   BufferedAccMemoryReader (reads at native rates: 300Hz physics, 60Hz graphics, once static)
+ *   BufferedKunosMemoryReader (reads at native rates: 300Hz physics, 60Hz graphics, once static)
  *     → TripletAssembler (polls at 100Hz)
  *       → TripletPipeline (processes via registered processors)
  *
@@ -12,30 +12,39 @@
  *
  * Uses kernel32.dll via Bun FFI to open and map shared memory.
  */
-import { accRecorder } from "./recorder";
-import { BufferedAccMemoryReader } from "./buffered-memory-reader";
-import { TripletAssembler } from "./triplet-assembler";
-import { TripletPipeline, StatusCheckProcessor, DumpToBinProcessor, ParsingProcessor } from "./triplet-pipeline";
+import { accRecorder } from "../kunos/recorder";
+import { BufferedKunosMemoryReader } from "../kunos/buffered-memory-reader";
+import { TripletAssembler } from "../kunos/triplet-assembler";
+import { DumpToBinProcessor, TripletPipeline } from "../kunos/triplet-pipeline";
+import { ParsingProcessor, StatusCheckProcessor } from "./processors";
+import { GRAPHICS, PHYSICS, STATIC } from "./structs";
 
-// Re-export utilities so tests can import readWString from this module
-export { readWString, toWideString } from "./utils";
 
 export class AccSharedMemoryReader {
-  private _bufferedReader: BufferedAccMemoryReader;
+  private _bufferedReader: BufferedKunosMemoryReader;
   private _tripletAssembler: TripletAssembler;
   private _pipeline: TripletPipeline;
   private _running = false;
   private _connected = false;
   // -1 = not yet resolved from static data. 0 is a real ACC ordinal (Monza /
   // first car in the list), so it can't double as the "unknown" sentinel —
-  // see triplet-pipeline.ts ParsingProcessor.
+  // see processors.ts ParsingProcessor.
   private _carOrdinal = -1;
   private _trackOrdinal = -1;
   private _retryTimer: ReturnType<typeof setInterval> | null = null;
   private _recordingEnabled = false;
 
   constructor(recordingEnabled = false) {
-    this._bufferedReader = new BufferedAccMemoryReader();
+    this._bufferedReader = new BufferedKunosMemoryReader({
+      physicsSize: PHYSICS.SIZE,
+      graphicsSize: GRAPHICS.SIZE,
+      staticSize: STATIC.SIZE,
+      physicsName: "Local\\acpmf_physics",
+      graphicsName: "Local\\acpmf_graphics",
+      staticName: "Local\\acpmf_static",
+      sessionIdOffset: 8,
+      logPrefix: "ACC",
+    });
     // Enable metrics in dev mode or when ACC_METRICS=1
     const enableMetrics = process.env.NODE_ENV !== "production" || process.env.ACC_METRICS === "1";
     this._tripletAssembler = new TripletAssembler(this._bufferedReader, enableMetrics);
@@ -111,11 +120,11 @@ export class AccSharedMemoryReader {
     if (this._recordingEnabled) {
       this._pipeline.register(
         new DumpToBinProcessor(accRecorder),
-        new ParsingProcessor(this._carOrdinal, this._trackOrdinal, accRecorder),
+        new ParsingProcessor(this._carOrdinal, this._trackOrdinal),
       );
       console.log("[ACC] Triplet pipeline: StatusCheckProcessor → DumpToBinProcessor → ParsingProcessor");
     } else {
-      this._pipeline.register(new ParsingProcessor(this._carOrdinal, this._trackOrdinal, accRecorder));
+      this._pipeline.register(new ParsingProcessor(this._carOrdinal, this._trackOrdinal));
       console.log("[ACC] Triplet pipeline: StatusCheckProcessor → ParsingProcessor");
     }
 

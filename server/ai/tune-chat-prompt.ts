@@ -35,13 +35,13 @@ export interface TuneChatTest {
 }
 
 /** The subset of a tuning session the prompt needs for car/track identity. */
-export interface TuneChatSession {
+interface TuneChatSession {
   name: string;
   carName: string | null;
   trackName: string | null;
 }
 
-export interface TuneChatPromptInput {
+interface TuneChatPromptInput {
   gameId: GameId;
   session: TuneChatSession;
   /** Setup versions under evaluation, oldest-first (v1 base → latest). */

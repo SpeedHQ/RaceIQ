@@ -1,7 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import type { TelemetryPacket } from "../shared/types";
-import { computeLapConsistencyDelta, computeLineSpreadTrace, LINE_SPREAD_THRESHOLD_M, INPUT_VAR_THRESHOLD } from "../server/lap-consistency";
-import type { Corner } from "../server/corner-detection";
+import { computeLapConsistencyDelta, computeLineSpreadTrace, LINE_SPREAD_THRESHOLD_M, INPUT_VAR_THRESHOLD } from "../server/lap-analysis/consistency"
+import type { Corner } from "../server/lap-analysis/corners"
 
 /**
  * `computeLapConsistencyDelta` is pure math over resampled lap paths — these

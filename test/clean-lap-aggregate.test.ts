@@ -4,7 +4,7 @@ import {
   computeConsistency,
   aggregateSymptoms,
   baselineFallbackNote,
-} from "../server/ai/clean-lap-aggregate";
+} from "../server/experiments/lap-evidence/aggregate";
 import type { LapMeta } from "../shared/types";
 import type { TuneSymptoms } from "../server/ai/tune-symptoms";
 

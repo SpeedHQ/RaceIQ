@@ -6,14 +6,14 @@ import {
   holmAdjust,
   MIN_LAPS_PER_ARM,
   RECOMMENDED_LAPS_PER_ARM,
-} from "../server/ai/compare-arms";
+} from "../server/experiments/comparison/compare";
 import {
   type ArmLap,
   blunderFence,
   blunderFencesForArms,
   type MetadataOutcomeMetric,
   OUTCOME_METRICS,
-} from "../server/ai/outcome-metrics";
+} from "../server/experiments/comparison/metrics";
 import type { EvaluableLap } from "../shared/review-laps";
 
 /**

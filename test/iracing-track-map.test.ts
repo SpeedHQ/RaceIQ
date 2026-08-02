@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   parseIRacingActiveSvg,
   parseIRacingTurnLabels,
-} from "../server/games/iracing/track-map";
+} from "../server/games/iracing/track-map-svg";
 import {
   getIRacingSharedTrackName,
   getIRacingTrack,

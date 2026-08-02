@@ -7,10 +7,10 @@ import { readFileSync, writeFileSync, unlinkSync, mkdtempSync, rmSync } from "fs
 import { tmpdir } from "os";
 import { join } from "path";
 import { gunzipSync } from "zlib";
-import { parseRawLapFramesForTest } from "../server/db/queries";
+import { parseRawLapFramesForTest } from "../server/db/telemetry-replay-storage";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
-import { META_FRAME_MAGIC } from "../server/session-recorder";
+import { META_FRAME_MAGIC } from "../server/session-capture/framing"
 import { stopMaintenanceTasks } from "../server/pipeline";
 
 initGameAdapters();

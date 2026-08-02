@@ -4,8 +4,8 @@
  * can reason across the two laps without re-running analysis.
  */
 import type { GameId } from "../../shared/types";
-import type { ComparisonResult } from "../comparison";
-import type { UnitSystem, TemperatureUnit } from "../export";
+import type { ComparisonResult } from "../lap-analysis/comparison"
+import type { UnitSystem, TemperatureUnit } from "../lap-analysis/report"
 import { getCarName, getTrackName } from "../../shared/car-data";
 import { compareEngineerPersona, compareLapHeader } from "./compare-engineer";
 

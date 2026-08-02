@@ -587,7 +587,7 @@ export const driverProfiles = sqliteTable(
 		carOrdinal: integer("car_ordinal"),
 		trackOrdinal: integer("track_ordinal"),
 		poolKey: text("pool_key").notNull(),
-		/** JSON — DriverFingerprint from server/ai/driver-profile-aggregate.ts. */
+		/** JSON — DriverFingerprint from server/driver-profile/fingerprint.ts. */
 		fingerprint: text("fingerprint").notNull(),
 		/** JSON — DriverProfileSummary snapshot from the Driver Profiler agent. */
 		plan: text("plan").notNull(),

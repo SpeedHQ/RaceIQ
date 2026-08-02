@@ -20,7 +20,7 @@
  * See docs/research/telemetry-fidelity.md for the write-up.
  */
 import { describe, expect, test } from "bun:test";
-import { detectCorners } from "../server/corner-detection";
+import { detectCorners } from "../server/lap-analysis/corners"
 import type { TelemetryPacket } from "../shared/types";
 import { readSessionPackets } from "./helpers/session-frames";
 
@@ -80,7 +80,7 @@ describe("telemetry fidelity vs MoTeC-rate logging", () => {
   });
 
   test("our real captured rate is ~63.5Hz, not the 100Hz the assembler polls at", () => {
-    // server/games/acc/triplet-assembler.ts polls on a 10ms setInterval, but what
+    // server/games/kunos/triplet-assembler.ts polls on a 10ms setInterval, but what
     // actually lands on disk is ~63.5Hz. If this moves, either the timer behaviour
     // changed or someone fixed the emit path — update docs/research/telemetry-fidelity.md.
     expect(captureHz).toBeGreaterThan(55);

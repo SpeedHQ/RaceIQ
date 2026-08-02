@@ -68,6 +68,3 @@ export function parsePacket(buf: Buffer): TelemetryPacket | null {
 export function getCurrentDetectedGame(): ReturnType<typeof getRunningGame> {
   return _cachedGame;
 }
-
-export { parseForzaPacket } from "./forza";
-export { F1StateAccumulator, parseF1Header } from "./f1-state";

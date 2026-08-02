@@ -18,7 +18,7 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
 import type { TuneDirection, TuneMagnitude } from "../../server/ai/schemas";
-import { applyIntents, describeKnobs } from "../../server/ai/tune-rules";
+import { applyIntents, describeKnobs } from "../../server/setups/rules/engine";
 import {
   createExperimentVersion,
   deleteTestSubtree,
@@ -34,25 +34,28 @@ import { changeSlug, computeChildLabel, nextFreeLabel } from "../../server/ai/ve
 import { saveAssistantChatMessage, tuneSessionThreadId } from "../../server/ai/chat-agent";
 import { wsManager } from "../../server/ws";
 import { formatSymptoms } from "../../server/ai/tune-chat-prompt";
+import { buildAppliedChangesMarkdown } from "../../server/setups/applied-change-markdown";
 import {
-  buildAppliedChangesMarkdown,
   computeSessionSymptoms,
   computeSessionTrackConditions,
-  formatTrackConditions,
+} from "../../server/experiments/representative-lap";
+import { formatTrackConditions } from "../../server/ai/track-conditions";
+import {
   gameHasSetupFile,
   loadActiveExperimentContext,
-} from "../../server/ai/setup-engineer-context";
-import { readActiveSetup, writeAppliedSetup } from "../../server/ai/setup-io";
+} from "../../server/experiments/setup-lineage";
+import { readActiveSetup, writeAppliedSetup } from "../../server/setups/io";
 import { readSetupEngineerContext } from "./setup-engineer-request-context";
 import { consultLapAnalystForSession } from "../../server/ai/consult-lap-analyst";
-import { loadCleanLapAggregate } from "../../server/ai/clean-lap-aggregate";
-import { setLapExperimentExcluded, getLapById, getLapsForExperiment } from "../../server/db/queries";
+import { loadCleanLapAggregate } from "../../server/experiments/lap-evidence/aggregate";
+import { setLapExperimentExcluded, getLapsForExperiment } from "../../server/db/experiment-lap-queries";
+import { getLapById } from "../../server/db/lap-read-queries";
 import { recordAction } from "../../server/db/experiment-action-queries";
 import { undoLastAction } from "../../server/experiment-undo";
-import { detectCorners } from "../../server/corner-detection";
+import { detectCorners } from "../../server/lap-analysis/corners";
 import { telemetryToSymptoms } from "../../server/ai/tune-symptoms";
 import { symptomsToIssues } from "../../server/ai/tune-issues";
-import { compareLaps } from "../../server/comparison";
+import { compareLaps } from "../../server/lap-analysis/comparison";
 import type { TelemetryPacket } from "../../shared/types";
 
 const DirectionEnum = z.enum(["increase", "decrease"]);
@@ -457,7 +460,7 @@ export function buildSetupEngineerTools() {
       // parent: with `target` set, the new arm branches off some other version
       // while the head sits elsewhere, and undo must restore where the driver
       // actually was. Matches every other recordAction call site
-      // (`server/routes/experiment-routes.ts`).
+      // (`server/routes/experiments/version-routes.ts`).
       const prevHeadTestId = ctx.session.headVersionId ?? parent?.id ?? null;
       try {
         await setSessionHead(sessionId, newTestId);

@@ -3,15 +3,15 @@ import type { ILapDetector, LapDetectorOptions } from "./lap-detector-interface"
 import type { SessionState } from "./lap-detector";
 import type { LapDetectorCallbacks } from "./lap-detector-interface";
 import type { DbAdapter } from "./pipeline-adapters";
-import { persistLapMetrics } from "./experiment-lap-metrics";
+import { persistLapMetrics } from "./lap-analysis/metrics-store"
 import { reconcileAutoExclusionsForLap } from "./experiment-auto-exclude";
-import { assessLapRecording } from "./lap-quality";
+import { assessLapRecording } from "./lap-analysis/quality"
 import { computeLapSectors } from "./compute-lap-sectors";
 import {
   accFirstPacketIsMidLap,
   classifyAccPitLap,
   classifyKunosTrackLimits,
-} from "./acc-lap-rules";
+} from "./games/kunos/lap-rules";
 import { getOrCreateDiscoveredCar } from "./db/discovered-cars";
 
 /**

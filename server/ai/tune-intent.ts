@@ -17,7 +17,7 @@ import {
   parseTuneIntents,
   type TuneIntents,
 } from "./schemas";
-import { knownComponents, renderKnobLimitsBlock } from "./tune-rules";
+import { knownComponents, renderKnobLimitsBlock } from "../setups/rules/catalog";
 import type { TuneSymptoms } from "./tune-symptoms";
 import { formatTireTempSymptoms } from "./tune-tire-symptoms";
 import { formatDamperSymptoms } from "./tune-damper-symptoms";

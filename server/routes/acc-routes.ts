@@ -5,11 +5,11 @@ import { existsSync, readFileSync, writeFileSync, readdirSync, statSync, mkdirSy
 import { resolve } from "path";
 import { homedir } from "os";
 import { SHARED_DIR } from "../paths";
-import { accRecorder } from "../games/acc/recorder";
+import { accRecorder } from "../games/kunos/recorder";
 import { replayRecording } from "../games/acc/replay";
 import { getAllAccCars, getAccCarClass } from "../../shared/acc-car-data";
 import { getAccCarSpecs } from "../../shared/acc-car-specs";
-import { accReader } from "../index";
+import { getAccReader } from "../runtime/live-readers";
 import { PHYSICS, GRAPHICS, STATIC } from "../games/acc/structs";
 import { readWString } from "../games/acc/utils";
 import { getAccSharedTrackName, getAccTracks } from "../../shared/acc-track-data";
@@ -333,7 +333,7 @@ export const accRoutes = new Hono()
   // ── Debug ─────────────────────────────────────────────────────────────────
 
   .get("/api/acc/debug/raw", (c) => {
-    const bufs = accReader?.getDebugBuffers?.();
+    const bufs = getAccReader()?.getDebugBuffers?.();
     if (!bufs) {
       return c.json({ error: "ACC not connected or getDebugBuffers not available" }, 503);
     }

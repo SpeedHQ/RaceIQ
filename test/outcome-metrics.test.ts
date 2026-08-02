@@ -9,11 +9,11 @@ import {
   OUTCOME_METRIC_IDS,
   OUTCOME_METRICS,
   pickReferenceLap,
-} from "../server/ai/outcome-metrics";
+} from "../server/experiments/comparison/metrics";
 import type { EvaluableLap } from "../shared/review-laps";
 
 /** The policy no metric uses any more, kept explicit so its effects stay
- *  measurable. See `lapTimeSec`'s comment in server/ai/outcome-metrics.ts. */
+ *  measurable. See `lapTimeSec`'s comment in server/experiments/comparison/metrics.ts. */
 const FASTEST_5: CurationSpec = { mode: "fastest-n", n: 5, outlierRule: "none" };
 
 function lap(overrides: Partial<EvaluableLap> & { id: number }): EvaluableLap {

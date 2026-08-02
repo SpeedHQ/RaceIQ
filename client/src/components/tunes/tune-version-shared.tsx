@@ -71,7 +71,7 @@ export function AppliedChangesList({ json, comment }: { json: string | null; com
 
 /** invalidReason values that are pit-lane classification, not an error — shown
  *  as a neutral status badge instead of the red "invalid" styling. Set by
- *  classifyAccPitLap (server/acc-lap-rules.ts) for ACC/AC-Evo. */
+ *  classifyAccPitLap (server/games/kunos/lap-rules.ts) for ACC/AC-Evo. */
 const PIT_STATUS_REASONS = new Set(["outlap", "inlap", "pit lap"]);
 
 /** Compact labels for the verbose reasons the detectors write (lap-quality.ts,

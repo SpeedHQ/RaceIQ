@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
-import type { DriverTrend, DriverTrendLap, DriverTrendWindow, TrendDirection } from "../../../../server/ai/driver-profile-aggregate";
 import type { DriverProfileSummary } from "../../../../server/ai/schemas";
+import type { DriverTrend, DriverTrendLap, DriverTrendWindow, TrendDirection } from "../../../../server/driver-profile/trend";
 import type { DriverProfileState } from "../../hooks/queries";
 
 interface DriverTrendOverviewProps {

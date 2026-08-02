@@ -3,9 +3,9 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { IdParamSchema } from "../../shared/schemas";
 import type { GameId } from "../../shared/types";
-import { getLapById } from "../db/queries";
+import { getLapById } from "../db/lap-read-queries";
 import { getExperiment } from "../db/experiment-queries";
-import { detectCorners } from "../corner-detection";
+import { detectCorners } from "../lap-analysis/corners";
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
 import { symptomsToIssues } from "../ai/tune-issues";
 import { setLiveIssuesEnabled } from "../pipeline";
@@ -47,11 +47,9 @@ const TuneChatBodySchema = z.object({
   extendedContext: z.string().max(8000).optional(),
 });
 
-// Setup-file guard, session-symptom, and applied-changes-markdown helpers
-// (formerly local) now live in ../ai/setup-engineer-context — the Setup
-// Engineer tools (mastra/tools/setup-engineer.ts) share the exact same
-// implementations via loadActiveExperimentContext, so /chat and the tools can't
-// disagree about what "the active setup" is.
+// Setup context helpers are split by responsibility under ../setups and
+// ../experiments. Setup Engineer tools share those canonical implementations,
+// so chat and tool calls cannot disagree about active setup or lap context.
 
 
 export const tuneChatRoutes = new Hono()

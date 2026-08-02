@@ -286,17 +286,6 @@ export const AC_STATUS = {
   AC_PAUSE: 3,
 } as const;
 
-export const AC_SESSION_TYPE = {
-  PRACTICE: 0,
-  QUALIFY: 1,
-  RACE: 2,
-  HOTLAP: 3,
-  TIME_ATTACK: 4,
-  DRIFT: 5,
-  DRAG: 6,
-  HOTSTINT: 7,
-  HOTSTINT_QUALIFY: 8,
-} as const;
 
 export const AC_FLAG = {
   NONE: 0,
@@ -308,15 +297,6 @@ export const AC_FLAG = {
   PENALTY: 6,
 } as const;
 
-export const GRIP_STATUS: Record<number, string> = {
-  0: "green",
-  1: "fast",
-  2: "optimum",
-  3: "greasy",
-  4: "damp",
-  5: "wet",
-  6: "flooded",
-};
 
 export const FLAG_STATUS: Record<number, string> = {
   [AC_FLAG.NONE]: "none",

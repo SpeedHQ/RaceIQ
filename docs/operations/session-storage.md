@@ -27,9 +27,9 @@ startSessionCompressor()
 
 | Operation | Schedule | Source |
 | --- | --- | --- |
-| Empty-session deletion | Startup | `server/db/queries.ts` |
-| Background compression | Startup and every 5 minutes | `server/session-compressor.ts` |
-| Orphan cleanup | Startup and every 5 minutes | `server/session-cleanup.ts` |
+| Empty-session deletion | Startup | `server/db/session-queries.ts` |
+| Background compression | Startup and every 5 minutes | `server/session-capture/compressor.ts` |
+| Orphan cleanup | Startup and every 5 minutes | `server/session-capture/cleanup.ts` |
 | User compression | Settings **Compress now** | `POST /api/storage/compress` |
 
 ## Compression

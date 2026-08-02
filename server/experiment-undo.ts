@@ -27,7 +27,7 @@ import {
   setExperimentVersionNotes,
 } from "./db/experiment-version-queries";
 import { listActions, markUndone, type ExperimentAction } from "./db/experiment-action-queries";
-import { setLapExperimentExcluded, unstampLapsFromExperiment } from "./db/queries";
+import { setLapExperimentExcluded, unstampLapsFromExperiment } from "./db/experiment-lap-queries";
 
 export interface UndoResult {
   ok: boolean;

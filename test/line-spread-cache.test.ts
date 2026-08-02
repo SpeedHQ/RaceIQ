@@ -5,7 +5,7 @@
  * changed lap set produces a different key (cache miss).
  */
 import { describe, test, expect, afterAll } from "bun:test";
-import { getLineSpreadCache, setLineSpreadCache, lineSpreadLapSetHash } from "../server/db/queries";
+import { getLineSpreadCache, setLineSpreadCache, lineSpreadLapSetHash } from "../server/db/line-spread-cache-queries";
 import { stopMaintenanceTasks } from "../server/pipeline";
 
 afterAll(() => stopMaintenanceTasks());

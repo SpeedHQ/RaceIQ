@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 
-import { driverProfilePoolKey, notifyDriverProfileLap } from "../server/ai/driver-profile-runner";
+import { driverProfilePoolKey, notifyDriverProfileLap } from "../server/driver-profile/runner";
 import { driverRoutes } from "../server/routes/driver-routes";
 
 describe("driver profile runner", () => {

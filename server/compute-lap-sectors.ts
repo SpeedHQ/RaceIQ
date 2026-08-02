@@ -9,7 +9,7 @@ export interface NativeSectorTimeline {
   sectorStarts: number[];
 }
 
-export type IRacingSectorTimeline = NativeSectorTimeline;
+type IRacingSectorTimeline = NativeSectorTimeline;
 
 export function computeNativeSectorTimeline(
   packets: TelemetryPacket[],

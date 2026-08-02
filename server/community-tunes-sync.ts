@@ -54,7 +54,7 @@ const CdnTuneSchema = z.object({
   settings: z.record(z.string(), z.unknown()),
 });
 
-export interface SyncResult {
+interface SyncResult {
   synced: boolean;
   count: number;
   version: string | null;

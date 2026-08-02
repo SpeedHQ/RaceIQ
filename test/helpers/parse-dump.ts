@@ -7,7 +7,7 @@ import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { getAllServerGames, getServerGame } from "../../server/games/registry";
 import { readUdpDump } from "./recording";
-import { readAccFrames } from "../../server/games/acc/recorder";
+import { readKunosFrames } from "../../server/games/kunos/frame-reader";
 import { readIRacingFrames } from "../../server/games/iracing/recorder";
 import { parseAccBuffers } from "../../server/games/acc/parser";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../../server/games/ac-evo/parser";
@@ -17,7 +17,7 @@ import { getAccCarByModel } from "../../shared/acc-car-data";
 import { getAccTrackByName } from "../../shared/acc-track-data";
 import { readFileSync } from "fs";
 import { gunzipSync } from "zlib";
-import { META_FRAME_MAGIC } from "../../server/session-recorder";
+import { META_FRAME_MAGIC } from "../../server/session-capture/framing"
 
 let _initialized = false;
 export function ensureInit(): void {
@@ -58,7 +58,7 @@ export interface ParsedFrames {
 export function readAccPackets(dumpPath: string): ParsedFrames {
   let frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
   try {
-    frames = readAccFrames(dumpPath);
+    frames = readKunosFrames(dumpPath);
   } catch {
     return { packets: [], carModel: null, trackName: null };
   }
@@ -89,7 +89,7 @@ export function readAccPackets(dumpPath: string): ParsedFrames {
 export function readAcEvoPackets(dumpPath: string): ParsedFrames {
   let frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
   try {
-    frames = readAccFrames(dumpPath);
+    frames = readKunosFrames(dumpPath);
   } catch {
     return { packets: [], carModel: null, trackName: null };
   }
@@ -164,7 +164,7 @@ export async function parseDump(
   if (gameId === "acc") {
     let frames: { physics: Buffer; graphics: Buffer; staticData: Buffer }[];
     try {
-      frames = readAccFrames(dumpPath);
+      frames = readKunosFrames(dumpPath);
     } catch {
       return { laps: [], sessions: [], carModel: null, trackName: null, wsNotifications: [], wsDevStates: [], rawPackets: [] };
     }

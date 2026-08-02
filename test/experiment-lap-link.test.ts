@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { inArray } from "drizzle-orm";
 import { db } from "../server/db/index";
 import { laps, sessions, experiments } from "../server/db/schema";
-import { getLapsForExperiment, insertLap, insertSession } from "../server/db/queries";
+import { getLapsForExperiment } from "../server/db/experiment-lap-queries";
+import { insertLap } from "../server/db/lap-mutation-queries";
+import { insertSession } from "../server/db/session-queries";
 import { createExperiment } from "../server/db/experiment-queries";
 import { getActiveExperiment, setActiveExperiment } from "../server/experiment-active";
 

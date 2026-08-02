@@ -14,11 +14,12 @@ import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { CapturingDbAdapter } from "../server/pipeline-adapters";
 import { LapDetectorAcc } from "../server/lap-detector-acc";
-import { StatusCheckProcessor, TripletPipeline } from "../server/games/acc/triplet-pipeline";
-import type { TripletProcessor } from "../server/games/acc/triplet-pipeline";
+import { TripletPipeline } from "../server/games/kunos/triplet-pipeline";
+import { StatusCheckProcessor } from "../server/games/acc/processors";
+import type { TripletProcessor } from "../server/games/kunos/triplet-pipeline";
 import { GRAPHICS, AC_STATUS } from "../server/games/acc/structs";
 import { stopMaintenanceTasks } from "../server/pipeline";
-import { readAccFrames } from "../server/games/acc/recorder";
+import { readKunosFrames } from "../server/games/kunos/frame-reader";
 import { parseAccBuffers } from "../server/games/acc/parser";
 
 initGameAdapters();
@@ -80,7 +81,7 @@ class CountingProcessor implements TripletProcessor {
 describe("ACC TripletPipeline — menu→race resumption (no reader reinit)", () => {
   test("downstream processor runs again after OFF → LIVE without any reconnect", async () => {
     // Regression: StatusCheckProcessor used to call onDisconnect() on AC_OFF,
-    // tearing down the TripletAssembler + BufferedAccMemoryReader. Entering a
+    // tearing down the TripletAssembler + BufferedKunosMemoryReader. Entering a
     // race afterwards never re-invoked downstream processors because the
     // reader stayed dead. This test proves the pipeline alone is sufficient
     // to resume on status flips — no reinit, no new pipeline instance.
@@ -124,7 +125,7 @@ describe("ACC lap detector — session re-created on race re-entry", () => {
     // session (stale timer after 10s of silence). Re-entering a race must
     // immediately create a fresh session — not revive the old one or stay
     // "in waiting" forever.
-    const frames = readAccFrames(ACC_FIXTURE);
+    const frames = readKunosFrames(ACC_FIXTURE);
     expect(frames.length).toBeGreaterThan(0);
     const first = frames[0];
     const packet = parseAccBuffers(first.physics, first.graphics, first.staticData, {
@@ -157,7 +158,7 @@ describe("ACC lap detector — session re-created on race re-entry", () => {
 
 describe("ACC lap detector — session lifecycle", () => {
   test("flushStaleLap finalises session after 10s silence", async () => {
-    const frames = readAccFrames(ACC_FIXTURE);
+    const frames = readKunosFrames(ACC_FIXTURE);
     expect(frames.length).toBeGreaterThan(0);
 
     const first = frames[0];

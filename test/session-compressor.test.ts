@@ -9,7 +9,7 @@ import { join } from "path";
 import { db } from "../server/db/index";
 import { sessions } from "../server/db/schema";
 import { eq } from "drizzle-orm";
-import { runCompressionNow } from "../server/session-compressor";
+import { runCompressionNow } from "../server/session-capture/compressor"
 
 // Insert a minimal session row. createdAt accepts an ISO string so we can
 // back-date it to simulate files older than 24 hours.

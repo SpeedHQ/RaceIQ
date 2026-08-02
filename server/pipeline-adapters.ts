@@ -11,12 +11,15 @@ import {
   TELEMETRY_PARSER_VERSIONS,
   TELEMETRY_RESOLVER_VERSION,
 } from "../shared/telemetry-resolver";
-import { insertSession, insertLap, setLapMetrics, getLaps, updateSessionRawFile, updateSessionCarTrack, getLapsForExclusionScope, setLapAutoExclusion, getLapExperimentScope } from "./db/queries";
-import { notifyDriverProfileLap } from "./ai/driver-profile-runner";
+import { insertSession, updateSessionRawFile, updateSessionCarTrack } from "./db/session-queries";
+import { insertLap, setLapMetrics } from "./db/lap-mutation-queries";
+import { getLaps } from "./db/lap-read-queries";
+import { getLapsForExclusionScope, setLapAutoExclusion, getLapExperimentScope } from "./db/experiment-lap-queries";
+import { notifyDriverProfileLap } from "./driver-profile/runner";
 import type { ExclusionScopeLap } from "./experiment-auto-exclude";
 import { getTuneAssignment } from "./db/tune-queries";
 import { wsManager } from "./ws";
-import { SessionRecorder } from "./session-recorder";
+import { SessionRecorder } from "./session-capture/recorder";
 import { resolveDataDir } from "./data-dir";
 
 export function currentTelemetryVersionIdentity(gameId: GameId): TelemetryVersionIdentity {

@@ -12,7 +12,7 @@ interface Point {
   z: number;
 }
 
-interface Transform {
+export interface Transform {
   scale: number;
   rotation: number; // radians
   tx: number;
@@ -202,22 +202,6 @@ function calibrate(trackOrdinal: number, outline: Point[]): void {
   );
 }
 
-/**
- * Get the normalized position (0-1) of a Forza position along the outline.
- * Returns null if not calibrated.
- */
-export function getNormalizedPosition(
-  trackOrdinal: number,
-  forzaPos: Point,
-  outline: Point[]
-): number | null {
-  const state = calibrations.get(trackOrdinal);
-  if (!state?.transform) return null;
-
-  const mapped = applyTransform(forzaPos, state.transform);
-  const idx = closestPointIdx(outline, mapped);
-  return idx / outline.length;
-}
 
 /**
  * Calibrate from an array of Forza positions (e.g. from a stored lap).
@@ -270,12 +254,6 @@ export function calibrateFromPositions(
   return true;
 }
 
-/**
- * Check if a track is calibrated.
- */
-export function isCalibrated(trackOrdinal: number): boolean {
-  return calibrations.get(trackOrdinal)?.transform != null;
-}
 
 /**
  * Get calibration state for API.

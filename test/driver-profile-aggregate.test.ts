@@ -3,15 +3,13 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   ALL_DETECTOR_IDS,
-  buildDriverFingerprint,
-  buildDriverTrend,
   computeStyleAxes,
-  DRIVER_TREND_WINDOW_LAPS,
   MIN_LAPS_FOR_STYLE,
   rankWeaknesses,
   rollUpDetectors,
-  type ProfileScope,
-} from "../server/ai/driver-profile-aggregate";
+} from "../server/driver-profile/detectors";
+import { buildDriverFingerprint, type ProfileScope } from "../server/driver-profile/fingerprint";
+import { buildDriverTrend, DRIVER_TREND_WINDOW_LAPS } from "../server/driver-profile/trend";
 import type { LapStyleSummary } from "../shared/lib/driving-style";
 import type { LapInsight } from "../shared/lib/lap-insights";
 import type { LapMeta } from "../shared/types";

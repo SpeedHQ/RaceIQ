@@ -17,7 +17,7 @@ import {
   importSessionBin,
   detectGameIdFromBuffer,
   detectGameIdFromFilename,
-} from "../server/import-session-bin";
+} from "../server/session-capture/import-capture";
 import { getAcEvoTrackName } from "../shared/ac-evo-track-data";
 import type { GameId } from "../shared/types";
 

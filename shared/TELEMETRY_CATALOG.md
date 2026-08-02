@@ -9,7 +9,7 @@
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
 - Generator commit: `072a8a2728cab789d71155fcf37f9aa1079020f1b1713077b93643d7d4d8590e`
 - Generated at: `1970-01-01T00:00:00.000Z` (reproducible-build epoch)
-- Content SHA-256: `12eb89dbd74b85c6d6e1c46f8d2d2b9e611ce2366ad96ead54e8bf9c14e01e52`
+- Content SHA-256: `f73c6d6c51935fa4c71d46216c29844e0f05d315cbce3ccb9ace758d60b5faaa`
 
 ## Coverage
 

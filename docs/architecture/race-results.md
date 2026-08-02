@@ -37,4 +37,4 @@ Typed routes expose individual results, bounded reconciliation, recent summaries
 - `server/race-results/reconcile.ts`: idempotent enrichment
 - `server/race-results/aggregates.ts`: game-scoped summaries
 - `server/db/schema.ts`: `session_results` and `pit_events`
-- `server/db/queries.ts`: result persistence and reads
+- `server/db/session-result-queries.ts`: result persistence and reads

@@ -7,7 +7,7 @@ import { gunzipSync } from "zlib";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
-import { META_FRAME_MAGIC } from "../server/session-recorder";
+import { META_FRAME_MAGIC } from "../server/session-capture/framing";
 import { CapturingDbAdapter } from "../server/pipeline-adapters";
 import { LapDetectorAcEvo } from "../server/lap-detector-ac-evo";
 import { stopMaintenanceTasks } from "../server/pipeline";

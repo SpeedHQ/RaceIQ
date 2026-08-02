@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { getAllAcEvoCars, getAcEvoCarClass } from "../../shared/ac-evo-car-data";
 import { PHYSICS, GRAPHICS_EVO, STATIC_EVO } from "../games/ac-evo/structs";
 import { readCString } from "../games/ac-evo/utils";
-import { acEvoReader } from "../index";
+import { getAcEvoReader } from "../runtime/live-readers";
 
 interface FieldDef {
   offset: number;
@@ -59,7 +59,7 @@ export const acEvoRoutes = new Hono()
 
   /** Parsed field values from each shared memory page using v0.6 struct offsets. */
   .get("/api/ac-evo/debug/raw", (c) => {
-    const bufs = acEvoReader?.getDebugBuffers?.();
+    const bufs = getAcEvoReader()?.getDebugBuffers?.();
     if (!bufs) {
       return c.json({ error: "AC Evo not connected or getDebugBuffers not available" }, 503);
     }
@@ -104,7 +104,7 @@ export const acEvoRoutes = new Hono()
    * with byte-change highlighting for diagnosing unknown struct layouts.
    */
   .get("/api/ac-evo/debug/hex", (c) => {
-    const bufs = acEvoReader?.getDebugBuffers?.();
+    const bufs = getAcEvoReader()?.getDebugBuffers?.();
     if (!bufs) {
       return c.json({ error: "AC Evo not connected" }, 503);
     }
@@ -121,7 +121,7 @@ export const acEvoRoutes = new Hono()
    * bytes + our interpretation. Lets you visually confirm we're not masking 0s.
    */
   .get("/api/ac-evo/debug/verify", (c) => {
-    const bufs = acEvoReader?.getDebugBuffers?.();
+    const bufs = getAcEvoReader()?.getDebugBuffers?.();
     if (!bufs) return c.json({ error: "AC Evo not connected" }, 503);
 
     function byteLen(type: string, size?: number): number {

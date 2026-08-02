@@ -2,7 +2,7 @@
  * Extract lap 1337 telemetry to a static JSON file for the onboarding welcome screen.
  * Run: bun run scripts/extract-demo-lap.ts
  */
-import { getLapById } from "../server/db/queries";
+import { getLapById } from "../server/db/lap-read-queries";
 
 const DEMO_LAP_ID = 1337;
 

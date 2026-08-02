@@ -17,7 +17,7 @@ Features added/fixed on branch `feature/data-panel-info-hovers` (2026-04-08):
 - Uses `fracToIdx()` (distance-based) for both colored lines AND tick marks — must stay in sync
 - Tick marks previously used index-based `Math.round(frac * length)` which misaligned with the distance-based colored lines
 
-**Sector time fallback for Forza** (`server/routes/lap-routes.ts`):
+**Sector time fallback for Forza** (`server/routes/laps/resource-routes.ts`):
 - Forza doesn't broadcast sector times via telemetry → `DEFAULT_SECTORS = { s1End: 0.333, s2End: 0.666 }` from `shared/track-sectors.ts`
 - Detection: if `CurrentLap` field doesn't progress by ≥1s across the lap → fall back to `TimestampMS`
 - `const useTimestamp = lapProgression < 1`

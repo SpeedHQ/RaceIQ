@@ -739,7 +739,7 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity> {
   tyreWear?: number | null;
   // Number of raw telemetry frames stored for this lap (`laps.raw_frame_count`).
   // One integer on the row, so a caller can budget decode cost WITHOUT decoding
-  // anything — see FRAME_BUDGET_PER_ARM in server/ai/arm-stream.ts. Only
+  // anything — see FRAME_BUDGET_PER_ARM in server/experiments/comparison/stream.ts. Only
   // populated by queries that ask for it; undefined means "not selected", not
   // "no frames".
   rawFrameCount?: number | null;

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { GameIdSchema } from "../../shared/types";
 import { z } from "zod";
-import { getLapById } from "../db/queries";
+import { getLapById } from "../db/lap-read-queries";
 import { getExperiment } from "../db/experiment-queries";
 import { getCarName, getTrackName } from "../../shared/car-data";
 import {
@@ -11,7 +11,7 @@ import {
   parseThreadGeneration,
   listThreadGenerations,
 } from "../ai/chat-agent";
-import { forkThreadWithSummary, NothingToCompactError } from "../ai/compact-thread-runner";
+import { forkThreadWithSummary, NothingToCompactError } from "../ai/compact-thread";
 
 const ChatsQuerySchema = z.object({
   gameId: GameIdSchema,
@@ -61,7 +61,10 @@ async function loadLapSummary(id: number): Promise<LapSummary | null> {
   };
 }
 
-export const chatsRoutes = new Hono()
+export function createChatsRoutes(
+  compactThread: typeof forkThreadWithSummary = forkThreadWithSummary,
+) {
+  return new Hono()
   // ── List chat sessions for a game ─────────────────────────
   .get(
     "/api/chats",
@@ -199,7 +202,7 @@ export const chatsRoutes = new Hono()
     async (c) => {
       const threadId = c.req.param("threadId");
       try {
-        const result = await forkThreadWithSummary(threadId);
+        const result = await compactThread(threadId);
         return c.json(result);
       } catch (err: any) {
         if (err instanceof NothingToCompactError) {
@@ -210,3 +213,6 @@ export const chatsRoutes = new Hono()
       }
     },
   );
+}
+
+export const chatsRoutes = createChatsRoutes();

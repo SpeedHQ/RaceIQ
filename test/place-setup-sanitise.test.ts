@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { sanitisePathSegment } from "../server/routes/tune-crud-routes";
+import { sanitisePathSegment } from "../server/routes/tune-shared";
 
 /**
  * `place-setup` writes `Setups/<car>/<track>/<file>` from names the client sends,

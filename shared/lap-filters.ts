@@ -6,7 +6,7 @@ import type { LapMeta } from "./types";
  * review surfaces exclude them outright: not listed, not counted, not averaged.
  *
  * The reason strings are produced by `classifyAccPitLap` in
- * `server/acc-lap-rules.ts` and stored on `invalidReason`.
+ * `server/games/kunos/lap-rules.ts` and stored on `invalidReason`.
  *
  * Shared (not client-only) because the server-side auto-exclude reconciliation
  * (`server/experiment-auto-exclude.ts`) applies the same pit-cycle rule.

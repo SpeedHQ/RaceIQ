@@ -1,7 +1,7 @@
 import { describe, test, expect, spyOn } from "bun:test";
 import type { TelemetryPacket } from "../shared/types";
 import { RealDbAdapter, CapturingDbAdapter, NullWsAdapter } from "../server/pipeline-adapters";
-import * as DriverProfileRunner from "../server/ai/driver-profile-runner";
+import * as DriverProfileRunner from "../server/driver-profile/runner";
 
 describe("CapturingDbAdapter", () => {
   test("insertSession captures data and returns incrementing IDs", async () => {

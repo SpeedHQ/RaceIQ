@@ -1,7 +1,7 @@
 # Setup range data
 
 Setup Engineer clamps proposed changes to known game limits in
-`server/ai/tune-rules.ts`.
+`server/setups/rules/engine.ts`, using ranges from `server/setups/rules/catalog.ts`.
 
 ## Sources
 

@@ -19,7 +19,7 @@ import {
   type IRacingSessionSnapshot,
   type IRacingValue,
 } from "./games/iracing/source-frame";
-import { importSessionFrames } from "./import-session-bin";
+import { importSessionFrames } from "./session-capture/import-pipeline";
 
 const STAGE_TTL_MS = 30 * 60 * 1000;
 const MAX_IBT_BYTES = 8 * 1024 * 1024 * 1024;

@@ -6,7 +6,7 @@ import { PHYSICS, GRAPHICS, STATIC } from "../server/games/acc/structs";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
-import { parseRawLapFramesForTest } from "../server/db/queries";
+import { parseRawLapFramesForTest } from "../server/db/telemetry-replay-storage";
 import { stopMaintenanceTasks } from "../server/pipeline";
 import { getAccTrackName } from "../shared/acc-track-data";
 import { getAccCarName } from "../shared/acc-car-data";

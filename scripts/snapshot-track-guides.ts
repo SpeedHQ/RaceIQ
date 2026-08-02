@@ -48,7 +48,7 @@ const slugs = getAvailableTrackGuides();
 const bySlug: Record<string, unknown> = {};
 for (const slug of slugs) {
   bySlug[slug] = {
-    // The canonical path: server/routes/track-routes.ts and the prompt builders
+    // The canonical path: server/routes/tracks/segments-routes.ts and the prompt builders
     // all pass the meta slug through.
     ctxWithSlug: buildTrackGuideContext(slug, { slug }),
     // The path mastra/tools/track-guide.ts and mastra/workflows/compare-analyse.ts

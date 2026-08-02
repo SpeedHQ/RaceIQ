@@ -1,19 +1,14 @@
 import { describe, test, expect, mock } from "bun:test";
+import { NothingToCompactError } from "../server/ai/compact-thread";
+import { createChatsRoutes } from "../server/routes/chats-routes";
 
-// Mock the runner seam (not compact-thread.ts directly) so this global module
-// mock does not bleed into compact-thread.test.ts. The route imports
-// forkThreadWithSummary through ../ai/compact-thread-runner; compact-thread.test.ts
-// imports the real ../server/ai/compact-thread — different module keys.
 const forkThreadWithSummary = mock(async (threadId: string) => ({
   parentThreadId: threadId,
   newThreadId: `${threadId}~g2`,
   generation: 2,
   summary: "S",
 }));
-class NothingToCompactError extends Error { constructor(m?: string){ super(m); this.name = "NothingToCompactError"; } }
-mock.module("../server/ai/compact-thread-runner", () => ({ forkThreadWithSummary, NothingToCompactError }));
-
-const { chatsRoutes } = await import("../server/routes/chats-routes");
+const chatsRoutes = createChatsRoutes(forkThreadWithSummary);
 
 describe("POST /api/chats/:threadId/compact", () => {
   test("200 with the new fork shape", async () => {

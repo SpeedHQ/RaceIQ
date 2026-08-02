@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createExperiment, getExperiment, setSessionHead } from "../server/db/experiment-queries";
 import { createExperimentVersion, listExperimentVersions } from "../server/db/experiment-version-queries";
-import { resolveSetupPathForVersion } from "../server/ai/setup-engineer-context";
+import { resolveSetupPathForVersion } from "../server/experiments/setup-lineage";
 
 /**
  * A drill arm carries no setup: `setupPath` and `setupSnapshot` are both null by

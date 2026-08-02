@@ -1,4 +1,4 @@
-import { getRecentSessionResults } from "../db/queries";
+import { getRecentSessionResults } from "../db/session-result-queries";
 import type { RaceResult } from "../../shared/race-results";
 import { and, eq, sql } from "drizzle-orm";
 import type { GameId } from "../../shared/types";

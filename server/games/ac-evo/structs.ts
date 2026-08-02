@@ -143,56 +143,16 @@ export const PHYSICS = {
 // SMEvoTyreState [256 bytes] — embedded 4× in SPageFileGraphicEvo
 // =============================================================================
 export const TYRE_STATE_SIZE = 256;
-export const TYRE_STATE = {
-  slip:                            0,   // f32
-  lock:                            4,   // bool (+3 pad)
-  tyre_pression:                   8,   // f32 PSI
-  tyre_temperature_c:              12,  // f32 average carcass °C
-  brake_temperature_c:             16,  // f32 disc °C
-  brake_pressure:                  20,  // f32
-  tyre_temperature_left:           24,  // f32 inner edge °C
-  tyre_temperature_center:         28,  // f32 centre tread °C
-  tyre_temperature_right:          32,  // f32 outer edge °C
-  // char[33] tyre_compound_front @ 36 (33 bytes, ends at 69)
-  // char[33] tyre_compound_rear  @ 69 (33 bytes, ends at 102) — pad to 104
-  tyre_normalized_pressure:        104, // f32
-  tyre_normalized_temperature_left: 108,
-  tyre_normalized_temperature_center: 112,
-  tyre_normalized_temperature_right: 116,
-  brake_normalized_temperature:    120,
-  tyre_normalized_temperature_core: 124,
-  // used: 128 bytes; padded to 256
-} as const;
 
 // =============================================================================
 // SMEvoDamageState [128 bytes]
 // =============================================================================
 export const DAMAGE_STATE_SIZE = 128;
-export const DAMAGE_STATE = {
-  damage_front:           0,
-  damage_rear:            4,
-  damage_left:            8,
-  damage_right:           12,
-  damage_center:          16,
-  damage_suspension_lf:   20,
-  damage_suspension_rf:   24,
-  damage_suspension_lr:   28,
-  damage_suspension_rr:   32,
-  // used: 36 bytes; padded to 128
-} as const;
 
 // =============================================================================
 // SMEvoPitInfo [64 bytes]
 // =============================================================================
 export const PIT_INFO_SIZE = 64;
-export const PIT_INFO = {
-  damage:    0,  // i8: -1=skip, 0=done, 1=in-progress
-  fuel:      1,
-  tyres_lf:  2,
-  tyres_rf:  3,
-  tyres_lr:  4,
-  tyres_rr:  5,
-} as const;
 
 // =============================================================================
 // SMEvoElectronics [128 bytes]
@@ -228,21 +188,6 @@ export const ELECTRONICS = {
 // SMEvoInstrumentation [128 bytes]
 // =============================================================================
 export const INSTRUMENTATION_SIZE = 128;
-export const INSTRUMENTATION = {
-  main_light_stage:               0,   // i8
-  special_light_stage:            1,   // i8
-  cockpit_light_stage:            2,   // i8
-  wiper_level:                    3,   // i8
-  rain_lights:                    4,   // bool
-  direction_light_left:           5,   // bool
-  direction_light_right:          6,   // bool
-  flashing_lights:                7,   // bool
-  warning_lights:                 8,   // bool
-  selected_display_index:         9,   // i8
-  display_current_page_index:     10,  // i8[16] (16 bytes — v0.6 widened from 9)
-  are_headlights_visible:         26,  // bool
-  // used: 27 bytes; padded to 128
-} as const;
 
 // =============================================================================
 // SMEvoSessionState [256 bytes]
@@ -291,18 +236,6 @@ export const TIMING_STATE = {
 // SMEvoAssistsState [64 bytes]
 // =============================================================================
 export const ASSISTS_STATE_SIZE = 64;
-export const ASSISTS_STATE = {
-  auto_gear:                  0,   // u8
-  auto_blip:                  1,   // u8
-  auto_clutch:                2,   // u8
-  auto_clutch_on_start:       3,   // u8
-  manual_ignition_e_start:    4,   // u8
-  auto_pit_limiter:           5,   // u8
-  standing_start_assist:      6,   // u8 (+1 pad to f32)
-  auto_steer:                 8,   // f32
-  arcade_stability_control:   12,  // f32
-  // used: 16 bytes; padded to 64
-} as const;
 
 // =============================================================================
 // SPageFileGraphicEvo — main HUD page

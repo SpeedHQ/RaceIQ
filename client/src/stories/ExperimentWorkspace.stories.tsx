@@ -67,12 +67,12 @@ const fakeTests: ExperimentVersion[] = [
 // telemetry anomalies, each tagged with its source. Covers every
 // invalidReason value the pipeline produces.
 const statusExampleLapsBase = [
-  { id: 201, lapNumber: 11, invalidReason: "outlap" }, // acc-lap-rules.ts: left pit, ended on track
+  { id: 201, lapNumber: 11, invalidReason: "outlap" }, // kunos/lap-rules.ts: left pit, ended on track
   { id: 202, lapNumber: 12, invalidReason: null },
   { id: 203, lapNumber: 13, invalidReason: null },
   { id: 204, lapNumber: 14, invalidReason: null },
-  { id: 205, lapNumber: 15, invalidReason: "inlap" }, // acc-lap-rules.ts: started on track, boxed
-  { id: 206, lapNumber: 16, invalidReason: "pit lap" }, // acc-lap-rules.ts: both ends in pit
+  { id: 205, lapNumber: 15, invalidReason: "inlap" }, // kunos/lap-rules.ts: started on track, boxed
+  { id: 206, lapNumber: 16, invalidReason: "pit lap" }, // kunos/lap-rules.ts: both ends in pit
   { id: 207, lapNumber: 17, invalidReason: "outlap" }, // back out after the stop
   { id: 208, lapNumber: 18, invalidReason: null },
   { id: 209, lapNumber: 19, invalidReason: "telemetry lap time mismatch" }, // lap-quality.ts

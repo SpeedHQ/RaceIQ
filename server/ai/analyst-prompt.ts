@@ -1,5 +1,5 @@
 import type { TelemetryPacket, Tune, GameId } from "../../shared/types";
-import { generateExport, type UnitSystem, type TemperatureUnit } from "../export";
+import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-analysis/report"
 import { getCarName, getTrackName, carSpecsMap } from "../../shared/car-data";
 import { buildCornerData } from "./corner-data";
 import { analyzeLap } from "../../shared/lib/lap-insights";

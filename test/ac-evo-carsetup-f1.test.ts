@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "fs";
 import { join } from "path";
-import { parseCarSetup, summarizeCarSetup } from "../server/games/ac-evo/carsetup";
+import { summarizeCarSetup } from "../server/games/ac-evo/carsetup";
+import { parseCarSetup } from "../server/games/ac-evo/carsetup-wire";
 
 // Ferrari SF25, Brands Hatch. Two saves of the same setup:
 //  - "F1 default"   — ERS deployment map 4 (UI)

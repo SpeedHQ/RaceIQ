@@ -8,7 +8,7 @@
  * setup knowledge lives here, only physics-derived observations.
  */
 import type { TelemetryPacket } from "../../shared/types";
-import type { Corner } from "../corner-detection";
+import type { Corner } from "../lap-analysis/corners"
 import { tireTempSymptoms, type TireTempSymptoms } from "./tune-tire-symptoms";
 import { damperSymptoms, type DamperSymptoms } from "./tune-damper-symptoms";
 import {

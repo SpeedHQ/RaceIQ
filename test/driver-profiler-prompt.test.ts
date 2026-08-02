@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-import { buildDriverProfilerPrompt } from "../server/ai/driver-profiler-prompt";
-import { emptyFingerprint, type DriverFingerprint, type DriverTrend } from "../server/ai/driver-profile-aggregate";
+import { buildDriverProfilerPrompt } from "../server/driver-profile/prompt";
+import { emptyFingerprint, type DriverFingerprint } from "../server/driver-profile/fingerprint";
+import type { DriverTrend } from "../server/driver-profile/trend";
 import { parseDriverProfileSummary, DriverProfileSummarySchema } from "../server/ai/schemas";
 
 function trend(over: Partial<DriverTrend> = {}): DriverTrend {

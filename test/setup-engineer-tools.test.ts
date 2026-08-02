@@ -14,7 +14,8 @@
  *     silently-skipped intent.
  */
 import { describe, expect, test } from "bun:test";
-import { applyIntents, describeKnobs, knownComponents } from "../server/ai/tune-rules";
+import { applyIntents, describeKnobs } from "../server/setups/rules/engine";
+import { knownComponents } from "../server/setups/rules/catalog";
 import { readSetupEngineerContext } from "../mastra/tools/setup-engineer-request-context";
 
 function baseAccSetup() {
@@ -51,7 +52,7 @@ describe("describeKnobs — get_setup grounding", () => {
   });
 
   test("returns [] for a game with no rules table", () => {
-    // "gt7" has no RULES entry in tune-rules.ts.
+    // "gt7" has no entry in setup rule catalog.
     expect(describeKnobs("gt7" as any, {})).toEqual([]);
   });
 

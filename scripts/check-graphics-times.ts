@@ -1,8 +1,8 @@
-import { readAccFrames } from "../server/games/acc/recorder";
+import { readKunosFrames } from "../server/games/kunos/frame-reader";
 import { GRAPHICS } from "../server/games/acc/structs";
 
 const binPath = "test/artifacts/sessions/acc-2026-04-09T18-56-49-633Z.bin";
-const frames = readAccFrames(binPath);
+const frames = readKunosFrames(binPath);
 
 console.log("Scanning graphics buffer for lap times...\n");
 

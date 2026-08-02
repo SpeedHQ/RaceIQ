@@ -7,10 +7,10 @@
  *   - "session capture": [meta frame][uint32 LE len][frame]... — for ACC/AC Evo
  *     the frame is a packed shared-memory triplet (pack-triplet.ts); for
  *     FM/F1 it's a raw UDP packet. This is what real session storage /
- *     import-session-bin.ts uses, and what the car/track re-derivation fix
+ *     import-capture.ts uses, and what the car/track re-derivation fix
  *     (server/games/acc/index.ts tryParse) targets.
  *   - "dump mode": ACCTEST-framed physics/graphics/static frames written by
- *     DumpToBinProcessor, read via readAccFrames. Dev-only capture format,
+ *     DumpToBinProcessor, read via readKunosFrames. Dev-only capture format,
  *     never fed through importSessionBin in production.
  */
 import { describe, test, expect, afterAll } from "bun:test";
@@ -21,8 +21,8 @@ import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
 import { getGame } from "../shared/games/registry";
 import { stopMaintenanceTasks } from "../server/pipeline";
-import { META_FRAME_MAGIC } from "../server/session-recorder";
-import { detectGameIdFromBuffer } from "../server/import-session-bin";
+import { META_FRAME_MAGIC } from "../server/session-capture/framing"
+import { detectGameIdFromBuffer } from "../server/session-capture/import-capture"
 import { getAccTrackName } from "../shared/acc-track-data";
 import { getAccCarName } from "../shared/acc-car-data";
 import { getAcEvoTrackName } from "../shared/ac-evo-track-data";
@@ -53,7 +53,7 @@ function hasMetaFrame(buf: Buffer): boolean {
   return buf.length >= 8 && buf.readUInt32LE(0) === META_FRAME_MAGIC;
 }
 
-/** Replays every frame of a session-capture .bin.gz through the game's real tryParse, exactly as import-session-bin.ts does. */
+/** Replays every frame of a session-capture .bin.gz through the game's real tryParse, exactly as import-capture.ts does. */
 function parseSessionCapture(path: string, gameId: GameId): TelemetryPacket[] {
   const raw = gunzip(path);
   const serverGame = getServerGame(gameId);
@@ -300,12 +300,12 @@ describe("bin-fixture-detection — every test/artifacts/sessions/*.bin.gz resol
     expect(getAccCarName(last.CarOrdinal)).toBe("McLaren 720S GT3 Evo 2023");
   }, { timeout: 30000 });
 
-  // Dump-mode ACCTEST v2 header, but the frame stream is corrupt: readAccFrames
+  // Dump-mode ACCTEST v2 header, but the frame stream is corrupt: readKunosFrames
   // scans past two zero-length placeholder physics frames straight into
   // non-frame garbage (frame type byte 176) a handful of bytes later, aborts
   // its frameCount scan, and never emits a single physics+graphics+static
   // triplet. No other test in the suite references this fixture either —
   // it appears to be an incomplete/corrupted capture, not a fixture worth
   // asserting a fake baseline against.
-  test.skip("acc-2026-04-10T02-28-56-651Z.bin.gz — SKIPPED: dump-mode ACCTEST v2 frame stream is corrupt, readAccFrames yields 0 triplets", () => {});
+  test.skip("acc-2026-04-10T02-28-56-651Z.bin.gz — SKIPPED: dump-mode ACCTEST v2 frame stream is corrupt, readKunosFrames yields 0 triplets", () => {});
 });

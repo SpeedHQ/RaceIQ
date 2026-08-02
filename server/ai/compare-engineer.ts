@@ -11,7 +11,7 @@
  * judge an absolute lap. This module owns that persona so both compare-chat
  * and inputs-compare-analysis stay consistent.
  */
-import type { UnitSystem, TemperatureUnit } from "../export";
+import type { UnitSystem, TemperatureUnit } from "../lap-analysis/report"
 import { aiLanguageInstruction } from "../../shared/locales";
 import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
 

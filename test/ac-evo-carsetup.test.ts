@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "fs";
 import { join } from "path";
-import { formatCarSetup, parseCarSetup, readCarSetupFile } from "../server/games/ac-evo/carsetup";
+import { formatCarSetup, readCarSetupFile } from "../server/games/ac-evo/carsetup";
+import { parseCarSetup } from "../server/games/ac-evo/carsetup-wire";
 
 const FIXTURE = join(import.meta.dir, "artifacts", "carsetup", "Default-12312.carsetup");
 

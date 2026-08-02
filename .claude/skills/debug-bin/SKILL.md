@@ -19,7 +19,7 @@ Stage-only header check (fast, no import): add `--no-import`.
 
 | Symptom | Likely cause | Where to look |
 |---|---|---|
-| `game from buffer: (none)` | Magic bytes not recognized | `detectGameIdFromBuffer` in `server/import-session-bin.ts` (~line 126). Compare hex dump vs known magics (`ACEVO_PACKED_MAGIC`, `META_FRAME_MAGIC`) |
+| `game from buffer: (none)` | Magic bytes not recognized | `detectGameIdFromBuffer` in `server/session-capture/import-capture.ts`. Compare hex dump vs known magics (`ACEVO_PACKED_MAGIC`, `META_FRAME_MAGIC`) |
 | `packets: 0` | Frame format mismatch or parser rejects frames | `iterateFrames` + adapter `tryParse` in `server/games/<game>/` |
 | `UNKNOWN TRACK` | Track name/ordinal not in CSV, or track extraction never ran | `shared/games/ac-evo/tracks.csv`, `getAcEvoTrackByName`, parser track resolution in AC Evo parser |
 | Unknown car (log line `Unknown car "..."`) | Car missing from CSV | `shared/games/ac-evo/cars.csv`, `getAcEvoCarByDisplayName` |
@@ -30,7 +30,7 @@ Stage-only header check (fast, no import): add `--no-import`.
 
 - `importSessionBin(bytes, gameId)` accepts gzip'd input (auto-detected by magic bytes) regardless of extension.
 - MUST call `initServerGameAdapters()` (from `server/games/init`) before `getServerGame`/`importSessionBin` in any standalone script — otherwise `Unknown server game adapter` error.
-- Import path uses `ImportCaptureAdapter` + `NoopWsAdapter` + `bypassPacketRateFilter: true` — no live server needed.
+- Import path uses `ImportCaptureAdapter` + `NullWsAdapter` + `bypassPacketRateFilter: true` — no live server needed.
 - AC Evo player slot locks after ~60 frames (`Player slot locked` log line). Early frames may resolve to wrong car.
 - Parser logs (`[AC Evo Parser] Resolved track/car: ...`) go to stdout — grep them, don't suppress.
 

@@ -19,7 +19,7 @@ import { db, initDb } from "../server/db/index";
 import { sessions } from "../server/db/schema";
 import { getServerGame } from "../server/games/registry";
 import { getOrCreateDiscoveredCar } from "../server/db/discovered-cars";
-import { META_FRAME_MAGIC } from "../server/session-recorder";
+import { META_FRAME_MAGIC } from "../server/session-capture/framing";
 import type { TelemetryPacket } from "../shared/types";
 
 const GAME_ID = "ac-evo";
@@ -31,8 +31,8 @@ function decompressIfGz(bytes: Buffer): Buffer {
   return bytes;
 }
 
-/** Same framing as session-recorder.ts / import-session-bin.ts: optional 12-byte
- * meta frame, then repeated [uint32 LE len][frame bytes]. */
+/** Same framing as session-capture/recorder.ts and import-capture.ts: optional
+ * 12-byte meta frame, then repeated [uint32 LE len][frame bytes]. */
 function* iterateFrames(buf: Buffer): Generator<Buffer> {
   let offset = 0;
   if (buf.length >= 4 && buf.readUInt32LE(0) === META_FRAME_MAGIC) offset = 12;

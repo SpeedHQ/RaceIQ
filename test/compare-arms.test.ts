@@ -8,22 +8,22 @@ import {
   RECOMMENDED_LAPS_PER_ARM,
   serializeComparison,
   welchTTest,
-} from "../server/ai/compare-arms";
-import { mean, sampleVariance } from "../server/ai/compare-arms";
-import type { ArmInput } from "../server/ai/compare-arms";
+} from "../server/experiments/comparison/compare";
+import { mean, sampleVariance } from "../server/experiments/comparison/compare";
+import type { ArmInput } from "../server/experiments/comparison/compare";
 import {
   type ArmLap,
   type CurationSpec,
   type MetadataOutcomeMetric,
   OUTCOME_METRICS,
-} from "../server/ai/outcome-metrics";
-import type { Corner } from "../server/corner-detection";
+} from "../server/experiments/comparison/metrics";
+import type { Corner } from "../server/lap-analysis/corners";
 import type { EvaluableLap } from "../shared/review-laps";
 import type { TelemetryPacket } from "../shared/types";
 
 /**
  * The curation policy no shipped metric uses any more — see `lapTimeSec` in
- * server/ai/outcome-metrics.ts. It stays pinned here, applied explicitly, so the
+ * server/experiments/comparison/metrics.ts. It stays pinned here, applied explicitly, so the
  * *reasons* it was dropped keep being measured: it roughly doubles the
  * false-positive rate, and on a loose-vs-tight pair it misranks outright.
  */
