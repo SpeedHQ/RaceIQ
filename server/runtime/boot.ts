@@ -3,18 +3,18 @@ import { resolve } from "path";
 import { initGameAdapters } from "../../shared/games/init";
 import { injectDiscoveredAcEvoCars } from "../../shared/ac-evo-car-data";
 import { injectDiscoveredIRacingIdentity } from "../../shared/games/iracing";
-import app from "../routes";
+import app from "../routes/index";
 import { initServerGameAdapters } from "../games/init";
 import { initDb } from "../db/index";
 import { reconcileDiscoveredCars, listDiscoveredCars } from "../db/discovered-cars";
 import { listDiscoveredTracks } from "../db/discovered-tracks";
 import { deleteEmptySessions } from "../db/session-queries";
 import { setCacheMaxBytes } from "../db/telemetry-replay-storage";
-import { isFirstRun, loadSettings } from "../settings";
-import { wsManager, type WSData } from "../ws";
-import { udpListener } from "../udp";
-import { PUBLIC_DIR, IS_COMPILED } from "../paths";
-import { getOnboardingOverride } from "../runtime-options";
+import { isFirstRun, loadSettings } from "./config/settings";
+import { wsManager, type WSData } from "./websocket-manager";
+import { udpListener } from "./udp-listener";
+import { PUBLIC_DIR, IS_COMPILED } from "./config/paths";
+import { getOnboardingOverride } from "./options";
 import { preventMacSleep, openFirstRunDashboard, startWindowsDesktop } from "./desktop";
 import { clearHttpPort, startHttpServer } from "./http-server";
 import { startNativeSourceSupervisor, type NativeSourceSupervisor } from "./native-sources";
@@ -94,7 +94,7 @@ export async function bootServer(options: BootOptions = {}): Promise<RunningServ
   // Dynamic import is required here: dev-studio pulls @mastra/hono and the
   // DuckDB-backed Mastra instance, which must stay out of the production bundle.
   if (process.env.NODE_ENV !== "production") {
-    const { mountStudioServer } = await import("../dev-studio");
+    const { mountStudioServer } = await import("./dev-studio");
     await mountStudioServer(app);
   }
 

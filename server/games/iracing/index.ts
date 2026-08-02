@@ -6,7 +6,7 @@ import {
 } from "../../../shared/iracing-track-data";
 import type { TelemetryPacket } from "../../../shared/types";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
-import { LapDetectorIRacing } from "../../lap-detector-iracing";
+import { LapDetectorIRacing } from "./lap-detector";
 import type { ServerGameAdapter } from "../types";
 import {
   createIRacingParserState,
@@ -32,6 +32,17 @@ Do not invent setup values or track landmarks that are absent from the input.`;
 
 export const iracingServerAdapter: ServerGameAdapter = {
   ...iracingAdapter,
+
+  runtime: {
+    pit: {
+      seedFuelFromHistory: true,
+      seedTireWearFromHistory: true,
+      useDistanceBasedWearCurves: false,
+    },
+    bestLapFromSession: false,
+    requiresTrackCalibration: false,
+    normSuspensionTravelMm: { min: 0, max: 100 },
+  },
   processNames: [
     "iRacingSim64DX11.exe",
     "iRacingSim64DX11",

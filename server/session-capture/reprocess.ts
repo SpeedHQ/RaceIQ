@@ -3,7 +3,7 @@
  * to update lap boundaries after a lap detection algorithm change.
  */
 import { getServerGame } from "../games/registry";
-import { CapturingDbAdapter, currentTelemetryVersionIdentity } from "../pipeline-adapters";
+import { CapturingDbAdapter, currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
 import type { GameId } from "../../shared/types";
 import { gunzipBuffer, META_FRAME_MAGIC, readFrameStreamStart } from "./framing";
 import { getLapsForSession, updateLapRawIndex, insertReprocessedLap, deleteLapsForSession } from "../db/lap-reprocessing-queries";
@@ -70,11 +70,11 @@ export async function reprocessSession(sessionId: number): Promise<ReprocessResu
     }
     offset += 4;
     if (offset + frameLen > buf.length) break;
-    const frameBuf = buf.subarray(offset, offset + frameLen);
+    const sourceFrame = buf.subarray(offset, offset + frameLen);
     const frameStart = offset - 4; // byte offset of this frame's length prefix
     offset += frameLen;
 
-    const packet = serverGame.tryParse(frameBuf, parserState);
+    const packet = serverGame.tryParse(sourceFrame, parserState);
     if (packet) {
       await detector.feed(packet, frameStart);
     }

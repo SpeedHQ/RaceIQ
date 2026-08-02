@@ -40,7 +40,7 @@ Low-confidence data never blocks a recommendation. The response reports its limi
 - `server/experiments/lap-evidence/aggregate.ts`: lap selection and aggregate context
 - `server/lap-analysis/consistency.ts`: per-corner consistency analysis
 - `server/setups/io.ts`: file and snapshot setup adapters
-- `server/experiment-undo.ts`: action reversal
+- `server/experiments/undo.ts`: action reversal
 - `server/db/experiment-action-queries.ts`: action history persistence
 
 Current unresolved validation is tracked in [Setup Engineer status](../project-status/setup-engineer.md).

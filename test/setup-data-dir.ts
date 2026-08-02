@@ -5,7 +5,7 @@
  *
  * Why this exists: several suites do unconditional wipes (e.g.
  * `db.delete(experiments)` in test/experiments.test.ts). Without
- * DATA_DIR set, server/data-dir.ts falls back to USER_DATA_DIR — the real
+ * DATA_DIR set, server/runtime/config/data-dir.ts falls back to USER_DATA_DIR — the real
  * user DB — and those wipes destroy live tuning sessions.
  */
 import { afterAll } from "bun:test";
@@ -44,7 +44,7 @@ await initDb();
  */
 afterAll(async () => {
   try {
-    const { stopMaintenanceTasks } = await import("../server/pipeline");
+    const { stopMaintenanceTasks } = await import("../server/telemetry/live-pipeline");
     stopMaintenanceTasks();
   } catch {
     // pipeline never loaded — nothing to stop

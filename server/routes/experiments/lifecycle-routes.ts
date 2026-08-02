@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { IdParamSchema } from "../../../shared/schemas";
 import { GameIdSchema } from "../../../shared/types";
-import { getActiveExperiment, setActiveExperiment } from "../../experiment-active";
+import { getActiveExperiment, setActiveExperiment } from "../../experiments/active";
 import { createExperiment, getExperiment, listExperimentFocusEvents, listExperiments, setExperimentFocus, setSessionHead, updateExperiment } from "../../db/experiment-queries";
 import { createExperimentVersion } from "../../db/experiment-version-queries";
 import { getLapsForExperiment } from "../../db/experiment-lap-queries";
@@ -123,7 +123,7 @@ export const experimentLifecycleRoutes = new Hono()
 
   // POST /api/experiments/:id/activate — mark this session as the active
   // tuning session. Every lap recorded from now on is stamped with its id at
-  // insert (server/experiment-active.ts + db/lap-mutation-queries.ts::insertLap), so membership is
+  // insert (server/experiments/active.ts + db/lap-mutation-queries.ts::insertLap), so membership is
   // an explicit link independent of race sessionId — the session gathers laps
   // across every stint until deactivated.
   .post("/api/experiments/:id/activate",

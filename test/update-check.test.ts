@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import { resolveDataDir } from "../server/data-dir";
-import { isNewer } from "../server/version-compare";
+import { resolveDataDir } from "../server/runtime/config/data-dir";
+import { isNewer } from "../server/runtime/update/version";
 
 describe("resolveDataDir", () => {
   let originalDataDir: string | undefined;

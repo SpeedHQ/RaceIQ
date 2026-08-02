@@ -8,7 +8,7 @@
 import { Agent } from "@mastra/core/agent";
 import { compareEngineerPersona } from "../../server/ai/compare-engineer";
 import { getMastraModelId } from "../model";
-import { loadSettings } from "../../server/settings";
+import { loadSettings } from "../../server/runtime/config/settings";
 
 export const compareEngineerAgent = new Agent({
   id: "compare-engineer",

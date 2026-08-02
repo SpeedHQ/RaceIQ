@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync, statSync } from "fs";
 import { resolve } from "path";
-import { parsePacket } from "../../parsers/index";
+import { parsePacket } from "../../games/packet-dispatch";
 import { readKunosFrames } from "../../games/kunos/frame-reader";
 import { parseAccBuffers } from "../../games/acc/parser";
 import { readWString } from "../../games/acc/utils";
@@ -127,8 +127,8 @@ export function parseUdpRecordingPoints(binPath: string): Point2D[] {
     offset += 4;
     if (offset + len > buffer.length) break;
 
-    const chunk = buffer.slice(offset, offset + len);
-    const packet = parsePacket(chunk);
+    const sourceFrame = buffer.slice(offset, offset + len);
+    const packet = parsePacket(sourceFrame);
 
     if (packet) {
       packets.push({ x: packet.PositionX, y: packet.PositionZ });
@@ -181,8 +181,8 @@ export function parseUdpRecordingPacketsWithSpeed(binPath: string): Point3D[] {
     offset += 4;
     if (offset + len > buffer.length) break;
 
-    const chunk = buffer.slice(offset, offset + len);
-    const packet = parsePacket(chunk);
+    const sourceFrame = buffer.slice(offset, offset + len);
+    const packet = parsePacket(sourceFrame);
 
     if (packet) {
       packets.push({ x: packet.PositionX, y: packet.PositionZ, speed: packet.Speed });
@@ -283,8 +283,8 @@ export function parseUdpRecordingLaps(binPath: string): E2eLapResult {
     offset += 4;
     if (offset + len > buffer.length) break;
 
-    const chunk = buffer.slice(offset, offset + len);
-    const packet = parsePacket(chunk);
+    const sourceFrame = buffer.slice(offset, offset + len);
+    const packet = parsePacket(sourceFrame);
 
     if (packet && packet.LapNumber !== undefined) {
       if (packet.LapNumber !== currentLap) {

@@ -3,7 +3,7 @@ import type { TelemetryPacket, GameId } from "../shared/types";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { tryGetServerGame } from "../server/games/registry";
-import { resolveTrack } from "../server/track-info";
+import { resolveTrack } from "../server/tracks/info"
 import { buildAnalystPrompt } from "../server/ai/analyst-prompt";
 
 initGameAdapters();

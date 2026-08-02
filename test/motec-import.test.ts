@@ -11,7 +11,7 @@ import {
   resolveMotecCarTrack,
   synthesizeAcEvoCapture,
   SYNTH_HZ,
-} from "../server/motec/to-ac-evo";
+} from "../server/games/ac-evo/motec";
 import { importMotec, MOTEC_SESSION_SOURCE } from "../server/motec/import";
 import { db } from "../server/db";
 import { laps as lapsTable, sessions, tunes } from "../server/db/schema";

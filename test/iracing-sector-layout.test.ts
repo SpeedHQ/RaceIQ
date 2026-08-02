@@ -1,5 +1,5 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import { computeIRacingSectorTimeline } from "../server/compute-lap-sectors";
+import { computeIRacingSectorTimeline } from "../server/lap-analysis/sectors"
 import { normalizeIRacingFrame } from "../server/games/iracing/normalizer";
 import type { IRacingSourceFrameV2 } from "../server/games/iracing/source-frame";
 import { SectorTracker } from "../server/live-strategy/sector-tracker";

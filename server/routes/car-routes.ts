@@ -16,7 +16,7 @@ import { tryGetServerGame } from "../games/registry";
 
 // ─── Car model config paths ────────────────────────────────────────────────────
 
-import { USER_DATA_DIR, SHARED_DIR } from "../paths";
+import { USER_DATA_DIR, SHARED_DIR } from "../runtime/config/paths";
 const CAR_MODEL_CONFIGS_PATH = resolve(USER_DATA_DIR, "car-model-configs.json");
 const CAR_DIMENSIONS_PATH = resolve(SHARED_DIR, "games/fm-2023/car-dimensions.csv");
 

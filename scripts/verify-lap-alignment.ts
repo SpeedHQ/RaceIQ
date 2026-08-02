@@ -35,10 +35,10 @@ while (off + 4 <= buf.length) {
   const len = buf.readUInt32LE(off);
   if (off + 4 + len > buf.length) break;
   const frameStart = off;
-  const frameBuf = buf.subarray(off + 4, off + 4 + len);
+  const sourceFrame = buf.subarray(off + 4, off + 4 + len);
   off += 4 + len;
   try {
-    const p: any = adapter.tryParse(frameBuf, state);
+    const p: any = adapter.tryParse(sourceFrame, state);
     if (p && typeof p.LapNumber === "number" && !lapFirstOffset.has(p.LapNumber)) {
       lapFirstOffset.set(p.LapNumber, frameStart);
     }

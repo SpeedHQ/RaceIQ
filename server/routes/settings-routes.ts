@@ -2,20 +2,20 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { existsSync, readdirSync } from "fs";
 import { resolve } from "path";
-import { PUBLIC_DIR, IS_COMPILED } from "../paths";
+import { PUBLIC_DIR, IS_COMPILED } from "../runtime/config/paths";
 
 import { GameIdQuerySchema } from "../../shared/schemas";
-import { udpListener } from "../udp";
-import { wsManager } from "../ws";
-import { lapDetector } from "../pipeline";
-import { loadSettings, saveSettings, PartialSettingsSchema } from "../settings";
-import { getSecret, setSecret } from "../keystore";
-import { enableLaunchOnLogin, disableLaunchOnLogin, getLaunchOnLoginExeDir } from "../launch-on-login";
+import { udpListener } from "../runtime/udp-listener";
+import { wsManager } from "../runtime/websocket-manager";
+import { lapDetector } from "../telemetry/live-pipeline";
+import { loadSettings, saveSettings, PartialSettingsSchema } from "../runtime/config/settings";
+import { getSecret, setSecret } from "../runtime/platform/keystore";
+import { enableLaunchOnLogin, disableLaunchOnLogin, getLaunchOnLoginExeDir } from "../runtime/platform/launch-on-login";
 import { getLapStats } from "../db/lap-read-queries";
 import { setCacheMaxBytes } from "../db/telemetry-replay-storage";
 import { getRunningGame } from "../games/registry";
 import { getTrackLengthMeters } from "../../shared/track-data";
-import { withOnboardingOverride } from "../runtime-options";
+import { withOnboardingOverride } from "../runtime/options";
 
 const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;
 const MODELS_EMPTY_RETRY_MS = 10 * 1000;

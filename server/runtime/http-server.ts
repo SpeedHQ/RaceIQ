@@ -1,8 +1,9 @@
 import { execSync } from "child_process";
 import { resolve } from "path";
-import { wsManager, type WSData } from "../ws";
+import { wsManager, type WSData } from "./websocket-manager";
+import type { AppType } from "../routes/index";
 
-type HttpApp = Pick<typeof import("../routes").default, "fetch">;
+type HttpApp = Pick<AppType, "fetch">;
 
 export interface HttpServerOptions {
   app: HttpApp;

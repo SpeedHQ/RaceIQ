@@ -398,7 +398,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   // stints while iterating setups), so membership can't be derived from
   // sessionId or a fragile created-at time window. Instead every lap recorded
   // while a tuning session is active is stamped with its id at insert time
-  // (see server/experiment-active.ts + queries.ts::insertLap).
+  // (see server/experiments/active.ts + queries.ts::insertLap).
   //
   // NOTE: SQLite cannot add a column WITH an inline REFERENCES clause via
   // ALTER TABLE, so the FK is omitted here — the column is a plain nullable
@@ -536,7 +536,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
   // `laps.tuning_excluded` was a purely manual flag, so the tuning aggregate
   // disagreed with the fastest-5 curation the review paths (`/line-spread`,
   // `useStintTraces`) actually analysed. This column tracks WHO set the flag:
-  //  • 'auto'   — server/experiment-auto-exclude.ts's fastest-5 reconciliation pass.
+  //  • 'auto'   — server/experiments/auto-exclude.ts's fastest-5 reconciliation pass.
   //  • 'manual' — user or Setup Engineer; the auto pass never touches these.
   //  • NULL     — not yet reconciled (pre-existing NULL rows).
   // Backfill: every existing `tuning_excluded = 1` row was hand-set (the auto

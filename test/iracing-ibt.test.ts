@@ -19,11 +19,9 @@ import { getDiscoveredTrackName } from "../server/db/discovered-tracks";
 import { db } from "../server/db/index";
 import { discoveredCars, discoveredTracks } from "../server/db/schema";
 import { IRacingIbtReader } from "../server/games/iracing/ibt-reader";
-import {
-  commitStagedIbt,
-  previewIbtFile,
-  stageIbtUpload,
-} from "../server/import-ibt";
+import { commitStagedIbt,
+previewIbtFile,
+stageIbtUpload, } from "../server/games/iracing/import-ibt"
 import { normalizeIRacingFrame } from "../server/games/iracing/normalizer";
 import { IRacingTelemetrySource } from "../server/games/iracing/source";
 import { deleteSession } from "../server/db/session-queries";

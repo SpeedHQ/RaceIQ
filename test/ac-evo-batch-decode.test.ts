@@ -10,10 +10,10 @@ import { gunzipSync } from "zlib";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
-import { CapturingDbAdapter } from "../server/pipeline-adapters";
-import { LapDetectorAcEvo } from "../server/lap-detector-ac-evo";
+import { CapturingDbAdapter } from "../server/telemetry/pipeline-ports"
+import { LapDetectorAcEvo } from "../server/games/ac-evo/lap-detector"
 import { META_FRAME_MAGIC } from "../server/session-capture/framing"
-import { stopMaintenanceTasks } from "../server/pipeline";
+import { stopMaintenanceTasks } from "../server/telemetry/live-pipeline"
 import { parseRawLapFramesForTest, parseSessionLapsBatchedForTest } from "../server/db/telemetry-replay-storage";
 
 initGameAdapters();
@@ -44,9 +44,9 @@ async function detectLaps(): Promise<{ rawByteOffset: number; rawFrameCount: num
     const frameStart = offset;
     offset += 4;
     if (offset + frameLen > buf.length) break;
-    const frameBuf = buf.subarray(offset, offset + frameLen);
+    const sourceFrame = buf.subarray(offset, offset + frameLen);
     offset += frameLen;
-    const packet = serverGame.tryParse(frameBuf, parserState);
+    const packet = serverGame.tryParse(sourceFrame, parserState);
     if (packet) await detector.feed(packet, frameStart);
   }
   await detector.flushIncompleteLap?.();

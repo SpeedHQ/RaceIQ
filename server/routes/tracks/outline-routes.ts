@@ -13,9 +13,9 @@ import {
   normalizeToFixedPoints,
   averageOutlines,
   smoothOutline,
-} from "../../lap-detector";
+} from "../../lap-detection/detector";
 import type { GameId } from "../../../shared/types";
-import { computeLapSectors } from "../../compute-lap-sectors";
+import { computeLapSectors } from "../../lap-analysis/sectors";
 import {
   requireGameId,
   resolveTrackOutline,

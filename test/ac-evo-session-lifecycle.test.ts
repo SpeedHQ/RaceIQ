@@ -16,13 +16,13 @@ import { gunzipSync } from "zlib";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
-import { CapturingDbAdapter } from "../server/pipeline-adapters";
-import { LapDetectorAcEvo } from "../server/lap-detector-ac-evo";
+import { CapturingDbAdapter } from "../server/telemetry/pipeline-ports"
+import { LapDetectorAcEvo } from "../server/games/ac-evo/lap-detector"
 import { META_FRAME_MAGIC } from "../server/session-capture/framing"
-import { stopMaintenanceTasks } from "../server/pipeline";
+import { stopMaintenanceTasks } from "../server/telemetry/live-pipeline"
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../server/games/ac-evo/parser";
 import { ACEVO_STATUS, GRAPHICS_EVO } from "../server/games/ac-evo/structs";
-import { unpackTriplet } from "../server/games/shared/pack-triplet";
+import { unpackTriplet } from "../server/games/kunos/pack-triplet";
 
 initGameAdapters();
 initServerGameAdapters();

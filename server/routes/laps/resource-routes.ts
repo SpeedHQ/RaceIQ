@@ -14,9 +14,9 @@ import { deleteLap, updateLapNotes, updateLapValidity } from "../../db/lap-mutat
 import { setLapExperimentExcluded } from "../../db/experiment-lap-queries";
 import { recordAction } from "../../db/experiment-action-queries";
 import { assessLapRecording } from "../../lap-analysis/quality";
-import { computeNativeSectorTimeline, computeLapSectors } from "../../compute-lap-sectors";
+import { computeNativeSectorTimeline, computeLapSectors } from "../../lap-analysis/sectors";
 import { generateExport } from "../../lap-analysis/report";
-import { resolveTrack } from "../../track-info";
+import { resolveTrack } from "../../tracks/info";
 import { BulkDeleteSchema, LapsQuerySchema } from "./support";
 
 const gzipAsync = promisify(gzip);

@@ -1,6 +1,9 @@
 import { describe, test, expect } from "bun:test";
 import type { TelemetryPacket } from "../shared/types";
 import { PitTracker } from "../server/live-strategy/pit-tracker";
+import { forzaServerAdapter } from "../server/games/fm-2023";
+import { f1ServerAdapter } from "../server/games/f1-2025";
+import { accServerAdapter } from "../server/games/acc";
 
 function pkt(overrides: Partial<TelemetryPacket>): TelemetryPacket {
   return {
@@ -174,20 +177,20 @@ describe("PitTracker", () => {
   });
 });
 
-describe("PitTracker history seeding per game", () => {
-  test("fm-2023: seeds fuel only (compound unknown)", () => {
-    expect(PitTracker.shouldSeedFuel("fm-2023")).toBe(true);
-    expect(PitTracker.shouldSeedTires("fm-2023")).toBe(false);
+describe("PitTracker history seeding policy", () => {
+  test("Forza seeds fuel only when compound history is not comparable", () => {
+    expect(forzaServerAdapter.runtime.pit.seedFuelFromHistory).toBe(true);
+    expect(forzaServerAdapter.runtime.pit.seedTireWearFromHistory).toBe(false);
   });
 
-  test("f1-2025: seeds tires only (no refueling)", () => {
-    expect(PitTracker.shouldSeedFuel("f1-2025")).toBe(false);
-    expect(PitTracker.shouldSeedTires("f1-2025")).toBe(true);
+  test("F1 seeds tires only when fuel history is not relevant", () => {
+    expect(f1ServerAdapter.runtime.pit.seedFuelFromHistory).toBe(false);
+    expect(f1ServerAdapter.runtime.pit.seedTireWearFromHistory).toBe(true);
   });
 
-  test("acc: seeds both fuel and tires", () => {
-    expect(PitTracker.shouldSeedFuel("acc")).toBe(true);
-    expect(PitTracker.shouldSeedTires("acc")).toBe(true);
+  test("ACC seeds both histories", () => {
+    expect(accServerAdapter.runtime.pit.seedFuelFromHistory).toBe(true);
+    expect(accServerAdapter.runtime.pit.seedTireWearFromHistory).toBe(true);
   });
 
   test("seeded fuel data produces immediate estimate", () => {

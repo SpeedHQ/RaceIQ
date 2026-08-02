@@ -1,5 +1,5 @@
 // Canonical list of app locales. Single source of truth for:
-//   - the server settings `language` enum (server/settings.ts)
+//   - the server settings `language` enum (server/runtime/config/settings.ts)
 //   - the AI system-prompt language name (server/ai/*)
 //   - the language picker UI options (Settings + Onboarding)
 //

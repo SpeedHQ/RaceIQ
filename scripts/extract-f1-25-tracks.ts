@@ -10,26 +10,12 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from "fs";
 import { join, resolve } from "path";
 import * as fzstd from "fzstd";
+import { findSteamInstall } from "../server/games/shared/steam-install";
 
 const ERP_MAGIC = 0x4b505245;
 const OUT_DIR = resolve(__dirname, "../shared/tracks/f1-2025");
 
-/** Detect F1 25 install by reading Steam's libraryfolders.vdf */
-function findF1Install(): string | null {
-  const vdfPath = "C:/Program Files (x86)/Steam/steamapps/libraryfolders.vdf";
-  if (!existsSync(vdfPath)) return null;
-  const content = readFileSync(vdfPath, "utf8");
-  const pathRegex = /"path"\s+"([^"]+)"/g;
-  let match;
-  while ((match = pathRegex.exec(content)) !== null) {
-    const libPath = match[1].replace(/\\\\/g, "/").replace(/\\/g, "/");
-    const f1Path = `${libPath}/steamapps/common/F1 25`;
-    if (existsSync(f1Path)) return f1Path;
-  }
-  return null;
-}
-
-const F1_DIR = findF1Install();
+const F1_DIR = findSteamInstall("F1 25");
 if (!F1_DIR) {
   console.error("F1 25 not found. Make sure it's installed via Steam.");
   process.exit(1);

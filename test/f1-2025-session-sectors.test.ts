@@ -16,11 +16,11 @@ import { gunzipSync } from "zlib";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
-import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../server/pipeline-adapters";
-import { Pipeline } from "../server/pipeline";
-import { computeLapSectors } from "../server/compute-lap-sectors";
+import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../server/telemetry/pipeline-ports"
+import { LiveTelemetryPipeline } from "../server/telemetry/live-pipeline"
+import { computeLapSectors } from "../server/lap-analysis/sectors"
 import { META_FRAME_MAGIC } from "../server/session-capture/framing"
-import { stopMaintenanceTasks } from "../server/pipeline";
+import { stopMaintenanceTasks } from "../server/telemetry/live-pipeline"
 import type { TelemetryPacket } from "../shared/types";
 
 initGameAdapters();
@@ -55,7 +55,7 @@ async function replay(): Promise<ReplayedLap[]> {
   const parserState = serverGame.createParserState?.() ?? null;
   const db = new CapturingDbAdapter();
   const ws = new CapturingWsAdapter();
-  const pipeline = new Pipeline(db, ws, { bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true, recorder: new NullSessionRecorderAdapter() });
+  const pipeline = new LiveTelemetryPipeline(db, ws, { bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true, recorder: new NullSessionRecorderAdapter() });
 
   // Accumulate packets per (detected) lap number so we can rerun sector
   // computation against just the emitted-lap packets.
@@ -65,9 +65,9 @@ async function replay(): Promise<ReplayedLap[]> {
   while (offset + 4 <= buf.length) {
     const len = buf.readUInt32LE(offset);
     if (offset + 4 + len > buf.length) break;
-    const frameBuf = buf.subarray(offset + 4, offset + 4 + len);
+    const sourceFrame = buf.subarray(offset + 4, offset + 4 + len);
     offset += 4 + len;
-    const packet = serverGame.tryParse(frameBuf, parserState);
+    const packet = serverGame.tryParse(sourceFrame, parserState);
     if (!packet) continue;
     await pipeline.processPacket(packet);
     if (packet.LapNumber !== lastLapNum) lastLapNum = packet.LapNumber;

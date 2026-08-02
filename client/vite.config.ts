@@ -72,7 +72,7 @@ export default defineConfig({
         target: serverTarget,
         changeOrigin: true,
       },
-      // Dev-only Mastra Studio API (server/dev-studio.ts) — Studio reads it
+      // Dev-only Mastra Studio API (server/runtime/dev-studio.ts) — Studio reads it
       // through the portless hostname, so Vite must forward it to the server.
       "/studio-api": {
         target: serverTarget,

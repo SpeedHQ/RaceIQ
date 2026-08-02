@@ -1,17 +1,17 @@
-import { startCommunityTunesSync } from "../community-tunes-sync";
-import { startLaptimesSync } from "../laptimes-sync";
+import { startCommunityTunesSync } from "../tunes/community-sync";
+import { startLaptimesSync } from "../sync/laptimes";
 import { countStaleSessions } from "../db/session-queries";
-import { LAP_DETECTOR_ID } from "../lap-detector";
-import { LAP_DETECTOR_V2_ID } from "../lap-detector-acc";
-import { LAP_DETECTOR_AC_EVO_ID } from "../lap-detector-ac-evo";
-import { LAP_DETECTOR_IRACING_ID } from "../lap-detector-iracing";
-import { wsManager } from "../ws";
+import { LAP_DETECTOR_ID } from "../lap-detection/detector";
+import { LAP_DETECTOR_ACC_ID } from "../games/acc/lap-detector";
+import { LAP_DETECTOR_AC_EVO_ID } from "../games/ac-evo/lap-detector";
+import { LAP_DETECTOR_IRACING_ID } from "../games/iracing/lap-detector";
+import { wsManager } from "./websocket-manager";
 import { startSessionCompressor } from "../session-capture/compressor";
-import { startUpdateCheckSchedule } from "../update-check";
+import { startUpdateCheckSchedule } from "./update/check";
 
 const ALL_DETECTOR_IDS = [
   LAP_DETECTOR_ID,
-  LAP_DETECTOR_V2_ID,
+  LAP_DETECTOR_ACC_ID,
   LAP_DETECTOR_AC_EVO_ID,
   LAP_DETECTOR_IRACING_ID,
 ];

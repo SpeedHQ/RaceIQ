@@ -19,7 +19,7 @@ import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { importSessionBin } from "../server/session-capture/import-capture"
 import { getSessionResult } from "../server/db/session-result-queries";
-import { buildLapsZip, importLapsZip } from "../server/zip";
+import { buildLapsZip, importLapsZip } from "../server/laps/archive"
 
 initGameAdapters();
 initServerGameAdapters();

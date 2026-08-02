@@ -1,5 +1,5 @@
 import { afterAll, describe, test } from "bun:test";
-import { stopMaintenanceTasks } from "../server/pipeline";
+import { stopMaintenanceTasks } from "../server/telemetry/live-pipeline"
 import { assertRecordedCatalogCoverage } from "./helpers/telemetry-catalog-e2e";
 
 const RECORDING = "test/artifacts/sessions/iracing-road-america-gt3.bin.gz";

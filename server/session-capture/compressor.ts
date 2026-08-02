@@ -9,11 +9,11 @@ import { unlinkSync, existsSync } from "fs";
 import { readdir, stat } from "fs/promises";
 import { resolve, join } from "path";
 import { getUncompressedSessions, updateSessionRawFile } from "../db/session-queries";
-import { isSessionActive } from "../pipeline";
+import { isSessionActive } from "../telemetry/live-pipeline";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { resolveDataDir } from "../data-dir";
+import { resolveDataDir } from "../runtime/config/data-dir";
 import { gzipBuffer } from "./framing";
 import { cleanupOrphanSessionFiles } from "./cleanup";
 

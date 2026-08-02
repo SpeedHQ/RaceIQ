@@ -9,7 +9,7 @@
  * ## Why both panels are in display space
  *
  * Centerline CSVs hold RAW game coordinates. The telemetry pipeline negates
- * `PositionX` for standard-xyz games (`server/pipeline.ts`), so what the app
+ * `PositionX` for standard-xyz games (`server/telemetry/live-pipeline.ts`), so what the app
  * renders is the *flipped* form — hence `needsTrackFlip`/`flipPoints`, the same
  * helpers the track-segment renders use, and `makeTrackProjection`, the same
  * projection the UI uses.

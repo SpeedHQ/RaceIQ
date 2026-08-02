@@ -32,7 +32,7 @@ import {
 import { setSessionHead } from "../../server/db/experiment-queries";
 import { changeSlug, computeChildLabel, nextFreeLabel } from "../../server/ai/version-label";
 import { saveAssistantChatMessage, tuneSessionThreadId } from "../../server/ai/chat-agent";
-import { wsManager } from "../../server/ws";
+import { wsManager } from "../../server/runtime/websocket-manager";
 import { formatSymptoms } from "../../server/ai/tune-chat-prompt";
 import { buildAppliedChangesMarkdown } from "../../server/setups/applied-change-markdown";
 import {
@@ -51,7 +51,7 @@ import { loadCleanLapAggregate } from "../../server/experiments/lap-evidence/agg
 import { setLapExperimentExcluded, getLapsForExperiment } from "../../server/db/experiment-lap-queries";
 import { getLapById } from "../../server/db/lap-read-queries";
 import { recordAction } from "../../server/db/experiment-action-queries";
-import { undoLastAction } from "../../server/experiment-undo";
+import { undoLastAction } from "../../server/experiments/undo"
 import { detectCorners } from "../../server/lap-analysis/corners";
 import { telemetryToSymptoms } from "../../server/ai/tune-symptoms";
 import { symptomsToIssues } from "../../server/ai/tune-issues";

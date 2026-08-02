@@ -9,7 +9,7 @@ import { getCarName, getTrackName } from "../../shared/car-data";
 import type { GameId } from "../../shared/types";
 import { compareLapHeader } from "./compare-engineer";
 import { buildTrackGuideContext } from "./track-guides";
-import { resolveTrack } from "../track-info";
+import { resolveTrack } from "../tracks/info";
 import { segmentPromptNames } from "../../shared/segment-label";
 import { computeStatsRange, steerScaleFor, type InputStats } from "../lap-analysis/metrics"
 

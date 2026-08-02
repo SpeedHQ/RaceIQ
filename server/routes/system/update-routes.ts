@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 
-import { getUpdateState, checkForUpdate, applyUpdate } from "../../update-check";
+import { getUpdateState, checkForUpdate, applyUpdate } from "../../runtime/update/check";
 
 export const updateRoutes = new Hono()
   // GET /api/version — current version + update availability

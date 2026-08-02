@@ -1,11 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import {
-  reconcileAutoExclusions,
-  reconcileAutoExclusionsForLap,
-  type ExclusionScopeLap,
-  type LapExclusionWriter,
-  type LapExperimentScopeReader,
-} from "../server/experiment-auto-exclude";
+import { reconcileAutoExclusions,
+reconcileAutoExclusionsForLap,
+type ExclusionScopeLap,
+type LapExclusionWriter,
+type LapExperimentScopeReader, } from "../server/experiments/auto-exclude"
 
 /** Auto-exclude fastest-5 curation
  *  (docs/architecture/setup-engineer.md).

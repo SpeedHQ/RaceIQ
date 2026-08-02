@@ -15,10 +15,10 @@
 import type { GameId } from "../../shared/types";
 import { getCorners } from "../db/track-queries";
 import { detectCorners } from "../lap-analysis/corners"
-import { getSecret } from "../keystore";
-import { loadSettings } from "../settings";
+import { getSecret } from "../runtime/platform/keystore";
+import { loadSettings } from "../runtime/config/settings";
 import { buildAnalystPrompt } from "./analyst-prompt";
-import { resolveTrack } from "../track-info";
+import { resolveTrack } from "../tracks/info";
 // Import the raw Lap Analyst agent directly (not via ./agents) to avoid a module
 // cycle: ./agents → setup-engineer agent → its tools → this file. The raw agent
 // has no such back-edge. We lose the dev-only observability wrapper here, which

@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { F1StateAccumulator } from "../server/parsers/f1-state";
+import { F1StateAccumulator } from "../server/games/f1-2025/f1-state";
 import {
   F1_HEADER_SIZE,
   type F1Header,
-} from "../server/parsers/f1-wire";
+} from "../server/games/f1-2025/f1-wire";
 
 function header(packetId: number): F1Header {
   return {

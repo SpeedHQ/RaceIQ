@@ -2,8 +2,8 @@ import { existsSync, unlinkSync } from "fs";
 import type { GameId, LapMeta, TelemetryVersionIdentity } from "../../shared/types";
 import { deleteSession } from "../db/session-queries";
 import { getServerGame } from "../games/registry";
-import { Pipeline } from "../pipeline";
-import { NullWsAdapter, RealDbAdapter, type DbAdapter } from "../pipeline-adapters";
+import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";
+import { NullWsAdapter, RealDbAdapter, type DbAdapter } from "../telemetry/pipeline-ports";
 import { reconcileSessionResult } from "../race-results/reconcile";
 
 
@@ -153,7 +153,7 @@ export interface ImportSessionFramesOptions {
 
 /**
  * Feed any canonical raw-frame stream through an isolated parser + pipeline.
- * The normal Pipeline recorder writes the imported source back out as RaceIQ's
+ * The live telemetry pipeline recorder writes the imported source back out as RaceIQ's
  * standard session `.bin`, so replay/export/reprocessing work identically no
  * matter which source format supplied the frames.
  */
@@ -169,17 +169,17 @@ export async function importSessionFrames(
   const serverGame = getServerGame(gameId);
   const state = serverGame.createParserState?.() ?? null;
   const db = new ImportCaptureAdapter();
-  const pipeline = new Pipeline(db, new NullWsAdapter(), {
+  const pipeline = new LiveTelemetryPipeline(db, new NullWsAdapter(), {
     bypassPacketRateFilter: true,
   });
 
   let packetCount = 0;
   let failure: unknown;
   try {
-    for await (const frame of frames) {
-      const packet = serverGame.tryParse(frame, state);
+    for await (const sourceFrame of frames) {
+      const packet = serverGame.tryParse(sourceFrame, state);
       if (!packet) continue;
-      await pipeline.processPacket(packet, frame);
+      await pipeline.processPacket(packet, sourceFrame);
       packetCount++;
     }
 

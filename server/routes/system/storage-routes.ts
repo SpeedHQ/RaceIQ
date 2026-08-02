@@ -4,7 +4,7 @@ import { join, resolve } from "path";
 import { Hono } from "hono";
 
 import { getAllGames } from "../../../shared/games/registry";
-import { resolveDataDir } from "../../data-dir";
+import { resolveDataDir } from "../../runtime/config/data-dir";
 
 interface GameStorageStats {
   binCount: number;

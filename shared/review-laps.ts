@@ -67,7 +67,7 @@ export interface EvaluableLap {
  * silently drop laps that the UI still rendered as included. Everything routes
  * through here now so what's displayed is what's computed.
  *
- * Ordering mirrors the auto-exclude pass in server/experiment-auto-exclude.ts:
+ * Ordering mirrors the auto-exclude pass in server/experiments/auto-exclude.ts:
  * manual decisions are pinned first, then hard-ineligible laps, then the
  * fastest-N ranking over whatever remains.
  */

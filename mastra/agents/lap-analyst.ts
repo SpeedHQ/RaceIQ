@@ -8,7 +8,7 @@
  */
 import { Agent } from "@mastra/core/agent";
 import { getMastraModelId } from "../model";
-import { loadSettings } from "../../server/settings";
+import { loadSettings } from "../../server/runtime/config/settings";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";

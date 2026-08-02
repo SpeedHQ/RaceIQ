@@ -2,9 +2,8 @@ import { eq, and } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps } from "./schema";
 import type { TelemetryPacket, GameId, TelemetryVersionIdentity } from "../../shared/types";
-import { fillNormSuspension } from "../telemetry-utils";
+import { fillNormSuspension } from "../telemetry/normalization";
 import { getServerGame } from "../games/registry";
-import { tryGetGame } from "../../shared/games/registry";
 import { gunzip } from "zlib";
 import { promisify } from "util";
 
@@ -197,18 +196,17 @@ export async function getSessionTelemetry(
     const frameLen = buf.readUInt32LE(offset);
     offset += 4;
     if (frameLen <= 0 || offset + frameLen > buf.length) break;
-    const frame = buf.subarray(offset, offset + frameLen);
+    const sourceFrame = buf.subarray(offset, offset + frameLen);
     offset += frameLen;
     try {
-      const packet = serverGame.tryParse(frame, state);
+      const packet = serverGame.tryParse(sourceFrame, state);
       if (!packet) continue;
-      const sharedAdapter = tryGetGame(packet.gameId);
-      if (sharedAdapter?.coordSystem === "standard-xyz") {
+      if (serverGame.coordSystem === "standard-xyz") {
         packet.PositionX = -packet.PositionX;
         packet.VelocityX = -packet.VelocityX;
         packet.AccelerationX = -packet.AccelerationX;
       }
-      fillNormSuspension(packet);
+      fillNormSuspension(packet, serverGame.runtime.normSuspensionTravelMm);
       packets.push(packet);
     } catch {
       // Match lap replay: one malformed native frame does not discard session.
@@ -286,20 +284,18 @@ export async function parseRawLapFrames(
         { rawFile, rawByteOffset, rawFrameCount, fileSize, framesParsed: packets.length, reason: "truncated-frame" }
       );
     }
-    const frameBuf = buf.subarray(offset, offset + frameLen);
+    const sourceFrame = buf.subarray(offset, offset + frameLen);
     offset += frameLen;
     try {
-      const packet = serverGame.tryParse(frameBuf, state);
+      const packet = serverGame.tryParse(sourceFrame, state);
       if (!packet) continue;
-      // Apply coordinate normalization — same as processPacket does for live data.
-      // ACC uses right-handed coords in the raw buffer; flip X to match display convention.
-      const sharedAdapter = tryGetGame(packet.gameId);
-      if (sharedAdapter?.coordSystem === "standard-xyz") {
+      // Apply the same adapter-directed normalization used for live data.
+      if (serverGame.coordSystem === "standard-xyz") {
         packet.PositionX = -packet.PositionX;
         packet.VelocityX = -packet.VelocityX;
         packet.AccelerationX = -packet.AccelerationX;
       }
-      fillNormSuspension(packet);
+      fillNormSuspension(packet, serverGame.runtime.normSuspensionTravelMm);
       if (i < rawFrameCount) {
         packets.push(packet);
       } else {
@@ -506,17 +502,16 @@ export async function parseSessionLapsBatched(
   for (let i = 0; i <= lastFrame; i++) {
     const start = frameStarts[i];
     const len = buf.readUInt32LE(start);
-    const frameBuf = buf.subarray(start + 4, start + 4 + len);
+    const sourceFrame = buf.subarray(start + 4, start + 4 + len);
     try {
-      const packet = serverGame.tryParse(frameBuf, state);
+      const packet = serverGame.tryParse(sourceFrame, state);
       if (!packet) continue;
-      const sharedAdapter = tryGetGame(packet.gameId);
-      if (sharedAdapter?.coordSystem === "standard-xyz") {
+      if (serverGame.coordSystem === "standard-xyz") {
         packet.PositionX = -packet.PositionX;
         packet.VelocityX = -packet.VelocityX;
         packet.AccelerationX = -packet.AccelerationX;
       }
-      fillNormSuspension(packet);
+      fillNormSuspension(packet, serverGame.runtime.normSuspensionTravelMm);
       parsed[i] = packet;
     } catch { /* single bad frame — skip, matches per-lap tolerance */ }
   }

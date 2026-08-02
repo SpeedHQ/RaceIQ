@@ -1,7 +1,7 @@
 import { getAccCarByModel } from "../../../shared/acc-car-data";
 import { getAccTrackByName } from "../../../shared/acc-track-data";
-import { processPacket } from "../../pipeline";
-import { ACC_PACKED_MAGIC, packTriplet } from "../shared/pack-triplet";
+import { processPacket } from "../../telemetry/live-pipeline";
+import { ACC_PACKED_MAGIC, packTriplet } from "../kunos/pack-triplet";
 import type { TripletProcessor } from "../kunos/triplet-pipeline";
 import { parseAccBuffers } from "./parser";
 import { AC_STATUS, GRAPHICS, STATIC } from "./structs";
@@ -62,8 +62,8 @@ export class ParsingProcessor implements TripletProcessor {
         gameId: "acc",
       });
       if (packet) {
-        const rawBuf = packTriplet(ACC_PACKED_MAGIC, this.carOrdinal, this.trackOrdinal, triplet.physics, triplet.graphics, triplet.staticData);
-        await processPacket(packet, rawBuf);
+        const sourceFrame = packTriplet(ACC_PACKED_MAGIC, this.carOrdinal, this.trackOrdinal, triplet.physics, triplet.graphics, triplet.staticData);
+        await processPacket(packet, sourceFrame);
       }
     } catch (err) {
       console.error("[ACC ParsingProcessor] Error:", err instanceof Error ? err.message : err);

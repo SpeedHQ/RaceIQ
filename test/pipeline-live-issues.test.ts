@@ -1,15 +1,15 @@
 /**
- * Phase 4 gating: Pipeline.processPacket only computes/broadcasts live
+ * LiveTelemetryPipeline.processPacket only computes/broadcasts live
  * transient issues when liveIssuesEnabled is on — off costs nothing extra
- * and omits _liveIssues from the WS payload entirely (see server/ws.ts's
+ * and omits _liveIssues from the WS payload entirely (see server/runtime/websocket-manager.ts's
  * `!== undefined` check), on always includes an array (possibly empty).
  */
 import { describe, test, expect, afterAll } from "bun:test";
 import type { TelemetryPacket } from "../shared/types";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
-import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../server/pipeline-adapters";
-import { Pipeline, stopMaintenanceTasks } from "../server/pipeline";
+import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../server/telemetry/pipeline-ports"
+import { LiveTelemetryPipeline, stopMaintenanceTasks } from "../server/telemetry/live-pipeline"
 
 initGameAdapters();
 initServerGameAdapters();
@@ -45,7 +45,7 @@ function makePipeline(
 ) {
   const db = new CapturingDbAdapter();
   const ws = new CapturingWsAdapter();
-  const pipeline = new Pipeline(db, ws, {
+  const pipeline = new LiveTelemetryPipeline(db, ws, {
     bypassPacketRateFilter: true,
     skipHistorySeeding: true,
     skipDevState: true,
@@ -55,7 +55,7 @@ function makePipeline(
   return { pipeline, ws };
 }
 
-describe("Pipeline live issue gating", () => {
+describe("LiveTelemetryPipeline live issue gating", () => {
   test("liveIssuesEnabled defaults to false", () => {
     const { pipeline } = makePipeline();
     expect(pipeline.liveIssuesEnabled).toBe(false);

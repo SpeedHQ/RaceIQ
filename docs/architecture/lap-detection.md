@@ -19,8 +19,8 @@ with sessions; changing an ID marks older recordings eligible for reprocessing.
 
 ## FM and F1: `LapDetector`
 
-`server/lap-detector.ts` uses the pure decisions in
-`server/lap-detection.ts`:
+`server/lap-detection/detector.ts` uses the pure decisions in
+`server/lap-detection/boundaries.ts`:
 
 - `detectSessionBoundary()` handles car/track changes, F1 session UID changes,
   lap/distance resets, and silence.
@@ -35,7 +35,7 @@ tracks fuel and tyre-wear history and can report debug state.
 
 ## ACC: `LapDetectorAcc`
 
-`server/lap-detector-acc.ts` cannot rely on `completedLaps` alone because ACC
+`server/games/kunos/lap-detector.ts` cannot rely on `completedLaps` alone because ACC
 publishes that counter after the physical start/finish crossing. It detects a
 boundary when the prior `CurrentLap` is at least 30 seconds and the next value
 is at most 2 seconds. A running peak provides lap time when `LastLap` has not
@@ -54,21 +54,20 @@ Detector ID: `acc_lapdetector_v2`.
 
 ## AC Evo: `LapDetectorAcEvo`
 
-`server/lap-detector-ac-evo.ts` shares ACC's timer-reset, partial-lap, pit, and
-duplicate-emit model, but remains a separate adapter:
+`server/games/ac-evo/lap-detector.ts` is a thin policy adapter over the shared
+Kunos timer-reset, partial-lap, pit, duplicate-emit, and persistence lifecycle:
 
 - unresolved car names receive stable discovered-car ordinals;
 - car and track metadata can be backfilled after shared-memory static data
   appears;
-- Kunos per-frame validity can mark track-limit cuts;
-- fresh `LastLap` timing follows AC Evo's publication behavior.
+- Kunos per-frame validity can mark track-limit cuts.
 
 Detector ID: `ac_evo_lapdetector_v2`.
 
 ## iRacing: `LapDetectorIRacing`
 
 iRacing changes its physical lap counter before publishing authoritative
-`LastLap`. `server/lap-detector-iracing.ts` temporarily defers the first frames
+`LastLap`. `server/games/iracing/lap-detector.ts` temporarily defers the first frames
 of the next lap. It releases them to `LapDetector` only when `LastLap` changes
 or the native SDK lap timer rolls over.
 
@@ -80,7 +79,7 @@ Detector ID: `iracing_lapdetector_v2`.
 
 ## Shared contract
 
-`server/lap-detector-interface.ts` defines:
+`server/lap-detection/types.ts` defines:
 
 ```ts
 interface ILapDetector {

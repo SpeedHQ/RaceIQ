@@ -1,11 +1,9 @@
 import { describe, test, expect } from "bun:test";
 import type { TelemetryPacket } from "../shared/types";
-import {
-  detectSessionBoundary,
-  detectLapBoundary,
-  detectLapReset,
-  type SessionSnapshot,
-} from "../server/lap-detection";
+import { detectSessionBoundary,
+detectLapBoundary,
+detectLapReset,
+type SessionSnapshot, } from "../server/lap-detection/boundaries"
 import { getTrackSectorsByOrdinal } from "../shared/track-data";
 import { assertSectorTimesMatchLapTime } from "./helpers/lap-assertions";
 

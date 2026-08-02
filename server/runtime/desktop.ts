@@ -1,5 +1,5 @@
 import { spawn } from "child_process";
-import { startTray } from "../tray";
+import { startTray } from "./platform/tray";
 
 export function preventMacSleep(): void {
   if (process.platform !== "darwin") return;

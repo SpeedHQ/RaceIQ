@@ -8,8 +8,8 @@ import { deleteCompareAnalysis, getAnalysis, getCompareAnalysis, saveCompareAnal
 import { getCorners, saveCorners } from "../../db/track-queries";
 import { compareLaps } from "../../lap-analysis/comparison";
 import { detectCorners } from "../../lap-analysis/corners";
-import { loadSettings } from "../../settings";
-import { resolveTrack } from "../../track-info";
+import { loadSettings } from "../../runtime/config/settings";
+import { resolveTrack } from "../../tracks/info";
 import { buildCompareInsightsBlock } from "../../ai/insight-format";
 import { buildCompareChatSystemPrompt } from "../../ai/compare-chat-prompt";
 import { buildInputsComparePrompt, InputsCompareSchema, type PromptSegment } from "../../ai/inputs-compare-prompt";
@@ -24,7 +24,7 @@ import {
   listThreadGenerations,
   resolveActiveThread,
 } from "../../ai/chat-agent";
-import { getSecret } from "../../keystore";
+import { getSecret } from "../../runtime/platform/keystore";
 import { AnalyseQuerySchema, ChatBodySchema, CompareParamsSchema } from "./support";
 
 export const comparisonRoutes = new Hono()

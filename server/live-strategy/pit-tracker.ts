@@ -1,5 +1,6 @@
 import type { TelemetryPacket, GameId, LivePitData, LapMeta } from "../../shared/types";
 import { getLaps, getLapById } from "../db/lap-read-queries";
+import type { ServerGameRuntimePolicy } from "../games/types";
 
 /**
  * Server-side pit strategy tracker.
@@ -42,7 +43,7 @@ export class PitTracker {
   private lastCurrentLap = 0;
   private sessionLapCount = 0;
 
-  // Game-specific thresholds (health = 1 - wear)
+  // Health thresholds supplied by the active adapter.
   private badHealthThreshold = 0.40;
   private criticalHealth = 0.20;
 
@@ -65,14 +66,18 @@ export class PitTracker {
   }
 
   /**
-   * Seed fuel (and optionally tire) histories from previous sessions.
-   * Fuel is always seeded (same engine regardless of compound).
-   * Tire wear is only seeded for games with known compounds (F1, ACC) —
-   * Forza bakes compound into the car build so historical wear is unreliable.
+   * Seed enabled fuel and tire histories from previous sessions.
+   * The active adapter decides which historical signals are comparable.
    */
-  async seedFromHistory(trackOrdinal: number, carOrdinal: number, pi: number, gameId: GameId): Promise<void> {
-    const seedFuel = PitTracker.shouldSeedFuel(gameId);
-    const seedTires = PitTracker.shouldSeedTires(gameId);
+  async seedFromHistory(
+    trackOrdinal: number,
+    carOrdinal: number,
+    pi: number,
+    gameId: GameId,
+    policy: ServerGameRuntimePolicy["pit"],
+  ): Promise<void> {
+    const seedFuel = policy.seedFuelFromHistory;
+    const seedTires = policy.seedTireWearFromHistory;
     try {
       const allLaps = await getLaps(gameId, 200);
       const matching = allLaps
@@ -97,7 +102,7 @@ export class PitTracker {
           fuelRates.push(fuelUsed);
         }
 
-        // Tire wear (F1/ACC only — compounds are known/consistent)
+        // Tire wear is only read when the adapter marks history comparable.
         if (seedTires && wearRates.length < 1) {
           const worn = {
             fl: Math.max(0, last.TireWearFL - first.TireWearFL),
@@ -316,20 +321,6 @@ export class PitTracker {
     };
   }
 
-  /** Whether tire wear should be seeded from history for this game. */
-  static shouldSeedTires(gameId: string): boolean {
-    return gameId !== "fm-2023";
-  }
-
-  /** Whether tire wear should use distance-based curve estimation. F1 uses simple rolling avg like fm-2023. */
-  static shouldUseCurves(gameId: string): boolean {
-    return gameId === "acc";
-  }
-
-  /** Whether fuel should be seeded from history. F1 has no refueling so fuel isn't relevant. */
-  static shouldSeedFuel(gameId: string): boolean {
-    return gameId !== "f1-2025";
-  }
 
   /** Inject fuel/tire history for testing. */
   _seedForTest(fuel: number[], tires: { fl: number; fr: number; rl: number; rr: number }[]): void {
@@ -338,8 +329,7 @@ export class PitTracker {
   }
 
   /**
-   * Build a wear curve from a completed lap and update the averaged reference.
-   * Called from the pipeline on valid lap completion.
+   * Called by live telemetry processing on valid lap completion.
    */
   updateWearCurves(packets: TelemetryPacket[], lapDistStart: number): void {
     if (packets.length < 50) return;

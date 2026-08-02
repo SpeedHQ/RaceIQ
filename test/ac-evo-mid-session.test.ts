@@ -13,10 +13,10 @@ import { gunzipSync } from "zlib";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
-import { CapturingDbAdapter } from "../server/pipeline-adapters";
-import { LapDetectorAcEvo } from "../server/lap-detector-ac-evo";
+import { CapturingDbAdapter } from "../server/telemetry/pipeline-ports"
+import { LapDetectorAcEvo } from "../server/games/ac-evo/lap-detector"
 import { META_FRAME_MAGIC } from "../server/session-capture/framing"
-import { stopMaintenanceTasks } from "../server/pipeline";
+import { stopMaintenanceTasks } from "../server/telemetry/live-pipeline"
 import { parseRawLapFramesForTest } from "../server/db/telemetry-replay-storage";
 import type { TelemetryPacket } from "../shared/types";
 
@@ -69,11 +69,11 @@ async function replaySessionBin(
     }
     offset += 4;
     if (offset + frameLen > buf.length) break;
-    const frameBuf = buf.subarray(offset, offset + frameLen);
+    const sourceFrame = buf.subarray(offset, offset + frameLen);
     const frameStart = offset - 4;
     offset += frameLen;
 
-    const packet = serverGame.tryParse(frameBuf, parserState);
+    const packet = serverGame.tryParse(sourceFrame, parserState);
     if (packet) {
       packets.push(packet);
       await detector.feed(packet, frameStart);

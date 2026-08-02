@@ -8,9 +8,9 @@ import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
 import { META_FRAME_MAGIC } from "../server/session-capture/framing";
-import { CapturingDbAdapter } from "../server/pipeline-adapters";
-import { LapDetectorAcEvo } from "../server/lap-detector-ac-evo";
-import { stopMaintenanceTasks } from "../server/pipeline";
+import { CapturingDbAdapter } from "../server/telemetry/pipeline-ports"
+import { LapDetectorAcEvo } from "../server/games/ac-evo/lap-detector"
+import { stopMaintenanceTasks } from "../server/telemetry/live-pipeline"
 
 initGameAdapters();
 initServerGameAdapters();
@@ -40,10 +40,10 @@ while (offset < buf.length) {
     continue;
   }
   offset += 4;
-  const frameBuf = buf.subarray(offset, offset + frameLen);
+  const sourceFrame = buf.subarray(offset, offset + frameLen);
   const frameStart = offset - 4;
   offset += frameLen;
-  const p: any = serverGame.tryParse(frameBuf, parserState);
+  const p: any = serverGame.tryParse(sourceFrame, parserState);
   if (p) {
     if (!firstPacket) firstPacket = p;
     if (p.LapNumber > maxLap) maxLap = p.LapNumber;

@@ -8,8 +8,8 @@ import { getExperiment } from "../db/experiment-queries";
 import { detectCorners } from "../lap-analysis/corners";
 import { telemetryToSymptoms } from "../ai/tune-symptoms";
 import { symptomsToIssues } from "../ai/tune-issues";
-import { setLiveIssuesEnabled } from "../pipeline";
-import { loadSettings } from "../settings";
+import { setLiveIssuesEnabled } from "../telemetry/live-pipeline";
+import { loadSettings } from "../runtime/config/settings";
 import {
   getChatMemory,
   tuneSessionThreadId,
@@ -27,7 +27,7 @@ import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/exp
 import { buildSetupEngineerSystemPrompt } from "../../mastra/agents/setup-engineer";
 import { RequestContext } from "@mastra/core/request-context";
 import { setupEngineerTurnWorkflow } from "../../mastra/workflows/setup-engineer-turn";
-import { getSecret } from "../keystore";
+import { getSecret } from "../runtime/platform/keystore";
 import { MessageList } from "@mastra/core/agent";
 
 

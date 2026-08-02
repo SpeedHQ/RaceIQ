@@ -4,7 +4,7 @@
  * Offsets match ACC v1.9 shared memory structs defined in structs.ts.
  */
 
-import type { TelemetryPacket, AccExtendedData } from "../../../shared/types";
+import type { TelemetryPacket, KunosExtendedData } from "../../../shared/types";
 import { PHYSICS, GRAPHICS, STATIC, FLAG_STATUS } from "./structs";
 import { readWString } from "./utils";
 
@@ -288,7 +288,7 @@ export function parseAccBuffers(
 
   const isRaceOn = status === 2 ? 1 : 0;
 
-  const acc: AccExtendedData = {
+  const acc: KunosExtendedData = {
     tireCompound: tireCompound || (rainTyres ? "wet_compound" : "dry_compound"),
     tireCoreTemp: [coreFL, coreFR, coreRL, coreRR],
     tireInnerTemp: [innerFL, innerFR, innerRL, innerRR],

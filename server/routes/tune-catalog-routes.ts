@@ -6,8 +6,8 @@ import { GameIdSchema } from "../../shared/types";
 import { setTuneAssignment, getTuneAssignment, getTuneAssignments, deleteTuneAssignment, updateLapTune } from "../db/tune-queries";
 import type { GameId } from "../../shared/types";
 import { getCommunityTunes } from "../db/community-tune-queries";
-import { syncCommunityTunes } from "../community-tunes-sync";
-import { getLaptimes, syncLaptimes } from "../laptimes-sync";
+import { syncCommunityTunes } from "../tunes/community-sync";
+import { getLaptimes, syncLaptimes } from "../sync/laptimes";
 import { communityRowToCatalog, CarOrdinalQuerySchema } from "./tune-shared";
 
 

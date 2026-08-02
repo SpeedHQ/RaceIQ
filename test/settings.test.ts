@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 
-import { loadSettings } from "../server/settings";
+import { loadSettings } from "../server/runtime/config/settings";
 
 // Follows DATA_DIR so this never mutates the real dev settings.json —
 // `bun run test` isolates DATA_DIR to a throwaway directory (see package.json).

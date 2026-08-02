@@ -19,8 +19,8 @@ import { getLapById, getLapsByIds } from "../server/db/lap-read-queries";
 import { insertLap } from "../server/db/lap-mutation-queries";
 import { updateLapRawIndex } from "../server/db/lap-reprocessing-queries";
 import { initServerGameAdapters } from "../server/games/init";
-import { RealDbAdapter } from "../server/pipeline-adapters";
-import { queryLapTelemetryBySemanticId } from "../server/telemetry-replay";
+import { RealDbAdapter } from "../server/telemetry/pipeline-ports"
+import { queryLapTelemetryBySemanticId } from "../server/telemetry/replay"
 import type { TelemetryPacket, TelemetryVersionIdentity } from "../shared/types";
 initServerGameAdapters();
 

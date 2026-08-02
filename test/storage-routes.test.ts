@@ -4,7 +4,7 @@ import { initGameAdapters } from "../shared/games/init";
 import { getAllGames } from "../shared/games/registry";
 import { existsSync } from "fs";
 import { join } from "path";
-import { resolveDataDir } from "../server/data-dir";
+import { resolveDataDir } from "../server/runtime/config/data-dir";
 
 initGameAdapters();
 

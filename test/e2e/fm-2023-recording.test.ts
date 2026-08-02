@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import type { LapSavedNotification } from "../../server/lap-detector";
+import type { LapSavedNotification } from "../../server/lap-detection/types"
 import { parseDump } from "../helpers/parse-dump";
 import { assertSectorTimesMatchLapTime, assertLapTimesProper, assertValidLapHasSectors } from "../helpers/lap-assertions";
 import { generateRecordingVisualizations } from "../helpers/lap-viz";

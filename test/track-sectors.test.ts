@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { loadTrackSectorsFor } from "../shared/track-data";
-import { computeLapSectors } from "../server/compute-lap-sectors";
+import { computeLapSectors } from "../server/lap-analysis/sectors"
 import { initGameAdapters } from "../shared/games/init";
 import type { TelemetryPacket } from "../shared/types";
 

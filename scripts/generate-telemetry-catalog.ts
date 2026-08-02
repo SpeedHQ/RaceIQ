@@ -287,8 +287,8 @@ const CATALOG_SCHEMA_VERSION = "v6";
 const DERIVATION_VERSION = `${PACKAGE_VERSION}`;
 
 const PARSER_FILES: Record<GameId, string> = {
-  "fm-2023": "server/parsers/forza.ts",
-  "f1-2025": "server/parsers/f1-state.ts",
+  "fm-2023": "server/games/fm-2023/parser.ts",
+  "f1-2025": "server/games/f1-2025/f1-state.ts",
   acc: "server/games/acc/parser.ts",
   "ac-evo": "server/games/ac-evo/parser.ts",
   iracing: "server/games/iracing/normalizer.ts",
@@ -5796,7 +5796,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     interfaceLeafFields(
       typesSource,
       typesTree,
-      "AccExtendedData",
+      "KunosExtendedData",
       new Set(["AcEvoExtendedData"]),
     ).filter(
       (field) => field.name !== "acEvo",

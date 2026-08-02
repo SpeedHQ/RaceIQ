@@ -33,8 +33,8 @@ type BInternal = {
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";
 import { getAllServerGames } from "../../server/games/registry";
-import { Pipeline, stopMaintenanceTasks } from "../../server/pipeline";
-import { NullDbAdapter, NullWsAdapter, NullSessionRecorderAdapter } from "../../server/pipeline-adapters";
+import { LiveTelemetryPipeline, stopMaintenanceTasks } from "../../server/telemetry/live-pipeline"
+import { NullDbAdapter, NullWsAdapter, NullSessionRecorderAdapter } from "../../server/telemetry/pipeline-ports"
 import { readUdpDump } from "../helpers/recording";
 import { parseAccBuffers } from "../../server/games/acc/parser";
 import { readWString } from "../../server/games/acc/utils";
@@ -110,10 +110,10 @@ console.log(`[bench] ac-evo loaded — ${acEvoPackets.length} packets ${elapsed(
 
 // --- Pre-warm pipelines with null adapters (no DB/WS IO) ---
 const pipelineOpts = { bypassPacketRateFilter: true, skipHistorySeeding: true, skipDevState: true, recorder: new NullSessionRecorderAdapter() };
-const fmPipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
-const f1Pipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
-const accPipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
-const acEvoPipeline = new Pipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
+const fmPipeline = new LiveTelemetryPipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
+const f1Pipeline = new LiveTelemetryPipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
+const accPipeline = new LiveTelemetryPipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
+const acEvoPipeline = new LiveTelemetryPipeline(new NullDbAdapter(), new NullWsAdapter(), pipelineOpts);
 await fmPipeline.processPacket(fmPackets[0]!);
 await f1Pipeline.processPacket(f1Packets[0]!);
 await accPipeline.processPacket(accPackets[0]!);
@@ -124,7 +124,7 @@ console.log(`[bench] pipelines warm ${elapsed()}`);
 stopMaintenanceTasks();
 
 // --- Benchmarks (all synchronous — avoids async event-loop hangs) ---
-// Pipeline benches fire-and-forget: measures sync dispatch cost up to the first await.
+// Telemetry pipeline benches fire-and-forget: measures sync dispatch cost up to the first await.
 // Parse benches are fully synchronous and measure raw decode throughput.
 
 group("fm", () => {

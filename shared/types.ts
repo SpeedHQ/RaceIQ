@@ -192,8 +192,8 @@ export interface F1CarSetup {
   fuelLoad: number;         // kg
 }
 
-/** ACC-specific extended telemetry data from shared memory */
-export interface AccExtendedData {
+/** Shared extended telemetry data from Kunos shared memory */
+export interface KunosExtendedData {
   // Tire detail
   tireCompound: string;
   tireCoreTemp: [number, number, number, number];
@@ -269,9 +269,10 @@ export interface AccExtendedData {
   drsEnabled: boolean;
   pitStatus: string;
   /**
-   * ACC's own lap-validity flag (graphics struct, offset 1408).
+   * Game-reported lap-validity flag. ACC reads graphics offset 1408; AC Evo
+   * reads GRAPHICS_EVO.is_valid_lap.
    * true = clean, false = invalidated (track cut / pit speed / etc).
-   * null = not available in source recording (legacy V2 bins, buffer truncated before offset 1408).
+   * null = unavailable in source recording or not meaningful in pit state.
    */
   isValidLap: boolean | null;
 
@@ -407,7 +408,7 @@ export interface IRacingExtendedData {
 export interface TelemetryPacket {
   gameId: GameId;
   f1?: F1ExtendedData;
-  acc?: AccExtendedData;
+  acc?: KunosExtendedData;
   iracing?: IRacingExtendedData;
 
   // Game session UID (used for reliable session boundary detection)
@@ -728,7 +729,7 @@ export interface LapMeta extends Partial<TelemetryVersionIdentity> {
   // aggregate. Undefined/false = included.
   experimentExcluded?: boolean;
   // Source of the experimentExcluded decision (migration v34): 'auto' = the
-  // fastest-5 curation pass (server/experiment-auto-exclude.ts) owns this lap's
+  // fastest-5 curation pass (server/experiments/auto-exclude.ts) owns this lap's
   // state and may revise it on a later lap save; 'manual' = user/AI decided,
   // pinned against the auto pass. Undefined/null = not yet reconciled.
   experimentExcludedSource?: "auto" | "manual" | null;
@@ -766,7 +767,7 @@ export interface SessionMeta extends Partial<TelemetryVersionIdentity> {
 
 /**
  * Post-session summary shown on the recap card. Every field is derived from laps
- * we already store — see server/recap.ts for the rules. Nullable fields mean
+ * we already store — see server/lap-analysis/recap.ts for the rules. Nullable fields mean
  * "not computable for this session" and render as a hidden tile, never as a zero.
  */
 export interface SessionRecap {

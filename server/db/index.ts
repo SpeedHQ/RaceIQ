@@ -3,11 +3,11 @@ import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";
 import { migrations } from "./migrations";
 import { mkdirSync, existsSync } from "fs";
-import { resolveDataDir } from "../data-dir";
+import { resolveDataDir } from "../runtime/config/data-dir";
 
 // Always resolve the data dir, even when the DB itself lives in memory: the
 // call doubles as the safety net that throws if a test run somehow reaches
-// here with DATA_DIR unset (see server/data-dir.ts), and sibling state such as
+// here with DATA_DIR unset (see server/runtime/config/data-dir.ts), and sibling state such as
 // settings.json still lives on disk.
 const DB_DIR = resolveDataDir();
 const DB_PATH = `${DB_DIR}/forza-telemetry.db`;

@@ -52,10 +52,10 @@ async function resolveCarModelFromRawFile(rawFile: string): Promise<string | und
   const serverGame = getServerGame(GAME_ID);
   const state = serverGame.createParserState?.() ?? null;
 
-  for (const frameBuf of iterateFrames(buf)) {
+  for (const sourceFrame of iterateFrames(buf)) {
     let packet: TelemetryPacket | null = null;
     try {
-      packet = serverGame.tryParse(frameBuf, state);
+      packet = serverGame.tryParse(sourceFrame, state);
     } catch {
       continue;
     }

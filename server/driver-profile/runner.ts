@@ -2,8 +2,8 @@ import { createHash } from "crypto";
 
 import type { GameId } from "../../shared/types";
 import { tryGetGame } from "../../shared/games/registry";
-import { loadSettings } from "../settings";
-import { getSecret } from "../keystore";
+import { loadSettings } from "../runtime/config/settings";
+import { getSecret } from "../runtime/platform/keystore";
 import { toClientAiError, type ClientAiError } from "../ai/provider-error";
 import { driverProfilerAgent } from "../ai/agents";
 import { buildDriverProfilerPrompt } from "./prompt";

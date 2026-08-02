@@ -5,16 +5,16 @@ import type { LapMeta } from "./types";
  * signal — cold tyres, fuel-flow transients, pit-limiter running. The tuning
  * review surfaces exclude them outright: not listed, not counted, not averaged.
  *
- * The reason strings are produced by `classifyAccPitLap` in
+ * The reason strings are produced by `classifyKunosPitLap` in
  * `server/games/kunos/lap-rules.ts` and stored on `invalidReason`.
  *
  * Shared (not client-only) because the server-side auto-exclude reconciliation
- * (`server/experiment-auto-exclude.ts`) applies the same pit-cycle rule.
+ * (`server/experiments/auto-exclude.ts`) applies the same pit-cycle rule.
  */
 export const PIT_CYCLE_REASONS = ["outlap", "inlap", "pit lap"] as const;
 
 /**
- * The pit-cycle reason vocabulary, as a type. `classifyAccPitLap` returns this
+ * The pit-cycle reason vocabulary, as a type. `classifyKunosPitLap` returns this
  * rather than a bare string union of its own, so the producer and the
  * consumers cannot drift: renaming a reason here is a compile error at every
  * site that names one, instead of a silent reclassification.

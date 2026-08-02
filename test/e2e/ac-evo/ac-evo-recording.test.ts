@@ -12,7 +12,7 @@
 import { describe, test, expect, beforeAll } from "bun:test";
 import { existsSync } from "fs";
 import type { TelemetryPacket } from "../../../shared/types";
-import type { CapturedLap } from "../../../server/pipeline-adapters";
+import type { CapturedLap } from "../../../server/telemetry/pipeline-ports"
 import {
 	readAcEvoPackets,
 	parseDump,

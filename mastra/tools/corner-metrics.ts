@@ -20,7 +20,7 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import { getLapById } from "../../server/db/lap-read-queries";
 import { getCorners } from "../../server/db/track-queries";
-import { loadSettings } from "../../server/settings";
+import { loadSettings } from "../../server/runtime/config/settings";
 import { computeCornerMetrics, type CornerMetrics } from "../../server/ai/corner-data";
 
 interface CornerMetricsResult {

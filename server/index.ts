@@ -1,6 +1,6 @@
 process.title = "RaceIQ";
 
-import { captureConsole } from "./logger";
+import { captureConsole } from "./runtime/logger";
 import { bootServer } from "./runtime/boot";
 
 captureConsole();

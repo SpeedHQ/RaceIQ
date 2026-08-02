@@ -7,7 +7,7 @@
  *   bun run laps:export -- --ids 1,2,3     # export specific laps
  *   bun run laps:export -- -o my-laps.zip  # custom output path
  */
-import { exportLapsZip } from "../server/zip";
+import { exportLapsZip } from "../server/laps/archive"
 import { writeFileSync } from "fs";
 import { resolve } from "path";
 

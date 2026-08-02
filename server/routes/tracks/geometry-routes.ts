@@ -20,8 +20,8 @@ import {
   computeStaticAlignment,
   getCalibrationStatus,
   refineAlignmentWithCurbs,
-  transformToForzaSpace,
-} from "../../track-calibration";
+  transformToSourceSpace,
+} from "../../tracks/calibration";
 import type { GameId } from "../../../shared/types";
 import { getSharedTrackName, requireGameId } from "./support";
 
@@ -196,10 +196,10 @@ export const trackGeometryRoutes = new Hono()
       }
 
       // Transform TUMFTM coords -> Forza coords (uses live calibration or static alignment)
-      const leftForza = transformToForzaSpace(ordinal, boundaries.leftEdge);
-      const rightForza = transformToForzaSpace(ordinal, boundaries.rightEdge);
-      const centerForza = transformToForzaSpace(ordinal, centerLine);
-      const pitForza = boundaries.pitLane ? transformToForzaSpace(ordinal, boundaries.pitLane) : null;
+      const leftForza = transformToSourceSpace(ordinal, boundaries.leftEdge);
+      const rightForza = transformToSourceSpace(ordinal, boundaries.rightEdge);
+      const centerForza = transformToSourceSpace(ordinal, centerLine);
+      const pitForza = boundaries.pitLane ? transformToSourceSpace(ordinal, boundaries.pitLane) : null;
 
       if (leftForza && rightForza && centerForza) {
         // Local warp: nudge boundary points toward nearby curb ground-truth positions

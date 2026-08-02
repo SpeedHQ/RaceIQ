@@ -2,7 +2,7 @@
  * Mastra instance for both the Studio observability UI and the running server.
  *
  *   Dev:     mounted in-process onto the RaceIQ Hono app under `/studio-api`
- *            (see server/dev-studio.ts). `bun run mastra:studio` serves the
+ *            (see server/runtime/dev-studio.ts). `bun run mastra:studio` serves the
  *            Studio UI on :3000 and reads this API over HTTP — the server is the
  *            sole DuckDB writer, so there is no second-process file lock.
  *   Runtime: imported by `server/routes/laps/chat-routes.ts` to call agents.
@@ -35,7 +35,7 @@ import { scorerRegistry } from "./evals";
  * ever opens it read-write: the RaceIQ dev server (DuckDB is single-writer, and
  * its Metrics tab is OLAP-only so LibSQL can't substitute). `mastra studio`
  * does NOT open this file — it reads the server's in-process Mastra API over
- * HTTP (see server/dev-studio.ts), which is what keeps the two from deadlocking.
+ * HTTP (see server/runtime/dev-studio.ts), which is what keeps the two from deadlocking.
  */
 const observabilityDuckDbPath =
   `${process.env.DATA_DIR ?? resolve(process.cwd(), "data")}/mastra-observability.duckdb`;

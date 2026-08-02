@@ -72,13 +72,12 @@ bun run lighthouse             # run Lighthouse audit on local dev server
 
 **Server (Bun + Hono)**
 - `server/index.ts` — Thin executable entry; `server/runtime/boot.ts` owns ordered startup
-- `server/udp.ts` — UDP socket listening for game telemetry packets
-- `server/parsers/` — Game-specific binary packet parsers (dispatched via game adapter registry)
-- `server/games/` — Server game adapters (parser binding, AI prompts) — see [Adding a New Game](#adding-a-new-game)
-- `server/routes.ts` — Hono app composition; bounded route groups live in `server/routes/`
-- `server/ws.ts` — WebSocket manager, 30Hz throttled broadcast to all connected clients
-- `server/pipeline.ts` — Telemetry processing pipeline (normalize → suspension fill → lap detect → sector track → pit track → track calibration → broadcast)
-- `server/lap-detector.ts` — Detects lap boundaries from telemetry stream (per-game factory via adapter)
+- `server/runtime/udp-listener.ts` — UDP socket listening for game telemetry packets
+- `server/games/` — Game-owned parsers/adapters plus generic packet dispatch — see [Adding a New Game](#adding-a-new-game)
+- `server/routes/index.ts` — Hono app composition; bounded route groups live in `server/routes/`
+- `server/runtime/websocket-manager.ts` — WebSocket manager, 30Hz throttled broadcast to all connected clients
+- `server/telemetry/live-pipeline.ts` — Telemetry processing pipeline (normalize → suspension fill → lap detect → sector track → pit track → track calibration → broadcast)
+- `server/lap-detection/detector.ts` — Detects lap boundaries from telemetry stream (per-game factory via adapter)
 - `server/live-strategy/` — Live sector timing and pit/fuel/tire estimates
 - `server/lap-analysis/corners.ts` — Game-aware racing-corner identification
 - `server/ai/` — AI analysis system (see [AI Analysis System](#ai-analysis-system))
@@ -86,8 +85,8 @@ bun run lighthouse             # run Lighthouse audit on local dev server
 - `server/db/*-queries.ts` — Responsibility-scoped database query modules
 - `server/db/migrations.ts` — Hand-rolled migration list (SQL array, version-tracked)
 - `server/db/index.ts` — Runs migrations on startup via custom runner
-- `server/tray.ts` — System tray integration (Windows)
-- `server/update-check.ts` — Auto-update checker
+- `server/runtime/platform/tray.ts` — System tray integration (Windows)
+- `server/runtime/update/check.ts` — Auto-update checker
 
 ### Database migration approach
 
@@ -125,7 +124,7 @@ flipping focus. See [Experiment focus](#experiment-focus).
 
 **Prompt files** (`server/ai/`): `analyst-prompt.ts`, `chat-prompt.ts`, `compare-engineer.ts`, `compare-chat-prompt.ts`, `inputs-compare-prompt.ts`, `corner-data.ts`, `format-tune.ts`
 
-**Mastra directory** (`mastra/`): Agent definitions + the `mastra` instance (LibSQL default store + DuckDB observability). In dev it is mounted **in-process** onto the RaceIQ Hono app under `/studio-api` (see `server/dev-studio.ts`), so the server is the sole DuckDB writer and `bun run mastra:studio` reads its real traces over HTTP — no second `mastra dev` process, no DuckDB file lock. Excluded from the prod binary via `NODE_ENV` gating.
+**Mastra directory** (`mastra/`): Agent definitions + the `mastra` instance (LibSQL default store + DuckDB observability). In dev it is mounted **in-process** onto the RaceIQ Hono app under `/studio-api` (see `server/runtime/dev-studio.ts`), so the server is the sole DuckDB writer and `bun run mastra:studio` reads its real traces over HTTP — no second `mastra dev` process, no DuckDB file lock. Excluded from the prod binary via `NODE_ENV` gating.
 
 ### Experiment focus
 
@@ -190,10 +189,10 @@ ran v39 before the `car`/`driver` rename.
 
 ### Data Flow
 
-1. Game sends UDP packets → `server/udp.ts` receives and buffers
-2. `server/parsers/index.ts` auto-detects game via `canHandle()`, decodes binary → typed telemetry object
-3. `server/lap-detector.ts` tracks lap boundaries, saves completed laps to SQLite
-4. `server/ws.ts` broadcasts live packet to all WebSocket clients
+1. Game sends UDP packets → `server/runtime/udp-listener.ts` receives and buffers
+2. `server/games/packet-dispatch.ts` auto-detects game via `canHandle()`, then its game-owned parser decodes binary → typed telemetry object
+3. `server/lap-detection/detector.ts` tracks lap boundaries, saves completed laps to SQLite
+4. `server/runtime/websocket-manager.ts` broadcasts live packet to all WebSocket clients
 5. Client `telemetry.ts` Zustand store receives via WebSocket → React components re-render
 6. Historical data fetched via REST API (`/api/laps`, `/api/sessions`, etc.)
 
@@ -201,7 +200,7 @@ ran v39 before the `car`/`driver` rename.
 
 - Path aliases: `@shared/*` → `./shared/*` (server/test), `@/*` → `./src/*` (client only)
 - Client proxies `/api` and `/ws` requests to `localhost:3117` via Vite dev server config
-- **API calls use Hono RPC**: import `client` from `@/lib/rpc.ts` (typed against `AppType` from `server/routes.ts`) — do not use raw `fetch` for API routes
+- **API calls use Hono RPC**: import `client` from `@/lib/rpc.ts` (typed against `AppType` from `server/routes/index.ts`) — do not use raw `fetch` for API routes
 - **gameId travels via `X-Game-Id` header** — not query params or effect-populated stores
 - Database file: `data/forza-telemetry.db` (SQLite)
 - Settings persisted to: `data/settings.json`
