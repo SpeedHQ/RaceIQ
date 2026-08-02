@@ -10,6 +10,8 @@ import { wsManager, type WSData } from "./ws";
 import { loadSettings } from "./settings";
 import { initServerGameAdapters } from "./games/init";
 import { initGameAdapters } from "../shared/games/init";
+import { IS_DEV } from "./env";
+import { releaseFeatureFlags } from "../shared/release-feature-flags";
 import { accRecorder } from "./games/acc/recorder";
 import { acEvoRecorder } from "./games/ac-evo/recorder";
 import { iracingRecorder } from "./games/iracing/recorder";
@@ -19,8 +21,9 @@ import { injectDiscoveredAcEvoCars } from "../shared/ac-evo-car-data";
 import { getOnboardingOverride } from "./runtime-options";
 
 // Register all game adapters (shared + server)
-initGameAdapters();
-initServerGameAdapters();
+const releaseFeatures = releaseFeatureFlags(IS_DEV);
+initGameAdapters(releaseFeatures);
+initServerGameAdapters(releaseFeatures);
 
 import { existsSync } from "fs";
 import { resolve } from "path";
