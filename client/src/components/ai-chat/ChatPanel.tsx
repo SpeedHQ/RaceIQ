@@ -3,7 +3,7 @@ import { AssistantChatTransport, createResumableSessionStorage, useChatRuntime, 
 import { contextWindowFor } from "@shared/ai/context-window";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UIMessage } from "ai";
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useMemo, useState } from "react";
 import { Thread, type ThreadProps } from "@/components/assistant-ui/thread";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { client } from "@/lib/rpc";
@@ -358,12 +358,6 @@ function ChatPanelThread({
     transport,
     onFinish,
   });
-  // useChatRuntime's remote thread updates its resource directly, but the
-  // provider-level client subscription can miss those optimistic updates.
-  // Bridge active-thread notifications into this provider render so the user
-  // turn and running state appear as soon as send starts, not after finish.
-  const [, refreshThread] = useReducer((revision: number) => revision + 1, 0);
-  useEffect(() => runtime.thread.subscribe(refreshThread), [runtime]);
   const [compacting, setCompacting] = useState(false);
 
   return (
