@@ -39,8 +39,9 @@ import { type IbtImportPreview, IbtImportPreviewModal } from "./analyse/IbtImpor
 import { ImportResultModal } from "./analyse/ImportResultModal";
 import { TuneViewModal } from "./analyse/TuneViewModal";
 
-// Stable empty array to avoid re-renders when no telemetry loaded
+// Stable empty arrays avoid identity churn before their queries resolve.
 const emptyTelemetry: TelemetryPacket[] = [];
+const emptyLaps: LapMeta[] = [];
 
 interface ImportedLap {
   lapId: number;
@@ -200,7 +201,7 @@ function LapAnalyseInner() {
   const [carNames, setCarNames] = useState<Record<number, string>>({});
 
   // Fetch lap list
-  const { data: allLaps = [] } = useLapsQuery();
+  const { data: allLaps = emptyLaps } = useLapsQuery();
   const fetchedLaps = useMemo(() => allLaps.filter((l) => l.lapTime > 0), [allLaps]);
   // Merge fetched laps with local optimistic updates
   useEffect(() => {
@@ -423,20 +424,9 @@ function LapAnalyseInner() {
   // Insights computed server-side, included in the initial lap fetch
   const lapInsights = useMemo(() => lapData?.insights ?? [], [lapData]);
 
-  // Time display — use interpolated time during playback so timer doesn't freeze in gaps
-  // Separate display time state that ticks during playback (even through gaps)
-  const [displayTime, setDisplayTime] = useState(0);
-  useEffect(() => {
-    if (!playing) return;
-    let raf: number;
-    const tick = () => {
-      setDisplayTime(interpolatedTimeRef.current);
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [playing]);
-  const currentTime = playing ? displayTime : currentPacket ? currentPacket.CurrentLap : 0;
+  // Cursor state already publishes at 30 Hz during playback. Read interpolated
+  // time on those renders instead of driving a second 60 Hz parent render loop.
+  const currentTime = playing ? interpolatedTimeRef.current : currentPacket ? currentPacket.CurrentLap : 0;
   const selectedLap = laps.find((l) => l.id === selectedLapId);
   const totalTime = selectedLap?.lapTime ?? 0;
 
@@ -805,7 +795,22 @@ function LapAnalyseInner() {
                 speedLabel={units.speedLabel}
                 tempLabel={units.tempLabel}
               />
-            )}
+
+              {/* Stacked charts — with own scroll */}
+              {displayTelemetry.length > 0 && (
+                <AnalyseChartsPanel
+                  ref={chartsPanelRef}
+                  displayTelemetry={displayTelemetry}
+                  totalPackets={telemetry.length}
+                  visualTimeFrac={visualTimeFrac}
+                  onVisualFracChange={setVisualTimeFrac}
+                  onClickIndex={handleChartClick}
+                  onScrubStart={handleScrubStart}
+                  speedLabel={units.speedLabel}
+                  tempLabel={units.tempLabel}
+                />
+              )}
+            </div>
           </div>
 
           {/* Right panel – full height */}

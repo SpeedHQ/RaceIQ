@@ -10,7 +10,6 @@ export interface ChartSeries {
 
 export function TelemetryChart({
   series,
-  cursorIdx: _cursorIdx,
   totalPackets,
   onClickIndex,
   onScrubStart,
@@ -21,7 +20,6 @@ export function TelemetryChart({
   onVisualFracChange,
 }: {
   series: ChartSeries[];
-  cursorIdx: number;
   totalPackets: number;
   onClickIndex: (idx: number) => void;
   onScrubStart?: () => void;

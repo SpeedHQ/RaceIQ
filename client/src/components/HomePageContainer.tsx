@@ -1,6 +1,7 @@
 import { tryGetGame } from "@shared/games/registry";
 import type { LapMeta } from "@shared/types";
 import { useQueries } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useLaps, useSessionRecap, useSessions, useSettings, useTrackOutline, useTrackSectorBoundaries } from "../hooks/queries";
 import { client } from "../lib/rpc";
@@ -12,6 +13,7 @@ import { buildRecapText } from "./SessionRecap";
 
 export function HomePageContainer() {
   const gameId = useGameId();
+  const navigate = useNavigate();
   const gameAdapter = gameId ? tryGetGame(gameId) : null;
   const { data: allLaps = [], isLoading: lapsLoading, isError: lapsError } = useLaps();
   const { data: sessions = [], isLoading: sessionsLoading, isError: sessionsError } = useSessions();
@@ -142,7 +144,10 @@ export function HomePageContainer() {
   };
   const analyseRecap = () => {
     if (!latestRecap || latestRecap.bestLapId == null) return;
-    window.location.href = `${getGameRoute(latestRecap.gameId)}/analyse?track=${latestRecap.trackOrdinal}&car=${latestRecap.carOrdinal}&lap=${latestRecap.bestLapId}`;
+    void navigate({
+      to: `${getGameRoute(latestRecap.gameId)}/analyse` as never,
+      search: { track: latestRecap.trackOrdinal, car: latestRecap.carOrdinal, lap: latestRecap.bestLapId } as never,
+    });
   };
 
   return (
@@ -169,7 +174,10 @@ export function HomePageContainer() {
         onAnalyseRecap={analyseRecap}
         onAnalyseLap={(lap) => {
           if (!lap.gameId) return;
-          window.location.href = `${getGameRoute(lap.gameId)}/analyse?track=${lap.trackOrdinal ?? ""}&car=${lap.carOrdinal ?? ""}&lap=${lap.id}`;
+          void navigate({
+            to: `${getGameRoute(lap.gameId)}/analyse` as never,
+            search: { track: lap.trackOrdinal, car: lap.carOrdinal, lap: lap.id } as never,
+          });
         }}
         periodTab={periodTab}
         periodStats={periodStats}

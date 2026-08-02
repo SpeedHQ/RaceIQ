@@ -3,6 +3,9 @@ import { useCallback, useEffect } from "react";
 import type { ChartsPanelHandle } from "../components/analyse/AnalyseChartsPanel";
 import type { TrackMapHandle } from "../components/analyse/AnalyseTrackMap";
 
+// Track/timeline overlays stay on rAF; React-owned gauges only need 10 Hz.
+const REACT_STATE_INTERVAL_MS = 100;
+
 interface UseLapPlaybackOptions {
   playing: boolean;
   telemetry: TelemetryPacket[];
@@ -99,7 +102,7 @@ export function useLapPlayback({
       if (nextIdx !== idx) {
         cursorRef.current = nextIdx;
         updateOverlays(nextIdx);
-        if (now - lastStateUpdateRef.current > 33) {
+        if (now - lastStateUpdateRef.current > REACT_STATE_INTERVAL_MS) {
           lastStateUpdateRef.current = now;
           setCursorIdx(nextIdx);
         }

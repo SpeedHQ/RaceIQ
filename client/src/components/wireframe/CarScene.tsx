@@ -1,5 +1,6 @@
 import { Grid, Line } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
+import { hasWorldPositions } from "@shared/lib/lap-path";
 import type { GameId, TelemetryPacket } from "@shared/types";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type * as THREE from "three";
@@ -75,6 +76,7 @@ export function CarScene({
 }) {
   const [colorFL, colorFR, colorRL, colorRR] = tireColors;
   const pressureOptimal = useTirePressureOptimal(gameId, packetProp.CarOrdinal);
+  const hasWorldPositionTelemetry = useMemo(() => hasWorldPositions(telemetry), [telemetry]);
 
   // Keep packet in a ref so useFrame reads latest without triggering re-render
   const packetRef = useRef(packetProp);
@@ -185,6 +187,7 @@ export function CarScene({
   const pressRR = packet.TirePressureRearRight ?? packet.f1?.tyrePressureRR ?? 0;
   const wheelData = [
     {
+      id: "fl",
       pos: [wb, 0, -ft] as [number, number, number],
       steer: steerFL,
       camber: cambFL,
@@ -203,6 +206,7 @@ export function CarScene({
       tireWidth: fTireW,
     },
     {
+      id: "fr",
       pos: [wb, 0, ft] as [number, number, number],
       steer: steerFR,
       camber: cambFR,
@@ -221,6 +225,7 @@ export function CarScene({
       tireWidth: fTireW,
     },
     {
+      id: "rl",
       pos: [-wb, 0, -rt] as [number, number, number],
       steer: steerRL,
       camber: cambRL,
@@ -239,6 +244,7 @@ export function CarScene({
       tireWidth: rTireW,
     },
     {
+      id: "rr",
       pos: [-wb, 0, rt] as [number, number, number],
       steer: steerRR,
       camber: cambRR,
@@ -334,7 +340,7 @@ export function CarScene({
         {/* Wheels */}
         {wheelData.map((w, i) => (
           <Wheel
-            key={i}
+            key={w.id}
             position={w.pos}
             steerAngle={w.steer}
             camberAngle={w.camber}
@@ -359,9 +365,9 @@ export function CarScene({
 
         {/* Suspension springs — connect dropped body to grounded wheels */}
         {toggles.springs &&
-          wheelData.map((w, i) => {
+          wheelData.map((w, _i) => {
             const inboardZ = w.pos[2] > 0 ? w.pos[2] - 0.35 : w.pos[2] + 0.35;
-            return <SuspensionSpring key={`susp-${i}`} bodyPos={[w.pos[0], 0.23 + w.drop, inboardZ]} wheelPos={[w.pos[0], 0, inboardZ]} suspTravel={w.susp} suspThresholds={suspThresholds} />;
+            return <SuspensionSpring key={`susp-${w.id}`} bodyPos={[w.pos[0], 0.23 + w.drop, inboardZ]} wheelPos={[w.pos[0], 0, inboardZ]} suspTravel={w.susp} suspThresholds={suspThresholds} />;
           })}
 
         {/* Load distribution — weighted centroid dot between springs with 1s trail */}
@@ -444,7 +450,7 @@ export function CarScene({
       {toggles.track && boundaries && <TrackBoundaryEdges boundaries={boundaries} packet={packet} tireRadius={carModel.tireRadius} distAhead={autoOrbit ? 80 : undefined} />}
 
       {/* Curb + puddle markers on track surface */}
-      {toggles.track && <CurbMarkers telemetry={telemetry} cursorIdx={cursorIdx} packet={packet} carModel={carModel} />}
+      {toggles.track && hasWorldPositionTelemetry && <CurbMarkers telemetry={telemetry} cursorIdx={cursorIdx} packet={packet} carModel={carModel} />}
 
       {/* Dimension measurement lines */}
       {toggles.dimensions && <DimensionLines carModel={carModel} />}
@@ -453,7 +459,7 @@ export function CarScene({
       {toggles.trails && <TireTrails telemetry={telemetry} cursorIdx={cursorIdx} carModel={carModel} />}
 
       {/* Throttle/brake input overlay */}
-      {toggles.inputs && <InputOverlay telemetry={telemetry} packet={packet} />}
+      {toggles.inputs && hasWorldPositionTelemetry && <InputOverlay telemetry={telemetry} packet={packet} />}
 
       {/* Camera controls */}
       {autoOrbit ? <AutoChaseCamera packet={packet} /> : <CameraController viewPreset={viewPreset} />}
