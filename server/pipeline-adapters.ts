@@ -337,9 +337,14 @@ export class CapturingWsAdapter implements WsAdapter {
   readonly broadcastedPackets: Array<{ packet: TelemetryPacket; sectors?: LiveSectorData | null; pit?: LivePitData | null; liveIssues?: TuneIssue[] }> = [];
   readonly broadcastedNotifications: Record<string, unknown>[] = [];
   readonly broadcastedDevStates: Record<string, unknown>[] = [];
+  private readonly capturePackets: boolean;
+
+  constructor(capturePackets = true) {
+    this.capturePackets = capturePackets;
+  }
 
   broadcast(packet: TelemetryPacket, sectors?: LiveSectorData | null, pit?: LivePitData | null, liveIssues?: TuneIssue[]): void {
-    this.broadcastedPackets.push({ packet, sectors, pit, liveIssues });
+    if (this.capturePackets) this.broadcastedPackets.push({ packet, sectors, pit, liveIssues });
   }
 
   broadcastNotification(event: Record<string, unknown>): void {

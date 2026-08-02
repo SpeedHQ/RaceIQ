@@ -45,7 +45,9 @@ export function spliceBlock(md: string, table: string, startMark: string, endMar
   if (start === -1 || end === -1 || end < start) {
     throw new Error(`markdown is missing the ${startMark} / ${endMark} markers`);
   }
-  return `${md.slice(0, start)}${startMark}\n${table}\n${md.slice(end)}`;
+  const eol = md.startsWith("\r\n", start + startMark.length) ? "\r\n" : "\n";
+  const normalizedTable = table.replace(/\r?\n/g, eol);
+  return `${md.slice(0, start)}${startMark}${eol}${normalizedTable}${eol}${md.slice(end)}`;
 }
 
 /** Summary table block in docs/track-curation.md. */

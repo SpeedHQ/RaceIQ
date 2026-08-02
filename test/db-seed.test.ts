@@ -50,6 +50,19 @@ async function seededGames(dataDir: string): Promise<string[]> {
     client.close();
   }
 }
+async function sessionCountByNotes(dataDir: string, notes: string): Promise<number> {
+  const client = createClient({ url: `file:${join(dataDir, "forza-telemetry.db")}` });
+  try {
+    const rows = await client.execute({
+      sql: "SELECT COUNT(*) AS count FROM sessions WHERE notes = ?",
+      args: [notes],
+    });
+    return Number(rows.rows[0]?.count ?? 0);
+  } finally {
+    client.close();
+  }
+}
+
 async function seededIRacingLaps(dataDir: string): Promise<Array<{ lapTime: number; isValid: number; rawFile: string | null }>> {
   const client = createClient({ url: `file:${join(dataDir, "forza-telemetry.db")}` });
   try {
@@ -143,8 +156,10 @@ describe("db:seed", () => {
 
   test("reset replaces seed rows without deleting user sessions", async () => {
     const dataDir = makeDataDir();
-    const seeded = await runSeed(dataDir);
+    const games = "--games=fm-2023,f1-2025";
+    const seeded = await runSeed(dataDir, games);
     expect(seeded.code, seeded.output).toBe(0);
+    const seededCounts = await counts(dataDir);
 
     const client = createClient({ url: `file:${join(dataDir, "forza-telemetry.db")}` });
     try {
@@ -155,12 +170,13 @@ describe("db:seed", () => {
     } finally {
       client.close();
     }
-    const reset = await runSeed(dataDir, "--reset");
+    const reset = await runSeed(dataDir, "--reset", games);
     expect(reset.code, reset.output).toBe(0);
 
-    const final = await counts(dataDir);
-    expect(final.sessions).toBeGreaterThanOrEqual(4);
-    expect(final.tunes).toBe(2);
-    expect(final.experiments).toBe(1);
+    expect(await counts(dataDir)).toEqual({
+      ...seededCounts,
+      sessions: seededCounts.sessions + 1,
+    });
+    expect(await sessionCountByNotes(dataDir, "real user session")).toBe(1);
   }, 120000);
 });
