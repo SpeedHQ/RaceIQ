@@ -8,6 +8,7 @@
 - View all release notes since your installed version in the app
 
 ### Fixes
+- Hide unfinished F1 Experiments and iRacing integrations from production releases
 - Report missing AI model settings instead of silently selecting a provider default
 - Expose Codex subscription models and preserve comparison and setup analysis across AI features
 - Keep AI chat drafts editable and show submitted prompts with the loading state immediately across chat surfaces
