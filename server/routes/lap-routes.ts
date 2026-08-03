@@ -27,35 +27,25 @@ import { buildLapsZip, lapsZipFilename, importLapsZip } from "../zip";
 import { recordAction } from "../db/experiment-action-queries";
 import { KNOWN_GAME_IDS } from "../../shared/types";
 import { importSessionBin, detectGameIdFromBuffer } from "../import-session-bin";
-import {
-  cancelStagedIbt,
-  commitStagedIbt,
-  IbtImportError,
-  stageIbtUpload,
-} from "../import-ibt";
-import { importMotec, resolveMotecTarget } from "../motec/import";
-import { getMotecTargets, initMotecTargets } from "../motec/targets";
 import { analyzeLap } from "../../shared/lib/lap-insights";
 import { downsampleLap, encodeLapTrace, type EncodedLapTrace } from "../../shared/stint-trace";
 import { buildCompareInsightsBlock } from "../ai/insight-format";
 import { assessLapRecording } from "../lap-quality";
 
 // Toggle: set true to use native ACC lastSectorTime transitions in recheck instead of distance-fraction
+const USE_NATIVE_ACC_SECTORS = false;
 import { getTuneById as getDbTune } from "../db/tune-queries";
 import { generateExport } from "../export";
 import { compareLaps } from "../comparison";
 import { detectCorners } from "../corner-detection";
+import type { Corner } from "../corner-detection";
 import { getGame } from "../../shared/games/registry";
 
 import type { GameId } from "../../shared/types";
 import { loadSettings } from "../settings";
 import { buildAnalystPrompt } from "../ai/analyst-prompt";
-import { compareEngineerPersona } from "../ai/compare-engineer";
 import { resolveTrack } from "../track-info";
-import {
-  computeNativeSectorTimeline,
-  computeLapSectors,
-} from "../compute-lap-sectors";
+import { computeLapSectors } from "../compute-lap-sectors";
 import { getAnalystJsonSchema } from "../ai/schemas";
 import {
   getChatMemory,
@@ -66,6 +56,7 @@ import {
   generationThreadId,
   listThreadGenerations,
 } from "../ai/chat-agent";
+import { getSecret } from "../keystore";
 import { deleteAnalysis as deleteAnalysisQuery } from "../db/queries";
 import { tryGetGame } from "../../shared/games/registry";
 import { gzip } from "zlib";
@@ -74,6 +65,7 @@ import { promisify } from "util";
 const gzipAsync = promisify(gzip);
 import { buildChatSystemPrompt } from "../ai/chat-prompt";
 import { buildCompareChatSystemPrompt } from "../ai/compare-chat-prompt";
+import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
 import { streamAgentTurnResponse } from "../ai/agent-stream";
 import { MessageList } from "@mastra/core/agent";
 import { topCatalogReferences, normalizePacketSetup, getCatalogDisplayName } from "../ai/f1-setup-catalog";
@@ -81,14 +73,12 @@ import type { TelemetryPacket } from "../../shared/types";
 import { buildInputsComparePrompt, InputsCompareSchema, type PromptSegment } from "../ai/inputs-compare-prompt";
 // Dev uses the full Mastra instance (so Studio sees traces); prod tree-shakes
 // the Mastra wrapper out. See `server/ai/agents.ts` for the switch.
-import { lapAnalystAgent, lapChatAgent, compareChatAgent, compareEngineerAgent } from "../ai/agents";
-import { buildGoogleProviderOptions, buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
+import { lapAnalystAgent, lapChatAgent, compareEngineerAgent, compareChatAgent } from "../ai/agents";
+import { buildGoogleProviderOptions, buildGoogleThinkingProviderOptions } from "../ai/google-provider-options";
 import { toClientAiError } from "../ai/provider-error";
 import { extractJson } from "../ai/extract-json";
-import type { ResolvedAi } from "../ai/ai-types";
-import { resolveAi } from "../ai/ai-runtime";
-import { runAiChat, runAiStructured } from "../ai/model-provider";
 import { resolveLapF1Setup } from "../ai/f1-setup-identity";
+import { generateLapAnalysis } from "../ai/generate-lap-analysis";
 
 /**
  * Build the "F1 CURRENT SETUP + TOP-5 REFERENCE SETUPS" block appended to
@@ -147,10 +137,6 @@ const AnalyseQuerySchema = z.object({
 
 const BulkDeleteSchema = z.object({
   ids: z.array(z.number().int()),
-});
-
-const IbtImportTokenSchema = z.object({
-  token: z.string().uuid(),
 });
 
 /** Comma-separated id list in a query string → number[] (ignores junk/empties). */
@@ -236,49 +222,21 @@ export const lapRoutes = new Hono()
 
   // ── Get single lap ──────────────────────────────────────────
   .get("/api/laps/:id", zValidator("param", IdParamSchema), async (c) => {
-    const gameIdResult = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
-    if (!gameIdResult.success) {
-      return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
-    }
-    const gameId = gameIdResult.data;
     const { id } = c.req.valid("param");
     const lap = await getLapById(id);
-    if (!lap || lap.gameId !== gameId) {
-      return c.json({ error: "Lap not found" }, 404);
-    }
+    if (!lap) return c.json({ error: "Lap not found" }, 404);
 
     // Compute sector times server-side
-    let sectorTimes: {
-      times: number[];
-      sectorCount: number;
-      boundaryIndices: number[];
-      sectorStarts: number[];
-      firstDist: number;
-      lapDist: number;
-    } | null = null;
+    let sectorTimes: { times: [number, number, number]; s1Idx: number; s2Idx: number; firstDist: number; lapDist: number } | null = null;
     const packets = lap.telemetry;
     if (packets.length >= 10 && lap.trackOrdinal != null) {
-      const game = getGame(gameId);
-      const firstDist = packets[0].DistanceTraveled;
-      const lastDist = packets[packets.length - 1].DistanceTraveled;
-      const lapDist = lastDist - firstDist;
-
-      if (game.nativeSectors && game.getNativeSectorLayout) {
-        const nativeTimeline = computeNativeSectorTimeline(
-          packets,
-          lap.lapTime,
-          game.getNativeSectorLayout,
-        );
-        if (nativeTimeline && lapDist > 0) {
-          sectorTimes = {
-            ...nativeTimeline,
-            firstDist,
-            lapDist,
-          };
-        }
-      } else {
-        const sectors = resolveTrack(gameId, lap.trackOrdinal).sectors;
-        if (sectors?.s1End && sectors?.s2End && lapDist > 0) {
+      const gameId = c.req.header("x-game-id") as GameId | undefined;
+      const sectors = resolveTrack(gameId, lap.trackOrdinal).sectors;
+      if (sectors?.s1End && sectors?.s2End) {
+        const firstDist = packets[0].DistanceTraveled;
+        const lastDist = packets[packets.length - 1].DistanceTraveled;
+        const lapDist = lastDist - firstDist;
+        if (lapDist > 0) {
           // Determine the best time source: CurrentLap if it progresses, else TimestampMS
           const lapProgression = packets[packets.length - 1].CurrentLap - packets[0].CurrentLap;
           const useTimestamp = lapProgression < 1; // CurrentLap unreliable (e.g. ACC with invalid iCurrentTime)
@@ -303,21 +261,14 @@ export const lapRoutes = new Hono()
             lap.lapTime || (useTimestamp ? (packets[packets.length - 1].TimestampMS - packets[0].TimestampMS) / 1000 : packets[packets.length - 1].CurrentLap - packets[0].CurrentLap);
           let s3Time = totalLapTime - s1Time - s2Time;
           if (s3Time < 0) s3Time = 0;
-          sectorTimes = {
-            times: [s1Time, s2Time, s3Time],
-            sectorCount: 3,
-            boundaryIndices: [s1Idx, s2Idx],
-            sectorStarts: [0, sectors.s1End, sectors.s2End],
-            firstDist,
-            lapDist,
-          };
+          sectorTimes = { times: [s1Time, s2Time, s3Time], s1Idx, s2Idx, firstDist, lapDist };
         }
       }
     }
 
     // Precomputed lap insights — server-side so the client gets them in the
     // initial fetch instead of re-deriving on every render
-    const insights = analyzeLap(packets, gameId);
+    const insights = lap.gameId ? analyzeLap(packets, lap.gameId) : [];
 
     return c.json({ ...lap, sectorTimes, insights });
   })
@@ -427,427 +378,24 @@ export const lapRoutes = new Hono()
     }
   })
 
-  // ── Games a MoTeC log can be imported for ───────────────────
-  // A transcoder is per game and only exists once someone has checked it
-  // against a real export, so the client asks rather than assumes. Drives the
-  // game picker in the import dialog. See server/motec/targets.ts.
-  .get("/api/motec/targets", (c) => {
-    initMotecTargets();
-    return c.json(
-      getMotecTargets().map((t) => ({
-        gameId: t.gameId,
-        displayName: t.displayName,
-        routePrefix: t.routePrefix,
-        carsEndpoint: t.carsEndpoint,
-        limitations: t.limitations,
-      })),
-    );
-  })
-
-  // ── Import a MoTeC i2 log (.ld, optionally with its .ldx) ───
-  .post("/api/laps/import-motec", async (c) => {
-    const form = await c.req.formData().catch(() => null);
-    const file = form?.get("file");
-    if (!(file instanceof File)) return c.json({ error: "Missing 'file' in multipart body" }, 400);
-    if (!file.name.toLowerCase().endsWith(".ld")) {
-      return c.json({ error: "Expected a MoTeC .ld file" }, 400);
-    }
-
-    // The sidecar carries the lap beacons. Without it the log imports as a
-    // single unsplit stint, which is correct for a standalone hotlap export.
-    const sidecar = form?.get("ldx");
-    const ldxText = sidecar instanceof File ? await sidecar.text() : undefined;
-
-    // Car and track are the user's call, not the log header's — a log filed
-    // against the wrong track gets meaningless sectors and corner names. The
-    // setup is optional: not knowing it costs a label, nothing more.
-    const num = (key: string): number | undefined => {
-      const raw = form?.get(key);
-      if (typeof raw !== "string" || raw.trim() === "") return undefined;
-      const parsed = Number(raw);
-      return Number.isFinite(parsed) ? parsed : undefined;
-    };
-    const carOrdinal = num("carOrdinal");
-    const trackOrdinal = num("trackOrdinal");
-    if (carOrdinal === undefined || trackOrdinal === undefined) {
-      return c.json({ error: "carOrdinal and trackOrdinal are required" }, 400);
-    }
-
-    // Which sim exported the log. Resolved up front so an unsupported game is a
-    // 400 naming the problem, not a 500 from deep inside the transcoder — and
-    // so the ordinals above are read against the right game's roster.
-    const gameIdRaw = form?.get("gameId");
-    let target;
-    try {
-      target = resolveMotecTarget(typeof gameIdRaw === "string" && gameIdRaw ? gameIdRaw : undefined);
-    } catch (err: any) {
-      return c.json({ error: String(err?.message ?? err) }, 400);
-    }
-
-    // laps.tune_id is a real FK, so an id that doesn't exist would surface as a
-    // constraint failure and a 500. It's user input; say so plainly instead.
-    const tuneId = num("tuneId");
-    if (tuneId !== undefined) {
-      if (!(await getDbTune(tuneId))) {
-        return c.json({ error: `No setup with id ${tuneId}` }, 400);
-      }
-    }
-
-    try {
-      const result = await importMotec(Buffer.from(await file.arrayBuffer()), ldxText, {
-        gameId: target.gameId,
-        carOrdinal,
-        trackOrdinal,
-        tuneId,
-      });
-      if (result.laps.length === 0) {
-        return c.json(
-          { error: "No laps could be detected in this log", meta: result.meta, limitations: result.limitations },
-          400
-        );
-      }
-      return c.json({
-        ...result,
-        ok: true,
-        gameId: target.gameId,
-        routePrefix: target.routePrefix,
-        imported: result.laps.length,
-      });
-    } catch (err: any) {
-      console.error("[MoTeC Import] Failed:", err?.message);
-      return c.json({ error: "Failed to import MoTeC log", details: String(err?.message ?? err) }, 500);
-    }
-  })
-
   // ── AI analysis ─────────────────────────────────────────────
-  // Preview + commit an iRacing disk telemetry capture (.ibt). The raw
-  // request body is streamed to a short-lived staging file, avoiding the
-  // multipart/arrayBuffer path used by small canonical .bin captures.
-  // Preview never writes sessions or laps. Commit feeds canonical iRacing
-  // source frames into the same isolated Pipeline used by .bin imports.
-  .post("/api/laps/import-ibt/preview", async (c) => {
-    const uploadName =
-      c.req.header("x-file-name") ?? "session.ibt";
-    if (!uploadName.toLowerCase().endsWith(".ibt")) {
-      return c.json({ error: "Expected an .ibt file" }, 400);
-    }
-    const declaredHeader =
-      c.req.header("x-file-size") ?? c.req.header("content-length");
-    const declaredBytes = declaredHeader
-      ? Number(declaredHeader)
-      : undefined;
-
-    try {
-      const result = await stageIbtUpload(
-        c.req.raw.body,
-        uploadName,
-        declaredBytes,
-      );
-      return c.json(result);
-    } catch (error) {
-      const status =
-        error instanceof IbtImportError ? error.status : 400;
-      const message =
-        error instanceof Error ? error.message : String(error);
-      console.error("[IBT Import] Preview failed:", message);
-      return c.json(
-        { error: `Failed to preview IBT: ${message}` },
-        status,
-      );
-    }
-  })
-
-  .post(
-    "/api/laps/import-ibt/commit",
-    zValidator("json", IbtImportTokenSchema),
-    async (c) => {
-      const { token } = c.req.valid("json");
-      try {
-        const { packetCount, laps, preview } =
-          await commitStagedIbt(token);
-        return c.json({
-          ok: true,
-          gameId: "iracing" as const,
-          routePrefix: getGame("iracing").routePrefix,
-          packetCount,
-          imported: laps.length,
-          laps,
-          preview,
-        });
-      } catch (error) {
-        const status =
-          error instanceof IbtImportError ? error.status : 500;
-        const message =
-          error instanceof Error ? error.message : String(error);
-        console.error("[IBT Import] Commit failed:", message);
-        return c.json(
-          { error: `Failed to import IBT: ${message}` },
-          status,
-        );
-      }
-    },
-  )
-
-  .post(
-    "/api/laps/import-ibt/cancel",
-    zValidator("json", IbtImportTokenSchema),
-    (c) => {
-      const { token } = c.req.valid("json");
-      cancelStagedIbt(token);
-      return c.json({ ok: true });
-    },
-  )
-
-  .post("/api/laps/:id/analyse", zValidator("param", IdParamSchema), zValidator("query", AnalyseQuerySchema), async (c) => {
+.post("/api/laps/:id/analyse", zValidator("param", IdParamSchema), zValidator("query", AnalyseQuerySchema), async (c) => {
     const { id } = c.req.valid("param");
     const { regenerate, cacheOnly } = c.req.valid("query");
-
-    const lap = await getLapById(id);
-    if (!lap) return c.json({ error: "Lap not found" }, 404);
-    if (lap.telemetry.length === 0) return c.json({ error: "No telemetry data" }, 400);
-
-    const trackOrdinal = lap.trackOrdinal ?? 0;
-    // Curated corners from `track_corners` first; fall back to telemetry
-    // detection (T1..Tn) when the track has no entries — lets the client
-    // resolve "T13" card clicks to the correct position instead of lap start.
-    let corners = trackOrdinal > 0 && lap.gameId ? await getCorners(trackOrdinal, lap.gameId) : [];
-    if (corners.length === 0 && lap.telemetry.length > 0) {
-      corners = detectCorners(lap.telemetry);
+    const result = await generateLapAnalysis(id, { regenerate, cacheOnly });
+    if (result.error) {
+      const status = result.error === "Lap not found" ? 404 : result.error === "No telemetry data" ? 400 : 400;
+      return c.json({ error: result.error }, status);
     }
-
-    // Compute corner fracs for client-side track highlighting
-    const totalDist = lap.telemetry.length > 1 ? lap.telemetry[lap.telemetry.length - 1].DistanceTraveled - lap.telemetry[0].DistanceTraveled : 1;
-    const firstDist = lap.telemetry[0]?.DistanceTraveled ?? 0;
-    const cornerFracs = corners.map((c) => ({
-      label: c.label,
-      startFrac: Math.max(0, (c.distanceStart - firstDist) / totalDist),
-      endFrac: Math.min(1, (c.distanceEnd - firstDist) / totalDist),
-    }));
-
-    // `hasTune` tells the UI whether the analysis had authoritative setup data.
-    // Forza laps: a linked `tuneId`. F1 laps: the per-lap `carSetup` snapshot
-    // (fetched by the compare-f1-setup-to-catalog tool, not injected into
-    // the prompt). Without this, the "No tune data linked" banner would fire
-    // on every F1 analysis even though the tool gives the model the setup.
-    const hasTune = !!lap.tuneId || (lap.gameId === "f1-2025" && !!lap.carSetup);
-
-    if (!regenerate) {
-      const cached = await getAnalysis(id);
-      // Guard: only serve caches whose payload is valid JSON. Earlier runs
-      // (pre-validation) could persist empty strings or truncated output —
-      // those would otherwise get stuck replaying the broken text forever.
-      let cachedIsValid = false;
-      if (cached?.analysis) {
-        try {
-          JSON.parse(cached.analysis);
-          cachedIsValid = true;
-        } catch {
-          cachedIsValid = false;
-        }
-      }
-      if (cached && cachedIsValid) {
-        return c.json({
-          analysis: cached.analysis,
-          cached: true,
-          usage: {
-            inputTokens: cached.inputTokens,
-            outputTokens: cached.outputTokens,
-            costUsd: cached.costUsd,
-            durationMs: cached.durationMs,
-            model: cached.model,
-          },
-          cornerFracs,
-          hasTune,
-        });
-      }
-      if (cacheOnly) {
-        return c.json({ analysis: null, cached: false, cornerFracs, hasTune });
-      }
-    }
-    const settings = loadSettings();
-
-    let parsedTune: Tune | undefined;
-    if (lap.tuneId) {
-      const dbTune = await getDbTune(lap.tuneId);
-      if (dbTune) {
-        parsedTune = {
-          ...dbTune,
-          strengths: dbTune.strengths ? JSON.parse(dbTune.strengths) : [],
-          weaknesses: dbTune.weaknesses ? JSON.parse(dbTune.weaknesses) : [],
-          bestTracks: dbTune.bestTracks ? JSON.parse(dbTune.bestTracks) : [],
-          strategies: dbTune.strategies ? JSON.parse(dbTune.strategies) : [],
-          settings: JSON.parse(dbTune.settings),
-        } as Tune;
-      }
-    }
-
-    // Curated track data (#84): named segments with their official turn
-    // numbers, and this game's sector boundaries. Game-specific — each game's
-    // centerline has its own lap fractions.
-    const track = resolveTrack(lap.gameId, lap.trackOrdinal);
-    const segments = track.segments;
-
-    // Sector times, split on those boundaries, so the model can attribute a
-    // slow sector to the corners it actually covers.
-    let sectors: { times: number[]; sectorStarts: number[] } | undefined;
-    if (lap.gameId && lap.trackOrdinal != null) {
-      try {
-        const game = getGame(lap.gameId);
-        if (game.nativeSectors && game.getNativeSectorLayout) {
-          const timeline = computeNativeSectorTimeline(
-            lap.telemetry,
-            lap.lapTime,
-            game.getNativeSectorLayout,
-          );
-          if (timeline) {
-            sectors = {
-              times: timeline.times,
-              sectorStarts: timeline.sectorStarts,
-            };
-          }
-        } else if (track.sectors.s1End && track.sectors.s2End) {
-          const times = await computeLapSectors(
-            lap.trackOrdinal,
-            lap.gameId as GameId,
-            lap.telemetry,
-            lap.lapTime,
-          );
-          if (times) {
-            sectors = {
-              times,
-              sectorStarts: [
-                0,
-                track.sectors.s1End,
-                track.sectors.s2End,
-              ],
-            };
-          }
-        }
-      } catch {
-        /* sector times are optional context */
-      }
-    }
-
-    let prompt = buildAnalystPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, segments, undefined, settings.language, sectors);
-    if (lap.gameId === "f1-2025") {
-      prompt += buildF1SetupReferenceBlock(lap.carSetup, lap.telemetry, lap.trackOrdinal ?? -1);
-    }
-
-    let ai: ResolvedAi;
-    try {
-      ai = await resolveAi("analysis", settings);
-    } catch (err) {
-      return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
-    }
-
-    // Analyse returns a heartbeat-style NDJSON stream: `ping` every ~200s
-    // to keep Bun's 255s idleTimeout alive for slow local models, then a
-    // single `result` (or `error`) event at the end. The client doesn't
-    const modelLabel = ai.model;
-    const startedAt = Date.now();
+    if (cacheOnly && !regenerate && !result.cached) return c.json({ analysis: null, cached: false, cornerFracs: result.cornerFracs, hasTune: result.hasTune });
     const encoder = new TextEncoder();
-    const writeEvent = (c: ReadableStreamDefaultController, obj: unknown) => {
-      try {
-        c.enqueue(encoder.encode(JSON.stringify(obj) + "\n"));
-      } catch {
-        /* closed */
-      }
-    };
-
     const readable = new ReadableStream({
-      async start(controller) {
-        const keepAlive = setInterval(() => {
-          writeEvent(controller, { type: "ping" });
-        }, 200_000);
-        try {
-          const result = await runAiStructured(ai, {
-            prompt,
-            schema: getAnalystJsonSchema(),
-            schemaName: "analyst_output",
-            maxOutputTokens: 8192,
-            temperature: 0,
-          }, async (analysisContext) =>
-            lapAnalystAgent.generate(prompt, {
-              maxSteps: 5,
-              modelSettings: { maxOutputTokens: 8192, temperature: 0 },
-              requestContext: analysisContext,
-              providerOptions: {
-                openai: {
-                  reasoningEffort: "medium",
-                  responseFormat: {
-                    type: "json_schema",
-                    jsonSchema: {
-                      name: "analyst_output",
-                      strict: true,
-                      schema: getAnalystJsonSchema() as Record<string, never>,
-                    },
-                  } as never,
-                },
-                google: buildGoogleProviderOptions(
-                  ai.model,
-                  getAnalystJsonSchema() as Record<string, unknown>,
-                  settings.aiThinkingBudget,
-                ) as never,
-              },
-            }));
-          const rawText = result.analysis;
-          let text = rawText;
-          const durationMs = Date.now() - startedAt;
-          let validJson = false;
-          try {
-            text = extractJson(rawText);
-            validJson = true;
-          } catch (parseErr) {
-            const msg = parseErr instanceof Error ? parseErr.message : String(parseErr);
-            console.warn(`[analyse] model output is not valid JSON (${msg}) — skipping cache write`);
-          }
-          const rawUsage = (result.usage ?? {}) as Record<string, unknown>;
-          const n = (k: string) => (typeof rawUsage[k] === "number" ? (rawUsage[k] as number) : 0);
-          const usage = {
-            inputTokens: n("inputTokens") || n("promptTokens"),
-            outputTokens: n("outputTokens") || n("completionTokens"),
-            costUsd: 0,
-            durationMs,
-            model: modelLabel,
-          };
-          if (!validJson) {
-            writeEvent(controller, {
-              type: "error",
-              message: "Model produced invalid JSON. Not cached. Try again or switch model.",
-            });
-          } else {
-            await saveAnalysis(id, text, usage);
-            writeEvent(controller, {
-              type: "result",
-              analysis: text,
-              cached: false,
-              usage,
-              cornerFracs,
-              hasTune,
-            });
-          }
-        } catch (err: unknown) {
-          const aiError = toClientAiError(err);
-          console.error("[AI] Analysis failed:", aiError.message);
-          writeEvent(controller, { type: "error", ...aiError });
-        } finally {
-          clearInterval(keepAlive);
-          try {
-            controller.close();
-          } catch {
-            /* already closed */
-          }
-        }
+      start(controller) {
+        controller.enqueue(encoder.encode(JSON.stringify({ type: "result", ...result }) + "\n"));
+        controller.close();
       },
     });
-
-    return new Response(readable, {
-      headers: {
-        "Content-Type": "application/x-ndjson; charset=utf-8",
-        "Cache-Control": "no-cache",
-        "Transfer-Encoding": "chunked",
-      },
-    });
+    return new Response(readable, { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-cache", "Transfer-Encoding": "chunked" } });
   })
 
   // ── Chat: get messages ───────────────────────────────────────
@@ -872,10 +420,9 @@ export const lapRoutes = new Hono()
         .filter((m) => m.role === "user" || m.role === "assistant");
 
       return c.json({ messages: uiMessages });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error("[Chat] Failed to load messages:", message);
-      return c.json({ error: message }, 500);
+    } catch (err: any) {
+      console.error("[Chat] Failed to load messages:", err.message);
+      return c.json({ messages: [] });
     }
   })
 
@@ -914,49 +461,63 @@ export const lapRoutes = new Hono()
       }
     }
 
-    // Load cached analysis for context
-    const cached = await getAnalysis(id);
-    const analysisJson = cached?.analysis;
+    // Cached analysis is retrieved explicitly by the agent via get_lap_analysis.
+    const systemPrompt = buildChatSystemPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, settings.language);
 
-    // Build chat prompt
-    const systemPrompt = buildChatSystemPrompt(lap, lap.telemetry, corners, settings.unit, settings.temperatureUnit, parsedTune, analysisJson, settings.language);
-
-    let ai: ResolvedAi;
-    try {
-      ai = await resolveAi("chat", settings);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      return c.json({ error: message }, 400);
+    // Provider/key/model plumbing — inlined from the old startChatStream
+    // helper (removed, was the NDJSON transport's shared provider setup)
+    // since this route now speaks the AI SDK v5 UI-message-stream
+    // protocol instead).
+    const chatProvider = settings.chatProvider;
+    if (!chatProvider) {
+      return c.json({ error: "No AI provider selected. Choose one in Settings → AI Chat." }, 400);
     }
-    const chatModelLabel = ai.model;
+    if (chatProvider === "gemini") {
+      const key = await getSecret("gemini-api-key");
+      if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
+      process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
+      delete process.env.OPENAI_BASE_URL;
+    } else if (chatProvider === "openai") {
+      const key = await getSecret("openai-api-key");
+      if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Chat." }, 400);
+      process.env.OPENAI_API_KEY = key;
+      delete process.env.OPENAI_BASE_URL;
+    } else if (chatProvider === "local") {
+      process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
+      process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
+    }
+
+    const chatModelLabel = settings.chatModel
+      || (chatProvider === "openai"
+        ? "gpt-4o-mini"
+        : chatProvider === "local"
+          ? "local-model"
+          : "gemini-flash-latest");
+
     const threadId = await resolveActiveThread(chatThreadId(id));
     const turnStartedAt = Date.now();
     try {
-      return await runAiChat(ai, { systemPrompt, messages }, async (chatContext) => {
-        const stream = await lapChatAgent.stream(
-          [{ role: "system", content: systemPrompt }, ...messages],
-          {
-            memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-            requestContext: chatContext,
-            providerOptions: {
-              openai: { reasoningEffort: "medium" },
-              google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
-            },
+      const stream = await lapChatAgent.stream(
+        [{ role: "system", content: systemPrompt }, ...messages],
+        {
+          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+          providerOptions: {
+            openai: { reasoningEffort: "medium" },
+            google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
           },
-        );
+        },
+      );
 
-        return streamAgentTurnResponse({
-          agentStream: stream,
-          originalMessages: messages,
-          memory: getChatMemory(),
-          threadId,
-          turnStartedAt,
-        });
+      return streamAgentTurnResponse({
+        agentStream: stream,
+        originalMessages: messages,
+        memory: getChatMemory(),
+        threadId,
+        turnStartedAt,
       });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error("[Chat] Stream failed:", message);
-      return c.json({ error: message }, 500);
+    } catch (err: any) {
+      console.error("[Chat] Stream failed:", err.message);
+      return c.json({ error: err.message }, 500);
     }
   })
 
@@ -1027,14 +588,56 @@ export const lapRoutes = new Hono()
 
     // Recompute sector times
     const packets = lap.telemetry;
-    let sectors: number[] | null = null;
-    if (packets.length >= 50 && lap.gameId && lap.trackOrdinal != null) {
-      sectors = await computeLapSectors(
-        lap.trackOrdinal,
-        lap.gameId as GameId,
-        packets,
-        lap.lapTime,
-      );
+    let sectors: { s1: number; s2: number; s3: number } | null = null;
+    if (packets.length >= 50) {
+      const startDist = packets[0].DistanceTraveled;
+      const lapDist = packets[packets.length - 1].DistanceTraveled - startDist;
+      if (lapDist >= 100) {
+        const gameId = lap.gameId as GameId | undefined;
+        let s1 = 0,
+          s2 = 0;
+
+        if (USE_NATIVE_ACC_SECTORS && gameId === "acc") {
+          // Replay native sector transitions from stored packets (mirrors live tracker)
+          let prevIdx = packets[0].acc?.currentSectorIndex ?? 0;
+          for (const p of packets) {
+            if (!p.acc) continue;
+            const idx = p.acc.currentSectorIndex;
+            const t = p.acc.lastSectorTime / 1000;
+            if (idx !== prevIdx && t > 0) {
+              if (prevIdx === 0) s1 = t;
+              else if (prevIdx === 1) s2 = t;
+              prevIdx = idx;
+            }
+          }
+        }
+
+        if (s1 === 0 || s2 === 0) {
+          const _gameId = c.req.header("x-game-id") as GameId | undefined;
+          const { s1End, s2End } = resolveTrack(_gameId, lap.trackOrdinal).sectors;
+
+          let sector = 0,
+            sectorStart = packets[0].CurrentLap;
+          s1 = 0;
+          s2 = 0;
+          for (const p of packets) {
+            const frac = (p.DistanceTraveled - startDist) / lapDist;
+            const expected = frac < s1End ? 0 : frac < s2End ? 1 : 2;
+            if (expected > sector) {
+              const t = p.CurrentLap - sectorStart;
+              if (sector === 0) s1 = t;
+              else if (sector === 1) s2 = t;
+              sectorStart = p.CurrentLap;
+              sector = expected;
+            }
+          }
+        }
+
+        if (s1 > 0 && s2 > 0) {
+          const s3 = lap.lapTime - s1 - s2;
+          if (s3 > 0) sectors = { s1, s2, s3 };
+        }
+      }
     }
 
     await updateLapValidity(id, quality.valid, quality.valid ? null : quality.reason, sectors);
@@ -1203,54 +806,88 @@ export const lapRoutes = new Hono()
         buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
     );
 
-    let analysisAi: ResolvedAi;
-    try {
-      analysisAi = await resolveAi("analysis", settings);
-    } catch (err) {
-      return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
+    // Set provider env vars before calling Mastra (the dynamic model resolver
+    // reads settings at request time but env-based API keys must be in scope).
+    if (!settings.aiProvider) {
+      return c.json({ error: "No AI provider selected. Choose one in Settings → AI Analysis." }, 400);
+    }
+    if (settings.aiProvider === "openai") {
+      const key = await getSecret("openai-api-key");
+      if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Analysis." }, 400);
+      process.env.OPENAI_API_KEY = key;
+    } else if (settings.aiProvider === "local") {
+      process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
+      process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
+    } else {
+      const key = await getSecret("gemini-api-key");
+      if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Analysis." }, 400);
+      process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
     }
 
     try {
       const start = performance.now();
-      const result = await runAiStructured(analysisAi, {
-        system: compareEngineerPersona(settings.unit, settings.temperatureUnit, settings.language, { json: true }),
-        prompt,
-        schema: InputsCompareSchema,
-        schemaName: "inputs_compare",
-        maxOutputTokens: 8192,
-        temperature: 0,
-      }, async (requestContext) =>
-        compareEngineerAgent.generate(prompt, {
-          requestContext,
-          modelSettings: { maxOutputTokens: 8192, temperature: 0 },
-        }));
+      const result = await compareEngineerAgent.generate(prompt, {
+        maxSteps: 5,
+        structuredOutput: {
+          schema: InputsCompareSchema,
+          // LM Studio only accepts `response_format: json_schema` (it rejects
+          // `json_object`), and for reasoning models such as qwen3.5 it emits the
+          // schema-constrained JSON into `reasoning_content` while leaving
+          // `content` empty — so no object is ever parsed and this route throws.
+          // Prompt injection keeps the answer on the plain-text channel, which
+          // those models fill normally. Hosted providers parse native structured
+          // output fine, so only the local path opts in.
+          ...(settings.aiProvider === "local" ? { jsonPromptInjection: true } : {}),
+        },
+        // Every other AI route already caps output and disables reasoning on
+        // local models (analyse, lap chat, compare chat). This one did not, so
+        // a thinking model such as qwen3.5 could reason unboundedly and push the
+        // request past Bun.serve's 255s idleTimeout — surfacing to the client as
+        // a bare "socket hang up" from the Vite proxy.
+        modelSettings: { maxOutputTokens: 8192, temperature: 0 },
+        providerOptions: {
+          openai: { reasoningEffort: "medium" },
+          google: buildGoogleThinkingProviderOptions(
+            settings.aiModel || "gemini-flash-latest",
+            settings.aiThinkingBudget,
+          ) as never,
+        },
+      });
       const durationMs = Math.round(performance.now() - start);
-      const object = InputsCompareSchema.parse(JSON.parse(extractJson(result.analysis)));
+
+      const object = (result as any).object;
+      if (!object) {
+        throw new Error(
+          settings.aiProvider === "local"
+            ? `Model "${settings.aiModel}" returned no output matching the expected structure. Some local models do not reliably emit structured JSON — try another model in Settings → AI Analysis.`
+            : "Compare engineer returned no structured object",
+        );
+      }
 
       // Merge server-authoritative segment types into the model response so
       // named corners never appear as "straight". Match by name first; fall
       // back to positional order (both lists are emitted in the same order).
       if (Array.isArray(object.segments) && segments) {
         const byName = new Map(segments.map((s) => [s.name, s.type]));
-        object.segments = object.segments.map((seg, i) => ({
+        object.segments = object.segments.map((seg: any, i: number) => ({
           ...seg,
           type: byName.get(seg.name) ?? segments[i]?.type ?? "straight",
         }));
       }
       const analysisJson = JSON.stringify(object);
+      const totalUsage = (result as any).totalUsage ?? (result as any).usage ?? {};
       const usage = {
-        inputTokens: result.usage.inputTokens,
-        outputTokens: result.usage.outputTokens,
-        costUsd: result.usage.costUsd,
+        inputTokens: totalUsage.inputTokens ?? totalUsage.promptTokens ?? 0,
+        outputTokens: totalUsage.outputTokens ?? totalUsage.completionTokens ?? 0,
+        costUsd: 0,
         durationMs,
-        model: analysisAi.model,
+        model: settings.aiModel || settings.aiProvider,
       };
       await saveCompareAnalysis(id1, id2, analysisJson, usage, "inputs");
       return c.json({ analysis: analysisJson, cached: false, usage });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error("[InputsCompare] Failed:", message);
-      return c.json({ error: message }, message.includes("timed out") ? 504 : 500);
+    } catch (err: any) {
+      console.error("[InputsCompare] Failed:", err.message);
+      return c.json({ error: err.message }, err.message.includes("timed out") ? 504 : 500);
     }
   })
 
@@ -1287,10 +924,9 @@ export const lapRoutes = new Hono()
         .filter((m) => m.role === "user" || m.role === "assistant");
 
       return c.json({ messages: uiMessages });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error("[CompareChat] Failed to load messages:", message);
-      return c.json({ error: message }, 500);
+    } catch (err: any) {
+      console.error("[CompareChat] Failed to load messages:", err.message);
+      return c.json({ messages: [] });
     }
   })
 
@@ -1306,14 +942,8 @@ export const lapRoutes = new Hono()
     if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
     if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0) return c.json({ error: "One or both laps have no telemetry data" }, 400);
 
-    const cachedA = await getAnalysis(id1);
-    const cachedB = await getAnalysis(id2);
-    if (!cachedA || !cachedB) {
-      return c.json({ error: "Both laps must be analysed before chatting. Run analysis on each lap first." }, 400);
-    }
-
     const trackOrdinal = lapA.trackOrdinal ?? 0;
-    let corners: Awaited<ReturnType<typeof getCorners>> = [];
+    let corners: Corner[] = [];
     try {
       corners = lapA.gameId ? await getCorners(trackOrdinal, lapA.gameId) : [];
     } catch {
@@ -1343,8 +973,6 @@ export const lapRoutes = new Hono()
         gameId: lapB.gameId as GameId | undefined,
       },
       comparison,
-      cachedA.analysis,
-      cachedB.analysis,
       settings.unit,
       settings.temperatureUnit,
       settings.language,
@@ -1352,42 +980,56 @@ export const lapRoutes = new Hono()
         buildCompareInsightsBlock("Lap B", lapB.telemetry, lapB.gameId as GameId | undefined),
     );
 
-    let ai: ResolvedAi;
-    try {
-      ai = await resolveAi("chat", settings);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      return c.json({ error: message }, 400);
+    const chatProvider = settings.chatProvider;
+    if (!chatProvider) {
+      return c.json({ error: "No AI provider selected. Choose one in Settings → AI Chat." }, 400);
     }
-    const chatModelLabel = ai.model;
+    if (chatProvider === "gemini") {
+      const key = await getSecret("gemini-api-key");
+      if (!key) return c.json({ error: "Gemini API key not set. Add it in Settings → AI Chat." }, 400);
+      process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
+      delete process.env.OPENAI_BASE_URL;
+    } else if (chatProvider === "openai") {
+      const key = await getSecret("openai-api-key");
+      if (!key) return c.json({ error: "OpenAI API key not set. Add it in Settings → AI Chat." }, 400);
+      process.env.OPENAI_API_KEY = key;
+      delete process.env.OPENAI_BASE_URL;
+    } else if (chatProvider === "local") {
+      process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "local";
+      process.env.OPENAI_BASE_URL = settings.localEndpoint || "http://localhost:1234/v1";
+    }
+
+    const chatModelLabel = settings.chatModel
+      || (chatProvider === "openai"
+        ? "gpt-4o-mini"
+        : chatProvider === "local"
+          ? "local-model"
+          : "gemini-flash-latest");
+
     const threadId = await resolveActiveThread(compareChatThreadId(id1, id2));
     const turnStartedAt = Date.now();
     try {
-      return await runAiChat(ai, { systemPrompt, messages }, async (chatContext) => {
-        const stream = await compareChatAgent.stream(
-          [{ role: "system", content: systemPrompt }, ...messages],
-          {
-            memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-            requestContext: chatContext,
-            providerOptions: {
-              openai: { reasoningEffort: "medium" },
-              google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
-            },
+      const stream = await compareChatAgent.stream(
+        [{ role: "system", content: systemPrompt }, ...messages],
+        {
+          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+          providerOptions: {
+            openai: { reasoningEffort: "medium" },
+            google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
           },
-        );
+        },
+      );
 
-        return streamAgentTurnResponse({
-          agentStream: stream,
-          originalMessages: messages,
-          memory: getChatMemory(),
-          threadId,
-          turnStartedAt,
-        });
+      return streamAgentTurnResponse({
+        agentStream: stream,
+        originalMessages: messages,
+        memory: getChatMemory(),
+        threadId,
+        turnStartedAt,
       });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error("[CompareChat] Stream failed:", message);
-      return c.json({ error: message }, 500);
+    } catch (err: any) {
+      console.error("[CompareChat] Stream failed:", err.message);
+      return c.json({ error: err.message }, 500);
     }
   })
 
