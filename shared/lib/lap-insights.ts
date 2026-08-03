@@ -901,8 +901,9 @@ function detectKerbRiding(telemetry: TelemetryPacket[]): LapInsight | null {
 
 export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId): LapInsight[] {
   if (telemetry.length < 10) return [];
-  const tireTemperatureUnit =
-    getGame(gameId).telemetry.tireTemperature.packetUnit;
+  const game = getGame(gameId);
+  const tireTemperatureUnit = game.telemetry.tireTemperature.packetUnit;
+  const supportsWheelStateAnalysis = game.telemetry.analysis?.wheelRotation?.source !== "unavailable";
 
   const insights: LapInsight[] = [];
 
@@ -919,7 +920,7 @@ export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId): LapIns
 
   // Tires
   insights.push(...detectTireOverheat(telemetry, tireTemperatureUnit));
-  insights.push(...detectLockups(telemetry));
+  if (supportsWheelStateAnalysis) insights.push(...detectLockups(telemetry));
   insights.push(...detectWheelspin(telemetry));
   const wearImb = detectWearImbalance(telemetry);
   if (wearImb) insights.push(wearImb);
@@ -928,8 +929,10 @@ export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId): LapIns
   insights.push(...detectInnerOuterTempSpread(telemetry));
 
   // Driving
-  const brakeLoss = detectBrakeTractionLoss(telemetry);
-  if (brakeLoss) insights.push(brakeLoss);
+  if (supportsWheelStateAnalysis) {
+    const brakeLoss = detectBrakeTractionLoss(telemetry);
+    if (brakeLoss) insights.push(brakeLoss);
+  }
   const rev = detectRevLimiter(telemetry, ctx);
   if (rev) insights.push(rev);
   const coast = detectCoasting(telemetry, ctx);
