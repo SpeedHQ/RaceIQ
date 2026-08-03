@@ -15,4 +15,18 @@ Verification:
 - `bunx tsc --noEmit --pretty false --incremental false` was run; repository has pre-existing errors. Filtering for affected files found only existing shifted `lap-routes.ts` sector-shape error at line 643; no `generate-lap-analysis.ts` diagnostics.
 
 Concerns:
-- Focused test file was not added because repository test harness requires database/provider mocking setup not available in this worktree; implementation seam is present for follow-up tests.
+- The repository-wide TypeScript check still reports unrelated pre-existing diagnostics.
+
+
+## Fix report
+
+Review findings addressed:
+- Moved model generation back inside the NDJSON response stream, restoring 200-second heartbeat pings and terminal streamed error events.
+- Restored `resolveAi("analysis", settings)` validation and request-scoped structured generation.
+- Added focused `test/generate-lap-analysis.test.ts` covering valid cache reuse, missing laps, malformed/schema-invalid output, explicit regeneration, and failed regeneration preserving the prior cache.
+- Restored `GET /api/laps/:id` `X-Game-Id` validation, lap/game matching, and native sector handling.
+- Cached analysis is now reused only after `AnalystOutputSchema.safeParse` validation.
+
+Verification:
+- `bun test test/generate-lap-analysis.test.ts --timeout 30000` — 5 pass, 0 fail.
+- Full TypeScript check remains blocked by pre-existing repository diagnostics; affected-file output has unrelated existing `lap-routes.ts` and project errors.

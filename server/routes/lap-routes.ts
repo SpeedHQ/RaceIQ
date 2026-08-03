@@ -27,13 +27,19 @@ import { buildLapsZip, lapsZipFilename, importLapsZip } from "../zip";
 import { recordAction } from "../db/experiment-action-queries";
 import { KNOWN_GAME_IDS } from "../../shared/types";
 import { importSessionBin, detectGameIdFromBuffer } from "../import-session-bin";
+import {
+  cancelStagedIbt,
+  commitStagedIbt,
+  IbtImportError,
+  stageIbtUpload,
+} from "../import-ibt";
+import { importMotec, resolveMotecTarget } from "../motec/import";
+import { getMotecTargets, initMotecTargets } from "../motec/targets";
 import { analyzeLap } from "../../shared/lib/lap-insights";
 import { downsampleLap, encodeLapTrace, type EncodedLapTrace } from "../../shared/stint-trace";
 import { buildCompareInsightsBlock } from "../ai/insight-format";
 import { assessLapRecording } from "../lap-quality";
 
-// Toggle: set true to use native ACC lastSectorTime transitions in recheck instead of distance-fraction
-const USE_NATIVE_ACC_SECTORS = false;
 import { getTuneById as getDbTune } from "../db/tune-queries";
 import { generateExport } from "../export";
 import { compareLaps } from "../comparison";
@@ -45,7 +51,10 @@ import type { GameId } from "../../shared/types";
 import { loadSettings } from "../settings";
 import { buildAnalystPrompt } from "../ai/analyst-prompt";
 import { resolveTrack } from "../track-info";
-import { computeLapSectors } from "../compute-lap-sectors";
+import {
+  computeNativeSectorTimeline,
+  computeLapSectors,
+} from "../compute-lap-sectors";
 import { getAnalystJsonSchema } from "../ai/schemas";
 import {
   getChatMemory,
@@ -139,6 +148,10 @@ const BulkDeleteSchema = z.object({
   ids: z.array(z.number().int()),
 });
 
+const IbtImportTokenSchema = z.object({
+  token: z.string().uuid(),
+});
+
 /** Comma-separated id list in a query string → number[] (ignores junk/empties). */
 const IdListSchema = z
   .string()
@@ -222,21 +235,49 @@ export const lapRoutes = new Hono()
 
   // ── Get single lap ──────────────────────────────────────────
   .get("/api/laps/:id", zValidator("param", IdParamSchema), async (c) => {
+    const gameIdResult = GameIdSchema.safeParse(c.req.header("X-Game-Id"));
+    if (!gameIdResult.success) {
+      return c.json({ error: "Missing or invalid X-Game-Id header" }, 400);
+    }
+    const gameId = gameIdResult.data;
     const { id } = c.req.valid("param");
     const lap = await getLapById(id);
-    if (!lap) return c.json({ error: "Lap not found" }, 404);
+    if (!lap || lap.gameId !== gameId) {
+      return c.json({ error: "Lap not found" }, 404);
+    }
 
     // Compute sector times server-side
-    let sectorTimes: { times: [number, number, number]; s1Idx: number; s2Idx: number; firstDist: number; lapDist: number } | null = null;
+    let sectorTimes: {
+      times: number[];
+      sectorCount: number;
+      boundaryIndices: number[];
+      sectorStarts: number[];
+      firstDist: number;
+      lapDist: number;
+    } | null = null;
     const packets = lap.telemetry;
     if (packets.length >= 10 && lap.trackOrdinal != null) {
-      const gameId = c.req.header("x-game-id") as GameId | undefined;
-      const sectors = resolveTrack(gameId, lap.trackOrdinal).sectors;
-      if (sectors?.s1End && sectors?.s2End) {
-        const firstDist = packets[0].DistanceTraveled;
-        const lastDist = packets[packets.length - 1].DistanceTraveled;
-        const lapDist = lastDist - firstDist;
-        if (lapDist > 0) {
+      const game = getGame(gameId);
+      const firstDist = packets[0].DistanceTraveled;
+      const lastDist = packets[packets.length - 1].DistanceTraveled;
+      const lapDist = lastDist - firstDist;
+
+      if (game.nativeSectors && game.getNativeSectorLayout) {
+        const nativeTimeline = computeNativeSectorTimeline(
+          packets,
+          lap.lapTime,
+          game.getNativeSectorLayout,
+        );
+        if (nativeTimeline && lapDist > 0) {
+          sectorTimes = {
+            ...nativeTimeline,
+            firstDist,
+            lapDist,
+          };
+        }
+      } else {
+        const sectors = resolveTrack(gameId, lap.trackOrdinal).sectors;
+        if (sectors?.s1End && sectors?.s2End && lapDist > 0) {
           // Determine the best time source: CurrentLap if it progresses, else TimestampMS
           const lapProgression = packets[packets.length - 1].CurrentLap - packets[0].CurrentLap;
           const useTimestamp = lapProgression < 1; // CurrentLap unreliable (e.g. ACC with invalid iCurrentTime)
@@ -257,18 +298,26 @@ export const lapRoutes = new Hono()
               s2Time = getTime(i) - (s1Idx >= 0 ? getTime(s1Idx) : 0);
             }
           }
+
           const totalLapTime =
             lap.lapTime || (useTimestamp ? (packets[packets.length - 1].TimestampMS - packets[0].TimestampMS) / 1000 : packets[packets.length - 1].CurrentLap - packets[0].CurrentLap);
           let s3Time = totalLapTime - s1Time - s2Time;
           if (s3Time < 0) s3Time = 0;
-          sectorTimes = { times: [s1Time, s2Time, s3Time], s1Idx, s2Idx, firstDist, lapDist };
+          sectorTimes = {
+            times: [s1Time, s2Time, s3Time],
+            sectorCount: 3,
+            boundaryIndices: [s1Idx, s2Idx],
+            sectorStarts: [0, sectors.s1End, sectors.s2End],
+            firstDist,
+            lapDist,
+          };
         }
       }
     }
 
     // Precomputed lap insights — server-side so the client gets them in the
     // initial fetch instead of re-deriving on every render
-    const insights = lap.gameId ? analyzeLap(packets, lap.gameId) : [];
+    const insights = analyzeLap(packets, gameId);
 
     return c.json({ ...lap, sectorTimes, insights });
   })
@@ -378,24 +427,161 @@ export const lapRoutes = new Hono()
     }
   })
 
+  // ── Games a MoTeC log can be imported for ───────────────────
+  .get("/api/motec/targets", (c) => {
+    initMotecTargets();
+    return c.json(
+      getMotecTargets().map((t) => ({
+        gameId: t.gameId,
+        displayName: t.displayName,
+        routePrefix: t.routePrefix,
+        carsEndpoint: t.carsEndpoint,
+        limitations: t.limitations,
+      })),
+    );
+  })
+
+  // ── Import a MoTeC i2 log (.ld, optionally with its .ldx) ───
+  .post("/api/laps/import-motec", async (c) => {
+    const form = await c.req.formData().catch(() => null);
+    const file = form?.get("file");
+    if (!(file instanceof File)) return c.json({ error: "Missing 'file' in multipart body" }, 400);
+    if (!file.name.toLowerCase().endsWith(".ld")) return c.json({ error: "Expected a MoTeC .ld file" }, 400);
+
+    const sidecar = form?.get("ldx");
+    const ldxText = sidecar instanceof File ? await sidecar.text() : undefined;
+    const num = (key: string): number | undefined => {
+      const raw = form?.get(key);
+      if (typeof raw !== "string" || raw.trim() === "") return undefined;
+      const parsed = Number(raw);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
+    const carOrdinal = num("carOrdinal");
+    const trackOrdinal = num("trackOrdinal");
+    if (carOrdinal === undefined || trackOrdinal === undefined) {
+      return c.json({ error: "carOrdinal and trackOrdinal are required" }, 400);
+    }
+
+    const gameIdRaw = form?.get("gameId");
+    let target;
+    try {
+      target = resolveMotecTarget(typeof gameIdRaw === "string" && gameIdRaw ? gameIdRaw : undefined);
+    } catch (err: unknown) {
+      return c.json({ error: err instanceof Error ? err.message : String(err) }, 400);
+    }
+
+    const tuneId = num("tuneId");
+    if (tuneId !== undefined && !(await getDbTune(tuneId))) {
+      return c.json({ error: `No setup with id ${tuneId}` }, 400);
+    }
+
+    try {
+      const result = await importMotec(Buffer.from(await file.arrayBuffer()), ldxText, {
+        gameId: target.gameId,
+        carOrdinal,
+        trackOrdinal,
+        tuneId,
+      });
+      if (result.laps.length === 0) {
+        return c.json({ error: "No laps could be detected in this log", meta: result.meta, limitations: result.limitations }, 400);
+      }
+      return c.json({ ...result, ok: true, gameId: target.gameId, routePrefix: target.routePrefix, imported: result.laps.length });
+    } catch (err: unknown) {
+      console.error("[MoTeC Import] Failed:", err instanceof Error ? err.message : String(err));
+      return c.json({ error: "Failed to import MoTeC log", details: err instanceof Error ? err.message : String(err) }, 500);
+    }
+  })
+
+  // ── Import an iRacing disk telemetry capture (.ibt) ─────────
+  .post("/api/laps/import-ibt/preview", async (c) => {
+    const uploadName = c.req.header("x-file-name") ?? "session.ibt";
+    if (!uploadName.toLowerCase().endsWith(".ibt")) return c.json({ error: "Expected an .ibt file" }, 400);
+    const declaredHeader = c.req.header("x-file-size") ?? c.req.header("content-length");
+    const declaredBytes = declaredHeader ? Number(declaredHeader) : undefined;
+    try {
+      return c.json(await stageIbtUpload(c.req.raw.body, uploadName, declaredBytes));
+    } catch (error) {
+      const status = error instanceof IbtImportError ? error.status : 400;
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("[IBT Import] Preview failed:", message);
+      return c.json({ error: `Failed to preview IBT: ${message}` }, status);
+    }
+  })
+  .post("/api/laps/import-ibt/commit", zValidator("json", IbtImportTokenSchema), async (c) => {
+    const { token } = c.req.valid("json");
+    try {
+      const { packetCount, laps, preview } = await commitStagedIbt(token);
+      return c.json({ ok: true, gameId: "iracing" as const, routePrefix: getGame("iracing").routePrefix, packetCount, imported: laps.length, laps, preview });
+    } catch (error) {
+      const status = error instanceof IbtImportError ? error.status : 500;
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("[IBT Import] Commit failed:", message);
+      return c.json({ error: `Failed to import IBT: ${message}` }, status);
+    }
+  })
+  .post("/api/laps/import-ibt/cancel", zValidator("json", IbtImportTokenSchema), (c) => {
+    cancelStagedIbt(c.req.valid("json").token);
+    return c.json({ ok: true });
+  })
+
+
   // ── AI analysis ─────────────────────────────────────────────
-.post("/api/laps/:id/analyse", zValidator("param", IdParamSchema), zValidator("query", AnalyseQuerySchema), async (c) => {
+  .post("/api/laps/:id/analyse", zValidator("param", IdParamSchema), zValidator("query", AnalyseQuerySchema), async (c) => {
     const { id } = c.req.valid("param");
     const { regenerate, cacheOnly } = c.req.valid("query");
-    const result = await generateLapAnalysis(id, { regenerate, cacheOnly });
-    if (result.error) {
-      const status = result.error === "Lap not found" ? 404 : result.error === "No telemetry data" ? 400 : 400;
-      return c.json({ error: result.error }, status);
+
+    // Probe cache synchronously so cached and cacheOnly responses retain their
+    // existing JSON contract. Generation itself starts only inside the stream.
+    if (!regenerate) {
+      const cachedResult = await generateLapAnalysis(id, { cacheOnly: true });
+      if (cachedResult.error) {
+        const status = cachedResult.error === "Lap not found" ? 404 : cachedResult.error === "No telemetry data" ? 400 : 400;
+        return c.json({ error: cachedResult.error }, status);
+      }
+      if (cachedResult.cached) {
+        return c.json(cachedResult);
+      }
+      if (cacheOnly) {
+        return c.json(cachedResult);
+      }
     }
-    if (cacheOnly && !regenerate && !result.cached) return c.json({ analysis: null, cached: false, cornerFracs: result.cornerFracs, hasTune: result.hasTune });
+
     const encoder = new TextEncoder();
     const readable = new ReadableStream({
-      start(controller) {
-        controller.enqueue(encoder.encode(JSON.stringify({ type: "result", ...result }) + "\n"));
-        controller.close();
+      async start(controller) {
+        const writeEvent = (event: unknown) => {
+          try {
+            controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+          } catch {
+            // Client disconnected.
+          }
+        };
+        const keepAlive = setInterval(() => writeEvent({ type: "ping" }), 200_000);
+        try {
+          const result = await generateLapAnalysis(id, { regenerate });
+          if (result.error) writeEvent({ type: "error", message: result.error });
+          else writeEvent({ type: "result", ...result });
+        } catch (err) {
+          const aiError = toClientAiError(err);
+          console.error("[AI] Analysis failed:", aiError.message);
+          writeEvent({ type: "error", ...aiError });
+        } finally {
+          clearInterval(keepAlive);
+          try {
+            controller.close();
+          } catch {
+            // Stream already closed.
+          }
+        }
       },
     });
-    return new Response(readable, { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-cache", "Transfer-Encoding": "chunked" } });
+    return new Response(readable, {
+      headers: {
+        "Content-Type": "application/x-ndjson; charset=utf-8",
+        "Cache-Control": "no-cache",
+        "Transfer-Encoding": "chunked",
+      },
+    });
   })
 
   // ── Chat: get messages ───────────────────────────────────────
@@ -588,56 +774,14 @@ export const lapRoutes = new Hono()
 
     // Recompute sector times
     const packets = lap.telemetry;
-    let sectors: { s1: number; s2: number; s3: number } | null = null;
-    if (packets.length >= 50) {
-      const startDist = packets[0].DistanceTraveled;
-      const lapDist = packets[packets.length - 1].DistanceTraveled - startDist;
-      if (lapDist >= 100) {
-        const gameId = lap.gameId as GameId | undefined;
-        let s1 = 0,
-          s2 = 0;
-
-        if (USE_NATIVE_ACC_SECTORS && gameId === "acc") {
-          // Replay native sector transitions from stored packets (mirrors live tracker)
-          let prevIdx = packets[0].acc?.currentSectorIndex ?? 0;
-          for (const p of packets) {
-            if (!p.acc) continue;
-            const idx = p.acc.currentSectorIndex;
-            const t = p.acc.lastSectorTime / 1000;
-            if (idx !== prevIdx && t > 0) {
-              if (prevIdx === 0) s1 = t;
-              else if (prevIdx === 1) s2 = t;
-              prevIdx = idx;
-            }
-          }
-        }
-
-        if (s1 === 0 || s2 === 0) {
-          const _gameId = c.req.header("x-game-id") as GameId | undefined;
-          const { s1End, s2End } = resolveTrack(_gameId, lap.trackOrdinal).sectors;
-
-          let sector = 0,
-            sectorStart = packets[0].CurrentLap;
-          s1 = 0;
-          s2 = 0;
-          for (const p of packets) {
-            const frac = (p.DistanceTraveled - startDist) / lapDist;
-            const expected = frac < s1End ? 0 : frac < s2End ? 1 : 2;
-            if (expected > sector) {
-              const t = p.CurrentLap - sectorStart;
-              if (sector === 0) s1 = t;
-              else if (sector === 1) s2 = t;
-              sectorStart = p.CurrentLap;
-              sector = expected;
-            }
-          }
-        }
-
-        if (s1 > 0 && s2 > 0) {
-          const s3 = lap.lapTime - s1 - s2;
-          if (s3 > 0) sectors = { s1, s2, s3 };
-        }
-      }
+    let sectors: number[] | null = null;
+    if (packets.length >= 50 && lap.gameId && lap.trackOrdinal != null) {
+      sectors = await computeLapSectors(
+        lap.trackOrdinal,
+        lap.gameId as GameId,
+        packets,
+        lap.lapTime,
+      );
     }
 
     await updateLapValidity(id, quality.valid, quality.valid ? null : quality.reason, sectors);
