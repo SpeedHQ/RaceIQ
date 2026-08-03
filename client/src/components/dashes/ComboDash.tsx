@@ -1,4 +1,5 @@
-import type { LivePitData, LiveSectorData, TelemetryPacket } from "@shared/types";
+import type { LivePitData, LiveSectorData } from "../../../../shared/live/types";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import type { DisplayPacket } from "../../lib/convert-packet";
 import { SectorTimes } from "../SectorTimes";
 import { LapTimes } from "../telemetry/LapTimes";
@@ -81,16 +82,12 @@ export function ComboDash({ rawPacket, packet, sectors, pit, unitSystem, tireHea
         <div className="grid grid-cols-3 gap-3 min-h-0">
           <div className="min-w-0 min-h-0">
             <Tile label="GEAR">
-              <div className="text-app-instrument-primary font-black leading-none">
-                {gearLabel(gear)}
-              </div>
+              <div className="text-app-instrument-primary font-black leading-none">{gearLabel(gear)}</div>
             </Tile>
           </div>
           <div className="min-w-0 min-h-0">
             <Tile label={unit.toUpperCase()}>
-              <div className="text-app-instrument-secondary font-black leading-none">
-                {Math.round(speed)}
-              </div>
+              <div className="text-app-instrument-secondary font-black leading-none">{Math.round(speed)}</div>
             </Tile>
           </div>
           <div className="min-w-0 min-h-0">

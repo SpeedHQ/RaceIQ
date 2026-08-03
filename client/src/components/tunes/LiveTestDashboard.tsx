@@ -1,5 +1,5 @@
-import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { type ExperimentGameId, useTrackBoundaries, useTrackOutline } from "../../hooks/queries";
 import { useTelemetryStore } from "../../stores/telemetry";
 import type { Point } from "../analyse/AnalyseTrackMap";

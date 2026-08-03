@@ -2,7 +2,7 @@ import { cacheDelete } from "./telemetry-replay-storage";
 import { eq, and, notInArray } from "drizzle-orm";
 import { db } from "./index";
 import { laps } from "./schema";
-import type { TelemetryVersionIdentity } from "../../shared/types";
+import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 
 export async function getLapsForSession(sessionId: number): Promise<Array<{
   id: number; lapNumber: number; lapTime: number; isValid: boolean;

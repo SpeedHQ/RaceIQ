@@ -5,12 +5,12 @@ import {
   TELEMETRY_CATALOG_HASH,
   TELEMETRY_CATALOG_SCHEMA_VERSION,
   TELEMETRY_CATALOG_VERSION,
-} from "../shared/telemetry-catalog";
+} from "../shared/telemetry/catalog/data";
+import { TELEMETRY_DERIVATION_VERSION } from "../shared/telemetry/derivations/builtins";
 import {
-  TELEMETRY_DERIVATION_VERSION,
   TELEMETRY_PARSER_VERSIONS,
   TELEMETRY_RESOLVER_VERSION,
-} from "../shared/telemetry-resolver";
+} from "../shared/telemetry/resolver/versions";
 import { db } from "../server/db";
 import { laps } from "../server/db/schema";
 import { compressTelemetry } from "../server/db/telemetry-codec";
@@ -21,7 +21,8 @@ import { updateLapRawIndex } from "../server/db/lap-reprocessing-queries";
 import { initServerGameAdapters } from "../server/games/init";
 import { RealDbAdapter } from "../server/telemetry/pipeline-ports"
 import { queryLapTelemetryBySemanticId } from "../server/telemetry/replay"
-import type { TelemetryPacket, TelemetryVersionIdentity } from "../shared/types";
+import type { TelemetryPacket } from "../shared/telemetry/types";
+import type { TelemetryVersionIdentity } from "../shared/telemetry/version";
 initServerGameAdapters();
 
 

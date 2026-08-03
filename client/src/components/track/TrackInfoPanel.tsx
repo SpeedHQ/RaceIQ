@@ -1,12 +1,12 @@
-import type { ResolvedTrackGuide } from "@shared/track-guide-types";
-import type { GameId } from "@shared/types";
+import type { ResolvedTrackGuide } from "@shared/track/guide/types";
+import { segmentDisplayNames, turnNumbers } from "@shared/track/segment-label";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
 import { countryName } from "@/lib/country-names";
 import { client } from "@/lib/rpc";
-import { segmentDisplayNames, turnNumbers } from "@/lib/segment-label";
 import { m } from "@/paraglide/messages";
+import type { GameId } from "../../../../shared/games/ids";
 import type { TrackInfo as TrackInfoType, TrackSectors } from "./types";
 
 /**

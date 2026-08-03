@@ -58,7 +58,7 @@ import { detectCorners } from "../../server/lap-analysis/corners";
 import { telemetryToSymptoms } from "../../server/ai/tune-symptoms";
 import { symptomsToIssues } from "../../server/ai/tune-issues";
 import { compareLaps } from "../../server/lap-analysis/comparison";
-import type { TelemetryPacket } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 const DirectionEnum = z.enum(["increase", "decrease"]);
 const MagnitudeEnum = z.enum(["small", "medium", "large"]);

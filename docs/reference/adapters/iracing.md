@@ -22,7 +22,7 @@ The canonical raw source frame begins with `IRIQ` magic and a schema version.
 
 Schema v2 recordings contain only normalized SessionInfo identity. YAML omitted from a v2 recording cannot be recovered. Raw v3 YAML remains in source frames; RaceIQ does not attach it to every normalized packet or WebSocket update.
 
-For exhaustive SDK and SessionInfo coverage, use the generated [telemetry catalog](../../../shared/TELEMETRY_CATALOG.md) and [compatibility matrix](../../../shared/telemetry-catalog-matrix.md).
+For exhaustive SDK and SessionInfo coverage, use the generated [telemetry catalog](../../../shared/telemetry/catalog/generated/TELEMETRY_CATALOG.md) and [compatibility matrix](../../../shared/telemetry/catalog/generated/telemetry-catalog-matrix.md).
 
 ## Recorded IBT import
 

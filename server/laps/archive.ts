@@ -17,7 +17,8 @@
  */
 import { zipSync, unzipSync } from "fflate";
 import { getLapsRaw } from "../db/lap-read-queries";
-import { getCarName, getTrackName } from "../../shared/car-data";
+import { resolveCarName } from "../../shared/car/resolve-name";
+import { resolveTrackName } from "../../shared/track/resolve-name";
 import {
   detectGameIdFromBuffer,
   detectGameIdFromFilename,
@@ -33,7 +34,7 @@ import {
   sessionFrameAt,
 } from "../session-capture/framing";
 import { isIRacingSessionFrame } from "../games/iracing/source-frame";
-import type { GameId } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
 
 /** Bumped when the zip layout changes in a way older readers can't handle. */
 export const LAPS_ZIP_VERSION = 2;
@@ -234,8 +235,8 @@ export async function buildLapsZip(
         : [encodeMetaFrame(), telemetrySlice],
     );
 
-    const trackName = getTrackName(first.trackOrdinal ?? -1, gameId);
-    const carName = getCarName(first.carOrdinal ?? -1, gameId);
+    const trackName = resolveTrackName(first.trackOrdinal ?? -1, gameId);
+    const carName = resolveCarName(first.carOrdinal ?? -1, gameId);
     // Filename MUST start with `<gameId>-` so import can fall back to
     // filename-based game detection.
     const fileName = `${gameId}-${slugify(trackName) || `track${first.trackOrdinal ?? 0}`}-session${sessionId}.bin.gz`;

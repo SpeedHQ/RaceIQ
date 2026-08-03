@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { IdParamSchema } from "../../shared/schemas";
-import type { GameId } from "../../shared/types";
+import { IdParamSchema } from "../../shared/http/route-schemas";
+import type { GameId } from "../../shared/games/ids";
 import { getLapById } from "../db/lap-read-queries";
 import { getExperiment } from "../db/experiment-queries";
 import { detectCorners } from "../lap-analysis/corners";
@@ -29,7 +29,7 @@ import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY, sanitizeChatHistoryMessa
 import { reserveChatRun, buildReplayStream, finishRun } from "../ai/chat-run-registry";
 import { createUIMessageStreamResponse } from "ai";
 import { sessionAgentForFocus } from "../ai/agents";
-import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiment-focus";
+import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiments/focus";
 import { buildSetupEngineerSystemPrompt } from "../../mastra/agents/setup-engineer";
 import { RequestContext } from "@mastra/core/request-context";
 import { setupEngineerTurnWorkflow } from "../../mastra/workflows/setup-engineer-turn";

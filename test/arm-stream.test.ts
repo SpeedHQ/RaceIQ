@@ -23,7 +23,7 @@ import {
 } from "../server/experiments/comparison/stream";
 import { OUTCOME_METRICS, type PairwiseFramesOutcomeMetric } from "../server/experiments/comparison/metrics";
 import type { Corner } from "../server/lap-analysis/corners";
-import type { TelemetryPacket } from "../shared/types";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 
 // ── synthetic laps (same shape as test/compare-arms.test.ts) ────────────────
 

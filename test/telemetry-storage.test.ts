@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { compressTelemetry, decompressTelemetry } from "../server/db/telemetry-codec";
-import type { TelemetryPacket } from "../shared/types";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 
 describe("detailed telemetry storage", () => {
   test("round-trips detailed tire temperatures without turning absent fields into zero", () => {

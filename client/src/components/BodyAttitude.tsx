@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "@shared/types";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
 
 const toDeg = 180 / Math.PI;
 
@@ -28,23 +28,9 @@ export function BodyAttitude({ packet }: { packet: TelemetryPacket }) {
           <g clipPath="url(#ati-clip)">
             <g transform={`rotate(${clampRoll}, 25, 22)`}>
               {/* Sky */}
-              <rect
-                x={-10}
-                y={-30}
-                width={70}
-                height={52 + clampPitch * 1.2}
-                fill="var(--attitude-sky)"
-                fillOpacity={0.35}
-              />
+              <rect x={-10} y={-30} width={70} height={52 + clampPitch * 1.2} fill="var(--attitude-sky)" fillOpacity={0.35} />
               {/* Ground */}
-              <rect
-                x={-10}
-                y={22 + clampPitch * 1.2}
-                width={70}
-                height={60}
-                fill="var(--attitude-ground)"
-                fillOpacity={0.35}
-              />
+              <rect x={-10} y={22 + clampPitch * 1.2} width={70} height={60} fill="var(--attitude-ground)" fillOpacity={0.35} />
               {/* Horizon line */}
               <line x1={-10} y1={22 + clampPitch * 1.2} x2={60} y2={22 + clampPitch * 1.2} stroke="var(--app-text)" strokeOpacity={0.6} strokeWidth={0.5} />
               {/* Pitch ladder lines — every 2.5° */}

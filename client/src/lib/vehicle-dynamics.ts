@@ -1,12 +1,8 @@
 /**
- * Presentation helpers (colors, labels) for vehicle dynamics.
- * Pure physics lives in shared/lib/vehicle-physics.ts and is re-exported
- * here so existing client imports keep working.
+ * Presentation helpers (colors, labels) for shared vehicle dynamics.
  */
 
-export * from "../../../shared/lib/vehicle-physics";
-
-import { SLIP_ANGLE_PEAK_RAD, SLIP_RATIO_PEAK } from "../../../shared/lib/vehicle-physics";
+import { SLIP_ANGLE_PEAK_RAD, SLIP_RATIO_PEAK } from "../../../shared/lap-analysis/physics/vehicle";
 import { operatingColor, severityColor, severityRangeColor } from "./colors";
 
 // ── Semantic Color Palette ────────────────────────────────────────

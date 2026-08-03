@@ -7,7 +7,7 @@
  * deltas. This is the *evidence* the tune-intent LLM reasons over — no
  * setup knowledge lives here, only physics-derived observations.
  */
-import type { TelemetryPacket } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { Corner } from "../lap-analysis/corners";
 import { tireTempSymptoms } from "./tune-tire-symptoms";
 import { damperSymptoms } from "./tune-damper-symptoms";

@@ -57,12 +57,10 @@ import {
 } from "./structs";
 import { ACEVO_PACKED_MAGIC, packTriplet } from "../kunos/pack-triplet";
 import { encodeFrameLength, encodeMetaFrame } from "../../session-capture/framing";
-import { getAcEvoCarByModel, getAcEvoCarName } from "../../../shared/ac-evo-car-data";
-import {
-  getAcEvoTrackByName,
-  getAcEvoTrackBySetupFolder,
-  getAcEvoTracks,
-} from "../../../shared/ac-evo-track-data";
+import { getAcEvoCarByModel, getAcEvoCarName } from "../../../shared/car/ac-evo"
+import { getAcEvoTrackByName,
+getAcEvoTrackBySetupFolder,
+getAcEvoTracks, } from "../../../shared/track/catalogs/ac-evo"
 import { findChannel, type LdChannel, type LdLog } from "../../motec/ld";
 import type {
   MotecCarTrack,

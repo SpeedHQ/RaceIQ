@@ -1,5 +1,5 @@
-import { makeTrackProjection } from "@shared/track-projection";
-import type { TelemetryPacket } from "@shared/types";
+import { makeTrackProjection } from "@shared/track/projection";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 
 export interface Pt {
   x: number;

@@ -1,10 +1,11 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { GameIdSchema } from "../../shared/types";
+import { GameIdSchema } from "../../shared/games/ids";
 import { z } from "zod";
 import { getLapById } from "../db/lap-read-queries";
 import { getExperiment } from "../db/experiment-queries";
-import { getCarName, getTrackName } from "../../shared/car-data";
+import { resolveCarName } from "../../shared/car/resolve-name";
+import { resolveTrackName } from "../../shared/track/resolve-name";
 import {
   getChatMemory,
   CHAT_RESOURCE_ID,
@@ -57,8 +58,8 @@ async function loadLapSummary(id: number): Promise<LapSummary | null> {
     lapNumber: lap.lapNumber,
     lapTime: lap.lapTime,
     isValid: lap.isValid,
-    carName: getCarName(lap.carOrdinal ?? 0, lap.gameId),
-    trackName: getTrackName(lap.trackOrdinal ?? 0, lap.gameId),
+    carName: resolveCarName(lap.carOrdinal ?? 0, lap.gameId),
+    trackName: resolveTrackName(lap.trackOrdinal ?? 0, lap.gameId),
     gameId: lap.gameId ?? "",
   };
 }
@@ -117,8 +118,8 @@ export function createChatsRoutes(
             if (!Number.isFinite(sessionId)) continue;
             const session = await getExperiment(sessionId);
             if (!session || session.gameId !== gameId) continue;
-            const carName = session.carName ?? getCarName(session.carOrdinal ?? 0, session.gameId);
-            const trackName = session.trackName ?? getTrackName(session.trackOrdinal ?? 0, session.gameId);
+            const carName = session.carName ?? resolveCarName(session.carOrdinal ?? 0, session.gameId);
+            const trackName = session.trackName ?? resolveTrackName(session.trackOrdinal ?? 0, session.gameId);
             rows.push({
               threadId: id,
               type: "tune",

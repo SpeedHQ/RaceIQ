@@ -9,7 +9,7 @@ import {
 	primaryKey,
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
-import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance } from "../../shared/race-results";
+import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance } from "../../shared/race-results/types";
 
 export const profiles = sqliteTable("profiles", {
 	id: integer("id").primaryKey({ autoIncrement: true }),
@@ -382,7 +382,7 @@ export const experiments = sqliteTable(
 		//
 		// Values intentionally differ from experimentVersions.kind
 		// ('setup'|'drill') — mode and arm are different levels and must not
-		// share a vocabulary. See shared/experiment-focus.ts.
+		// share a vocabulary. See shared/experiments/focus.ts.
 		focus: text("focus").notNull().default("car"), // 'car' | 'driver'
 		notes: text("notes"),
 		createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
@@ -433,7 +433,7 @@ export const experimentFocusEvents = sqliteTable(
  * session's baseSetupPath on session create, and each Save & recommend appends
  * v(N+1) with the applied diff + the newly written setup file.
  *
- * `appliedChanges` is a JSON blob of `TestChange[]` (shared/types.ts) — a
+ * `appliedChanges` is a JSON blob of `TestChange[]` (shared/experiments/types.ts) — a
  * discriminated union on `kind`, either a setup knob edit from the autotune
  * engine or a driving drill. `parentVersionId` links a version to the one it was
  * derived from (self-referential; not a hard FK so a parent can be archived

@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import type { TelemetryPacket } from "../shared/types";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 import type { TuneSymptoms } from "../server/ai/tune-symptoms";
 import { symptomsToIssues, detectLiveIssues } from "../server/ai/tune-issues";
 

@@ -1,7 +1,7 @@
 import { getAllGames } from "@shared/games/registry";
-import type { GameId } from "@shared/types";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
+import type { GameId } from "../../../../shared/games/ids";
 import { AccLiveDashboard } from "../../components/acc/AccLiveDashboard";
 import { ForzaLiveDashboard } from "../../components/ForzaLiveDashboard";
 import { F1LiveDashboard } from "../../components/f1/F1LiveDashboard";

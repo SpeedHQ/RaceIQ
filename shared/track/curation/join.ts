@@ -1,0 +1,285 @@
+/**
+ * Joining facts to geometry, and splitting a labelled list back apart.
+ *
+ * The only module that legitimately sees both halves at once. Everything here
+ * consumes `track-facts.ts` + `track-geometry.ts` through the keys in
+ * `track-keys.ts`; nothing here is part of either model.
+ */
+import type { NamedSegment } from "../named-segments";
+import { type CornerFact, type StraightFact, type TrackFacts, cornerNumbers } from "../facts";
+import type { GeometrySegment, TrackGeometry } from "../geometry";
+import { cornerKey, parseCornerKey, parseStraightKey, straightKey } from "../keys";
+
+/**
+ * Facts + one game's geometry -> the labelled segment list consumers expect.
+ *
+ * Geometry drives which segments exist and where; facts supply every label.
+ * A geometry row whose key has no fact resolves to an unnamed segment rather
+ * than throwing — the key-agreement test is what fails on drift, so a stale
+ * geometry file degrades to unnamed instead of breaking the page.
+ */
+export function joinSegments(facts: TrackFacts, geometry: TrackGeometry): NamedSegment[] {
+  const cornerByKey = new Map(facts.corners.map((c) => [cornerKey(cornerNumbers(c)), c]));
+  const straightByAfter = new Map((facts.straights ?? []).map((s) => [s.after, s]));
+
+  return [...geometry.segments]
+    .sort((a, b) => a.startFrac - b.startFrac)
+    .map((g): NamedSegment => {
+      if (g.key.startsWith("t")) {
+        const c = cornerByKey.get(g.key);
+        const nums = c ? cornerNumbers(c) : parseCornerKey(g.key);
+        return {
+          type: "corner",
+          // Facts leave unnamed turns empty; `T3` / `T3-4` is the display
+          // convention for a turn the circuit doesn't name, synthesized here
+          // so a name never has to be stored just to be shown.
+          name: c?.name || (nums.length ? `T${nums.join("-")}` : ""),
+          ...(c?.direction ? { direction: c.direction } : {}),
+          startFrac: g.startFrac,
+          endFrac: g.endFrac,
+          ...(nums.length ? { number: nums[0] } : {}),
+          ...(nums.length > 1 ? { covers: nums.slice(1) } : {}),
+          ...(c?.group ? { group: c.group } : {}),
+        };
+      }
+      const after = parseStraightKey(g.key);
+      const s = after == null ? undefined : straightByAfter.get(after);
+      return {
+        type: "straight",
+        name: s?.name ?? "",
+        startFrac: g.startFrac,
+        endFrac: g.endFrac,
+        ...(s?.group ? { group: s.group } : {}),
+      };
+    });
+}
+
+/**
+ * `T1`, `T10-11`, `S3` are display tokens generated for turns and gaps the
+ * circuit doesn't name. They are never stored as facts — `joinSegments`
+ * synthesizes them on the way out, and this recognises them on the way back in
+ * so a round-trip through the editor doesn't promote one into a real name.
+ */
+export function isPlaceholderName(name: string): boolean {
+  const n = name.trim();
+  if (!n) return true;
+  return /^T\d*\??$/i.test(n) || /^T\d+(?:[-/]\d+)*$/i.test(n) || /^S\d*\??$/i.test(n);
+}
+
+/** The display token a label leads with: "T2-4 Eau Rouge/Raidillon" -> "T2-4 ". */
+const LEADING_TURN_TOKEN = /^T\d+(?:[-,/]\d+)*\s+/i;
+
+/**
+ * Strip the leading turn token off a corner name.
+ *
+ * `segmentDisplayName` renders a corner as "<token> <name>" — "T2-4 Eau
+ * Rouge/Raidillon" — and the numbering in that token is regenerated from
+ * `number`/`covers` on every render. Anything that hands a rendered label back
+ * as a name (a curator pasting from the map, a generator seeded from joined
+ * segments) would store the token as part of the name, and the next join would
+ * prefix a second one: "T2-4 T2-4 Eau Rouge/Raidillon". Names are stored bare;
+ * this enforces that on the way in so join -> label -> split is idempotent.
+ *
+ * "Turn Two" and other names that merely start with T are untouched — the token
+ * form requires digits immediately after the T.
+ */
+export function stripTurnToken(name: string): string {
+  return name.trim().replace(LEADING_TURN_TOKEN, "").trim();
+}
+
+/** What one game's labelled segment list decomposes into. */
+export interface SplitSegments {
+  corners: CornerFact[];
+  straights: StraightFact[];
+  geometry: GeometrySegment[];
+}
+
+/**
+ * Inverse of `joinSegments`: split an edited labelled list back into shared
+ * facts and this game's geometry.
+ *
+ * The editor hands back the joined shape, so without this the save path would
+ * write names straight into a per-game file and rebuild the duplication the
+ * split exists to remove. Straights take the number of the corner they follow,
+ * wrapping at start/finish, which is the same key rule the join reads.
+ */
+export function splitSegments(segments: NamedSegment[]): SplitSegments {
+  const ordered = [...segments].sort((a, b) => a.startFrac - b.startFrac);
+  const n = ordered.length;
+
+  // Nearest numbered corner at or before each entry, wrapping the lap once so
+  // the segments before the first corner attach to the last one.
+  const precedingTurn = new Array<number | null>(n).fill(null);
+  let last: number | null = null;
+  for (let pass = 0; pass < 2; pass++) {
+    for (let i = 0; i < n; i++) {
+      const s = ordered[i];
+      if (s.type === "corner" && s.number != null) last = s.number;
+      else if (pass === 1) precedingTurn[i] = last;
+    }
+  }
+
+  const corners: CornerFact[] = [];
+  const straights: StraightFact[] = [];
+  const geometry: GeometrySegment[] = [];
+
+  // One fact per straight key. A layout can split the gap after a turn across
+  // several geometry rows (Kemmel in two pieces, an unnamed run-off after a
+  // named one); they all key `s<after>`, so the facts file must carry a single
+  // entry for that key or the join picks an arbitrary winner. First real name
+  // wins, and a group is filled in from whichever row carries one.
+  const straightByAfter = new Map<number, StraightFact>();
+
+  ordered.forEach((s, i) => {
+    const name = stripTurnToken(s.name ?? "");
+    if (s.type === "corner" && s.number != null) {
+      const nums = [s.number, ...(s.covers ?? [])].sort((a, b) => a - b);
+      geometry.push({ key: cornerKey(nums), startFrac: s.startFrac, endFrac: s.endFrac });
+      corners.push({
+        number: nums[0],
+        ...(nums.length > 1 ? { covers: nums.slice(1) } : {}),
+        name: isPlaceholderName(name) ? "" : name,
+        ...(s.direction ? { direction: s.direction } : {}),
+        ...(s.group ? { group: s.group } : {}),
+      });
+      return;
+    }
+    const after = precedingTurn[i];
+    if (after == null) return; // no numbered corner anywhere — nothing to key against
+    geometry.push({ key: straightKey(after), startFrac: s.startFrac, endFrac: s.endFrac });
+    if (isPlaceholderName(name) && !s.group) return;
+    const real = isPlaceholderName(name) ? "" : name;
+    const existing = straightByAfter.get(after);
+    if (!existing) {
+      const fact: StraightFact = { after, name: real, ...(s.group ? { group: s.group } : {}) };
+      straightByAfter.set(after, fact);
+      straights.push(fact);
+      return;
+    }
+    if (!existing.name) existing.name = real;
+    if (!existing.group && s.group) existing.group = s.group;
+  });
+
+  return { corners, straights, geometry };
+}
+
+/** Minimum shape the editor's numbering helpers touch. */
+export interface NumberedEntry {
+  type: string;
+  number?: number;
+  covers?: number[];
+}
+
+const entryNumbers = (e: NumberedEntry): number[] => (e.number == null ? [] : [e.number, ...(e.covers ?? [])].sort((a, b) => a - b));
+
+/**
+ * Give the corner at `idx` an official turn number, because a corner without
+ * one is not a corner: `splitSegments` keys on the number, so an unnumbered
+ * entry silently saves as a straight.
+ *
+ * The number is positional — it must sit above every corner before it and
+ * below every corner after it. Takes the first free number above the preceding
+ * corner and pushes the corners after it up only far enough to stay ordered,
+ * so a curated lap with a deliberate gap (a turn this game's detector misses)
+ * keeps its existing numbers untouched.
+ */
+export function numberCorner<T extends NumberedEntry>(segments: T[], idx: number): T[] {
+  const out = segments.map((s) => ({ ...s }));
+  let floor = 0;
+  for (let i = 0; i < idx; i++) {
+    const nums = entryNumbers(out[i]);
+    if (nums.length > 0) floor = Math.max(floor, ...nums);
+  }
+  out[idx].number = floor + 1;
+  delete out[idx].covers;
+  floor += 1;
+
+  for (let i = idx + 1; i < out.length; i++) {
+    const entry = out[i];
+    if (entry.type !== "corner") continue;
+    const nums = entryNumbers(entry);
+    if (nums.length === 0) continue;
+    const shift = Math.max(0, floor + 1 - nums[0]);
+    if (shift > 0) {
+      entry.number = nums[0] + shift;
+      if (entry.covers) entry.covers = entry.covers.map((n) => n + shift);
+    }
+    floor = Math.max(...entryNumbers(entry));
+  }
+  return out;
+}
+
+/** Drop a corner's numbering. The gap it leaves is legitimate — another game
+ *  may still place that turn — so the corners after it keep their numbers. */
+export function unnumberCorner<T extends NumberedEntry>(segments: T[], idx: number): T[] {
+  const out = segments.map((s) => ({ ...s }));
+  delete out[idx].number;
+  delete out[idx].covers;
+  return out;
+}
+
+// ── Invariant check (the test gate) ──────────────────────────────────────
+
+export interface KeyMismatch {
+  gameId: string;
+  /** Keys the geometry has that the facts file doesn't define. */
+  unknown: string[];
+  /** Corner keys the facts file defines that this game's geometry never places. */
+  missing: string[];
+  /** Named straights the facts file declares that this game never places. */
+  unplacedStraights: string[];
+}
+
+/**
+ * The ongoing invariant: every game's geometry places exactly the corners the
+ * facts file declares, and every straight the facts file bothers to name. Same
+ * circuit, same turns — a difference is a detection bug or a curation gap,
+ * never something to paper over, so it is asserted as a test failure rather
+ * than recorded as data.
+ *
+ * How many rows a game uses for its straights is deliberately NOT constrained.
+ * Detectors disagree on whether a gap is one straight or two, and a short gap
+ * may not be resolved at all; neither is a claim about the circuit. Measured
+ * across the roster, straight row counts differ between games on 16 of 23
+ * multi-game layouts, so requiring them to match would encode a falsehood.
+ *
+ * A *named* straight is different. If the facts name it and a game never places
+ * it, that game's players never see the name while everyone else does, so it is
+ * reported.
+ */
+export function checkKeys(facts: TrackFacts, geometryByGame: Record<string, TrackGeometry>): KeyMismatch[] {
+  const factKeys = new Set(facts.corners.map((c) => cornerKey(cornerNumbers(c))));
+  const validTurns = new Set(facts.corners.flatMap(cornerNumbers));
+  const namedStraights = (facts.straights ?? []).filter((s) => s.name).map((s) => straightKey(s.after));
+  const out: KeyMismatch[] = [];
+
+  for (const [gameId, geom] of Object.entries(geometryByGame)) {
+    const placed = new Set<string>();
+    const placedStraights = new Set<string>();
+    const unknown: string[] = [];
+
+    for (const g of geom.segments) {
+      if (g.key.startsWith("t")) {
+        if (factKeys.has(g.key)) placed.add(g.key);
+        else unknown.push(g.key);
+      } else {
+        const after = parseStraightKey(g.key);
+        if (after == null || !validTurns.has(after)) unknown.push(g.key);
+        else placedStraights.add(g.key);
+      }
+    }
+
+    const missing = [...factKeys].filter((k) => !placed.has(k));
+    const unplacedStraights = namedStraights.filter((k) => !placedStraights.has(k));
+    if (unknown.length || missing.length || unplacedStraights.length) {
+      out.push({
+        gameId,
+        unknown: [...new Set(unknown)].sort(),
+        missing: missing.sort(),
+        unplacedStraights: unplacedStraights.sort(),
+      });
+    }
+  }
+  return out;
+}
+

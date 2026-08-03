@@ -20,7 +20,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
-import type { TrackGuideCornerFile, TrackGuideFile } from "../shared/track-guide-types";
+import type { TrackGuideCornerFile, TrackGuideFile } from "../shared/track/guide/types";
 // @ts-expect-error — __rawGuides is a temporary export that exists only while this script runs.
 import { __rawGuides } from "../server/ai/track-guides";
 

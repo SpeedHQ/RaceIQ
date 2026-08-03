@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { f1SetupFingerprint, summarizeF1Setup } from "../server/ai/f1-setup-identity";
-import type { F1CarSetup } from "../shared/types";
+import type { F1CarSetup } from "../shared/telemetry/f1-2025";
 
 function baseSetup(overrides: Partial<F1CarSetup> = {}): F1CarSetup {
   return {

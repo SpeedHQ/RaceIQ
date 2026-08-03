@@ -41,7 +41,7 @@ Important conversions in `parseAccBuffers()` include:
 - suspension travel normalized against static-page maximum travel;
 - pit flags combined into `in_pit`, `pit_lane`, or `out`.
 
-RaceIQ also maps local angular velocity, wheel load, camber, tyre middle temperature, slip ratio, slip angle, combined slip, ride height, and other extended fields. Do not copy a field list into this page: use the generated [telemetry catalog](../../../shared/TELEMETRY_CATALOG.md) and [compatibility matrix](../../../shared/telemetry-catalog-matrix.md).
+RaceIQ also maps local angular velocity, wheel load, camber, tyre middle temperature, slip ratio, slip angle, combined slip, ride height, and other extended fields. Do not copy a field list into this page: use the generated [telemetry catalog](../../../shared/telemetry/catalog/generated/TELEMETRY_CATALOG.md) and [compatibility matrix](../../../shared/telemetry/catalog/generated/telemetry-catalog-matrix.md).
 
 ## Recording and replay
 

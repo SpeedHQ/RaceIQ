@@ -1,4 +1,4 @@
-import type { F1CarSetup } from "@shared/types";
+import type { F1CarSetup } from "../../../../shared/telemetry/f1-2025";
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";
 
@@ -96,8 +96,9 @@ const getLabel: Record<string, () => string> = {
 
 export function F1SetupModal({ setup, onClose }: { setup: F1CarSetup; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60" onClick={onClose}>
-      <div className="bg-app-surface border border-app-border rounded-xl w-full max-w-md max-h-[80vh] overflow-y-auto shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60">
+      <button type="button" aria-label="Close setup details" className="absolute inset-0 cursor-default" onClick={onClose} />
+      <div className="relative bg-app-surface border border-app-border rounded-xl w-full max-w-md max-h-[80vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between px-5 py-3 border-b border-app-border">
           <h2 className="text-sm font-semibold text-app-text">{m.f1setupmodal_section_car_setup()}</h2>
           <Button variant="app-ghost" size="app-sm" onClick={onClose}>

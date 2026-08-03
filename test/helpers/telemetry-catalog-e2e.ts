@@ -1,8 +1,13 @@
 import { expect } from "bun:test";
-import { TELEMETRY_CATALOG, type TelemetryLinkKind } from "../../shared/telemetry-catalog";
-import type { ResolvedValue, TelemetryFrameView } from "../../shared/telemetry-resolver";
-import { compileTelemetryResolver, TELEMETRY_PARSER_VERSIONS, TELEMETRY_RESOLVER_VERSION } from "../../shared/telemetry-resolver";
-import type { GameId } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
+import type { TelemetryLinkKind } from "../../shared/telemetry/catalog/contracts";
+import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
+import { compileTelemetryResolver } from "../../shared/telemetry/resolver/compile";
+import type { ResolvedValue, TelemetryFrameView } from "../../shared/telemetry/resolver/contracts";
+import {
+  TELEMETRY_PARSER_VERSIONS,
+  TELEMETRY_RESOLVER_VERSION,
+} from "../../shared/telemetry/resolver/versions";
 import { parseDump } from "./parse-dump";
 
 export interface RecordedSemanticExpectation {

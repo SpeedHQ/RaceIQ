@@ -2,21 +2,30 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { parse } from "@babel/parser";
 import { resolve } from "node:path";
-import {
-  IRACING_SESSION_INFO_CATALOG_FIELDS,
-  IRACING_SESSION_INFO_RAW_SOURCE,
-} from "../shared/games/iracing/session-info-catalog";
-import { getSchemaForGame } from "../shared/setup-schema";
-import {
-  SETUP_CONCEPT_DEFINITIONS,
-  SETUP_FILE_SOURCE_MAPPINGS,
-  SETUP_GROUP_DEFINITIONS,
-  SETUP_PARSER_SOURCE_MAPPINGS,
-} from "../shared/telemetry-setup-catalog";
+import { IRACING_SESSION_INFO_CATALOG_FIELDS } from "../shared/games/iracing/session-info/catalog";
+import { IRACING_SESSION_INFO_RAW_SOURCE } from "../shared/games/iracing/session-info/contracts";
+import { getSchemaForGame } from "../shared/setups/schema";
+import { SETUP_GROUP_DEFINITIONS } from "../shared/setups/catalog/groups";
+import { SETUP_CONCEPT_DEFINITIONS } from "../shared/setups/catalog/concepts";
+import { SETUP_FILE_SOURCE_MAPPINGS } from "../shared/setups/catalog/file-source-mappings";
+import { SETUP_PARSER_SOURCE_MAPPINGS } from "../shared/setups/catalog/parser-source-mappings";
 import {
   assertIRacingSessionInfoCaptureCoverage,
   readIRacingSessionInfoCaptures,
 } from "./iracing-session-info-capture";
+
+const IRACING_SESSION_INFO_SOURCE_FILES = [
+  "shared/games/iracing/session-info/catalog.ts",
+  "shared/games/iracing/session-info/contracts.ts",
+  "shared/games/iracing/session-info/formatting.ts",
+  "shared/games/iracing/session-info/sections.ts",
+  "shared/games/iracing/session-info/setup-aero-drivetrain.ts",
+  "shared/games/iracing/session-info/setup-builders.ts",
+  "shared/games/iracing/session-info/setup-captured.ts",
+  "shared/games/iracing/session-info/setup-chassis.ts",
+  "shared/games/iracing/session-info/setup-in-car.ts",
+  "shared/games/iracing/session-info/setup-tires.ts",
+] as const;
 
 const GAME_IDS = [
   "fm-2023",
@@ -263,11 +272,32 @@ function semanticDefinition(
 }
 
 const ROOT = resolve(import.meta.dirname, "..");
-const TYPES_PATH = resolve(ROOT, "shared/types.ts");
-const OUTPUT_PATH = resolve(ROOT, "shared/telemetry-catalog.generated.json");
-const OUTPUT_TS_PATH = resolve(ROOT, "shared/telemetry-catalog.generated.ts");
-const OUTPUT_MARKDOWN_PATH = resolve(ROOT, "shared/TELEMETRY_CATALOG.md");
-const OUTPUT_MATRIX_PATH = resolve(ROOT, "shared/telemetry-catalog-matrix.md");
+const TELEMETRY_TYPE_SOURCE_FILES = [
+  "shared/telemetry/types.ts",
+  "shared/telemetry/f1-2025.ts",
+  "shared/telemetry/kunos.ts",
+  "shared/telemetry/iracing.ts",
+] as const;
+const GENERATED_OUTPUT_DIRECTORY = resolve(
+  ROOT,
+  "shared/telemetry/catalog/generated",
+);
+const OUTPUT_PATH = resolve(
+  GENERATED_OUTPUT_DIRECTORY,
+  "telemetry-catalog.generated.json",
+);
+const OUTPUT_TS_PATH = resolve(
+  GENERATED_OUTPUT_DIRECTORY,
+  "telemetry-catalog.generated.ts",
+);
+const OUTPUT_MARKDOWN_PATH = resolve(
+  GENERATED_OUTPUT_DIRECTORY,
+  "TELEMETRY_CATALOG.md",
+);
+const OUTPUT_MATRIX_PATH = resolve(
+  GENERATED_OUTPUT_DIRECTORY,
+  "telemetry-catalog-matrix.md",
+);
 const IRACING_DIAGNOSTIC = resolve(
   ROOT,
   "data/diagnostics/iracing-all-vars-2026-07-29T02-06-39-162Z.json",
@@ -5562,11 +5592,11 @@ function mappingArtifact(
   ) {
     return {
       origin: "yaml",
-      artifact: "shared/games/iracing/session-info-catalog.ts",
+      artifact: "shared/games/iracing/session-info/catalog.ts",
     };
   }
   if (sources.some((source) => source.includes(".SetupFile."))) {
-    return { origin: "schema", artifact: "shared/setup-schema.ts" };
+    return { origin: "schema", artifact: "shared/setups/schema.ts" };
   }
   if (
     sources.some((source) =>
@@ -5687,8 +5717,20 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
       ({ fileName }) =>
         `data/diagnostics/iracing-session-info/${fileName}`,
     );
-  const typesSource = await readFile(TYPES_PATH, "utf8");
+  const [
+    typesSource,
+    f1TypesSource,
+    kunosTypesSource,
+    iracingTypesSource,
+  ] = await Promise.all(
+    TELEMETRY_TYPE_SOURCE_FILES.map((path) =>
+      readFile(resolve(ROOT, path), "utf8"),
+    ),
+  );
   const typesTree = ast(typesSource);
+  const f1TypesTree = ast(f1TypesSource);
+  const kunosTypesTree = ast(kunosTypesSource);
+  const iracingTypesTree = ast(iracingTypesSource);
   const packetFields = interfaceFields(
     typesSource,
     typesTree,
@@ -5789,13 +5831,13 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
   }
 
   const f1Fields = extensionFieldSets(extensionFields(
-    interfaceLeafFields(typesSource, typesTree, "F1ExtendedData"),
+    interfaceLeafFields(f1TypesSource, f1TypesTree, "F1ExtendedData"),
     "f1",
   ));
   const accFields = extensionFieldSets(extensionFields(
     interfaceLeafFields(
-      typesSource,
-      typesTree,
+      kunosTypesSource,
+      kunosTypesTree,
       "KunosExtendedData",
       new Set(["AcEvoExtendedData"]),
     ).filter(
@@ -5804,11 +5846,19 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     "acc",
   ));
   const acEvoFields = extensionFieldSets(extensionFields(
-    interfaceLeafFields(typesSource, typesTree, "AcEvoExtendedData"),
+    interfaceLeafFields(
+      kunosTypesSource,
+      kunosTypesTree,
+      "AcEvoExtendedData",
+    ),
     "acc.acEvo",
   ));
   const iracingFields = extensionFieldSets(extensionFields(
-    interfaceLeafFields(typesSource, typesTree, "IRacingExtendedData"),
+    interfaceLeafFields(
+      iracingTypesSource,
+      iracingTypesTree,
+      "IRacingExtendedData",
+    ),
     "iracing",
   ));
 
@@ -6089,8 +6139,9 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     ...new Set([
       "scripts/generate-telemetry-catalog.ts",
       "scripts/iracing-session-info-capture.ts",
-      "shared/games/iracing/session-info-catalog.ts",
-      "shared/setup-schema.ts",
+      ...IRACING_SESSION_INFO_SOURCE_FILES,
+      ...TELEMETRY_TYPE_SOURCE_FILES,
+      "shared/setups/schema.ts",
       ...Object.values(PARSER_FILES),
     ]),
   ];
@@ -6128,10 +6179,13 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     format: CATALOG_FORMAT,
     metadata: metadataWithoutHash,
     generatedFrom: [
-      "shared/types.ts",
-      "shared/setup-schema.ts",
-      "shared/telemetry-setup-catalog.ts",
-      "shared/games/iracing/session-info-catalog.ts",
+      ...TELEMETRY_TYPE_SOURCE_FILES,
+      "shared/setups/schema.ts",
+      "shared/setups/catalog/groups.ts",
+      "shared/setups/catalog/concepts.ts",
+      "shared/setups/catalog/parser-source-mappings.ts",
+      "shared/setups/catalog/file-source-mappings.ts",
+      ...IRACING_SESSION_INFO_SOURCE_FILES,
       "scripts/iracing-session-info-capture.ts",
       ...Object.values(PARSER_FILES),
       "data/diagnostics/iracing-all-vars-2026-07-29T02-06-39-162Z.json",

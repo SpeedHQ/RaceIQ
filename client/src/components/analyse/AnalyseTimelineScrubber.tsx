@@ -1,7 +1,7 @@
-import type { TelemetryPacket } from "@shared/types";
 import { memo, type RefObject, useEffect, useMemo, useRef } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { formatLapTime } from "@/lib/format";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { Button } from "../ui/button";
 
 interface SectorTimesData {

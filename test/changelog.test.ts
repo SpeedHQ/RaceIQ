@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { parseChangelog, renderAllReleaseNotes, renderReleaseBody, renderUnreleasedBody } from "../shared/changelog";
-import { hasUnreleasedChangelogChange } from "../shared/changelog-ci";
-
+import { parseChangelog, renderAllReleaseNotes, renderReleaseBody, renderUnreleasedBody } from "../shared/release-notes/render";
+import { hasUnreleasedChangelogChange } from "../shared/release-notes/validation";
 describe("changelog parser", () => {
   test("parses releases and strips Internal from rendered notes", () => {
     const entries = parseChangelog(`

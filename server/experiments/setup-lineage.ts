@@ -1,5 +1,5 @@
 /** Active setup lineage and experiment-context resolution. */
-import type { GameId } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
 import { getLapById } from "../db/lap-read-queries";
 import { getLapsForExperiment } from "../db/experiment-lap-queries";
 import { getExperiment } from "../db/experiment-queries";

@@ -1,5 +1,5 @@
-import type { LapMeta } from "@shared/types";
 import { useEffect, useRef, useState } from "react";
+import type { LapMeta } from "../../../../shared/sessions/types";
 import { NoSetupsHint, SetupEngineerControls, SetupEngineerResult, useSetupEngineer } from "./SetupEngineer";
 
 /** Single reload target for live auto-apply — overwritten each lap. */

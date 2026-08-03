@@ -1,7 +1,8 @@
 import { getGame } from "@shared/games/registry";
 import { getFuelDisplay } from "@shared/games/telemetry";
-import type { F1ExtendedData, TelemetryPacket } from "@shared/types";
 import { m } from "@/paraglide/messages";
+import type { F1ExtendedData } from "../../../../shared/telemetry/f1-2025";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { F1TyreCompound } from "./F1TyreCompound";
 
 function formatSpeed(mps: number, unit: "metric" | "imperial"): string {
@@ -20,10 +21,7 @@ export function F1TelemetryPanel({ packet, f1, unitSystem = "metric" }: { packet
   const throttlePct = (packet.Accel / 255) * 100;
   const brakePct = (packet.Brake / 255) * 100;
   const gear = packet.Gear <= 0 ? (packet.Gear === 0 ? "N" : "R") : packet.Gear.toString();
-  const fuel = getFuelDisplay(
-    packet,
-    getGame(packet.gameId).telemetry.fuel,
-  );
+  const fuel = getFuelDisplay(packet, getGame(packet.gameId).telemetry.fuel);
 
   return (
     <div className="space-y-4">
@@ -86,7 +84,8 @@ export function F1TelemetryPanel({ packet, f1, unitSystem = "metric" }: { packet
       <div className="flex items-center justify-between">
         <F1TyreCompound f1={f1} />
         <div className="text-xs text-app-text-dim">
-          {m.f1tele_fuel()}: {fuel.amount.toFixed(1)}{fuel.unit}
+          {m.f1tele_fuel()}: {fuel.amount.toFixed(1)}
+          {fuel.unit}
         </div>
       </div>
 

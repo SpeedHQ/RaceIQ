@@ -11,7 +11,7 @@
  */
 import { describe, test, expect, beforeAll } from "bun:test";
 import { existsSync } from "fs";
-import type { TelemetryPacket } from "../../../shared/types";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import type { CapturedLap } from "../../../server/telemetry/pipeline-ports"
 import {
 	readAcEvoPackets,
@@ -20,7 +20,7 @@ import {
 } from "../../helpers/parse-dump";
 import { generateRecordingVisualizations } from "../../helpers/lap-viz";
 import { assertValidLapHasSectors } from "../../helpers/lap-assertions";
-import { getTrackSectorsByOrdinal } from "../../../shared/track-data";
+import { getTrackSectorsByOrdinal } from "../../../shared/track/storage/sectors";
 
 const AC_EVO_RECORDING =
 	"test/artifacts/sessions/ac-evo-2026-04-15T17-12-25-825Z.bin.gz";

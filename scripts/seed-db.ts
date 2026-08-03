@@ -13,7 +13,7 @@ import { readIRacingFrames } from "../server/games/iracing/recorder";
 import { LiveTelemetryPipeline, stopMaintenanceTasks } from "../server/telemetry/live-pipeline"
 import { NullWsAdapter, RealDbAdapter, RealSessionRecorderAdapter } from "../server/telemetry/pipeline-ports"
 import { loadSettings, saveSettings } from "../server/runtime/config/settings";
-import type { GameId } from "../shared/types";
+import type { GameId } from "../shared/games/ids";
 
 const SEED_MARKER = "raceiq-demo-seed-v1";
 const PROFILE_NAME = "RaceIQ Demo Driver";

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { GameId } from "@shared/types";
+import type { GameId } from "../../shared/games/ids";
 
 /**
  * Community leaderboard CDN sync.

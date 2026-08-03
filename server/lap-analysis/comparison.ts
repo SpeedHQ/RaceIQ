@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { Corner } from "./corners";
 import { speedMphFromPacket } from "./metrics";
 

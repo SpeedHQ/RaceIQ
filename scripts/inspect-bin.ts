@@ -19,8 +19,8 @@ import {
   detectGameIdFromBuffer,
   detectGameIdFromFilename,
 } from "../server/session-capture/import-capture";
-import { getAcEvoTrackName } from "../shared/ac-evo-track-data";
-import type { GameId } from "../shared/types";
+import { getAcEvoTrackName } from "../shared/track/catalogs/ac-evo"
+import type { GameId } from "../shared/games/ids";
 
 const args = process.argv.slice(2);
 const path = args.find((a) => !a.startsWith("--"));

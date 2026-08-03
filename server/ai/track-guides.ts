@@ -21,11 +21,11 @@
  * name for those turns. See `TrackGuideCornerFile.numbers` in shared/track-guide-types.ts.
  */
 
-import { loadTrackFacts } from "../../shared/track-data";
-import { cornerNumbers } from "../../shared/track-facts";
-import { cornerPromptLabel } from "../../shared/segment-label";
-import { listTrackGuideSlugs, loadTrackGuide } from "../../shared/track-guide-data";
-import type { ResolvedTrackGuide, TrackGuideCornerFile, TrackGuideFile } from "../../shared/track-guide-types";
+import { loadTrackFacts } from "../../shared/track/storage/meta";
+import { cornerNumbers } from "../../shared/track/facts";
+import { cornerPromptLabel } from "../../shared/track/segment-label";
+import { listTrackGuideSlugs, loadTrackGuide } from "../../shared/track/guide/data";
+import type { ResolvedTrackGuide, TrackGuideCornerFile, TrackGuideFile } from "../../shared/track/guide/types";
 
 function normalise(name: string): string {
   return name

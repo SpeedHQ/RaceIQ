@@ -1,20 +1,20 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { OrdinalParamSchema, GameIdQuerySchema } from "../../../shared/schemas";
+import { OrdinalParamSchema, GameIdQuerySchema } from "../../../shared/http/route-schemas";
 import { getLaps, getLapById } from "../../db/lap-read-queries";
 import {
   deleteRecordedOutline,
   getStartYaw,
-  getTrackAltitudeByOrdinal,
   recordLapTrace,
-} from "../../../shared/track-data";
+} from "../../../shared/track/recording/outlines";
+import { getTrackAltitudeByOrdinal } from "../../../shared/track/geometry/extracted";
 import {
   filterLapOutliers,
   normalizeToFixedPoints,
   averageOutlines,
   smoothOutline,
 } from "../../lap-detection/detector";
-import type { GameId } from "../../../shared/types";
+import type { GameId } from "../../../shared/games/ids";
 import { computeLapSectors } from "../../lap-analysis/sectors";
 import {
   requireGameId,

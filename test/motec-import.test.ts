@@ -16,7 +16,7 @@ import { importMotec, MOTEC_SESSION_SOURCE } from "../server/motec/import";
 import { db } from "../server/db";
 import { laps as lapsTable, sessions, tunes } from "../server/db/schema";
 import { eq, isNull } from "drizzle-orm";
-import { getAcEvoTrackByName } from "../shared/ac-evo-track-data";
+import { getAcEvoTrackByName } from "../shared/track/catalogs/ac-evo"
 import { META_FRAME_MAGIC } from "../server/session-capture/framing"
 import { buildLd, buildLdx, syntheticStint } from "./helpers/motec-ld";
 

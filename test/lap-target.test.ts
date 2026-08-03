@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { suggestLapTarget, TARGET_GREEN_MIN, AVG_SPEED_MPS, DEFAULT_LAP_SEC } from "../shared/lap-target";
+import { suggestLapTarget, TARGET_GREEN_MIN, AVG_SPEED_MPS, DEFAULT_LAP_SEC } from "../shared/experiments/stint-target";
 
 describe("suggestLapTarget", () => {
   test("short lap (fast track) -> clamps to 4", () => {

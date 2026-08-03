@@ -5,7 +5,7 @@
  * doesn't already have one.
  *
  * AC Evo currently borrows ACC's bundled outlines wholesale (see
- * `bundledGameDir("ac-evo")` in shared/track-data.ts). That breaks for the
+ * `bundledTrackDir("ac-evo")` in shared/track/resolve-name.ts). That breaks for the
  * 3 tracks ACC never shipped — Brands Hatch Indy, Fuji, COTA — which have
  * no ACC file and therefore no outline at all. This script extracts
  * authoritative AC Evo geometry for every track that has it in the kspkg,
@@ -19,10 +19,15 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
 import { findContentKspkg, Kspkg, type KspkgEntry } from "../server/games/ac-evo/kspkg";
 import { parseAiSpline, type AiSplinePoint } from "../server/games/ac-evo/aispline";
-import { autoTrackSegments } from "../shared/track-segment-generate";
-import { splitSegments } from "../shared/track-join";
-import { loadTrackFacts, loadTrackGeometry, saveTrackFacts, saveTrackGeometry } from "../shared/track-data";
-import { SHARED_DIR } from "../shared/resolve-data";
+import { autoTrackSegments } from "../shared/track/curation/generate";
+import { splitSegments } from "../shared/track/curation/join";
+import {
+  loadTrackFacts,
+  loadTrackGeometry,
+  saveTrackFacts,
+  saveTrackGeometry,
+} from "../shared/track/storage/meta";
+import { SHARED_DIR } from "../shared/runtime/data-paths"
 
 interface TrackRow {
   id: number;

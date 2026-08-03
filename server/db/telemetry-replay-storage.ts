@@ -1,7 +1,9 @@
 import { eq, and } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps } from "./schema";
-import type { TelemetryPacket, GameId, TelemetryVersionIdentity } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { GameId } from "../../shared/games/ids";
+import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { normalizeTelemetryPacket } from "../telemetry/normalization";
 import { getServerGame } from "../games/registry";
 import { gunzip } from "zlib";

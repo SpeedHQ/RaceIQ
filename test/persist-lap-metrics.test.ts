@@ -5,9 +5,10 @@
  * when no channel is usable.
  */
 import { describe, test, expect } from "bun:test";
-import { persistLapMetrics } from "../server/lap-analysis/metrics-store"
-import { CapturingDbAdapter } from "../server/telemetry/pipeline-ports"
-import type { TelemetryPacket } from "../shared/types";
+import { persistLapMetrics } from "../server/lap-analysis/metrics-store";
+import { CapturingDbAdapter } from "../server/telemetry/pipeline-ports";
+import type { TelemetryPacket } from "../shared/telemetry/types";
+
 
 function mkPackets(opts: { fuelPerLap?: number; tyreWear?: number[]; fuel?: [number, number] }): TelemetryPacket[] {
   const base = (i: number) => ({ DistanceTraveled: i * 5, Speed: 50 } as unknown as TelemetryPacket);

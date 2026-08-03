@@ -1,16 +1,21 @@
 import { resolve } from "path";
 import { mkdirSync } from "fs";
-import type { LapMeta, LiveSectorData, LivePitData, GameId, TelemetryPacket, TelemetryVersionIdentity, TuneIssue } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
+import type { LapMeta } from "../../shared/sessions/types";
+import type { LivePitData, LiveSectorData } from "../../shared/live/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
+import type { TuneIssue } from "../../shared/tuning/issues";
 import {
   TELEMETRY_CATALOG_HASH,
   TELEMETRY_CATALOG_SCHEMA_VERSION,
   TELEMETRY_CATALOG_VERSION,
-} from "../../shared/telemetry-catalog";
+} from "../../shared/telemetry/catalog/data";
+import { TELEMETRY_DERIVATION_VERSION } from "../../shared/telemetry/derivations/builtins";
 import {
-  TELEMETRY_DERIVATION_VERSION,
   TELEMETRY_PARSER_VERSIONS,
   TELEMETRY_RESOLVER_VERSION,
-} from "../../shared/telemetry-resolver";
+} from "../../shared/telemetry/resolver/versions";
 import { insertSession, updateSessionRawFile, updateSessionCarTrack } from "../db/session-queries";
 import { insertLap, setLapMetrics } from "../db/lap-mutation-queries";
 import { getLaps } from "../db/lap-read-queries";

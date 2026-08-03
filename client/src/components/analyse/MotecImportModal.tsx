@@ -1,5 +1,5 @@
-import type { GameId } from "@shared/types";
 import { useMemo, useRef, useState } from "react";
+import type { GameId } from "../../../../shared/games/ids";
 import { useCarsFromEndpoint, useMotecTargets, useTracksForGame, useUserTunes } from "../../hooks/queries";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";

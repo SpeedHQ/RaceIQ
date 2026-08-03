@@ -1,13 +1,9 @@
 import { getGame } from "@shared/games/registry";
-import {
-  getFuelAmount,
-  getFuelDisplay,
-  WATTS_PER_HORSEPOWER,
-} from "@shared/games/telemetry";
-import type { TelemetryPacket } from "@shared/types";
+import { getFuelAmount, getFuelDisplay, WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
 import { useEffect, useRef, useState } from "react";
 import { severityColor } from "@/lib/colors";
 import { client } from "@/lib/rpc";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 
 /**
  * ArcGauge — 270-degree SVG arc gauge (135deg to 405deg sweep).
@@ -89,14 +85,7 @@ export function FuelGauge({ packet }: { packet: TelemetryPacket }) {
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           const f = fuelRef.current;
-          f.history = data
-            .map((d) => d.fuelUsed)
-            .filter(
-              (value) =>
-                Number.isFinite(value) &&
-                value > 0 &&
-                (fuelSpec.packetUnit !== "fraction" || value < 1),
-            );
+          f.history = data.map((d) => d.fuelUsed).filter((value) => Number.isFinite(value) && value > 0 && (fuelSpec.packetUnit !== "fraction" || value < 1));
           if (f.history.length > 0) {
             const recent = f.history.slice(-5);
             f.avgPerLap = recent.reduce((s, v) => s + v, 0) / recent.length;
@@ -125,54 +114,43 @@ export function FuelGauge({ packet }: { packet: TelemetryPacket }) {
   }, [packet.LapNumber, packet.Fuel]);
 
   const fuel = getFuelDisplay(packet, fuelSpec);
-  const fillPct =
-    fuel.fillRatio === undefined ? undefined : fuel.fillRatio * 100;
-  const isCritical =
-    fuel.fillRatio === undefined ? fuel.amount < 5 : fuel.fillRatio < 0.2;
-  const isWarning =
-    !isCritical &&
-    (fuel.fillRatio === undefined ? fuel.amount < 15 : fuel.fillRatio < 0.4);
+  const fillPct = fuel.fillRatio === undefined ? undefined : fuel.fillRatio * 100;
+  const isCritical = fuel.fillRatio === undefined ? fuel.amount < 5 : fuel.fillRatio < 0.2;
+  const isWarning = !isCritical && (fuel.fillRatio === undefined ? fuel.amount < 15 : fuel.fillRatio < 0.4);
   const fuelColor = severityColor(isCritical ? 3 : isWarning ? 1 : 0);
   const avg = fuelStats.avgPerLap;
   const lapsRemaining = avg && avg > 0 ? Math.floor(packet.Fuel / avg) : null;
-  const averageDisplay =
-    avg === null ? null : getFuelAmount(avg, fuelSpec);
+  const averageDisplay = avg === null ? null : getFuelAmount(avg, fuelSpec);
 
   // Current lap fuel used so far
-  const currentLapDisplay = getFuelAmount(
-    fuelStats.lapStart - packet.Fuel,
-    fuelSpec,
-  );
+  const currentLapDisplay = getFuelAmount(fuelStats.lapStart - packet.Fuel, fuelSpec);
 
   // Delta vs average: positive = using more than avg, negative = saving
   return (
     <div className="flex-1">
       <div className="flex justify-between text-app-caption mb-0.5">
         <span className="font-mono font-bold" style={{ color: fuelColor }}>
-          Fuel {fuel.amount.toFixed(1)}{fuel.unit}
+          Fuel {fuel.amount.toFixed(1)}
+          {fuel.unit}
         </span>
         {lapsRemaining != null && <span className="font-mono text-app-text-secondary">~{lapsRemaining} laps left</span>}
       </div>
       {fillPct === undefined ? (
-        <div
-          className="h-2 rounded-full border border-dashed border-app-border"
-          title="Fuel capacity unavailable"
-        />
+        <div className="h-2 rounded-full border border-dashed border-app-border" title="Fuel capacity unavailable" />
       ) : (
         <div className="h-2 rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all ${isCritical ? "animate-pulse" : ""}`}
-            style={{ backgroundColor: fuelColor, width: `${fillPct}%` }}
-          />
+          <div className={`h-full rounded-full transition-all ${isCritical ? "animate-pulse" : ""}`} style={{ backgroundColor: fuelColor, width: `${fillPct}%` }} />
         </div>
       )}
       {averageDisplay != null && (
         <div className="flex justify-between text-app-micro font-mono mt-0.5">
           <span className="text-app-text-muted">
-            {averageDisplay.amount.toFixed(1)}{averageDisplay.unit}/lap avg
+            {averageDisplay.amount.toFixed(1)}
+            {averageDisplay.unit}/lap avg
           </span>
           <span className="text-app-text-muted">
-            This lap: {currentLapDisplay.amount.toFixed(1)}{currentLapDisplay.unit}
+            This lap: {currentLapDisplay.amount.toFixed(1)}
+            {currentLapDisplay.unit}
           </span>
         </div>
       )}

@@ -4,7 +4,7 @@ import { LapDetectorAcc } from "../server/games/acc/lap-detector"
 import { stopMaintenanceTasks } from "../server/telemetry/live-pipeline"
 
 afterAll(() => stopMaintenanceTasks());
-import type { TelemetryPacket } from "../shared/types";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 
 // Fake DB stub — v2 should only call insertLap / getTuneAssignment / insertSession
 function makeFakeDb() {

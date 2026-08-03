@@ -19,7 +19,7 @@ import { readFileSync, readdirSync, existsSync, appendFileSync } from "fs";
 import { join } from "path";
 import { GRAPHICS_EVO } from "../server/games/ac-evo/structs";
 import { readCString } from "../server/games/ac-evo/utils";
-import { getAllAcEvoCars, getAcEvoCarByDisplayName } from "../shared/ac-evo-car-data";
+import { getAllAcEvoCars, getAcEvoCarByDisplayName } from "../shared/car/ac-evo"
 import { Kspkg, findContentKspkg } from "../server/games/ac-evo/kspkg";
 import { parseCarsTable } from "../server/games/ac-evo/kspkg-tables";
 import { runSetupRangesExtraction } from "./extract-acevo-setup-ranges";

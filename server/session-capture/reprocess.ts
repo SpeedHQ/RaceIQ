@@ -4,7 +4,7 @@
  */
 import { getServerGame } from "../games/registry";
 import { CapturingDbAdapter, currentTelemetryVersionIdentity } from "../telemetry/pipeline-ports";
-import type { GameId } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
 import {
   gunzipBuffer,
   iterateSessionFrameRecords,

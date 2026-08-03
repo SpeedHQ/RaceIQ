@@ -6,15 +6,15 @@
  */
 import { describe, test, expect } from "bun:test";
 import { initGameAdapters } from "../shared/games/init";
+import { downsampleLap } from "../shared/laps/trace/build";
 import {
   f32ToBase64,
   base64ToF32,
   encodeLapTrace,
   decodeLapTrace,
-  downsampleLap,
-  type LapTrace,
-} from "../shared/stint-trace";
-import type { TelemetryPacket } from "../shared/types";
+} from "../shared/laps/trace/codec";
+import type { LapTrace } from "../shared/laps/trace/types";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 
 initGameAdapters();
 

@@ -5,7 +5,7 @@
  * no class state, no DB, no side effects. Extracted from LapDetector so they
  * can be unit-tested independently.
  */
-import type { TelemetryPacket } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 const SESSION_TIMEOUT_MS = 5 * 60_000;
 

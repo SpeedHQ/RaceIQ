@@ -12,14 +12,14 @@
  */
 import { Agent } from "@mastra/core/agent";
 
-import { aiLanguageInstruction } from "../../shared/locales";
-import { TRACK_GUIDE_PROMPT, ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
+import { aiLanguageInstruction } from "../../shared/ai/language";
+import { TRACK_GUIDE_PROMPT, ADJUSTMENT_FORMAT_PROMPT } from "../../shared/ai/prompt-snippets";
 import { getChatMemory } from "../../server/ai/chat-agent";
 import { getChatTurnContext } from "../../server/ai/chat-message-context";
 import { getMastraModelId } from "../model";
 import { loadSettings } from "../../server/runtime/config/settings";
 import { setupEngineerTools } from "../tools/setup-engineer";
-import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiment-focus";
+import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiments/focus";
 
 export interface SetupEngineerSessionContext {
   sessionId: number;

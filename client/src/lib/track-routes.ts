@@ -1,5 +1,5 @@
 import { tryGetGame } from "@shared/games/registry";
-import type { GameId } from "@shared/types";
+import type { GameId } from "../../../shared/games/ids";
 
 /**
  * Paths for the track routes.

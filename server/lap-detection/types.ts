@@ -3,7 +3,7 @@
  * detector through the server adapter factory; implementations may use
  * protocol-specific detectors or shared detector state machines.
  */
-import type { TelemetryPacket } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { DbAdapter } from "../telemetry/pipeline-ports";
 
 // Re-export all event/state types so callers only need one import point

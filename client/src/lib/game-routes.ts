@@ -1,7 +1,5 @@
 import { getAllGames, tryGetGame } from "@shared/games/registry";
-import type { ReleaseFeatureFlags } from "@shared/release-feature-flags";
-import type { GameId } from "@shared/types";
-import { clientReleaseFeatures } from "./release-features";
+import type { GameId } from "../../../shared/games/ids";
 
 export type AnalyseSearch = {
   track?: number;

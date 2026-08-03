@@ -1,5 +1,7 @@
 import { describe, it, expect } from "bun:test";
-import { decompressForzaLZX, parseForzaZip, findForzaInstall } from "@shared/lib/forza-lzx";
+import { findForzaInstall } from "@shared/forza/install";
+import { decompressForzaLZX } from "@shared/forza/lzx-decoder";
+import { parseForzaZip } from "@shared/forza/zip";
 
 describe("decompressForzaLZX", () => {
   it("decompresses small FF-header file", () => {

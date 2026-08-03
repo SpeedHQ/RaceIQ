@@ -1,8 +1,8 @@
 /**
  * Kunos lap validation rules shared by ACC and AC Evo detectors.
  */
-import type { TelemetryPacket } from "../../../shared/types";
-import type { PitCycleReason } from "../../../shared/lap-filters";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { PitCycleReason } from "../../../shared/laps/pit-cycle";
 
 /**
  * Returns true if the very first packet of a Kunos (ACC / AC Evo) recording

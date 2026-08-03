@@ -1,11 +1,14 @@
-import type { RaceResultProvenance } from "../../shared/race-results";
+import type { RaceResultProvenance } from "../../shared/race-results/types";
+import type { GameId } from "../../shared/games/ids";
 import {
   TELEMETRY_CATALOG_HASH,
   TELEMETRY_CATALOG_SCHEMA_VERSION,
   TELEMETRY_CATALOG_VERSION,
-} from "../../shared/telemetry-catalog";
-import { TELEMETRY_PARSER_VERSIONS, TELEMETRY_RESOLVER_VERSION } from "../../shared/telemetry-resolver";
-import type { GameId } from "../../shared/types";
+} from "../../shared/telemetry/catalog/data";
+import {
+  TELEMETRY_PARSER_VERSIONS,
+  TELEMETRY_RESOLVER_VERSION,
+} from "../../shared/telemetry/resolver/versions";
 import { RACE_RESULT_OUTCOME_POLICY } from "./authority";
 
 const RACE_RESULT_DERIVATION_ID = "race-result-derivation";

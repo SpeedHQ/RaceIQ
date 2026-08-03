@@ -1,4 +1,4 @@
-import type { WheelState } from "@/lib/vehicle-dynamics";
+import type { WheelState } from "@shared/lap-analysis/physics/vehicle";
 import { brakeTempColor, slipAngleColor, tireState, tireTempColor } from "@/lib/vehicle-dynamics";
 
 /**
@@ -180,12 +180,28 @@ export function WheelCard({
 
         {/* Theme-owned curb and puddle surface indicators */}
         {onRumble && (
-          <text x={cx} y={brakeTemp != null && brakeTemp > 0 ? 137 : 127} textAnchor="middle" fill="var(--track-curb-right)" fontSize={7} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
+          <text
+            x={cx}
+            y={brakeTemp != null && brakeTemp > 0 ? 137 : 127}
+            textAnchor="middle"
+            fill="var(--track-curb-right)"
+            fontSize={7}
+            fontWeight="var(--font-weight-bold)"
+            fontFamily="var(--font-mono)"
+          >
             CURB
           </text>
         )}
         {puddleDepth > 0 && (
-          <text x={cx} y={(brakeTemp != null && brakeTemp > 0 ? 137 : 127) + (onRumble ? 9 : 0)} textAnchor="middle" fill="var(--surface-wet)" fontSize={7} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
+          <text
+            x={cx}
+            y={(brakeTemp != null && brakeTemp > 0 ? 137 : 127) + (onRumble ? 9 : 0)}
+            textAnchor="middle"
+            fill="var(--surface-wet)"
+            fontSize={7}
+            fontWeight="var(--font-weight-bold)"
+            fontFamily="var(--font-mono)"
+          >
             WET {(puddleDepth * 100).toFixed(0)}%
           </text>
         )}

@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, rmSync } from "fs";
 import { Hono } from "hono";
 
-import { scanRecordedFiles } from "../../../shared/track-data";
+import { scanRecordedFiles } from "../../../shared/track/recording/outlines";
 import {
   extractionState,
   FM2023_OUT_DIR,

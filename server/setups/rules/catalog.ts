@@ -1,6 +1,6 @@
 /** Setup rule catalog: component grammar, paths, steps, and hard clamps. */
-import type { GameId } from "../../../shared/types";
-import { getAcEvoCarByDisplayName } from "../../../shared/ac-evo-car-data";
+import type { GameId } from "../../../shared/games/ids";
+import { getAcEvoCarByDisplayName } from "../../../shared/car/ac-evo"
 import acEvoRangesJson from "../../../shared/games/ac-evo/setup-ranges.json";
 import type { TuneMagnitude } from "../../ai/schemas";
 

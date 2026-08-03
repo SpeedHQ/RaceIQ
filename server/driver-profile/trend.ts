@@ -1,5 +1,5 @@
-import { repeatabilityStats } from "../../shared/lib/stint-stats";
-import type { LapMeta } from "../../shared/types";
+import { repeatabilityStats } from "../../shared/laps/stint-stats";
+import type { LapMeta } from "../../shared/sessions/types";
 import { median, round4 } from "./math";
 
 export const DRIVER_TREND_WINDOW_LAPS = 30;

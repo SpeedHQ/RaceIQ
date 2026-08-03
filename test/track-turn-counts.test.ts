@@ -12,16 +12,16 @@
  * model at all) — a detector allowance, not a fact about the circuit.
  */
 import { describe, test, expect } from "bun:test";
-import { turnNumbers } from "../shared/segment-label";
-import { officialTurnCount, validateFacts } from "../shared/track-segment-align";
-import { loadTrackFacts } from "../shared/track-data";
-import { loadDetectHints } from "../shared/track-detect-hints";
+import { turnNumbers } from "../shared/track/segment-label";
+import { officialTurnCount, validateFacts } from "../shared/track/curation/segment-align-validate";
+import { loadTrackFacts } from "../shared/track/storage/meta";
+import { loadDetectHints } from "../shared/track/detect-hints";
 import {
   findCenterlines,
   generateTrackSegments,
   listCuratedSlugs,
   listMetaSlugs,
-} from "../shared/track-segment-generate";
+} from "../shared/track/curation/generate";
 import { KNOWN_ALIGNMENT_GAPS, KNOWN_TURN_GAPS } from "./helpers/track-known-gaps";
 
 const slugs = listCuratedSlugs();

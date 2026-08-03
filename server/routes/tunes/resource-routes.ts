@@ -2,9 +2,9 @@ import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
 
-import { IdParamSchema } from "../../../shared/schemas";
-import { GameIdSchema } from "../../../shared/types";
-import type { GameId } from "../../../shared/types";
+import { IdParamSchema } from "../../../shared/http/route-schemas";
+import { GameIdSchema } from "../../../shared/games/ids";
+import type { GameId } from "../../../shared/games/ids";
 import { getCommunityTuneById } from "../../db/community-tune-queries";
 import { deleteTune, getTuneById, getTunes, insertTune, updateTune } from "../../db/tune-queries";
 import {

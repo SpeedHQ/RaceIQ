@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { tryGetGame } from "../../shared/games/registry";
 
 export type UnitSystem = "metric" | "imperial";

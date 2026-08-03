@@ -26,7 +26,7 @@
  * AccelerationX/Y (present on every game) but leaves the load-derived fields
  * null, and callers omit the LLTD context.
  */
-import type { TelemetryPacket } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 type BalanceLean = "front" | "rear" | "even";
 

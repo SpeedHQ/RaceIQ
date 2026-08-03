@@ -1,16 +1,16 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { IdParamSchema } from "../../../shared/schemas";
-import { GameIdSchema } from "../../../shared/types";
+import { IdParamSchema } from "../../../shared/http/route-schemas";
+import { GameIdSchema } from "../../../shared/games/ids";
 import { getActiveExperiment, setActiveExperiment } from "../../experiments/active";
 import { createExperiment, getExperiment, listExperimentFocusEvents, listExperiments, setExperimentFocus, setSessionHead, updateExperiment } from "../../db/experiment-queries";
 import { createExperimentVersion } from "../../db/experiment-version-queries";
 import { getLapsForExperiment } from "../../db/experiment-lap-queries";
 import { recordAction } from "../../db/experiment-action-queries";
-import { getTrackLengthMeters } from "../../../shared/track-data";
-import { suggestLapTarget } from "../../../shared/lap-target";
-import { ExperimentFocusSchema } from "../../../shared/experiment-focus";
+import { getTrackLengthMeters } from "../../../shared/track/recording/outlines";
+import { suggestLapTarget } from "../../../shared/experiments/stint-target";
+import { ExperimentFocusSchema } from "../../../shared/experiments/focus";
 
 const ExperimentQuerySchema = z.object({
   gameId: GameIdSchema,

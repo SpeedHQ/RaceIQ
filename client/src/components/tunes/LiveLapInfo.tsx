@@ -1,4 +1,4 @@
-import type { LiveSectorData } from "@shared/types";
+import type { LiveSectorData } from "../../../../shared/live/types";
 import { formatLapTime } from "../../lib/format";
 import { SectorTimes } from "../SectorTimes";
 
@@ -7,7 +7,7 @@ function Delta({ value }: { value: number }) {
   if (!value) return null;
   const ahead = value < 0;
   return (
-      <span className={`text-xs font-mono font-bold ${ahead ? "text-(--delta-gain)" : "text-(--delta-loss)"}`}>
+    <span className={`text-xs font-mono font-bold ${ahead ? "text-(--delta-gain)" : "text-(--delta-loss)"}`}>
       {ahead ? "" : "+"}
       {value.toFixed(3)}
     </span>

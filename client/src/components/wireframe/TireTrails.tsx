@@ -1,8 +1,8 @@
-import type { TelemetryPacket } from "@shared/types";
+import { allWheelStates } from "@shared/lap-analysis/physics/vehicle";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import type { CarModelEnrichment } from "../../data/car-models";
-import { allWheelStates } from "../../lib/vehicle-dynamics";
 import { getWheelOffsets, trailColorFromState } from "../../lib/wireframe-utils";
 import { useGameId } from "../../stores/game";
 

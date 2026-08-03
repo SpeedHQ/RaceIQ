@@ -17,7 +17,7 @@
  * Every component string here must exist in setup rule catalog's `knownComponents`
  * for the game, or `applyIntents` clamps it to a safe no-op.
  */
-import type { GameId } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
 import type { TuneIntent, TuneMagnitude } from "./schemas";
 import type { Balance, Phase, SpeedBand, TuneSymptoms } from "./tune-symptoms";
 

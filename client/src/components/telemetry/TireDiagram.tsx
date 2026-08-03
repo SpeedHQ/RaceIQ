@@ -1,10 +1,10 @@
 import { tryGetGame } from "@shared/games/registry";
-import type { TelemetryPacket } from "@shared/types";
+import { allWheelStates } from "@shared/lap-analysis/physics/vehicle";
 import { WeightShiftRadar } from "@/components/WeightShiftRadar";
 import { useUnits } from "@/hooks/useUnits";
 import type { DisplayPacket } from "@/lib/convert-packet";
 import { convertTemp } from "@/lib/temperature";
-import { allWheelStates } from "@/lib/vehicle-dynamics";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { SuspBar } from "./SuspBar";
 import { WheelCard } from "./WheelCard";
 

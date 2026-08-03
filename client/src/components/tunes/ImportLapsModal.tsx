@@ -1,5 +1,5 @@
-import type { GameId } from "@shared/types";
 import { useMemo, useState } from "react";
+import type { GameId } from "../../../../shared/games/ids";
 import { type ExperimentVersion, type ImportableLap, useImportableLaps, useImportLaps } from "../../hooks/queries";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";

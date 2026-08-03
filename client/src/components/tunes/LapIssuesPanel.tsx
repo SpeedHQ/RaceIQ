@@ -1,4 +1,5 @@
-import type { LapMeta, TuneIssue } from "@shared/types";
+import type { LapMeta } from "../../../../shared/sessions/types";
+import type { TuneIssue } from "../../../../shared/tuning/issues";
 import { useLapIssues } from "../../hooks/queries";
 
 const SEVERITY_CLASS: Record<TuneIssue["severity"], string> = {
@@ -46,8 +47,8 @@ function LapIssuesEntry({ lap }: { lap: LapMeta }) {
         <div className="text-xs text-app-text-dim">No issues (or no stored telemetry for this lap).</div>
       ) : (
         <ul className="space-y-1">
-          {issues.map((issue, i) => (
-            <li key={`${issue.kind}-${issue.corner ?? ""}-${i}`} className={`text-xs px-1.5 py-0.5 rounded border ${SEVERITY_CLASS[issue.severity]}`}>
+          {issues.map((issue) => (
+            <li key={`${issue.kind}-${issue.corner ?? "lap"}-${issue.distanceFrac ?? "global"}-${issue.detail}`} className={`text-xs px-1.5 py-0.5 rounded border ${SEVERITY_CLASS[issue.severity]}`}>
               {issue.corner ? <span className="font-mono mr-1">{issue.corner}</span> : null}
               {issue.detail}
             </li>

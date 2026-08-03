@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { speedMphFromPacket, steerScaleFor } from "./metrics";
 
 export interface Corner {

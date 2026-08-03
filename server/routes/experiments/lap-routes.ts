@@ -1,8 +1,10 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { IdParamSchema } from "../../../shared/schemas";
-import type { GameId, LapMeta, TelemetryPacket } from "../../../shared/types";
+import { IdParamSchema } from "../../../shared/http/route-schemas";
+import type { GameId } from "../../../shared/games/ids";
+import type { LapMeta } from "../../../shared/sessions/types";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { getLapById, getLapsByIds } from "../../db/lap-read-queries";
 import { getLapsForExperiment, getImportableLapsForExperiment, importLapsToExperiment } from "../../db/experiment-lap-queries";
 import { getCorners } from "../../db/track-queries";
@@ -14,7 +16,7 @@ import { recordAction } from "../../db/experiment-action-queries";
 import { detectCorners } from "../../lap-analysis/corners";
 import { computeLineSpreadTrace } from "../../lap-analysis/consistency";
 import { selectCleanLaps } from "../../experiments/lap-evidence/selection";
-import { fastestLaps } from "../../../shared/review-laps";
+import { fastestLaps } from "../../../shared/laps/review-selection";
 import { deriveFuelPerLap, deriveTyreWear, type LapMetric } from "../../lap-analysis/metrics";
 import { tuneSessionThreadId, saveChatMessages } from "../../ai/chat-agent";
 import { nextFreeLabel } from "../../ai/version-label";
@@ -294,7 +296,7 @@ export const experimentLapAnalysisRoutes = new Hono()
       const pool = await getLapsForExperiment(id);
       const { clean: allClean } = selectCleanLaps(pool);
       // Curate to the fastest N clean laps — bounds decode memory + compute on
-      // long tracks (see shared/review-laps). Matches the client's curated
+      // long tracks (see shared/laps/review-selection). Matches the client's curated
       // trace set so the consistency lane + map overlay agree.
       const clean = fastestLaps(allClean);
 

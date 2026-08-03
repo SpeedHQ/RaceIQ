@@ -1,9 +1,9 @@
 import { resolve } from "path";
 import type { ServerGameAdapter } from "../types";
-import type { TelemetryPacket } from "../../../shared/types";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { acEvoAdapter } from "../../../shared/games/ac-evo";
-import { getAcEvoCarName } from "../../../shared/ac-evo-car-data";
-import { getAcEvoTrackName, getAcEvoSharedTrackName, getAcEvoTrackByName, getAcEvoTrackBySetupFolder } from "../../../shared/ac-evo-track-data";
+import { getAcEvoCarName } from "../../../shared/car/ac-evo"
+import { getAcEvoTrackName, getAcEvoSharedTrackName, getAcEvoTrackByName, getAcEvoTrackBySetupFolder } from "../../../shared/track/catalogs/ac-evo"
 import { LapDetectorAcEvo } from "./lap-detector"
 import { parseAcEvoBuffers, createAcEvoParserCache } from "./parser";
 import { ACEVO_PACKED_MAGIC, unpackTriplet } from "../kunos/pack-triplet";

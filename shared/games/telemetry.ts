@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "../types";
+import type { TelemetryPacket } from "../telemetry/types";
 import type { TelemetryModel } from "./types";
 
 export const WATTS_PER_HORSEPOWER = 745.7;

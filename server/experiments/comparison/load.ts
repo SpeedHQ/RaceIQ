@@ -16,8 +16,10 @@
  *   `Promise.all`) precisely to keep that bound: overlapping them would double it.
  */
 
-import type { GameId, LapMeta, TelemetryPacket } from "../../../shared/types";
-import type { EvaluableLap } from "../../../shared/review-laps";
+import type { GameId } from "../../../shared/games/ids";
+import type { LapMeta } from "../../../shared/sessions/types";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { EvaluableLap } from "../../../shared/laps/review-selection";
 import { detectCorners } from "../../lap-analysis/corners";
 import type { Corner } from "../../lap-analysis/corners";
 import { getCorners } from "../../db/track-queries";

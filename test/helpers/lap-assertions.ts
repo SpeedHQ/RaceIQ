@@ -1,6 +1,7 @@
 import { expect } from "bun:test";
-import type { CapturedLap } from "../../server/telemetry/pipeline-ports"
-import type { TelemetryPacket } from "../../shared/types";
+import type { CapturedLap } from "../../server/telemetry/pipeline-ports";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+
 import type { LapSavedNotification } from "../../server/lap-detection/types"
 
 /**

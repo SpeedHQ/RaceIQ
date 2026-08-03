@@ -1,7 +1,8 @@
-import type { GameId, SessionRecap as SessionRecapDto } from "@shared/types";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
+import type { GameId } from "../../../shared/games/ids";
+import type { SessionRecap as SessionRecapDto } from "../../../shared/sessions/types";
 import { useSessionRecap, useTrackOutline, useTrackSectorBoundaries } from "../hooks/queries";
 import { drawTrack } from "../lib/canvas/draw-track";
 import { formatLapTime } from "../lib/format";

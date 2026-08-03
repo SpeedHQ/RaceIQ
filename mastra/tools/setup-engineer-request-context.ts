@@ -11,7 +11,7 @@
  * Kept dependency-free (only a type-only import) so the guard is unit-testable
  * without pulling in the DB/fs/memory graph the tool file imports.
  */
-import type { GameId } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
 
 /** Mastra's RequestContext is a Map-like class; we only need `.get(key)`. */
 export interface RequestContextLike {

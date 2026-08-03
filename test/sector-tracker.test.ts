@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import type { TelemetryPacket } from "../shared/types";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 import { SectorTracker } from "../server/live-strategy/sector-tracker";
 
 /** Build a minimal telemetry packet for testing. */

@@ -1,9 +1,9 @@
-import type { GameId } from "@shared/types";
 import { useEffect, useRef, useState } from "react";
 import { drawTrack } from "@/lib/canvas/draw-track";
 import { countryName } from "@/lib/country-names";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
+import type { GameId } from "../../../../shared/games/ids";
 import type { Point, TrackInfo } from "./types";
 
 /** TrackCard — Gallery thumbnail: fetches outline by ordinal and renders a small static track map. */
@@ -48,8 +48,9 @@ export function TrackCard({
   }, [outline, flipX]);
 
   return (
-    <div
-      className="border border-app-border rounded-lg overflow-hidden cursor-pointer transition-all bg-app-surface/50 hover:border-app-border-hover hover:bg-app-surface-hover/50"
+    <button
+      type="button"
+      className="w-full text-left border border-app-border rounded-lg overflow-hidden cursor-pointer transition-all bg-app-surface/50 hover:border-app-border-hover hover:bg-app-surface-hover/50"
       onClick={() => onSelect(track)}
     >
       <div className="p-3">
@@ -68,13 +69,7 @@ export function TrackCard({
         {outline ? (
           <canvas ref={canvasRef} className="w-full h-full" />
         ) : track.mapUrl ? (
-          <img
-            src={track.mapUrl}
-            alt={`${track.name} ${track.variant} map`}
-            className="w-full h-full object-contain p-3"
-            loading="lazy"
-            decoding="async"
-          />
+          <img src={track.mapUrl} alt={`${track.name} ${track.variant} map`} className="w-full h-full object-contain p-3" loading="lazy" decoding="async" />
         ) : (
           <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">{m.trackcard_no_outline()}</div>
         )}
@@ -101,6 +96,6 @@ export function TrackCard({
           </div>
         )}
       </div>
-    </div>
+    </button>
   );
 }

@@ -1,10 +1,10 @@
 import { describe, test, expect } from "bun:test";
-import type { TelemetryPacket } from "../shared/types";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 import { detectSessionBoundary,
 detectLapBoundary,
 detectLapReset,
 type SessionSnapshot, } from "../server/lap-detection/boundaries"
-import { getTrackSectorsByOrdinal } from "../shared/track-data";
+import { getTrackSectorsByOrdinal } from "../shared/track/storage/sectors";
 import { assertSectorTimesMatchLapTime } from "./helpers/lap-assertions";
 
 function pkt(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {

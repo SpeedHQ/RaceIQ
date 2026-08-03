@@ -1,6 +1,11 @@
 import { describe, test, expect } from "bun:test";
-import { formatTurnNumbers, segmentDisplayNames, segmentGroupLabels } from "../client/src/lib/segment-label";
-import { segmentPromptLabels, segmentPromptNames } from "../shared/segment-label";
+import {
+  formatTurnNumbers,
+  segmentDisplayNames,
+  segmentGroupLabels,
+  segmentPromptLabels,
+  segmentPromptNames,
+} from "../shared/track/segment-label";
 
 const corner = (name: string, numbers?: number[], group?: string) => ({
   type: "corner" as const,

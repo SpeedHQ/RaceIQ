@@ -1,5 +1,5 @@
-import type { TelemetryPacket } from "@shared/types";
 import { deltaColor as colorForDelta, SECTOR_COLOR_VARS } from "@/lib/colors";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { m } from "../paraglide/messages";
 import { useTelemetryStore } from "../stores/telemetry";
 

@@ -2,7 +2,8 @@ import { eq, desc, and, inArray, isNull } from "drizzle-orm";
 import { db } from "./index";
 import { toLapMeta } from "./lap-meta";
 import { sessions, laps, tunes } from "./schema";
-import type { LapMeta, GameId } from "../../shared/types";
+import type { LapMeta } from "../../shared/sessions/types";
+import type { GameId } from "../../shared/games/ids";
 
 export async function setLapExperimentExcluded(
   lapId: number,

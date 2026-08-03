@@ -3,12 +3,12 @@ import { tmpdir } from "os";
 import { resolve } from "path";
 import { gunzipSync } from "zlib";
 import { Hono } from "hono";
-import { getAccCarByModel } from "../../../shared/acc-car-data";
-import { getAccTrackByName } from "../../../shared/acc-track-data";
-import { getAcEvoCarByDisplayName } from "../../../shared/ac-evo-car-data";
-import { getAcEvoTrackByName } from "../../../shared/ac-evo-track-data";
+import { getAccCarByModel } from "../../../shared/car/acc"
+import { getAccTrackByName } from "../../../shared/track/catalogs/acc"
+import { getAcEvoCarByDisplayName } from "../../../shared/car/ac-evo"
+import { getAcEvoTrackByName } from "../../../shared/track/catalogs/ac-evo"
 import { getGame } from "../../../shared/games/registry";
-import { KNOWN_GAME_IDS } from "../../../shared/types";
+import { KNOWN_GAME_IDS } from "../../../shared/games/ids";
 import { parseAccBuffers } from "../../games/acc/parser";
 import { STATIC } from "../../games/acc/structs";
 import { readWString } from "../../games/acc/utils";

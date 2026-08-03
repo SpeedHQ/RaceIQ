@@ -1,13 +1,10 @@
 import { describe, test, expect } from "bun:test";
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import {
-  alignSegments,
-  detectCornerRegions,
-  validateFacts,
-  type CornerRegion,
-} from "../shared/track-segment-align";
-import type { TrackFacts } from "../shared/track-facts";
+import { detectCornerRegions, type CornerRegion } from "../shared/track/curation/segment-align-detect";
+import { alignSegments } from "../shared/track/curation/segment-align-match";
+import { validateFacts } from "../shared/track/curation/segment-align-validate";
+import type { TrackFacts } from "../shared/track/facts";
 
 /** Identity fields alignment never reads — every fixture shares them. */
 const FACTS = { slug: "test", track: "test", layout: "full", layoutName: "Full", name: "Test" };

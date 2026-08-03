@@ -1,5 +1,6 @@
 /** Representative lap and derived setup-engineer context for an experiment. */
-import type { LapMeta, TelemetryPacket } from "../../shared/types";
+import type { LapMeta } from "../../shared/sessions/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { detectCorners } from "../lap-analysis/corners";
 import { getLapById } from "../db/lap-read-queries";
 import { getLapsForExperiment } from "../db/experiment-lap-queries";

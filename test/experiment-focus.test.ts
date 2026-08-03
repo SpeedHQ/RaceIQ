@@ -11,7 +11,7 @@ import {
   focusForVersionKind,
   headlineMetricForVersionKind,
   versionKindForFocus,
-} from "../shared/experiment-focus";
+} from "../shared/experiments/focus";
 
 /**
  * Focus is a MODE the driver switches mid-session ("the balance is fixed, now

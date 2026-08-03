@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "../../../shared/types";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import type { DbAdapter } from "../../telemetry/pipeline-ports";
 import { assessLapRecording } from "../../lap-analysis/quality";
 import { persistLapMetrics } from "../../lap-analysis/metrics-store";

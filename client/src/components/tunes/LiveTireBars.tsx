@@ -1,5 +1,5 @@
-import type { TelemetryPacket } from "@shared/types";
 import { useMemo } from "react";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { buildLiveRanges, CornerBars, METRICS } from "./SectorRangeBreakdown";
 
 /**

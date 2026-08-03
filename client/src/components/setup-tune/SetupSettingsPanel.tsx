@@ -1,5 +1,5 @@
-import type { GameId } from "@shared/types";
-import { arityLabels, getByPath, getSchemaForGame } from "./setup-schema";
+import { arityLabels, getByPath, getSchemaForGame } from "@shared/setups/schema";
+import type { GameId } from "../../../../shared/games/ids";
 
 /** Read-only summary of an ACC / AC-EVO setup JSON, grouped by the same
  *  sections FillForm edits. Skips fields absent from the settings object —

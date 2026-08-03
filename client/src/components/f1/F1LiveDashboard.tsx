@@ -1,10 +1,10 @@
 import { tryGetGame } from "@shared/games/registry";
-import type { F1ExtendedData } from "@shared/types";
 import { Cloud, CloudLightning, CloudRain, CloudSun, Sun } from "lucide-react";
 import { useState } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/AppTable";
 import { severityColor, severityRangeColor } from "@/lib/colors";
 import { m } from "@/paraglide/messages";
+import type { F1ExtendedData } from "../../../../shared/telemetry/f1-2025";
 import { useCarName, useTrackName } from "../../hooks/queries";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { LapTimeChart } from "../LapTimeChart";

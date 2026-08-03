@@ -1,6 +1,6 @@
-import type { LapMeta } from "@shared/types";
 import { useNavigate } from "@tanstack/react-router";
 import { m } from "@/paraglide/messages";
+import type { LapMeta } from "../../../shared/sessions/types";
 import { useDeleteLap } from "../hooks/queries";
 import { storedLapsSectorCount } from "../lib/lap-sectors";
 import { useGameRoute } from "../stores/game";

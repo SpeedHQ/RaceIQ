@@ -1,11 +1,11 @@
 import { describe, test, expect } from "bun:test";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { turnNumbers } from "../shared/segment-label";
+import { turnNumbers } from "../shared/track/segment-label";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { buildTrackGuideContext, guideCornerLabels, getAvailableTrackGuides } from "../server/ai/track-guides";
-import { listTrackGuideSlugs, loadTrackGuide } from "../shared/track-guide-data";
+import { listTrackGuideSlugs, loadTrackGuide } from "../shared/track/guide/data";
 
 initGameAdapters();
 initServerGameAdapters();

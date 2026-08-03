@@ -1,7 +1,7 @@
-import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import { segmentDisplayNames, segmentGroupLabels } from "@shared/track/segment-label";
 import type { Point, TrackSectors } from "@/components/track/types";
 import { SECTOR_COLOR_VARS, TRACK_CORNER_COLOR_VARS, TRACK_STRAIGHT_COLOR_VARS } from "@/lib/colors";
-import { segmentDisplayNames, segmentGroupLabels } from "@/lib/segment-label";
+import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 
 interface LabelCandidate {
   text: string;
@@ -38,9 +38,7 @@ function overlaps(a: Rect, b: Rect): boolean {
  * inside, before giving up.
  */
 function placeLabels(ctx: CanvasRenderingContext2D, labels: LabelCandidate[], large: boolean, w: number, h: number) {
-  ctx.font = large
-    ? "var(--font-weight-bold) var(--text-app-micro) var(--font-mono)"
-    : "var(--font-weight-bold) var(--text-app-glyph) var(--font-mono)";
+  ctx.font = large ? "var(--font-weight-bold) var(--text-app-micro) var(--font-mono)" : "var(--font-weight-bold) var(--text-app-glyph) var(--font-mono)";
   ctx.textAlign = "center";
   const offDist = large ? 14 : 8;
   const padX = 3;
@@ -274,10 +272,7 @@ export function drawTrack(
       const labelText = labelTexts[segIdx++];
       const start = Math.round(seg.startFrac * n);
       const end = Math.min(Math.round(seg.endFrac * n), n - 1);
-      const color =
-        seg.type === "corner"
-          ? TRACK_CORNER_COLOR_VARS[cornerIdx++ % TRACK_CORNER_COLOR_VARS.length]
-          : TRACK_STRAIGHT_COLOR_VARS[straightIdx++ % TRACK_STRAIGHT_COLOR_VARS.length];
+      const color = seg.type === "corner" ? TRACK_CORNER_COLOR_VARS[cornerIdx++ % TRACK_CORNER_COLOR_VARS.length] : TRACK_STRAIGHT_COLOR_VARS[straightIdx++ % TRACK_STRAIGHT_COLOR_VARS.length];
 
       ctx.beginPath();
       ctx.strokeStyle = color;

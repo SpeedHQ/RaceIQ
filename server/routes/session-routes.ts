@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 
-import { GameIdQuerySchema, IdParamSchema } from "../../shared/schemas";
-import { GameIdSchema } from "../../shared/types";
+import { GameIdQuerySchema, IdParamSchema } from "../../shared/http/route-schemas";
+import { GameIdSchema } from "../../shared/games/ids";
 import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions, getSessionRecapData } from "../db/session-queries";
 import { getSessionResult } from "../db/session-result-queries";
 import { reprocessSession } from "../session-capture/reprocess";
@@ -14,8 +14,9 @@ import { LAP_DETECTOR_IRACING_ID } from "../games/iracing/lap-detector";
 import { wsManager } from "../runtime/websocket-manager";
 import { computeRecap } from "../lap-analysis/recap";
 import { tryGetGame } from "../../shared/games/registry";
-import { getCarName, getTrackName } from "../../shared/car-data";
-import { backfillRaceResults, reconcileSessionResult } from "../race-results/reconcile";
+import { resolveCarName } from "../../shared/car/resolve-name";
+import { resolveTrackName } from "../../shared/track/resolve-name";
+import { backfillRaceResults } from "../race-results/reconcile";
 import { getRaceResultAggregate, getRecentRaceResults } from "../race-results/aggregates";
 
 const ALL_DETECTOR_IDS = [
@@ -47,8 +48,8 @@ export const sessionRoutes = new Hono()
       if (!data) return c.json({ error: "Session not found" }, 404);
 
       const adapter = tryGetGame(gameId);
-      const carName = adapter ? adapter.getCarName(data.session.carOrdinal) : getCarName(data.session.carOrdinal, gameId);
-      const trackName = adapter ? adapter.getTrackName(data.session.trackOrdinal) : getTrackName(data.session.trackOrdinal, gameId);
+      const carName = adapter ? adapter.getCarName(data.session.carOrdinal) : resolveCarName(data.session.carOrdinal, gameId);
+      const trackName = adapter ? adapter.getTrackName(data.session.trackOrdinal) : resolveTrackName(data.session.trackOrdinal, gameId);
 
       const recap = computeRecap({
         session: data.session,

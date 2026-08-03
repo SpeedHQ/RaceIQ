@@ -3,10 +3,12 @@ import { getLapById } from "./lap-read-queries";
 import { eq, desc, and, or, sql, inArray, notInArray, isNull } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps } from "./schema";
-import type { SessionMeta, GameId, TelemetryVersionIdentity } from "../../shared/types";
+import type { SessionMeta } from "../../shared/sessions/types";
+import type { GameId } from "../../shared/games/ids";
+import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { tryGetGame } from "../../shared/games/registry";
 import { existsSync, unlinkSync } from "fs";
-import { getTrackLengthMeters } from "../../shared/track-data";
+import { getTrackLengthMeters } from "../../shared/track/recording/outlines";
 import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
 
 export async function insertSession(

@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "@shared/types";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { m } from "../../paraglide/messages";
 
 const ERS_MODES = ["None", "Low", "Medium", "High", "Overtake"];
@@ -22,7 +22,7 @@ export function AnalyseF1ErsPanel({ currentPacket }: Props) {
         <div>
           <div className="flex justify-between mb-0.5">
             <span className="text-app-text-muted">{m.analyse_ers_store()}</span>
-          <span className="tabular-nums text-(--telemetry-ers-store)">{ersPct.toFixed(1)}%</span>
+            <span className="tabular-nums text-(--telemetry-ers-store)">{ersPct.toFixed(1)}%</span>
           </div>
           <div className="h-1.5 bg-app-surface-alt rounded-full overflow-hidden">
             <div className={`h-full rounded-full transition-all ${ersBarColor}`} style={{ width: `${ersPct}%` }} />

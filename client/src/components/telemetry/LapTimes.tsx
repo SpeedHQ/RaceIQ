@@ -1,6 +1,7 @@
-import type { LiveSectorData, TelemetryPacket } from "@shared/types";
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
+import type { LiveSectorData } from "../../../../shared/live/types";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 
 interface LapTimesProps {
   packet: TelemetryPacket;
@@ -45,7 +46,7 @@ export function LapTimes({ packet, sectors }: LapTimesProps) {
         </div>
         <div className="w-fit">
           <div className="text-app-caption text-app-text-muted uppercase tracking-wider">{m.label_best()}</div>
-        <div className="text-xl font-mono font-bold text-(--lap-pace-best) tabular-nums leading-none">{formatLapTime(packet.BestLap)}</div>
+          <div className="text-xl font-mono font-bold text-(--lap-pace-best) tabular-nums leading-none">{formatLapTime(packet.BestLap)}</div>
         </div>
       </div>
     </div>

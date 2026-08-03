@@ -1,13 +1,13 @@
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { tryGetGame } from "@shared/games/registry";
-import { lapPath } from "@shared/lib/lap-path";
-import type { TelemetryPacket } from "@shared/types";
+import { flipPoints, needsTrackFlip } from "@shared/track/coords";
+import { lapPath } from "@shared/track/path";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
-import { flipPoints, needsTrackFlip } from "../../lib/track-coords";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 
 export interface Point {
   x: number;

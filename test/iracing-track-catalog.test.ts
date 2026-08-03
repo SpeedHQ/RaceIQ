@@ -6,13 +6,11 @@ import {
   test,
 } from "bun:test";
 import { and, eq } from "drizzle-orm";
-import {
-  getAllIRacingTracks,
-  getIRacingSharedTrackName,
-  getIRacingTrackName,
-  getIRacingTrackOrdinalByName,
-} from "../shared/iracing-track-data";
-import { getTrackOutlineByOrdinal } from "../shared/track-data";
+import { getAllIRacingTracks,
+getIRacingSharedTrackName,
+getIRacingTrackName,
+getIRacingTrackOrdinalByName, } from "../shared/track/catalogs/iracing"
+import { getTrackOutlineByOrdinal } from "../shared/track/recording/outlines";
 import { registerDiscoveredTrack } from "../server/db/discovered-tracks";
 import { db } from "../server/db/index";
 import { discoveredTracks } from "../server/db/schema";

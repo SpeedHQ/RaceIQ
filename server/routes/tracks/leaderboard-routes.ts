@@ -1,9 +1,10 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { getLaps, getLapSummariesByTrack } from "../../db/lap-read-queries";
-import { getCarName, carSpecsMap } from "../../../shared/car-data";
+import { fmCarSpecsCatalog } from "../../../shared/car/fm";
+import { resolveCarName } from "../../../shared/car/resolve-name";
 import { tryGetServerGame } from "../../games/registry";
-import type { GameId } from "../../../shared/types";
+import type { GameId } from "../../../shared/games/ids";
 import { TrackOrdinalParamSchema } from "./support";
 
 export const trackLeaderboardRoutes = new Hono()
@@ -45,7 +46,7 @@ export const trackLeaderboardRoutes = new Hono()
           lapNumber: lap.lapNumber,
           lapTime: lap.lapTime,
           carOrdinal: lap.carOrdinal ?? 0,
-          carName: (lap.gameId ? tryGetServerGame(lap.gameId)?.getCarName(lap.carOrdinal ?? 0) : undefined) ?? getCarName(lap.carOrdinal ?? 0, lap.gameId),
+          carName: (lap.gameId ? tryGetServerGame(lap.gameId)?.getCarName(lap.carOrdinal ?? 0) : undefined) ?? resolveCarName(lap.carOrdinal ?? 0, lap.gameId),
           carClass: piClass(pi),
           pi,
           createdAt: lap.createdAt,
@@ -99,7 +100,7 @@ export const trackLeaderboardRoutes = new Hono()
           lapNumber: lap.lapNumber,
           lapTime: lap.lapTime,
           carOrdinal: lap.carOrdinal,
-          carName: (lap.gameId ? tryGetServerGame(lap.gameId)?.getCarName(lap.carOrdinal) : undefined) ?? getCarName(lap.carOrdinal, lap.gameId),
+          carName: (lap.gameId ? tryGetServerGame(lap.gameId)?.getCarName(lap.carOrdinal) : undefined) ?? resolveCarName(lap.carOrdinal, lap.gameId),
           carClass: piClass(pi),
           pi,
           createdAt: lap.createdAt,
@@ -107,7 +108,7 @@ export const trackLeaderboardRoutes = new Hono()
           sectorTimes: lap.sectorTimes,
           isValid: lap.isValid,
           invalidReason: lap.invalidReason,
-          division: carSpecsMap.get(lap.carOrdinal)?.division ?? null,
+          division: fmCarSpecsCatalog.get(lap.carOrdinal)?.division ?? null,
           notes: lap.notes,
         };
       });

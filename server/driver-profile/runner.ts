@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 
-import type { GameId } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
 import { tryGetGame } from "../../shared/games/registry";
 import { loadSettings } from "../runtime/config/settings";
 import { getSecret } from "../runtime/platform/keystore";

@@ -1,7 +1,7 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
-import { KNOWN_GAME_IDS } from "../../../shared/types";
+import { KNOWN_GAME_IDS } from "../../../shared/games/ids";
 import { getGame } from "../../../shared/games/registry";
 import { getLapsForSession } from "../../db/lap-reprocessing-queries";
 import { getTuneById as getDbTune } from "../../db/tune-queries";

@@ -1,8 +1,8 @@
 import { getRecentSessionResults } from "../db/session-result-queries";
-import type { RaceResult } from "../../shared/race-results";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
-import type { GameId } from "../../shared/types";
-import type { RaceResultAggregate } from "../../shared/race-results";
+import type { RaceResult } from "../../shared/race-results/types";
+import { and, eq, sql } from "drizzle-orm";
+import type { GameId } from "../../shared/games/ids";
+import type { RaceResultAggregate } from "../../shared/race-results/types";
 import { db } from "../db";
 import { pitEvents, sessionResults, sessions } from "../db/schema";
 

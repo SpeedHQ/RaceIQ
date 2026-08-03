@@ -85,4 +85,4 @@ If capture-rate or duplicate assertions fail after a source-path change, update 
 
 - [Telemetry recording](../architecture/telemetry-recording.md)
 - [Telemetry reference](../reference/telemetry.md)
-- [Generated telemetry catalog](../../shared/TELEMETRY_CATALOG.md)
+- [Generated telemetry catalog](../../shared/telemetry/catalog/generated/TELEMETRY_CATALOG.md)

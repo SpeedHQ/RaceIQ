@@ -1,12 +1,8 @@
 import { getGame } from "@shared/games/registry";
-import {
-  getFuelAmount,
-  getFuelDisplay,
-  WATTS_PER_HORSEPOWER,
-} from "@shared/games/telemetry";
-import type { TelemetryPacket } from "@shared/types";
-import { operatingRangeColor, severityRangeColor } from "../../lib/colors";
+import { getFuelAmount, getFuelDisplay, WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { useUnits } from "../../hooks/useUnits";
+import { operatingRangeColor, severityRangeColor } from "../../lib/colors";
 import { m } from "../../paraglide/messages";
 import { getSteeringLock } from "../Settings";
 
@@ -19,10 +15,7 @@ export function MetricsPanel({ pkt, startFuel }: { pkt: TelemetryPacket & { Disp
   const lock = getSteeringLock();
   const steerDeg = (pkt.Steer / 127) * (lock / 2);
   const fuel = getFuelDisplay(pkt, telemetryModel.fuel);
-  const fuelUsed =
-    startFuel === undefined
-      ? null
-      : getFuelAmount(startFuel - pkt.Fuel, telemetryModel.fuel);
+  const fuelUsed = startFuel === undefined ? null : getFuelAmount(startFuel - pkt.Fuel, telemetryModel.fuel);
 
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs font-mono">
@@ -40,7 +33,10 @@ export function MetricsPanel({ pkt, startFuel }: { pkt: TelemetryPacket & { Disp
         <span className="tabular-nums">
           <span style={{ color: "var(--metric-fuel)" }}>{fuelUsed ? `${fuelUsed.amount.toFixed(1)}${fuelUsed.unit}` : "?"}</span>
           <span className="text-app-text-dim"> used </span>
-          <span className="text-app-text">{fuel.amount.toFixed(1)}{fuel.unit}</span>
+          <span className="text-app-text">
+            {fuel.amount.toFixed(1)}
+            {fuel.unit}
+          </span>
           <span className="text-app-text-dim"> left</span>
         </span>
       </div>

@@ -9,7 +9,9 @@
  *   - driver:    GRAPHICS_EVO.driver_name / driver_surname
  */
 
-import type { TelemetryPacket, KunosExtendedData, AcEvoExtendedData, GameId } from "../../../shared/types";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { KunosExtendedData, AcEvoExtendedData } from "../../../shared/telemetry/kunos";
+import type { GameId } from "../../../shared/games/ids";
 import { createAcEvoDistanceState, integrateDistance, type AcEvoDistanceState } from "./distance";
 import { calibratePlayerSlot, createPlayerSlotState, type PlayerSlotState } from "./player-slot";
 import {
@@ -26,8 +28,8 @@ import {
   ACEVO_STARTING_GRIP_NAMES,
 } from "./structs";
 import { readCString } from "./utils";
-import { getAcEvoCarByDisplayName } from "../../../shared/ac-evo-car-data";
-import { getAcEvoTrackByName } from "../../../shared/ac-evo-track-data";
+import { getAcEvoCarByDisplayName } from "../../../shared/car/ac-evo"
+import { getAcEvoTrackByName } from "../../../shared/track/catalogs/ac-evo"
 
 export interface AcEvoParserCache {
   carOrdinal: number;

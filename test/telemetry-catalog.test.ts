@@ -8,20 +8,22 @@ import {
 } from "../scripts/generate-telemetry-catalog";
 import { collectIRacingSessionInfoLeafPaths } from "../scripts/iracing-session-info-capture";
 import {
-  assertTelemetryCatalogComplete,
-  getTelemetryChildren,
-  getTelemetrySources,
-  getTelemetryVariable,
-  getSourcesWithoutSemanticDefinition,
-  IRACING_SESSION_INFO_SOURCE_VARIABLES,
-  IRACING_TELEMETRY_SOURCE_VARIABLES,
-  isTelemetryEnumValue,
   TELEMETRY_CATALOG,
   TELEMETRY_CATALOG_HASH,
   TELEMETRY_CATALOG_SCHEMA_VERSION,
   TELEMETRY_CATALOG_VERSION,
-} from "../shared/telemetry-catalog";
-import { KNOWN_GAME_IDS } from "../shared/types";
+} from "../shared/telemetry/catalog/data";
+import {
+  getSourcesWithoutSemanticDefinition,
+  getTelemetryChildren,
+  getTelemetrySources,
+  getTelemetryVariable,
+  IRACING_SESSION_INFO_SOURCE_VARIABLES,
+  IRACING_TELEMETRY_SOURCE_VARIABLES,
+  isTelemetryEnumValue,
+} from "../shared/telemetry/catalog/query";
+import { assertTelemetryCatalogComplete } from "../shared/telemetry/catalog/validation";
+import { KNOWN_GAME_IDS } from "../shared/games/ids";
 
 describe("semantic telemetry catalog", () => {
   test("generated artifact is current and structurally complete", async () => {
@@ -54,13 +56,13 @@ describe("semantic telemetry catalog", () => {
     expect([...second]).toEqual([...first]);
     expect(
       [...first.keys()].map((path) =>
-        path.replaceAll("\\", "/").split("/").at(-1),
+        path.replaceAll("\\", "/").split("/shared/").at(-1),
       ),
     ).toEqual([
-      "telemetry-catalog.generated.json",
-      "telemetry-catalog.generated.ts",
-      "TELEMETRY_CATALOG.md",
-      "telemetry-catalog-matrix.md",
+      "telemetry/catalog/generated/telemetry-catalog.generated.json",
+      "telemetry/catalog/generated/telemetry-catalog.generated.ts",
+      "telemetry/catalog/generated/TELEMETRY_CATALOG.md",
+      "telemetry/catalog/generated/telemetry-catalog-matrix.md",
     ]);
     expect(
       [...first].find(([path]) =>

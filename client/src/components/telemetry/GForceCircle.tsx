@@ -1,9 +1,9 @@
-import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useRef } from "react";
 import { severityRangeColor } from "@/lib/colors";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { m } from "@/paraglide/messages";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 
 /**
  * GForceCircle — Canvas-drawn G-force plot (friction circle).

@@ -1,5 +1,6 @@
-import type { RaceResultClaimEvidence, RaceResultEvidence, RaceResultSourceStatus } from "../../shared/race-results";
-import type { GameId, TelemetryPacket } from "../../shared/types";
+import type { RaceResultClaimEvidence, RaceResultEvidence, RaceResultSourceStatus } from "../../shared/race-results/types";
+import type { GameId } from "../../shared/games/ids";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { derivePitLedger, type PitServiceSignals } from "./pit-ledger";
 import type { RaceSourceObservation, ResultClassification } from "./types";
 import { createRaceResultProvenance } from "./provenance";

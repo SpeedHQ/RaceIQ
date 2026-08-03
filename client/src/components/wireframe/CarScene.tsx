@@ -1,12 +1,14 @@
 import { Grid, Line } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { hasWorldPositions } from "@shared/lib/lap-path";
-import type { GameId, TelemetryPacket } from "@shared/types";
+import { allWheelStates } from "@shared/lap-analysis/physics/vehicle";
+import { hasWorldPositions } from "@shared/track/path";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type * as THREE from "three";
+import type { GameId } from "../../../../shared/games/ids";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import type { CarModelEnrichment } from "../../data/car-models";
 import { useTirePressureOptimal } from "../../hooks/queries";
-import { allWheelStates, tireState } from "../../lib/vehicle-dynamics";
+import { tireState } from "../../lib/vehicle-dynamics";
 import type { ViewPreset, ViewToggles } from "../../lib/wireframe-data";
 import { THREE_COLORS } from "../../lib/wireframe-utils";
 import { AutoChaseCamera, CameraController } from "./CameraControllers";

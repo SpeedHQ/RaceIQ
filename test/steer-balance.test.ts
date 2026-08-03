@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
-import { steerBalance } from "../client/src/lib/vehicle-dynamics";
-import type { TelemetryPacket } from "../shared/types";
+import { steerBalance } from "../shared/lap-analysis/physics/vehicle";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 
 const DEG = Math.PI / 180;
 const G = 9.81;

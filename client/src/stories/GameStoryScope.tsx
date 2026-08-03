@@ -1,5 +1,5 @@
-import type { GameId } from "@shared/types";
-import { useLayoutEffect, useState, type ReactNode } from "react";
+import { type ReactNode, useLayoutEffect, useState } from "react";
+import type { GameId } from "../../../shared/games/ids";
 import { useGameStore } from "../stores/game";
 
 export function GameStoryScope({ gameId, children }: { gameId: GameId; children: ReactNode }) {

@@ -1,11 +1,12 @@
-import type { GameId, TelemetryPacket } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type {
   RaceResultClaimEvidence,
   RaceResultEvidence,
   RaceResultOutcomeStatus,
   RaceResultProvenance,
   RaceResultStatus,
-} from "../../shared/race-results";
+} from "../../shared/race-results/types";
 
 export type ResultSessionType = "practice" | "qualifying" | "race" | "other" | "unknown";
 export type ResultClassification = "finished" | "dnf" | "retired" | "qualifying" | "unknown";

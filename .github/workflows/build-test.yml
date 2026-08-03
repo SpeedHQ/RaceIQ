@@ -31,7 +31,8 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             git fetch --no-tags --depth=1 origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
-            git show "origin/${{ github.base_ref }}:shared/telemetry-catalog.generated.json" > "$RUNNER_TEMP/telemetry-catalog-baseline.json"
+            git show "origin/${{ github.base_ref }}:shared/telemetry/catalog/generated/telemetry-catalog.generated.json" > "$RUNNER_TEMP/telemetry-catalog-baseline.json" \
+              || git show "origin/${{ github.base_ref }}:shared/telemetry-catalog.generated.json" > "$RUNNER_TEMP/telemetry-catalog-baseline.json"
             bun run telemetry:catalog:check --baseline "$RUNNER_TEMP/telemetry-catalog-baseline.json"
           else
             bun run telemetry:catalog:check

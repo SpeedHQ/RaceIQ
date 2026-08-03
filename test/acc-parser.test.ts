@@ -8,8 +8,8 @@ import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
 import { parseRawLapFramesForTest } from "../server/db/telemetry-replay-storage";
 import { stopMaintenanceTasks } from "../server/telemetry/live-pipeline"
-import { getAccTrackName } from "../shared/acc-track-data";
-import { getAccCarName } from "../shared/acc-car-data";
+import { getAccTrackName } from "../shared/track/catalogs/acc"
+import { getAccCarName } from "../shared/car/acc"
 import { unpackTriplet } from "../server/games/kunos/pack-triplet";
 
 initGameAdapters();

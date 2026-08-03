@@ -1,6 +1,6 @@
 import { getGame } from "@shared/games/registry";
 import { getTireTemperatureSourceUnit } from "@shared/games/telemetry";
-import type { TelemetryPacket } from "@shared/types";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { convertSpeed } from "./speed";
 import { convertTemp } from "./temperature";
 
@@ -22,9 +22,7 @@ export interface DisplayPacket extends TelemetryPacket {
  * The game adapter declares the packet's tire-temperature unit.
  */
 export function convertPacket(raw: TelemetryPacket, speedUnit: "mph" | "kmh", tempUnit: "F" | "C"): DisplayPacket {
-  const srcTemp = getTireTemperatureSourceUnit(
-    getGame(raw.gameId).telemetry.tireTemperature,
-  );
+  const srcTemp = getTireTemperatureSourceUnit(getGame(raw.gameId).telemetry.tireTemperature);
   return {
     ...raw,
     DisplaySpeed: convertSpeed(raw.Speed, speedUnit),

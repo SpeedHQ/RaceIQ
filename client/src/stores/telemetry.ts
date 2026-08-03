@@ -1,5 +1,8 @@
-import type { LapMeta, LivePitData, LiveSectorData, TelemetryPacket, TuneIssue } from "@shared/types";
 import { create } from "zustand";
+import type { LivePitData, LiveSectorData } from "../../../shared/live/types";
+import type { LapMeta } from "../../../shared/sessions/types";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { TuneIssue } from "../../../shared/tuning/issues";
 import { convertPacket, type DisplayPacket } from "../lib/convert-packet";
 
 export interface DisplaySettings {

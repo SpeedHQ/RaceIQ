@@ -1,7 +1,8 @@
 import { bench, group, run } from "mitata";
-import { TELEMETRY_CATALOG } from "../../shared/telemetry-catalog";
-import { compileTelemetryResolver, type ResolvedValue } from "../../shared/telemetry-resolver";
-import type { TelemetryPacket } from "../../shared/types";
+import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
+import { compileTelemetryResolver } from "../../shared/telemetry/resolver/compile";
+import type { ResolvedValue } from "../../shared/telemetry/resolver/contracts";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 const resolver = compileTelemetryResolver(TELEMETRY_CATALOG, {
   simulator: "acc",

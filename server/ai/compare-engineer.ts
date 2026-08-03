@@ -12,17 +12,8 @@
  * and inputs-compare-analysis stay consistent.
  */
 import type { UnitSystem, TemperatureUnit } from "../lap-analysis/report"
-import { aiLanguageInstruction } from "../../shared/locales";
-import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
-
-export function getPromptCarName(ordinal: number, gameId?: string): string {
-  return tryGetServerGame(gameId)?.getCarName(ordinal) ?? getCarName(ordinal, gameId);
-}
-
-export function getPromptTrackName(ordinal: number, gameId?: string): string {
-  return tryGetServerGame(gameId)?.getTrackName(ordinal) ?? getTrackName(ordinal, gameId);
-}
-
+import { aiLanguageInstruction } from "../../shared/ai/language";
+import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/ai/prompt-snippets";
 /**
  * The base persona used for every compare flow. Plain text — no JSON shape.
  *

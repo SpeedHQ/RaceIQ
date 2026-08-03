@@ -1,8 +1,8 @@
-import { resolveAnalysisTelemetry } from "@shared/games/analysis-telemetry";
 import { tryGetGame } from "@shared/games/registry";
-import { suspensionCompression } from "@shared/lib/vehicle-physics";
-import type { TelemetryPacket } from "@shared/types";
+import { suspensionCompression } from "@shared/lap-analysis/physics/vehicle";
 import { Info } from "lucide-react";
+import { resolveAnalysisTelemetry } from "../../../../shared/analysis/telemetry-capabilities";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { operatingRangeColor } from "../../lib/colors";
 import { m } from "../../paraglide/messages";
 import { WheelTable } from "./WheelTable";
@@ -20,9 +20,7 @@ export function AnalyseSuspensionPanel({ currentPacket }: Props) {
   const leftCompression = (compression.leftBias * 100).toFixed(0);
   const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
 
-  const showMillimeters =
-    analysis.suspensionTravel.source !== "unavailable" &&
-    analysis.suspensionTravel.display === "millimeters";
+  const showMillimeters = analysis.suspensionTravel.source !== "unavailable" && analysis.suspensionTravel.display === "millimeters";
   const mmValues = showMillimeters
     ? [currentPacket.SuspensionTravelMFL * 1000, currentPacket.SuspensionTravelMFR * 1000, currentPacket.SuspensionTravelMRL * 1000, currentPacket.SuspensionTravelMRR * 1000]
     : null;

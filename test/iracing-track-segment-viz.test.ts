@@ -21,8 +21,8 @@ import { initGameAdapters } from "../shared/games/init";
 import {
   generateTrackSegments,
   loadCenterline,
-} from "../shared/track-segment-generate";
-import { loadTrackFacts } from "../shared/track-data";
+} from "../shared/track/curation/generate";
+import { loadTrackFacts } from "../shared/track/storage/meta";
 import { generateSegmentSvg } from "./helpers/segment-svg";
 
 const FIXTURE =

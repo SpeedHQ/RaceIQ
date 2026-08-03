@@ -3,10 +3,11 @@
  * Provides comparison context; cached analyses are retrieved through the
  * visible get_lap_analysis tool call instead of being embedded here.
  */
-import type { GameId } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
 import type { ComparisonResult } from "../lap-analysis/comparison"
 import type { UnitSystem, TemperatureUnit } from "../lap-analysis/report"
-import { getCarName, getTrackName } from "../../shared/car-data";
+import { resolveCarName } from "../../shared/car/resolve-name";
+import { resolveTrackName } from "../../shared/track/resolve-name";
 import { compareEngineerPersona, compareLapHeader } from "./compare-engineer";
 
 interface LapInfo {
@@ -90,13 +91,10 @@ export function buildCompareChatSystemPrompt(
   /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
   language: string = "en",
 ): string {
-  const carA = getPromptCarName(lapA.carOrdinal ?? 0, lapA.gameId);
-  const carB = getPromptCarName(lapB.carOrdinal ?? 0, lapB.gameId);
-  const trackName = getPromptTrackName(lapA.trackOrdinal ?? 0, lapA.gameId);
-  const finalDelta =
-    comparison.timeDelta[comparison.timeDelta.length - 1] ??
-    lapA.lapTime - lapB.lapTime;
-  return `${compareEngineerPersona(unit, temperatureUnit, language)}${TRACK_GUIDE_PROMPT}
+  const carA = resolveCarName(lapA.carOrdinal ?? 0);
+  const carB = resolveCarName(lapB.carOrdinal ?? 0);
+  const trackName = resolveTrackName(lapA.trackOrdinal ?? 0);
+  const finalDelta = comparison.timeDelta[comparison.timeDelta.length - 1] ?? lapA.lapTime - lapB.lapTime;
 
 INITIALIZATION PROTOCOL — MUST COMPLETE BEFORE ANY TEXT
 

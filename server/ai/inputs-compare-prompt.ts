@@ -5,11 +5,13 @@
  */
 import { z } from "zod";
 import type { ComparisonResult } from "../lap-analysis/comparison"
-import { getCarName, getTrackName } from "../../shared/car-data";
-import type { GameId } from "../../shared/types";
+import { resolveCarName } from "../../shared/car/resolve-name";
+import { resolveTrackName } from "../../shared/track/resolve-name";
+import type { GameId } from "../../shared/games/ids";
+import { compareLapHeader } from "./compare-engineer";
 import { buildTrackGuideContext } from "./track-guides";
 import { resolveTrack } from "../tracks/info";
-import { segmentPromptNames } from "../../shared/segment-label";
+import { segmentPromptNames } from "../../shared/track/segment-label";
 import { computeStatsRange, steerScaleFor, type InputStats } from "../lap-analysis/metrics"
 
 /**
@@ -170,9 +172,9 @@ export function buildInputsComparePrompt(
   /** Per-lap precomputed insight blocks (see buildCompareInsightsBlock). */
   precomputedInsights?: string,
 ): string {
-  const carA = getPromptCarName(lapA.carOrdinal ?? 0, lapA.gameId);
-  const carB = getPromptCarName(lapB.carOrdinal ?? 0, lapB.gameId);
-  const trackName = getPromptTrackName(lapA.trackOrdinal ?? 0, lapA.gameId);
+  const carA = resolveCarName(lapA.carOrdinal ?? 0);
+  const carB = resolveCarName(lapB.carOrdinal ?? 0);
+  const trackName = resolveTrackName(lapA.trackOrdinal ?? 0);
   const { slug } = resolveTrack(lapA.gameId, lapA.trackOrdinal);
   const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName, { slug });
   const finalDelta = comparison.timeDelta[comparison.timeDelta.length - 1] ?? 0;

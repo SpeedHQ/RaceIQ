@@ -1,6 +1,6 @@
-import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useRef, useState } from "react";
 import { client } from "@/lib/rpc";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { GRIP_MAX_SAMPLES, GripSparkline } from "./GripSparkline";
 
 /**

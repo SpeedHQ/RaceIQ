@@ -1,5 +1,7 @@
 import { existsSync, unlinkSync } from "fs";
-import type { GameId, LapMeta, TelemetryVersionIdentity } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
+import type { LapMeta } from "../../shared/sessions/types";
+import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { deleteSession } from "../db/session-queries";
 import { getServerGame } from "../games/registry";
 import { LiveTelemetryPipeline } from "../telemetry/live-pipeline";

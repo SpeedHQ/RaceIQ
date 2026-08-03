@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { GameIdSchema } from "../../shared/types";
-import type { GameId, RaceStrategy, TuneSettings } from "../../shared/types";
+import { GameIdSchema } from "../../shared/games/ids";
+import type { GameId } from "../../shared/games/ids";
+import type { RaceStrategy, TuneSettings } from "../../shared/tuning/types";
 
 
 export interface CatalogTune {

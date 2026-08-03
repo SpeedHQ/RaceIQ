@@ -1,4 +1,7 @@
-import type { TelemetryPacket, GameId, LapMeta, TuneIssue } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { GameId } from "../../shared/games/ids";
+import type { LapMeta } from "../../shared/sessions/types";
+import type { TuneIssue } from "../../shared/tuning/issues";
 import {
   type DbAdapter,
   type WsAdapter,
@@ -10,7 +13,7 @@ import type { ILapDetector, LapDetectorCallbacks } from "../lap-detection/types"
 import { SectorTracker } from "../live-strategy/sector-tracker";
 import { PitTracker } from "../live-strategy/pit-tracker";
 import { feedCalibrationPosition } from "../tracks/calibration";
-import { getTrackOutlineByOrdinal } from "../../shared/track-data";
+import { getTrackOutlineByOrdinal } from "../../shared/track/recording/outlines";
 import { getServerGame } from "../games/registry";
 import { normalizeTelemetryPacket } from "./normalization";
 import { LAP_DETECTOR_ID } from "../lap-detection/detector";

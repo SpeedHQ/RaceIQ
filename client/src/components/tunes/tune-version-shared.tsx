@@ -1,7 +1,7 @@
-import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/review-laps";
-import { parseTestChanges, summarizeTestChange } from "@shared/test-changes";
-import type { LapMeta } from "@shared/types";
+import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/laps/review-selection";
 import { useMemo, useState } from "react";
+import { parseTestChanges, summarizeTestChange } from "../../../../shared/experiments/test-changes";
+import type { LapMeta } from "../../../../shared/sessions/types";
 import { type ExperimentLapMetric, useSetLapExcluded } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 import { Table } from "../ui/AppTable";

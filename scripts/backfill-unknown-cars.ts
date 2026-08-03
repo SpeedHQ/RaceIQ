@@ -21,7 +21,7 @@ import { sessions } from "../server/db/schema";
 import { getServerGame } from "../server/games/registry";
 import { getOrCreateDiscoveredCar } from "../server/db/discovered-cars";
 import { META_FRAME_MAGIC } from "../server/session-capture/framing";
-import type { TelemetryPacket } from "../shared/types";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 
 const GAME_ID = "ac-evo";
 

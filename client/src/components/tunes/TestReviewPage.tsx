@@ -1,4 +1,4 @@
-import { DEFAULT_EXPERIMENT_FOCUS, EXPERIMENT_FOCUS_AGENT_LABELS } from "@shared/experiment-focus";
+import { DEFAULT_EXPERIMENT_FOCUS, EXPERIMENT_FOCUS_AGENT_LABELS } from "@shared/experiments/focus";
 import { getGame } from "@shared/games/registry";
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";

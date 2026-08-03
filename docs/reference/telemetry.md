@@ -2,8 +2,8 @@
 
 RaceIQ keeps field-level telemetry claims in generated artifacts, not hand-maintained markdown.
 
-- `shared/TELEMETRY_CATALOG.md`: exhaustive variable inventory and semantic coverage.
-- `shared/telemetry-catalog-matrix.md`: per-game matrix with availability and source-kind (packet, extension, SDK, session info).
+- `shared/telemetry/catalog/generated/TELEMETRY_CATALOG.md`: exhaustive variable inventory and semantic coverage.
+- `shared/telemetry/catalog/generated/telemetry-catalog-matrix.md`: per-game matrix with availability and source-kind (packet, extension, SDK, session info).
 
 Regenerate with `bun run telemetry:catalog` when parser coverage changes.
 

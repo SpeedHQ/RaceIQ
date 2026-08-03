@@ -1,8 +1,8 @@
-import { EXPERIMENT_FOCUS_LABELS, type ExperimentFocus } from "@shared/experiment-focus";
-import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/review-laps";
-import type { F1CarSetup, LapMeta } from "@shared/types";
-import { Trash2 } from "lucide-react";
+import { EXPERIMENT_FOCUS_LABELS, type ExperimentFocus } from "@shared/experiments/focus";
+import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/laps/review-selection";
 import { useMemo, useState } from "react";
+import type { LapMeta } from "../../../../shared/sessions/types";
+import type { F1CarSetup } from "../../../../shared/telemetry/f1-2025";
 import { type ExperimentLapMetric, type ExperimentVersion, useDeleteVersion, useExperimentFocusHistory, useSetHead, useSetTestNote } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 import { F1SetupModal } from "../analyse/F1SetupModal";

@@ -16,9 +16,9 @@
 
 import { readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
-import { curatedCoverage, renderCoverageTable, renderDetailTables } from "../shared/track-coverage";
-import { stampVerified } from "../shared/track-verified";
-import type { GameId } from "../shared/types";
+import { curatedCoverage, renderCoverageTable, renderDetailTables } from "../shared/track/curation/coverage";
+import { stampVerified } from "../shared/track/curation/verified";
+import type { GameId } from "../shared/games/ids";
 
 /** `meta:spa` or `segments:f1-2025/spa`. */
 export function parseVerifyTarget(spec: string): { kind: "meta" | "segments"; slug: string; gameId?: GameId } {

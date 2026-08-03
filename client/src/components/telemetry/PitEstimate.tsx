@@ -1,9 +1,10 @@
 import { getGame } from "@shared/games/registry";
 import { getFuelDisplay } from "@shared/games/telemetry";
-import type { LivePitData, TelemetryPacket } from "@shared/types";
 import { severityColor } from "@/lib/colors";
 import { tireHealthPctColor } from "@/lib/vehicle-dynamics";
 import { m } from "@/paraglide/messages";
+import type { LivePitData } from "../../../../shared/live/types";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { PitWindow } from "./PitWindow";
 
 interface PitEstimateProps {
@@ -18,13 +19,9 @@ interface PitEstimateProps {
 export function PitEstimate({ packet, pit }: PitEstimateProps) {
   const fuelSpec = getGame(packet.gameId).telemetry.fuel;
   const fuel = getFuelDisplay(packet, fuelSpec);
-  const fuelPct =
-    fuel.fillRatio === undefined ? undefined : fuel.fillRatio * 100;
-  const isFuelCritical =
-    fuel.fillRatio === undefined ? fuel.amount < 5 : fuel.fillRatio < 0.2;
-  const isFuelWarning =
-    !isFuelCritical &&
-    (fuel.fillRatio === undefined ? fuel.amount < 15 : fuel.fillRatio < 0.4);
+  const fuelPct = fuel.fillRatio === undefined ? undefined : fuel.fillRatio * 100;
+  const isFuelCritical = fuel.fillRatio === undefined ? fuel.amount < 5 : fuel.fillRatio < 0.2;
+  const isFuelWarning = !isFuelCritical && (fuel.fillRatio === undefined ? fuel.amount < 15 : fuel.fillRatio < 0.4);
   const fuelColor = severityColor(isFuelCritical ? 3 : isFuelWarning ? 1 : 0);
 
   const fuelLaps = pit?.fuelLapsRemaining ?? null;
@@ -46,12 +43,7 @@ export function PitEstimate({ packet, pit }: PitEstimateProps) {
   });
 
   const pitStatus = packet.acc?.pitStatus;
-  const pitBadge =
-    pitStatus === "in_pit"
-      ? { label: m.pit_in_pit(), color: "var(--status-info)" }
-      : pitStatus === "pit_lane"
-        ? { label: m.pit_pit_lane(), color: "var(--status-warning)" }
-        : null;
+  const pitBadge = pitStatus === "in_pit" ? { label: m.pit_in_pit(), color: "var(--status-info)" } : pitStatus === "pit_lane" ? { label: m.pit_pit_lane(), color: "var(--status-warning)" } : null;
 
   return (
     <div>
@@ -79,17 +71,15 @@ export function PitEstimate({ packet, pit }: PitEstimateProps) {
           </div>
           <div className="flex items-center gap-3">
             {fuelPct === undefined ? (
-              <div
-                className="flex-1 h-3 rounded-full border border-dashed border-app-border"
-                title="Fuel capacity unavailable"
-              />
+              <div className="flex-1 h-3 rounded-full border border-dashed border-app-border" title="Fuel capacity unavailable" />
             ) : (
               <div className="flex-1 h-3 rounded-full overflow-hidden">
                 <div className="h-full rounded-full" style={{ backgroundColor: fuelColor, width: `${fuelPct}%` }} />
               </div>
             )}
             <div className={`text-2xl font-mono font-black tabular-nums leading-none ${fuel.unit === "L" ? "w-20" : "w-14"} text-right`} style={{ color: fuelColor }}>
-              {fuel.amount.toFixed(fuel.unit === "L" ? 1 : 0)}{fuel.unit}
+              {fuel.amount.toFixed(fuel.unit === "L" ? 1 : 0)}
+              {fuel.unit}
             </div>
           </div>
         </div>

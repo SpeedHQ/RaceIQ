@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { analyzeLap } from "@shared/lib/lap-insights";
+import { analyzeLap } from "@shared/lap-analysis/insights/analyze";
 import { initGameAdapters } from "@shared/games/init";
-import { MIN_REPORTABLE_LOSS_S } from "@shared/lib/time-loss";
-import type { TelemetryPacket } from "@shared/types";
+import { MIN_REPORTABLE_LOSS_S } from "@shared/lap-analysis/time-loss";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 
 const RADIUS = 0.33;
 const STEP_MS = 16;

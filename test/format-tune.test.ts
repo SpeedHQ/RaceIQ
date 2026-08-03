@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { formatTuneForPrompt } from "../server/ai/format-tune";
-import type { TuneSettings } from "../shared/types";
+import type { TuneSettings } from "../shared/tuning/types";
 
 const SETTINGS: TuneSettings = {
 	tires: { frontPressure: 30.5, rearPressure: 31.0, compound: "Sport" },

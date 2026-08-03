@@ -23,7 +23,7 @@
  * they're absent (older games / legacy laps) {@link tireTempSymptoms} returns
  * null and callers simply omit tyre-temp context.
  */
-import type { TelemetryPacket } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 export type TireCorner = "FL" | "FR" | "RL" | "RR";
 type CamberBias = "excess_negative" | "insufficient_negative" | "balanced";

@@ -15,10 +15,10 @@
  * Kept separate from `chat-prompt.ts` (the lap-analysis chat) on purpose: that
  * prompt is telemetry+corner-analysis-scoped; this one is setup+symptom-scoped.
  */
-import type { GameId } from "../../shared/types";
-import { aiLanguageInstruction } from "../../shared/locales";
-import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
-import { parseTestChanges } from "../../shared/test-changes";
+import type { GameId } from "../../shared/games/ids";
+import { aiLanguageInstruction } from "../../shared/ai/language";
+import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/ai/prompt-snippets";
+import { parseTestChanges } from "../../shared/experiments/test-changes";
 import type { TuneSymptoms } from "./tune-symptoms";
 import { formatTireTempSymptoms } from "./tune-tire-symptoms";
 import { formatDamperSymptoms } from "./tune-damper-symptoms";

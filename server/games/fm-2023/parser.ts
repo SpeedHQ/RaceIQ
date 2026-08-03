@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "../../../shared/types";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
 
 /**
  * Parse a Forza Motorsport "Dash" format UDP packet.

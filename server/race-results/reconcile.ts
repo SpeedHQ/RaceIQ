@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
-import type { GameId, TelemetryPacket } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { getLapsByIds } from "../db/lap-read-queries";
 import { getLapsForSession } from "../db/lap-reprocessing-queries";
 import { getSessions } from "../db/session-queries";
@@ -7,7 +8,7 @@ import { getSessionResult, upsertSessionResult } from "../db/session-result-quer
 import { getSessionRawFile, getSessionTelemetry } from "../db/telemetry-replay-storage";
 import { deriveRaceResult, normalizeSessionType } from "./derive";
 import { extractRaceSource } from "./source";
-import type { RaceResultCanonicalInputIdentity, RaceResultRawInputIdentity } from "../../shared/race-results";
+import type { RaceResultCanonicalInputIdentity, RaceResultRawInputIdentity } from "../../shared/race-results/types";
 import { loadRawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
 
 function canonicalInputIdentity(sessionId: number, packets: readonly TelemetryPacket[]): RaceResultCanonicalInputIdentity | null {

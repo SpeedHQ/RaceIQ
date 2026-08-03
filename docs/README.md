@@ -31,8 +31,8 @@ Documentation is organized by audience. Start with a user guide; use contributor
 - [Telemetry reference](reference/telemetry.md) — field availability, provenance, and limitations by game.
 - [ACC adapter](reference/adapters/acc.md) — ACC shared-memory behavior.
 - [iRacing adapter](reference/adapters/iracing.md) — iRacing SDK and import behavior.
-- [Generated telemetry catalog](../shared/TELEMETRY_CATALOG.md) — exhaustive generated fields and semantics.
-- [Generated telemetry compatibility matrix](../shared/telemetry-catalog-matrix.md) — cross-game semantic coverage.
+- [Generated telemetry catalog](../shared/telemetry/catalog/generated/TELEMETRY_CATALOG.md) — exhaustive generated fields and semantics.
+- [Generated telemetry compatibility matrix](../shared/telemetry/catalog/generated/telemetry-catalog-matrix.md) — cross-game semantic coverage.
 - [Community tunes](integrations/community-tunes.md) — CDN publishing and synchronization contract.
 - External source specifications:
   - [ACC shared-memory specification](reference/external/acc/acc-shared-memory-v1.8.12.pdf)

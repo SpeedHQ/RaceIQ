@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 
 export interface CornerDef {
   index: number;

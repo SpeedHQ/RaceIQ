@@ -3,16 +3,18 @@
  * Includes the same telemetry context as the analysis prompt,
  * plus the original analysis as reference.
  */
-import type { TelemetryPacket, Tune, GameId } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { Tune } from "../../shared/tuning/types";
+import type { GameId } from "../../shared/games/ids";
 import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-analysis/report"
-import { getCarName, getTrackName } from "../../shared/car-data";
+import { resolveCarName } from "../../shared/car/resolve-name";
+import { resolveTrackName } from "../../shared/track/resolve-name";
 import { buildCornerData } from "./corner-data";
-import { analyzeLap } from "../../shared/lib/lap-insights";
+import { analyzeLap } from "../../shared/lap-analysis/insights/analyze";
+import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
-import { getPromptCarName, getPromptTrackName } from "./compare-engineer";
-import { aiLanguageInstruction } from "../../shared/locales";
-import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
-
+import { aiLanguageInstruction } from "../../shared/ai/language";
+import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/ai/prompt-snippets";
 interface CornerDef {
   index: number;
   label: string;
@@ -49,20 +51,9 @@ export function buildChatSystemPrompt(
   /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
   language: string = "en",
 ): string {
-  const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
-  const serverAdapter = tryGetServerGame(gameId);
-  const carOrdinal = lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0;
-  const trackOrdinal = lap.trackOrdinal ?? packets[0]?.TrackOrdinal ?? 0;
-  const gameName = serverAdapter?.displayName ?? gameId ?? "unknown game";
-  const carName = getPromptCarName(carOrdinal, gameId);
-  const trackName = getPromptTrackName(trackOrdinal, gameId);
-  const identityText = `--- SESSION IDENTITY ---
-Game: ${gameName}
-Game ID: ${gameId ?? "unknown"}
-Car: ${carName}
-Car ID: ${carOrdinal}
-Track: ${trackName}
-Track ID: ${trackOrdinal}`;
+  const carName = resolveCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0);
+  const trackName = resolveTrackName(lap.trackOrdinal ?? 0);
+
   const exportText = generateExport(lap, packets, unit, temperatureUnit);
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
 

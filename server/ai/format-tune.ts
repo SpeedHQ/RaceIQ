@@ -1,4 +1,4 @@
-import type { TuneSettings, TuneCategory } from "../../shared/types";
+import type { TuneSettings, TuneCategory } from "../../shared/tuning/types";
 
 interface TuneForPrompt {
 	name: string;
