@@ -34,7 +34,7 @@ export const lapChatAgent = new Agent({
     listTrackGuidesTool,
     compareF1SetupToCatalogTool,
     getCornerMetricsTool,
-    getLapAnalysisTool,
+    get_lap_analysis: getLapAnalysisTool,
     generate_lap_analysis: generateLapAnalysisTool,
   },
   memory: getChatMemory(),

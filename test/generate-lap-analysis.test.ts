@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { TelemetryPacket } from "../shared/types";
 
 import {
   generateLapAnalysis,
@@ -126,6 +127,38 @@ describe("generateLapAnalysis", () => {
     expect(deps.generateCalls).toBe(0);
   });
 
+  test("returns preflight error before regeneration for a missing lap", async () => {
+    const deps = makeDeps();
+    deps.getLapById = async () => null;
+
+    const result = await generateLapAnalysis(
+      404,
+      { regenerate: true, cacheOnly: true },
+      deps,
+    );
+
+    expect(result.error).toBe("Lap not found");
+    expect(result.analysis).toBeNull();
+    expect(deps.generateCalls).toBe(0);
+  });
+
+  test("returns provider setup errors before opening regeneration stream", async () => {
+    const deps = makeDeps();
+    deps.resolveAi = async () => {
+      throw new Error("provider unavailable");
+    };
+
+    const result = await generateLapAnalysis(
+      7,
+      { regenerate: true, cacheOnly: true, preflight: true },
+      deps,
+    );
+
+    expect(result.error).toBe("provider unavailable");
+    expect(result.analysis).toBeNull();
+    expect(deps.generateCalls).toBe(0);
+  });
+
   test("rejects malformed and schema-invalid output without caching", async () => {
     const malformedDeps = makeDeps({ generated: "not-json" });
     const malformed = await generateLapAnalysis(
@@ -180,5 +213,58 @@ describe("generateLapAnalysis", () => {
     expect(result.error).toBe("provider unavailable");
     expect(deps.saves).toHaveLength(0);
     expect((await deps.getAnalysis!(7))?.analysis).toBe(validAnalysis);
+  });
+});
+
+test("uses native sector layout for iRacing analysis context", async () => {
+  let capturedSectors: unknown;
+  const deps = Object.assign(makeDeps(), {
+    getLapById: async () =>
+      ({
+        ...lap,
+        gameId: "iracing",
+        telemetry: Array.from({ length: 60 }, (_, index) => ({
+          DistanceTraveled: index * 10,
+          CurrentLap: index / 2,
+          iracing: {
+            lapDistancePct: index / 59,
+            sectorStarts: [0, 0.34, 0.67],
+          },
+        })),
+      }) as never,
+    getGame: () => ({
+      nativeSectors: true,
+      getNativeSectorLayout: (packet: TelemetryPacket) => packet.iracing,
+    }),
+    computeNativeSectorTimeline: () => ({
+      sectorCount: 3,
+      times: [10, 11, 12],
+      boundaryIndices: [20, 40],
+      sectorStarts: [0, 0.34, 0.67],
+    }),
+    resolveTrack: () => ({ segments: [], sectors: {} }),
+    buildAnalystPrompt: (
+      _lap: unknown,
+      _telemetry: unknown,
+      _corners: unknown,
+      _unit: unknown,
+      _temperatureUnit: unknown,
+      _tune: unknown,
+      _segments: unknown,
+      _externalGuide: unknown,
+      _language: unknown,
+      sectors: unknown,
+    ) => {
+      capturedSectors = sectors;
+      return "prompt";
+    },
+  });
+
+  await generateLapAnalysis(7, { regenerate: true }, deps);
+
+  expect(capturedSectors).toEqual({
+    times: { s1: 10, s2: 11, s3: 12 },
+    s1End: 0.34,
+    s2End: 0.67,
   });
 });

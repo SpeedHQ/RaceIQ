@@ -2,10 +2,18 @@ import { describe, expect, test } from "bun:test";
 
 import { getGenerateLapAnalysisTool } from "../mastra/tools/lap-analysis";
 
+const validAnalysis = JSON.stringify({
+  verdict: "clean",
+  pace: [],
+  handling: [],
+  corners: [],
+  technique: [],
+  setup: [],
+});
 describe("lap analysis generation tool", () => {
   test("returns parsed cached structured output and usage", async () => {
     const tool = getGenerateLapAnalysisTool(async () => ({
-      analysis: '{"verdict":"clean"}',
+      analysis: validAnalysis,
       cached: true,
       usage: {
         inputTokens: 12,
@@ -23,8 +31,26 @@ describe("lap analysis generation tool", () => {
     expect(result).toEqual({
       available: true,
       lapId: 42,
-      analysis: { verdict: "clean" },
-      readable: '{\n  "verdict": "clean"\n}',
+      analysis: {
+        verdict: "clean",
+        pace: [],
+        handling: [],
+        corners: [],
+        technique: [],
+        setup: [],
+      },
+      readable: JSON.stringify(
+        {
+          verdict: "clean",
+          pace: [],
+          handling: [],
+          corners: [],
+          technique: [],
+          setup: [],
+        },
+        null,
+        2,
+      ),
       cached: true,
       usage: {
         inputTokens: 12,

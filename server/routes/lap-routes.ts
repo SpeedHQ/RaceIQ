@@ -692,25 +692,27 @@ export const lapRoutes = new Hono()
       const { id } = c.req.valid("param");
       const { regenerate, cacheOnly } = c.req.valid("query");
 
-      // Probe cache synchronously so cached and cacheOnly responses retain their
-      // existing JSON contract. Generation itself starts only inside the stream.
-      if (!regenerate) {
-        const cachedResult = await generateLapAnalysis(id, { cacheOnly: true });
-        if (cachedResult.error) {
-          const status =
-            cachedResult.error === "Lap not found"
-              ? 404
-              : cachedResult.error === "No telemetry data"
-                ? 400
-                : 400;
-          return c.json({ error: cachedResult.error }, status);
-        }
-        if (cachedResult.cached) {
-          return c.json(cachedResult);
-        }
-        if (cacheOnly) {
-          return c.json(cachedResult);
-        }
+      // Validate lap existence/telemetry before opening a stream. This keeps
+      // legacy HTTP error statuses for explicit regeneration as well as cache
+      // reuse; only actual generation is deferred into NDJSON.
+      const preflightResult = await generateLapAnalysis(id, {
+        cacheOnly: true,
+        preflight: !cacheOnly || regenerate,
+      });
+      if (preflightResult.error) {
+        const status =
+          preflightResult.error === "Lap not found"
+            ? 404
+            : preflightResult.error === "No telemetry data"
+              ? 400
+              : 400;
+        return c.json({ error: preflightResult.error }, status);
+      }
+      if (!regenerate && preflightResult.cached) {
+        return c.json(preflightResult);
+      }
+      if (cacheOnly && !regenerate) {
+        return c.json(preflightResult);
       }
 
       const encoder = new TextEncoder();

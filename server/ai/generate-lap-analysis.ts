@@ -10,7 +10,11 @@ import { detectCorners, type Corner } from "../corner-detection";
 import { loadSettings } from "../settings";
 import { buildAnalystPrompt } from "./analyst-prompt";
 import { resolveTrack } from "../track-info";
-import { computeLapSectors } from "../compute-lap-sectors";
+import {
+  computeNativeSectorTimeline,
+  computeLapSectors,
+} from "../compute-lap-sectors";
+import { getGame } from "../../shared/games/registry";
 import { lapAnalystAgent } from "./agents";
 import { getAnalystJsonSchema, AnalystOutputSchema } from "./schemas";
 import { buildGoogleProviderOptions } from "./google-provider-options";
@@ -58,10 +62,12 @@ export interface GenerateLapAnalysisDeps {
   saveAnalysis?: typeof saveAnalysis;
   getDbTune?: typeof getDbTune;
   detectCorners?: typeof detectCorners;
+  computeLapSectors?: typeof computeLapSectors;
+  computeNativeSectorTimeline?: typeof computeNativeSectorTimeline;
+  getGame?: typeof getGame;
   loadSettings?: typeof loadSettings;
   buildAnalystPrompt?: typeof buildAnalystPrompt;
   resolveTrack?: typeof resolveTrack;
-  computeLapSectors?: typeof computeLapSectors;
   resolveAi?: typeof resolveAi;
   runAiStructured?: typeof runAiStructured;
   generate?: AgentGenerate;
@@ -84,7 +90,11 @@ function parseAndValidateAnalysis(raw: unknown): string | null {
 
 export async function generateLapAnalysis(
   lapId: number,
-  options: { regenerate?: boolean; cacheOnly?: boolean } = {},
+  options: {
+    regenerate?: boolean;
+    cacheOnly?: boolean;
+    preflight?: boolean;
+  } = {},
   deps: GenerateLapAnalysisDeps = {},
 ): Promise<LapAnalysisResult> {
   const findLap = deps.getLapById ?? getLapById;
@@ -147,7 +157,7 @@ export async function generateLapAnalysis(
         hasTune,
       };
     }
-    if (options.cacheOnly)
+    if (options.cacheOnly && !options.preflight)
       return { analysis: null, cached: false, cornerFracs, hasTune };
   }
 
@@ -166,7 +176,6 @@ export async function generateLapAnalysis(
       } as Tune;
     }
   }
-
   const track = (deps.resolveTrack ?? resolveTrack)(
     lap.gameId,
     lap.trackOrdinal,
@@ -178,13 +187,29 @@ export async function generateLapAnalysis(
         s2End: number;
       }
     | undefined;
-  if (
-    track.sectors.s1End &&
-    track.sectors.s2End &&
-    lap.gameId &&
-    lap.trackOrdinal != null
-  ) {
-    try {
+  try {
+    const game = lap.gameId ? (deps.getGame ?? getGame)(lap.gameId) : undefined;
+    if (game?.nativeSectors && game.getNativeSectorLayout) {
+      const timeline = (
+        deps.computeNativeSectorTimeline ?? computeNativeSectorTimeline
+      )(lap.telemetry, lap.lapTime, game.getNativeSectorLayout);
+      if (timeline && timeline.times.length >= 3) {
+        sectors = {
+          times: {
+            s1: timeline.times[0],
+            s2: timeline.times[1],
+            s3: timeline.times[2],
+          },
+          s1End: timeline.sectorStarts[1],
+          s2End: timeline.sectorStarts[2],
+        };
+      }
+    } else if (
+      track.sectors.s1End &&
+      track.sectors.s2End &&
+      lap.gameId &&
+      lap.trackOrdinal != null
+    ) {
       const times = await (deps.computeLapSectors ?? computeLapSectors)(
         lap.trackOrdinal,
         lap.gameId as GameId,
@@ -198,9 +223,9 @@ export async function generateLapAnalysis(
           s2End: track.sectors.s2End,
         };
       }
-    } catch {
-      // Sector times are optional context.
     }
+  } catch {
+    // Sector times are optional context.
   }
 
   let prompt = (deps.buildAnalystPrompt ?? buildAnalystPrompt)(
@@ -235,6 +260,9 @@ export async function generateLapAnalysis(
     };
   }
 
+  if (options.preflight) {
+    return { analysis: null, cached: false, cornerFracs, hasTune };
+  }
   const model = ai.model;
   const startedAt = Date.now();
   try {
