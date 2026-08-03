@@ -40,9 +40,18 @@ describe("Compare Engineer tools", () => {
     expect(tools).not.toContain("apply_changes");
     expect(tools).not.toContain("delete_version");
   });
-  test("registers generation on Lap Chat and Compare Chat, but not Lap Analyst", async () => {
-    await expect(toolNames(lapChatAgent)).resolves.toContain("generateLapAnalysisTool");
-    await expect(toolNames(compareChatAgent)).resolves.toContain("generateLapAnalysisTool");
-    await expect(toolNames(lapAnalystAgent)).resolves.not.toContain("generate_lap_analysis");
+  test("registers generation under exact snake-case key and preserves get_lap_analysis contract", async () => {
+    const lapChatTools = await toolNames(lapChatAgent);
+    expect(lapChatTools).toContain("getLapAnalysisTool");
+    expect(lapChatTools).toContain("generate_lap_analysis");
+    expect(lapChatTools).not.toContain("generateLapAnalysisTool");
+
+    const compareChatTools = await toolNames(compareChatAgent);
+    expect(compareChatTools).toContain("getLapAnalysisTool");
+    expect(compareChatTools).toContain("generate_lap_analysis");
+    expect(compareChatTools).not.toContain("generateLapAnalysisTool");
+
+    const lapAnalystTools = await toolNames(lapAnalystAgent);
+    expect(lapAnalystTools).not.toContain("generate_lap_analysis");
   });
 });

@@ -32,3 +32,18 @@
 
 - `generateLapAnalysis` statically depends on server agent references, while Mastra agents import this tool. The default tool generator therefore uses a documented lazy import to prevent initialization-cycle failure; injected generators remain available for focused tests.
 - No formatter, linter, or project-wide test suite was run per assignment.
+
+## Review fix
+
+- Lap Chat and Compare Chat now expose the generation tool under exact `generate_lap_analysis` key instead of the camelCase import name.
+- Preserved existing `getLapAnalysisTool` registration contract; Lap Analyst remains generation-free.
+- Updated focused registration tests to require `generate_lap_analysis`, reject `generateLapAnalysisTool`, preserve the retrieval key, and assert Lap Analyst exclusion.
+
+## Review-fix verification
+
+- `bun test test/compare-engineer-tools.test.ts --timeout 30000` — 2 pass, 0 fail, 10 assertions.
+- `bun test test/lap-analysis-tool.test.ts test/lap-analysis-generation-tool.test.ts test/compare-engineer-tools.test.ts --timeout 30000` — 7 pass, 0 fail, 22 assertions.
+
+## Review-fix concerns
+
+- Retrieval remains registered via its pre-existing `getLapAnalysisTool` object key to avoid changing its established tool-call contract; generation now uses the exact snake-case key required by its instructions.

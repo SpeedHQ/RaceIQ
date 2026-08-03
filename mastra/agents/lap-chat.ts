@@ -26,6 +26,6 @@ export const lapChatAgent = new Agent({
     const s = loadSettings();
     return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
   },
-  tools: { getTrackGuideTool, listTrackGuidesTool, compareF1SetupToCatalogTool, getCornerMetricsTool, getLapAnalysisTool, generateLapAnalysisTool },
+  tools: { getTrackGuideTool, listTrackGuidesTool, compareF1SetupToCatalogTool, getCornerMetricsTool, getLapAnalysisTool, generate_lap_analysis: generateLapAnalysisTool },
   memory: getChatMemory(),
 });
