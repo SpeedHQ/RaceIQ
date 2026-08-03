@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { IdParamSchema } from "../../../shared/schemas";
+import { IdParamSchema } from "../../../shared/http/route-schemas";
 import { getExperimentVersion } from "../../db/experiment-version-queries";
 import { loadArmComparison } from "../../experiments/comparison/load";
 import { OUTCOME_METRIC_IDS } from "../../experiments/comparison/metrics";

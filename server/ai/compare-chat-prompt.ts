@@ -3,10 +3,11 @@
  * Embeds both laps' cached analyses + the comparison summary so the agent
  * can reason across the two laps without re-running analysis.
  */
-import type { GameId } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
 import type { ComparisonResult } from "../lap-analysis/comparison"
 import type { UnitSystem, TemperatureUnit } from "../lap-analysis/report"
-import { getCarName, getTrackName } from "../../shared/car-data";
+import { resolveCarName } from "../../shared/car/resolve-name";
+import { resolveTrackName } from "../../shared/track/resolve-name";
 import { compareEngineerPersona, compareLapHeader } from "./compare-engineer";
 
 interface LapInfo {
@@ -102,9 +103,9 @@ export function buildCompareChatSystemPrompt(
   /** Per-lap precomputed insight blocks (see buildCompareInsightsBlock). */
   precomputedInsights?: string,
 ): string {
-  const carA = getCarName(lapA.carOrdinal ?? 0);
-  const carB = getCarName(lapB.carOrdinal ?? 0);
-  const trackName = getTrackName(lapA.trackOrdinal ?? 0);
+  const carA = resolveCarName(lapA.carOrdinal ?? 0);
+  const carB = resolveCarName(lapB.carOrdinal ?? 0);
+  const trackName = resolveTrackName(lapA.trackOrdinal ?? 0);
   const finalDelta = comparison.timeDelta[comparison.timeDelta.length - 1] ?? lapA.lapTime - lapB.lapTime;
 
   return `${compareEngineerPersona(unit, temperatureUnit, language)}

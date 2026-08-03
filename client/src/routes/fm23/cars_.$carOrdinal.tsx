@@ -1,8 +1,8 @@
-import type { TelemetryPacket } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { CarWireframe } from "../../components/CarWireframe";
 import { Button } from "../../components/ui/button";
 import { getCarModel, loadCarModelConfigs } from "../../data/car-models";

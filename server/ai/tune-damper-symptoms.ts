@@ -27,7 +27,7 @@
  * the fast-event fraction uses a coarse fixed threshold (see
  * {@link FAST_DAMPER_VEL}) that holds for the ACC/AC-EVO channels we support.
  */
-import type { TelemetryPacket } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { TireCorner } from "./tune-tire-symptoms";
 
 type TravelUse = "stiff" | "optimal" | "soft";

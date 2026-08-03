@@ -1,5 +1,5 @@
 import { getAllGames, tryGetGame } from "@shared/games/registry";
-import type { GameId } from "@shared/types";
+import type { GameId } from "../../../shared/games/ids";
 
 export type AnalyseSearch = {
   track?: number;

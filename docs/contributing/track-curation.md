@@ -13,7 +13,7 @@ Four layers, highest wins. Each one may be partial; lower layers fill the gaps.
 | 1 | **Curated geometry** | `shared/tracks/<gameId>/<slug>-segments.json` | human, per game |
 | 2 | **Curated roster** (names, numbers, direction, groups) | `shared/tracks/meta/<slug>.json` | human, shared across games |
 | 3 | **Detect hints** (nudges for the fallback detector) | `shared/tracks/detect-hints.json` | human |
-| 4 | **Fallback detector** | `detectCornerRegions()` in `shared/track-segment-generate.ts` | code |
+| 4 | **Fallback detector** | `detectCornerRegions()` in `shared/track/curation/segment-align-detect.ts` | code |
 
 ### Why the roster is shared but geometry is not
 
@@ -346,9 +346,9 @@ If a track looks wrong in the app: fix that track's curated data.
 
 | Concern | File |
 |---------|------|
-| Fallback detection + generation | `shared/track-segment-generate.ts` |
-| Coverage stats | `shared/track-coverage.ts` |
-| Verification ledger | `shared/track-verified.ts` → `shared/tracks/verified.json` |
+| Fallback detection + generation | `shared/track/curation/segment-align-detect.ts`, `shared/track/curation/generate.ts` |
+| Coverage stats | `shared/track/curation/coverage.ts` |
+| Verification ledger | `shared/track/curation/verified.ts` → `shared/tracks/verified.json` |
 | CLI | `scripts/track-coverage.ts` |
 | Guards | `test/track-coverage.test.ts`, `test/helpers/track-known-gaps.ts` |
 

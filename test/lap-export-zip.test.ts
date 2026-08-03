@@ -30,7 +30,7 @@ import {
   isIRacingSessionFrame,
   type IRacingSourceFrameV2,
 } from "../server/games/iracing/source-frame";
-import type { GameId } from "../shared/types";
+import type { GameId } from "../shared/games/ids";
 
 initGameAdapters();
 initServerGameAdapters();

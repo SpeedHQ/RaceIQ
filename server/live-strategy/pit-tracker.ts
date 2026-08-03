@@ -1,4 +1,7 @@
-import type { TelemetryPacket, GameId, LivePitData, LapMeta } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { GameId } from "../../shared/games/ids";
+import type { LivePitData } from "../../shared/live/types";
+import type { LapMeta } from "../../shared/sessions/types";
 import { getLaps, getLapById } from "../db/lap-read-queries";
 import type { ServerGameRuntimePolicy } from "../games/types";
 import {

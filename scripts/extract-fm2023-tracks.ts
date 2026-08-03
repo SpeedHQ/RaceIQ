@@ -9,11 +9,9 @@
  */
 import { writeFileSync, mkdirSync, existsSync, readdirSync } from "fs";
 import { resolve } from "path";
-import {
-  findForzaInstall,
-  parseForzaZip,
-  decompressForzaLZX,
-} from "@shared/lib/forza-lzx";
+import { findForzaInstall } from "@shared/forza/install";
+import { decompressForzaLZX } from "@shared/forza/lzx-decoder";
+import { parseForzaZip } from "@shared/forza/zip";
 
 const OUT_DIR = resolve(import.meta.dir, "../shared/tracks/fm-2023");
 

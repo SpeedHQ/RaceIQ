@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { TelemetryPacket } from "../shared/types";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 import { deriveFuelPerLap, deriveTyreWear } from "../server/lap-analysis/metrics"
 
 /** Pure per-lap metric derivation behind GET /api/experiments/:id/lap-metrics

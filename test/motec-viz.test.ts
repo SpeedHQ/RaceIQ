@@ -22,7 +22,7 @@ import { resolve } from "path";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
-import { loadCenterline } from "../shared/track-segment-generate";
+import { loadCenterline } from "../shared/track/curation/generate";
 import { parseLd } from "../server/motec/ld";
 import { synthesizeAcEvoCapture, SYNTH_HZ } from "../server/games/ac-evo/motec";
 import { META_FRAME_MAGIC } from "../server/session-capture/framing"

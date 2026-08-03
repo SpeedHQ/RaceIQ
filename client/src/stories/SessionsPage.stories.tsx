@@ -1,8 +1,8 @@
-import { MOTEC_SESSION_SOURCE } from "@shared/motec";
-import type { LapMeta, SessionMeta } from "@shared/types";
+import { MOTEC_SESSION_SOURCE } from "@shared/imports/motec";
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
+import type { LapMeta, SessionMeta } from "../../../shared/sessions/types";
 import { SessionsPage } from "../components/SessionsPage";
 import { GameStoryScope } from "./GameStoryScope";
 

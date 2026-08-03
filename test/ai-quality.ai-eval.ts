@@ -12,11 +12,13 @@
  *     contributors can opt in by exporting their own laps.
  */
 import { describe, test, expect, beforeAll } from "bun:test";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { buildAnalystPrompt } from "../server/ai/analyst-prompt";
 import { compareLapHeader } from "../server/ai/compare-engineer";
-import { getCarName, getTrackName } from "../shared/car-data";
+import { resolveCarName } from "../shared/car/resolve-name";
+import { resolveTrackName } from "../shared/track/resolve-name";
 import {
   buildEvalLapAnalystAgent,
   buildEvalCompareEngineerAgent,
@@ -161,12 +163,12 @@ function deriveCornerDefs(fx: LapFixture) {
 
 function buildMinimalComparePrompt(
   fx: ComparePairFixture,
-  packetsA: import("../shared/types").TelemetryPacket[],
-  packetsB: import("../shared/types").TelemetryPacket[],
+  packetsA: TelemetryPacket[],
+  packetsB: TelemetryPacket[],
 ): string {
-  const trackName = getTrackName(fx.lapA.trackOrdinal);
-  const carA = getCarName(fx.lapA.carOrdinal);
-  const carB = getCarName(fx.lapB.carOrdinal);
+  const trackName = resolveTrackName(fx.lapA.trackOrdinal);
+  const carA = resolveCarName(fx.lapA.carOrdinal);
+  const carB = resolveCarName(fx.lapB.carOrdinal);
   const finalDelta = fx.lapA.lapTime - fx.lapB.lapTime;
   const header = compareLapHeader(trackName, carA, carB, fx.lapA, fx.lapB, finalDelta);
 

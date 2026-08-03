@@ -1,4 +1,4 @@
-import type { F1ExtendedData } from "@shared/types";
+import type { F1ExtendedData } from "../../../../shared/telemetry/f1-2025";
 
 export function F1TyreCompound({ f1 }: { f1: F1ExtendedData }) {
   const compound = f1.tyreCompound || "unknown";

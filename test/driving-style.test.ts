@@ -7,9 +7,10 @@ import {
   quantile,
   summariseLapStyle,
   type LapStyleSummary,
-} from "@shared/lib/driving-style";
+} from "@shared/lap-analysis/driving-style";
 import { initGameAdapters } from "@shared/games/init";
-import type { GameId, TelemetryPacket } from "@shared/types";
+import type { GameId } from "../shared/games/ids";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 
 // Steering normalisation is the one genuinely game-dependent step, so the
 // adapters have to exist before any lap is summarised.

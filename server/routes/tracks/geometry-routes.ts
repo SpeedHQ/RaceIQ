@@ -1,19 +1,21 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { OrdinalParamSchema, GameIdQuerySchema } from "../../../shared/schemas";
+import { OrdinalParamSchema, GameIdQuerySchema } from "../../../shared/http/route-schemas";
 import { getLaps, getLapById } from "../../db/lap-read-queries";
 import { getTrackOutline as getDbTrackOutline } from "../../db/track-queries";
 import {
   extractCurbSegments,
-  getBundledOutlineByOrdinal,
-  getTrackBoundariesByOrdinal,
   getTrackCurbs,
+  recordCurbData,
+} from "../../../shared/track/recording/curbs";
+import { getBundledOutlineByOrdinal } from "../../../shared/track/geometry/outlines";
+import { getTrackBoundariesByOrdinal } from "../../../shared/track/geometry/extracted";
+import {
   getTrackOutlineByOrdinal,
   getTrackRacelineByOrdinal,
   hasRecordedOutline as sharedHasRecordedOutline,
-  loadSharedBoundary,
-  recordCurbData,
-} from "../../../shared/track-data";
+} from "../../../shared/track/recording/outlines";
+import { loadSharedBoundary } from "../../../shared/track/geometry/shared";
 import {
   calibrateFromPositions,
   clearCurbRefinement,
@@ -22,7 +24,7 @@ import {
   refineAlignmentWithCurbs,
   transformToSourceSpace,
 } from "../../tracks/calibration";
-import type { GameId } from "../../../shared/types";
+import type { GameId } from "../../../shared/games/ids";
 import { getSharedTrackName, requireGameId } from "./support";
 
 export const trackCalibrationRoutes = new Hono()

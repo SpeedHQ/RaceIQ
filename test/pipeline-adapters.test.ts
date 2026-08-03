@@ -1,5 +1,5 @@
 import { describe, test, expect, spyOn } from "bun:test";
-import type { TelemetryPacket } from "../shared/types";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 import { RealDbAdapter, CapturingDbAdapter, NullWsAdapter } from "../server/telemetry/pipeline-ports"
 import * as DriverProfileRunner from "../server/driver-profile/runner";
 

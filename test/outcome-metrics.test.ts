@@ -10,7 +10,7 @@ import {
   OUTCOME_METRICS,
   pickReferenceLap,
 } from "../server/experiments/comparison/metrics";
-import type { EvaluableLap } from "../shared/review-laps";
+import type { EvaluableLap } from "../shared/laps/review-selection";
 
 /** The policy no metric uses any more, kept explicit so its effects stay
  *  measurable. See `lapTimeSec`'s comment in server/experiments/comparison/metrics.ts. */

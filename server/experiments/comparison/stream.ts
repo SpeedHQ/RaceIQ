@@ -46,8 +46,9 @@
  */
 
 import type { Corner } from "../../lap-analysis/corners";
-import type { EvaluableLap } from "../../../shared/review-laps";
-import type { TelemetryPacket } from "../../../shared/types";
+import type { EvaluableLap } from "../../../shared/laps/review-selection";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
+
 import type { PreparedArm } from "./compare";
 import {
   curateLaps,

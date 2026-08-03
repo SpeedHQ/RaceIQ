@@ -1,9 +1,10 @@
-import { deadReckonIRacingPosition, pointAtLapFraction } from "@shared/lib/lap-path";
-import type { TelemetryPacket, TuneIssue } from "@shared/types";
+import { deadReckonIRacingPosition, pointAtLapFraction } from "@shared/track/path";
 import { useEffect, useRef, useState } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { m } from "@/paraglide/messages";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { TuneIssue } from "../../../shared/tuning/issues";
 import { client } from "../lib/rpc";
 import { useGameId } from "../stores/game";
 import { Button } from "./ui/button";

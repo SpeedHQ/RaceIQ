@@ -22,11 +22,11 @@
  */
 import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from "fs";
 import { resolve } from "path";
-import { SHARED_DIR } from "../shared/resolve-data";
-import type { NamedSegment as LegacyNamedSegment } from "../shared/track-named-segments";
-import { cornerKey, straightKey } from "../shared/track-keys";
-import type { CornerFact, StraightFact, TrackFacts } from "../shared/track-facts";
-import type { TrackGeometry } from "../shared/track-geometry";
+import { SHARED_DIR } from "../shared/runtime/data-paths"
+import type { NamedSegment as LegacyNamedSegment } from "../shared/track/named-segments";
+import { cornerKey, straightKey } from "../shared/track/keys";
+import type { CornerFact, StraightFact, TrackFacts } from "../shared/track/facts";
+import type { TrackGeometry } from "../shared/track/geometry";
 
 const META_DIR = resolve(SHARED_DIR, "tracks", "meta");
 const TRACKS_DIR = resolve(SHARED_DIR, "tracks");

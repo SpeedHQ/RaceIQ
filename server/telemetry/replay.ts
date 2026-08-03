@@ -1,18 +1,18 @@
-import { TELEMETRY_CATALOG } from "../../shared/telemetry-catalog";
-import {
-  compileTelemetryResolver,
-  type ResolvedValue,
-  type SemanticSlot,
-  type TelemetryFrameView,
-} from "../../shared/telemetry-resolver";
-import {
-  canonicalizeTelemetryScalar,
-  type CanonicalTelemetryEnvelope,
-  type CanonicalTelemetryValue,
-  type SemanticTelemetryReplay,
-  type TelemetryRawReference,
-} from "../../shared/telemetry-replay";
-import type { TelemetryPacket } from "../../shared/types";
+import { TELEMETRY_CATALOG } from "../../shared/telemetry/catalog/data";
+import { compileTelemetryResolver } from "../../shared/telemetry/resolver/compile";
+import type {
+  ResolvedValue,
+  SemanticSlot,
+  TelemetryFrameView,
+} from "../../shared/telemetry/resolver/contracts";
+import { canonicalizeTelemetryScalar } from "../../shared/telemetry/replay/canonicalize";
+import type {
+  CanonicalTelemetryEnvelope,
+  CanonicalTelemetryValue,
+  SemanticTelemetryReplay,
+  TelemetryRawReference,
+} from "../../shared/telemetry/replay/contracts";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { getLapById } from "../db/lap-read-queries";
 import { getLapReplaySource, type LapReplaySource } from "../db/telemetry-replay-storage";
 import {

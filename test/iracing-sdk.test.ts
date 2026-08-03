@@ -52,7 +52,7 @@ import {
   iracingAdapter,
   rememberIRacingIdentity,
 } from "../shared/games/iracing";
-import type { TelemetryPacket } from "../shared/types";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 
 initGameAdapters();
 initServerGameAdapters();

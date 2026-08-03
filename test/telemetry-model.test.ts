@@ -6,7 +6,8 @@ import {
   getTireTemperatureSourceUnit,
 } from "../shared/games/telemetry";
 import type { TelemetryModel } from "../shared/games/types";
-import type { GameId, TelemetryPacket } from "../shared/types";
+import type { GameId } from "../shared/games/ids";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 
 initGameAdapters();
 

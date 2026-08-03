@@ -1,4 +1,3 @@
-import type { GameId, TuneSettings } from "@shared/types";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { SetupSettingsPanel } from "@/components/setup-tune/SetupSettingsPanel";
@@ -7,6 +6,8 @@ import { SearchSelect } from "@/components/ui/SearchSelect";
 import { useCatalogTunes, useResolveNames, useUserTunes } from "@/hooks/queries";
 import { tracksMatch } from "@/lib/track-match";
 import { m } from "@/paraglide/messages";
+import type { GameId } from "../../../../shared/games/ids";
+import type { TuneSettings } from "../../../../shared/tuning/types";
 import { Button } from "../ui/button";
 
 // Normalised community-or-user setup row for the panel list.

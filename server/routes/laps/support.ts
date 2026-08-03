@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { GameIdSchema, type TelemetryPacket } from "../../../shared/types";
+import { GameIdSchema } from "../../../shared/games/ids";
+import { type TelemetryPacket } from "../../../shared/telemetry/types";
 import {
   getCatalogDisplayName,
   normalizePacketSetup,

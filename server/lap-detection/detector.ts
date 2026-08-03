@@ -11,15 +11,13 @@
  * Each completed lap's full packet buffer is persisted to SQLite.
  * Fuel and tire wear deltas are tracked per-lap for strategy overlays.
  */
-import type { TelemetryPacket, GameId } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { GameId } from "../../shared/games/ids";
 import type { ILapDetector, LapDetectorOptions } from "./types";
-import {
-  extractCurbSegments,
-  recordCurbData,
-  recordLapTrace,
-} from "../../shared/track-data";
-import { getIRacingSharedTrackName } from "../../shared/iracing-track-data";
-import { lapPath } from "../../shared/lib/lap-path";
+import { extractCurbSegments, recordCurbData } from "../../shared/track/recording/curbs";
+import { recordLapTrace } from "../../shared/track/recording/outlines";
+import { getIRacingSharedTrackName } from "../../shared/track/catalogs/iracing"
+import { lapPath } from "../../shared/track/path";
 import { assessLapRecording } from "../lap-analysis/quality";
 import { persistLapMetrics } from "../lap-analysis/metrics-store";
 import { reconcileAutoExclusionsForLap } from "../experiments/auto-exclude";

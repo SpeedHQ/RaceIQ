@@ -1,8 +1,8 @@
 import { tryGetGame } from "@shared/games/registry";
-import type { LapMeta } from "@shared/types";
 import { useQueries } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import type { LapMeta } from "../../../shared/sessions/types";
 import { useLaps, useSessionRecap, useSessions, useSettings, useTrackOutline, useTrackSectorBoundaries } from "../hooks/queries";
 import { client } from "../lib/rpc";
 import { getGameRoute, useGameId } from "../stores/game";

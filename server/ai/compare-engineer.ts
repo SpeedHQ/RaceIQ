@@ -12,9 +12,8 @@
  * and inputs-compare-analysis stay consistent.
  */
 import type { UnitSystem, TemperatureUnit } from "../lap-analysis/report"
-import { aiLanguageInstruction } from "../../shared/locales";
-import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
-
+import { aiLanguageInstruction } from "../../shared/ai/language";
+import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/ai/prompt-snippets";
 /**
  * The base persona used for every compare flow. Plain text — no JSON shape.
  *

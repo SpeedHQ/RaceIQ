@@ -12,7 +12,7 @@
  * Analyst's own `aiProvider`/`aiModel`, which are distinct from the chat
  * provider the engineer runs on).
  */
-import type { GameId } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
 import { getCorners } from "../db/track-queries";
 import { detectCorners } from "../lap-analysis/corners"
 import { getSecret } from "../runtime/platform/keystore";

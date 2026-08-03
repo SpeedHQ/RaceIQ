@@ -16,12 +16,16 @@ import { gunzipSync } from "zlib";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
-import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../server/telemetry/pipeline-ports"
-import { LiveTelemetryPipeline } from "../server/telemetry/live-pipeline"
-import { computeLapSectors } from "../server/lap-analysis/sectors"
-import { META_FRAME_MAGIC } from "../server/session-capture/framing"
-import { stopMaintenanceTasks } from "../server/telemetry/live-pipeline"
-import type { TelemetryPacket } from "../shared/types";
+import {
+  CapturingDbAdapter,
+  CapturingWsAdapter,
+  NullSessionRecorderAdapter,
+} from "../server/telemetry/pipeline-ports";
+import { LiveTelemetryPipeline, stopMaintenanceTasks } from "../server/telemetry/live-pipeline";
+import { computeLapSectors } from "../server/lap-analysis/sectors";
+import { META_FRAME_MAGIC } from "../server/session-capture/framing";
+import type { TelemetryPacket } from "../shared/telemetry/types";
+
 
 initGameAdapters();
 initServerGameAdapters();

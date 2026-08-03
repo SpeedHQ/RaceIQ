@@ -5,7 +5,7 @@
  * `!== undefined` check), on always includes an array (possibly empty).
  */
 import { describe, test, expect, afterAll } from "bun:test";
-import type { TelemetryPacket } from "../shared/types";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../server/telemetry/pipeline-ports"

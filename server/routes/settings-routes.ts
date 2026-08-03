@@ -4,7 +4,7 @@ import { existsSync, readdirSync } from "fs";
 import { resolve } from "path";
 import { PUBLIC_DIR, IS_COMPILED } from "../runtime/config/paths";
 
-import { GameIdQuerySchema } from "../../shared/schemas";
+import { GameIdQuerySchema } from "../../shared/http/route-schemas";
 import { udpListener } from "../runtime/udp-listener";
 import { wsManager } from "../runtime/websocket-manager";
 import { lapDetector } from "../telemetry/live-pipeline";
@@ -14,7 +14,7 @@ import { enableLaunchOnLogin, disableLaunchOnLogin, getLaunchOnLoginExeDir } fro
 import { getLapStats } from "../db/lap-read-queries";
 import { setCacheMaxBytes } from "../db/telemetry-replay-storage";
 import { getRunningGame } from "../games/registry";
-import { getTrackLengthMeters } from "../../shared/track-data";
+import { getTrackLengthMeters } from "../../shared/track/recording/outlines";
 import { withOnboardingOverride } from "../runtime/options";
 
 const MODELS_CACHE_TTL_MS = 5 * 60 * 1000;

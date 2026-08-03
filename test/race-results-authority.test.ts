@@ -4,7 +4,7 @@ import type {
   RaceResultClaimEvidence,
   RaceResultClaimScope,
   RaceResultProvenance,
-} from "../shared/race-results";
+} from "../shared/race-results/types";
 import { arbitrateRaceResultClaim } from "../server/race-results/authority";
 
 const provenance: RaceResultProvenance = {

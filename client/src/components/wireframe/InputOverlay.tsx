@@ -1,7 +1,7 @@
 import { Line } from "@react-three/drei";
-import type { TelemetryPacket } from "@shared/types";
 import { useMemo } from "react";
 import * as THREE from "three";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { threeColor } from "../../lib/wireframe-utils";
 
 export function InputOverlay({ telemetry, packet }: { telemetry: TelemetryPacket[]; packet: TelemetryPacket }) {
@@ -103,11 +103,11 @@ export function InputOverlay({ telemetry, packet }: { telemetry: TelemetryPacket
 
   return (
     <>
-      {data.throttleRuns.map((run, i) => (
-        <Line key={`t-${i}`} points={run.pts} vertexColors={run.cols} lineWidth={6} transparent opacity={0.9} />
+      {data.throttleRuns.map((run) => (
+        <Line key={`t-${run.pts[0].join(",")}-${run.pts[run.pts.length - 1].join(",")}`} points={run.pts} vertexColors={run.cols} lineWidth={6} transparent opacity={0.9} />
       ))}
-      {data.brakeRuns.map((run, i) => (
-        <Line key={`b-${i}`} points={run.pts} vertexColors={run.cols} lineWidth={6} transparent opacity={0.9} />
+      {data.brakeRuns.map((run) => (
+        <Line key={`b-${run.pts[0].join(",")}-${run.pts[run.pts.length - 1].join(",")}`} points={run.pts} vertexColors={run.cols} lineWidth={6} transparent opacity={0.9} />
       ))}
     </>
   );

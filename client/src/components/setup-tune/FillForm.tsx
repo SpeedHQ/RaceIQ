@@ -1,9 +1,9 @@
+import { arityLabels, arityLength, type FieldDef, getByPath, type SectionDef, setByPath } from "@shared/setups/schema";
 import { useState } from "react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { arityLabels, arityLength, type FieldDef, getByPath, type SectionDef, setByPath } from "./setup-schema";
 
 // Renders each setup section as a collapsible card with numeric inputs.
 // `settings` is the source of truth; every edit calls `onChange` with a

@@ -4,11 +4,11 @@ import { Hono } from "hono";
 import { resolve, sep } from "path";
 import { z } from "zod";
 
-import { getAllAccCars } from "../../../shared/acc-car-data";
-import { getAccSetupFolderKeys, getAccTrackBySetupFolder } from "../../../shared/acc-track-data";
-import { getAllAcEvoCars } from "../../../shared/ac-evo-car-data";
-import { getAcEvoSetupFolderAliases, getAcEvoSetupFolderKeys, getAcEvoTrackBySetupFolder } from "../../../shared/ac-evo-track-data";
-import { AccSetupJsonSchema, isSetupFileNameForGame, SetupGameIdSchema, setupFileFormat, setupFileRejectReason } from "../../../shared/setup-file-formats";
+import { getAllAccCars } from "../../../shared/car/acc"
+import { getAccSetupFolderKeys, getAccTrackBySetupFolder } from "../../../shared/track/catalogs/acc"
+import { getAllAcEvoCars } from "../../../shared/car/ac-evo"
+import { getAcEvoSetupFolderAliases, getAcEvoSetupFolderKeys, getAcEvoTrackBySetupFolder } from "../../../shared/track/catalogs/ac-evo"
+import { AccSetupJsonSchema, setupFileFormat, setupFileRejectReason } from "../../../shared/setups/file-formats";
 import { getTuneById, insertTune } from "../../db/tune-queries";
 import { carSlugFromPresetId, formatCarSetup, readCarSetupFile, summarizeCarSetup } from "../../games/ac-evo/carsetup";
 import { parseCarSetup } from "../../games/ac-evo/carsetup-wire";
@@ -45,7 +45,7 @@ const ImportFileSchema = z.object({
 });
 
 const PlaceSetupSchema = z.object({
-  gameId: SetupGameIdSchema, carName: z.string().min(1).max(120), trackName: z.string().min(1).max(120),
+  gameId: z.enum(["acc", "ac-evo"]), carName: z.string().min(1).max(120), trackName: z.string().min(1).max(120),
   fileName: z.string().min(1).max(160), content: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
   contentBase64: z.string().min(1).optional(),
 }).superRefine((b, ctx) => {
@@ -65,7 +65,10 @@ const PlaceSetupSchema = z.object({
     if (!AccSetupJsonSchema.safeParse(parsed).success) ctx.addIssue({ code: "custom", path: ["content"], message: "That JSON isn't a saved setup — it needs a carName and basicSetup" });
   }
   const hasExt = /\.[^.]+$/.test(b.fileName);
-  if (hasExt && !isSetupFileNameForGame(b.gameId, b.fileName)) ctx.addIssue({ code: "custom", path: ["fileName"], message: setupFileRejectReason(b.gameId, b.fileName) ?? "Unsupported setup file" });
+  const matchesGame = b.fileName.toLowerCase().endsWith(fmt.extension);
+  if (hasExt && !matchesGame) {
+    ctx.addIssue({ code: "custom", path: ["fileName"], message: setupFileRejectReason(b.gameId, b.fileName) ?? "Unsupported setup file" });
+  }
 });
 
 export const tuneSetupFileRoutes = new Hono()

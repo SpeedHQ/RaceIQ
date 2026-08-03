@@ -1,10 +1,10 @@
 import { OrbitControls, useGLTF } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
-import type { TelemetryPacket } from "@shared/types";
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { THREE_COLORS } from "@/lib/wireframe-utils";
 import { m } from "@/paraglide/messages";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 
 const MODEL_PATH = "/models/f1_2025_mclaren_mcl39.glb";
 

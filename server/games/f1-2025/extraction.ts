@@ -2,7 +2,7 @@ import { existsSync, readdirSync } from "fs";
 import { resolve } from "path";
 
 import { USER_TRACKS_DIR } from "../../runtime/config/paths";
-import { scanRecordedFiles } from "../../../shared/track-data";
+import { scanRecordedFiles } from "../../../shared/track/recording/outlines";
 import { findSteamInstall } from "../shared/steam-install";
 import { createExtractionState } from "../shared/extraction-state";
 

@@ -1,8 +1,8 @@
-import type { RaceResult, RaceResultAggregate, RaceResultOutcomeStatus, RaceResultStatus } from "@shared/race-results";
-import type { GameId } from "@shared/types";
+import type { RaceResult, RaceResultAggregate, RaceResultOutcomeStatus, RaceResultStatus } from "@shared/race-results/types";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import type { GameId } from "../../../../shared/games/ids";
 import { client } from "../../lib/rpc";
 
 const classificationLabels: Record<RaceResultStatus, string> = {

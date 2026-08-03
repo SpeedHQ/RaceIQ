@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import type { TelemetryPacket } from "../shared/types";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 import { PitTracker } from "../server/live-strategy/pit-tracker";
 import { forzaServerAdapter } from "../server/games/fm-2023";
 import { f1ServerAdapter } from "../server/games/f1-2025";

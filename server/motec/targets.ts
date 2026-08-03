@@ -28,7 +28,7 @@
  * tell it went wrong.
  */
 
-import type { GameId } from "@shared/types";
+import type { GameId } from "../../shared/games/ids";
 import { getGame } from "@shared/games/registry";
 import type { LdLog } from "./ld";
 import {

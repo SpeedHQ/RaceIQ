@@ -1,3 +1,4 @@
+import { segmentDisplayNames } from "@shared/track/segment-label";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -18,10 +19,9 @@ import { isDevelopment } from "@/lib/env";
 import { formatLapTime } from "@/lib/format";
 import { storedLapsSectorCount } from "@/lib/lap-sectors";
 import { client } from "@/lib/rpc";
-import { segmentDisplayNames } from "@/lib/segment-label";
 import { m } from "@/paraglide/messages";
 import { getGameRoute, useGameId } from "@/stores/game";
-import { numberCorner, unnumberCorner } from "../../../../shared/track-join";
+import { numberCorner, unnumberCorner } from "../../../../shared/track/curation/join";
 import { CatalogTrackSetups } from "./CatalogTrackSetups";
 import { CommunityLeaderboard } from "./CommunityLeaderboard";
 import { TrackDebugPanel } from "./debug/TrackDebugPanel";

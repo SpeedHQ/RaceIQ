@@ -1,6 +1,6 @@
 /**
  * CLI for the track segment generator — core logic lives in
- * shared/track-segment-generate.ts (shared with the test suite, so tests run
+ * shared/track/curation/generate.ts (shared with the test suite, so tests run
  * the exact code path that produces committed meta).
  *
  * Usage:
@@ -12,15 +12,15 @@
  *   --verbose       print detected corner tables for failed alignments
  */
 
-import { detectCornerRegions, type CornerRegion } from "../shared/track-segment-align";
+import { detectCornerRegions, type CornerRegion } from "../shared/track/curation/segment-align-detect";
 import {
   findCenterlines,
   generateTrackSegments,
   listCuratedSlugs,
   loadCenterline,
   writeTrackMeta,
-} from "../shared/track-segment-generate";
-import { loadTrackFacts } from "../shared/track-data";
+} from "../shared/track/curation/generate";
+import { loadTrackFacts } from "../shared/track/storage/meta";
 
 interface Args {
   track?: string;

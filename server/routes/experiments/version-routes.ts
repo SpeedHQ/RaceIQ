@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { IdParamSchema } from "../../../shared/schemas";
+import { IdParamSchema, IdVersionParamSchema } from "../../../shared/http/route-schemas";
 import { getExperiment, setSessionHead } from "../../db/experiment-queries";
 import {
   createExperimentVersion,
@@ -47,19 +47,6 @@ const AddBaseSchema = z.object({
   setHead: z.boolean().optional(),
 });
 
-/** Path params `:id/:versionId` — same integer coercion as `IdParamSchema`, for
-
- *  routes scoped to one setup version within a session (delete/restore). */
-const TestParamSchema = z.object({
-  id: z
-    .string()
-    .transform((val) => parseInt(val, 10))
-    .refine((n) => Number.isInteger(n), "id must be an integer"),
-  versionId: z
-    .string()
-    .transform((val) => parseInt(val, 10))
-    .refine((n) => Number.isInteger(n), "versionId must be an integer"),
-});
 
 /** `?includeDeleted=1` escape hatch (design Phase 8) — everywhere else the
 
@@ -124,7 +111,7 @@ export const experimentVersionRoutes = new Hono()
   // PATCH /api/experiments/:id/versions/:versionId — edit a single version node's
   // free-text driver note (per-node annotation). Undoable via "edit-test-note".
   .patch("/api/experiments/:id/versions/:versionId",
-    zValidator("param", TestParamSchema),
+    zValidator("param", IdVersionParamSchema),
     zValidator("json", UpdateExperimentVersionSchema),
     async (c) => {
       const { id, versionId } = c.req.valid("param");
@@ -167,7 +154,7 @@ export const experimentVersionRoutes = new Hono()
   // moved to the nearest surviving ancestor (or cleared, falling back to the
   // mainline tip via resolveActiveTestId).
   .post("/api/experiments/:id/versions/:versionId/delete",
-    zValidator("param", TestParamSchema),
+    zValidator("param", IdVersionParamSchema),
     async (c) => {
       const { id, versionId } = c.req.valid("param");
       const session = await getExperiment(id);
@@ -213,7 +200,7 @@ export const experimentVersionRoutes = new Hono()
   // subtree back to 'active' (design Phase 8's reversible half). Only nodes
   // currently 'deleted' within the target's subtree are restored.
   .post("/api/experiments/:id/versions/:versionId/restore",
-    zValidator("param", TestParamSchema),
+    zValidator("param", IdVersionParamSchema),
     async (c) => {
       const { id, versionId } = c.req.valid("param");
       const session = await getExperiment(id);

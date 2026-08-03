@@ -1,4 +1,5 @@
-import type { TelemetryPacket, GameId } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { GameId } from "../../shared/games/ids";
 import { tryGetGame } from "../../shared/games/registry";
 import type { ServerGameAdapter } from "../games/types";
 import { fillNormSuspension } from "../telemetry/normalization";

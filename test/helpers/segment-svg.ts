@@ -1,10 +1,10 @@
 import { writeFileSync } from "fs";
-import type { GameId } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
 import { tryGetGame } from "../../shared/games/registry";
-import { flipPoints, needsTrackFlip, type Pt } from "../../shared/track-coords";
-import type { NamedSegment } from "../../shared/track-named-segments";
-import { turnNumbers } from "../../shared/segment-label";
-import { makeTrackProjection } from "../../shared/track-projection";
+import { flipPoints, needsTrackFlip, type Pt } from "../../shared/track/coords";
+import type { NamedSegment } from "../../shared/track/named-segments";
+import { turnNumbers } from "../../shared/track/segment-label";
+import { makeTrackProjection } from "../../shared/track/projection";
 
 /** Distinct, high-contrast colors cycled across corner segments. */
 const CORNER_COLORS = [

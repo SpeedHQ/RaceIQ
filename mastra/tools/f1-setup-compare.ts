@@ -13,6 +13,7 @@
  */
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { getLapById } from "../../server/db/lap-read-queries";
 import {
   topCatalogReferences,
@@ -148,7 +149,7 @@ function emptyResult(lapId: number, reason: string) {
 }
 
 function extractSetupFromTelemetry(
-  packets: import("../../shared/types").TelemetryPacket[] | undefined,
+  packets: TelemetryPacket[] | undefined,
 ): F1Setup | null {
   if (!packets || packets.length === 0) return null;
   for (const p of packets) {

@@ -1,5 +1,5 @@
 import type { GameAdapter } from "../../shared/games/types";
-import type { TelemetryPacket } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { LapDetectorFactory } from "../lap-detection/types";
 
 /** Server-only runtime behavior owned by each game implementation. */

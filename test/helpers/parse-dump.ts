@@ -1,4 +1,5 @@
-import type { GameId, TelemetryPacket } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { CapturedLap, CapturedSession } from "../../server/telemetry/pipeline-ports"
 import type { LapSavedNotification } from "../../server/lap-detection/types"
 import { CapturingDbAdapter, CapturingWsAdapter, NullSessionRecorderAdapter } from "../../server/telemetry/pipeline-ports"
@@ -13,8 +14,8 @@ import { parseAccBuffers } from "../../server/games/acc/parser";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../../server/games/ac-evo/parser";
 import { readWString } from "../../server/games/acc/utils";
 import { STATIC } from "../../server/games/acc/structs";
-import { getAccCarByModel } from "../../shared/acc-car-data";
-import { getAccTrackByName } from "../../shared/acc-track-data";
+import { getAccCarByModel } from "../../shared/car/acc"
+import { getAccTrackByName } from "../../shared/track/catalogs/acc"
 import { readFileSync } from "fs";
 import { gunzipSync } from "zlib";
 import { META_FRAME_MAGIC } from "../../server/session-capture/framing"

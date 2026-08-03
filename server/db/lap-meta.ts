@@ -1,4 +1,5 @@
-import type { GameId, LapMeta } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
+import type { LapMeta } from "../../shared/sessions/types";
 
 type StoredLapMetaRow = {
   id: number;

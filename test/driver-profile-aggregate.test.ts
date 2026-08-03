@@ -10,9 +10,9 @@ import {
 } from "../server/driver-profile/detectors";
 import { buildDriverFingerprint, type ProfileScope } from "../server/driver-profile/fingerprint";
 import { buildDriverTrend, DRIVER_TREND_WINDOW_LAPS } from "../server/driver-profile/trend";
-import type { LapStyleSummary } from "../shared/lib/driving-style";
-import type { LapInsight } from "../shared/lib/lap-insights";
-import type { LapMeta } from "../shared/types";
+import type { LapStyleSummary } from "../shared/lap-analysis/driving-style";
+import type { LapInsight } from "../shared/lap-analysis/insights/types";
+import type { LapMeta } from "../shared/sessions/types";
 
 // No DB, no telemetry decode: everything below drives the pure roll-up with
 // synthetic insights so the maths is testable in isolation.
@@ -498,9 +498,18 @@ describe("normalized driver trend", () => {
   });
 
 
-describe("detector universe stays in lockstep with lap-insights", () => {
+describe("detector universe stays in lockstep with lap-analysis insights", () => {
   test("ALL_DETECTOR_IDS covers every id analyzeLap can emit", () => {
-    const src = readFileSync(join(import.meta.dir, "..", "shared", "lib", "lap-insights.ts"), "utf8");
+    const insightDir = join(import.meta.dir, "..", "shared", "lap-analysis", "insights");
+    const src = [
+      "suspension.ts",
+      "tires.ts",
+      "driving-core.ts",
+      "driving-advanced.ts",
+      "mechanical.ts",
+    ]
+      .map((file) => readFileSync(join(insightDir, file), "utf8"))
+      .join("\n");
     const wheels = ["FL", "FR", "RL", "RR"];
 
     const found = new Set<string>();

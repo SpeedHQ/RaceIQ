@@ -1,6 +1,6 @@
-import type { TelemetryPacket } from "@shared/types";
 import { useMemo, useRef, useState } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { useTrackBoundaries } from "../../hooks/queries";
 import { buildGeometry, extractEdges, type ProjPt, VIEW } from "./track-map-geometry";
 

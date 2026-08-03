@@ -1,6 +1,6 @@
-import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import type { CarModelEnrichment } from "../../data/car-models";
 import { buildTrackIndex, filterByDistanceIndexed, THREE_COLORS } from "../../lib/wireframe-utils";
 

@@ -1,5 +1,5 @@
-import type { TelemetryPacket } from "@shared/types";
 import type { RefObject } from "react";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { m } from "../../paraglide/messages";
 import type { AnalysisHighlight } from "../AiPanel";
 import { Compass } from "../Compass";

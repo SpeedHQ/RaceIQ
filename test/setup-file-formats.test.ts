@@ -1,10 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
   AccSetupJsonSchema,
-  isSetupFileNameForGame,
   setupFileFormat,
   setupFileRejectReason,
-} from "../shared/setup-file-formats";
+} from "../shared/setups/file-formats";
 import { tuneCrudRoutes } from "../server/routes/tunes";
 
 /**
@@ -22,15 +21,15 @@ describe("setup file format per game", () => {
   });
 
   test("a file matches only its own game", () => {
-    expect(isSetupFileNameForGame("acc", "MySetup.json")).toBe(true);
-    expect(isSetupFileNameForGame("acc", "MySetup.carsetup")).toBe(false);
-    expect(isSetupFileNameForGame("ac-evo", "Default-12312.carsetup")).toBe(true);
-    expect(isSetupFileNameForGame("ac-evo", "Default-12312.json")).toBe(false);
+    expect(setupFileRejectReason("acc", "MySetup.json")).toBeNull();
+    expect(setupFileRejectReason("acc", "MySetup.carsetup")).not.toBeNull();
+    expect(setupFileRejectReason("ac-evo", "Default-12312.carsetup")).toBeNull();
+    expect(setupFileRejectReason("ac-evo", "Default-12312.json")).not.toBeNull();
   });
 
   test("extension matching is case-insensitive — Windows writes .JSON too", () => {
-    expect(isSetupFileNameForGame("acc", "SETUP.JSON")).toBe(true);
-    expect(isSetupFileNameForGame("ac-evo", "SETUP.CarSetup")).toBe(true);
+    expect(setupFileRejectReason("acc", "SETUP.JSON")).toBeNull();
+    expect(setupFileRejectReason("ac-evo", "SETUP.CarSetup")).toBeNull();
   });
 
   test("the reject message names the mismatch, not just 'wrong file'", () => {

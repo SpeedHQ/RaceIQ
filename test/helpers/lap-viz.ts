@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { mkdirSync, rmSync } from "fs";
 import { join } from "path";
 import { generateLapSvg, generateRawSvg } from "./lap-svg";

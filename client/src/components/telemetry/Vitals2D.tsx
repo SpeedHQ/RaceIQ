@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "@shared/types";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { useUnits } from "../../hooks/useUnits";
 import { GForceCircle } from "./GForceCircle";
 import { TireDiagram } from "./TireDiagram";

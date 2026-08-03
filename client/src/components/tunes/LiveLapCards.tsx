@@ -1,4 +1,5 @@
-import type { LapMeta, LiveSectorData } from "@shared/types";
+import type { LiveSectorData } from "../../../../shared/live/types";
+import type { LapMeta } from "../../../../shared/sessions/types";
 import { formatLapTime } from "../../lib/format";
 
 interface LiveLapCardsProps {

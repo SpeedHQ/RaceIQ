@@ -1,11 +1,14 @@
-import type { ExperimentFocus, VersionKind } from "@shared/experiment-focus";
+import type { ExperimentFocus, VersionKind } from "@shared/experiments/focus";
 import { tryGetGame } from "@shared/games/registry";
-import type { GameId, LapMeta, SessionMeta, SessionRecap, TelemetryPacket, TuneIssue } from "@shared/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo } from "react";
 import type { DriverProfileSummary } from "../../../server/ai/schemas";
 import type { DriverFingerprint } from "../../../server/driver-profile/fingerprint";
+import type { GameId } from "../../../shared/games/ids";
+import type { LapMeta, SessionMeta, SessionRecap } from "../../../shared/sessions/types";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { TuneIssue } from "../../../shared/tuning/issues";
 import type { CatalogTune } from "../data/tune-catalog";
 import type { SectorTimeline } from "../lib/lap-sectors";
 import { client } from "../lib/rpc";

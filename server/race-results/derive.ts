@@ -1,7 +1,7 @@
 import type {
   RaceResultClaimEvidence,
   RaceResultClaimScope,
-} from "../../shared/race-results";
+} from "../../shared/race-results/types";
 import {
   arbitrateRaceResultClaim,
   RACE_RESULT_OUTCOME_POLICY,

@@ -1,5 +1,5 @@
-import type { TuneIssue } from "@shared/types";
 import { useMemo } from "react";
+import type { TuneIssue } from "../../../../../shared/tuning/issues";
 import { Button } from "../../ui/button";
 
 interface IssuesListProps {

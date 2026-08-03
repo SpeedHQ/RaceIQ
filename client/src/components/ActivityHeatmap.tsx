@@ -1,7 +1,7 @@
-import type { LapMeta } from "@shared/types";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
+import type { LapMeta } from "../../../shared/sessions/types";
 
 const CELL = 11;
 const GAP = 3;
@@ -212,7 +212,7 @@ export function ActivityHeatmap({ laps, showTitle = true }: { laps: LapMeta[]; s
           </span>
           <div className="flex items-center gap-1.5">
             <span>{m.heatmap_less()}</span>
-            {Array.from({ length: 5 }, (_, level) => (
+            {[0, 1, 2, 3, 4].map((level) => (
               <span
                 key={level}
                 className="inline-block rounded-sm border border-app-text/5"

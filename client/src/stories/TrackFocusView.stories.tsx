@@ -1,5 +1,7 @@
-import type { LapMeta, TelemetryPacket, TuneIssue } from "@shared/types";
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import type { LapMeta } from "../../../shared/sessions/types";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
+import type { TuneIssue } from "../../../shared/tuning/issues";
 import { TrackFocusViewInner } from "../components/tunes/track-focus/TrackFocusView";
 import { downsampleLap, stintStats } from "../lib/stint-traces";
 

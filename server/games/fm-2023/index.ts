@@ -1,8 +1,9 @@
 import type { ServerGameAdapter } from "../types";
 import { forzaAdapter } from "../../../shared/games/fm-2023";
 import { parseForzaPacket } from "./parser";
-import { carMap, trackMap } from "../../../shared/car-data";
-import { getForzaSharedOutline } from "../../../shared/track-data";
+import { fmCarCatalog } from "../../../shared/car/fm";
+import { fmTrackCatalog } from "../../../shared/track/catalogs/fm";
+import { getForzaSharedOutline } from "../../../shared/track/geometry/outlines";
 import { LapDetector } from "../../lap-detection/detector";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 
@@ -52,13 +53,13 @@ export const forzaServerAdapter: ServerGameAdapter = {
 	processNames: ["ForzaMotorsport.exe", "forza_steamworks_release_final"],
 
 	getCarName(ordinal) {
-		const car = carMap.get(ordinal);
+		const car = fmCarCatalog.get(ordinal);
 		if (!car) return `Car #${ordinal}`;
 		return `${car.year} ${car.make} ${car.model}`;
 	},
 
 	getTrackName(ordinal) {
-		const track = trackMap.get(ordinal);
+		const track = fmTrackCatalog.get(ordinal);
 		if (!track) return `Track #${ordinal}`;
 		return `${track.name} - ${track.variant}`;
 	},

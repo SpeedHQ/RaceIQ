@@ -1,17 +1,20 @@
-import type { TelemetryPacket, Tune, GameId } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { Tune } from "../../shared/tuning/types";
+import type { GameId } from "../../shared/games/ids";
 import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-analysis/report"
-import { getCarName, getTrackName, carSpecsMap } from "../../shared/car-data";
+import { resolveCarName } from "../../shared/car/resolve-name";
+import { fmCarSpecsCatalog } from "../../shared/car/fm";
+import { resolveTrackName } from "../../shared/track/resolve-name";
 import { buildCornerData } from "./corner-data";
-import { analyzeLap } from "../../shared/lib/lap-insights";
+import { analyzeLap } from "../../shared/lap-analysis/insights/analyze";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
 import { resolveTrack } from "../tracks/info";
 import { buildTrackGuideContext, guideCornerLabels } from "./track-guides";
 import { telemetryToTrackConditions, formatTrackConditions } from "./track-conditions";
-import { segmentPromptLabels } from "../../shared/segment-label";
-import { aiLanguageInstruction } from "../../shared/locales";
-import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
-
+import { segmentPromptLabels } from "../../shared/track/segment-label";
+import { aiLanguageInstruction } from "../../shared/ai/language";
+import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/ai/prompt-snippets";
 interface CornerDef {
   index: number;
   label: string;
@@ -150,8 +153,8 @@ export function buildAnalystPrompt(
   /** This lap's sector times, with the boundaries they were split on. */
   sectors?: { times: number[]; sectorStarts: number[] },
 ): string {
-  const carName = getCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0);
-  const trackName = getTrackName(lap.trackOrdinal ?? 0);
+  const carName = resolveCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0);
+  const trackName = resolveTrackName(lap.trackOrdinal ?? 0);
 
   const exportText = generateExport(lap, packets, unit, temperatureUnit);
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
@@ -250,7 +253,7 @@ export function buildAnalystPrompt(
 
   // Get car specs for additional context
   const carOrdinal = lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0;
-  const specs = carSpecsMap.get(carOrdinal);
+  const specs = fmCarSpecsCatalog.get(carOrdinal);
   let carDetailsText = `Car: ${carName}`;
   if (specs) {
     carDetailsText += `\nClass: ${specs.division}`;

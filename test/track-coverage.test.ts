@@ -7,11 +7,11 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import { curatedCoverage, renderCoverageTable, renderDetailTables } from "../shared/track-coverage";
+import { curatedCoverage, renderCoverageTable, renderDetailTables } from "../shared/track/curation/coverage";
 import { existsSync } from "fs";
 import { resolve } from "path";
-import { fileHash, loadVerified, verifiedKey, verifyState } from "../shared/track-verified";
-import type { GameId } from "../shared/types";
+import { fileHash, loadVerified, verifiedKey, verifyState } from "../shared/track/curation/verified";
+import type { GameId } from "../shared/games/ids";
 
 const REPO_ROOT = resolve(import.meta.dir, "..");
 

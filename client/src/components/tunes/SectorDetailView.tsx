@@ -1,6 +1,7 @@
-import type { TelemetryPacket, TuneIssue } from "@shared/types";
 import { useState } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import type { TuneIssue } from "../../../../shared/tuning/issues";
 import { Button } from "../ui/button";
 import { SectorMap } from "./SectorMap";
 import { bandColor, buildSectorRanges, CORNERS, CornerBars, type CornerKey, METRICS } from "./SectorRangeBreakdown";

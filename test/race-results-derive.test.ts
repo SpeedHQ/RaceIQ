@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { deriveRaceResult, normalizeSessionType } from "../server/race-results/derive";
 import { classifyPitService, derivePitLedger } from "../server/race-results/pit-ledger";
 import type { RaceSourceObservation } from "../server/race-results/types";
-import type { RaceResultProvenance } from "../shared/race-results";
+import type { RaceResultProvenance } from "../shared/race-results/types";
 const provenance: RaceResultProvenance = {
   catalogVersion: "test",
   catalogHash: "sha256:test",

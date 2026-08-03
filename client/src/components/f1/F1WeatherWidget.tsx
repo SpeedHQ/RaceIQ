@@ -1,5 +1,5 @@
-import type { F1ExtendedData } from "@shared/types";
 import { m } from "@/paraglide/messages";
+import type { F1ExtendedData } from "../../../../shared/telemetry/f1-2025";
 
 const WEATHER_LABELS: Record<number, string> = {
   0: "Clear",

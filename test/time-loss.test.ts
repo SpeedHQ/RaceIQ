@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
-import type { TelemetryPacket } from "@shared/types";
+import type { TelemetryPacket } from "../shared/telemetry/types";
+import { frameDt } from "@shared/lap-analysis/frame-time";
 import {
   MIN_REPORTABLE_LOSS_S,
   accelDeficitLoss,
   buildAccelReference,
-  frameDt,
   reportableLoss,
   speedDeficitLoss,
   sumLosses,
-} from "@shared/lib/time-loss";
+} from "@shared/lap-analysis/time-loss";
 
 const RADIUS = 0.33;
 

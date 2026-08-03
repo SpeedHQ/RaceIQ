@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, afterAll } from "bun:test";
 import { _telemetryCacheForTest as cache } from "../server/db/telemetry-replay-storage";
-import type { TelemetryPacket } from "../shared/types";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 
 function stub(id: number, count = 100): TelemetryPacket[] {
   return Array.from({ length: count }, () => ({ __stubId: id })) as unknown as TelemetryPacket[];

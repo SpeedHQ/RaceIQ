@@ -1,4 +1,4 @@
-import { KNOWN_GAME_IDS, type GameId } from "../../shared/types";
+import { KNOWN_GAME_IDS, type GameId } from "../../shared/games/ids";
 import { getAllServerGames } from "../games/registry";
 import {
   decompressIfGzipSync,

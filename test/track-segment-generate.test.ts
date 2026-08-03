@@ -15,11 +15,11 @@ import {
   generateTrackSegments,
   listCuratedSlugs,
   writableAlignments,
-} from "../shared/track-segment-generate";
-import { loadTrackFacts, loadTrackGeometry } from "../shared/track-data";
-import type { TrackGeometry } from "../shared/track-geometry";
-import { officialTurnCount, validateFacts } from "../shared/track-segment-align";
-import { loadDetectHints } from "../shared/track-detect-hints";
+} from "../shared/track/curation/generate";
+import { loadTrackFacts, loadTrackGeometry } from "../shared/track/storage/meta";
+import type { TrackGeometry } from "../shared/track/geometry";
+import { officialTurnCount, validateFacts } from "../shared/track/curation/segment-align-validate";
+import { loadDetectHints } from "../shared/track/detect-hints";
 import { KNOWN_ALIGNMENT_GAPS, KNOWN_FUZZY_ALIGNMENTS } from "./helpers/track-known-gaps";
 
 const slugs = listCuratedSlugs();

@@ -1,5 +1,5 @@
-import type { TelemetryPacket } from "@shared/types";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { client } from "../lib/rpc";
 import { useTelemetryStore } from "../stores/telemetry";
 

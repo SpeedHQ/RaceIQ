@@ -1,7 +1,7 @@
-import type { TuneCategory } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { m } from "@/paraglide/messages";
+import type { TuneCategory } from "../../../shared/tuning/types";
 import type { TuneSettings } from "../data/tune-catalog";
 import { useSettings } from "../hooks/queries";
 import { client } from "../lib/rpc";

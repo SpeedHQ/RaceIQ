@@ -1,5 +1,5 @@
-import type { TelemetryPacket } from "@shared/types";
 import { tireTempColor } from "@/lib/vehicle-dynamics";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 
 interface SectorTimes {
   times: number[];

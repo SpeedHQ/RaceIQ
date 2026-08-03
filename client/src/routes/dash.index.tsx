@@ -1,9 +1,9 @@
-import type { TelemetryPacket } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { QRCodeSVG } from "qrcode.react";
 import type { ReactNode } from "react";
 import { m } from "@/paraglide/messages";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { ComboDash } from "../components/dashes/ComboDash";
 import { ComboDash2 } from "../components/dashes/ComboDash2";
 import { fakeForzaDisplayPacket, fakeForzaPacket, fakePit, fakeSectors, generateFakeSessionLaps } from "../stories/fakeData";

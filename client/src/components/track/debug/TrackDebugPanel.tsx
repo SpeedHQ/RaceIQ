@@ -1,9 +1,9 @@
+import { segmentDisplayNames } from "@shared/track/segment-label";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SECTOR_COLOR_VARS, TRACK_CORNER_COLOR_VARS, TRACK_STRAIGHT_COLOR_VARS, VISUALIZATION_COLOR_VARS } from "@/lib/colors";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
 import { client } from "@/lib/rpc";
-import { segmentDisplayNames } from "@/lib/segment-label";
 import { useGameId } from "@/stores/game";
 import type { Point, TrackBoundaries, TrackCurb, TrackSectors } from "../types";
 import { CurbDebugSection } from "./CurbDebugSection";

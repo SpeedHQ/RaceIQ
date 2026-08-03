@@ -1,7 +1,7 @@
-import type { LapMeta } from "@shared/types";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Download, FileDown, NotebookPen, Sparkles, Trash2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
+import type { LapMeta } from "../../../../shared/sessions/types";
 import { formatLapTime } from "../../lib/format";
 import { m } from "../../paraglide/messages";
 import { Button } from "../ui/button";

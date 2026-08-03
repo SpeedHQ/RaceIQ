@@ -1,9 +1,9 @@
-import type { GameId } from "@shared/types";
+import { getSchemaForGame } from "@shared/setups/schema";
 import { useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
+import type { GameId } from "../../../../shared/games/ids";
 import { Button } from "../ui/button";
 import { FillForm } from "./FillForm";
-import { getSchemaForGame } from "./setup-schema";
 
 export interface SetupTuneData {
   gameId: GameId;

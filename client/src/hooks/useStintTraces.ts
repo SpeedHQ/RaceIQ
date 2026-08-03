@@ -1,7 +1,8 @@
-import type { LapMeta } from "@shared/types";
-import { type EncodedLapTrace, decodeLapTrace, type LapTrace } from "@shared/stint-trace";
+import { decodeLapTrace } from "@shared/laps/trace/codec";
+import type { EncodedLapTrace, LapTrace } from "@shared/laps/trace/types";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import type { LapMeta } from "../../../shared/sessions/types";
 import { client } from "../lib/rpc";
 
 export interface UseStintTracesResult {

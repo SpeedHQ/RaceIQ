@@ -1,5 +1,5 @@
-import type { TelemetryPacket } from "@shared/types";
 import { useCallback, useEffect } from "react";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import type { ChartsPanelHandle } from "../components/analyse/AnalyseChartsPanel";
 import type { TrackMapHandle } from "../components/analyse/AnalyseTrackMap";
 

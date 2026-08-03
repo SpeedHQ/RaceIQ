@@ -1,7 +1,7 @@
-import type { LapMeta } from "@shared/types";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { lapPaceColor } from "@/lib/colors";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";
+import type { LapMeta } from "../../../shared/sessions/types";
 import { m } from "../paraglide/messages";
 import { formatLapTime } from "./LiveTelemetry";
 

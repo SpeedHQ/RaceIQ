@@ -1,18 +1,16 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { OrdinalParamSchema, GameIdQuerySchema } from "../../../shared/schemas";
+import { OrdinalParamSchema, GameIdQuerySchema } from "../../../shared/http/route-schemas";
 import { getLapCountsByTrack } from "../../db/lap-read-queries";
-import {
-  getTrackOutlineByOrdinal,
-  hasRecordedOutline as sharedHasRecordedOutline,
-  loadLabelledSegments,
-  loadSharedOutline,
-} from "../../../shared/track-data";
-import { getTrackName, trackMap } from "../../../shared/car-data";
-import { getF1Tracks } from "../../../shared/f1-track-data";
-import { getAccTracks } from "../../../shared/acc-track-data";
-import { getAcEvoTracks } from "../../../shared/ac-evo-track-data";
-import { getAllIRacingTracks } from "../../../shared/iracing-track-data";
+import { getTrackOutlineByOrdinal, hasRecordedOutline as sharedHasRecordedOutline } from "../../../shared/track/recording/outlines";
+import { loadLabelledSegments } from "../../../shared/track/storage/meta";
+import { loadSharedOutline } from "../../../shared/track/geometry/shared";
+import { resolveTrackName } from "../../../shared/track/resolve-name";
+import { fmTrackCatalog } from "../../../shared/track/catalogs/fm";
+import { getF1Tracks } from "../../../shared/track/catalogs/f1";
+import { getAccTracks } from "../../../shared/track/catalogs/acc";
+import { getAcEvoTracks } from "../../../shared/track/catalogs/ac-evo";
+import { getAllIRacingTracks } from "../../../shared/track/catalogs/iracing";
 import { tryGetServerGame } from "../../games/registry";
 import { listDiscoveredTracks } from "../../db/discovered-tracks";
 
@@ -24,7 +22,7 @@ export const trackCatalogInfoRoutes = new Hono()
     (c) => {
       const { ordinal } = c.req.valid("param");
 
-      const track = trackMap.get(ordinal);
+      const track = fmTrackCatalog.get(ordinal);
       if (!track) return c.json({ error: "Track not found" }, 404);
 
       return c.json({ ordinal, ...track });
@@ -41,7 +39,7 @@ export const trackCatalogInfoRoutes = new Hono()
       const { gameId } = c.req.valid("query");
       const serverAdapter = gameId ? tryGetServerGame(gameId) : undefined;
       if (serverAdapter) return c.text(serverAdapter.getTrackName(ordinal));
-      return c.text(getTrackName(ordinal, gameId));
+      return c.text(resolveTrackName(ordinal, gameId));
     },
   );
 
@@ -198,7 +196,7 @@ export const trackCatalogRoutes = new Hono()
       }
 
       const lapCounts = await getLapCountsByTrack("fm-2023");
-      const tracks = Array.from(trackMap.entries()).map(([ordinal, info]) => {
+      const tracks = Array.from(fmTrackCatalog.entries()).map(([ordinal, info]) => {
         const hasBundled = !!getTrackOutlineByOrdinal(ordinal, "fm-2023");
         return {
           ordinal,

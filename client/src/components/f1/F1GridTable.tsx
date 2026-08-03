@@ -1,6 +1,6 @@
-import type { F1ExtendedData } from "@shared/types";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/AppTable";
 import { m } from "@/paraglide/messages";
+import type { F1ExtendedData } from "../../../../shared/telemetry/f1-2025";
 
 function formatGap(gap: number): string {
   if (gap === 0) return "-";

@@ -1,7 +1,7 @@
+import type { InsightCategory, LapInsight } from "@shared/lap-analysis/insights/types";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { m } from "@/paraglide/messages";
-import type { InsightCategory, LapInsight } from "../lib/lap-insights";
 import { Button } from "./ui/button";
 
 const SEVERITY_COLOR: Record<string, string> = {

@@ -23,7 +23,7 @@ import { gunzipSync } from "zlib";
 import { join } from "path";
 import { STATIC_EVO } from "../server/games/ac-evo/structs";
 import { readCString } from "../server/games/ac-evo/utils";
-import { getAcEvoTrackByName, getAcEvoTracks } from "../shared/ac-evo-track-data";
+import { getAcEvoTrackByName, getAcEvoTracks } from "../shared/track/catalogs/ac-evo"
 import { Kspkg, findContentKspkg } from "../server/games/ac-evo/kspkg";
 import { parseTracksTable } from "../server/games/ac-evo/kspkg-tables";
 import { extractAcEvoTrackGeometry } from "./extract-ac-evo-tracks-geometry";

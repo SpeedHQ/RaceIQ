@@ -1,10 +1,12 @@
-import { resolveAnalysisTelemetry } from "@shared/games/analysis-telemetry";
 import { tryGetGame } from "@shared/games/registry";
-import type { GameId, TelemetryPacket } from "@shared/types";
+import { allFrictionCircle, allWheelStates, steerBalance } from "@shared/lap-analysis/physics/vehicle";
 import { Info } from "lucide-react";
+import { resolveAnalysisTelemetry } from "../../../../shared/analysis/telemetry-capabilities";
+import type { GameId } from "../../../../shared/games/ids";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import type { useUnits } from "../../hooks/useUnits";
 import { severityRangeColor, signedBalanceColor } from "../../lib/colors";
-import { allFrictionCircle, allWheelStates, balanceColor, frictionUtilColor, slipRatioColor, steerBalance, tireState, tireTempLabel } from "../../lib/vehicle-dynamics";
+import { balanceColor, frictionUtilColor, slipRatioColor, tireState, tireTempLabel } from "../../lib/vehicle-dynamics";
 import { m } from "../../paraglide/messages";
 import { WheelTable } from "./WheelTable";
 

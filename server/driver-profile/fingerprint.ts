@@ -5,9 +5,10 @@
  * and DB-backed loading in load.ts. Same inputs always produce deeply equal
  * output: no DB, clock, LLM, or randomness enters this module.
  */
-import type { LapStyleSummary } from "../../shared/lib/driving-style";
-import type { LapInsight } from "../../shared/lib/lap-insights";
-import type { GameId, LapMeta } from "../../shared/types";
+import type { LapStyleSummary } from "../../shared/lap-analysis/driving-style";
+import type { LapInsight } from "../../shared/lap-analysis/insights/types";
+import type { GameId } from "../../shared/games/ids";
+import type { LapMeta } from "../../shared/sessions/types";
 import type { Confidence } from "../experiments/lap-evidence/aggregate";
 import {
   computeStyleAxes,

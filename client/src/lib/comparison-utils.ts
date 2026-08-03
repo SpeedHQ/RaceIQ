@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "@shared/types";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
 
 export const COLOR_A = "var(--comparison-lap-a)";
 export const COLOR_B = "var(--comparison-lap-b)";

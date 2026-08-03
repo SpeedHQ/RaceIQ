@@ -6,8 +6,8 @@ import {
   pointAtLapFraction,
   type LapPathSemanticId,
   type LapPathSemanticReader,
-} from "../shared/lib/lap-path";
-import type { TelemetryPacket } from "../shared/types";
+} from "../shared/track/path";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 
 function packet(
   overrides: Partial<TelemetryPacket> = {},

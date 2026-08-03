@@ -1,5 +1,5 @@
-import type { F1ExtendedData } from "@shared/types";
 import { m } from "@/paraglide/messages";
+import type { F1ExtendedData } from "../../../../shared/telemetry/f1-2025";
 
 const ERS_MAX_ENERGY = 4_000_000; // 4 MJ max ERS store
 

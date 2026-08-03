@@ -1,7 +1,7 @@
 import { Line } from "@react-three/drei";
-import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useLayoutEffect, useMemo } from "react";
 import * as THREE from "three";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { buildTrackIndex, createWallGeometry, DIST_AHEAD, filterByDistanceIndexed, THREE_COLORS, updateWallGeometry } from "../../lib/wireframe-utils";
 
 export function TrackOutline({ outline, packet, distAhead }: { outline: { x: number; z: number }[]; packet: TelemetryPacket; distAhead?: number }) {
@@ -15,8 +15,8 @@ export function TrackOutline({ outline, packet, distAhead }: { outline: { x: num
 
   return (
     <>
-      {segments.map((seg, i) => (
-        <Line key={i} points={seg} color={THREE_COLORS.appText} lineWidth={3} opacity={0.6} transparent />
+      {segments.map((seg) => (
+        <Line key={`${seg[0].join(",")}-${seg[seg.length - 1].join(",")}`} points={seg} color={THREE_COLORS.appText} lineWidth={3} opacity={0.6} transparent />
       ))}
     </>
   );

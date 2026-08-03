@@ -1,10 +1,12 @@
-import { selectEvaluationLaps } from "@shared/review-laps";
-import type { LapMeta, TelemetryPacket, TuneIssue } from "@shared/types";
+import { selectEvaluationLaps } from "@shared/laps/review-selection";
+import { flipPoints, needsTrackFlip } from "@shared/track/coords";
 import { useMemo, useState } from "react";
+import type { LapMeta } from "../../../../../shared/sessions/types";
+import type { TelemetryPacket } from "../../../../../shared/telemetry/types";
+import type { TuneIssue } from "../../../../../shared/tuning/issues";
 import { type LineSpreadTrace, type TrackCorner, useLapIssues, useLapTelemetry, useLineSpread, useTrackBoundaries, useTrackCorners, useTrackSectorBoundaries } from "../../../hooks/queries";
 import { useStintTraces } from "../../../hooks/useStintTraces";
 import { type LapTrace, stintStats } from "../../../lib/stint-traces";
-import { flipPoints, needsTrackFlip } from "../../../lib/track-coords";
 import { Button } from "../../ui/button";
 import { extractEdges, type Pt, type SectorTimesLite } from "../track-map-geometry";
 import { BalanceLanes } from "./BalanceLanes";
@@ -48,7 +50,7 @@ export function TrackFocusView({ gameId, laps, trackOrdinal, focusLapId: control
   // the same pool. Matches the server /line-spread pool.
   // Fastest valid, non-excluded laps — matches the server /line-spread clean
   // pool. Routed through the shared selector so the traces rendered here are
-  // exactly the laps the UI badges as "Eval" (see shared/review-laps.ts);
+  // exactly the laps the UI badges as "Eval" (see shared/laps/review-selection.ts);
   // the old local fastestLaps() trim could disagree when auto-exclude had
   // never run for the scope. Filter from `laps`, not `stintLaps`: the selector
   // applies the valid/legacy/pit rules itself and reports why each lap fell out.

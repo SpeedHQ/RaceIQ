@@ -1,4 +1,4 @@
-import type { F1ExtendedData } from "@shared/types";
+import type { F1ExtendedData } from "../../../../shared/telemetry/f1-2025";
 
 export function F1DrsIndicator({ f1 }: { f1: F1ExtendedData }) {
   const active = f1.drsActivated;

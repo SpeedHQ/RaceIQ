@@ -7,12 +7,12 @@ import { homedir } from "os";
 import { SHARED_DIR } from "../../runtime/config/paths";
 import { accRecorder } from "../../games/kunos/recorder";
 import { replayRecording } from "../../games/acc/replay";
-import { getAllAccCars, getAccCarClass } from "../../../shared/acc-car-data";
-import { getAccCarSpecs } from "../../../shared/acc-car-specs";
+import { getAllAccCars, getAccCarClass } from "../../../shared/car/acc"
+import { getAccCarSpecs } from "../../../shared/car/acc-specs"
 import { getAccReader } from "../../runtime/live-readers";
 import { PHYSICS, GRAPHICS, STATIC } from "../../games/acc/structs";
 import { readWString } from "../../games/acc/utils";
-import { getAccSharedTrackName, getAccTracks } from "../../../shared/acc-track-data";
+import { getAccSharedTrackName, getAccTracks } from "../../../shared/track/catalogs/acc"
 
 let accReplayHandle: { stop: () => void; frameCount: number } | null = null;
 

@@ -3,7 +3,7 @@ import { RequestContext } from "@mastra/core/request-context";
 import { driverCoachTools } from "../mastra/tools/driver-coach";
 import { createExperiment, getExperiment, setSessionHead } from "../server/db/experiment-queries";
 import { createExperimentVersion, getExperimentVersion, listExperimentVersions } from "../server/db/experiment-version-queries";
-import type { DrillChange } from "../shared/types";
+import type { DrillChange } from "../shared/experiments/types";
 
 /**
  * `record_drill` — the driver coach's write path, and the reason a driving

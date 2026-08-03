@@ -18,8 +18,9 @@ import {
   OUTCOME_METRICS,
 } from "../server/experiments/comparison/metrics";
 import type { Corner } from "../server/lap-analysis/corners";
-import type { EvaluableLap } from "../shared/review-laps";
-import type { TelemetryPacket } from "../shared/types";
+import type { EvaluableLap } from "../shared/laps/review-selection";
+import type { TelemetryPacket } from "../shared/telemetry/types";
+
 
 /**
  * The curation policy no shipped metric uses any more — see `lapTimeSec` in

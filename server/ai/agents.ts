@@ -23,7 +23,7 @@
  * emit traces.
  */
 import { resolve } from "path";
-import type { ExperimentFocus } from "../../shared/experiment-focus";
+import type { ExperimentFocus } from "../../shared/experiments/focus";
 import { lapAnalystAgent as rawLapAnalystAgent } from "../../mastra/agents/lap-analyst";
 import { lapChatAgent as rawLapChatAgent } from "../../mastra/agents/lap-chat";
 import { compareEngineerAgent as rawCompareEngineerAgent } from "../../mastra/agents/compare-engineer";

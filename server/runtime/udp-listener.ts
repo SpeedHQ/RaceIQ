@@ -16,7 +16,7 @@ import { wsManager } from "./websocket-manager";
 import { processPacket, flushSessionRecorderBuffer, lapDetector } from "../telemetry/live-pipeline";
 import { getRunningGame } from "../games/registry";
 import { SessionRecorder } from "../session-capture/recorder";
-import type { GameId } from "../../shared/types";
+import type { GameId } from "../../shared/games/ids";
 
 const MIN_PACKET_LENGTH = 29; // Minimum: F1 header size
 const PACKETS_PER_SEC_WINDOW = 1000; // 1-second sliding window for rate display

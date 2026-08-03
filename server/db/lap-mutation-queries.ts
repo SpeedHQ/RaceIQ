@@ -2,7 +2,7 @@ import { cacheDelete } from "./telemetry-replay-storage";
 import { eq } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps } from "./schema";
-import type { TelemetryVersionIdentity } from "../../shared/types";
+import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { getActiveExperiment } from "../experiments/active";
 import { resolveActiveTestId } from "./experiment-version-queries";
 

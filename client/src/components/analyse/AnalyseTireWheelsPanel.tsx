@@ -1,6 +1,7 @@
-import { resolveAnalysisTelemetry } from "@shared/games/analysis-telemetry";
 import { tryGetGame } from "@shared/games/registry";
-import type { GameId, TelemetryPacket } from "@shared/types";
+import { resolveAnalysisTelemetry } from "../../../../shared/analysis/telemetry-capabilities";
+import type { GameId } from "../../../../shared/games/ids";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { useTirePressureOptimal } from "../../hooks/queries";
 import type { useUnits } from "../../hooks/useUnits";
 import type { DisplayPacket } from "../../lib/convert-packet";
@@ -55,19 +56,10 @@ export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, ga
 
   const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
   const unavailable = <span className="text-app-text-dim">—</span>;
-  const pitTemperature =
-    analysis.tireTemperature.source === "direct" &&
-    analysis.tireTemperature.freshness === "pit-snapshot";
-  const pitHealth =
-    analysis.tireHealth.source === "direct" &&
-    analysis.tireHealth.freshness === "pit-snapshot";
-  const coldPressure =
-    analysis.tirePressure.source !== "unavailable" &&
-    analysis.tirePressure.display === "cold-pressure";
-  const pressureColor = (pressure: number) =>
-    coldPressure
-      ? "var(--app-text)"
-      : tirePressureColor(pressure, pressureOptimal);
+  const pitTemperature = analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot";
+  const pitHealth = analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "pit-snapshot";
+  const coldPressure = analysis.tirePressure.source !== "unavailable" && analysis.tirePressure.display === "cold-pressure";
+  const pressureColor = (pressure: number) => (coldPressure ? "var(--app-text)" : tirePressureColor(pressure, pressureOptimal));
 
   const rows = [
     {
@@ -78,18 +70,14 @@ export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, ga
       rr: analysis.wheelRotation.source === "unavailable" ? unavailable : speeds[3].toFixed(1),
     },
     {
-      label: pitTemperature
-        ? m.analyse_wheels_pit_temp()
-        : m.analyse_wheels_temp(),
+      label: pitTemperature ? m.analyse_wheels_pit_temp() : m.analyse_wheels_temp(),
       fl: C(`${fl.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempFL), units.thresholds)),
       fr: C(`${fr.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempFR), units.thresholds)),
       rl: C(`${rl.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempRL), units.thresholds)),
       rr: C(`${rr.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempRR), units.thresholds)),
     },
     {
-      label: pitHealth
-        ? m.analyse_wheels_pit_health()
-        : m.analyse_wheels_health(),
+      label: pitHealth ? m.analyse_wheels_pit_health() : m.analyse_wheels_health(),
       fl: C(`${((1 - healths[0]) * 100).toFixed(1)}%`, tireHealthColor(healths[0], hThresh)),
       fr: C(`${((1 - healths[1]) * 100).toFixed(1)}%`, tireHealthColor(healths[1], hThresh)),
       rl: C(`${((1 - healths[2]) * 100).toFixed(1)}%`, tireHealthColor(healths[2], hThresh)),
@@ -120,9 +108,7 @@ export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, ga
     ...(hasPressure && analysis.tirePressure.source !== "unavailable"
       ? [
           {
-            label: coldPressure
-              ? m.analyse_wheels_cold_pressure()
-              : m.analyse_wheels_pressure(),
+            label: coldPressure ? m.analyse_wheels_cold_pressure() : m.analyse_wheels_pressure(),
             fl: C(`${pressFL.toFixed(1)} psi`, pressureColor(pressFL)),
             fr: C(`${pressFR.toFixed(1)} psi`, pressureColor(pressFR)),
             rl: C(`${pressRL.toFixed(1)} psi`, pressureColor(pressRL)),

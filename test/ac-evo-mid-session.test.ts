@@ -18,7 +18,7 @@ import { LapDetectorAcEvo } from "../server/games/ac-evo/lap-detector"
 import { META_FRAME_MAGIC } from "../server/session-capture/framing"
 import { stopMaintenanceTasks } from "../server/telemetry/live-pipeline"
 import { parseRawLapFramesForTest } from "../server/db/telemetry-replay-storage";
-import type { TelemetryPacket } from "../shared/types";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 
 initGameAdapters();
 initServerGameAdapters();

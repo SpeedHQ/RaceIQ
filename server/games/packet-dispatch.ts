@@ -1,4 +1,4 @@
-import type { TelemetryPacket } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
 import { getAllServerGames, getRunningGame } from "./registry";
 
 // Per-game parser state (e.g. F1StateAccumulator), keyed by game ID

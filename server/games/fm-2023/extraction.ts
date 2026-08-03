@@ -2,12 +2,10 @@ import { existsSync, readdirSync, mkdirSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
 import { USER_TRACKS_DIR } from "../../runtime/config/paths";
-import { scanRecordedFiles } from "../../../shared/track-data";
-import {
-  findForzaInstall,
-  parseForzaZip,
-  decompressForzaLZX,
-} from "../../../shared/lib/forza-lzx";
+import { scanRecordedFiles } from "../../../shared/track/recording/outlines";
+import { findForzaInstall } from "../../../shared/forza/install";
+import { decompressForzaLZX } from "../../../shared/forza/lzx-decoder";
+import { parseForzaZip } from "../../../shared/forza/zip";
 import { createExtractionState } from "../shared/extraction-state";
 
 

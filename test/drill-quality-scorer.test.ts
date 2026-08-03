@@ -106,7 +106,7 @@ describe("drill-quality: what it refuses", () => {
 
 describe("drill-quality: input shapes", () => {
   test("scores the DrillChange object record_drill actually writes", async () => {
-    // Same shape as shared/types.ts DrillChange, which is what lands in
+    // Same shape as shared/experiments/types.ts DrillChange, which is what lands in
     // experiment_versions.appliedChanges.
     const change = {
       kind: "drill",

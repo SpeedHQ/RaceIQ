@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { LapMeta, TelemetryPacket } from "../shared/types";
+import type { LapMeta } from "../shared/sessions/types";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 import { consistencyAt, downsampleLap, sampleAt, stintStats } from "../client/src/lib/stint-traces";
 
 function pkt(overrides: Partial<TelemetryPacket>): TelemetryPacket {

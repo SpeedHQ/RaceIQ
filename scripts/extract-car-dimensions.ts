@@ -9,7 +9,9 @@
  */
 import { readdirSync, readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
-import { parseForzaZip, decompressForzaLZX, findForzaInstall } from "../shared/lib/forza-lzx";
+import { findForzaInstall } from "../shared/forza/install";
+import { decompressForzaLZX } from "../shared/forza/lzx-decoder";
+import { parseForzaZip } from "../shared/forza/zip";
 
 const forzaDir = findForzaInstall();
 if (!forzaDir) {

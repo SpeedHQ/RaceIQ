@@ -1,10 +1,11 @@
-import type { GameId, TelemetryPacket } from "@shared/types";
+import { flipBoundaries, flipPoints, needsTrackFlip } from "@shared/track/coords";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { GameId } from "../../../../shared/games/ids";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { deltaColor } from "../../lib/colors";
 import { type BoundaryData, COLOR_A, COLOR_B, computeZoom, drawInputsHUD, drawTrackCanvas, findTelemetryAtDistance, formatSectionTime, type Point } from "../../lib/comparison-utils";
 import { getSemanticCanvasContext } from "../../lib/rendering/css-canvas";
 import { client } from "../../lib/rpc";
-import { flipBoundaries, flipPoints, needsTrackFlip } from "../../lib/track-coords";
 import { m } from "../../paraglide/messages";
 import { Table, TBody, TD, TH, THead, TRow } from "../ui/AppTable";
 import { Button } from "../ui/button";

@@ -1,6 +1,6 @@
-import type { TelemetryPacket } from "@shared/types";
 import type { DisplayPacket } from "@/lib/convert-packet";
 import { m } from "@/paraglide/messages";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 
 /**
  * SurfaceConditions — Shows per-wheel curb and puddle status in a compact 2x2 grid.
@@ -22,11 +22,11 @@ export function SurfaceConditions({ packet }: { packet: DisplayPacket | Telemetr
           <div
             key={w.label}
             className={`flex items-center justify-between px-2 py-1 rounded text-app-caption font-mono border ${
-            w.rumble ? "border-(--surface-curb)/50 bg-(--surface-curb)/10" : w.puddle > 0 ? "border-(--surface-wet)/50 bg-(--surface-wet)/10" : "border-app-border"
+              w.rumble ? "border-(--surface-curb)/50 bg-(--surface-curb)/10" : w.puddle > 0 ? "border-(--surface-wet)/50 bg-(--surface-wet)/10" : "border-app-border"
             }`}
           >
             <span className="text-app-text-muted font-bold">{w.label}</span>
-          <span className={`font-bold ${w.rumble ? "text-(--surface-curb)" : w.puddle > 0 ? "text-(--surface-wet)" : "text-app-text-dim"}`}>
+            <span className={`font-bold ${w.rumble ? "text-(--surface-curb)" : w.puddle > 0 ? "text-(--surface-wet)" : "text-app-text-dim"}`}>
               {w.rumble ? m.surface_curb() : w.puddle > 0 ? `${m.surface_wet()} ${(w.puddle * 100).toFixed(0)}%` : "—"}
             </span>
           </div>

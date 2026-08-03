@@ -1,4 +1,5 @@
-import type { TelemetryPacket, GameId } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { GameId } from "../../shared/games/ids";
 import { getGame } from "../../shared/games/registry";
 import { resolveTrack } from "../tracks/info";
 

@@ -1,8 +1,9 @@
-import type { GameId, TelemetryPacket } from "@shared/types";
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import { useEffect } from "react";
+import type { GameId } from "../../../../shared/games/ids";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { ComboDash2 } from "../../components/dashes/ComboDash2";
 import { useGameStore } from "../../stores/game";
 import { fakeAccPacket, fakeAcEvoPacket, fakeF1Packet, fakeForzaPacket, generateFakeSessionLaps } from "../fakeData";

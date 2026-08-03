@@ -1,25 +1,25 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { IS_DEV } from "../../runtime/config/env";
-import { OrdinalParamSchema, GameIdQuerySchema } from "../../../shared/schemas";
-import { formatTurnNumbers, turnNumbers } from "../../../shared/segment-label";
-import type { NamedSegment } from "../../../shared/track-named-segments";
+import { OrdinalParamSchema, GameIdQuerySchema } from "../../../shared/http/route-schemas";
+import { formatTurnNumbers, turnNumbers } from "../../../shared/track/segment-label";
+import type { NamedSegment } from "../../../shared/track/named-segments";
 import { getCorners, saveCorners } from "../../db/track-queries";
+import { getTrackOutlineByOrdinal } from "../../../shared/track/recording/outlines";
+import { getTrackSectorsByOrdinal } from "../../../shared/track/storage/sectors";
 import {
-  getTrackOutlineByOrdinal,
-  getTrackSectorsByOrdinal,
   loadTrackFacts,
   loadTrackGeometry,
   loadTrackSectorsFor,
   saveTrackFacts,
   saveTrackGeometry,
-} from "../../../shared/track-data";
-import { getTrackName } from "../../../shared/car-data";
+} from "../../../shared/track/storage/meta";
+import { resolveTrackName } from "../../../shared/track/resolve-name";
 import { getTrackGuide } from "../../ai/track-guides";
 import type { Corner } from "../../lap-analysis/corners";
-import { cornerNumbers } from "../../../shared/track-facts";
-import { splitSegments } from "../../../shared/track-join";
-import { cornerKey } from "../../../shared/track-keys";
+import { cornerNumbers } from "../../../shared/track/facts";
+import { splitSegments } from "../../../shared/track/curation/join";
+import { cornerKey } from "../../../shared/track/keys";
 import {
   computeOutlineLength,
   getSharedTrackName,
@@ -275,7 +275,7 @@ export const trackSegmentRoutes = new Hono()
       const { ordinal } = c.req.valid("param");
       const gameId = c.req.query("gameId");
       const slug = getSharedTrackName(ordinal, gameId);
-      const guide = getTrackGuide(getTrackName(ordinal, gameId as never), { slug });
+      const guide = getTrackGuide(resolveTrackName(ordinal, gameId as never), { slug });
       return c.json(guide);
     }
   );

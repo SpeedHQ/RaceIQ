@@ -29,7 +29,7 @@
  */
 
 import type { Corner } from "../../lap-analysis/corners";
-import type { EvaluableLap } from "../../../shared/review-laps";
+import type { EvaluableLap } from "../../../shared/laps/review-selection";
 import {
   type ArmLap,
   type CuratedPool,

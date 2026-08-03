@@ -1,6 +1,6 @@
-import type { GameId } from "@shared/types";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
+import type { GameId } from "../../../shared/games/ids";
 import { ComboDash2 } from "../components/dashes/ComboDash2";
 import { useGameStore } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";

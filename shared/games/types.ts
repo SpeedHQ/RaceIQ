@@ -1,4 +1,5 @@
-import type { GameId, TelemetryPacket } from "../types";
+import type { GameId } from "./ids";
+import type { TelemetryPacket } from "../telemetry/types";
 
 export type AnalysisTelemetryMetric =
   | {

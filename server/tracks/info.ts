@@ -1,16 +1,15 @@
-import type { NamedSegment } from "../../shared/track-named-segments";
-import type { TrackFacts } from "../../shared/track-facts";
-import type { TrackGeometry } from "../../shared/track-geometry";
-import type { TrackSectors } from "../../shared/track-sectors";
+import type { NamedSegment } from "../../shared/track/named-segments";
+import type { TrackFacts } from "../../shared/track/facts";
+import type { TrackGeometry } from "../../shared/track/geometry";
+import type { TrackSectors } from "../../shared/track/sectors";
+import { getTrackSectorsByOrdinal } from "../../shared/track/storage/sectors";
+import { getTrackLengthMeters, getTrackOutlineByOrdinal } from "../../shared/track/recording/outlines";
 import {
-  getTrackSectorsByOrdinal,
-  getTrackLengthMeters,
-  getTrackOutlineByOrdinal,
   loadLabelledSegments,
   loadTrackFacts,
   loadTrackGeometry,
-} from "../../shared/track-data";
-import { getTrackName } from "../../shared/car-data";
+} from "../../shared/track/storage/meta";
+import { resolveTrackName } from "../../shared/track/resolve-name";
 import { tryGetServerGame } from "../games/registry";
 
 interface Point {
@@ -55,7 +54,7 @@ interface TrackInfo {
  *
  * `outline` and `lengthMeters` are getters rather than fields: they parse a
  * centerline CSV, and most callers only want names and fractions. Everything
- * else here is already cached by `shared/track-data.ts`, so a call is cheap.
+ * else here is already cached by `shared/track/geometry` and `shared/track/storage`, so a call is cheap.
  */
 export function resolveTrack(gameId: string | undefined, trackOrdinal: number | null | undefined): TrackInfo {
   const ordinal = trackOrdinal ?? null;
@@ -68,7 +67,7 @@ export function resolveTrack(gameId: string | undefined, trackOrdinal: number | 
 
   return {
     slug,
-    name: facts?.name ?? (ordinal != null ? getTrackName(ordinal, gameId) : ""),
+    name: facts?.name ?? (ordinal != null ? resolveTrackName(ordinal, gameId) : ""),
     facts,
     geometry,
     segments,

@@ -1,5 +1,3 @@
-import { LOCALES } from "@shared/locales";
-import type { TelemetryPacket } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SiDiscord, SiGithub } from "react-icons/si";
@@ -9,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import { applyLocale } from "@/lib/locale";
 import { m } from "@/paraglide/messages";
+import { LOCALES } from "../../../shared/i18n/locales";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { DEMO_CAR } from "../data/car-models";
 import { useSaveSettings, useSettings } from "../hooks/queries";
 import { client } from "../lib/rpc";

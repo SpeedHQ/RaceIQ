@@ -1,7 +1,7 @@
 import { existsSync } from "fs";
 import { resolve } from "path";
 import { initGameAdapters } from "../../shared/games/init";
-import { injectDiscoveredAcEvoCars } from "../../shared/ac-evo-car-data";
+import { injectDiscoveredAcEvoCars } from "../../shared/car/ac-evo";
 import { injectDiscoveredIRacingIdentity } from "../../shared/games/iracing";
 import app from "../routes/index";
 import { initServerGameAdapters } from "../games/init";

@@ -1,5 +1,5 @@
-import type { TelemetryPacket } from "@shared/types";
 import type { RefObject } from "react";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import type { useUnits } from "../../hooks/useUnits";
 import type { DisplayPacket } from "../../lib/convert-packet";
 import { BodyAttitude } from "../BodyAttitude";

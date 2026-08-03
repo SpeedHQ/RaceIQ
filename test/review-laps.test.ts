@@ -4,7 +4,7 @@ import {
   selectEvaluationLaps,
   evaluationReasonLabel,
   REVIEW_LAP_CAP,
-} from "../shared/review-laps";
+} from "../shared/laps/review-selection";
 
 describe("fastestLaps", () => {
   const laps = [

@@ -1,7 +1,8 @@
-import type { GameId, TelemetryPacket } from "@shared/types";
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
+import type { GameId } from "../../../../shared/games/ids";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { ComboDash } from "../../components/dashes/ComboDash";
 import type { DisplayPacket } from "../../lib/convert-packet";
 import { useGameStore } from "../../stores/game";

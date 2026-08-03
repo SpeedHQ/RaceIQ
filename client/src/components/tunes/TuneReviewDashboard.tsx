@@ -1,9 +1,11 @@
-import { headlineMetricForVersionKind, type VersionKind } from "@shared/experiment-focus";
+import { headlineMetricForVersionKind, type VersionKind } from "@shared/experiments/focus";
 import { tryGetGame } from "@shared/games/registry";
-import type { LapMeta, TelemetryPacket, TuneIssue } from "@shared/types";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
+import type { LapMeta } from "../../../../shared/sessions/types";
+import type { TelemetryPacket } from "../../../../shared/telemetry/types";
+import type { TuneIssue } from "../../../../shared/tuning/issues";
 import type { ExperimentVersion } from "../../hooks/queries";
 import { useLapIssues, useLapTelemetry, useTirePressureOptimal } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";

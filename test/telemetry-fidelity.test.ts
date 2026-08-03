@@ -20,8 +20,9 @@
  * See docs/research/telemetry-fidelity.md for the write-up.
  */
 import { describe, expect, test } from "bun:test";
-import { detectCorners } from "../server/lap-analysis/corners"
-import type { TelemetryPacket } from "../shared/types";
+import { detectCorners } from "../server/lap-analysis/corners";
+import type { TelemetryPacket } from "../shared/telemetry/types";
+
 import { readSessionPackets } from "./helpers/session-frames";
 
 const FIXTURE = "test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz";

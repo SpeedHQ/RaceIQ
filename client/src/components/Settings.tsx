@@ -1,4 +1,3 @@
-import { LOCALES } from "@shared/locales";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +6,7 @@ import { SearchSelect } from "@/components/ui/SearchSelect";
 import { isDevelopment } from "@/lib/env";
 import { applyLocale } from "@/lib/locale";
 import { m } from "@/paraglide/messages";
+import { LOCALES } from "../../../shared/i18n/locales";
 import { useSaveSettings, useSettings } from "../hooks/queries";
 import { useUiStore } from "../stores/ui";
 import { playBlip, preloadSound, removeCachedSound } from "./SectorTimes";

@@ -1,10 +1,10 @@
-import type { LapMeta, SessionMeta, SessionRecap } from "@shared/types";
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import { type ComponentType, type ReactNode, useEffect, useState } from "react";
 import type { DriverFingerprint } from "../../../server/driver-profile/fingerprint";
 import type { DriverTrend } from "../../../server/driver-profile/trend";
+import type { LapMeta, SessionMeta, SessionRecap } from "../../../shared/sessions/types";
 import hakoneClubCenterlineCsv from "../../../shared/tracks/fm-2023/hakone-s-1641-centerline.csv?raw";
 import { HomePageContainer } from "../components/HomePageContainer";
 import type { DriverProfileRun } from "../hooks/queries";

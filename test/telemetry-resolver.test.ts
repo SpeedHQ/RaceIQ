@@ -1,18 +1,17 @@
 import { describe, expect, test } from "bun:test";
+import type { TelemetryCatalogData } from "../shared/telemetry/catalog/contracts";
+import { TELEMETRY_CATALOG } from "../shared/telemetry/catalog/data";
+import { getTelemetryVariable } from "../shared/telemetry/catalog/query";
+import { TELEMETRY_DERIVATION_VERSION } from "../shared/telemetry/derivations/builtins";
+import type { TelemetryDerivation } from "../shared/telemetry/derivations/contracts";
+import { compileTelemetryResolver } from "../shared/telemetry/resolver/compile";
+import type { ResolvedValue } from "../shared/telemetry/resolver/contracts";
 import {
-  getTelemetryVariable,
-  TELEMETRY_CATALOG,
-  type TelemetryCatalogData,
-} from "../shared/telemetry-catalog";
-import type { TelemetryDerivation } from "../shared/telemetry-derivations";
-import {
-  compileTelemetryResolver,
-  TELEMETRY_DERIVATION_VERSION,
   TELEMETRY_PARSER_VERSIONS,
   TELEMETRY_RESOLVER_VERSION,
-  type ResolvedValue,
-} from "../shared/telemetry-resolver";
-import { KNOWN_GAME_IDS, type GameId, type TelemetryPacket } from "../shared/types";
+} from "../shared/telemetry/resolver/versions";
+import { KNOWN_GAME_IDS, type GameId } from "../shared/games/ids";
+import type { TelemetryPacket } from "../shared/telemetry/types";
 
 function packet(gameId: GameId, values: Partial<TelemetryPacket> = {}): TelemetryPacket {
   return {

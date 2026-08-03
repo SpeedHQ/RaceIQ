@@ -9,10 +9,11 @@ import {
   reconcileDiscoveredCars,
   DISCOVERED_CAR_ORDINAL_BASE,
 } from "../server/db/discovered-cars";
-import { injectDiscoveredAcEvoCars, getAcEvoCarName } from "../shared/ac-evo-car-data";
-import { LapDetectorAcEvo } from "../server/games/ac-evo/lap-detector"
-import { CapturingDbAdapter } from "../server/telemetry/pipeline-ports"
-import type { TelemetryPacket } from "../shared/types";
+import { injectDiscoveredAcEvoCars, getAcEvoCarName } from "../shared/car/ac-evo"
+import { LapDetectorAcEvo } from "../server/games/ac-evo/lap-detector";
+import { CapturingDbAdapter } from "../server/telemetry/pipeline-ports";
+import type { TelemetryPacket } from "../shared/telemetry/types";
+
 
 // Follows DATA_DIR so this never touches the real dev database — `bun run
 // test` isolates DATA_DIR to a throwaway directory (see package.json).

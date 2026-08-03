@@ -9,7 +9,10 @@
  *    (every 6th packet) keeps memory bounded at 600 samples per channel.
  */
 import type { ServerWebSocket } from "bun";
-import type { TelemetryPacket, LiveSectorData, LivePitData, LapMeta, TuneIssue } from "../../shared/types";
+import type { TelemetryPacket } from "../../shared/telemetry/types";
+import type { LiveSectorData, LivePitData } from "../../shared/live/types";
+import type { LapMeta } from "../../shared/sessions/types";
+import type { TuneIssue } from "../../shared/tuning/issues";
 
 export interface WSData {
   createdAt: number;
