@@ -824,11 +824,7 @@ function LapAnalyseInner() {
             units={units}
             wearRate={wearRate}
             lapInsights={lapInsights}
-            onJumpToFrame={(idx) => {
-              setCursorIdx(idx);
-              cursorRef.current = idx;
-              seekRef.current++;
-            }}
+            onJumpToFrame={handleChartClick}
           />
 
           {/* AI panel — analysis + chat */}
@@ -840,10 +836,7 @@ function LapAnalyseInner() {
               segments={segments}
               aiPanelRef={aiPanelRef}
               onJumpToFrac={(frac) => {
-                const idx = Math.round(frac * (telemetry.length - 1));
-                setCursorIdx(idx);
-                cursorRef.current = idx;
-                seekRef.current++;
+                handleChartClick(Math.round(frac * (telemetry.length - 1)));
               }}
               onHighlightsChange={setAiHighlights}
             />
