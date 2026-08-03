@@ -9,7 +9,7 @@
 
 ### Fixes
 
-- Keep session recap pace charts stable when recorded laps share a lap number
+- Ignore one-frame iRacing lap-counter resets that created invalid duplicate lap numbers in session recaps
 - Open Analyse from home and session recaps without a full-page white flash
 - Keep Analyse responsive while loading and playing large laps or recovering from server disconnects
 - Prevent 2D and 3D Analyse playback from exhausting browser memory during telemetry updates

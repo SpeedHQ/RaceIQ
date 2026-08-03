@@ -73,9 +73,11 @@ or the native SDK lap timer rolls over.
 
 The first attached fragment is suppressed because RaceIQ may connect anywhere
 around the circuit. If authoritative timing never arrives, deferred frames are
-discarded rather than turning a sampled timer peak into a result.
+discarded rather than turning a sampled timer peak into a result. Unexpected
+lap-number transitions must persist for two packets, filtering isolated zeroed
+SDK frames without hiding a genuine restart or rewind.
 
-Detector ID: `iracing_lapdetector_v2`.
+Detector ID: `iracing_lapdetector_v3`.
 
 ## Shared contract
 
