@@ -7,7 +7,7 @@ import { useCatalogTunes, useResolveNames, useUserTunes } from "@/hooks/queries"
 import { tracksMatch } from "@/lib/track-match";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../../shared/games/ids";
-import type { TuneSettings } from "../../../../shared/tuning/types";
+import type { TuneSettings } from "../../../../shared/racing/tuning/types";
 import { Button } from "../ui/button";
 
 // Normalised community-or-user setup row for the panel list.

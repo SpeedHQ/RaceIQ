@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { getAcEvoCarByDisplayName, getAcEvoCarName } from "../shared/car/ac-evo"
+import { getAcEvoCarByDisplayName, getAcEvoCarName } from "../shared/racing/cars/ac-evo"
 
 describe("AC Evo car lookup", () => {
   test("resolves a CSV-listed car to its real ordinal", () => {

@@ -30,7 +30,7 @@ This folder is source of truth for:
 
 ## Dependency direction
 - Upstream dependencies:
-  - generator consumes source-of-truth inputs from `shared/telemetry/*`, `shared/setups/*`, `shared/games/iracing/session-info/*`, and server game parsers (`server/games/.../parser.ts` and `server/games/iracing/normalizer.ts`).
+  - generator consumes source-of-truth inputs from `shared/telemetry/*`, `shared/racing/setups/*`, `shared/games/iracing/session-info/*`, and server game parsers (`server/games/.../parser.ts` and `server/games/iracing/normalizer.ts`).
   - built-in derivations use parser-independent semantic contracts only.
 - Downstream dependencies:
   - `shared/telemetry/catalog/data.ts` and `replay/contracts.ts` are consumed by server and client telemetry code.
@@ -39,7 +39,7 @@ This folder is source of truth for:
 
 ## Add/extend safely
 - To add or adjust semantic variables:
-  1. update canonical source inputs (`shared/telemetry/*.ts`, `shared/setups/catalog/*`, `shared/setups/schema.ts`, `shared/games/iracing/session-info/*`, and server parser contracts as needed).
+  1. update canonical source inputs (`shared/telemetry/*.ts`, `shared/racing/setups/catalog/*`, `shared/racing/setups/schema.ts`, `shared/games/iracing/session-info/*`, and server parser contracts as needed).
   2. run generator so provenance, source hashes, and mapping provenance stay consistent.
   3. add/adjust derivation registration in `derivations/builtins.ts` only when semantic-level computation is intentional.
   4. update schema/consumer code where semantic IDs are enumerated explicitly.
@@ -55,7 +55,7 @@ Generated outputs under `shared/telemetry/catalog/generated`:
 These files are not hand-edited.
 
 Source-of-truth list is declared by generator and stored in `generatedFrom`.
-Current generator inputs are enumerated in `generatedFrom`, including `shared/telemetry/types.ts`, `shared/telemetry/{f1-2025,kunos,iracing}.ts`, `shared/setups/schema.ts`, every file under `shared/setups/catalog/`, `shared/games/iracing/session-info/*`, recorded iRacing diagnostics, each registered game parser, and `server/games/iracing/normalizer.ts`.
+Current generator inputs are enumerated in `generatedFrom`, including `shared/telemetry/types.ts`, `shared/telemetry/{f1-2025,kunos,iracing}.ts`, `shared/racing/setups/schema.ts`, every file under `shared/racing/setups/catalog/`, `shared/games/iracing/session-info/*`, recorded iRacing diagnostics, each registered game parser, and `server/games/iracing/normalizer.ts`.
 
 Regeneration:
 - `bun run telemetry:catalog` (write artifacts)

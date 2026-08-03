@@ -26,8 +26,8 @@
 import { writeFileSync } from "fs";
 import { resolve } from "path";
 import type { GameId } from "../../shared/games/ids";
-import { flipPoints, needsTrackFlip, type Pt } from "../../shared/track/coords";
-import { makeTrackProjection } from "../../shared/track/projection";
+import { flipPoints, needsTrackFlip, type Pt } from "../../shared/racing/tracks/coords";
+import { makeTrackProjection } from "../../shared/racing/tracks/projection";
 import type { Point } from "./motec-from-centerline";
 
 const PANEL_W = 600;

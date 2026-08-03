@@ -28,8 +28,8 @@ import {
   ACEVO_STARTING_GRIP_NAMES,
 } from "./structs";
 import { readCString } from "./utils";
-import { getAcEvoCarByDisplayName } from "../../../shared/car/ac-evo"
-import { getAcEvoTrackByName } from "../../../shared/track/catalogs/ac-evo"
+import { getAcEvoCarByDisplayName } from "../../../shared/racing/cars/ac-evo"
+import { getAcEvoTrackByName } from "../../../shared/racing/tracks/catalogs/ac-evo"
 
 export interface AcEvoParserCache {
   carOrdinal: number;

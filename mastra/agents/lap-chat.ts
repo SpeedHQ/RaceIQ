@@ -12,7 +12,7 @@ import { loadSettings } from "../../server/runtime/config/settings";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
-import { TRACK_GUIDE_PROMPT } from "../../shared/ai/prompt-snippets";
+import { TRACK_GUIDE_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
 const LAP_CHAT_INSTRUCTIONS = `You are a senior race engineer answering a driver's questions about a single lap of theirs. Lap context, telemetry summary, and (if available) the previous structured analysis are supplied per request via the system prompt. Be brief, use bullet points where helpful, cite specific numbers with units, and refer to the driver as "you". Do NOT output JSON.
 
 For F1 2025 setup questions: when the driver asks about their car setup or how to tune it, call the \`compare-f1-setup-to-catalog\` tool with their \`lapId\` (supplied in the system prompt). It returns their current setup alongside the top-5 community setups for the same track with per-field deltas. Ground your answer in those comparisons — cite the reference team/driver and the delta — rather than offering generic advice.${TRACK_GUIDE_PROMPT}`;

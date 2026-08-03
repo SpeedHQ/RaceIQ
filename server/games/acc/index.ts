@@ -2,8 +2,8 @@ import { resolve } from "path";
 import type { ServerGameAdapter } from "../types";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { accAdapter } from "../../../shared/games/acc";
-import { getAccCarName, getAccCarByModel } from "../../../shared/car/acc"
-import { getAccTrackName, getAccSharedTrackName, getAccTrackByName, getAccTrackBySetupFolder } from "../../../shared/track/catalogs/acc"
+import { getAccCarName, getAccCarByModel } from "../../../shared/racing/cars/acc"
+import { getAccTrackName, getAccSharedTrackName, getAccTrackByName, getAccTrackBySetupFolder } from "../../../shared/racing/tracks/catalogs/acc"
 import { LapDetectorAcc } from "./lap-detector"
 import { parseAccBuffers } from "./parser";
 import { STATIC } from "./structs";

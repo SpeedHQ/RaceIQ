@@ -3,7 +3,7 @@ import { getFuelDisplay } from "@shared/games/telemetry";
 import { severityColor } from "@/lib/colors";
 import { tireHealthPctColor } from "@/lib/vehicle-dynamics";
 import { m } from "@/paraglide/messages";
-import type { LivePitData } from "../../../../shared/live/types";
+import type { LivePitData } from "../../../../shared/racing/live/types";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { PitWindow } from "./PitWindow";
 

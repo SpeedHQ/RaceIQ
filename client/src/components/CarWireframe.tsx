@@ -1,7 +1,7 @@
 import { useGLTF } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { tryGetGame } from "@shared/games/registry";
-import { flipBoundaries, needsTrackFlip } from "@shared/track/coords";
+import { flipBoundaries, needsTrackFlip } from "@shared/racing/tracks/coords";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../shared/games/ids";

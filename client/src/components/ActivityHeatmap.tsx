@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { getLocale } from "@/paraglide/runtime";
-import type { LapMeta } from "../../../shared/sessions/types";
+import type { LapMeta } from "../../../shared/racing/sessions/types";
 
 const CELL = 11;
 const GAP = 3;

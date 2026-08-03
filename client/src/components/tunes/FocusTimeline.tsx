@@ -1,4 +1,4 @@
-import { EXPERIMENT_FOCUS_LABELS } from "@shared/experiments/focus";
+import { EXPERIMENT_FOCUS_LABELS } from "@shared/racing/experiments/focus";
 import { type ExperimentVersion, useExperimentFocusHistory } from "../../hooks/queries";
 
 /**

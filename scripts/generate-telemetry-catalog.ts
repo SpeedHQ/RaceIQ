@@ -4,11 +4,11 @@ import { parse } from "@babel/parser";
 import { resolve } from "node:path";
 import { IRACING_SESSION_INFO_CATALOG_FIELDS } from "../shared/games/iracing/session-info/catalog";
 import { IRACING_SESSION_INFO_RAW_SOURCE } from "../shared/games/iracing/session-info/contracts";
-import { getSchemaForGame } from "../shared/setups/schema";
-import { SETUP_GROUP_DEFINITIONS } from "../shared/setups/catalog/groups";
-import { SETUP_CONCEPT_DEFINITIONS } from "../shared/setups/catalog/concepts";
-import { SETUP_FILE_SOURCE_MAPPINGS } from "../shared/setups/catalog/file-source-mappings";
-import { SETUP_PARSER_SOURCE_MAPPINGS } from "../shared/setups/catalog/parser-source-mappings";
+import { getSchemaForGame } from "../shared/racing/setups/schema";
+import { SETUP_GROUP_DEFINITIONS } from "../shared/racing/setups/catalog/groups";
+import { SETUP_CONCEPT_DEFINITIONS } from "../shared/racing/setups/catalog/concepts";
+import { SETUP_FILE_SOURCE_MAPPINGS } from "../shared/racing/setups/catalog/file-source-mappings";
+import { SETUP_PARSER_SOURCE_MAPPINGS } from "../shared/racing/setups/catalog/parser-source-mappings";
 import {
   assertIRacingSessionInfoCaptureCoverage,
   readIRacingSessionInfoCaptures,
@@ -5596,7 +5596,7 @@ function mappingArtifact(
     };
   }
   if (sources.some((source) => source.includes(".SetupFile."))) {
-    return { origin: "schema", artifact: "shared/setups/schema.ts" };
+    return { origin: "schema", artifact: "shared/racing/setups/schema.ts" };
   }
   if (
     sources.some((source) =>
@@ -6141,7 +6141,7 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
       "scripts/iracing-session-info-capture.ts",
       ...IRACING_SESSION_INFO_SOURCE_FILES,
       ...TELEMETRY_TYPE_SOURCE_FILES,
-      "shared/setups/schema.ts",
+      "shared/racing/setups/schema.ts",
       ...Object.values(PARSER_FILES),
     ]),
   ];
@@ -6180,11 +6180,11 @@ export async function buildTelemetryCatalog(): Promise<BuiltTelemetryCatalog> {
     metadata: metadataWithoutHash,
     generatedFrom: [
       ...TELEMETRY_TYPE_SOURCE_FILES,
-      "shared/setups/schema.ts",
-      "shared/setups/catalog/groups.ts",
-      "shared/setups/catalog/concepts.ts",
-      "shared/setups/catalog/parser-source-mappings.ts",
-      "shared/setups/catalog/file-source-mappings.ts",
+      "shared/racing/setups/schema.ts",
+      "shared/racing/setups/catalog/groups.ts",
+      "shared/racing/setups/catalog/concepts.ts",
+      "shared/racing/setups/catalog/parser-source-mappings.ts",
+      "shared/racing/setups/catalog/file-source-mappings.ts",
       ...IRACING_SESSION_INFO_SOURCE_FILES,
       "scripts/iracing-session-info-capture.ts",
       ...Object.values(PARSER_FILES),

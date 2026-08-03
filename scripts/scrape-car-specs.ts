@@ -5,7 +5,7 @@
  * Step 2: Batch-fetch each car page (50/req, follow redirects)
  * Step 3: Parse CarInfobox + CarStats|fm23 + Synopsis
  * Step 4: Batch-fetch image URLs
- * Step 5: Join with cars.csv → shared/car-specs.csv
+ * Step 5: Join with cars.csv → shared/games/fm-2023/car-specs.csv
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";

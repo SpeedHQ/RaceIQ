@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { IdParamSchema } from "../../shared/http/route-schemas";
+import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import { GameIdSchema } from "../../shared/games/ids";
 import { setTuneAssignment, getTuneAssignment, getTuneAssignments, deleteTuneAssignment, updateLapTune } from "../db/tune-queries";
 import type { GameId } from "../../shared/games/ids";

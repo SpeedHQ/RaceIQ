@@ -1,9 +1,9 @@
 /**
  * Propagate corner names from a named parent layout to its unnamed variants.
  *
- *   before  shared/tracks/meta/silverstone.json    T9 "Copse"
- *           shared/tracks/meta/silverstone-s.json  T1 <unnamed>
- *   after   shared/tracks/meta/silverstone-s.json  T1 "Copse"
+ *   before  shared/data/tracks/meta/silverstone.json    T9 "Copse"
+ *           shared/data/tracks/meta/silverstone-s.json  T1 <unnamed>
+ *   after   shared/data/tracks/meta/silverstone-s.json  T1 "Copse"
  *
  * Variants of the same circuit share `track` in their facts file, so a
  * variant's turn 1 is very often a parent turn under a different number. The
@@ -25,9 +25,9 @@
  */
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { SHARED_DIR } from "../shared/runtime/data-paths"
-import type { CornerFact, TrackFacts } from "../shared/track/facts";
-import type { TrackGeometry } from "../shared/track/geometry";
+import { SHARED_DIR } from "../shared/platform/runtime/data-paths"
+import type { CornerFact, TrackFacts } from "../shared/racing/tracks/facts";
+import type { TrackGeometry } from "../shared/racing/tracks/geometry";
 
 const META_DIR = resolve(SHARED_DIR, "tracks", "meta");
 const TRACKS_DIR = resolve(SHARED_DIR, "tracks");

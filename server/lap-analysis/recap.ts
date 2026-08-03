@@ -1,5 +1,5 @@
 import type { GameId } from "../../shared/games/ids";
-import type { SessionRecap } from "../../shared/sessions/types";
+import type { SessionRecap } from "../../shared/racing/sessions/types";
 import { stddevPopulation, consistencyRating } from "./stats";
 
 /** Plain lap data needed to compute a recap. Null sectors are legacy laps. */

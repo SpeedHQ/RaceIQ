@@ -1,4 +1,4 @@
-import type { RaceResultProvenance } from "../../shared/race-results/types";
+import type { RaceResultProvenance } from "../../shared/racing/results/types";
 import type { GameId } from "../../shared/games/ids";
 import {
   TELEMETRY_CATALOG_HASH,

@@ -1,6 +1,6 @@
 /**
  * CLI for the track segment generator — core logic lives in
- * shared/track/curation/generate.ts (shared with the test suite, so tests run
+ * shared/racing/tracks/curation/generate.ts (shared with the test suite, so tests run
  * the exact code path that produces committed meta).
  *
  * Usage:
@@ -12,15 +12,15 @@
  *   --verbose       print detected corner tables for failed alignments
  */
 
-import { detectCornerRegions, type CornerRegion } from "../shared/track/curation/segment-align-detect";
+import { detectCornerRegions, type CornerRegion } from "../shared/racing/tracks/curation/segment-align-detect";
 import {
   findCenterlines,
   generateTrackSegments,
   listCuratedSlugs,
   loadCenterline,
   writeTrackMeta,
-} from "../shared/track/curation/generate";
-import { loadTrackFacts } from "../shared/track/storage/meta";
+} from "../shared/racing/tracks/curation/generate";
+import { loadTrackFacts } from "../shared/racing/tracks/storage/meta";
 
 interface Args {
   track?: string;
@@ -73,7 +73,7 @@ function main(): void {
   for (const slug of slugs) {
     const facts = loadTrackFacts(slug);
     if (!facts) {
-      console.error(`[${slug}] no facts file in shared/tracks/meta`);
+      console.error(`[${slug}] no facts file in shared/data/tracks/meta`);
       failures++;
       continue;
     }

@@ -1,7 +1,7 @@
-import { EXPERIMENT_FOCUS_LABELS, type ExperimentFocus } from "@shared/experiments/focus";
-import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/laps/review-selection";
+import { EXPERIMENT_FOCUS_LABELS, type ExperimentFocus } from "@shared/racing/experiments/focus";
+import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/racing/laps/review-selection";
 import { useMemo, useState } from "react";
-import type { LapMeta } from "../../../../shared/sessions/types";
+import type { LapMeta } from "../../../../shared/racing/sessions/types";
 import type { F1CarSetup } from "../../../../shared/telemetry/f1-2025";
 import { type ExperimentLapMetric, type ExperimentVersion, useDeleteVersion, useExperimentFocusHistory, useSetHead, useSetTestNote } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";

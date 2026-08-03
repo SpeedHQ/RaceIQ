@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { IdParamSchema, IdVersionParamSchema } from "../../../shared/http/route-schemas";
+import { IdParamSchema, IdVersionParamSchema } from "@shared/platform/http/route-schemas";
 import { getExperiment, setSessionHead } from "../../db/experiment-queries";
 import {
   createExperimentVersion,

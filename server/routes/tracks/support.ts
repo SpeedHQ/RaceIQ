@@ -1,21 +1,21 @@
 import { z } from "zod";
-import { autoTrackSegments } from "../../../shared/track/curation/generate";
-import type { NamedSegment } from "../../../shared/track/named-segments";
+import { autoTrackSegments } from "../../../shared/racing/tracks/curation/generate";
+import type { NamedSegment } from "../../../shared/racing/tracks/named-segments";
 import { getLapSummariesByTrack, getLapById } from "../../db/lap-read-queries";
 import { getTrackOutline as getDbTrackOutline } from "../../db/track-queries";
 import {
   getTrackOutlineByOrdinal,
   getRecordedOutlineByOrdinal,
   recordLapTrace,
-} from "../../../shared/track/recording/outlines";
-import { loadLabelledSegments } from "../../../shared/track/storage/meta";
-import { loadSharedOutline } from "../../../shared/track/geometry/shared";
+} from "../../../shared/racing/tracks/recording/outlines";
+import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
+import { loadSharedOutline } from "../../../shared/racing/tracks/geometry/shared";
 import { tryGetServerGame } from "../../games/registry";
 import { tryGetGame } from "../../../shared/games/registry";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
 import { getIRacingSvgTrackMap } from "../../games/iracing/track-map";
 import type { IRacingMapLabel } from "../../games/iracing/track-map-svg";
-import { lapPath } from "../../../shared/track/path";
+import { lapPath } from "../../../shared/racing/tracks/path";
 
 // ─── Param schemas ──────────────────────────────────────────────────────────
 

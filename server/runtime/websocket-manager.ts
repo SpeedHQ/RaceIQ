@@ -10,9 +10,9 @@
  */
 import type { ServerWebSocket } from "bun";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { LiveSectorData, LivePitData } from "../../shared/live/types";
-import type { LapMeta } from "../../shared/sessions/types";
-import type { TuneIssue } from "../../shared/tuning/issues";
+import type { LiveSectorData, LivePitData } from "../../shared/racing/live/types";
+import type { LapMeta } from "../../shared/racing/sessions/types";
+import type { TuneIssue } from "../../shared/racing/tuning/issues";
 
 export interface WSData {
   createdAt: number;

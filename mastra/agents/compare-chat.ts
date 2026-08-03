@@ -14,7 +14,7 @@ import { loadSettings } from "../../server/runtime/config/settings";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
-import { TRACK_GUIDE_PROMPT } from "../../shared/ai/prompt-snippets";
+import { TRACK_GUIDE_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
 export const compareChatAgent = new Agent({
   id: "compare-chat",
   name: "Compare Chat",

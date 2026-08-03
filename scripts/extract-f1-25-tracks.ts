@@ -4,16 +4,17 @@
  * Reads each track's wep/{track}_common.erp, finds the .aispline resource,
  * parses the BXML gate data, and outputs centerline CSV + boundaries JSON.
  *
- * Usage: bun run scripts/extract-f1-tracks.ts
+ * Usage: bun run scripts/extract-f1-25-tracks.ts
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from "fs";
 import { join, resolve } from "path";
 import * as fzstd from "fzstd";
 import { findSteamInstall } from "../server/games/shared/steam-install";
+import { USER_TRACKS_DIR } from "../shared/platform/runtime/data-paths";
 
 const ERP_MAGIC = 0x4b505245;
-const OUT_DIR = resolve(__dirname, "../shared/tracks/f1-2025");
+const OUT_DIR = resolve(__dirname, "../shared/data/tracks/f1-2025");
 
 const F1_DIR = findSteamInstall("F1 25");
 if (!F1_DIR) {
@@ -22,7 +23,7 @@ if (!F1_DIR) {
 }
 const TRACKS_DIR = join(F1_DIR, "2025_asset_groups", "environment_package", "tracks");
 
-// Track directory name → F1 track ID (matches shared/f1-tracks.csv)
+// Track directory name → F1 track ID (matches shared/games/f1-2025/tracks.csv)
 const TRACK_DIR_TO_ID: Record<string, number> = {
   melbourne: 0, shanghai: 2, bahrain: 3, catalunya: 4, monaco: 5,
   montreal: 6, silverstone: 7, hungaroring: 9, spa_francorchamps: 10,
@@ -286,7 +287,7 @@ function applyTransform(p: Point, t: Transform): Point {
 
 // Load telemetry-recorded outline for alignment (if available).
 // Filters out large jumps (formation lap / running start artifacts).
-const TEL_DIR = resolve(__dirname, "../shared/track-outlines/f1-2025");
+const TEL_DIR = resolve(USER_TRACKS_DIR, "f1-2025");
 function loadTelemetryOutline(trackId: number): Point[] | null {
   const filePath = join(TEL_DIR, `recorded-${trackId}.csv`);
   if (!existsSync(filePath)) return null;
@@ -326,36 +327,6 @@ function loadTelemetryOutline(trackId: number): Point[] | null {
   return cleaned.length > 20 ? cleaned : null;
 }
 
-// Load TUMFTM real-world centerline for alignment (preferred over telemetry).
-// These are high-quality, satellite-derived outlines with 1000+ points.
-const SHARED_DIR = resolve(__dirname, "../shared/track-outlines/shared");
-
-// F1 track ID → common track name (from tracks.csv commonTrackName column)
-const F1_TO_SHARED: Record<number, string> = {};
-{
-  const csvPath = resolve(__dirname, "../shared/games/f1-2025/tracks.csv");
-  if (existsSync(csvPath)) {
-    for (const line of readFileSync(csvPath, "utf-8").split("\n").filter(Boolean)) {
-      const parts = line.split(",");
-      const id = parseInt(parts[0]);
-      const shared = parts[6]?.trim();
-      if (!isNaN(id) && shared) F1_TO_SHARED[id] = shared;
-    }
-  }
-}
-
-function loadSharedCenterline(trackId: number): Point[] | null {
-  const name = F1_TO_SHARED[trackId];
-  if (!name) return null;
-  const filePath = join(SHARED_DIR, `${name}.csv`);
-  if (!existsSync(filePath)) return null;
-  const content = readFileSync(filePath, "utf-8");
-  const lines = content.split("\n").filter(Boolean).slice(1);
-  const pts = lines.map((l) => { const [x, z] = l.split(",").map(Number); return { x, z }; });
-  if (pts.length <= 20) return null;
-  // TUMFTM outlines trace opposite to racing direction — reverse them
-  return [pts[0], ...pts.slice(1).reverse()];
-}
 
 // ── Main ────────────────────────────────────────────────────────────
 

@@ -1,8 +1,8 @@
 import { tryGetGame } from "@shared/games/registry";
 import { useEffect, useMemo, useState } from "react";
 import type { GameId } from "../../../../shared/games/ids";
-import type { LapMeta } from "../../../../shared/sessions/types";
-import type { TuneIssue } from "../../../../shared/tuning/issues";
+import type { LapMeta } from "../../../../shared/racing/sessions/types";
+import type { TuneIssue } from "../../../../shared/racing/tuning/issues";
 import { useLiveAnalysisToggle, useTirePressureOptimal } from "../../hooks/queries";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { LiveTrackMap } from "../LiveTrackMap";

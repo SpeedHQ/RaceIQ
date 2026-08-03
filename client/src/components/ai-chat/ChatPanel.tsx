@@ -1,6 +1,6 @@
 import { AssistantRuntimeProvider, useAui, useAuiState } from "@assistant-ui/react";
 import { AssistantChatTransport, createResumableSessionStorage, useChatRuntime, useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
-import { contextWindowFor } from "@shared/ai/context-window";
+import { contextWindowFor } from "@shared/integrations/ai/context-window";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UIMessage } from "ai";
 import { Maximize2, Minimize2, MoreHorizontal } from "lucide-react";

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { TuneIssue } from "../../../../../shared/tuning/issues";
+import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
 import { Button } from "../../ui/button";
 
 interface IssuesListProps {

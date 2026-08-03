@@ -1,4 +1,4 @@
-import { allWheelStates } from "@shared/lap-analysis/physics/vehicle";
+import { allWheelStates } from "@shared/racing/analysis/laps/physics/vehicle";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";

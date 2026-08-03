@@ -1,7 +1,7 @@
 import { tryGetGame } from "@shared/games/registry";
-import { suspensionCompression } from "@shared/lap-analysis/physics/vehicle";
+import { suspensionCompression } from "@shared/racing/analysis/laps/physics/vehicle";
 import { Info } from "lucide-react";
-import { resolveAnalysisTelemetry } from "../../../../shared/analysis/telemetry-capabilities";
+import { resolveAnalysisTelemetry } from "../../../../shared/racing/analysis/telemetry-capabilities";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { operatingRangeColor } from "../../lib/colors";
 import { m } from "../../paraglide/messages";

@@ -1,4 +1,4 @@
-import { arityLabels, getByPath, getSchemaForGame } from "@shared/setups/schema";
+import { arityLabels, getByPath, getSchemaForGame } from "@shared/racing/setups/schema";
 import type { GameId } from "../../../../shared/games/ids";
 
 /** Read-only summary of an ACC / AC-EVO setup JSON, grouped by the same

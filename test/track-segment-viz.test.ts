@@ -14,8 +14,8 @@ import {
   listAllCenterlines,
   listCuratedSlugs,
   loadCenterline,
-} from "../shared/track/curation/generate";
-import { loadTrackFacts } from "../shared/track/storage/meta";
+} from "../shared/racing/tracks/curation/generate";
+import { loadTrackFacts } from "../shared/racing/tracks/storage/meta";
 import { generateSegmentSvg } from "./helpers/segment-svg";
 
 // Required before rendering: needsTrackFlip() resolves coordSystem through the

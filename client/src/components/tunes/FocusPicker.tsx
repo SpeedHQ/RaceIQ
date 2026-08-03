@@ -1,4 +1,4 @@
-import { EXPERIMENT_FOCUS_HINTS, EXPERIMENT_FOCUS_LABELS, EXPERIMENT_FOCUSES, type ExperimentFocus } from "@shared/experiments/focus";
+import { EXPERIMENT_FOCUS_HINTS, EXPERIMENT_FOCUS_LABELS, EXPERIMENT_FOCUSES, type ExperimentFocus } from "@shared/racing/experiments/focus";
 import { Button } from "../ui/button";
 
 /**

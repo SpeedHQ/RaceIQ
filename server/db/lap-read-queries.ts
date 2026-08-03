@@ -5,7 +5,7 @@ import { eq, desc, and, or, sql, inArray } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, laps, tunes } from "./schema";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { LapMeta } from "../../shared/sessions/types";
+import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { GameId } from "../../shared/games/ids";
 
 interface LapStats {

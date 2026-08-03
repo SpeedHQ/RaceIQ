@@ -3,7 +3,7 @@ import { initServerGameAdapters } from "../server/games/init";
 import { importSessionBin } from "../server/session-capture/import-capture";
 
 initServerGameAdapters();
-import { getAcEvoTrackName } from "../shared/track/catalogs/ac-evo"
+import { getAcEvoTrackName } from "../shared/racing/tracks/catalogs/ac-evo"
 import { getSessions } from "../server/db/session-queries";
 
 const bytes = readFileSync("C:/Users/acoop/Downloads/ac-evo-unknown-track-session17.bin.gz");

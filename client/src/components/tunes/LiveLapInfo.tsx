@@ -1,4 +1,4 @@
-import type { LiveSectorData } from "../../../../shared/live/types";
+import type { LiveSectorData } from "../../../../shared/racing/live/types";
 import { formatLapTime } from "../../lib/format";
 import { SectorTimes } from "../SectorTimes";
 

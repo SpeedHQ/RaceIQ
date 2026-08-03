@@ -1,6 +1,6 @@
 import { tryGetGame } from "@shared/games/registry";
-import { resolveAnalysisTelemetry } from "../../../../shared/analysis/telemetry-capabilities";
 import type { GameId } from "../../../../shared/games/ids";
+import { resolveAnalysisTelemetry } from "../../../../shared/racing/analysis/telemetry-capabilities";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { useTirePressureOptimal } from "../../hooks/queries";
 import type { useUnits } from "../../hooks/useUnits";

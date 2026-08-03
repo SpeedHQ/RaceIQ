@@ -1,6 +1,6 @@
 /**
  * Scrape F1 25 leaderboards from f1laps.com and write into source folder.
- * Writes to shared/tunes/f1-25/f1laps/{track}/_meta.json
+ * Writes to shared/data/tunes/f1-25/f1laps/{track}/_meta.json
  *
  * Usage: bun scripts/scrape-f1-leaderboards.ts
  */
@@ -14,7 +14,7 @@ const TRACK_SLUGS = [
 ];
 
 const F1LAPS = "https://www.f1laps.com";
-const OUT_DIR = "shared/tunes/f1-25/f1laps";
+const OUT_DIR = "shared/data/tunes/f1-25/f1laps";
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 

@@ -1,7 +1,7 @@
+import { hasWorldPositions, LAP_PATH_SEMANTIC_IDS, type LapPathSemanticId, type LapPathSemanticReader, lapPath } from "@shared/racing/tracks/path";
 import { TELEMETRY_CATALOG } from "@shared/telemetry/catalog/data";
 import { compileTelemetryResolver } from "@shared/telemetry/resolver/compile";
 import type { SemanticSlot, TelemetryFrameView } from "@shared/telemetry/resolver/contracts";
-import { hasWorldPositions, LAP_PATH_SEMANTIC_IDS, type LapPathSemanticId, type LapPathSemanticReader, lapPath } from "@shared/track/path";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TRACK_SPEED_COLOR_VARS } from "@/lib/colors";
 import { getSemanticCanvasContext } from "@/lib/rendering/css-canvas";

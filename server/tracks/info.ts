@@ -1,15 +1,15 @@
-import type { NamedSegment } from "../../shared/track/named-segments";
-import type { TrackFacts } from "../../shared/track/facts";
-import type { TrackGeometry } from "../../shared/track/geometry";
-import type { TrackSectors } from "../../shared/track/sectors";
-import { getTrackSectorsByOrdinal } from "../../shared/track/storage/sectors";
-import { getTrackLengthMeters, getTrackOutlineByOrdinal } from "../../shared/track/recording/outlines";
+import type { NamedSegment } from "../../shared/racing/tracks/named-segments";
+import type { TrackFacts } from "../../shared/racing/tracks/facts";
+import type { TrackGeometry } from "../../shared/racing/tracks/geometry";
+import type { TrackSectors } from "../../shared/racing/tracks/sectors";
+import { getTrackSectorsByOrdinal } from "../../shared/racing/tracks/storage/sectors";
+import { getTrackLengthMeters, getTrackOutlineByOrdinal } from "../../shared/racing/tracks/recording/outlines";
 import {
   loadLabelledSegments,
   loadTrackFacts,
   loadTrackGeometry,
-} from "../../shared/track/storage/meta";
-import { resolveTrackName } from "../../shared/track/resolve-name";
+} from "../../shared/racing/tracks/storage/meta";
+import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { tryGetServerGame } from "../games/registry";
 
 interface Point {
@@ -54,7 +54,7 @@ interface TrackInfo {
  *
  * `outline` and `lengthMeters` are getters rather than fields: they parse a
  * centerline CSV, and most callers only want names and fractions. Everything
- * else here is already cached by `shared/track/geometry` and `shared/track/storage`, so a call is cheap.
+ * else here is already cached by `shared/racing/tracks/geometry` and `shared/racing/tracks/storage`, so a call is cheap.
  */
 export function resolveTrack(gameId: string | undefined, trackOrdinal: number | null | undefined): TrackInfo {
   const ordinal = trackOrdinal ?? null;

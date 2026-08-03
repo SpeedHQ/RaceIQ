@@ -3,7 +3,7 @@
  *
  * Captures the exact output of every public entry point in
  * server/ai/track-guides.ts, BEFORE the inline `guides` array is moved out to
- * shared/tracks/guides/<slug>.json. test/track-guide-golden.test.ts replays the
+ * shared/data/tracks/guides/<slug>.json. test/track-guide-golden.test.ts replays the
  * result, so the migration is provably byte-faithful — including the prompt text
  * that the AI eval baselines are pinned to.
  *

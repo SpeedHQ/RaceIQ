@@ -1,7 +1,7 @@
 import { eq, inArray } from "drizzle-orm";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
-import type { LapInsight } from "../../shared/lap-analysis/insights/types";
+import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import { db } from "../db";
 import { lapMetrics } from "../db/schema";
 import { getLapById, getLapsByIds } from "../db/lap-read-queries";

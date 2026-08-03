@@ -5,8 +5,8 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { getIRacingTrack } from "../../../shared/track/catalogs/iracing"
-import { USER_TRACKS_DIR } from "../../../shared/runtime/data-paths"
+import { getIRacingTrack } from "../../../shared/racing/tracks/catalogs/iracing"
+import { USER_TRACKS_DIR } from "../../../shared/platform/runtime/data-paths"
 
 import {
   parseIRacingActiveSvg,

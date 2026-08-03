@@ -18,7 +18,7 @@ import {
   OUTCOME_METRICS,
 } from "../server/experiments/comparison/metrics";
 import type { Corner } from "../server/lap-analysis/corners";
-import type { EvaluableLap } from "../shared/laps/review-selection";
+import type { EvaluableLap } from "../shared/racing/laps/review-selection";
 import type { TelemetryPacket } from "../shared/telemetry/types";
 
 

@@ -1,4 +1,4 @@
-import { flipBoundaries, flipPoints, needsTrackFlip } from "@shared/track/coords";
+import { flipBoundaries, flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GameId } from "../../../../shared/games/ids";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";

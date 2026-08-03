@@ -22,7 +22,7 @@ import { resolve } from "path";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { getServerGame } from "../server/games/registry";
-import { loadCenterline } from "../shared/track/curation/generate";
+import { loadCenterline } from "../shared/racing/tracks/curation/generate";
 import { parseLd } from "../server/motec/ld";
 import { synthesizeAcEvoCapture, SYNTH_HZ } from "../server/games/ac-evo/motec";
 import { META_FRAME_MAGIC } from "../server/session-capture/framing"
@@ -102,7 +102,7 @@ function deviations(reference: Point[], reconstructed: Point[]): number[] {
 
 describe("MoTeC reconstruction vs real centerlines", () => {
   for (const slug of TRACKS) {
-    const raw = loadCenterline(resolve("shared/tracks/ac-evo", `${slug}-centerline.csv`));
+    const raw = loadCenterline(resolve("shared/data/tracks/ac-evo", `${slug}-centerline.csv`));
 
     test(`${slug} reconstructs the centerline it was derived from`, () => {
       expect(raw).not.toBeNull();
@@ -162,7 +162,7 @@ describe("MoTeC reconstruction vs real centerlines", () => {
   test("a mirrored reconstruction is actually caught", () => {
     // Guards the guard: if signedArea stopped discriminating, every track above
     // would keep passing and the mirror check would be decoration.
-    const raw = loadCenterline(resolve("shared/tracks/ac-evo", "spa-centerline.csv"));
+    const raw = loadCenterline(resolve("shared/data/tracks/ac-evo", "spa-centerline.csv"));
     const stint = centerlineToStint(raw!, { laps: 2, hz: SYNTH_HZ });
     const mirrored = stint.reference.map((p) => ({ x: -p.x, z: p.z }));
 

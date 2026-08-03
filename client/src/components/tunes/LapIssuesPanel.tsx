@@ -1,5 +1,5 @@
-import type { LapMeta } from "../../../../shared/sessions/types";
-import type { TuneIssue } from "../../../../shared/tuning/issues";
+import type { LapMeta } from "../../../../shared/racing/sessions/types";
+import type { TuneIssue } from "../../../../shared/racing/tuning/issues";
 import { useLapIssues } from "../../hooks/queries";
 
 const SEVERITY_CLASS: Record<TuneIssue["severity"], string> = {

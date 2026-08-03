@@ -1,11 +1,11 @@
-import type { LapTrace } from "@shared/laps/trace/types";
-import { clamp } from "@shared/math/numbers";
+import { clamp } from "@shared/core/numbers";
+import type { LapTrace } from "@shared/racing/laps/trace/types";
 
-export { downsampleLap } from "@shared/laps/trace/build";
-export { base64ToF32, decodeLapTrace } from "@shared/laps/trace/codec";
+export { downsampleLap } from "@shared/racing/laps/trace/build";
+export { base64ToF32, decodeLapTrace } from "@shared/racing/laps/trace/codec";
 // Trace construction + wire codec are shared so the server can build LapTrace
 // payloads too. Re-export the pieces existing client imports expect unchanged.
-export type { EncodedLapTrace, LapTrace, TireAverages, TireTraces } from "@shared/laps/trace/types";
+export type { EncodedLapTrace, LapTrace, TireAverages, TireTraces } from "@shared/racing/laps/trace/types";
 
 /** Linearly interpolate a trace channel at distance fraction `f` (0..1).
  *  Samples are the raw recorded frames, so `frac` is monotonic but not evenly
@@ -65,5 +65,5 @@ export function consistencyAt(traces: LapTrace[], f: number, channel: "throttle"
 }
 
 // Stint pace stats are shared with the server-side driver-profile aggregator.
-export type { StintStats } from "@shared/laps/stint-stats";
-export { stintStats } from "@shared/laps/stint-stats";
+export type { StintStats } from "@shared/racing/laps/stint-stats";
+export { stintStats } from "@shared/racing/laps/stint-stats";

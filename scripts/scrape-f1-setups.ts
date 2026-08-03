@@ -33,7 +33,7 @@ const TRACK_MAP: Record<string, { ordinal: number; name: string; srsSlug: string
   abudhabi:      { ordinal: 14, name: "Yas Marina Circuit",                        srsSlug: "abu-dhabi-gp-setups" },
 };
 
-const OUT_DIR = "shared/tunes/f1-25";
+const OUT_DIR = "shared/data/tunes/f1-25";
 const F1LAPS = "https://www.f1laps.com";
 const SRS = "https://simracingsetup.com";
 

@@ -3,17 +3,17 @@
  *
  * Reads AI/Track.geo from each track's ribbon ZIP, parses the MLP binary
  * format for waypoint coordinates, and writes recorded-{ordinal}.csv files
- * to shared/track-outlines/fm-2023/.
+ * to shared/data/tracks/fm-2023/.
  *
  * Usage: bun scripts/extract-fm2023-tracks.ts
  */
 import { writeFileSync, mkdirSync, existsSync, readdirSync } from "fs";
 import { resolve } from "path";
-import { findForzaInstall } from "@shared/forza/install";
-import { decompressForzaLZX } from "@shared/forza/lzx-decoder";
-import { parseForzaZip } from "@shared/forza/zip";
+import { findForzaInstall } from "@shared/integrations/forza/install";
+import { decompressForzaLZX } from "@shared/integrations/forza/lzx-decoder";
+import { parseForzaZip } from "@shared/integrations/forza/zip";
 
-const OUT_DIR = resolve(import.meta.dir, "../shared/tracks/fm-2023");
+const OUT_DIR = resolve(import.meta.dir, "../shared/data/tracks/fm-2023");
 
 // ── Load track name mapping from tracks.csv ──
 const tracksCSV = resolve(import.meta.dir, "../shared/games/fm-2023/tracks.csv");
@@ -255,7 +255,7 @@ function parseMlpSegments(data: Buffer): {
  * Note: Suzuka's AI data uses nested ZIPs but the actual waypoint data
  * (MLPDataStart/fWaypointX) is physically absent — the nested ZIP is a stub
  * with only metadata entries. Suzuka falls back to the shared TUMFTM outline
- * (see TRACK_FILES in track-outlines/index.ts).
+ * (see TRACK_FILES in shared/racing/tracks/geometry/outlines.ts).
  */
 function decompressNestedGeo(zipData: Buffer): Buffer {
   let pos = 0;

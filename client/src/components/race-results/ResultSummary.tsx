@@ -1,4 +1,4 @@
-import type { RaceResult, RaceResultAggregate, RaceResultOutcomeStatus, RaceResultStatus } from "@shared/race-results/types";
+import type { RaceResult, RaceResultAggregate, RaceResultOutcomeStatus, RaceResultStatus } from "@shared/racing/results/types";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";

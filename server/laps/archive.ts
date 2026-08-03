@@ -17,8 +17,8 @@
  */
 import { zipSync, unzipSync } from "fflate";
 import { getLapsRaw } from "../db/lap-read-queries";
-import { resolveCarName } from "../../shared/car/resolve-name";
-import { resolveTrackName } from "../../shared/track/resolve-name";
+import { resolveCarName } from "../../shared/racing/cars/resolve-name";
+import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import {
   detectGameIdFromBuffer,
   detectGameIdFromFilename,

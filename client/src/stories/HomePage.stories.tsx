@@ -4,8 +4,8 @@ import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } fr
 import { type ComponentType, type ReactNode, useEffect, useState } from "react";
 import type { DriverFingerprint } from "../../../server/driver-profile/fingerprint";
 import type { DriverTrend } from "../../../server/driver-profile/trend";
-import type { LapMeta, SessionMeta, SessionRecap } from "../../../shared/sessions/types";
-import hakoneClubCenterlineCsv from "../../../shared/tracks/fm-2023/hakone-s-1641-centerline.csv?raw";
+import hakoneClubCenterlineCsv from "../../../shared/data/tracks/fm-2023/hakone-s-1641-centerline.csv?raw";
+import type { LapMeta, SessionMeta, SessionRecap } from "../../../shared/racing/sessions/types";
 import { HomePageContainer } from "../components/HomePageContainer";
 import type { DriverProfileRun } from "../hooks/queries";
 import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";

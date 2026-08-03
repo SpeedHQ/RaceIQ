@@ -1,10 +1,10 @@
 import { describe, test, expect } from "bun:test";
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import { detectCornerRegions, type CornerRegion } from "../shared/track/curation/segment-align-detect";
-import { alignSegments } from "../shared/track/curation/segment-align-match";
-import { validateFacts } from "../shared/track/curation/segment-align-validate";
-import type { TrackFacts } from "../shared/track/facts";
+import { detectCornerRegions, type CornerRegion } from "../shared/racing/tracks/curation/segment-align-detect";
+import { alignSegments } from "../shared/racing/tracks/curation/segment-align-match";
+import { validateFacts } from "../shared/racing/tracks/curation/segment-align-validate";
+import type { TrackFacts } from "../shared/racing/tracks/facts";
 
 /** Identity fields alignment never reads — every fixture shares them. */
 const FACTS = { slug: "test", track: "test", layout: "full", layoutName: "Full", name: "Test" };
@@ -298,13 +298,13 @@ describe("validateFacts", () => {
 });
 
 describe("real geometry: Spa (ACC centerline)", () => {
-  const csv = readFileSync(resolve(import.meta.dir, "../shared/tracks/acc/spa-centerline.csv"), "utf-8");
+  const csv = readFileSync(resolve(import.meta.dir, "../shared/data/tracks/acc/spa-centerline.csv"), "utf-8");
   const pts = csv.split("\n").filter(Boolean).slice(1).map((l) => {
     const [x, z] = l.split(",").map(Number);
     return { x, z };
   });
   const facts: TrackFacts = JSON.parse(
-    readFileSync(resolve(import.meta.dir, "../shared/tracks/meta/spa.json"), "utf-8"),
+    readFileSync(resolve(import.meta.dir, "../shared/data/tracks/meta/spa.json"), "utf-8"),
   );
 
   test("detects and names the full corner sequence", () => {

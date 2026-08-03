@@ -42,7 +42,7 @@ bun run extract:tracks:ac-evo
 bun run extract:ac-evo
 ```
 
-Generated track geometry and metadata live under `shared/tracks/`; game registries live under `shared/games/`. Corner names, numbering, sectors, and segment geometry are hand-curated; read [track curation](docs/contributing/track-curation.md) before editing them. Curated data is authoritative and detector output is a fallback.
+Generated track geometry and metadata live under `shared/data/tracks/`; game registries live under `shared/games/`. Corner names, numbering, sectors, and segment geometry are hand-curated; read [track curation](docs/contributing/track-curation.md) before editing them. Curated data is authoritative and detector output is a fallback.
 
 ## Database changes
 

@@ -1,4 +1,4 @@
-import type { LapMeta } from "../../../../shared/sessions/types";
+import type { LapMeta } from "../../../../shared/racing/sessions/types";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { LapTimeChart } from "../LapTimeChart";
 import { RecordedLaps } from "../RecordedLaps";

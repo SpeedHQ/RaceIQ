@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Settings2 } from "lucide-react";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../shared/games/ids";
-import type { LapMeta, SessionMeta, SessionRecap as SessionRecapDto } from "../../../shared/sessions/types";
+import type { LapMeta, SessionMeta, SessionRecap as SessionRecapDto } from "../../../shared/racing/sessions/types";
 import { ActivityHeatmap } from "./ActivityHeatmap";
 import { formatLapTime } from "./LiveTelemetry";
 import { SessionRecapView, type TrackOutlineData, type TrackSectorBounds } from "./SessionRecap";

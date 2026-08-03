@@ -7,12 +7,12 @@ import { homedir } from "os";
 import { SHARED_DIR } from "../../runtime/config/paths";
 import { accRecorder } from "../../games/kunos/recorder";
 import { replayRecording } from "../../games/acc/replay";
-import { getAllAccCars, getAccCarClass } from "../../../shared/car/acc"
-import { getAccCarSpecs } from "../../../shared/car/acc-specs"
+import { getAllAccCars, getAccCarClass } from "../../../shared/racing/cars/acc"
+import { getAccCarSpecs } from "../../../shared/racing/cars/acc-specs"
 import { getAccReader } from "../../runtime/live-readers";
 import { PHYSICS, GRAPHICS, STATIC } from "../../games/acc/structs";
 import { readWString } from "../../games/acc/utils";
-import { getAccSharedTrackName, getAccTracks } from "../../../shared/track/catalogs/acc"
+import { getAccSharedTrackName, getAccTracks } from "../../../shared/racing/tracks/catalogs/acc"
 
 let accReplayHandle: { stop: () => void; frameCount: number } | null = null;
 
@@ -22,7 +22,7 @@ interface YtMeta {
   cachedAt: string;
 }
 
-// ── ACC Setups — shared/tunes/acc/{source}/{track}/{car}.json ──
+// ── ACC Setups — shared/data/tunes/acc/{source}/{track}/{car}.json ──
 
 interface AccSetup {
   name: string;

@@ -1,9 +1,9 @@
 import type { ServerGameAdapter } from "../types";
 import { forzaAdapter } from "../../../shared/games/fm-2023";
 import { parseForzaPacket } from "./parser";
-import { fmCarCatalog } from "../../../shared/car/fm";
-import { fmTrackCatalog } from "../../../shared/track/catalogs/fm";
-import { getForzaSharedOutline } from "../../../shared/track/geometry/outlines";
+import { fmCarCatalog } from "../../../shared/racing/cars/fm";
+import { fmTrackCatalog } from "../../../shared/racing/tracks/catalogs/fm";
+import { getForzaSharedOutline } from "../../../shared/racing/tracks/geometry/outlines";
 import { LapDetector } from "../../lap-detection/detector";
 import { renderAnalystSchemaForPrompt } from "../../ai/schemas";
 

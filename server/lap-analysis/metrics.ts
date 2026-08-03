@@ -3,10 +3,10 @@
  * telemetry and curated track geometry; persistence lives in metrics-store.ts.
  */
 
-import { analyzeLap } from "../../shared/lap-analysis/insights/analyze";
-import type { LapInsight } from "../../shared/lap-analysis/insights/types";
+import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
+import type { LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import { tryGetGame } from "../../shared/games/registry";
-import type { NamedSegment } from "../../shared/track/named-segments";
+import type { NamedSegment } from "../../shared/racing/tracks/named-segments";
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 

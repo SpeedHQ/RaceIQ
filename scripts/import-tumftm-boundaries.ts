@@ -3,7 +3,7 @@
  *
  * Downloads CSVs with center-line + track widths, computes left/right edge
  * points by offsetting perpendicular to the tangent, and writes JSON boundary
- * files to shared/track-outlines/boundaries/.
+ * files to shared/data/tracks/tumftm/.
  *
  * Usage: bun run scripts/import-tumftm-boundaries.ts
  */
@@ -13,7 +13,7 @@ import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const OUT_DIR = resolve(__dirname, "../shared/track-outlines/boundaries");
+const OUT_DIR = resolve(__dirname, "../shared/data/tracks/tumftm");
 
 interface Point {
   x: number;
@@ -117,7 +117,7 @@ async function main() {
 
       const { leftEdge, rightEdge } = computeEdges(rows);
 
-      const outPath = resolve(OUT_DIR, `${localName}.json`);
+      const outPath = resolve(OUT_DIR, `${localName}-boundaries.json`);
       const data = {
         leftEdge: leftEdge.map((p) => ({ x: round(p.x), z: round(p.z) })),
         rightEdge: rightEdge.map((p) => ({ x: round(p.x), z: round(p.z) })),

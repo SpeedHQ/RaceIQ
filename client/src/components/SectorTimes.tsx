@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { lapPaceColor, SECTOR_COLOR_VARS } from "@/lib/colors";
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
-import type { LiveSectorData } from "../../../shared/live/types";
+import type { LiveSectorData } from "../../../shared/racing/live/types";
 import { getSoundEnabled, getSoundType, getSoundUrl, getSoundVolume } from "./Settings";
 
 /** Shared AudioContext — reused across all blips to avoid browser throttling. */

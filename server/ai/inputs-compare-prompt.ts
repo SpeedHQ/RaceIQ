@@ -5,13 +5,13 @@
  */
 import { z } from "zod";
 import type { ComparisonResult } from "../lap-analysis/comparison"
-import { resolveCarName } from "../../shared/car/resolve-name";
-import { resolveTrackName } from "../../shared/track/resolve-name";
+import { resolveCarName } from "../../shared/racing/cars/resolve-name";
+import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import type { GameId } from "../../shared/games/ids";
 import { compareLapHeader } from "./compare-engineer";
 import { buildTrackGuideContext } from "./track-guides";
 import { resolveTrack } from "../tracks/info";
-import { segmentPromptNames } from "../../shared/track/segment-label";
+import { segmentPromptNames } from "../../shared/racing/tracks/segment-label";
 import { computeStatsRange, steerScaleFor, type InputStats } from "../lap-analysis/metrics"
 
 /**

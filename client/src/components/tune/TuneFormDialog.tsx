@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import type React from "react";
 import { useCallback, useState } from "react";
 import { m } from "@/paraglide/messages";
-import type { TuneCategory } from "../../../../shared/tuning/types";
+import type { TuneCategory } from "../../../../shared/racing/tuning/types";
 import type { TuneSettings } from "../../data/tune-catalog";
 import { client } from "../../lib/rpc";
 import { errorFromResponse } from "../../lib/rpc-error";

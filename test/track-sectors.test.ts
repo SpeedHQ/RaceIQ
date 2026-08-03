@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { loadTrackSectorsFor } from "../shared/track/storage/meta";
+import { loadTrackSectorsFor } from "../shared/racing/tracks/storage/meta";
 import { computeLapSectors } from "../server/lap-analysis/sectors"
 import { initGameAdapters } from "../shared/games/init";
 import type { TelemetryPacket } from "../shared/telemetry/types";

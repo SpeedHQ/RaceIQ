@@ -1,6 +1,6 @@
 import { existsSync, unlinkSync } from "fs";
 import type { GameId } from "../../shared/games/ids";
-import type { LapMeta } from "../../shared/sessions/types";
+import type { LapMeta } from "../../shared/racing/sessions/types";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
 import { deleteSession } from "../db/session-queries";
 import { getServerGame } from "../games/registry";

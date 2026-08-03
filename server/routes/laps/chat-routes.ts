@@ -2,8 +2,8 @@ import { MessageList } from "@mastra/core/agent";
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
-import { IdParamSchema } from "../../../shared/http/route-schemas";
-import type { Tune } from "../../../shared/tuning/types";
+import { IdParamSchema } from "@shared/platform/http/route-schemas";
+import type { Tune } from "../../../shared/racing/tuning/types";
 import { getLapById } from "../../db/lap-read-queries";
 import { deleteAnalysis as deleteAnalysisQuery, getAnalysis } from "../../db/analysis-queries";
 import { getCorners } from "../../db/track-queries";

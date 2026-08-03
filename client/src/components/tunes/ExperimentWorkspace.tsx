@@ -1,10 +1,10 @@
-import { EXPERIMENT_FOCUS_AGENT_LABELS } from "@shared/experiments/focus";
 import { getGame } from "@shared/games/registry";
-import { isPitCycleLap } from "@shared/laps/pit-cycle";
+import { EXPERIMENT_FOCUS_AGENT_LABELS } from "@shared/racing/experiments/focus";
+import { isPitCycleLap } from "@shared/racing/laps/pit-cycle";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import type { LapMeta } from "../../../../shared/sessions/types";
+import type { LapMeta } from "../../../../shared/racing/sessions/types";
 import {
   type ExperimentGameId,
   type ExperimentLapMetric,

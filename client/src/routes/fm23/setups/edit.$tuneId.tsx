@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { m } from "@/paraglide/messages";
-import type { TuneSettings } from "../../../../../shared/tuning/types";
+import type { TuneSettings } from "../../../../../shared/racing/tuning/types";
 import type { TuneFormData } from "../../../components/TuneForm";
 import { TuneForm } from "../../../components/TuneForm";
 import { useUpdateTune } from "../../../hooks/queries";

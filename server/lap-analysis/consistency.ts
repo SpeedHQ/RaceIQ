@@ -1,5 +1,5 @@
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { lapPath } from "../../shared/track/path";
+import { lapPath } from "../../shared/racing/tracks/path";
 import type { Corner } from "./corners";
 import { populationVariance } from "./stats";
 

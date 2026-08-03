@@ -4,8 +4,8 @@ import { GameIdSchema } from "../../shared/games/ids";
 import { z } from "zod";
 import { getLapById } from "../db/lap-read-queries";
 import { getExperiment } from "../db/experiment-queries";
-import { resolveCarName } from "../../shared/car/resolve-name";
-import { resolveTrackName } from "../../shared/track/resolve-name";
+import { resolveCarName } from "../../shared/racing/cars/resolve-name";
+import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import {
   getChatMemory,
   CHAT_RESOURCE_ID,

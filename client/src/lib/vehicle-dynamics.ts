@@ -2,7 +2,7 @@
  * Presentation helpers (colors, labels) for shared vehicle dynamics.
  */
 
-import { SLIP_ANGLE_PEAK_RAD, SLIP_RATIO_PEAK } from "../../../shared/lap-analysis/physics/vehicle";
+import { SLIP_ANGLE_PEAK_RAD, SLIP_RATIO_PEAK } from "../../../shared/racing/analysis/laps/physics/vehicle";
 import { operatingColor, severityColor, severityRangeColor } from "./colors";
 
 // ── Semantic Color Palette ────────────────────────────────────────

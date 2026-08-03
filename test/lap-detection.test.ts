@@ -4,7 +4,7 @@ import { detectSessionBoundary,
 detectLapBoundary,
 detectLapReset,
 type SessionSnapshot, } from "../server/lap-detection/boundaries"
-import { getTrackSectorsByOrdinal } from "../shared/track/storage/sectors";
+import { getTrackSectorsByOrdinal } from "../shared/racing/tracks/storage/sectors";
 import { assertSectorTimesMatchLapTime } from "./helpers/lap-assertions";
 
 function pkt(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {

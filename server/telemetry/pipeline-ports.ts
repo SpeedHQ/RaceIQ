@@ -1,11 +1,11 @@
 import { resolve } from "path";
 import { mkdirSync } from "fs";
 import type { GameId } from "../../shared/games/ids";
-import type { LapMeta } from "../../shared/sessions/types";
-import type { LivePitData, LiveSectorData } from "../../shared/live/types";
+import type { LapMeta } from "../../shared/racing/sessions/types";
+import type { LivePitData, LiveSectorData } from "../../shared/racing/live/types";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { TelemetryVersionIdentity } from "../../shared/telemetry/version";
-import type { TuneIssue } from "../../shared/tuning/issues";
+import type { TuneIssue } from "../../shared/racing/tuning/issues";
 import {
   TELEMETRY_CATALOG_HASH,
   TELEMETRY_CATALOG_SCHEMA_VERSION,

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { insertSession } from "../server/db/session-queries";
 import { getSessionResult, replacePitEvents, upsertSessionResult, type SessionResultInput } from "../server/db/session-result-queries";
 import { getRecentRaceResults } from "../server/race-results/aggregates";
-import type { RaceResultEvidence, RaceResultProvenance } from "../shared/race-results/types";
+import type { RaceResultEvidence, RaceResultProvenance } from "../shared/racing/results/types";
 
 const evidence: RaceResultEvidence = {
   fieldStatus: {

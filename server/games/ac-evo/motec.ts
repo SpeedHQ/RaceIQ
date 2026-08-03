@@ -57,10 +57,10 @@ import {
 } from "./structs";
 import { ACEVO_PACKED_MAGIC, packTriplet } from "../kunos/pack-triplet";
 import { encodeFrameLength, encodeMetaFrame } from "../../session-capture/framing";
-import { getAcEvoCarByModel, getAcEvoCarName } from "../../../shared/car/ac-evo"
+import { getAcEvoCarByModel, getAcEvoCarName } from "../../../shared/racing/cars/ac-evo"
 import { getAcEvoTrackByName,
 getAcEvoTrackBySetupFolder,
-getAcEvoTracks, } from "../../../shared/track/catalogs/ac-evo"
+getAcEvoTracks, } from "../../../shared/racing/tracks/catalogs/ac-evo"
 import { findChannel, type LdChannel, type LdLog } from "../../motec/ld";
 import type {
   MotecCarTrack,

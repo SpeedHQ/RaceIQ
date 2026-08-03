@@ -4,11 +4,11 @@ import { Hono } from "hono";
 import { resolve, sep } from "path";
 import { z } from "zod";
 
-import { getAllAccCars } from "../../../shared/car/acc"
-import { getAccSetupFolderKeys, getAccTrackBySetupFolder } from "../../../shared/track/catalogs/acc"
-import { getAllAcEvoCars } from "../../../shared/car/ac-evo"
-import { getAcEvoSetupFolderAliases, getAcEvoSetupFolderKeys, getAcEvoTrackBySetupFolder } from "../../../shared/track/catalogs/ac-evo"
-import { AccSetupJsonSchema, setupFileFormat, setupFileRejectReason } from "../../../shared/setups/file-formats";
+import { getAllAccCars } from "../../../shared/racing/cars/acc"
+import { getAccSetupFolderKeys, getAccTrackBySetupFolder } from "../../../shared/racing/tracks/catalogs/acc"
+import { getAllAcEvoCars } from "../../../shared/racing/cars/ac-evo"
+import { getAcEvoSetupFolderAliases, getAcEvoSetupFolderKeys, getAcEvoTrackBySetupFolder } from "../../../shared/racing/tracks/catalogs/ac-evo"
+import { AccSetupJsonSchema, setupFileFormat, setupFileRejectReason } from "../../../shared/racing/setups/file-formats";
 import { getTuneById, insertTune } from "../../db/tune-queries";
 import { carSlugFromPresetId, formatCarSetup, readCarSetupFile, summarizeCarSetup } from "../../games/ac-evo/carsetup";
 import { parseCarSetup } from "../../games/ac-evo/carsetup-wire";

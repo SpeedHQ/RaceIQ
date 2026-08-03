@@ -1,11 +1,11 @@
-import { fastestLaps, REVIEW_LAP_CAP } from "../../shared/laps/review-selection";
-import { isPitCycleLap } from "../../shared/laps/pit-cycle";
+import { fastestLaps, REVIEW_LAP_CAP } from "../../shared/racing/laps/review-selection";
+import { isPitCycleLap } from "../../shared/racing/laps/pit-cycle";
 
 /**
  * Tuning auto-exclude: fastest-5 lap curation
  * (docs/architecture/setup-engineer.md).
  *
- * Persists the fastest-5 decision (the same rule `shared/laps/review-selection.ts` uses
+ * Persists the fastest-5 decision (the same rule `shared/racing/laps/review-selection.ts` uses
  * to curate laps for the per-frame heavy review paths) onto
  * `laps.experiment_excluded`, scoped per `(experiment_id, tune_id)`, without
  * stomping deliberate user/AI exclusions.

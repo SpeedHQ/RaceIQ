@@ -1,4 +1,4 @@
-import type { LivePitData, LiveSectorData } from "../../../../shared/live/types";
+import type { LivePitData, LiveSectorData } from "../../../../shared/racing/live/types";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import type { DisplayPacket } from "../../lib/convert-packet";
 import { SectorTimes } from "../SectorTimes";

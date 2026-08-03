@@ -1,6 +1,6 @@
-import { aggregateLapStyles, type LapStyleSummary } from "../../shared/lap-analysis/driving-style";
-import { clamp } from "../../shared/math/numbers";
-import type { InsightCategory, InsightSeverity, LapInsight } from "../../shared/lap-analysis/insights/types";
+import { aggregateLapStyles, type LapStyleSummary } from "../../shared/racing/analysis/laps/driving-style";
+import { clamp } from "@shared/core/numbers";
+import type { InsightCategory, InsightSeverity, LapInsight } from "../../shared/racing/analysis/laps/insights/types";
 import { median, round4 } from "./math";
 /** Per-detector rollup, normalised per lap so pool size cancels out. */
 export interface DetectorStat {
@@ -55,7 +55,7 @@ const perWheel = (prefix: string): string[] => WHEELS.map((w) => `${prefix}${w}`
 /**
  * Every detector id `analyzeLap` can emit. Needed because a *strength* is the
  * absence of a detector, and absent detectors leave no trace in the insight
- * list. Kept in lockstep with shared/lap-analysis/insights by
+ * list. Kept in lockstep with shared/racing/analysis/laps/insights by
  * test/driver-profile-aggregate.test.ts, which fails if the two drift.
  */
 export const ALL_DETECTOR_IDS: readonly string[] = [

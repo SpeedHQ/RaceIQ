@@ -1,4 +1,4 @@
-import type { InsightCategory, LapInsight } from "@shared/lap-analysis/insights/types";
+import type { InsightCategory, LapInsight } from "@shared/racing/analysis/laps/insights/types";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { m } from "@/paraglide/messages";

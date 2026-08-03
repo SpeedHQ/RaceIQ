@@ -3,8 +3,8 @@ import { STATIC } from "./structs";
 import { parseAccBuffers } from "./parser";
 import { readWString } from "./utils";
 import { processPacket } from "../../telemetry/live-pipeline";
-import { getAccCarByModel } from "../../../shared/car/acc"
-import { getAccTrackByName } from "../../../shared/track/catalogs/acc"
+import { getAccCarByModel } from "../../../shared/racing/cars/acc"
+import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
 
 /**
  * Replay a recorded ACC telemetry file.

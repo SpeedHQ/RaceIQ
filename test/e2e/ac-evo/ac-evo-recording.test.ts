@@ -20,7 +20,7 @@ import {
 } from "../../helpers/parse-dump";
 import { generateRecordingVisualizations } from "../../helpers/lap-viz";
 import { assertValidLapHasSectors } from "../../helpers/lap-assertions";
-import { getTrackSectorsByOrdinal } from "../../../shared/track/storage/sectors";
+import { getTrackSectorsByOrdinal } from "../../../shared/racing/tracks/storage/sectors";
 
 const AC_EVO_RECORDING =
 	"test/artifacts/sessions/ac-evo-2026-04-15T17-12-25-825Z.bin.gz";

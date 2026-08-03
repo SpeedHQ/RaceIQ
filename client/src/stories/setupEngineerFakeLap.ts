@@ -1,5 +1,5 @@
+import type { TuneIssue } from "../../../shared/racing/tuning/issues";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import type { TuneIssue } from "../../../shared/tuning/issues";
 import { fakeAccPacket } from "./fakeData";
 
 /** Generates a plausible full-lap telemetry array by varying distance/steer/tyre

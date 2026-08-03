@@ -6,7 +6,7 @@ import type {
   RaceResultOutcomeStatus,
   RaceResultProvenance,
   RaceResultStatus,
-} from "../../shared/race-results/types";
+} from "../../shared/racing/results/types";
 
 export type ResultSessionType = "practice" | "qualifying" | "race" | "other" | "unknown";
 export type ResultClassification = "finished" | "dnf" | "retired" | "qualifying" | "unknown";
