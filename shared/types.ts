@@ -794,7 +794,7 @@ export interface SessionRecap {
   distanceM: number | null;
 
   /** Pace trend, in lap order. */
-  sparkline: { lapNumber: number; lapTimeSec: number; isValid: boolean }[];
+  sparkline: { lapId: number; lapNumber: number; lapTimeSec: number; isValid: boolean }[];
 
   /** Best sectors across valid laps, possibly from different laps. */
   theoretical: {
