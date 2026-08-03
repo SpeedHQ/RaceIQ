@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { RequestContext } from "@mastra/core/request-context";
 import { compareEngineerAgent } from "../mastra/agents/compare-engineer";
+import { compareChatAgent } from "../mastra/agents/compare-chat";
+import { lapChatAgent } from "../mastra/agents/lap-chat";
+import { lapAnalystAgent } from "../mastra/agents/lap-analyst";
 import { createModelContext } from "../server/ai/model-provider";
 import { resolveAi } from "../server/ai/ai-runtime";
 import { loadSettings } from "../server/settings";
-
 type ToolInspectionAgent = {
   getToolsForExecution(options: { requestContext: RequestContext }): Promise<Record<string, unknown>>;
 };
@@ -26,6 +28,7 @@ describe("Compare Engineer tools", () => {
     expect(tools).toEqual([
       "compare_f1_setup_to_catalog",
       "compare_laps",
+      "generate_lap_analysis",
       "get_corner_metrics",
       "get_lap_analysis",
       "get_lap_detail",
@@ -36,5 +39,10 @@ describe("Compare Engineer tools", () => {
     ]);
     expect(tools).not.toContain("apply_changes");
     expect(tools).not.toContain("delete_version");
+  });
+  test("registers generation on Lap Chat and Compare Chat, but not Lap Analyst", async () => {
+    await expect(toolNames(lapChatAgent)).resolves.toContain("generateLapAnalysisTool");
+    await expect(toolNames(compareChatAgent)).resolves.toContain("generateLapAnalysisTool");
+    await expect(toolNames(lapAnalystAgent)).resolves.not.toContain("generate_lap_analysis");
   });
 });

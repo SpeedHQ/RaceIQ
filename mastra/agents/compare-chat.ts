@@ -13,7 +13,7 @@ import { loadSettings } from "../../server/settings";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
-import { getLapAnalysisTool } from "../tools/lap-analysis";
+import { getLapAnalysisTool, generateLapAnalysisTool } from "../tools/lap-analysis";
 import { TRACK_GUIDE_PROMPT } from "../../shared/prompt-snippets";
 
 export const compareChatAgent = new Agent({
@@ -22,12 +22,12 @@ export const compareChatAgent = new Agent({
   instructions: () => {
     const s = loadSettings();
     return compareEngineerPersona(s.unit, s.temperatureUnit, s.language) + TRACK_GUIDE_PROMPT +
-      "\nBefore lap-specific diagnosis or recommendations, call `get_lap_analysis` for both lap IDs. If either lookup is unavailable, state that limitation and do not invent findings.";
+      "\nFor each lap, call `get_lap_analysis` first. Only when a lap's retrieval is unavailable, call `generate_lap_analysis` for that lap. If both tools fail for either lap, explicitly state that lap's analysis could not be retrieved or generated and do not invent lap-specific findings.";
   },
   model: () => {
     const s = loadSettings();
     return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
   },
-  tools: { getTrackGuideTool, listTrackGuidesTool, compareF1SetupToCatalogTool, getCornerMetricsTool, getLapAnalysisTool },
+  tools: { getTrackGuideTool, listTrackGuidesTool, compareF1SetupToCatalogTool, getCornerMetricsTool, getLapAnalysisTool, generateLapAnalysisTool },
   memory: getChatMemory(),
 });
