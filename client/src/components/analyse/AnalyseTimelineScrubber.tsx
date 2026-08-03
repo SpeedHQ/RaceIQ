@@ -117,6 +117,7 @@ export const AnalyseTimelineScrubber = memo(function AnalyseTimelineScrubber({
             <Button
               type="button"
               key={s}
+              aria-pressed={playbackSpeed === s}
               onClick={() => onSpeedChange(s)}
               className={`px-1.5 py-0.5 text-app-caption font-mono rounded transition-colors ${
                 playbackSpeed === s ? "bg-app-accent text-app-on-filled" : "bg-app-surface-alt text-app-text-secondary hover:bg-app-surface-hover hover:text-app-text"

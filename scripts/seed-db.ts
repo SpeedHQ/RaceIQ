@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, unlinkSync } from "node:fs";
 import { resolve } from "node:path";
 import { db, client, initDb } from "../server/db/index";
+import { chatThreadId, compareChatThreadId, getChatMemory, listThreadGenerations, saveChatMessages } from "../server/ai/chat-agent";
 import { importSessionBin } from "../server/session-capture/import-capture";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
@@ -67,8 +68,33 @@ async function assertSafeTarget(force: boolean): Promise<void> {
 async function removeSeedData(): Promise<void> {
   const sessionRows = await db.select({ id: sessions.id, rawFile: sessions.rawFile })
     .from(sessions).where(like(sessions.notes, `%${SEED_MARKER}%`)).all();
+  const seededLaps = sessionRows.length
+    ? await db
+        .select({ id: laps.id, gameId: sessions.gameId })
+        .from(laps)
+        .innerJoin(sessions, eq(laps.sessionId, sessions.id))
+        .where(inArray(sessions.id, sessionRows.map((row) => row.id)))
+        .all()
+    : [];
   const experimentRows = await db.select({ id: experiments.id }).from(experiments).where(like(experiments.notes, `%${SEED_MARKER}%`)).all();
   const tuneRows = await db.select({ id: tunes.id }).from(tunes).where(eq(tunes.source, SEED_MARKER)).all();
+  const chatBases = seededLaps.map((lap) => chatThreadId(lap.id));
+  const fmLapIds = seededLaps
+    .filter((lap) => lap.gameId === "fm-2023")
+    .map((lap) => lap.id)
+    .sort((a, b) => a - b);
+  if (fmLapIds.length >= 2) {
+    const latestFmLapId = fmLapIds[fmLapIds.length - 1];
+    if (latestFmLapId !== undefined) chatBases.push(compareChatThreadId(latestFmLapId, fmLapIds[0]));
+  }
+  if (chatBases.length > 0) {
+    const memory = getChatMemory();
+    for (const base of chatBases) {
+      const threadIds = new Set((await listThreadGenerations(base)).map((generation) => generation.threadId));
+      threadIds.add(base);
+      for (const threadId of threadIds) await memory.deleteThread(threadId);
+    }
+  }
 
   if (experimentRows.length) {
     await db.delete(experimentFocusEvents).where(inArray(experimentFocusEvents.experimentId, experimentRows.map((row) => row.id))).run();
@@ -150,6 +176,13 @@ async function insertDemoRows(profileId: number, importedLapIds: number[]): Prom
     await db.insert(tuneAssignments).values({ gameId: "fm-2023", carOrdinal: fm.carOrdinal, trackOrdinal: fm.trackOrdinal, tuneId: tuneA.id }).run();
     await db.insert(tuneAssignments).values({ gameId: "fm-2023", carOrdinal: secondCar, trackOrdinal: fm.trackOrdinal, tuneId: tuneB.id }).run();
     await db.update(laps).set({ tuneId: tuneA.id }).where(inArray(laps.id, fmLaps.map((lap) => lap.id))).run();
+    await saveChatMessages(chatThreadId(fm.id), [
+      {
+        id: `${SEED_MARKER}-lap-question`,
+        role: "user",
+        parts: [{ type: "text", text: "Where can I improve this lap?" }],
+      },
+    ]);
   }
 
   const f1Laps = importedLaps.filter((lap) => lap.gameId === "f1-2025");
@@ -182,6 +215,13 @@ async function insertDemoRows(profileId: number, importedLapIds: number[]): Prom
     const marker = `<!-- ${SEED_MARKER} -->`;
     await db.insert(lapAnalyses).values({ lapId: faster, analysis: `${marker}\n## Demo lap analysis\nThis seeded lap is available for local UI development.`, model: "seed", inputTokens: 0, outputTokens: 0, costUsd: 0, durationMs: 0 }).run();
     await db.insert(compareAnalyses).values({ lapAId: Math.min(faster, slower), lapBId: Math.max(faster, slower), kind: "inputs", analysis: `${marker}\n## Demo comparison\nThe seeded laps provide a faster/slower comparison for local development.`, model: "seed", inputTokens: 0, outputTokens: 0, costUsd: 0, durationMs: 0 }).run();
+    await saveChatMessages(compareChatThreadId(faster, slower), [
+      {
+        id: `${SEED_MARKER}-compare-question`,
+        role: "user",
+        parts: [{ type: "text", text: "What changed between these laps?" }],
+      },
+    ]);
   }
 }
 async function main(): Promise<void> {

@@ -33,15 +33,15 @@ import { SetupFilePicker } from "./SetupFilePicker";
  * (`/<game>/experiments/$experimentId`).
  */
 export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; onOpen: (id: number) => void }) {
-  const { data: sessions = [], isLoading } = useExperiments(gameId);
+  const { data: sessions = [], isLoading, isError } = useExperiments(gameId);
   const [creating, setCreating] = useState(false);
 
   return (
     <div className="flex-1 space-y-4 overflow-y-auto p-4">
       <div className="space-y-2">
         <div>
-          <h1 className="text-lg font-semibold text-app-text">Experiments</h1>
-          <p className="mt-0.5 text-xs text-app-text-dim">An experiment tracks one car + track as you iterate setups — base setup, stints driven, and (soon) versions with lap deltas.</p>
+          <h1 className="text-app-title font-semibold text-app-text">Experiments</h1>
+          <p className="mt-0.5 text-app-subtext text-app-text-dim">An experiment tracks one car + track as you iterate setups — base setup, stints driven, versions, and lap deltas.</p>
         </div>
         <Button variant="app-primary" size="app-md" onClick={() => setCreating(true)} className="self-start">
           + New experiment
@@ -68,7 +68,7 @@ export function ExperimentList({ gameId, onOpen }: { gameId: ExperimentGameId; o
           />
         ))}
 
-      <ExperimentTable sessions={sessions} onOpen={onOpen} isLoading={isLoading} gameId={gameId} />
+      <ExperimentTable sessions={sessions} onOpen={onOpen} isLoading={isLoading} isError={isError} gameId={gameId} />
     </div>
   );
 }
@@ -87,7 +87,7 @@ export function FocusBadge({ focus }: { focus: ExperimentFocus }) {
   );
 }
 
-function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Experiment[]; onOpen: (id: number) => void; isLoading: boolean; gameId: ExperimentGameId }) {
+function ExperimentTable({ sessions, onOpen, isLoading, isError, gameId }: { sessions: Experiment[]; onOpen: (id: number) => void; isLoading: boolean; isError: boolean; gameId: ExperimentGameId }) {
   const accCarName = useAccCarName();
   const carName = (n: string | null | undefined) => (gameId === "acc" ? accCarName(n) : n) ?? "—";
 
@@ -105,10 +105,19 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
           <TH className="sr-only">Actions</TH>
         </THead>
         <TBody>
-          {sessions.length === 0 && (
-            <TRow>
-              <TD colSpan={8} className="px-3 py-6 text-center text-xs text-app-text-dim">
-                {isLoading ? "Loading experiments…" : "No experiments yet. Create one above to get started."}
+          {isError && (
+            <TRow variant="separator">
+              <TD align="center" colSpan={8} tone="dim">
+                <div role="alert" className="py-4 text-status-danger">
+                  Could not load experiments. Try again.
+                </div>
+              </TD>
+            </TRow>
+          )}
+          {!isError && sessions.length === 0 && (
+            <TRow variant="separator">
+              <TD align="center" colSpan={8} tone="dim">
+                <div className="py-4">{isLoading ? "Loading experiments…" : "No experiments yet. Create one above to get started."}</div>
               </TD>
             </TRow>
           )}

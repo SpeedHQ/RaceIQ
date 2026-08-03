@@ -14,6 +14,7 @@ Documentation is organized by audience. Start with a user guide; use contributor
 - [Track curation](contributing/track-curation.md) — curate and verify track metadata and geometry.
 - [Telemetry recordings](contributing/telemetry-recordings.md) — capture, import, and preserve development telemetry.
 - [Test troubleshooting](contributing/test-troubleshooting.md) — diagnose test processes that do not exit.
+- [End-to-end testing](contributing/e2e-testing.md) — audit route surfaces, seeded five-game coverage, telemetry semantics, and visual evidence.
 - [Setup range data](contributing/setup-range-data.md) — maintain game setup limits and provenance.
 
 ## Architecture

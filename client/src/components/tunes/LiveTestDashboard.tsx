@@ -1,3 +1,5 @@
+import { getGame } from "@shared/games/registry";
+import type { TelemetryPacket } from "@shared/types";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { type ExperimentGameId, useTrackBoundaries, useTrackOutline } from "../../hooks/queries";
@@ -20,12 +22,11 @@ const WEATHER_LABELS: Record<number, string> = {
   5: "Storm",
 };
 
-/** Inline "track conditions" widget for ACC / AC Evo — these games carry weather
- * on top-level TelemetryPacket fields (WeatherType/TrackTemp/AirTemp), not F1's
- * nested `f1` sub-object that WeatherWidget expects. Renders nothing if the
- * fields are absent rather than fabricating values. */
-function LiveTrackConditions({ packet }: { packet: TelemetryPacket | undefined }) {
-  if (!packet || (packet.WeatherType == null && packet.TrackTemp == null && packet.AirTemp == null)) return null;
+/** Top-level track conditions for sources that publish those channels outside
+ * F1's extended packet. Capability metadata, not zero/non-zero values, decides
+ * whether zero-degree or clear conditions are real. */
+export function LiveTrackConditions({ packet }: { packet: TelemetryPacket | undefined }) {
+  if (!packet || packet.f1 || !getGame(packet.gameId).telemetry.weather) return null;
   return (
     <div className="absolute bottom-2 right-2 bg-app-surface-alt/80 backdrop-blur border border-app-border-input/50 rounded-lg px-2.5 py-1.5 text-app-caption space-y-0.5">
       {packet.WeatherType != null && <div className="text-app-text font-medium">{WEATHER_LABELS[packet.WeatherType] ?? "Unknown"}</div>}

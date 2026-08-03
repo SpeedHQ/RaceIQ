@@ -23,7 +23,7 @@ export function AnalyseAiSidebar({ lapId, carName, trackName, segments, aiPanelR
         </div>
         <div className="flex items-center gap-2">
           <AiPanelMenu onClearChat={() => aiPanelRef.current?.clearChat()} onClearAnalysis={() => aiPanelRef.current?.clearAnalysis()} onClearAll={() => aiPanelRef.current?.clearAll()} />
-          <Button variant="app-ghost" size="app-sm" onClick={onClose}>
+          <Button variant="app-ghost" size="app-sm" aria-label={m.common_close()} onClick={onClose}>
             ✕
           </Button>
         </div>

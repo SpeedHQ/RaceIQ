@@ -268,7 +268,7 @@ export function SessionsPage() {
   const gameId = useGameId();
   const gameRoute = useGameRoute();
   const navigate = useNavigate();
-  const { data: sessions = [], isLoading } = useSessions();
+  const { data: sessions = [], isLoading, isError: sessionsError } = useSessions();
   const { data: allLaps = [] } = useLaps();
   const sectorCount = Math.max(3, storedLapsSectorCount(allLaps));
   const qc = useQueryClient();
@@ -294,6 +294,9 @@ export function SessionsPage() {
   const [search, setSearch] = useState("");
   const [recapSessionId, setRecapSessionId] = useState<number | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   /**
    * Recorded and imported sessions are listed apart rather than mixed with a
    * badge: an imported MoTeC lap has a dead-reckoned line and no absolute
@@ -491,16 +494,30 @@ export function SessionsPage() {
   }, []);
 
   const deleteSelected = useCallback(async () => {
-    if (selectedSessions.size > 0) {
-      await client.api.sessions["bulk-delete"].$post({ json: { ids: [...selectedSessions] } });
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      if (selectedSessions.size > 0) {
+        const response = await client.api.sessions["bulk-delete"].$post({
+          json: { ids: [...selectedSessions] },
+        });
+        if (!response.ok) throw new Error("Failed to delete selected sessions");
+      }
+      if (selectedLaps.size > 0) {
+        const response = await client.api.laps["bulk-delete"].$post({
+          json: { ids: [...selectedLaps] },
+        });
+        if (!response.ok) throw new Error("Failed to delete selected laps");
+      }
+      setSelectedLaps(new Set());
+      setSelectedSessions(new Set());
+      setConfirmDelete(false);
+      await Promise.all([qc.invalidateQueries({ queryKey: queryKeys.sessions }), qc.invalidateQueries({ queryKey: queryKeys.laps })]);
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsDeleting(false);
     }
-    if (selectedLaps.size > 0) {
-      await client.api.laps["bulk-delete"].$post({ json: { ids: [...selectedLaps] } });
-    }
-    setSelectedLaps(new Set());
-    setSelectedSessions(new Set());
-    qc.invalidateQueries({ queryKey: queryKeys.sessions });
-    qc.invalidateQueries({ queryKey: queryKeys.laps });
   }, [selectedLaps, selectedSessions, qc]);
 
   /** Only games with a verified MoTeC channel mapping get the import UI. */
@@ -510,7 +527,7 @@ export function SessionsPage() {
 
   return (
     <div className="h-full flex flex-col p-4 gap-3">
-      {recapSessionId != null && <SessionRecapModal sessionId={recapSessionId} onClose={() => setRecapSessionId(null)} />}
+      {recapSessionId != null && <SessionRecapModal sessionId={recapSessionId} gameId={gameId} onClose={() => setRecapSessionId(null)} />}
       {importOpen && (
         <MotecImportModal
           onClose={() => setImportOpen(false)}
@@ -551,7 +568,7 @@ export function SessionsPage() {
         />
         <h1 className="text-sm font-semibold text-app-text/90 shrink-0">
           {m.label_sessions()}
-          {!isLoading && (
+          {!isLoading && !sessionsError && (
             <span className="text-app-subtext text-app-text/90 font-normal ml-2">
               {filtered.length === sessions.length ? `${sessions.length} ${m.sessions_total()}` : `${filtered.length} ${m.sessions_filtered_count()} ${sessions.length}`}
             </span>
@@ -601,21 +618,42 @@ export function SessionsPage() {
                 </Button>
               );
             })()}
-          {(selectedSessions.size > 0 || selectedLaps.size > 0) && (
-            <Button variant="app-danger" size="app-md" onClick={deleteSelected}>
-              {m.common_delete()} {selectedSessions.size > 0 ? `${selectedSessions.size} ${m.sessions_count_sessions()}` : ""}
-              {selectedSessions.size > 0 && selectedLaps.size > 0 ? " + " : ""}
-              {selectedLaps.size > 0 ? `${selectedLaps.size} ${m.sessions_count_laps()}` : ""}
-            </Button>
-          )}
+          {(selectedSessions.size > 0 || selectedLaps.size > 0) &&
+            (!confirmDelete ? (
+              <Button variant="app-danger" size="app-md" onClick={() => setConfirmDelete(true)}>
+                {m.common_delete()} {selectedSessions.size > 0 ? `${selectedSessions.size} ${m.sessions_count_sessions()}` : ""}
+                {selectedSessions.size > 0 && selectedLaps.size > 0 ? " + " : ""}
+                {selectedLaps.size > 0 ? `${selectedLaps.size} ${m.sessions_count_laps()}` : ""}
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-app-caption font-medium text-status-danger">{m.trackdetail_confirm()}</span>
+                <Button variant="app-danger" size="app-sm" onClick={deleteSelected} disabled={isDeleting}>
+                  {isDeleting ? m.common_loading() : m.trackdetail_yes()}
+                </Button>
+                <Button variant="app-outline" size="app-sm" onClick={() => setConfirmDelete(false)} disabled={isDeleting}>
+                  {m.common_cancel()}
+                </Button>
+              </div>
+            ))}
         </div>
+        {deleteError && (
+          <p role="alert" className="text-app-caption text-status-danger">
+            {deleteError}
+          </p>
+        )}
+        {sessionsError && (
+          <p role="alert" className="text-app-caption text-status-danger">
+            {m.common_error()}
+          </p>
+        )}
       </div>
 
       {/* Mobile card list */}
       <div className="flex flex-1 flex-col gap-2 overflow-auto @3xl/workspace:hidden">
         {isLoading ? (
           <div className="px-3 py-8 text-center text-app-text/90">{m.common_loading()}</div>
-        ) : pageItems.length === 0 ? (
+        ) : sessionsError ? null : pageItems.length === 0 ? (
           <div className="px-3 py-8 text-center text-app-text/90">{tab === "imported" ? m.sessions_none_imported() : m.sessions_none()}</div>
         ) : (
           pageItems.map((session) => {
@@ -731,21 +769,66 @@ export function SessionsPage() {
         )}
       </div>
 
-      <Table className="hidden flex-1 overflow-auto @3xl/workspace:table">
-        <THead>
-          <TH className="w-10 px-2">
-            <input
-              type="checkbox"
-              checked={pageItems.length > 0 && pageItems.every((s) => selectedSessions.has(s.id))}
-              onChange={() => {
-                const allSelected = pageItems.every((s) => selectedSessions.has(s.id));
-                setSelectedSessions((prev) => {
-                  const next = new Set(prev);
-                  for (const s of pageItems) {
-                    if (allSelected) next.delete(s.id);
-                    else next.add(s.id);
-                  }
-                  return next;
+      <div className="hidden flex-1 overflow-auto @3xl/workspace:block">
+        <Table fit>
+          <THead>
+            <TH>
+              <input
+                type="checkbox"
+                checked={pageItems.length > 0 && pageItems.every((s) => selectedSessions.has(s.id))}
+                onChange={() => {
+                  const allSelected = pageItems.every((s) => selectedSessions.has(s.id));
+                  setSelectedSessions((prev) => {
+                    const next = new Set(prev);
+                    for (const s of pageItems) {
+                      if (allSelected) next.delete(s.id);
+                      else next.add(s.id);
+                    }
+                    return next;
+                  });
+                }}
+                className="accent-app-accent w-4 h-4"
+              />
+            </TH>
+            {(
+              [
+                ["date", m.sessions_col_date()],
+                ["laps", m.label_laps()],
+                ["best", m.sessions_col_best_lap()],
+                ["track", m.label_track()],
+                ["car", m.label_car()],
+                ...(isF1 ? ([["type", m.label_type()]] as const) : []),
+              ] as const
+            ).map(([field, label]) => (
+              <SortableTH key={field} direction={sortKey === field ? (sortDir === "asc" ? "ascending" : "descending") : undefined} onSort={() => toggleSort(field)}>
+                {label}
+              </SortableTH>
+            ))}
+            <TH>{m.sessions_col_notes()}</TH>
+          </THead>
+          <TBody>
+            {isLoading ? (
+              <TRow variant="separator">
+                <TD align="center" colSpan={colCount} tone="primary">
+                  <div className="py-6">{m.common_loading()}</div>
+                </TD>
+              </TRow>
+            ) : sessionsError ? null : pageItems.length === 0 ? (
+              <TRow variant="separator">
+                <TD align="center" colSpan={colCount} tone="primary">
+                  <div className="py-6">{tab === "imported" ? m.sessions_none_imported() : m.sessions_none()}</div>
+                </TD>
+              </TRow>
+            ) : (
+              pageItems.map((session) => {
+                const isExpanded = expandedSessions.has(session.id);
+                const sessionLaps = lapsBySession.get(session.id) ?? [];
+                const sortedLaps = [...sessionLaps].sort((a, b) => {
+                  let cmp = 0;
+                  if (lapSortKey === "lap") cmp = a.lapNumber - b.lapNumber;
+                  else if (lapSortKey === "time") cmp = a.lapTime - b.lapTime;
+                  else if (lapSortKey === "valid") cmp = (b.isValid ? 1 : 0) - (a.isValid ? 1 : 0);
+                  return lapSortDir === "asc" ? cmp : -cmp;
                 });
                 return (
                   <Fragment key={session.id}>

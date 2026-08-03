@@ -1,3 +1,4 @@
+import { hasTireHealthData, hasTireTemperatureData, resolveAnalysisTelemetry } from "@shared/games/analysis-telemetry";
 import { getGame } from "@shared/games/registry";
 import { getFuelDisplay, WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
 import type { LapInsight } from "@shared/racing/analysis/laps/insights/types";
@@ -80,14 +81,22 @@ export function AnalyseDataPanel({ sidebarTab, onSidebarTabChange, currentPacket
     const tRR = dp?.DisplayTireTempRR ?? pkt.TireTempRR;
     const tireTemperatureHeading = analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot" ? "Last Pit Tire Temps" : "Tire Temps";
     lines.push("", `--- ${tireTemperatureHeading} ---`);
-    lines.push(`FL: ${tFL.toFixed(0)}  FR: ${tFR.toFixed(0)}`);
-    lines.push(`RL: ${tRL.toFixed(0)}  RR: ${tRR.toFixed(0)}`);
+    if (hasTireTemperatureData(pkt, analysis.tireTemperature)) {
+      lines.push(`FL: ${tFL.toFixed(0)}  FR: ${tFR.toFixed(0)}`);
+      lines.push(`RL: ${tRL.toFixed(0)}  RR: ${tRR.toFixed(0)}`);
+    } else {
+      lines.push("Unavailable");
+    }
 
     // Tire wear
     const tireHealthHeading = analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "pit-snapshot" ? "Last Pit Tire Health" : "Tire Health";
     lines.push("", `--- ${tireHealthHeading} ---`);
-    lines.push(`FL: ${((1 - pkt.TireWearFL) * 100).toFixed(1)}%  FR: ${((1 - pkt.TireWearFR) * 100).toFixed(1)}%`);
-    lines.push(`RL: ${((1 - pkt.TireWearRL) * 100).toFixed(1)}%  RR: ${((1 - pkt.TireWearRR) * 100).toFixed(1)}%`);
+    if (hasTireHealthData(pkt, analysis.tireHealth)) {
+      lines.push(`FL: ${((1 - pkt.TireWearFL) * 100).toFixed(1)}%  FR: ${((1 - pkt.TireWearFR) * 100).toFixed(1)}%`);
+      lines.push(`RL: ${((1 - pkt.TireWearRL) * 100).toFixed(1)}%  RR: ${((1 - pkt.TireWearRR) * 100).toFixed(1)}%`);
+    } else {
+      lines.push("Unavailable");
+    }
 
     // Suspension
     lines.push("", "--- Suspension Travel ---");

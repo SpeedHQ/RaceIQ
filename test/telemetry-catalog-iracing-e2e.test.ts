@@ -1,6 +1,6 @@
 import { afterAll, describe, test } from "bun:test";
 import { stopMaintenanceTasks } from "../server/telemetry/live-pipeline"
-import { assertRecordedCatalogCoverage } from "./helpers/telemetry-catalog-e2e";
+import { assertRecordedCatalogCoverage, changingPacketFields } from "./helpers/telemetry-catalog-e2e";
 
 const RECORDING = "test/artifacts/sessions/iracing-road-america-gt3.bin.gz";
 
@@ -16,6 +16,23 @@ function isBoolean(value: unknown): value is boolean {
   return typeof value === "boolean";
 }
 
+const DYNAMIC_UI_FIELDS = [
+  "CurrentEngineRpm",
+  "Speed",
+  "Fuel",
+  "DistanceTraveled",
+  "CurrentLap",
+  "CurrentRaceTime",
+  "Accel",
+  "Brake",
+  "Gear",
+  "Steer",
+  "AccelerationX",
+  "AccelerationZ",
+  "Yaw",
+  "Roll",
+] as const;
+
 describe("iRacing telemetry catalog coverage", () => {
   afterAll(() => {
     stopMaintenanceTasks();
@@ -27,30 +44,38 @@ describe("iRacing telemetry catalog coverage", () => {
       await assertRecordedCatalogCoverage({
         gameId: "iracing",
         recording: RECORDING,
+        lapDynamics: [
+          ...changingPacketFields(DYNAMIC_UI_FIELDS),
+          { name: "lap distance percentage", read: (packet) => packet.iracing?.lapDistancePct },
+        ],
         expectations: [
           {
             semanticId: "motion.speed",
             mappingStatus: "normalized",
             unit: "m/s",
             accepts: (value) => isFiniteNumber(value) && value > 1,
+            minimumRange: 1,
           },
           {
             semanticId: "inputs.brake",
             mappingStatus: "normalized",
             unit: "0–255",
             accepts: (value) => isFiniteNumber(value) && value > 0 && value <= 255,
+            minimumRange: 1,
           },
           {
             semanticId: "timing.current-lap",
             mappingStatus: "derived",
             unit: "s",
             accepts: (value) => isFiniteNumber(value) && value > 0,
+            minimumRange: 1,
           },
           {
             semanticId: "timing.lap-fraction",
             mappingStatus: "normalized",
             unit: "fraction",
             accepts: (value) => isFiniteNumber(value) && value > 0 && value < 1,
+            minimumRange: 0.1,
           },
           {
             semanticId: "timing.track-length",
@@ -63,6 +88,7 @@ describe("iRacing telemetry catalog coverage", () => {
             mappingStatus: "direct",
             unit: "count",
             accepts: (value) => isFiniteNumber(value) && value > 0,
+            minimumRange: 1,
           },
           {
             semanticId: "race.on-pit-road",

@@ -152,8 +152,11 @@ jobs:
     needs: build
     uses: ./.github/workflows/playwright.yml
     with:
+      server-mode: compiled
+      runs-on: blacksmith-4vcpu-windows-2025
+      projects: "--project=fresh-install --project=tunes --project=seeded-e2e --project=mobile-device --project=tablet-device"
       dist-artifact: raceiq-dist-windows
-
+      artifact-name: playwright-compiled-results
   draft-release:
     if: github.event_name == 'workflow_dispatch'
     needs: [compute-version, build, playwright-test]

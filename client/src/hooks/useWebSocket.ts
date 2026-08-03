@@ -123,7 +123,10 @@ export function useWebSocket() {
               lapNumber: data.lapNumber as number,
               issues: data.issues,
             });
-          } else {
+          } else if (typeof data.gameId === "string" && typeof data.TimestampMS === "number") {
+            // Telemetry packets are the only untagged WebSocket payloads.
+            // Ignore unknown control notifications instead of treating their
+            // missing numeric fields as live telemetry.
             const { _sectors, _pit, _liveIssues, ...packet } = data;
             const s = useTelemetryStore.getState();
             s.setPacket(packet as TelemetryPacket);

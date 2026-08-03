@@ -1,5 +1,5 @@
 import { test } from "bun:test";
-import { assertRecordedCatalogCoverage } from "./helpers/telemetry-catalog-e2e";
+import { assertRecordedCatalogCoverage, changingPacketFields } from "./helpers/telemetry-catalog-e2e";
 
 const RECORDING = "test/artifacts/sessions/ac-evo-2026-04-15T17-12-25-825Z.bin.gz";
 
@@ -7,24 +7,89 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+const DYNAMIC_UI_FIELDS = [
+  "CurrentEngineRpm",
+  "Speed",
+  "Fuel",
+  "DistanceTraveled",
+  "CurrentLap",
+  "CurrentRaceTime",
+  "Accel",
+  "Brake",
+  "Gear",
+  "Steer",
+  "AccelerationX",
+  "AccelerationZ",
+  "Yaw",
+  "Pitch",
+  "Roll",
+  "PositionX",
+  "PositionZ",
+  "TireTempFL",
+  "TireTempFR",
+  "TireTempRL",
+  "TireTempRR",
+  "NormSuspensionTravelFL",
+  "NormSuspensionTravelFR",
+  "NormSuspensionTravelRL",
+  "NormSuspensionTravelRR",
+  "SuspensionTravelMFL",
+  "SuspensionTravelMFR",
+  "SuspensionTravelMRL",
+  "SuspensionTravelMRR",
+  "TireSlipRatioFL",
+  "TireSlipRatioFR",
+  "TireSlipRatioRL",
+  "TireSlipRatioRR",
+  "TireSlipAngleFL",
+  "TireSlipAngleFR",
+  "TireSlipAngleRL",
+  "TireSlipAngleRR",
+  "TireCombinedSlipFL",
+  "TireCombinedSlipFR",
+  "TireCombinedSlipRL",
+  "TireCombinedSlipRR",
+  "WheelRotationSpeedFL",
+  "WheelRotationSpeedFR",
+  "WheelRotationSpeedRL",
+  "WheelRotationSpeedRR",
+  "BrakeTempFrontLeft",
+  "BrakeTempFrontRight",
+  "BrakeTempRearLeft",
+  "BrakeTempRearRight",
+  "TirePressureFrontLeft",
+  "TirePressureFrontRight",
+  "TirePressureRearLeft",
+  "TirePressureRearRight",
+] as const;
+
 test(
   "AC-Evo recording resolves shared-memory catalog semantics",
   async () => {
     await assertRecordedCatalogCoverage({
       gameId: "ac-evo",
       recording: RECORDING,
+      lapDynamics: [
+        ...changingPacketFields(DYNAMIC_UI_FIELDS),
+        { name: "brake pad FL", read: (packet) => packet.acc?.brakePadWear[0] },
+        { name: "brake pad FR", read: (packet) => packet.acc?.brakePadWear[1] },
+        { name: "brake pad RL", read: (packet) => packet.acc?.brakePadWear[2] },
+        { name: "brake pad RR", read: (packet) => packet.acc?.brakePadWear[3] },
+      ],
       expectations: [
         {
           semanticId: "motion.speed",
           mappingStatus: "normalized",
           unit: "m/s",
           accepts: (value: unknown): boolean => isFiniteNumber(value) && value > 1 && value < 150,
+          minimumRange: 1,
         },
         {
           semanticId: "inputs.accel",
           mappingStatus: "normalized",
           unit: "0–255",
           accepts: (value: unknown): boolean => isFiniteNumber(value) && value > 0 && value <= 255,
+          minimumRange: 1,
         },
         {
           semanticId: "inputs.clutch-percent",
@@ -37,6 +102,7 @@ test(
           mappingStatus: "normalized",
           unit: "s",
           accepts: (value: unknown): boolean => isFiniteNumber(value) && value > 0 && value < 60 * 60 * 10,
+          minimumRange: 1,
         },
         {
           semanticId: "timing.lap-number",
@@ -49,6 +115,7 @@ test(
           mappingStatus: "derived",
           unit: "m",
           accepts: (value: unknown): boolean => isFiniteNumber(value) && value > 0 && value < 100_000,
+          minimumRange: 10,
         },
       ],
     });

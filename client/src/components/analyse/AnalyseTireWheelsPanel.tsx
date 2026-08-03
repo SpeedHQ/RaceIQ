@@ -1,3 +1,4 @@
+import { hasTireHealthData, hasTireTemperatureData, resolveAnalysisTelemetry } from "@shared/games/analysis-telemetry";
 import { tryGetGame } from "@shared/games/registry";
 import type { GameId } from "../../../../shared/games/ids";
 import { resolveAnalysisTelemetry } from "../../../../shared/racing/analysis/telemetry-capabilities";
@@ -41,7 +42,7 @@ export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, ga
   const brakeFR = currentPacket.BrakeTempFrontRight ?? currentPacket.f1?.brakeTempFR ?? 0;
   const brakeRL = currentPacket.BrakeTempRearLeft ?? currentPacket.f1?.brakeTempRL ?? 0;
   const brakeRR = currentPacket.BrakeTempRearRight ?? currentPacket.f1?.brakeTempRR ?? 0;
-  const hasBrakes = brakeFL > 0 || brakeFR > 0;
+  const hasBrakes = adapter?.telemetry.brakeTemperature !== undefined;
 
   const pressFL = currentPacket.TirePressureFrontLeft ?? currentPacket.f1?.tyrePressureFL ?? 0;
   const pressFR = currentPacket.TirePressureFrontRight ?? currentPacket.f1?.tyrePressureFR ?? 0;
@@ -58,6 +59,8 @@ export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, ga
   const unavailable = <span className="text-app-text-dim">—</span>;
   const pitTemperature = analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot";
   const pitHealth = analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "pit-snapshot";
+  const temperatureAvailable = hasTireTemperatureData(currentPacket, analysis.tireTemperature);
+  const healthAvailable = hasTireHealthData(currentPacket, analysis.tireHealth);
   const coldPressure = analysis.tirePressure.source !== "unavailable" && analysis.tirePressure.display === "cold-pressure";
   const pressureColor = (pressure: number) => (coldPressure ? "var(--app-text)" : tirePressureColor(pressure, pressureOptimal));
 
@@ -71,17 +74,17 @@ export function AnalyseTireWheelsPanel({ currentPacket, currentDisplayPacket, ga
     },
     {
       label: pitTemperature ? m.analyse_wheels_pit_temp() : m.analyse_wheels_temp(),
-      fl: C(`${fl.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempFL), units.thresholds)),
-      fr: C(`${fr.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempFR), units.thresholds)),
-      rl: C(`${rl.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempRL), units.thresholds)),
-      rr: C(`${rr.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempRR), units.thresholds)),
+      fl: temperatureAvailable ? C(`${fl.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempFL), units.thresholds)) : unavailable,
+      fr: temperatureAvailable ? C(`${fr.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempFR), units.thresholds)) : unavailable,
+      rl: temperatureAvailable ? C(`${rl.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempRL), units.thresholds)) : unavailable,
+      rr: temperatureAvailable ? C(`${rr.toFixed(0)}${units.tempLabel}`, tireTempColor(units.toTempC(currentPacket.TireTempRR), units.thresholds)) : unavailable,
     },
     {
       label: pitHealth ? m.analyse_wheels_pit_health() : m.analyse_wheels_health(),
-      fl: C(`${((1 - healths[0]) * 100).toFixed(1)}%`, tireHealthColor(healths[0], hThresh)),
-      fr: C(`${((1 - healths[1]) * 100).toFixed(1)}%`, tireHealthColor(healths[1], hThresh)),
-      rl: C(`${((1 - healths[2]) * 100).toFixed(1)}%`, tireHealthColor(healths[2], hThresh)),
-      rr: C(`${((1 - healths[3]) * 100).toFixed(1)}%`, tireHealthColor(healths[3], hThresh)),
+      fl: healthAvailable ? C(`${((1 - healths[0]) * 100).toFixed(1)}%`, tireHealthColor(healths[0], hThresh)) : unavailable,
+      fr: healthAvailable ? C(`${((1 - healths[1]) * 100).toFixed(1)}%`, tireHealthColor(healths[1], hThresh)) : unavailable,
+      rl: healthAvailable ? C(`${((1 - healths[2]) * 100).toFixed(1)}%`, tireHealthColor(healths[2], hThresh)) : unavailable,
+      rr: healthAvailable ? C(`${((1 - healths[3]) * 100).toFixed(1)}%`, tireHealthColor(healths[3], hThresh)) : unavailable,
     },
     ...(analysis.tireWearRate.source !== "unavailable"
       ? [

@@ -86,10 +86,11 @@ export function ChatsPage() {
   const handleDelete = useCallback(async (threadId: string) => {
     if (!confirm(m.chats_delete_confirm())) return;
     try {
-      await fetch(`/api/chats/${encodeURIComponent(threadId)}`, { method: "DELETE" });
+      const response = await fetch(`/api/chats/${encodeURIComponent(threadId)}`, { method: "DELETE" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       setRows((prev) => prev.filter((r) => r.threadId !== threadId));
-    } catch {
-      /* ignore */
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : m.chats_load_failed());
     }
   }, []);
 
@@ -146,65 +147,28 @@ export function ChatsPage() {
       )}
 
       {!loading && rows.length > 0 && (
-        <Table className="flex-1 min-h-0 overflow-auto border border-app-border bg-app-surface" tableClassName="min-w-max md:min-w-0 text-app-label">
-          <TableHeader className="bg-app-surface-alt/80 backdrop-blur z-10" rowClassName="text-left text-app-caption uppercase tracking-wider text-app-text-muted">
-            <TableHead className="font-semibold">{m.label_type()}</TableHead>
-            <TableHead className="font-semibold">{m.label_track()}</TableHead>
-            <TableHead className="font-semibold">{m.chats_col_cars()}</TableHead>
-            <TableHead className="font-semibold">{m.chats_col_laps()}</TableHead>
-            <TableHead className="font-semibold">{m.chats_col_updated()}</TableHead>
-            <TableHead className="font-semibold text-right">{m.label_actions()}</TableHead>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.threadId} className="border-b border-app-border/40 hover:bg-app-surface-hover/40 transition-colors">
-                <TableCell>
-                  <span
-                    className={`text-app-caption font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                      row.type === "compare"
-                        ? "bg-status-info/15 text-status-info border border-status-info/30"
-                        : row.type === "tune"
-                          ? "bg-status-success/15 text-status-success border border-status-success/30"
-                          : "bg-status-warning/15 text-status-warning border border-status-warning/30"
-                    }`}
-                  >
-                    {row.type === "tune" ? "setup" : row.type}
-                  </span>
-                </TableCell>
-                <TableCell className="text-app-text">{row.trackName || "—"}</TableCell>
-                <TableCell className="text-app-text-secondary">
-                  {row.type === "tune" && row.tune ? (
-                    <span className="truncate max-w-[180px] block">{row.tune.carName || "—"}</span>
-                  ) : (
-                    row.laps.map((l, i) => (
-                      <div key={i} className="flex items-center gap-1.5">
-                        {row.type === "compare" && (
-                          <span className={`w-1.5 h-1.5 rounded-full ${i === 0 ? "bg-(--comparison-lap-a)" : "bg-(--comparison-lap-b)"}`} />
-                        )}
-                        <span className="truncate max-w-[180px]">{l.carName}</span>
-                      </div>
-                    ))
-                  )}
-                </TableCell>
-                <TableCell className="text-app-text-secondary font-mono text-app-compact">
-                  {row.type === "tune" && row.tune ? (
-                    <span className="truncate max-w-[220px] block">#{row.tune.seq} — {row.tune.name}</span>
-                  ) : (
-                    row.laps.map((l, i) => (
-                      <div key={i}>
-                        {m.chats_lap_number()} {l.lapNumber} — {formatLapTime(l.lapTime)}
-                        {!l.isValid && <span className="text-status-danger ml-1">(inv)</span>}
-                      </div>
-                    ))
-                  )}
-                </TableCell>
-                <TableCell className="text-app-text-muted">{formatRelative(row.updatedAt)}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    <button
-                      onClick={() => handleOpen(row)}
-                      className="inline-flex items-center gap-1 text-app-compact px-2 py-1 rounded hover:bg-app-surface-hover text-app-text-secondary hover:text-app-text"
-                      title={m.chats_open()}
+        <div className="flex-1 min-h-0 overflow-auto border border-app-border bg-app-surface">
+          <Table>
+            <TableHeader>
+              <TableHead>{m.label_type()}</TableHead>
+              <TableHead>{m.label_track()}</TableHead>
+              <TableHead>{m.chats_col_cars()}</TableHead>
+              <TableHead>{m.chats_col_laps()}</TableHead>
+              <TableHead>{m.chats_col_updated()}</TableHead>
+              <TableHead align="end">{m.label_actions()}</TableHead>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row) => (
+                <TableRow key={row.threadId} data-testid={`chat-row-${row.threadId}`}>
+                  <TableCell>
+                    <span
+                      className={`text-app-caption font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                        row.type === "compare"
+                          ? "bg-status-info/15 text-status-info border border-status-info/30"
+                          : row.type === "tune"
+                            ? "bg-status-success/15 text-status-success border border-status-success/30"
+                            : "bg-status-warning/15 text-status-warning border border-status-warning/30"
+                      }`}
                     >
                       <ExternalLink className="size-3" /> {m.chats_open()}
                     </button>

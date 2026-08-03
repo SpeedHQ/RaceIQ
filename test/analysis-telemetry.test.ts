@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
   DEFAULT_ANALYSIS_TELEMETRY,
+  hasTireHealthData,
+  hasTireTemperatureData,
   resolveAnalysisTelemetry,
 } from "../shared/racing/analysis/telemetry-capabilities";
 import { initGameAdapters } from "../shared/games/init";
@@ -43,8 +45,43 @@ describe("analysis telemetry capabilities", () => {
     });
   });
 
+  test("requires iRacing pit snapshot availability instead of treating normalized zeros as data", () => {
+    const analysis = resolveAnalysisTelemetry(getGame("iracing"));
+    const beforeSnapshot = {
+      TireCarcassTempFL: 0,
+      TireCarcassTempFR: 0,
+      TireCarcassTempRL: 0,
+      TireCarcassTempRR: 0,
+      TireWearFL: 0,
+      TireWearFR: 0,
+      TireWearRL: 0,
+      TireWearRR: 0,
+      iracing: {
+        pitTireTemperatureAvailable: false,
+        pitTireWearAvailable: false,
+      },
+    } as TelemetryPacket;
+
+    expect(hasTireTemperatureData(beforeSnapshot, analysis.tireTemperature)).toBe(false);
+    expect(hasTireHealthData(beforeSnapshot, analysis.tireHealth)).toBe(false);
+
+    const newTireSnapshot = {
+      ...beforeSnapshot,
+      iracing: {
+        pitTireTemperatureAvailable: true,
+        pitTireWearAvailable: true,
+      },
+    } as TelemetryPacket;
+    expect(hasTireTemperatureData(newTireSnapshot, analysis.tireTemperature)).toBe(true);
+    expect(hasTireHealthData(newTireSnapshot, analysis.tireHealth)).toBe(true);
+  });
+
   test("other adapters override only their real source differences", () => {
     expect(resolveAnalysisTelemetry(getGame("f1-2025")).surface).toEqual({
+      source: "unavailable",
+      reason: "source-limitation",
+    });
+    expect(resolveAnalysisTelemetry(getGame("acc")).surface).toEqual({
       source: "unavailable",
       reason: "source-limitation",
     });

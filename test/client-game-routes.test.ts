@@ -7,6 +7,7 @@ import {
   setupEngineerGameIdForRoutePrefix,
   supportsGameFeature,
   validateAnalyseSearch,
+  validateCompareSearch,
   validateSessionsSearch,
   validateTuneReviewSearch,
   validateTuneSearch,
@@ -46,12 +47,25 @@ describe("game route helpers", () => {
   });
 
   test("validates analysis search values", () => {
-    expect(validateAnalyseSearch({ track: "12", car: 34, lap: "bad", cursor: "15", viz: "3d", ignored: "x" })).toEqual({
+    expect(validateAnalyseSearch({ track: "12", car: 34, lap: "bad", cursor: "15", viz: "3d", ai: "1", ignored: "x" })).toEqual({
       track: 12,
       car: 34,
       lap: undefined,
       cursor: 15,
       viz: "3d",
+      ai: 1,
+    });
+  });
+
+  test("validates comparison search values", () => {
+    expect(validateCompareSearch({ track: "12", carA: 34, carB: "35", lapA: "8", lapB: "9", cursor: "15", ai: "1", ignored: "x" })).toEqual({
+      track: 12,
+      carA: 34,
+      carB: 35,
+      lapA: 8,
+      lapB: 9,
+      cursor: 15,
+      ai: 1,
     });
   });
 

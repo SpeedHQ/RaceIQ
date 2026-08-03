@@ -97,11 +97,18 @@ const getLabel: Record<string, () => string> = {
 export function F1SetupModal({ setup, onClose }: { setup: F1CarSetup; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60">
-      <button type="button" aria-label="Close setup details" className="absolute inset-0 cursor-default" onClick={onClose} />
-      <div className="relative bg-app-surface border border-app-border rounded-xl w-full max-w-md max-h-[80vh] overflow-y-auto shadow-2xl">
+      <button type="button" aria-label={m.common_close()} className="absolute inset-0 cursor-default border-0 bg-transparent p-0" onClick={onClose} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="f1-setup-title"
+        className="relative z-10 bg-app-surface border border-app-border rounded-xl w-full max-w-md max-h-[80vh] overflow-y-auto shadow-2xl"
+      >
         <div className="flex items-center justify-between px-5 py-3 border-b border-app-border">
-          <h2 className="text-sm font-semibold text-app-text">{m.f1setupmodal_section_car_setup()}</h2>
-          <Button variant="app-ghost" size="app-sm" onClick={onClose}>
+          <h2 id="f1-setup-title" className="text-sm font-semibold text-app-text">
+            {m.f1setupmodal_section_car_setup()}
+          </h2>
+          <Button variant="app-ghost" size="app-sm" aria-label={m.common_close()} onClick={onClose}>
             &times;
           </Button>
         </div>

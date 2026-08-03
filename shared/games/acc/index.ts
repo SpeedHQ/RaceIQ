@@ -10,6 +10,13 @@ export const accAdapter: GameAdapter = {
     tireTemperature: { packetUnit: "celsius" },
     brakeTemperature: { packetUnit: "celsius" },
     tirePressure: { packetUnit: "psi" },
+    pitStatus: { source: "direct", freshness: "continuous" },
+    analysis: {
+      surface: {
+        source: "unavailable",
+        reason: "source-limitation",
+      },
+    },
   },
   coordSystem: "standard-xyz",
   nativeSectors: false,

@@ -102,6 +102,7 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
   const [soundVolume, setSoundVolumeState] = useState(() => getSoundVolume());
   const [soundType, setSoundTypeState] = useState(() => getSoundType());
   const [soundUrl, setSoundUrlState] = useState(() => getSoundUrl());
+  const [languageError, setLanguageError] = useState("");
 
   const { displaySettings } = useSettings();
   const saveSettings = useSaveSettings();
@@ -204,16 +205,24 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             <p className="text-sm text-app-text-muted mb-4">{m.settings_general_desc()}</p>
 
             <div className="max-w-xs mb-6">
-              <Label className="text-app-text-secondary">{m.label_language()}</Label>
+              <Label htmlFor="settings-language" className="text-app-text-secondary">
+                {m.label_language()}
+              </Label>
               <div className="mt-1.5">
                 <SearchSelect
+                  id="settings-language"
                   value={displaySettings.language ?? "en"}
                   onChange={async (code) => {
-                    await saveSettings.mutateAsync({ language: code });
-                    // Switch language in place (no page reload — keeps the live
-                    // WebSocket/telemetry alive). Re-renders all m.* via the
-                    // uiLocale remount key in __root.tsx.
-                    applyLocale(code);
+                    setLanguageError("");
+                    try {
+                      await saveSettings.mutateAsync({ language: code });
+                      // Switch language in place (no page reload — keeps the live
+                      // WebSocket/telemetry alive). Re-renders all m.* via the
+                      // uiLocale remount key in __root.tsx.
+                      applyLocale(code);
+                    } catch (err) {
+                      setLanguageError(err instanceof Error ? err.message : m.label_failed_to_save());
+                    }
                   }}
                   options={LOCALES.map((loc) => ({ value: loc.code, label: `${loc.label} (${loc.code})` }))}
                   placeholder={m.settings_language_search_placeholder()}
@@ -221,14 +230,23 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                 />
               </div>
               <p className="text-app-text-muted text-xs mt-1">{m.settings_language_desc()}</p>
+              {languageError && (
+                <p className="text-status-danger text-xs mt-1" role="alert">
+                  {languageError}
+                </p>
+              )}
             </div>
 
             <div className="max-w-xs">
-              <Label className={`${displaySettings.isCompiled ? "text-app-text-secondary" : "text-app-text-muted"}`}>{m.label_launch_on_login()}</Label>
+              <Label htmlFor="launch-on-login" className={`${displaySettings.isCompiled ? "text-app-text-secondary" : "text-app-text-muted"}`}>
+                {m.label_launch_on_login()}
+              </Label>
               <div className="flex items-center gap-3 mt-1.5">
                 <Button
+                  id="launch-on-login"
                   type="button"
                   role="switch"
+                  aria-label={m.label_launch_on_login()}
                   disabled={!displaySettings.isCompiled}
                   aria-checked={!!displaySettings.launchOnLogin}
                   onClick={() => displaySettings.isCompiled && saveSettings.mutate({ launchOnLogin: !displaySettings.launchOnLogin })}
@@ -294,8 +312,11 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             )}
 
             <div className="mt-4 max-w-xs">
-              <Label className="text-app-text-secondary">{m.settings_live_refresh_rate()}</Label>
+              <Label htmlFor="ws-refresh-rate" className="text-app-text-secondary">
+                {m.settings_live_refresh_rate()}
+              </Label>
               <select
+                id="ws-refresh-rate"
                 value={displaySettings.wsRefreshRate ?? "60"}
                 onChange={(e) => saveSettings.mutate({ wsRefreshRate: e.target.value })}
                 className="mt-1.5 w-full bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text"
@@ -309,8 +330,11 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
             </div>
 
             <div className="mt-4 max-w-xs">
-              <Label className="text-app-text-secondary">{m.settings_render_frame_cap()}</Label>
+              <Label htmlFor="render-fps-cap" className="text-app-text-secondary">
+                {m.settings_render_frame_cap()}
+              </Label>
               <select
+                id="render-fps-cap"
                 value={String(displaySettings.renderFpsCap ?? 60)}
                 onChange={(e) => saveSettings.mutate({ renderFpsCap: Number(e.target.value) })}
                 className="mt-1.5 w-full bg-app-surface border border-app-border-input rounded px-3 py-1.5 text-sm text-app-text"
@@ -542,10 +566,12 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
 
             {soundType === "url" && (
               <div className="mb-4">
-                <Label className="text-app-text-secondary mb-2 block">{m.settings_sound_url_label()}</Label>
+                <Label htmlFor="sound-url" className="text-app-text-secondary mb-2 block">
+                  {m.settings_sound_url_label()}
+                </Label>
                 <p className="text-xs text-app-text-muted mb-2">{m.settings_sound_url_desc()}</p>
                 <div className="flex gap-2">
-                  <Input value={soundUrl} onChange={(e) => setSoundUrlState(e.target.value)} placeholder="https://example.com/beep.mp3" className="flex-1" />
+                  <Input id="sound-url" value={soundUrl} onChange={(e) => setSoundUrlState(e.target.value)} placeholder="https://example.com/beep.mp3" className="flex-1" />
                   <Button
                     size="sm"
                     onClick={() => {
@@ -560,12 +586,12 @@ export function Settings({ initialSection, onClose }: { initialSection?: Section
                 </div>
               </div>
             )}
-
             <div className="mb-4">
-              <Label className="text-app-text-secondary mb-2 block">
+              <Label htmlFor="sound-volume" className="text-app-text-secondary mb-2 block">
                 {m.label_volume()} — {Math.round(soundVolume * 100)}%
               </Label>
               <input
+                id="sound-volume"
                 type="range"
                 min="0"
                 max="100"

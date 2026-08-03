@@ -10,6 +10,8 @@ export const acEvoAdapter: GameAdapter = {
     tireTemperature: { packetUnit: "celsius" },
     brakeTemperature: { packetUnit: "celsius" },
     tirePressure: { packetUnit: "psi" },
+    weather: { source: "direct", freshness: "static" },
+    pitStatus: { source: "direct", freshness: "continuous" },
     analysis: {
       suspensionTravel: {
         source: "direct",

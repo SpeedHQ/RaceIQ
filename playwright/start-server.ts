@@ -1,4 +1,4 @@
-import { rmSync, mkdirSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import { resolve } from "path";
 import { spawn } from "child_process";
 import { seedScreenshotData } from "./seed-screenshot-data";
@@ -24,7 +24,15 @@ const dir = process.env.DATA_DIR
   : resolve(__dirname, "test-data");
 const udpPort = Number(process.env.UDP_PORT ?? 15318);
 const repoDir = resolve(__dirname, "..");
+const binaryName = process.platform === "win32" ? "raceiq.exe" : "raceiq";
+const distDir = resolve(__dirname, "..", "dist");
+const binary = resolve(distDir, binaryName);
 
+if (!existsSync(binary)) {
+  throw new Error(
+    `Compiled E2E server binary not found at "${binary}". Run "bun run build" first.`,
+  );
+}
 // Guard against a misconfigured DATA_DIR pointing at real user data — this
 // directory gets wiped unconditionally on every run.
 const dirSegments = dir.split(/[\\/]+/);
@@ -34,24 +42,44 @@ if (!dirSegments.some((segment) => segment.includes("test-data"))) {
   );
 }
 
-rmSync(dir, { recursive: true, force: true });
-mkdirSync(dir, { recursive: true });
-writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort }));
-seedScreenshotData(repoDir, dir);
-
-const binaryName = process.platform === "win32" ? "raceiq.exe" : "raceiq";
-const distDir = resolve(__dirname, "..", "dist");
-const binary = resolve(distDir, binaryName);
+try {
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(resolve(dir, "settings.json"), JSON.stringify({ udpPort }));
+  seedScreenshotData(repoDir, dir);
+} catch (error) {
+  rmSync(dir, { recursive: true, force: true });
+  throw error;
+}
 
 // cwd = dist/ so the binary resolves its native libsql addon from
 // dist/node_modules/@libsql/<target> — native .node modules can't be embedded
 // in a Bun single-file executable (oven-sh/bun#18909). This matches the
 // installed layout, where raceiq.exe sits next to node_modules/.
 const child = spawn(binary, { stdio: "inherit", cwd: distDir, env: process.env });
+
+let shuttingDown = false;
+
+function cleanup(): void {
+  rmSync(dir, { recursive: true, force: true });
+}
+
+child.on("error", (error) => {
+  console.error(`[E2E] Failed to start compiled server: ${error.message}`);
+  cleanup();
+  process.exit(1);
+});
+
 child.on("exit", (code, signal) => {
+  cleanup();
   if (signal) process.kill(process.pid, signal);
   else process.exit(code ?? 0);
 });
-const forward = (sig: NodeJS.Signals) => child.kill(sig);
+
+const forward = (sig: NodeJS.Signals) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  child.kill(sig);
+};
 process.on("SIGTERM", () => forward("SIGTERM"));
 process.on("SIGINT", () => forward("SIGINT"));

@@ -54,11 +54,18 @@ export function DataGuideModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="@container/data-guide fixed inset-0 z-50 flex items-center justify-center p-3">
       <button type="button" aria-label={m.common_close()} className="absolute inset-0 bg-app-bg/60" onClick={onClose} />
-      <div className="relative flex max-h-[85vh] w-full max-w-[560px] flex-col rounded-xl border border-app-border bg-app-surface shadow-2xl">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="analyse-data-guide-title"
+        className="relative flex max-h-[85vh] w-full max-w-[560px] flex-col rounded-xl border border-app-border bg-app-surface shadow-2xl"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-app-border shrink-0">
-          <h2 className="text-sm font-semibold text-app-text">{m.analyse_data_guide_title()}</h2>
-          <Button variant="app-ghost" size="app-sm" onClick={onClose}>
+          <h2 id="analyse-data-guide-title" className="text-sm font-semibold text-app-text">
+            {m.analyse_data_guide_title()}
+          </h2>
+          <Button variant="app-ghost" size="app-sm" aria-label={m.common_close()} onClick={onClose}>
             <X className="w-4 h-4" />
           </Button>
         </div>

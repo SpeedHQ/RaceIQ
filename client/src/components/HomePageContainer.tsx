@@ -30,8 +30,8 @@ export function HomePageContainer() {
   const { data: latestRecapBounds } = useTrackSectorBoundaries(latestRecap?.trackOrdinal, latestRecap?.gameId ?? latestSession?.gameId ?? null);
   const [recapCopied, setRecapCopied] = useState(false);
 
-  const [carNames, setCarNames] = useState<Record<number, string>>({});
-  const [trackNames, setTrackNames] = useState<Record<number, string>>({});
+  const [carNames, setCarNames] = useState<Record<string, string>>({});
+  const [trackNames, setTrackNames] = useState<Record<string, string>>({});
 
   const recentLaps = useMemo(
     () =>
@@ -113,27 +113,53 @@ export function HomePageContainer() {
   }, [allLaps, gameId, todayStart, weekAgo, monthAgo, yearAgo]);
 
   useEffect(() => {
-    const carOrds = [...new Set([...recentLaps.map((l) => l.carOrdinal), periodStats.today.favCarOrd, periodStats.week.favCarOrd, periodStats.month.favCarOrd].filter((o): o is number => o != null))];
-    const trackOrds = [...new Set(recentLaps.map((l) => l.trackOrdinal).filter((o): o is number => o != null))];
-    for (const ord of carOrds) {
-      if (carNames[ord]) continue;
-      const lapForCar = recentLaps.find((l) => l.carOrdinal === ord);
-      client.api["car-name"][":ordinal"]
-        .$get({ param: { ordinal: String(ord) }, query: { gameId: (lapForCar?.gameId ?? gameId)! } })
-        .then((r) => (r.ok ? r.text() : ""))
-        .then((name) => setCarNames((prev) => ({ ...prev, [ord]: name })))
+    const cars = new Map<string, { ordinal: number; gameId: LapMeta["gameId"] }>();
+    const tracks = new Map<string, { ordinal: number; gameId: LapMeta["gameId"] }>();
+    for (const lap of recentLaps) {
+      if (lap.carOrdinal != null) {
+        cars.set(`${lap.gameId}:${lap.carOrdinal}`, {
+          ordinal: lap.carOrdinal,
+          gameId: lap.gameId,
+        });
+      }
+      if (lap.trackOrdinal != null) {
+        tracks.set(`${lap.gameId}:${lap.trackOrdinal}`, {
+          ordinal: lap.trackOrdinal,
+          gameId: lap.gameId,
+        });
+      }
+    }
+
+    const missingCars = [...cars].filter(([key]) => !carNames[key]);
+    if (missingCars.length > 0) {
+      void Promise.all(
+        missingCars.map(async ([key, target]) => {
+          const response = await client.api["car-name"][":ordinal"].$get({
+            param: { ordinal: String(target.ordinal) },
+            query: { gameId: target.gameId },
+          });
+          return [key, response.ok ? await response.text() : ""] as const;
+        }),
+      )
+        .then((entries) => setCarNames((previous) => ({ ...previous, ...Object.fromEntries(entries) })))
         .catch(() => {});
     }
-    for (const ord of trackOrds) {
-      if (trackNames[ord]) continue;
-      const lapForTrack = recentLaps.find((l) => l.trackOrdinal === ord);
-      client.api["track-name"][":ordinal"]
-        .$get({ param: { ordinal: String(ord) }, query: { gameId: (lapForTrack?.gameId ?? gameId)! } })
-        .then((r) => (r.ok ? r.text() : ""))
-        .then((name) => setTrackNames((prev) => ({ ...prev, [ord]: name })))
+
+    const missingTracks = [...tracks].filter(([key]) => !trackNames[key]);
+    if (missingTracks.length > 0) {
+      void Promise.all(
+        missingTracks.map(async ([key, target]) => {
+          const response = await client.api["track-name"][":ordinal"].$get({
+            param: { ordinal: String(target.ordinal) },
+            query: { gameId: target.gameId },
+          });
+          return [key, response.ok ? await response.text() : ""] as const;
+        }),
+      )
+        .then((entries) => setTrackNames((previous) => ({ ...previous, ...Object.fromEntries(entries) })))
         .catch(() => {});
     }
-  }, [recentLaps, periodStats, gameId]);
+  }, [recentLaps]);
 
   const copyRecap = () => {
     if (!latestRecap) return;

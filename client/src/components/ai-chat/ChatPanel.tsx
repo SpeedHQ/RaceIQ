@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { Thread, type ThreadProps } from "@/components/assistant-ui/thread";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { client } from "@/lib/rpc";
+import { m } from "@/paraglide/messages";
 import { useSettings } from "../../hooks/queries";
 import { isAiConfigured } from "../../lib/is-ai-configured";
 import { useUiStore } from "../../stores/ui";
@@ -547,7 +548,12 @@ export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, re
   const readOnly = !!compactThreadId && effectiveGen !== activeGen;
 
   const fullHistoryQueryKey = [...historyQueryKey, effectiveGen];
-  const { data: history, isSuccess } = useQuery({
+  const {
+    data: history,
+    isSuccess,
+    isError,
+    error: historyError,
+  } = useQuery({
     queryKey: fullHistoryQueryKey,
     queryFn: () => fetchHistory(effectiveGen),
   });
@@ -608,8 +614,15 @@ export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, re
   // Wait for the persisted-thread fetch before mounting the runtime — useChatRuntime
   // only reads `messages` on first render, so mounting before history resolves would
   // seed an empty thread and silently drop prior turns for the rest of the session.
+  if (isError) {
+    return (
+      <div role="alert" className="h-full min-h-0 flex flex-col pt-2 gap-1.5 text-app-compact text-status-danger">
+        {historyError instanceof Error ? historyError.message : m.common_error()}
+      </div>
+    );
+  }
   if (!isSuccess || (!!compactThreadId && !runStatusFetched)) {
-    return <div className="h-full min-h-0 flex flex-col pt-2 gap-1.5 text-app-compact text-app-text-dim">Loading…</div>;
+    return <div className="h-full min-h-0 flex flex-col pt-2 gap-1.5 text-app-compact text-app-text-dim">{m.common_loading()}</div>;
   }
 
   return (

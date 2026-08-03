@@ -9,6 +9,7 @@ import { useUnits } from "../hooks/useUnits";
 import { useNarrowViewport } from "../hooks/useNarrowViewport";
 import { clampCompareMapWidth, COMPARE_MAP_DEFAULT_WIDTH, COMPARE_MAP_MIN_WIDTH } from "../lib/comparison-layout";
 import { COLOR_A, COLOR_B, formatLapTime, type Point } from "../lib/comparison-utils";
+import type { CompareSearch } from "../lib/game-routes";
 import { client } from "../lib/rpc";
 import { m } from "../paraglide/messages";
 import { useGameId } from "../stores/game";
@@ -27,16 +28,6 @@ interface TrackGroup {
   laps: LapMeta[];
 }
 
-
-export interface LapComparisonSearch {
-  track?: number;
-  carA?: number;
-  carB?: number;
-  lapA?: number;
-  lapB?: number;
-  cursor?: number;
-}
-
 export function ComparisonLoadStatus({ loading, error, hasComparison }: { loading: boolean; error: string | null; hasComparison: boolean }) {
   if (!error && (!loading || hasComparison)) return null;
   return (
@@ -47,13 +38,11 @@ export function ComparisonLoadStatus({ loading, error, hasComparison }: { loadin
   );
 }
 
-export function LapComparison({ initialSearch }: { initialSearch?: LapComparisonSearch } = {}) {
-  const isNarrow = useNarrowViewport();
-  if (isNarrow) return <MobileNotSupported feature={m.lapcompare_feature_name()} />;
+export function LapComparison({ initialSearch }: { initialSearch?: CompareSearch } = {}) {
   return <LapComparisonInner initialSearch={initialSearch} />;
 }
 
-function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSearch }) {
+function LapComparisonInner({ initialSearch }: { initialSearch?: CompareSearch }) {
   const search = initialSearch ?? {};
   const navigate = useNavigate();
   const units = useUnits();
@@ -94,6 +83,7 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
   const [comparisonLayoutWidth, setComparisonLayoutWidth] = useState(0);
   const [savedMapWidth, setSavedMapWidth] = useLocalStorage("compare-left-column-width", COMPARE_MAP_DEFAULT_WIDTH);
   const [aiPanelOpen, setAiPanelOpen] = useState<boolean>(() => {
+    if (search.ai === 1) return true;
     try {
       return localStorage.getItem("compare-ai-panel-open") === "1";
     } catch {

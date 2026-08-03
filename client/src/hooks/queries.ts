@@ -1121,6 +1121,40 @@ export function useExperimentVersions(id: number | null | undefined) {
     staleTime: 5_000,
   });
 }
+export interface ExperimentArmComparison {
+  metricId: string;
+  metricLabel: string;
+  unit: string;
+  direction: "lower-better" | "higher-better";
+  a: { label: string | null; n: number; mean: number | null; min: number | null; max: number | null };
+  b: { label: string | null; n: number; mean: number | null; min: number | null; max: number | null };
+  deltaMean: number | null;
+  ci: [number, number] | null;
+  ciReliable: boolean;
+  pValue: number | null;
+  pValueAdjusted?: number | null;
+  effectSize: number | null;
+  significance: "significant" | "not-significant" | "inconclusive";
+  underpowered: boolean;
+  favours: "a" | "b" | null;
+  reason: string | null;
+}
+
+/** Compare two persisted version arms. Disabled until both ids are selected. */
+export function useExperimentArmComparison(sessionId: number | null | undefined, a: number | null | undefined, b: number | null | undefined, metric: "lapTimeSec" = "lapTimeSec") {
+  return useQuery({
+    queryKey: ["experiment-arm-comparison", sessionId ?? null, a ?? null, b ?? null, metric],
+    queryFn: async () => {
+      const res = await client.api.experiments[":id"]["arm-comparison"].$get({
+        param: { id: String(sessionId!) },
+        query: { a: String(a!), b: String(b!), metric },
+      });
+      return rpcJson<ExperimentArmComparison>(res);
+    },
+    enabled: sessionId != null && a != null && b != null && a !== b,
+    staleTime: 5_000,
+  });
+}
 
 // ── Line spread (racing-line consistency) ──────────────────────────────────
 export interface CornerLineSpread {
@@ -1152,7 +1186,7 @@ export function useLineSpread(sessionId: number | null | undefined) {
   return useQuery({
     queryKey: ["experiment-line-spread", sessionId ?? null],
     queryFn: async () => {
-      const res = await (client.api as any).experiments[":id"]["line-spread"].$get({ param: { id: String(sessionId!) } });
+      const res = await client.api.experiments[":id"]["line-spread"].$get({ param: { id: String(sessionId!) } });
       return rpcJson<LineSpreadTrace>(res);
     },
     enabled: sessionId != null,
@@ -1177,7 +1211,7 @@ export function useCreateExperimentVersion() {
     }) => {
       const res = await client.api.experiments[":id"].versions.$post({ param: { id: String(sessionId) }, json: body });
       if (!res.ok) throw await errorFromResponse(res);
-      return rpcJson<ExperimentVersion>(res);
+      return await res.json();
     },
     onSuccess: (t) => qc.invalidateQueries({ queryKey: ["experiment-tests", t.experimentId] }),
   });
@@ -1194,7 +1228,7 @@ export function useSetTestNote() {
         json: { driverComment },
       });
       if (!res.ok) throw await errorFromResponse(res);
-      return rpcJson<ExperimentVersion>(res);
+      return await res.json();
     },
     onSuccess: (_t, { sessionId }) => {
       qc.invalidateQueries({ queryKey: ["experiment-tests", sessionId] });
@@ -1213,7 +1247,7 @@ export function useSetTestNotes() {
         json: { notes },
       });
       if (!res.ok) throw await errorFromResponse(res);
-      return rpcJson<ExperimentVersion>(res);
+      return await res.json();
     },
     onSuccess: (_t, { sessionId }) => {
       qc.invalidateQueries({ queryKey: ["experiment-tests", sessionId] });
@@ -1365,7 +1399,7 @@ export function useDeleteVersion() {
         param: { id: String(sessionId), versionId: String(versionId) },
       });
       if (!res.ok) throw await errorFromResponse(res);
-      return (await res.json()) as { ok: true; deletedIds: number[]; headVersionId: number | null };
+      return await res.json();
     },
     onSuccess: (_data, { sessionId }) => {
       qc.invalidateQueries({ queryKey: ["experiment", sessionId] });
@@ -1433,7 +1467,7 @@ export function useRestoreVersion() {
         param: { id: String(sessionId), versionId: String(versionId) },
       });
       if (!res.ok) throw await errorFromResponse(res);
-      return rpcJson<ExperimentVersion>(res);
+      return await res.json();
     },
     onSuccess: (_data, { sessionId }) => {
       qc.invalidateQueries({ queryKey: ["experiment", sessionId] });

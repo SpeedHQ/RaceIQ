@@ -415,7 +415,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
                 const segmentDeltaColor = isNeutral ? "var(--app-text-secondary)" : deltaColor(delta);
                 const sign = delta > 0 ? "+" : "";
                 return (
-                  <TRow key={compareSegmentKey(s.name, s.startFrac, s.endFrac) || index}>
+                  <TRow key={`${s.name}-${s.startFrac}-${s.endFrac}`}>
                     <TD nowrap numeric tone="primary">
                       {s.name}
                     </TD>

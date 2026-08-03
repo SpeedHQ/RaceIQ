@@ -204,8 +204,9 @@ export function AiSection() {
   const { data: aiProviders } = useQuery({
     queryKey: ["ai-providers"],
     queryFn: async () => {
-      const res = await fetch("/api/ai-providers");
-      return res.json() as Promise<ProviderDiscovery[]>;
+      const response = await fetch("/api/ai-providers");
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+      return response.json() as Promise<{ id: string; name: string }[]>;
     },
   });
   const isProviderConfigured = (selectedProvider: string): boolean => {
@@ -222,13 +223,9 @@ export function AiSection() {
     queryKey: ["ai-models", selectedProvidersCsv],
     queryFn: async () => {
       const url = `/api/ai-models?providers=${encodeURIComponent(selectedProvidersCsv)}`;
-      const res = await fetch(url);
-      console.info(`[AI] GET ${url} -> ${res.status} ${res.statusText}`);
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        console.warn(`[AI] ${url} error body: ${text || "<empty>"}`);
-      }
-      return res.json() as Promise<ModelsResponse>;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+      return response.json() as Promise<ModelsResponse>;
     },
     enabled: selectedProvidersForFetch.length > 0,
     placeholderData: (previousData) => previousData,
@@ -563,6 +560,11 @@ export function AiSection() {
         <Button variant="app-primary" size="app-md" onClick={handleSave} disabled={isSaving || !canSaveAnalysis}>
           {isSaving ? m.common_saving() : m.common_save()}
         </Button>
+        {refreshModels.isError && (
+          <p className="text-xs text-status-danger" role="alert">
+            {m.ai_refresh_models_failed()}
+          </p>
+        )}
         {saveError && <p className="text-xs text-status-danger">{saveError}</p>}
       </div>
 

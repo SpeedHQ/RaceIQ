@@ -50,8 +50,8 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
   const [showAddBase, setShowAddBase] = useState(false);
   const [showImportLaps, setShowImportLaps] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const { data: session, isLoading: loadingSession } = useExperiment(experimentId);
-  const { data: tests = [] } = useExperimentVersions(experimentId);
+  const { data: session, isLoading: loadingSession, isError: sessionError } = useExperiment(experimentId);
+  const { data: tests = [], isError: versionsError } = useExperimentVersions(experimentId);
   /** Setup file the session is currently on: the head test's version, falling
    *  back to the session's base setup (before any test exists). */
   const { data: lapMetrics = [] } = useExperimentLapMetrics(experimentId);
@@ -200,11 +200,13 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     navigate({ to: `/${routePrefix}/experiments` } as any);
 
-  if (loadingSession || !session) {
+  if (loadingSession || sessionError || !session) {
     return (
       <div className="flex-1 p-3">
         <BackButton onClick={clearSession} className="mb-3" />
-        <div className="text-sm text-app-text-dim mt-3">{loadingSession ? "Loading experiment…" : "Experiment not found."}</div>
+        <div role={sessionError ? "alert" : undefined} className={`text-sm mt-3 ${sessionError ? "text-status-danger" : "text-app-text-dim"}`}>
+          {loadingSession ? "Loading experiment…" : sessionError ? "Could not load experiment. Try again." : "Experiment not found."}
+        </div>
       </div>
     );
   }
@@ -254,6 +256,11 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                   <StatCard label="Drive time" value={driveTime > 0 ? formatDuration(driveTime) : "—"} />
                   <StatCard label="Fuel/lap" value={avgFuel != null ? `${avgFuel.toFixed(2)} L` : "—"} />
                   {/* Tyre deg card omitted — ACC/AC-Evo expose no genuine tyre-wear channel. */}
+                  {versionsError && (
+                    <div role="alert" className="mx-2 mt-2 rounded border border-status-danger/40 bg-status-danger/10 px-2 py-1 text-app-compact text-status-danger">
+                      Could not load version history.
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center justify-between px-2 pt-2 flex-wrap gap-1">
                   <span className="text-app-caption uppercase tracking-wider text-app-text-muted">Version tree</span>

@@ -267,8 +267,18 @@ export function SessionRecap({ sessionId, gameId: gameIdProp, linkToAnalyse = fa
   const { data: outlineData } = useTrackOutline(recap?.trackOrdinal, recap?.gameId ?? gameId);
   const { data: bounds } = useTrackSectorBoundaries(recap?.trackOrdinal, recap?.gameId ?? gameId);
   const [copied, setCopied] = useState(false);
-  if (isLoading) return <div className="p-6 text-center text-app-text-dim">{m.common_loading()}</div>;
-  if (isError || !recap) return <div className="p-6 text-center text-status-danger">{m.common_error()}</div>;
+  if (isLoading)
+    return (
+      <div role="status" className="p-6 text-center text-app-text-dim">
+        {m.common_loading()}
+      </div>
+    );
+  if (isError || !recap)
+    return (
+      <div role="alert" className="p-6 text-center text-status-danger">
+        {m.common_error()}
+      </div>
+    );
   const copy = () => {
     navigator.clipboard.writeText(buildRecapText(recap)).then(() => {
       setCopied(true);

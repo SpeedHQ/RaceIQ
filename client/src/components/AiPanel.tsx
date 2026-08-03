@@ -70,7 +70,7 @@ interface AiPanelProps {
 async function fetchLapChatHistory(lapId: number, gen?: number): Promise<UIMessage[]> {
   const url = gen === undefined ? `/api/laps/${lapId}/chat` : `/api/laps/${lapId}/chat?gen=${gen}`;
   const res = await fetch(url);
-  if (!res.ok) return [];
+  if (!res.ok) throw new Error(`Chat history failed (${res.status})`);
   const data = (await res.json()) as { messages?: UIMessage[] };
   return (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant");
 }

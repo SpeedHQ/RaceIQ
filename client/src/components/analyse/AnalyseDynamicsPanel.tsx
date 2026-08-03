@@ -1,3 +1,4 @@
+import { hasTireTemperatureData, resolveAnalysisTelemetry } from "@shared/games/analysis-telemetry";
 import { tryGetGame } from "@shared/games/registry";
 import { allFrictionCircle, allWheelStates, steerBalance } from "@shared/racing/analysis/laps/physics/vehicle";
 import { Info } from "lucide-react";
@@ -26,6 +27,7 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
 
   const C = (v: string, color: string) => <span style={{ color }}>{v}</span>;
   const unavailable = <span className="text-app-text-dim">—</span>;
+  const temperatureAvailable = hasTireTemperatureData(currentPacket, analysis.tireTemperature);
   const vehicleSurface = (() => {
     switch (currentPacket.iracing?.playerTrackSurface) {
       case -1:
@@ -238,10 +240,10 @@ export function AnalyseDynamicsPanel({ currentPacket, gameId, units }: Props) {
           },
           {
             label: analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot" ? m.analyse_wheels_pit_temp() : m.analyse_dynamics_temp(),
-            fl: C(states[0].temp.label, states[0].temp.color),
-            fr: C(states[1].temp.label, states[1].temp.color),
-            rl: C(states[2].temp.label, states[2].temp.color),
-            rr: C(states[3].temp.label, states[3].temp.color),
+            fl: temperatureAvailable ? C(states[0].temp.label, states[0].temp.color) : unavailable,
+            fr: temperatureAvailable ? C(states[1].temp.label, states[1].temp.color) : unavailable,
+            rl: temperatureAvailable ? C(states[2].temp.label, states[2].temp.color) : unavailable,
+            rr: temperatureAvailable ? C(states[3].temp.label, states[3].temp.color) : unavailable,
           },
           ...(analysis.surface.source !== "unavailable" && analysis.surface.display !== "vehicle"
             ? [

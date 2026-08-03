@@ -38,6 +38,12 @@ client/storybook-static/
 playwright/test-data/
 playwright/test-data-tunes/
 playwright/test-results/
+playwright/test-data-seeded/
+
+# Generated SQLite sidecars and local audit data
+*.db-shm
+/.data-recording-support/
+/.data-telemetry-audit/
 
 # Demo render output
 playwright/assets/

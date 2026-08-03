@@ -80,7 +80,7 @@ export async function undoLastAction(sessionId: number): Promise<UndoResult> {
     }
     case "import-laps": {
       const payload = action.inversePayload as { lapIds: number[] } | null;
-      if (payload?.lapIds?.length) await unstampLapsFromExperiment(payload.lapIds);
+      if (payload?.lapIds?.length) await unstampLapsFromExperiment(sessionId, payload.lapIds);
       break;
     }
     case "set-head": {

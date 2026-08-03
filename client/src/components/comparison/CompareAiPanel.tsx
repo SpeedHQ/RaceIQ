@@ -67,7 +67,7 @@ interface AnalysisSummary {
 async function fetchCompareChatHistory(lapAId: number, lapBId: number, gen?: number): Promise<UIMessage[]> {
   const url = gen === undefined ? `/api/laps/${lapAId}/compare/${lapBId}/chat` : `/api/laps/${lapAId}/compare/${lapBId}/chat?gen=${gen}`;
   const res = await fetch(url);
-  if (!res.ok) return [];
+  if (!res.ok) throw new Error(`Chat history failed (${res.status})`);
   const data = (await res.json()) as { messages?: UIMessage[] };
   return (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant");
 }
