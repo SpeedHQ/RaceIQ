@@ -155,7 +155,7 @@ function Sparkline({ laps }: { laps: SessionRecapDto["sparkline"] }) {
       <title>{m.recap_pace()}</title>
       <path d={path} fill="none" stroke="currentColor" className="text-app-accent/50" strokeWidth={1.5} />
       {points.map((p) => (
-        <circle key={p.lap.lapNumber} cx={p.x} cy={p.y} r={p.lap.isValid ? 2 : 2.5} className={p.lap.isValid ? "fill-app-accent" : "fill-status-danger"} />
+        <circle key={p.lap.lapId} cx={p.x} cy={p.y} r={p.lap.isValid ? 2 : 2.5} className={p.lap.isValid ? "fill-app-accent" : "fill-status-danger"} />
       ))}
     </svg>
   );

@@ -72,6 +72,7 @@ export function computeRecap(input: ComputeRecapInput): SessionRecap {
   const distanceM = trackLengthM !== null ? trackLengthM * lapsValid : null;
 
   const sparkline = laps.map((l) => ({
+    lapId: l.id,
     lapNumber: l.lapNumber,
     lapTimeSec: l.lapTime,
     isValid: isValidLap(l),

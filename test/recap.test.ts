@@ -55,6 +55,14 @@ describe("computeRecap", () => {
     expect(recap.bestLapId).toBe(502);
   });
 
+  test("sparkline preserves lap ids when detector lap numbers repeat", () => {
+    const recap = run([
+      lap({ id: 45, lapNumber: 0, lapTime: 135.5, isValid: false }),
+      lap({ id: 54, lapNumber: 0, lapTime: 49.1, isValid: false }),
+    ]);
+    expect(recap.sparkline.map((point) => point.lapId)).toEqual([45, 54]);
+  });
+
   test("bestLapId is null when there is no valid lap", () => {
     const recap = run([lap({ id: 9, lapNumber: 1, lapTime: 100, isValid: false })]);
     expect(recap.bestLapId).toBeNull();
