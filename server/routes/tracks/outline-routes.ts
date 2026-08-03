@@ -1,13 +1,13 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { OrdinalParamSchema, GameIdQuerySchema } from "../../../shared/http/route-schemas";
+import { OrdinalParamSchema, GameIdQuerySchema } from "@shared/platform/http/route-schemas";
 import { getLaps, getLapById } from "../../db/lap-read-queries";
 import {
   deleteRecordedOutline,
   getStartYaw,
   recordLapTrace,
-} from "../../../shared/track/recording/outlines";
-import { getTrackAltitudeByOrdinal } from "../../../shared/track/geometry/extracted";
+} from "../../../shared/racing/tracks/recording/outlines";
+import { getTrackAltitudeByOrdinal } from "../../../shared/racing/tracks/geometry/extracted";
 import {
   filterLapOutliers,
   normalizeToFixedPoints,

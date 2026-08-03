@@ -6,8 +6,8 @@
 import type { GameId } from "../../shared/games/ids";
 import type { ComparisonResult } from "../lap-analysis/comparison"
 import type { UnitSystem, TemperatureUnit } from "../lap-analysis/report"
-import { resolveCarName } from "../../shared/car/resolve-name";
-import { resolveTrackName } from "../../shared/track/resolve-name";
+import { resolveCarName } from "../../shared/racing/cars/resolve-name";
+import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { compareEngineerPersona, compareLapHeader } from "./compare-engineer";
 
 interface LapInfo {

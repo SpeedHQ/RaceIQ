@@ -1,16 +1,16 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { OrdinalParamSchema, GameIdQuerySchema } from "../../../shared/http/route-schemas";
+import { OrdinalParamSchema, GameIdQuerySchema } from "@shared/platform/http/route-schemas";
 import { getLapCountsByTrack } from "../../db/lap-read-queries";
-import { getTrackOutlineByOrdinal, hasRecordedOutline as sharedHasRecordedOutline } from "../../../shared/track/recording/outlines";
-import { loadLabelledSegments } from "../../../shared/track/storage/meta";
-import { loadSharedOutline } from "../../../shared/track/geometry/shared";
-import { resolveTrackName } from "../../../shared/track/resolve-name";
-import { fmTrackCatalog } from "../../../shared/track/catalogs/fm";
-import { getF1Tracks } from "../../../shared/track/catalogs/f1";
-import { getAccTracks } from "../../../shared/track/catalogs/acc";
-import { getAcEvoTracks } from "../../../shared/track/catalogs/ac-evo";
-import { getAllIRacingTracks } from "../../../shared/track/catalogs/iracing";
+import { getTrackOutlineByOrdinal, hasRecordedOutline as sharedHasRecordedOutline } from "../../../shared/racing/tracks/recording/outlines";
+import { loadLabelledSegments } from "../../../shared/racing/tracks/storage/meta";
+import { loadSharedOutline } from "../../../shared/racing/tracks/geometry/shared";
+import { resolveTrackName } from "../../../shared/racing/tracks/resolve-name";
+import { fmTrackCatalog } from "../../../shared/racing/tracks/catalogs/fm";
+import { getF1Tracks } from "../../../shared/racing/tracks/catalogs/f1";
+import { getAccTracks } from "../../../shared/racing/tracks/catalogs/acc";
+import { getAcEvoTracks } from "../../../shared/racing/tracks/catalogs/ac-evo";
+import { getAllIRacingTracks } from "../../../shared/racing/tracks/catalogs/iracing";
 import { tryGetServerGame } from "../../games/registry";
 import { listDiscoveredTracks } from "../../db/discovered-tracks";
 

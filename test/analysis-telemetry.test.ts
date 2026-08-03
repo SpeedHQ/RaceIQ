@@ -2,10 +2,10 @@ import { describe, expect, test } from "bun:test";
 import {
   DEFAULT_ANALYSIS_TELEMETRY,
   resolveAnalysisTelemetry,
-} from "../shared/analysis/telemetry-capabilities";
+} from "../shared/racing/analysis/telemetry-capabilities";
 import { initGameAdapters } from "../shared/games/init";
 import { getGame } from "../shared/games/registry";
-import { suspensionCompression } from "../shared/lap-analysis/physics/vehicle";
+import { suspensionCompression } from "../shared/racing/analysis/laps/physics/vehicle";
 import type { TelemetryPacket } from "../shared/telemetry/types";
 
 initGameAdapters();

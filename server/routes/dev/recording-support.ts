@@ -5,8 +5,8 @@ import { readKunosFrames } from "../../games/kunos/frame-reader";
 import { parseAccBuffers } from "../../games/acc/parser";
 import { readWString } from "../../games/acc/utils";
 import { STATIC } from "../../games/acc/structs";
-import { getAccCarByModel } from "../../../shared/car/acc"
-import { getAccTrackByName } from "../../../shared/track/catalogs/acc"
+import { getAccCarByModel } from "../../../shared/racing/cars/acc"
+import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
 import { type GameId } from "../../../shared/games/ids";
 
 export type E2eRecordingFile = {

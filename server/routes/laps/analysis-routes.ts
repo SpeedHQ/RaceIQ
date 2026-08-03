@@ -1,9 +1,9 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
-import { IdParamSchema } from "../../../shared/http/route-schemas";
+import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import type { GameId } from "../../../shared/games/ids";
-import type { Tune } from "../../../shared/tuning/types";
+import type { Tune } from "../../../shared/racing/tuning/types";
 import { getGame } from "../../../shared/games/registry";
 import { getLapById } from "../../db/lap-read-queries";
 import { getAnalysis, saveAnalysis } from "../../db/analysis-queries";

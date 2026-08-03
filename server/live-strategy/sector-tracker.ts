@@ -7,7 +7,7 @@
  */
 import type { TelemetryPacket } from "../../shared/telemetry/types";
 import type { GameId } from "../../shared/games/ids";
-import type { LiveSectorData } from "../../shared/live/types";
+import type { LiveSectorData } from "../../shared/racing/live/types";
 import { getGame } from "../../shared/games/registry";
 import type { GameAdapter } from "../../shared/games/types";
 import { resolveTrack } from "../tracks/info";

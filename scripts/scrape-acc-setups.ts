@@ -1,6 +1,6 @@
 /**
  * Scrapes accsetups.com for ACC setup metadata.
- * Outputs to shared/tunes/acc/accsetups-com/{track}/{car}.json
+ * Outputs to shared/data/tunes/acc/accsetups-com/{track}/{car}.json
  *
  * Usage: bun run scripts/scrape-acc-setups.ts
  */
@@ -250,8 +250,8 @@ async function main() {
     grouped.get(key)!.push(s);
   }
 
-  // Write to shared/tunes/acc/{source}/{track}/{car}.json
-  const outBase = resolve(import.meta.dir, "../shared/tunes/acc", SOURCE_SLUG);
+  // Write to shared/data/tunes/acc/{source}/{track}/{car}.json
+  const outBase = resolve(import.meta.dir, "../shared/data/tunes/acc", SOURCE_SLUG);
   if (!existsSync(outBase)) mkdirSync(outBase, { recursive: true });
 
   // Write _source.json

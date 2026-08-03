@@ -8,7 +8,7 @@ import { getSessionResult, upsertSessionResult } from "../db/session-result-quer
 import { getSessionRawFile, getSessionTelemetry } from "../db/telemetry-replay-storage";
 import { deriveRaceResult, normalizeSessionType } from "./derive";
 import { extractRaceSource } from "./source";
-import type { RaceResultCanonicalInputIdentity, RaceResultRawInputIdentity } from "../../shared/race-results/types";
+import type { RaceResultCanonicalInputIdentity, RaceResultRawInputIdentity } from "../../shared/racing/results/types";
 import { loadRawCaptureIdentity, rawCaptureObjectId } from "../session-capture/identity";
 
 function canonicalInputIdentity(sessionId: number, packets: readonly TelemetryPacket[]): RaceResultCanonicalInputIdentity | null {

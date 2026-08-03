@@ -4,8 +4,8 @@ import {
   parseIRacingTurnLabels,
 } from "../server/games/iracing/track-map-svg";
 import { getIRacingSharedTrackName,
-getIRacingTrack, } from "../shared/track/catalogs/iracing"
-import { loadLabelledSegments } from "../shared/track/storage/meta";
+getIRacingTrack, } from "../shared/racing/tracks/catalogs/iracing"
+import { loadLabelledSegments } from "../shared/racing/tracks/storage/meta";
 
 const activeSvg = `
   <svg viewBox="0 0 100 100">

@@ -1,4 +1,4 @@
-import { segmentDisplayNames } from "@shared/track/segment-label";
+import { segmentDisplayNames } from "@shared/racing/tracks/segment-label";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SECTOR_COLOR_VARS, TRACK_CORNER_COLOR_VARS, TRACK_STRAIGHT_COLOR_VARS, VISUALIZATION_COLOR_VARS } from "@/lib/colors";

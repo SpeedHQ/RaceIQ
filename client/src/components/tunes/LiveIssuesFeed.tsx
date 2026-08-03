@@ -1,4 +1,4 @@
-import type { TuneIssue } from "../../../../shared/tuning/issues";
+import type { TuneIssue } from "../../../../shared/racing/tuning/issues";
 import { useTelemetryStore } from "../../stores/telemetry";
 
 const SEVERITY_DOT: Record<TuneIssue["severity"], string> = {

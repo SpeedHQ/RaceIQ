@@ -5,7 +5,7 @@
  * A `experiment_versions` row is an experiment arm. Until now the only thing the app
  * could compare arms on was lap time, and the lap pool feeding any comparison
  * was curated by one global rule: the fastest 5 (`server/experiments/auto-exclude.ts`
- * / `fastestLaps` in `shared/laps/review-selection.ts`).
+ * / `fastestLaps` in `shared/racing/laps/review-selection.ts`).
  *
  * ⚠️ **That rule is metric-specific, and treating it as global is a real bug.**
  * A consistency drill's whole outcome is the width of the lap distribution, and
@@ -28,7 +28,7 @@
  * outcome metric uses it. See `lapTimeSec` below for the full argument.
  *
  * Eligibility itself is NOT re-derived here: it routes through
- * `selectEvaluationLaps` in `shared/laps/review-selection.ts`, the canonical filter
+ * `selectEvaluationLaps` in `shared/racing/laps/review-selection.ts`, the canonical filter
  * (manual pins win, then invalid/pit, then the ranking). `all-valid` passes
  * `n = Infinity`, so nothing is ranked away and the persisted fastest-5 `auto`
  * exclusions are deliberately *ignored* — an `auto` stamp is a cached artefact
@@ -54,7 +54,7 @@
  */
 
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import { type EvaluableLap, type EvaluationReason, REVIEW_LAP_CAP, selectEvaluationLaps } from "../../../shared/laps/review-selection";
+import { type EvaluableLap, type EvaluationReason, REVIEW_LAP_CAP, selectEvaluationLaps } from "../../../shared/racing/laps/review-selection";
 import type { Corner } from "../../lap-analysis/corners";
 import { computeLapConsistencyDelta, LINE_SPREAD_FULL_SCALE_M } from "../../lap-analysis/consistency";
 import { medianSorted, percentileSorted } from "../statistics";

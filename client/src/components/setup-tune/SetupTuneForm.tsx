@@ -1,4 +1,4 @@
-import { getSchemaForGame } from "@shared/setups/schema";
+import { getSchemaForGame } from "@shared/racing/setups/schema";
 import { useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../../shared/games/ids";

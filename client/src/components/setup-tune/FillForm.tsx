@@ -1,4 +1,4 @@
-import { arityLabels, arityLength, type FieldDef, getByPath, type SectionDef, setByPath } from "@shared/setups/schema";
+import { arityLabels, arityLength, type FieldDef, getByPath, type SectionDef, setByPath } from "@shared/racing/setups/schema";
 import { useState } from "react";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";

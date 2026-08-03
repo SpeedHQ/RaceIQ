@@ -1,7 +1,7 @@
 /**
  * Import F1 track outlines from TUMFTM/racetrack-database.
  * Downloads centerline + widths, normalizes orientation, computes edges,
- * saves to shared/track-outlines/shared/
+ * saves to shared/data/tracks/tumftm/
  *
  * Run: bun scripts/import-f1-tracks.ts
  */
@@ -9,11 +9,9 @@
 import { mkdirSync, writeFileSync, existsSync } from "fs";
 import { resolve } from "path";
 
-const OUT_DIR = resolve(import.meta.dir, "../shared/track-outlines/shared");
-const BOUNDARY_DIR = resolve(OUT_DIR, "boundaries");
+const OUT_DIR = resolve(import.meta.dir, "../shared/data/tracks/tumftm");
 
 if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true });
-if (!existsSync(BOUNDARY_DIR)) mkdirSync(BOUNDARY_DIR, { recursive: true });
 
 const BASE = "https://raw.githubusercontent.com/TUMFTM/racetrack-database/master/tracks";
 
@@ -213,7 +211,7 @@ async function importTrack(name: string, tumftmName: string): Promise<boolean> {
 
   // Save centerline
   const centerCsv = pointsToCsv(centerline.map(p => ({ x: p.x, z: p.z })));
-  writeFileSync(resolve(OUT_DIR, `${name}.csv`), centerCsv);
+  writeFileSync(resolve(OUT_DIR, `${name}-centerline.csv`), centerCsv);
 
   // Compute and save edges
   const { left, right, center: ctr } = computeEdges(centerline);
@@ -224,7 +222,7 @@ async function importTrack(name: string, tumftmName: string): Promise<boolean> {
     pitLane: null,
     coordSystem: "normalized",
   };
-  writeFileSync(resolve(BOUNDARY_DIR, `${name}.json`), JSON.stringify(boundaryData));
+  writeFileSync(resolve(OUT_DIR, `${name}-boundaries.json`), JSON.stringify(boundaryData));
 
   console.log(`[${name}] Saved: ${centerline.length} center pts, ${left.length} edge pts`);
   return true;

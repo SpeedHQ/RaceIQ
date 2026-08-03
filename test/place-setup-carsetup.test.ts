@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from "fs";
 import { resolve } from "path";
 import { carSlugFromPresetId } from "../server/games/ac-evo/carsetup";
 import { parseCarSetup } from "../server/games/ac-evo/carsetup-wire";
-import { getAllAcEvoCars } from "../shared/car/ac-evo"
+import { getAllAcEvoCars } from "../shared/racing/cars/ac-evo"
 
 /**
  * `POST /api/tunes/place-setup` accepts a binary AC EVO `.carsetup` as base64
@@ -146,7 +146,7 @@ describe("carSlugFromPresetId", () => {
   /**
    * A car missing from the roster must STILL yield its folder name.
    *
-   * shared/car/ac-evo is a static CSV catalog that has to be re-extracted after a
+   * shared/racing/cars/ac-evo is a static CSV catalog that has to be re-extracted after a
    * game update, so it lags the game by design. Gating the folder on a roster
    * hit — which is what this route did first — left the driver retyping a name
    * the file already states correctly, for exactly the newest cars.

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
-import { IdParamSchema } from "../../../shared/http/route-schemas";
+import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import { getExperiment } from "../../db/experiment-queries";
 import { listActions } from "../../db/experiment-action-queries";
 import { undoLastAction } from "../../experiments/undo";

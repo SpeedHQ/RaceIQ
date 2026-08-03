@@ -1,4 +1,4 @@
-import type { WheelState } from "@shared/lap-analysis/physics/vehicle";
+import type { WheelState } from "@shared/racing/analysis/laps/physics/vehicle";
 import { brakeTempColor, slipAngleColor, tireState, tireTempColor } from "@/lib/vehicle-dynamics";
 
 /**

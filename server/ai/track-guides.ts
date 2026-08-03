@@ -5,7 +5,7 @@
  * derived from telemetry alone: corner characteristics, ideal techniques,
  * common traps, and priority corners for lap time.
  *
- * The guide content itself lives in `shared/tracks/guides/<slug>.json`, one
+ * The guide content itself lives in `shared/data/tracks/guides/<slug>.json`, one
  * file per track, each carrying its own `sources` and `notes` (Driver61, Coach
  * Dave Academy, DIY Sim Studio, Track Titan, official F1 circuit guides,
  * Wikipedia for corner-name cross-reference). Where a corner's official/common
@@ -16,16 +16,16 @@
  * This module owns only *resolution*: name → guide, and guide → the labels the
  * rest of the app uses.
  *
- * Corner naming is owned by track meta (shared/tracks/meta/<id>.json), not by
+ * Corner naming is owned by track meta (shared/data/tracks/meta/<id>.json), not by
  * this file: entries anchor to official turn numbers and render under meta's
- * name for those turns. See `TrackGuideCornerFile.numbers` in shared/track-guide-types.ts.
+ * name for those turns. See `TrackGuideCornerFile.numbers` in shared/racing/tracks/guide/types.ts.
  */
 
-import { loadTrackFacts } from "../../shared/track/storage/meta";
-import { cornerNumbers } from "../../shared/track/facts";
-import { cornerPromptLabel } from "../../shared/track/segment-label";
-import { listTrackGuideSlugs, loadTrackGuide } from "../../shared/track/guide/data";
-import type { ResolvedTrackGuide, TrackGuideCornerFile, TrackGuideFile } from "../../shared/track/guide/types";
+import { loadTrackFacts } from "../../shared/racing/tracks/storage/meta";
+import { cornerNumbers } from "../../shared/racing/tracks/facts";
+import { cornerPromptLabel } from "../../shared/racing/tracks/segment-label";
+import { listTrackGuideSlugs, loadTrackGuide } from "../../shared/racing/tracks/guide/data";
+import type { ResolvedTrackGuide, TrackGuideCornerFile, TrackGuideFile } from "../../shared/racing/tracks/guide/types";
 
 function normalise(name: string): string {
   return name

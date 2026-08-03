@@ -1,9 +1,9 @@
-import { MOTEC_SESSION_SOURCE, motecImportSupported } from "@shared/imports/motec";
+import { MOTEC_SESSION_SOURCE, motecImportSupported } from "@shared/integrations/motec";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
-import type { LapMeta, SessionMeta } from "../../../shared/sessions/types";
+import type { LapMeta, SessionMeta } from "../../../shared/racing/sessions/types";
 import { queryKeys, useDeleteLap, useLaps, useSessions } from "../hooks/queries";
 import { exportLapsZip } from "../lib/lap-export";
 import { storedLapsSectorCount } from "../lib/lap-sectors";

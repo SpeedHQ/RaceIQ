@@ -6,7 +6,7 @@ import {
   pointAtLapFraction,
   type LapPathSemanticId,
   type LapPathSemanticReader,
-} from "../shared/track/path";
+} from "../shared/racing/tracks/path";
 import type { TelemetryPacket } from "../shared/telemetry/types";
 
 function packet(

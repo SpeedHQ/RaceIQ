@@ -2,7 +2,7 @@ import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "./index";
 import { laps, experiments, experimentVersions } from "./schema";
 import { setSessionHead } from "./experiment-queries";
-import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus, versionKindForFocus, type VersionKind } from "../../shared/experiments/focus";
+import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus, versionKindForFocus, type VersionKind } from "../../shared/racing/experiments/focus";
 
 interface CreateExperimentVersionData {
   experimentId: number;

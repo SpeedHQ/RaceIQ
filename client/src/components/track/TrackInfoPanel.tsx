@@ -1,5 +1,5 @@
-import type { ResolvedTrackGuide } from "@shared/track/guide/types";
-import { segmentDisplayNames, turnNumbers } from "@shared/track/segment-label";
+import type { ResolvedTrackGuide } from "@shared/racing/tracks/guide/types";
+import { segmentDisplayNames, turnNumbers } from "@shared/racing/tracks/segment-label";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";

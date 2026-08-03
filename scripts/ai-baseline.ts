@@ -17,8 +17,8 @@ import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { buildAnalystPrompt } from "../server/ai/analyst-prompt";
 import { compareLapHeader } from "../server/ai/compare-engineer";
-import { resolveCarName } from "../shared/car/resolve-name";
-import { resolveTrackName } from "../shared/track/resolve-name";
+import { resolveCarName } from "../shared/racing/cars/resolve-name";
+import { resolveTrackName } from "../shared/racing/tracks/resolve-name";
 import {
   buildEvalLapAnalystAgent,
   buildEvalCompareEngineerAgent,

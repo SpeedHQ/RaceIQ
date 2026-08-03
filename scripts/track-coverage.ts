@@ -1,5 +1,5 @@
 /**
- * CLI for curation coverage — core logic lives in shared/track-coverage.ts.
+ * CLI for curation coverage — core logic lives in shared/racing/tracks/curation/coverage.ts.
  *
  * Usage:
  *   bun run tracks:coverage           # print the table
@@ -16,8 +16,8 @@
 
 import { readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
-import { curatedCoverage, renderCoverageTable, renderDetailTables } from "../shared/track/curation/coverage";
-import { stampVerified } from "../shared/track/curation/verified";
+import { curatedCoverage, renderCoverageTable, renderDetailTables } from "../shared/racing/tracks/curation/coverage";
+import { stampVerified } from "../shared/racing/tracks/curation/verified";
 import type { GameId } from "../shared/games/ids";
 
 /** `meta:spa` or `segments:f1-2025/spa`. */

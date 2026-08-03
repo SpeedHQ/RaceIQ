@@ -4,11 +4,11 @@ import { z } from "zod";
 import { existsSync, readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
-import { OrdinalParamSchema, GameIdQuerySchema } from "../../shared/http/route-schemas";
-import { fmCarCatalog, getFmCarSpecs } from "../../shared/car/fm";
-import { resolveCarName } from "../../shared/car/resolve-name";
-import { getAllIRacingCars } from "../../shared/car/iracing";
-import { resolveTrackName } from "../../shared/track/resolve-name";
+import { OrdinalParamSchema, GameIdQuerySchema } from "@shared/platform/http/route-schemas";
+import { fmCarCatalog, getFmCarSpecs } from "../../shared/racing/cars/fm";
+import { resolveCarName } from "../../shared/racing/cars/resolve-name";
+import { getAllIRacingCars } from "../../shared/racing/cars/iracing";
+import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { GameIdSchema } from "../../shared/games/ids";
 import {
   getDiscoveredCarName,
@@ -18,9 +18,9 @@ import { tryGetServerGame } from "../games/registry";
 
 // ─── Car model config paths ────────────────────────────────────────────────────
 
-import { USER_DATA_DIR, SHARED_DIR } from "../runtime/config/paths";
+import { GAMES_DIR, USER_DATA_DIR } from "../runtime/config/paths";
 const CAR_MODEL_CONFIGS_PATH = resolve(USER_DATA_DIR, "car-model-configs.json");
-const CAR_DIMENSIONS_PATH = resolve(SHARED_DIR, "games/fm-2023/car-dimensions.csv");
+const CAR_DIMENSIONS_PATH = resolve(GAMES_DIR, "fm-2023", "car-dimensions.csv");
 
 // ─── Car dimensions (loaded at module init) ─────────────────────────────────────
 

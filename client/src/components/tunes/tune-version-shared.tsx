@@ -1,7 +1,7 @@
-import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/laps/review-selection";
+import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/racing/laps/review-selection";
 import { useMemo, useState } from "react";
-import { parseTestChanges, summarizeTestChange } from "../../../../shared/experiments/test-changes";
-import type { LapMeta } from "../../../../shared/sessions/types";
+import { parseTestChanges, summarizeTestChange } from "../../../../shared/racing/experiments/test-changes";
+import type { LapMeta } from "../../../../shared/racing/sessions/types";
 import { type ExperimentLapMetric, useSetLapExcluded } from "../../hooks/queries";
 import { formatLapTime } from "../../lib/format";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "../ui/AppTable";

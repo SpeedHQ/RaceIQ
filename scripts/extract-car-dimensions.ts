@@ -5,13 +5,13 @@
  * Reads Locators.xml from each car ZIP in the game install directory,
  * then matches to car ordinals via cars.csv name fuzzy-matching.
  *
- * Output: shared/car-dimensions.csv — keyed by car ordinal
+ * Output: shared/games/fm-2023/car-dimensions.csv — keyed by car ordinal
  */
 import { readdirSync, readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
-import { findForzaInstall } from "../shared/forza/install";
-import { decompressForzaLZX } from "../shared/forza/lzx-decoder";
-import { parseForzaZip } from "../shared/forza/zip";
+import { findForzaInstall } from "../shared/integrations/forza/install";
+import { decompressForzaLZX } from "../shared/integrations/forza/lzx-decoder";
+import { parseForzaZip } from "../shared/integrations/forza/zip";
 
 const forzaDir = findForzaInstall();
 if (!forzaDir) {

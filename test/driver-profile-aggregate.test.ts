@@ -10,9 +10,9 @@ import {
 } from "../server/driver-profile/detectors";
 import { buildDriverFingerprint, type ProfileScope } from "../server/driver-profile/fingerprint";
 import { buildDriverTrend, DRIVER_TREND_WINDOW_LAPS } from "../server/driver-profile/trend";
-import type { LapStyleSummary } from "../shared/lap-analysis/driving-style";
-import type { LapInsight } from "../shared/lap-analysis/insights/types";
-import type { LapMeta } from "../shared/sessions/types";
+import type { LapStyleSummary } from "../shared/racing/analysis/laps/driving-style";
+import type { LapInsight } from "../shared/racing/analysis/laps/insights/types";
+import type { LapMeta } from "../shared/racing/sessions/types";
 
 // No DB, no telemetry decode: everything below drives the pure roll-up with
 // synthetic insights so the maths is testable in isolation.
@@ -500,7 +500,7 @@ describe("normalized driver trend", () => {
 
 describe("detector universe stays in lockstep with lap-analysis insights", () => {
   test("ALL_DETECTOR_IDS covers every id analyzeLap can emit", () => {
-    const insightDir = join(import.meta.dir, "..", "shared", "lap-analysis", "insights");
+    const insightDir = join(import.meta.dir, "..", "shared", "racing", "analysis", "laps", "insights");
     const src = [
       "suspension.ts",
       "tires.ts",

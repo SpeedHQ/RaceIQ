@@ -1,10 +1,10 @@
 import { writeFileSync } from "fs";
 import type { GameId } from "../../shared/games/ids";
 import { tryGetGame } from "../../shared/games/registry";
-import { flipPoints, needsTrackFlip, type Pt } from "../../shared/track/coords";
-import type { NamedSegment } from "../../shared/track/named-segments";
-import { turnNumbers } from "../../shared/track/segment-label";
-import { makeTrackProjection } from "../../shared/track/projection";
+import { flipPoints, needsTrackFlip, type Pt } from "../../shared/racing/tracks/coords";
+import type { NamedSegment } from "../../shared/racing/tracks/named-segments";
+import { turnNumbers } from "../../shared/racing/tracks/segment-label";
+import { makeTrackProjection } from "../../shared/racing/tracks/projection";
 
 /** Distinct, high-contrast colors cycled across corner segments. */
 const CORNER_COLORS = [
@@ -67,7 +67,7 @@ export function generateSegmentSvg(
   };
 
   const svgWidth = 1000, svgHeight = 800;
-  // Orientation comes from @shared/track-projection, the same projection the
+  // Orientation comes from @shared/racing/tracks/projection, the same projection the
   // app uses (TrackFocusMap / TrackDetail). This renderer used to invert Z and
   // leave X unmirrored, which is the exact negation of the app's convention —
   // generated SVGs came out rotated 180° from what users see. Do not fork it.

@@ -3,8 +3,8 @@
  * All values are plausible real-world racing data.
  */
 
-import type { LivePitData, LiveSectorData } from "../../../shared/live/types";
-import type { LapMeta } from "../../../shared/sessions/types";
+import type { LivePitData, LiveSectorData } from "../../../shared/racing/live/types";
+import type { LapMeta } from "../../../shared/racing/sessions/types";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import type { DisplayPacket } from "../lib/convert-packet";
 

@@ -14,8 +14,8 @@ import { parseAccBuffers } from "../../server/games/acc/parser";
 import { parseAcEvoBuffers, createAcEvoParserCache } from "../../server/games/ac-evo/parser";
 import { readWString } from "../../server/games/acc/utils";
 import { STATIC } from "../../server/games/acc/structs";
-import { getAccCarByModel } from "../../shared/car/acc"
-import { getAccTrackByName } from "../../shared/track/catalogs/acc"
+import { getAccCarByModel } from "../../shared/racing/cars/acc"
+import { getAccTrackByName } from "../../shared/racing/tracks/catalogs/acc"
 import { readFileSync } from "fs";
 import { gunzipSync } from "zlib";
 import { META_FRAME_MAGIC } from "../../server/session-capture/framing"

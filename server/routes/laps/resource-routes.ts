@@ -4,13 +4,13 @@ import { gzip } from "zlib";
 import { promisify } from "util";
 import { z } from "zod";
 
-import { IdParamSchema } from "../../../shared/http/route-schemas";
+import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import { GameIdSchema, type GameId } from "../../../shared/games/ids";
 import { getGame, tryGetGame } from "../../../shared/games/registry";
-import { analyzeLap } from "../../../shared/lap-analysis/insights/analyze";
-import { downsampleLap } from "../../../shared/laps/trace/build";
-import { encodeLapTrace } from "../../../shared/laps/trace/codec";
-import type { EncodedLapTrace } from "../../../shared/laps/trace/types";
+import { analyzeLap } from "../../../shared/racing/analysis/laps/insights/analyze";
+import { downsampleLap } from "../../../shared/racing/laps/trace/build";
+import { encodeLapTrace } from "../../../shared/racing/laps/trace/codec";
+import type { EncodedLapTrace } from "../../../shared/racing/laps/trace/types";
 import { getLaps, getLapById, getLapsByIds, getLapsRaw } from "../../db/lap-read-queries";
 import { deleteLap, updateLapNotes, updateLapValidity } from "../../db/lap-mutation-queries";
 import { setLapExperimentExcluded } from "../../db/experiment-lap-queries";

@@ -789,7 +789,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       //
       // Deliberately NOT named 'setup'/'drill' like experiment_versions.kind:
       // the mode and the arm are different levels, and sharing words made
-      // "setup" mean three things at once. See shared/experiments/focus.ts.
+      // "setup" mean three things at once. See shared/racing/experiments/focus.ts.
       `ALTER TABLE experiments ADD COLUMN focus TEXT NOT NULL DEFAULT 'car'`,
 
       // Append-only record of focus switches, so a session that moved between
@@ -820,7 +820,7 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       // v39 first shipped focus as 'setup'|'driving', which collided with
       // experiment_versions.kind ('setup'|'drill') and made "setup" mean a
       // mode, an arm and a knob edit at once. The values are now 'car'|'driver'
-      // (see shared/experiments/focus.ts).
+      // (see shared/racing/experiments/focus.ts).
       //
       // v39 is edited in place for anyone who has not run it yet; this pass
       // exists for databases that already applied the old version — a migration

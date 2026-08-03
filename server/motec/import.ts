@@ -26,7 +26,7 @@
 import { db } from "../db";
 import { laps as laps_, sessions } from "../db/schema";
 import { eq } from "drizzle-orm";
-import { MOTEC_SESSION_SOURCE } from "@shared/imports/motec";
+import { MOTEC_SESSION_SOURCE } from "@shared/integrations/motec";
 import { importSessionBin } from "../session-capture/import-capture";
 import type { ImportedLap } from "../session-capture/import-pipeline";
 import { parseLd } from "./ld";

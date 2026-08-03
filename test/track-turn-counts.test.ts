@@ -1,6 +1,6 @@
 /**
  * Turn-count accuracy against real-world data: the corner roster in each
- * shared/tracks/meta/<slug>.json is the official turn count from the
+ * shared/data/tracks/meta/<slug>.json is the official turn count from the
  * circuit's own map / FIA track guide (see the `source` field). Every game's
  * centerline must align onto that roster such that every official turn
  * 1..officialTurnCount is accounted for.
@@ -8,20 +8,20 @@
  * This is deliberately NOT a snapshot of what the detector currently finds — a
  * detector regression that drops Blanchimont must fail, not be re-baselined.
  * The only turns allowed to go unmatched are ones marked `optional` in
- * shared/tracks/detect-hints.json (shallow kinks some games' centerlines don't
+ * shared/data/tracks/detect-hints.json (shallow kinks some games' centerlines don't
  * model at all) — a detector allowance, not a fact about the circuit.
  */
 import { describe, test, expect } from "bun:test";
-import { turnNumbers } from "../shared/track/segment-label";
-import { officialTurnCount, validateFacts } from "../shared/track/curation/segment-align-validate";
-import { loadTrackFacts } from "../shared/track/storage/meta";
-import { loadDetectHints } from "../shared/track/detect-hints";
+import { turnNumbers } from "../shared/racing/tracks/segment-label";
+import { officialTurnCount, validateFacts } from "../shared/racing/tracks/curation/segment-align-validate";
+import { loadTrackFacts } from "../shared/racing/tracks/storage/meta";
+import { loadDetectHints } from "../shared/racing/tracks/detect-hints";
 import {
   findCenterlines,
   generateTrackSegments,
   listCuratedSlugs,
   listMetaSlugs,
-} from "../shared/track/curation/generate";
+} from "../shared/racing/tracks/curation/generate";
 import { KNOWN_ALIGNMENT_GAPS, KNOWN_TURN_GAPS } from "./helpers/track-known-gaps";
 
 const slugs = listCuratedSlugs();

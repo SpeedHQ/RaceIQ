@@ -16,9 +16,9 @@
  * prompt is telemetry+corner-analysis-scoped; this one is setup+symptom-scoped.
  */
 import type { GameId } from "../../shared/games/ids";
-import { aiLanguageInstruction } from "../../shared/ai/language";
-import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/ai/prompt-snippets";
-import { parseTestChanges } from "../../shared/experiments/test-changes";
+import { aiLanguageInstruction } from "../../shared/integrations/ai/language";
+import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
+import { parseTestChanges } from "../../shared/racing/experiments/test-changes";
 import type { TuneSymptoms } from "./tune-symptoms";
 import { formatTireTempSymptoms } from "./tune-tire-symptoms";
 import { formatDamperSymptoms } from "./tune-damper-symptoms";

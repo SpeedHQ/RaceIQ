@@ -1,8 +1,8 @@
 import { create } from "zustand";
-import type { LivePitData, LiveSectorData } from "../../../shared/live/types";
-import type { LapMeta } from "../../../shared/sessions/types";
+import type { LivePitData, LiveSectorData } from "../../../shared/racing/live/types";
+import type { LapMeta } from "../../../shared/racing/sessions/types";
+import type { TuneIssue } from "../../../shared/racing/tuning/issues";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
-import type { TuneIssue } from "../../../shared/tuning/issues";
 import { convertPacket, type DisplayPacket } from "../lib/convert-packet";
 
 export interface DisplaySettings {

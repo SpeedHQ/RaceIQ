@@ -1,10 +1,10 @@
 import { getGame } from "@shared/games/registry";
 import { getFuelDisplay, WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
-import type { LapInsight } from "@shared/lap-analysis/insights/types";
+import type { LapInsight } from "@shared/racing/analysis/laps/insights/types";
 import { Check, Copy } from "lucide-react";
 import { useCallback, useState } from "react";
-import { resolveAnalysisTelemetry } from "../../../../shared/analysis/telemetry-capabilities";
 import type { GameId } from "../../../../shared/games/ids";
+import { resolveAnalysisTelemetry } from "../../../../shared/racing/analysis/telemetry-capabilities";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import type { useUnits } from "../../hooks/useUnits";
 import type { DisplayPacket } from "../../lib/convert-packet";

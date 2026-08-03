@@ -1,5 +1,5 @@
 import { tryGetGame } from "@shared/games/registry";
-import { allWheelStates } from "@shared/lap-analysis/physics/vehicle";
+import { allWheelStates } from "@shared/racing/analysis/laps/physics/vehicle";
 import { WeightShiftRadar } from "@/components/WeightShiftRadar";
 import { useUnits } from "@/hooks/useUnits";
 import type { DisplayPacket } from "@/lib/convert-packet";

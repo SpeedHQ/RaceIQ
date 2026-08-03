@@ -4,17 +4,17 @@
  * plus the original analysis as reference.
  */
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { Tune } from "../../shared/tuning/types";
+import type { Tune } from "../../shared/racing/tuning/types";
 import type { GameId } from "../../shared/games/ids";
 import { generateExport, type UnitSystem, type TemperatureUnit } from "../lap-analysis/report"
-import { resolveCarName } from "../../shared/car/resolve-name";
-import { resolveTrackName } from "../../shared/track/resolve-name";
+import { resolveCarName } from "../../shared/racing/cars/resolve-name";
+import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { buildCornerData } from "./corner-data";
-import { analyzeLap } from "../../shared/lap-analysis/insights/analyze";
+import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
 import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
-import { aiLanguageInstruction } from "../../shared/ai/language";
-import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/ai/prompt-snippets";
+import { aiLanguageInstruction } from "../../shared/integrations/ai/language";
+import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/integrations/ai/prompt-snippets";
 interface CornerDef {
   index: number;
   label: string;

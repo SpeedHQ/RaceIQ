@@ -1,5 +1,5 @@
-import { getAccCarByModel } from "../../../shared/car/acc"
-import { getAccTrackByName } from "../../../shared/track/catalogs/acc"
+import { getAccCarByModel } from "../../../shared/racing/cars/acc"
+import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
 import { processPacket } from "../../telemetry/live-pipeline";
 import { ACC_PACKED_MAGIC, packTriplet } from "../kunos/pack-triplet";
 import type { TripletProcessor } from "../kunos/triplet-pipeline";

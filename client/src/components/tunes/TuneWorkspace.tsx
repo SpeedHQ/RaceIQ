@@ -1,6 +1,6 @@
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
-import type { LapMeta } from "../../../../shared/sessions/types";
+import type { LapMeta } from "../../../../shared/racing/sessions/types";
 import { useLaps, useResolveNames, useSessions } from "../../hooks/queries";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { BackButton } from "./BackButton";

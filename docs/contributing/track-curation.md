@@ -10,10 +10,10 @@ Four layers, highest wins. Each one may be partial; lower layers fill the gaps.
 
 | Rank | Layer | File | Authored by |
 |------|-------|------|-------------|
-| 1 | **Curated geometry** | `shared/tracks/<gameId>/<slug>-segments.json` | human, per game |
-| 2 | **Curated roster** (names, numbers, direction, groups) | `shared/tracks/meta/<slug>.json` | human, shared across games |
-| 3 | **Detect hints** (nudges for the fallback detector) | `shared/tracks/detect-hints.json` | human |
-| 4 | **Fallback detector** | `detectCornerRegions()` in `shared/track/curation/segment-align-detect.ts` | code |
+| 1 | **Curated geometry** | `shared/data/tracks/<gameId>/<slug>-segments.json` | human, per game |
+| 2 | **Curated roster** (names, numbers, direction, groups) | `shared/data/tracks/meta/<slug>.json` | human, shared across games |
+| 3 | **Detect hints** (nudges for the fallback detector) | `shared/data/tracks/detect-hints.json` | human |
+| 4 | **Fallback detector** | `detectCornerRegions()` in `shared/racing/tracks/curation/segment-align-detect.ts` | code |
 
 ### Why the roster is shared but geometry is not
 
@@ -49,24 +49,24 @@ Three claims, weakest to strongest. They are tracked separately because each say
 
 | Claim | Means | Proof |
 |-------|-------|-------|
-| **Curated roster** | someone hand-authored a non-empty `corners` array | `shared/tracks/meta/<slug>.json` exists with corners |
+| **Curated roster** | someone hand-authored a non-empty `corners` array | `shared/data/tracks/meta/<slug>.json` exists with corners |
 | **Meta human-verified** | someone checked that roster against a real turn-by-turn guide | ledger entry for that file |
 | **Segments human-verified** | someone checked that game's rendered geometry | ledger entry for that file |
 
 ### The ledger
 
-Sign-offs live in one file, `shared/tracks/verified.json`, keyed by the **path of
+Sign-offs live in one file, `shared/data/tracks/verified.json`, keyed by the **path of
 the file signed**:
 
 ```json
 {
-  "shared/tracks/meta/suzuka.json": {
+  "shared/data/tracks/meta/suzuka.json": {
     "hash": "95778f6106d2",
     "date": "2026-07-27",
     "by": "aaronc",
     "note": "official Suzuka circuit map"
   },
-  "shared/tracks/f1-2025/spa-segments.json": { "hash": "…", "date": "…", "by": "…" }
+  "shared/data/tracks/f1-2025/spa-segments.json": { "hash": "…", "date": "…", "by": "…" }
 }
 ```
 
@@ -346,9 +346,9 @@ If a track looks wrong in the app: fix that track's curated data.
 
 | Concern | File |
 |---------|------|
-| Fallback detection + generation | `shared/track/curation/segment-align-detect.ts`, `shared/track/curation/generate.ts` |
-| Coverage stats | `shared/track/curation/coverage.ts` |
-| Verification ledger | `shared/track/curation/verified.ts` → `shared/tracks/verified.json` |
+| Fallback detection + generation | `shared/racing/tracks/curation/segment-align-detect.ts`, `shared/racing/tracks/curation/generate.ts` |
+| Coverage stats | `shared/racing/tracks/curation/coverage.ts` |
+| Verification ledger | `shared/racing/tracks/curation/verified.ts` → `shared/data/tracks/verified.json` |
 | CLI | `scripts/track-coverage.ts` |
 | Guards | `test/track-coverage.test.ts`, `test/helpers/track-known-gaps.ts` |
 

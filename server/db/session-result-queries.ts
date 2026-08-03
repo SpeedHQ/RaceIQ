@@ -2,7 +2,7 @@ import { eq, desc, and, inArray } from "drizzle-orm";
 import { db } from "./index";
 import { sessions, sessionResults, pitEvents } from "./schema";
 import type { GameId } from "../../shared/games/ids";
-import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance, RaceResultStatus } from "../../shared/race-results/types";
+import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance, RaceResultStatus } from "../../shared/racing/results/types";
 
 const UNAVAILABLE_RACE_RESULT_EVIDENCE: RaceResultEvidence = {
   fieldStatus: {

@@ -1,6 +1,6 @@
 import type { GameId } from "../../shared/games/ids";
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import { analyzeLap } from "../../shared/lap-analysis/insights/analyze";
+import { analyzeLap } from "../../shared/racing/analysis/laps/insights/analyze";
 
 /**
  * Format one lap's precomputed insights as a prompt block for the compare

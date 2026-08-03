@@ -7,7 +7,7 @@ import {
   quantile,
   summariseLapStyle,
   type LapStyleSummary,
-} from "@shared/lap-analysis/driving-style";
+} from "@shared/racing/analysis/laps/driving-style";
 import { initGameAdapters } from "@shared/games/init";
 import type { GameId } from "../shared/games/ids";
 import type { TelemetryPacket } from "../shared/telemetry/types";

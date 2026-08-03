@@ -1,7 +1,7 @@
 import { useMemo, useRef } from "react";
 import { SECTOR_COLOR_VARS, severityColor, severityRangeColor } from "@/lib/colors";
+import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
 import type { TelemetryPacket } from "../../../../../shared/telemetry/types";
-import type { TuneIssue } from "../../../../../shared/tuning/issues";
 import type { LineSpreadTrace, TrackCorner } from "../../../hooks/queries";
 import { buildGeometry, buildStartMarker, type Pt, projectPoint, type SectorTimesLite, VIEW } from "../track-map-geometry";
 import { nearestCornerLabel } from "./detect-corners";

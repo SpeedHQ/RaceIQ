@@ -3,7 +3,7 @@ import {
   AccSetupJsonSchema,
   setupFileFormat,
   setupFileRejectReason,
-} from "../shared/setups/file-formats";
+} from "../shared/racing/setups/file-formats";
 import { tuneCrudRoutes } from "../server/routes/tunes";
 
 /**

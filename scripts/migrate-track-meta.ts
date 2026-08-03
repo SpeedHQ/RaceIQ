@@ -1,12 +1,12 @@
 /**
  * One-shot migration: legacy per-game track meta -> facts + per-game geometry.
  *
- *   before  shared/tracks/meta/<slug>.json     name/group/direction duplicated
+ *   before  shared/data/tracks/meta/<slug>.json     name/group/direction duplicated
  *                                              in top-level segments AND in
  *                                              every games[gameId] block
  *
- *   after   shared/tracks/meta/<slug>.json              facts, no fractions
- *           shared/tracks/<gameId>/<slug>-segments.json geometry, no names
+ *   after   shared/data/tracks/meta/<slug>.json              facts, no fractions
+ *           shared/data/tracks/<gameId>/<slug>-segments.json geometry, no names
  *
  * Also folds the three layouts that got split across two roster files because
  * two games named the same tarmac differently (see MERGES), so the corner names
@@ -22,11 +22,11 @@
  */
 import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from "fs";
 import { resolve } from "path";
-import { SHARED_DIR } from "../shared/runtime/data-paths"
-import type { NamedSegment as LegacyNamedSegment } from "../shared/track/named-segments";
-import { cornerKey, straightKey } from "../shared/track/keys";
-import type { CornerFact, StraightFact, TrackFacts } from "../shared/track/facts";
-import type { TrackGeometry } from "../shared/track/geometry";
+import { GAMES_DIR, SHARED_DIR } from "../shared/platform/runtime/data-paths"
+import type { NamedSegment as LegacyNamedSegment } from "../shared/racing/tracks/named-segments";
+import { cornerKey, straightKey } from "../shared/racing/tracks/keys";
+import type { CornerFact, StraightFact, TrackFacts } from "../shared/racing/tracks/facts";
+import type { TrackGeometry } from "../shared/racing/tracks/geometry";
 
 const META_DIR = resolve(SHARED_DIR, "tracks", "meta");
 const TRACKS_DIR = resolve(SHARED_DIR, "tracks");
@@ -325,7 +325,7 @@ export function buildIdentityMap(mergedInto: Record<string, string>): Record<str
   const variantOf: Record<string, string> = {};
 
   for (const gameId of ["fm-2023", "acc", "ac-evo", "f1-2025"]) {
-    const csvPath = resolve(SHARED_DIR, "games", gameId, "tracks.csv");
+    const csvPath = resolve(GAMES_DIR, gameId, "tracks.csv");
     if (!existsSync(csvPath)) continue;
     const lines = readFileSync(csvPath, "utf-8").trim().split("\n");
     const header = lines[0].split(",").map((h) => h.trim());

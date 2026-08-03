@@ -6,7 +6,7 @@ import { recordAction } from "../../server/db/experiment-action-queries";
 import { getExperiment, setSessionHead } from "../../server/db/experiment-queries";
 import { createExperimentVersion, listExperimentVersions, nextVersion } from "../../server/db/experiment-version-queries";
 import { wsManager } from "../../server/runtime/websocket-manager";
-import type { DrillChange } from "../../shared/experiments/types";
+import type { DrillChange } from "../../shared/racing/experiments/types";
 import { readSetupEngineerContext } from "./setup-engineer-request-context";
 import { setupEngineerTools } from "./setup-engineer";
 

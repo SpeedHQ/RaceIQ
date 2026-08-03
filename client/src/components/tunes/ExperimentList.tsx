@@ -1,5 +1,5 @@
-import { DEFAULT_EXPERIMENT_FOCUS, EXPERIMENT_FOCUS_LABELS, type ExperimentFocus } from "@shared/experiments/focus";
-import { AccSetupJsonSchema, setupFileFormat, setupFileRejectReason } from "@shared/setups/file-formats";
+import { DEFAULT_EXPERIMENT_FOCUS, EXPERIMENT_FOCUS_LABELS, type ExperimentFocus } from "@shared/racing/experiments/focus";
+import { AccSetupJsonSchema, setupFileFormat, setupFileRejectReason } from "@shared/racing/setups/file-formats";
 import { type DragEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   type Experiment,

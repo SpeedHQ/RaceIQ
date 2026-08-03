@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { analyzeLap } from "@shared/lap-analysis/insights/analyze";
+import { analyzeLap } from "@shared/racing/analysis/laps/insights/analyze";
 import { initGameAdapters } from "@shared/games/init";
-import { MIN_REPORTABLE_LOSS_S } from "@shared/lap-analysis/time-loss";
+import { MIN_REPORTABLE_LOSS_S } from "@shared/racing/analysis/laps/time-loss";
 import type { TelemetryPacket } from "../shared/telemetry/types";
 
 const RADIUS = 0.33;

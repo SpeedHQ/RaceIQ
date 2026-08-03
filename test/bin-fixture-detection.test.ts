@@ -23,10 +23,10 @@ import { getGame } from "../shared/games/registry";
 import { stopMaintenanceTasks } from "../server/telemetry/live-pipeline"
 import { META_FRAME_MAGIC } from "../server/session-capture/framing"
 import { detectGameIdFromBuffer } from "../server/session-capture/import-capture"
-import { getAccTrackName } from "../shared/track/catalogs/acc"
-import { getAccCarName } from "../shared/car/acc"
-import { getAcEvoTrackName } from "../shared/track/catalogs/ac-evo"
-import { getAcEvoCarName } from "../shared/car/ac-evo"
+import { getAccTrackName } from "../shared/racing/tracks/catalogs/acc"
+import { getAccCarName } from "../shared/racing/cars/acc"
+import { getAcEvoTrackName } from "../shared/racing/tracks/catalogs/ac-evo"
+import { getAcEvoCarName } from "../shared/racing/cars/ac-evo"
 import { readAccPackets, readAcEvoPackets } from "./helpers/parse-dump";
 import { readUdpDump } from "./helpers/recording";
 import { readIRacingFrames } from "../server/games/iracing/recorder";

@@ -1,5 +1,5 @@
 /**
- * ONE-SHOT migration tool — delete once shared/tracks/guides/*.json is committed.
+ * ONE-SHOT migration tool — delete once shared/data/tracks/guides/*.json is committed.
  *
  * Converts the inline `guides` array in server/ai/track-guides.ts into one JSON
  * file per layout.
@@ -20,7 +20,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
-import type { TrackGuideCornerFile, TrackGuideFile } from "../shared/track/guide/types";
+import type { TrackGuideCornerFile, TrackGuideFile } from "../shared/racing/tracks/guide/types";
 // @ts-expect-error — __rawGuides is a temporary export that exists only while this script runs.
 import { __rawGuides } from "../server/ai/track-guides";
 
@@ -39,7 +39,7 @@ interface RawGuide {
 }
 
 const SOURCE = resolve(import.meta.dir, "..", "server", "ai", "track-guides.ts");
-const OUT_DIR = resolve(import.meta.dir, "..", "shared", "tracks", "guides");
+const OUT_DIR = resolve(import.meta.dir, "..", "shared", "data", "tracks", "guides");
 
 /**
  * Stable key from the English name: NFD accent-strip so `Courbe Paul Frère`

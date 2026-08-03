@@ -7,7 +7,7 @@
  * live alerts never disagree about what counts as "locked" or "bottomed".
  */
 import type { TelemetryPacket } from "../../shared/telemetry/types";
-import type { TuneIssue } from "../../shared/tuning/issues";
+import type { TuneIssue } from "../../shared/racing/tuning/issues";
 import type { TuneSymptoms } from "./tune-symptoms";
 import {
   BALANCE_THRESHOLD,

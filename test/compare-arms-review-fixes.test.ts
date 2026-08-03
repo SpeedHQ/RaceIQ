@@ -14,7 +14,7 @@ import {
   type MetadataOutcomeMetric,
   OUTCOME_METRICS,
 } from "../server/experiments/comparison/metrics";
-import type { EvaluableLap } from "../shared/laps/review-selection";
+import type { EvaluableLap } from "../shared/racing/laps/review-selection";
 
 /**
  * Regression guards for the review findings on PR #137.

@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { IdParamSchema } from "../../shared/http/route-schemas";
+import { IdParamSchema } from "@shared/platform/http/route-schemas";
 import type { GameId } from "../../shared/games/ids";
 import { getLapById } from "../db/lap-read-queries";
 import { getExperiment } from "../db/experiment-queries";
@@ -23,7 +23,7 @@ import { startDetachedAgentTurn } from "../ai/agent-stream";
 import { reserveChatRun, buildReplayStream } from "../ai/chat-run-registry";
 import { createUIMessageStreamResponse } from "ai";
 import { sessionAgentForFocus } from "../ai/agents";
-import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiments/focus";
+import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/racing/experiments/focus";
 import { buildSetupEngineerSystemPrompt } from "../../mastra/agents/setup-engineer";
 import { RequestContext } from "@mastra/core/request-context";
 import { setupEngineerTurnWorkflow } from "../../mastra/workflows/setup-engineer-turn";

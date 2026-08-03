@@ -5,7 +5,7 @@
  * doesn't already have one.
  *
  * AC Evo currently borrows ACC's bundled outlines wholesale (see
- * `bundledTrackDir("ac-evo")` in shared/track/resolve-name.ts). That breaks for the
+ * `bundledTrackDir("ac-evo")` in shared/racing/tracks/resolve-name.ts). That breaks for the
  * 3 tracks ACC never shipped — Brands Hatch Indy, Fuji, COTA — which have
  * no ACC file and therefore no outline at all. This script extracts
  * authoritative AC Evo geometry for every track that has it in the kspkg,
@@ -19,15 +19,15 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
 import { findContentKspkg, Kspkg, type KspkgEntry } from "../server/games/ac-evo/kspkg";
 import { parseAiSpline, type AiSplinePoint } from "../server/games/ac-evo/aispline";
-import { autoTrackSegments } from "../shared/track/curation/generate";
-import { splitSegments } from "../shared/track/curation/join";
+import { autoTrackSegments } from "../shared/racing/tracks/curation/generate";
+import { splitSegments } from "../shared/racing/tracks/curation/join";
 import {
   loadTrackFacts,
   loadTrackGeometry,
   saveTrackFacts,
   saveTrackGeometry,
-} from "../shared/track/storage/meta";
-import { SHARED_DIR } from "../shared/runtime/data-paths"
+} from "../shared/racing/tracks/storage/meta";
+import { GAMES_DIR, SHARED_DIR } from "../shared/platform/runtime/data-paths"
 
 interface TrackRow {
   id: number;
@@ -81,7 +81,7 @@ const OUT_DIR = resolve(SHARED_DIR, "tracks", "ac-evo");
 const ACC_DIR = resolve(SHARED_DIR, "tracks", "acc");
 
 function readTracksCsv(): TrackRow[] {
-  const raw = readFileSync(resolve(SHARED_DIR, "games", "ac-evo", "tracks.csv"), "utf-8");
+  const raw = readFileSync(resolve(GAMES_DIR, "ac-evo", "tracks.csv"), "utf-8");
   const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
   return lines.slice(1).map((l) => {
     const [id, name, variant, commonTrackName, setupFolder] = l.split(",");

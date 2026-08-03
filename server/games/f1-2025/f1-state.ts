@@ -1,6 +1,6 @@
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import type { F1ExtendedData, F1GridEntry } from "../../../shared/telemetry/f1-2025";
-import { getF1CompoundName } from "../../../shared/car/f1"
+import { getF1CompoundName } from "../../../shared/racing/cars/f1"
 import {
   F1_HEADER_SIZE,
   F1_PACKET_IDS,

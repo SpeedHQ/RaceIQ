@@ -1,7 +1,7 @@
 /**
- * Copies all data files (.csv, .json) from shared/ to dist/data/,
- * preserving directory structure. Used by the production build so
- * the compiled binary can find game data at runtime.
+ * Copies shared/data CSV/JSON contents directly into dist/data and preserves
+ * other shared umbrella names beneath dist/data. Used by production builds so
+ * compiled code sees the same logical data roots as source code.
  *
  * Also copies server/runtime/platform/credstore.ps1 next to the binary (dist/credstore.ps1):
  * server/runtime/platform/keystore.ts resolves it relative to process.execPath when compiled,
@@ -36,9 +36,18 @@ function copyDir(srcDir: string, destDir: string, filter?: (name: string) => boo
   } catch {}
 }
 
-// Copy all data files (.csv, .json) from shared/ preserving directory structure
+// Static data umbrella is the compiled data root; other shared umbrellas keep
+// their names so game catalogs and generated telemetry remain addressable.
 const sharedDir = path.join(ROOT, "shared");
-copyDir(sharedDir, DIST, (name) => name.endsWith(".csv") || name.endsWith(".json"));
+copyDir(path.join(sharedDir, "data"), DIST, (name) => name.endsWith(".csv") || name.endsWith(".json"));
+for (const entry of readdirSync(sharedDir, { withFileTypes: true })) {
+  if (!entry.isDirectory() || entry.name === "data") continue;
+  copyDir(
+    path.join(sharedDir, entry.name),
+    path.join(DIST, entry.name),
+    (name) => name.endsWith(".csv") || name.endsWith(".json"),
+  );
+}
 
 console.log(`Copied ${count} data files → ${DIST}`);
 

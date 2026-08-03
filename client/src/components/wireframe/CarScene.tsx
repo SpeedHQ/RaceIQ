@@ -1,7 +1,7 @@
 import { Grid, Line } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { allWheelStates } from "@shared/lap-analysis/physics/vehicle";
-import { hasWorldPositions } from "@shared/track/path";
+import { allWheelStates } from "@shared/racing/analysis/laps/physics/vehicle";
+import { hasWorldPositions } from "@shared/racing/tracks/path";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type * as THREE from "three";
 import type { GameId } from "../../../../shared/games/ids";

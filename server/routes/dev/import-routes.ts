@@ -3,10 +3,10 @@ import { tmpdir } from "os";
 import { resolve } from "path";
 import { gunzipSync } from "zlib";
 import { Hono } from "hono";
-import { getAccCarByModel } from "../../../shared/car/acc"
-import { getAccTrackByName } from "../../../shared/track/catalogs/acc"
-import { getAcEvoCarByDisplayName } from "../../../shared/car/ac-evo"
-import { getAcEvoTrackByName } from "../../../shared/track/catalogs/ac-evo"
+import { getAccCarByModel } from "../../../shared/racing/cars/acc"
+import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
+import { getAcEvoCarByDisplayName } from "../../../shared/racing/cars/ac-evo"
+import { getAcEvoTrackByName } from "../../../shared/racing/tracks/catalogs/ac-evo"
 import { getGame } from "../../../shared/games/registry";
 import { KNOWN_GAME_IDS } from "../../../shared/games/ids";
 import { parseAccBuffers } from "../../games/acc/parser";

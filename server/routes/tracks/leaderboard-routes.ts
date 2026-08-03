@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { getLaps, getLapSummariesByTrack } from "../../db/lap-read-queries";
-import { fmCarSpecsCatalog } from "../../../shared/car/fm";
-import { resolveCarName } from "../../../shared/car/resolve-name";
+import { fmCarSpecsCatalog } from "../../../shared/racing/cars/fm";
+import { resolveCarName } from "../../../shared/racing/cars/resolve-name";
 import { tryGetServerGame } from "../../games/registry";
 import type { GameId } from "../../../shared/games/ids";
 import { TrackOrdinalParamSchema } from "./support";

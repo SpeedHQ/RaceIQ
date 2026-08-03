@@ -1,8 +1,8 @@
 import { useNavigate } from "@tanstack/react-router";
 import { Sparkles } from "lucide-react";
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ComparisonData } from "../../../shared/comparison/types";
-import type { LapMeta } from "../../../shared/sessions/types";
+import type { ComparisonData } from "../../../shared/racing/comparison/types";
+import type { LapMeta } from "../../../shared/racing/sessions/types";
 import { useLaps, useTrackOutline, useTrackSectors } from "../hooks/queries";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useUnits } from "../hooks/useUnits";

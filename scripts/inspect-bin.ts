@@ -18,7 +18,7 @@ import {
   detectGameIdFromBuffer,
   detectGameIdFromFilename,
 } from "../server/session-capture/import-capture";
-import { getAcEvoTrackName } from "../shared/track/catalogs/ac-evo"
+import { getAcEvoTrackName } from "../shared/racing/tracks/catalogs/ac-evo"
 import type { GameId } from "../shared/games/ids";
 
 const args = process.argv.slice(2);

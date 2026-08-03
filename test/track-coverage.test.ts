@@ -5,23 +5,11 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
-import { curatedCoverage, renderCoverageTable, renderDetailTables } from "../shared/track/curation/coverage";
-import { existsSync } from "fs";
-import { resolve } from "path";
-import { fileHash, loadVerified, verifiedKey, verifyState } from "../shared/track/curation/verified";
+import { curatedCoverage, renderCoverageTable, renderDetailTables } from "../shared/racing/tracks/curation/coverage";
+import { fileHash, loadVerified, verifiedKey, verifyState } from "../shared/racing/tracks/curation/verified";
 import type { GameId } from "../shared/games/ids";
-
-const REPO_ROOT = resolve(import.meta.dir, "..");
-
-/** Split a ledger key back into the (kind, slug, gameId) it was built from. */
-function keyParts(key: string): { kind: "meta" | "segments"; slug: string; gameId?: GameId } {
-  const [, , dir = "", file = ""] = key.split("/");
-  return dir === "meta"
-    ? { kind: "meta", slug: file.replace(/\.json$/, "") }
-    : { kind: "segments", slug: file.replace(/-segments\.json$/, ""), gameId: dir as GameId };
-}
 import {
   COVERAGE_END,
   COVERAGE_START,
@@ -32,6 +20,16 @@ import {
   spliceCoverage,
   spliceDetail,
 } from "../scripts/track-coverage";
+
+const REPO_ROOT = resolve(import.meta.dir, "..");
+
+/** Split a ledger key back into the (kind, slug, gameId) it was built from. */
+function keyParts(key: string): { kind: "meta" | "segments"; slug: string; gameId?: GameId } {
+  const [, , , dir = "", file = ""] = key.split("/");
+  return dir === "meta"
+    ? { kind: "meta", slug: file.replace(/\.json$/, "") }
+    : { kind: "segments", slug: file.replace(/-segments\.json$/, ""), gameId: dir as GameId };
+}
 
 describe("track curation coverage", () => {
   const doc = readFileSync(CURATION_DOC, "utf8");
@@ -101,9 +99,9 @@ describe("verification ledger", () => {
     }
   });
 
-  test("keys are repo-relative paths under shared/tracks", () => {
+  test("keys are repo-relative paths under shared/data/tracks", () => {
     for (const key of Object.keys(ledger)) {
-      expect(key, `${key} is not a shared/tracks path`).toMatch(/^shared\/tracks\/[\w-]+\/[\w-]+\.json$/);
+      expect(key, `${key} is not a shared/data/tracks path`).toMatch(/^shared\/data\/tracks\/[\w-]+\/[\w-]+\.json$/);
     }
   });
 

@@ -10,7 +10,7 @@
 import { resolve } from "path";
 import { extractAccTracks } from "../server/games/acc/extract-tracks";
 
-const OUT_DIR = resolve(__dirname, "../shared/tracks/acc");
+const OUT_DIR = resolve(__dirname, "../shared/data/tracks/acc");
 
 extractAccTracks(OUT_DIR, (event) => {
   if (event.type === "total") {

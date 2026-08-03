@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { getAllAcEvoCars, getAcEvoCarClass } from "../../../shared/car/ac-evo"
+import { getAllAcEvoCars, getAcEvoCarClass } from "../../../shared/racing/cars/ac-evo"
 import { PHYSICS, GRAPHICS_EVO, STATIC_EVO } from "../../games/ac-evo/structs";
 import { readCString } from "../../games/ac-evo/utils";
 import { getAcEvoReader } from "../../runtime/live-readers";

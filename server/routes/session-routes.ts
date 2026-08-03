@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 
-import { GameIdQuerySchema, IdParamSchema } from "../../shared/http/route-schemas";
+import { GameIdQuerySchema, IdParamSchema } from "@shared/platform/http/route-schemas";
 import { GameIdSchema } from "../../shared/games/ids";
 import { getSessions, deleteSession, updateSession, countStaleSessions, getStaleSessions, getSessionRecapData } from "../db/session-queries";
 import { getSessionResult } from "../db/session-result-queries";
@@ -14,8 +14,8 @@ import { LAP_DETECTOR_IRACING_ID } from "../games/iracing/lap-detector";
 import { wsManager } from "../runtime/websocket-manager";
 import { computeRecap } from "../lap-analysis/recap";
 import { tryGetGame } from "../../shared/games/registry";
-import { resolveCarName } from "../../shared/car/resolve-name";
-import { resolveTrackName } from "../../shared/track/resolve-name";
+import { resolveCarName } from "../../shared/racing/cars/resolve-name";
+import { resolveTrackName } from "../../shared/racing/tracks/resolve-name";
 import { backfillRaceResults } from "../race-results/reconcile";
 import { getRaceResultAggregate, getRecentRaceResults } from "../race-results/aggregates";
 

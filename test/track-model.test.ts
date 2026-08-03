@@ -10,8 +10,8 @@
 import { describe, test, expect } from "bun:test";
 import { readdirSync, readFileSync, existsSync } from "fs";
 import { resolve } from "path";
-import { cornerNumbers, type TrackFacts } from "../shared/track/facts";
-import type { TrackGeometry } from "../shared/track/geometry";
+import { cornerNumbers, type TrackFacts } from "../shared/racing/tracks/facts";
+import type { TrackGeometry } from "../shared/racing/tracks/geometry";
 import {
   joinSegments,
   splitSegments,
@@ -20,10 +20,10 @@ import {
   checkKeys,
   numberCorner,
   unnumberCorner,
-} from "../shared/track/curation/join";
-import { cornerKey, straightKey, parseCornerKey, parseStraightKey } from "../shared/track/keys";
-import { SHARED_DIR } from "../shared/runtime/data-paths"
-import { segmentDisplayNames } from "../shared/track/segment-label";
+} from "../shared/racing/tracks/curation/join";
+import { cornerKey, straightKey, parseCornerKey, parseStraightKey } from "../shared/racing/tracks/keys";
+import { SHARED_DIR } from "../shared/platform/runtime/data-paths"
+import { segmentDisplayNames } from "../shared/racing/tracks/segment-label";
 
 const META_DIR = resolve(SHARED_DIR, "tracks", "meta");
 const GAME_IDS = ["fm-2023", "acc", "ac-evo", "f1-2025"] as const;

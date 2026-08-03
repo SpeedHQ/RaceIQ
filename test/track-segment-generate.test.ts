@@ -4,7 +4,7 @@
  *   1. every game centerline aligns cleanly (no unsanctioned fuzz), and
  *   2. the committed meta files exactly match what --write would produce — the
  *      shared facts and every game's geometry file — i.e. name lists, detector,
- *      shared/tracks/meta and shared/tracks/<game> cannot drift apart.
+ *      shared/data/tracks/meta and shared/data/tracks/<game> cannot drift apart.
  *
  * If this fails after editing a name list or the detector, regenerate with:
  *   bun run tracks:segments --all --write
@@ -15,11 +15,11 @@ import {
   generateTrackSegments,
   listCuratedSlugs,
   writableAlignments,
-} from "../shared/track/curation/generate";
-import { loadTrackFacts, loadTrackGeometry } from "../shared/track/storage/meta";
-import type { TrackGeometry } from "../shared/track/geometry";
-import { officialTurnCount, validateFacts } from "../shared/track/curation/segment-align-validate";
-import { loadDetectHints } from "../shared/track/detect-hints";
+} from "../shared/racing/tracks/curation/generate";
+import { loadTrackFacts, loadTrackGeometry } from "../shared/racing/tracks/storage/meta";
+import type { TrackGeometry } from "../shared/racing/tracks/geometry";
+import { officialTurnCount, validateFacts } from "../shared/racing/tracks/curation/segment-align-validate";
+import { loadDetectHints } from "../shared/racing/tracks/detect-hints";
 import { KNOWN_ALIGNMENT_GAPS, KNOWN_FUZZY_ALIGNMENTS } from "./helpers/track-known-gaps";
 
 const slugs = listCuratedSlugs();

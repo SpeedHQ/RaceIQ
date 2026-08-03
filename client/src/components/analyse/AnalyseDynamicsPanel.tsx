@@ -1,8 +1,8 @@
 import { tryGetGame } from "@shared/games/registry";
-import { allFrictionCircle, allWheelStates, steerBalance } from "@shared/lap-analysis/physics/vehicle";
+import { allFrictionCircle, allWheelStates, steerBalance } from "@shared/racing/analysis/laps/physics/vehicle";
 import { Info } from "lucide-react";
-import { resolveAnalysisTelemetry } from "../../../../shared/analysis/telemetry-capabilities";
 import type { GameId } from "../../../../shared/games/ids";
+import { resolveAnalysisTelemetry } from "../../../../shared/racing/analysis/telemetry-capabilities";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import type { useUnits } from "../../hooks/useUnits";
 import { severityRangeColor, signedBalanceColor } from "../../lib/colors";

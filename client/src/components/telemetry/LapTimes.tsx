@@ -1,6 +1,6 @@
 import { formatLapTime } from "@/lib/format";
 import { m } from "@/paraglide/messages";
-import type { LiveSectorData } from "../../../../shared/live/types";
+import type { LiveSectorData } from "../../../../shared/racing/live/types";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 
 interface LapTimesProps {

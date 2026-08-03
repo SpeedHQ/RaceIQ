@@ -1,25 +1,25 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { IS_DEV } from "../../runtime/config/env";
-import { OrdinalParamSchema, GameIdQuerySchema } from "../../../shared/http/route-schemas";
-import { formatTurnNumbers, turnNumbers } from "../../../shared/track/segment-label";
-import type { NamedSegment } from "../../../shared/track/named-segments";
+import { OrdinalParamSchema, GameIdQuerySchema } from "@shared/platform/http/route-schemas";
+import { formatTurnNumbers, turnNumbers } from "../../../shared/racing/tracks/segment-label";
+import type { NamedSegment } from "../../../shared/racing/tracks/named-segments";
 import { getCorners, saveCorners } from "../../db/track-queries";
-import { getTrackOutlineByOrdinal } from "../../../shared/track/recording/outlines";
-import { getTrackSectorsByOrdinal } from "../../../shared/track/storage/sectors";
+import { getTrackOutlineByOrdinal } from "../../../shared/racing/tracks/recording/outlines";
+import { getTrackSectorsByOrdinal } from "../../../shared/racing/tracks/storage/sectors";
 import {
   loadTrackFacts,
   loadTrackGeometry,
   loadTrackSectorsFor,
   saveTrackFacts,
   saveTrackGeometry,
-} from "../../../shared/track/storage/meta";
-import { resolveTrackName } from "../../../shared/track/resolve-name";
+} from "../../../shared/racing/tracks/storage/meta";
+import { resolveTrackName } from "../../../shared/racing/tracks/resolve-name";
 import { getTrackGuide } from "../../ai/track-guides";
 import type { Corner } from "../../lap-analysis/corners";
-import { cornerNumbers } from "../../../shared/track/facts";
-import { splitSegments } from "../../../shared/track/curation/join";
-import { cornerKey } from "../../../shared/track/keys";
+import { cornerNumbers } from "../../../shared/racing/tracks/facts";
+import { splitSegments } from "../../../shared/racing/tracks/curation/join";
+import { cornerKey } from "../../../shared/racing/tracks/keys";
 import {
   computeOutlineLength,
   getSharedTrackName,
@@ -222,7 +222,7 @@ export const trackSegmentRoutes = new Hono()
       for (const s of straights) byAfter.set(s.after, s);
 
       // An editor save is an edit, not a sign-off — any signature in
-      // `shared/tracks/verified.json` goes stale on the next hash check. The
+      // `shared/data/tracks/verified.json` goes stale on the next hash check. The
       // citation is carried outright: an uncited name is indistinguishable
       // from an invented one.
       saveTrackFacts(slug, {

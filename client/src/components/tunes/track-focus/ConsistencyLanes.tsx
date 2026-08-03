@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { severityRangeColor } from "@/lib/colors";
-import type { TuneIssue } from "../../../../../shared/tuning/issues";
+import type { TuneIssue } from "../../../../../shared/racing/tuning/issues";
 import type { LineSpreadTrace, TrackCorner } from "../../../hooks/queries";
 import { consistencyAt, type LapTrace, sampleAt } from "../../../lib/stint-traces";
 import { ChartTooltip } from "./ChartTooltip";

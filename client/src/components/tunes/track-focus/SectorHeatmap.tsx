@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { severityRangeColor } from "@/lib/colors";
-import type { LapMeta } from "../../../../../shared/sessions/types";
+import type { LapMeta } from "../../../../../shared/racing/sessions/types";
 import { Table, TBody, TD, TH, THead, TRow } from "../../ui/AppTable";
 import { Button } from "../../ui/button";
 

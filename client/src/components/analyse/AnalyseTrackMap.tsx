@@ -1,6 +1,6 @@
 import { tryGetGame } from "@shared/games/registry";
-import { flipPoints, needsTrackFlip } from "@shared/track/coords";
-import { lapPath } from "@shared/track/path";
+import { flipPoints, needsTrackFlip } from "@shared/racing/tracks/coords";
+import { lapPath } from "@shared/racing/tracks/path";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef } from "react";
 import { SECTOR_COLOR_VARS } from "@/lib/colors";
 import { syncCanvasSize } from "@/lib/rendering/canvas-size";

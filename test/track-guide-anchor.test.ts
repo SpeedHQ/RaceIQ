@@ -1,17 +1,17 @@
 import { describe, test, expect } from "bun:test";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { turnNumbers } from "../shared/track/segment-label";
+import { turnNumbers } from "../shared/racing/tracks/segment-label";
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
 import { buildTrackGuideContext, guideCornerLabels, getAvailableTrackGuides } from "../server/ai/track-guides";
-import { listTrackGuideSlugs, loadTrackGuide } from "../shared/track/guide/data";
+import { listTrackGuideSlugs, loadTrackGuide } from "../shared/racing/tracks/guide/data";
 
 initGameAdapters();
 initServerGameAdapters();
 
 /**
- * Track meta (shared/tracks/meta/<id>.json) owns corner naming; the expert
+ * Track meta (shared/data/tracks/meta/<id>.json) owns corner naming; the expert
  * guides own technique. They join on official turn numbers.
  *
  * These tests are the checksum for that join. A guide entry anchored to a turn
@@ -20,7 +20,7 @@ initServerGameAdapters();
  * name, teaching the model that name is legitimate.
  */
 
-const META_DIR = resolve(import.meta.dir, "../shared/tracks/meta");
+const META_DIR = resolve(import.meta.dir, "../shared/data/tracks/meta");
 
 type Corner = { number: number; covers?: number[]; name: string; direction?: string; group?: string };
 type Facts = { corners?: Corner[] };
@@ -91,7 +91,7 @@ const KNOWN_ANCHOR_GAPS: Record<string, string[]> = {
   // meta numbering is self-inconsistent here: New Holland is 16 while T14 is
   // 14, and 13/15 are absent. The post-2023 layout has 14 turns.
   catalunya: ["Turn 12-13", "Turn 14-15"],
-  // shared/tracks/meta/fuji.json is auto-seeded from AC Evo's racing line: 9
+  // shared/data/tracks/meta/fuji.json is auto-seeded from AC Evo's racing line: 9
   // unnamed regions for a 16-turn circuit, numbered T1..T9 sequentially, so its
   // numbering is not the circuit's. Anchoring the guide to it would coach
   // "TGR Corner" as meta's T1 (a left) instead of the real Turn 1 (a right).

@@ -1,6 +1,6 @@
-import type { RaceStrategy, TuneSettings } from "../../../shared/tuning/types";
+import type { RaceStrategy, TuneSettings } from "../../../shared/racing/tuning/types";
 
-export type { RaceStrategy, TuneSettings } from "../../../shared/tuning/types";
+export type { RaceStrategy, TuneSettings } from "../../../shared/racing/tuning/types";
 
 export interface CatalogTune {
   id: string;

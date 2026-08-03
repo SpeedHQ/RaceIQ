@@ -9,7 +9,7 @@ import {
   reconcileDiscoveredCars,
   DISCOVERED_CAR_ORDINAL_BASE,
 } from "../server/db/discovered-cars";
-import { injectDiscoveredAcEvoCars, getAcEvoCarName } from "../shared/car/ac-evo"
+import { injectDiscoveredAcEvoCars, getAcEvoCarName } from "../shared/racing/cars/ac-evo"
 import { LapDetectorAcEvo } from "../server/games/ac-evo/lap-detector";
 import { CapturingDbAdapter } from "../server/telemetry/pipeline-ports";
 import type { TelemetryPacket } from "../shared/telemetry/types";
