@@ -400,6 +400,9 @@ export interface IRacingExtendedData {
   incidents: number;
   /** Native irsdk_TrackWetness category (0 unknown through 7 extremely wet). */
   trackWetness: number;
+  /** Pit-only tire channels have produced a complete four-corner snapshot. */
+  pitTireTemperatureAvailable?: boolean;
+  pitTireWearAvailable?: boolean;
   carName: string;
   carClassName: string;
   trackName: string;

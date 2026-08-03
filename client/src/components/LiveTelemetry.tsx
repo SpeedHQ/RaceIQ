@@ -1,3 +1,4 @@
+import { hasTireHealthData, hasTireTemperatureData, resolveAnalysisTelemetry } from "@shared/games/analysis-telemetry";
 import { getGame, tryGetGame } from "@shared/games/registry";
 import { WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
 import { useEffect, useRef, useState } from "react";
@@ -56,7 +57,22 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
   const throttlePct = (packet.Accel / 255) * 100;
   const brakePct = (packet.Brake / 255) * 100;
   const rpmPct = packet.EngineMaxRpm > 0 ? (packet.CurrentEngineRpm / packet.EngineMaxRpm) * 100 : 0;
-  const telemetryModel = getGame(packet.gameId).telemetry;
+  const adapter = getGame(packet.gameId);
+  const telemetryModel = adapter.telemetry;
+  const analysis = resolveAnalysisTelemetry(adapter);
+  const pitTemperature = analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "pit-snapshot";
+  const pitHealth = analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "pit-snapshot";
+  const temperatureAvailable = hasTireTemperatureData(packet, analysis.tireTemperature);
+  const healthAvailable = hasTireHealthData(packet, analysis.tireHealth);
+  const tireFreshnessNote =
+    pitTemperature && pitHealth
+      ? `${m.analyse_wheels_pit_temp()} · ${m.analyse_wheels_pit_health()}`
+      : pitTemperature
+        ? m.analyse_wheels_pit_temp()
+        : pitHealth
+          ? m.analyse_wheels_pit_health()
+          : undefined;
+  const showPerWheelSurface = analysis.surface.source !== "unavailable" && analysis.surface.display !== "vehicle";
   const hp = packet.Power / WATTS_PER_HORSEPOWER;
   const boostVal = packet.Boost;
 
@@ -90,13 +106,7 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
           const segPct = ((i + 1) / 30) * 100;
           const lit = rpmPct >= segPct;
           const color = segPct <= 60 ? "var(--rev-normal)" : segPct <= 80 ? "var(--rev-high)" : "var(--rev-limit)";
-          return (
-            <div
-              key={i}
-              className={`flex-1 h-4 rounded-sm ${lit && segPct > 90 ? "animate-pulse" : ""}`}
-              style={{ backgroundColor: color, opacity: lit ? 1 : 0.08 }}
-            />
-          );
+          return <div key={segPct} className={`flex-1 h-4 rounded-sm ${lit && segPct > 90 ? "animate-pulse" : ""}`} style={{ backgroundColor: color, opacity: lit ? 1 : 0.08 }} />;
         })}
       </div>
       <div className="flex justify-between text-app-micro text-app-text-dim font-mono tabular-nums">
@@ -120,6 +130,9 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
             rr={{ tempC: units.toTempC(packet.TireTempRR), wear: packet.TireWearRR }}
             healthThresholds={(gameId ? tryGetGame(gameId) : null)?.tireHealthThresholds ?? { green: 0.7, yellow: 0.4 }}
             tempThresholds={{ blue: 60, orange: 85, red: 100 }}
+            freshnessNote={tireFreshnessNote}
+            temperatureAvailable={temperatureAvailable}
+            healthAvailable={healthAvailable}
           />
         </div>
 
@@ -189,15 +202,19 @@ export function LiveTelemetry({ packet, mode = "driver" }: Props) {
       </div>
 
       {/* Surface conditions */}
-      <div className="px-3 py-2 border-b border-app-border/50">
-        <SurfaceConditions packet={packet} />
-      </div>
+      {showPerWheelSurface && (
+        <div className="px-3 py-2 border-b border-app-border/50">
+          <SurfaceConditions packet={packet} />
+        </div>
+      )}
 
       {/* Grip history */}
-      <div className="px-3 py-2 border-b border-app-border/50">
-        <div className="text-app-caption text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.live_grip()} (60s)</div>
-        <GripHistory packet={packet} />
-      </div>
+      {analysis.gripDemand.source !== "unavailable" && (
+        <div className="px-3 py-2 border-b border-app-border/50">
+          <div className="text-app-caption text-app-text-muted uppercase tracking-wider font-semibold mb-2">{m.live_grip()} (60s)</div>
+          <GripHistory packet={packet} />
+        </div>
+      )}
 
       {/* Telemetry charts */}
       <div className="px-3 py-2">

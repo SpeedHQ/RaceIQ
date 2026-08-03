@@ -10,9 +10,14 @@
 ### Fixes
 
 - Ignore one-frame iRacing lap-counter resets that created invalid duplicate lap numbers in session recaps
+- Honor Analyse and Compare URL state so saved chats open with their AI panel visible and comparison cursor links are preserved
+- Restore experiment version loading, editing, deletion, and recovery after the version API rename
 - Keep Analyse insight navigation aligned on desktop and move the timeline tracking bar when stepping through events
 - Do not report wheel lockups or brake traction loss for iRacing laps when source telemetry cannot identify them
 - Show fuel used in litres for iRacing, ACC, and Assetto Corsa Evo instead of treating litres as percentages
+- Hide unsupported telemetry channels and label iRacing pit snapshots instead of presenting normalized zeroes as live data
+- Resolve car and track names on the global home page in each lap's game context
+- Treat tracks without optional boundary geometry as available instead of failed requests
 - Open Analyse from home and session recaps without a full-page white flash
 - Keep Analyse responsive while loading and playing large laps or recovering from server disconnects
 - Prevent 2D and 3D Analyse playback from exhausting browser memory during telemetry updates
@@ -57,6 +62,7 @@
 - Preserve complete iRacing SessionInfo YAML in recordings while keeping historical captures replayable and telemetry deltas compact
 - Consolidated per-game car, track, and compare routes into shared dynamic game routes
 - Added a disposable development database seed from committed telemetry fixtures
+- Add fixture-seeded cross-game route and lap playback end-to-end coverage
 - Consolidated shared sessions, chats, analysis, driver, and experiment routes across all supported games
 - Tolerate sparse screenshot antialiasing differences while preserving substantial visual regression reporting
 - Centralized theme-overridable frontend colors, typography, tracking, surfaces, semantic states, telemetry, game branding, manufacturer, and team design tokens

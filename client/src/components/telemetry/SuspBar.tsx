@@ -38,10 +38,18 @@ function SuspBarCentered({ norm, thresholds, mmTravel }: { norm: number; thresho
     </div>
   );
 }
-
-export function SuspBar({ norm, thresholds, mmTravel }: { norm: number; thresholds: number[]; mmTravel?: number }) {
+/** Raw shock deflection without a source-defined normalized range. */
+function SuspBarAbsolute({ mmTravel }: { mmTravel: number }) {
+  return (
+    <div className="flex flex-col items-center gap-0.5">
+      <div className="w-4 h-16 rounded-sm border border-dashed border-app-border" />
+      <span className="text-app-caption font-mono text-app-text-muted tabular-nums w-10 text-center">{Math.round(mmTravel)}mm</span>
+    </div>
+  );
+}
+export function SuspBar({ norm, thresholds, mmTravel, mmMode = "centered" }: { norm: number; thresholds: number[]; mmTravel?: number; mmMode?: "centered" | "absolute" }) {
   if (mmTravel !== undefined) {
-    return <SuspBarCentered norm={norm} thresholds={thresholds} mmTravel={mmTravel} />;
+    return mmMode === "absolute" ? <SuspBarAbsolute mmTravel={mmTravel} /> : <SuspBarCentered norm={norm} thresholds={thresholds} mmTravel={mmTravel} />;
   }
   return <SuspBarStandard norm={norm} thresholds={thresholds} />;
 }

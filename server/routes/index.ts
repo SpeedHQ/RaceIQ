@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { errorLogger } from "../runtime/logger";
-import { IS_DEV } from "../runtime/config/env";
+import { IS_DEV, IS_E2E } from "../runtime/config/env";
 
 import { settingsRoutes } from "./settings-routes";
 import { lapRoutes } from "./laps";
@@ -55,8 +55,9 @@ const app = new Hono()
   .route("/", miscRoutes)
   .route("/", cacheRoutes);
 
-// Dev-only routes (only in development)
-if (IS_DEV) {
+// Fixture import/replay routes stay unavailable in normal production. Compiled
+// Playwright runs opt in explicitly so they exercise the packaged server too.
+if (IS_DEV || IS_E2E) {
   app.route("/", devRoutes);
 }
 

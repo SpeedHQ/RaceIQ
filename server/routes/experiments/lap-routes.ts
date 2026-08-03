@@ -80,12 +80,24 @@ export const experimentLapRoutes = new Hono()
       if (!session) return c.json({ error: "Tuning session not found" }, 404);
 
       const body = c.req.valid("json");
-
+      const importable = await getImportableLapsForExperiment(
+        session.gameId as GameId,
+        session.carOrdinal ?? null,
+        session.trackOrdinal ?? null,
+      );
+      const importableIds = new Set(importable.map((lap) => lap.id));
+      const invalidLapIds = body.lapIds.filter((lapId) => !importableIds.has(lapId));
+      if (invalidLapIds.length > 0) {
+        return c.json({ error: "One or more laps are not importable for this experiment", lapIds: invalidLapIds }, 409);
+      }
       if (session.gameId !== "f1-2025") {
         if (body.experimentVersionId != null) {
           const test = await getExperimentVersion(body.experimentVersionId);
           if (!test || test.experimentId !== id) {
             return c.json({ error: "Tuning test not found in this session" }, 404);
+          }
+          if (test.status === "deleted") {
+            return c.json({ error: "Cannot attach laps to a deleted version" }, 400);
           }
         }
 

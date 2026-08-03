@@ -145,6 +145,7 @@ export function AnalyseLapHeader({
                   onChange={(value) => onTuneChange(value ? Number.parseInt(value, 10) : null)}
                   options={availableTunes?.map((tune) => ({ value: String(tune.id), label: tune.name })) ?? []}
                   placeholder={m.analyse_no_tune()}
+                  ariaLabel={m.analyse_tune_label()}
                   disabled={tunePending}
                   className="min-w-[160px]"
                 />

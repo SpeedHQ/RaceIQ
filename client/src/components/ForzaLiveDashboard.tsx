@@ -25,6 +25,7 @@ function PageHeader({ dashMode, demo }: { dashMode: DashboardMode; demo: ReturnT
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             `${prefix}/live/driver` as any
           }
+          aria-current={dashMode === "driver" ? "page" : undefined}
           className={`text-app-caption font-semibold px-2 py-0.5 rounded transition-colors ${dashMode === "driver" ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text"}`}
         >
           {m.label_driver()}
@@ -34,6 +35,7 @@ function PageHeader({ dashMode, demo }: { dashMode: DashboardMode; demo: ReturnT
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             `${prefix}/live/pit` as any
           }
+          aria-current={dashMode === "pitcrew" ? "page" : undefined}
           className={`text-app-caption font-semibold px-2 py-0.5 rounded transition-colors ${dashMode === "pitcrew" ? "bg-app-accent/20 text-app-accent" : "text-app-text-muted hover:text-app-text"}`}
         >
           {m.label_pit_crew()}

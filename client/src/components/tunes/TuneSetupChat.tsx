@@ -23,7 +23,7 @@ import { ChatPanel } from "@/components/ai-chat/ChatPanel";
 async function fetchTuneChatHistory(sessionId: number, gen?: number): Promise<UIMessage[]> {
   const url = gen && gen > 1 ? `/api/experiments/${sessionId}/chat?gen=${gen}` : `/api/experiments/${sessionId}/chat`;
   const res = await fetch(url);
-  if (!res.ok) return [];
+  if (!res.ok) throw new Error(`Chat history failed (${res.status})`);
   const data = (await res.json()) as { messages?: UIMessage[] };
   const msgs = (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant");
 

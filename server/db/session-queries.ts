@@ -6,6 +6,8 @@ import { sessions, laps } from "./schema";
 import type { SessionMeta, GameId, TelemetryVersionIdentity } from "../../shared/types";
 import { tryGetGame } from "../../shared/games/registry";
 import { existsSync, unlinkSync } from "fs";
+import { relative, resolve, sep } from "path";
+import { resolveDataDir } from "../runtime/config/data-dir";
 import { getTrackLengthMeters } from "../../shared/track-data";
 import type { RecapLapInput, RecapSessionInput } from "../lap-analysis/recap";
 
@@ -112,18 +114,46 @@ export async function getUncompressedSessions(olderThanMs: number): Promise<{ id
     .all();
   return rows.filter((r): r is { id: number; rawFile: string } => r.rawFile !== null);
 }
+function isOwnedSessionRawFile(rawFile: string): boolean {
+  const sessionsDir = resolve(resolveDataDir(), "sessions");
+  const relativePath = relative(sessionsDir, resolve(rawFile));
+  return relativePath.length > 0 && relativePath !== ".." && !relativePath.startsWith(`..${sep}`);
+}
+
+async function unlinkOwnedSessionRawFile(rawFile: string | null): Promise<void> {
+  if (!rawFile || !isOwnedSessionRawFile(rawFile)) return;
+  const stillReferenced = await db
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(eq(sessions.rawFile, rawFile))
+    .limit(1)
+    .get();
+  if (stillReferenced) return;
+  try {
+    if (existsSync(rawFile)) unlinkSync(rawFile);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+}
+
 
 /**
  * Delete a session and all its laps. Returns number of laps deleted.
  */
 
 export async function deleteSession(sessionId: number): Promise<number> {
+  const session = await db
+    .select({ rawFile: sessions.rawFile })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId))
+    .get();
   const sessionLaps = await db.select({ id: laps.id }).from(laps).where(eq(laps.sessionId, sessionId)).all();
   let count = 0;
   for (const lap of sessionLaps) {
     if (await deleteLap(lap.id)) count++;
   }
   await db.delete(sessions).where(eq(sessions.id, sessionId)).run();
+  await unlinkOwnedSessionRawFile(session?.rawFile ?? null);
   return count;
 }
 

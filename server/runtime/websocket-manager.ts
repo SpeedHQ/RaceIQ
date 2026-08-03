@@ -131,6 +131,15 @@ class WebSocketManager {
     console.log(`[WS] Client disconnected. Active: ${this.clients.size}`
     );
   }
+  disconnectClients(code = 1012, reason = "Server restart simulation"): void {
+    for (const client of this.clients) {
+      try {
+        client.close(code, reason);
+      } catch {
+        this.clients.delete(client);
+      }
+    }
+  }
 
   getGripHistory(): GripHistoryData {
     return this.gripHistory;

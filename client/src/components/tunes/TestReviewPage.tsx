@@ -46,10 +46,19 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
   // Session no longer exists (deleted, or its row was lost in a DB reset while
   // its laps survived — see the orphaned-stamp sweep in server/db/index.ts).
   // Show a clean dead-end instead of a dashboard wired to a 404'ing session.
-  if (sessionMissing && !sessionLoading) {
+  if (sessionLoading) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 p-12 text-center">
-        <div className="text-lg font-semibold text-app-text">Experiment not found</div>
+        <div className="text-lg font-semibold text-app-text">Loading experiment review…</div>
+      </div>
+    );
+  }
+  if (sessionMissing || !session) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 p-12 text-center">
+        <div role="alert" className="text-lg font-semibold text-app-text">
+          Experiment not found
+        </div>
         <div className="text-sm text-app-text-muted max-w-md">
           This experiment (#{experimentId}) no longer exists — it may have been deleted, or removed when the database was reset. The laps it referenced may still be in your history.
         </div>

@@ -12,6 +12,8 @@ export const f1Adapter: GameAdapter = {
     brakeTemperature: { packetUnit: "celsius" },
     tirePressure: { packetUnit: "psi" },
     ers: true,
+    clutch: { source: "direct", freshness: "continuous" },
+    weather: { source: "direct", freshness: "continuous" },
     analysis: {
       surface: {
         source: "unavailable",

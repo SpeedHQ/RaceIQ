@@ -52,6 +52,57 @@ export interface ParsedFrames {
   trackName: string | null;
 }
 
+export interface TelemetryLapSegment {
+  readonly start: number;
+  readonly end: number;
+  readonly minLapTime: number;
+  readonly maxLapTime: number;
+  readonly lapNumber: number | undefined;
+}
+
+export function segmentTelemetryLaps(
+  packets: readonly TelemetryPacket[],
+): TelemetryLapSegment[] {
+  const segments: TelemetryLapSegment[] = [];
+  let start = 0;
+  let minLapTime = packets[0]?.CurrentLap ?? 0;
+  let maxLapTime = minLapTime;
+
+  const closeSegment = (end: number) => {
+    if (end > start) {
+      segments.push({
+        start,
+        end,
+        minLapTime,
+        maxLapTime,
+        lapNumber: packets[start]?.LapNumber,
+      });
+    }
+    start = end;
+    minLapTime = packets[end]?.CurrentLap ?? 0;
+    maxLapTime = minLapTime;
+  };
+
+  for (let index = 1; index < packets.length; index += 1) {
+    const previous = packets[index - 1];
+    const packet = packets[index];
+    const sessionChanged =
+      previous.sessionUID !== undefined &&
+      packet.sessionUID !== undefined &&
+      previous.sessionUID !== packet.sessionUID;
+    const boundary =
+      sessionChanged ||
+      previous.LapNumber !== packet.LapNumber ||
+      (previous.CurrentLap > 5 && packet.CurrentLap < 1) ||
+      previous.DistanceTraveled - packet.DistanceTraveled > 500;
+    if (boundary) closeSegment(index);
+    minLapTime = Math.min(minLapTime, packet.CurrentLap);
+    maxLapTime = Math.max(maxLapTime, packet.CurrentLap);
+  }
+  closeSegment(packets.length);
+  return segments;
+}
+
 /**
  * Read all packets from an ACC recording. Exported for reuse by parseDumpV2.
  */
@@ -269,17 +320,39 @@ export async function parseDump(
   // Extract raw packets from broadcast events (all packets that went through the pipeline)
   const rawPackets = ws.broadcastedPackets.map((e) => e.packet);
 
-  // Attach per-lap packets to each CapturedLap for test assertions
-  const lapPacketsByNumber = new Map<number, TelemetryPacket[]>();
-  for (const pkt of rawPackets) {
-    const n = pkt.LapNumber;
-    if (n !== undefined) {
-      if (!lapPacketsByNumber.has(n)) lapPacketsByNumber.set(n, []);
-      lapPacketsByNumber.get(n)!.push(pkt);
-    }
-  }
+  // Match each captured DB lap to one contiguous packet segment. Lap numbers
+  // restart across sessions, so grouping every packet by LapNumber mixes laps.
+  const lapSegments = segmentTelemetryLaps(rawPackets);
+  const unusedSegments = new Set(lapSegments.map((_, index) => index));
   for (const lap of db.laps) {
-    lap.packets = lapPacketsByNumber.get(lap.lapNumber) ?? [];
+    let bestIndex: number | undefined;
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (const index of unusedSegments) {
+      const segment = lapSegments[index];
+      const packetCount = segment.end - segment.start;
+      const lapNumberPenalty = segment.lapNumber === lap.lapNumber ? 0 : 10_000;
+      const lapTimeDelta = Math.abs(segment.maxLapTime - lap.lapTime);
+      const frameCountDelta = Math.abs(packetCount - lap.rawFrameCount);
+      const score = lapNumberPenalty + lapTimeDelta + frameCountDelta / 1_000_000;
+      if (score < bestScore) {
+        bestIndex = index;
+        bestScore = score;
+      }
+    }
+
+    if (bestIndex === undefined) {
+      lap.packets = [];
+      continue;
+    }
+    const segment = lapSegments[bestIndex];
+    if (Math.abs(segment.maxLapTime - lap.lapTime) > 2) {
+      lap.packets = [];
+      continue;
+    }
+    unusedSegments.delete(bestIndex);
+    const packetStart =
+      lap.rawFrameCount > 0 ? Math.max(segment.start, segment.end - lap.rawFrameCount) : segment.start;
+    lap.packets = rawPackets.slice(packetStart, segment.end);
   }
 
   return {

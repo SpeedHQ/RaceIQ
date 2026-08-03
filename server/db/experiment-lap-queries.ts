@@ -256,18 +256,15 @@ export async function importLapsToExperiment(
 }
 
 /**
- * Undo inverse for `importLapsToExperiment` (Phase 9): clear
- * `experimentId`/`experimentVersionId` on exactly the lap ids the import stamped,
- * returning them to the unstamped/importable pool. No existence guard needed
- * beyond the id list itself — these are always ids `recordAction` captured
- * from the import's own return value.
+ * Undo inverse for `importLapsToExperiment`: clear only rows that still belong
+ * to the same experiment. A stale undo must never clear a later reassignment.
  */
-
-export async function unstampLapsFromExperiment(lapIds: number[]): Promise<void> {
+export async function unstampLapsFromExperiment(experimentId: number, lapIds: number[]): Promise<void> {
   if (lapIds.length === 0) return;
   await db
     .update(laps)
     .set({ experimentId: null, experimentVersionId: null })
-    .where(inArray(laps.id, lapIds))
+    .where(and(inArray(laps.id, lapIds), eq(laps.experimentId, experimentId)))
     .run();
 }
+

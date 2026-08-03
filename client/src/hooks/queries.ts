@@ -1094,10 +1094,44 @@ export function useExperimentVersions(id: number | null | undefined) {
   return useQuery({
     queryKey: ["experiment-tests", id ?? null],
     queryFn: async () => {
-      const res = await (client.api as any).experiments[":id"].tests.$get({ param: { id: String(id!) } });
+      const res = await client.api.experiments[":id"].versions.$get({ param: { id: String(id!) }, query: {} });
       return rpcJson<ExperimentVersion[]>(res);
     },
     enabled: id != null,
+    staleTime: 5_000,
+  });
+}
+export interface ExperimentArmComparison {
+  metricId: string;
+  metricLabel: string;
+  unit: string;
+  direction: "lower-better" | "higher-better";
+  a: { label: string | null; n: number; mean: number | null; min: number | null; max: number | null };
+  b: { label: string | null; n: number; mean: number | null; min: number | null; max: number | null };
+  deltaMean: number | null;
+  ci: [number, number] | null;
+  ciReliable: boolean;
+  pValue: number | null;
+  pValueAdjusted?: number | null;
+  effectSize: number | null;
+  significance: "significant" | "not-significant" | "inconclusive";
+  underpowered: boolean;
+  favours: "a" | "b" | null;
+  reason: string | null;
+}
+
+/** Compare two persisted version arms. Disabled until both ids are selected. */
+export function useExperimentArmComparison(sessionId: number | null | undefined, a: number | null | undefined, b: number | null | undefined, metric: "lapTimeSec" = "lapTimeSec") {
+  return useQuery({
+    queryKey: ["experiment-arm-comparison", sessionId ?? null, a ?? null, b ?? null, metric],
+    queryFn: async () => {
+      const res = await client.api.experiments[":id"]["arm-comparison"].$get({
+        param: { id: String(sessionId!) },
+        query: { a: String(a!), b: String(b!), metric },
+      });
+      return rpcJson<ExperimentArmComparison>(res);
+    },
+    enabled: sessionId != null && a != null && b != null && a !== b,
     staleTime: 5_000,
   });
 }
@@ -1132,7 +1166,7 @@ export function useLineSpread(sessionId: number | null | undefined) {
   return useQuery({
     queryKey: ["experiment-line-spread", sessionId ?? null],
     queryFn: async () => {
-      const res = await (client.api as any).experiments[":id"]["line-spread"].$get({ param: { id: String(sessionId!) } });
+      const res = await client.api.experiments[":id"]["line-spread"].$get({ param: { id: String(sessionId!) } });
       return rpcJson<LineSpreadTrace>(res);
     },
     enabled: sessionId != null,
@@ -1155,9 +1189,9 @@ export function useCreateExperimentVersion() {
       driverComment?: string | null;
       engine?: "rules" | "llm" | null;
     }) => {
-      const res = await (client.api as any).experiments[":id"].tests.$post({ param: { id: String(sessionId) }, json: body });
+      const res = await client.api.experiments[":id"].versions.$post({ param: { id: String(sessionId) }, json: body });
       if (!res.ok) throw await errorFromResponse(res);
-      return (await res.json()) as ExperimentVersion;
+      return await res.json();
     },
     onSuccess: (t) => qc.invalidateQueries({ queryKey: ["experiment-tests", t.experimentId] }),
   });
@@ -1169,12 +1203,12 @@ export function useSetTestNote() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ sessionId, versionId, driverComment }: { sessionId: number; versionId: number; driverComment: string | null }) => {
-      const res = await (client.api as any).experiments[":id"].tests[":versionId"].$patch({
+      const res = await client.api.experiments[":id"].versions[":versionId"].$patch({
         param: { id: String(sessionId), versionId: String(versionId) },
         json: { driverComment },
       });
       if (!res.ok) throw await errorFromResponse(res);
-      return (await res.json()) as ExperimentVersion;
+      return await res.json();
     },
     onSuccess: (_t, { sessionId }) => {
       qc.invalidateQueries({ queryKey: ["experiment-tests", sessionId] });
@@ -1188,12 +1222,12 @@ export function useSetTestNotes() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ sessionId, versionId, notes }: { sessionId: number; versionId: number; notes: string | null }) => {
-      const res = await (client.api as any).experiments[":id"].tests[":versionId"].$patch({
+      const res = await client.api.experiments[":id"].versions[":versionId"].$patch({
         param: { id: String(sessionId), versionId: String(versionId) },
         json: { notes },
       });
       if (!res.ok) throw await errorFromResponse(res);
-      return (await res.json()) as ExperimentVersion;
+      return await res.json();
     },
     onSuccess: (_t, { sessionId }) => {
       qc.invalidateQueries({ queryKey: ["experiment-tests", sessionId] });
@@ -1323,7 +1357,7 @@ export function useDeletedExperimentVersions(id: number | null | undefined, enab
   return useQuery({
     queryKey: ["experiment-tests", id ?? null, "deleted"],
     queryFn: async () => {
-      const res = await (client.api as any).experiments[":id"].tests.$get({
+      const res = await client.api.experiments[":id"].versions.$get({
         param: { id: String(id!) },
         query: { includeDeleted: "1" },
       });
@@ -1341,11 +1375,11 @@ export function useDeleteVersion() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ sessionId, versionId }: { sessionId: number; versionId: number }) => {
-      const res = await (client.api as any).experiments[":id"].tests[":versionId"].delete.$post({
+      const res = await client.api.experiments[":id"].versions[":versionId"].delete.$post({
         param: { id: String(sessionId), versionId: String(versionId) },
       });
       if (!res.ok) throw await errorFromResponse(res);
-      return (await res.json()) as { ok: true; deletedIds: number[]; headVersionId: number | null };
+      return await res.json();
     },
     onSuccess: (_data, { sessionId }) => {
       qc.invalidateQueries({ queryKey: ["experiment", sessionId] });
@@ -1409,11 +1443,11 @@ export function useRestoreVersion() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ sessionId, versionId }: { sessionId: number; versionId: number }) => {
-      const res = await (client.api as any).experiments[":id"].tests[":versionId"].restore.$post({
+      const res = await client.api.experiments[":id"].versions[":versionId"].restore.$post({
         param: { id: String(sessionId), versionId: String(versionId) },
       });
       if (!res.ok) throw await errorFromResponse(res);
-      return (await res.json()) as ExperimentVersion;
+      return await res.json();
     },
     onSuccess: (_data, { sessionId }) => {
       qc.invalidateQueries({ queryKey: ["experiment", sessionId] });

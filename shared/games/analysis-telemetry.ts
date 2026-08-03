@@ -1,4 +1,6 @@
+import type { TelemetryPacket } from "../types";
 import type {
+  AnalysisTelemetryMetric,
   AnalysisTelemetryModel,
   GameAdapter,
 } from "./types";
@@ -45,4 +47,46 @@ export function resolveAnalysisTelemetry(
     ...DEFAULT_ANALYSIS_TELEMETRY,
     ...adapter?.telemetry.analysis,
   };
+}
+
+export function hasTireTemperatureData(
+  packet: TelemetryPacket,
+  metric: AnalysisTelemetryMetric,
+): boolean {
+  if (
+    metric.source !== "direct" ||
+    metric.freshness !== "pit-snapshot"
+  ) {
+    return metric.source !== "unavailable";
+  }
+  return (
+    packet.iracing?.pitTireTemperatureAvailable ??
+    [
+      packet.TireCarcassTempFL,
+      packet.TireCarcassTempFR,
+      packet.TireCarcassTempRL,
+      packet.TireCarcassTempRR,
+    ].some((value) => typeof value === "number" && value !== 0)
+  );
+}
+
+export function hasTireHealthData(
+  packet: TelemetryPacket,
+  metric: AnalysisTelemetryMetric,
+): boolean {
+  if (
+    metric.source !== "direct" ||
+    metric.freshness !== "pit-snapshot"
+  ) {
+    return metric.source !== "unavailable";
+  }
+  return (
+    packet.iracing?.pitTireWearAvailable ??
+    [
+      packet.TireWearFL,
+      packet.TireWearFR,
+      packet.TireWearRL,
+      packet.TireWearRR,
+    ].some((value) => value !== 0)
+  );
 }

@@ -7,6 +7,16 @@ export type AnalyseSearch = {
   lap?: number;
   cursor?: number;
   viz?: string;
+  ai?: number;
+};
+export type CompareSearch = {
+  track?: number;
+  carA?: number;
+  carB?: number;
+  lapA?: number;
+  lapB?: number;
+  cursor?: number;
+  ai?: number;
 };
 
 export type SessionsTab = "recorded" | "imported";
@@ -57,6 +67,19 @@ export function validateAnalyseSearch(search: Record<string, unknown>): AnalyseS
     lap: parseOptionalNumber(search.lap),
     cursor: parseOptionalNumber(search.cursor),
     viz: typeof search.viz === "string" ? search.viz : undefined,
+    ai: parseOptionalNumber(search.ai),
+  };
+}
+
+export function validateCompareSearch(search: Record<string, unknown>): CompareSearch {
+  return {
+    track: parseOptionalNumber(search.track),
+    carA: parseOptionalNumber(search.carA),
+    carB: parseOptionalNumber(search.carB),
+    lapA: parseOptionalNumber(search.lapA),
+    lapB: parseOptionalNumber(search.lapB),
+    cursor: parseOptionalNumber(search.cursor),
+    ai: parseOptionalNumber(search.ai),
   };
 }
 

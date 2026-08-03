@@ -20,6 +20,7 @@ import { useCookieState } from "../hooks/useCookieState";
 import { useLapPlayback } from "../hooks/useLapPlayback";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useUnits } from "../hooks/useUnits";
+import type { AnalyseSearch } from "../lib/game-routes";
 import { buildExportCsv } from "../lib/lap-export";
 import { client } from "../lib/rpc";
 import { m } from "../paraglide/messages";
@@ -58,7 +59,7 @@ export function LapAnalyse() {
 }
 
 function LapAnalyseInner() {
-  const search = useSearch({ strict: false }) as { track?: number; car?: number; lap?: number };
+  const search = useSearch({ strict: false }) as AnalyseSearch;
   const navigate = useNavigate();
   const units = useUnits();
   const gameId = useRequiredGameId();
@@ -71,7 +72,7 @@ function LapAnalyseInner() {
   const [selectedLapId, setSelectedLapId] = useState<number | null>(search.lap ?? null);
 
   // Fetch lap telemetry via TanStack Query
-  const { data: lapData, isLoading: lapLoading } = useLapTelemetry(selectedLapId);
+  const { data: lapData, isLoading: lapLoading, error: lapError } = useLapTelemetry(selectedLapId);
   const parseError = (lapData as { parseError?: string } | undefined)?.parseError;
   const telemetry = lapData?.telemetry ?? emptyTelemetry;
   const displayTelemetry = useConvertedTelemetry(telemetry);
@@ -130,14 +131,14 @@ function LapAnalyseInner() {
 
   const [carName, setCarName] = useState("");
   const [trackName, setTrackName] = useState("");
-  const initialCursor = (search as any).cursor as number | undefined;
+  const initialCursor = search.cursor;
   const [cursorIdx, setCursorIdx] = useState(0);
   // Visual time fraction override — set during scrubbing through gaps
   // null = use cursorIdx's time fraction, number = override position
   const [visualTimeFrac, setVisualTimeFrac] = useState<number | null>(null);
   const [sidebarTab, setSidebarTab] = useState<"live" | "insights">("live");
 
-  const vizParam = (search as any).viz as string | undefined;
+  const vizParam = search.viz;
   const [vizMode, setWheelTab] = useCookieState<"2d" | "3d">("analyse-vizMode", "2d");
   // URL ?viz= param overrides cookie on mount
   const appliedVizParam = useRef(false);
@@ -158,6 +159,9 @@ function LapAnalyseInner() {
   const loading = lapLoading;
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [aiPanelOpen, setAiPanelOpen] = useCookieState("analyse-aiPanel", false);
+  useEffect(() => {
+    if (search.ai === 1) setAiPanelOpen(true);
+  }, [search.ai, setAiPanelOpen]);
   const [aiHighlights, setAiHighlights] = useState<AnalysisHighlight[] | null>(null);
   const aiPanelRef = useRef<AiPanelHandle>(null);
   const [viewingTuneId, setViewingTuneId] = useState<number | null>(null);
@@ -670,9 +674,14 @@ function LapAnalyseInner() {
       {telemetry.length === 0 && (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-app-text-muted text-sm">
           {loading ? (
-            <span>{m.analyse_loading_telemetry()}</span>
+            <span role="status">{m.analyse_loading_telemetry()}</span>
+          ) : lapError ? (
+            <div role="alert" className="flex flex-col items-center gap-2 max-w-xl text-center">
+              <span className="text-status-danger font-medium">{m.common_error()}</span>
+              <code className="text-xs text-app-text-muted whitespace-pre-wrap break-words">{lapError instanceof Error ? lapError.message : String(lapError)}</code>
+            </div>
           ) : parseError ? (
-            <div className="flex flex-col items-center gap-2 max-w-xl text-center">
+            <div role="alert" className="flex flex-col items-center gap-2 max-w-xl text-center">
               <span className="text-status-danger font-medium">{m.analyse_parse_error()}</span>
               <code className="text-xs text-app-text-muted whitespace-pre-wrap break-words">{parseError}</code>
             </div>

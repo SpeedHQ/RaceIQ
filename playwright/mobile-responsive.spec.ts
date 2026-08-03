@@ -3,9 +3,8 @@ import { RESPONSIVE_INTERACTION_CASES, RESPONSIVE_PAGES, RESPONSIVE_VIEWPORTS } 
 
 // Responsive screenshot tests.
 //
-// Runs against the fresh-install webServer with isolated DATA_DIR. Screenshot
-// workflows load committed demo fixtures; ad-hoc unseeded runs retain their
-// smaller shell-only coverage.
+// Runs against seeded webServer with isolated DATA_DIR. Screenshot workflows
+// load committed demo fixtures and every route case is eligible.
 //
 // Inventory covers representative high-risk screens at phone, tablet boundary,
 // and desktop widths. Structural route reachability and extra breakpoint edges
@@ -14,7 +13,6 @@ import { RESPONSIVE_INTERACTION_CASES, RESPONSIVE_PAGES, RESPONSIVE_VIEWPORTS } 
 // Output: playwright/screenshots/mobile/<viewport>/<page>.png (gitignored).
 
 const SCREENSHOT_DIR = process.env.RACEIQ_SCREENSHOT_DIR ?? "./screenshots/mobile";
-const SEEDED_SCREENSHOTS = process.env.PW_SEED_SCREENSHOTS === "1";
 
 async function openSettings(page: Page, viewportWidth: number) {
   if (viewportWidth < 768) {
@@ -24,24 +22,12 @@ async function openSettings(page: Page, viewportWidth: number) {
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
 }
 
-if (!SEEDED_SCREENSHOTS) {
-  test.beforeAll(async ({ request }) => {
-    // Unseeded ad-hoc runs still need app chrome. Seeded runs already persist
-    // onboardingComplete and skip this shared write so tests can run parallel.
-    const res = await request.put("/api/settings", {
-      data: { onboardingComplete: true, driverName: "TestDriver" },
-    });
-    expect(res.ok()).toBeTruthy();
-  });
-}
-
 for (const viewport of RESPONSIVE_VIEWPORTS) {
   test.describe(`${viewport.name} ${viewport.width}x${viewport.height}`, () => {
     test.use({ viewport: { width: viewport.width, height: viewport.height } });
 
     for (const page of RESPONSIVE_PAGES) {
       if (page.viewports && !page.viewports.includes(viewport.name)) continue;
-      if (page.requiresSeed && !SEEDED_SCREENSHOTS) continue;
 
       test(page.name, async ({ page: p }) => {
         await p.goto(page.path, { waitUntil: "networkidle" });
@@ -49,10 +35,9 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
         if (page.readyText) {
           await expect(p.getByText(page.readyText, { exact: false }).first()).toBeVisible();
         }
-        if (page.seedReadyText && SEEDED_SCREENSHOTS) {
+        if (page.seedReadyText) {
           await expect(p.getByText(page.seedReadyText, { exact: false }).first()).toBeVisible();
         }
-        await p.waitForTimeout(500);
         await p.screenshot({
           path: `${SCREENSHOT_DIR}/${viewport.name}/${page.name}.png`,
           fullPage: true,
@@ -89,7 +74,6 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
           await p.getByRole("button", { name: "Export / Import" }).click();
           await expect(p.getByRole("menu")).toBeVisible();
         }
-        await p.waitForTimeout(200);
         await p.screenshot({
           path: `${SCREENSHOT_DIR}/${viewport.name}/${screenshotCase.name}.png`,
           fullPage: false,

@@ -164,12 +164,12 @@ export const trackGeometryRoutes = new Hono()
 
       // Shared TUMFTM boundaries only work for Forza (has calibration transforms).
       // F1/ACC use different coordinate spaces — shared data would be misaligned.
-      if (validGameId !== "fm-2023") return c.json({ error: "No boundary data available" }, 404);
+      if (validGameId !== "fm-2023") return c.json(null);
 
       // Fall back to shared TUMFTM boundaries (need coordinate transform)
       type SharedBoundary = { leftEdge: { x: number; z: number }[]; rightEdge: { x: number; z: number }[]; pitLane: { x: number; z: number }[] | null };
       const boundaries: SharedBoundary | null = sharedName ? loadSharedBoundary(sharedName) as SharedBoundary : null;
-      if (!boundaries) return c.json({ error: "No boundary data available" }, 404);
+      if (!boundaries) return c.json(null);
 
       // If we have a recorded Forza-coords outline AND a bundled TUMFTM outline,
       // compute static alignment so boundaries match without needing live driving.

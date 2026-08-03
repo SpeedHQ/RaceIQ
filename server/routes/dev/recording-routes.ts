@@ -40,6 +40,9 @@ recordingRoutes.get("/api/dev/e2e-svg/:recordingName", (c) => {
 
     try {
       const gameId = resolveRecordingGameId(recordingName);
+      if (!gameId) {
+        return c.json({ error: "Could not determine recording game" }, 400);
+      }
       let packets: Point2D[];
 
       if (gameId === "acc") {
@@ -55,7 +58,7 @@ recordingRoutes.get("/api/dev/e2e-svg/:recordingName", (c) => {
         }
         packets = parseAccRecordingPoints(frames);
       } else {
-        packets = parseUdpRecordingPoints(recordingPath.path);
+        packets = parseUdpRecordingPoints(gameId, recordingPath.path);
       }
 
       if (packets.length === 0) {
@@ -92,6 +95,9 @@ recordingRoutes.get("/api/dev/e2e-laps/:recordingName", async (c) => {
 
     try {
       const gameId = resolveRecordingGameId(recordingName);
+      if (!gameId) {
+        return c.json({ error: "Could not determine recording game" }, 400);
+      }
 
       if (gameId === "acc") {
         let frames: KunosRecordingFrame[];
@@ -107,7 +113,7 @@ recordingRoutes.get("/api/dev/e2e-laps/:recordingName", async (c) => {
         return c.json(parseAccRecordingLaps(frames));
       }
 
-      return c.json(parseUdpRecordingLaps(recordingPath.path));
+      return c.json(parseUdpRecordingLaps(gameId, recordingPath.path));
     } catch (e) {
       console.error("Failed to detect laps:", e);
       return c.json(
@@ -136,6 +142,9 @@ recordingPacketRoutes.get("/api/dev/e2e-packets/:recordingName", (c) => {
 
     try {
       const gameId = resolveRecordingGameId(recordingName);
+      if (!gameId) {
+        return c.json({ error: "Could not determine recording game" }, 400);
+      }
       let packets: Point3D[];
 
       if (gameId === "acc") {
@@ -152,7 +161,7 @@ recordingPacketRoutes.get("/api/dev/e2e-packets/:recordingName", (c) => {
         }
         packets = parseAccRecordingPacketsWithSpeed(frames);
       } else {
-        packets = parseUdpRecordingPacketsWithSpeed(recordingPath.path);
+        packets = parseUdpRecordingPacketsWithSpeed(gameId, recordingPath.path);
       }
 
       return c.json({

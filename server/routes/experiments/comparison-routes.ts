@@ -37,6 +37,7 @@ export const experimentComparisonRoutes = new Hono()
         const test = await getExperimentVersion(versionId);
         if (!test) return c.json({ error: `Tuning test ${versionId} not found` }, 404);
         if (test.experimentId !== id) return c.json({ error: `Tuning test ${versionId} is not in this session` }, 400);
+        if (test.status === "deleted") return c.json({ error: `Tuning test ${versionId} is deleted` }, 400);
       }
 
       const comparison = await loadArmComparison(id, a, b, metric);

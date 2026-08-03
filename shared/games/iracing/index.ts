@@ -43,6 +43,8 @@ export const iracingAdapter: GameAdapter = {
     fuel: { packetUnit: "litre" },
     tireTemperature: { packetUnit: "celsius" },
     tirePressure: { packetUnit: "psi" },
+    clutch: { source: "direct", freshness: "continuous" },
+    pitStatus: { source: "direct", freshness: "continuous" },
     // The live SDK has no per-wheel rotation, slip-angle, or tire-force
     // channels. Its four tire odometers are quantized in 100 m steps, so their
     // derivatives cannot supply live wheel speed or slip either.
