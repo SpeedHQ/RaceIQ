@@ -12,6 +12,7 @@
 - Ignore one-frame iRacing lap-counter resets that created invalid duplicate lap numbers in session recaps
 - Keep Analyse insight navigation aligned on desktop and move the timeline tracking bar when stepping through events
 - Do not report wheel lockups or brake traction loss for iRacing laps when source telemetry cannot identify them
+- Show fuel used in litres for iRacing, ACC, and Assetto Corsa Evo instead of treating litres as percentages
 - Open Analyse from home and session recaps without a full-page white flash
 - Keep Analyse responsive while loading and playing large laps or recovering from server disconnects
 - Prevent 2D and 3D Analyse playback from exhausting browser memory during telemetry updates

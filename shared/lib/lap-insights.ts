@@ -116,6 +116,7 @@ function detectSuspensionImbalance(telemetry: TelemetryPacket[]): LapInsight | n
 
 type TireTemperaturePacketUnit =
   TelemetryModel["tireTemperature"]["packetUnit"];
+type FuelPacketUnit = TelemetryModel["fuel"]["packetUnit"];
 
 function detectTireOverheat(
   telemetry: TelemetryPacket[],
@@ -501,19 +502,20 @@ function detectBinaryThrottle(telemetry: TelemetryPacket[]): LapInsight | null {
   };
 }
 
-function detectFuelConsumption(telemetry: TelemetryPacket[]): LapInsight | null {
+function detectFuelConsumption(telemetry: TelemetryPacket[], packetUnit: FuelPacketUnit): LapInsight | null {
   if (telemetry.length < 2) return null;
   const startFuel = telemetry[0].Fuel;
   const endFuel = telemetry[telemetry.length - 1].Fuel;
   const used = startFuel - endFuel;
   if (used <= 0) return null;
   const lapsRemaining = endFuel > 0 ? endFuel / used : Number.POSITIVE_INFINITY;
+  const usedLabel = packetUnit === "litre" ? `${used.toFixed(2)} L` : `${(used * 100).toFixed(1)}%`;
   return {
     id: "mech-fuel",
     category: "mechanical",
     severity: lapsRemaining < 3 ? "critical" : lapsRemaining < 5 ? "warning" : "info",
     label: "Fuel",
-    detail: `Used ${(used * 100).toFixed(1)}% — ~${lapsRemaining === Number.POSITIVE_INFINITY ? "∞" : lapsRemaining.toFixed(1)} laps remaining`,
+    detail: `Used ${usedLabel} — ~${lapsRemaining === Number.POSITIVE_INFINITY ? "∞" : lapsRemaining.toFixed(1)} laps remaining`,
     frameIndices: [telemetry.length - 1],
   };
 }
@@ -968,7 +970,7 @@ export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId): LapIns
   if (kerbs) insights.push(kerbs);
 
   // Mechanical
-  const fuel = detectFuelConsumption(telemetry);
+  const fuel = detectFuelConsumption(telemetry, game.telemetry.fuel.packetUnit);
   if (fuel) insights.push(fuel);
   const power = detectPeakPower(telemetry);
   if (power) insights.push(power);
