@@ -165,7 +165,7 @@ describe("native iRacing SDK decoding", () => {
     expect(iracingAdapter.nativeSectors).toBe(true);
     expect(iracingAdapter.authoritativeTrackLength).toBe(true);
     expect(iracingAdapter.appendsDelayedFinishFrame).toBe(false);
-    expect(LAP_DETECTOR_IRACING_ID).toBe("iracing_lapdetector_v2");
+    expect(LAP_DETECTOR_IRACING_ID).toBe("iracing_lapdetector_v3");
   });
 
   test("bounds native reads to the VirtualQuery region", () => {
@@ -1152,6 +1152,24 @@ describe("iRacing lap timing and native sectors", () => {
     await feed(packet(5, 1.8, 1.8, 33, 1.8 / 33));
 
     expect(db.laps.map((lap) => lap.lapNumber)).toEqual([1, 2, 4]);
+
+    // iRacing can emit one zeroed SDK frame after a session. It must not turn
+    // the following valid lap number into an invalid "0 → N" ghost lap.
+    await feed(packet(0, 0, 0, 33, 0));
+    await feed(packet(5, 2, 2, 33, 0.05));
+    expect(db.laps.map((lap) => lap.lapNumber)).toEqual([1, 2, 4]);
+
+    // A persistent unexpected transition still reaches the shared detector.
+    await feed(packet(2, 0, 0, 33, 0));
+    expect(detector.getDebugState()).toMatchObject({
+      iracingPhysicalLap: 5,
+      iracingPendingUnexpectedLap: 2,
+    });
+    await feed(packet(2, 0.1, 0.1, 33, 0.001));
+    expect(detector.getDebugState()).toMatchObject({
+      iracingPhysicalLap: 2,
+      iracingPendingUnexpectedLap: null,
+    });
     expect(db.laps[2].lapTime).toBe(33);
   });
 });

@@ -10,7 +10,7 @@ import type {
   LapDetectorOptions,
 } from "../../lap-detection/types";
 
-export const LAP_DETECTOR_IRACING_ID = "iracing_lapdetector_v2";
+export const LAP_DETECTOR_IRACING_ID = "iracing_lapdetector_v3";
 
 interface DeferredPacket {
   packet: TelemetryPacket;
@@ -35,6 +35,7 @@ export class LapDetectorIRacing implements ILapDetector {
   private physicalLap: number | null = null;
   private skipFirstCompletion = true;
   private deferred: DeferredPacket[] = [];
+  private pendingUnexpectedLap: DeferredPacket | null = null;
   private staleLastLap = 0;
   private peakNativeCurrentLap = 0;
   private lastActivePacketTime = 0;
@@ -67,6 +68,16 @@ export class LapDetectorIRacing implements ILapDetector {
       return;
     }
 
+    if (this.pendingUnexpectedLap) {
+      const pending = this.pendingUnexpectedLap;
+      this.pendingUnexpectedLap = null;
+      if (packet.LapNumber === pending.packet.LapNumber) {
+        await this.acceptUnexpectedLap(pending);
+      }
+      // If the source returned to the current lap, the pending packet was a
+      // one-frame SDK glitch. Drop it and process this packet normally.
+    }
+
     if (this.physicalLap === null) {
       this.physicalLap = packet.LapNumber;
       await this.detector.feed(packet, rawByteOffset);
@@ -87,12 +98,10 @@ export class LapDetectorIRacing implements ILapDetector {
     }
 
     if (packet.LapNumber !== this.physicalLap + 1) {
-      // Let the shared detector own restart/rewind/skip handling. Any deferred
-      // lap has no authoritative timing update and is deliberately discarded.
-      this.deferred = [];
-      this.physicalLap = packet.LapNumber;
-      this.skipFirstCompletion = true;
-      await this.detector.feed(packet, rawByteOffset);
+      // iRacing can publish one zeroed frame between otherwise contiguous
+      // packets. Require an unexpected lap transition to persist for two
+      // packets before handing restart/rewind/skip handling to the detector.
+      this.pendingUnexpectedLap = { packet, rawByteOffset };
       return;
     }
 
@@ -124,6 +133,7 @@ export class LapDetectorIRacing implements ILapDetector {
 
   async finalizeCurrentSession(): Promise<void> {
     this.deferred = [];
+    this.pendingUnexpectedLap = null;
     this.sessionKey = undefined;
     this.physicalLap = null;
     this.skipFirstCompletion = true;
@@ -139,6 +149,7 @@ export class LapDetectorIRacing implements ILapDetector {
       iracingPhysicalLap: this.physicalLap,
       iracingDeferredPackets: this.deferred.length,
       iracingWaitingForNativeTime: this.deferred.length > 0,
+      iracingPendingUnexpectedLap: this.pendingUnexpectedLap?.packet.LapNumber ?? null,
     };
   }
 
@@ -147,6 +158,7 @@ export class LapDetectorIRacing implements ILapDetector {
     this.physicalLap = packet.LapNumber;
     this.skipFirstCompletion = true;
     this.deferred = [];
+    this.pendingUnexpectedLap = null;
     this.staleLastLap = packet.LastLap;
     this.peakNativeCurrentLap = packet.iracing?.sdkCurrentLapTime ?? 0;
   }
@@ -184,5 +196,12 @@ export class LapDetectorIRacing implements ILapDetector {
     for (const entry of rest) {
       await this.detector.feed(entry.packet, entry.rawByteOffset);
     }
+  }
+
+  private async acceptUnexpectedLap(entry: DeferredPacket): Promise<void> {
+    this.deferred = [];
+    this.physicalLap = entry.packet.LapNumber;
+    this.skipFirstCompletion = true;
+    await this.detector.feed(entry.packet, entry.rawByteOffset);
   }
 }
