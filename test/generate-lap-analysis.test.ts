@@ -216,7 +216,7 @@ describe("generateLapAnalysis", () => {
   });
 });
 
-test("uses native sector layout for iRacing analysis context", async () => {
+test("uses every native sector in iRacing analysis context", async () => {
   let capturedSectors: unknown;
   const deps = Object.assign(makeDeps(), {
     getLapById: async () =>
@@ -237,10 +237,10 @@ test("uses native sector layout for iRacing analysis context", async () => {
       getNativeSectorLayout: (packet: TelemetryPacket) => packet.iracing,
     }),
     computeNativeSectorTimeline: () => ({
-      sectorCount: 3,
-      times: [10, 11, 12],
-      boundaryIndices: [20, 40],
-      sectorStarts: [0, 0.34, 0.67],
+      sectorCount: 6,
+      times: [10, 11, 12, 13, 14, 15],
+      boundaryIndices: [10, 20, 30, 40, 50],
+      sectorStarts: [0, 0.17, 0.34, 0.51, 0.68, 0.84],
     }),
     resolveTrack: () => ({ segments: [], sectors: {} }),
     buildAnalystPrompt: (
@@ -263,8 +263,7 @@ test("uses native sector layout for iRacing analysis context", async () => {
   await generateLapAnalysis(7, { regenerate: true }, deps);
 
   expect(capturedSectors).toEqual({
-    times: { s1: 10, s2: 11, s3: 12 },
-    s1End: 0.34,
-    s2End: 0.67,
+    times: [10, 11, 12, 13, 14, 15],
+    sectorStarts: [0, 0.17, 0.34, 0.51, 0.68, 0.84],
   });
 });

@@ -42,9 +42,8 @@ export interface PromptSegment {
 
 /** A lap's sector times, seconds. */
 export interface PromptSectors {
-  s1: number;
-  s2: number;
-  s3: number;
+  times: number[];
+  sectorStarts: number[];
 }
 
 /**
@@ -155,7 +154,7 @@ export function buildAnalystPrompt(
   /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
   language: string = "en",
   /** This lap's sector times, with the boundaries they were split on. */
-  sectors?: { times: PromptSectors; s1End: number; s2End: number },
+  sectors?: PromptSectors,
 ): string {
   const carName = getCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0);
   const trackName = getTrackName(lap.trackOrdinal ?? 0);
@@ -211,30 +210,34 @@ export function buildAnalystPrompt(
     segmentsList += "\n";
   }
 
-  // Sector times, split on this game's curated boundaries. Without the
-  // boundaries the model can't tell which corners a slow sector covers.
+  // Sector times, split on this game's curated or native boundaries.
   let sectorsText = "";
   if (sectors) {
-    const { times, s1End, s2End } = sectors;
+    const { times, sectorStarts } = sectors;
     const all = segments ?? [];
     const sectorLabels = segmentPromptLabels(all);
-    const inSector = (n: 1 | 2 | 3) =>
+    const inSector = (n: number) =>
       all
         .map((s, i) => ({ s, label: sectorLabels[i] }))
         .filter(({ s, label }) => {
           if (s.type !== "corner" || !label) return false;
           const mid = (s.startFrac + s.endFrac) / 2;
-          return n === 1 ? mid < s1End : n === 2 ? mid >= s1End && mid < s2End : mid >= s2End;
+          const start = sectorStarts[n - 1] ?? 0;
+          const end = sectorStarts[n] ?? 1;
+          return mid >= start && mid < end;
         })
         .map(({ label }) => label)
         .join(", ");
     sectorsText = "\n--- Sector Times ---\n";
-    for (const n of [1, 2, 3] as const) {
-      const t = n === 1 ? times.s1 : n === 2 ? times.s2 : times.s3;
+    times.forEach((t, index) => {
+      const n = index + 1;
       const covers = inSector(n);
       sectorsText += `S${n}: ${t.toFixed(3)}s${covers ? ` — covers ${covers}` : ""}\n`;
-    }
-    sectorsText += `Boundaries: S1 ends at ${(s1End * 100).toFixed(1)}% of the lap, S2 at ${(s2End * 100).toFixed(1)}%.\n`;
+    });
+    const boundaries = sectorStarts.slice(1).map(
+      (start, index) => `S${index + 1} ends at ${(start * 100).toFixed(1)}%`,
+    );
+    sectorsText += `Boundaries: ${boundaries.join(", ")} of the lap.\n`;
   }
 
   const gameId: GameId = lap.gameId ?? packets[0]?.gameId;

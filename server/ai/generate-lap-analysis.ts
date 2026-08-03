@@ -8,7 +8,7 @@ import {
 import { getTuneById as getDbTune } from "../db/tune-queries";
 import { detectCorners, type Corner } from "../corner-detection";
 import { loadSettings } from "../settings";
-import { buildAnalystPrompt } from "./analyst-prompt";
+import { buildAnalystPrompt, type PromptSectors } from "./analyst-prompt";
 import { resolveTrack } from "../track-info";
 import {
   computeNativeSectorTimeline,
@@ -180,28 +180,17 @@ export async function generateLapAnalysis(
     lap.gameId,
     lap.trackOrdinal,
   );
-  let sectors:
-    | {
-        times: { s1: number; s2: number; s3: number };
-        s1End: number;
-        s2End: number;
-      }
-    | undefined;
+  let sectors: PromptSectors | undefined;
   try {
     const game = lap.gameId ? (deps.getGame ?? getGame)(lap.gameId) : undefined;
     if (game?.nativeSectors && game.getNativeSectorLayout) {
       const timeline = (
         deps.computeNativeSectorTimeline ?? computeNativeSectorTimeline
       )(lap.telemetry, lap.lapTime, game.getNativeSectorLayout);
-      if (timeline && timeline.times.length >= 3) {
+      if (timeline && timeline.times.length >= 2) {
         sectors = {
-          times: {
-            s1: timeline.times[0],
-            s2: timeline.times[1],
-            s3: timeline.times[2],
-          },
-          s1End: timeline.sectorStarts[1],
-          s2End: timeline.sectorStarts[2],
+          times: timeline.times,
+          sectorStarts: timeline.sectorStarts,
         };
       }
     } else if (
@@ -218,9 +207,8 @@ export async function generateLapAnalysis(
       );
       if (times && times.length >= 3) {
         sectors = {
-          times: { s1: times[0], s2: times[1], s3: times[2] },
-          s1End: track.sectors.s1End,
-          s2End: track.sectors.s2End,
+          times,
+          sectorStarts: [0, track.sectors.s1End, track.sectors.s2End],
         };
       }
     }

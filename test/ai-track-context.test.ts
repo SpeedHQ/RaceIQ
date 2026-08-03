@@ -111,7 +111,7 @@ describe("analyst prompt carries the curated track data", () => {
     track.segments,
     undefined,
     "en",
-    { times: { s1: 30.1, s2: 42.4, s3: 32.0 }, s1End: track.sectors.s1End, s2End: track.sectors.s2End },
+    { times: [30.1, 42.4, 32.0], sectorStarts: [0, track.sectors.s1End, track.sectors.s2End] },
   );
 
   test("segment list labels corners with their turn numbers", () => {
@@ -156,4 +156,31 @@ describe("analyst prompt carries the curated track data", () => {
     expect(noSectors).not.toContain("--- Sector Times");
     expect(noSectors).toContain("--- Track Segments");
   });
+});
+
+test("analyst prompt preserves arbitrary native sector times and boundaries", () => {
+  const ord = ordinalFor("f1-2025", "spa")!;
+  const track = resolveTrack("f1-2025", ord);
+  const prompt = buildAnalystPrompt(
+    { lapNumber: 1, lapTime: 104.5, isValid: true, carOrdinal: 1, trackOrdinal: ord, gameId: "f1-2025" },
+    lapPackets("f1-2025"),
+    [],
+    "metric",
+    "C",
+    undefined,
+    track.segments,
+    undefined,
+    "en",
+    {
+      times: [17.1, 18.2, 19.3, 20.4, 21.5, 22.6],
+      sectorStarts: [0, 0.17, 0.34, 0.51, 0.68, 0.84],
+    },
+  );
+  const block = prompt.slice(prompt.indexOf("--- Sector Times"), prompt.indexOf("--- Valid Corner Labels"));
+  for (const [index, time] of [17.1, 18.2, 19.3, 20.4, 21.5, 22.6].entries()) {
+    expect(block).toContain(`S${index + 1}: ${time.toFixed(3)}s`);
+  }
+  for (const boundary of [17, 34, 51, 68, 84]) {
+    expect(block).toContain(`${boundary.toFixed(1)}%`);
+  }
 });
