@@ -137,3 +137,24 @@ describe("analyzeLap wheel-state capabilities", () => {
     expect(find(insights, "driving-brake-traction-loss")).toBeUndefined();
   });
 });
+
+describe("analyzeLap fuel units", () => {
+  function fuelLap(startFuel: number, endFuel: number): TelemetryPacket[] {
+    const telemetry = lap([{ n: 10, a: 0, accel: 128 }]);
+    telemetry[0].Fuel = startFuel;
+    telemetry[telemetry.length - 1].Fuel = endFuel;
+    return telemetry;
+  }
+
+  test("reports litre-based iRacing consumption in litres", () => {
+    const fuel = find(analyzeLap(fuelLap(40, 38.5), "iracing"), "mech-fuel");
+
+    expect(fuel?.detail).toBe("Used 1.50 L — ~25.7 laps remaining");
+  });
+
+  test("retains percentage consumption for fractional-fuel games", () => {
+    const fuel = find(analyzeLap(fuelLap(0.8, 0.75), "fm-2023"), "mech-fuel");
+
+    expect(fuel?.detail).toBe("Used 5.0% — ~15.0 laps remaining");
+  });
+});
