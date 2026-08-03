@@ -12,6 +12,7 @@ import type { TelemetryPacket } from "../shared/telemetry/types";
 initGameAdapters();
 
 type ScalarMetric = "boost" | "power" | "torque";
+type SourceChannel = "clutch" | "handBrake" | "weather" | "pitStatus";
 
 const adapterCases: Array<{
   gameId: GameId;
@@ -21,6 +22,7 @@ const adapterCases: Array<{
   brakeTemperature: boolean;
   tirePressure: boolean;
   ers: boolean;
+  sourceChannels: SourceChannel[];
 }> = [
   {
     gameId: "fm-2023",
@@ -30,6 +32,7 @@ const adapterCases: Array<{
     brakeTemperature: false,
     tirePressure: false,
     ers: false,
+    sourceChannels: ["clutch", "handBrake"],
   },
   {
     gameId: "f1-2025",
@@ -39,6 +42,7 @@ const adapterCases: Array<{
     brakeTemperature: true,
     tirePressure: true,
     ers: true,
+    sourceChannels: ["clutch", "weather"],
   },
   {
     gameId: "acc",
@@ -48,6 +52,7 @@ const adapterCases: Array<{
     brakeTemperature: true,
     tirePressure: true,
     ers: false,
+    sourceChannels: ["pitStatus"],
   },
   {
     gameId: "ac-evo",
@@ -57,6 +62,7 @@ const adapterCases: Array<{
     brakeTemperature: true,
     tirePressure: true,
     ers: false,
+    sourceChannels: ["weather", "pitStatus"],
   },
   {
     gameId: "iracing",
@@ -66,6 +72,7 @@ const adapterCases: Array<{
     brakeTemperature: false,
     tirePressure: true,
     ers: false,
+    sourceChannels: ["clutch", "pitStatus"],
   },
 ];
 
@@ -90,6 +97,10 @@ describe("game telemetry models", () => {
         ["boost", "power", "torque"] as const
       ).filter((metric) => model[metric] !== undefined);
       expect(supportedScalars).toEqual(expected.scalarMetrics);
+      const supportedSourceChannels = (
+        ["clutch", "handBrake", "weather", "pitStatus"] as const
+      ).filter((channel) => model[channel] !== undefined);
+      expect(supportedSourceChannels).toEqual(expected.sourceChannels);
     });
 
     test(`${expected.gameId} capability presence is independent of a zero value`, () => {
@@ -114,6 +125,18 @@ describe("game telemetry models", () => {
       expect(visibleZeroMetrics).toEqual(expected.scalarMetrics);
     });
   }
+  test("weather freshness distinguishes real zeroes from normalized placeholders", () => {
+    expect(getGame("f1-2025").telemetry.weather).toEqual({
+      source: "direct",
+      freshness: "continuous",
+    });
+    expect(getGame("ac-evo").telemetry.weather).toEqual({
+      source: "direct",
+      freshness: "static",
+    });
+    expect(getGame("acc").telemetry.weather).toBeUndefined();
+    expect(getGame("iracing").telemetry.weather).toBeUndefined();
+  });
 });
 
 describe("telemetry interpretation helpers", () => {

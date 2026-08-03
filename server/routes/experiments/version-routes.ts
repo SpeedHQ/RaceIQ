@@ -50,7 +50,7 @@ const AddBaseSchema = z.object({
 
 /** `?includeDeleted=1` escape hatch (design Phase 8) — everywhere else the
 
- *  `/tests` list stays trash-free by default. */
+ *  `/versions` list stays trash-free by default. */
 const IncludeDeletedQuerySchema = z.object({
   includeDeleted: z.string().optional(),
 });
@@ -374,11 +374,14 @@ export const experimentHeadRoutes = new Hono()
     if (!test || test.experimentId !== id) {
       return c.json({ error: "Version not found in this session" }, 404);
     }
+    if (test.status === "deleted") {
+      return c.json({ error: "Cannot checkout a deleted version" }, 400);
+    }
 
     const session = await getExperiment(id);
-    const prevHeadTestId = session?.headVersionId ?? null;
+    if (!session) return c.json({ error: "Tuning session not found" }, 404);
+    const prevHeadTestId = session.headVersionId ?? null;
     await setSessionHead(id, versionId);
-
     try {
       await recordAction(id, "set-head", { prevHeadTestId });
     } catch (err: any) {

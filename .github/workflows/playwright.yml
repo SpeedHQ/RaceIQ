@@ -3,40 +3,69 @@ name: Playwright E2E
 on:
   workflow_call:
     inputs:
-      dist-artifact:
-        description: "Artifact name containing the prebuilt dist/ (raceiq.exe + libsql + public)"
-        required: true
+      server-mode:
+        description: "Playwright server mode: dev or compiled"
+        required: false
         type: string
+        default: compiled
+      runs-on:
+        description: "Runner label; Windows is required for compiled native binary"
+        required: false
+        type: string
+        default: blacksmith-4vcpu-windows-2025
+      projects:
+        description: "Playwright project flags, passed unchanged to the gate"
+        required: false
+        type: string
+        default: "--project=fresh-install --project=tunes --project=seeded-e2e --project=mobile-device --project=tablet-device"
+      dist-artifact:
+        description: "Optional prebuilt dist artifact for compiled-server gate"
+        required: false
+        type: string
+        default: ""
+      artifact-name:
+        description: "Trace and test-result artifact name"
+        required: false
+        type: string
+        default: playwright-results
 
 jobs:
-  fresh-install:
-    runs-on: blacksmith-4vcpu-windows-2025
+  playwright:
+    runs-on: ${{ inputs.runs-on }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
 
       - name: Download dist artifact
+        if: inputs.dist-artifact != ''
         uses: actions/download-artifact@v4
         with:
           name: ${{ inputs.dist-artifact }}
           path: dist
 
-      - name: Install workspace deps (installs playwright workspace too)
-        run: bun install
+      - name: Install workspace dependencies
+        run: bun install --frozen-lockfile
 
       - name: Install Chromium
         working-directory: playwright
         run: bunx playwright install chromium
 
-      - name: Run fresh-install + tunes E2E tests
+      - name: Run Playwright gate
         working-directory: playwright
-        run: bunx playwright test --project=fresh-install --project=tunes
+        env:
+          E2E_SERVER_MODE: ${{ inputs.server-mode }}
+        run: bunx playwright test ${{ inputs.projects }}
 
-      - name: Upload traces on failure
-        if: failure()
+      - name: Upload Playwright artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-traces
-          path: playwright/test-results/
+          name: ${{ inputs.artifact-name }}
+          path: |
+            playwright/test-results/
+            playwright/screenshots/
+          if-no-files-found: ignore
           retention-days: 7

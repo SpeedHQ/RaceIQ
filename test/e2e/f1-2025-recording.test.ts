@@ -15,14 +15,11 @@ function getRecording(filename: string): string | null {
 
 describe("F1-2025 recording", () => {
   describe("f1-2025-2026-04-09T21-34-10-190Z", () => {
-    const recordingFile = "f1-2025-2026-04-09T21-34-10-190Z.bin";
+    const recordingFile = "f1-2025-2026-04-09T21-34-10-190Z.bin.gz";
 
     test("detects laps correctly", { timeout: 120000 }, async () => {
       const recording = getRecording(recordingFile);
-      if (!recording) {
-        console.log(`Recording not found: ${recordingFile}`);
-        return;
-      }
+      if (!recording) throw new Error(`Required recording not found: ${recordingFile}`);
 
       console.log(`Using: ${recording}`);
       const { laps, sessions, carModel, trackName, wsNotifications } = await parseDump("f1-2025", recording);
@@ -42,8 +39,8 @@ describe("F1-2025 recording", () => {
       // (they're always null in parseDump for non-ACC games)
       console.log(`Car: ${carModel}, Track: ${trackName}`);
 
-      // At least one lap should be detected (may have incomplete/invalid laps)
-      expect(laps.length).toBeGreaterThanOrEqual(0);
+      // Committed fixture must produce at least one lap; zero laps is a failed pipeline.
+      expect(laps.length).toBeGreaterThan(0);
 
       // Check WebSocket notifications exist for completed laps
       const lapSavedNotifications = wsNotifications.filter(

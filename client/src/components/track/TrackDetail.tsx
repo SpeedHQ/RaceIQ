@@ -1666,7 +1666,7 @@ export function TrackDetail({
                                       return filteredLaps.map((lap) => {
                                         const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false;
                                         return (
-                                          <TRow key={lap.lapId} selected={selectedLaps.has(lap.lapId)}>
+                                          <TRow key={lap.lapId} data-testid={`track-lap-${lap.lapId}`} selected={selectedLaps.has(lap.lapId)}>
                                             <TD>
                                               <input type="checkbox" checked={selectedLaps.has(lap.lapId)} onChange={() => toggleLapSelect(lap.lapId)} className="accent-app-accent" />
                                             </TD>

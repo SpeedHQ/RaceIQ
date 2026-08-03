@@ -9,19 +9,28 @@ export function AboutSection() {
     updateAvailable: boolean;
     checked: boolean;
   } | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     client.api.version
       .$get()
-      .then((r) => r.json())
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`version request failed: ${response.status}`);
+        return response.json();
+      })
       .then(setVersionInfo)
-      .catch(() => {});
+      .catch(() => setLoadError(true));
   }, []);
 
   return (
     <section className="space-y-6">
       <div>
         <h2 className="text-sm font-semibold text-app-text mb-4">{m.label_about()}</h2>
+        {loadError && (
+          <p className="text-sm text-status-danger" role="alert">
+            {m.update_failed()}
+          </p>
+        )}
         <div className="space-y-3">
           <div className="flex items-center justify-between py-2 border-b border-app-border">
             <span className="text-sm text-app-text-secondary">{m.about_version()}</span>

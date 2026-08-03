@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { collectBrowserErrors } from "../seeded-e2e-helpers";
 import { completeOnboarding, resetTunes } from "./helpers";
 
 // ACC's setup JSON is arbitrary (server does not validate its internal shape),
@@ -10,8 +11,12 @@ test.describe("ACC tunes", () => {
     await completeOnboarding(page);
     await resetTunes(page);
   });
+  test.afterEach(async ({ page }) => {
+    await resetTunes(page);
+  });
 
   test("create via form, see covered sections, duplicate, delete", async ({ page }) => {
+    const browserErrors = collectBrowserErrors(page);
     // /acc/setups is now the community-setups browser (no "+ New tune" button
     // there). Navigate directly to the user-tune create form and verify the
     // create → duplicate → delete cycle via the API, which is what the UI
@@ -70,13 +75,16 @@ test.describe("ACC tunes", () => {
     const finalList = await page.request.get("/api/tunes?gameId=acc");
     const remaining = (await finalList.json()) as { name: string }[];
     expect(remaining.map((t) => t.name)).not.toContain("E2E ACC Tune (copy)");
+    expect(browserErrors.errors, "unexpected browser errors in ACC tune form").toEqual([]);
   });
 
   test("import page renders empty state when Documents folder absent", async ({ page }) => {
+    const browserErrors = collectBrowserErrors(page);
     await page.goto("/acc/setups/import");
     // Test DB has no mocked Documents folder — we expect the "not found" UI.
     await expect(page.getByText(/could not find your acc setups folder/i)).toBeVisible({
       timeout: 10_000,
     });
+    expect(browserErrors.errors, "unexpected browser errors in ACC import page").toEqual([]);
   });
 });

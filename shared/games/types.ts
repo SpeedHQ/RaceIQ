@@ -48,6 +48,12 @@ export interface ScalarTelemetrySpec<
 > {
   packetUnit: Unit;
 }
+/** Presence declares a channel whose values originate in the game source. */
+export interface TelemetryChannelSpec {
+  source: "direct";
+  freshness: "continuous" | "pit-snapshot" | "static";
+}
+
 
 export interface TelemetryModel {
   fuel: ScalarTelemetrySpec<"fraction" | "litre">;
@@ -58,6 +64,10 @@ export interface TelemetryModel {
   brakeTemperature?: ScalarTelemetrySpec<"celsius" | "fahrenheit">;
   tirePressure?: ScalarTelemetrySpec<"psi">;
   ers?: true;
+  clutch?: TelemetryChannelSpec;
+  handBrake?: TelemetryChannelSpec;
+  weather?: TelemetryChannelSpec;
+  pitStatus?: TelemetryChannelSpec;
 
   /**
    * Analysis-panel semantics. Omitted fields inherit the current cross-game

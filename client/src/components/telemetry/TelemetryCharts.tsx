@@ -1,3 +1,5 @@
+import { getGame } from "@shared/games/registry";
+import { resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
 import { useEffect, useRef, useState } from "react";
 import type { DisplayPacket } from "@/lib/convert-packet";
 import { client } from "@/lib/rpc";
@@ -11,6 +13,13 @@ import { DualLineChart, FourLineChart, SingleLineChart } from "./MiniCharts";
  * Converts raw telemetry units (rad->deg, m/s->mph, 0-255->0-100%) for display.
  */
 export function TelemetryCharts({ packet }: { packet: DisplayPacket }) {
+  const analysis = resolveAnalysisTelemetry(getGame(packet.gameId));
+  const showGrip = analysis.gripDemand.source !== "unavailable";
+  const showTemperature = analysis.tireTemperature.source === "direct" && analysis.tireTemperature.freshness === "continuous";
+  const showWear = analysis.tireHealth.source === "direct" && analysis.tireHealth.freshness === "continuous";
+  const showSlipAngle = analysis.slipAngle.source !== "unavailable";
+  const showSlipRatio = analysis.slipRatio.source !== "unavailable";
+  const showNormalizedSuspension = analysis.suspensionTravel.source !== "unavailable" && analysis.suspensionTravel.display !== "millimeters";
   const histRef = useRef<{
     grip: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
     temp: { fl: number[]; fr: number[]; rl: number[]; rr: number[] };
@@ -99,12 +108,12 @@ export function TelemetryCharts({ packet }: { packet: DisplayPacket }) {
 
   return (
     <div className="grid gap-2">
-      <FourLineChart data={chartData.grip} label="Combined Slip" maxY={3} />
-      <FourLineChart data={chartData.temp} label="Tire Temp" unit="°" />
-      <FourLineChart data={chartData.wear} label="Tire Wear" maxY={1} />
-      <FourLineChart data={chartData.slipAngle} label="Slip Angle" unit="°" />
-      <FourLineChart data={chartData.slipRatio} label="Slip Ratio" />
-      <FourLineChart data={chartData.suspension} label="Suspension" maxY={1} />
+      {showGrip && <FourLineChart data={chartData.grip} label="Combined Slip" maxY={3} />}
+      {showTemperature && <FourLineChart data={chartData.temp} label="Tire Temp" unit="°" />}
+      {showWear && <FourLineChart data={chartData.wear} label="Tire Wear" maxY={1} />}
+      {showSlipAngle && <FourLineChart data={chartData.slipAngle} label="Slip Angle" unit="°" />}
+      {showSlipRatio && <FourLineChart data={chartData.slipRatio} label="Slip Ratio" />}
+      {showNormalizedSuspension && <FourLineChart data={chartData.suspension} label="Suspension" maxY={1} />}
       <SingleLineChart data={chartData.speed} label="Speed" color="var(--app-accent)" />
       <DualLineChart data1={chartData.throttle} data2={chartData.brake} label1="Throttle" label2="Brake" color1="var(--ch-throttle)" color2="var(--ch-brake)" label="Throttle / Brake" maxY={100} />
     </div>

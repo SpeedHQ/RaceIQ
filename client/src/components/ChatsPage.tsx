@@ -87,10 +87,11 @@ export function ChatsPage() {
   const handleDelete = useCallback(async (threadId: string) => {
     if (!confirm(m.chats_delete_confirm())) return;
     try {
-      await fetch(`/api/chats/${encodeURIComponent(threadId)}`, { method: "DELETE" });
+      const response = await fetch(`/api/chats/${encodeURIComponent(threadId)}`, { method: "DELETE" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       setRows((prev) => prev.filter((r) => r.threadId !== threadId));
-    } catch {
-      /* ignore */
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : m.chats_load_failed());
     }
   }, []);
 
@@ -159,7 +160,7 @@ export function ChatsPage() {
             </TableHeader>
             <TableBody>
               {rows.map((row) => (
-                <TableRow key={row.threadId}>
+                <TableRow key={row.threadId} data-testid={`chat-row-${row.threadId}`}>
                   <TableCell>
                     <span
                       className={`text-app-caption font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded ${

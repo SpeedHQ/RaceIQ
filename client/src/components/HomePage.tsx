@@ -33,14 +33,32 @@ function RecentLapsTable({
   trackNames,
   gameId,
   onAnalyseLap,
+  loading = false,
+  error = false,
 }: {
   laps: LapMeta[];
-  carNames: Record<number, string>;
-  trackNames: Record<number, string>;
+  carNames: Record<string, string>;
+  trackNames: Record<string, string>;
   gameId: string | null;
   onAnalyseLap: (lap: LapMeta) => void;
+  loading?: boolean;
+  error?: boolean;
 }) {
   const showGame = !gameId; // show game column on global homepage
+  if (loading) {
+    return (
+      <div role="status" className="p-6 text-center text-app-text/90">
+        {m.common_loading()}
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div role="alert" className="p-6 text-center text-status-danger">
+        {m.common_error()}
+      </div>
+    );
+  }
   if (laps.length === 0) {
     return <div className="p-6 text-center text-app-text/90">{m.home_no_laps()}</div>;
   }
@@ -57,8 +75,8 @@ function RecentLapsTable({
       </THead>
       <TBody>
         {laps.map((lap) => {
-          const track = lap.trackOrdinal != null ? (trackNames[lap.trackOrdinal] ?? "") : "";
-          const car = lap.carOrdinal != null ? (carNames[lap.carOrdinal] ?? "") : "";
+          const track = lap.trackOrdinal != null ? (trackNames[`${lap.gameId}:${lap.trackOrdinal}`] ?? "") : "";
+          const car = lap.carOrdinal != null ? (carNames[`${lap.gameId}:${lap.carOrdinal}`] ?? "") : "";
           const ago = formatTimeAgo(new Date(lap.createdAt));
           return (
             <TRow
@@ -133,8 +151,8 @@ export interface HomePageViewProps {
   displaySettings: { driverName?: string | null; hiddenGames?: string[] };
   allLaps: LapMeta[];
   recentLaps: LapMeta[];
-  carNames: Record<number, string>;
-  trackNames: Record<number, string>;
+  carNames: Record<string, string>;
+  trackNames: Record<string, string>;
   gameStats: GameStats;
   hiddenGames: string[];
   latestSession: SessionMeta | null;
@@ -176,6 +194,8 @@ export function HomePageView({
   recapCopied,
   onCopyRecap,
   onAnalyseLap,
+  lapsLoading = false,
+  lapsError = false,
   onAnalyseRecap,
   periodTab,
   periodStats,
@@ -454,7 +474,7 @@ export function HomePageView({
 
               <section>
                 <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90">{m.home_recent_laps()}</h2>
-                <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseLap={onAnalyseLap} />
+                <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseLap={onAnalyseLap} loading={lapsLoading} error={lapsError} />
               </section>
             </main>
 
@@ -558,7 +578,7 @@ export function HomePageView({
 
             <div>
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-app-text/90">{m.home_recent_laps()}</h2>
-              <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseLap={onAnalyseLap} />
+              <RecentLapsTable laps={recentLaps} carNames={carNames} trackNames={trackNames} gameId={gameId} onAnalyseLap={onAnalyseLap} loading={lapsLoading} error={lapsError} />
             </div>
           </>
         )}

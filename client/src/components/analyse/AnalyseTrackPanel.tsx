@@ -123,12 +123,16 @@ export function AnalyseTrackPanel({
         {rotateWithCar && (
           <div className="flex flex-col gap-1">
             <Button
+              type="button"
+              aria-label="Zoom in map"
               onClick={() => onMapZoomChange((z) => Math.min(z + 0.25, 4))}
               className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
             >
               +
             </Button>
             <Button
+              type="button"
+              aria-label="Zoom out map"
               onClick={() => onMapZoomChange((z) => Math.max(z - 0.25, 0.5))}
               className="w-6 h-6 text-xs bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
             >

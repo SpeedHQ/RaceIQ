@@ -23,6 +23,12 @@ export function WheelCard({
   onRumble,
   puddleDepth,
   brakeTemp,
+  showSlipAngle,
+  showWheelState,
+  tempCaption,
+  healthCaption,
+  temperatureAvailable,
+  healthAvailable,
 }: {
   label: string;
   temp: number;
@@ -37,18 +43,24 @@ export function WheelCard({
   onRumble: boolean;
   puddleDepth: number;
   brakeTemp?: number;
+  showSlipAngle: boolean;
+  showWheelState: boolean;
+  tempCaption: string;
+  healthCaption: string;
+  temperatureAvailable: boolean;
+  healthAvailable: boolean;
 }) {
   // Negate for display: physics sign convention is opposite of the visual
   // "tire heading relative to velocity" we want to show in the SVG.
   const clampedAngle = -Math.max(-25, Math.min(25, slipAngle));
-  const stroke = tireTempColor(temp, thresholds);
-  const fill = tireTempColor(temp, thresholds);
+  const stroke = temperatureAvailable ? tireTempColor(temp, thresholds) : "var(--status-unavailable)";
+  const fill = stroke;
   const slipCol = slipAngleColor(slipAngle);
-  const wearPct = Math.max(0, Math.min(1, wear));
+  const wearPct = healthAvailable ? Math.max(0, Math.min(1, wear)) : 0;
 
   // Use canonical wheel state from vehicle-dynamics
-  const isLockup = wheelState.state === "lockup";
-  const isSpin = wheelState.state === "spin";
+  const isLockup = showWheelState && wheelState.state === "lockup";
+  const isSpin = showWheelState && wheelState.state === "spin";
   const visualState = tireState(wheelState.state, wheelState.slipRatio, (slipAngle * Math.PI) / 180);
   const spinColor = isLockup || isSpin ? visualState.color : null;
   const spinLabel = isLockup ? "LOCK" : isSpin ? "SPIN" : null;
@@ -114,31 +126,44 @@ export function WheelCard({
           </>
         )}
 
-        {/* Slip angle line — shows direction of slip force */}
-        <line
-          x1={cx}
-          y1={cy}
-          x2={cx + Math.sin((clampedAngle * Math.PI) / 180) * 35}
-          y2={cy + Math.cos((clampedAngle * Math.PI) / 180) * 35}
-          stroke={slipCol}
-          strokeWidth={1.5}
-          strokeDasharray="3 2"
-          opacity={0.8}
-        />
-        <line x1={cx} y1={cy} x2={cx} y2={cy - 35} stroke="var(--app-text-dim)" strokeOpacity={0.2} strokeWidth={0.8} />
-
-        {/* Slip angle value — outer side */}
-        <text
-          x={outerSide === "left" ? cx - tW / 2 - 4 : cx + tW / 2 + 4}
-          y={cy + 3}
-          textAnchor={outerSide === "left" ? "end" : "start"}
-          fill={slipCol}
-          fontSize={7}
-          fontWeight="var(--font-weight-bold)"
-          fontFamily="var(--font-mono)"
-        >
-          {slipAngle.toFixed(1)}°
-        </text>
+        {/* Slip angle line — omitted when the source has no per-wheel angle. */}
+        {showSlipAngle ? (
+          <>
+            <line
+              x1={cx}
+              y1={cy}
+              x2={cx + Math.sin((clampedAngle * Math.PI) / 180) * 35}
+              y2={cy + Math.cos((clampedAngle * Math.PI) / 180) * 35}
+              stroke={slipCol}
+              strokeWidth={1.5}
+              strokeDasharray="3 2"
+              opacity={0.8}
+            />
+            <line x1={cx} y1={cy} x2={cx} y2={cy - 35} stroke="var(--app-text-dim)" strokeOpacity={0.2} strokeWidth={0.8} />
+            <text
+              x={outerSide === "left" ? cx - tW / 2 - 4 : cx + tW / 2 + 4}
+              y={cy + 3}
+              textAnchor={outerSide === "left" ? "end" : "start"}
+              fill={slipCol}
+              fontSize={7}
+              fontWeight="var(--font-weight-bold)"
+              fontFamily="var(--font-mono)"
+            >
+              {slipAngle.toFixed(1)}°
+            </text>
+          </>
+        ) : (
+          <text
+            x={outerSide === "left" ? cx - tW / 2 - 4 : cx + tW / 2 + 4}
+            y={cy + 3}
+            textAnchor={outerSide === "left" ? "end" : "start"}
+            fill="var(--status-unavailable)"
+            fontSize={7}
+            fontFamily="var(--font-mono)"
+          >
+            —
+          </text>
+        )}
 
         {/* Wheel spin % — always visible on outer side */}
         <text
@@ -150,29 +175,36 @@ export function WheelCard({
           fontWeight={spinLabel ? "var(--font-weight-bold)" : "var(--font-weight-normal)"}
           fontFamily="var(--font-mono)"
         >
-          {spinLabel ? `${spinLabel} ` : ""}
-          {spinPct > 0 ? "+" : ""}
-          {spinPct.toFixed(0)}%
+          {showWheelState ? (
+            <>
+              {spinLabel ? `${spinLabel} ` : ""}
+              {spinPct > 0 ? "+" : ""}
+              {spinPct.toFixed(0)}%
+            </>
+          ) : (
+            "—"
+          )}
         </text>
 
         {/* Below tire: temp, wear, traction */}
-        <text x={cx} y={93} textAnchor="middle" fill={stroke} fontSize={9} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
-          {tempFn(temp).toFixed(0)}°{tempUnit}
+        <text x={cx} y={93} textAnchor="middle" fill={stroke} fontSize={7} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
+          {tempCaption} {temperatureAvailable ? `${tempFn(temp).toFixed(0)}°${tempUnit}` : "—"}
         </text>
-        <text x={cx} y={105} textAnchor="middle" fill="var(--app-text-muted)" fontSize={9} fontFamily="var(--font-mono)">
-          Health {((1 - wearPct) * 100).toFixed(0)}%
+        <text x={cx} y={105} textAnchor="middle" fill="var(--app-text-muted)" fontSize={7} fontFamily="var(--font-mono)">
+          {healthCaption} {healthAvailable ? `${((1 - wearPct) * 100).toFixed(0)}%` : "—"}
         </text>
-        {(() => {
-          const ts = tireState(wheelState.state, wheelState.slipRatio, (slipAngle * Math.PI) / 180);
-          return (
-            <text x={cx} y={117} textAnchor="middle" fill={ts.color} fontSize={8} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
-              {ts.label}
-            </text>
-          );
-        })()}
+        {showWheelState ? (
+          <text x={cx} y={117} textAnchor="middle" fill={visualState.color} fontSize={8} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
+            {visualState.label}
+          </text>
+        ) : (
+          <text x={cx} y={117} textAnchor="middle" fill="var(--status-unavailable)" fontSize={8} fontFamily="var(--font-mono)">
+            —
+          </text>
+        )}
 
         {/* Brake temp */}
-        {brakeTemp != null && brakeTemp > 0 && (
+        {brakeTemp != null && (
           <text x={cx} y={127} textAnchor="middle" fill={brakeTempColor(brakeTemp, label.startsWith("R"))} fontSize={8} fontFamily="var(--font-mono)">
             BRK {tempFn(brakeTemp).toFixed(0)}°
           </text>
@@ -180,22 +212,14 @@ export function WheelCard({
 
         {/* Theme-owned curb and puddle surface indicators */}
         {onRumble && (
-          <text
-            x={cx}
-            y={brakeTemp != null && brakeTemp > 0 ? 137 : 127}
-            textAnchor="middle"
-            fill="var(--track-curb-right)"
-            fontSize={7}
-            fontWeight="var(--font-weight-bold)"
-            fontFamily="var(--font-mono)"
-          >
+          <text x={cx} y={brakeTemp != null ? 137 : 127} textAnchor="middle" fill="var(--track-curb-right)" fontSize={7} fontWeight="var(--font-weight-bold)" fontFamily="var(--font-mono)">
             CURB
           </text>
         )}
         {puddleDepth > 0 && (
           <text
             x={cx}
-            y={(brakeTemp != null && brakeTemp > 0 ? 137 : 127) + (onRumble ? 9 : 0)}
+            y={(brakeTemp != null ? 137 : 127) + (onRumble ? 9 : 0)}
             textAnchor="middle"
             fill="var(--surface-wet)"
             fontSize={7}

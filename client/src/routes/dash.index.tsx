@@ -54,9 +54,12 @@ function useNetworkInfo() {
 }
 
 function DashCatalogue() {
-  const { data } = useNetworkInfo();
+  const { data, isPending, isError } = useNetworkInfo();
   const lanIp = data?.lanIps?.[0];
   const port = typeof window !== "undefined" ? window.location.port || data?.port : data?.port;
+
+  const networkStatusKind = isPending ? "loading" : isError ? "error" : !lanIp || !port ? "no-data" : null;
+  const networkStatus = isPending || isError || !lanIp || !port ? (isPending ? m.common_loading() : m.dash_lan_unavailable()) : null;
 
   const previewFor = (slug: DashMeta["slug"]): ReactNode => {
     if (slug === "combo-1") {
@@ -70,13 +73,14 @@ function DashCatalogue() {
       <div className="mx-auto max-w-6xl">
         <div className="mb-8">
           <h1 className="text-3xl font-black tracking-tight">{m.dash_page_title()}</h1>
-          <p className="mt-2 text-app-text/60 text-sm">{m.dash_page_intro()}</p>
-          {lanIp && port ? (
-            <p className="mt-2 text-xs text-app-text/40 font-mono">
-              {m.dash_serving_at()} http://{lanIp}:{port}
+          {networkStatus ? (
+            <p className="mt-2 text-xs text-status-danger/70 font-mono" role="status" aria-live="polite" data-network-state={networkStatusKind}>
+              {networkStatus}
             </p>
           ) : (
-            <p className="mt-2 text-xs text-status-danger/70 font-mono">{m.dash_lan_unavailable()}</p>
+            <p className="mt-2 text-xs text-app-text/40 font-mono" role="status" aria-live="polite" data-network-state="ready">
+              {m.dash_serving_at()} http://{lanIp}:{port}
+            </p>
           )}
         </div>
 

@@ -1,13 +1,13 @@
-import { readFileSync, readdirSync, statSync } from "fs";
+import { existsSync, readdirSync, statSync } from "fs";
 import { resolve } from "path";
-import { parsePacket } from "../../games/packet-dispatch";
 import { readKunosFrames } from "../../games/kunos/frame-reader";
 import { parseAccBuffers } from "../../games/acc/parser";
 import { readWString } from "../../games/acc/utils";
 import { STATIC } from "../../games/acc/structs";
-import { getAccCarByModel } from "../../../shared/racing/cars/acc"
-import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
-import { type GameId } from "../../../shared/games/ids";
+import { getAccCarByModel } from "../../../shared/racing/cars/acc";
+import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc";
+import { type GameId, KNOWN_GAME_IDS } from "../../../shared/games/ids";
+import { readRecordedTelemetry } from "../../session-capture/replay-packets";
 
 export type E2eRecordingFile = {
   name: string;
@@ -39,26 +39,51 @@ export interface E2eLapResult {
 
 export type RecordingPathValidation =
   | { ok: true; path: string }
-  | { ok: false; status: 400 | 403; error: "Invalid filename" | "Access denied" };
+  | {
+      ok: false;
+      status: 400 | 403 | 404;
+      error: "Invalid filename" | "Access denied" | "Recording not found";
+    };
 
 const ARTIFACTS_DIR = resolve(process.cwd(), "test/artifacts/sessions");
+const RECORDING_GAME_IDS = [...KNOWN_GAME_IDS].sort(
+  (left, right) => right.length - left.length,
+);
 
 export function resolveRecordingPath(recordingName: string): RecordingPathValidation {
-  if (recordingName.includes("..") || recordingName.startsWith("/")) {
+  if (
+    recordingName.length === 0 ||
+    recordingName.includes("..") ||
+    recordingName.includes("/") ||
+    recordingName.includes("\\")
+  ) {
     return { ok: false, error: "Invalid filename", status: 400 };
   }
 
-  const binPath = resolve(ARTIFACTS_DIR, `${recordingName}.bin`);
-
-  if (!binPath.startsWith(ARTIFACTS_DIR)) {
+  const candidates = [
+    resolve(ARTIFACTS_DIR, `${recordingName}.bin`),
+    resolve(ARTIFACTS_DIR, `${recordingName}.bin.gz`),
+  ];
+  if (candidates.some((candidate) => !candidate.startsWith(ARTIFACTS_DIR))) {
     return { ok: false, error: "Access denied", status: 403 };
   }
 
-  return { ok: true, path: binPath };
+  const path = candidates.find((candidate) => existsSync(candidate));
+  return path
+    ? { ok: true, path }
+    : { ok: false, error: "Recording not found", status: 404 };
 }
 
-export function resolveRecordingGameId(recordingName: string): GameId {
-  return recordingName.split("-").slice(0, 1).join("-") as GameId;
+export function resolveRecordingGameId(recordingName: string): GameId | null {
+  const normalizedName = recordingName.startsWith("session-")
+    ? recordingName.slice("session-".length)
+    : recordingName;
+  return (
+    RECORDING_GAME_IDS.find(
+      (gameId) =>
+        normalizedName === gameId || normalizedName.startsWith(`${gameId}-`),
+    ) ?? null
+  );
 }
 
 export function listE2eRecordings(): E2eRecordingFile[] {
@@ -66,11 +91,16 @@ export function listE2eRecordings(): E2eRecordingFile[] {
 
   const entries = readdirSync(ARTIFACTS_DIR, { withFileTypes: true });
   for (const entry of entries) {
-    if (!entry.isFile() || !entry.name.endsWith(".bin")) continue;
+    if (
+      !entry.isFile() ||
+      (!entry.name.endsWith(".bin") && !entry.name.endsWith(".bin.gz"))
+    ) {
+      continue;
+    }
 
     const filePath = resolve(ARTIFACTS_DIR, entry.name);
     const stat = statSync(filePath);
-    const displayName = entry.name.replace(".bin", "");
+    const displayName = entry.name.replace(/\.bin(?:\.gz)?$/, "");
     files.push({
       name: displayName,
       path: filePath,
@@ -117,27 +147,11 @@ export function parseAccRecordingPoints(frames: KunosRecordingFrame[]): Point2D[
   return packets;
 }
 
-export function parseUdpRecordingPoints(binPath: string): Point2D[] {
-  const packets: Point2D[] = [];
-  const buffer = readFileSync(binPath);
-  let offset = 0;
-
-  while (offset + 4 <= buffer.length) {
-    const len = buffer.readUInt32LE(offset);
-    offset += 4;
-    if (offset + len > buffer.length) break;
-
-    const sourceFrame = buffer.slice(offset, offset + len);
-    const packet = parsePacket(sourceFrame);
-
-    if (packet) {
-      packets.push({ x: packet.PositionX, y: packet.PositionZ });
-    }
-
-    offset += len;
-  }
-
-  return packets;
+export function parseUdpRecordingPoints(gameId: GameId, binPath: string): Point2D[] {
+  return readRecordedTelemetry(gameId, binPath).packets.map((packet) => ({
+    x: packet.PositionX,
+    y: packet.PositionZ,
+  }));
 }
 
 export function parseAccRecordingPacketsWithSpeed(frames: KunosRecordingFrame[]): Point3D[] {
@@ -171,27 +185,15 @@ export function parseAccRecordingPacketsWithSpeed(frames: KunosRecordingFrame[])
   return packets;
 }
 
-export function parseUdpRecordingPacketsWithSpeed(binPath: string): Point3D[] {
-  const packets: Point3D[] = [];
-  const buffer = readFileSync(binPath);
-  let offset = 0;
-
-  while (offset + 4 <= buffer.length) {
-    const len = buffer.readUInt32LE(offset);
-    offset += 4;
-    if (offset + len > buffer.length) break;
-
-    const sourceFrame = buffer.slice(offset, offset + len);
-    const packet = parsePacket(sourceFrame);
-
-    if (packet) {
-      packets.push({ x: packet.PositionX, y: packet.PositionZ, speed: packet.Speed });
-    }
-
-    offset += len;
-  }
-
-  return packets;
+export function parseUdpRecordingPacketsWithSpeed(
+  gameId: GameId,
+  binPath: string,
+): Point3D[] {
+  return readRecordedTelemetry(gameId, binPath).packets.map((packet) => ({
+    x: packet.PositionX,
+    y: packet.PositionZ,
+    speed: packet.Speed,
+  }));
 }
 
 export function parseAccRecordingLaps(frames: KunosRecordingFrame[]): E2eLapResult {
@@ -270,28 +272,27 @@ export function parseAccRecordingLaps(frames: KunosRecordingFrame[]): E2eLapResu
   };
 }
 
-export function parseUdpRecordingLaps(binPath: string): E2eLapResult {
-  const lapRanges = new Map<number, { start: number; end: number; lapTime: number; maxCurrentLap: number }>();
+export function parseUdpRecordingLaps(
+  gameId: GameId,
+  binPath: string,
+): E2eLapResult {
+  const lapRanges = new Map<
+    number,
+    { start: number; end: number; lapTime: number; maxCurrentLap: number }
+  >();
   let packetIndex = 0;
   let currentLap = -1;
 
-  const buffer = readFileSync(binPath);
-  let offset = 0;
-
-  while (offset + 4 <= buffer.length) {
-    const len = buffer.readUInt32LE(offset);
-    offset += 4;
-    if (offset + len > buffer.length) break;
-
-    const sourceFrame = buffer.slice(offset, offset + len);
-    const packet = parsePacket(sourceFrame);
-
-    if (packet && packet.LapNumber !== undefined) {
+  for (const packet of readRecordedTelemetry(gameId, binPath).packets) {
+    if (packet.LapNumber !== undefined) {
       if (packet.LapNumber !== currentLap) {
         if (currentLap !== -1) {
           const prevLapRange = lapRanges.get(currentLap);
           if (prevLapRange) {
-            prevLapRange.lapTime = (packet.LastLap ?? 0) > 0 ? (packet.LastLap ?? 0) : prevLapRange.maxCurrentLap;
+            prevLapRange.lapTime =
+              (packet.LastLap ?? 0) > 0
+                ? (packet.LastLap ?? 0)
+                : prevLapRange.maxCurrentLap;
           }
         }
 
@@ -314,13 +315,15 @@ export function parseUdpRecordingLaps(binPath: string): E2eLapResult {
         const range = lapRanges.get(packet.LapNumber);
         if (range) {
           range.end = packetIndex;
-          range.maxCurrentLap = Math.max(range.maxCurrentLap, packet.CurrentLap ?? 0);
+          range.maxCurrentLap = Math.max(
+            range.maxCurrentLap,
+            packet.CurrentLap ?? 0,
+          );
         }
       }
     }
 
     packetIndex++;
-    offset += len;
   }
 
   const laps = Array.from(lapRanges.entries())

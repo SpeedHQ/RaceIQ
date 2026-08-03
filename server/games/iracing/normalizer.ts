@@ -188,6 +188,15 @@ export function normalizeIRacingFrame(
     LR: tireCarcassTemperature(values, "LR"),
     RR: tireCarcassTemperature(values, "RR"),
   };
+  const pitTireTemperatureAvailable = Object.values(tireTemps).every(
+    (temperature) => temperature.average !== undefined,
+  );
+  const pitTireWearAvailable = (["LF", "RF", "LR", "RR"] as const).every(
+    (corner) =>
+      ["wearL", "wearM", "wearR"].every((band) =>
+        Number.isFinite(scalar(values, `${corner}${band}`, Number.NaN)),
+      ),
+  );
 
   return {
     gameId: "iracing",
@@ -204,6 +213,8 @@ export function normalizeIRacingFrame(
       playerTrackSurface: Math.trunc(scalar(values, "PlayerTrackSurface", 0)),
       incidents: Math.trunc(scalar(values, "PlayerIncidents", 0)),
       trackWetness: Math.trunc(wetness),
+      pitTireTemperatureAvailable,
+      pitTireWearAvailable,
       carName: session.carName,
       carClassName: session.carClassName,
       trackName: session.trackName,

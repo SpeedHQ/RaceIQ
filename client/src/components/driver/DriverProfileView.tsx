@@ -53,7 +53,34 @@ function AiStatus({ state, reason }: { state?: DriverProfileState; reason?: stri
   );
 }
 
-export function DriverProfileView({ fingerprint: fp, plan = null, runReason, runState, onRefresh, runPending = false }: DriverProfileViewProps) {
+function RunHistory({ runs }: { runs: DriverProfileRun[] }) {
+  return (
+    <section className="rounded-xl border border-app-border bg-app-surface p-4" aria-labelledby="driver-run-history-heading">
+      <div className="flex items-center justify-between gap-3">
+        <b id="driver-run-history-heading" className="text-sm text-app-text">
+          Run history
+        </b>
+        <span className="text-xs text-app-text-muted">
+          {runs.length} run{runs.length === 1 ? "" : "s"}
+        </span>
+      </div>
+      {runs.length === 0 ? (
+        <p className="mt-3 text-xs text-app-text-muted">No AI runs yet.</p>
+      ) : (
+        <ul className="mt-3 space-y-2 text-xs text-app-text-muted">
+          {runs.map((run) => (
+            <li key={run.id} className="flex items-center justify-between gap-3">
+              <span>{run.createdAt}</span>
+              <span className="rounded-full bg-app-surface-alt px-2 py-1">{run.status}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+export function DriverProfileView({ fingerprint: fp, plan = null, runReason, runState, runHistory = [], onRefresh, runPending = false }: DriverProfileViewProps) {
   return (
     <div className="min-w-0">
       <DriverTrendOverview trend={fp.trend} summary={plan} runState={runState} onRefresh={onRefresh} runPending={runPending} />
@@ -91,6 +118,7 @@ export function DriverProfileView({ fingerprint: fp, plan = null, runReason, run
               </ul>
             )}
           </article>
+          <RunHistory runs={runHistory} />
         </div>
       </section>
     </div>

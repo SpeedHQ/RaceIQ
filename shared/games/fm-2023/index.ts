@@ -11,6 +11,8 @@ export const forzaAdapter: GameAdapter = {
     boost: { packetUnit: "psi" },
     power: { packetUnit: "watt" },
     torque: { packetUnit: "newton-metre" },
+    clutch: { source: "direct", freshness: "continuous" },
+    handBrake: { source: "direct", freshness: "continuous" },
   },
   coordSystem: "forza",
   nativeSectors: false,
