@@ -42,7 +42,6 @@ export function buildChatSystemPrompt(
   unit: UnitSystem = "metric",
   temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F",
   tune?: Tune,
-  analysisJson?: string,
   /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
   language: string = "en",
 ): string {
@@ -79,25 +78,6 @@ export function buildChatSystemPrompt(
       "\n";
   }
 
-  let analysisContext = "";
-  if (analysisJson) {
-    try {
-      const parsed = JSON.parse(analysisJson);
-      analysisContext = `\n--- PREVIOUS ANALYSIS (already shown to driver) ---\nVerdict: ${parsed.verdict}\n`;
-      if (parsed.corners?.length) {
-        analysisContext += "Problem corners: " + parsed.corners.map((c: any) => `${c.name} (${c.severity}): ${c.issue}`).join("; ") + "\n";
-      }
-      if (parsed.technique?.length) {
-        analysisContext += "Technique tips: " + parsed.technique.map((t: any) => t.tip).join("; ") + "\n";
-      }
-      if (parsed.setup?.length) {
-        analysisContext += "Setup changes: " + parsed.setup.map((s: any) => `${s.change}: ${s.fix}`).join("; ") + "\n";
-      }
-    } catch {
-      // If analysis JSON is invalid, include raw
-      analysisContext = `\n--- PREVIOUS ANALYSIS ---\n${analysisJson}\n`;
-    }
-  }
 
   const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
 
@@ -117,7 +97,7 @@ ${gameSystemNote}
 Car: ${carName}
 Track: ${trackName}
 Lap #${lap.lapNumber} — ${lap.lapTime.toFixed(3)}s${lap.isValid ? "" : " (INVALID)"}
-${tuneText}${analysisContext}
+${tuneText}
 --- TELEMETRY DATA ---
 ${exportText}
 ${cornerData}

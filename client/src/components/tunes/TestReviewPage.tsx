@@ -95,7 +95,7 @@ export function TestReviewPage({ gameId, experimentId, lapIds, versionId }: { ga
             </Button>
           </div>
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-            <TuneSetupChat sessionId={experimentId} extendedContext={lapReviewContext} />
+            <TuneSetupChat sessionId={experimentId} headVersionId={session?.headVersionId ?? null} extendedContext={lapReviewContext} />
           </div>
         </div>
       </div>

@@ -8,7 +8,6 @@ import { type FC, memo, useState } from "react";
 import remarkGfm from "remark-gfm";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { Table, TD, TH, TRow } from "@/components/ui/AppTable";
 import { cn } from "@/lib/utils";
 
 const MarkdownTextImpl = () => {
@@ -68,19 +67,21 @@ const defaultComponents = memoizeMarkdownComponents({
   ul: ({ className, ...props }) => <ul className={cn("aui-md-ul marker:text-muted-foreground my-3 ms-5 list-disc [&>li]:mt-1", className)} {...props} />,
   ol: ({ className, ...props }) => <ol className={cn("aui-md-ol marker:text-muted-foreground my-3 ms-5 list-decimal [&>li]:mt-1", className)} {...props} />,
   hr: ({ className, ...props }) => <hr className={cn("aui-md-hr border-muted-foreground/20 my-3", className)} {...props} />,
-  table: ({ children }) => (
-    <div className="my-3">
-      <Table>{children}</Table>
-    </div>
+  table: ({ className, ...props }) => <table className={cn("aui-md-table my-3 w-full border-separate border-spacing-0 overflow-y-auto", className)} {...props} />,
+  th: ({ className, ...props }) => (
+    <th className={cn("aui-md-th bg-muted px-3 py-1.5 text-start font-medium first:rounded-ss-lg last:rounded-se-lg [[align=center]]:text-center [[align=right]]:text-right", className)} {...props} />
   ),
-  th: ({ align, children }) => <TH align={align === "right" ? "end" : align === "center" ? "center" : "start"}>{children}</TH>,
-  td: ({ align, children }) => <TD align={align === "right" ? "end" : align === "center" ? "center" : "start"}>{children}</TD>,
-  tr: ({ children }) => <TRow>{children}</TRow>,
+  td: ({ className, ...props }) => (
+    <td className={cn("aui-md-td border-muted-foreground/20 border-s border-b px-3 py-1.5 text-start last:border-e [[align=center]]:text-center [[align=right]]:text-right", className)} {...props} />
+  ),
+  tr: ({ className, ...props }) => (
+    <tr className={cn("aui-md-tr m-0 border-b p-0 first:border-t [&:last-child>td:first-child]:rounded-es-lg [&:last-child>td:last-child]:rounded-ee-lg", className)} {...props} />
+  ),
   li: ({ className, ...props }) => <li className={cn("aui-md-li leading-relaxed", className)} {...props} />,
   strong: ({ className, ...props }) => <strong className={cn("aui-md-strong font-semibold", className)} {...props} />,
   sup: ({ className, ...props }) => <sup className={cn("aui-md-sup [&>a]:text-xs [&>a]:no-underline", className)} {...props} />,
   pre: ({ className, ...props }) => (
-    <pre className={cn("aui-md-pre border-border/50 bg-muted/30 overflow-x-auto rounded-t-none rounded-b-xl border border-t-0 p-3.5 text-app-detail leading-relaxed", className)} {...props} />
+    <pre className={cn("aui-md-pre border-border/50 bg-muted/30 overflow-x-auto rounded-t-none rounded-b-xl border border-t-0 p-3.5 text-[13px] leading-relaxed", className)} {...props} />
   ),
   code: function Code({ className, ...props }) {
     const isCodeBlock = useIsMarkdownCodeBlock();

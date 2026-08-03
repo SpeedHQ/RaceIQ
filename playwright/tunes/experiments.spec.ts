@@ -61,13 +61,29 @@ test.describe("Setup Engineer experiments", () => {
       const originalFetch = window.fetch.bind(window);
       let releaseStream: (() => void) | undefined;
       let textSent = false;
+      let releaseCalled = false;
+      let streamResumed = false;
+      let finalChunkSent = false;
       Object.defineProperty(window, "__raceTextSent", {
         configurable: true,
         get: () => textSent,
       });
+      Object.defineProperty(window, "__raceReleased", {
+        configurable: true,
+        get: () => releaseCalled,
+      });
       Object.defineProperty(window, "__releaseRaceEngineerStream", {
         configurable: true,
+        writable: true,
         value: () => releaseStream?.(),
+      });
+      Object.defineProperty(window, "__raceStreamResumed", {
+        configurable: true,
+        get: () => streamResumed,
+      });
+      Object.defineProperty(window, "__raceFinalChunkSent", {
+        configurable: true,
+        get: () => finalChunkSent,
       });
 
       window.fetch = async (input, init) => {
@@ -93,10 +109,14 @@ test.describe("Setup Engineer experiments", () => {
             write('data: {"type":"text-start","id":"text-1"}\n\n');
             write('data: {"type":"text-delta","id":"text-1","delta":"First chunk"}\n\n');
             const latch = Promise.withResolvers<void>();
-            releaseStream = latch.resolve;
-            (window as Window & { __releaseRaceEngineerStream?: () => void }).__releaseRaceEngineerStream = latch.resolve;
+            (window as Window & { __releaseRaceEngineerStream?: () => void }).__releaseRaceEngineerStream = () => {
+              releaseCalled = true;
+              latch.resolve();
+            };
             await latch.promise;
+            streamResumed = true;
             setTimeout(() => {
+              finalChunkSent = true;
               write('data: {"type":"text-delta","id":"text-1","delta":" second chunk"}\n\n');
               write('data: {"type":"text-end","id":"text-1"}\n\n');
               write('data: {"type":"finish","finishReason":"stop"}\n\n');
@@ -146,13 +166,15 @@ test.describe("Setup Engineer experiments", () => {
     await input.fill("Stream this reply");
     await input.press("Enter");
     await expect.poll(() => page.evaluate(() => (window as Window & { __raceTextSent?: boolean }).__raceTextSent)).toBe(true);
-    await expect(page.getByText("Used tool: preview_change", { exact: false })).toBeVisible({ timeout: 15000 });
     await expect(page.getByText("First chunk", { exact: false })).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole("button", { name: "Stop generating" })).toBeVisible({ timeout: 15000 });
 
-    await page.evaluate(() => {
+    expect(await page.evaluate(() => {
       (window as Window & { __releaseRaceEngineerStream?: () => void }).__releaseRaceEngineerStream?.();
-    });
+      return (window as Window & { __raceReleased?: boolean }).__raceReleased;
+    })).toBe(true);
+    await expect.poll(() => page.evaluate(() => (window as Window & { __raceStreamResumed?: boolean }).__raceStreamResumed)).toBe(true);
+    await expect.poll(() => page.evaluate(() => (window as Window & { __raceFinalChunkSent?: boolean }).__raceFinalChunkSent)).toBe(true);
     await expect(page.getByText("First chunk second chunk", { exact: false })).toBeVisible();
     await expect(page.getByRole("button", { name: "Send message" })).toBeVisible({ timeout: 15000 });
     expect(consoleErrors.filter((message) => message.includes("Maximum update depth exceeded"))).toEqual([]);

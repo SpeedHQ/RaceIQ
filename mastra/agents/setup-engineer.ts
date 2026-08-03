@@ -15,7 +15,7 @@ import { Agent } from "@mastra/core/agent";
 import { aiLanguageInstruction } from "../../shared/locales";
 import { TRACK_GUIDE_PROMPT, ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
 import { getChatMemory } from "../../server/ai/chat-agent";
-import { getModel } from "../../server/ai/model-provider";
+import { getMastraModelId } from "../model";
 import { loadSettings } from "../../server/settings";
 import { setupEngineerTools } from "../tools/setup-engineer";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiment-focus";
@@ -94,19 +94,25 @@ export const setupEngineerAgent = new Agent({
   id: "setup-engineer",
   name: "Setup Engineer",
   instructions: () => `${SETUP_ENGINEER_INSTRUCTIONS}${TRACK_GUIDE_PROMPT}${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(loadSettings().language)}`,
-  model: ({ requestContext }) => getModel("chat", requestContext),
-  // Read side (setup / symptoms / track conditions / history) is force-gathered
-  // by the `setup-engineer-turn` workflow and injected as context, so those
-  // tools are deliberately NOT exposed to the model. It gets only the heavier
-  // sub-agent read (`consult_lap_analyst`) and the action tools.
+  model: () => {
+    const s = loadSettings();
+    return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
+  },
+  // All setup tools stay callable. Read tools provide a direct fallback when
+  // deterministic prerequisite context is absent or stale; mutation tools
+  // retain their own confirmation guards.
   tools: {
+    get_setup: setupEngineerTools.getSetupTool,
+    get_symptoms: setupEngineerTools.getSymptomsTool,
+    get_track_conditions: setupEngineerTools.getTrackConditionsTool,
     consult_lap_analyst: setupEngineerTools.consultLapAnalystTool,
-    compare_lap_consistency: setupEngineerTools.compareLapConsistencyTool,
+    get_version_history: setupEngineerTools.getVersionHistoryTool,
     preview_change: setupEngineerTools.previewChangeTool,
     apply_changes: setupEngineerTools.applyChangesTool,
     set_lap_excluded: setupEngineerTools.setLapExcludedTool,
     update_notes: setupEngineerTools.updateNotesTool,
     record_driver_notes: setupEngineerTools.recordDriverNotesTool,
+    compare_lap_consistency: setupEngineerTools.compareLapConsistencyTool,
     delete_version: setupEngineerTools.deleteVersionTool,
     undo_last_action: setupEngineerTools.undoLastActionTool,
     list_laps: setupEngineerTools.listLapsTool,

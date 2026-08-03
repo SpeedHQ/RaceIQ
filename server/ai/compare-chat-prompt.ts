@@ -1,7 +1,7 @@
 /**
  * System prompt for the compare-chat agent.
- * Embeds both laps' cached analyses + the comparison summary so the agent
- * can reason across the two laps without re-running analysis.
+ * Provides comparison context; cached analyses are retrieved through the
+ * visible get_lap_analysis tool call instead of being embedded here.
  */
 import type { GameId } from "../../shared/types";
 import type { ComparisonResult } from "../comparison";
@@ -19,37 +19,6 @@ interface LapInfo {
   gameId?: GameId;
 }
 
-function summarizeAnalysis(label: string, analysisJson: string | null | undefined): string {
-  if (!analysisJson) return `${label}: (no analysis cached)\n`;
-  try {
-    const a = JSON.parse(analysisJson);
-    let out = `${label}\n  Verdict: ${a.verdict ?? "—"}\n`;
-    if (a.pace?.length) {
-      out += `  Pace: ${a.pace.map((p: any) => `${p.label}=${p.value} (${p.assessment})`).join(", ")}\n`;
-    }
-    if (a.handling?.length) {
-      out += `  Handling: ${a.handling.map((h: any) => `${h.label}=${h.value} (${h.assessment})`).join(", ")}\n`;
-    }
-    if (a.corners?.length) {
-      out += `  Problem corners: ${a.corners.map((c: any) => `${c.name} [${c.severity}] — ${c.issue} → ${c.fix}`).join("; ")}\n`;
-    }
-    if (a.braking?.length) {
-      out += `  Braking: ${a.braking.map((b: any) => `${b.corner} (${b.assessment}) ${b.brakePoint}`).join("; ")}\n`;
-    }
-    if (a.throttle?.length) {
-      out += `  Throttle: ${a.throttle.map((t: any) => `${t.corner} (${t.assessment}) ${t.throttlePoint}`).join("; ")}\n`;
-    }
-    if (a.coaching?.length) {
-      out += `  Coaching: ${a.coaching.map((c: any) => c.tip).join("; ")}\n`;
-    }
-    if (a.setup?.length) {
-      out += `  Setup hints: ${a.setup.map((s: any) => `${s.component} ${s.current}→${s.target}`).join("; ")}\n`;
-    }
-    return out;
-  } catch {
-    return `${label}\n${analysisJson}\n`;
-  }
-}
 
 function summarizeComparison(comp: ComparisonResult): string {
   const td = comp.timeDelta;
@@ -93,8 +62,6 @@ export function buildCompareChatSystemPrompt(
   lapA: LapInfo,
   lapB: LapInfo,
   comparison: ComparisonResult,
-  analysisJsonA: string | null | undefined,
-  analysisJsonB: string | null | undefined,
   unit: UnitSystem = "metric",
   temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F",
   /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
@@ -109,14 +76,10 @@ export function buildCompareChatSystemPrompt(
 
   return `${compareEngineerPersona(unit, temperatureUnit, language)}
 
-This task: free-form chat. The driver will ask you questions about how the two laps compare. Be brief and use bullet points where helpful. NO JSON output — write conversational answers.
+This task: free-form chat. The driver will ask you questions about how the two laps compare. Be brief and use bullet points where helpful. NO JSON output — write conversational answers. Before lap-specific diagnosis or recommendations, retrieve both cached analyses with \`get_lap_analysis\`. If either is unavailable, state that limitation and do not invent findings.
 
 ${compareLapHeader(trackName, carA, carB, lapA, lapB, finalDelta)}
 
-${summarizeComparison(comparison)}--- LAP A ANALYSIS (already shown to driver) ---
-${summarizeAnalysis("Lap A", analysisJsonA)}
---- LAP B ANALYSIS (already shown to driver) ---
-${summarizeAnalysis("Lap B", analysisJsonB)}
-${precomputedInsights ?? ""}
-Use both analyses and the corner-by-corner deltas to explain where time is gained or lost and what the slower lap should change.`;
+${summarizeComparison(comparison)}${precomputedInsights ?? ""}
+Use the retrieved analyses and the corner-by-corner deltas to explain where time is gained or lost and what the slower lap should change.`;
 }

@@ -7,51 +7,21 @@ interface TuneForPrompt {
 	settings: TuneSettings;
 }
 
-function summariseGameSpecificSettings(settings: unknown): string | null {
-	if (!settings || typeof settings !== "object") return null;
-	const lines: string[] = [];
-	const walk = (value: unknown, path: string) => {
-		if (lines.length >= 60 || value == null) return;
-		if (Array.isArray(value)) {
-			if (value.length > 0 && value.length <= 8 && value.every((item) => typeof item === "number" || typeof item === "string")) {
-				lines.push(`${path}: [${value.join(", ")}]`);
-			}
-			return;
-		}
-		if (typeof value === "object") {
-			for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-				walk(child, path ? `${path}.${key}` : key);
-			}
-			return;
-		}
-		if (typeof value === "number" || typeof value === "boolean" || typeof value === "string") {
-			lines.push(`${path}: ${value}`);
-		}
-	};
-	walk(settings, "");
-	return lines.length > 0 ? lines.join("\n") : null;
-}
-
-function isForzaTuneSettings(settings: TuneSettings): boolean {
-	const value = settings as unknown as Record<string, unknown>;
-	return Boolean(value.tires && value.gearing && value.alignment && value.antiRollBars && value.springs && value.damping && value.aero && value.differential && value.brakes);
-}
-
-
 export function formatTuneForPrompt(tune: TuneForPrompt): string {
-	if (!isForzaTuneSettings(tune.settings)) {
-		const summary = summariseGameSpecificSettings(tune.settings);
-		return [
-			`--- ACTIVE TUNE: "${tune.name}" by ${tune.author} (${tune.category}) ---`,
-			summary ? `Game-specific setup values:\n${summary}` : "Game-specific setup values unavailable.",
-		].join("\n");
-	}
-	const s = tune.settings;
+	const s = tune.settings as TuneSettings | Record<string, unknown> | null | undefined;
 	const lines: string[] = [];
 
 	lines.push(
 		`--- ACTIVE TUNE: "${tune.name}" by ${tune.author} (${tune.category}) ---`,
 	);
+
+	if (!s || typeof s !== "object" || !("tires" in s) || !("gearing" in s)) {
+		const summary = Object.entries(s ?? {})
+			.map(([key, value]) => `${key}: ${typeof value === "string" ? value : JSON.stringify(value)}`)
+			.join(", ");
+		lines.push(`Game-specific setup: ${summary}`);
+		return lines.join("\n");
+	}
 
 	const compound = s.tires.compound ? ` (${s.tires.compound})` : "";
 	lines.push(
