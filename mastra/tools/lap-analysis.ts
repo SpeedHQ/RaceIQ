@@ -2,13 +2,17 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
 import { getAnalysis } from "../../server/db/queries";
-import type { AnalysisUsage, LapAnalysisResult } from "../../server/ai/generate-lap-analysis";
+import type {
+  AnalysisUsage,
+  LapAnalysisResult,
+} from "../../server/ai/generate-lap-analysis";
 
 export type ParsedLapAnalysis =
-  | { analysis: unknown; readable: string }
-  | { error: string; readable: string };
+  { analysis: unknown; readable: string } | { error: string; readable: string };
 
-export function parseCachedLapAnalysis(row: { analysis: string }): ParsedLapAnalysis {
+export function parseCachedLapAnalysis(row: {
+  analysis: string;
+}): ParsedLapAnalysis {
   try {
     const analysis = JSON.parse(row.analysis);
     return { analysis, readable: JSON.stringify(analysis, null, 2) };
@@ -71,7 +75,6 @@ export const getLapAnalysisTool = createTool({
         readable: parsed.readable,
         model: row.model,
       };
-
     } catch (error) {
       return {
         available: false,
@@ -82,7 +85,6 @@ export const getLapAnalysisTool = createTool({
     }
   },
 });
-
 
 const GenerateLapAnalysisInput = z.object({
   lapId: z.number().int().positive(),
@@ -112,7 +114,8 @@ async function defaultGenerateLapAnalysis(
   options?: { regenerate?: boolean },
 ): Promise<LapAnalysisResult> {
   // Keep service loading lazy to avoid the Mastra agent/tool import cycle.
-  const { generateLapAnalysis } = await import("../../server/ai/generate-lap-analysis");
+  const { generateLapAnalysis } =
+    await import("../../server/ai/generate-lap-analysis");
   return generateLapAnalysis(lapId, options);
 }
 
@@ -161,7 +164,11 @@ export function getGenerateLapAnalysisTool(
         }
 
         const parsed = parseCachedLapAnalysis({ analysis: result.analysis });
-        if ("error" in parsed || parsed.analysis === null || parsed.analysis === undefined) {
+        if (
+          "error" in parsed ||
+          parsed.analysis === null ||
+          parsed.analysis === undefined
+        ) {
           return unavailableLapAnalysis(
             lapId,
             result.cached,

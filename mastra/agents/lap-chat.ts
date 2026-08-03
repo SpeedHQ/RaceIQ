@@ -11,7 +11,10 @@ import { loadSettings } from "../../server/settings";
 import { getTrackGuideTool, listTrackGuidesTool } from "../tools/track-guide";
 import { compareF1SetupToCatalogTool } from "../tools/f1-setup-compare";
 import { getCornerMetricsTool } from "../tools/corner-metrics";
-import { getLapAnalysisTool, generateLapAnalysisTool } from "../tools/lap-analysis";
+import {
+  getLapAnalysisTool,
+  generateLapAnalysisTool,
+} from "../tools/lap-analysis";
 import { TRACK_GUIDE_PROMPT } from "../../shared/prompt-snippets";
 
 const LAP_CHAT_INSTRUCTIONS = `You are a senior race engineer answering a driver's questions about a single lap of theirs. Lap context and telemetry summary are supplied per request. The previous structured analysis is NOT supplied in the prompt: call the \`get_lap_analysis\` tool first before making any lap-specific diagnosis or setup recommendation. Only if retrieval reports unavailable, call \`generate_lap_analysis\`. If both tools report unavailable, explicitly state that lap analysis could not be retrieved or generated and do not invent lap-specific findings. Be brief, use bullet points where helpful, cite specific numbers with units, and refer to the driver as "you". Do NOT output JSON.
@@ -26,6 +29,13 @@ export const lapChatAgent = new Agent({
     const s = loadSettings();
     return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);
   },
-  tools: { getTrackGuideTool, listTrackGuidesTool, compareF1SetupToCatalogTool, getCornerMetricsTool, getLapAnalysisTool, generate_lap_analysis: generateLapAnalysisTool },
+  tools: {
+    getTrackGuideTool,
+    listTrackGuidesTool,
+    compareF1SetupToCatalogTool,
+    getCornerMetricsTool,
+    getLapAnalysisTool,
+    generate_lap_analysis: generateLapAnalysisTool,
+  },
   memory: getChatMemory(),
 });

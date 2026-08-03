@@ -1,5 +1,10 @@
 import type { Tune, GameId, TelemetryPacket } from "../../shared/types";
-import { getLapById, getCorners, getAnalysis, saveAnalysis } from "../db/queries";
+import {
+  getLapById,
+  getCorners,
+  getAnalysis,
+  saveAnalysis,
+} from "../db/queries";
 import { getTuneById as getDbTune } from "../db/tune-queries";
 import { detectCorners, type Corner } from "../corner-detection";
 import { loadSettings } from "../settings";
@@ -15,7 +20,11 @@ import { resolveAi } from "./ai-runtime";
 import { runAiStructured } from "./model-provider";
 import type { StructuredRequest, ResolvedAi } from "./ai-types";
 import { resolveLapF1Setup } from "./f1-setup-identity";
-import { normalizePacketSetup, topCatalogReferences, getCatalogDisplayName } from "./f1-setup-catalog";
+import {
+  normalizePacketSetup,
+  topCatalogReferences,
+  getCatalogDisplayName,
+} from "./f1-setup-catalog";
 
 export interface AnalysisUsage {
   inputTokens: number;
@@ -24,7 +33,11 @@ export interface AnalysisUsage {
   durationMs: number;
   model: string;
 }
-export interface CornerFraction { label: string; startFrac: number; endFrac: number }
+export interface CornerFraction {
+  label: string;
+  startFrac: number;
+  endFrac: number;
+}
 export interface LapAnalysisResult {
   analysis: string | null;
   cached: boolean;
@@ -34,7 +47,10 @@ export interface LapAnalysisResult {
   error?: string;
 }
 
-type AgentGenerate = (prompt: string, options: Record<string, unknown>) => Promise<unknown>;
+type AgentGenerate = (
+  prompt: string,
+  options: Record<string, unknown>,
+) => Promise<unknown>;
 export interface GenerateLapAnalysisDeps {
   getLapById?: typeof getLapById;
   getCorners?: typeof getCorners;
@@ -51,13 +67,16 @@ export interface GenerateLapAnalysisDeps {
   generate?: AgentGenerate;
 }
 
-const invalidAnalysisError = "Model produced invalid analysis structure. Not cached. Try again or switch model.";
+const invalidAnalysisError =
+  "Model produced invalid analysis structure. Not cached. Try again or switch model.";
 
 function parseAndValidateAnalysis(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   try {
     const text = extractJson(raw);
-    return AnalystOutputSchema.safeParse(JSON.parse(text)).success ? text : null;
+    return AnalystOutputSchema.safeParse(JSON.parse(text)).success
+      ? text
+      : null;
   } catch {
     return null;
   }
@@ -73,13 +92,35 @@ export async function generateLapAnalysis(
   const readAnalysis = deps.getAnalysis ?? getAnalysis;
   const writeAnalysis = deps.saveAnalysis ?? saveAnalysis;
   const lap = await findLap(lapId);
-  if (!lap) return { analysis: null, cached: false, cornerFracs: [], hasTune: false, error: "Lap not found" };
-  if (lap.telemetry.length === 0) return { analysis: null, cached: false, cornerFracs: [], hasTune: false, error: "No telemetry data" };
+  if (!lap)
+    return {
+      analysis: null,
+      cached: false,
+      cornerFracs: [],
+      hasTune: false,
+      error: "Lap not found",
+    };
+  if (lap.telemetry.length === 0)
+    return {
+      analysis: null,
+      cached: false,
+      cornerFracs: [],
+      hasTune: false,
+      error: "No telemetry data",
+    };
 
   const trackOrdinal = lap.trackOrdinal ?? 0;
-  let corners: Corner[] = trackOrdinal > 0 && lap.gameId ? await findCorners(trackOrdinal, lap.gameId) : [];
-  if (corners.length === 0) corners = (deps.detectCorners ?? detectCorners)(lap.telemetry);
-  const totalDist = lap.telemetry.length > 1 ? lap.telemetry[lap.telemetry.length - 1].DistanceTraveled - lap.telemetry[0].DistanceTraveled : 1;
+  let corners: Corner[] =
+    trackOrdinal > 0 && lap.gameId
+      ? await findCorners(trackOrdinal, lap.gameId)
+      : [];
+  if (corners.length === 0)
+    corners = (deps.detectCorners ?? detectCorners)(lap.telemetry);
+  const totalDist =
+    lap.telemetry.length > 1
+      ? lap.telemetry[lap.telemetry.length - 1].DistanceTraveled -
+        lap.telemetry[0].DistanceTraveled
+      : 1;
   const firstDist = lap.telemetry[0]?.DistanceTraveled ?? 0;
   const cornerFracs = corners.map((corner) => ({
     label: corner.label,
@@ -106,7 +147,8 @@ export async function generateLapAnalysis(
         hasTune,
       };
     }
-    if (options.cacheOnly) return { analysis: null, cached: false, cornerFracs, hasTune };
+    if (options.cacheOnly)
+      return { analysis: null, cached: false, cornerFracs, hasTune };
   }
 
   const settings = (deps.loadSettings ?? loadSettings)();
@@ -125,11 +167,30 @@ export async function generateLapAnalysis(
     }
   }
 
-  const track = (deps.resolveTrack ?? resolveTrack)(lap.gameId, lap.trackOrdinal);
-  let sectors: { times: { s1: number; s2: number; s3: number }; s1End: number; s2End: number } | undefined;
-  if (track.sectors.s1End && track.sectors.s2End && lap.gameId && lap.trackOrdinal != null) {
+  const track = (deps.resolveTrack ?? resolveTrack)(
+    lap.gameId,
+    lap.trackOrdinal,
+  );
+  let sectors:
+    | {
+        times: { s1: number; s2: number; s3: number };
+        s1End: number;
+        s2End: number;
+      }
+    | undefined;
+  if (
+    track.sectors.s1End &&
+    track.sectors.s2End &&
+    lap.gameId &&
+    lap.trackOrdinal != null
+  ) {
     try {
-      const times = await (deps.computeLapSectors ?? computeLapSectors)(lap.trackOrdinal, lap.gameId as GameId, lap.telemetry, lap.lapTime);
+      const times = await (deps.computeLapSectors ?? computeLapSectors)(
+        lap.trackOrdinal,
+        lap.gameId as GameId,
+        lap.telemetry,
+        lap.lapTime,
+      );
       if (times && times.length >= 3) {
         sectors = {
           times: { s1: times[0], s2: times[1], s3: times[2] },
@@ -154,13 +215,24 @@ export async function generateLapAnalysis(
     settings.language,
     sectors,
   );
-  if (lap.gameId === "f1-2025") prompt += buildF1SetupReferenceBlock(lap.carSetup, lap.telemetry, lap.trackOrdinal ?? -1);
+  if (lap.gameId === "f1-2025")
+    prompt += buildF1SetupReferenceBlock(
+      lap.carSetup,
+      lap.telemetry,
+      lap.trackOrdinal ?? -1,
+    );
 
   let ai: ResolvedAi;
   try {
     ai = await (deps.resolveAi ?? resolveAi)("analysis", settings);
   } catch (err) {
-    return { analysis: null, cached: false, cornerFracs, hasTune, error: toClientAiError(err).message };
+    return {
+      analysis: null,
+      cached: false,
+      cornerFracs,
+      hasTune,
+      error: toClientAiError(err).message,
+    };
   }
 
   const model = ai.model;
@@ -180,19 +252,41 @@ export async function generateLapAnalysis(
       providerOptions: {
         openai: {
           reasoningEffort: "medium",
-          responseFormat: { type: "json_schema", jsonSchema: { name: "analyst_output", strict: true, schema } },
+          responseFormat: {
+            type: "json_schema",
+            jsonSchema: { name: "analyst_output", strict: true, schema },
+          },
         },
-        google: buildGoogleProviderOptions(model, schema, settings.aiThinkingBudget),
+        google: buildGoogleProviderOptions(
+          model,
+          schema,
+          settings.aiThinkingBudget,
+        ),
       },
     };
-    const generate = deps.generate ?? ((requestPrompt, requestOptions) => lapAnalystAgent.generate(requestPrompt, requestOptions as never));
+    const generate =
+      deps.generate ??
+      ((requestPrompt, requestOptions) =>
+        lapAnalystAgent.generate(requestPrompt, requestOptions as never));
     const runStructured = deps.runAiStructured ?? runAiStructured;
-    const result = await runStructured(ai, input, (requestContext) => generate(prompt, { ...generationOptions, requestContext }));
+    const result = await runStructured(ai, input, (requestContext) =>
+      generate(prompt, { ...generationOptions, requestContext }),
+    );
     const text = parseAndValidateAnalysis(result.analysis);
-    if (!text) return { analysis: null, cached: false, cornerFracs, hasTune, error: invalidAnalysisError };
+    if (!text)
+      return {
+        analysis: null,
+        cached: false,
+        cornerFracs,
+        hasTune,
+        error: invalidAnalysisError,
+      };
 
     const rawUsage = (result.usage ?? {}) as Record<string, unknown>;
-    const numberFor = (...keys: string[]) => keys.map((key) => rawUsage[key]).find((value): value is number => typeof value === "number") ?? 0;
+    const numberFor = (...keys: string[]) =>
+      keys
+        .map((key) => rawUsage[key])
+        .find((value): value is number => typeof value === "number") ?? 0;
     const usage: AnalysisUsage = {
       inputTokens: numberFor("inputTokens", "promptTokens"),
       outputTokens: numberFor("outputTokens", "completionTokens"),
@@ -203,14 +297,26 @@ export async function generateLapAnalysis(
     await writeAnalysis(lapId, text, usage);
     return { analysis: text, cached: false, usage, cornerFracs, hasTune };
   } catch (err) {
-    return { analysis: null, cached: false, cornerFracs, hasTune, error: toClientAiError(err).message };
+    return {
+      analysis: null,
+      cached: false,
+      cornerFracs,
+      hasTune,
+      error: toClientAiError(err).message,
+    };
   }
 }
 
-function buildF1SetupReferenceBlock(carSetupJson: string | undefined, telemetry: TelemetryPacket[], trackOrdinal: number): string {
+function buildF1SetupReferenceBlock(
+  carSetupJson: string | undefined,
+  telemetry: TelemetryPacket[],
+  trackOrdinal: number,
+): string {
   const setup = resolveLapF1Setup({ carSetup: carSetupJson, telemetry });
   if (!setup || trackOrdinal < 0) return "";
-  const current = normalizePacketSetup(setup as unknown as Record<string, unknown>);
+  const current = normalizePacketSetup(
+    setup as unknown as Record<string, unknown>,
+  );
   const refs = topCatalogReferences(trackOrdinal, 5, current);
   if (!refs.length) return "";
   const lines = [
@@ -219,12 +325,20 @@ function buildF1SetupReferenceBlock(carSetupJson: string | undefined, telemetry:
     "",
     "Current setup:",
   ];
-  for (const [key, value] of Object.entries(current)) lines.push(`  ${key}: ${value}`);
+  for (const [key, value] of Object.entries(current))
+    lines.push(`  ${key}: ${value}`);
   for (const reference of refs) {
-    lines.push("", `Rank ${reference.rank} — ${reference.team} / ${reference.author} — ${reference.lapTime} (${reference.weather}, ${reference.inputDevice}):`);
+    lines.push(
+      "",
+      `Rank ${reference.rank} — ${reference.team} / ${reference.author} — ${reference.lapTime} (${reference.weather}, ${reference.inputDevice}):`,
+    );
     const deltas = Object.entries(reference.delta ?? {});
     if (!deltas.length) lines.push("  (identical to current setup)");
-    else for (const [key, value] of deltas) lines.push(`  ${key}: ${current[key]} → ${(reference.setup as Record<string, number>)[key]} (${(value as number) > 0 ? "+" : ""}${value})`);
+    else
+      for (const [key, value] of deltas)
+        lines.push(
+          `  ${key}: ${current[key]} → ${(reference.setup as Record<string, number>)[key]} (${(value as number) > 0 ? "+" : ""}${value})`,
+        );
   }
   return lines.join("\n");
 }

@@ -8,7 +8,9 @@ import { createModelContext } from "../server/ai/model-provider";
 import { resolveAi } from "../server/ai/ai-runtime";
 import { loadSettings } from "../server/settings";
 type ToolInspectionAgent = {
-  getToolsForExecution(options: { requestContext: RequestContext }): Promise<Record<string, unknown>>;
+  getToolsForExecution(options: {
+    requestContext: RequestContext;
+  }): Promise<Record<string, unknown>>;
 };
 
 async function toolNames(agent: ToolInspectionAgent): Promise<string[]> {
@@ -19,7 +21,9 @@ async function toolNames(agent: ToolInspectionAgent): Promise<string[]> {
   });
   const requestContext = createModelContext(ai, new RequestContext());
   if (!requestContext) throw new Error("Expected local model request context");
-  return Object.keys(await agent.getToolsForExecution({ requestContext })).sort();
+  return Object.keys(
+    await agent.getToolsForExecution({ requestContext }),
+  ).sort();
 }
 
 describe("Compare Engineer tools", () => {
