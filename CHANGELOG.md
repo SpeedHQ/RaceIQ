@@ -7,6 +7,7 @@
 - View all release notes since your installed version in the app
 - Copy AI Compare chat history as JSON from the panel header
 - Generate richer lap-analysis results and continue analysis conversations across AI surfaces
+- Persist complete AI chat history, including tool calls and reasoning, across sessions
 
 ### Fixes
 - Hide unfinished F1 Experiments and iRacing integrations from production releases
