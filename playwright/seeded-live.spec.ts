@@ -11,7 +11,7 @@ const RECORDING_BY_GAME = {
   "f1-2025": "f1-2025-2026-04-22T11-42-43-029Z",
   acc: "acc-2026-04-23T16-42-16-158Z",
   "ac-evo": "session-ac-evo-mid-2026-04-21T20-24-34-810Z",
-  iracing: "iracing-road-america-gt3",
+  iracing: "iracing-daytona-am-vantage-gt3-pit",
 } as const satisfies Record<GameId, string>;
 
 type LiveChannel =
@@ -89,22 +89,9 @@ const LIVE_CHANNELS_BY_GAME = {
   ],
   iracing: [
     { kind: "dynamic", label: "Current" },
-    {
-      kind: "fixture-limited-value",
-      label: "Est. Lap",
-      expected: "--:--.---",
-      evidence:
-        "138-packet iRacing fixture has no seeded sector best, so estimated lap remains unavailable",
-    },
+    { kind: "dynamic", label: "Est. Lap" },
     { kind: "static", label: "Lap" },
-    {
-      kind: "fixture-limited-event",
-      label: "iRacing pit state",
-      states: ["OUT", "PIT LANE", "IN PIT"],
-      sourcePacketCount: 138,
-      evidence:
-        "iracing-road-america-gt3.bin.gz has 138 packets; iracing.onPitRoad=false in all 138, so no pit entry/exit transition exists to assert",
-    },
+    { kind: "event", label: "iRacing pit state", states: ["OUT", "PIT LANE", "IN PIT"] },
   ],
 } as const satisfies Record<GameId, readonly LiveChannel[]>;
 
@@ -245,6 +232,10 @@ async function assertDisconnectReconnect(
   const status = page.getByRole("status").first();
   await expect(status).toHaveAttribute("aria-label", /Disconnected/, { timeout: 10_000 });
   await expect(status).toHaveAttribute("aria-label", /Server/, { timeout: 10_000 });
+  if (gameId === "iracing" && page.url().endsWith("/iracing/live/pit")) {
+    await page.getByRole("link", { name: "Driver", exact: true }).click();
+    await expect(page).toHaveURL(/\/iracing\/live\/driver$/);
+  }
   await assertRecordingChangesLiveChannels(page, request, gameId, recordingName);
 }
 

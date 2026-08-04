@@ -2,7 +2,7 @@ import { afterAll, describe, test } from "bun:test";
 import { stopMaintenanceTasks } from "../server/telemetry/live-pipeline"
 import { assertRecordedCatalogCoverage, changingPacketFields } from "./helpers/telemetry-catalog-e2e";
 
-const RECORDING = "test/artifacts/sessions/iracing-road-america-gt3.bin.gz";
+const RECORDING = "test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz";
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);

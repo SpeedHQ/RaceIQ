@@ -79,9 +79,25 @@ async function seededIRacingLaps(dataDir: string): Promise<Array<{ lapTime: numb
   }
 }
 
+async function seededIRacingIdentity(dataDir: string): Promise<Array<{ kind: string; ordinal: number; name: string }>> {
+  const client = createClient({ url: `file:${join(dataDir, "forza-telemetry.db")}` });
+  try {
+    const rows = await client.execute(
+      "SELECT 'car' AS kind, ordinal, name FROM discovered_cars WHERE game_id = 'iracing' UNION ALL SELECT 'track' AS kind, ordinal, name FROM discovered_tracks WHERE game_id = 'iracing' ORDER BY kind, ordinal",
+    );
+    return rows.rows.map((row) => ({
+      kind: String(row.kind),
+      ordinal: Number(row.ordinal),
+      name: String(row.name),
+    }));
+  } finally {
+    client.close();
+  }
+}
+
 async function assertSeededRawFilesExist(dataDir: string): Promise<void> {
   const laps = await seededIRacingLaps(dataDir);
-  expect(laps).toHaveLength(2);
+  expect(laps).toHaveLength(4);
   expect(laps.every((lap) => lap.isValid === 1)).toBe(true);
   expect(laps.every((lap) => lap.rawFile?.startsWith(join(dataDir, "sessions", "iracing")))).toBe(true);
   expect(laps.every((lap) => lap.rawFile && readFileSync(lap.rawFile).length > 0)).toBe(true);
@@ -137,6 +153,10 @@ describe("db:seed", () => {
     await assertSeededRawFilesExist(dataDir);
     expect(JSON.parse(readFileSync(join(dataDir, "settings.json"), "utf8")).onboardingComplete).toBe(true);
     expect(await seededGames(dataDir)).toEqual(["ac-evo", "acc", "f1-2025", "fm-2023", "iracing"]);
+    expect(await seededIRacingIdentity(dataDir)).toEqual([
+      { kind: "car", ordinal: 206, name: "Aston Martin Vantage GT3 EVO" },
+      { kind: "track", ordinal: 192, name: "Daytona International Speedway" },
+    ]);
     expect(initial.experiments).toBe(1);
     expect(initial.experiment_versions).toBe(2);
     expect(initial.experiment_focus_events).toBe(2);

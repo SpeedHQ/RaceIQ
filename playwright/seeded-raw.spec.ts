@@ -15,7 +15,7 @@ const RECORDING_BY_GAME: Record<GameId, string> = {
   "f1-2025": "f1-2025-2026-04-22T11-42-43-029Z",
   acc: "acc-2026-04-23T16-42-16-158Z",
   "ac-evo": "session-ac-evo-mid-2026-04-21T20-24-34-810Z",
-  iracing: "iracing-road-america-gt3",
+  iracing: "iracing-daytona-am-vantage-gt3-pit",
 };
 
 const CATEGORY_BY_FRESHNESS = {

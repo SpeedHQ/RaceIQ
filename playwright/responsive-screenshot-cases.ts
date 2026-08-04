@@ -62,13 +62,12 @@ export const RESPONSIVE_PAGES: readonly ResponsivePage[] = [
   { name: "ac-evo-setups", path: "/ac-evo/setups", viewports: DESKTOP_ONLY },
 
   // Seeded data states. These cover real lap-heavy and experiment detail
-  // compositions; static catalog detail pages above cover every game even
-  // where fixture telemetry cannot produce a completed lap (iRacing).
+  // compositions for every game.
   { name: "fm23-seeded-laps", path: "/fm23/tracks/5/laps", viewports: DESKTOP_ONLY, readyText: "Road America", requiresSeed: true },
   { name: "f125-seeded-laps", path: "/f125/tracks/19/laps", viewports: DESKTOP_ONLY, readyText: "Autodromo Hermanos Rodriguez", requiresSeed: true },
   { name: "acc-seeded-laps", path: "/acc/tracks/2/laps", viewports: DESKTOP_ONLY, readyText: "Brands Hatch", requiresSeed: true },
   { name: "ac-evo-seeded-laps", path: "/ac-evo/tracks/2/laps", viewports: DESKTOP_ONLY, readyText: "Brands Hatch", requiresSeed: true },
-  { name: "iracing-laps-empty", path: "/iracing/tracks/18/laps", viewports: DESKTOP_ONLY, readyText: "Road America" },
+  { name: "iracing-seeded-laps", path: "/iracing/tracks/192/laps", viewports: DESKTOP_ONLY, readyText: "Daytona International Speedway", requiresSeed: true },
   { name: "fm23-track-setups", path: "/fm23/tracks/860/setups", viewports: DESKTOP_ONLY, readyText: "Brand Hatch" },
   { name: "f125-track-setups", path: "/f125/tracks/19/setups", viewports: DESKTOP_ONLY, readyText: "Autodromo Hermanos Rodriguez" },
   { name: "f125-track-guide", path: "/f125/tracks/19/guide", viewports: DESKTOP_ONLY, readyText: "Autodromo Hermanos Rodriguez" },
