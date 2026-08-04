@@ -10,6 +10,7 @@ import { eq, inArray, like } from "drizzle-orm";
 import { deleteSession } from "../server/db/session-queries";
 import { getServerGame } from "../server/games/registry";
 import { readIRacingFrames } from "../server/games/iracing/recorder";
+import { registerImportedIRacingIdentity } from "../server/games/iracing/identity";
 import { LiveTelemetryPipeline, stopMaintenanceTasks } from "../server/telemetry/live-pipeline"
 import { NullWsAdapter, RealDbAdapter, RealSessionRecorderAdapter } from "../server/telemetry/pipeline-ports"
 import { loadSettings, saveSettings } from "../server/runtime/config/settings";
@@ -23,7 +24,7 @@ const FIXTURES: Record<GameId, string[]> = {
   "f1-2025": ["test/artifacts/sessions/f1-2025-2026-04-22T11-42-43-029Z.bin.gz"],
   acc: ["test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz"],
   "ac-evo": ["test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz"],
-  iracing: ["test/artifacts/sessions/iracing-road-america-gt3.bin.gz"],
+  iracing: ["test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz"],
 };
 
 type SeedOptions = { reset: boolean; force: boolean; games: GameId[] };
@@ -127,9 +128,19 @@ async function seedIRacingSession(fixturePath: string): Promise<void> {
     recorder: new RealSessionRecorderAdapter(),
   });
   let packetCount = 0;
+  let identityRegistered = false;
   for (const sourceFrame of readIRacingFrames(fixturePath)) {
     const packet = adapter.tryParse(sourceFrame, parserState);
     if (!packet) continue;
+    if (!identityRegistered && packet.iracing) {
+      await registerImportedIRacingIdentity({
+        carId: packet.CarOrdinal,
+        carName: packet.iracing.carName,
+        trackId: packet.TrackOrdinal,
+        trackName: packet.iracing.trackName,
+      });
+      identityRegistered = true;
+    }
     await pipeline.processPacket(packet, sourceFrame);
     packetCount++;
   }

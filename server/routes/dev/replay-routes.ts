@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { getGame } from "../../../shared/games/registry";
+import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { readRecordedTelemetry } from "../../session-capture/replay-packets";
 import { getServerGame } from "../../games/registry";
 import { PitTracker } from "../../live-strategy/pit-tracker";
@@ -23,6 +24,73 @@ function boundedInteger(
   return Number.isFinite(parsed)
     ? Math.min(maximum, Math.max(minimum, parsed))
     : fallback;
+}
+
+interface ReplayLapWindow {
+  start: number;
+  end: number;
+  hasPitRoad: boolean;
+}
+
+function replayLapKey(packet: TelemetryPacket, lapNumber: number): string {
+  return `${packet.sessionUID ?? "unknown"}:${lapNumber}`;
+}
+
+function selectIRacingReferenceLap(
+  packets: readonly TelemetryPacket[],
+): { packets: TelemetryPacket[]; lapTime: number } | null {
+  const windows = new Map<string, ReplayLapWindow>();
+  const completedTimeByLap = new Map<string, number>();
+  let activeKey: string | null = null;
+
+  for (let index = 0; index < packets.length; index++) {
+    const packet = packets[index]!;
+    const key = replayLapKey(packet, packet.LapNumber);
+    if (key !== activeKey) {
+      if (activeKey) windows.get(activeKey)!.end = index;
+      windows.set(key, {
+        start: index,
+        end: packets.length,
+        hasPitRoad: packet.iracing?.onPitRoad === true,
+      });
+      activeKey = key;
+    } else if (packet.iracing?.onPitRoad) {
+      windows.get(key)!.hasPitRoad = true;
+    }
+
+    if (
+      packet.CurrentLap >= 0 &&
+      packet.CurrentLap <= 5 &&
+      packet.LastLap > 10
+    ) {
+      completedTimeByLap.set(
+        replayLapKey(packet, packet.LapNumber - 1),
+        packet.LastLap,
+      );
+    }
+  }
+
+  let best:
+    | { window: ReplayLapWindow; lapTime: number }
+    | null = null;
+  for (const [key, lapTime] of completedTimeByLap) {
+    const window = windows.get(key);
+    if (
+      !window ||
+      window.hasPitRoad ||
+      window.end - window.start < 2 ||
+      (best && lapTime >= best.lapTime)
+    ) {
+      continue;
+    }
+    best = { window, lapTime };
+  }
+  return best
+    ? {
+        packets: packets.slice(best.window.start, best.window.end),
+        lapTime: best.lapTime,
+      }
+    : null;
 }
 
 export const replayRoutes = new Hono().post(
@@ -91,6 +159,15 @@ export const replayRoutes = new Hono().post(
       gameId,
       packets[0]!.CarOrdinal,
     );
+    if (gameId === "iracing") {
+      const referenceLap = selectIRacingReferenceLap(recorded.packets);
+      if (referenceLap) {
+        sectorTracker.updateRefLap(
+          referenceLap.packets,
+          referenceLap.lapTime,
+        );
+      }
+    }
     const pitTracker = new PitTracker();
     pitTracker.reset();
     pitTracker.setTireThresholds(getServerGame(gameId).tireHealthThresholds.yellow);

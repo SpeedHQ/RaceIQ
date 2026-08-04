@@ -9,6 +9,7 @@
 
 ### Fixes
 
+- Highlight only one fastest lap per sector in session and live lap tables
 - Preview and import iRacing IBT recordings larger than 128 MiB without upload connection failures
 - Ignore one-frame iRacing lap-counter resets that created invalid duplicate lap numbers in session recaps
 - Honor Analyse and Compare URL state so saved chats open with their AI panel visible and comparison cursor links are preserved
@@ -49,6 +50,7 @@
 - Keep live telemetry stable during route and game transitions by resolving car names from each packet and skipping invalid track metadata requests
 
 ### Internal
+- Use compact real iRacing Daytona telemetry with a complete pit cycle and live estimated-lap replay in seeded development data
 - Distinguish clean page reloads from unexpected browser termination in client diagnostics
 - Keep production builds from bundling development-only Mastra dependencies
 - Added complete telemetry-first semantic catalog with units, descriptions, per-game fidelity mappings, full parser/setup source inventories, stable iRacing SessionInfo setup leaves, detailed sector relationships, and persisted detailed tire temperatures

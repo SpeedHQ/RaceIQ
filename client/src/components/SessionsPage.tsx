@@ -6,7 +6,7 @@ import { m } from "@/paraglide/messages";
 import type { LapMeta, SessionMeta } from "../../../shared/racing/sessions/types";
 import { queryKeys, useDeleteLap, useLaps, useSessions } from "../hooks/queries";
 import { exportLapsZip } from "../lib/lap-export";
-import { storedLapsSectorCount } from "../lib/lap-sectors";
+import { bestSectorLapIds, storedLapsSectorCount } from "../lib/lap-sectors";
 import { client } from "../lib/rpc";
 import { useGameId, useGameRoute } from "../stores/game";
 import { MotecImportModal } from "./analyse/MotecImportModal";
@@ -85,12 +85,7 @@ function SessionLapTable({
 
   const sectorLabels = Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`);
 
-  const bestSectors = useMemo(() => {
-    return Array.from({ length: sectorCount }, (_, index) => {
-      const times = laps.map((lap) => lap.sectorTimes?.[index] ?? 0).filter((time) => time > 0);
-      return times.length > 0 ? Math.min(...times) : Infinity;
-    });
-  }, [laps, sectorCount]);
+  const bestSectorLaps = useMemo(() => bestSectorLapIds(laps, sectorCount), [laps, sectorCount]);
 
   const sortedLaps = useMemo(
     () =>
@@ -100,12 +95,6 @@ function SessionLapTable({
       }),
     [laps, lapSortKey, lapSortDir],
   );
-
-  function sectorColor(time: number, best: number): string {
-    if (best === Infinity || time <= 0) return "text-app-text/90";
-    if (time <= best * 1.001) return "text-(--lap-pace-best) font-bold";
-    return "text-app-text/90";
-  }
 
   return (
     <>
@@ -180,7 +169,7 @@ function SessionLapTable({
                   const val = lap.sectorTimes?.[index] ?? 0;
                   return (
                     <TD key={label} numeric>
-                      <span className={sectorColor(val, bestSectors[index])}>{val > 0 ? formatLapTime(val) : "—"}</span>
+                      <span className={bestSectorLaps[index] === lap.id ? "text-(--lap-pace-best) font-bold" : "text-app-text/90"}>{val > 0 ? formatLapTime(val) : "—"}</span>
                     </TD>
                   );
                 })}
