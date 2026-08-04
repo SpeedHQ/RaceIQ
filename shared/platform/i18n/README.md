@@ -21,7 +21,7 @@ Locale registry and language metadata shared across UI and AI prompt paths.
 ## Dependency direction
 - `LOCALES` flows to:
   - `shared/integrations/ai/language.ts` for `aiLanguageInstruction`
-  - `client/src/components/Onboarding.tsx`, `Settings.tsx`
+  - `client/src/components/onboarding/OnboardingModal.tsx`, `client/src/components/settings/Settings.tsx`
   - `server/runtime/config/settings.ts` validation via `LOCALE_CODES`
   - translation files under `client/messages/` (external to this folder)
 

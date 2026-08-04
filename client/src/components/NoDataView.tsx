@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { m } from "@/paraglide/messages";
-import { useSettings } from "../hooks/queries";
+import { useSettings } from "../hooks/settings";
 import { useGameId } from "../stores/game";
 import { Button } from "./ui/button";
 

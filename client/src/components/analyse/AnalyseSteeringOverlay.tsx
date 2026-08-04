@@ -1,5 +1,5 @@
+import { getSteeringLock } from "@/lib/settings-storage";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
-import { getSteeringLock } from "../Settings";
 import { brakeBarColor } from "./AnalyseMetricsPanel";
 
 interface Props {

@@ -1,33 +1,26 @@
 import { getGame } from "@shared/games/registry";
 import { EXPERIMENT_FOCUS_AGENT_LABELS } from "@shared/racing/experiments/focus";
 import { isPitCycleLap } from "@shared/racing/laps/pit-cycle";
+import type { LapMeta } from "@shared/racing/sessions/types";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import type { LapMeta } from "../../../../shared/racing/sessions/types";
-import {
-  type ExperimentGameId,
-  type ExperimentLapMetric,
-  type ExperimentVersion,
-  useAccCarName,
-  useExperiment,
-  useExperimentLapMetrics,
-  useExperimentVersions,
-  useLaps,
-  useResolveNames,
-} from "../../hooks/queries";
-import { formatLapTime } from "../../lib/format";
-import { client } from "../../lib/rpc";
-import { useTelemetryStore } from "../../stores/telemetry";
-import { Button } from "../ui/button";
+import { Button } from "@/components/ui/button";
+import { useAccCarName, useResolveNames } from "@/hooks/catalog-queries";
+import type { ExperimentGameId, ExperimentLapMetric, ExperimentVersion } from "@/hooks/experiments";
+import { useExperiment, useExperimentLapMetrics, useExperimentVersions } from "@/hooks/experiments";
+import { useLaps } from "@/hooks/laps";
+import { formatLapTime } from "@/lib/format";
+import { client } from "@/lib/rpc";
+import { useTelemetryStore } from "@/stores/telemetry";
 import { AddBaseModal } from "./AddBaseModal";
 import { BackButton } from "./BackButton";
+import { VersionGraph } from "./experiment/VersionGraph";
 import { FocusSwitcher } from "./FocusSwitcher";
 import { HistoryPanel } from "./HistoryPanel";
 import { ImportLapsModal } from "./ImportLapsModal";
 import { LiveTestDashboard } from "./LiveTestDashboard";
 import { TuneSetupChat } from "./TuneSetupChat";
-import { VersionGraph } from "./VersionGraph";
 
 /**
  * ExperimentWorkspace — the live-first workspace that opens *inside* a tuning

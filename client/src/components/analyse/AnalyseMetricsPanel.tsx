@@ -1,10 +1,10 @@
 import { getGame } from "@shared/games/registry";
 import { getFuelAmount, getFuelDisplay, WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
+import { getSteeringLock } from "@/lib/settings-storage";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { useUnits } from "../../hooks/useUnits";
 import { operatingRangeColor, severityRangeColor } from "../../lib/colors";
 import { m } from "../../paraglide/messages";
-import { getSteeringLock } from "../Settings";
 
 export function MetricsPanel({ pkt, startFuel }: { pkt: TelemetryPacket & { DisplaySpeed?: number }; startFuel?: number }) {
   const units = useUnits();

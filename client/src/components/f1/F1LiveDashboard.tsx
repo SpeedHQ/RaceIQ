@@ -5,7 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { severityColor, severityRangeColor } from "@/lib/colors";
 import { m } from "@/paraglide/messages";
 import type { F1ExtendedData } from "../../../../shared/telemetry/f1-2025";
-import { useCarName, useTrackName } from "../../hooks/queries";
+import { useCarName } from "../../hooks/catalog-queries";
+import { useTrackName } from "../../hooks/track-queries";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { LapTimeChart } from "../LapTimeChart";
 import { NoDataView } from "../NoDataView";

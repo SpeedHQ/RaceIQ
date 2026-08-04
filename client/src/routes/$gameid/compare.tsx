@@ -1,5 +1,5 @@
 import { createFileRoute, useSearch } from "@tanstack/react-router";
-import { LapComparison } from "../../components/LapComparison";
+import { LapComparison } from "../../components/comparison/LapComparison";
 import { validateCompareSearch } from "../../lib/game-routes";
 
 export const Route = createFileRoute("/$gameid/compare")({

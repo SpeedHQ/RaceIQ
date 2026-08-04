@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import type { GameId } from "../../../../shared/games/ids";
-import { useCarsFromEndpoint, useMotecTargets, useTracksForGame, useUserTunes } from "../../hooks/queries";
+import { useCarsFromEndpoint, useMotecTargets, useTracksForGame } from "../../hooks/catalog-queries";
+import { useUserTunes } from "../../hooks/tunes";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { SearchSelect } from "../ui/SearchSelect";

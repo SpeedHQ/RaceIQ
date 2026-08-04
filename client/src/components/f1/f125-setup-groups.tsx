@@ -1,6 +1,5 @@
-// Shared F1 2025 setup field grouping — used by both the track-detail setups
-// page (F125TrackSetups) and the top-level Setups browser (F125SetupBrowser)
-// so the grouped expanded view stays identical in both places.
+// Shared F1 2025 setup field grouping — used by track-detail setup and range
+// views plus top-level Setups browser so grouped expanded view stays identical.
 
 export const SETUP_GROUPS: { title: string; fields: [string, string, string?][] }[] = [
   {

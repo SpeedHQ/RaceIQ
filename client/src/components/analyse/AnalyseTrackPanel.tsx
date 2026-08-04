@@ -1,10 +1,11 @@
 import type { RefObject } from "react";
+import type { AnalysisHighlight } from "@/components/ai/analysis-types";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import { m } from "../../paraglide/messages";
-import type { AnalysisHighlight } from "../AiPanel";
 import { Compass } from "../Compass";
 import { AnalyseSteeringOverlay } from "./AnalyseSteeringOverlay";
-import { AnalyseTrackMap, type Point, type SectorBoundaries, type TrackMapLabel, type TrackMapHandle } from "./AnalyseTrackMap";
+import { AnalyseTrackMap } from "./AnalyseTrackMap";
+import type { Point, SectorBoundaries, TrackMapHandle, TrackMapLabel } from "./track-map/types";
 import { WeatherWidget } from "./WeatherWidget";
 import { Button } from "../ui/button";
 

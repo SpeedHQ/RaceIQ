@@ -7,7 +7,7 @@ import { CarWireframe } from "../CarWireframe";
 import { GForceCircle } from "../telemetry/GForceCircle";
 import { Vitals2D } from "../telemetry/Vitals2D";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import type { Point } from "./AnalyseTrackMap";
+import type { Point } from "./track-map/types";
 
 interface Props {
   vizMode: "2d" | "3d";

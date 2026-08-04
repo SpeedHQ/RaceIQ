@@ -25,7 +25,7 @@ This folder is source of truth for:
 
 ## Browser vs Node boundary
 - Runtime modules are environment-neutral TypeScript; no DOM, `fetch`, or Node-specific globals.
-- `compileTelemetryResolver` and frame readers are used in both Node runtime (`server/telemetry/replay.ts`) and browser (`client/src/components/TrackMap.tsx`).
+- `compileTelemetryResolver` and frame readers stay environment-neutral; production use currently lives in `server/telemetry/replay.ts`, with resolver contracts covered by `test/telemetry/resolver`.
 - Generator side effects live in `scripts/catalog/generate-telemetry-catalog.ts` (Bun/Node), which writes artifacts under `shared/telemetry/catalog/generated`.
 
 ## Dependency direction

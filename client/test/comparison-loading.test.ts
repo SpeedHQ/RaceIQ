@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ComparisonLoadStatus } from "../src/components/LapComparison";
+import { ComparisonLoadStatus } from "../src/components/comparison/LapComparison";
 import { m } from "../src/paraglide/messages";
 
 describe("comparison loading state", () => {

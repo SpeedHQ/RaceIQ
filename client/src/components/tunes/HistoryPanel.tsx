@@ -1,4 +1,5 @@
-import { type ExperimentActionRow, useExperimentHistory, useExperimentVersions, useUndo } from "../../hooks/queries";
+import { type ExperimentActionRow, useExperimentHistory, useUndo } from "../../hooks/experiment-history";
+import { useExperimentVersions } from "../../hooks/experiments";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { FocusTimeline } from "./FocusTimeline";

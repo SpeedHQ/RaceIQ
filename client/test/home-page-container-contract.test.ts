@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { readFile } from "node:fs/promises";
 
-const homePagePath = new URL("../src/components/HomePage.tsx", import.meta.url);
-const containerPath = new URL("../src/components/HomePageContainer.tsx", import.meta.url);
+const homePagePath = new URL("../src/components/home/HomePageView.tsx", import.meta.url);
+const containerPath = new URL("../src/components/home/HomePageContainer.tsx", import.meta.url);
 const routePaths = [
   "../src/routes/index.tsx",
   "../src/routes/fm23/index.tsx",

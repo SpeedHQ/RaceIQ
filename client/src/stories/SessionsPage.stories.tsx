@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import type { LapMeta, SessionMeta } from "../../../shared/racing/sessions/types";
-import { SessionsPage } from "../components/SessionsPage";
+import { SessionsPage } from "../components/sessions/SessionsPage";
 import { GameStoryScope } from "./GameStoryScope";
 
 const gameId = "ac-evo";

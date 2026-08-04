@@ -44,23 +44,22 @@ describe("responsive workspace contract", () => {
 
   test("blocking rotation and unsupported helpers stay removed", () => {
     const root = read("client/src/routes/__root.tsx");
-    const sessions = read("client/src/components/SessionsPage.tsx");
-    const tuneLive = read("client/src/components/tunes/TuneLiveDashboard.tsx");
+    const sessions = read("client/src/components/sessions/SessionsPage.tsx");
     const dash = read("client/src/routes/dash.index.tsx");
 
     expect(root).not.toContain("function MobileNotSupported");
     expect(root).not.toContain("function RotatePrompt");
-    for (const source of [sessions, tuneLive, dash]) {
+    for (const source of [sessions, dash]) {
       expect(source).not.toContain("RotatePrompt");
     }
   });
 
   test("dense workspaces define stacked and wide compositions", () => {
-    const analyse = read("client/src/components/LapAnalyse.tsx");
-    const compare = read("client/src/components/LapComparison.tsx");
+    const analysePanels = read("client/src/components/analyse/AnalyseWorkspacePanels.tsx");
+    const compare = read("client/src/components/comparison/LapComparison.tsx");
     const analyseTop = read("client/src/components/analyse/AnalyseTopSection.tsx");
 
-    expect(analyse).toContain("@5xl/workspace:flex-row");
+    expect(analysePanels).toContain("@5xl/workspace:flex-row");
     expect(compare).toContain("@5xl/workspace:flex-row");
     expect(analyseTop).toContain("@5xl/workspace:flex-row");
   });
@@ -78,15 +77,15 @@ describe("responsive workspace contract", () => {
 
   test("route-level page composition uses named content-width tiers", () => {
     const pageOwners = [
-      "client/src/components/HomePage.tsx",
-      "client/src/components/CarsPage.tsx",
-      "client/src/components/SessionsPage.tsx",
+      "client/src/components/home/HomePageView.tsx",
+      "client/src/components/cars/CarsPage.tsx",
+      "client/src/components/sessions/SessionDesktopTable.tsx",
       "client/src/components/TrackViewer.tsx",
       "client/src/components/track/TrackDetail.tsx",
       "client/src/components/ForzaLiveDashboard.tsx",
       "client/src/components/f1/F1LiveDashboard.tsx",
       "client/src/components/acc/AccLiveDashboard.tsx",
-      "client/src/components/tunes/ExperimentList.tsx",
+      "client/src/components/tunes/experiment/ExperimentList.tsx",
       "client/src/components/tunes/ExperimentWorkspace.tsx",
       "client/src/routes/dash.index.tsx",
     ];
@@ -101,8 +100,8 @@ describe("responsive workspace contract", () => {
   test("app shell and full-screen flows own named container contracts", () => {
     const owners = [
       ["client/src/routes/__root.tsx", "@container/shell"],
-      ["client/src/components/Settings.tsx", "@container/settings"],
-      ["client/src/components/Onboarding.tsx", "@container/onboarding"],
+      ["client/src/components/settings/Settings.tsx", "@container/settings"],
+      ["client/src/components/onboarding/OnboardingModal.tsx", "@container/onboarding"],
       ["client/src/components/analyse/DataGuideModal.tsx", "@container/data-guide"],
       ["client/src/components/analyse/TuneViewModal.tsx", "@container/tune-view"],
       ["client/src/components/tunes/SetupFilePicker.tsx", "@container/setup-file"],

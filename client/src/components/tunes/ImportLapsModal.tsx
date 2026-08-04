@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { GameId } from "../../../../shared/games/ids";
-import { type ExperimentVersion, type ImportableLap, useImportableLaps, useImportLaps } from "../../hooks/queries";
+import type { ExperimentVersion, ImportableLap } from "../../hooks/experiments";
+import { useImportableLaps, useImportLaps } from "../../hooks/experiments";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 

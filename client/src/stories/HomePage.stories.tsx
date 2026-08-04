@@ -1,14 +1,14 @@
+import type { LapMeta, SessionMeta, SessionRecap } from "@shared/racing/sessions/types";
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import { type ComponentType, type ReactNode, useEffect, useState } from "react";
+import { HomePageContainer } from "@/components/home/HomePageContainer";
+import type { DriverProfileRun } from "@/hooks/driver-profile";
+import { DEFAULT_DISPLAY_SETTINGS } from "@/stores/telemetry";
 import type { DriverFingerprint } from "../../../server/driver-profile/fingerprint";
 import type { DriverTrend } from "../../../server/driver-profile/trend";
 import hakoneClubCenterlineCsv from "../../../shared/data/tracks/fm-2023/hakone-s-1641-centerline.csv?raw";
-import type { LapMeta, SessionMeta, SessionRecap } from "../../../shared/racing/sessions/types";
-import { HomePageContainer } from "../components/HomePageContainer";
-import type { DriverProfileRun } from "../hooks/queries";
-import { DEFAULT_DISPLAY_SETTINGS } from "../stores/telemetry";
 import { GameStoryScope } from "./GameStoryScope";
 
 const GAME_ID = "fm-2023" as const;

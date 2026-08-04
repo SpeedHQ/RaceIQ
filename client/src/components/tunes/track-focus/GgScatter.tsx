@@ -96,8 +96,8 @@ export function GgScatter({ traces, bestLapId, cursorFrac }: GgScatterProps) {
           .filter((t) => t.lapId !== bestLapId)
           .map((t) => (
             <g key={t.lapId} opacity={t.isValid ? 0.3 : 0.45}>
-              {Array.from({ length: t.n }, (_, i) => (
-                <circle key={i} cx={px(t.latG![i])} cy={py(t.longG![i])} r={1.1} fill={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"} />
+              {Array.from(t.frac.slice(0, t.n), (fraction, i) => (
+                <circle key={`${t.lapId}-${fraction}`} cx={px(t.latG![i])} cy={py(t.longG![i])} r={1.1} fill={t.isValid ? "var(--app-text-dim)" : "var(--status-danger)"} />
               ))}
             </g>
           ))}
@@ -105,8 +105,8 @@ export function GgScatter({ traces, bestLapId, cursorFrac }: GgScatterProps) {
           .filter((t) => t.lapId === bestLapId)
           .map((t) => (
             <g key={t.lapId} opacity={0.85}>
-              {Array.from({ length: t.n }, (_, i) => (
-                <circle key={i} cx={px(t.latG![i])} cy={py(t.longG![i])} r={1.3} fill="var(--app-accent)" />
+              {Array.from(t.frac.slice(0, t.n), (fraction, i) => (
+                <circle key={`${t.lapId}-${fraction}`} cx={px(t.latG![i])} cy={py(t.longG![i])} r={1.3} fill="var(--app-accent)" />
               ))}
             </g>
           ))}

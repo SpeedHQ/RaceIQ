@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { m } from "@/paraglide/messages";
-import { useCarName, useTrackName } from "../hooks/queries";
+import { useCarName } from "../hooks/catalog-queries";
+import { useTrackName } from "../hooks/track-queries";
 import { useDemoMode } from "../hooks/useDemoMode";
 import { useGameId, useGameRoute } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";

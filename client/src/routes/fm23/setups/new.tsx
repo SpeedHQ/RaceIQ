@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { TuneForm } from "../../../components/TuneForm";
-import { useCreateTune } from "../../../hooks/queries";
+import { TuneForm } from "@/components/tune/form/TuneForm";
+import { useCreateTune } from "@/hooks/tunes";
 
 function NewTunePage() {
   const navigate = useNavigate();

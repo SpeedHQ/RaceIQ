@@ -1,6 +1,6 @@
 import type { DriverProfileSummary } from "../../../../server/ai/schemas";
 import { parseDriverProfileSummary } from "../../../../server/ai/schemas";
-import { useDriverProfile, useDriverProfileRuns, useRunDriverProfile } from "../../hooks/queries";
+import { useDriverProfile, useDriverProfileRuns, useRunDriverProfile } from "../../hooks/driver-profile";
 import { getGameRoute, useRequiredGameId } from "../../stores/game";
 import { RaceResultSummary } from "../race-results/ResultSummary";
 import { DriverProfileView } from "./DriverProfileView";

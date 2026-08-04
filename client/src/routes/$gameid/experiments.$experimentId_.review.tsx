@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { TestReviewPage } from "../../components/tunes/TestReviewPage";
+import { TestReviewPage } from "../../components/tunes/review/TestReviewPage";
 import { setupEngineerGameIdForRoutePrefix, validateTuneReviewSearch } from "../../lib/game-routes";
 
 export const Route = createFileRoute("/$gameid/experiments/$experimentId_/review")({

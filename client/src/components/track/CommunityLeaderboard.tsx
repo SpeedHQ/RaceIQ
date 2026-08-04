@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
-import { useLaptimes } from "@/hooks/queries";
+import { useLaptimes } from "@/hooks/tunes";
 import { tracksMatch } from "@/lib/track-match";
 import { m } from "@/paraglide/messages";
 

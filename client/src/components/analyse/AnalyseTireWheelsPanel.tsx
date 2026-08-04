@@ -3,7 +3,7 @@ import { tryGetGame } from "@shared/games/registry";
 import type { GameId } from "../../../../shared/games/ids";
 import { resolveAnalysisTelemetry } from "../../../../shared/racing/analysis/telemetry-capabilities";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
-import { useTirePressureOptimal } from "../../hooks/queries";
+import { useTirePressureOptimal } from "../../hooks/catalog-queries";
 import type { useUnits } from "../../hooks/useUnits";
 import type { DisplayPacket } from "../../lib/convert-packet";
 import { brakeTempColor, tireHealthColor, tirePressureColor, tireTempColor, wearRateColor } from "../../lib/vehicle-dynamics";

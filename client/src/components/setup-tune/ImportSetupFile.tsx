@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { m } from "@/paraglide/messages";
-import { useImportTuneFile, useSetupFiles } from "../../hooks/queries";
+import { useImportTuneFile, useSetupFiles } from "../../hooks/setup-queries";
 import { Button } from "../ui/button";
 import { getCategoriesForGame } from "./SetupTuneForm";
 

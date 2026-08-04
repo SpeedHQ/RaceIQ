@@ -1,8 +1,8 @@
 import { createFileRoute, useParams } from "@tanstack/react-router";
+import { CarsPage } from "@/components/cars/CarsPage";
 import { AcEvoCars } from "../../components/ac-evo/AcEvoCars";
 import { AccCars } from "../../components/acc/AccCars";
-import { CarsPage } from "../../components/CarsPage";
-import { F1Cars } from "../../components/f1/F1Cars";
+import { F1Cars } from "../../components/f1/cars/F1Cars";
 import { IRacingCars } from "../../components/iracing/IRacingCars";
 import { RaceResultSummary } from "../../components/race-results/ResultSummary";
 
