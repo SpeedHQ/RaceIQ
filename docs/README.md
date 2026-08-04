@@ -29,6 +29,7 @@ Documentation is organized by audience. Start with a user guide; use contributor
 
 ## Reference
 
+- [Game feature coverage](reference/game-feature-coverage.md) — product-surface and high-level source gaps across supported games.
 - [Telemetry reference](reference/telemetry.md) — field availability, provenance, and limitations by game.
 - [ACC adapter](reference/adapters/acc.md) — ACC shared-memory behavior.
 - [iRacing adapter](reference/adapters/iracing.md) — iRacing SDK and import behavior.

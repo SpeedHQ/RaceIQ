@@ -11,9 +11,9 @@ Use the game-specific development command:
 | --- | --- | --- |
 | Forza Motorsport 2023 | `bun run dev:dump:fm` | `test/artifacts/sessions/` |
 | F1 2025 | `bun run dev:dump:f1` | `test/artifacts/sessions/` |
-| Assetto Corsa Competizione | `bun run dev:dump:acc` | `test/artifacts/laps/` |
-| Assetto Corsa Evo | `bun run dev:dump:ac-evo` | `test/artifacts/laps/` |
-| iRacing | `bun run dev:dump:iracing` | `test/artifacts/laps/` |
+| Assetto Corsa Competizione | `bun run dev:dump:acc` | `test/artifacts/sessions/` |
+| Assetto Corsa Evo | `bun run dev:dump:ac-evo` | `test/artifacts/sessions/` |
+| iRacing | `bun run dev:dump:iracing` | `test/artifacts/sessions/` |
 
 Drive the relevant session, then press `Ctrl+C`. The shutdown handler flushes the
 recorder so the file ends on a complete frame.
@@ -23,9 +23,9 @@ Examples:
 ```text
 test/artifacts/sessions/fm-2023-<timestamp>.bin
 test/artifacts/sessions/f1-2025-<timestamp>.bin
-test/artifacts/laps/acc-<timestamp>.bin
-test/artifacts/laps/ac-evo-<timestamp>.bin
-test/artifacts/laps/iracing-<timestamp>.bin
+test/artifacts/sessions/acc-<timestamp>.bin
+test/artifacts/sessions/ac-evo-<timestamp>.bin
+test/artifacts/sessions/iracing-<timestamp>.bin
 ```
 
 Keep the game identifier in the filename. Import uses it to select the adapter.

@@ -4,7 +4,7 @@ This page is source of truth for RaceIQ browser audits. It separates semantic ch
 
 ## Status
 
-**Audit result:** complete for committed fixtures and locally executable browser scope as of 2026-08-04. Canonical results: 2,726 unit tests passed with one documented corrupt-fixture skip; dev-server `seeded-e2e` passed 169 tests with three fixture-conditional skips; compiled `fresh-install` passed 34 tests; compiled `tunes` passed 7 tests; responsive screenshots passed all 97 registry cases; Chromium device projects passed both owned mobile/tablet cases; screenshot registry and telemetry catalog checks passed.
+**Audit result:** complete for committed fixtures and locally executable browser scope as of 2026-08-04. Latest repository gate: 2,734 tests passed with one documented skip. Previously recorded browser gates remain: dev-server `seeded-e2e` passed 169 tests with three fixture-conditional skips; compiled `fresh-install` passed 34 tests; compiled `tunes` passed 7 tests; responsive screenshots passed all 97 registry cases; Chromium device projects passed both owned mobile/tablet cases; screenshot registry and telemetry catalog checks passed.
 
 **Acceptance boundary:** local results prove committed replay/parser behavior, browser workflows, compiled Windows binary parity, responsive viewports, and Chromium device emulation. They do not prove GitHub-hosted CI execution, physical-device behavior, configured AI response quality, or telemetry transitions absent from committed recordings. Those limits remain explicit below rather than being counted as unsupported product behavior.
 
@@ -26,8 +26,10 @@ Functional E2E and screenshots share reusable seams: seeded database, route-case
 Audit route families, not only home pages:
 
 - Global: `/`, `/dash`, `/dash/combo-1`, `/dash/combo-2`, `/dev`.
-- Shared game routes for each game id: `/:gameid`, `/:gameid/analyse`, `/:gameid/cars`, `/:gameid/chats`, `/:gameid/compare`, `/:gameid/driver`, `/:gameid/experiments`, `/:gameid/sessions`, `/:gameid/tracks`, `/:gameid/tracks/:trackOrdinal/info`, and each track detail tab.
-- Game-specific surfaces: `/fm23/live`, `/fm23/raw`, `/fm23/setups` (catalog/new/edit/import and car ordinal); `/f125/raw`, `/f125/setups`, `/f125/tunes`; `/acc/raw`, `/acc/setups` (new/edit/import); `/ac-evo/raw`, `/ac-evo/setups` (new/edit/import); `/iracing/raw`, `/iracing/live` (driver/pit).
+- Shared game routes: `/:gameid`, `/:gameid/analyse`, `/:gameid/cars`, `/:gameid/chats`, `/:gameid/compare`, `/:gameid/sessions`, `/:gameid/tracks`, `/:gameid/tracks/:trackOrdinal/info`, and each track detail tab.
+- Capability-gated shared routes: `/:gameid/driver` and `/:gameid/experiments`. Support is defined in `client/src/lib/game-routes.ts`; see [game feature coverage](../reference/game-feature-coverage.md).
+- Live surfaces: `/fm23/live`, `/f125/live`, `/acc/live`, `/ac-evo/live`, and the specialized `/iracing/live/driver` and `/iracing/live/pit`.
+- Explicit raw/setup surfaces: `/fm23/raw`, `/fm23/setups` (catalog/new/edit/import and car ordinal); `/f125/raw`, `/f125/setups`, `/f125/tunes`; `/acc/raw`, `/acc/setups` (new/edit/import); `/ac-evo/raw`, `/ac-evo/setups` (new/edit/import); `/iracing/raw`.
 - Route reachability checks must include navigation into and back out of each family. A page that renders shell only is not functional coverage.
 
 ### Seeded game matrix
@@ -42,7 +44,7 @@ Audit route families, not only home pages:
 | Assetto Corsa Evo | `ac-evo` | 2 | Brands Hatch | shared routes, AC Evo setup/raw paths |
 | iRacing | `iracing` | 18 | Road America | shared routes, iRacing live/raw paths |
 
-For each case, functional tests should open game home, sessions, tracks, track detail, cars, analyse, compare, driver, experiments, chats, raw telemetry, and applicable setup/live routes. Mark a route unsupported only when adapter capability says so; distinguish unavailable fixture data from unsupported product behavior.
+For each case, functional tests should open game home, sessions, tracks, track detail, cars, analyse, compare, chats, raw telemetry, and applicable Driver, Experiments, Setups, and Live routes. Mark a route unsupported only when `client/src/lib/game-routes.ts` or a dedicated route contract says so. Distinguish unavailable fixture data from unsupported product behavior.
 
 ### Functional coverage inventory
 

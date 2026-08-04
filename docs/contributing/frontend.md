@@ -10,6 +10,16 @@ Component-local state is valid for presentation behavior such as dialogs, tabs, 
 
 Use typed Hono RPC through `client/src/lib/rpc.ts` for API calls. Use TanStack Query for server state and Zustand for live telemetry/client-wide presentation state.
 
+## Feature modules and imports
+
+Feature pages and their local presentation, hooks, helpers, and types live together under `client/src/components/<feature>/`. Cross-feature code belongs in `client/src/hooks/`, `client/src/lib/`, `client/src/stores/`, or `client/src/data/` only after it has multiple real consumers.
+
+- Import directly from the owning module. Do not add barrel files, compatibility exports, or old-path shims.
+- Use `@/` imports across feature boundaries and relative imports within one feature.
+- Split page orchestration from cohesive tables, panels, dialogs, canvas renderers, state hooks, and pure helpers before a module becomes a mega file.
+- Keep route files thin: URL validation and capability guards belong in `client/src/routes/`; rendered behavior belongs in feature modules.
+- Follow package boundaries in [`client/README.md`](../../client/README.md), [`client/src/components/README.md`](../../client/src/components/README.md), and [`client/src/routes/README.md`](../../client/src/routes/README.md).
+
 ## Shared UI primitives
 
 Start with an existing primitive in `client/src/components/ui/`. Add or extend a primitive only when at least two consumers share a stable interaction or visual contract.
@@ -38,11 +48,11 @@ Use `variant` and `size` for reusable appearance. Use `className` only for surro
 
 ## Routing contract
 
-Shared page families use dynamic `/$gameid` routes where behavior differs only by game identity, route prefix, search validation, or a thin wrapper. Current shared families include sessions, chats, analysis, driver pages, and supported experiment pages.
+Shared page families use dynamic `/$gameid` routes where behavior differs only by game identity, route prefix, search validation, or a thin wrapper. Keep explicit routes where implementation differs materially, including live dashboards, car details, game index/layout routes, AC Evo raw data, and game-specific setup flows.
 
-Keep explicit routes where implementation or capability differs materially: dashboards, car details, game index/layout routes, AC Evo raw data, and game-specific setup flows.
+Resolve identity through registered game adapters. Valid public prefixes are `/fm23`, `/f125`, `/acc`, `/ac-evo`, and `/iracing`; unknown prefixes are rejected and never fall back to Forza. `client/src/lib/game-routes.ts` owns navigation support for Driver, Experiments, Raw, and Setups; shared Driver and Experiments routes enforce that same table. See [game feature coverage](../reference/game-feature-coverage.md) for current cross-game gaps.
 
-Resolve route prefixes through registered game adapters. Valid public prefixes are `/fm23`, `/f125`, `/acc`, `/ac-evo`, and `/iracing`. Unknown prefixes are rejected; never fall back to Forza. Feature metadata must keep unsupported pages out of navigation and routing. Shared search validators accept only finite numeric values and preserve established query keys.
+Shared search validators accept only finite numeric values and preserve established query keys.
 
 ## Review checklist
 
