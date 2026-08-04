@@ -20,7 +20,7 @@ Shared setup-file contracts, lossless setup-form field paths, and semantic setup
 ## Dependency direction
 - `shared/racing/setups/*` may depend on shared primitive contracts such as `shared/games/ids.ts` and Zod.
 - Client and server setup flows consume `schema.ts` and `file-formats.ts` directly.
-- `scripts/generate-telemetry-catalog.ts` consumes `schema.ts` plus every file in `catalog/`; generated telemetry artifacts depend on these definitions, never the reverse.
+- `scripts/catalog/generate-telemetry-catalog.ts` consumes `schema.ts` plus every file in `catalog/`; generated telemetry artifacts depend on these definitions, never the reverse.
 - Do not import client UI or server file I/O into this folder.
 
 ## Add/extend safely

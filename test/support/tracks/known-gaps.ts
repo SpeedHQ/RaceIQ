@@ -61,7 +61,7 @@ export const KNOWN_FUZZY_ALIGNMENTS = new Set(["nordschleife/fm-2023"]);
  * thresholds makes it worse (at 1/1400 Brands Hatch's Dingle Dell neighbours fuse
  * into one), because the loose pass only fills gaps and there is no gap here. The
  * fix (issue #98) is the true centre from shared/data/tracks/acc/<slug>-boundaries.json
- * via scripts/acc-centerline-from-boundaries.ts; the migrated tracks are already
+ * via scripts/games/acc/centerline-from-boundaries.ts; the migrated tracks are already
  * gone from this list, the rest need per-track name-list re-curation.
  *
  * ac-evo entries: same class as KNOWN_ALIGNMENT_GAPS above — the ac-evo

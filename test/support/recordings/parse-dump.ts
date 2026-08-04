@@ -37,6 +37,14 @@ export interface CapturedLapWithPackets extends CapturedLap {
   packets: TelemetryPacket[];
 }
 
+function assertLapsHavePackets(laps: CapturedLap[]): asserts laps is CapturedLapWithPackets[] {
+  for (const lap of laps) {
+    if (!Array.isArray(lap.packets)) {
+      throw new Error(`Captured lap ${lap.lapNumber} is missing packet data`);
+    }
+  }
+}
+
 export interface DumpResult {
   laps: CapturedLapWithPackets[];
   sessions: CapturedSession[];
@@ -173,6 +181,9 @@ export function readUdpPackets(dumpPath: string, gameId?: GameId): ParsedFrames 
   const serverAdapter = gameId
     ? getServerGame(gameId)
     : getAllServerGames().find((a) => a.canHandle(buffers[0]));
+  if (!serverAdapter) {
+    return { packets: [], carModel: null, trackName: null };
+  }
   const parserState = serverAdapter.createParserState?.() ?? null;
   const packets: TelemetryPacket[] = [];
   for (const buf of buffers) {
@@ -357,6 +368,7 @@ export async function parseDump(
       lap.rawFrameCount > 0 ? Math.max(segment.start, segment.end - lap.rawFrameCount) : segment.start;
     lap.packets = rawPackets.slice(packetStart, segment.end);
   }
+  assertLapsHavePackets(db.laps);
 
   return {
     laps: db.laps,

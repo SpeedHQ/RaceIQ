@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 export function seedScreenshotData(repoDir: string, dataDir: string): void {
   if (process.env.PW_SEED_SCREENSHOTS !== "1") return;
 
-  const result = spawnSync("bun", ["run", "scripts/seed-db.ts", "--reset"], {
+  const result = spawnSync("bun", ["run", "scripts/data/seed-db.ts", "--reset"], {
     cwd: repoDir,
     env: { ...process.env, DATA_DIR: dataDir },
     stdio: "inherit",

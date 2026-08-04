@@ -6,12 +6,34 @@
     "generator": {
       "name": "RaceIQ telemetry-catalog generator",
       "version": "0.13.0",
-      "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+      "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
     },
     "generatedAt": "1970-01-01T00:00:00.000Z",
-    "contentHash": "62198c437c3f475a69492137cdf3a75508fb42e09cae9c83a5d04ed4ad47ca11"
+    "contentHash": "5c315333fd01809a699364e55f0ab6facb338f5a1fbde43e3890eff7f33feb42"
   },
   "generatedFrom": [
+    "scripts/catalog/ast-discovery.ts",
+    "scripts/catalog/builder.ts",
+    "scripts/catalog/cli.ts",
+    "scripts/catalog/contract-enrichment.ts",
+    "scripts/catalog/contract-inference.ts",
+    "scripts/catalog/contract-provenance.ts",
+    "scripts/catalog/derived-projections.ts",
+    "scripts/catalog/extension-field-mapping.ts",
+    "scripts/catalog/extension-mapping.ts",
+    "scripts/catalog/extension-metadata.ts",
+    "scripts/catalog/generate-telemetry-catalog.ts",
+    "scripts/catalog/iracing-mapping.ts",
+    "scripts/catalog/iracing-session-info-capture.ts",
+    "scripts/catalog/model.ts",
+    "scripts/catalog/packet-mapping.ts",
+    "scripts/catalog/rendering.ts",
+    "scripts/catalog/semantic-definitions-competitor.ts",
+    "scripts/catalog/semantic-definitions-extended.ts",
+    "scripts/catalog/semantic-definitions-live.ts",
+    "scripts/catalog/semantic-definitions.ts",
+    "scripts/catalog/semantic-metadata.ts",
+    "scripts/catalog/setup-link-mapping.ts",
     "shared/telemetry/types.ts",
     "shared/telemetry/f1-2025.ts",
     "shared/telemetry/kunos.ts",
@@ -31,7 +53,6 @@
     "shared/games/iracing/session-info/setup-chassis.ts",
     "shared/games/iracing/session-info/setup-in-car.ts",
     "shared/games/iracing/session-info/setup-tires.ts",
-    "scripts/iracing-session-info-capture.ts",
     "server/games/fm-2023/parser.ts",
     "server/games/f1-2025/f1-state.ts",
     "server/games/acc/parser.ts",
@@ -7879,8 +7900,8 @@
           "description": "acc maps 1 native source channel into this value.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": []
         },
@@ -7894,8 +7915,8 @@
           "description": "ac-evo maps 1 native source channel into this value.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": []
         },
@@ -9385,8 +9406,8 @@
           "description": "f1-2025 maps 1 native source channel into this value.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": []
         },
@@ -32233,8 +32254,8 @@
           "description": "f1-2025 parser exposes 1 linked field.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32262,8 +32283,8 @@
           "description": "acc setup file exposes this scalar value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32291,8 +32312,8 @@
           "description": "ac-evo setup file exposes this scalar value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32438,8 +32459,8 @@
           "description": "f1-2025 parser exposes 1 linked field.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32468,8 +32489,8 @@
           "description": "acc setup file exposes this corners value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32497,8 +32518,8 @@
           "description": "ac-evo setup file exposes this corners value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32603,8 +32624,8 @@
           "description": "acc setup file exposes this scalar value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32634,8 +32655,8 @@
           "description": "ac-evo setup file exposes this scalar value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32740,8 +32761,8 @@
           "description": "acc setup file exposes this scalar value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32769,8 +32790,8 @@
           "description": "ac-evo setup file exposes this scalar value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32842,8 +32863,8 @@
           "description": "f1-2025 parser exposes 1 linked field.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32872,8 +32893,8 @@
           "description": "acc setup file exposes this corners value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -32901,8 +32922,8 @@
           "description": "ac-evo setup file exposes this corners value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33026,8 +33047,8 @@
           "description": "acc setup file exposes this scalar value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33055,8 +33076,8 @@
           "description": "ac-evo setup file exposes this scalar value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33522,8 +33543,8 @@
           "description": "acc setup file exposes this corners value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33551,8 +33572,8 @@
           "description": "ac-evo setup file exposes this corners value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33637,8 +33658,8 @@
           "description": "acc setup file exposes this corners value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33666,8 +33687,8 @@
           "description": "ac-evo setup file exposes this corners value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33827,8 +33848,8 @@
           "description": "acc setup file exposes this corners value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33856,8 +33877,8 @@
           "description": "ac-evo setup file exposes this corners value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33942,8 +33963,8 @@
           "description": "acc setup file exposes this corners value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -33971,8 +33992,8 @@
           "description": "ac-evo setup file exposes this corners value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -34245,8 +34266,8 @@
           "description": "acc setup file exposes this scalar value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -34276,8 +34297,8 @@
           "description": "ac-evo setup file exposes this scalar value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -35898,8 +35919,8 @@
           "description": "acc setup file exposes this corners value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -35927,8 +35948,8 @@
           "description": "ac-evo setup file exposes this corners value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -35996,8 +36017,8 @@
           "description": "acc setup file exposes this corners value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36025,8 +36046,8 @@
           "description": "ac-evo setup file exposes this corners value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36497,8 +36518,8 @@
           "description": "f1-2025 parser exposes 1 linked field.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36526,8 +36547,8 @@
           "description": "acc setup file exposes this scalar value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36555,8 +36576,8 @@
           "description": "ac-evo setup file exposes this scalar value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -36693,8 +36714,8 @@
           "description": "ac-evo setup file exposes this corners value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37105,8 +37126,8 @@
           "description": "f1-2025 parser exposes 1 linked field.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37134,8 +37155,8 @@
           "description": "acc setup file exposes this scalar value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37163,8 +37184,8 @@
           "description": "ac-evo setup file exposes this scalar value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37232,8 +37253,8 @@
           "description": "f1-2025 parser exposes 1 linked field.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37262,8 +37283,8 @@
           "description": "acc setup file exposes this corners value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37291,8 +37312,8 @@
           "description": "ac-evo setup file exposes this corners value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37564,8 +37585,8 @@
           "description": "f1-2025 parser exposes 1 linked field.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37594,8 +37615,8 @@
           "description": "acc setup file exposes this corners value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -37623,8 +37644,8 @@
           "description": "ac-evo setup file exposes this corners value.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -43333,8 +43354,8 @@
           "description": "fm-2023 best sectors are derived from RaceIQ persisted lap-sector arrays.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -43360,8 +43381,8 @@
           "description": "f1-2025 best sectors are derived from RaceIQ persisted lap-sector arrays.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -43387,8 +43408,8 @@
           "description": "acc best sectors are derived from RaceIQ persisted lap-sector arrays.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -43414,8 +43435,8 @@
           "description": "ac-evo best sectors are derived from RaceIQ persisted lap-sector arrays.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -43441,8 +43462,8 @@
           "description": "iracing best sectors are derived from RaceIQ persisted lap-sector arrays.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -43959,8 +43980,8 @@
           "description": "RaceIQ derives sector index from curated track boundaries.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -44018,8 +44039,8 @@
           "description": "AC Evo sector fields are placeholders, so RaceIQ uses curated track boundaries.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -44093,8 +44114,8 @@
           "description": "fm-2023 fixed S1 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -44135,8 +44156,8 @@
           "description": "acc fixed S1 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -44162,8 +44183,8 @@
           "description": "ac-evo fixed S1 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -44189,8 +44210,8 @@
           "description": "iracing fixed S1 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -44234,8 +44255,8 @@
           "description": "fm-2023 fixed S2 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -44276,8 +44297,8 @@
           "description": "acc fixed S2 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -44303,8 +44324,8 @@
           "description": "ac-evo fixed S2 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -44330,8 +44351,8 @@
           "description": "iracing fixed S2 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -44375,8 +44396,8 @@
           "description": "fm-2023 fixed S3 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -44402,8 +44423,8 @@
           "description": "f1-2025 fixed S3 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -44429,8 +44450,8 @@
           "description": "acc fixed S3 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -44456,8 +44477,8 @@
           "description": "ac-evo fixed S3 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -44483,8 +44504,8 @@
           "description": "iracing fixed S3 projection is derived from current variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -44530,8 +44551,8 @@
           "description": "RaceIQ assembles current Forza sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -44623,8 +44644,8 @@
           "description": "RaceIQ assembles current AC Evo sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -44706,8 +44727,8 @@
           "description": "RaceIQ times curated sector-boundary crossings.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -44798,8 +44819,8 @@
           "description": "RaceIQ derives AC Evo sector timing from lap distance.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -45188,8 +45209,8 @@
           "description": "RaceIQ derives from curated boundary timing.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -45275,8 +45296,8 @@
           "description": "RaceIQ derives from curated boundary timing.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -45302,8 +45323,8 @@
           "description": "RaceIQ derives from native iRacing sector boundaries.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -45347,8 +45368,8 @@
           "description": "fm-2023 fixed S1 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -45389,8 +45410,8 @@
           "description": "acc fixed S1 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -45416,8 +45437,8 @@
           "description": "ac-evo fixed S1 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -45443,8 +45464,8 @@
           "description": "iracing fixed S1 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -45488,8 +45509,8 @@
           "description": "fm-2023 fixed S2 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -45530,8 +45551,8 @@
           "description": "acc fixed S2 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -45557,8 +45578,8 @@
           "description": "ac-evo fixed S2 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -45584,8 +45605,8 @@
           "description": "iracing fixed S2 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -45629,8 +45650,8 @@
           "description": "fm-2023 fixed S3 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -45671,8 +45692,8 @@
           "description": "acc fixed S3 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -45698,8 +45719,8 @@
           "description": "ac-evo fixed S3 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -45725,8 +45746,8 @@
           "description": "iracing fixed S3 projection is derived from persisted variable-length sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -45771,8 +45792,8 @@
           "description": "RaceIQ stores last completed Forza sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -45862,8 +45883,8 @@
           "description": "RaceIQ stores completed AC Evo sector array.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -45945,8 +45966,8 @@
           "description": "fm-2023 sector indexes follow ordered sector boundary list.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -45972,8 +45993,8 @@
           "description": "f1-2025 sector indexes follow ordered sector boundary list.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -45999,8 +46020,8 @@
           "description": "acc sector indexes follow ordered sector boundary list.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -46026,8 +46047,8 @@
           "description": "ac-evo sector indexes follow ordered sector boundary list.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -46090,8 +46111,8 @@
           "description": "fm-2023 uses RaceIQ curated track-sector boundaries.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -46117,8 +46138,8 @@
           "description": "F1 packets provide authoritative times but not boundary distances; RaceIQ layout is display/derivation metadata.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -46144,8 +46165,8 @@
           "description": "acc uses RaceIQ curated track-sector boundaries.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -46171,8 +46192,8 @@
           "description": "ac-evo uses RaceIQ curated track-sector boundaries.",
           "provenance": {
             "origin": "derivation",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [],
           "execution": {
@@ -47440,8 +47461,8 @@
           ],
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "execution": {
             "kind": "simplification",
@@ -47613,8 +47634,8 @@
           ],
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "execution": {
             "kind": "simplification",
@@ -50113,8 +50134,8 @@
           "description": "ACC common compound is projected from detailed source name.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -50142,8 +50163,8 @@
           "description": "AC Evo common compound is projected from detailed source name.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -50171,8 +50192,8 @@
           "description": "iRacing common compound is projected from detailed source code.",
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "limitations": [
             "Reduced-detail representation; unsuitable when direct semantic fidelity is required."
@@ -52177,8 +52198,8 @@
           ],
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "execution": {
             "kind": "simplification",
@@ -53993,8 +54014,8 @@
           ],
           "provenance": {
             "origin": "projection",
-            "artifact": "scripts/generate-telemetry-catalog.ts",
-            "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
+            "artifact": "scripts/catalog/generate-telemetry-catalog.ts",
+            "commit": "6ea2c7f6722048fb110310022c159a266a1baf8d645186e6732268b62e7101e8"
           },
           "execution": {
             "kind": "simplification",

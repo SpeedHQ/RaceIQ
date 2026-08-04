@@ -11,7 +11,7 @@ recordings belong under `test/artifacts/`, not here.
 laps/                         solo-lap fixtures → Lap Analyst + Lap Chat evals
 compare-pairs/                paired-lap fixtures → Compare Engineer + Compare Chat evals
 packets/                      zip files produced via `bun run laps:export`
-baselines/                    per-SHA score snapshots (see scripts/ai-baseline.ts)
+baselines/                    per-SHA score snapshots (see scripts/quality/ai-baseline.ts)
 ```
 
 ## Adding a fixture

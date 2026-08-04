@@ -26,7 +26,7 @@ This folder is source of truth for:
 ## Browser vs Node boundary
 - Runtime modules are environment-neutral TypeScript; no DOM, `fetch`, or Node-specific globals.
 - `compileTelemetryResolver` and frame readers are used in both Node runtime (`server/telemetry/replay.ts`) and browser (`client/src/components/TrackMap.tsx`).
-- Generator side effects live in `scripts/generate-telemetry-catalog.ts` (Bun/Node), which writes artifacts under `shared/telemetry/catalog/generated`.
+- Generator side effects live in `scripts/catalog/generate-telemetry-catalog.ts` (Bun/Node), which writes artifacts under `shared/telemetry/catalog/generated`.
 
 ## Dependency direction
 - Upstream dependencies:
@@ -60,7 +60,7 @@ Current generator inputs are enumerated in `generatedFrom`, including `shared/te
 Regeneration:
 - `bun run telemetry:catalog` (write artifacts)
 - `bun run telemetry:catalog:check` (verify artifacts match + determinism)
-- optional compatibility mode: `bun scripts/generate-telemetry-catalog.ts --check --baseline <path-to-baseline-json>`
+- optional compatibility mode: `bun scripts/catalog/generate-telemetry-catalog.ts --check --baseline <path-to-baseline-json>`
 
 ## Leaf imports (no barrel)
 Use direct file imports only.

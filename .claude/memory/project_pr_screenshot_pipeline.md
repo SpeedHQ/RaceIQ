@@ -13,7 +13,7 @@ RaceIQ PR visual-diff pipeline (built 2026-06-29). Renders Storybook dashboard s
 - `.github/workflows/pr-screenshots.yml` — `pull_request` + `workflow_dispatch`(input `pr`). Read-only token, runs PR code. Renders `client/src/stories/dashboards.snapshot.ts` via `bun run snapshot:test`, collects changed `<Name>-{before,after,diff}.png` → artifact `pr-screenshot-preview`.
 - `.github/workflows/pr-screenshots-comment.yml` — `workflow_run` (write token, NO PR code). Hosts PNGs on orphan branch `pr-previews`, posts sticky comment (marker `<!-- dashboard-screenshot-diff -->`), labels. Two-workflow split is the secure fork-safe pattern.
 - `.github/workflows/update-baselines.yml` — manual; re-renders baselines in CI env, commits to main.
-- Local repro: `cd client && bun run snapshot:docker` → `scripts/snapshot-in-docker.sh`.
+- Local repro: `cd client && bun run snapshot:docker` → `scripts/ui/snapshot-in-docker.sh`.
 
 **Determinism is everything — baselines must match renders byte-for-byte. Three gotchas fixed:**
 1. **Container**: render in pinned `mcr.microsoft.com/playwright:v1.61.1-jammy` (matches `@playwright/test`). Software GL deterministic; local GPU drifts. Needs `apt-get install unzip` before setup-bun, `git safe.directory`, `shell: bash` for process-substitution steps, root user.

@@ -102,7 +102,7 @@ jobs:
             done < <(find "$results" -name '*-diff.png')
           fi
 
-          bun "$GITHUB_WORKSPACE/scripts/collect-screenshot-diffs.ts" \
+          bun "$GITHUB_WORKSPACE/scripts/ui/collect-screenshot-diffs.ts" \
             --base "$RUNNER_TEMP/raceiq-main/client/src/stories/__snapshots__" \
             --current "$GITHUB_WORKSPACE/client/src/stories/__snapshots__" \
             --out "$out" \

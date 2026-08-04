@@ -1,0 +1,143 @@
+// Shared semantic metadata helpers and lookup tables.
+import type { SemanticDefinition } from "./model";
+
+function semanticDefinition(
+  label: string,
+  description: string,
+  parentId: string,
+  canonicalUnit: string,
+  shape: SemanticDefinition["shape"] = "scalar",
+): SemanticDefinition {
+  return { label, description, parentId, canonicalUnit, shape };
+}
+
+const CATEGORY_META: Record<string, [string, string]> = {
+  session: ["Session", "Session identity, state, and elapsed-time values."],
+  timing: ["Timing", "Lap, sector, delta, and race-timing values."],
+  engine: ["Engine", "Engine speed, output, temperature, and health values."],
+  motion: ["Vehicle motion", "Position, velocity, acceleration, and attitude values."],
+  inputs: ["Driver inputs", "Driver control inputs and requested control positions."],
+  tires: ["Tires", "Tire temperature, pressure, wear, slip, and contact values."],
+  suspension: ["Suspension", "Suspension position, travel, load, and geometry values."],
+  brakes: ["Brakes", "Brake input, temperature, wear, balance, and intervention values."],
+  fuel: ["Fuel and energy", "Fuel, hybrid energy, economy, and deployment values."],
+  weather: ["Weather and track", "Ambient weather, track surface, and grip values."],
+  identity: ["Vehicle and track identity", "Car, class, drivetrain, and track identity values."],
+  race: ["Race control", "Position, flags, pits, penalties, and race-control values."],
+  damage: ["Damage and wear", "Vehicle component damage, faults, and remaining-life values."],
+  aero: ["Aerodynamics", "Aerodynamic devices, ride heights, and aero-state values."],
+  electronics: ["Electronics", "Driver aids, maps, limiters, and electronic intervention values."],
+  setup: ["Car setup", "Static or adjustable vehicle setup values."],
+  diagnostics: ["Diagnostics", "Source identity, packet counters, and diagnostic values."],
+};
+
+const DESCRIPTION_OVERRIDES: Record<string, string> = {
+  IsRaceOn: "Whether source considers vehicle actively driving.",
+  TimestampMS: "Source timestamp for telemetry frame.",
+  CurrentEngineRpm: "Current engine crankshaft speed.",
+  EngineMaxRpm: "Current or configured engine speed limit.",
+  EngineIdleRpm: "Nominal engine idle speed.",
+  AccelerationX: "Vehicle lateral acceleration on RaceIQ X axis.",
+  AccelerationY: "Vehicle vertical acceleration on RaceIQ Y axis.",
+  AccelerationZ: "Vehicle longitudinal acceleration on RaceIQ Z axis.",
+  VelocityX: "Vehicle velocity on RaceIQ X axis.",
+  VelocityY: "Vehicle velocity on RaceIQ Y axis.",
+  VelocityZ: "Vehicle velocity on RaceIQ Z axis.",
+  AngularVelocityX: "Vehicle pitch rate around RaceIQ X axis.",
+  AngularVelocityY: "Vehicle yaw rate around RaceIQ Y axis.",
+  AngularVelocityZ: "Vehicle roll rate around RaceIQ Z axis.",
+  Yaw: "Vehicle heading angle around vertical axis.",
+  Pitch: "Vehicle nose-up or nose-down angle.",
+  Roll: "Vehicle body roll angle.",
+  Speed: "Vehicle ground speed.",
+  Boost: "Current forced-induction boost pressure.",
+  Power: "Current combined vehicle power output.",
+  Torque: "Current engine or driveline torque.",
+  Fuel: "Current fuel amount in game-native packet representation.",
+  FuelCapacity: "Source-provided fuel tank capacity.",
+  DistanceTraveled: "Distance traveled on current lap or session as defined by source.",
+  BestLap: "Best completed lap time.",
+  LastLap: "Most recently completed lap time.",
+  CurrentLap: "Current lap elapsed time.",
+  CurrentRaceTime: "Elapsed session or race time.",
+  LapNumber: "Current displayed lap number.",
+  RacePosition: "Current race position.",
+  Accel: "Accelerator input on RaceIQ's 0–255 control scale.",
+  Brake: "Brake input on RaceIQ's 0–255 control scale.",
+  Clutch: "Clutch input on RaceIQ's 0–255 control scale.",
+  HandBrake: "Handbrake input on RaceIQ's 0–255 control scale.",
+  Gear: "Current normalized gear index.",
+  NormDrivingLine: "Driving-line assistance value on RaceIQ's signed control scale.",
+  NormAIBrakeDiff: "AI braking-difference value on RaceIQ's signed control scale.",
+  Steer: "Steering input on RaceIQ's signed -128–127 scale.",
+  PositionX: "Vehicle world position on RaceIQ X axis.",
+  PositionY: "Vehicle world position on RaceIQ Y axis.",
+  PositionZ: "Vehicle world position on RaceIQ Z axis.",
+  DrsActive: "Whether drag-reduction-system flap is currently open.",
+  ErsStoreEnergy: "Current stored energy in ERS battery.",
+  ErsDeployMode: "Current ERS deployment mode.",
+  ErsDeployed: "ERS energy deployed during current lap.",
+  ErsHarvested: "ERS energy harvested during current lap.",
+  WeatherType: "Source weather-condition category.",
+  TrackTemp: "Current track-surface temperature.",
+  AirTemp: "Current ambient air temperature.",
+  RainPercent: "Current precipitation percentage.",
+  CarOrdinal: "Source vehicle model identifier.",
+  CarClass: "Source vehicle-class identifier.",
+  CarPerformanceIndex: "Source vehicle performance rating.",
+  DrivetrainType: "Driven-axle layout: front-, rear-, or all-wheel drive.",
+  NumCylinders: "Engine cylinder count.",
+  TrackOrdinal: "Source track or layout identifier.",
+  WheelRotationSpeed: "Wheel angular velocity.",
+  TireSlipRatio: "Per-wheel longitudinal tire slip ratio.",
+  TireWear: "Per-wheel consumed tire-wear fraction, where 0 is new and 1 is fully worn.",
+  TireCombinedSlip: "Combined tire slip magnitude.",
+  TireSlipCombinedFL_2: "Additional front-left combined tire-slip channel; source protocol does not document its relationship to primary combined slip.",
+  SurfaceRumble: "Force-feedback surface-rumble intensity.",
+};
+
+const TIRE_IDS: Record<string, [string, string, string]> = {
+  TireTemp: [
+    "tire.temperature.average",
+    "tire.temperature",
+    "Representative / average",
+  ],
+  TireCarcassTemp: [
+    "tire.temperature.carcass.average",
+    "tire.temperature.carcass",
+    "Average carcass temperature",
+  ],
+  TireCarcassTempLeft: [
+    "tire.temperature.carcass.left",
+    "tire.temperature.carcass",
+    "Left carcass temperature",
+  ],
+  TireCarcassTempMiddle: [
+    "tire.temperature.carcass.middle",
+    "tire.temperature.carcass",
+    "Middle carcass temperature",
+  ],
+  TireCarcassTempRight: [
+    "tire.temperature.carcass.right",
+    "tire.temperature.carcass",
+    "Right carcass temperature",
+  ],
+  TireSurfaceTempInner: [
+    "tire.temperature.surface.inner",
+    "tire.temperature.surface",
+    "Inner surface temperature",
+  ],
+  TireSurfaceTempMiddle: [
+    "tire.temperature.surface.middle",
+    "tire.temperature.surface",
+    "Middle surface temperature",
+  ],
+  TireSurfaceTempOuter: [
+    "tire.temperature.surface.outer",
+    "tire.temperature.surface",
+    "Outer surface temperature",
+  ],
+};
+
+
+export { semanticDefinition, CATEGORY_META, DESCRIPTION_OVERRIDES, TIRE_IDS };

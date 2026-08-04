@@ -12,7 +12,7 @@ function makeDataDir(): string {
 }
 
 async function runSeed(dataDir: string, ...args: string[]): Promise<{ code: number; output: string }> {
-  const proc = Bun.spawn(["bun", "scripts/seed-db.ts", ...args], {
+  const proc = Bun.spawn(["bun", "scripts/data/seed-db.ts", ...args], {
     cwd: process.cwd(),
     env: { ...process.env, DATA_DIR: dataDir },
     stdout: "pipe",

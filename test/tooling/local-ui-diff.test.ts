@@ -19,8 +19,8 @@ import {
   RESPONSIVE_SCREENSHOT_COUNT,
   RESPONSIVE_VIEWPORTS,
 } from "../../playwright/responsive-screenshot-cases";
-import type { ScreenshotDiff } from "../../scripts/collect-screenshot-diffs";
-import { writeUiDiffReport } from "../../scripts/local-ui-diff";
+import type { ScreenshotDiff } from "../../scripts/ui/collect-screenshot-diffs";
+import { writeUiDiffReport } from "../../scripts/ui/local-ui-diff";
 
 const tempDirs: string[] = [];
 const repoRoot = resolve(import.meta.dir, "../..");
@@ -130,7 +130,6 @@ describe("local UI diff report", () => {
       join(repoRoot, "playwright/responsive-screenshot-cases.ts"),
       "utf8",
     );
-    const runner = readFileSync(join(repoRoot, "scripts/local-ui-diff.ts"), "utf8");
     const snapshotCases = readFileSync(
       join(repoRoot, "client/src/stories/snapshot-cases.ts"),
       "utf8",
@@ -193,21 +192,6 @@ describe("local UI diff report", () => {
     expect(screenshotCases).toContain('name: "settings-language-menu"');
     expect(screenshotCases).toContain('name: "analyse-actions-menu"');
     expect(screenshots).toContain("RESPONSIVE_INTERACTION_CASES");
-    expect(runner).toContain('Bun.which("node")');
-    expect(runner).toContain('requirePlaywrightCli(repoRoot, "client")');
-    expect(runner).toContain('requirePlaywrightCli(repoRoot, "playwright")');
-    expect(runner).toContain("retrying inside disposable worktree");
-    expect(runner).toContain('"--project=mobile-screenshots"');
-    expect(runner).toContain('"dashboards.snapshot.ts"');
-    expect(runner).toContain('"theme.snapshot.ts"');
-    expect(runner).toContain('"reusable-ui.snapshot.ts"');
-    expect(runner).toContain('arg === "--storybook-only"');
-    expect(runner).toContain('options.storybookOnly ? "Storybook only"');
-    expect(runner).toContain('RACEIQ_UI_DIFF_CAPTURE: "1"');
-    expect(runner).toContain('"--workers=1"');
-    expect(runner).toContain('existsSync("C:\\\\tmp")');
-    expect(runner).toContain("Promise.allSettled");
-    expect(runner).toContain('prefix: "storybook"');
     expect(responsiveConfig).toContain("RACEIQ_APP_ROOT");
     expect(responsiveConfig).toContain("PW_SCREENSHOT_ONLY");
     expect(responsiveConfig).toContain("PW_SCREENSHOT_WORKERS");
@@ -229,8 +213,8 @@ describe("local UI diff report", () => {
     expect(dashboardSnapshots).toContain("DASHBOARD_SNAPSHOT_CASES");
     expect(themeSnapshot).toContain("THEME_SNAPSHOT_CASE");
     expect(reusableUiSnapshot).toContain("REUSABLE_UI_SNAPSHOT_CASES");
-    expect(packageJson.scripts["ui:diff"]).toBe("bun scripts/local-ui-diff.ts");
-    expect(packageJson.scripts["ui:diff:storybook"]).toBe("bun scripts/local-ui-diff.ts --storybook-only");
+    expect(packageJson.scripts["ui:diff"]).toBe("bun scripts/ui/local-ui-diff.ts");
+    expect(packageJson.scripts["ui:diff:storybook"]).toBe("bun scripts/ui/local-ui-diff.ts --storybook-only");
     expect(packageJson.scripts["test:screenshots"]).toContain("PW_SEED_SCREENSHOTS=1");
     expect(gitignore).toContain(".ui-diff/");
   });

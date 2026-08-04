@@ -4,7 +4,7 @@ AC Evo per-car setup range extraction and server-side rule narrowing are impleme
 
 ## Current behavior
 
-- `scripts/extract-acevo-setup-ranges.ts` extracts per-car availability and real-value ranges from installed AC Evo data.
+- `scripts/games/ac-evo/extract-setup-ranges.ts` extracts per-car availability and real-value ranges from installed AC Evo data.
 - `shared/games/ac-evo/setup-ranges.json` is the committed generated dataset.
 - `server/setups/rules/engine.ts` narrows AC Evo rules by car and falls back to game-level rules for unknown cars.
 - ACC continues to use game-level clamps.
