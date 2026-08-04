@@ -1,6 +1,6 @@
 import * as THREE from "three";
+import { operatingRangeColor } from "./colors";
 import { resolveCssColor } from "./rendering/css-values";
-import { operatingRangeColor, severityRangeColor } from "./colors";
 import { tireState } from "./vehicle-dynamics";
 
 // ── Geometry ──────────────────────────────────────────────────────────
@@ -76,22 +76,6 @@ export const THREE_COLORS = {
     return threeColor("var(--load-distribution)");
   },
 } as const;
-
-const _brakeTemp = new THREE.Color();
-
-export function brakeColor(brake: number): THREE.Color {
-  // Smooth lerp between the theme's warm and hot brake endpoints.
-  const t = Math.min(1, Math.max(0, (brake - 10) / 245));
-  return _brakeTemp.copy(threeColor("var(--brake-warm)")).lerp(threeColor("var(--brake-hot)"), t).clone();
-}
-
-export function trailColorObj(slip: number, brake: number, isSmallScale?: boolean): THREE.Color {
-  // Braking overrides slip color with brake trail
-  if (brake > 10) return brakeColor(brake);
-  const warn = isSmallScale ? 0.03 : 0.3;
-  const crit = isSmallScale ? 0.08 : 0.8;
-  return threeColor(severityRangeColor(slip, [warn, crit]));
-}
 
 /** Returns a cached THREE.Color driven by tireState() — single source of truth. */
 export function trailColorFromState(wheelStateLabel: string, slipRatio: number, slipAngleRad: number): THREE.Color {

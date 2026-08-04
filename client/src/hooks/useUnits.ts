@@ -5,7 +5,7 @@ import { convertDistance, convertSpeed, distanceLabel, speedLabel } from "../lib
 import { convertTemp } from "../lib/temperature";
 import { useGameId } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
-import { useSettings } from "./queries";
+import { useSettings } from "./settings";
 
 const DEFAULT_TIRE_TEMP = { cold: 75, warm: 115, hot: 150 };
 
@@ -39,12 +39,9 @@ export function useUnits() {
     // Game-specific tire temp thresholds (°C) from adapter
     const adapter = gameId ? tryGetGame(gameId) : null;
     const thresholds = adapter?.tireTempThresholds ?? DEFAULT_TIRE_TEMP;
-    const sourceTempUnit = adapter
-      ? getTireTemperatureSourceUnit(adapter.telemetry.tireTemperature)
-      : "C";
+    const sourceTempUnit = adapter ? getTireTemperatureSourceUnit(adapter.telemetry.tireTemperature) : "C";
     /** Convert raw packet temp to °C for threshold comparisons */
-    const toTempC = (rawTemp: number) =>
-      convertTemp(rawTemp, "C", sourceTempUnit);
+    const toTempC = (rawTemp: number) => convertTemp(rawTemp, "C", sourceTempUnit);
 
     return {
       // ── Speed / distance (for non-telemetry data) ──────────────

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ExperimentList } from "../../components/tunes/ExperimentList";
+import { ExperimentList } from "../../components/tunes/experiment/ExperimentList";
 import { setupEngineerGameIdForRoutePrefix } from "../../lib/game-routes";
 
 export const Route = createFileRoute("/$gameid/experiments/")({

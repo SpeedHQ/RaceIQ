@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { m } from "@/paraglide/messages";
-import { useSaveSettings, useSettings } from "../../hooks/queries";
+import { useSaveSettings, useSettings } from "../../hooks/settings";
 
 interface CacheStatus {
   bytesUsed: number;

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAddBase } from "../../hooks/queries";
+import { useAddBase } from "../../hooks/experiments";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { SetupFilePicker, type SetupFilePickerValue } from "./SetupFilePicker";

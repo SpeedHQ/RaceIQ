@@ -1,6 +1,6 @@
 import { EXPERIMENT_FOCUS_HINTS, EXPERIMENT_FOCUS_LABELS, EXPERIMENT_FOCUSES, type ExperimentFocus } from "@shared/racing/experiments/focus";
 import { useEffect, useRef, useState } from "react";
-import { useSetExperimentFocus } from "../../hooks/queries";
+import { useSetExperimentFocus } from "../../hooks/experiments";
 import { Button } from "../ui/button";
 
 /**

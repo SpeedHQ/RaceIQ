@@ -2,10 +2,10 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
 import { fireEvent, userEvent, within } from "storybook/test";
-import { ExperimentList } from "../components/tunes/ExperimentList";
-import { ExperimentWorkspace } from "../components/tunes/ExperimentWorkspace";
-import { TestReviewPage } from "../components/tunes/TestReviewPage";
-import type { Experiment, ExperimentLapMetric, ExperimentVersion } from "../hooks/queries";
+import { ExperimentWorkspace } from "@/components/tunes/ExperimentWorkspace";
+import { ExperimentList } from "@/components/tunes/experiment/ExperimentList";
+import { TestReviewPage } from "@/components/tunes/review/TestReviewPage";
+import type { Experiment, ExperimentLapMetric, ExperimentVersion } from "@/hooks/experiments";
 
 /**
  * The experiment flow end to end — list → workspace → review — in both

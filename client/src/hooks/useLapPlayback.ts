@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from "react";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import type { ChartsPanelHandle } from "../components/analyse/AnalyseChartsPanel";
-import type { TrackMapHandle } from "../components/analyse/AnalyseTrackMap";
+import type { TrackMapHandle } from "../components/analyse/track-map/types";
 
 // Track/timeline overlays stay on rAF; React-owned gauges only need 10 Hz.
 const REACT_STATE_INTERVAL_MS = 100;

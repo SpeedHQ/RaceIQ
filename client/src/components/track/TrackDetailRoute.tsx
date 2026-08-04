@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useCallback } from "react";
-import { useTracks } from "@/hooks/queries";
+import { useTracks } from "@/hooks/catalog-queries";
 import { trackRoutePath, tracksIndexPath } from "@/lib/track-routes";
 import { m } from "@/paraglide/messages";
 import { useGameId } from "@/stores/game";

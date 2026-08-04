@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useSetupFileContent, useSetupFiles } from "../../hooks/queries";
+import { useSetupFileContent, useSetupFiles } from "../../hooks/setup-queries";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
 import { SearchSelect } from "../ui/SearchSelect";

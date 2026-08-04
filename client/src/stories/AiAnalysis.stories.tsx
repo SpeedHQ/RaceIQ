@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useState } from "react";
-import { type AnalysisData, AnalysisDisplay, type Segment, SetupList } from "../components/ai/analysis-display";
-import { AnalysisModalShell, AnalysisSummaryRow } from "../components/ai/analysis-summary";
+import { AnalysisDisplay } from "@/components/ai/analysis-display";
+import { SetupList } from "@/components/ai/analysis-primitives";
+import { AnalysisModalShell, AnalysisSummaryRow } from "@/components/ai/analysis-summary";
+import type { AnalysisData, Segment } from "@/components/ai/analysis-types";
 
 // Fixed, deterministic analysis for a Forza lap at Spa. Covers every section
 // AnalysisDisplay renders (pace, handling, problem corners, braking, throttle,

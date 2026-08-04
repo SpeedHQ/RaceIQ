@@ -1,7 +1,8 @@
 import { tryGetGame } from "@shared/games/registry";
 import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../../shared/games/ids";
-import { useCarName, useTirePressureOptimal, useTrackName } from "../../hooks/queries";
+import { useCarName, useTirePressureOptimal } from "../../hooks/catalog-queries";
+import { useTrackName } from "../../hooks/track-queries";
 import { useTelemetryStore } from "../../stores/telemetry";
 import { LapTimeChart } from "../LapTimeChart";
 import { NoDataView } from "../NoDataView";

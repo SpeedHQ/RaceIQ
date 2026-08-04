@@ -8,7 +8,7 @@ import { AnalyseDynamicsPanel } from "../src/components/analyse/AnalyseDynamicsP
 import { AnalyseSuspensionPanel } from "../src/components/analyse/AnalyseSuspensionPanel";
 import { AnalyseTireWheelsPanel } from "../src/components/analyse/AnalyseTireWheelsPanel";
 import { buildSegmentData } from "../src/components/analyse/AnalyseSegmentList";
-import { pathForwardOffsets } from "../src/components/analyse/AnalyseTrackMap";
+import { pathForwardOffsets } from "../src/components/analyse/track-map/path";
 import type { useUnits } from "../src/hooks/useUnits";
 import { fakeAccPacket } from "../src/stories/fakeData";
 

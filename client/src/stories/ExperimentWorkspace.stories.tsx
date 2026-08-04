@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRootRoute, createRouter, RouterProvider } from "@tanstack/react-router";
-import { ExperimentWorkspace } from "../components/tunes/ExperimentWorkspace";
-import type { Experiment, ExperimentLapMetric, ExperimentVersion } from "../hooks/queries";
+import { ExperimentWorkspace } from "@/components/tunes/ExperimentWorkspace";
+import type { Experiment, ExperimentLapMetric, ExperimentVersion } from "@/hooks/experiments";
 import { fakeSessionLaps } from "./fakeData";
 
 const queryClient = new QueryClient({

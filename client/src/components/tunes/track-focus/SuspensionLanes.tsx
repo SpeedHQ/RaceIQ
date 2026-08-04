@@ -66,8 +66,8 @@ export function SuspensionLanes({ traces, bestLapId = null, cornerFracs = [], cu
   return (
     <div className="space-y-2">
       <p className="text-app-compact text-app-text-dim">
-        Normalized 0–1 suspension travel. ACC reports absolute compression (0 = full droop); AC Evo is centred at 0.5 (neutral ride height) — "more" means something different per game, but
-        lap-to-lap variation is comparable either way.
+        Normalized 0–1 suspension travel. ACC reports absolute compression (0 = full droop); AC Evo is centred at 0.5 (neutral ride height) — "more" means something different per game, but lap-to-lap
+        variation is comparable either way.
       </p>
       {CORNERS.map((c) => (
         <div key={c.key} className="space-y-1">

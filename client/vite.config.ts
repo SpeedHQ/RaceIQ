@@ -1,8 +1,8 @@
+import path from "node:path";
 import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import tailwindcss from "@tailwindcss/vite";
 import { TanStackRouterVite } from "@tanstack/router-vite-plugin";
 import react from "@vitejs/plugin-react";
-import path from "path";
 import { createLogger, defineConfig } from "vite";
 
 const configuredServerTarget = process.env.PROXY_TARGET;

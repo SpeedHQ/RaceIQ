@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const LAP_COMPARISON_SOURCE = readFileSync(resolve(import.meta.dir, "../../../client/src/components/LapComparison.tsx"), "utf8");
+const LAP_COMPARISON_SOURCE = readFileSync(resolve(import.meta.dir, "../../../client/src/components/comparison/ComparisonCharts.tsx"), "utf8");
 
 test("compare graph cards keep borders without gray backgrounds", () => {
   const graphCardClasses = [...LAP_COMPARISON_SOURCE.matchAll(/className=\"([^\"]*rounded-lg border border-app-border p-1[^\"]*)\"/g)].map((match) => match[1]);

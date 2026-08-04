@@ -1,11 +1,10 @@
+import type { TuneSettings } from "@shared/racing/tuning/types";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { TuneForm, type TuneFormData } from "@/components/tune/form/TuneForm";
+import { useUpdateTune } from "@/hooks/tunes";
+import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
-import type { TuneSettings } from "../../../../../shared/racing/tuning/types";
-import type { TuneFormData } from "../../../components/TuneForm";
-import { TuneForm } from "../../../components/TuneForm";
-import { useUpdateTune } from "../../../hooks/queries";
-import { client } from "../../../lib/rpc";
 
 interface TuneResponse {
   id: number;
@@ -47,7 +46,7 @@ function EditTunePage() {
           initialData={initialData}
           onCancel={() => navigate({ to: "/fm23/setups" })}
           onSubmit={(data) =>
-            updateTune.mutate({ id: parseInt(tuneId), ...data } as Parameters<typeof updateTune.mutate>[0], {
+            updateTune.mutate({ id: parseInt(tuneId, 10), ...data } as Parameters<typeof updateTune.mutate>[0], {
               onSuccess: () => navigate({ to: "/fm23/setups" }),
             })
           }

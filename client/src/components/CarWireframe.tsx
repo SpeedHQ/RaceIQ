@@ -7,7 +7,7 @@ import { m } from "@/paraglide/messages";
 import type { GameId } from "../../../shared/games/ids";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { type CarModelEnrichment, DEMO_CAR, F1_CAR, getCarModel, loadCarModelConfigs } from "../data/car-models";
-import { useSettings } from "../hooks/queries";
+import { useSettings } from "../hooks/settings";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useUnits } from "../hooks/useUnits";
 import { recordGpuSnapshot } from "../lib/crash-diagnostics";
@@ -18,9 +18,6 @@ import { useGameId } from "../stores/game";
 import { Button } from "./ui/button";
 import { CarScene } from "./wireframe/CarScene";
 import { ToggleButton } from "./wireframe/ToggleButton";
-
-// Re-export symbols used by other modules
-export { classifyMesh, DEFAULT_HIDDEN_MESHES } from "./wireframe/CarBody";
 
 useGLTF.preload("/models/aston_martin_vantage_gt3.glb");
 useGLTF.preload("/models/f1_2025_mclaren_mcl39.glb");

@@ -4,7 +4,8 @@ import { buildRows, type RawUserTune } from "@/components/tune/browser/buildRows
 import { SetupBrowser } from "@/components/tune/browser/SetupBrowser";
 import type { SourceTab, TuneRow } from "@/components/tune/browser/types";
 import type { CatalogTune } from "@/data/tune-catalog";
-import { useCatalogTunes, useCloneCatalogTune, useDeleteTune, useDuplicateTune, useResolveNames, useUserTunes } from "@/hooks/queries";
+import { useResolveNames } from "@/hooks/catalog-queries";
+import { useCatalogTunes, useCloneCatalogTune, useDeleteTune, useDuplicateTune, useUserTunes } from "@/hooks/tunes";
 import { m } from "@/paraglide/messages";
 import { useUiStore } from "@/stores/ui";
 import type { GameId } from "../../../../shared/games/ids";

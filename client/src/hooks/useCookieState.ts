@@ -12,6 +12,7 @@ export function useCookieState<T>(key: string, defaultValue: T): [T, React.Dispa
     return defaultValue;
   });
   useEffect(() => {
+    // biome-ignore lint/suspicious/noDocumentCookie: synchronous fallback keeps this hook compatible where Cookie Store API is unavailable.
     document.cookie = `${key}=${encodeURIComponent(JSON.stringify(value))};path=/;max-age=31536000;SameSite=Lax`;
   }, [key, value]);
   return [value, setValue];

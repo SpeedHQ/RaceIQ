@@ -20,7 +20,7 @@ Core DTOs for lap comparison outputs used by compare workflows.
 
 ## Dependency direction
 - Imports `LapMeta` from `shared/racing/sessions/types` and `TelemetryPacket` from `shared/telemetry/types`.
-- `client/src/components/LapComparison.tsx` imports `ComparisonData` directly.
+- `client/src/components/comparison/LapComparison.tsx` imports `ComparisonData` directly.
 - The server comparison endpoint must produce this shape, although its implementation currently uses local calculation types.
 
 ## Add/extend safely

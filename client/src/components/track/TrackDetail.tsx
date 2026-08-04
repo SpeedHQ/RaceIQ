@@ -1,566 +1,29 @@
 import { segmentDisplayNames } from "@shared/racing/tracks/segment-label";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccTrackGuide, AccTrackSetups } from "@/components/acc/AccTrackSetups";
 import { F125Leaderboard } from "@/components/f1/F125Leaderboard";
-import { F125SetupsWithGuide, F125TrackGuide } from "@/components/f1/F125TrackSetups";
-import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
+import { F125TrackGuide } from "@/components/f1/f125/TrackGuide";
+import { F125SetupsWithGuide } from "@/components/f1/f125/TrackSetups";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { InfoTooltip } from "@/components/ui/InfoTooltip";
-import { SearchMultiSelect } from "@/components/ui/SearchMultiSelect";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useBulkDeleteLaps } from "@/hooks/queries";
+import { useBulkDeleteLaps } from "@/hooks/laps";
 import { drawTrack } from "@/lib/canvas/draw-track";
-import { SECTOR_COLOR_VARS, VISUALIZATION_COLOR_VARS } from "@/lib/colors";
 import { countryName } from "@/lib/country-names";
-import { isDevelopment } from "@/lib/env";
-import { formatLapTime } from "@/lib/format";
 import { storedLapsSectorCount } from "@/lib/lap-sectors";
 import { client } from "@/lib/rpc";
 import { m } from "@/paraglide/messages";
-import { getGameRoute, useGameId } from "@/stores/game";
-import { numberCorner, unnumberCorner } from "../../../../shared/racing/tracks/curation/join";
+import { useGameId } from "@/stores/game";
 import { CatalogTrackSetups } from "./CatalogTrackSetups";
 import { CommunityLeaderboard } from "./CommunityLeaderboard";
 import { TrackDebugPanel } from "./debug/TrackDebugPanel";
+import { LapManagement } from "./detail/LapManagement";
+import { TrackCanvasPanel } from "./detail/TrackCanvasPanel";
+import { TrackDebugSidebar } from "./detail/TrackDebugSidebar";
+import type { TrackLap } from "./detail/types";
+import { useTrackSegmentEditor } from "./detail/useTrackSegmentEditor";
 import { TrackInfoPanel } from "./TrackInfoPanel";
 import type { Point, TrackInfo, TrackSectors, TrackSegment } from "./types";
-
-interface TrackLap {
-  lapId: number;
-  lapNumber: number;
-  lapTime: number;
-  carOrdinal: number;
-  carName: string;
-  carClass: string;
-  pi: number;
-  createdAt?: string;
-  sessionId?: number | null;
-  sectorTimes?: number[] | null;
-  isValid?: boolean;
-  invalidReason?: string | null;
-  division?: string | null;
-  notes?: string | null;
-}
-
-const CAR_CLASS_ORDER = ["X", "P", "R", "S", "A", "B", "C", "D", "E"] as const;
-
-function carClassColor(carClass: string): string {
-  const index = CAR_CLASS_ORDER.indexOf(carClass as (typeof CAR_CLASS_ORDER)[number]);
-  return index < 0 ? "var(--app-text-secondary)" : VISUALIZATION_COLOR_VARS[index % VISUALIZATION_COLOR_VARS.length];
-}
-
-function rangeBandGradient(p25Pct: number, p75Pct: number, baseOpacity: number, edgeOpacity: number, centerOpacity: number): string {
-  const midpoint = (p25Pct + p75Pct) / 2;
-  const fadedText = `color-mix(in srgb, var(--app-text) ${baseOpacity}%, transparent)`;
-  const bandEdge = `color-mix(in srgb, var(--lap-pace-on-target) ${edgeOpacity}%, transparent)`;
-  const bandCenter = `color-mix(in srgb, var(--lap-pace-on-target) ${centerOpacity}%, transparent)`;
-  return `linear-gradient(to right, ${fadedText} 0%, ${fadedText} ${p25Pct}%, ${bandEdge} ${p25Pct}%, ${bandCenter} ${midpoint}%, ${bandEdge} ${p75Pct}%, ${fadedText} ${p75Pct}%, ${fadedText} 100%)`;
-}
-
-function LapStatsPanel({ laps, sectorCount, showSessionFilter }: { laps: TrackLap[]; sectorCount: number; showSessionFilter?: boolean }) {
-  const [lapFilter, setLapFilter] = useState<null | "race" | "quali">(null);
-  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  if (laps.length === 0) {
-    return (
-      <div className="w-full min-w-0 @3xl/workspace:w-2/5">
-        <div className="flex shrink-0 items-center justify-between rounded-none border-b border-app-border bg-app-surface p-3 py-2">
-          <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_stats()}</div>
-          <div className="text-app-compact text-app-text-dim font-mono">{m.track_detail_last_100()}</div>
-        </div>
-        <div className="flex-1 p-3 flex flex-col gap-3">
-          <div className="flex flex-wrap gap-x-4 gap-y-1">
-            {[
-              { key: "best", label: m.label_best() },
-              { key: "median", label: m.track_detail_median() },
-              { key: "worst", label: m.track_detail_worst() },
-            ].map(({ key, label }) => (
-              <div key={key} className="flex items-baseline gap-1.5">
-                <div className="text-xs text-app-text-dim uppercase tracking-wider">{label}</div>
-                <div className="font-mono text-app-body tabular-nums text-app-text-dim">—:—.—</div>
-              </div>
-            ))}
-          </div>
-          <div className="relative h-2 bg-app-surface-alt rounded-full overflow-visible" />
-          <div className="text-app-subtext text-app-text-dim py-4 text-center">{m.track_detail_no_laps_recorded()}</div>
-        </div>
-      </div>
-    );
-  }
-
-  const sessionCounts = new Map<number, number>();
-  if (showSessionFilter) {
-    for (const l of laps) {
-      if (l.sessionId != null) sessionCounts.set(l.sessionId, (sessionCounts.get(l.sessionId) ?? 0) + 1);
-    }
-  }
-  const hasRaceFilter = showSessionFilter && [...sessionCounts.values()].some((c) => c > 1);
-  const filteredLaps =
-    showSessionFilter && lapFilter === "race"
-      ? laps.filter((l) => l.sessionId != null && (sessionCounts.get(l.sessionId) ?? 0) > 1)
-      : showSessionFilter && lapFilter === "quali"
-        ? laps.filter((l) => l.sessionId == null || (sessionCounts.get(l.sessionId) ?? 0) === 1)
-        : laps;
-
-  // All stats use the most recent 100 valid laps (chronological)
-  const chronoLaps = [...filteredLaps.filter((l) => l.isValid !== false)].sort((a, b) => a.lapId - b.lapId).slice(-100);
-
-  const times = [...chronoLaps.map((l) => l.lapTime)].sort((a, b) => a - b);
-  const minT = times[0];
-  const maxT = times[times.length - 1];
-  const mid = Math.floor(times.length / 2);
-  const medT = times.length % 2 === 0 ? (times[mid - 1] + times[mid]) / 2 : times[mid];
-  const range = maxT - minT || 1;
-  const medPct = ((medT - minT) / range) * 100;
-  const p25 = times[Math.floor((times.length - 1) * 0.25)];
-  const p75 = times[Math.floor((times.length - 1) * 0.75)];
-  const p25Pct = ((p25 - minT) / range) * 100;
-  const p75Pct = ((p75 - minT) / range) * 100;
-
-  // Trend direction: compare avg of first third vs last third
-  const trendN = Math.max(1, Math.floor(chronoLaps.length / 3));
-  const avgFirst = chronoLaps.slice(0, trendN).reduce((s, l) => s + l.lapTime, 0) / trendN;
-  const avgLast = chronoLaps.slice(-trendN).reduce((s, l) => s + l.lapTime, 0) / trendN;
-  const trendDelta = avgLast - avgFirst; // negative = getting faster
-  const trendThreshold = avgFirst * 0.005; // 0.5% of avg lap time
-  const trendDir = chronoLaps.length >= 4 ? (trendDelta < -trendThreshold ? "faster" : trendDelta > trendThreshold ? "slower" : "neutral") : "neutral";
-  const trendStroke = trendDir === "faster" ? "var(--lap-pace-on-target)" : trendDir === "slower" ? "var(--lap-pace-off-target)" : "var(--app-text)";
-
-  const vbW = 400;
-  const vbH = 120;
-  const padL = 4;
-  const padR = 4;
-  const padT = 16;
-  const padB = 24;
-  const plotW = vbW - padL - padR;
-  const plotH = vbH - padT - padB;
-  const sparkPoints = chronoLaps.map((l, i) => {
-    const x = padL + (i / Math.max(chronoLaps.length - 1, 1)) * plotW;
-    const y = padT + plotH - ((l.lapTime - minT) / range) * plotH;
-    return { x, y, lapTime: l.lapTime };
-  });
-  const polyline = sparkPoints.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
-  const bestPoint = sparkPoints.reduce((b, p) => (p.y > b.y ? p : b), sparkPoints[0]);
-  const worstPoint = sparkPoints.reduce((b, p) => (p.y < b.y ? p : b), sparkPoints[0]);
-  // Linear regression trend line
-  const n = sparkPoints.length;
-  const sumX = sparkPoints.reduce((s, p) => s + p.x, 0);
-  const sumY = sparkPoints.reduce((s, p) => s + p.y, 0);
-  const sumXY = sparkPoints.reduce((s, p) => s + p.x * p.y, 0);
-  const sumX2 = sparkPoints.reduce((s, p) => s + p.x * p.x, 0);
-  const denom = n * sumX2 - sumX * sumX || 1;
-  const trendM = (n * sumXY - sumX * sumY) / denom;
-  const trendB = (sumY - trendM * sumX) / n;
-  const trendX1 = sparkPoints[0].x;
-  const trendX2 = sparkPoints[n - 1].x;
-  const trendY1 = trendM * trendX1 + trendB;
-  const trendY2 = trendM * trendX2 + trendB;
-  const lastDate = chronoLaps[chronoLaps.length - 1]?.createdAt ? new Date(chronoLaps[chronoLaps.length - 1].createdAt!).toLocaleDateString([], { month: "short", day: "numeric" }) : "Recent";
-
-  // Theoretical best sectors
-  const lapsWithSectors = chronoLaps.filter((lap) => sectorCount >= 2 && lap.sectorTimes?.length === sectorCount && lap.sectorTimes.every((time) => time > 0));
-  const hasSectors = lapsWithSectors.length > 0;
-  const bestSectorTimes = hasSectors ? Array.from({ length: sectorCount }, (_, index) => Math.min(...lapsWithSectors.map((lap) => lap.sectorTimes![index]))) : [];
-  const theoretical = hasSectors ? bestSectorTimes.reduce((sum, time) => sum + time, 0) : null;
-  const sectorGap = theoretical != null ? minT - theoretical : null;
-
-  // Sector range stats for mini range bars
-  const sectorStats = hasSectors
-    ? Array.from({ length: sectorCount }, (_, index) => {
-        const vals = lapsWithSectors.map((lap) => lap.sectorTimes![index]).sort((a, b) => a - b);
-        const mn = vals[0];
-        const mx = vals[vals.length - 1];
-        const rng = mx - mn || 1;
-        const midI = Math.floor(vals.length / 2);
-        const med = vals.length % 2 === 0 ? (vals[midI - 1] + vals[midI]) / 2 : vals[midI];
-        const p25v = vals[Math.floor((vals.length - 1) * 0.25)];
-        const p75v = vals[Math.floor((vals.length - 1) * 0.75)];
-        return {
-          label: `S${index + 1}`,
-          min: mn,
-          max: mx,
-          med,
-          range: mx - mn,
-          medPct: ((med - mn) / rng) * 100,
-          p25Pct: ((p25v - mn) / rng) * 100,
-          p75Pct: ((p75v - mn) / rng) * 100,
-        };
-      })
-    : null;
-
-  // Per-car best times
-  const carBests = new Map<number, { carOrdinal: number; carName: string; bestTime: number }>();
-  for (const lap of chronoLaps) {
-    const existing = carBests.get(lap.carOrdinal);
-    if (!existing || lap.lapTime < existing.bestTime) {
-      carBests.set(lap.carOrdinal, { carOrdinal: lap.carOrdinal, carName: lap.carName, bestTime: lap.lapTime });
-    }
-  }
-  const carList = [...carBests.values()].sort((a, b) => a.bestTime - b.bestTime);
-  const showCarBreakdown = carList.length > 1;
-  const carWorst = carList.length > 0 ? carList[carList.length - 1].bestTime : minT;
-  const carRange = carWorst - minT || 1;
-
-  // By lap number: best time per lap number, top 10 by count
-  const lapNumMap = new Map<number, { bestTime: number; count: number }>();
-  for (const lap of chronoLaps) {
-    const existing = lapNumMap.get(lap.lapNumber);
-    if (!existing) {
-      lapNumMap.set(lap.lapNumber, { bestTime: lap.lapTime, count: 1 });
-    } else {
-      existing.count++;
-      if (lap.lapTime < existing.bestTime) existing.bestTime = lap.lapTime;
-    }
-  }
-  const lapNumData = [...lapNumMap.entries()]
-    .sort((a, b) => b[1].count - a[1].count)
-    .slice(0, 10)
-    .map(([lapNum, { bestTime, count }]) => ({ lapNum, bestTime, count }))
-    .sort((a, b) => a.lapNum - b.lapNum);
-  const lapNumWorst = lapNumData.length > 0 ? Math.max(...lapNumData.map((d) => d.bestTime)) : maxT;
-  const lapNumBest = lapNumData.length > 0 ? Math.min(...lapNumData.map((d) => d.bestTime)) : minT;
-  const lapNumRange = lapNumWorst - lapNumBest || 1;
-  const showLapNumBreakdown = lapNumData.length > 1;
-
-  return (
-    <div className="w-full min-w-0 @3xl/workspace:w-2/5">
-      {/* Fixed header — outside scroll container */}
-      <div className="flex shrink-0 items-center justify-between rounded-none border-b border-app-border bg-app-surface p-3 py-2">
-        <div className="flex items-center gap-2">
-          <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_stats()}</div>
-          {hasRaceFilter && (
-            <div className="flex rounded overflow-hidden border border-app-border text-xs">
-              {(["race", "quali"] as const).map((f) => (
-                <Button
-                  type="button"
-                  key={f}
-                  onClick={() => setLapFilter(lapFilter === f ? null : f)}
-                  className={`px-2 py-1 transition-colors capitalize ${
-                    lapFilter === f
-                      ? f === "race"
-                        ? "bg-status-success/15 text-status-success border-r border-app-border"
-                        : "bg-status-warning/15 text-status-warning"
-                      : `text-app-text-dim hover:text-app-text-secondary${f === "race" ? " border-r border-app-border" : ""}`
-                  }`}
-                >
-                  {f === "race" ? m.track_detail_race() : m.track_detail_quali()}
-                </Button>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="text-app-compact text-app-text-dim font-mono">{m.track_detail_last_100()}</div>
-      </div>
-      {/* Scrollable body */}
-      <div className="flex flex-1 flex-col gap-3 p-3 @3xl/workspace:overflow-y-auto">
-        <div className="flex flex-wrap gap-x-4 gap-y-1">
-          {[
-            { key: "best", label: m.label_best(), value: minT, color: "var(--lap-record)" },
-            { key: "median", label: m.track_detail_median(), value: medT, color: "var(--app-text)" },
-            { key: "worst", label: m.track_detail_worst(), value: maxT, color: "var(--app-text)" },
-          ].map(({ key, label, value, color }) => (
-            <div key={key} className="flex items-baseline gap-1.5">
-              <div className="text-xs text-app-text-dim uppercase tracking-wider">{label}</div>
-              <div className="font-mono text-app-body tabular-nums" style={{ color }}>
-                {formatLapTime(value)}
-              </div>
-            </div>
-          ))}
-        </div>
-        {/* Range bar */}
-        <div className="flex flex-col gap-1">
-          <div className="relative h-2 bg-app-surface-alt rounded-full overflow-visible">
-            <div
-              className="absolute inset-0 rounded-full"
-              style={{
-                background: rangeBandGradient(p25Pct, p75Pct, 8, 25, 65),
-              }}
-            />
-            <div className="absolute top-1/2 -translate-y-1/2 w-2 h-3 rounded-sm shadow" style={{ left: `calc(${medPct}% - 4px)`, background: "var(--app-text)", opacity: 0.8 }} />
-          </div>
-          <div className="flex justify-between items-center text-app-compact text-app-text-secondary font-mono">
-            <span>{formatLapTime(minT)}</span>
-            <span className="flex items-center gap-1 text-app-caption text-app-text-dim font-sans">
-              <span className="inline-block w-2.5 h-1.5 rounded-sm" style={{ background: "var(--lap-pace-on-target)", opacity: 0.7 }} />
-              {m.track_detail_typical_range()}
-            </span>
-            <span>{formatLapTime(maxT)}</span>
-          </div>
-        </div>
-        {/* Lap time trend sparkline */}
-        {chronoLaps.length >= 2 && (
-          <div className="flex flex-col gap-0.5 border-t border-app-border pt-2.5">
-            <div className="flex items-center gap-1.5 mb-1">
-              <div className="text-xs text-app-text-dim uppercase tracking-wider">{m.trackdetail_trend()}</div>
-              {trendDir === "faster" && (
-                <span className="text-xs font-medium" style={{ color: "var(--lap-pace-on-target)" }}>
-                  ↓ {m.trackdetail_faster()}
-                </span>
-              )}
-              {trendDir === "slower" && (
-                <span className="text-xs font-medium" style={{ color: "var(--lap-pace-off-target)" }}>
-                  ↑ {m.trackdetail_slower()}
-                </span>
-              )}
-              {trendDir === "neutral" && chronoLaps.length >= 4 && <span className="text-xs text-app-text-secondary font-medium">→ {m.trackdetail_keeping_pace()}</span>}
-            </div>
-            <div className="relative">
-              <svg
-                width="100%"
-                viewBox={`0 0 ${vbW} ${vbH}`}
-                className="overflow-visible"
-                onMouseLeave={() => setHoveredIdx(null)}
-                onMouseMove={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const svgX = ((e.clientX - rect.left) / rect.width) * vbW;
-                  let closest = 0;
-                  let minDist = Number.POSITIVE_INFINITY;
-                  sparkPoints.forEach((p, i) => {
-                    const d = Math.abs(p.x - svgX);
-                    if (d < minDist) {
-                      minDist = d;
-                      closest = i;
-                    }
-                  });
-                  setHoveredIdx(closest);
-                }}
-              >
-                <defs>
-                  <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={trendStroke} stopOpacity="0.15" />
-                    <stop offset="100%" stopColor={trendStroke} stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                {/* Grid lines */}
-                <line x1={padL} y1={padT} x2={padL + plotW} y2={padT} stroke="var(--app-text)" strokeOpacity={0.06} strokeWidth="0.5" />
-                <line x1={padL} y1={padT + plotH} x2={padL + plotW} y2={padT + plotH} stroke="var(--app-text)" strokeOpacity={0.06} strokeWidth="0.5" />
-                {/* Axis lines */}
-                <line x1={padL} y1={padT} x2={padL} y2={padT + plotH} stroke="var(--app-text)" strokeOpacity={0.08} strokeWidth="0.5" />
-                <line x1={padL} y1={padT + plotH} x2={padL + plotW} y2={padT + plotH} stroke="var(--app-text)" strokeOpacity={0.08} strokeWidth="0.5" />
-                {/* Area fill */}
-                <polygon points={`${polyline} ${(padL + plotW).toFixed(1)},${(padT + plotH).toFixed(1)} ${padL},${(padT + plotH).toFixed(1)}`} fill="url(#areaFill)" />
-                {/* Axis labels */}
-                <text x={padL} y={vbH - 2} fontSize="8" fill="var(--app-text)" fillOpacity={0.3} fontFamily="var(--font-sans)">
-                  {m.trackdetail_older()}
-                </text>
-                <text x={padL + plotW - 30} y={vbH - 2} fontSize="8" fill="var(--app-text)" fillOpacity={0.3} fontFamily="var(--font-sans)">
-                  {lastDate}
-                </text>
-                {/* Trend line */}
-                <line
-                  x1={trendX1.toFixed(1)}
-                  y1={trendY1.toFixed(1)}
-                  x2={trendX2.toFixed(1)}
-                  y2={trendY2.toFixed(1)}
-                  stroke={trendStroke}
-                  strokeOpacity={trendDir === "neutral" ? 0.2 : 0.6}
-                  strokeWidth="1"
-                  strokeDasharray="3 2"
-                />
-                {/* Sparkline */}
-                <polyline points={polyline} fill="none" stroke="var(--lap-record)" strokeOpacity={0.5} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
-                {/* Visible dots */}
-                {sparkPoints.map((p, i) => (
-                  <circle
-                    key={`${p.x}-${p.y}`}
-                    cx={p.x}
-                    cy={p.y}
-                    r={hoveredIdx === i ? 3 : 1.5}
-                    fill={hoveredIdx === i ? "var(--app-text)" : "var(--lap-record)"}
-                    fillOpacity={hoveredIdx === i ? 1 : 0.4}
-                    style={{ pointerEvents: "none" }}
-                  />
-                ))}
-                {/* Worst point */}
-                <circle cx={worstPoint.x} cy={worstPoint.y} r="4" fill="var(--lap-pace-off-target)" fillOpacity={0.7} style={{ pointerEvents: "none" }} />
-                <line x1={worstPoint.x} y1={worstPoint.y - 4} x2={worstPoint.x} y2={worstPoint.y - 14} stroke="var(--lap-pace-off-target)" strokeOpacity={0.5} strokeWidth="0.5" />
-                <text
-                  x={worstPoint.x > vbW / 2 ? worstPoint.x - 4 : worstPoint.x + 4}
-                  y={worstPoint.y - 16}
-                  fontSize="8"
-                  fill="var(--lap-pace-off-target)"
-                  fillOpacity={0.8}
-                  fontFamily="var(--font-sans)"
-                  textAnchor={worstPoint.x > vbW / 2 ? "end" : "start"}
-                  style={{ pointerEvents: "none" }}
-                >
-                  {m.trackdetail_worst_point()}
-                </text>
-                {/* Best point + callout */}
-                <circle cx={bestPoint.x} cy={bestPoint.y} r="4" fill="var(--lap-record)" style={{ pointerEvents: "none" }} />
-                <line x1={bestPoint.x} y1={bestPoint.y - 4} x2={bestPoint.x} y2={bestPoint.y - 14} stroke="var(--lap-record)" strokeOpacity={0.5} strokeWidth="0.5" />
-                <text
-                  x={bestPoint.x > vbW / 2 ? bestPoint.x - 4 : bestPoint.x + 4}
-                  y={bestPoint.y - 16}
-                  fontSize="8"
-                  fill="var(--lap-record)"
-                  fontFamily="var(--font-sans)"
-                  textAnchor={bestPoint.x > vbW / 2 ? "end" : "start"}
-                  style={{ pointerEvents: "none" }}
-                >
-                  {m.trackdetail_best_point()}
-                </text>
-                {/* Hover vertical line */}
-                {hoveredIdx !== null && (
-                  <line
-                    x1={sparkPoints[hoveredIdx].x}
-                    y1={padT}
-                    x2={sparkPoints[hoveredIdx].x}
-                    y2={padT + plotH}
-                    stroke="var(--app-text)"
-                    strokeOpacity={0.15}
-                    strokeWidth="0.5"
-                    strokeDasharray="2 2"
-                    style={{ pointerEvents: "none" }}
-                  />
-                )}
-              </svg>
-              {/* Hover tooltip */}
-              {hoveredIdx !== null &&
-                (() => {
-                  const p = sparkPoints[hoveredIdx];
-                  const lap = chronoLaps[hoveredIdx];
-                  const pctX = p.x / vbW;
-                  return (
-                    <div
-                      className="absolute pointer-events-none z-10 bg-app-surface border border-app-border rounded px-2 py-1 text-app-compact font-mono text-app-text shadow-lg -translate-y-full"
-                      style={{
-                        left: `${Math.min(Math.max(pctX * 100, 5), 85)}%`,
-                        top: `${(p.y / vbH) * 100}%`,
-                        transform: "translate(-50%, -120%)",
-                      }}
-                    >
-                      <div style={{ color: "var(--lap-record)" }}>{formatLapTime(lap.lapTime)}</div>
-                      {lap.createdAt && <div className="text-app-text-dim">{new Date(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}</div>}
-                    </div>
-                  );
-                })()}
-            </div>
-          </div>
-        )}
-
-        {/* Theoretical best sectors */}
-        {hasSectors && theoretical != null && (
-          <div className="flex flex-col gap-2 border-t border-app-border pt-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-xs text-app-text-dim uppercase tracking-wider">
-                {m.trackdetail_sectors()}
-                <InfoTooltip position="bottom">{m.trackdetail_theoretical_best_tooltip()}</InfoTooltip>
-              </div>
-              {theoretical != null && (
-                <div className="flex items-baseline gap-2 text-app-compact font-mono tabular-nums">
-                  <span style={{ color: "var(--app-accent)" }}>{formatLapTime(theoretical)}</span>
-                  {sectorGap != null && sectorGap > 0.001 && (
-                    <>
-                      <span className="text-app-text-dim">·</span>
-                      <span style={{ color: "var(--delta-focus)" }}>+{formatLapTime(sectorGap)}</span>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-            {/* Sector range bars */}
-            {sectorStats &&
-              (() => {
-                const maxVarianceRange = Math.max(...sectorStats.map((s) => s.range));
-                return sectorStats.map(({ label, min, max, med, range, medPct, p25Pct, p75Pct }, i) => {
-                  const isWorstVariance = range === maxVarianceRange && sectorStats.length > 1;
-                  const pctOfTheoretical = theoretical ? ((bestSectorTimes[i]! / theoretical) * 100).toFixed(0) : null;
-                  return (
-                    <div key={label} className="flex flex-col gap-0.5">
-                      <div className="flex justify-between items-baseline">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-app-text-dim">{label}</span>
-                          {pctOfTheoretical && <span className="text-app-caption text-app-text-muted">{pctOfTheoretical}%</span>}
-                          {isWorstVariance && (
-                            <span className="group/tip relative inline-flex items-center shrink-0 cursor-help">
-                              <span className="text-app-micro" style={{ color: "var(--status-warning)", opacity: 0.8 }}>
-                                ↔
-                              </span>
-                              <span className="absolute left-0 top-full mt-2 w-max max-w-[200px] hidden group-hover/tip:block bg-app-surface-alt border border-app-border-input rounded px-2 py-1.5 text-app-caption text-app-text-secondary z-50 pointer-events-none leading-relaxed">
-                                {m.trackdetail_most_variance_tooltip()}
-                              </span>
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-baseline gap-2 text-app-compact font-mono tabular-nums">
-                          <span style={{ color: "var(--lap-record)" }}>{formatLapTime(min)}</span>
-                          <span className="text-app-text-dim">·</span>
-                          <span className="text-app-text-secondary">{formatLapTime(med)}</span>
-                          <span className="text-app-text-dim">·</span>
-                          <span className="text-app-text-dim">{formatLapTime(max)}</span>
-                        </div>
-                      </div>
-                      <div className="relative h-1.5 bg-app-surface-alt rounded-full overflow-visible">
-                        <div
-                          className="absolute inset-0 rounded-full"
-                          style={{
-                            background: rangeBandGradient(p25Pct, p75Pct, 6, 20, 55),
-                          }}
-                        />
-                        <div className="absolute top-1/2 -translate-y-1/2 w-1.5 h-2.5 rounded-sm shadow" style={{ left: `calc(${medPct}% - 3px)`, background: "var(--app-text)", opacity: 0.7 }} />
-                      </div>
-                    </div>
-                  );
-                });
-              })()}
-          </div>
-        )}
-
-        {/* Per-car best times */}
-        {showCarBreakdown && (
-          <div className="flex flex-col gap-1.5 border-t border-app-border pt-2.5">
-            <div className="text-xs text-app-text-dim uppercase tracking-wider">{m.trackdetail_by_car()}</div>
-            {carList.map((car, i) => {
-              const barPct = 100 - ((car.bestTime - minT) / carRange) * 100;
-              return (
-                <div key={car.carOrdinal} className="flex flex-col gap-0.5">
-                  <div className="flex justify-between items-baseline">
-                    <span className="text-xs text-app-text truncate max-w-[160px]" title={car.carName}>
-                      {car.carName}
-                    </span>
-                    <span className="font-mono text-xs tabular-nums" style={{ color: i === 0 ? "var(--lap-record)" : "var(--app-text)" }}>
-                      {formatLapTime(car.bestTime)}
-                    </span>
-                  </div>
-                  <div className="h-1 bg-app-surface-alt rounded-full overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${barPct}%`, background: "var(--app-accent)", opacity: 0.4 }} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* By lap number */}
-        {showLapNumBreakdown && (
-          <div className="flex flex-col gap-1.5 border-t border-app-border pt-2.5">
-            <div className="text-xs text-app-text-dim uppercase tracking-wider">{m.trackdetail_by_lap_num()}</div>
-            {lapNumData.map(({ lapNum, bestTime, count }) => {
-              const barPct = 100 - ((bestTime - lapNumBest) / lapNumRange) * 100;
-              const isFastest = bestTime === lapNumBest;
-              return (
-                <div key={lapNum} className="flex items-center gap-2">
-                  <span className="text-xs text-app-text-secondary font-mono w-6 shrink-0 text-right">#{lapNum}</span>
-                  <div className="flex-1 h-1.5 bg-app-surface-alt rounded-full overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${barPct}%`, background: "var(--app-accent)", opacity: 0.4 }} />
-                  </div>
-                  <span className="font-mono text-xs tabular-nums shrink-0" style={{ color: isFastest ? "var(--lap-record)" : "var(--app-text)" }}>
-                    {formatLapTime(bestTime)}
-                  </span>
-                  <span className="text-app-compact text-app-text-secondary shrink-0">×{count}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-      {/* end scrollable body */}
-    </div>
-  );
-}
 
 /**
  * TrackDetail — Full-size track view with segment overlay and stats sidebar.
@@ -610,36 +73,6 @@ export function TrackDetail({
   const [sortAsc, setSortAsc] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [carouselEl, setCarouselEl] = useState<HTMLDivElement | null>(null);
-  const [carouselPage, setCarouselPage] = useState(0);
-  const [carouselHeight, setCarouselHeight] = useState<number | null>(null);
-  const gotoCarouselPage = useCallback(
-    (i: number) => {
-      if (!carouselEl) return;
-      carouselEl.scrollTo({ left: carouselEl.clientWidth * i, behavior: "smooth" });
-      setCarouselPage(i);
-    },
-    [carouselEl],
-  );
-  useEffect(() => {
-    if (!carouselEl) return;
-    const page = carouselEl.children[carouselPage] as HTMLElement | undefined;
-    if (!page) return;
-    const update = () => setCarouselHeight(page.scrollHeight);
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(page);
-    return () => ro.disconnect();
-  }, [carouselEl, carouselPage]);
-  useEffect(() => {
-    if (!carouselEl) return;
-    const onScroll = () => {
-      const idx = Math.round(carouselEl.scrollLeft / carouselEl.clientWidth);
-      setCarouselPage(idx);
-    };
-    carouselEl.addEventListener("scroll", onScroll, { passive: true });
-    return () => carouselEl.removeEventListener("scroll", onScroll);
-  }, [carouselEl]);
   const isF125 = gameId === "f1-2025";
   const isAcc = gameId === "acc";
   const isAcEvo = gameId === "ac-evo";
@@ -648,9 +81,25 @@ export function TrackDetail({
   const hasForzaTunes = gameId === "fm-2023";
   // Forza + AC-EVO share the catalog-driven master-detail setups panel.
   const hasCatalogSetups = hasForzaTunes || isAcEvo;
-  // "info" leads: it's the track's reference data, so it's what you want when
-  // you open a track you don't know. It's the index route of a track, so it's
-  // the one tab whose path is just /tracks/<ordinal>.
+  const { startEditing, updateSegFrac, toggleSegType, addSegment, removeSegment, saveSegments, startEditingSectors, saveSectorBounds } = useTrackSegmentEditor({
+    trackOrdinal: track.ordinal,
+    gameId: gid,
+    sectors,
+    setSectors,
+    sectorBounds,
+    setSectorBounds,
+    editSegments,
+    setEditSegments,
+    setEditing,
+    setSaving,
+    editS1,
+    editS2,
+    setEditS1,
+    setEditS2,
+    setEditingSectors,
+    setSavingSectors,
+  });
+  // "info" leads: reference data and index route for unfamiliar tracks.
   const allTabs = hasCatalogSetups
     ? (["info", "laps", "setups", "debug"] as const)
     : isF125
@@ -663,8 +112,6 @@ export function TrackDetail({
   // The tab is the route — the URL owns it, not this component. A tab the
   // current game doesn't have falls back to info rather than rendering blank.
   const activeTab: Tab = (validTabs as readonly string[]).includes(tab) ? (tab as Tab) : "info";
-  const setActiveTab = onTabChange;
-  const navTo = useNavigate();
 
   const { data: trackMapData } = useQuery({
     queryKey: ["track-map", track.ordinal, gameId ?? null],
@@ -759,131 +206,6 @@ export function TrackDetail({
     canvas.addEventListener("wheel", onWheel, { passive: false });
     return () => canvas.removeEventListener("wheel", onWheel);
   }, []);
-
-  // Auto-detected segments arrive with a "T<n>" display token but no official
-  // `number`, and the save path keys corners on the number — an unnumbered
-  // corner is written back as a straight. Seed them before editing so a
-  // round-trip through the editor can't silently flatten the corner list.
-  const startEditing = useCallback(() => {
-    if (!sectors?.segments) return;
-    let next: TrackSegment[] = sectors.segments.map((s) => ({ ...s }));
-    for (const s of next) {
-      if (s.type !== "corner" || s.number != null) continue;
-      const token = /^T(\d+)$/.exec((s.name ?? "").trim());
-      if (token) s.number = Number(token[1]);
-    }
-    for (let i = 0; i < next.length; i++) {
-      if (next[i].type === "corner" && next[i].number == null) next = numberCorner(next, i);
-    }
-    setEditSegments(next);
-    setEditing(true);
-  }, [sectors]);
-
-  const updateSegFrac = useCallback((idx: number, field: "startFrac" | "endFrac", value: number) => {
-    setEditSegments((prev) => {
-      const next = prev.map((s) => ({ ...s }));
-      next[idx][field] = value;
-      // Auto-chain: if changing endFrac, update next segment's startFrac
-      if (field === "endFrac" && idx + 1 < next.length) {
-        next[idx + 1].startFrac = value;
-      }
-      // Auto-chain: if changing startFrac, update prev segment's endFrac
-      if (field === "startFrac" && idx > 0) {
-        next[idx - 1].endFrac = value;
-      }
-      return next;
-    });
-  }, []);
-
-  // Names and groups are shared facts curated in the meta files, not per-game
-  // debug state: this editor only moves boundaries and decides whether a
-  // stretch is a corner or a straight.
-  //
-  // A corner is identified by its official turn number, not by `type`: the save
-  // path (`splitSegments`) keys on the number, so an unnumbered corner is
-  // written back out as a straight. Flipping the type must move the number too,
-  // and the number is derived from position — never picked by hand.
-  const toggleSegType = useCallback((idx: number) => {
-    setEditSegments((prev) => {
-      const next = prev.map((s) => ({ ...s }));
-      const becomingCorner = next[idx].type !== "corner";
-      next[idx].type = becomingCorner ? "corner" : "straight";
-      // Clear name when type changes so display auto-name kicks in
-      next[idx].name = "";
-      return becomingCorner ? numberCorner(next, idx) : unnumberCorner(next, idx);
-    });
-  }, []);
-
-  const addSegment = useCallback((afterIdx: number) => {
-    setEditSegments((prev) => {
-      const next = [...prev];
-      const current = next[afterIdx];
-      const midFrac = (current.startFrac + current.endFrac) / 2;
-      const newType = current.type === "corner" ? "straight" : "corner";
-      const newSeg: TrackSegment = {
-        type: newType,
-        name: "",
-        startFrac: midFrac,
-        endFrac: current.endFrac,
-        startIdx: 0,
-        endIdx: 0,
-      };
-      next[afterIdx] = { ...current, endFrac: midFrac };
-      next.splice(afterIdx + 1, 0, newSeg);
-      return newType === "corner" ? numberCorner(next, afterIdx + 1) : next;
-    });
-  }, []);
-
-  const removeSegment = useCallback((idx: number) => {
-    setEditSegments((prev) => {
-      if (prev.length <= 1) return prev;
-      const next = [...prev];
-      const removed = next.splice(idx, 1)[0];
-      // Extend the previous segment to cover the gap
-      if (idx > 0) {
-        next[idx - 1] = { ...next[idx - 1], endFrac: removed.endFrac };
-      } else if (next.length > 0) {
-        next[0] = { ...next[0], startFrac: removed.startFrac };
-      }
-      return next;
-    });
-  }, []);
-
-  const saveSegments = useCallback(async () => {
-    setSaving(true);
-    try {
-      const res = await client.api.tracks[":trackOrdinal"].segments.$put({ param: { trackOrdinal: String(track.ordinal) }, query: { gameId: gid }, json: { segments: editSegments } } as never);
-      if (res.ok) {
-        setSectors({ segments: editSegments, totalDist: sectors?.totalDist ?? 0 });
-        setEditing(false);
-      }
-    } catch {}
-    setSaving(false);
-  }, [editSegments, track.ordinal, sectors]);
-
-  const startEditingSectors = useCallback(() => {
-    if (sectorBounds) {
-      setEditS1(Math.round(sectorBounds.s1End * 1000) / 10);
-      setEditS2(Math.round(sectorBounds.s2End * 1000) / 10);
-    }
-    setEditingSectors(true);
-  }, [sectorBounds]);
-
-  const saveSectorBounds = useCallback(async () => {
-    setSavingSectors(true);
-    try {
-      const res = await client.api["track-sector-boundaries"][":ordinal"].$put({
-        param: { ordinal: String(track.ordinal) },
-        query: { gameId: gid },
-        json: { s1End: editS1 / 100, s2End: editS2 / 100 },
-      } as never);
-      if (res.ok) {
-        setSectorBounds({ s1End: editS1 / 100, s2End: editS2 / 100 });
-        setEditingSectors(false);
-      }
-    } catch {}
-    setSavingSectors(false);
-  }, [editS1, editS2, track.ordinal]);
 
   // Corner names carry their official turn numbers; straights are auto-numbered.
   const segDisplayNames = useMemo(() => segmentDisplayNames(editing ? editSegments : (displaySectors?.segments ?? [])), [editing, editSegments, displaySectors]);
@@ -1001,7 +323,7 @@ export function TrackDetail({
           </div>
         </div>
         {/* View mode tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={onTabChange}>
           <TabsList>
             {validTabs.map((tab) => (
               <TabsTrigger key={tab} value={tab}>
@@ -1040,234 +362,33 @@ export function TrackDetail({
               straights={straights.length}
             />
           </div>
-          <div className="w-80 shrink-0 flex flex-col gap-3 overflow-auto">
-            {/* Segment list / editor */}
-            {displaySectors && displaySectors.segments.length > 0 && (
-              <Card>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-app-label text-app-text-muted uppercase tracking-wider">{m.track_detail_segments()}</span>
-                    {segSource && <span className="text-app-micro font-mono text-app-text-dim px-1 py-0.5 rounded bg-app-surface-alt border border-app-border-input">{segSource}</span>}
-                  </div>
-                  {isDevelopment &&
-                    (!editing ? (
-                      <Button
-                        type="button"
-                        onClick={startEditing}
-                        className="text-app-compact text-app-accent hover:text-app-accent-hover px-2 py-0.5 rounded bg-app-accent/10 border border-app-accent/30"
-                      >
-                        {m.common_edit()}
-                      </Button>
-                    ) : (
-                      <div className="flex gap-1">
-                        <Button
-                          type="button"
-                          onClick={saveSegments}
-                          disabled={saving}
-                          className="text-app-compact text-status-success px-2 py-0.5 rounded bg-status-success/10 border border-status-success/30 hover:bg-status-success/20 disabled:opacity-50"
-                        >
-                          {saving ? "..." : m.common_save()}
-                        </Button>
-                        <Button
-                          type="button"
-                          onClick={() => setEditing(false)}
-                          className="text-app-compact text-app-text-secondary hover:text-app-text px-2 py-0.5 rounded bg-app-surface-alt border border-app-border-input"
-                        >
-                          {m.common_cancel()}
-                        </Button>
-                      </div>
-                    ))}
-                </div>
-                <div className="flex flex-col gap-0.5 max-h-[300px] overflow-auto">
-                  {(editing ? editSegments : displaySectors.segments).map((seg, i) => {
-                    const pct = ((seg.endFrac - seg.startFrac) * 100).toFixed(1);
-                    const isCorner = seg.type === "corner";
-                    const color = isCorner ? "var(--track-corner-overlay)" : "var(--track-straight-overlay)";
-                    const colorStyle = { ["--segment-color" as string]: color };
-                    if (!editing) {
-                      return (
-                        <div key={`${seg.startFrac}-${seg.endFrac}`} className="flex items-center justify-between px-2 py-1 rounded bg-(--segment-color)/10" style={colorStyle}>
-                          <div className="flex items-center gap-2">
-                            <span className="text-app-label font-mono font-bold text-(--segment-color)">{segDisplayNames[i]}</span>
-                            <span className="text-app-label text-app-text-muted capitalize">{seg.type}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {track.lengthKm > 0 && <span className="text-app-label font-mono text-app-text-dim">{((seg.endFrac - seg.startFrac) * track.lengthKm).toFixed(2)} km</span>}
-                            <span className="text-app-label font-mono text-app-text-secondary">{pct}%</span>
-                          </div>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div key={`${seg.startFrac}-${seg.endFrac}`} className="px-2 py-1.5 rounded space-y-1 bg-(--segment-color)/10" style={colorStyle}>
-                        <div className="flex items-center gap-1">
-                          <Button type="button" onClick={() => toggleSegType(i)} className="shrink-0 text-app-compact font-bold px-1 rounded bg-(--segment-color)/20 text-(--segment-color)">
-                            {isCorner ? "T" : "S"}
-                          </Button>
-                          <span className="flex-1 min-w-0 truncate text-app-label font-mono font-bold text-(--segment-color)" title={m.trackdetail_segment_name_readonly()}>
-                            {segDisplayNames[i]}
-                          </span>
-                          <Button
-                            type="button"
-                            onClick={() => addSegment(i)}
-                            className="shrink-0 w-5 h-5 flex items-center justify-center text-app-compact rounded bg-app-surface-alt border border-app-border-input text-app-text-muted hover:text-app-text"
-                            title={m.trackdetail_split_segment()}
-                          >
-                            +
-                          </Button>
-                          <Button
-                            type="button"
-                            onClick={() => removeSegment(i)}
-                            disabled={(editing ? editSegments : displaySectors.segments).length <= 1}
-                            className="shrink-0 w-5 h-5 flex items-center justify-center text-app-compact rounded bg-status-danger/10 border border-status-danger/30 text-status-danger hover:bg-status-danger/20 disabled:opacity-30"
-                            title={m.trackdetail_remove_segment()}
-                          >
-                            ×
-                          </Button>
-                        </div>
-                        <div className="flex items-center gap-2 text-app-label font-mono text-app-text-secondary">
-                          <input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            max="100"
-                            value={(seg.startFrac * 100).toFixed(1)}
-                            onChange={(e) => updateSegFrac(i, "startFrac", Number(e.target.value) / 100)}
-                            className="w-14 bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center"
-                          />
-                          <span>-</span>
-                          <input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            max="100"
-                            value={(seg.endFrac * 100).toFixed(1)}
-                            onChange={(e) => updateSegFrac(i, "endFrac", Number(e.target.value) / 100)}
-                            className="w-14 bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center"
-                          />
-                          <span className="text-app-text-dim">({pct}%)</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </Card>
-            )}
-            {/* Sector Boundaries */}
-            <Card className={gameId === "iracing" ? "hidden" : undefined}>
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-app-label text-app-text-muted uppercase tracking-wider">{m.trackdetail_sector_boundaries()}</div>
-                {isDevelopment &&
-                  (!editingSectors ? (
-                    <Button
-                      type="button"
-                      onClick={startEditingSectors}
-                      disabled={!sectorBounds}
-                      className="text-app-compact text-app-accent hover:text-app-accent-hover px-2 py-0.5 rounded bg-app-accent/10 border border-app-accent/30 disabled:opacity-50"
-                    >
-                      {m.common_edit()}
-                    </Button>
-                  ) : (
-                    <div className="flex gap-1">
-                      <Button
-                        type="button"
-                        onClick={saveSectorBounds}
-                        disabled={savingSectors}
-                        className="text-app-compact text-status-success px-2 py-0.5 rounded bg-status-success/10 border border-status-success/30 hover:bg-status-success/20 disabled:opacity-50"
-                      >
-                        {savingSectors ? "..." : m.common_save()}
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={() => setEditingSectors(false)}
-                        className="text-app-compact text-app-text-secondary hover:text-app-text px-2 py-0.5 rounded bg-app-surface-alt border border-app-border-input"
-                      >
-                        {m.common_cancel()}
-                      </Button>
-                    </div>
-                  ))}
-              </div>
-              {sectorBounds ? (
-                editingSectors ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLOR_VARS[0] }} />
-                      <span className="text-app-label text-app-text-muted w-16">{m.trackdetail_s1_end()}</span>
-                      <input
-                        type="number"
-                        step="0.1"
-                        min="1"
-                        max={editS2 - 1}
-                        value={editS1.toFixed(1)}
-                        onChange={(e) => setEditS1(Number(e.target.value))}
-                        className="w-16 text-app-label font-mono bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center"
-                      />
-                      <span className="text-app-label text-app-text-dim">%</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLOR_VARS[1] }} />
-                      <span className="text-app-label text-app-text-muted w-16">{m.trackdetail_s2_end()}</span>
-                      <input
-                        type="number"
-                        step="0.1"
-                        min={editS1 + 1}
-                        max="99"
-                        value={editS2.toFixed(1)}
-                        onChange={(e) => setEditS2(Number(e.target.value))}
-                        className="w-16 text-app-label font-mono bg-app-surface-alt border border-app-border-input rounded px-1 py-0.5 text-app-text text-center"
-                      />
-                      <span className="text-app-label text-app-text-dim">%</span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SECTOR_COLOR_VARS[2] }} />
-                      <span className="text-app-label text-app-text-muted w-16">{m.trackdetail_s3_end()}</span>
-                      <span className="text-app-label font-mono text-app-text-secondary">100.0</span>
-                      <span className="text-app-label text-app-text-dim">% ({m.trackdetail_finish()})</span>
-                    </div>
-                    <div className="flex h-2 rounded overflow-hidden mt-1">
-                      <div style={{ backgroundColor: SECTOR_COLOR_VARS[0], opacity: 0.6, width: `${editS1}%` }} />
-                      <div style={{ backgroundColor: SECTOR_COLOR_VARS[1], opacity: 0.6, width: `${editS2 - editS1}%` }} />
-                      <div style={{ backgroundColor: SECTOR_COLOR_VARS[2], opacity: 0.6, width: `${100 - editS2}%` }} />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {[
-                      { name: "S1", color: SECTOR_COLOR_VARS[0], frac: sectorBounds.s1End },
-                      { name: "S2", color: SECTOR_COLOR_VARS[1], frac: sectorBounds.s2End - sectorBounds.s1End },
-                      { name: "S3", color: SECTOR_COLOR_VARS[2], frac: 1 - sectorBounds.s2End },
-                    ].map((s) => (
-                      <div key={s.name} className="flex items-center gap-2 px-2 py-1 rounded bg-app-surface-alt/30">
-                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                        <span className="text-app-label font-mono font-bold text-app-text">{s.name}</span>
-                        {track.lengthKm > 0 && <span className="text-app-label font-mono text-app-text-dim">{(s.frac * track.lengthKm).toFixed(2)} km</span>}
-                        <span className="text-app-label font-mono text-app-text-secondary ml-auto">{(s.frac * 100).toFixed(1)}%</span>
-                      </div>
-                    ))}
-                    <div className="flex h-2 rounded overflow-hidden mt-1">
-                      <div style={{ backgroundColor: SECTOR_COLOR_VARS[0], opacity: 0.6, width: `${sectorBounds.s1End * 100}%` }} />
-                      <div
-                        style={{
-                          backgroundColor: SECTOR_COLOR_VARS[1],
-                          opacity: 0.6,
-                          width: `${(sectorBounds.s2End - sectorBounds.s1End) * 100}%`,
-                        }}
-                      />
-                      <div
-                        style={{
-                          backgroundColor: SECTOR_COLOR_VARS[2],
-                          opacity: 0.6,
-                          width: `${(1 - sectorBounds.s2End) * 100}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                )
-              ) : (
-                <div className="text-app-label text-app-text-dim">{m.trackdetail_no_sector_data()}</div>
-              )}
-            </Card>
-          </div>
+          <TrackDebugSidebar
+            track={track}
+            gameId={gameId}
+            displaySectors={displaySectors}
+            segSource={segSource}
+            editing={editing}
+            editSegments={editSegments}
+            saving={saving}
+            sectorBounds={sectorBounds}
+            editingSectors={editingSectors}
+            editS1={editS1}
+            editS2={editS2}
+            savingSectors={savingSectors}
+            segDisplayNames={segDisplayNames}
+            startEditing={startEditing}
+            saveSegments={saveSegments}
+            toggleSegType={toggleSegType}
+            addSegment={addSegment}
+            removeSegment={removeSegment}
+            updateSegFrac={updateSegFrac}
+            setEditing={setEditing}
+            startEditingSectors={startEditingSectors}
+            saveSectorBounds={saveSectorBounds}
+            setEditingSectors={setEditingSectors}
+            setEditS1={setEditS1}
+            setEditS2={setEditS2}
+          />
         </div>
       ) : (
         <div className="flex flex-col gap-4 @5xl/workspace:h-[calc(100vh-160px)] @5xl/workspace:overflow-hidden">
@@ -1288,100 +409,22 @@ export function TrackDetail({
                     {isF125 ? <F125Leaderboard trackOrdinal={track.ordinal} /> : <CommunityLeaderboard trackName={track.name} trackVariant={track.variant} />}
                   </div>
                 )}
-                <div className="relative order-1 h-[260px] min-w-0 flex-1 rounded-lg border border-app-border bg-app-bg @3xl/workspace:order-2 @3xl/workspace:h-auto">
-                  {outline ? (
-                    <canvas
-                      ref={canvasRef}
-                      className="w-full h-full cursor-grab active:cursor-grabbing"
-                      onMouseDown={(e) => {
-                        dragging.current = { startX: e.clientX, startY: e.clientY, startPanX: pan.x, startPanZ: pan.z };
-                      }}
-                      onMouseMove={(e) => {
-                        if (!dragging.current) return;
-                        const dx = e.clientX - dragging.current.startX;
-                        const dy = e.clientY - dragging.current.startY;
-                        setPan({ x: dragging.current.startPanX + dx, z: dragging.current.startPanZ + dy });
-                      }}
-                      onMouseUp={() => {
-                        dragging.current = null;
-                      }}
-                      onMouseLeave={() => {
-                        dragging.current = null;
-                      }}
-                    />
-                  ) : track.mapUrl ? (
-                    <img src={track.mapUrl} alt={`${track.name} ${track.variant} map`} className="w-full h-full object-contain p-5" />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-app-subtext text-app-text-dim">{m.trackdetail_no_outline_available()}</div>
-                  )}
-                  {outline && (
-                    <div className="absolute top-2 right-2 flex flex-col items-end gap-1">
-                      <Button
-                        type="button"
-                        onClick={() => setZoom((z) => Math.min(z + 0.25, 4))}
-                        className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-                      >
-                        +
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={() => setZoom((z) => Math.max(z - 0.25, 0.5))}
-                        className="w-7 h-7 text-app-body bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded flex items-center justify-center"
-                      >
-                        -
-                      </Button>
-                      {zoom !== 1 && (
-                        <Button
-                          type="button"
-                          onClick={() => {
-                            setZoom(1);
-                            setPan({ x: 0, z: 0 });
-                          }}
-                          className="px-1.5 py-1 text-app-micro font-mono bg-app-surface-alt/80 border border-app-border-input text-app-text-secondary hover:text-app-text rounded"
-                        >
-                          {zoom % 1 === 0 ? `${zoom}x` : `${zoom.toFixed(2)}x`}
-                        </Button>
-                      )}
-                      {(sectorBounds || displaySectors) && (
-                        <>
-                          <div className="h-px" />
-                          <Button
-                            type="button"
-                            onClick={() => setMapDisplayMode((m) => (m === "segments" ? "sectors" : "segments"))}
-                            className={`px-1.5 py-1 text-app-micro font-mono rounded border transition-colors ${
-                              mapDisplayMode === "sectors" ? "map-sectors-active" : "bg-app-surface-alt/80 border-app-border-input text-app-text-secondary hover:text-app-text"
-                            }`}
-                            title={mapDisplayMode === "sectors" ? m.track_detail_show_segments() : m.track_detail_show_sectors()}
-                          >
-                            {mapDisplayMode === "sectors" ? m.overlay_sectors() : m.overlay_segments()}
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  )}
-                  {/* Track info overlay — bottom left */}
-                  <div className="absolute bottom-2 left-2 flex items-center gap-2.5 text-app-caption font-mono text-app-text-dim bg-app-surface/70 backdrop-blur-sm rounded px-2 py-1 pointer-events-none">
-                    {track.lengthKm > 0 && <span>{track.lengthKm} km</span>}
-                    {corners.length > 0 && (
-                      <>
-                        <span className="text-app-text-dim/40">·</span>
-                        <span>{corners.length} corners</span>
-                      </>
-                    )}
-                    {straights.length > 0 && (
-                      <>
-                        <span className="text-app-text-dim/40">·</span>
-                        <span>{straights.length} straights</span>
-                      </>
-                    )}
-                    {track.createdAt && (
-                      <>
-                        <span className="text-app-text-dim/40">·</span>
-                        <span>{new Date(track.createdAt).toLocaleDateString()}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
+                <TrackCanvasPanel
+                  track={track}
+                  outline={outline}
+                  canvasRef={canvasRef}
+                  dragging={dragging}
+                  pan={pan}
+                  setPan={setPan}
+                  zoom={zoom}
+                  setZoom={setZoom}
+                  sectorBounds={sectorBounds}
+                  displaySectors={displaySectors}
+                  mapDisplayMode={mapDisplayMode}
+                  setMapDisplayMode={setMapDisplayMode}
+                  corners={corners}
+                  straights={straights}
+                />
               </div>
             )}
 
@@ -1413,348 +456,37 @@ export function TrackDetail({
                   <TrackInfoPanel track={track} sectors={displaySectors} sectorBounds={sectorBounds} segSource={segSource} lapCount={trackLaps.length} gameId={gameId} part="details" />
                 )}
 
-                {/* Laps tab */}
                 {activeTab === "laps" && (
-                  <div className="flex flex-col gap-3 @5xl/workspace:h-full @5xl/workspace:overflow-hidden">
-                    {/* Own laps */}
-                    <div className="flex flex-col gap-3 @5xl/workspace:h-full @5xl/workspace:overflow-hidden">
-                      {(() => {
-                        const filterRow = (
-                          <div className="flex items-center gap-3 flex-wrap">
-                            <div className="text-app-label text-app-text-muted uppercase tracking-wider">
-                              {m.label_laps()} ({filteredLaps.length})
-                            </div>
-                            {/* Division filter — Forza only */}
-                            {hasForzaTunes && uniqueDivisions.length > 1 && (
-                              <SearchMultiSelect<string>
-                                mode="single"
-                                buttonLabel={selectedDivision ?? m.trackdetail_all_divisions()}
-                                options={uniqueDivisions.map((d) => ({ key: d, label: d }))}
-                                isSelected={(k) => selectedDivision === k}
-                                onSelect={(k) => setSelectedDivision(k)}
-                                onClear={selectedDivision ? () => setSelectedDivision(null) : undefined}
-                                searchPlaceholder={m.trackdetail_search_divisions_placeholder()}
-                                menuWidthClass="w-56"
-                              />
-                            )}
-                            <SearchMultiSelect<number>
-                              buttonLabel={selectedCars.size === 0 ? m.track_detail_all_cars() : `${selectedCars.size} ${selectedCars.size > 1 ? m.label_cars() : m.label_car()}`}
-                              options={uniqueCars.map((c) => ({ key: c.carOrdinal, label: c.carName, search: c.carName }))}
-                              isSelected={(k) => selectedCars.has(k)}
-                              onSelect={(k) => toggleCar(k)}
-                              onClear={
-                                selectedCars.size > 0
-                                  ? () => {
-                                      setSelectedCars(new Set());
-                                      setSelectedLaps(new Set());
-                                    }
-                                  : undefined
-                              }
-                              searchPlaceholder={m.trackdetail_search_cars_placeholder()}
-                              menuAlign="right"
-                              renderItem={(opt) => {
-                                const car = uniqueCars.find((c) => c.carOrdinal === opt.key);
-                                return (
-                                  <>
-                                    {!hideClassCol && car && (
-                                      <span className="font-bold font-mono text-app-caption flex-shrink-0" style={{ color: carClassColor(car.carClass) }}>
-                                        {car.carClass}
-                                      </span>
-                                    )}
-                                    <span className="truncate">{opt.label}</span>
-                                  </>
-                                );
-                              }}
-                            />
-                            {/* Selection actions — inline in header row */}
-                            {selectedLaps.size > 0 && (
-                              <div className="flex items-center gap-2 ml-auto">
-                                <span className="text-app-compact text-app-text-dim">
-                                  {selectedLaps.size} {m.trackdetail_selected()}
-                                </span>
-                                {selectedLaps.size === 2 &&
-                                  (() => {
-                                    const [lapA, lapB] = Array.from(selectedLaps);
-                                    return (
-                                      <Button
-                                        type="button"
-                                        onClick={() =>
-                                          navTo({
-                                            to: `${getGameRoute(gameId ?? "")}/compare`,
-                                            search: {
-                                              track: track.ordinal,
-                                              lapA,
-                                              lapB,
-                                              carA: trackLaps.find((l) => l.lapId === lapA)?.carOrdinal,
-                                              carB: trackLaps.find((l) => l.lapId === lapB)?.carOrdinal,
-                                            },
-                                          })
-                                        }
-                                        className="text-app-compact px-2 py-0.5 rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled font-medium"
-                                      >
-                                        {m.trackdetail_compare()}
-                                      </Button>
-                                    );
-                                  })()}
-                                {!confirmDelete ? (
-                                  <Button
-                                    type="button"
-                                    onClick={() => setConfirmDelete(true)}
-                                    className="text-app-compact px-2 py-0.5 rounded bg-status-danger/80 hover:bg-status-danger text-app-on-filled font-medium"
-                                  >
-                                    {m.trackdetail_delete()} ({selectedLaps.size})
-                                  </Button>
-                                ) : (
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-app-compact text-status-danger">{m.trackdetail_confirm()}</span>
-                                    <Button
-                                      type="button"
-                                      onClick={handleBulkDelete}
-                                      disabled={deleting}
-                                      className="text-app-compact px-2 py-0.5 rounded bg-status-danger hover:bg-status-danger-hover text-app-on-filled font-medium disabled:opacity-50"
-                                    >
-                                      {deleting ? "..." : m.trackdetail_yes()}
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      onClick={() => setConfirmDelete(false)}
-                                      className="text-app-compact px-2 py-0.5 rounded bg-app-surface-alt text-app-text-secondary hover:text-app-text"
-                                    >
-                                      {m.common_cancel()}
-                                    </Button>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        );
-                        return (
-                          <>
-                            {/* Desktop filter row */}
-                            <div className="hidden @3xl/workspace:block">{filterRow}</div>
-
-                            {/* Mobile: filter + 2-page carousel (stats / laps) */}
-                            <div className="flex flex-col gap-2 @3xl/workspace:hidden">
-                              {filterRow}
-                              <div className="flex items-center gap-1 border-b border-app-border">
-                                {[m.trackdetail_stats_page(), m.label_laps()].map((label, i) => (
-                                  <Button
-                                    type="button"
-                                    key={label}
-                                    onClick={() => gotoCarouselPage(i)}
-                                    className={`px-3 py-2 text-xs font-semibold uppercase tracking-wider border-b-2 -mb-px transition-colors ${carouselPage === i ? "border-app-accent text-app-accent" : "border-transparent text-app-text-muted"}`}
-                                  >
-                                    {label}
-                                  </Button>
-                                ))}
-                              </div>
-                              <div
-                                ref={setCarouselEl}
-                                className="overflow-x-auto overflow-y-hidden snap-x snap-mandatory flex scroll-smooth items-start"
-                                style={carouselHeight ? { height: carouselHeight } : undefined}
-                              >
-                                <div className="snap-center shrink-0 w-full">
-                                  <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} sectorCount={sectorCount} showSessionFilter={isF125} />
-                                </div>
-                                <div className="snap-center shrink-0 w-full flex flex-col gap-2">
-                                  {(() => {
-                                    const validLaps = filteredLaps.filter((l) => l.isValid !== false);
-                                    const fastestTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
-                                    if (filteredLaps.length === 0) {
-                                      return <div className="px-3 py-6 text-center text-sm text-app-text-dim">{m.track_detail_no_laps_match_filters()}</div>;
-                                    }
-                                    return filteredLaps.map((lap) => {
-                                      const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false;
-                                      const selected = selectedLaps.has(lap.lapId);
-                                      return (
-                                        <div key={lap.lapId} className={`rounded-lg border border-app-border p-3 ${selected ? "bg-app-accent/5 border-app-accent/30" : ""}`}>
-                                          <div className="flex items-start gap-3">
-                                            <input type="checkbox" checked={selected} onChange={() => toggleLapSelect(lap.lapId)} className="accent-app-accent w-5 h-5 mt-0.5 shrink-0" />
-                                            <div className="flex-1 min-w-0">
-                                              <div className="flex items-start justify-between gap-3">
-                                                <div className="min-w-0 flex-1">
-                                                  <div className="text-sm font-semibold text-app-text break-words">{lap.carName}</div>
-                                                  <div className="mt-0.5 flex items-center gap-2 text-xs text-app-text-muted">
-                                                    {!hideClassCol && (
-                                                      <span>
-                                                        <span className="font-bold font-mono" style={{ color: carClassColor(lap.carClass) }}>
-                                                          {lap.carClass}
-                                                        </span>
-                                                        <span className="ml-1">PI {lap.pi}</span>
-                                                      </span>
-                                                    )}
-                                                    <span className="font-mono">Lap {lap.lapNumber}</span>
-                                                    {hasSessionTypes &&
-                                                      lap.sessionId != null &&
-                                                      ((sessionLapCounts.get(lap.sessionId) ?? 0) > 1 ? (
-                                                        <span className="text-app-caption text-status-success font-medium">{m.track_detail_race()}</span>
-                                                      ) : (
-                                                        <span className="text-app-caption text-status-warning font-medium">{m.track_detail_quali()}</span>
-                                                      ))}
-                                                  </div>
-                                                  {lap.createdAt && (
-                                                    <div className="mt-1 text-app-compact text-app-text-dim font-mono">
-                                                      {new Date(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}{" "}
-                                                      {new Date(lap.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                                    </div>
-                                                  )}
-                                                  {lap.notes && <div className="mt-1 text-xs text-app-text-secondary truncate">{lap.notes}</div>}
-                                                </div>
-                                                <div className="shrink-0 flex flex-col items-end gap-1 font-mono tabular-nums text-sm leading-tight">
-                                                  <div className="flex items-center gap-1">
-                                                    <span className={isFastest ? "font-bold" : undefined} style={{ color: isFastest ? "var(--lap-record)" : "var(--app-text)" }}>
-                                                      {formatLapTime(lap.lapTime)}
-                                                    </span>
-                                                    {lap.isValid === false ? (
-                                                      <span className="text-status-danger w-6 text-center" title={lap.invalidReason ?? m.trackdetail_invalid_lap()}>
-                                                        ✕
-                                                      </span>
-                                                    ) : (
-                                                      <span className="text-status-success w-6 text-center">✓</span>
-                                                    )}
-                                                  </div>
-                                                  {Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`).map((label, index) => (
-                                                    <div key={label} className="flex items-center gap-1">
-                                                      <span>{lap.sectorTimes?.[index] != null ? formatLapTime(lap.sectorTimes[index]) : "—"}</span>
-                                                      <span className="w-6 text-center">{label}</span>
-                                                    </div>
-                                                  ))}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      );
-                                    });
-                                  })()}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Desktop: stats + table side-by-side */}
-                            <div className="hidden min-h-0 flex-1 gap-3 overflow-hidden @3xl/workspace:flex">
-                              <LapStatsPanel laps={filteredLaps.filter((l) => l.isValid !== false)} sectorCount={sectorCount} showSessionFilter={isF125} />
-                              {/* Lap table (md+) */}
-                              <div className="flex-1 min-w-0 overflow-y-auto">
-                                <Table fit>
-                                  <THead>
-                                    <TH>
-                                      <input type="checkbox" checked={selectedLaps.size === filteredLaps.length && filteredLaps.length > 0} onChange={toggleAllLaps} className="accent-app-accent" />
-                                    </TH>
-                                    <TH>{m.label_car()}</TH>
-                                    {!hideClassCol && <TH>{m.track_detail_class()}</TH>}
-                                    {hasSessionTypes && <TH>{m.label_type()}</TH>}
-                                    <SortableTH direction={sortBy === "lap" ? (sortAsc ? "ascending" : "descending") : undefined} nowrap onSort={() => handleSort("lap")}>
-                                      {m.track_detail_lap_num()}
-                                    </SortableTH>
-                                    <SortableTH align="end" direction={sortBy === "time" ? (sortAsc ? "ascending" : "descending") : undefined} nowrap onSort={() => handleSort("time")}>
-                                      {m.label_time()}
-                                    </SortableTH>
-                                    <TH />
-                                    {Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`).map((label) => (
-                                      <TH key={label}>{label}</TH>
-                                    ))}
-                                    <SortableTH direction={sortBy === "date" ? (sortAsc ? "ascending" : "descending") : undefined} onSort={() => handleSort("date")}>
-                                      {m.sessions_col_date()}
-                                    </SortableTH>
-                                    <TH>{m.sessions_col_notes()}</TH>
-                                  </THead>
-                                  <TBody>
-                                    {(() => {
-                                      const validLaps = filteredLaps.filter((l) => l.isValid !== false);
-                                      const fastestTime = validLaps.length > 0 ? Math.min(...validLaps.map((l) => l.lapTime)) : null;
-                                      return filteredLaps.map((lap) => {
-                                        const isFastest = fastestTime !== null && lap.lapTime === fastestTime && lap.isValid !== false;
-                                        return (
-                                          <TRow key={lap.lapId} data-testid={`track-lap-${lap.lapId}`} selected={selectedLaps.has(lap.lapId)}>
-                                            <TD>
-                                              <input type="checkbox" checked={selectedLaps.has(lap.lapId)} onChange={() => toggleLapSelect(lap.lapId)} className="accent-app-accent" />
-                                            </TD>
-                                            <TD truncate="wide">{lap.carName}</TD>
-                                            {!hideClassCol && (
-                                              <TD>
-                                                <span className="font-bold font-mono" style={{ color: carClassColor(lap.carClass) }}>
-                                                  {lap.carClass}
-                                                </span>
-                                                <span className="text-app-text-secondary ml-1">PI {lap.pi}</span>
-                                              </TD>
-                                            )}
-                                            {hasSessionTypes && (
-                                              <TD>
-                                                {lap.sessionId != null && (sessionLapCounts.get(lap.sessionId) ?? 0) > 1 ? (
-                                                  <span className="text-app-caption text-status-success font-medium">{m.track_detail_race()}</span>
-                                                ) : (
-                                                  <span className="text-app-caption text-status-warning font-medium">{m.track_detail_quali()}</span>
-                                                )}
-                                              </TD>
-                                            )}
-                                            <TD numeric nowrap>
-                                              {lap.lapNumber}
-                                            </TD>
-                                            <TD align="end" nowrap>
-                                              <div className="flex items-center justify-end gap-1">
-                                                <span className={`font-mono tabular-nums ${isFastest ? "font-bold" : ""}`} style={{ color: isFastest ? "var(--lap-record)" : undefined }}>
-                                                  {formatLapTime(lap.lapTime)}
-                                                </span>
-                                                {lap.isValid === false ? (
-                                                  <span className="group/inv relative text-sm text-status-danger cursor-default">
-                                                    ✕
-                                                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/inv:block w-max max-w-[200px] bg-app-surface-alt border border-app-border-input rounded px-2 py-1 text-app-caption text-app-text-secondary z-50 pointer-events-none leading-relaxed">
-                                                      {lap.invalidReason ?? m.trackdetail_invalid_lap()}
-                                                    </span>
-                                                  </span>
-                                                ) : (
-                                                  <span className="text-sm text-status-success">✓</span>
-                                                )}
-                                              </div>
-                                            </TD>
-                                            <TD nowrap>
-                                              <Button
-                                                variant="app-outline"
-                                                size="app-sm"
-                                                className="bg-app-accent/10 !border-app-accent/40 text-app-accent hover:bg-app-accent/20"
-                                                onClick={() => {
-                                                  if (!gameId) return;
-                                                  navTo({ to: `${getGameRoute(gameId)}/analyse`, search: { track: track.ordinal, car: lap.carOrdinal, lap: lap.lapId } } as never);
-                                                }}
-                                              >
-                                                {m.trackdetail_analyse()}
-                                              </Button>
-                                            </TD>
-                                            {Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`).map((label, index) => (
-                                              <TD key={label} numeric tone="primary">
-                                                {lap.sectorTimes?.[index] != null ? formatLapTime(lap.sectorTimes[index]) : "—"}
-                                              </TD>
-                                            ))}
-                                            <TD nowrap numeric>
-                                              {lap.createdAt
-                                                ? `${new Date(lap.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })} ${new Date(lap.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                                                : "—"}
-                                            </TD>
-                                            <TD truncate="wide" title={lap.notes ?? undefined}>
-                                              {lap.notes ?? ""}
-                                            </TD>
-                                          </TRow>
-                                        );
-                                      });
-                                    })()}
-                                    {filteredLaps.length === 0 && (
-                                      <TRow variant="separator">
-                                        <TD align="center" colSpan={6} tone="dim">
-                                          <div className="py-2">{m.track_detail_no_laps_match_filters()}</div>
-                                        </TD>
-                                      </TRow>
-                                    )}
-                                  </TBody>
-                                </Table>
-                              </div>
-                            </div>
-                            {/* end stats+table flex */}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
+                  <LapManagement
+                    track={track}
+                    gameId={gameId}
+                    trackLaps={trackLaps}
+                    filteredLaps={filteredLaps}
+                    uniqueCars={uniqueCars}
+                    uniqueDivisions={uniqueDivisions}
+                    hasForzaTunes={hasForzaTunes}
+                    hideClassCol={hideClassCol}
+                    selectedDivision={selectedDivision}
+                    setSelectedDivision={setSelectedDivision}
+                    selectedCars={selectedCars}
+                    setSelectedCars={(value) => setSelectedCars(value)}
+                    toggleCar={toggleCar}
+                    selectedLaps={selectedLaps}
+                    setSelectedLaps={(value) => setSelectedLaps(value)}
+                    toggleLapSelect={toggleLapSelect}
+                    toggleAllLaps={toggleAllLaps}
+                    sectorCount={sectorCount}
+                    isF125={isF125}
+                    hasSessionTypes={hasSessionTypes}
+                    sessionLapCounts={sessionLapCounts}
+                    confirmDelete={confirmDelete}
+                    setConfirmDelete={setConfirmDelete}
+                    deleting={deleting}
+                    handleBulkDelete={handleBulkDelete}
+                    sortBy={sortBy}
+                    sortAsc={sortAsc}
+                    handleSort={handleSort}
+                  />
                 )}
               </div>
             </div>

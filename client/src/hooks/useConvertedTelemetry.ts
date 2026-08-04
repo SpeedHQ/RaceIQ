@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";
 import { convertPackets, type DisplayPacket } from "../lib/convert-packet";
-import { useSettings } from "./queries";
+import { useSettings } from "./settings";
 
 /**
  * Convert an array of historical telemetry packets once, memoized on unit changes.

@@ -1,5 +1,5 @@
 import { EXPERIMENT_FOCUS_LABELS } from "@shared/racing/experiments/focus";
-import { type ExperimentVersion, useExperimentFocusHistory } from "../../hooks/queries";
+import { type ExperimentVersion, useExperimentFocusHistory } from "../../hooks/experiments";
 
 /**
  * The experiment's focus ledger, oldest first — what the driver was working on,

@@ -1,10 +1,11 @@
 import { getGame } from "@shared/games/registry";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
-import { type ExperimentGameId, useTrackBoundaries, useTrackOutline } from "../../hooks/queries";
+import type { ExperimentGameId } from "../../hooks/experiments";
+import { useTrackBoundaries, useTrackOutline } from "../../hooks/track-queries";
 import { useTelemetryStore } from "../../stores/telemetry";
-import type { Point } from "../analyse/AnalyseTrackMap";
 import { AnalyseTrackPanel } from "../analyse/AnalyseTrackPanel";
+import type { Point } from "../analyse/track-map/types";
 import { CurrentLapTireStrip } from "./CurrentLapTireStrip";
 import { LiveIssuesFeed } from "./LiveIssuesFeed";
 import { LiveLapCards } from "./LiveLapCards";

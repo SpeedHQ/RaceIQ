@@ -1,5 +1,5 @@
+import { getSteeringLock, getWheelStyle } from "@/lib/settings-storage";
 import { m } from "@/paraglide/messages";
-import { getSteeringLock, getWheelStyle } from "./Settings";
 
 interface Props {
   steer: number; // signed int8: -128 to 127, 0 = center
@@ -38,7 +38,7 @@ export function SteeringWheel({ steer, rpm, maxRpm, size = 160 }: Props) {
               else if (segPct <= 75) bg = lit ? "bg-(--rev-high)" : "bg-(--rev-high)/10";
               else if (segPct <= 90) bg = lit ? "bg-(--rev-limit)" : "bg-(--rev-limit)/10";
               else bg = lit ? "bg-(--rev-shift) animate-pulse" : "bg-(--rev-shift)/10";
-              return <div key={i} className={`flex-1 h-3 ${bg}`} />;
+              return <div key={segPct} className={`flex-1 h-3 ${bg}`} />;
             })}
           </div>
         </div>

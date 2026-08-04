@@ -284,8 +284,8 @@ describe("frontend theme contract", () => {
 
   test("keeps product, manufacturer, and team color values out of React", () => {
     const identitySources = [
-      "components/HomePage.tsx",
-      "components/f1/F1Cars.tsx",
+      "components/home/HomePageView.tsx",
+      "components/f1/cars/F1Cars.tsx",
       "components/acc/AccCars.tsx",
       "components/ac-evo/AcEvoCars.tsx",
     ]

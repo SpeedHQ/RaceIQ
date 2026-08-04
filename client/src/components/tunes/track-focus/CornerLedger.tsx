@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { SetupRangeBar } from "@/components/SetupRangeBar";
 import { Table, TBody, TD, TH, THead, TRow } from "@/components/ui/AppTable";
-import type { TrackCorner } from "../../../hooks/queries";
+import type { TrackCorner } from "../../../hooks/track-queries";
 import type { LapTrace } from "../../../lib/stint-traces";
 import { detectCorners, ZONE_HALF_WIDTH } from "./detect-corners";
 import { SpeedRangeLegend } from "./SpeedRangeLegend";

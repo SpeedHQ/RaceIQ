@@ -1,7 +1,7 @@
 import { Sparkles } from "lucide-react";
 import type { RefObject } from "react";
-import { m } from "../../paraglide/messages";
-import { Button } from "../ui/button";
+import { Button } from "@/components/ui/button";
+import { m } from "@/paraglide/messages";
 import { CompareAiPanel, type CompareAiPanelHandle } from "./CompareAiPanel";
 
 interface CompareAiSidebarProps {

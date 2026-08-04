@@ -1,7 +1,7 @@
 import type { DriverProfileSummary } from "../../../../server/ai/schemas";
 import type { RankedWeakness } from "../../../../server/driver-profile/detectors";
 import type { DriverFingerprint } from "../../../../server/driver-profile/fingerprint";
-import type { DriverProfileRun, DriverProfileState } from "../../hooks/queries";
+import type { DriverProfileRun, DriverProfileState } from "../../hooks/driver-profile";
 import { DriverTrendOverview } from "./DriverTrendOverview";
 import { StyleGauges } from "./StyleGauges";
 

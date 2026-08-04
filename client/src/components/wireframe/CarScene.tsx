@@ -7,7 +7,7 @@ import type * as THREE from "three";
 import type { GameId } from "../../../../shared/games/ids";
 import type { TelemetryPacket } from "../../../../shared/telemetry/types";
 import type { CarModelEnrichment } from "../../data/car-models";
-import { useTirePressureOptimal } from "../../hooks/queries";
+import { useTirePressureOptimal } from "../../hooks/catalog-queries";
 import { tireState } from "../../lib/vehicle-dynamics";
 import type { ViewPreset, ViewToggles } from "../../lib/wireframe-data";
 import { THREE_COLORS } from "../../lib/wireframe-utils";

@@ -1,7 +1,8 @@
 import { Sparkles } from "lucide-react";
 import type { RefObject } from "react";
+import { AiPanel, type AiPanelHandle } from "@/components/ai/AiPanel";
+import type { AnalysisHighlight } from "@/components/ai/analysis-types";
 import { m } from "../../paraglide/messages";
-import { AiPanel, type AiPanelHandle, type AnalysisHighlight } from "../AiPanel";
 import { Button } from "../ui/button";
 import { AiPanelMenu } from "./AiPanelMenu";
 

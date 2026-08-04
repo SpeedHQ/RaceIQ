@@ -5,7 +5,7 @@ import type { DriverFingerprint } from "../../../server/driver-profile/fingerpri
 import type { DriverTrend, DriverTrendLap, DriverTrendWindow } from "../../../server/driver-profile/trend";
 import { DriverProfileView } from "../components/driver/DriverProfileView";
 import { Button } from "../components/ui/button";
-import type { DriverProfileRun, DriverProfileState } from "../hooks/queries";
+import type { DriverProfileRun, DriverProfileState } from "../hooks/driver-profile";
 
 const GAME_ID = "fm-2023" as const;
 

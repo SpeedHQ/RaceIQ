@@ -3,10 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 import type { CarModelEnrichment } from "../../data/car-models";
 import { THREE_COLORS } from "../../lib/wireframe-utils";
-import { classifyMesh, DEFAULT_HIDDEN_MESHES } from "./classify-mesh";
-
-// Re-export so existing importers don't break.
-export { classifyMesh, DEFAULT_HIDDEN_MESHES };
+import { classifyMesh } from "./classify-mesh";
 
 export function CarBody({
   solid,

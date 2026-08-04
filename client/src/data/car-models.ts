@@ -77,10 +77,3 @@ export const DEMO_CAR: CarModelEnrichment & { hasModel: true } = {
   modelPath: "/models/aston_martin_vantage_gt3.glb",
   hasModel: true,
 };
-
-/** Get all car ordinals that have 3D models */
-export function getCarModelsWithModel(): number[] {
-  return Object.entries(configs)
-    .filter(([, c]) => c.modelPath)
-    .map(([k]) => parseInt(k, 10));
-}
