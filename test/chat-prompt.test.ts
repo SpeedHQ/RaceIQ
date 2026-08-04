@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
+import { getF1CarName } from "../shared/f1-car-data";
+import { getF1TrackName } from "../shared/f1-track-data";
+import { initGameAdapters } from "../shared/games/init";
+import { initServerGameAdapters } from "../server/games/init";
 import { buildChatSystemPrompt, formatLapChatIdentity } from "../server/ai/chat-prompt";
+
+initGameAdapters();
+initServerGameAdapters();
 
 describe("lap chat prompt", () => {
   test("exposes database lap ID separately from display lap number", () => {
@@ -81,11 +88,49 @@ describe("lap chat prompt", () => {
       SuspensionTravelMRL: 0,
       SuspensionTravelMRR: 0,
     } as never], []);
-
     expect(prompt).toContain("Lap ID: 5");
     expect(prompt).toContain("No JSON output.");
     expect(prompt).toContain("--- TELEMETRY DATA ---");
     expect(prompt).not.toContain("Your response MUST be valid JSON");
   });
+ 
+  test("identifies game and car in session identity", () => {
+    const prompt = buildChatSystemPrompt({
+      id: 5,
+      lapNumber: 2,
+      lapTime: 79.328,
+      isValid: true,
+      carOrdinal: 1,
+      trackOrdinal: 19,
+      gameId: "f1-2025",
+    }, [{
+      gameId: "f1-2025",
+      CarOrdinal: 1,
+      DistanceTraveled: 0,
+      VelocityX: 0,
+      VelocityY: 0,
+      VelocityZ: 0,
+      CurrentEngineRpm: 0,
+      Accel: 0,
+      Brake: 0,
+      TireTempFL: 0,
+      TireTempFR: 0,
+      TireTempRL: 0,
+      TireTempRR: 0,
+      TireWearFL: 0,
+      TireWearFR: 0,
+      TireWearRL: 0,
+      TireWearRR: 0,
+      Gear: 1,
+    } as never], []);
+
+    expect(prompt).toContain("Game: F1 2025");
+    expect(prompt).toContain("Game ID: f1-2025");
+    expect(prompt).toContain(`Car: ${getF1CarName(1)}`);
+    expect(prompt).toContain("Car ID: 1");
+    expect(prompt).toContain("Track ID: 19");
+    expect(prompt).toContain(`Track: ${getF1TrackName(19)}`);
+  });
+
 });
 

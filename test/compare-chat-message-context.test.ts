@@ -3,7 +3,6 @@ import {
   CHAT_TURN_CONTEXT_KEY,
   compareChatToolChoice,
   getChatTurnContext,
-  lapChatToolChoice,
   sanitizeChatHistoryMessages,
 } from "../server/ai/chat-message-context";
 
@@ -43,12 +42,5 @@ describe("compare chat turn context", () => {
   test("always lets the model choose whether to call tools", () => {
     expect(compareChatToolChoice([{ role: "user" }])).toBe("auto");
     expect(compareChatToolChoice([{ role: "user" }, { role: "assistant" }])).toBe("auto");
-  });
-});
-
-describe("lap chat tool selection", () => {
-  test("requires cached analysis only on first step", () => {
-    expect(lapChatToolChoice(0)).toBe("required");
-    expect(lapChatToolChoice(1)).toBe("auto");
   });
 });

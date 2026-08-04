@@ -260,6 +260,8 @@ function TokenUsageFooter({
 export interface ChatPanelProps {
   /** Chat POST/stream endpoint, e.g. `/api/laps/${id}/chat`. */
   api: string;
+  /** DELETE endpoint used by chat's Clear action. */
+  clearChatApi?: string;
   /** Fetch persisted thread history as real AI SDK v5 UIMessage[]. Optional
    *  `gen` requests a specific (older) generation; omitted/undefined means
    *  "the active generation". */
@@ -502,7 +504,7 @@ function ChatPanelThread({
   );
 }
 
-export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFinish, components, emptyState, className, extraBody, compactThreadId, inputDisabled }: ChatPanelProps) {
+export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, remountKey, onFinish, components, emptyState, className, extraBody, compactThreadId, inputDisabled }: ChatPanelProps) {
   const { displaySettings } = useSettings();
   const openSettings = useUiStore((s) => s.openSettings);
   const aiConfigured = isAiConfigured(displaySettings);
@@ -512,7 +514,7 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
   const [regeneratePrompt, setRegeneratePrompt] = useState<string>();
   const clearChat = async () => {
     try {
-      await fetch(api, { method: "DELETE" });
+      await fetch(clearChatApi ?? api, { method: "DELETE" });
       await queryClient.invalidateQueries({ queryKey: historyQueryKey });
     } finally {
       setClearVersion((version) => version + 1);

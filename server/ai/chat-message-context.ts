@@ -17,9 +17,6 @@ export function compareChatToolChoice(_messages: readonly Pick<ChatTurnMessage, 
   return "auto";
 }
 
-export function lapChatToolChoice(stepNumber: number): "auto" | "required" {
-  return stepNumber === 0 ? "required" : "auto";
-}
 
 const GENERATED_CONTEXT_MARKER = /--- (?:LAPS UNDER COMPARISON|LAP CONTEXT|TELEMETRY DATA|CURRENT SETUP VALUES|SYMPTOM REPORT) ---/;
 

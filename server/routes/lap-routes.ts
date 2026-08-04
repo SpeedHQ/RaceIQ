@@ -91,7 +91,6 @@ import { startDetachedAgentTurn } from "../ai/agent-stream";
 import {
   CHAT_TURN_CONTEXT_KEY,
   compareChatToolChoice,
-  lapChatToolChoice,
   sanitizeChatHistoryMessages,
 } from "../ai/chat-message-context";
 import { reserveChatRun, buildReplayStream, finishRun } from "../ai/chat-run-registry";
@@ -923,12 +922,7 @@ export const lapRoutes = new Hono()
               requestContext,
               memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
               abortSignal: run.abortController.signal,
-              prepareStep: ({ stepNumber }) => stepNumber === 0
-                ? {
-                    toolChoice: lapChatToolChoice(stepNumber),
-                    activeTools: ["get_lap_analysis"],
-                  }
-                : { toolChoice: lapChatToolChoice(stepNumber) },
+              toolChoice: "auto",
               maxSteps: 5,
               providerOptions: {
                 openai: { reasoningEffort: "medium" },
@@ -968,6 +962,7 @@ export const lapRoutes = new Hono()
     zValidator("param", IdParamSchema),
     async (c) => {
       const { id } = c.req.valid("param");
+      const keepAnalysis = c.req.query("keepAnalysis") === "true";
       try {
         await deleteChatLineage(chatThreadId(id));
       } catch (err: unknown) {
@@ -975,11 +970,13 @@ export const lapRoutes = new Hono()
         console.error("[Chat] Failed to clear thread:", message);
         return c.json({ error: message }, 500);
       }
-      try {
-        await deleteAnalysisQuery(id);
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        console.error("[Chat] Failed to clear analysis:", message);
+      if (!keepAnalysis) {
+        try {
+          await deleteAnalysisQuery(id);
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error("[Chat] Failed to clear analysis:", message);
+        }
       }
       return c.json({ ok: true });
     },

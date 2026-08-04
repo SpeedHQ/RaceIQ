@@ -109,7 +109,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
       clearChat: () => {
         // Clear persisted chat only (keeps analysis), then remount ChatPanel
         // so it re-seeds from the now-empty thread.
-        fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" })
+        fetch(`/api/laps/${lapId}/chat?keepAnalysis=true`, { method: "DELETE" })
           .catch(() => {})
           .finally(() => setChatRemountKey((k) => k + 1));
       },
@@ -337,7 +337,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
   }, [carName, trackName]);
 
   const clearChat = useCallback(() => {
-    fetch(`/api/laps/${lapId}/chat`, { method: "DELETE" })
+    fetch(`/api/laps/${lapId}/chat?keepAnalysis=true`, { method: "DELETE" })
       .catch(() => {})
       .finally(() => setChatRemountKey((k) => k + 1));
   }, [lapId]);
@@ -501,11 +501,12 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         </div>
       </div>
 
-      {!loading && (
+      {analysis && !loading && (
         <div className="flex-1 min-h-0 flex flex-col border-t border-app-border">
           <ChatPanel
             key={chatRemountKey}
             api={`/api/laps/${lapId}/chat`}
+            clearChatApi={`/api/laps/${lapId}/chat?keepAnalysis=true`}
             fetchHistory={(gen) => fetchLapChatHistory(lapId, gen)}
             historyQueryKey={["lap-chat-history", lapId, chatRemountKey]}
             remountKey={`${lapId}:${chatRemountKey}`}

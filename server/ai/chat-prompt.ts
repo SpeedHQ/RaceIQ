@@ -8,6 +8,7 @@ import { generateExport, type UnitSystem, type TemperatureUnit } from "../export
 import { buildCornerData } from "./corner-data";
 import { analyzeLap } from "../../shared/lib/lap-insights";
 import { tryGetServerGame } from "../games/registry";
+import { getPromptCarName, getPromptTrackName } from "./compare-engineer";
 import { aiLanguageInstruction } from "../../shared/locales";
 import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
 
@@ -49,7 +50,18 @@ export function buildChatSystemPrompt(
 ): string {
   const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
   const serverAdapter = tryGetServerGame(gameId);
-
+  const carOrdinal = lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0;
+  const trackOrdinal = lap.trackOrdinal ?? packets[0]?.TrackOrdinal ?? 0;
+  const gameName = serverAdapter?.displayName ?? gameId ?? "unknown game";
+  const carName = getPromptCarName(carOrdinal, gameId);
+  const trackName = getPromptTrackName(trackOrdinal, gameId);
+  const identityText = `--- SESSION IDENTITY ---
+Game: ${gameName}
+Game ID: ${gameId ?? "unknown"}
+Car: ${carName}
+Car ID: ${carOrdinal}
+Track: ${trackName}
+Track ID: ${trackOrdinal}`;
   const exportText = generateExport(lap, packets, unit, temperatureUnit);
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
 
@@ -76,6 +88,7 @@ export function buildChatSystemPrompt(
   }
 
   return `${chatSystemPrompt(unit, temperatureUnit, language)}
+${identityText}
 ${formatLapChatIdentity(lap)}
 --- TELEMETRY DATA ---
 ${exportText}

@@ -22,6 +22,7 @@ import { useLocalStorage } from "../hooks/useLocalStorage";
 import { useNarrowViewport } from "../hooks/useNarrowViewport";
 import { useUnits } from "../hooks/useUnits";
 import { buildExportCsv } from "../lib/lap-export";
+import { mergeNameCache } from "../lib/name-cache";
 import { client } from "../lib/rpc";
 import { m } from "../paraglide/messages";
 import { MobileNotSupported } from "../routes/__root";
@@ -256,10 +257,10 @@ function LapAnalyseInner() {
   useEffect(() => {
     if (!resolvedNames) return;
     if (resolvedNames.trackNames && Object.keys(resolvedNames.trackNames).length > 0) {
-      setTrackNames((prev) => ({ ...prev, ...Object.fromEntries(Object.entries(resolvedNames.trackNames).map(([k, v]) => [Number(k), v])) }));
+      setTrackNames((prev) => mergeNameCache(prev, resolvedNames.trackNames));
     }
     if (resolvedNames.carNames && Object.keys(resolvedNames.carNames).length > 0) {
-      setCarNames((prev) => ({ ...prev, ...Object.fromEntries(Object.entries(resolvedNames.carNames).map(([k, v]) => [Number(k), v])) }));
+      setCarNames((prev) => mergeNameCache(prev, resolvedNames.carNames));
     }
   }, [resolvedNames]);
 
