@@ -60,7 +60,7 @@ export function AnalysisResultCard({
     <div className="rounded-lg border border-app-border-input/40 bg-app-surface-alt/30 px-2.5 py-2">
       <div className="flex items-center gap-2 mb-1.5">
         <span className={`w-2 h-2 rounded-full ${dotClass}`} />
-        <span className="text-[11px] font-semibold text-app-text truncate flex-1">{title}</span>
+        <span className="text-app-compact font-semibold text-app-text truncate flex-1">{title}</span>
         {hasResult && (
           <>
             <button
@@ -73,26 +73,26 @@ export function AnalysisResultCard({
             >
               <RefreshCw className="size-3" />
             </button>
-            <button type="button" onClick={onDelete} disabled={actionsDisabled} className="text-app-text-muted hover:text-red-400 disabled:opacity-40" title={deleteLabel} aria-label={deleteLabel}>
+            <button type="button" onClick={onDelete} disabled={actionsDisabled} className="text-app-text-muted hover:text-status-danger disabled:opacity-40" title={deleteLabel} aria-label={deleteLabel}>
               <Trash2 className="size-3" />
             </button>
           </>
         )}
       </div>
       {!hasResult && !loading && !error && (
-        <button type="button" onClick={onRun} className="w-full flex items-center justify-center gap-1.5 text-[11px] px-2 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors">
+        <button type="button" onClick={onRun} className="w-full flex items-center justify-center gap-1.5 text-app-compact px-2 py-1.5 rounded bg-app-accent hover:bg-app-accent-hover text-app-on-filled transition-colors">
           <Sparkles className="size-3" />
           {runLabel}
         </button>
       )}
       {loading && (
-        <div className="flex items-center gap-2 text-[10px] text-app-text-muted py-1">
+        <div className="flex items-center gap-2 text-app-caption text-app-text-muted py-1">
           <div className="size-3 border border-app-border-input border-t-amber-400 rounded-full animate-spin" />
           {loadingLabel}
         </div>
       )}
       {error && (
-        <div className="text-[10px] text-red-400 mb-1">
+        <div className="text-app-caption text-status-danger mb-1">
           {error}
           <Button variant="app-outline" size="app-sm" onClick={onRetry} className="ml-2">
             {retryLabel}

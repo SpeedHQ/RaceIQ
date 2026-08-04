@@ -326,7 +326,7 @@ function InputsSection({
   return (
     <AnalysisResultCard
       title={m.compare_inputs_comparison_ab()}
-      dotClass="bg-gradient-to-r from-orange-500 to-blue-500"
+      dotClass="bg-gradient-to-r from-comparison-lap-a to-comparison-lap-b"
       hasResult={!!analysis}
       loading={loading}
       error={error}
@@ -390,8 +390,8 @@ function LapSection({
 
 const SEVERITY_DOT = {
   minor: "bg-app-text-dim",
-  moderate: "bg-amber-500",
-  major: "bg-red-500",
+  moderate: "bg-ai-accent",
+  major: "bg-status-danger",
 } as const;
 
 function InputsModal({
@@ -408,7 +408,7 @@ function InputsModal({
   return createPortal(
     // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-app-bg/60 p-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -416,15 +416,15 @@ function InputsModal({
       <div className="bg-app-surface border border-app-border rounded-lg shadow-xl w-[720px] max-w-[95vw] max-h-[85vh] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-app-border shrink-0">
           <div className="flex items-center gap-2">
-            <Sparkles className="size-3.5 text-amber-400" />
-            <span className="text-[11px] font-semibold text-app-text uppercase tracking-wider">{m.compare_inputs_comparison()}</span>
+            <Sparkles className="size-3.5 text-ai-accent" />
+            <span className="text-app-compact font-semibold text-app-text uppercase tracking-wider">{m.compare_inputs_comparison()}</span>
           </div>
           <button type="button" onClick={onClose} className="text-app-text-muted hover:text-app-text">
             <X className="size-4" />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-          {analysis.verdict && <p className="text-[12px] text-app-text leading-relaxed">{analysis.verdict}</p>}
+          {analysis.verdict && <p className="text-app-label text-app-text leading-relaxed">{analysis.verdict}</p>}
 
           {analysis.segments?.length > 0 && (
             <div className="space-y-2">
@@ -442,34 +442,34 @@ function InputsModal({
                   <div
                     key={`${seg.name}-${seg.type ?? ""}-${seg.deltaSeconds ?? ""}`}
                     onClick={() => match && onJumpToFrac?.((match.startFrac + match.endFrac) / 2)}
-                    className={`rounded-lg border border-app-border-input/40 bg-app-surface-alt/40 px-2.5 py-2 ${clickable ? "cursor-pointer hover:border-cyan-400/40 hover:bg-app-surface-alt/60 transition-colors" : ""}`}
+                    className={`rounded-lg border border-app-border-input/40 bg-app-surface-alt/40 px-2.5 py-2 ${clickable ? "cursor-pointer hover:border-app-accent/40 hover:bg-app-surface-hover/60 transition-colors" : ""}`}
                   >
                     <div className="flex items-center gap-2 mb-1.5">
                       <span className={`size-1.5 rounded-full ${SEVERITY_DOT[seg.severity] ?? SEVERITY_DOT.minor}`} />
-                      <span className="text-[11px] font-semibold text-app-text">{seg.name}</span>
-                      {seg.type && <span className="text-[9px] uppercase tracking-wider text-app-text-muted">{seg.type}</span>}
+                      <span className="text-app-compact font-semibold text-app-text">{seg.name}</span>
+                      {seg.type && <span className="text-app-micro uppercase tracking-wider text-app-text-muted">{seg.type}</span>}
                       {typeof seg.deltaSeconds === "number" && (
-                        <span className={`ml-auto text-[10px] font-mono ${seg.deltaSeconds > 0.05 ? "text-red-400" : seg.deltaSeconds < -0.05 ? "text-emerald-400" : "text-app-text-muted"}`}>
+                        <span className={`ml-auto text-app-caption font-mono ${seg.deltaSeconds > 0.05 ? "text-status-danger" : seg.deltaSeconds < -0.05 ? "text-status-success" : "text-app-text-muted"}`}>
                           {seg.deltaSeconds >= 0 ? "+" : ""}
                           {seg.deltaSeconds.toFixed(3)}s
                         </span>
                       )}
                     </div>
-                    <div className="grid grid-cols-1 gap-1 text-[11px] text-app-text-secondary">
+                    <div className="grid grid-cols-1 gap-1 text-app-compact text-app-text-secondary">
                       <div>
-                        <span className="text-emerald-400/70 font-medium">{m.compare_throttle()}</span> {seg.throttle}
+                        <span className="text-status-success/70 font-medium">{m.compare_throttle()}</span> {seg.throttle}
                       </div>
                       <div>
-                        <span className="text-red-400/70 font-medium">{m.compare_brake()}</span> {seg.brake}
+                        <span className="text-status-danger/70 font-medium">{m.compare_brake()}</span> {seg.brake}
                       </div>
                       <div>
-                        <span className="text-cyan-400/70 font-medium">{m.compare_steering()}</span> {seg.steering}
+                        <span className="text-app-accent/70 font-medium">{m.compare_steering()}</span> {seg.steering}
                       </div>
                     </div>
                     {seg.action && (
-                      <div className="mt-1.5 flex items-start gap-1.5 rounded bg-amber-500/10 border border-amber-500/30 px-2 py-1.5">
-                        <Sparkles className="size-3 text-amber-400 shrink-0 mt-0.5" />
-                        <span className="text-[11px] text-amber-200 leading-snug">{seg.action}</span>
+                      <div className="mt-1.5 flex items-start gap-1.5 rounded bg-ai-accent/10 border border-ai-accent/30 px-2 py-1.5">
+                        <Sparkles className="size-3 text-ai-accent shrink-0 mt-0.5" />
+                        <span className="text-app-compact text-ai-accent leading-snug">{seg.action}</span>
                       </div>
                     )}
                   </div>
@@ -480,21 +480,21 @@ function InputsModal({
 
           {analysis.coaching?.length > 0 && (
             <div>
-              <div className="text-[10px] font-semibold text-app-text uppercase tracking-wider mb-1">{m.label_coaching()}</div>
+              <div className="text-app-caption font-semibold text-app-text uppercase tracking-wider mb-1">{m.label_coaching()}</div>
               <div className="space-y-1.5">
                 {analysis.coaching.map((c) => (
                   <div key={`${c.targetLap}-${c.tip}`} className="rounded border border-app-border-input/40 bg-app-surface-alt/30 px-2 py-1.5">
                     <div className="flex items-baseline gap-2">
                       <span
-                        className={`text-[9px] font-semibold uppercase tracking-wider px-1 py-0.5 rounded ${
-                          c.targetLap === "A" ? "bg-orange-500/15 text-orange-300 border border-orange-500/30" : "bg-blue-500/15 text-blue-300 border border-blue-500/30"
+                        className={`text-app-micro font-semibold uppercase tracking-wider px-1 py-0.5 rounded ${
+                          c.targetLap === "A" ? "bg-comparison-lap-a/15 text-comparison-lap-a border border-comparison-lap-a/30" : "bg-comparison-lap-b/15 text-comparison-lap-b border border-comparison-lap-b/30"
                         }`}
                       >
                         {m.compare_lap_label()} {c.targetLap}
                       </span>
-                      <span className="text-[11px] font-medium text-app-text">{c.tip}</span>
+                      <span className="text-app-compact font-medium text-app-text">{c.tip}</span>
                     </div>
-                    {c.detail && <p className="text-[10px] text-app-text-muted mt-0.5 ml-1">{c.detail}</p>}
+                    {c.detail && <p className="text-app-caption text-app-text-muted mt-0.5 ml-1">{c.detail}</p>}
                   </div>
                 ))}
               </div>
@@ -532,13 +532,13 @@ export function CompareAiPanel({ lapA, lapB, panelOpen = false, segments: trackS
       <div className="flex flex-col items-center justify-center py-12 gap-3 text-center px-3">
         <Sparkles className="size-5 text-app-text-dim" />
         <div>
-          <p className="text-[11px] text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
-          <p className="text-[10px] text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
+          <p className="text-app-compact text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
+          <p className="text-app-caption text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
         </div>
         <button
           type="button"
           onClick={() => openSettings("ai")}
-          className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-black font-medium transition-colors"
+          className="flex items-center gap-1.5 text-app-compact px-3 py-1.5 rounded bg-ai-accent hover:bg-ai-accent-hover text-app-on-filled font-medium transition-colors"
         >
           {m.compare_setup_ai_button()}
         </button>
@@ -554,11 +554,11 @@ export function CompareAiPanel({ lapA, lapB, panelOpen = false, segments: trackS
         <PanelSectionHeader title="AI analysis" collapsed={analysisCollapsed} onToggle={() => setAnalysisCollapsed((collapsed) => !collapsed)} />
         {!analysisCollapsed && (
           <>
-            <LapSection lap={lapA} dotClass="bg-orange-500" panelOpen={panelOpen} onAnalysisChange={setHasA} onView={(label, s) => setViewing({ kind: "lap", label, summary: s })} />
-            <LapSection lap={lapB} dotClass="bg-blue-500" panelOpen={panelOpen} onAnalysisChange={setHasB} onView={(label, s) => setViewing({ kind: "lap", label, summary: s })} />
+            <LapSection lap={lapA} dotClass="bg-comparison-lap-a" panelOpen={panelOpen} onAnalysisChange={setHasA} onView={(label, s) => setViewing({ kind: "lap", label, summary: s })} />
+            <LapSection lap={lapB} dotClass="bg-comparison-lap-b" panelOpen={panelOpen} onAnalysisChange={setHasB} onView={(label, s) => setViewing({ kind: "lap", label, summary: s })} />
             <InputsSection lapAId={lapA.id} lapBId={lapB.id} panelOpen={panelOpen} onAnalysisChange={setHasInputs} onView={(a) => setViewing({ kind: "inputs", analysis: a })} />
 
-            {!bothReady && <div className="text-[10px] text-app-text-muted text-center py-2 border border-dashed border-app-border-input/40 rounded">{m.compare_analyse_both_laps()}</div>}
+            {!bothReady && <div className="text-app-caption text-app-text-muted text-center py-2 border border-dashed border-app-border-input/40 rounded">{m.compare_analyse_both_laps()}</div>}
           </>
         )}
       </div>
@@ -573,7 +573,7 @@ export function CompareAiPanel({ lapA, lapB, panelOpen = false, segments: trackS
             compactThreadId={`compare-${Math.min(lapA.id, lapB.id)}-${Math.max(lapA.id, lapB.id)}`}
           />
         ) : (
-          <div className="flex flex-1 items-center justify-center px-3 text-center text-[10px] text-app-text-muted">{m.compare_analyse_both_laps()}</div>
+          <div className="flex flex-1 items-center justify-center px-3 text-center text-app-caption text-app-text-muted">{m.compare_analyse_both_laps()}</div>
         )}
       </div>
 

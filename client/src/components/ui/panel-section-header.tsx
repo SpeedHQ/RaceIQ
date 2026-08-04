@@ -13,13 +13,13 @@ export function PanelSectionHeader({ title, collapsed, onToggle, children }: Pan
 
   return (
     <div className="flex w-full items-center justify-between">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-app-text-muted">{title}</span>
+      <span className="text-app-caption font-semibold uppercase tracking-wider text-app-text-muted">{title}</span>
       <div className="flex items-center gap-3">
         {collapsible && (
           <button
             type="button"
             onClick={onToggle}
-            className="flex items-center gap-1 text-[10px] text-app-text-muted hover:text-app-text"
+            className="flex items-center gap-1 text-app-caption text-app-text-muted hover:text-app-text"
             aria-expanded={!collapsed}
             aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
           >

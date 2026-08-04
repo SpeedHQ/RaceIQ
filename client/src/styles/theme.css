@@ -423,6 +423,8 @@
   --color-status-danger-hover: var(--status-danger-hover);
   --color-status-info: var(--status-info);
   --color-status-unavailable: var(--status-unavailable);
+  --color-comparison-lap-a: var(--comparison-lap-a);
+  --color-comparison-lap-b: var(--comparison-lap-b);
 
   @keyframes collapsible-down {
     from {

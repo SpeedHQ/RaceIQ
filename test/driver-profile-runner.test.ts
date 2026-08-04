@@ -13,7 +13,7 @@ describe("driver profile runner", () => {
   test("provider configuration remains ready when background scheduling is off", async () => {
     const settingsPath = `${process.env.DATA_DIR ?? "./data"}/settings.json`;
     const original = existsSync(settingsPath) ? readFileSync(settingsPath, "utf8") : null;
-    writeFileSync(settingsPath, JSON.stringify({ driverProfileProvider: "local", driverProfileBackgroundEnabled: false }));
+    writeFileSync(settingsPath, JSON.stringify({ driverProfileProvider: "local", driverProfileModel: "test-model", driverProfileBackgroundEnabled: false }));
     try {
       const response = await driverRoutes.request("/api/drivers/profile/runs", {
         headers: { "X-Game-Id": "fm-2023" },

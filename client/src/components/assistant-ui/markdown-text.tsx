@@ -81,7 +81,7 @@ const defaultComponents = memoizeMarkdownComponents({
   strong: ({ className, ...props }) => <strong className={cn("aui-md-strong font-semibold", className)} {...props} />,
   sup: ({ className, ...props }) => <sup className={cn("aui-md-sup [&>a]:text-xs [&>a]:no-underline", className)} {...props} />,
   pre: ({ className, ...props }) => (
-    <pre className={cn("aui-md-pre border-border/50 bg-muted/30 overflow-x-auto rounded-t-none rounded-b-xl border border-t-0 p-3.5 text-[13px] leading-relaxed", className)} {...props} />
+    <pre className={cn("aui-md-pre border-border/50 bg-muted/30 overflow-x-auto rounded-t-none rounded-b-xl border border-t-0 p-3.5 text-app-detail leading-relaxed", className)} {...props} />
   ),
   code: function Code({ className, ...props }) {
     const isCodeBlock = useIsMarkdownCodeBlock();

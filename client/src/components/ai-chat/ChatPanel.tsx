@@ -165,7 +165,7 @@ function TokenUsageFooter({
   });
   const used = usage?.inputTokens || estimatedTokens;
   const level = meterLevel(used, limit ?? 0);
-  const barColor = level === "danger" ? "bg-red-500" : level === "warn" ? "bg-amber-500" : "bg-app-border";
+  const barColor = level === "danger" ? "bg-status-danger" : level === "warn" ? "bg-ai-accent" : "bg-app-border";
   const pct = limit != null && limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
 
   const rate = RATE_PER_MTOK[provider] ?? RATE_PER_MTOK.gemini;
@@ -198,7 +198,7 @@ function TokenUsageFooter({
   const hasUsage = (usage?.totalTokens ?? 0) > 0;
 
   return (
-    <div className="shrink-0 flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t border-app-border/40 px-2 py-1 text-[9px] text-app-text-muted tabular-nums">
+    <div className="shrink-0 flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t border-app-border/40 px-2 py-1 text-app-micro text-app-text-muted tabular-nums">
       {/* Context meter */}
       <span className="flex items-center gap-1" title={level === "ok" ? undefined : "Context is filling up — consider starting a new chat"}>
         <span>
@@ -222,7 +222,7 @@ function TokenUsageFooter({
             type="button"
             onClick={() => onViewGen(Math.max(1, viewingGen - 1))}
             disabled={viewingGen <= 1}
-            className="px-1 rounded border border-app-border/50 hover:bg-app-border/20 disabled:opacity-30"
+            className="px-1 rounded border border-app-border/50 hover:bg-app-surface-hover/30 disabled:opacity-30"
             title="Previous chat generation"
           >
             ‹
@@ -234,7 +234,7 @@ function TokenUsageFooter({
             type="button"
             onClick={() => onViewGen(Math.min(maxGen, viewingGen + 1))}
             disabled={viewingGen >= maxGen}
-            className="px-1 rounded border border-app-border/50 hover:bg-app-border/20 disabled:opacity-30"
+            className="px-1 rounded border border-app-border/50 hover:bg-app-surface-hover/30 disabled:opacity-30"
             title="Next chat generation"
           >
             ›
@@ -246,7 +246,7 @@ function TokenUsageFooter({
           type="button"
           onClick={onNewChat}
           disabled={compacting || isRunning}
-          className="ml-auto px-1.5 py-0.5 rounded border border-app-border/50 hover:bg-app-border/20 disabled:opacity-40"
+          className="ml-auto px-1.5 py-0.5 rounded border border-app-border/50 hover:bg-app-surface-hover/30 disabled:opacity-40"
           title="Compact this chat into a summary and continue in a fresh chat (keeps this chat as read-only history)"
         >
           {compacting ? "Compacting…" : "Compact & New chat"}
@@ -406,15 +406,15 @@ function ChatPanelThread({
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <TooltipProvider>
-        {fullscreen && <div className="fixed inset-0 z-[99] bg-black/60" aria-hidden="true" />}
+        {fullscreen && <div className="fixed inset-0 z-[99] bg-app-bg/60" aria-hidden="true" />}
         <div
           role="dialog"
           aria-modal={fullscreen}
           aria-label="AI chat"
           className={
             fullscreen
-              ? "fixed inset-2 sm:inset-4 z-[100] flex min-h-0 flex-col rounded-lg border border-app-border bg-app-bg shadow-2xl text-[11px] [&_*]:text-[11px] [&_svg]:size-3.5 [&_.aui-composer-input]:text-[11px]"
-              : (className ?? "h-full min-h-0 flex flex-col text-[11px] [&_*]:text-[11px] [&_svg]:size-3.5 [&_.aui-composer-input]:text-[11px]")
+              ? "fixed inset-2 sm:inset-4 z-[100] flex min-h-0 flex-col rounded-lg border border-app-border bg-app-bg shadow-2xl text-app-compact [&_*]:text-app-compact [&_svg]:size-3.5 [&_.aui-composer-input]:text-app-compact"
+              : (className ?? "h-full min-h-0 flex flex-col text-app-compact [&_*]:text-app-compact [&_svg]:size-3.5 [&_.aui-composer-input]:text-app-compact")
           }
         >
           <div className="shrink-0 flex items-center justify-between gap-2 px-2 py-1 border-b border-app-border/40">
@@ -423,7 +423,7 @@ function ChatPanelThread({
               <button
                 type="button"
                 onClick={() => setFullscreen((open) => !open)}
-                className="rounded border border-app-border/50 p-1 text-app-text-muted hover:bg-app-border/20 hover:text-app-text"
+                className="rounded border border-app-border/50 p-1 text-app-text-muted hover:bg-app-surface-hover/30 hover:text-app-text"
                 title={fullscreen ? "Close full screen chat" : "Open full screen chat"}
                 aria-label={fullscreen ? "Close full screen chat" : "Open full screen chat"}
               >
@@ -433,7 +433,7 @@ function ChatPanelThread({
                 <button
                   type="button"
                   onClick={() => setActionsOpen((open) => !open)}
-                  className="rounded border border-app-border/50 p-1 text-app-text-muted hover:bg-app-border/20 hover:text-app-text"
+                  className="rounded border border-app-border/50 p-1 text-app-text-muted hover:bg-app-surface-hover/30 hover:text-app-text"
                   title="Chat actions"
                   aria-label="Chat actions"
                   aria-expanded={actionsOpen}
@@ -478,7 +478,7 @@ function ChatPanelThread({
             </div>
           </div>
           {readOnly && (
-            <div className="shrink-0 px-2 py-1 text-[10px] text-amber-500 bg-amber-500/10 border-b border-amber-500/30">Viewing an earlier chat (read-only). Switch to the latest to continue.</div>
+            <div className="shrink-0 px-2 py-1 text-app-caption text-ai-accent bg-ai-accent/10 border-b border-ai-accent/30">Viewing an earlier chat (read-only). Switch to the latest to continue.</div>
           )}
           <div className="flex-1 min-h-0 flex flex-col">
             <PendingPromptSubmit prompt={regeneratePrompt} onSubmitted={onSubmitted} />
@@ -584,8 +584,8 @@ export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, re
     return (
       emptyState ?? (
         <div className="pt-2 space-y-1.5">
-          <p className="text-[11px] text-app-text-dim">Add an AI provider key to chat.</p>
-          <button type="button" onClick={() => openSettings("ai")} className="w-full px-3 py-1.5 text-xs rounded bg-amber-500 hover:bg-amber-400 text-black font-medium">
+          <p className="text-app-compact text-app-text-dim">Add an AI provider key to chat.</p>
+          <button type="button" onClick={() => openSettings("ai")} className="w-full px-3 py-1.5 text-xs rounded bg-ai-accent hover:bg-ai-accent-hover text-app-on-filled font-medium">
             Set up AI
           </button>
         </div>
@@ -597,7 +597,7 @@ export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, re
   // only reads `messages` on first render, so mounting before history resolves would
   // seed an empty thread and silently drop prior turns for the rest of the session.
   if (!isSuccess || (!!compactThreadId && !runStatusFetched)) {
-    return <div className="h-full min-h-0 flex flex-col pt-2 gap-1.5 text-[11px] text-app-text-dim">Loading…</div>;
+    return <div className="h-full min-h-0 flex flex-col pt-2 gap-1.5 text-app-compact text-app-text-dim">Loading…</div>;
   }
 
   return (
