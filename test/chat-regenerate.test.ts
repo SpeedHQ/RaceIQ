@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { persistReasoningToMemory, restoreOriginalUserMessage, stripThinkTags } from "../server/ai/agent-stream";
+import { persistAssistantTurnToMemory, restoreOriginalUserMessage, stripThinkTags } from "../server/ai/agent-stream";
 import { truncateChatAfterUserMessage } from "../server/ai/chat-agent";
 import { chatsRoutes } from "../server/routes/chats-routes";
 type Row = {
@@ -86,7 +86,7 @@ describe("restoreOriginalUserMessage", () => {
   });
 });
 
-describe("persistReasoningToMemory", () => {
+describe("persistAssistantTurnToMemory", () => {
   test("patches streamed reasoning onto the current assistant row", async () => {
     const saved: any[] = [];
     const memory = {
@@ -107,7 +107,7 @@ describe("persistReasoningToMemory", () => {
       },
     };
 
-    await persistReasoningToMemory(
+    await persistAssistantTurnToMemory(
       {
         id: "assistant-row",
         parts: [

@@ -106,6 +106,16 @@ export function finishRun(run: ChatRun): void {
     if (runs.get(run.threadId) === run) runs.delete(run.threadId);
   }, EVICT_MS);
 }
+/** Abort an active run and wait until its finish hook has completed. */
+export async function cancelChatRun(threadId: string): Promise<void> {
+  const run = getActiveRun(threadId);
+  if (!run) return;
+  await new Promise<void>((resolve) => {
+    run.finishListeners.add(resolve);
+    if (run.status === "active") run.abortController.abort();
+    else resolve();
+  });
+}
 
 /**
  * Build a replay-then-live-tail stream of a run's chunks: an SSE consumer

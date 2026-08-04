@@ -51,7 +51,7 @@ export interface StreamAgentTurnOptions {
   persistReasoning?: boolean;
 }
 
-export async function persistReasoningToMemory(
+export async function persistAssistantTurnToMemory(
   responseMessage: any,
   memory: AgentTurnMemory,
   threadId: string,
@@ -98,6 +98,7 @@ export async function persistReasoningToMemory(
     setTimeout(resolve, 50);
     await promise;
   }
+  throw new Error(`Failed to persist assistant turn ${String(responseMessage?.id ?? "unknown")} in thread ${threadId}`);
 }
 
 export async function restoreOriginalUserMessage(
@@ -177,7 +178,7 @@ function buildAgentTurnUIStream(opts: StreamAgentTurnOptions): ReadableStream<UI
     originalMessages,
     onFinish: async ({ responseMessage }) => {
       if (persistReasoning) {
-        await persistReasoningToMemory(responseMessage as any, memory, threadId, turnStartedAt, reasoningDurationMs(), finishUsage);
+        await persistAssistantTurnToMemory(responseMessage as any, memory, threadId, turnStartedAt, reasoningDurationMs(), finishUsage);
       }
       await restoreOriginalUserMessage(originalMessages, memory, threadId, turnStartedAt);
     },

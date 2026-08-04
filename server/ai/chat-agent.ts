@@ -8,6 +8,7 @@
 import { Memory } from "@mastra/memory";
 import { LibSQLStore } from "@mastra/libsql";
 import { resolve } from "path";
+import { cancelChatRun } from "./chat-run-registry";
 
 /**
  * Resolve the chat memory db path. Uses DATA_DIR env override when set,
@@ -95,42 +96,80 @@ export type ChatExportMemory = {
   recall(args: { threadId: string }): Promise<{ messages?: unknown[] }>;
   saveMessages(args: { messages: unknown[] }): Promise<unknown>;
   getThreadById?: (args: { threadId: string }) => Promise<unknown>;
-  createThread?: (args: { threadId: string; resourceId: string }) => Promise<unknown>;
+  createThread?: (args: { threadId: string; resourceId: string; metadata?: Record<string, unknown> }) => Promise<unknown>;
+  deleteThread?: (threadId: string) => Promise<unknown>;
 };
 
-/** Persist one thread's system prompt so exports begin with model instructions. */
+type ChatThreadRecord = { id: string; title?: string; metadata?: Record<string, unknown> };
+
+/** Persist initial prompt in thread metadata, once per generation. */
 export async function ensureSystemPrompt(
   threadId: string,
   systemPrompt: string,
   mem: ChatExportMemory = memory,
 ): Promise<void> {
-  if (!systemPrompt.trim()) return;
-  const existing = (await mem.recall({ threadId })).messages ?? [];
-  if (existing.some((message: any) => message?.role === "system")) return;
-  if (existing.length === 0 && mem.getThreadById && mem.createThread && !(await mem.getThreadById({ threadId }))) {
-    await mem.createThread({ threadId, resourceId: CHAT_RESOURCE_ID });
+  if (!systemPrompt.trim() || !mem.getThreadById) return;
+  const thread = (await mem.getThreadById({ threadId })) as ChatThreadRecord | null;
+  if (!thread) {
+    if (mem.createThread) await mem.createThread({ threadId, resourceId: CHAT_RESOURCE_ID, metadata: { raceiqSystemPrompt: systemPrompt } });
+    return;
   }
-  await mem.saveMessages({
-    messages: [{
-      id: crypto.randomUUID(),
-      role: "system",
-      createdAt: new Date(0),
-      threadId,
-      resourceId: CHAT_RESOURCE_ID,
-      type: "text",
-      content: {
-        format: 2,
-        parts: [{ type: "text", text: systemPrompt }],
-        content: systemPrompt,
-      },
-    }],
+  if (thread.metadata?.raceiqSystemPrompt !== undefined || !mem.updateThread) return;
+  await mem.updateThread({
+    id: thread.id,
+    title: thread.title ?? "",
+    metadata: { ...(thread.metadata ?? {}), raceiqSystemPrompt: systemPrompt },
   });
 }
 
-/** Export raw Mastra records without dropping tool calls or reasoning parts. */
-export function buildChatExport<T>(messages: T[]) {
-  return { messages };
+export async function getChatSystemPrompt(threadId: string, mem: ChatExportMemory = memory): Promise<string | undefined> {
+  const thread = (await mem.getThreadById?.({ threadId })) as ChatThreadRecord | null | undefined;
+  const value = thread?.metadata?.raceiqSystemPrompt;
+  return typeof value === "string" ? value : undefined;
 }
+
+/** Convert canonical raw records to UI messages without reshaping parts. */
+export function chatMemoryMessagesToUiMessages(messages: unknown[]): unknown[] {
+  return messages
+    .filter((message) => {
+      const role = (message as { role?: unknown })?.role;
+      return role === "user" || role === "assistant";
+    })
+    .map((message) => {
+      const record = message as { id?: string; role?: string; metadata?: unknown; content?: { parts?: unknown[]; metadata?: unknown } };
+      const parts = Array.isArray(record.content?.parts) ? record.content.parts : [];
+      return {
+        id: record.id,
+        role: record.role,
+        metadata: record.content?.metadata ?? record.metadata,
+        parts: parts.map((part) => {
+          const candidate = part as { type?: unknown; text?: unknown; reasoning?: unknown; details?: unknown[] };
+          if (candidate.type !== "reasoning" || typeof candidate.text === "string") return part;
+          const text = typeof candidate.reasoning === "string"
+            ? candidate.reasoning
+            : Array.isArray(candidate.details)
+              ? candidate.details.filter((detail) => (detail as { type?: unknown })?.type === "text").map((detail) => (detail as { text?: unknown }).text ?? "").join("")
+              : "";
+          return text ? { ...(part as object), text } : part;
+        }),
+      };
+    });
+}
+export function buildChatExport(systemPrompt: string | undefined, messages: unknown[]): { messages: unknown[] };
+export function buildChatExport(messages: unknown[]): { messages: unknown[] };
+export function buildChatExport(systemPromptOrMessages: string | undefined | unknown[], maybeMessages?: unknown[]) {
+  const systemPrompt = typeof systemPromptOrMessages === "string" || systemPromptOrMessages === undefined ? systemPromptOrMessages : undefined;
+  const messages = Array.isArray(systemPromptOrMessages) ? systemPromptOrMessages : (maybeMessages ?? []);
+  const system = systemPrompt === undefined ? [] : [{
+    role: "system",
+    content: { format: 2, parts: [{ type: "text", text: systemPrompt }], content: systemPrompt },
+  }];
+  return { messages: [...system, ...messages.filter((message) => {
+    const role = (message as { role?: unknown })?.role;
+    return role === "user" || role === "assistant";
+  })] };
+}
+
 
 // ─── Chat generations ──────────────────────────────────────────────────────
 //
@@ -193,6 +232,17 @@ export async function listThreadGenerations(
     out.push({ threadId, generation: gen });
   }
   return out;
+}
+
+export async function deleteChatLineage(baseThreadId: string, mem: ChatExportMemory = memory): Promise<void> {
+  if (!mem.deleteThread || !mem.getThreadById) throw new Error("Chat memory cannot delete threads");
+  const generations = await listThreadGenerations(baseThreadId, {
+    getThreadById: mem.getThreadById.bind(mem) as ThreadProbeMemory["getThreadById"],
+  });
+  const ids = generations.map(({ threadId }) => threadId);
+  if (!ids.includes(baseThreadId)) ids.unshift(baseThreadId);
+  for (const threadId of ids) await cancelChatRun(threadId);
+  for (const threadId of ids) await mem.deleteThread(threadId);
 }
 
 /**
