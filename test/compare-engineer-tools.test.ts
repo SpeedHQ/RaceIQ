@@ -50,9 +50,10 @@ describe("Compare Engineer tools", () => {
     expect(lapChatTools).toContain("generate_lap_analysis");
     expect(lapChatTools).not.toContain("getLapAnalysisTool");
     expect(lapChatTools).not.toContain("generateLapAnalysisTool");
-
     const compareChatTools = await toolNames(compareChatAgent);
+
     expect(compareChatTools).toContain("get_lap_analysis");
+    expect(compareChatTools).toContain("get_compare_analysis");
     expect(compareChatTools).toContain("generate_lap_analysis");
     expect(compareChatTools).not.toContain("getLapAnalysisTool");
     expect(compareChatTools).not.toContain("generateLapAnalysisTool");

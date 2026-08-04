@@ -5,6 +5,7 @@
 - Runtime-discovered iRacing cars and tracks, resolved by the SDK's native identifiers
 - Support for iRacing's source-defined sector layouts, including two-sector ovals and layouts with more than three sectors
 - View all release notes since your installed version in the app
+- Copy AI Compare chat history as JSON from the panel header
 
 ### Fixes
 - Hide unfinished F1 Experiments and iRacing integrations from production releases

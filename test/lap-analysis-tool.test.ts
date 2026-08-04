@@ -7,6 +7,7 @@ import {
 import { buildCompareChatSystemPrompt } from "../server/ai/compare-chat-prompt";
 
 const lap = {
+  id: 1,
   lapNumber: 4,
   lapTime: 91.2,
   isValid: true,

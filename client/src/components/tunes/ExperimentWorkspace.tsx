@@ -4,7 +4,6 @@ import { isPitCycleLap } from "@shared/lap-filters";
 import type { LapMeta } from "@shared/types";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Check, Copy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   type ExperimentGameId,
@@ -359,7 +358,6 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
                 <Button variant="app-primary" size="app-sm" onClick={() => setTestPhase("live")}>
                   Dashboard
                 </Button>
-                <CopyChatJsonButton sessionId={session.id} />
               </div>
             </div>
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -391,33 +389,6 @@ function StatCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Copy the persisted chat thread (full AI-SDK UIMessage[] — parts, tool calls,
- *  metadata) as JSON to the clipboard, from the setup-engineer header. Debug aid. */
-function CopyChatJsonButton({ sessionId }: { sessionId: number }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <Button
-      variant="app-ghost"
-      size="app-sm"
-      onClick={async () => {
-        try {
-          const res = await fetch(`/api/experiments/${sessionId}/chat`);
-          const data = res.ok ? await res.json() : { error: res.statusText };
-          await navigator.clipboard.writeText(JSON.stringify(data.messages ?? data, null, 2));
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1200);
-        } catch {
-          /* ignore */
-        }
-      }}
-      title="Copy chat JSON (debug)"
-      className="!px-0 flex items-center gap-1 text-app-text-muted hover:text-app-text"
-    >
-      {copied ? <Check className="size-3 text-status-success" /> : <Copy className="size-3" />}
-      <span className="text-app-micro uppercase tracking-wider">{copied ? "Copied" : "JSON"}</span>
-    </Button>
-  );
-}
 
 /** Compact inline stat for the horizontal "Current stint" strip. */
 function InlineStat({ label, value }: { label: string; value: string }) {

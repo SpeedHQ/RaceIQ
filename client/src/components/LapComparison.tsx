@@ -12,7 +12,6 @@ import { client } from "../lib/rpc";
 import { m } from "../paraglide/messages";
 import { MobileNotSupported } from "../routes/__root";
 import { useGameId } from "../stores/game";
-import type { CompareAiPanelHandle } from "./comparison/CompareAiPanel";
 import { CompareAiSidebar } from "./comparison/CompareAiSidebar";
 import { CompareTrackMap, type SegmentTiming } from "./comparison/CompareTrackMap";
 import { TelemetryChart } from "./TelemetryChart";
@@ -89,7 +88,6 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
   const prevCarBRef = useRef<number | null | undefined>(undefined);
   const hoveredDistanceRef = useRef<number | null>(null);
   const mapRedrawRef = useRef<(() => void) | null>(null);
-  const aiPanelRef = useRef<CompareAiPanelHandle | null>(null);
   const comparisonLayoutRef = useRef<HTMLDivElement>(null);
   const [comparisonLayoutWidth, setComparisonLayoutWidth] = useState(0);
   const [savedMapWidth, setSavedMapWidth] = useLocalStorage("compare-left-column-width", COMPARE_MAP_DEFAULT_WIDTH);
@@ -585,8 +583,6 @@ function LapComparisonInner({ initialSearch }: { initialSearch?: LapComparisonSe
                 label: `${carNames.get(comparison.lapB.carOrdinal!) || m.compare_car_b_fallback()} — ${m.compare_lap_label()} ${comparison.lapB.lapNumber} (${formatLapTime(comparison.lapB.lapTime)})`,
                 lapTime: comparison.lapB.lapTime,
               }}
-              panelRef={aiPanelRef}
-              onClose={toggleAiPanel}
               segments={segmentTimings}
               onJumpToFrac={handleJumpToFrac}
             />

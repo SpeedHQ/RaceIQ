@@ -1,6 +1,6 @@
 import type { UIMessage } from "ai";
 import { toPng } from "html-to-image";
-import { Sparkles } from "lucide-react";
+import { ChevronDown, ChevronUp, Sparkles, Trash2 } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { useSettings } from "../hooks/queries";
@@ -106,6 +106,8 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
   const [chatRemountKey, setChatRemountKey] = useState(0);
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [modalTab, setModalTab] = useState("analysis");
+  const [analysisCollapsed, setAnalysisCollapsed] = useState(false);
+  const [analysisDeleting, setAnalysisDeleting] = useState(false);
 
   useImperativeHandle(
     ref,
@@ -287,6 +289,35 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     if (!panelOpen) return;
     loadCachedAnalysis();
   }, [lapId, panelOpen, loadCachedAnalysis]);
+  useEffect(() => {
+    if (!panelOpen) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/laps/${lapId}/analyse/status`);
+        const status = (await res.json()) as { status?: "none" | "active" | "finished" | "failed"; error?: string };
+        if (cancelled) return;
+        if (status.status === "active") {
+          setLoading(true);
+          timer = setTimeout(() => void poll(), 1500);
+        } else {
+          if (status.status === "failed") setError(status.error ?? m.aipanel_unknown_error());
+          if (status.status === "finished") await loadCachedAnalysis();
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) timer = setTimeout(() => void poll(), 3000);
+      }
+    };
+    void poll();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [lapId, panelOpen, loadCachedAnalysis]);
+
+
 
   // Reset on lap change
   useEffect(() => {
@@ -320,13 +351,47 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
       .catch(() => {})
       .finally(() => setChatRemountKey((k) => k + 1));
   }, [lapId]);
+  const deleteAnalysis = useCallback(async () => {
+    if (analysisDeleting || loading || !window.confirm("Delete lap analysis? This cannot be undone.")) return;
+    setAnalysisDeleting(true);
+    try {
+      const res = await fetch(`/api/laps/${lapId}/analyse`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setAnalysis(null);
+      setUsage(null);
+      setError(null);
+      setAnalysisOpen(false);
+      onHighlightsChange?.([]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete analysis");
+    } finally {
+      setAnalysisDeleting(false);
+    }
+  }, [analysisDeleting, lapId, loading, onHighlightsChange]);
+
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {/* Analysis area. Once the chat is mounted below it this shrinks to its
           content — otherwise two flex-1 siblings would split the panel 50/50
           and the collapsed row would sit on top of a tall empty box. */}
-      <div className={`overflow-y-auto px-3 py-3 space-y-2.5 ${analysis && !loading ? "shrink-0 max-h-[50%]" : "flex-1 min-h-0"}`}>
+      <div className={`overflow-y-auto px-3 py-3 space-y-2.5 ${analysis && !loading && !analysisCollapsed ? "shrink-0 max-h-[50%]" : !loading ? "shrink-0" : "flex-1 min-h-0"}`}>
+        {analysis && !loading && (
+          <div className="flex items-center justify-between border-b border-app-border/40 pb-1.5 mb-1.5">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-app-text-muted">Lap analysis</span>
+            <button
+              type="button"
+              onClick={() => setAnalysisCollapsed((collapsed) => !collapsed)}
+              className="flex items-center gap-1 text-[10px] text-app-text-muted hover:text-app-text"
+              aria-expanded={!analysisCollapsed}
+              aria-label={analysisCollapsed ? "Expand lap analysis" : "Collapse lap analysis"}
+            >
+              {analysisCollapsed ? <ChevronDown className="size-3" /> : <ChevronUp className="size-3" />}
+              {analysisCollapsed ? "Expand" : "Collapse"}
+            </button>
+          </div>
+        )}
+        <div className={analysisCollapsed ? "hidden" : "contents"}>
         {/* No AI provider configured */}
         {!aiConfigured && (
           <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
@@ -433,7 +498,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 cornerFracs={cornerFracs}
                 segments={segments}
                 usage={usage}
-                loading={loading}
+                loading={loading || analysisDeleting}
                 containerRef={analysisRef}
                 onJumpToFrac={onJumpToFrac}
                 onHighlightsChange={onHighlightsChange}
@@ -442,21 +507,26 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                   clearChat();
                   fetchAnalysis(true);
                 }}
-                onClear={() => {
-                  clearChat();
-                  setAnalysis(null);
-                  setUsage(null);
-                  setAnalysisOpen(false);
-                  onHighlightsChange?.([]);
-                }}
+                onClear={deleteAnalysis}
               />
             )}
           </AnalysisModalShell>
         )}
+        </div>
       </div>
 
-      {!loading && analysis && (
+      {!loading && (
         <div className="flex-1 min-h-0 flex flex-col border-t border-app-border">
+          <div className="flex justify-end px-2 pt-1">
+            <button
+              type="button"
+              onClick={clearChat}
+              title="Clear chat"
+            >
+              Clear chat
+            </button>
+          </div>
+
           <ChatPanel
             key={chatRemountKey}
             api={`/api/laps/${lapId}/chat`}

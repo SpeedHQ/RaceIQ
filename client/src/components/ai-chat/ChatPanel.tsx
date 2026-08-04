@@ -3,7 +3,8 @@ import { AssistantChatTransport, createResumableSessionStorage, useChatRuntime, 
 import { contextWindowFor } from "@shared/ai/context-window";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UIMessage } from "ai";
-import { useState } from "react";
+import { MoreHorizontal } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Thread, type ThreadProps } from "@/components/assistant-ui/thread";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { client } from "@/lib/rpc";
@@ -290,6 +291,8 @@ export interface ChatPanelProps {
   onFinish?: () => void;
   /** Per-page tool UI passthrough to <Thread/>. */
   components?: ThreadProps["components"];
+  /** Disable composing while the owning surface is not ready for chat. */
+  inputDisabled?: boolean;
   emptyState?: React.ReactNode;
   className?: string;
   /** Extra fields merged into every chat POST body (e.g. a live-updating
@@ -319,6 +322,8 @@ function ChatPanelThread({
   onViewGen,
   onForked,
   readOnly,
+  inputDisabled,
+  onClearChat,
 }: {
   api: string;
   initialMessages: UIMessage[];
@@ -335,6 +340,8 @@ function ChatPanelThread({
   onViewGen: (gen: number) => void;
   onForked: (newGen: number) => void;
   readOnly: boolean;
+  inputDisabled?: boolean;
+  onClearChat: () => void;
 }) {
   // Resumable wiring: survives client unmount/refresh by re-attaching to the
   // server-side detached run (server/ai/chat-run-registry.ts) instead of
@@ -370,16 +377,72 @@ function ChatPanelThread({
     onFinish,
   });
   const [compacting, setCompacting] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!actionsOpen) return;
+    const handler = (event: MouseEvent) => {
+      if (actionsRef.current && !actionsRef.current.contains(event.target as Node)) {
+        setActionsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [actionsOpen]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <TooltipProvider>
         <div className={className ?? "h-full min-h-0 flex flex-col text-[11px] [&_*]:text-[11px] [&_svg]:size-3.5 [&_.aui-composer-input]:text-[11px]"}>
+          <div className="shrink-0 flex justify-end px-2 py-1 border-b border-app-border/40">
+            <div ref={actionsRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setActionsOpen((open) => !open)}
+                className="rounded border border-app-border/50 p-1 text-app-text-muted hover:bg-app-border/20 hover:text-app-text"
+                title="Chat actions"
+                aria-label="Chat actions"
+                aria-expanded={actionsOpen}
+              >
+                <MoreHorizontal className="size-3.5" />
+              </button>
+              {actionsOpen && (
+                <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-lg border border-app-border-input bg-app-surface py-1 shadow-xl">
+                  <button
+                    type="button"
+                    className="w-full px-3 py-1.5 text-left text-app-compact text-app-text-secondary hover:bg-app-surface-hover hover:text-app-text"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(api);
+                        const data = res.ok ? await res.json() : { error: res.statusText };
+                        await navigator.clipboard.writeText(JSON.stringify(data.messages ?? data, null, 2));
+                      } catch {
+                        /* ignore */
+                      }
+                      setActionsOpen(false);
+                    }}
+                  >
+                    Copy chat JSON
+                  </button>
+                  <button
+                    type="button"
+                    className="w-full px-3 py-1.5 text-left text-app-compact text-status-danger hover:bg-app-surface-hover hover:text-status-danger/80"
+                    onClick={() => {
+                      onClearChat();
+                      setActionsOpen(false);
+                    }}
+                  >
+                    Clear chat
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
           {readOnly && (
             <div className="shrink-0 px-2 py-1 text-[10px] text-amber-500 bg-amber-500/10 border-b border-amber-500/30">Viewing an earlier chat (read-only). Switch to the latest to continue.</div>
           )}
           <div className="flex-1 min-h-0 flex flex-col">
-            <Thread components={components} inputDisabled={compacting || readOnly} />
+            <Thread components={components} inputDisabled={compacting || readOnly || inputDisabled} />
           </div>
           <TokenUsageFooter
             compactThreadId={compactThreadId}
@@ -398,11 +461,20 @@ function ChatPanelThread({
   );
 }
 
-export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFinish, components, emptyState, className, extraBody, compactThreadId }: ChatPanelProps) {
+export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFinish, components, emptyState, className, extraBody, compactThreadId, inputDisabled }: ChatPanelProps) {
   const { displaySettings } = useSettings();
   const openSettings = useUiStore((s) => s.openSettings);
   const aiConfigured = isAiConfigured(displaySettings);
   const queryClient = useQueryClient();
+  const [clearVersion, setClearVersion] = useState(0);
+  const clearChat = async () => {
+    try {
+      await fetch(api, { method: "DELETE" });
+      await queryClient.invalidateQueries({ queryKey: historyQueryKey });
+    } finally {
+      setClearVersion((version) => version + 1);
+    }
+  };
 
   const { data: gensData } = useQuery({
     queryKey: ["chat-generations", compactThreadId],
@@ -470,7 +542,7 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
 
   return (
     <ChatPanelThread
-      key={`${remountKey ?? ""}:${effectiveGen}:${history?.length ?? 0}`}
+      key={`${remountKey ?? ""}:${effectiveGen}:${history?.length ?? 0}:${clearVersion}`}
       api={api}
       initialMessages={history ?? []}
       onFinish={onFinish}
@@ -489,6 +561,8 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
         setViewingGen(newGen);
       }}
       readOnly={readOnly}
+      inputDisabled={inputDisabled}
+      onClearChat={() => void clearChat()}
     />
   );
 }

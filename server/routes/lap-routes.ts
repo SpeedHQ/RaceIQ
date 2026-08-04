@@ -111,6 +111,11 @@ import { toClientAiError } from "../ai/provider-error";
 import { extractJson } from "../ai/extract-json";
 import { resolveLapF1Setup } from "../ai/f1-setup-identity";
 import { generateLapAnalysis } from "../ai/generate-lap-analysis";
+import {
+  beginAnalysisRun,
+  finishAnalysisRun,
+  getAnalysisRun,
+} from "../ai/analysis-run-registry";
 
 /**
  * Build the "F1 CURRENT SETUP + TOP-5 REFERENCE SETUPS" block appended to
@@ -180,6 +185,9 @@ const AnalyseQuerySchema = z.object({
     .transform((v) => v === "true")
     .optional(),
 });
+const lapAnalysisRunKey = (lapId: number) => `lap:${lapId}`;
+const inputsAnalysisRunKey = (idA: number, idB: number) =>
+  `inputs:${Math.min(idA, idB)}:${Math.max(idA, idB)}`;
 
 const BulkDeleteSchema = z.object({
   ids: z.array(z.number().int()),
@@ -684,6 +692,12 @@ export const lapRoutes = new Hono()
   )
 
   // ── AI analysis ─────────────────────────────────────────────
+  .get(
+    "/api/laps/:id/analyse/status",
+    zValidator("param", IdParamSchema),
+    (c) => c.json(getAnalysisRun(`lap:${c.req.valid("param").id}`) ?? { status: "none" }),
+  )
+
   .post(
     "/api/laps/:id/analyse",
     zValidator("param", IdParamSchema),
@@ -714,6 +728,10 @@ export const lapRoutes = new Hono()
       if (cacheOnly && !regenerate) {
         return c.json(preflightResult);
       }
+      if (!beginAnalysisRun(`lap:${id}`)) {
+        return c.json({ error: "Analysis already in progress" }, 409);
+      }
+
 
       const encoder = new TextEncoder();
       const readable = new ReadableStream({
@@ -739,6 +757,7 @@ export const lapRoutes = new Hono()
             console.error("[AI] Analysis failed:", aiError.message);
             writeEvent({ type: "error", ...aiError });
           } finally {
+            finishAnalysisRun(`lap:${id}`);
             clearInterval(keepAlive);
             try {
               controller.close();
@@ -755,6 +774,20 @@ export const lapRoutes = new Hono()
           "Transfer-Encoding": "chunked",
         },
       });
+    },
+  )
+
+  .delete(
+    "/api/laps/:id/analyse",
+    zValidator("param", IdParamSchema),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      try {
+        await deleteAnalysisQuery(id);
+      } catch (err: any) {
+        console.error("[Analysis] Failed to clear:", err.message);
+      }
+      return c.json({ ok: true });
     },
   )
 
@@ -1122,6 +1155,16 @@ export const lapRoutes = new Hono()
   )
 
   // ── Inputs comparison analysis ─────────────────────────────
+  .get(
+    "/api/laps/:id1/compare/:id2/inputs-analyse/status",
+    zValidator("param", CompareParamsSchema),
+    (c) => {
+      const { id1, id2 } = c.req.valid("param");
+      return c.json(
+        getAnalysisRun(inputsAnalysisRunKey(id1, id2)) ?? { status: "none" },
+      );
+    },
+  )
   .post(
     "/api/laps/:id1/compare/:id2/inputs-analyse",
     zValidator("param", CompareParamsSchema),
@@ -1261,6 +1304,11 @@ export const lapRoutes = new Hono()
           );
         process.env.GOOGLE_GENERATIVE_AI_API_KEY = key;
       }
+      const inputsRunKey = inputsAnalysisRunKey(id1, id2);
+      if (!beginAnalysisRun(inputsRunKey)) {
+        return c.json({ error: "Inputs comparison already in progress" }, 409);
+      }
+
 
       try {
         const start = performance.now();
@@ -1333,6 +1381,8 @@ export const lapRoutes = new Hono()
           { error: err.message },
           err.message.includes("timed out") ? 504 : 500,
         );
+      } finally {
+        finishAnalysisRun(inputsRunKey);
       }
     },
   )
@@ -1408,6 +1458,20 @@ export const lapRoutes = new Hono()
           { error: "One or both laps have no telemetry data" },
           400,
         );
+      const [analysisA, analysisB, inputsAnalysis] = await Promise.all([
+        getAnalysis(id1),
+        getAnalysis(id2),
+        getCompareAnalysis(id1, id2, "inputs"),
+      ]);
+      if (!analysisA || !analysisB || !inputsAnalysis) {
+        return c.json(
+          {
+            error:
+              "Run analysis for both laps and compare inputs before starting chat.",
+          },
+          400,
+        );
+      }
 
       const trackOrdinal = lapA.trackOrdinal ?? 0;
       let corners: Corner[] = [];
@@ -1445,16 +1509,6 @@ export const lapRoutes = new Hono()
         settings.unit,
         settings.temperatureUnit,
         settings.language,
-        buildCompareInsightsBlock(
-          "Lap A",
-          lapA.telemetry,
-          lapA.gameId as GameId | undefined,
-        ) +
-          buildCompareInsightsBlock(
-            "Lap B",
-            lapB.telemetry,
-            lapB.gameId as GameId | undefined,
-          ),
       );
 
       const chatProvider = settings.chatProvider;

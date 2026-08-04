@@ -19,7 +19,6 @@ interface LapInfo {
   gameId?: GameId;
 }
 
-
 function summarizeComparison(comp: ComparisonResult): string {
   const td = comp.timeDelta;
   if (!td.length) return "";
@@ -41,7 +40,9 @@ function summarizeComparison(comp: ComparisonResult): string {
   const distAtAhead = comp.distances[maxAheadIdx];
   const distAtBehind = comp.distances[maxBehindIdx];
 
-  const corners = [...comp.cornerDeltas].sort((a, b) => Math.abs(b.deltaSeconds) - Math.abs(a.deltaSeconds)).slice(0, 8);
+  const corners = [...comp.cornerDeltas]
+    .sort((a, b) => Math.abs(b.deltaSeconds) - Math.abs(a.deltaSeconds))
+    .slice(0, 8);
 
   let out = `--- COMPARISON SUMMARY ---\n`;
   out += `Final time delta (A − B): ${final >= 0 ? "+" : ""}${final.toFixed(3)}s `;
@@ -66,20 +67,20 @@ export function buildCompareChatSystemPrompt(
   temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F",
   /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
   language: string = "en",
-  /** Per-lap precomputed insight blocks (see buildCompareInsightsBlock). */
-  precomputedInsights?: string,
 ): string {
   const carA = getCarName(lapA.carOrdinal ?? 0);
   const carB = getCarName(lapB.carOrdinal ?? 0);
   const trackName = getTrackName(lapA.trackOrdinal ?? 0);
-  const finalDelta = comparison.timeDelta[comparison.timeDelta.length - 1] ?? lapA.lapTime - lapB.lapTime;
+  const finalDelta =
+    comparison.timeDelta[comparison.timeDelta.length - 1] ??
+    lapA.lapTime - lapB.lapTime;
 
   return `${compareEngineerPersona(unit, temperatureUnit, language)}
 
-This task: free-form chat. The driver will ask you questions about how the two laps compare. Be brief and use bullet points where helpful. NO JSON output — write conversational answers. Before lap-specific diagnosis or recommendations, retrieve both cached analyses with \`get_lap_analysis\`. If either is unavailable, state that limitation and do not invent findings.
+This task: free-form chat. The driver will ask you questions about how the two laps compare. Be brief and use bullet points where helpful. NO JSON output — write conversational answers. At the beginning of the conversation, call \`get_lap_analysis\` with lap IDs ${lapA.id} and ${lapB.id}, then call \`get_compare_analysis\` with those same IDs. Load all three results into context before answering. If any is unavailable, state that limitation and do not invent findings.
 
 ${compareLapHeader(trackName, carA, carB, lapA, lapB, finalDelta)}
 
-${summarizeComparison(comparison)}${precomputedInsights ?? ""}
+${summarizeComparison(comparison)}
 Use the retrieved analyses and the corner-by-corner deltas to explain where time is gained or lost and what the slower lap should change.`;
 }

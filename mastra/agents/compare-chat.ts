@@ -17,6 +17,7 @@ import {
   getLapAnalysisTool,
   generateLapAnalysisTool,
 } from "../tools/lap-analysis";
+import { getCompareAnalysisTool } from "../tools/compare-analysis";
 import { TRACK_GUIDE_PROMPT } from "../../shared/prompt-snippets";
 
 export const compareChatAgent = new Agent({
@@ -27,7 +28,7 @@ export const compareChatAgent = new Agent({
     return (
       compareEngineerPersona(s.unit, s.temperatureUnit, s.language) +
       TRACK_GUIDE_PROMPT +
-      "\nFor each lap, call `get_lap_analysis` first. Only when a lap's retrieval is unavailable, call `generate_lap_analysis` for that lap. If both tools fail for either lap, explicitly state that lap's analysis could not be retrieved or generated and do not invent lap-specific findings."
+      "\nAt the beginning of the conversation, call `get_lap_analysis` for both comparison lap IDs and `get_compare_analysis` for those same IDs. Load all three results into context before answering. If any retrieval is unavailable, state that limitation and do not invent findings."
     );
   },
   model: () => {
@@ -40,6 +41,7 @@ export const compareChatAgent = new Agent({
     compareF1SetupToCatalogTool,
     getCornerMetricsTool,
     get_lap_analysis: getLapAnalysisTool,
+    get_compare_analysis: getCompareAnalysisTool,
     generate_lap_analysis: generateLapAnalysisTool,
   },
   memory: getChatMemory(),

@@ -1,13 +1,21 @@
 import type { UIMessage } from "ai";
-import { RefreshCw, Sparkles, Trash2, X } from "lucide-react";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
+import { ChevronDown, ChevronUp, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { useSettings } from "../../hooks/queries";
 import { isAiConfigured } from "../../lib/is-ai-configured";
 import { client } from "../../lib/rpc";
 import { m } from "../../paraglide/messages";
 import { useUiStore } from "../../stores/ui";
-import { type AnalysisData, AnalysisDisplay, SetupList } from "../ai/analysis-display";
+import {
+  type AnalysisData,
+  AnalysisDisplay,
+  SetupList,
+} from "../ai/analysis-display";
 import { AnalysisModalShell, AnalysisSummaryRow } from "../ai/analysis-summary";
 import { ChatPanel } from "../ai-chat/ChatPanel";
 import { Button } from "../ui/button";
@@ -48,10 +56,6 @@ interface InputsAnalysis {
   coaching: { tip: string; detail: string; targetLap: "A" | "B" }[];
 }
 
-export interface CompareAiPanelHandle {
-  clearChat: () => void;
-  clearAll: () => void;
-}
 
 interface AnalysisSummary {
   verdict: string;
@@ -63,12 +67,21 @@ interface AnalysisSummary {
   raw: ParsedAnalysis;
 }
 
-async function fetchCompareChatHistory(lapAId: number, lapBId: number, gen?: number): Promise<UIMessage[]> {
-  const url = gen && gen > 1 ? `/api/laps/${lapAId}/compare/${lapBId}/chat?gen=${gen}` : `/api/laps/${lapAId}/compare/${lapBId}/chat`;
+async function fetchCompareChatHistory(
+  lapAId: number,
+  lapBId: number,
+  gen?: number,
+): Promise<UIMessage[]> {
+  const url =
+    gen && gen > 1
+      ? `/api/laps/${lapAId}/compare/${lapBId}/chat?gen=${gen}`
+      : `/api/laps/${lapAId}/compare/${lapBId}/chat`;
   const res = await fetch(url);
   if (!res.ok) return [];
   const data = (await res.json()) as { messages?: UIMessage[] };
-  return (data.messages ?? []).filter((m) => m.role === "user" || m.role === "assistant");
+  return (data.messages ?? []).filter(
+    (m) => m.role === "user" || m.role === "assistant",
+  );
 }
 
 function summarize(parsed: ParsedAnalysis): AnalysisSummary {
@@ -87,6 +100,7 @@ function useLapAnalysis(lapId: number, panelOpen: boolean) {
   const [summary, setSummary] = useState<AnalysisSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadCached = useCallback(async () => {
     try {
@@ -95,9 +109,15 @@ function useLapAnalysis(lapId: number, panelOpen: boolean) {
         query: { cacheOnly: "true" },
       });
       if (!res.ok) return;
-      const data = (await res.json()) as { analysis: string | object | null; cached: boolean };
+      const data = (await res.json()) as {
+        analysis: string | object | null;
+        cached: boolean;
+      };
       if (!data.cached || !data.analysis) return;
-      const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis) : data.analysis;
+      const parsed =
+        typeof data.analysis === "string"
+          ? JSON.parse(data.analysis)
+          : data.analysis;
       setSummary(summarize(parsed));
     } catch {
       /* ignore */
@@ -114,25 +134,75 @@ function useLapAnalysis(lapId: number, panelOpen: boolean) {
           query: regenerate ? { regenerate: "true" } : {},
         });
         if (!res.ok) {
-          const data = (await res.json().catch(() => ({ error: m.compare_unknown_error() }))) as { error?: string };
+          const data = (await res
+            .json()
+            .catch(() => ({ error: m.compare_unknown_error() }))) as {
+            error?: string;
+          };
           throw new Error(data.error || `HTTP ${res.status}`);
         }
         const data = (await res.json()) as { analysis: string | object | null };
-        const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis as string) : data.analysis;
+        const parsed =
+          typeof data.analysis === "string"
+            ? JSON.parse(data.analysis as string)
+            : data.analysis;
         setSummary(summarize(parsed));
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : m.compare_analyse_failed());
+        setError(
+          err instanceof Error ? err.message : m.compare_analyse_failed(),
+        );
       } finally {
         setLoading(false);
       }
     },
     [lapId],
   );
+  const remove = useCallback(async () => {
+    if (loading || deleting || !window.confirm("Delete lap analysis? This cannot be undone.")) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/laps/${lapId}/analyse`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setSummary(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : m.compare_analyse_failed());
+    } finally {
+      setDeleting(false);
+    }
+  }, [deleting, lapId, loading]);
 
   useEffect(() => {
     if (!panelOpen) return;
     loadCached();
   }, [lapId, panelOpen, loadCached]);
+  useEffect(() => {
+    if (!panelOpen) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/laps/${lapId}/analyse/status`);
+        const status = (await res.json()) as { status?: "none" | "active" | "finished" | "failed" };
+        if (cancelled) return;
+        if (status.status === "active") {
+          setLoading(true);
+          timer = setTimeout(() => void poll(), 1500);
+        } else {
+          if (status.status === "finished") await loadCached();
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) timer = setTimeout(() => void poll(), 3000);
+      }
+    };
+    void poll();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [lapId, panelOpen, loadCached]);
+
 
   // reset on lap change
   useEffect(() => {
@@ -140,21 +210,31 @@ function useLapAnalysis(lapId: number, panelOpen: boolean) {
     setError(null);
   }, [lapId]);
 
-  return { summary, loading, error, run };
+  return { summary, loading, error, deleting, run, remove };
 }
 
 function useInputsAnalysis(lapAId: number, lapBId: number, panelOpen: boolean) {
   const [analysis, setAnalysis] = useState<InputsAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const loadCached = useCallback(async () => {
     try {
-      const res = await fetch(`/api/laps/${lapAId}/compare/${lapBId}/inputs-analyse?cacheOnly=true`, { method: "POST" });
+      const res = await fetch(
+        `/api/laps/${lapAId}/compare/${lapBId}/inputs-analyse?cacheOnly=true`,
+        { method: "POST" },
+      );
       if (!res.ok) return;
-      const data = (await res.json()) as { analysis: string | object | null; cached: boolean };
+      const data = (await res.json()) as {
+        analysis: string | object | null;
+        cached: boolean;
+      };
       if (!data.cached || !data.analysis) return;
-      const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis) : data.analysis;
+      const parsed =
+        typeof data.analysis === "string"
+          ? JSON.parse(data.analysis)
+          : data.analysis;
       setAnalysis(parsed);
     } catch {
       /* ignore */
@@ -169,46 +249,137 @@ function useInputsAnalysis(lapAId: number, lapBId: number, panelOpen: boolean) {
         const url = `/api/laps/${lapAId}/compare/${lapBId}/inputs-analyse${regenerate ? "?regenerate=true" : ""}`;
         const res = await fetch(url, { method: "POST" });
         if (!res.ok) {
-          const data = (await res.json().catch(() => ({ error: m.compare_unknown_error() }))) as { error?: string };
+          const data = (await res
+            .json()
+            .catch(() => ({ error: m.compare_unknown_error() }))) as {
+            error?: string;
+          };
           throw new Error(data.error || `HTTP ${res.status}`);
         }
         const data = (await res.json()) as { analysis: string | object | null };
-        const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis as string) : data.analysis;
+        const parsed =
+          typeof data.analysis === "string"
+            ? JSON.parse(data.analysis as string)
+            : data.analysis;
         setAnalysis(parsed);
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : m.compare_analyse_inputs_failed());
+        setError(
+          err instanceof Error
+            ? err.message
+            : m.compare_analyse_inputs_failed(),
+        );
       } finally {
         setLoading(false);
       }
     },
     [lapAId, lapBId],
   );
+  const remove = useCallback(async () => {
+    if (loading || deleting || !window.confirm("Delete inputs comparison? This cannot be undone.")) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/laps/${lapAId}/compare/${lapBId}/inputs-analyse`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setAnalysis(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : m.compare_analyse_inputs_failed());
+    } finally {
+      setDeleting(false);
+    }
+  }, [deleting, lapAId, lapBId, loading]);
 
   useEffect(() => {
     if (!panelOpen) return;
     loadCached();
   }, [panelOpen, loadCached]);
+  useEffect(() => {
+    if (!panelOpen) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/laps/${lapAId}/compare/${lapBId}/inputs-analyse/status`);
+        const status = (await res.json()) as { status?: "none" | "active" | "finished" | "failed" };
+        if (cancelled) return;
+        if (status.status === "active") {
+          setLoading(true);
+          timer = setTimeout(() => void poll(), 1500);
+        } else {
+          if (status.status === "finished") await loadCached();
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) timer = setTimeout(() => void poll(), 3000);
+      }
+    };
+    void poll();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [lapAId, lapBId, panelOpen, loadCached]);
+
 
   useEffect(() => {
     setAnalysis(null);
     setError(null);
   }, [lapAId, lapBId]);
 
-  return { analysis, loading, error, run };
+  return { analysis, loading, error, deleting, run, remove };
 }
 
-function InputsSection({ lapAId, lapBId, panelOpen, onView }: { lapAId: number; lapBId: number; panelOpen: boolean; onView: (analysis: InputsAnalysis) => void }) {
-  const { analysis, loading, error, run } = useInputsAnalysis(lapAId, lapBId, panelOpen);
+function InputsSection({
+  lapAId,
+  lapBId,
+  panelOpen,
+  onAnalysisChange,
+  onView,
+}: {
+  lapAId: number;
+  lapBId: number;
+  panelOpen: boolean;
+  onAnalysisChange: (hasAnalysis: boolean) => void;
+  onView: (analysis: InputsAnalysis) => void;
+}) {
+  const { analysis, loading, error, deleting, run, remove } = useInputsAnalysis(
+    lapAId,
+    lapBId,
+    panelOpen,
+  );
 
+  useEffect(() => {
+    onAnalysisChange(!!analysis);
+  }, [analysis, onAnalysisChange]);
   return (
     <div className="rounded-lg border border-app-border-input/40 bg-app-surface-alt/30 px-2.5 py-2">
       <div className="flex items-center gap-2 mb-1.5">
         <span className="w-2 h-2 rounded-full bg-gradient-to-r from-orange-500 to-blue-500" />
-        <span className="text-[11px] font-semibold text-app-text truncate flex-1">{m.compare_inputs_comparison_ab()}</span>
+        <span className="text-[11px] font-semibold text-app-text truncate flex-1">
+          {m.compare_inputs_comparison_ab()}
+        </span>
         {analysis && (
-          <button type="button" onClick={() => run(true)} disabled={loading} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title={m.label_regenerate()}>
-            <RefreshCw className="size-3" />
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => run(true)}
+              disabled={loading || deleting}
+              className="text-app-text-muted hover:text-app-text disabled:opacity-40"
+              title={m.label_regenerate()}
+            >
+              <RefreshCw className="size-3" />
+            </button>
+            <button
+              type="button"
+              onClick={() => void remove()}
+              disabled={loading || deleting}
+              className="text-app-text-muted hover:text-red-400 disabled:opacity-40"
+              title="Delete inputs comparison"
+              aria-label="Delete inputs comparison"
+            >
+              <Trash2 className="size-3" />
+            </button>
+          </>
         )}
       </div>
 
@@ -233,14 +404,23 @@ function InputsSection({ lapAId, lapBId, panelOpen, onView }: { lapAId: number; 
       {error && (
         <div className="text-[10px] text-red-400 mb-1">
           {error}
-          <Button variant="app-outline" size="app-sm" onClick={() => run(false)} className="ml-2">
+          <Button
+            variant="app-outline"
+            size="app-sm"
+            onClick={() => run(false)}
+            className="ml-2"
+          >
             {m.compare_retry()}
           </Button>
         </div>
       )}
 
       {analysis && (
-        <AnalysisSummaryRow title={m.compare_inputs_analysed()} detail={`${analysis.segments?.length ?? 0} segments · ${analysis.coaching?.length ?? 0} tips`} onView={() => onView(analysis)} />
+        <AnalysisSummaryRow
+          title={m.compare_inputs_analysed()}
+          detail={`${analysis.segments?.length ?? 0} segments · ${analysis.coaching?.length ?? 0} tips`}
+          onView={() => onView(analysis)}
+        />
       )}
     </div>
   );
@@ -259,7 +439,7 @@ function LapSection({
   onAnalysisChange: (hasAnalysis: boolean) => void;
   onView: (label: string, summary: AnalysisSummary) => void;
 }) {
-  const { summary, loading, error, run } = useLapAnalysis(lap.id, panelOpen);
+  const { summary, loading, error, deleting, run, remove } = useLapAnalysis(lap.id, panelOpen);
 
   useEffect(() => {
     onAnalysisChange(!!summary);
@@ -269,20 +449,23 @@ function LapSection({
     <div className="rounded-lg border border-app-border-input/40 bg-app-surface-alt/30 px-2.5 py-2">
       <div className="flex items-center gap-2 mb-1.5">
         <span className={`w-2 h-2 rounded-full ${dotClass}`} />
-        <span className="text-[11px] font-semibold text-app-text truncate flex-1">{lap.label}</span>
+        <span className="text-[11px] font-semibold text-app-text truncate flex-1">
+          {lap.label}
+        </span>
         {summary && (
-          <button type="button" onClick={() => run(true)} disabled={loading} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title={m.label_regenerate()}>
-            <RefreshCw className="size-3" />
-          </button>
+          <>
+            <button type="button" onClick={() => run(true)} disabled={loading || deleting} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title={m.label_regenerate()}>
+              <RefreshCw className="size-3" />
+            </button>
+            <button type="button" onClick={() => void remove()} disabled={loading || deleting} className="text-app-text-muted hover:text-red-400 disabled:opacity-40" title={`Delete ${lap.label} analysis`} aria-label={`Delete ${lap.label} analysis`}>
+              <Trash2 className="size-3" />
+            </button>
+          </>
         )}
       </div>
 
       {!summary && !loading && !error && (
-        <button
-          type="button"
-          onClick={() => run(false)}
-          className="w-full flex items-center justify-center gap-1.5 text-[11px] px-2 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors"
-        >
+        <button type="button" onClick={() => run(false)} className="w-full flex items-center justify-center gap-1.5 text-[11px] px-2 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors">
           <Sparkles className="size-3" />
           {m.compare_analyse_lap_button()}
         </button>
@@ -304,7 +487,12 @@ function LapSection({
         </div>
       )}
 
-      {summary && <AnalysisSummaryRow detail={`${summary.cornerCount} corners · ${summary.coachingCount} tips · ${summary.setupCount} setup`} onView={() => onView(lap.label, summary)} />}
+      {summary && (
+        <AnalysisSummaryRow
+          detail={`${summary.cornerCount} corners · ${summary.coachingCount} tips · ${summary.setupCount} setup`}
+          onView={() => onView(lap.label, summary)}
+        />
+      )}
     </div>
   );
 }
@@ -338,14 +526,24 @@ function InputsModal({
         <div className="flex items-center justify-between px-4 py-3 border-b border-app-border shrink-0">
           <div className="flex items-center gap-2">
             <Sparkles className="size-3.5 text-amber-400" />
-            <span className="text-[11px] font-semibold text-app-text uppercase tracking-wider">{m.compare_inputs_comparison()}</span>
+            <span className="text-[11px] font-semibold text-app-text uppercase tracking-wider">
+              {m.compare_inputs_comparison()}
+            </span>
           </div>
-          <button type="button" onClick={onClose} className="text-app-text-muted hover:text-app-text">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-app-text-muted hover:text-app-text"
+          >
             <X className="size-4" />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-          {analysis.verdict && <p className="text-[12px] text-app-text leading-relaxed">{analysis.verdict}</p>}
+          {analysis.verdict && (
+            <p className="text-[12px] text-app-text leading-relaxed">
+              {analysis.verdict}
+            </p>
+          )}
 
           {analysis.segments?.length > 0 && (
             <div className="space-y-2">
@@ -362,15 +560,28 @@ function InputsModal({
                   // biome-ignore lint/a11y/noStaticElementInteractions: optional jump-to-segment affordance, non-essential
                   <div
                     key={`${seg.name}-${seg.type ?? ""}-${seg.deltaSeconds ?? ""}`}
-                    onClick={() => match && onJumpToFrac?.((match.startFrac + match.endFrac) / 2)}
+                    onClick={() =>
+                      match &&
+                      onJumpToFrac?.((match.startFrac + match.endFrac) / 2)
+                    }
                     className={`rounded-lg border border-app-border-input/40 bg-app-surface-alt/40 px-2.5 py-2 ${clickable ? "cursor-pointer hover:border-cyan-400/40 hover:bg-app-surface-alt/60 transition-colors" : ""}`}
                   >
                     <div className="flex items-center gap-2 mb-1.5">
-                      <span className={`size-1.5 rounded-full ${SEVERITY_DOT[seg.severity] ?? SEVERITY_DOT.minor}`} />
-                      <span className="text-[11px] font-semibold text-app-text">{seg.name}</span>
-                      {seg.type && <span className="text-[9px] uppercase tracking-wider text-app-text-muted">{seg.type}</span>}
+                      <span
+                        className={`size-1.5 rounded-full ${SEVERITY_DOT[seg.severity] ?? SEVERITY_DOT.minor}`}
+                      />
+                      <span className="text-[11px] font-semibold text-app-text">
+                        {seg.name}
+                      </span>
+                      {seg.type && (
+                        <span className="text-[9px] uppercase tracking-wider text-app-text-muted">
+                          {seg.type}
+                        </span>
+                      )}
                       {typeof seg.deltaSeconds === "number" && (
-                        <span className={`ml-auto text-[10px] font-mono ${seg.deltaSeconds > 0.05 ? "text-red-400" : seg.deltaSeconds < -0.05 ? "text-emerald-400" : "text-app-text-muted"}`}>
+                        <span
+                          className={`ml-auto text-[10px] font-mono ${seg.deltaSeconds > 0.05 ? "text-red-400" : seg.deltaSeconds < -0.05 ? "text-emerald-400" : "text-app-text-muted"}`}
+                        >
                           {seg.deltaSeconds >= 0 ? "+" : ""}
                           {seg.deltaSeconds.toFixed(3)}s
                         </span>
@@ -378,19 +589,30 @@ function InputsModal({
                     </div>
                     <div className="grid grid-cols-1 gap-1 text-[11px] text-app-text-secondary">
                       <div>
-                        <span className="text-emerald-400/70 font-medium">{m.compare_throttle()}</span> {seg.throttle}
+                        <span className="text-emerald-400/70 font-medium">
+                          {m.compare_throttle()}
+                        </span>{" "}
+                        {seg.throttle}
                       </div>
                       <div>
-                        <span className="text-red-400/70 font-medium">{m.compare_brake()}</span> {seg.brake}
+                        <span className="text-red-400/70 font-medium">
+                          {m.compare_brake()}
+                        </span>{" "}
+                        {seg.brake}
                       </div>
                       <div>
-                        <span className="text-cyan-400/70 font-medium">{m.compare_steering()}</span> {seg.steering}
+                        <span className="text-cyan-400/70 font-medium">
+                          {m.compare_steering()}
+                        </span>{" "}
+                        {seg.steering}
                       </div>
                     </div>
                     {seg.action && (
                       <div className="mt-1.5 flex items-start gap-1.5 rounded bg-amber-500/10 border border-amber-500/30 px-2 py-1.5">
                         <Sparkles className="size-3 text-amber-400 shrink-0 mt-0.5" />
-                        <span className="text-[11px] text-amber-200 leading-snug">{seg.action}</span>
+                        <span className="text-[11px] text-amber-200 leading-snug">
+                          {seg.action}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -401,21 +623,34 @@ function InputsModal({
 
           {analysis.coaching?.length > 0 && (
             <div>
-              <div className="text-[10px] font-semibold text-app-text uppercase tracking-wider mb-1">{m.label_coaching()}</div>
+              <div className="text-[10px] font-semibold text-app-text uppercase tracking-wider mb-1">
+                {m.label_coaching()}
+              </div>
               <div className="space-y-1.5">
                 {analysis.coaching.map((c) => (
-                  <div key={`${c.targetLap}-${c.tip}`} className="rounded border border-app-border-input/40 bg-app-surface-alt/30 px-2 py-1.5">
+                  <div
+                    key={`${c.targetLap}-${c.tip}`}
+                    className="rounded border border-app-border-input/40 bg-app-surface-alt/30 px-2 py-1.5"
+                  >
                     <div className="flex items-baseline gap-2">
                       <span
                         className={`text-[9px] font-semibold uppercase tracking-wider px-1 py-0.5 rounded ${
-                          c.targetLap === "A" ? "bg-orange-500/15 text-orange-300 border border-orange-500/30" : "bg-blue-500/15 text-blue-300 border border-blue-500/30"
+                          c.targetLap === "A"
+                            ? "bg-orange-500/15 text-orange-300 border border-orange-500/30"
+                            : "bg-blue-500/15 text-blue-300 border border-blue-500/30"
                         }`}
                       >
                         {m.compare_lap_label()} {c.targetLap}
                       </span>
-                      <span className="text-[11px] font-medium text-app-text">{c.tip}</span>
+                      <span className="text-[11px] font-medium text-app-text">
+                        {c.tip}
+                      </span>
                     </div>
-                    {c.detail && <p className="text-[10px] text-app-text-muted mt-0.5 ml-1">{c.detail}</p>}
+                    {c.detail && (
+                      <p className="text-[10px] text-app-text-muted mt-0.5 ml-1">
+                        {c.detail}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -428,7 +663,15 @@ function InputsModal({
   );
 }
 
-function AnalysisModal({ label, summary, onClose }: { label: string; summary: AnalysisSummary; onClose: () => void }) {
+function AnalysisModal({
+  label,
+  summary,
+  onClose,
+}: {
+  label: string;
+  summary: AnalysisSummary;
+  onClose: () => void;
+}) {
   const a = (summary.raw ?? {}) as AnalysisData;
   const [tab, setTab] = useState("analysis");
   const setup = a.setup ?? [];
@@ -436,48 +679,50 @@ function AnalysisModal({ label, summary, onClose }: { label: string; summary: An
     <AnalysisModalShell
       subtitle={label}
       onClose={onClose}
-      tabs={[{ key: "analysis", label: m.label_ai_analysis() }, ...(setup.length ? [{ key: "setup", label: m.aidisplay_setup(), badge: setup.length }] : [])]}
-      activeTab={tab}
       onTabChange={setTab}
     >
-      {tab === "setup" ? <SetupList setup={setup} lookupSegs={null} /> : <AnalysisDisplay analysis={a} />}
+      {tab === "setup" ? (
+        <SetupList setup={setup} lookupSegs={null} />
+      ) : (
+        <AnalysisDisplay analysis={a} />
+      )}
     </AnalysisModalShell>
   );
 }
 
-export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelProps>(function CompareAiPanel({ lapA, lapB, panelOpen = false, segments: trackSegments, onJumpToFrac }, ref) {
+export function CompareAiPanel({
+  lapA,
+  lapB,
+  panelOpen = false,
+  segments: trackSegments,
+  onJumpToFrac,
+}: CompareAiPanelProps) {
   const { displaySettings } = useSettings();
   const openSettings = useUiStore((s) => s.openSettings);
   const aiConfigured = isAiConfigured(displaySettings);
 
   const [hasA, setHasA] = useState(false);
   const [hasB, setHasB] = useState(false);
-  const [viewing, setViewing] = useState<{ kind: "lap"; label: string; summary: AnalysisSummary } | { kind: "inputs"; analysis: InputsAnalysis } | null>(null);
+  const [hasInputs, setHasInputs] = useState(false);
+  const [viewing, setViewing] = useState<
+    | { kind: "lap"; label: string; summary: AnalysisSummary }
+    | { kind: "inputs"; analysis: InputsAnalysis }
+    | null
+  >(null);
+  const [analysisCollapsed, setAnalysisCollapsed] = useState(false);
 
-  const [chatRemountKey, setChatRemountKey] = useState(0);
-
-  const clearChat = useCallback(() => {
-    fetch(`/api/laps/${lapA.id}/compare/${lapB.id}/chat`, { method: "DELETE" })
-      .catch(() => {})
-      .finally(() => setChatRemountKey((k) => k + 1));
-  }, [lapA.id, lapB.id]);
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      clearChat,
-      clearAll: clearChat,
-    }),
-    [clearChat],
-  );
 
   if (!aiConfigured) {
     return (
       <div className="flex flex-col items-center justify-center py-12 gap-3 text-center px-3">
         <Sparkles className="size-5 text-app-text-dim" />
         <div>
-          <p className="text-[11px] text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
-          <p className="text-[10px] text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
+          <p className="text-[11px] text-app-text-secondary font-medium">
+            {m.label_ai_not_set_up()}
+          </p>
+          <p className="text-[10px] text-app-text-muted mt-0.5">
+            {m.aipanel_add_api_key()}
+          </p>
         </div>
         <button
           type="button"
@@ -490,38 +735,94 @@ export const CompareAiPanel = forwardRef<CompareAiPanelHandle, CompareAiPanelPro
     );
   }
 
-  const bothReady = hasA && hasB;
+  const bothReady = hasA && hasB && hasInputs;
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <div className="flex-1 overflow-y-auto min-h-0 px-3 py-3 space-y-3">
-        <LapSection lap={lapA} dotClass="bg-orange-500" panelOpen={panelOpen} onAnalysisChange={setHasA} onView={(label, s) => setViewing({ kind: "lap", label, summary: s })} />
-        <LapSection lap={lapB} dotClass="bg-blue-500" panelOpen={panelOpen} onAnalysisChange={setHasB} onView={(label, s) => setViewing({ kind: "lap", label, summary: s })} />
-        <InputsSection lapAId={lapA.id} lapBId={lapB.id} panelOpen={panelOpen} onView={(a) => setViewing({ kind: "inputs", analysis: a })} />
+      <div className={`min-h-0 px-3 py-3 shrink-0 max-h-[50%] overflow-y-auto ${analysisCollapsed ? "" : "space-y-3"}`}>
+        <div className="flex items-center justify-between border-b border-app-border/40 pb-1.5 mb-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-app-text-muted">AI analysis</span>
+          <button
+            type="button"
+            onClick={() => setAnalysisCollapsed((collapsed) => !collapsed)}
+            className="flex items-center gap-1 text-[10px] text-app-text-muted hover:text-app-text"
+            aria-expanded={!analysisCollapsed}
+            aria-label={analysisCollapsed ? "Expand AI analysis" : "Collapse AI analysis"}
+          >
+            {analysisCollapsed ? <ChevronDown className="size-3" /> : <ChevronUp className="size-3" />}
+            {analysisCollapsed ? "Expand" : "Collapse"}
+          </button>
+        </div>
+        {!analysisCollapsed && (
+          <>
+            <LapSection
+              lap={lapA}
+              dotClass="bg-orange-500"
+              panelOpen={panelOpen}
+              onAnalysisChange={setHasA}
+              onView={(label, s) => setViewing({ kind: "lap", label, summary: s })}
+            />
+            <LapSection
+              lap={lapB}
+              dotClass="bg-blue-500"
+              panelOpen={panelOpen}
+              onAnalysisChange={setHasB}
+              onView={(label, s) => setViewing({ kind: "lap", label, summary: s })}
+            />
+            <InputsSection
+              lapAId={lapA.id}
+              lapBId={lapB.id}
+              panelOpen={panelOpen}
+              onAnalysisChange={setHasInputs}
+              onView={(a) => setViewing({ kind: "inputs", analysis: a })}
+            />
 
-        {!bothReady && <div className="text-[10px] text-app-text-muted text-center py-2 border border-dashed border-app-border-input/40 rounded">{m.compare_analyse_both_laps()}</div>}
+            {!bothReady && (
+              <div className="text-[10px] text-app-text-muted text-center py-2 border border-dashed border-app-border-input/40 rounded">
+                {m.compare_analyse_both_laps()}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
-      {bothReady && (
-        <div className="flex-1 min-h-0 flex flex-col border-t border-app-border">
-          <div className="flex justify-end px-2 pt-1">
-            <button type="button" onClick={clearChat} className="text-[9px] text-app-text-muted hover:text-red-400">
-              <Trash2 className="size-3" />
-            </button>
+      <div className="flex-1 min-h-0 flex flex-col border-t border-app-border">
+        {!bothReady && (
+          <div className="shrink-0 px-3 py-1.5 text-[10px] text-app-text-muted border-b border-app-border/60">
+            Complete all AI analyses to start compare chat.
           </div>
-          <ChatPanel
-            key={chatRemountKey}
-            api={`/api/laps/${lapA.id}/compare/${lapB.id}/chat`}
-            fetchHistory={(gen) => fetchCompareChatHistory(lapA.id, lapB.id, gen)}
-            historyQueryKey={["compare-chat-history", lapA.id, lapB.id, chatRemountKey]}
-            remountKey={`${lapA.id}:${lapB.id}:${chatRemountKey}`}
-            compactThreadId={`compare-${Math.min(lapA.id, lapB.id)}-${Math.max(lapA.id, lapB.id)}`}
-          />
-        </div>
-      )}
+        )}
+        <ChatPanel
+          api={`/api/laps/${lapA.id}/compare/${lapB.id}/chat`}
+          fetchHistory={(gen) =>
+            fetchCompareChatHistory(lapA.id, lapB.id, gen)
+          }
+          historyQueryKey={[
+            "compare-chat-history",
+            lapA.id,
+            lapB.id,
+          ]}
+          remountKey={`${lapA.id}:${lapB.id}`}
+          compactThreadId={`compare-${Math.min(lapA.id, lapB.id)}-${Math.max(lapA.id, lapB.id)}`}
+          inputDisabled={!bothReady}
+        />
+      </div>
 
-      {viewing?.kind === "lap" && <AnalysisModal label={viewing.label} summary={viewing.summary} onClose={() => setViewing(null)} />}
-      {viewing?.kind === "inputs" && <InputsModal analysis={viewing.analysis} onClose={() => setViewing(null)} trackSegments={trackSegments} onJumpToFrac={onJumpToFrac} />}
+      {viewing?.kind === "lap" && (
+        <AnalysisModal
+          label={viewing.label}
+          summary={viewing.summary}
+          onClose={() => setViewing(null)}
+        />
+      )}
+      {viewing?.kind === "inputs" && (
+        <InputsModal
+          analysis={viewing.analysis}
+          onClose={() => setViewing(null)}
+          trackSegments={trackSegments}
+          onJumpToFrac={onJumpToFrac}
+        />
+      )}
     </div>
   );
-});
+}
