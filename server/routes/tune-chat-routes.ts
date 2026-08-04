@@ -103,7 +103,7 @@ export const tuneChatRoutes = new Hono()
         const thread = await memory.getThreadById({ threadId });
         if (!thread) return c.json({ messages: [] });
         const raw = (await memory.recall({ threadId })).messages ?? [];
-        const systemPrompt = await getChatSystemPrompt(threadId, memory);
+        const systemPrompt = await getChatSystemPrompt(threadId, memory as unknown as Parameters<typeof getChatSystemPrompt>[1]);
         if (c.req.query("export") === "1") return c.json(buildChatExport(systemPrompt, raw));
         const uiMessages = sanitizeChatHistoryMessages(chatMemoryMessagesToUiMessages(raw));
         return c.json({ messages: uiMessages });

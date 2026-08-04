@@ -9,6 +9,7 @@ import { Memory } from "@mastra/memory";
 import { LibSQLStore } from "@mastra/libsql";
 import { resolve } from "path";
 import { cancelChatRun } from "./chat-run-registry";
+import type { ChatTurnMessage } from "./chat-message-context";
 
 /**
  * Resolve the chat memory db path. Uses DATA_DIR env override when set,
@@ -97,6 +98,7 @@ export type ChatExportMemory = {
   saveMessages(args: { messages: unknown[] }): Promise<unknown>;
   getThreadById?: (args: { threadId: string }) => Promise<unknown>;
   createThread?: (args: { threadId: string; resourceId: string; metadata?: Record<string, unknown> }) => Promise<unknown>;
+  updateThread?: (args: { id: string; title: string; metadata: Record<string, unknown> }) => Promise<unknown>;
   deleteThread?: (threadId: string) => Promise<unknown>;
 };
 
@@ -106,7 +108,7 @@ type ChatThreadRecord = { id: string; title?: string; metadata?: Record<string, 
 export async function ensureSystemPrompt(
   threadId: string,
   systemPrompt: string,
-  mem: ChatExportMemory = memory,
+  mem: ChatExportMemory = memory as unknown as ChatExportMemory,
 ): Promise<void> {
   if (!systemPrompt.trim() || !mem.getThreadById) return;
   const thread = (await mem.getThreadById({ threadId })) as ChatThreadRecord | null;
@@ -122,14 +124,14 @@ export async function ensureSystemPrompt(
   });
 }
 
-export async function getChatSystemPrompt(threadId: string, mem: ChatExportMemory = memory): Promise<string | undefined> {
+export async function getChatSystemPrompt(threadId: string, mem: ChatExportMemory = memory as unknown as ChatExportMemory): Promise<string | undefined> {
   const thread = (await mem.getThreadById?.({ threadId })) as ChatThreadRecord | null | undefined;
   const value = thread?.metadata?.raceiqSystemPrompt;
   return typeof value === "string" ? value : undefined;
 }
 
 /** Convert canonical raw records to UI messages without reshaping parts. */
-export function chatMemoryMessagesToUiMessages(messages: unknown[]): unknown[] {
+export function chatMemoryMessagesToUiMessages(messages: unknown[]): ChatTurnMessage[] {
   return messages
     .filter((message) => {
       const role = (message as { role?: unknown })?.role;
@@ -234,7 +236,7 @@ export async function listThreadGenerations(
   return out;
 }
 
-export async function deleteChatLineage(baseThreadId: string, mem: ChatExportMemory = memory): Promise<void> {
+export async function deleteChatLineage(baseThreadId: string, mem: ChatExportMemory = memory as unknown as ChatExportMemory): Promise<void> {
   if (!mem.deleteThread || !mem.getThreadById) throw new Error("Chat memory cannot delete threads");
   const generations = await listThreadGenerations(baseThreadId, {
     getThreadById: mem.getThreadById.bind(mem) as ThreadProbeMemory["getThreadById"],
