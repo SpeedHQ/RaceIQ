@@ -1084,10 +1084,8 @@ export const lapRoutes = new Hono()
       if (id1 === id2)
         return c.json({ error: "Cannot compare a lap with itself" }, 400);
 
-      const lapA = await getLapById(id1);
+      const [lapA, lapB] = await getLapsByIds([id1, id2]);
       if (!lapA) return c.json({ error: `Lap ${id1} not found` }, 404);
-
-      const lapB = await getLapById(id2);
       if (!lapB) return c.json({ error: `Lap ${id2} not found` }, 404);
 
       if (lapA.telemetry.length === 0 || lapB.telemetry.length === 0)
