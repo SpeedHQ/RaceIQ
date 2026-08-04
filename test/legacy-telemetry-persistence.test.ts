@@ -105,6 +105,74 @@ test("historical telemetry and version identity round-trip without raw offsets",
     await deleteSession(sessionId);
   }
 });
+
+test("pre-v3 iRacing legacy telemetry corrects steering to canonical sign", async () => {
+  const legacyVersion = {
+    ...versionIdentity,
+    parserVersion: "iracing-source-frame@2",
+  };
+  const currentVersion = {
+    ...versionIdentity,
+    parserVersion: TELEMETRY_PARSER_VERSIONS.iracing,
+  };
+  const sessionId = await insertSession(
+    990_207,
+    991_207,
+    "iracing",
+    undefined,
+    legacyVersion,
+  );
+  try {
+    const lapId = await insertLap(
+      sessionId,
+      1,
+      90.25,
+      true,
+      null,
+      0,
+      null,
+      null,
+      null,
+      null,
+      legacyVersion,
+    );
+    const currentLapId = await insertLap(
+      sessionId,
+      2,
+      90.5,
+      true,
+      null,
+      0,
+      null,
+      null,
+      null,
+      null,
+      currentVersion,
+    );
+    const packet = {
+      gameId: "iracing",
+      TimestampMS: 1234,
+      Steer: 24,
+    } as TelemetryPacket;
+    await db
+      .update(laps)
+      .set({ legacyTelemetry: compressTelemetry([packet]) })
+      .where(eq(laps.id, lapId))
+      .run();
+    await db
+      .update(laps)
+      .set({ legacyTelemetry: compressTelemetry([packet]) })
+      .where(eq(laps.id, currentLapId))
+      .run();
+
+    const detail = await getLapById(lapId);
+    expect(detail?.telemetry[0]?.Steer).toBe(-24);
+    const currentDetail = await getLapById(currentLapId);
+    expect(currentDetail?.telemetry[0]?.Steer).toBe(24);
+  } finally {
+    await deleteSession(sessionId);
+  }
+});
 test("legacy telemetry backs every failed raw replay path and survives reprocess", async () => {
   const unique = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const missingRawFile =

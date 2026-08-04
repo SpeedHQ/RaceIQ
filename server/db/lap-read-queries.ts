@@ -17,6 +17,19 @@ interface LapStats {
   lapsByTrack: { trackOrdinal: number; count: number }[];
 }
 
+const IRACING_PARSER_VERSION_PATTERN = /^iracing-source-frame@(\d+)$/;
+
+function correctLegacyIRacingSteering(
+  telemetry: TelemetryPacket[],
+  parserVersion: string | null,
+): void {
+  const version = parserVersion?.match(IRACING_PARSER_VERSION_PATTERN);
+  if (version && Number(version[1]) >= 3) return;
+
+  for (const packet of telemetry) {
+    packet.Steer = Math.max(-128, Math.min(127, -packet.Steer));
+  }
+}
 
 export async function getLapStats(gameId?: GameId): Promise<LapStats> {
   const whereClause = gameId ? sql`WHERE sessions.game_id = ${gameId}` : sql``;
@@ -279,6 +292,7 @@ export async function getLapById(
   }
   let telemetry: TelemetryPacket[] = [];
   let parseError: string | undefined;
+  let loadedLegacyTelemetry = false;
   const rawFile = row.rawFile;
   const rawByteOffset = row.rawByteOffset;
   const rawFrameCount = row.rawFrameCount;
@@ -305,10 +319,15 @@ export async function getLapById(
     }
   } else if (row.legacyTelemetry) {
     telemetry = decompressTelemetry(row.legacyTelemetry);
+    loadedLegacyTelemetry = true;
   }
   if (telemetry.length === 0 && row.legacyTelemetry) {
     telemetry = decompressTelemetry(row.legacyTelemetry);
+    loadedLegacyTelemetry = true;
     parseError = undefined;
+  }
+  if (loadedLegacyTelemetry && row.gameId === "iracing") {
+    correctLegacyIRacingSteering(telemetry, row.parserVersion);
   }
   // Only cache successful, non-empty parses. Empty/errored results are
   // transient (often caused by a bug that gets fixed, or a buffer-flush

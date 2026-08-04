@@ -174,8 +174,10 @@ export function normalizeIRacingFrame(
   const sectorStarts = normalizeSectorStarts(session.sectorStarts);
   const steeringAngle = scalar(values, "SteeringWheelAngle", 0);
   const steeringMax = Math.abs(scalar(values, "SteeringWheelAngleMax", 0));
+  // Canonical Steer is negative-left/positive-right. Captured iRacing
+  // controller angles use the opposite sign.
   const steer = steeringMax > 0
-    ? Math.round(clamp(steeringAngle / steeringMax, -1, 1) * 127)
+    ? Math.round(clamp(-steeringAngle / steeringMax, -1, 1) * 127)
     : 0;
   const trackLengthM = Math.max(0, session.trackLengthM);
   const distanceTraveled =

@@ -477,7 +477,7 @@ describe("iRacing raw source frame parser integration", () => {
     expect(packet?.Speed).toBeCloseTo(72.5);
     expect(packet?.Accel).toBe(191);
     expect(packet?.Brake).toBe(51);
-    expect(packet?.Steer).toBe(13);
+    expect(packet?.Steer).toBe(-13);
     expect(packet?.TireTempFL).toBeCloseTo(84);
     expect(packet?.TireCarcassTempFL).toBeCloseTo(84);
     expect(packet?.TireCarcassTempLeftFL).toBe(82);
@@ -485,6 +485,15 @@ describe("iRacing raw source frame parser integration", () => {
     expect(packet?.TireCarcassTempRightFL).toBe(86);
     expect(packet?.TireWearFL).toBeCloseTo(0.06);
     expect(packet?.iracing?.incidents).toBe(1);
+  });
+
+  test("normalizes iRacing steering to canonical left and right signs", () => {
+    const leftFrame = sampleFrame();
+    const rightFrame = sampleFrame();
+    rightFrame.values.SteeringWheelAngle = -0.2;
+
+    expect(normalizeIRacingFrame(leftFrame)?.Steer).toBe(-13);
+    expect(normalizeIRacingFrame(rightFrame)?.Steer).toBe(13);
   });
 
   test("keeps historical v2 frames compatible without inventing raw YAML", () => {
