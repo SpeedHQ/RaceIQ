@@ -53,6 +53,7 @@
 - Keep live telemetry stable during route and game transitions by resolving car names from each packet and skipping invalid track metadata requests
 
 ### Internal
+- Organized automated tests by domain, split oversized suites, and centralized shared test support
 - Use compact real iRacing Daytona telemetry with a complete pit cycle and live estimated-lap replay in seeded development data
 - Distinguish clean page reloads from unexpected browser termination in client diagnostics
 - Keep production builds from bundling development-only Mastra dependencies

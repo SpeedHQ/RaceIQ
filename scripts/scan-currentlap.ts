@@ -1,4 +1,4 @@
-import { parseDump } from "../test/helpers/parse-dump";
+import { parseDump } from "../test/support/recordings/parse-dump";
 
 const files: Array<[string, string]> = [
   ["fm-2023", "test/artifacts/sessions/fm-2023-2026-04-09T21-55-03-186Z.bin"],

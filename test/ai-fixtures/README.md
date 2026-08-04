@@ -1,8 +1,9 @@
 # AI Eval Fixtures
 
-Curated lap fixtures for `test/ai-quality.test.ts`. Each fixture JSON
-describes a real lap (or lap pair) plus the _expected signals_ the scorers
-check against.
+Curated lap fixtures for `test/ai/evals/ai-quality.ai-eval.ts`. Each fixture
+JSON describes a real lap (or lap pair) plus the _expected signals_ the scorers
+check against. This directory is committed AI-eval input; generated reports and
+recordings belong under `test/artifacts/`, not here.
 
 ## Structure
 

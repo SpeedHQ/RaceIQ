@@ -16,7 +16,7 @@ import {
   IRacingTelemetrySource,
 } from "../../server/games/iracing/source";
 import { initGameAdapters } from "../../shared/games/init";
-import { parseDump } from "../helpers/parse-dump";
+import { parseDump } from "../support/recordings/parse-dump";
 
 initGameAdapters();
 initServerGameAdapters();

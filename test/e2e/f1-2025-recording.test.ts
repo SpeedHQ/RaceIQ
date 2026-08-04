@@ -1,24 +1,16 @@
 import { describe, test, expect } from "bun:test";
 import type { LapSavedNotification } from "../../server/lap-detection/types"
-import { parseDump } from "../helpers/parse-dump";
-import { assertSectorTimesMatchLapTime, assertLapTimesProper, assertValidLapHasSectors } from "../helpers/lap-assertions";
-import { generateRecordingVisualizations } from "../helpers/lap-viz";
-import { existsSync } from "fs";
-import { join } from "path";
-
-const RECORDINGS_DIR = "test/artifacts/sessions";
-
-function getRecording(filename: string): string | null {
-  const recordingPath = join(RECORDINGS_DIR, filename);
-  return existsSync(recordingPath) ? recordingPath : null;
-}
+import { parseDump } from "../support/recordings/parse-dump";
+import { assertSectorTimesMatchLapTime, assertLapTimesProper, assertValidLapHasSectors } from "../support/laps/assertions";
+import { generateRecordingVisualizations } from "../support/laps/visualizations";
+import { getRecordingFixture } from "../support/recordings/fixtures";
 
 describe("F1-2025 recording", () => {
   describe("f1-2025-2026-04-09T21-34-10-190Z", () => {
     const recordingFile = "f1-2025-2026-04-09T21-34-10-190Z.bin.gz";
 
     test("detects laps correctly", { timeout: 120000 }, async () => {
-      const recording = getRecording(recordingFile);
+      const recording = getRecordingFixture(recordingFile);
       if (!recording) throw new Error(`Required recording not found: ${recordingFile}`);
 
       console.log(`Using: ${recording}`);

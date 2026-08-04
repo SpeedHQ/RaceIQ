@@ -1,9 +1,9 @@
 import { describe, test, expect } from "bun:test";
 import { existsSync } from "fs";
 import { join } from "path";
-import { parseDump } from "../../helpers/parse-dump";
+import { parseDump } from "../../support/recordings/parse-dump";
 import { assertBrandHatchSectorBounds, lapSummary, RECORDINGS_DIR } from "./shared";
-import { assertValidLapHasSectors } from "../../helpers/lap-assertions";
+import { assertValidLapHasSectors } from "../../support/laps/assertions";
 
 const recordingFile = "acc-2026-04-12T21-44-38-899Z.bin.gz";
 const recording = join(RECORDINGS_DIR, recordingFile);

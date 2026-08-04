@@ -1,0 +1,321 @@
+/**
+ * Track segment join primitives: facts supply labels, geometry supplies fractions.
+ * Committed roster contracts live in track-roster.test.ts.
+ */
+import { describe, test, expect } from "bun:test";
+import type { TrackFacts } from "../../../shared/racing/tracks/facts";
+import {
+  joinSegments,
+  splitSegments,
+  isPlaceholderName,
+  stripTurnToken,
+  checkKeys,
+  numberCorner,
+  unnumberCorner,
+} from "../../../shared/racing/tracks/curation/join";
+import { cornerKey, straightKey, parseCornerKey, parseStraightKey } from "../../../shared/racing/tracks/keys";
+import { segmentDisplayNames } from "../../../shared/racing/tracks/segment-label";
+
+
+describe("join keys", () => {
+  test("corner key is the turn numbers, sorted", () => {
+    expect(cornerKey([3])).toBe("t3");
+    expect(cornerKey([11, 10])).toBe("t10-11");
+  });
+
+  test("straight key is the turn it follows", () => {
+    expect(straightKey(3)).toBe("s3");
+  });
+
+  test("keys round-trip through their parsers", () => {
+    expect(parseCornerKey("t10-11")).toEqual([10, 11]);
+    expect(parseStraightKey("s7")).toBe(7);
+  });
+
+  test("malformed keys parse to empty rather than throwing", () => {
+    expect(parseCornerKey("s3")).toEqual([]);
+    expect(parseStraightKey("t3")).toBeNull();
+  });
+});
+
+describe("placeholder names", () => {
+  test("generated turn and straight tokens are placeholders, not names", () => {
+    for (const token of ["", "T1", "T10-11", "S2", "S"]) {
+      expect(isPlaceholderName(token)).toBe(true);
+    }
+  });
+
+  test("real corner names are not placeholders", () => {
+    for (const name of ["Paddock Hill Bend", "Eau Rouge", "Castrol-S", "Turn Five"]) {
+      expect(isPlaceholderName(name)).toBe(false);
+    }
+  });
+});
+
+describe("join", () => {
+  const facts: TrackFacts = {
+    slug: "x",
+    track: "x",
+    layout: "gp",
+    layoutName: "Grand Prix",
+    name: "X",
+    corners: [
+      { number: 1, name: "Big Bend", direction: "right" },
+      { number: 2, covers: [3], name: "", direction: "left" },
+    ],
+    straights: [{ after: 1, name: "Back Straight" }],
+  };
+  const geometry: TrackGeometry = {
+    segments: [
+      { key: "t1", startFrac: 0, endFrac: 0.2 },
+      { key: "s1", startFrac: 0.2, endFrac: 0.5 },
+      { key: "t2-3", startFrac: 0.5, endFrac: 0.9 },
+    ],
+  };
+
+  test("facts supply the labels, geometry supplies the fractions", () => {
+    const joined = joinSegments(facts, geometry);
+    expect(joined[0]).toMatchObject({ type: "corner", name: "Big Bend", direction: "right", number: 1, startFrac: 0 });
+    expect(joined[1]).toMatchObject({ type: "straight", name: "Back Straight", startFrac: 0.2 });
+  });
+
+  test("an unnamed corner renders its turn span as a display token", () => {
+    const joined = joinSegments(facts, geometry);
+    expect(joined[2]).toMatchObject({ type: "corner", name: "T2-3", number: 2, covers: [3] });
+  });
+
+  test("output is ordered along the lap regardless of geometry order", () => {
+    const shuffled: TrackGeometry = { segments: [...geometry.segments].reverse() };
+    expect(joinSegments(facts, shuffled).map((s) => s.startFrac)).toEqual([0, 0.2, 0.5]);
+  });
+
+  test("split is the inverse of join: labels back to facts, fractions back to geometry", () => {
+    const { corners, straights, geometry: geom } = splitSegments(joinSegments(facts, geometry));
+    expect(geom).toEqual(geometry.segments);
+    expect(corners).toEqual(facts.corners);
+    expect(straights).toEqual(facts.straights!);
+  });
+
+  test("split does not promote a synthesized token into a stored name", () => {
+    const { corners } = splitSegments([
+      { type: "corner", name: "T4", number: 4, startFrac: 0, endFrac: 0.1 },
+    ]);
+    expect(corners[0].name).toBe("");
+  });
+
+  test("a rendered map label handed back as a name stores the name alone", () => {
+    // The map renders "T2-3 Esses"; if that string is ever saved as the name,
+    // the next join prefixes a second token — "T2-3 T2-3 Esses".
+    const { corners } = splitSegments([
+      { type: "corner", name: "T2-3 Esses", number: 2, covers: [3], startFrac: 0, endFrac: 0.1 },
+    ]);
+    expect(corners[0].name).toBe("Esses");
+  });
+
+  test("a name that merely starts with T keeps every word", () => {
+    const { corners } = splitSegments([
+      { type: "corner", name: "Turn Two", number: 2, startFrac: 0, endFrac: 0.1 },
+    ]);
+    expect(corners[0].name).toBe("Turn Two");
+  });
+
+  test("labelling a joined lap is idempotent across a save round-trip", () => {
+    const labelled = joinSegments(facts, geometry).map((s, i) => ({ ...s, name: segmentDisplayNames(joinSegments(facts, geometry))[i] }));
+    const again = splitSegments(labelled);
+    expect(again.corners).toEqual(facts.corners);
+    expect(segmentDisplayNames(joinSegments({ ...facts, corners: again.corners }, geometry))).toEqual(
+      segmentDisplayNames(joinSegments(facts, geometry)),
+    );
+  });
+
+  test("several rows sharing a straight key collapse to one fact", () => {
+    // Kemmel split in two by the detector: both gaps follow turn 1, both key
+    // `s1`, and two facts for one key make the join pick an arbitrary winner.
+    const { straights } = splitSegments([
+      { type: "corner", name: "", number: 1, startFrac: 0, endFrac: 0.1 },
+      { type: "straight", name: "S2", startFrac: 0.1, endFrac: 0.3 },
+      { type: "straight", name: "Kemmel", startFrac: 0.3, endFrac: 0.6 },
+    ]);
+    expect(straights).toEqual([{ after: 1, name: "Kemmel" }]);
+  });
+
+  test("a group on a later row of a shared key is kept", () => {
+    const { straights } = splitSegments([
+      { type: "corner", name: "", number: 1, startFrac: 0, endFrac: 0.1 },
+      { type: "straight", name: "Kemmel", startFrac: 0.1, endFrac: 0.3 },
+      { type: "straight", name: "", group: "Kemmel", startFrac: 0.3, endFrac: 0.6 },
+    ]);
+    expect(straights).toEqual([{ after: 1, name: "Kemmel", group: "Kemmel" }]);
+  });
+});
+
+describe("checkKeys", () => {
+  const facts: TrackFacts = {
+    slug: "x",
+    track: "x",
+    layout: "gp",
+    layoutName: "Grand Prix",
+    name: "X",
+    corners: [
+      { number: 1, name: "One" },
+      { number: 2, name: "Two" },
+    ],
+  };
+
+  test("a game placing every declared corner is clean", () => {
+    const clean = checkKeys(facts, {
+      acc: { segments: [{ key: "t1", startFrac: 0, endFrac: 0.1 }, { key: "t2", startFrac: 0.5, endFrac: 0.6 }] },
+    });
+    expect(clean).toEqual([]);
+  });
+
+  test("a named straight the game never places is reported", () => {
+    const withNamed: TrackFacts = { ...facts, straights: [{ after: 1, name: "Back Straight" }] };
+    const [mismatch] = checkKeys(withNamed, {
+      acc: { segments: [{ key: "t1", startFrac: 0, endFrac: 0.1 }, { key: "t2", startFrac: 0.5, endFrac: 0.6 }] },
+    });
+    expect(mismatch).toMatchObject({ gameId: "acc", unplacedStraights: ["s1"] });
+  });
+
+  test("an unnamed gap the game never places is not reported", () => {
+    // Only named straights are constrained — an unresolved anonymous gap costs
+    // nobody a label, so it is not a finding.
+    const withUnnamed: TrackFacts = { ...facts, straights: [{ after: 1, name: "" }] };
+    const clean = checkKeys(withUnnamed, {
+      acc: { segments: [{ key: "t1", startFrac: 0, endFrac: 0.1 }, { key: "t2", startFrac: 0.5, endFrac: 0.6 }] },
+    });
+    expect(clean).toEqual([]);
+  });
+
+  test("splitting one named straight across several rows is clean", () => {
+    const withNamed: TrackFacts = { ...facts, straights: [{ after: 1, name: "Back Straight" }] };
+    const clean = checkKeys(withNamed, {
+      acc: {
+        segments: [
+          { key: "t1", startFrac: 0, endFrac: 0.1 },
+          { key: "s1", startFrac: 0.1, endFrac: 0.2 },
+          { key: "s1", startFrac: 0.2, endFrac: 0.3 },
+          { key: "t2", startFrac: 0.5, endFrac: 0.6 },
+        ],
+      },
+    });
+    expect(clean).toEqual([]);
+  });
+
+  test("a game missing a declared corner is reported", () => {
+    const [mismatch] = checkKeys(facts, { acc: { segments: [{ key: "t1", startFrac: 0, endFrac: 0.1 }] } });
+    expect(mismatch).toMatchObject({ gameId: "acc", missing: ["t2"] });
+  });
+
+  test("a corner no facts file declares is reported as unknown", () => {
+    const [mismatch] = checkKeys(facts, {
+      acc: {
+        segments: [
+          { key: "t1", startFrac: 0, endFrac: 0.1 },
+          { key: "t2", startFrac: 0.3, endFrac: 0.4 },
+          { key: "t9", startFrac: 0.5, endFrac: 0.6 },
+        ],
+      },
+    });
+    expect(mismatch.unknown).toEqual(["t9"]);
+  });
+
+  test("a straight following a turn that does not exist is reported", () => {
+    const [mismatch] = checkKeys(facts, {
+      acc: {
+        segments: [
+          { key: "t1", startFrac: 0, endFrac: 0.1 },
+          { key: "t2", startFrac: 0.3, endFrac: 0.4 },
+          { key: "s8", startFrac: 0.5, endFrac: 0.6 },
+        ],
+      },
+    });
+    expect(mismatch.unknown).toEqual(["s8"]);
+  });
+
+  test("several geometry rows may share one straight key", () => {
+    // A detector that splits one gap in two is not a disagreement about the
+    // circuit, so the straight count is deliberately not constrained.
+    const clean = checkKeys(facts, {
+      acc: {
+        segments: [
+          { key: "t1", startFrac: 0, endFrac: 0.1 },
+          { key: "s1", startFrac: 0.1, endFrac: 0.2 },
+          { key: "s1", startFrac: 0.2, endFrac: 0.3 },
+          { key: "t2", startFrac: 0.3, endFrac: 0.4 },
+        ],
+      },
+    });
+    expect(clean).toEqual([]);
+  });
+});
+
+
+describe("numberCorner", () => {
+  const seg = (type: "corner" | "straight", number?: number, covers?: number[]) => ({
+    type,
+    ...(number != null ? { number } : {}),
+    ...(covers ? { covers } : {}),
+  });
+
+  test("a straight promoted to a corner takes the number after the corner before it", () => {
+    // The bug this exists for: the editor flipped `type` and left `number`
+    // undefined, so splitSegments keyed the entry as a straight again.
+    const out = numberCorner([seg("corner", 1), seg("corner"), seg("corner", 5)], 1);
+    expect(out[1].number).toBe(2);
+  });
+
+  test("numbers the first corner T1 when nothing precedes it", () => {
+    expect(numberCorner([seg("straight"), seg("corner")], 1)[1].number).toBe(1);
+  });
+
+  test("leaves a deliberate gap in the following corners alone", () => {
+    // T4 is a turn this game's detector skips; inserting T2 must not renumber
+    // the corners that already sit clear of it.
+    const out = numberCorner([seg("corner", 1), seg("corner"), seg("corner", 5), seg("corner", 8)], 1);
+    expect(out.map((s) => s.number)).toEqual([1, 2, 5, 8]);
+  });
+
+  test("pushes a colliding follower up, carrying its covered numbers", () => {
+    const out = numberCorner([seg("corner", 1), seg("corner"), seg("corner", 2, [3])], 1);
+    expect(out.map((s) => [s.number, s.covers])).toEqual([
+      [1, undefined],
+      [2, undefined],
+      [3, [4]],
+    ]);
+  });
+
+  test("demoting a corner drops its numbering and keeps the rest", () => {
+    const out = unnumberCorner([seg("corner", 1), seg("corner", 2, [3]), seg("corner", 4)], 1);
+    expect(out[1].number).toBeUndefined();
+    expect(out[1].covers).toBeUndefined();
+    expect(out.map((s) => s.number)).toEqual([1, undefined, 4]);
+  });
+
+  test("a numbered corner survives the split that used to demote it", () => {
+    const numbered = numberCorner([{ type: "corner", name: "", startFrac: 0, endFrac: 0.2 }], 0);
+    const { corners, geometry } = splitSegments(numbered as never);
+    expect(corners).toHaveLength(1);
+    expect(geometry[0].key).toBe("t1");
+  });
+});
+
+describe("stripTurnToken", () => {
+  test("removes a leading turn token", () => {
+    expect(stripTurnToken("T2-4 Eau Rouge/Raidillon")).toBe("Eau Rouge/Raidillon");
+    expect(stripTurnToken("T6 Fairmont Hairpin")).toBe("Fairmont Hairpin");
+  });
+  test("leaves a name that merely starts with T", () => {
+    expect(stripTurnToken("Turn Two")).toBe("Turn Two");
+    expect(stripTurnToken("Tosa")).toBe("Tosa");
+  });
+  test("a bare token is left for isPlaceholderName to reject", () => {
+    // The regex only strips a token that prefixes a name; "T7-8" alone is not
+    // a name with a token on it, and split drops it as a placeholder instead.
+    expect(stripTurnToken("T7-8")).toBe("T7-8");
+    expect(isPlaceholderName("T7-8")).toBe(true);
+  });
+  test("trims without otherwise touching the name", () => {
+    expect(stripTurnToken("  Piscine  ")).toBe("Piscine");
+  });
+});

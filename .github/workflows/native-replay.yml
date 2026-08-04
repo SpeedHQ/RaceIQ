@@ -32,7 +32,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Replay committed native recording
-        run: bun test test/telemetry-catalog-${{ inputs.game }}-e2e.test.ts
+        run: bun test test/telemetry/catalog/telemetry-catalog-${{ inputs.game }}-e2e.test.ts
 
       - name: Record capture blocker in run summary
         if: always()

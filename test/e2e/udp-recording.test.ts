@@ -4,7 +4,7 @@ import dgram from "dgram";
 import { mkdtempSync, rmSync, readdirSync, unlinkSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
-import { readUdpDump } from "../helpers/recording";
+import { readUdpDump } from "../support/recordings/udp";
 
 const RECORDINGS_DIR = resolve(process.cwd(), "test", "artifacts", "sessions");
 

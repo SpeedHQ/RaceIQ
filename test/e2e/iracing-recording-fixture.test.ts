@@ -6,8 +6,8 @@ import {
   test,
 } from "bun:test";
 import { stopMaintenanceTasks } from "../../server/telemetry/live-pipeline"
-import type { DumpResult } from "../helpers/parse-dump";
-import { parseDump } from "../helpers/parse-dump";
+import type { DumpResult } from "../support/recordings/parse-dump";
+import { parseDump } from "../support/recordings/parse-dump";
 
 const FIXTURE =
   "test/artifacts/sessions/iracing-daytona-am-vantage-gt3-pit.bin.gz";
