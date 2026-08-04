@@ -5,7 +5,6 @@
  */
 import type { TelemetryPacket, GameId } from "../../shared/types";
 import { generateExport, type UnitSystem, type TemperatureUnit } from "../export";
-import { getPromptCarName, getPromptTrackName } from "./compare-engineer";
 import { buildCornerData } from "./corner-data";
 import { analyzeLap } from "../../shared/lib/lap-insights";
 import { tryGetServerGame } from "../games/registry";
@@ -50,8 +49,6 @@ export function buildChatSystemPrompt(
 ): string {
   const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
   const serverAdapter = tryGetServerGame(gameId);
-  const carName = getPromptCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0, lap.gameId);
-  const trackName = getPromptTrackName(lap.trackOrdinal ?? 0, lap.gameId);
 
   const exportText = generateExport(lap, packets, unit, temperatureUnit);
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
@@ -71,7 +68,6 @@ export function buildChatSystemPrompt(
   }
 
 
-  const gameSystemNote = serverAdapter?.aiSystemPrompt ?? "";
 
   // Game-specific extended context
   let extendedContext = "";
@@ -80,7 +76,6 @@ export function buildChatSystemPrompt(
   }
 
   return `${chatSystemPrompt(unit, temperatureUnit, language)}
-${gameSystemNote}
 ${formatLapChatIdentity(lap)}
 --- TELEMETRY DATA ---
 ${exportText}

@@ -9,8 +9,10 @@ import { isAiConfigured } from "../lib/is-ai-configured";
 import { client } from "../lib/rpc";
 import { useUiStore } from "../stores/ui";
 import { type AnalysisData, AnalysisDisplay, type AnalysisHighlight, findSegment, type Segment } from "./ai/analysis-display";
+import { parseLapAnalysisForDisplay } from "./ai/analysis-display-data";
 import { AnalysisModalShell, AnalysisResultCard, AnalysisSummaryRow } from "./ai/analysis-summary";
 import { ChatPanel } from "./ai-chat/ChatPanel";
+import { LapAnalysisText } from "./ai-chat/LapAnalysisText";
 import { PanelSectionHeader } from "./ui/panel-section-header";
 import { Button } from "./ui/button";
 
@@ -38,23 +40,16 @@ function formatStreamError(event: StreamErrorEvent): string {
 function toErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : m.aipanel_fetch_failed();
 }
-function safeParseAnalysis(raw: string): unknown {
-  try {
-    return JSON.parse(raw);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    const posMatch = msg.match(/position (\d+)/);
-    const pos = posMatch ? Number(posMatch[1]) : -1;
-    const windowStart = pos >= 0 ? Math.max(0, pos - 120) : 0;
-    const windowEnd = pos >= 0 ? Math.min(raw.length, pos + 120) : Math.min(raw.length, 240);
-    console.error("[AiPanel] analysis JSON parse failed", {
-      length: raw.length,
-      position: pos,
-      around: raw.slice(windowStart, windowEnd),
-      tail: raw.slice(Math.max(0, raw.length - 200)),
-    });
-    throw err;
-  }
+function safeParseAnalysis(raw: string): AnalysisData | null {
+  const parsed = parseLapAnalysisForDisplay(raw);
+  if (parsed) return parsed;
+
+  console.error("[AiPanel] analysis JSON parse failed", {
+    length: raw.length,
+    around: raw.slice(0, 240),
+    tail: raw.slice(Math.max(0, raw.length - 200)),
+  });
+  return null;
 }
 
 export type { AnalysisHighlight } from "./ai/analysis-display";
@@ -515,6 +510,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
             historyQueryKey={["lap-chat-history", lapId, chatRemountKey]}
             remountKey={`${lapId}:${chatRemountKey}`}
             compactThreadId={`lap-${lapId}`}
+            components={{ Text: LapAnalysisText }}
           />
         </div>
       )}

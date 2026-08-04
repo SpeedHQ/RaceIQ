@@ -12,8 +12,8 @@ import { useSettings } from "../../hooks/queries";
 import { isAiConfigured } from "../../lib/is-ai-configured";
 import { useUiStore } from "../../stores/ui";
 
+import { resolvedResumableThreadId, type ChatRunStatus } from "./resumable-chat";
 /**
- * ChatPanel — shared assistant-ui chat shell extracted from TuneSetupChat.tsx
  * (plan: migrate Lap Chat + Compare Chat onto the same modern streaming stack
  * as Setup Engineer chat). Renders via assistant-ui + the AI SDK v5
  * UI-message-stream protocol; the server route wraps a Mastra agent stream
@@ -33,11 +33,6 @@ import { useUiStore } from "../../stores/ui";
 
 // Rough $/1M tokens for a cost estimate (input, output). Chat models are cheap;
 // this is a ballpark shown as "≈", not billing.
-/** Status shape returned by `GET /api/chats/:threadId/run` (server/routes/chat-run-routes.ts). */
-interface ChatRunStatus {
-  status: "none" | "active" | "finished";
-  runId?: string;
-}
 
 async function fetchChatRunStatus(threadId: string): Promise<ChatRunStatus> {
   try {
@@ -316,6 +311,7 @@ function ChatPanelThread({
   viewingGen,
   activeGen,
   activeThreadId,
+  resumableThreadId,
   onViewGen,
   onForked,
   onRegenerate,
@@ -337,6 +333,7 @@ function ChatPanelThread({
   viewingGen: number;
   activeGen: number;
   activeThreadId?: string;
+  resumableThreadId?: string;
   onViewGen: (gen: number) => void;
   onForked: (newGen: number) => void;
   onRegenerate?: (messageId: string, prompt: string) => void;
@@ -363,13 +360,13 @@ function ChatPanelThread({
   // `useDynamicChatTransport` already re-points at whichever transport
   // instance was passed on the latest render via a ref, so a fresh instance
   // per render is the existing, working pattern here.
-  const transport = activeThreadId
+  const transport = resumableThreadId
     ? new AssistantChatTransport({
         api,
         body: extraBody,
         resumable: {
-          storage: createResumableSessionStorage({ key: `chat-resume-${activeThreadId}` }),
-          resumeApi: () => `/api/chats/${encodeURIComponent(activeThreadId)}/run/stream`,
+          storage: createResumableSessionStorage({ key: `chat-resume-${resumableThreadId}` }),
+          resumeApi: () => `/api/chats/${encodeURIComponent(resumableThreadId)}/run/stream`,
         },
       })
     : new AssistantChatTransport({ api, body: extraBody });
@@ -562,8 +559,9 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
     staleTime: 0,
     gcTime: 0,
   });
-  if (activeThreadId && runStatus?.status === "active" && runStatus.runId) {
-    createResumableSessionStorage({ key: `chat-resume-${activeThreadId}` }).setStreamId(runStatus.runId);
+  const resumableThreadId = resolvedResumableThreadId(activeThreadId, runStatus, runStatusFetched);
+  if (resumableThreadId && runStatus?.runId) {
+    createResumableSessionStorage({ key: `chat-resume-${resumableThreadId}` }).setStreamId(runStatus.runId);
   }
   const regenerateChat = async (messageId: string, prompt: string) => {
     if (!activeThreadId || !prompt || !window.confirm("Regenerate this response? Later messages will be removed.")) return;
@@ -619,6 +617,7 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
       viewingGen={effectiveGen}
       activeGen={activeGen}
       activeThreadId={activeThreadId}
+      resumableThreadId={resumableThreadId}
       onViewGen={(gen) => setViewingGen(gen)}
       onForked={(newGen) => {
         void queryClient.invalidateQueries({ queryKey: historyQueryKey });

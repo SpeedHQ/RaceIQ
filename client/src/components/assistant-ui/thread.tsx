@@ -12,6 +12,7 @@ import {
   MessagePrimitive,
   SuggestionPrimitive,
   ThreadPrimitive,
+  type TextMessagePartComponent,
   type ToolCallMessagePartComponent,
   useAuiState,
 } from "@assistant-ui/react";
@@ -39,6 +40,7 @@ export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
 export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
   Welcome?: ComponentType | undefined;
+  Text?: TextMessagePartComponent | undefined;
   ToolFallback?: ToolCallMessagePartComponent | undefined;
   ToolGroup?: ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>> | undefined;
   ReasoningGroup?: ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>> | undefined;
@@ -323,7 +325,7 @@ const ReasoningPart: FC<PropsWithChildren> = ({ children }) => {
 };
 
 const AssistantMessage: FC = () => {
-  const { ToolFallback: ToolFallbackComponent = ToolFallback, ToolGroup, ReasoningGroup } = useContext(ThreadComponentsContext);
+  const { Text: TextComponent, ToolFallback: ToolFallbackComponent = ToolFallback, ToolGroup, ReasoningGroup } = useContext(ThreadComponentsContext);
 
   const ACTION_BAR_PT = "pt-1.5";
   // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
@@ -364,7 +366,7 @@ const AssistantMessage: FC = () => {
                 return <ReasoningGroupFallback group={part}>{children}</ReasoningGroupFallback>;
               }
               case "text":
-                return <MarkdownText />;
+                return TextComponent ? <TextComponent {...part} /> : <MarkdownText />;
               case "reasoning":
                 return (
                   <ReasoningPart>

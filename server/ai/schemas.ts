@@ -42,6 +42,14 @@ export const AnalystOutputSchema = z.object({
   handling: z.array(MetricItem),
   corners: z.array(CornerIssue),
   technique: z.array(TechniqueTip),
+  setup: z.array(z.object({
+    component: z.string(),
+    symptom: z.string(),
+    fix: z.string(),
+    current: z.string(),
+    target: z.string(),
+    direction: z.enum(["increase", "decrease", "adjust"]),
+  })).optional(),
 });
 
 export type AnalystOutput = z.infer<typeof AnalystOutputSchema>;

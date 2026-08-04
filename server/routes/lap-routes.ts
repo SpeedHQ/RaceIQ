@@ -91,6 +91,7 @@ import { startDetachedAgentTurn } from "../ai/agent-stream";
 import {
   CHAT_TURN_CONTEXT_KEY,
   compareChatToolChoice,
+  lapChatToolChoice,
   sanitizeChatHistoryMessages,
 } from "../ai/chat-message-context";
 import { reserveChatRun, buildReplayStream, finishRun } from "../ai/chat-run-registry";
@@ -922,6 +923,13 @@ export const lapRoutes = new Hono()
               requestContext,
               memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
               abortSignal: run.abortController.signal,
+              prepareStep: ({ stepNumber }) => stepNumber === 0
+                ? {
+                    toolChoice: lapChatToolChoice(stepNumber),
+                    activeTools: ["get_lap_analysis"],
+                  }
+                : { toolChoice: lapChatToolChoice(stepNumber) },
+              maxSteps: 5,
               providerOptions: {
                 openai: { reasoningEffort: "medium" },
                 google: buildGoogleReasoningProviderOptions(
@@ -940,6 +948,7 @@ export const lapRoutes = new Hono()
             memory: getChatMemory(),
             threadId,
             turnStartedAt,
+            abortSignal: run.abortController.signal,
           });
         }
         const response = createUIMessageStreamResponse({ stream: buildReplayStream(run) });
@@ -1592,6 +1601,7 @@ export const lapRoutes = new Hono()
             memory: getChatMemory(),
             threadId,
             turnStartedAt,
+            abortSignal: run.abortController.signal,
           });
         }
         const response = createUIMessageStreamResponse({ stream: buildReplayStream(run) });

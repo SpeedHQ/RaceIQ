@@ -47,7 +47,9 @@ export interface StreamAgentTurnOptions {
    * prior turn's assistant row is never matched.
    */
   turnStartedAt: number;
-  /** Patch streamed reasoning back into the saved row. Default true. */
+  /** Abort signal used to stop persistence when the owning chat is cleared. */
+  abortSignal?: AbortSignal;
+  /** Patch streamed reasoning back into the saved assistant row. Default true. */
   persistReasoning?: boolean;
 }
 
@@ -58,7 +60,9 @@ export async function persistAssistantTurnToMemory(
   turnStartedAt: number,
   reasoningDurationMs: number,
   usage?: { inputTokens: number; outputTokens: number; totalTokens: number },
+  abortSignal?: AbortSignal,
 ): Promise<void> {
+  if (abortSignal?.aborted) return;
   const parts = Array.isArray(responseMessage?.parts) ? responseMessage.parts : [];
   if (!parts.length) return;
 
@@ -173,12 +177,20 @@ function buildAgentTurnUIStream(opts: StreamAgentTurnOptions): ReadableStream<UI
   // messageMetadata below, persisted to memory in onFinish so the footer
   // survives a refresh.
   let finishUsage: { inputTokens: number; outputTokens: number; totalTokens: number } | undefined;
-
   return createUIMessageStream({
-    originalMessages,
+
     onFinish: async ({ responseMessage }) => {
+      if (opts.abortSignal?.aborted) return;
       if (persistReasoning) {
-        await persistAssistantTurnToMemory(responseMessage as any, memory, threadId, turnStartedAt, reasoningDurationMs(), finishUsage);
+        await persistAssistantTurnToMemory(
+          responseMessage as any,
+          memory,
+          threadId,
+          turnStartedAt,
+          reasoningDurationMs(),
+          finishUsage,
+          opts.abortSignal,
+        );
       }
       await restoreOriginalUserMessage(originalMessages, memory, threadId, turnStartedAt);
     },

@@ -132,6 +132,33 @@ describe("persistAssistantTurnToMemory", () => {
     ]);
     expect(saved[0].content.metadata.usage.totalTokens).toBe(5);
     expect(saved[0].content.metadata.reasoning.durationMs).toBe(42);
+
+  });
+  test("skips persistence when clear chat aborted the detached turn", async () => {
+    let recalled = false;
+    const memory = {
+      async recall() {
+        recalled = true;
+        return { messages: [] };
+      },
+      async saveMessages() {
+        throw new Error("save should not run");
+      },
+    };
+    const abortController = new AbortController();
+    abortController.abort();
+
+    await persistAssistantTurnToMemory(
+      { id: "assistant-row", parts: [{ type: "text", text: "answer" }] },
+      memory,
+      "thread",
+      1_000,
+      0,
+      undefined,
+      abortController.signal,
+    );
+
+    expect(recalled).toBe(false);
   });
 });
 

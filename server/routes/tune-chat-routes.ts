@@ -282,6 +282,7 @@ export const tuneChatRoutes = new Hono()
           memory: getChatMemory(),
           threadId,
           turnStartedAt,
+          abortSignal: run.abortController.signal,
         });
       }
 
