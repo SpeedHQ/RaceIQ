@@ -93,7 +93,7 @@ import {
   compareChatToolChoice,
   sanitizeChatHistoryMessages,
 } from "../ai/chat-message-context";
-import { reserveChatRun, buildReplayStream } from "../ai/chat-run-registry";
+import { reserveChatRun, buildReplayStream, finishRun } from "../ai/chat-run-registry";
 import { createUIMessageStreamResponse } from "ai";
 import { RequestContext } from "@mastra/core/request-context";
 import {
@@ -916,18 +916,24 @@ export const lapRoutes = new Hono()
         requestContext.set(CHAT_TURN_CONTEXT_KEY, systemPrompt);
         const { run, isNew } = reserveChatRun(threadId);
         if (isNew) {
-          const stream = await lapChatAgent.stream(messages, {
-            requestContext,
-            memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-            abortSignal: run.abortController.signal,
-            providerOptions: {
-              openai: { reasoningEffort: "medium" },
-              google: buildGoogleReasoningProviderOptions(
-                chatModelLabel,
-                settings.chatThinkingBudget,
-              ) as never,
-            },
-          });
+          let stream;
+          try {
+            stream = await lapChatAgent.stream(messages, {
+              requestContext,
+              memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+              abortSignal: run.abortController.signal,
+              providerOptions: {
+                openai: { reasoningEffort: "medium" },
+                google: buildGoogleReasoningProviderOptions(
+                  chatModelLabel,
+                  settings.chatThinkingBudget,
+                ) as never,
+              },
+            });
+          } catch (err) {
+            finishRun(run);
+            throw err;
+          }
           startDetachedAgentTurn(run, {
             agentStream: stream,
             originalMessages: messages,
@@ -1560,20 +1566,26 @@ export const lapRoutes = new Hono()
         requestContext.set(CHAT_TURN_CONTEXT_KEY, systemPrompt);
         const { run, isNew } = reserveChatRun(threadId);
         if (isNew) {
-          const stream = await compareChatAgent.stream(messages, {
-            ...chatMemoryOptions(threadId),
-            requestContext,
-            abortSignal: run.abortController.signal,
-            toolChoice: compareChatToolChoice(messages),
-            maxSteps: 6,
-            providerOptions: {
-              openai: { reasoningEffort: "medium" },
-              google: buildGoogleReasoningProviderOptions(
-                chatModelLabel,
-                settings.chatThinkingBudget,
-              ) as never,
-            },
-          });
+          let stream;
+          try {
+            stream = await compareChatAgent.stream(messages, {
+              ...chatMemoryOptions(threadId),
+              requestContext,
+              abortSignal: run.abortController.signal,
+              toolChoice: compareChatToolChoice(messages),
+              maxSteps: 6,
+              providerOptions: {
+                openai: { reasoningEffort: "medium" },
+                google: buildGoogleReasoningProviderOptions(
+                  chatModelLabel,
+                  settings.chatThinkingBudget,
+                ) as never,
+              },
+            });
+          } catch (err) {
+            finishRun(run);
+            throw err;
+          }
           startDetachedAgentTurn(run, {
             agentStream: stream,
             originalMessages: messages,

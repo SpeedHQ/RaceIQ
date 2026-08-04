@@ -25,12 +25,14 @@ import {
 import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
 import { startDetachedAgentTurn } from "../ai/agent-stream";
 import { CHAT_TURN_CONTEXT_KEY, sanitizeChatHistoryMessages } from "../ai/chat-message-context";
-import { reserveChatRun, buildReplayStream } from "../ai/chat-run-registry";
+import { reserveChatRun, buildReplayStream, finishRun } from "../ai/chat-run-registry";
 import { createUIMessageStreamResponse } from "ai";
 import { sessionAgentForFocus } from "../ai/agents";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiment-focus";
 import { buildSetupEngineerSystemPrompt } from "../../mastra/agents/setup-engineer";
 import { RequestContext } from "@mastra/core/request-context";
+import { getSecret } from "../keystore";
+import { setupEngineerTurnWorkflow } from "../../mastra/workflows/setup-engineer-turn";
 
 
 const LiveAnalysisSchema = z.object({
@@ -259,28 +261,21 @@ export const tuneChatRoutes = new Hono()
       // one is in flight), `isNew` is false and we skip starting a second
       // agent call entirely, just attaching to the existing run's stream.
       if (isNew) {
-        const stream = await agent.stream(messages, {
-          requestContext: reqCtx,
-          // Threaded through so a client Cancel (POST .../run/cancel) or an
-          // evicted/aborted run actually stops the underlying model call,
-          // not just this HTTP response.
-          abortSignal: run.abortController.signal,
-          // Ask the model to stream its thought process so the tune chat can show a
-          // live "thinking" block that auto-collapses once the reply text starts
-          // (reasoning.tsx drives the collapse off the streamed reasoning parts).
-          // toAISdkStream forwards reasoning parts into the UI-message stream by
-          // default — the writer loop below relays every part — so enabling
-          // reasoning here is the whole server-side wiring. Scoped to this route:
-          // the main AiPanel keeps includeThoughts:false.
-          providerOptions: {
-            openai: { reasoningEffort: "medium" },
-            google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
-          },
-        });
+        let stream;
+        try {
+          stream = await agent.stream(messages, {
+            requestContext: reqCtx,
+            abortSignal: run.abortController.signal,
+            providerOptions: {
+              openai: { reasoningEffort: "medium" },
+              google: buildGoogleReasoningProviderOptions(chatModelLabel, settings.chatThinkingBudget) as never,
+            },
+          });
+        } catch (err) {
+          finishRun(run);
+          throw err;
+        }
 
-        // Detaches immediately: the agent stream keeps running and gets
-        // persisted server-side (onFinish inside agent-stream.ts) regardless
-        // of whether the response below is ever read to completion.
         startDetachedAgentTurn(run, {
           agentStream: stream,
           originalMessages: messages,
