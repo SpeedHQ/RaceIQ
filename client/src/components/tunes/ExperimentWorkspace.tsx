@@ -27,6 +27,7 @@ import { HistoryPanel } from "./HistoryPanel";
 import { ImportLapsModal } from "./ImportLapsModal";
 import { LiveTestDashboard } from "./LiveTestDashboard";
 import { TuneSetupChat } from "./TuneSetupChat";
+import { PanelSectionHeader } from "../ui/panel-section-header";
 import { VersionGraph } from "./VersionGraph";
 
 /**
@@ -349,17 +350,11 @@ export function ExperimentWorkspace({ gameId, experimentId }: { gameId: Experime
             Hidden during a live test — the live dashboard gets the full width. */}
         {testPhase === "idle" && (
           <div className="min-h-0 flex flex-col border border-app-border rounded-lg overflow-hidden">
-            <div className="shrink-0 px-3 py-2 border-b border-app-border flex items-center justify-between">
-              {/* The panel is the same agent either way, but naming it after
-                  the current focus is the difference between "why is the setup
-                  engineer talking about my braking" and an obvious mode. */}
-              <span className="text-xs font-semibold text-app-text-muted uppercase tracking-wider">{EXPERIMENT_FOCUS_AGENT_LABELS[session.focus]}</span>
-              <div className="flex items-center gap-3">
-                <Button variant="app-primary" size="app-sm" onClick={() => setTestPhase("live")}>
-                  Dashboard
-                </Button>
-              </div>
-            </div>
+            <PanelSectionHeader title={EXPERIMENT_FOCUS_AGENT_LABELS[session.focus]}>
+              <Button variant="app-primary" size="app-sm" onClick={() => setTestPhase("live")}>
+                Dashboard
+              </Button>
+            </PanelSectionHeader>
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               <TuneSetupChat sessionId={session.id} headVersionId={session.headVersionId} />
             </div>

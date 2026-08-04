@@ -1,4 +1,4 @@
-import { Eye, Sparkles, X } from "lucide-react";
+import { Eye, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -6,15 +6,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { m } from "@/paraglide/messages";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 
-/**
- * Collapsed representation of a finished analysis: one row with a headline and
- * a counts line, click to open the full breakdown. Shared by the compare panel
- * (one row per lap, plus the inputs comparison) and the analyse panel (one row
- * for the lap being analysed) so both pages collapse the same way.
- */
+/** Shared completed-analysis summary row. */
 export function AnalysisSummaryRow({ title, detail, onView }: { title?: string; detail: string; onView: () => void }) {
   return (
-    <Button variant="analysis-summary" size="app-sm" onClick={onView}>
+    <Button variant="analysis-summary" size="app-sm" onClick={onView} className="min-w-0 flex-1">
       <Sparkles className="size-3 shrink-0 text-status-success" />
       <div className="min-w-0 flex-1">
         <div className="text-app-caption font-semibold uppercase tracking-wider text-status-success">{title ?? m.compare_analysis_complete()}</div>
@@ -27,21 +22,88 @@ export function AnalysisSummaryRow({ title, detail, onView }: { title?: string; 
   );
 }
 
+/** Shared card shell for lap and comparison analysis results. */
+export function AnalysisResultCard({
+  title,
+  dotClass,
+  hasResult,
+  loading,
+  error,
+  runLabel,
+  loadingLabel,
+  retryLabel,
+  onRun,
+  onRetry,
+  actionsDisabled = false,
+  onRegenerate,
+  onDelete,
+  deleteLabel,
+  children,
+}: {
+  title: string;
+  dotClass: string;
+  hasResult: boolean;
+  loading: boolean;
+  error: string | null;
+  runLabel: string;
+  loadingLabel: string;
+  retryLabel: string;
+  onRun: () => void;
+  onRetry: () => void;
+  actionsDisabled?: boolean;
+  onRegenerate: () => void;
+  onDelete: () => void;
+  deleteLabel: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-app-border-input/40 bg-app-surface-alt/30 px-2.5 py-2">
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className={`w-2 h-2 rounded-full ${dotClass}`} />
+        <span className="text-[11px] font-semibold text-app-text truncate flex-1">{title}</span>
+        {hasResult && (
+          <>
+            <button type="button" onClick={onRegenerate} disabled={actionsDisabled} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title={m.label_regenerate()} aria-label={m.label_regenerate()}>
+              <RefreshCw className="size-3" />
+            </button>
+            <button type="button" onClick={onDelete} disabled={actionsDisabled} className="text-app-text-muted hover:text-red-400 disabled:opacity-40" title={deleteLabel} aria-label={deleteLabel}>
+              <Trash2 className="size-3" />
+            </button>
+          </>
+        )}
+      </div>
+      {!hasResult && !loading && !error && (
+        <button type="button" onClick={onRun} className="w-full flex items-center justify-center gap-1.5 text-[11px] px-2 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors">
+          <Sparkles className="size-3" />
+          {runLabel}
+        </button>
+      )}
+      {loading && (
+        <div className="flex items-center gap-2 text-[10px] text-app-text-muted py-1">
+          <div className="size-3 border border-app-border-input border-t-amber-400 rounded-full animate-spin" />
+          {loadingLabel}
+        </div>
+      )}
+      {error && (
+        <div className="text-[10px] text-red-400 mb-1">
+          {error}
+          <Button variant="app-outline" size="app-sm" onClick={onRetry} className="ml-2">
+            {retryLabel}
+          </Button>
+        </div>
+      )}
+      {hasResult && children}
+    </div>
+  );
+}
+
 export interface AnalysisModalTab {
   key: string;
   label: string;
-  /** Small count pill after the label, e.g. the number of setup entries. */
   badge?: number;
-  /** Amber "best guess" style flag, used when no tune is linked. */
   flag?: string;
 }
 
-/**
- * Portal modal chrome for whatever an AnalysisSummaryRow opens — backdrop
- * click-to-close, header with title and optional subtitle, scrollable body.
- * Optional tabs switch the body between sections (analysis / setup) instead of
- * stacking a second modal on top of this one.
- */
 export function AnalysisModalShell({
   subtitle,
   onClose,
@@ -71,34 +133,17 @@ export function AnalysisModalShell({
               {modalTabs.map((tab) => {
                 const active = tab.key === selectedTab;
                 return (
-                  <TabsTrigger
-                    key={tab.key}
-                    value={tab.key}
-                    disabled={!interactive}
-                    className={`flex items-center gap-1.5 px-2 py-1 text-app-compact font-semibold uppercase tracking-wider ${
-                      active ? "data-[active]:bg-app-border-input/30 data-[active]:text-app-text" : "data-[active]:bg-transparent data-[active]:text-app-text-muted"
-                    } ${interactive ? "hover:bg-app-surface-hover/20" : "px-0 disabled:opacity-100"}`}
-                  >
+                  <TabsTrigger key={tab.key} value={tab.key} disabled={!interactive} className={`flex items-center gap-1.5 px-2 py-1 text-app-compact font-semibold uppercase tracking-wider ${active ? "data-[active]:bg-app-border-input/30 data-[active]:text-app-text" : "data-[active]:bg-transparent data-[active]:text-app-text-muted"} ${interactive ? "hover:bg-app-surface-hover/20" : "px-0 disabled:opacity-100"}`}>
                     {tab.label}
-                    {tab.badge !== undefined && (
-                      <Badge variant="neutral" size="compact">
-                        {tab.badge}
-                      </Badge>
-                    )}
-                    {tab.flag && (
-                      <Badge variant="ai-status" size="compact">
-                        {tab.flag}
-                      </Badge>
-                    )}
+                    {tab.badge !== undefined && <Badge variant="neutral" size="compact">{tab.badge}</Badge>}
+                    {tab.flag && <Badge variant="ai-status" size="compact">{tab.flag}</Badge>}
                   </TabsTrigger>
                 );
               })}
             </TabsList>
           </Tabs>
           {subtitle && <span className="text-app-compact text-app-text-secondary truncate ml-2">{subtitle}</span>}
-          <Button variant="close-action" size="icon-sm" onClick={onClose} className="ml-auto shrink-0" aria-label={m.common_close()}>
-            <X className="size-4" />
-          </Button>
+          <Button variant="close-action" size="icon-sm" onClick={onClose} className="ml-auto shrink-0" aria-label={m.common_close()}><X className="size-4" /></Button>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto px-4 py-3">{children}</div>
       </DialogContent>

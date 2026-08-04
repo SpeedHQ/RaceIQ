@@ -83,6 +83,7 @@ import { buildChatSystemPrompt } from "../ai/chat-prompt";
 import { buildCompareChatSystemPrompt } from "../ai/compare-chat-prompt";
 import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
 import { streamAgentTurnResponse } from "../ai/agent-stream";
+import { prependChatTurnContext } from "../ai/chat-message-context";
 import { MessageList } from "@mastra/core/agent";
 import {
   topCatalogReferences,
@@ -1555,9 +1556,8 @@ export const lapRoutes = new Hono()
       const threadId = await resolveActiveThread(compareChatThreadId(id1, id2));
       const turnStartedAt = Date.now();
       try {
-        const stream = await compareChatAgent.stream(
-          [{ role: "system", content: systemPrompt }, ...messages],
-          {
+        const streamMessages = prependChatTurnContext(messages, systemPrompt);
+        const stream = await compareChatAgent.stream(streamMessages, {
             memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
             providerOptions: {
               openai: { reasoningEffort: "medium" },
@@ -1566,8 +1566,7 @@ export const lapRoutes = new Hono()
                 settings.chatThinkingBudget,
               ) as never,
             },
-          },
-        );
+        });
 
         return streamAgentTurnResponse({
           agentStream: stream,

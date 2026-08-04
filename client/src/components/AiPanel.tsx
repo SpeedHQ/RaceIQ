@@ -1,6 +1,6 @@
 import type { UIMessage } from "ai";
 import { toPng } from "html-to-image";
-import { ChevronDown, ChevronUp, Sparkles, Trash2 } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { useSettings } from "../hooks/queries";
@@ -9,8 +9,9 @@ import { isAiConfigured } from "../lib/is-ai-configured";
 import { client } from "../lib/rpc";
 import { useUiStore } from "../stores/ui";
 import { type AnalysisData, AnalysisDisplay, type AnalysisHighlight, findSegment, type Segment, SetupList } from "./ai/analysis-display";
-import { AnalysisModalShell, AnalysisSummaryRow } from "./ai/analysis-summary";
+import { AnalysisModalShell, AnalysisResultCard, AnalysisSummaryRow } from "./ai/analysis-summary";
 import { ChatPanel } from "./ai-chat/ChatPanel";
+import { PanelSectionHeader } from "./ui/panel-section-header";
 import { Button } from "./ui/button";
 
 interface AnalysisUsage {
@@ -317,8 +318,6 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     };
   }, [lapId, panelOpen, loadCachedAnalysis]);
 
-
-
   // Reset on lap change
   useEffect(() => {
     setAnalysis(null);
@@ -369,7 +368,6 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
     }
   }, [analysisDeleting, lapId, loading, onHighlightsChange]);
 
-
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {/* Analysis area. Once the chat is mounted below it this shrinks to its
@@ -377,156 +375,159 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           and the collapsed row would sit on top of a tall empty box. */}
       <div className={`overflow-y-auto px-3 py-3 space-y-2.5 ${analysis && !loading && !analysisCollapsed ? "shrink-0 max-h-[50%]" : !loading ? "shrink-0" : "flex-1 min-h-0"}`}>
         {analysis && !loading && (
-          <div className="flex items-center justify-between border-b border-app-border/40 pb-1.5 mb-1.5">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-app-text-muted">Lap analysis</span>
-            <button
-              type="button"
-              onClick={() => setAnalysisCollapsed((collapsed) => !collapsed)}
-              className="flex items-center gap-1 text-[10px] text-app-text-muted hover:text-app-text"
-              aria-expanded={!analysisCollapsed}
-              aria-label={analysisCollapsed ? "Expand lap analysis" : "Collapse lap analysis"}
-            >
-              {analysisCollapsed ? <ChevronDown className="size-3" /> : <ChevronUp className="size-3" />}
-              {analysisCollapsed ? "Expand" : "Collapse"}
-            </button>
-          </div>
-        )}
-        <div className={analysisCollapsed ? "hidden" : "contents"}>
-        {/* No AI provider configured */}
-        {!aiConfigured && (
-          <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
-            <Sparkles className="size-5 text-app-text-dim" />
-            <div>
-              <p className="text-[11px] text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
-              <p className="text-[10px] text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => openSettings("ai")}
-              className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-black font-medium transition-colors"
-            >
-              {m.aipanel_set_up_ai()}
-            </button>
-          </div>
-        )}
-
-        {/* Loading state */}
-        {loading && (
-          <div className="flex flex-col items-center py-10 gap-4">
-            <div className="relative">
-              <div className="size-10 border-2 border-app-border-input rounded-full" />
-              <div className="absolute inset-0 size-10 border-2 border-transparent border-t-amber-400 rounded-full animate-spin" />
-              <Sparkles className="absolute inset-0 m-auto size-4 text-amber-400/60" />
-            </div>
-            <div className="text-center">
-              <p className="text-[11px] text-app-text-secondary font-medium">
-                {analyseTool
-                  ? `${m.aipanel_using_tool()} ${analyseTool}`
-                  : analyseStatus === "generating"
-                    ? m.aipanel_generating_analysis()
-                    : analyseStatus === "thinking"
-                      ? m.aipanel_thinking()
-                      : m.aipanel_preparing_model()}
-              </p>
-              <p className="text-[10px] text-app-text-dim mt-1">{analyseStatus === "generating" ? m.aipanel_streaming_tokens() : m.aipanel_reviewing_data()}</p>
-              {!analyseStatus && <p className="text-[9px] text-app-text-dim mt-0.5">{m.aipanel_may_take()}</p>}
-            </div>
-            <div className="flex gap-1">
-              <div className="size-1 rounded-full bg-amber-400 animate-pulse" />
-              <div className="size-1 rounded-full bg-amber-400 animate-pulse [animation-delay:200ms]" />
-              <div className="size-1 rounded-full bg-amber-400 animate-pulse [animation-delay:400ms]" />
-            </div>
-          </div>
-        )}
-
-        {/* Empty state — after clear */}
-        {aiConfigured && !analysis && !loading && !error && (
-          <div className="flex flex-col items-center justify-center py-12 gap-3">
-            <Sparkles className="size-5 text-amber-400" />
-            <p className="text-[11px] text-app-text-muted">{m.aipanel_no_analysis()}</p>
-            <button type="button" onClick={() => fetchAnalysis(false)} className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors">
-              <Sparkles className="size-3" />
-              {m.aipanel_analyse_lap()}
-            </button>
-          </div>
-        )}
-
-        {/* Error state */}
-        {error && !loading && (
-          <div className="flex justify-start">
-            <div className="rounded-lg px-2.5 py-2 bg-red-400/10 border border-red-400/20">
-              <p className="text-[11px] text-red-400">{error}</p>
-              <Button variant="app-outline" size="app-sm" onClick={() => fetchAnalysis(false)} className="mt-1">
-                {m.label_retry()}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Analysis collapses to a summary row; the full breakdown opens in a
-            modal. Both pieces are the shared components the compare panel
-            uses, so the two pages stay in lockstep. */}
-        {analysis && !loading && (
-          <AnalysisSummaryRow
-            detail={`${analysis.corners?.length ?? 0} corners · ${analysis.coaching?.length ?? 0} tips · ${analysis.setup?.length ?? 0} setup`}
-            onView={() => setAnalysisOpen(true)}
+          <PanelSectionHeader
+            title="Lap analysis"
+            collapsed={analysisCollapsed}
+            onToggle={() => setAnalysisCollapsed((collapsed) => !collapsed)}
           />
         )}
+        <div className={analysisCollapsed ? "hidden" : "contents"}>
+          {/* No AI provider configured */}
+          {!aiConfigured && (
+            <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+              <Sparkles className="size-5 text-app-text-dim" />
+              <div>
+                <p className="text-[11px] text-app-text-secondary font-medium">{m.label_ai_not_set_up()}</p>
+                <p className="text-[10px] text-app-text-muted mt-0.5">{m.aipanel_add_api_key()}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => openSettings("ai")}
+                className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-amber-500 hover:bg-amber-400 text-black font-medium transition-colors"
+              >
+                {m.aipanel_set_up_ai()}
+              </button>
+            </div>
+          )}
 
-        {analysis && !loading && analysisOpen && (
-          <AnalysisModalShell
-            subtitle={[carName, trackName].filter(Boolean).join(" · ") || undefined}
-            onClose={() => setAnalysisOpen(false)}
-            tabs={[
-              { key: "analysis", label: m.label_ai_analysis() },
-              ...(analysis.setup?.length ? [{ key: "setup", label: m.aidisplay_setup(), badge: analysis.setup.length, flag: hasTune ? undefined : m.aidisplay_best_guess() }] : []),
-            ]}
-            activeTab={modalTab}
-            onTabChange={setModalTab}
-          >
-            {modalTab === "setup" ? (
-              <SetupList
-                setup={analysis.setup}
-                hasTune={hasTune}
-                lookupSegs={cornerFracs.length ? cornerFracs : (segments ?? null)}
-                onJumpToFrac={onJumpToFrac}
-                onHighlightsChange={onHighlightsChange}
+          {/* Loading state */}
+          {loading && (
+            <div className="flex flex-col items-center py-10 gap-4">
+              <div className="relative">
+                <div className="size-10 border-2 border-app-border-input rounded-full" />
+                <div className="absolute inset-0 size-10 border-2 border-transparent border-t-amber-400 rounded-full animate-spin" />
+                <Sparkles className="absolute inset-0 m-auto size-4 text-amber-400/60" />
+              </div>
+              <div className="text-center">
+                <p className="text-[11px] text-app-text-secondary font-medium">
+                  {analyseTool
+                    ? `${m.aipanel_using_tool()} ${analyseTool}`
+                    : analyseStatus === "generating"
+                      ? m.aipanel_generating_analysis()
+                      : analyseStatus === "thinking"
+                        ? m.aipanel_thinking()
+                        : m.aipanel_preparing_model()}
+                </p>
+                <p className="text-[10px] text-app-text-dim mt-1">{analyseStatus === "generating" ? m.aipanel_streaming_tokens() : m.aipanel_reviewing_data()}</p>
+                {!analyseStatus && <p className="text-[9px] text-app-text-dim mt-0.5">{m.aipanel_may_take()}</p>}
+              </div>
+              <div className="flex gap-1">
+                <div className="size-1 rounded-full bg-amber-400 animate-pulse" />
+                <div className="size-1 rounded-full bg-amber-400 animate-pulse [animation-delay:200ms]" />
+                <div className="size-1 rounded-full bg-amber-400 animate-pulse [animation-delay:400ms]" />
+              </div>
+            </div>
+          )}
+
+          {/* Empty state — after clear */}
+          {aiConfigured && !analysis && !loading && !error && (
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <Sparkles className="size-5 text-amber-400" />
+              <p className="text-[11px] text-app-text-muted">{m.aipanel_no_analysis()}</p>
+              <button
+                type="button"
+                onClick={() => fetchAnalysis(false)}
+                className="flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white transition-colors"
+              >
+                <Sparkles className="size-3" />
+                {m.aipanel_analyse_lap()}
+              </button>
+            </div>
+          )}
+
+          {/* Error state */}
+          {error && !loading && (
+            <div className="flex justify-start">
+              <div className="rounded-lg px-2.5 py-2 bg-red-400/10 border border-red-400/20">
+                <p className="text-[11px] text-red-400">{error}</p>
+                <Button variant="app-outline" size="app-sm" onClick={() => fetchAnalysis(false)} className="mt-1">
+                  {m.label_retry()}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Analysis collapses to a summary row; the full breakdown opens in a
+            modal. Both pieces are the shared components the compare panel
+            uses, so the two pages stay in lockstep. */}
+          {analysis && !loading && (
+            <AnalysisResultCard
+              title={trackName || "Lap analysis"}
+              dotClass="bg-cyan-400"
+              hasResult
+              loading={false}
+              error={null}
+              runLabel={m.aipanel_analyse_lap()}
+              loadingLabel={m.common_loading()}
+              retryLabel={m.label_retry()}
+              onRun={() => void fetchAnalysis(false)}
+              onRetry={() => void fetchAnalysis(false)}
+              onRegenerate={() => void fetchAnalysis(true)}
+              onDelete={() => void deleteAnalysis()}
+              deleteLabel={m.label_clear()}
+              actionsDisabled={analysisDeleting}
+            >
+              <AnalysisSummaryRow
+                detail={`${analysis.corners?.length ?? 0} corners · ${analysis.coaching?.length ?? 0} tips · ${analysis.setup?.length ?? 0} setup`}
+                onView={() => setAnalysisOpen(true)}
               />
-            ) : (
-              <AnalysisDisplay
-                analysis={analysis}
-                cornerFracs={cornerFracs}
-                segments={segments}
-                usage={usage}
-                loading={loading || analysisDeleting}
-                containerRef={analysisRef}
-                onJumpToFrac={onJumpToFrac}
-                onHighlightsChange={onHighlightsChange}
-                onExport={handleExport}
-                onRegenerate={() => {
-                  clearChat();
-                  fetchAnalysis(true);
-                }}
-                onClear={deleteAnalysis}
-              />
-            )}
-          </AnalysisModalShell>
-        )}
+            </AnalysisResultCard>
+          )}
+
+          {analysis && !loading && analysisOpen && (
+            <AnalysisModalShell
+              subtitle={[carName, trackName].filter(Boolean).join(" · ") || undefined}
+              onClose={() => setAnalysisOpen(false)}
+              tabs={[
+                { key: "analysis", label: m.label_ai_analysis() },
+                ...(analysis.setup?.length ? [{ key: "setup", label: m.aidisplay_setup(), badge: analysis.setup.length, flag: hasTune ? undefined : m.aidisplay_best_guess() }] : []),
+              ]}
+              activeTab={modalTab}
+              onTabChange={setModalTab}
+            >
+              {modalTab === "setup" ? (
+                <SetupList
+                  setup={analysis.setup}
+                  hasTune={hasTune}
+                  lookupSegs={cornerFracs.length ? cornerFracs : (segments ?? null)}
+                  onJumpToFrac={onJumpToFrac}
+                  onHighlightsChange={onHighlightsChange}
+                />
+              ) : (
+                <AnalysisDisplay
+                  analysis={analysis}
+                  cornerFracs={cornerFracs}
+                  segments={segments}
+                  usage={usage}
+                  loading={loading || analysisDeleting}
+                  containerRef={analysisRef}
+                  onJumpToFrac={onJumpToFrac}
+                  onHighlightsChange={onHighlightsChange}
+                  onExport={handleExport}
+                  onRegenerate={() => {
+                    clearChat();
+                    fetchAnalysis(true);
+                  }}
+                  onClear={deleteAnalysis}
+                />
+              )}
+            </AnalysisModalShell>
+          )}
         </div>
       </div>
 
       {!loading && (
         <div className="flex-1 min-h-0 flex flex-col border-t border-app-border">
-          <div className="flex justify-end px-2 pt-1">
-            <button
-              type="button"
-              onClick={clearChat}
-              title="Clear chat"
-            >
-              Clear chat
-            </button>
-          </div>
-
           <ChatPanel
             key={chatRemountKey}
             api={`/api/laps/${lapId}/chat`}

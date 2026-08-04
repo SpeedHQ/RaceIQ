@@ -1,9 +1,6 @@
-import { Sparkles } from "lucide-react";
-import type { RefObject } from "react";
-import { m } from "../../paraglide/messages";
 import { AiPanel, type AiPanelHandle, type AnalysisHighlight } from "../AiPanel";
-import { Button } from "../ui/button";
-import { AiPanelMenu } from "./AiPanelMenu";
+import { m } from "../../paraglide/messages";
+import { PanelSectionHeader } from "../ui/panel-section-header";
 
 interface AnalyseAiSidebarProps {
   lapId: number;
@@ -11,26 +8,15 @@ interface AnalyseAiSidebarProps {
   trackName: string;
   segments: { type: string; name: string; startFrac: number; endFrac: number }[] | null;
   aiPanelRef: RefObject<AiPanelHandle | null>;
-  telemetryLength: number;
-  onClose: () => void;
   onJumpToFrac: (frac: number) => void;
   onHighlightsChange: (highlights: AnalysisHighlight[] | null) => void;
 }
 
-export function AnalyseAiSidebar({ lapId, carName, trackName, segments, aiPanelRef, onClose, onJumpToFrac, onHighlightsChange }: AnalyseAiSidebarProps) {
+export function AnalyseAiSidebar({ lapId, carName, trackName, segments, aiPanelRef, onJumpToFrac, onHighlightsChange }: AnalyseAiSidebarProps) {
   return (
     <div className="w-[22rem] h-full shrink-0 border-l border-app-border bg-app-surface/50 flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-app-border shrink-0">
-        <div className="flex items-center gap-1.5">
-        <Sparkles className="size-3 text-ai-accent" />
-          <span className="text-app-caption uppercase tracking-wider font-semibold text-app-text">{m.analyse_ai_analysis()}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <AiPanelMenu onClearChat={() => aiPanelRef.current?.clearChat()} onClearAnalysis={() => aiPanelRef.current?.clearAnalysis()} onClearAll={() => aiPanelRef.current?.clearAll()} />
-          <Button variant="app-ghost" size="app-sm" onClick={onClose}>
-            ✕
-          </Button>
-        </div>
+      <div className="shrink-0 px-3 py-2">
+        <PanelSectionHeader title={m.analyse_ai_analysis()} />
       </div>
       <AiPanel ref={aiPanelRef} lapId={lapId} carName={carName} trackName={trackName} segments={segments} panelOpen={true} onJumpToFrac={onJumpToFrac} onHighlightsChange={onHighlightsChange} />
     </div>

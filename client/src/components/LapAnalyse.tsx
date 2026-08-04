@@ -839,8 +839,6 @@ function LapAnalyseInner() {
               trackName={trackName}
               segments={segments}
               aiPanelRef={aiPanelRef}
-              telemetryLength={telemetry.length}
-              onClose={() => setAiPanelOpen(false)}
               onJumpToFrac={(frac) => {
                 const idx = Math.round(frac * (telemetry.length - 1));
                 setCursorIdx(idx);
