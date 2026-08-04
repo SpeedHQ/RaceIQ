@@ -15,9 +15,9 @@ on:
     paths:
       - "client/**"
       - "playwright/**"
-      - "scripts/collect-screenshot-diffs.ts"
-      - "scripts/seed-db.ts"
-      - "scripts/visual-diff-config.ts"
+      - "scripts/ui/collect-screenshot-diffs.ts"
+      - "scripts/data/seed-db.ts"
+      - "scripts/ui/visual-diff-config.ts"
     types: [opened, synchronize, reopened, ready_for_review]
   # Manual dispatch remains available for any PR, including non-client changes.
   workflow_dispatch:
@@ -141,7 +141,7 @@ jobs:
           # Responsive tests write ordinary PNGs rather than Playwright
           # snapshots. Render both revisions and compare the union of paths,
           # which covers added, changed, and removed test screenshots.
-          bun "$GITHUB_WORKSPACE/scripts/collect-screenshot-diffs.ts" \
+          bun "$GITHUB_WORKSPACE/scripts/ui/collect-screenshot-diffs.ts" \
             --base "$RUNNER_TEMP/main-responsive" \
             --current "$RUNNER_TEMP/current-responsive" \
             --out "$out" \

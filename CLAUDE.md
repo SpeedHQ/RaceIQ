@@ -285,7 +285,7 @@ The hierarchy:
 
 The sanctioned-gap ledgers in `test/helpers/track-known-gaps.ts` (`KNOWN_ALIGNMENT_GAPS`, `KNOWN_FUZZY_ALIGNMENTS`, `KNOWN_TURN_GAPS`) exist to record these accepted misses. They are **shrink-only**: each entry is asserted to still be broken, so a fix forces its deletion. Adding an entry is legitimate when the miss is genuinely a centerline-quality problem (each entry needs a reason comment); it is not a way to silence a real regression in curated data.
 
-Known centerline-quality classes, already understood — don't re-litigate them: ACC tracks whose "centerline" is still the fastlane racing line (issue #98, fixed per-track by `scripts/acc-centerline-from-boundaries.ts`), ac-evo centerlines that under-detect individual corners, and Forza's Nordschleife/Watkins Glen digitised at a different corner granularity than the shared name list.
+Known centerline-quality classes, already understood — don't re-litigate them: ACC tracks whose "centerline" is still the fastlane racing line (issue #98, fixed per-track by `scripts/games/acc/centerline-from-boundaries.ts`), ac-evo centerlines that under-detect individual corners, and Forza's Nordschleife/Watkins Glen digitised at a different corner granularity than the shared name list.
 
 #### Curation coverage
 

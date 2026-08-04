@@ -58,7 +58,7 @@ describe("collect-screenshot-diffs", () => {
     const proc = Bun.spawn(
       [
         "bun",
-        "scripts/collect-screenshot-diffs.ts",
+        "scripts/ui/collect-screenshot-diffs.ts",
         "--base",
         base,
         "--current",
@@ -144,7 +144,7 @@ describe("collect-screenshot-diffs", () => {
       .toFile(join(current, "desktop", "antialias.png"));
 
     const proc = Bun.spawn(
-      ["bun", "scripts/collect-screenshot-diffs.ts", "--base", base, "--current", current, "--out", out, "--prefix", "responsive"],
+      ["bun", "scripts/ui/collect-screenshot-diffs.ts", "--base", base, "--current", current, "--out", out, "--prefix", "responsive"],
       { cwd: process.cwd(), stdout: "pipe", stderr: "pipe" },
     );
 
@@ -171,7 +171,7 @@ describe("collect-screenshot-diffs", () => {
     await writeRawPng(join(current, "desktop", "isolated.png"), currentPixels, width, height);
 
     const proc = Bun.spawn(
-      ["bun", "scripts/collect-screenshot-diffs.ts", "--base", base, "--current", current, "--out", out, "--prefix", "responsive"],
+      ["bun", "scripts/ui/collect-screenshot-diffs.ts", "--base", base, "--current", current, "--out", out, "--prefix", "responsive"],
       { cwd: process.cwd(), stdout: "pipe", stderr: "pipe" },
     );
 
@@ -209,7 +209,7 @@ describe("collect-screenshot-diffs", () => {
     await writeRawPng(join(current, "desktop", "changed.png"), currentPixels, width, height);
 
     const proc = Bun.spawn(
-      ["bun", "scripts/collect-screenshot-diffs.ts", "--base", base, "--current", current, "--out", out, "--prefix", "responsive"],
+      ["bun", "scripts/ui/collect-screenshot-diffs.ts", "--base", base, "--current", current, "--out", out, "--prefix", "responsive"],
       { cwd: process.cwd(), stdout: "pipe", stderr: "pipe" },
     );
 
@@ -227,7 +227,7 @@ describe("collect-screenshot-diffs", () => {
     await writePng(join(current, "desktop", "resized.png"), { r: 20, g: 20, b: 20 }, 101, 100);
 
     const proc = Bun.spawn(
-      ["bun", "scripts/collect-screenshot-diffs.ts", "--base", base, "--current", current, "--out", out, "--prefix", "responsive"],
+      ["bun", "scripts/ui/collect-screenshot-diffs.ts", "--base", base, "--current", current, "--out", out, "--prefix", "responsive"],
       { cwd: process.cwd(), stdout: "pipe", stderr: "pipe" },
     );
 

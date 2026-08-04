@@ -329,7 +329,7 @@ export async function extractAccTracks(
       //
       // The centre is the midpoint of the leftEdge/rightEdge written below, and
       // `-centerline.csv` is derived from those by
-      // scripts/acc-centerline-from-boundaries.ts — run it after extracting. That
+      // scripts/games/acc/centerline-from-boundaries.ts — run it after extracting. That
       // script owns which tracks have adopted the true centre, because the curated
       // name lists were written against the racing line's segmentation and each
       // track needs re-curating as it migrates (see issue #98).

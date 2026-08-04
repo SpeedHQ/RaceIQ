@@ -19,7 +19,7 @@ import {
   parseVerifyTarget,
   spliceCoverage,
   spliceDetail,
-} from "../../scripts/track-coverage";
+} from "../../scripts/tracks/track-coverage";
 const REPO_ROOT = resolve(import.meta.dir, "../..");
 
 /** Split a ledger key back into the (kind, slug, gameId) it was built from. */

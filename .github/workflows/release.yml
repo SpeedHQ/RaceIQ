@@ -69,7 +69,7 @@ jobs:
 
       - name: Generate release note artifact
         shell: bash
-        run: bun scripts/generate-release-note.ts "${{ needs.compute-version.outputs.version }}"
+        run: bun scripts/release/generate-release-note.ts "${{ needs.compute-version.outputs.version }}"
 
       - name: Build client
         run: cd client && bun install && bun run build
@@ -83,7 +83,7 @@ jobs:
         run: cp -r client/dist dist/public
 
       - name: Copy shared data
-        run: bun scripts/copy-shared-data.ts
+        run: bun scripts/build/copy-shared-data.ts
 
       - name: Compile server binary
         shell: bash

@@ -40,7 +40,7 @@ These are **shrink-only**: every entry is asserted to *still* be broken, so fixi
 
 Known centerline-quality classes, already understood — don't re-litigate:
 
-- ACC tracks whose "centerline" is still the fastlane racing line (issue #98; fixed per-track by `scripts/acc-centerline-from-boundaries.ts`).
+- ACC tracks whose "centerline" is still the fastlane racing line (issue #98; fixed per-track by `scripts/games/acc/centerline-from-boundaries.ts`).
 - ac-evo centerlines that under-detect individual corners.
 - Forza's Nordschleife / Watkins Glen, digitised at a different corner granularity than the shared name list.
 
@@ -350,7 +350,7 @@ If a track looks wrong in the app: fix that track's curated data.
 | Fallback detection + generation | `shared/racing/tracks/curation/segment-align-detect.ts`, `shared/racing/tracks/curation/generate.ts` |
 | Coverage stats | `shared/racing/tracks/curation/coverage.ts` |
 | Verification ledger | `shared/racing/tracks/curation/verified.ts` → `shared/data/tracks/verified.json` |
-| CLI | `scripts/track-coverage.ts` |
+| CLI | `scripts/tracks/track-coverage.ts` |
 | Guards | `test/tracks/track-coverage.test.ts`, `test/support/tracks/known-gaps.ts` |
 
 `test/tracks/track-coverage.test.ts` fails if the committed table drifts from the repo, so none of this can silently rot.

@@ -38,13 +38,13 @@ unresolved data-source work.
 Inspect one car:
 
 ```sh
-bun run scripts/extract-acevo-setup-ranges.ts --dump <car-model>
+bun run scripts/games/ac-evo/extract-setup-ranges.ts --dump <car-model>
 ```
 
 Regenerate `shared/games/ac-evo/setup-ranges.json` from installed game data:
 
 ```sh
-bun run scripts/extract-acevo-setup-ranges.ts
+bun run scripts/games/ac-evo/extract-setup-ranges.ts
 ```
 
 Review generated changes for lost cars, unexpected `null` fields, unit changes,

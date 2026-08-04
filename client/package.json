@@ -13,7 +13,7 @@
     "build-storybook": "storybook build",
     "snapshot": "bun scripts/assert-snapshot-environment.ts && playwright test --update-snapshots && bun scripts/copy-snapshots.ts",
     "snapshot:test": "playwright test",
-    "snapshot:docker": "bash ../scripts/snapshot-in-docker.sh"
+    "snapshot:docker": "bash ../scripts/ui/snapshot-in-docker.sh"
   },
   "dependencies": {
     "@ai-sdk/react": "^4.0.45",

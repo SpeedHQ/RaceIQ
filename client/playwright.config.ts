@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
-import { VISUAL_DIFF_COLOR_THRESHOLD, VISUAL_DIFF_MAX_PIXEL_RATIO } from "../scripts/visual-diff-config";
+import { VISUAL_DIFF_COLOR_THRESHOLD, VISUAL_DIFF_MAX_PIXEL_RATIO } from "../scripts/ui/visual-diff-config";
 
 const STORYBOOK_PORT = process.env.RACEIQ_STORYBOOK_PORT ?? "6006";
 const STORYBOOK_ROOT = process.env.RACEIQ_STORYBOOK_ROOT ? resolve(process.env.RACEIQ_STORYBOOK_ROOT) : undefined;

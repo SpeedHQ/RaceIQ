@@ -25,7 +25,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
-          bun scripts/check-changelog.ts
+          bun scripts/release/check-changelog.ts
 
       - name: Check generated telemetry catalog
         run: |
