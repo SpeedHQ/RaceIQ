@@ -13,11 +13,11 @@ Apply consistent analysis-card and chat controls to both AI surfaces:
 
 Each persisted analysis result has a refresh/regenerate icon and a bin icon beside it.
 
-- Lap analysis bin deletes the stored lap analysis and clears its client state.
-- Compare lap-card bins delete the corresponding stored lap analysis and clear its client state.
-- Inputs Comparison bin deletes the stored inputs comparison analysis and clears its client state.
-- Chat history is never deleted by analysis-card deletion.
-- After deletion, the card returns to its pre-analysis state and its analyse button is available again.
+- Lap analysis bin deletes only that lap's stored analysis result and clears only that card's client state.
+- Compare lap-card bins delete only the corresponding lap's stored analysis result and clear only that card's client state.
+- Inputs Comparison bin deletes only the stored inputs comparison result and clears only that card's client state.
+- No analysis-card delete touches chat history or any other analysis result.
+- After deletion, that card returns to its pre-analysis state and its analyse button is available again.
 - Refresh and delete controls are disabled while that analysis is running.
 
 ### Collapse and expand
@@ -36,10 +36,10 @@ On the lap analysis page, the analysis result section collapses while the lap ch
 
 Both surfaces expose a clearly labelled **Clear chat** button in the chat header.
 
-- Clears persisted chat messages, including chat generations according to existing endpoint semantics.
+- Deletes only persisted chat messages and chat generations for that chat.
 - Preserves every analysis result.
+- Does not delete or alter any analysis-card state.
 - Remounts the chat runtime so the empty state appears immediately.
-- Does not delete or regenerate analysis data.
 
 ## Implementation boundaries
 
