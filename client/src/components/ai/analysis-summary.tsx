@@ -63,7 +63,14 @@ export function AnalysisResultCard({
         <span className="text-[11px] font-semibold text-app-text truncate flex-1">{title}</span>
         {hasResult && (
           <>
-            <button type="button" onClick={onRegenerate} disabled={actionsDisabled} className="text-app-text-muted hover:text-app-text disabled:opacity-40" title={m.label_regenerate()} aria-label={m.label_regenerate()}>
+            <button
+              type="button"
+              onClick={onRegenerate}
+              disabled={actionsDisabled}
+              className="text-app-text-muted hover:text-app-text disabled:opacity-40"
+              title={m.label_regenerate()}
+              aria-label={m.label_regenerate()}
+            >
               <RefreshCw className="size-3" />
             </button>
             <button type="button" onClick={onDelete} disabled={actionsDisabled} className="text-app-text-muted hover:text-red-400 disabled:opacity-40" title={deleteLabel} aria-label={deleteLabel}>
@@ -133,17 +140,32 @@ export function AnalysisModalShell({
               {modalTabs.map((tab) => {
                 const active = tab.key === selectedTab;
                 return (
-                  <TabsTrigger key={tab.key} value={tab.key} disabled={!interactive} className={`flex items-center gap-1.5 px-2 py-1 text-app-compact font-semibold uppercase tracking-wider ${active ? "data-[active]:bg-app-border-input/30 data-[active]:text-app-text" : "data-[active]:bg-transparent data-[active]:text-app-text-muted"} ${interactive ? "hover:bg-app-surface-hover/20" : "px-0 disabled:opacity-100"}`}>
+                  <TabsTrigger
+                    key={tab.key}
+                    value={tab.key}
+                    disabled={!interactive}
+                    className={`flex items-center gap-1.5 px-2 py-1 text-app-compact font-semibold uppercase tracking-wider ${active ? "data-[active]:bg-app-border-input/30 data-[active]:text-app-text" : "data-[active]:bg-transparent data-[active]:text-app-text-muted"} ${interactive ? "hover:bg-app-surface-hover/20" : "px-0 disabled:opacity-100"}`}
+                  >
                     {tab.label}
-                    {tab.badge !== undefined && <Badge variant="neutral" size="compact">{tab.badge}</Badge>}
-                    {tab.flag && <Badge variant="ai-status" size="compact">{tab.flag}</Badge>}
+                    {tab.badge !== undefined && (
+                      <Badge variant="neutral" size="compact">
+                        {tab.badge}
+                      </Badge>
+                    )}
+                    {tab.flag && (
+                      <Badge variant="ai-status" size="compact">
+                        {tab.flag}
+                      </Badge>
+                    )}
                   </TabsTrigger>
                 );
               })}
             </TabsList>
           </Tabs>
           {subtitle && <span className="text-app-compact text-app-text-secondary truncate ml-2">{subtitle}</span>}
-          <Button variant="close-action" size="icon-sm" onClick={onClose} className="ml-auto shrink-0" aria-label={m.common_close()}><X className="size-4" /></Button>
+          <Button variant="close-action" size="icon-sm" onClick={onClose} className="ml-auto shrink-0" aria-label={m.common_close()}>
+            <X className="size-4" />
+          </Button>
         </DialogHeader>
         <div className="flex-1 overflow-y-auto px-4 py-3">{children}</div>
       </DialogContent>

@@ -11,7 +11,6 @@ import { type AnalysisData, AnalysisDisplay, SetupList } from "../ai/analysis-di
 import { AnalysisModalShell, AnalysisResultCard, AnalysisSummaryRow } from "../ai/analysis-summary";
 import { ChatPanel } from "../ai-chat/ChatPanel";
 import { PanelSectionHeader } from "../ui/panel-section-header";
-import { Button } from "../ui/button";
 
 type ParsedAnalysis = Partial<AnalysisData>;
 
@@ -320,7 +319,9 @@ function InputsSection({
       deleteLabel="Delete inputs comparison"
       actionsDisabled={loading || deleting}
     >
-      {analysis && <AnalysisSummaryRow title={m.compare_inputs_analysed()} detail={`${analysis.segments?.length ?? 0} segments · ${analysis.coaching?.length ?? 0} tips`} onView={() => onView(analysis)} />}
+      {analysis && (
+        <AnalysisSummaryRow title={m.compare_inputs_analysed()} detail={`${analysis.segments?.length ?? 0} segments · ${analysis.coaching?.length ?? 0} tips`} onView={() => onView(analysis)} />
+      )}
     </AnalysisResultCard>
   );
 }

@@ -1,5 +1,6 @@
-import { AiPanel, type AiPanelHandle, type AnalysisHighlight } from "../AiPanel";
+import type { RefObject } from "react";
 import { m } from "../../paraglide/messages";
+import { AiPanel, type AiPanelHandle, type AnalysisHighlight } from "../AiPanel";
 import { PanelSectionHeader } from "../ui/panel-section-header";
 
 interface AnalyseAiSidebarProps {

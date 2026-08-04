@@ -923,9 +923,8 @@ export const lapRoutes = new Hono()
       const threadId = await resolveActiveThread(chatThreadId(id));
       const turnStartedAt = Date.now();
       try {
-        const stream = await lapChatAgent.stream(
-          [{ role: "system", content: systemPrompt }, ...messages],
-          {
+        const streamMessages = prependChatTurnContext(messages, systemPrompt);
+        const stream = await lapChatAgent.stream(streamMessages, {
             memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
             providerOptions: {
               openai: { reasoningEffort: "medium" },
@@ -934,8 +933,7 @@ export const lapRoutes = new Hono()
                 settings.chatThinkingBudget,
               ) as never,
             },
-          },
-        );
+        });
 
         return streamAgentTurnResponse({
           agentStream: stream,

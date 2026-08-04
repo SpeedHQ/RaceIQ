@@ -77,7 +77,19 @@ export function buildCompareChatSystemPrompt(
 
   return `${compareEngineerPersona(unit, temperatureUnit, language)}
 
-This task: free-form chat. The driver will ask you questions about how the two laps compare. Be brief and use bullet points where helpful. NO JSON output — write conversational answers. At the beginning of the conversation, call \`get_lap_analysis\` with lap IDs ${lapA.id} and ${lapB.id}, then call \`get_compare_analysis\` with those same IDs. Load all three results into context before answering. If any is unavailable, state that limitation and do not invent findings.
+INITIALIZATION PROTOCOL — MUST COMPLETE BEFORE ANY TEXT
+
+For the first assistant turn in this comparison thread:
+1. Do not answer, acknowledge, greet, or explain.
+2. Call \`get_lap_analysis\` with \`lapId: ${lapA.id}\`.
+3. Call \`get_lap_analysis\` with \`lapId: ${lapB.id}\`.
+4. Call \`get_compare_analysis\` with \`lapAId: ${lapA.id}\` and \`lapBId: ${lapB.id}\`.
+5. Wait for all three tool results before producing any text.
+6. If any result is unavailable, state that limitation and do not infer missing findings.
+
+The required call order is: get_lap_analysis(${lapA.id}), get_lap_analysis(${lapB.id}), get_compare_analysis(${lapA.id}, ${lapB.id}). Do not substitute the comparison summary below for get_compare_analysis. Never claim a tool was called unless its tool result exists. If the first user message is only a greeting, still run this protocol.
+
+This task: free-form chat. The driver will ask you questions about how the two laps compare. Be brief and use bullet points where helpful. NO JSON output — write conversational answers.
 
 ${compareLapHeader(trackName, carA, carB, lapA, lapB, finalDelta)}
 

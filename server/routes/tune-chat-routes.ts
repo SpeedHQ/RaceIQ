@@ -20,6 +20,7 @@ import {
 } from "../ai/chat-agent";
 import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
 import { startDetachedAgentTurn } from "../ai/agent-stream";
+import { prependChatTurnContext } from "../ai/chat-message-context";
 import { reserveChatRun, buildReplayStream } from "../ai/chat-run-registry";
 import { createUIMessageStreamResponse } from "ai";
 import { sessionAgentForFocus } from "../ai/agents";
@@ -255,19 +256,7 @@ export const tuneChatRoutes = new Hono()
       const turnContext = [sessionSystemPrompt, gatheredContext, extendedContext]
         .filter(Boolean)
         .join("\n\n");
-      const streamMessages = messages.map((message, index) => {
-        if (index !== messages.length - 1 || message.role !== "user") return message;
-        if (Array.isArray(message.parts)) {
-          return {
-            ...message,
-            parts: [{ type: "text", text: turnContext }, ...message.parts],
-          };
-        }
-        const content = typeof message.content === "string"
-          ? `${turnContext}\n\n--- DRIVER MESSAGE ---\n${message.content}`
-          : [{ type: "text", text: turnContext }, ...(Array.isArray(message.content) ? message.content : [])];
-        return { ...message, content };
-      });
+      const streamMessages = prependChatTurnContext(messages, turnContext);
 
 
       // Reserve (or re-attach to) this thread's detached run BEFORE calling

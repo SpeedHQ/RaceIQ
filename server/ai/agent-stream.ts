@@ -46,97 +46,40 @@ export interface StreamAgentTurnOptions {
   persistReasoning?: boolean;
 }
 
-/**
- * Persist the reasoning text assembled on the live stream back into the memory
- * row that Mastra's own async save leaves reasoning-less.
- */
-async function persistReasoningToMemory(
-  responseMessage: { id?: string; parts?: Array<{ type: string; text?: string }> },
+async function restoreOriginalUserMessage(
+  originalMessages: UiStreamOptions["originalMessages"],
   memory: AgentTurnMemory,
   threadId: string,
-  turnStartedAt: number,
-  reasoningDurationMs: number,
-  usage?: { inputTokens: number; outputTokens: number; totalTokens: number },
 ): Promise<void> {
-  try {
-    const reasoningText = (responseMessage.parts ?? [])
-      .filter((p) => p.type === "reasoning")
-      .map((p) => p.text ?? "")
-      .join("\n")
-      .trim();
-    // Persist even without reasoning when there's usage to stamp — the token
-    // footer needs it to survive a refresh (Mastra's own save drops both).
-    if (!reasoningText && !usage) return;
+  const original = [...(originalMessages as any[])].reverse().find((message) => message.role === "user") as any;
+  if (!original?.id) return;
+  const text = Array.isArray(original.parts)
+    ? original.parts.filter((part: any) => part?.type === "text").map((part: any) => part.text ?? "").join("")
+    : typeof original.content === "string"
+      ? original.content
+      : "";
+  if (!text) return;
 
-    // Poll until Mastra's own async save has landed this turn's assistant row
-    // (finish handling runs as the stream is consumed; it can trail this
-    // callback by a few ms).
-    //
-    // Prefer an exact id match against the streamed response message — that is
-    // unambiguously the model's own row. Fall back to the newest assistant row
-    // stamped at/after the turn started, but SKIP deterministic tool/route notes
-    // (apply summaries, .... Those are saved *during* the
-    // turn and can carry a newer createdAt than Mastra's trailing model save, so
-    // the old "newest assistant" heuristic would stamp the reasoning onto the
-    // last branch note — surfacing a phantom thinking block on it.
-    const isNote = (m: any) => m?.content?.metadata?.deterministic === true;
-    let target: any;
-    for (let attempt = 0; attempt < 40; attempt++) {
-      const recalled = await memory.recall({ threadId });
-      const raw: any[] = recalled.messages ?? [];
-      const byId = responseMessage.id
-        ? raw.find((m) => m.role === "assistant" && m.id === responseMessage.id)
-        : undefined;
-      if (byId) {
-        target = byId;
-        break;
-      }
-      const newest = [...raw]
-        .reverse()
-        .find((m) => m.role === "assistant" && !isNote(m));
-      if (newest && new Date(newest.createdAt).getTime() >= turnStartedAt) {
-        target = newest;
-        break;
-      }
-      await new Promise((r) => setTimeout(r, 50));
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const raw: any[] = (await memory.recall({ threadId })).messages ?? [];
+    const target = raw.find((message) => message.role === "user" && message.id === original.id);
+    if (target) {
+      await memory.saveMessages({
+        messages: [{
+          ...target,
+          content: {
+            ...target.content,
+            format: 2,
+            parts: [{ type: "text", text }],
+            content: text,
+          },
+        }],
+      });
+      return;
     }
-    if (!target) return;
-
-    const existingParts: any[] = Array.isArray(target.content?.parts)
-      ? target.content.parts
-      : [];
-    // Idempotent: skip re-stamping reasoning if it's somehow already there.
-    const hasReasoning =
-      Boolean(target.content?.reasoning) || existingParts.some((p) => p.type === "reasoning");
-    const writeReasoning = Boolean(reasoningText) && !hasReasoning;
-    if (!writeReasoning && !usage) return;
-
-    // Write reasoning both as a leading `parts` entry (so MessageList
-    // reconstructs it in order, before the answer text) and on
-    // `content.reasoning` — mirroring how MessageList itself serialises a
-    // response, and matching the GET route's read path.
-    // Stamp the turn's thinking wall-time onto content.metadata so it
-    // round-trips through MessageList.ui() (same path as usage) and the
-    // reasoning trigger can show "Reasoning (Ns)" after a refresh.
-    const content = {
-      ...target.content,
-      ...(writeReasoning
-        ? {
-            reasoning: reasoningText,
-            parts: [{ type: "reasoning", reasoning: reasoningText }, ...existingParts],
-          }
-        : {}),
-      metadata: {
-        ...(target.content?.metadata ?? {}),
-        ...(reasoningDurationMs > 0 ? { reasoning: { durationMs: reasoningDurationMs } } : {}),
-        // Token usage for the footer — same round-trip path as reasoning
-        // duration (MessageList.ui() → metadata.usage → useThreadTokenUsage).
-        ...(usage ? { usage } : {}),
-      },
-    };
-    await memory.saveMessages({ messages: [{ ...target, content }] });
-  } catch (err: any) {
-    console.error("[agent-stream] Failed to persist reasoning:", err?.message ?? err);
+    const { promise, resolve } = Promise.withResolvers<void>();
+    setTimeout(resolve, 50);
+    await promise;
   }
 }
 
@@ -171,10 +114,12 @@ function buildAgentTurnUIStream(opts: StreamAgentTurnOptions): ReadableStream<UI
 
   return createUIMessageStream({
     originalMessages,
-    onFinish: persistReasoning
-      ? async ({ responseMessage }) =>
-          persistReasoningToMemory(responseMessage as any, memory, threadId, turnStartedAt, reasoningDurationMs(), finishUsage)
-      : undefined,
+    onFinish: async ({ responseMessage }) => {
+      if (persistReasoning) {
+        await persistReasoningToMemory(responseMessage as any, memory, threadId, turnStartedAt, reasoningDurationMs(), finishUsage);
+      }
+      await restoreOriginalUserMessage(originalMessages, memory, threadId);
+    },
     execute: async ({ writer }) => {
       for await (const part of toAISdkStream(agentStream, {
         from: "agent",
