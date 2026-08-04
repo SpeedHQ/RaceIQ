@@ -31,6 +31,24 @@ export function findTelemetryAtDistance(telemetry: TelemetryPacket[], distance: 
   return closest;
 }
 
+function findMapPosition(telemetry: TelemetryPacket[], distance: number, outline: Point[], telX: (x: number) => number): { x: number; z: number; packet: TelemetryPacket } | null {
+  if (telemetry.length < 2) return null;
+
+  const packet = telemetry[findTelemetryAtDistance(telemetry, distance)];
+  if (!packet) return null;
+  if (packet.PositionX !== 0 || packet.PositionZ !== 0) {
+    return { x: telX(packet.PositionX), z: packet.PositionZ, packet };
+  }
+
+  if (outline.length < 2) return null;
+  const lapDistance = telemetry[telemetry.length - 1].DistanceTraveled - telemetry[0].DistanceTraveled;
+  if (!(lapDistance > 0)) return null;
+
+  const fraction = Math.max(0, Math.min(distance / lapDistance, 1));
+  const point = outline[Math.round(fraction * (outline.length - 1))];
+  return point ? { x: point.x, z: point.z, packet } : null;
+}
+
 /** Shared drawing logic for track outline + racing lines + position dots */
 export function drawTrackCanvas(
   ctx: CanvasRenderingContext2D,
@@ -224,16 +242,22 @@ export function drawTrackCanvas(
   drawRacingLine(telemetryA, COLOR_A);
   drawRacingLine(telemetryB, COLOR_B);
 
-  // Position dots
+  // Position dots. Games without world coordinates (notably iRacing) project
+  // lap-distance progress onto the recorded track outline.
   if (hoveredDistance != null) {
     const dotSize = zoom ? 7 : 5;
     const glowSize = zoom ? 14 : 10;
-    const drawDot = (telemetry: TelemetryPacket[], color: string) => {
-      if (telemetry.length < 2) return;
-      const idx = findTelemetryAtDistance(telemetry, hoveredDistance);
-      const p = telemetry[idx];
-      if (!p || (p.PositionX === 0 && p.PositionZ === 0)) return;
-      const [cx, cy] = toCanvas(telX!(p.PositionX), p.PositionZ);
+    const positionA = findMapPosition(telemetryA, hoveredDistance, outline, telX);
+    const positionB = findMapPosition(telemetryB, hoveredDistance, outline, telX);
+    const canvasA = positionA ? toCanvas(positionA.x, positionA.z) : null;
+    const canvasB = positionB ? toCanvas(positionB.x, positionB.z) : null;
+    const overlaps = canvasA !== null && canvasB !== null && Math.hypot(canvasA[0] - canvasB[0], canvasA[1] - canvasB[1]) < dotSize * 2;
+    const overlapOffset = overlaps ? dotSize : 0;
+
+    const drawDot = (position: { x: number; z: number; packet: TelemetryPacket } | null, color: string, offsetX: number) => {
+      if (!position) return;
+      const [baseX, cy] = toCanvas(position.x, position.z);
+      const cx = baseX + offsetX;
       ctx.beginPath();
       ctx.arc(cx, cy, glowSize, 0, Math.PI * 2);
       ctx.save();
@@ -249,12 +273,12 @@ export function drawTrackCanvas(
       ctx.lineWidth = 1.5;
       ctx.stroke();
       // Direction line from Yaw (heading)
-      if (zoom && p.Yaw !== undefined) {
+      if (zoom && position.packet.Yaw !== undefined) {
         const lineLen = 22;
         // Yaw: 0 = +Z, positive = clockwise from above
         // Canvas: X is flipped (viewCenterX - x), Z is normal (z - viewCenterZ)
-        const dx = -Math.sin(p.Yaw) * lineLen;
-        const dy = Math.cos(p.Yaw) * lineLen;
+        const dx = -Math.sin(position.packet.Yaw) * lineLen;
+        const dy = Math.cos(position.packet.Yaw) * lineLen;
         ctx.beginPath();
         ctx.moveTo(cx, cy);
         ctx.lineTo(cx + dx, cy + dy);
@@ -264,8 +288,8 @@ export function drawTrackCanvas(
         ctx.stroke();
       }
     };
-    drawDot(telemetryA, COLOR_A);
-    drawDot(telemetryB, COLOR_B);
+    drawDot(positionA, COLOR_A, -overlapOffset);
+    drawDot(positionB, COLOR_B, overlapOffset);
   }
 
   // Segment boundary markers (overview only)
@@ -411,31 +435,30 @@ export function computeZoom(
   hoveredDistance: number,
   trackRange: number,
   telX: (x: number) => number = (x) => x,
+  outline: Point[] = [],
 ): { centerX: number; centerZ: number; range: number } | null {
-  const posA = telemetryA.length >= 2 ? telemetryA[findTelemetryAtDistance(telemetryA, hoveredDistance)] : null;
-  const posB = telemetryB.length >= 2 ? telemetryB[findTelemetryAtDistance(telemetryB, hoveredDistance)] : null;
-  const validA = posA && (posA.PositionX !== 0 || posA.PositionZ !== 0);
-  const validB = posB && (posB.PositionX !== 0 || posB.PositionZ !== 0);
+  const posA = findMapPosition(telemetryA, hoveredDistance, outline, telX);
+  const posB = findMapPosition(telemetryB, hoveredDistance, outline, telX);
 
-  if (!validA && !validB) return null;
+  if (!posA && !posB) return null;
 
   let cx: number, cz: number;
-  if (validA && validB) {
-    cx = (telX(posA.PositionX) + telX(posB.PositionX)) / 2;
-    cz = (posA.PositionZ + posB.PositionZ) / 2;
-  } else if (validA) {
-    cx = telX(posA.PositionX);
-    cz = posA.PositionZ;
+  if (posA && posB) {
+    cx = (posA.x + posB.x) / 2;
+    cz = (posA.z + posB.z) / 2;
+  } else if (posA) {
+    cx = posA.x;
+    cz = posA.z;
   } else {
-    cx = telX(posB!.PositionX);
-    cz = posB!.PositionZ;
+    cx = posB!.x;
+    cz = posB!.z;
   }
 
   const zoomRange = trackRange * 0.02;
   let needed = zoomRange;
-  if (validA && validB) {
-    const spanX = Math.abs(telX(posA.PositionX) - telX(posB.PositionX));
-    const spanZ = Math.abs(posA.PositionZ - posB.PositionZ);
+  if (posA && posB) {
+    const spanX = Math.abs(posA.x - posB.x);
+    const spanZ = Math.abs(posA.z - posB.z);
     needed = Math.max(zoomRange, spanX * 2.5, spanZ * 2.5);
   }
 

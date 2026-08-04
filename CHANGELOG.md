@@ -27,6 +27,7 @@
 - Keep repeated client errors and diagnostics logs from consuming unbounded memory, network, and disk space
 - Restore lap and session history when upgrading databases affected by overlapping schema migrations
 - Keep the Compare loading message hidden after comparison data is available
+- Show both lap position markers on iRacing Compare maps when recordings do not contain world coordinates
 - Cover the full page when settings are open so background content is consistently dimmed and dismissible
 - Guide drivers to AI settings with neutral primary actions when their provider, credentials, or model is not configured
 - Use semantic tabs for Analyse visualization modes and Data/Insights navigation
