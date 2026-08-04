@@ -10,6 +10,7 @@
 ### Fixes
 
 - Highlight only one fastest lap per sector in session and live lap tables
+- Exclude pit-entry and pit-exit laps from pace, sector, consistency, improvement, and theoretical-best metrics
 - Preview and import iRacing IBT recordings larger than 128 MiB without upload connection failures
 - Ignore one-frame iRacing lap-counter resets that created invalid duplicate lap numbers in session recaps
 - Honor Analyse and Compare URL state so saved chats open with their AI panel visible and comparison cursor links are preserved

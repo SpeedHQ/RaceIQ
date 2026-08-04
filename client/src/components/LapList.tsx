@@ -1,3 +1,4 @@
+import { isPitCycleLap } from "@shared/racing/laps/pit-cycle";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { m } from "@/paraglide/messages";
@@ -53,11 +54,11 @@ export function LapList({ hasTelemetry }: { hasTelemetry?: boolean }) {
     return sortDir === "asc" ? valA - valB : valB - valA;
   });
 
-  const bestLapTime = laps.reduce((best, l) => (l.isValid && l.lapTime < best ? l.lapTime : best), Infinity);
+  const bestLapTime = laps.reduce((best, lap) => (lap.isValid && !isPitCycleLap(lap) && lap.lapTime < best ? lap.lapTime : best), Infinity);
 
   const sectorCount = storedLapsSectorCount(laps);
   const sectorLabels = Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`);
-  const completeSectorLaps = laps.filter((lap) => lap.sectorTimes?.length === sectorCount && lap.sectorTimes.every((time) => time > 0));
+  const completeSectorLaps = laps.filter((lap) => lap.isValid && !isPitCycleLap(lap) && lap.sectorTimes?.length === sectorCount && lap.sectorTimes.every((time) => time > 0));
   const bestSectorLaps = bestSectorLapIds(completeSectorLaps, sectorCount);
   const avgSectors = Array.from({ length: sectorCount }, (_, index) =>
     completeSectorLaps.length > 0 ? completeSectorLaps.reduce((sum, lap) => sum + lap.sectorTimes![index], 0) / completeSectorLaps.length : 0,

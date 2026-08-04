@@ -18,6 +18,7 @@ import { extractCurbSegments, recordCurbData } from "../../shared/racing/tracks/
 import { recordLapTrace } from "../../shared/racing/tracks/recording/outlines";
 import { getIRacingSharedTrackName } from "../../shared/racing/tracks/catalogs/iracing"
 import { lapPath } from "../../shared/racing/tracks/path";
+import { classifyPitCycleLap } from "../../shared/racing/laps/pit-cycle";
 import { assessLapRecording } from "../lap-analysis/quality";
 import { persistLapMetrics } from "../lap-analysis/metrics-store";
 import { reconcileAutoExclusionsForLap } from "../experiments/auto-exclude";
@@ -62,7 +63,7 @@ export interface LapSavedNotification extends LapSavedEvent {
 }
 
 /** Bump this whenever lap detection logic changes — triggers UI prompt to reprocess old sessions. */
-export const LAP_DETECTOR_ID = "lapdetector_v1";
+export const LAP_DETECTOR_ID = "lapdetector_v2";
 
 export interface LapCompleteEvent {
   packets: TelemetryPacket[];
@@ -372,10 +373,12 @@ export class LapDetector implements ILapDetector {
       const lapNum = this.currentLapNumber;
       const packetCount = this.lapBuffer.length;
 
-      // Run recording quality check — can override game-valid laps if telemetry is bad
+      // Catalog-normalized pit state becomes a lap-level exclusion only after
+      // the complete lap window is available.
+      const pitReason = classifyPitCycleLap(this.lapBuffer);
       const quality = assessLapRecording(this.lapBuffer, lapTime);
-      const valid = this.lapIsValid && quality.valid;
-      const invalidReason = this.invalidReason ?? (!quality.valid ? quality.reason : null);
+      const valid = this.lapIsValid && pitReason === null && quality.valid;
+      const invalidReason = this.invalidReason ?? pitReason ?? (!quality.valid ? quality.reason : null);
 
       const sectors = await this.computeLapSectors(this.lapBuffer, lapTime);
 

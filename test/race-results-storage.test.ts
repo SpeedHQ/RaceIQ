@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { eq } from "drizzle-orm";
 import { insertSession } from "../server/db/session-queries";
+import { db } from "../server/db";
+import { laps } from "../server/db/schema";
 import { getSessionResult, replacePitEvents, upsertSessionResult, type SessionResultInput } from "../server/db/session-result-queries";
 import { getRecentRaceResults } from "../server/race-results/aggregates";
 import type { RaceResultEvidence, RaceResultProvenance } from "../shared/racing/results/types";
@@ -36,7 +39,11 @@ const provenance: RaceResultProvenance = {
 describe("persisted race result metadata", () => {
   test("upserts one result and replaces ordered pit events on rerun", async () => {
     const sessionId = await insertSession(99, 88, "f1-2025", "race");
-    const input = {
+    await db.insert(laps).values([
+      { sessionId, lapNumber: 3, lapTime: 100, isValid: true },
+      { sessionId, lapNumber: 4, lapTime: 140, isValid: true },
+    ]);
+    const input: SessionResultInput = {
       sessionId,
       sessionType: "race",
       classification: "finished",
@@ -63,6 +70,11 @@ describe("persisted race result metadata", () => {
     expect(result?.events.map((event) => event.sequence)).toEqual([1, 2]);
     expect(result?.events[1]?.fuelAdded).toBe(5);
     expect(result?.provenance).toEqual(provenance);
+    const pitLaps = await db.select({ lapNumber: laps.lapNumber, isValid: laps.isValid, invalidReason: laps.invalidReason }).from(laps).where(eq(laps.sessionId, sessionId)).orderBy(laps.lapNumber).all();
+    expect(pitLaps).toEqual([
+      { lapNumber: 3, isValid: false, invalidReason: "inlap" },
+      { lapNumber: 4, isValid: false, invalidReason: "outlap" },
+    ]);
   });
 
   test("does not expose a result across game scope", async () => {

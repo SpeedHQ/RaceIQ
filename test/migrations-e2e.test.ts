@@ -328,6 +328,26 @@ describe("migration runner e2e", () => {
     client.close();
   });
 
+  test("v53 excludes persisted pit entry and exit laps from pace metrics", async () => {
+    const client = newClient();
+    await bootstrap(client);
+    await runMigrations(client, 52);
+    await client.execute("INSERT INTO sessions (id, car_ordinal, track_ordinal, game_id) VALUES (1, 10, 20, 'iracing')");
+    await client.execute("INSERT INTO laps (session_id, lap_number, lap_time, is_valid) VALUES (1, 7, 110, 1), (1, 8, 150, 1), (1, 9, 100, 1)");
+    await client.execute("INSERT INTO session_results (id, session_id) VALUES (1, 1)");
+    await client.execute("INSERT INTO pit_events (result_id, sequence, lap_number, linkage) VALUES (1, 1, 7, 'linked')");
+
+    await runMigrations(client);
+
+    const rows = await client.execute("SELECT lap_number, is_valid, invalid_reason FROM laps ORDER BY lap_number");
+    expect(rows.rows.map((row) => ({ lapNumber: Number(row.lap_number), isValid: Number(row.is_valid), invalidReason: row.invalid_reason }))).toEqual([
+      { lapNumber: 7, isValid: 0, invalidReason: "inlap" },
+      { lapNumber: 8, isValid: 0, invalidReason: "outlap" },
+      { lapNumber: 9, isValid: 1, invalidReason: null },
+    ]);
+    client.close();
+  });
+
   test("v52 repairs legacy v43/v44 collisions without data loss", async () => {
     const client = newClient();
     await bootstrap(client);
@@ -395,8 +415,8 @@ describe("migration runner e2e", () => {
 
     const versions = await getAppliedVersions(client);
     expect(versions).toEqual(migrations.map((migration) => migration.version));
-    expect(versions.at(-1)).toBe(52);
-    expect(versions.filter((version) => version === 52)).toHaveLength(1);
+    expect(versions.at(-1)).toBe(53);
+    expect(versions.filter((version) => version === 53)).toHaveLength(1);
     const collidedLedger = await client.execute(
       "SELECT version, name FROM schema_migrations WHERE version IN (43, 44) ORDER BY version",
     );
