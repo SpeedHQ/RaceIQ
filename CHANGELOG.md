@@ -6,6 +6,7 @@
 - Support for iRacing's source-defined sector layouts, including two-sector ovals and layouts with more than three sectors
 - View all release notes since your installed version in the app
 - Copy AI Compare chat history as JSON from the panel header
+- Generate richer lap-analysis results and continue analysis conversations across AI surfaces
 
 ### Fixes
 - Hide unfinished F1 Experiments and iRacing integrations from production releases
