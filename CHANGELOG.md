@@ -15,6 +15,7 @@
 - Keep AI chat drafts editable and show submitted prompts with the loading state immediately across chat surfaces
 - Show setup-seeded `v1` branches immediately in Setup Engineer experiments
 
+- Keep internal AI system instructions separate from driver prompts in chat history
 - Keep the Compare loading message hidden after comparison data is available
 - Cover the full page when settings are open so background content is consistently dimmed and dismissible
 - Guide drivers to AI settings with neutral primary actions when their provider, credentials, or model is not configured

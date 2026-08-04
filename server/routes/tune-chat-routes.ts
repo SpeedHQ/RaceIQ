@@ -20,7 +20,7 @@ import {
 } from "../ai/chat-agent";
 import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
 import { startDetachedAgentTurn } from "../ai/agent-stream";
-import { prependChatTurnContext } from "../ai/chat-message-context";
+import { CHAT_TURN_CONTEXT_KEY, sanitizeChatHistoryMessages } from "../ai/chat-message-context";
 import { reserveChatRun, buildReplayStream } from "../ai/chat-run-registry";
 import { createUIMessageStreamResponse } from "ai";
 import { sessionAgentForFocus } from "../ai/agents";
@@ -106,9 +106,11 @@ export const tuneChatRoutes = new Hono()
 
         const list = new MessageList({ threadId, resourceId: CHAT_RESOURCE_ID });
         list.add(raw, "memory");
-        const uiMessages = list.get.all.aiV5
-          .ui()
-          .filter((m) => m.role === "user" || m.role === "assistant");
+        const uiMessages = sanitizeChatHistoryMessages(
+          list.get.all.aiV5
+            .ui()
+            .filter((m) => m.role === "user" || m.role === "assistant"),
+        );
 
         return c.json({ messages: uiMessages });
       } catch (err: any) {
@@ -249,25 +251,20 @@ export const tuneChatRoutes = new Hono()
       // always >= this) — avoids racing/patching a previous turn's message.
       const turnStartedAt = Date.now();
 
-      // The agent already contributes its persona as the single system
-      // message. LM Studio rejects a second system message, so keep dynamic
-      // session context in the current user turn instead of adding another
-      // system-role message.
+      // Keep route context server-side; Mastra agent owns system instructions.
       const turnContext = [sessionSystemPrompt, gatheredContext, extendedContext]
         .filter(Boolean)
         .join("\n\n");
-      const streamMessages = prependChatTurnContext(messages, turnContext);
-
+      reqCtx.set(CHAT_TURN_CONTEXT_KEY, turnContext);
+      const { run, isNew } = reserveChatRun(threadId);
 
       // Reserve (or re-attach to) this thread's detached run BEFORE calling
       // the agent — the double-start guard lives in the registry: if a turn
       // is already active for this thread (e.g. a duplicate POST fired while
       // one is in flight), `isNew` is false and we skip starting a second
       // agent call entirely, just attaching to the existing run's stream.
-      const { run, isNew } = reserveChatRun(threadId);
       if (isNew) {
-        const stream = await agent.stream(streamMessages, {
-          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+        const stream = await agent.stream(messages, {
           requestContext: reqCtx,
           // Threaded through so a client Cancel (POST .../run/cancel) or an
           // evicted/aborted run actually stops the underlying model call,

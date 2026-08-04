@@ -48,26 +48,29 @@ export type ThreadProps = {
   components?: ThreadComponents | undefined;
   /** Disables the composer input + send (e.g. while a server-side Compact runs). */
   inputDisabled?: boolean | undefined;
+  onRegenerate?: ((messageId: string, prompt: string) => void) | undefined;
 };
 
 const EMPTY_COMPONENTS: ThreadComponents = {};
 
 const ThreadComponentsContext = createContext<ThreadComponents>(EMPTY_COMPONENTS);
-
+const RegenerateContext = createContext<((messageId: string, prompt: string) => void) | undefined>(undefined);
 const InputDisabledContext = createContext(false);
 
 // Startup exposes a loading placeholder thread; treat it as a new chat so
 // the composer mounts centered. Loads after startup keep the docked layout.
 const isNewChatView = (s: AssistantState) => s.thread.messages.length === 0 && (!s.thread.isLoading || s.threads.isLoading);
 
-export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS, inputDisabled = false }) => {
+export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS, inputDisabled = false, onRegenerate }) => {
   const isEmpty = useAuiState(isNewChatView);
 
   return (
     <ThreadComponentsContext.Provider value={components}>
-      <InputDisabledContext.Provider value={inputDisabled}>
-        <ThreadRoot isEmpty={isEmpty} />
-      </InputDisabledContext.Provider>
+      <RegenerateContext.Provider value={onRegenerate}>
+        <InputDisabledContext.Provider value={inputDisabled}>
+          <ThreadRoot isEmpty={isEmpty} />
+        </InputDisabledContext.Provider>
+      </RegenerateContext.Provider>
     </ThreadComponentsContext.Provider>
   );
 };
@@ -466,8 +469,21 @@ const UserMessage: FC = () => {
 };
 
 const UserActionBar: FC = () => {
+  const onRegenerate = useContext(RegenerateContext);
+  const messageId = useAuiState((s) => s.message.id);
+  const prompt = useAuiState((s) =>
+    s.message.content
+      .filter((part) => part.type === "text")
+      .map((part) => part.text)
+      .join(""),
+  );
   return (
     <ActionBarPrimitive.Root hideWhenRunning autohide="not-last" className="aui-user-action-bar-root flex flex-col items-end">
+      {onRegenerate && (
+        <TooltipIconButton tooltip="Regenerate" className="aui-user-action-regenerate" onClick={() => onRegenerate(messageId, prompt)} aria-label="Regenerate">
+          <RefreshCwIcon />
+        </TooltipIconButton>
+      )}
       <ActionBarPrimitive.Edit render={<TooltipIconButton tooltip="Edit" className="aui-user-action-edit" />}>
         <PencilIcon />
       </ActionBarPrimitive.Edit>

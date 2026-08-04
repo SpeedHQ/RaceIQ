@@ -21,8 +21,8 @@ import {
   generationThreadId,
   listThreadGenerations,
   resolveActiveThread,
+  chatMemoryOptions,
 } from "../server/ai/chat-agent";
-
 function makeFakeMemory(existingThreadIds: string[]) {
   const threads = new Set(existingThreadIds);
   return {
@@ -89,12 +89,10 @@ describe("listThreadGenerations (against a fake memory)", () => {
   });
 });
 
-describe("resolveActiveThread (against a fake memory)", () => {
-  test("returns the newest existing generation", async () => {
-    expect(await resolveActiveThread("lap-42", fakeMemory)).toBe("lap-42~g2");
-  });
-
-  test("falls back to the base when nothing exists yet", async () => {
-    expect(await resolveActiveThread("lap-999", fakeMemory)).toBe("lap-999");
+describe("chatMemoryOptions", () => {
+  test("binds agent stream memory to requested thread and resource", () => {
+    expect(chatMemoryOptions("compare-5-6")).toEqual({
+      memory: { thread: "compare-5-6", resource: "raceiq" },
+    });
   });
 });

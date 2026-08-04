@@ -1,4 +1,5 @@
 import type { UIMessage } from "ai";
+import { type ChatStreamError, readChatStream } from "../../lib/chat-stream";
 import { Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -7,7 +8,7 @@ import { isAiConfigured } from "../../lib/is-ai-configured";
 import { client } from "../../lib/rpc";
 import { m } from "../../paraglide/messages";
 import { useUiStore } from "../../stores/ui";
-import { type AnalysisData, AnalysisDisplay, SetupList } from "../ai/analysis-display";
+import { type AnalysisData, AnalysisDisplay } from "../ai/analysis-display";
 import { AnalysisModalShell, AnalysisResultCard, AnalysisSummaryRow } from "../ai/analysis-summary";
 import { ChatPanel } from "../ai-chat/ChatPanel";
 import { PanelSectionHeader } from "../ui/panel-section-header";
@@ -46,6 +47,12 @@ interface InputsAnalysis {
   verdict: string;
   segments: InputsSegment[];
   coaching: { tip: string; detail: string; targetLap: "A" | "B" }[];
+}
+
+function formatAnalysisStreamError(event: ChatStreamError): string {
+  const statusCode = typeof event.statusCode === "number" ? event.statusCode : event.upstream?.code;
+  const status = event.upstream?.status;
+  return `${event.message}${statusCode || status ? ` (${statusCode ?? "error"}${status ? ` ${status}` : ""})` : ""}`;
 }
 
 interface AnalysisSummary {
@@ -113,14 +120,28 @@ function useLapAnalysis(lapId: number, panelOpen: boolean) {
           query: regenerate ? { regenerate: "true" } : {},
         });
         if (!res.ok) {
-          const data = (await res.json().catch(() => ({ error: m.compare_unknown_error() }))) as {
-            error?: string;
-          };
+          const data = (await res.json().catch(() => ({ error: m.compare_unknown_error() }))) as { error?: string };
           throw new Error(data.error || `HTTP ${res.status}`);
         }
-        const data = (await res.json()) as { analysis: string | object | null };
-        const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis as string) : data.analysis;
-        setSummary(summarize(parsed));
+        const contentType = res.headers.get("content-type") ?? "";
+        if (contentType.includes("application/x-ndjson")) {
+          let resolved = false;
+          await readChatStream(res, (event) => {
+            if (event.type === "error") throw new Error(formatAnalysisStreamError(event as ChatStreamError));
+            if (event.type !== "result") return;
+            const result = event as { analysis?: string | object | null };
+            if (!result.analysis) throw new Error(m.compare_analyse_failed());
+            const parsed = typeof result.analysis === "string" ? JSON.parse(result.analysis) : result.analysis;
+            setSummary(summarize(parsed));
+            resolved = true;
+          });
+          if (!resolved) throw new Error(m.compare_analyse_failed());
+        } else {
+          const data = (await res.json()) as { analysis: string | object | null; error?: string };
+          if (data.error || !data.analysis) throw new Error(data.error || m.compare_analyse_failed());
+          const parsed = typeof data.analysis === "string" ? JSON.parse(data.analysis) : data.analysis;
+          setSummary(summarize(parsed));
+        }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : m.compare_analyse_failed());
       } finally {
@@ -488,11 +509,9 @@ function InputsModal({
 
 function AnalysisModal({ label, summary, onClose }: { label: string; summary: AnalysisSummary; onClose: () => void }) {
   const a = (summary.raw ?? {}) as AnalysisData;
-  const [tab, setTab] = useState("analysis");
-  const setup = a.setup ?? [];
   return (
-    <AnalysisModalShell subtitle={label} onClose={onClose} onTabChange={setTab}>
-      {tab === "setup" ? <SetupList setup={setup} lookupSegs={null} /> : <AnalysisDisplay analysis={a} />}
+    <AnalysisModalShell subtitle={label} onClose={onClose}>
+      <AnalysisDisplay analysis={a} />
     </AnalysisModalShell>
   );
 }
@@ -545,15 +564,17 @@ export function CompareAiPanel({ lapA, lapB, panelOpen = false, segments: trackS
       </div>
 
       <div className="flex-1 min-h-0 flex flex-col border-t border-app-border">
-        {!bothReady && <div className="shrink-0 px-3 py-1.5 text-[10px] text-app-text-muted border-b border-app-border/60">Complete all AI analyses to start compare chat.</div>}
-        <ChatPanel
-          api={`/api/laps/${lapA.id}/compare/${lapB.id}/chat`}
-          fetchHistory={(gen) => fetchCompareChatHistory(lapA.id, lapB.id, gen)}
-          historyQueryKey={["compare-chat-history", lapA.id, lapB.id]}
-          remountKey={`${lapA.id}:${lapB.id}`}
-          compactThreadId={`compare-${Math.min(lapA.id, lapB.id)}-${Math.max(lapA.id, lapB.id)}`}
-          inputDisabled={!bothReady}
-        />
+        {bothReady ? (
+          <ChatPanel
+            api={`/api/laps/${lapA.id}/compare/${lapB.id}/chat`}
+            fetchHistory={(gen) => fetchCompareChatHistory(lapA.id, lapB.id, gen)}
+            historyQueryKey={["compare-chat-history", lapA.id, lapB.id]}
+            remountKey={`${lapA.id}:${lapB.id}`}
+            compactThreadId={`compare-${Math.min(lapA.id, lapB.id)}-${Math.max(lapA.id, lapB.id)}`}
+          />
+        ) : (
+          <div className="flex flex-1 items-center justify-center px-3 text-center text-[10px] text-app-text-muted">{m.compare_analyse_both_laps()}</div>
+        )}
       </div>
 
       {viewing?.kind === "lap" && <AnalysisModal label={viewing.label} summary={viewing.summary} onClose={() => setViewing(null)} />}

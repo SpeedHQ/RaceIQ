@@ -200,23 +200,8 @@ export const ANALYSIS_SCHEMA = {
         required: ["tip", "detail"],
       },
     },
-    setup: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          component: { type: "string", description: "Setup component name (e.g. Front Springs, Rear ARB)" },
-          symptom: { type: "string", description: "What the telemetry shows (e.g. rear instability under braking)" },
-          fix: { type: "string", description: "What to change and why" },
-          current: { type: "string", description: "Current numeric value with unit (e.g. '750 lb/in', '2.5 deg', '52%'). MUST include a number." },
-          target: { type: "string", description: "Suggested numeric target with unit (e.g. '650 lb/in', '1.8 deg', '48%'). MUST include a number." },
-          direction: { type: "string", enum: ["increase", "decrease", "adjust"] },
-        },
-        required: ["component", "symptom", "fix", "current", "target", "direction"],
-      },
-    },
   },
-  required: ["verdict", "pace", "handling", "corners", "braking", "throttle", "coaching", "setup"],
+  required: ["verdict", "pace", "handling", "corners", "braking", "throttle", "coaching"],
 };
 
 /**
@@ -441,24 +426,42 @@ export function getOpenAiModels() {
   return OPENAI_MODELS;
 }
 
-/** Fetch per-model context lengths from LM Studio's native REST API (`/api/v0/models`).
- * Non-fatal: plain OpenAI-compatible servers (Ollama, llama.cpp) won't have this endpoint —
- * returns an empty map on any failure. */
-async function getLmStudioContextLengths(endpoint: string): Promise<Map<string, number>> {
+/** Extract configured runtime context lengths from LM Studio model metadata. */
+export function extractLmStudioContextLengths(data: unknown): Map<string, number> {
   const map = new Map<string, number>();
-  try {
-    const base = endpoint.replace(/\/+$/, "").replace(/\/v1$/, "");
-    const res = await fetch(`${base}/api/v0/models`, { signal: AbortSignal.timeout(3000) });
-    if (!res.ok) return map;
-    const data = await res.json() as any;
-    for (const m of data.data ?? []) {
-      const ctx = m.loaded_context_length ?? m.max_context_length;
-      if (m.id && typeof ctx === "number" && ctx > 0) map.set(m.id, ctx);
-    }
-  } catch {
-    // LM Studio native API unavailable — context lengths simply omitted.
+  const models = (data as { models?: unknown[]; data?: unknown[] } | null)?.models
+    ?? (data as { data?: unknown[] } | null)?.data
+    ?? [];
+  for (const raw of models) {
+    if (!raw || typeof raw !== "object") continue;
+    const model = raw as {
+      id?: unknown;
+      key?: unknown;
+      loaded_context_length?: unknown;
+      loaded_instances?: Array<{ id?: unknown; config?: { context_length?: unknown } }>;
+    };
+    const id = typeof model.key === "string" ? model.key : model.id;
+    if (typeof id !== "string") continue;
+    const loaded = model.loaded_instances?.find((instance) => instance.id === id) ?? model.loaded_instances?.[0];
+    const ctx = loaded?.config?.context_length ?? model.loaded_context_length;
+    if (typeof ctx === "number" && ctx > 0) map.set(id, ctx);
   }
   return map;
+}
+
+/** Fetch configured runtime context lengths from LM Studio's native API. */
+async function getLmStudioContextLengths(endpoint: string): Promise<Map<string, number>> {
+  const base = endpoint.replace(/\/+$/, "").replace(/\/v1$/, "");
+  for (const path of ["/api/v1/models", "/api/v0/models"]) {
+    try {
+      const res = await fetch(`${base}${path}`, { signal: AbortSignal.timeout(3000) });
+      if (!res.ok) continue;
+      return extractLmStudioContextLengths(await res.json());
+    } catch {
+      // Try legacy endpoint, then omit context lengths if both are unavailable.
+    }
+  }
+  return new Map();
 }
 
 /** Fetch available models from an OpenAI-compatible local endpoint (LM Studio, Ollama, etc.). */

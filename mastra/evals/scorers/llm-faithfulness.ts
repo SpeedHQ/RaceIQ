@@ -85,7 +85,6 @@ function stringifyAnalyst(a: AnalystOutput): string {
   for (const m of a.handling) parts.push(`${m.label}: ${m.value} — ${m.detail}`);
   for (const c of a.corners) parts.push(`${c.name}: ${c.issue} → ${c.fix}`);
   for (const t of a.technique) parts.push(`${t.tip}: ${t.detail}`);
-  for (const s of a.setup) parts.push(`${s.component}: ${s.current} → ${s.target} (${s.symptom})`);
   return parts.join("\n");
 }
 

@@ -1,9 +1,9 @@
-import { AssistantRuntimeProvider, useAuiState } from "@assistant-ui/react";
+import { AssistantRuntimeProvider, useAui, useAuiState } from "@assistant-ui/react";
 import { AssistantChatTransport, createResumableSessionStorage, useChatRuntime, useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
 import { contextWindowFor } from "@shared/ai/context-window";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UIMessage } from "ai";
-import { MoreHorizontal } from "lucide-react";
+import { Maximize2, Minimize2, MoreHorizontal } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Thread, type ThreadProps } from "@/components/assistant-ui/thread";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -97,11 +97,11 @@ export function formatTokens(n: number): string {
 }
 
 /** Tool/token/cost stats for the latest reply — assistant-ui reads token usage
- *  from the AI SDK stream's message metadata via useThreadTokenUsage; cost is a
- *  rough client-side estimate from the configured chat provider's rates. Also
- *  renders a context-window usage meter, a generation prev/next switcher, and
- *  (when a base thread id is available) a "New chat" button that forks the
- *  active generation into a fresh one seeded with a summary. */
+ * from the AI SDK stream's message metadata via useThreadTokenUsage; cost is a
+ * rough client-side estimate from the configured chat provider's rates. Also
+ * renders a context-window usage meter, a generation prev/next switcher, and
+ * (when a base thread id is available) a "New chat" button that forks the
+ * active generation into a fresh one seeded with a summary. */
 function TokenUsageFooter({
   compactThreadId,
   historyQueryKey,
@@ -176,8 +176,6 @@ function TokenUsageFooter({
   const rate = RATE_PER_MTOK[provider] ?? RATE_PER_MTOK.gemini;
   const cost = ((usage?.inputTokens ?? 0) * rate.in + (usage?.outputTokens ?? 0) * rate.out) / 1_000_000;
 
-  const activeThreadId = generations.find((g) => g.active)?.threadId ?? compactThreadId;
-
   async function onNewChat() {
     if (!compactThreadId || compacting || isRunning) return;
     setCompacting(true);
@@ -248,18 +246,6 @@ function TokenUsageFooter({
           </button>
         </span>
       )}
-      {activeThreadId && isRunning && (
-        <button
-          type="button"
-          onClick={() => {
-            void fetch(`/api/chats/${encodeURIComponent(activeThreadId)}/run/cancel`, { method: "POST" });
-          }}
-          className="px-1.5 py-0.5 rounded border border-app-border/50 hover:bg-app-border/20"
-          title="Stop the agent turn on the server (not just this view)"
-        >
-          Cancel
-        </button>
-      )}
       {compactThreadId && (
         <button
           type="button"
@@ -306,8 +292,19 @@ export interface ChatPanelProps {
   compactThreadId?: string;
 }
 
+function PendingPromptSubmit({ prompt, onSubmitted }: { prompt?: string; onSubmitted: () => void }) {
+  const aui = useAui();
+  useEffect(() => {
+    if (!prompt) return;
+    aui.thread().append({ role: "user", content: [{ type: "text", text: prompt }] });
+    onSubmitted();
+  }, [aui, onSubmitted, prompt]);
+  return null;
+}
+
 function ChatPanelThread({
   api,
+  fetchHistory,
   initialMessages,
   onFinish,
   components,
@@ -321,12 +318,15 @@ function ChatPanelThread({
   activeThreadId,
   onViewGen,
   onForked,
+  onRegenerate,
+  regeneratePrompt,
+  onSubmitted,
   readOnly,
   inputDisabled,
   onClearChat,
 }: {
   api: string;
-  initialMessages: UIMessage[];
+  fetchHistory: (gen?: number) => Promise<UIMessage[]>;
   onFinish?: () => void;
   components?: ThreadProps["components"];
   className?: string;
@@ -339,6 +339,9 @@ function ChatPanelThread({
   activeThreadId?: string;
   onViewGen: (gen: number) => void;
   onForked: (newGen: number) => void;
+  onRegenerate?: (messageId: string, prompt: string) => void;
+  regeneratePrompt?: string;
+  onSubmitted: () => void;
   readOnly: boolean;
   inputDisabled?: boolean;
   onClearChat: () => void;
@@ -378,6 +381,7 @@ function ChatPanelThread({
   });
   const [compacting, setCompacting] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
   const actionsRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!actionsOpen) return;
@@ -389,60 +393,95 @@ function ChatPanelThread({
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [actionsOpen]);
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setFullscreen(false);
+    };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [fullscreen]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <TooltipProvider>
-        <div className={className ?? "h-full min-h-0 flex flex-col text-[11px] [&_*]:text-[11px] [&_svg]:size-3.5 [&_.aui-composer-input]:text-[11px]"}>
-          <div className="shrink-0 flex justify-end px-2 py-1 border-b border-app-border/40">
-            <div ref={actionsRef} className="relative">
+        {fullscreen && <div className="fixed inset-0 z-[99] bg-black/60" aria-hidden="true" />}
+        <div
+          role="dialog"
+          aria-modal={fullscreen}
+          aria-label="AI chat"
+          className={
+            fullscreen
+              ? "fixed inset-2 sm:inset-4 z-[100] flex min-h-0 flex-col rounded-lg border border-app-border bg-app-bg shadow-2xl text-[11px] [&_*]:text-[11px] [&_svg]:size-3.5 [&_.aui-composer-input]:text-[11px]"
+              : (className ?? "h-full min-h-0 flex flex-col text-[11px] [&_*]:text-[11px] [&_svg]:size-3.5 [&_.aui-composer-input]:text-[11px]")
+          }
+        >
+          <div className="shrink-0 flex items-center justify-between gap-2 px-2 py-1 border-b border-app-border/40">
+            <span className="text-app-text font-medium">{fullscreen ? "AI chat" : ""}</span>
+            <div className="flex items-center gap-1">
               <button
                 type="button"
-                onClick={() => setActionsOpen((open) => !open)}
+                onClick={() => setFullscreen((open) => !open)}
                 className="rounded border border-app-border/50 p-1 text-app-text-muted hover:bg-app-border/20 hover:text-app-text"
-                title="Chat actions"
-                aria-label="Chat actions"
-                aria-expanded={actionsOpen}
+                title={fullscreen ? "Close full screen chat" : "Open full screen chat"}
+                aria-label={fullscreen ? "Close full screen chat" : "Open full screen chat"}
               >
-                <MoreHorizontal className="size-3.5" />
+                {fullscreen ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
               </button>
-              {actionsOpen && (
-                <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-lg border border-app-border-input bg-app-surface py-1 shadow-xl">
-                  <button
-                    type="button"
-                    className="w-full px-3 py-1.5 text-left text-app-compact text-app-text-secondary hover:bg-app-surface-hover hover:text-app-text"
-                    onClick={async () => {
-                      try {
-                        const res = await fetch(api);
-                        const data = res.ok ? await res.json() : { error: res.statusText };
-                        await navigator.clipboard.writeText(JSON.stringify(data.messages ?? data, null, 2));
-                      } catch {
-                        /* ignore */
-                      }
-                      setActionsOpen(false);
-                    }}
-                  >
-                    Copy chat JSON
-                  </button>
-                  <button
-                    type="button"
-                    className="w-full px-3 py-1.5 text-left text-app-compact text-status-danger hover:bg-app-surface-hover hover:text-status-danger/80"
-                    onClick={() => {
-                      onClearChat();
-                      setActionsOpen(false);
-                    }}
-                  >
-                    Clear chat
-                  </button>
-                </div>
-              )}
+              <div ref={actionsRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setActionsOpen((open) => !open)}
+                  className="rounded border border-app-border/50 p-1 text-app-text-muted hover:bg-app-border/20 hover:text-app-text"
+                  title="Chat actions"
+                  aria-label="Chat actions"
+                  aria-expanded={actionsOpen}
+                >
+                  <MoreHorizontal className="size-3.5" />
+                </button>
+                {actionsOpen && (
+                  <div className="absolute right-0 top-full z-50 mt-1 min-w-[150px] rounded-lg border border-app-border-input bg-app-surface py-1 shadow-xl">
+                    <button
+                      type="button"
+                      className="w-full px-3 py-1.5 text-left text-app-compact text-app-text-secondary hover:bg-app-surface-hover hover:text-app-text"
+                      onClick={async () => {
+                        try {
+                          const messages = await fetchHistory(viewingGen > 1 ? viewingGen : undefined);
+                          await navigator.clipboard.writeText(JSON.stringify({ messages }, null, 2));
+                        } catch {
+                          /* ignore */
+                        }
+                        setActionsOpen(false);
+                      }}
+                    >
+                      Copy chat JSON
+                    </button>
+                    <button
+                      type="button"
+                      className="w-full px-3 py-1.5 text-left text-app-compact text-status-danger hover:bg-app-surface-hover hover:text-status-danger/80"
+                      onClick={() => {
+                        onClearChat();
+                        setActionsOpen(false);
+                      }}
+                    >
+                      Clear chat
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           {readOnly && (
             <div className="shrink-0 px-2 py-1 text-[10px] text-amber-500 bg-amber-500/10 border-b border-amber-500/30">Viewing an earlier chat (read-only). Switch to the latest to continue.</div>
           )}
           <div className="flex-1 min-h-0 flex flex-col">
-            <Thread components={components} inputDisabled={compacting || readOnly || inputDisabled} />
+            <PendingPromptSubmit prompt={regeneratePrompt} onSubmitted={onSubmitted} />
+            <Thread components={components} inputDisabled={compacting || readOnly || inputDisabled} onRegenerate={readOnly ? undefined : onRegenerate} />
           </div>
           <TokenUsageFooter
             compactThreadId={compactThreadId}
@@ -467,6 +506,8 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
   const aiConfigured = isAiConfigured(displaySettings);
   const queryClient = useQueryClient();
   const [clearVersion, setClearVersion] = useState(0);
+  const [regenerateVersion, setRegenerateVersion] = useState(0);
+  const [regeneratePrompt, setRegeneratePrompt] = useState<string>();
   const clearChat = async () => {
     try {
       await fetch(api, { method: "DELETE" });
@@ -519,6 +560,23 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
   if (activeThreadId && runStatus?.status === "active" && runStatus.runId) {
     createResumableSessionStorage({ key: `chat-resume-${activeThreadId}` }).setStreamId(runStatus.runId);
   }
+  const regenerateChat = async (messageId: string, prompt: string) => {
+    if (!activeThreadId || !prompt || !window.confirm("Regenerate this response? Later messages will be removed.")) return;
+    try {
+      const res = await fetch(`/api/chats/${encodeURIComponent(activeThreadId)}/regenerate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messageId }),
+      });
+      const data = (await res.json().catch(() => null)) as { prompt?: string; error?: string } | null;
+      if (!res.ok) throw new Error(data?.error ?? "Could not regenerate chat");
+      await queryClient.invalidateQueries({ queryKey: historyQueryKey });
+      setRegeneratePrompt(data?.prompt ?? prompt);
+      setRegenerateVersion((version) => version + 1);
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "Could not regenerate chat");
+    }
+  };
 
   if (!aiConfigured) {
     return (
@@ -542,8 +600,9 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
 
   return (
     <ChatPanelThread
-      key={`${remountKey ?? ""}:${effectiveGen}:${history?.length ?? 0}:${clearVersion}`}
+      key={`${remountKey ?? ""}:${effectiveGen}:${history?.length ?? 0}:${clearVersion}:${regenerateVersion}`}
       api={api}
+      fetchHistory={fetchHistory}
       initialMessages={history ?? []}
       onFinish={onFinish}
       components={components}
@@ -560,6 +619,9 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
         void queryClient.invalidateQueries({ queryKey: historyQueryKey });
         setViewingGen(newGen);
       }}
+      onRegenerate={readOnly || !activeThreadId || runStatus?.status === "active" ? undefined : regenerateChat}
+      regeneratePrompt={regeneratePrompt}
+      onSubmitted={() => setRegeneratePrompt(undefined)}
       readOnly={readOnly}
       inputDisabled={inputDisabled}
       onClearChat={() => void clearChat()}

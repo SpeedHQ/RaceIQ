@@ -1,6 +1,7 @@
 import type { TelemetryPacket, Tune, GameId } from "../../shared/types";
+import { carSpecsMap } from "../../shared/car-data";
 import { generateExport, type UnitSystem, type TemperatureUnit } from "../export";
-import { getCarName, getTrackName, carSpecsMap } from "../../shared/car-data";
+import { getPromptCarName, getPromptTrackName } from "./compare-engineer";
 import { buildCornerData } from "./corner-data";
 import { analyzeLap } from "../../shared/lib/lap-insights";
 import { formatTuneForPrompt } from "./format-tune";
@@ -10,7 +11,6 @@ import { buildTrackGuideContext, guideCornerLabels } from "./track-guides";
 import { telemetryToTrackConditions, formatTrackConditions } from "./track-conditions";
 import { segmentPromptLabels } from "../../shared/segment-label";
 import { aiLanguageInstruction } from "../../shared/locales";
-import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
 
 interface CornerDef {
   index: number;
@@ -98,9 +98,6 @@ Your response MUST be valid JSON matching this exact schema. Output ONLY the JSO
   ],
   "coaching": [
     { "tip": "short imperative title", "detail": "1-2 sentence explanation referencing specific data" }
-  ],
-  "setup": [
-    { "component": "e.g. Front Springs", "symptom": "what the telemetry shows", "fix": "what to change and why", "current": "numeric value with unit (e.g. 750 lb/in)", "target": "numeric target value with unit (e.g. 650 lb/in)", "direction": "increase|decrease|adjust" }
   ]
 }
 
@@ -111,7 +108,6 @@ CATEGORY GUIDELINES:
 - "braking": Per-corner braking analysis for every corner in the corner data. Use corner label names exactly. "good" = no issues. If detail describes a problem, MUST be "warning" or "critical".
 - "throttle": Per-corner throttle analysis for every corner. Use corner label names exactly. "good" = clean application. If detail describes a problem, MUST be "warning" or "critical".
 - "coaching": 3-5 actionable driving tips. Reference specific telemetry values.
-- "setup": 4-8 component adjustments. Each item has the symptom (what telemetry shows), fix (what to do), AND concrete "current"/"target" numeric values with units (e.g. "750 lb/in" → "650 lb/in"). Cover: springs, dampers (Bump first, then Rebound), anti-roll bars, aero, alignment, differential, tire pressure, gearing, brake bias as needed. If tune data is provided, reference actual tune values.
 
 RULES:
 - Reference specific numbers from the data — don't be vague
@@ -130,7 +126,7 @@ function getSystemPrompt(gameId: GameId, unit: UnitSystem, temperatureUnit: Temp
   const units = `${speedDistanceWeight}, °${temperatureUnit}`;
   const adapter = tryGetServerGame(gameId);
   const base = adapter ? adapter.aiSystemPrompt : FORZA_SYSTEM_PROMPT;
-  return `${base.replace("{{UNITS}}", units)}\n- Temperature unit in this session: °${temperatureUnit}${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(language, { json: true })}`;
+  return `${base.replace("{{UNITS}}", units)}\n- Temperature unit in this session: °${temperatureUnit}${aiLanguageInstruction(language, { json: true })}`;
 }
 
 export function buildAnalystPrompt(
@@ -156,10 +152,12 @@ export function buildAnalystPrompt(
   /** This lap's sector times, with the boundaries they were split on. */
   sectors?: PromptSectors,
 ): string {
-  const carName = getCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0);
-  const trackName = getTrackName(lap.trackOrdinal ?? 0);
+  const carName = getPromptCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0, lap.gameId);
+  const trackName = getPromptTrackName(lap.trackOrdinal ?? 0, lap.gameId);
 
-  const exportText = generateExport(lap, packets, unit, temperatureUnit);
+  // F1 uses the adapter's compact game context; the generic export is a
+  // Forza-specific block and needlessly pushes local F1 prompts over 8k.
+  const exportText = lap.gameId === "f1-2025" ? "" : generateExport(lap, packets, unit, temperatureUnit);
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
 
   // Run precomputed insight analysis

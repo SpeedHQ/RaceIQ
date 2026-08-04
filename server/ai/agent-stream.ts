@@ -1,5 +1,6 @@
 import { createUIMessageStream, createUIMessageStreamResponse, type UIMessageChunk } from "ai";
 import { toAISdkStream } from "@mastra/ai-sdk";
+import { formatClientAiErrorMessage, toClientAiError } from "./provider-error";
 import { type ChatRun, pushChunk, finishRun } from "./chat-run-registry";
 
 /**
@@ -21,6 +22,10 @@ import { type ChatRun, pushChunk, finishRun } from "./chat-run-registry";
 
 type UiStreamOptions = Parameters<typeof createUIMessageStream>[0];
 type AgentStream = Parameters<typeof toAISdkStream>[0];
+
+export function stripThinkTags(text: string): string {
+  return text.replace(/<\/?think\b[^>]*>/gi, "");
+}
 
 /** Minimal structural view of the Mastra memory we touch. */
 interface AgentTurnMemory {
@@ -46,10 +51,60 @@ export interface StreamAgentTurnOptions {
   persistReasoning?: boolean;
 }
 
-async function restoreOriginalUserMessage(
+export async function persistReasoningToMemory(
+  responseMessage: any,
+  memory: AgentTurnMemory,
+  threadId: string,
+  turnStartedAt: number,
+  reasoningDurationMs: number,
+  usage?: { inputTokens: number; outputTokens: number; totalTokens: number },
+): Promise<void> {
+  const parts = Array.isArray(responseMessage?.parts) ? responseMessage.parts : [];
+  if (!parts.length) return;
+
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const raw: any[] = (await memory.recall({ threadId })).messages ?? [];
+    const target =
+      raw.find((message) => message.role === "assistant" && message.id === responseMessage.id) ??
+      [...raw].reverse().find((message) => {
+        if (message.role !== "assistant") return false;
+        const createdAt = message.createdAt instanceof Date ? message.createdAt.getTime() : Date.parse(String(message.createdAt ?? ""));
+        return Number.isFinite(createdAt) && createdAt >= turnStartedAt;
+      });
+    if (target) {
+      const metadata = {
+        ...(target.content?.metadata ?? {}),
+        ...(usage ? { usage } : {}),
+        ...(reasoningDurationMs > 0 ? { reasoning: { durationMs: reasoningDurationMs } } : {}),
+      };
+      await memory.saveMessages({
+        messages: [{
+          ...target,
+          content: {
+            ...target.content,
+            format: 2,
+            parts,
+            content: parts
+              .filter((part: any) => part?.type === "text")
+              .map((part: any) => part.text ?? "")
+              .join(""),
+            metadata,
+          },
+        }],
+      });
+      return;
+    }
+    const { promise, resolve } = Promise.withResolvers<void>();
+    setTimeout(resolve, 50);
+    await promise;
+  }
+}
+
+export async function restoreOriginalUserMessage(
   originalMessages: UiStreamOptions["originalMessages"],
   memory: AgentTurnMemory,
   threadId: string,
+  turnStartedAt = 0,
 ): Promise<void> {
   const original = [...(originalMessages as any[])].reverse().find((message) => message.role === "user") as any;
   if (!original?.id) return;
@@ -62,7 +117,13 @@ async function restoreOriginalUserMessage(
 
   for (let attempt = 0; attempt < 40; attempt++) {
     const raw: any[] = (await memory.recall({ threadId })).messages ?? [];
-    const target = raw.find((message) => message.role === "user" && message.id === original.id);
+    const target =
+      raw.find((message) => message.role === "user" && message.id === original.id) ??
+      [...raw].reverse().find((message) => {
+        if (message.role !== "user") return false;
+        const createdAt = message.createdAt instanceof Date ? message.createdAt.getTime() : Date.parse(String(message.createdAt ?? ""));
+        return Number.isFinite(createdAt) && createdAt >= turnStartedAt;
+      });
     if (target) {
       await memory.saveMessages({
         messages: [{
@@ -118,50 +179,59 @@ function buildAgentTurnUIStream(opts: StreamAgentTurnOptions): ReadableStream<UI
       if (persistReasoning) {
         await persistReasoningToMemory(responseMessage as any, memory, threadId, turnStartedAt, reasoningDurationMs(), finishUsage);
       }
-      await restoreOriginalUserMessage(originalMessages, memory, threadId);
+      await restoreOriginalUserMessage(originalMessages, memory, threadId, turnStartedAt);
     },
     execute: async ({ writer }) => {
-      for await (const part of toAISdkStream(agentStream, {
-        from: "agent",
-        // `sendReasoning` defaults to FALSE in @mastra/ai-sdk, which silently
-        // strips the model's thought parts out of the UI-message stream — so
-        // even with includeThoughts:true on the Gemini side the chat only ever
-        // saw the running indicator and never a live thinking block. Turn it on
-        // so reasoning parts actually reach the UI.
-        sendReasoning: true,
-        // Threaded straight into AI SDK v5's UIMessageStreamOptions. Invoked on
-        // the underlying stream's `start`/`finish` TextStreamPart events;
-        // `finish` carries `totalUsage` in ai@7's LanguageModelV2Usage shape —
-        // { inputTokens, outputTokens, totalTokens } — already exactly the shape
-        // assistant-ui's useThreadTokenUsage() reads off metadata.usage.
-        messageMetadata: ({ part }) => {
-          if (part.type !== "finish") return undefined;
-          const { inputTokens, outputTokens, totalTokens } = part.totalUsage;
-          const durationMs = reasoningDurationMs();
-          finishUsage = {
-            inputTokens: inputTokens ?? 0,
-            outputTokens: outputTokens ?? 0,
-            totalTokens: totalTokens ?? 0,
-          };
-          return {
-            usage: finishUsage,
-            ...(durationMs > 0 ? { reasoning: { durationMs } } : {}),
-          };
-        },
-      })) {
-        // Stamp thinking wall-time as reasoning chunks flow past. AI SDK v5
-        // emits reasoning as `reasoning-start`/`reasoning-delta`/`reasoning-end`
-        // parts — match the whole family by prefix.
-        if (String((part as { type?: string }).type ?? "").startsWith("reasoning")) {
-          const now = Date.now();
-          if (reasoningFirstTs === 0) reasoningFirstTs = now;
-          reasoningLastTs = now;
+      try {
+        for await (const part of toAISdkStream(agentStream, {
+          from: "agent",
+          sendReasoning: true,
+          messageMetadata: ({ part }) => {
+            if (part.type !== "finish") return undefined;
+            const { inputTokens, outputTokens, totalTokens } = part.totalUsage;
+            const durationMs = reasoningDurationMs();
+            finishUsage = {
+              inputTokens: inputTokens ?? 0,
+              outputTokens: outputTokens ?? 0,
+              totalTokens: totalTokens ?? 0,
+            };
+            return {
+              usage: finishUsage,
+              ...(durationMs > 0 ? { reasoning: { durationMs } } : {}),
+            };
+          },
+        })) {
+          if (String((part as { type?: string }).type ?? "").startsWith("reasoning")) {
+            const now = Date.now();
+            if (reasoningFirstTs === 0) reasoningFirstTs = now;
+            reasoningLastTs = now;
+          }
+          const uiPart =
+            (part as { type?: string; delta?: unknown }).type === "text-delta" &&
+            typeof (part as { delta?: unknown }).delta === "string"
+              ? { ...part, delta: stripThinkTags((part as { delta: string }).delta) }
+              : part;
+          await writer.write(uiPart as Parameters<typeof writer.write>[0]);
         }
-        // `toAISdkStream`'s chunk type is inferred from Mastra's own bundled `ai`
-        // types, which drift slightly from this repo's `ai` version (e.g.
-        // `finishReason: "unknown"` isn't in the local FinishReason union). The
-        // wire shape is identical — cast to bridge the two.
-        await writer.write(part as Parameters<typeof writer.write>[0]);
+      } catch (err) {
+        const aiError = toClientAiError(err);
+        const promptTokens = aiError.upstream?.promptTokens;
+        if (promptTokens != null) {
+          await writer.write({
+            type: "message-metadata",
+            messageMetadata: {
+              usage: {
+                inputTokens: promptTokens,
+                outputTokens: 0,
+                totalTokens: promptTokens,
+              },
+            },
+          } as Parameters<typeof writer.write>[0]);
+        }
+        await writer.write({
+          type: "error",
+          errorText: formatClientAiErrorMessage(aiError),
+        } as Parameters<typeof writer.write>[0]);
       }
     },
   });

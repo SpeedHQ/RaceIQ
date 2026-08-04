@@ -1,4 +1,4 @@
-import type { Tune, GameId, TelemetryPacket } from "../../shared/types";
+import type { Tune, GameId } from "../../shared/types";
 import {
   getLapById,
   getCorners,
@@ -23,12 +23,6 @@ import { toClientAiError } from "./provider-error";
 import { resolveAi } from "./ai-runtime";
 import { runAiStructured } from "./model-provider";
 import type { StructuredRequest, ResolvedAi } from "./ai-types";
-import { resolveLapF1Setup } from "./f1-setup-identity";
-import {
-  normalizePacketSetup,
-  topCatalogReferences,
-  getCatalogDisplayName,
-} from "./f1-setup-catalog";
 
 export interface AnalysisUsage {
   inputTokens: number;
@@ -228,12 +222,6 @@ export async function generateLapAnalysis(
     settings.language,
     sectors,
   );
-  if (lap.gameId === "f1-2025")
-    prompt += buildF1SetupReferenceBlock(
-      lap.carSetup,
-      lap.telemetry,
-      lap.trackOrdinal ?? -1,
-    );
 
   let ai: ResolvedAi;
   try {
@@ -323,38 +311,3 @@ export async function generateLapAnalysis(
   }
 }
 
-function buildF1SetupReferenceBlock(
-  carSetupJson: string | undefined,
-  telemetry: TelemetryPacket[],
-  trackOrdinal: number,
-): string {
-  const setup = resolveLapF1Setup({ carSetup: carSetupJson, telemetry });
-  if (!setup || trackOrdinal < 0) return "";
-  const current = normalizePacketSetup(
-    setup as unknown as Record<string, unknown>,
-  );
-  const refs = topCatalogReferences(trackOrdinal, 5, current);
-  if (!refs.length) return "";
-  const lines = [
-    `\n\n--- F1 CURRENT SETUP + TOP-5 REFERENCE SETUPS (${getCatalogDisplayName(trackOrdinal) ?? "this track"}) ---`,
-    "Use this data to populate setup[]. Cite rank/team/author per entry. Only propose steps within the step-cap rules.",
-    "",
-    "Current setup:",
-  ];
-  for (const [key, value] of Object.entries(current))
-    lines.push(`  ${key}: ${value}`);
-  for (const reference of refs) {
-    lines.push(
-      "",
-      `Rank ${reference.rank} — ${reference.team} / ${reference.author} — ${reference.lapTime} (${reference.weather}, ${reference.inputDevice}):`,
-    );
-    const deltas = Object.entries(reference.delta ?? {});
-    if (!deltas.length) lines.push("  (identical to current setup)");
-    else
-      for (const [key, value] of deltas)
-        lines.push(
-          `  ${key}: ${current[key]} → ${(reference.setup as Record<string, number>)[key]} (${(value as number) > 0 ? "+" : ""}${value})`,
-        );
-  }
-  return lines.join("\n");
-}

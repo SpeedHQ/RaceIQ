@@ -68,6 +68,7 @@ import {
   chatThreadId,
   compareChatThreadId,
   CHAT_RESOURCE_ID,
+  chatMemoryOptions,
   resolveActiveThread,
   generationThreadId,
   listThreadGenerations,
@@ -80,10 +81,15 @@ import { promisify } from "util";
 
 const gzipAsync = promisify(gzip);
 import { buildChatSystemPrompt } from "../ai/chat-prompt";
-import { buildCompareChatSystemPrompt } from "../ai/compare-chat-prompt";
+import { buildCompareChatContext } from "../ai/compare-chat-prompt";
 import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
 import { streamAgentTurnResponse } from "../ai/agent-stream";
-import { prependChatTurnContext } from "../ai/chat-message-context";
+import {
+  CHAT_TURN_CONTEXT_KEY,
+  compareChatToolChoice,
+  sanitizeChatHistoryMessages,
+} from "../ai/chat-message-context";
+import { RequestContext } from "@mastra/core/request-context";
 import { MessageList } from "@mastra/core/agent";
 import {
   topCatalogReferences,
@@ -108,7 +114,7 @@ import {
   buildGoogleProviderOptions,
   buildGoogleThinkingProviderOptions,
 } from "../ai/google-provider-options";
-import { toClientAiError } from "../ai/provider-error";
+import { formatClientAiErrorMessage, toClientAiError } from "../ai/provider-error";
 import { extractJson } from "../ai/extract-json";
 import { resolveLapF1Setup } from "../ai/f1-setup-identity";
 import { generateLapAnalysis } from "../ai/generate-lap-analysis";
@@ -810,9 +816,11 @@ export const lapRoutes = new Hono()
 
       const list = new MessageList({ threadId, resourceId: CHAT_RESOURCE_ID });
       list.add(raw, "memory");
-      const uiMessages = list.get.all.aiV5
-        .ui()
-        .filter((m) => m.role === "user" || m.role === "assistant");
+      const uiMessages = sanitizeChatHistoryMessages(
+        list.get.all.aiV5
+          .ui()
+          .filter((m) => m.role === "user" || m.role === "assistant"),
+      );
 
       return c.json({ messages: uiMessages });
     } catch (err: any) {
@@ -923,16 +931,20 @@ export const lapRoutes = new Hono()
       const threadId = await resolveActiveThread(chatThreadId(id));
       const turnStartedAt = Date.now();
       try {
-        const streamMessages = prependChatTurnContext(messages, systemPrompt);
-        const stream = await lapChatAgent.stream(streamMessages, {
-            memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-            providerOptions: {
-              openai: { reasoningEffort: "medium" },
-              google: buildGoogleReasoningProviderOptions(
-                chatModelLabel,
-                settings.chatThinkingBudget,
-              ) as never,
-            },
+        const requestContext = new RequestContext();
+        requestContext.set(CHAT_TURN_CONTEXT_KEY, systemPrompt);
+        const stream = await lapChatAgent.stream(messages, {
+          requestContext,
+          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+          // Assistant-ui's Stop aborts the POST request. Forward that signal
+          abortSignal: c.req.raw.signal,
+          providerOptions: {
+            openai: { reasoningEffort: "medium" },
+            google: buildGoogleReasoningProviderOptions(
+              chatModelLabel,
+              settings.chatThinkingBudget,
+            ) as never,
+          },
         });
 
         return streamAgentTurnResponse({
@@ -1375,10 +1387,19 @@ export const lapRoutes = new Hono()
         await saveCompareAnalysis(id1, id2, analysisJson, usage, "inputs");
         return c.json({ analysis: analysisJson, cached: false, usage });
       } catch (err: any) {
-        console.error("[InputsCompare] Failed:", err.message);
+        const aiError = toClientAiError(err);
+        const errorMessage = formatClientAiErrorMessage(aiError);
+        console.error("[InputsCompare] Failed:", errorMessage);
         return c.json(
-          { error: err.message },
-          err.message.includes("timed out") ? 504 : 500,
+          {
+            error: errorMessage,
+            statusCode: aiError.statusCode,
+            retryable: aiError.retryable,
+            provider: aiError.provider,
+            modelId: aiError.modelId,
+            upstream: aiError.upstream,
+          },
+          errorMessage.includes("timed out") ? 504 : 500,
         );
       } finally {
         finishAnalysisRun(inputsRunKey);
@@ -1425,9 +1446,11 @@ export const lapRoutes = new Hono()
           resourceId: CHAT_RESOURCE_ID,
         });
         list.add(raw, "memory");
-        const uiMessages = list.get.all.aiV5
-          .ui()
-          .filter((m) => m.role === "user" || m.role === "assistant");
+        const uiMessages = sanitizeChatHistoryMessages(
+          list.get.all.aiV5
+            .ui()
+            .filter((m) => m.role === "user" || m.role === "assistant"),
+        );
 
         return c.json({ messages: uiMessages });
       } catch (err: any) {
@@ -1484,30 +1507,37 @@ export const lapRoutes = new Hono()
 
       const comparison = compareLaps(lapA.telemetry, lapB.telemetry, corners);
 
+      const segments: PromptSegment[] | null =
+        resolveTrack(lapA.gameId, lapA.trackOrdinal).segments.map((s) => ({
+          name: s.name,
+          type: s.type === "corner" ? "corner" : "straight",
+          startFrac: s.startFrac,
+          endFrac: s.endFrac,
+          number: s.number,
+          covers: s.covers,
+        }));
       const settings = loadSettings();
-      const systemPrompt = buildCompareChatSystemPrompt(
+      const systemPrompt = buildCompareChatContext(
         {
           id: id1,
           lapNumber: lapA.lapNumber,
           lapTime: lapA.lapTime,
           isValid: lapA.isValid,
-          carOrdinal: lapA.carOrdinal ?? undefined,
-          trackOrdinal: lapA.trackOrdinal ?? undefined,
-          gameId: lapA.gameId as GameId | undefined,
+          carOrdinal: lapA.carOrdinal,
+          trackOrdinal: lapA.trackOrdinal,
+          gameId: lapA.gameId as GameId,
         },
         {
           id: id2,
           lapNumber: lapB.lapNumber,
           lapTime: lapB.lapTime,
           isValid: lapB.isValid,
-          carOrdinal: lapB.carOrdinal ?? undefined,
-          trackOrdinal: lapB.trackOrdinal ?? undefined,
-          gameId: lapB.gameId as GameId | undefined,
+          carOrdinal: lapB.carOrdinal,
+          trackOrdinal: lapB.trackOrdinal,
+          gameId: lapB.gameId as GameId,
         },
         comparison,
-        settings.unit,
-        settings.temperatureUnit,
-        settings.language,
+        segments,
       );
 
       const chatProvider = settings.chatProvider;
@@ -1554,16 +1584,23 @@ export const lapRoutes = new Hono()
       const threadId = await resolveActiveThread(compareChatThreadId(id1, id2));
       const turnStartedAt = Date.now();
       try {
-        const streamMessages = prependChatTurnContext(messages, systemPrompt);
-        const stream = await compareChatAgent.stream(streamMessages, {
-            memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-            providerOptions: {
-              openai: { reasoningEffort: "medium" },
-              google: buildGoogleReasoningProviderOptions(
-                chatModelLabel,
-                settings.chatThinkingBudget,
-              ) as never,
-            },
+        const requestContext = new RequestContext();
+        requestContext.set(CHAT_TURN_CONTEXT_KEY, systemPrompt);
+        const stream = await compareChatAgent.stream(messages, {
+          ...chatMemoryOptions(threadId),
+          requestContext,
+          // Assistant-ui's Stop aborts the POST request. Forward that signal
+          // into Mastra so the provider call, not only the UI stream, stops.
+          abortSignal: c.req.raw.signal,
+          toolChoice: compareChatToolChoice(messages),
+          maxSteps: 6,
+          providerOptions: {
+            openai: { reasoningEffort: "medium" },
+            google: buildGoogleReasoningProviderOptions(
+              chatModelLabel,
+              settings.chatThinkingBudget,
+            ) as never,
+          },
         });
 
         return streamAgentTurnResponse({

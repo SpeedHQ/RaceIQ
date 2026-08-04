@@ -119,6 +119,9 @@ describe("analyst prompt carries the curated track data", () => {
     // The same string the track map renders — not a bare "Eau Rouge/Raidillon".
     expect(prompt).toContain("Eau Rouge/Raidillon (2-4)");
   });
+  test("omits the Forza export for F1 prompts", () => {
+    expect(prompt).not.toContain("=== Forza Motorsport Lap Export ===");
+  });
 
   test("the corner whitelist uses those same labels", () => {
     const block = prompt.slice(prompt.indexOf("--- Valid Corner Labels"));

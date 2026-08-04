@@ -61,7 +61,7 @@ export interface AnalysisData {
   braking: CornerBrakingItem[];
   throttle: CornerThrottleItem[];
   coaching: CoachingItem[];
-  setup: SetupItem[];
+  setup?: SetupItem[];
 }
 
 export interface Segment {

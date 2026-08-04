@@ -6,8 +6,9 @@
 import type { GameId } from "../../shared/types";
 import type { ComparisonResult } from "../comparison";
 import type { UnitSystem, TemperatureUnit } from "../export";
-import { getCarName, getTrackName } from "../../shared/car-data";
-import { compareEngineerPersona, compareLapHeader } from "./compare-engineer";
+import { getPromptCarName, getPromptTrackName, compareEngineerPersona, compareLapHeader } from "./compare-engineer";
+import { buildSegmentTimingTable, type PromptSegment } from "./inputs-compare-prompt";
+import { TRACK_GUIDE_PROMPT } from "../../shared/prompt-snippets";
 
 interface LapInfo {
   id: number;
@@ -59,6 +60,28 @@ function summarizeComparison(comp: ComparisonResult): string {
   return out + "\n";
 }
 
+export function buildCompareChatContext(
+  lapA: LapInfo,
+  lapB: LapInfo,
+  comparison: ComparisonResult,
+  segments: PromptSegment[] | null = null,
+): string {
+  const carA = getPromptCarName(lapA.carOrdinal ?? 0, lapA.gameId);
+  const carB = getPromptCarName(lapB.carOrdinal ?? 0, lapB.gameId);
+  const trackName = getPromptTrackName(lapA.trackOrdinal ?? 0, lapA.gameId);
+  const finalDelta =
+    comparison.timeDelta[comparison.timeDelta.length - 1] ??
+    lapA.lapTime - lapB.lapTime;
+  return `${compareLapHeader(trackName, carA, carB, lapA, lapB, finalDelta)}
+${summarizeComparison(comparison)}
+
+SERVER-AUTHORITATIVE PER-SEGMENT TIMINGS (positive Δ = Lap A slower):
+${buildSegmentTimingTable(comparison, segments)}
+
+Use these computed deltas as authoritative. Explain why they differ using telemetry/tools; do not recalculate or invent timing deltas.
+Use the retrieved analyses and the corner-by-corner deltas to explain where time is gained or lost and what the slower lap should change.`;
+}
+
 export function buildCompareChatSystemPrompt(
   lapA: LapInfo,
   lapB: LapInfo,
@@ -68,14 +91,13 @@ export function buildCompareChatSystemPrompt(
   /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
   language: string = "en",
 ): string {
-  const carA = getCarName(lapA.carOrdinal ?? 0);
-  const carB = getCarName(lapB.carOrdinal ?? 0);
-  const trackName = getTrackName(lapA.trackOrdinal ?? 0);
+  const carA = getPromptCarName(lapA.carOrdinal ?? 0, lapA.gameId);
+  const carB = getPromptCarName(lapB.carOrdinal ?? 0, lapB.gameId);
+  const trackName = getPromptTrackName(lapA.trackOrdinal ?? 0, lapA.gameId);
   const finalDelta =
     comparison.timeDelta[comparison.timeDelta.length - 1] ??
     lapA.lapTime - lapB.lapTime;
-
-  return `${compareEngineerPersona(unit, temperatureUnit, language)}
+  return `${compareEngineerPersona(unit, temperatureUnit, language)}${TRACK_GUIDE_PROMPT}
 
 INITIALIZATION PROTOCOL — MUST COMPLETE BEFORE ANY TEXT
 

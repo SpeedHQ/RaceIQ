@@ -5,9 +5,8 @@
  */
 import { z } from "zod";
 import type { ComparisonResult } from "../comparison";
-import { getCarName, getTrackName } from "../../shared/car-data";
+import { getPromptCarName, getPromptTrackName, compareLapHeader } from "./compare-engineer";
 import type { GameId } from "../../shared/types";
-import { compareLapHeader } from "./compare-engineer";
 import { buildTrackGuideContext } from "./track-guides";
 import { resolveTrack } from "../track-info";
 import { segmentPromptNames } from "../../shared/segment-label";
@@ -112,6 +111,34 @@ function formatSegmentTable(
   return [header, sep, ...lines, "(* = corner)"].join("\n");
 }
 
+/** Build server-authoritative per-segment timing rows for any compare flow. */
+export function buildSegmentTimingTable(
+  comparison: ComparisonResult,
+  segments: PromptSegment[] | null,
+): string {
+  const useSegs = segments && segments.length > 0 ? segments : fallbackSegments(8);
+  const distances = comparison.distances;
+  const totalDist = distances[distances.length - 1] - distances[0] || 1;
+  const startDist = distances[0] ?? 0;
+  const labels = segmentPromptNames(useSegs);
+  const rows: { name: string; type: string; timeA: number; timeB: number; delta: number }[] = [];
+
+  for (const [index, segment] of useSegs.entries()) {
+    const startD = startDist + segment.startFrac * totalDist;
+    const endD = startDist + segment.endFrac * totalDist;
+    let lo = 0;
+    while (lo < distances.length && distances[lo] < startD) lo++;
+    let hi = lo;
+    while (hi < distances.length && distances[hi] < endD) hi++;
+    if (hi - lo < 2) continue;
+    const timeA = (comparison.lapA.elapsedTime[hi - 1] ?? 0) - (comparison.lapA.elapsedTime[lo] ?? 0);
+    const timeB = (comparison.lapB.elapsedTime[hi - 1] ?? 0) - (comparison.lapB.elapsedTime[lo] ?? 0);
+    rows.push({ name: labels[index], type: segment.type, timeA, timeB, delta: timeA - timeB });
+  }
+
+  return formatSegmentTable(rows);
+}
+
 /** Synthesise evenly spaced segments when the track has no metadata. */
 function fallbackSegments(count: number): PromptSegment[] {
   const segs: PromptSegment[] = [];
@@ -144,9 +171,9 @@ export function buildInputsComparePrompt(
   /** Per-lap precomputed insight blocks (see buildCompareInsightsBlock). */
   precomputedInsights?: string,
 ): string {
-  const carA = getCarName(lapA.carOrdinal ?? 0);
-  const carB = getCarName(lapB.carOrdinal ?? 0);
-  const trackName = getTrackName(lapA.trackOrdinal ?? 0);
+  const carA = getPromptCarName(lapA.carOrdinal ?? 0, lapA.gameId);
+  const carB = getPromptCarName(lapB.carOrdinal ?? 0, lapB.gameId);
+  const trackName = getPromptTrackName(lapA.trackOrdinal ?? 0, lapA.gameId);
   const { slug } = resolveTrack(lapA.gameId, lapA.trackOrdinal);
   const trackGuide = externalTrackGuide ?? buildTrackGuideContext(trackName, { slug });
   const finalDelta = comparison.timeDelta[comparison.timeDelta.length - 1] ?? 0;

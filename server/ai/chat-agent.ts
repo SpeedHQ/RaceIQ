@@ -86,6 +86,11 @@ export function compareChatThreadId(idA: number, idB: number): string {
 /** The resource ID used for all chat threads. */
 export const CHAT_RESOURCE_ID = "raceiq";
 
+/** Mastra stream options required to persist turns in the requested thread. */
+export function chatMemoryOptions(threadId: string) {
+  return { memory: { thread: threadId, resource: CHAT_RESOURCE_ID } } as const;
+}
+
 // ─── Chat generations ──────────────────────────────────────────────────────
 //
 // A chat surface (lap / compare / experiment) can accumulate multiple
@@ -237,4 +242,31 @@ export async function saveChatMessages(
   });
   await mem.saveMessages({ messages });
   return messages.map((m) => m.id);
+}
+export type ChatMutationMemory = {
+  recall(args: { threadId: string; perPage?: false }): Promise<{ messages?: unknown[] }>;
+  deleteMessages(input: string[]): Promise<void>;
+};
+
+function messageText(message: any): string {
+  if (typeof message?.content === "string") return message.content;
+  if (typeof message?.content?.content === "string") return message.content.content;
+  return Array.isArray(message?.content?.parts)
+    ? message.content.parts.filter((part: any) => part?.type === "text").map((part: any) => part.text ?? "").join("")
+    : "";
+}
+
+/** Retain history through one user prompt and remove its response and all later messages. */
+export async function truncateChatAfterUserMessage(
+  threadId: string,
+  messageId: string,
+  mem: ChatMutationMemory = getChatMemory(),
+): Promise<{ messages: unknown[]; prompt: string }> {
+  const messages = (await mem.recall({ threadId, perPage: false })).messages ?? [];
+  const selectedIndex = messages.findIndex((message: any) => message?.id === messageId && message?.role === "user");
+  if (selectedIndex < 0) throw new Error("User message not found");
+
+  const removed = messages.slice(selectedIndex + 1);
+  if (removed.length) await mem.deleteMessages(removed.map((message: any) => message.id));
+  return { messages: messages.slice(0, selectedIndex + 1), prompt: messageText(messages[selectedIndex]) };
 }

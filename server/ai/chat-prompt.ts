@@ -5,7 +5,7 @@
  */
 import type { TelemetryPacket, Tune, GameId } from "../../shared/types";
 import { generateExport, type UnitSystem, type TemperatureUnit } from "../export";
-import { getCarName, getTrackName } from "../../shared/car-data";
+import { getPromptCarName, getPromptTrackName } from "./compare-engineer";
 import { buildCornerData } from "./corner-data";
 import { analyzeLap } from "../../shared/lib/lap-insights";
 import { formatTuneForPrompt } from "./format-tune";
@@ -28,8 +28,13 @@ function chatSystemPrompt(unit: UnitSystem, temperatureUnit: TemperatureUnit, la
 Be brief. Use bullet points. Cite specific numbers in ${units}. Address them as "you". Temperature unit for this session is °${temperatureUnit}. No JSON output.${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(language)}`;
 }
 
+export function formatLapChatIdentity(lap: { id?: number; lapNumber: number; lapTime: number }): string {
+  return `Lap ID: ${lap.id ?? "unknown"}\nLap #${lap.lapNumber} — ${lap.lapTime.toFixed(3)}s`;
+}
+
 export function buildChatSystemPrompt(
   lap: {
+    id?: number;
     lapNumber: number;
     lapTime: number;
     isValid: boolean;
@@ -41,12 +46,11 @@ export function buildChatSystemPrompt(
   corners: CornerDef[],
   unit: UnitSystem = "metric",
   temperatureUnit: TemperatureUnit = unit === "metric" ? "C" : "F",
-  tune?: Tune,
   /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
   language: string = "en",
 ): string {
-  const carName = getCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0);
-  const trackName = getTrackName(lap.trackOrdinal ?? 0);
+  const carName = getPromptCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0, lap.gameId);
+  const trackName = getPromptTrackName(lap.trackOrdinal ?? 0, lap.gameId);
 
   const exportText = generateExport(lap, packets, unit, temperatureUnit);
   const cornerData = buildCornerData(packets, corners, unit === "metric" ? "kmh" : "mph");
@@ -88,16 +92,9 @@ export function buildChatSystemPrompt(
     extendedContext = serverAdapter.buildAiContext(packets);
   }
 
-  // Game-specific system prompt override (use chat version, not analysis JSON version)
-  const gameSystemNote = serverAdapter?.aiSystemPrompt ? `\nGame-specific notes: This is ${serverAdapter.aiSystemPrompt.split("\n")[0]}\n` : "";
-
   return `${chatSystemPrompt(unit, temperatureUnit, language)}
 ${gameSystemNote}
---- LAP CONTEXT ---
-Car: ${carName}
-Track: ${trackName}
-Lap #${lap.lapNumber} — ${lap.lapTime.toFixed(3)}s${lap.isValid ? "" : " (INVALID)"}
-${tuneText}
+${formatLapChatIdentity(lap)}
 --- TELEMETRY DATA ---
 ${exportText}
 ${cornerData}

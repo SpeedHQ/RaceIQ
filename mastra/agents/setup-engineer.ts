@@ -15,6 +15,7 @@ import { Agent } from "@mastra/core/agent";
 import { aiLanguageInstruction } from "../../shared/locales";
 import { TRACK_GUIDE_PROMPT, ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
 import { getChatMemory } from "../../server/ai/chat-agent";
+import { getChatTurnContext } from "../../server/ai/chat-message-context";
 import { getMastraModelId } from "../model";
 import { loadSettings } from "../../server/settings";
 import { setupEngineerTools } from "../tools/setup-engineer";
@@ -90,10 +91,11 @@ HOW TO ANSWER
 
 LAP DATA — a focused lap review may already be provided inline in this turn's context. For any other laps, comparisons, or detected issues beyond what's inline, call \`list_laps\` to see the full lap pool, \`get_lap_detail\` for one lap's sectors/tyres/corners, \`get_lap_issues\` for detected symptom issues (one lap or a session-wide scan), and \`compare_laps\` for a head-to-head delta between two laps.`;
 
+
 export const setupEngineerAgent = new Agent({
   id: "setup-engineer",
   name: "Setup Engineer",
-  instructions: () => `${SETUP_ENGINEER_INSTRUCTIONS}${TRACK_GUIDE_PROMPT}${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(loadSettings().language)}`,
+  instructions: ({ requestContext }) => `${SETUP_ENGINEER_INSTRUCTIONS}${TRACK_GUIDE_PROMPT}${ADJUSTMENT_FORMAT_PROMPT}${aiLanguageInstruction(loadSettings().language)}\n\n${getChatTurnContext(requestContext)}`,
   model: () => {
     const s = loadSettings();
     return getMastraModelId(s.chatProvider, s.chatModel, s.localEndpoint);

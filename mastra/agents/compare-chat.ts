@@ -7,6 +7,7 @@
  */
 import { Agent } from "@mastra/core/agent";
 import { compareEngineerPersona } from "../../server/ai/compare-engineer";
+import { getChatTurnContext } from "../../server/ai/chat-message-context";
 import { getChatMemory } from "../../server/ai/chat-agent";
 import { getMastraModelId } from "../model";
 import { loadSettings } from "../../server/settings";
@@ -23,12 +24,15 @@ import { TRACK_GUIDE_PROMPT } from "../../shared/prompt-snippets";
 export const compareChatAgent = new Agent({
   id: "compare-chat",
   name: "Compare Chat",
-  instructions: () => {
+  instructions: ({ requestContext }) => {
     const s = loadSettings();
+    const context = getChatTurnContext(requestContext);
     return (
       compareEngineerPersona(s.unit, s.temperatureUnit, s.language) +
       TRACK_GUIDE_PROMPT +
-      "\nAt the beginning of the conversation, call `get_lap_analysis` for both comparison lap IDs and `get_compare_analysis` for those same IDs. Load all three results into context before answering. If any retrieval is unavailable, state that limitation and do not invent findings."
+      "\nThe server provides lap IDs and authoritative per-segment timing deltas in context. Use those values; never ask the driver for IDs or recalculate timing deltas." +
+      "\nFor lap-specific technique explanations, call the relevant lap/compare analysis tools before answering. If a tool reports unavailable, state that limitation and do not invent findings." +
+      (context ? `\n\n${context}` : "")
     );
   },
   model: () => {

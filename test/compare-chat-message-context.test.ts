@@ -1,25 +1,54 @@
 import { describe, expect, test } from "bun:test";
-import { prependChatTurnContext } from "../server/ai/chat-message-context";
+import {
+  CHAT_TURN_CONTEXT_KEY,
+  compareChatToolChoice,
+  getChatTurnContext,
+  lapChatToolChoice,
+  sanitizeChatHistoryMessages,
+} from "../server/ai/chat-message-context";
 
 describe("compare chat turn context", () => {
-  test("keeps agent as sole system message and prepends context to latest user turn", () => {
+  test("reads only server-set context from request context", () => {
+    const requestContext = {
+      get(key: string) {
+        return key === CHAT_TURN_CONTEXT_KEY ? "server context" : "client override";
+      },
+    };
+
+    expect(getChatTurnContext(requestContext)).toBe("server context");
+    expect(getChatTurnContext()).toBe("");
+  });
+
+  test("removes identifiable generated context from legacy user history", () => {
     const messages = [
-      { id: "u1", role: "user", parts: [{ type: "text", text: "Earlier" }] },
-      { id: "a1", role: "assistant", parts: [{ type: "text", text: "Answer" }] },
-      { id: "u2", role: "user", parts: [{ type: "text", text: "Why was lap B faster?" }] },
+      {
+        id: "u2",
+        role: "user",
+        parts: [
+          { type: "text", text: "Internal instructions\n--- LAPS UNDER COMPARISON ---\nLap A..." },
+          { type: "text", text: "braking zone" },
+        ],
+      },
     ];
 
-    const result = prependChatTurnContext(messages, "Comparison context");
+    expect(sanitizeChatHistoryMessages(messages)).toEqual([
+      {
+        id: "u2",
+        role: "user",
+        parts: [{ type: "text", text: "braking zone" }],
+      },
+    ]);
+  });
 
-    expect(result).toHaveLength(3);
-    expect(result.some((message) => message.role === "system")).toBe(false);
-    expect(result[2]).toEqual({
-      id: "u2",
-      role: "user",
-      parts: [
-        { type: "text", text: "Comparison context" },
-        { type: "text", text: "Why was lap B faster?" },
-      ],
-    });
+  test("always lets the model choose whether to call tools", () => {
+    expect(compareChatToolChoice([{ role: "user" }])).toBe("auto");
+    expect(compareChatToolChoice([{ role: "user" }, { role: "assistant" }])).toBe("auto");
+  });
+});
+
+describe("lap chat tool selection", () => {
+  test("requires cached analysis only on first step", () => {
+    expect(lapChatToolChoice(0)).toBe("required");
+    expect(lapChatToolChoice(1)).toBe("auto");
   });
 });

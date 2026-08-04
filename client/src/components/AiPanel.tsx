@@ -8,7 +8,7 @@ import { type ChatStreamError, type ChatStreamStatus, readChatStream } from "../
 import { isAiConfigured } from "../lib/is-ai-configured";
 import { client } from "../lib/rpc";
 import { useUiStore } from "../stores/ui";
-import { type AnalysisData, AnalysisDisplay, type AnalysisHighlight, findSegment, type Segment, SetupList } from "./ai/analysis-display";
+import { type AnalysisData, AnalysisDisplay, type AnalysisHighlight, findSegment, type Segment } from "./ai/analysis-display";
 import { AnalysisModalShell, AnalysisResultCard, AnalysisSummaryRow } from "./ai/analysis-summary";
 import { ChatPanel } from "./ai-chat/ChatPanel";
 import { PanelSectionHeader } from "./ui/panel-section-header";
@@ -97,7 +97,6 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cornerFracs, setCornerFracs] = useState<Segment[]>([]);
-  const [hasTune, setHasTune] = useState(false);
   const analysisRef = useRef<HTMLDivElement>(null);
 
   // Same live-status pair for the analyse flow (separate from chat — chat now
@@ -106,7 +105,6 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
   const [analyseTool, setAnalyseTool] = useState<string | null>(null);
   const [chatRemountKey, setChatRemountKey] = useState(0);
   const [analysisOpen, setAnalysisOpen] = useState(false);
-  const [modalTab, setModalTab] = useState("analysis");
   const [analysisCollapsed, setAnalysisCollapsed] = useState(false);
   const [analysisDeleting, setAnalysisDeleting] = useState(false);
 
@@ -161,9 +159,9 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           throw new Error(data.error || `HTTP ${res.status}`);
         }
 
-        // Apply one analysis payload (analysis JSON + usage + cornerFracs +
-        // hasTune) — shared by the cached-JSON and streamed-NDJSON code paths.
-        const apply = (data: { analysis: string | object | null; usage?: AnalysisUsage; cornerFracs?: { label: string; startFrac: number; endFrac: number }[]; hasTune?: boolean }) => {
+        // Apply one analysis payload (analysis JSON + usage + cornerFracs) —
+        // shared by cached-JSON and streamed-NDJSON code paths.
+        const apply = (data: { analysis: string | object | null; usage?: AnalysisUsage; cornerFracs?: { label: string; startFrac: number; endFrac: number }[] }) => {
           // Empty string = model produced no text (e.g. it burned through
           // maxSteps calling tools without finalising). Treat as error.
           if (typeof data.analysis === "string" && data.analysis.trim().length === 0) {
@@ -182,9 +180,10 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               })),
             );
           }
-          setHasTune(!!data.hasTune);
+          const segs: Segment[] = data.cornerFracs
+            ? data.cornerFracs.map((c) => ({ type: "corner", name: c.label, startFrac: c.startFrac, endFrac: c.endFrac }))
+            : (segments ?? []);
 
-          const segs: Segment[] = data.cornerFracs ? data.cornerFracs.map((c) => ({ type: "corner", name: c.label, startFrac: c.startFrac, endFrac: c.endFrac })) : (segments ?? []);
           const searchSegs = segs.length ? segs : null;
           const hl: AnalysisHighlight[] = [];
           for (const corner of parsed?.corners ?? []) {
@@ -227,7 +226,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
                 throw new Error(formatStreamError(e));
               }
               case "result": {
-                const r = event as unknown as { analysis: string | object | null; usage?: AnalysisUsage; cornerFracs?: { label: string; startFrac: number; endFrac: number }[]; hasTune?: boolean };
+                const r = event as unknown as { analysis: string | object | null; usage?: AnalysisUsage; cornerFracs?: { label: string; startFrac: number; endFrac: number }[] };
                 apply(r);
                 resolved = true;
                 break;
@@ -236,7 +235,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           });
           if (!resolved) throw new Error(m.aipanel_stream_no_result());
         } else {
-          const data = (await res.json()) as { analysis: string | object | null; usage?: AnalysisUsage; cornerFracs?: { label: string; startFrac: number; endFrac: number }[]; hasTune?: boolean };
+          const data = (await res.json()) as { analysis: string | object | null; usage?: AnalysisUsage; cornerFracs?: { label: string; startFrac: number; endFrac: number }[] };
           apply(data);
         }
       } catch (err: unknown) {
@@ -263,7 +262,6 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
         cached: boolean;
         usage?: { inputTokens: number; outputTokens: number; costUsd: number; durationMs: number; model: string };
         cornerFracs?: { label: string; startFrac: number; endFrac: number }[];
-        hasTune?: boolean;
       };
       if (!data.cached) return;
       const parsed = (typeof data.analysis === "string" ? safeParseAnalysis(data.analysis) : data.analysis) as AnalysisData | null;
@@ -279,9 +277,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
           })),
         );
       }
-      setHasTune(!!data.hasTune);
     } catch {
-      /* ignore */
     }
   }, [lapId]);
 
@@ -478,7 +474,7 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
               actionsDisabled={analysisDeleting}
             >
               <AnalysisSummaryRow
-                detail={`${analysis.corners?.length ?? 0} corners · ${analysis.coaching?.length ?? 0} tips · ${analysis.setup?.length ?? 0} setup`}
+                detail={`${analysis.corners?.length ?? 0} corners · ${analysis.coaching?.length ?? 0} tips`}
                 onView={() => setAnalysisOpen(true)}
               />
             </AnalysisResultCard>
@@ -488,39 +484,23 @@ export const AiPanel = forwardRef<AiPanelHandle, AiPanelProps>(function AiPanel(
             <AnalysisModalShell
               subtitle={[carName, trackName].filter(Boolean).join(" · ") || undefined}
               onClose={() => setAnalysisOpen(false)}
-              tabs={[
-                { key: "analysis", label: m.label_ai_analysis() },
-                ...(analysis.setup?.length ? [{ key: "setup", label: m.aidisplay_setup(), badge: analysis.setup.length, flag: hasTune ? undefined : m.aidisplay_best_guess() }] : []),
-              ]}
-              activeTab={modalTab}
-              onTabChange={setModalTab}
             >
-              {modalTab === "setup" ? (
-                <SetupList
-                  setup={analysis.setup}
-                  hasTune={hasTune}
-                  lookupSegs={cornerFracs.length ? cornerFracs : (segments ?? null)}
-                  onJumpToFrac={onJumpToFrac}
-                  onHighlightsChange={onHighlightsChange}
-                />
-              ) : (
-                <AnalysisDisplay
-                  analysis={analysis}
-                  cornerFracs={cornerFracs}
-                  segments={segments}
-                  usage={usage}
-                  loading={loading || analysisDeleting}
-                  containerRef={analysisRef}
-                  onJumpToFrac={onJumpToFrac}
-                  onHighlightsChange={onHighlightsChange}
-                  onExport={handleExport}
-                  onRegenerate={() => {
-                    clearChat();
-                    fetchAnalysis(true);
-                  }}
-                  onClear={deleteAnalysis}
-                />
-              )}
+              <AnalysisDisplay
+                analysis={analysis}
+                cornerFracs={cornerFracs}
+                segments={segments}
+                usage={usage}
+                loading={loading || analysisDeleting}
+                containerRef={analysisRef}
+                onJumpToFrac={onJumpToFrac}
+                onHighlightsChange={onHighlightsChange}
+                onExport={handleExport}
+                onRegenerate={() => {
+                  clearChat();
+                  fetchAnalysis(true);
+                }}
+                onClear={deleteAnalysis}
+              />
             </AnalysisModalShell>
           )}
         </div>

@@ -12,8 +12,18 @@
  * and inputs-compare-analysis stay consistent.
  */
 import type { UnitSystem, TemperatureUnit } from "../export";
+import { tryGetServerGame } from "../games/registry";
+import { getCarName, getTrackName } from "../../shared/car-data";
 import { aiLanguageInstruction } from "../../shared/locales";
 import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
+
+export function getPromptCarName(ordinal: number, gameId?: string): string {
+  return tryGetServerGame(gameId)?.getCarName(ordinal) ?? getCarName(ordinal, gameId);
+}
+
+export function getPromptTrackName(ordinal: number, gameId?: string): string {
+  return tryGetServerGame(gameId)?.getTrackName(ordinal) ?? getTrackName(ordinal, gameId);
+}
 
 /**
  * The base persona used for every compare flow. Plain text — no JSON shape.
@@ -56,14 +66,16 @@ export function compareLapHeader(
   trackName: string,
   carA: string,
   carB: string,
-  lapA: { lapNumber: number; lapTime: number; isValid: boolean },
-  lapB: { lapNumber: number; lapTime: number; isValid: boolean },
+  lapA: { id?: number; lapNumber: number; lapTime: number; isValid: boolean },
+  lapB: { id?: number; lapNumber: number; lapTime: number; isValid: boolean },
   finalDelta: number,
 ): string {
   const sign = finalDelta >= 0 ? "+" : "";
   return `--- LAPS UNDER COMPARISON ---
 Track: ${trackName}
+Lap A ID: ${lapA.id ?? "unknown"}
 Lap A: ${carA} — Lap #${lapA.lapNumber} — ${lapA.lapTime.toFixed(3)}s${lapA.isValid ? "" : " (INVALID)"}
+Lap B ID: ${lapB.id ?? "unknown"}
 Lap B: ${carB} — Lap #${lapB.lapNumber} — ${lapB.lapTime.toFixed(3)}s${lapB.isValid ? "" : " (INVALID)"}
 Final time delta (A − B): ${sign}${finalDelta.toFixed(3)}s  (positive = Lap A is slower)`;
 }
