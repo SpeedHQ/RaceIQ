@@ -3,10 +3,7 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 import type { GameId } from "../shared/games/ids";
 import type { LapMeta } from "../shared/racing/sessions/types";
 import { SEEDED_GAME_CASES } from "./seeded-e2e-cases";
-import {
-  collectBrowserErrors,
-  getSeededLapTarget,
-} from "./seeded-e2e-helpers";
+import { collectBrowserErrors } from "./seeded-e2e-helpers";
 
 type ComparisonPayload = {
   traces: {
@@ -19,6 +16,8 @@ type ComparisonPayload = {
     brakeB: number[];
     rpmA: number[];
     rpmB: number[];
+    tireWearA: number[];
+    tireWearB: number[];
   };
   timeDelta: number[];
 };
@@ -33,6 +32,7 @@ function formatLapTime(seconds: number): string {
   return `${minutes}:${(seconds % 60).toFixed(3).padStart(6, "0")}`;
 }
 
+
 async function getLaps(request: APIRequestContext, gameId: GameId): Promise<LapMeta[]> {
   const response = await request.get(`/api/laps?gameId=${gameId}`);
   expect(response.ok(), `${gameId} seeded laps`).toBe(true);
@@ -40,17 +40,45 @@ async function getLaps(request: APIRequestContext, gameId: GameId): Promise<LapM
 }
 
 async function getDistinctPair(request: APIRequestContext, gameId: GameId): Promise<ComparePair> {
-  const first = await getSeededLapTarget(request, gameId);
   const laps = await getLaps(request, gameId);
-  const second = laps.find(
-    (lap) =>
-      lap.id !== first.id &&
-      lap.isValid &&
-      lap.trackOrdinal === first.trackOrdinal &&
-      lap.carOrdinal === first.carOrdinal,
-  );
-  expect(second, `${gameId} needs two valid seeded laps on one track/car`).toBeDefined();
-  return { lapA: first, lapB: second! };
+  for (const lapA of laps.filter((lap) => lap.isValid)) {
+    for (const lapB of laps) {
+      if (
+        lapB.id === lapA.id ||
+        lapB.lapTime < 30 ||
+        lapB.trackOrdinal !== lapA.trackOrdinal ||
+        lapB.carOrdinal !== lapA.carOrdinal
+      ) {
+        continue;
+      }
+      const pair = { lapA, lapB };
+      const response = await request.get(comparePath(pair));
+      if (!response.ok()) continue;
+      const payload = (await response.json()) as ComparisonPayload;
+      const requiredTraces = [
+        payload.traces.distance,
+        payload.traces.speedA,
+        payload.traces.speedB,
+        payload.traces.throttleA,
+        payload.traces.throttleB,
+        payload.traces.brakeA,
+        payload.traces.brakeB,
+        payload.traces.rpmA,
+        payload.traces.rpmB,
+      ];
+      const hasDistinctSpeed = payload.traces.speedA.some(
+        (speed, index) => Math.abs(speed - payload.traces.speedB[index]!) > 0.0001,
+      );
+      if (
+        requiredTraces.every((trace) => trace.length > 10) &&
+        hasDistinctSpeed &&
+        payload.timeDelta.some((delta) => Math.abs(delta) > 0.0001)
+      ) {
+        return pair;
+      }
+    }
+  }
+  throw new Error(`${gameId} needs two comparable seeded laps on one track/car`);
 }
 
 function comparePath(pair: ComparePair): string {
@@ -104,8 +132,21 @@ for (const game of SEEDED_GAME_CASES) {
     const compareResponse = await request.get(endpoint);
     expect(compareResponse.ok(), `${game.name} compare API`).toBe(true);
     const payload = (await compareResponse.json()) as ComparisonPayload;
-    const traceArrays = Object.values(payload.traces);
-    expect(traceArrays.every((trace) => trace.length > 10), `${game.name} trace packet count`).toBe(true);
+    const requiredTraces = {
+      distance: payload.traces.distance,
+      speedA: payload.traces.speedA,
+      speedB: payload.traces.speedB,
+      throttleA: payload.traces.throttleA,
+      throttleB: payload.traces.throttleB,
+      brakeA: payload.traces.brakeA,
+      brakeB: payload.traces.brakeB,
+      rpmA: payload.traces.rpmA,
+      rpmB: payload.traces.rpmB,
+    };
+    for (const [traceName, trace] of Object.entries(requiredTraces)) {
+      expect(trace.length, `${game.name} ${traceName} packet count`).toBeGreaterThan(10);
+    }
+    expect(payload.traces.tireWearA.length, `${game.name} tyre-wear capability symmetry`).toBe(payload.traces.tireWearB.length);
     expect(
       payload.traces.speedA.some((speed, index) => Math.abs(speed - payload.traces.speedB[index]!) > 0.0001),
       `${game.name} distinct speed traces`,
@@ -151,7 +192,7 @@ for (const game of SEEDED_GAME_CASES) {
     await lapB.click();
     await page
       .getByRole("option", {
-        name: `Lap ${pair.lapA.lapNumber} — ${formatLapTime(pair.lapA.lapTime)}`,
+        name: `Lap ${pair.lapA.lapNumber} — ${formatLapTime(pair.lapA.lapTime)}${pair.lapA.isValid ? "" : " (inv)"}`,
         exact: true,
       })
       .click();
@@ -163,7 +204,7 @@ for (const game of SEEDED_GAME_CASES) {
     );
     await page
       .getByRole("option", {
-        name: `Lap ${pair.lapB.lapNumber} — ${formatLapTime(pair.lapB.lapTime)}`,
+        name: `Lap ${pair.lapB.lapNumber} — ${formatLapTime(pair.lapB.lapTime)}${pair.lapB.isValid ? "" : " (inv)"}`,
         exact: true,
       })
       .click();

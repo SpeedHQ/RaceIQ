@@ -123,6 +123,7 @@ export default defineConfig({
       testMatch: "device-responsive.spec.ts",
       use: {
         ...devices["iPad (gen 7)"],
+        browserName: "chromium",
         baseURL: `http://localhost:${E2E_DEV_SERVER ? SEEDED_E2E_CLIENT_PORT : SEEDED_E2E_PORT}`,
       },
     },

@@ -315,7 +315,7 @@ export function useTrackSectorBoundaries(ord: number | undefined, gameIdOverride
       });
       return rpcJson<{ s1End: number; s2End: number } | null>(res);
     },
-    enabled: ord != null && !!gameId,
+    enabled: ord != null && ord >= 0 && !!gameId,
   });
 }
 
@@ -340,7 +340,7 @@ export function useTrackOutline(ord: number | undefined, gameIdOverride?: GameId
         | { x: number; z: number }[]
       >(res);
     },
-    enabled: ord != null && !!gameId,
+    enabled: ord != null && ord >= 0 && !!gameId,
   });
 }
 
@@ -356,7 +356,7 @@ export function useTrackBoundaries(ord: number | undefined, gameIdOverride?: Gam
       });
       return rpcJson(res);
     },
-    enabled: ord != null && !!gameId,
+    enabled: ord != null && ord >= 0 && !!gameId,
   });
 }
 

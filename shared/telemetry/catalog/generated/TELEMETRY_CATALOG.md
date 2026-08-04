@@ -9,7 +9,7 @@
 - Generator: `RaceIQ telemetry-catalog generator@0.13.0`
 - Generator commit: `e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f`
 - Generated at: `1970-01-01T00:00:00.000Z` (reproducible-build epoch)
-- Content SHA-256: `ab56f55ea5ece64dd44e5585a8a7221abd91badb0c188598fb0a6508c5d8cfb4`
+- Content SHA-256: `770daa64fe92250e363d4e0ecc48f69d862a42e791a821ca7ad3ee709845aecb`
 
 ## Coverage
 
@@ -19,7 +19,7 @@
 | f1-2025 | 288 | 288 | 119 | 169 | 0 | 0 | 0 |
 | acc | 200 | 167 | 124 | 43 | 0 | 0 | 33 |
 | ac-evo | 255 | 219 | 124 | 95 | 0 | 0 | 36 |
-| iracing | 953 | 703 | 119 | 15 | 324 | 495 | 0 |
+| iracing | 955 | 705 | 119 | 17 | 324 | 495 | 0 |
 
 ## Semantic variables
 
@@ -692,6 +692,8 @@
 | `tires.left-tire-sets-used` | Left Tire Sets Used | number | unit:unitless | unitless | scalar |  |  |  |
 | `tires.normalized-tire-slip-angle` | Normalized tire slip-angle signal | number | dimensionless | ratio | fixed:4 | FL, FR, RL, RR |  |  |
 | `tires.odometer` | Odometer | number | length | m | fixed:4 | FL, FR, RL, RR |  |  |
+| `tires.pit-tire-temperature-available` | Pit Tire Temperature Available | boolean | dimensionless | boolean | scalar |  |  |  |
+| `tires.pit-tire-wear-available` | Pit Tire Wear Available | boolean | dimensionless | boolean | scalar |  |  |  |
 | `tires.player-car-dry-tire-set-limit` | Player Car Dry Tire Set Limit | number | unit:unitless | unitless | scalar |  |  |  |
 | `tires.rear-tire-sets-available` | Rear Tire Sets Available | number | unit:unitless | unitless | scalar |  |  |  |
 | `tires.rear-tire-sets-used` | Rear Tire Sets Used | number | unit:unitless | unitless | scalar |  |  |  |

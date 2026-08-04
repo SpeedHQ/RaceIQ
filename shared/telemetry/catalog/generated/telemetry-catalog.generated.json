@@ -9,7 +9,7 @@
       "commit": "e64b87a3742d9630c1c7223263a5ccde441bd1fac09dc39f6cdcfb4205015d9f"
     },
     "generatedAt": "1970-01-01T00:00:00.000Z",
-    "contentHash": "ab56f55ea5ece64dd44e5585a8a7221abd91badb0c188598fb0a6508c5d8cfb4"
+    "contentHash": "770daa64fe92250e363d4e0ecc48f69d862a42e791a821ca7ad3ee709845aecb"
   },
   "generatedFrom": [
     "shared/telemetry/types.ts",
@@ -1135,6 +1135,8 @@
         "tires.left-tire-sets-used",
         "tires.normalized-tire-slip-angle",
         "tires.odometer",
+        "tires.pit-tire-temperature-available",
+        "tires.pit-tire-wear-available",
         "tires.player-car-dry-tire-set-limit",
         "tires.rear-tire-sets-available",
         "tires.rear-tire-sets-used",
@@ -1553,7 +1555,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -1694,7 +1696,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -3387,7 +3389,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -3440,7 +3442,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -3924,7 +3926,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -3988,7 +3990,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -4041,7 +4043,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -4094,7 +4096,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -4147,7 +4149,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -4200,7 +4202,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -4257,7 +4259,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -4367,7 +4369,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -4424,7 +4426,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -4534,7 +4536,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -4587,7 +4589,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -4640,7 +4642,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -4693,7 +4695,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -4799,7 +4801,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -4852,7 +4854,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -4958,7 +4960,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -5011,7 +5013,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -5121,7 +5123,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -5174,7 +5176,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -5227,7 +5229,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -5280,7 +5282,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -5333,7 +5335,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -5439,7 +5441,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -5492,7 +5494,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -5545,7 +5547,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -6969,7 +6971,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -7022,7 +7024,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -7075,7 +7077,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -7571,7 +7573,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -7624,7 +7626,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -7801,7 +7803,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -7910,7 +7912,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -7985,7 +7987,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -8056,7 +8058,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -8275,7 +8277,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -8328,7 +8330,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -9069,7 +9071,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -9173,7 +9175,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -9280,7 +9282,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -9930,7 +9932,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -9984,7 +9986,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -10102,7 +10104,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -10157,7 +10159,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -10210,7 +10212,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -10264,7 +10266,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -10338,7 +10340,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -10404,7 +10406,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -10468,7 +10470,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -10526,7 +10528,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -10592,7 +10594,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -10658,7 +10660,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -10724,7 +10726,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -10871,7 +10873,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -11144,7 +11146,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -11310,7 +11312,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -11367,7 +11369,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -11484,7 +11486,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -11537,7 +11539,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -11590,7 +11592,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -11643,7 +11645,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -12083,7 +12085,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -12585,7 +12587,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -12653,7 +12655,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -12708,7 +12710,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -12990,7 +12992,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -13043,7 +13045,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -13174,7 +13176,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -13227,7 +13229,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -13326,7 +13328,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -13635,7 +13637,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -13688,7 +13690,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -13741,7 +13743,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -14022,7 +14024,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -14076,7 +14078,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -14129,7 +14131,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -15073,7 +15075,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -15217,7 +15219,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -15281,7 +15283,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -15374,7 +15376,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -15495,7 +15497,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -15552,7 +15554,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -15632,7 +15634,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -15845,7 +15847,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -16182,7 +16184,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -16352,7 +16354,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -16417,7 +16419,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -16470,7 +16472,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -16604,7 +16606,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -16669,7 +16671,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -16722,7 +16724,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -16780,7 +16782,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -16844,7 +16846,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -16901,7 +16903,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -16958,7 +16960,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -17015,7 +17017,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -17072,7 +17074,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -17129,7 +17131,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -17187,7 +17189,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -17252,7 +17254,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -17317,7 +17319,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -17385,7 +17387,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -17491,7 +17493,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -17627,7 +17629,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -17748,7 +17750,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -17869,7 +17871,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -17978,7 +17980,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -18087,7 +18089,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -18196,7 +18198,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -18463,7 +18465,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -18587,7 +18589,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -18700,7 +18702,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -18753,7 +18755,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -19206,7 +19208,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -19303,7 +19305,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -19356,7 +19358,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -19494,7 +19496,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -19614,7 +19616,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -19669,7 +19671,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -19781,7 +19783,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -19836,7 +19838,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -19948,7 +19950,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -20003,7 +20005,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -20073,7 +20075,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -20199,7 +20201,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -20252,7 +20254,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -20305,7 +20307,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -22717,7 +22719,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -23839,7 +23841,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -23930,7 +23932,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -24010,7 +24012,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -24193,7 +24195,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -24536,7 +24538,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -24616,7 +24618,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -25017,7 +25019,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -25439,7 +25441,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -25531,7 +25533,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -25622,7 +25624,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -25735,7 +25737,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -25905,7 +25907,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -26069,7 +26071,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -26240,7 +26242,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -26453,7 +26455,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -26518,7 +26520,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -26582,7 +26584,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -26635,7 +26637,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -26689,7 +26691,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -26753,7 +26755,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -26817,7 +26819,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -27075,7 +27077,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -27128,7 +27130,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -27181,7 +27183,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -27234,7 +27236,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -27287,7 +27289,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -27340,7 +27342,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -27393,7 +27395,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -27446,7 +27448,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -27499,7 +27501,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -27608,7 +27610,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -28168,7 +28170,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -29571,7 +29573,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -29783,7 +29785,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -29838,7 +29840,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -30274,7 +30276,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -30327,7 +30329,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -30380,7 +30382,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -30433,7 +30435,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -31138,7 +31140,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -31245,7 +31247,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -31352,7 +31354,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -31405,7 +31407,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -31459,7 +31461,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -38948,7 +38950,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -39019,7 +39021,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -39091,7 +39093,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -39268,7 +39270,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -39473,7 +39475,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -39537,7 +39539,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -39590,7 +39592,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -39643,7 +39645,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -40111,7 +40113,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -40281,7 +40283,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -40362,7 +40364,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -40697,7 +40699,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -40872,7 +40874,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -41095,7 +41097,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -41148,7 +41150,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -41201,7 +41203,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -41661,7 +41663,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -41714,7 +41716,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -41767,7 +41769,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -41820,7 +41822,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -41873,7 +41875,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -41926,7 +41928,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -41979,7 +41981,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -42032,7 +42034,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -42085,7 +42087,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -42138,7 +42140,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -42191,7 +42193,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -42244,7 +42246,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -42347,7 +42349,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -42486,7 +42488,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -42550,7 +42552,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -42671,7 +42673,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -42735,7 +42737,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -42788,7 +42790,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -42841,7 +42843,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -42894,7 +42896,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -43171,7 +43173,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -43299,7 +43301,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -44047,7 +44049,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -44654,7 +44656,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -44829,7 +44831,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -45893,7 +45895,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -46595,7 +46597,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -46701,7 +46703,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -46754,7 +46756,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -46807,7 +46809,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -47711,7 +47713,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -47788,7 +47790,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -47865,7 +47867,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -48300,7 +48302,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -48391,7 +48393,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -48471,7 +48473,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -48551,7 +48553,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -48604,7 +48606,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -48659,7 +48661,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -48712,7 +48714,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -48767,7 +48769,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -48820,7 +48822,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -48875,7 +48877,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -48928,7 +48930,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -48983,7 +48985,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -49036,7 +49038,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -49089,7 +49091,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -49142,7 +49144,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -49288,7 +49290,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -49307,6 +49309,112 @@
         "RL",
         "RR"
       ],
+      "limitations": []
+    },
+    {
+      "id": "tires.pit-tire-temperature-available",
+      "label": "Pit Tire Temperature Available",
+      "description": "Pit-only tire channels have produced a complete four-corner snapshot.",
+      "parentId": "tires",
+      "canonicalUnit": "boolean",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "iracing.pitTireTemperatureAvailable"
+          ],
+          "freshness": "continuous",
+          "description": "iracing parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/iracing/normalizer.ts",
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "boolean",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
+      "limitations": []
+    },
+    {
+      "id": "tires.pit-tire-wear-available",
+      "label": "Pit Tire Wear Available",
+      "description": "Pit Tire Wear Available source value reported by iracing in boolean.",
+      "parentId": "tires",
+      "canonicalUnit": "boolean",
+      "shape": "scalar",
+      "games": {
+        "fm-2023": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "f1-2025": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "acc": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "ac-evo": {
+          "kind": "unavailable",
+          "reason": "source-not-provided",
+          "description": "This parser does not expose an equivalent source value."
+        },
+        "iracing": {
+          "kind": "direct",
+          "nativeUnit": "boolean",
+          "sources": [
+            "iracing.pitTireWearAvailable"
+          ],
+          "freshness": "continuous",
+          "description": "iracing parser exposes 1 linked field.",
+          "provenance": {
+            "origin": "parser",
+            "artifact": "server/games/iracing/normalizer.ts",
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
+          },
+          "limitations": []
+        }
+      },
+      "valueType": "boolean",
+      "dimensions": [
+        "dimensionless"
+      ],
+      "cardinality": {
+        "kind": "scalar"
+      },
       "limitations": []
     },
     {
@@ -49348,7 +49456,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -49401,7 +49509,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -49454,7 +49562,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -49507,7 +49615,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -49560,7 +49668,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -50150,7 +50258,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -50351,7 +50459,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -50404,7 +50512,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -50538,7 +50646,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -50667,7 +50775,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -50720,7 +50828,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -50773,7 +50881,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -50826,7 +50934,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -51312,7 +51420,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -52206,7 +52314,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -53695,7 +53803,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": [],
           "execution": {
@@ -53760,7 +53868,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -53813,7 +53921,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -53992,7 +54100,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -54196,7 +54304,7 @@
           "provenance": {
             "origin": "parser",
             "artifact": "server/games/iracing/normalizer.ts",
-            "commit": "04057caa2da06b1e0a5e75c518fa2077f11d70b3ab4e13110591b20e05a010f5"
+            "commit": "e9f7f72a1a4b188aadc671ee2e6adb4ad88129a19931a7022c0e6b9006097c2b"
           },
           "limitations": []
         }
@@ -65371,6 +65479,30 @@
         "retention": "exact"
       },
       {
+        "path": "iracing.pitTireTemperatureAvailable",
+        "label": "Pit Tire Temperature Available",
+        "unit": "boolean",
+        "dataType": "boolean",
+        "count": 1,
+        "description": "Pit-only tire channels have produced a complete four-corner snapshot.",
+        "semanticId": "tires.pit-tire-temperature-available",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
+        "path": "iracing.pitTireWearAvailable",
+        "label": "Pit Tire Wear Available",
+        "unit": "boolean",
+        "dataType": "boolean",
+        "count": 1,
+        "description": "Pit Tire Wear Available source value reported by iracing in boolean.",
+        "semanticId": "tires.pit-tire-wear-available",
+        "sourceKind": "extension",
+        "recordedByRaceIQ": true,
+        "retention": "exact"
+      },
+      {
         "path": "iracing.playerTrackSurface",
         "label": "Player Track Surface",
         "unit": "count",
@@ -75609,7 +75741,7 @@
   },
   "coverage": {
     "normalizedPacketFields": 144,
-    "semanticVariables": 732,
+    "semanticVariables": 734,
     "sourceCounts": {
       "fm-2023": {
         "total": 95,
@@ -75648,13 +75780,13 @@
         "recorded": 219
       },
       "iracing": {
-        "total": 953,
+        "total": 955,
         "packet": 119,
-        "extension": 15,
+        "extension": 17,
         "sdk": 324,
         "yaml": 495,
         "setup": 0,
-        "recorded": 703
+        "recorded": 705
       }
     }
   }

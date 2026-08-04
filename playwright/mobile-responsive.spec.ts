@@ -56,7 +56,7 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
           await expect(p.getByRole("navigation").last()).toBeVisible();
         } else if (screenshotCase.kind === "settings") {
           await openSettings(p, viewport.width);
-          const overlay = p.getByRole("button", { name: "Close settings" });
+          const overlay = p.getByRole("button", { name: "Dismiss settings" });
           await expect(overlay).toHaveCSS("position", "absolute");
           await expect(overlay).toHaveCSS("inset", "0px");
           await expect(overlay).toHaveCSS("width", `${viewport.width}px`);
@@ -68,7 +68,7 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
           }
         } else if (screenshotCase.kind === "settings-language") {
           await openSettings(p, viewport.width);
-          await p.getByRole("combobox", { name: "Search language..." }).click();
+          await p.getByRole("combobox", { name: "Language", exact: true }).click();
           await expect(p.getByRole("listbox", { name: "Search language..." })).toBeVisible();
         } else {
           await p.getByRole("button", { name: "Export / Import" }).click();

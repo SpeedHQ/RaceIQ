@@ -102,8 +102,8 @@ test.describe("Forza Motorsport tunes", () => {
       await expect(page.getByText(/1[–-]10 of 12.*page 1\/2/i)).toBeVisible();
       await page.getByRole("button", { name: /next/i }).click();
       await expect(page.getByText(/11[–-]12 of 12.*page 2\/2/i)).toBeVisible();
-      await expect(page.getByText("E2E FM Bulk 11")).toBeVisible();
-      await page.getByRole("button", { name: /previous/i }).click();
+      await expect(page.getByText("E2E FM Bulk 0")).toBeVisible();
+      await page.getByRole("button", { name: /prev/i }).click();
 
       const authorFilter = page.getByPlaceholder(/search author/i);
       await authorFilter.fill("Secondary Author");
@@ -111,22 +111,24 @@ test.describe("Forza Motorsport tunes", () => {
       await expect(page.getByText("E2E FM Bulk 11")).toBeVisible();
       await authorFilter.fill("");
 
-      const trackFilter = page.getByRole("combobox").first();
+      const setupFilters = page.locator('input[role="combobox"]');
+      const trackFilter = setupFilters.nth(0);
       await trackFilter.click();
-      await page.getByRole("option").nth(1).click();
+      const trackOptions = page.getByRole("listbox", { name: "Any track" }).getByRole("option");
+      await trackOptions.nth(1).click();
       await expect(page.getByText(/1[–-]10 of 11.*page 1\/2/i)).toBeVisible();
       await trackFilter.click();
-      await page.getByRole("option").first().click();
+      await page.getByRole("listbox", { name: "Any track" }).getByRole("option").first().click();
 
-      const carFilter = page.getByRole("combobox").nth(1);
+      const carFilter = setupFilters.nth(1);
       await carFilter.click();
-      await page.getByRole("option").nth(1).click();
+      await page.getByRole("listbox", { name: "Any car" }).getByRole("option").nth(1).click();
       await expect(page.getByText(/1[–-]10 of 11.*page 1\/2/i)).toBeVisible();
 
       const refreshResponse = page.waitForResponse(
         (response) => response.url().includes("/api/tunes/community/refresh") && response.request().method() === "POST",
       );
-      await page.getByRole("button", { name: /^refresh$/i }).click();
+      await page.getByRole("button", { name: /refresh/i }).click();
       expect((await refreshResponse).ok()).toBeTruthy();
 
       await page.goto("/fm23/setups");

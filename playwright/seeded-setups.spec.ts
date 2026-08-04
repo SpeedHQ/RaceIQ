@@ -44,13 +44,16 @@ async function assertPaginationAndFilters(page: Page, firstAuthor?: string) {
   for (const index of [0, 1]) {
     const filter = filters.nth(index);
     await filter.click();
-    const options = page.getByRole("option");
+    const listboxId = await filter.getAttribute("aria-controls");
+    expect(listboxId).not.toBeNull();
+    const listbox = page.locator(`[id="${listboxId}"]`);
+    await expect(listbox).toBeVisible();
+    const options = listbox.getByRole("option");
     await expect(options.first()).toBeVisible();
     if ((await options.count()) > 1) {
+      const selectedLabel = (await options.nth(1).innerText()).trim();
       await options.nth(1).click();
-      await expect(filter).not.toHaveValue("");
-      await filter.click();
-      await options.first().click();
+      await expect(listbox.getByRole("option", { selected: true })).toHaveText(selectedLabel);
     } else {
       await page.keyboard.press("Escape");
     }

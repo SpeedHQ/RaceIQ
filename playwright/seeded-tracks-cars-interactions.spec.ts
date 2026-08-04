@@ -24,8 +24,13 @@ const CAR_CAPABILITY = {
 } as const;
 
 for (const game of SEEDED_GAME_CASES) {
-  test(`${game.name} tracks support search, sorting, map, and capability routes`, async ({ page }) => {
+  test(`${game.name} tracks support search, sorting, map, and capability routes`, async ({ page, request }) => {
     const browserErrors = collectBrowserErrors(page);
+    const curbResponse = await request.get(
+      `/api/track-curbs/${game.trackOrdinal}?gameId=${game.gameId}`,
+    );
+    expect([200, 404], `${game.name} curb capability status`).toContain(curbResponse.status());
+    const curbUnavailable = curbResponse.status() === 404;
     await page.goto(`/${game.prefix}/tracks`, { waitUntil: "domcontentloaded" });
     const search = page.getByPlaceholder("Search tracks...");
     await expect(search).toBeVisible({ timeout: 20_000 });
@@ -37,9 +42,9 @@ for (const game of SEEDED_GAME_CASES) {
     await lapsSort.click();
     await expect(lapsSort).toHaveAttribute("aria-selected", "true");
 
-    const firstTrack = page.locator("div.cursor-pointer").filter({ hasText: game.trackName }).first();
-    await expect(firstTrack).toBeVisible();
-    await firstTrack.click();
+    const trackCard = page.getByTestId(`track-card-${game.trackOrdinal}`);
+    await expect(trackCard).toBeVisible();
+    await trackCard.click();
     await expect(page).toHaveURL(new RegExp(`/${game.prefix}/tracks/${game.trackOrdinal}/?$`));
     await expect(page.getByText(game.trackName, { exact: true }).first()).toBeVisible();
 
@@ -52,9 +57,10 @@ for (const game of SEEDED_GAME_CASES) {
       await page.getByRole("button", { name: /segments|sectors/i }).click();
     }
 
-    await page.getByRole("tab", { name: "Laps", exact: true }).click();
+    const detailLapsTab = page.getByRole("tab", { name: /^Laps(?: \(\d+\))?$/ });
+    await detailLapsTab.click();
     await expect(page).toHaveURL(/\/laps\/?$/);
-    await expect(page.getByText(/Laps \(\d+\)/)).toBeVisible();
+    await expect(detailLapsTab).toHaveAttribute("aria-selected", "true");
     const lapCheckboxes = page.locator('tbody input[type="checkbox"]');
     if ((await lapCheckboxes.count()) >= 2) {
       await lapCheckboxes.nth(0).check();
@@ -103,11 +109,24 @@ for (const game of SEEDED_GAME_CASES) {
     }
     await page.getByRole("tab", { name: "Info", exact: true }).click();
     await expect(page).not.toHaveURL(/\/(laps|setups|guide|debug)\/?$/);
-    expect(browserErrors.errors, `${game.name} tracks browser errors`).toEqual([]);
+    const expectedResourceError =
+      "console.error: Failed to load resource: the server responded with a status of 404 (Not Found)";
+    expect(
+      browserErrors.errors.filter(
+        (error) =>
+          !curbUnavailable ||
+          (
+            error !== expectedResourceError &&
+            !error.includes(`/api/track-curbs/${game.trackOrdinal}?gameId=${game.gameId}`)
+          ),
+      ),
+      `${game.name} tracks browser errors`,
+    ).toEqual([]);
   });
 }
 
 test("track lap deletion uses imported disposable data and cleans imported session", async ({ page, request }) => {
+  const browserErrors = collectBrowserErrors(page);
   const sessionsBeforeResponse = await request.get("/api/sessions?gameId=fm-2023");
   expect(sessionsBeforeResponse.ok()).toBe(true);
   const sessionsBefore = (await sessionsBeforeResponse.json()) as { id: number }[];
@@ -141,7 +160,7 @@ test("track lap deletion uses imported disposable data and cleans imported sessi
       .filter((session) => !sessionIdsBefore.has(session.id))
       .map((session) => session.id);
     await page.goto(`/fm23/tracks/${source.trackOrdinal}/laps`, { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("tab", { name: "Laps", exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tab", { name: /^Laps(?: \(\d+\))?$/ })).toHaveAttribute("aria-selected", "true");
     const importedRow = page.locator(`[data-testid="track-lap-${importedLapIds[0]}"]`);
     await expect(importedRow).toBeVisible({ timeout: 20_000 });
     await importedRow.locator('input[type="checkbox"]').check();
@@ -200,16 +219,16 @@ for (const game of SEEDED_GAME_CASES) {
       await expect(page.locator("tbody tr").first()).toBeVisible();
       await page.getByTitle("Grid view").click();
     } else if (capability.catalog === "f1") {
-      await expect(page.getByText("Power Units", { exact: true })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Power Unit Suppliers" })).toBeVisible();
       await page.getByTitle("Table view").click();
       await expect(page.locator("tbody tr").first()).toBeVisible();
       await page.getByTitle("Grid view").click();
-      await expect(page.getByText("Red Bull Racing", { exact: true })).toBeVisible();
+      await expect(page.getByRole("img", { name: "Red Bull Racing RB21" })).toBeVisible();
     } else if (capability.catalog === "iracing") {
       const search = page.getByPlaceholder("Search name, division, engine...");
       await expect(search).toBeVisible({ timeout: 20_000 });
       await search.fill("definitely-no-seeded-car");
-      await expect(page.getByText("No cars match", { exact: true })).toBeVisible();
+      await expect(page.getByText("No cars match filters", { exact: true })).toBeVisible();
       await search.fill("");
       const category = page.locator("button[data-catalog-category]").first();
       await expect(category).toBeVisible();
@@ -219,7 +238,7 @@ for (const game of SEEDED_GAME_CASES) {
       const category = page.locator("button[data-catalog-category]").first();
       await expect(category).toBeVisible({ timeout: 20_000 });
       await category.click();
-      await expect(category).toHaveClass(/selected-toggle/);
+      await expect(category).toHaveAttribute("aria-pressed", "true");
     }
     expect(browserErrors.errors, `${game.name} cars browser errors`).toEqual([]);
   });

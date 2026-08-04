@@ -40,7 +40,7 @@ export function Compass({ yaw }: Props) {
   const toX = (offset: number) => 50 + (offset / (stripWidth / 2)) * 46;
 
   return (
-    <div className="flex flex-col items-center w-full">
+    <div className="pointer-events-none flex w-full flex-col items-center">
       <svg viewBox="0 0 100 28" className="w-full" style={{ maxWidth: 160 }}>
         {/* Track background */}
         <rect x="2" y="4" width="96" height="16" rx="2" fill="var(--app-surface)" fillOpacity="0.5" stroke="var(--app-border)" strokeWidth="0.5" />
@@ -49,7 +49,15 @@ export function Compass({ yaw }: Props) {
         {ticks
           .filter((t) => !visibleMarkers.some((m) => Math.abs(toX(m.offset) - toX(t.offset)) < 4))
           .map((t) => (
-            <line key={t.deg} x1={toX(t.offset)} y1={t.major ? 6 : 8} x2={toX(t.offset)} y2={t.major ? 18 : 16} stroke={t.major ? "var(--app-text-dim)" : "var(--app-border)"} strokeWidth={t.major ? 0.8 : 0.4} />
+            <line
+              key={t.deg}
+              x1={toX(t.offset)}
+              y1={t.major ? 6 : 8}
+              x2={toX(t.offset)}
+              y2={t.major ? 18 : 16}
+              stroke={t.major ? "var(--app-text-dim)" : "var(--app-border)"}
+              strokeWidth={t.major ? 0.8 : 0.4}
+            />
           ))}
 
         {/* Cardinal labels */}
