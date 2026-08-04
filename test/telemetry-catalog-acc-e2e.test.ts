@@ -1,11 +1,12 @@
 import { test } from "bun:test";
 import { assertRecordedCatalogCoverage, changingPacketFields } from "./helpers/telemetry-catalog-e2e";
 
-const RECORDING = "test/artifacts/sessions/acc-2026-04-23T16-42-16-158Z.bin.gz";
+const RECORDING = "test/artifacts/sessions/acc-2026-04-10T02-59-28-972Z.bin.gz";
 
 const DYNAMIC_UI_FIELDS = [
   "CurrentEngineRpm",
   "Speed",
+  "Fuel",
   "DistanceTraveled",
   "CurrentLap",
   "CurrentRaceTime",

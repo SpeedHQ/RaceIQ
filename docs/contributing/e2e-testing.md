@@ -66,9 +66,9 @@ For each case, functional tests should open game home, sessions, tracks, track d
 | Dash catalogue/combinations | global | Loading/error/no-data states, both combo routes, dashboard selection, persisted layout, responsive fit, replay-driven values, disconnect state, and route navigation | FM combo-2 completed-lap pace values remain fixture-limited by bounded replay |
 | Dev tools | global | Recording list/viewer, AC Evo parsed/fields/verify/hex tabs, replay scrubber, disconnect isolation, invalid/empty responses, dump import, and cleanup | Native provider status is reported honestly when game process is absent |
 
-## Same-lap dynamic field contract (234 source checks)
+## Same-lap dynamic field contract (235 source checks)
 
-Recorded catalog tests apply **234 game-specific dynamic packet-field contracts to one representative lap at a time**. They run committed captures through production parsers and retain game/lap identity while measuring each required range. Browser coverage is narrower: `seeded-telemetry.spec.ts` currently checks Speed, RPM, Gear, Throttle, Brake, and Steer at start/middle/end for each game. Do not describe those 30 browser field contracts as full catalog presentation coverage.
+Recorded catalog tests apply **235 game-specific dynamic packet-field contracts to one representative lap at a time**. They run committed captures through production parsers and retain game/lap identity while measuring each required range. Browser coverage is narrower: `seeded-telemetry.spec.ts` currently checks Speed, RPM, Gear, Throttle, Brake, and Steer at start/middle/end for each game. Do not describe those 30 browser field contracts as full catalog presentation coverage.
 
 Classify each value explicitly:
 
@@ -78,7 +78,7 @@ Classify each value explicitly:
 - **Unsupported:** adapter cannot provide field. Expected result is explicit `Unavailable`/null presentation according to catalog contract; it is not a parser failure.
 - **Fixture-limited:** adapter supports field, but committed fixture does not contain enough packets/events to prove it. Report fixture limitation; do not relabel as unsupported.
 
-Pass criteria for source dynamics: all 234 contracts meet their same-lap range without accepting `undefined`, neighboring-lap data, or placeholder values. Pass criteria for browser presentation remains separate: each applicable catalog value renders with correct value, unit, source classification, and unsupported/static/event state.
+Pass criteria for source dynamics: all 235 contracts meet their same-lap range without accepting `undefined`, neighboring-lap data, or placeholder values. Pass criteria for browser presentation remains separate: each applicable catalog value renders with correct value, unit, source classification, and unsupported/static/event state.
 
 ### Values that should not change every lap
 
@@ -93,7 +93,6 @@ Pass criteria for source dynamics: all 234 contracts meet their same-lap range w
 
 ### Known committed-fixture limits
 
-- ACC fuel remains exactly `62` through two complete fixture laps. Current fixture proves decoding, not consumption; capture fuel burn enabled and a long enough stint before requiring visible decrease.
 - ACC and AC Evo tyre-wear samples remain `0` in current native fixtures. Capture wear-enabled laps before requiring degradation.
 - F1 tyre pressures are static inside representative lap. Treat as setup/static until a fixture proves an in-lap pressure transition.
 - iRacing tyre temperature/health are pit snapshots and pressure is a cold/static source, not continuous live data.
@@ -201,7 +200,8 @@ Replay through existing parser/lap assertions and retain game id in filename. Na
 
 ### Automated
 
-- [x] Verify native five-game same-lap dynamic contracts: 5 tests, 294 assertions, 0 failures on 2026-08-03.
+- [x] Verify 235 native five-game same-lap dynamic contracts: 5 tests, 294 assertions, 0 failures on 2026-08-04.
+- [x] Verify ACC fuel consumption with `acc-2026-04-10T02-59-28-972Z.bin.gz`: fuel falls from `59.6086` to `57.4575` litres during the first valid lap and continues falling through three valid laps.
 - [x] Keep full dev-server `seeded-e2e` route and interaction project green: 169 passed and 3 explicit fixture-conditional skips on 2026-08-04.
 - [x] Run compiled Windows parity against `dist/raceiq.exe`: `fresh-install` 34 passed and `tunes` 7 passed on 2026-08-04.
 - [x] Cover catalog-driven units, provenance, static/event categories, unsupported values, and replay-driven dynamic values across all supported games.
@@ -215,7 +215,6 @@ Replay through existing parser/lap assertions and retain game id in filename. Na
 
 Unchecked items below are fixture-blocked, not passes and not unsupported product behavior:
 
-- [ ] **ACC fuel consumption:** current fixture remains at `62` litres through two complete laps. Capture a longer stint with fuel consumption enabled, then verify a same-lap or lap-to-lap decrease.
 - [ ] **ACC and AC Evo tyre wear:** current native fixtures remain at `0`. Capture wear-enabled sessions long enough to produce measurable degradation.
 - [ ] **F1 tyre pressure movement:** current representative lap contains static pressures. Keep pressure classified as setup/static unless a new authoritative fixture proves an in-lap transition.
 - [ ] **iRacing tyre transitions:** temperature and health are pit snapshots; pressure is a cold/static source. Capture a pit stop with refreshed tyre data before asserting transitions.
