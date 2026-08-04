@@ -2,6 +2,7 @@ import { execSync } from "child_process";
 import { resolve } from "path";
 import { wsManager, type WSData } from "./websocket-manager";
 import type { AppType } from "../routes/index";
+import { MAX_IBT_BYTES } from "../games/iracing/import-ibt";
 import { IS_WINDOWS } from "./platform/shell";
 
 type HttpApp = Pick<AppType, "fetch">;
@@ -37,6 +38,9 @@ export function startHttpServer({
   return Bun.serve<WSData>({
     port,
     idleTimeout: 255,
+    // Bun otherwise terminates uploads above its 128 MiB default before Hono
+    // can stream them to disk or return the route's structured size error.
+    maxRequestBodySize: MAX_IBT_BYTES,
     async fetch(req, server) {
       const url = new URL(req.url);
       if (url.pathname === "/ws") {
