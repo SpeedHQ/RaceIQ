@@ -16,9 +16,11 @@ import {
   CHAT_RESOURCE_ID,
   resolveActiveThread,
   generationThreadId,
-  listThreadGenerations,
   buildChatExport,
+  chatMemoryMessagesToUiMessages,
+  getChatSystemPrompt,
   ensureSystemPrompt,
+  deleteChatLineage,
 } from "../ai/chat-agent";
 import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
 import { startDetachedAgentTurn } from "../ai/agent-stream";
@@ -29,9 +31,6 @@ import { sessionAgentForFocus } from "../ai/agents";
 import { DEFAULT_EXPERIMENT_FOCUS, type ExperimentFocus } from "../../shared/experiment-focus";
 import { buildSetupEngineerSystemPrompt } from "../../mastra/agents/setup-engineer";
 import { RequestContext } from "@mastra/core/request-context";
-import { setupEngineerTurnWorkflow } from "../../mastra/workflows/setup-engineer-turn";
-import { getSecret } from "../keystore";
-import { MessageList } from "@mastra/core/agent";
 
 
 const LiveAnalysisSchema = z.object({
@@ -103,18 +102,10 @@ export const tuneChatRoutes = new Hono()
           : await resolveActiveThread(base);
         const thread = await memory.getThreadById({ threadId });
         if (!thread) return c.json({ messages: [] });
-        const result = await memory.recall({ threadId });
-        const raw = result.messages ?? [];
-        if (c.req.query("export") === "1") return c.json(buildChatExport(raw));
-
-        const list = new MessageList({ threadId, resourceId: CHAT_RESOURCE_ID });
-        list.add(raw, "memory");
-        const uiMessages = sanitizeChatHistoryMessages(
-          list.get.all.aiV5
-            .ui()
-            .filter((m) => m.role === "user" || m.role === "assistant"),
-        );
-
+        const raw = (await memory.recall({ threadId })).messages ?? [];
+        const systemPrompt = await getChatSystemPrompt(threadId, memory);
+        if (c.req.query("export") === "1") return c.json(buildChatExport(systemPrompt, raw));
+        const uiMessages = sanitizeChatHistoryMessages(chatMemoryMessagesToUiMessages(raw));
         return c.json({ messages: uiMessages });
       } catch (err: any) {
         console.error("[TuneChat] Failed to load messages:", err.message);
@@ -314,23 +305,12 @@ export const tuneChatRoutes = new Hono()
     async (c) => {
       const { id } = c.req.valid("param");
       try {
-        const memory = getChatMemory();
-        const base = tuneSessionThreadId(id);
-        const gens = await listThreadGenerations(base);
-        const ids = new Set(gens.map((g) => g.threadId));
-        ids.add(base);
-        for (const threadId of ids) {
-          await memory.deleteThread(threadId);
-        }
-      } catch (err: any) {
-        console.error("[TuneChat] Failed to clear thread:", err.message);
+        await deleteChatLineage(tuneSessionThreadId(id));
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[TuneChat] Failed to clear thread:", message);
+        return c.json({ error: message }, 500);
       }
       return c.json({ ok: true });
     }
   )
-
-  // GET /api/experiments/:id — one session.
-  // Ships a computed `lapTarget` (Phase 5, track-length-aware stint nudge):
-  // advisory-only "how many laps is a full stint here", derived from the
-  // session's best known lap time, falling back to track length / avg speed,
-  // falling back to a fixed default. Decoupled from the confidence model.

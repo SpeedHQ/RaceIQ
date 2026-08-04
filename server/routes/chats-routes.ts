@@ -9,8 +9,8 @@ import {
   getChatMemory,
   CHAT_RESOURCE_ID,
   parseThreadGeneration,
-  listThreadGenerations,
   truncateChatAfterUserMessage,
+  deleteChatLineage,
 } from "../ai/chat-agent";
 import { forkThreadWithSummary, NothingToCompactError } from "../ai/compact-thread-runner";
 
@@ -152,18 +152,13 @@ export const chatsRoutes = new Hono()
     async (c) => {
       const threadId = c.req.param("threadId");
       try {
-        const memory = getChatMemory();
         const { base } = parseThreadGeneration(threadId);
-        const gens = await listThreadGenerations(base);
-        const ids = new Set(gens.map((g) => g.threadId));
-        ids.add(base);
-        for (const id of ids) {
-          await memory.deleteThread(id);
-        }
+        await deleteChatLineage(base);
         return c.json({ ok: true });
-      } catch (err: any) {
-        console.error("[Chats] Failed to delete:", err.message);
-        return c.json({ error: err.message }, 500);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[Chats] Failed to delete:", message);
+        return c.json({ error: message }, 500);
       }
     }
   )

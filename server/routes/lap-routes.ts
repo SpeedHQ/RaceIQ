@@ -71,9 +71,11 @@ import {
   chatMemoryOptions,
   resolveActiveThread,
   generationThreadId,
-  listThreadGenerations,
   buildChatExport,
+  chatMemoryMessagesToUiMessages,
+  getChatSystemPrompt,
   ensureSystemPrompt,
+  deleteChatLineage,
 } from "../ai/chat-agent";
 import { getSecret } from "../keystore";
 import { deleteAnalysis as deleteAnalysisQuery } from "../db/queries";
@@ -85,14 +87,15 @@ const gzipAsync = promisify(gzip);
 import { buildChatSystemPrompt } from "../ai/chat-prompt";
 import { buildCompareChatContext } from "../ai/compare-chat-prompt";
 import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
-import { streamAgentTurnResponse } from "../ai/agent-stream";
+import { startDetachedAgentTurn } from "../ai/agent-stream";
 import {
   CHAT_TURN_CONTEXT_KEY,
   compareChatToolChoice,
   sanitizeChatHistoryMessages,
 } from "../ai/chat-message-context";
+import { reserveChatRun, buildReplayStream } from "../ai/chat-run-registry";
+import { createUIMessageStreamResponse } from "ai";
 import { RequestContext } from "@mastra/core/request-context";
-import { MessageList } from "@mastra/core/agent";
 import {
   topCatalogReferences,
   normalizePacketSetup,
@@ -807,25 +810,15 @@ export const lapRoutes = new Hono()
       const memory = getChatMemory();
       const base = chatThreadId(id);
       const genParam = Number(c.req.query("gen"));
-      const threadId =
-        Number.isInteger(genParam) && genParam >= 1
-          ? generationThreadId(base, genParam)
-          : await resolveActiveThread(base);
+      const threadId = Number.isInteger(genParam) && genParam >= 1
+        ? generationThreadId(base, genParam)
+        : await resolveActiveThread(base);
       const thread = await memory.getThreadById({ threadId });
       if (!thread) return c.json({ messages: [] });
-      const result = await memory.recall({ threadId });
-      const raw = result.messages ?? [];
-      if (c.req.query("export") === "1") return c.json(buildChatExport(raw));
-
-      const list = new MessageList({ threadId, resourceId: CHAT_RESOURCE_ID });
-      list.add(raw, "memory");
-      const uiMessages = sanitizeChatHistoryMessages(
-        list.get.all.aiV5
-          .ui()
-          .filter((m) => m.role === "user" || m.role === "assistant"),
-      );
-
-      return c.json({ messages: uiMessages });
+      const raw = (await memory.recall({ threadId })).messages ?? [];
+      const systemPrompt = await getChatSystemPrompt(threadId, memory);
+      if (c.req.query("export") === "1") return c.json(buildChatExport(systemPrompt, raw));
+      return c.json({ messages: sanitizeChatHistoryMessages(chatMemoryMessagesToUiMessages(raw)) });
     } catch (err: any) {
       console.error("[Chat] Failed to load messages:", err.message);
       return c.json({ messages: [] });
@@ -921,30 +914,35 @@ export const lapRoutes = new Hono()
       try {
         const requestContext = new RequestContext();
         requestContext.set(CHAT_TURN_CONTEXT_KEY, systemPrompt);
-        const stream = await lapChatAgent.stream(messages, {
-          requestContext,
-          memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
-          // Assistant-ui's Stop aborts the POST request. Forward that signal
-          abortSignal: c.req.raw.signal,
-          providerOptions: {
-            openai: { reasoningEffort: "medium" },
-            google: buildGoogleReasoningProviderOptions(
-              chatModelLabel,
-              settings.chatThinkingBudget,
-            ) as never,
-          },
-        });
-
-        return streamAgentTurnResponse({
-          agentStream: stream,
-          originalMessages: messages,
-          memory: getChatMemory(),
-          threadId,
-          turnStartedAt,
-        });
-      } catch (err: any) {
-        console.error("[Chat] Stream failed:", err.message);
-        return c.json({ error: err.message }, 500);
+        const { run, isNew } = reserveChatRun(threadId);
+        if (isNew) {
+          const stream = await lapChatAgent.stream(messages, {
+            requestContext,
+            memory: { thread: threadId, resource: CHAT_RESOURCE_ID },
+            abortSignal: run.abortController.signal,
+            providerOptions: {
+              openai: { reasoningEffort: "medium" },
+              google: buildGoogleReasoningProviderOptions(
+                chatModelLabel,
+                settings.chatThinkingBudget,
+              ) as never,
+            },
+          });
+          startDetachedAgentTurn(run, {
+            agentStream: stream,
+            originalMessages: messages,
+            memory: getChatMemory(),
+            threadId,
+            turnStartedAt,
+          });
+        }
+        const response = createUIMessageStreamResponse({ stream: buildReplayStream(run) });
+        response.headers.set("x-resumable-stream-id", run.runId);
+        return response;
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[Chat] Stream failed:", message);
+        return c.json({ error: message }, 500);
       }
     },
   )
@@ -956,22 +954,17 @@ export const lapRoutes = new Hono()
     async (c) => {
       const { id } = c.req.valid("param");
       try {
-        const memory = getChatMemory();
-        const base = chatThreadId(id);
-        const gens = await listThreadGenerations(base);
-        const ids = new Set(gens.map((g) => g.threadId));
-        ids.add(base);
-        for (const threadId of ids) {
-          await memory.deleteThread(threadId);
-        }
-      } catch (err: any) {
-        console.error("[Chat] Failed to clear thread:", err.message);
+        await deleteChatLineage(chatThreadId(id));
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[Chat] Failed to clear thread:", message);
+        return c.json({ error: message }, 500);
       }
-      // Also clear cached analysis
       try {
         await deleteAnalysisQuery(id);
-      } catch (err: any) {
-        console.error("[Chat] Failed to clear analysis:", err.message);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[Chat] Failed to clear analysis:", message);
       }
       return c.json({ ok: true });
     },
@@ -1426,22 +1419,10 @@ export const lapRoutes = new Hono()
             : await resolveActiveThread(base);
         const thread = await memory.getThreadById({ threadId });
         if (!thread) return c.json({ messages: [] });
-        const result = await memory.recall({ threadId });
-        const raw = result.messages ?? [];
-        if (c.req.query("export") === "1") return c.json(buildChatExport(raw));
-
-        const list = new MessageList({
-          threadId,
-          resourceId: CHAT_RESOURCE_ID,
-        });
-        list.add(raw, "memory");
-        const uiMessages = sanitizeChatHistoryMessages(
-          list.get.all.aiV5
-            .ui()
-            .filter((m) => m.role === "user" || m.role === "assistant"),
-        );
-
-        return c.json({ messages: uiMessages });
+        const raw = (await memory.recall({ threadId })).messages ?? [];
+        const systemPrompt = await getChatSystemPrompt(threadId, memory);
+        if (c.req.query("export") === "1") return c.json(buildChatExport(systemPrompt, raw));
+        return c.json({ messages: sanitizeChatHistoryMessages(chatMemoryMessagesToUiMessages(raw)) });
       } catch (err: any) {
         console.error("[CompareChat] Failed to load messages:", err.message);
         return c.json({ messages: [] });
@@ -1577,33 +1558,37 @@ export const lapRoutes = new Hono()
       try {
         const requestContext = new RequestContext();
         requestContext.set(CHAT_TURN_CONTEXT_KEY, systemPrompt);
-        const stream = await compareChatAgent.stream(messages, {
-          ...chatMemoryOptions(threadId),
-          requestContext,
-          // Assistant-ui's Stop aborts the POST request. Forward that signal
-          // into Mastra so the provider call, not only the UI stream, stops.
-          abortSignal: c.req.raw.signal,
-          toolChoice: compareChatToolChoice(messages),
-          maxSteps: 6,
-          providerOptions: {
-            openai: { reasoningEffort: "medium" },
-            google: buildGoogleReasoningProviderOptions(
-              chatModelLabel,
-              settings.chatThinkingBudget,
-            ) as never,
-          },
-        });
-
-        return streamAgentTurnResponse({
-          agentStream: stream,
-          originalMessages: messages,
-          memory: getChatMemory(),
-          threadId,
-          turnStartedAt,
-        });
-      } catch (err: any) {
-        console.error("[CompareChat] Stream failed:", err.message);
-        return c.json({ error: err.message }, 500);
+        const { run, isNew } = reserveChatRun(threadId);
+        if (isNew) {
+          const stream = await compareChatAgent.stream(messages, {
+            ...chatMemoryOptions(threadId),
+            requestContext,
+            abortSignal: run.abortController.signal,
+            toolChoice: compareChatToolChoice(messages),
+            maxSteps: 6,
+            providerOptions: {
+              openai: { reasoningEffort: "medium" },
+              google: buildGoogleReasoningProviderOptions(
+                chatModelLabel,
+                settings.chatThinkingBudget,
+              ) as never,
+            },
+          });
+          startDetachedAgentTurn(run, {
+            agentStream: stream,
+            originalMessages: messages,
+            memory: getChatMemory(),
+            threadId,
+            turnStartedAt,
+          });
+        }
+        const response = createUIMessageStreamResponse({ stream: buildReplayStream(run) });
+        response.headers.set("x-resumable-stream-id", run.runId);
+        return response;
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[CompareChat] Stream failed:", message);
+        return c.json({ error: message }, 500);
       }
     },
   )
@@ -1615,16 +1600,11 @@ export const lapRoutes = new Hono()
     async (c) => {
       const { id1, id2 } = c.req.valid("param");
       try {
-        const memory = getChatMemory();
-        const base = compareChatThreadId(id1, id2);
-        const gens = await listThreadGenerations(base);
-        const ids = new Set(gens.map((g) => g.threadId));
-        ids.add(base);
-        for (const threadId of ids) {
-          await memory.deleteThread(threadId);
-        }
-      } catch (err: any) {
-        console.error("[CompareChat] Failed to clear thread:", err.message);
+        await deleteChatLineage(compareChatThreadId(id1, id2));
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[CompareChat] Failed to clear thread:", message);
+        return c.json({ error: message }, 500);
       }
       return c.json({ ok: true });
     },
