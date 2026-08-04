@@ -7,8 +7,7 @@
  */
 import { initGameAdapters } from "../shared/games/init";
 import { initServerGameAdapters } from "../server/games/init";
-import { developmentReleaseFeatures } from "./development-release-features";
-import { parseDump } from "../test/helpers/parse-dump";
+import { parseDump } from "../test/support/recordings/parse-dump";
 import type { GameId } from "../shared/games/ids";
 import { existsSync, readdirSync } from "fs";
 import { join } from "path";

@@ -10,7 +10,7 @@ The experiment uses:
 
 - `test/artifacts/sessions/session-ac-evo-mid-2026-04-21T20-24-34-810Z.bin.gz` — AC Evo, Porsche 992 GT3 R Rennsport at Brands Hatch, including two complete laps;
 - a private AC Evo MoTeC `.ld` reference — Mercedes-AMG GT3 Evo at Spa, 137.2 seconds, 55 channels. The source is not redistributed;
-- `test/telemetry-fidelity.test.ts` — executable checks for capture cadence, duplicates, decimated traces, event duration, and peak attenuation.
+- `test/telemetry/telemetry-fidelity.test.ts` — executable checks for capture cadence, duplicates, decimated traces, event duration, and peak attenuation.
 
 Results describe these captures and current parsing behavior. They do not establish universal rates for AC Evo, ACC, MoTeC, Bun timers, or other machines.
 
@@ -76,7 +76,7 @@ Unsupported conclusions:
 ## Reproduction
 
 ```bash
-bun run test test/telemetry-fidelity.test.ts
+bun run test test/telemetry/telemetry-fidelity.test.ts
 ```
 
 If capture-rate or duplicate assertions fail after a source-path change, update this note from new fixture measurements. Do not widen the thresholds to preserve historical claims.

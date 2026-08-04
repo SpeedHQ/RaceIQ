@@ -33,7 +33,8 @@ Consequences, all deliberate:
 
 ### Sanctioned gaps
 
-Accepted detector misses are recorded in `test/helpers/track-known-gaps.ts` — `KNOWN_ALIGNMENT_GAPS`, `KNOWN_FUZZY_ALIGNMENTS`, `KNOWN_TURN_GAPS`.
+Accepted detector misses are recorded in `test/support/tracks/known-gaps.ts` —
+`KNOWN_ALIGNMENT_GAPS`, `KNOWN_FUZZY_ALIGNMENTS`, `KNOWN_TURN_GAPS`.
 
 These are **shrink-only**: every entry is asserted to *still* be broken, so fixing one forces its deletion. Adding an entry is legitimate when the miss is genuinely a centerline-quality problem, and each entry needs a reason comment. It is not a way to silence a regression in curated data.
 
@@ -350,6 +351,6 @@ If a track looks wrong in the app: fix that track's curated data.
 | Coverage stats | `shared/racing/tracks/curation/coverage.ts` |
 | Verification ledger | `shared/racing/tracks/curation/verified.ts` → `shared/data/tracks/verified.json` |
 | CLI | `scripts/track-coverage.ts` |
-| Guards | `test/track-coverage.test.ts`, `test/helpers/track-known-gaps.ts` |
+| Guards | `test/tracks/track-coverage.test.ts`, `test/support/tracks/known-gaps.ts` |
 
-`test/track-coverage.test.ts` fails if the committed table drifts from the repo, so none of this can silently rot.
+`test/tracks/track-coverage.test.ts` fails if the committed table drifts from the repo, so none of this can silently rot.

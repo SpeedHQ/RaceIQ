@@ -141,14 +141,14 @@ CI reality: non-draft pull requests call dev-server gate through `playwright-dev
 Use isolated test storage. POSIX:
 
 ```sh
-DATA_DIR="$PWD/.data-test" bun test test/e2e test/telemetry-catalog-fm-2023-e2e.test.ts test/telemetry-catalog-f1-2025-e2e.test.ts test/telemetry-catalog-acc-e2e.test.ts test/telemetry-catalog-ac-evo-e2e.test.ts test/telemetry-catalog-iracing-e2e.test.ts
+DATA_DIR="$PWD/.data-test" bun test test/e2e test/telemetry/catalog/telemetry-catalog-fm-2023-e2e.test.ts test/telemetry/catalog/telemetry-catalog-f1-2025-e2e.test.ts test/telemetry/catalog/telemetry-catalog-acc-e2e.test.ts test/telemetry/catalog/telemetry-catalog-ac-evo-e2e.test.ts test/telemetry/catalog/telemetry-catalog-iracing-e2e.test.ts
 ```
 
 Windows PowerShell:
 
 ```powershell
 $env:DATA_DIR=(Join-Path (Get-Location) '.data-test')
-bun test test/e2e test/telemetry-catalog-fm-2023-e2e.test.ts test/telemetry-catalog-f1-2025-e2e.test.ts test/telemetry-catalog-acc-e2e.test.ts test/telemetry-catalog-ac-evo-e2e.test.ts test/telemetry-catalog-iracing-e2e.test.ts
+bun test test/e2e test/telemetry/catalog/telemetry-catalog-fm-2023-e2e.test.ts test/telemetry/catalog/telemetry-catalog-f1-2025-e2e.test.ts test/telemetry/catalog/telemetry-catalog-acc-e2e.test.ts test/telemetry/catalog/telemetry-catalog-ac-evo-e2e.test.ts test/telemetry/catalog/telemetry-catalog-iracing-e2e.test.ts
 ```
 
 Failures must report game, recording, selected lap segment, semantic or packet field, observed range, and required range.

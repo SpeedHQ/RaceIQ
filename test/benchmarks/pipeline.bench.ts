@@ -35,7 +35,7 @@ import { initServerGameAdapters } from "../../server/games/init";
 import { getAllServerGames } from "../../server/games/registry";
 import { LiveTelemetryPipeline, stopMaintenanceTasks } from "../../server/telemetry/live-pipeline"
 import { NullDbAdapter, NullWsAdapter, NullSessionRecorderAdapter } from "../../server/telemetry/pipeline-ports"
-import { readUdpDump } from "../helpers/recording";
+import { readUdpDump } from "../support/recordings/udp";
 import { parseAccBuffers } from "../../server/games/acc/parser";
 import { readWString } from "../../server/games/acc/utils";
 import { STATIC } from "../../server/games/acc/structs";

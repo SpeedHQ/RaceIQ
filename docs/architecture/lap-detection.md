@@ -105,7 +105,9 @@ so a trailing partial lap is saved invalid rather than treated as complete.
 
 ## Tests
 
-- `test/lap-detection.test.ts` covers pure FM/F1 boundary decisions.
-- `test/lap-detector-ac.test.ts` covers ACC timing, partial starts, pit laps,
-  session restarts, and duplicate protection.
-- `test/iracing-sdk.test.ts` covers iRacing timing-gate behavior.
+- `test/lap-analysis/detection/lap-boundary-reset.test.ts` covers pure FM/F1
+  boundary decisions.
+- `test/lap-analysis/lap-detector-ac.test.ts` covers ACC timing, partial starts,
+  pit laps, session restarts, and duplicate protection.
+- `test/games/iracing/iracing-sdk-lap-sectors.test.ts` covers iRacing timing-gate
+  behavior.

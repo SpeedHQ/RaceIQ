@@ -17,9 +17,9 @@ import {
 	readAcEvoPackets,
 	parseDump,
 	ensureInit,
-} from "../../helpers/parse-dump";
-import { generateRecordingVisualizations } from "../../helpers/lap-viz";
-import { assertValidLapHasSectors } from "../../helpers/lap-assertions";
+} from "../../support/recordings/parse-dump";
+import { generateRecordingVisualizations } from "../../support/laps/visualizations";
+import { assertValidLapHasSectors } from "../../support/laps/assertions";
 import { getTrackSectorsByOrdinal } from "../../../shared/racing/tracks/storage/sectors";
 
 const AC_EVO_RECORDING =

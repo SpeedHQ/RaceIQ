@@ -1,9 +1,9 @@
 import { describe, test, expect } from "bun:test";
 import { existsSync } from "fs";
 import { join } from "path";
-import { parseDump } from "../../helpers/parse-dump";
-import { generateRecordingVisualizations } from "../../helpers/lap-viz";
-import { assertSectorTimesMatchLapTime, assertLapTimesProper, assertValidLapHasSectors } from "../../helpers/lap-assertions";
+import { parseDump } from "../../support/recordings/parse-dump";
+import { generateRecordingVisualizations } from "../../support/laps/visualizations";
+import { assertSectorTimesMatchLapTime, assertLapTimesProper, assertValidLapHasSectors } from "../../support/laps/assertions";
 import type { LapSavedNotification } from "../../../server/lap-detection/types"
 import { assertBrandHatchSectorBounds, lapSummary, RECORDINGS_DIR } from "./shared";
 
