@@ -21,7 +21,7 @@ import { ChatPanel } from "@/components/ai-chat/ChatPanel";
  * needed — the streamed reply already contains the outcome.
  */
 async function fetchTuneChatHistory(sessionId: number, gen?: number): Promise<UIMessage[]> {
-  const url = gen && gen > 1 ? `/api/experiments/${sessionId}/chat?gen=${gen}` : `/api/experiments/${sessionId}/chat`;
+  const url = gen === undefined ? `/api/experiments/${sessionId}/chat` : `/api/experiments/${sessionId}/chat?gen=${gen}`;
   const res = await fetch(url);
   if (!res.ok) return [];
   const data = (await res.json()) as { messages?: UIMessage[] };

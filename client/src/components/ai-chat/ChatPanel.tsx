@@ -541,7 +541,7 @@ export function ChatPanel({ api, fetchHistory, historyQueryKey, remountKey, onFi
   const fullHistoryQueryKey = [...historyQueryKey, effectiveGen];
   const { data: history, isSuccess } = useQuery({
     queryKey: fullHistoryQueryKey,
-    queryFn: () => fetchHistory(effectiveGen > 1 ? effectiveGen : undefined),
+    queryFn: () => fetchHistory(effectiveGen),
   });
 
   // True live resume: on mount, ask the server whether a detached run is

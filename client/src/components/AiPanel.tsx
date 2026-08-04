@@ -71,7 +71,7 @@ interface AiPanelProps {
 }
 
 async function fetchLapChatHistory(lapId: number, gen?: number): Promise<UIMessage[]> {
-  const url = gen && gen > 1 ? `/api/laps/${lapId}/chat?gen=${gen}` : `/api/laps/${lapId}/chat`;
+  const url = gen === undefined ? `/api/laps/${lapId}/chat` : `/api/laps/${lapId}/chat?gen=${gen}`;
   const res = await fetch(url);
   if (!res.ok) return [];
   const data = (await res.json()) as { messages?: UIMessage[] };

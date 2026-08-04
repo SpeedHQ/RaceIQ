@@ -66,7 +66,7 @@ interface AnalysisSummary {
 }
 
 async function fetchCompareChatHistory(lapAId: number, lapBId: number, gen?: number): Promise<UIMessage[]> {
-  const url = gen && gen > 1 ? `/api/laps/${lapAId}/compare/${lapBId}/chat?gen=${gen}` : `/api/laps/${lapAId}/compare/${lapBId}/chat`;
+  const url = gen === undefined ? `/api/laps/${lapAId}/compare/${lapBId}/chat` : `/api/laps/${lapAId}/compare/${lapBId}/chat?gen=${gen}`;
   const res = await fetch(url);
   if (!res.ok) return [];
   const data = (await res.json()) as { messages?: UIMessage[] };
