@@ -7,15 +7,19 @@ interface TuneForPrompt {
 	settings: TuneSettings;
 }
 
+function isStructuredTuneSettings(value: unknown): value is TuneSettings {
+	return typeof value === "object" && value !== null && "tires" in value && "gearing" in value;
+}
+
 export function formatTuneForPrompt(tune: TuneForPrompt): string {
-	const s = tune.settings as TuneSettings | Record<string, unknown> | null | undefined;
+	const s: unknown = tune.settings;
 	const lines: string[] = [];
 
 	lines.push(
 		`--- ACTIVE TUNE: "${tune.name}" by ${tune.author} (${tune.category}) ---`,
 	);
 
-	if (!s || typeof s !== "object" || !("tires" in s) || !("gearing" in s)) {
+	if (!isStructuredTuneSettings(s)) {
 		const summary = Object.entries(s ?? {})
 			.map(([key, value]) => `${key}: ${typeof value === "string" ? value : JSON.stringify(value)}`)
 			.join(", ");

@@ -4,7 +4,6 @@ import { z } from "zod";
 
 import { IdParamSchema } from "../../shared/schemas";
 import { GameIdSchema } from "../../shared/types";
-import type { Tune } from "../../shared/types";
 import {
   getLaps,
   getLapById,
@@ -15,7 +14,6 @@ import {
   getCorners,
   saveCorners,
   getAnalysis,
-  saveAnalysis,
   getCompareAnalysis,
   saveCompareAnalysis,
   deleteCompareAnalysis,
@@ -56,13 +54,11 @@ import { getGame } from "../../shared/games/registry";
 
 import type { GameId } from "../../shared/types";
 import { loadSettings } from "../settings";
-import { buildAnalystPrompt } from "../ai/analyst-prompt";
 import { resolveTrack } from "../track-info";
 import {
   computeNativeSectorTimeline,
   computeLapSectors,
 } from "../compute-lap-sectors";
-import { getAnalystJsonSchema } from "../ai/schemas";
 import {
   getChatMemory,
   chatThreadId,
@@ -97,12 +93,6 @@ import { reserveChatRun, buildReplayStream, finishRun } from "../ai/chat-run-reg
 import { createUIMessageStreamResponse } from "ai";
 import { RequestContext } from "@mastra/core/request-context";
 import {
-  topCatalogReferences,
-  normalizePacketSetup,
-  getCatalogDisplayName,
-} from "../ai/f1-setup-catalog";
-import type { TelemetryPacket } from "../../shared/types";
-import {
   buildInputsComparePrompt,
   InputsCompareSchema,
   type PromptSegment,
@@ -110,18 +100,14 @@ import {
 // Dev uses the full Mastra instance (so Studio sees traces); prod tree-shakes
 // the Mastra wrapper out. See `server/ai/agents.ts` for the switch.
 import {
-  lapAnalystAgent,
   lapChatAgent,
   compareEngineerAgent,
   compareChatAgent,
 } from "../ai/agents";
 import {
-  buildGoogleProviderOptions,
   buildGoogleThinkingProviderOptions,
 } from "../ai/google-provider-options";
 import { formatClientAiErrorMessage, toClientAiError } from "../ai/provider-error";
-import { extractJson } from "../ai/extract-json";
-import { resolveLapF1Setup } from "../ai/f1-setup-identity";
 import { generateLapAnalysis } from "../ai/generate-lap-analysis";
 import {
   beginAnalysisRun,
@@ -135,48 +121,6 @@ import {
  * `compare-f1-setup-to-catalog` tool returns, but inline so local models
  * (Gemma 4) can answer in one shot instead of looping tool calls.
  */
-function buildF1SetupReferenceBlock(
-  carSetupJson: string | undefined,
-  telemetry: TelemetryPacket[],
-  trackOrdinal: number,
-): string {
-  const setup = resolveLapF1Setup({ carSetup: carSetupJson, telemetry });
-  if (!setup || trackOrdinal < 0) return "";
-  const current = normalizePacketSetup(
-    setup as unknown as Record<string, unknown>,
-  );
-  const refs = topCatalogReferences(trackOrdinal, 5, current);
-  if (refs.length === 0) return "";
-
-  const lines: string[] = [];
-  lines.push(
-    `\n\n--- F1 CURRENT SETUP + TOP-5 REFERENCE SETUPS (${getCatalogDisplayName(trackOrdinal) ?? "this track"}) ---`,
-  );
-  lines.push(
-    "Use this data to populate setup[]. Cite rank/team/author per entry. Only propose steps within the step-cap rules.",
-  );
-  lines.push("");
-  lines.push("Current setup:");
-  for (const [k, v] of Object.entries(current)) lines.push(`  ${k}: ${v}`);
-  for (const r of refs) {
-    lines.push("");
-    lines.push(
-      `Rank ${r.rank} — ${r.team} / ${r.author} — ${r.lapTime} (${r.weather}, ${r.inputDevice}):`,
-    );
-    const deltas = Object.entries(r.delta ?? {});
-    if (deltas.length === 0) {
-      lines.push("  (identical to current setup)");
-    } else {
-      for (const [k, v] of deltas) {
-        const sign = (v as number) > 0 ? "+" : "";
-        lines.push(
-          `  ${k}: ${current[k]} → ${(r.setup as Record<string, number>)[k]} (${sign}${v})`,
-        );
-      }
-    }
-  }
-  return lines.join("\n");
-}
 
 const CompareParamsSchema = z.object({
   id1: z.string().transform((val) => parseInt(val, 10)),
@@ -197,7 +141,6 @@ const AnalyseQuerySchema = z.object({
     .transform((v) => v === "true")
     .optional(),
 });
-const lapAnalysisRunKey = (lapId: number) => `lap:${lapId}`;
 const inputsAnalysisRunKey = (idA: number, idB: number) =>
   `inputs:${Math.min(idA, idB)}:${Math.max(idA, idB)}`;
 

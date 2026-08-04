@@ -301,7 +301,6 @@ function PendingPromptSubmit({ prompt, onSubmitted }: { prompt?: string; onSubmi
 
 function ChatPanelThread({
   api,
-  fetchHistory,
   initialMessages,
   onFinish,
   components,
@@ -312,7 +311,6 @@ function ChatPanelThread({
   generations,
   viewingGen,
   activeGen,
-  activeThreadId,
   resumableThreadId,
   onViewGen,
   onForked,
@@ -324,7 +322,7 @@ function ChatPanelThread({
   onClearChat,
 }: {
   api: string;
-  fetchHistory: (gen?: number) => Promise<UIMessage[]>;
+  initialMessages: UIMessage[];
   onFinish?: () => void;
   components?: ThreadProps["components"];
   className?: string;
@@ -334,7 +332,6 @@ function ChatPanelThread({
   generations: ChatGeneration[];
   viewingGen: number;
   activeGen: number;
-  activeThreadId?: string;
   resumableThreadId?: string;
   onViewGen: (gen: number) => void;
   onForked: (newGen: number) => void;
@@ -606,9 +603,8 @@ export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, re
   return (
     <ChatPanelThread
       key={`${remountKey ?? ""}:${effectiveGen}:${history?.length ?? 0}:${clearVersion}:${regenerateVersion}`}
-      api={api}
-      fetchHistory={fetchHistory}
       initialMessages={history ?? []}
+      api={api}
       onFinish={onFinish}
       components={components}
       className={className}
@@ -618,7 +614,6 @@ export function ChatPanel({ api, clearChatApi, fetchHistory, historyQueryKey, re
       generations={generations}
       viewingGen={effectiveGen}
       activeGen={activeGen}
-      activeThreadId={activeThreadId}
       resumableThreadId={resumableThreadId}
       onViewGen={(gen) => setViewingGen(gen)}
       onForked={(newGen) => {
