@@ -1,3 +1,4 @@
+import { isPitCycleLap } from "@shared/racing/laps/pit-cycle";
 import { REVIEW_LAP_CAP, selectEvaluationLaps } from "@shared/racing/laps/review-selection";
 import { useMemo, useState } from "react";
 import { parseTestChanges, summarizeTestChange } from "../../../../shared/racing/experiments/test-changes";
@@ -69,11 +70,6 @@ export function AppliedChangesList({ json, comment }: { json: string | null; com
   );
 }
 
-/** invalidReason values that are pit-lane classification, not an error — shown
- *  as a neutral status badge instead of the red "invalid" styling. Set by
- *  classifyKunosPitLap (server/games/kunos/lap-rules.ts) for ACC/AC-Evo. */
-const PIT_STATUS_REASONS = new Set(["outlap", "inlap", "pit lap"]);
-
 /** Compact labels for the verbose reasons written by
  *  server/lap-analysis/quality.ts and server/lap-detection/detector.ts — the
  *  column is narrow, so the sentence form goes in the tooltip and the short
@@ -95,7 +91,7 @@ function lapStatusLabel(l: LapMeta): string | null {
   if (l.isValid) return null;
   const reason = l.invalidReason ?? null;
   if (!reason) return "Invalid";
-  if (PIT_STATUS_REASONS.has(reason)) return reason[0].toUpperCase() + reason.slice(1);
+  if (isPitCycleLap(l)) return reason[0].toUpperCase() + reason.slice(1);
   const mapped = INVALID_REASON_LABELS[reason];
   if (mapped) return mapped;
   // Detectors also emit parameterised reasons, e.g. "lap skip (3 → 5)".

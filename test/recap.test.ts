@@ -126,6 +126,28 @@ describe("computeRecap", () => {
     expect(recap.consistency).not.toBeNull();
   });
 
+  test("pit transitions are excluded from every pace-derived recap metric", () => {
+    const laps = [
+      lap({ id: 1, lapNumber: 1, lapTime: 100, sectorTimes: [33, 33, 34] }),
+      lap({ id: 2, lapNumber: 2, lapTime: 120, sectorTimes: [1, 1, 118], invalidReason: "inlap" }),
+      lap({ id: 3, lapNumber: 3, lapTime: 190, sectorTimes: [1, 1, 188], invalidReason: "outlap" }),
+      lap({ id: 4, lapNumber: 4, lapTime: 101, sectorTimes: [34, 33, 34] }),
+      lap({ id: 5, lapNumber: 5, lapTime: 102, sectorTimes: [34, 34, 34] }),
+    ];
+
+    const recap = run(laps, { trackLengthM: 1000 });
+
+    expect(recap.lapsValid).toBe(3);
+    expect(recap.lapsTotal).toBe(5);
+    expect(recap.bestLapSec).toBe(100);
+    expect(recap.timeOnTrackSec).toBe(303);
+    expect(recap.distanceM).toBe(3000);
+    expect(recap.theoretical?.bestSectorTimes).toEqual([33, 33, 34]);
+    expect(recap.improvementSec).toBe(0);
+    expect(recap.consistency?.stdDevSec).toBeCloseTo(0.816_497, 6);
+    expect(recap.sparkline.map((point) => point.lapId)).toEqual([1, 4, 5]);
+  });
+
   test("a single absurd invalid lap does not inflate time or distance (real session 174 case)", () => {
     // Regression: dev DB session 174 is one invalid 13207s lap — a detector artifact
     // from sitting in a menu. The recap must not report "0 laps · 3h 40m on track".

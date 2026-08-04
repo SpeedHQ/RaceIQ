@@ -10,7 +10,8 @@ import type {
   LapDetectorOptions,
   SessionState,
 } from "../../lap-detection/types";
-import { classifyKunosPitLap, kunosFirstPacketIsMidLap } from "./lap-rules";
+import { kunosFirstPacketIsMidLap } from "./lap-rules";
+import { classifyPitCycleLap } from "../../../shared/racing/laps/pit-cycle";
 
 /** Shared Kunos (ACC / AC Evo) lap detector state machine. */
 export abstract class KunosLapDetector implements ILapDetector {
@@ -125,7 +126,7 @@ export abstract class KunosLapDetector implements ILapDetector {
         const bufStart = this.lapBuffer[0]?.DistanceTraveled ?? 0;
         const bufEnd = this.lapBuffer[this.lapBuffer.length - 1]?.DistanceTraveled ?? 0;
         const bufDist = bufEnd - bufStart;
-        const isPitOnly = classifyKunosPitLap(this.lapBuffer) === "pit lap";
+        const isPitOnly = classifyPitCycleLap(this.lapBuffer) === "pit lap";
         if (bufDist < 100 || isPitOnly) {
           this.lapBuffer = [];
           this.peakCurrentLap = 0;
@@ -213,7 +214,7 @@ export abstract class KunosLapDetector implements ILapDetector {
     let invalidReason = forcedInvalidReason ?? quality.reason;
 
     if (isValid) {
-      const pitReason = classifyKunosPitLap(packets);
+      const pitReason = classifyPitCycleLap(packets);
       if (pitReason) {
         isValid = false;
         invalidReason = pitReason;

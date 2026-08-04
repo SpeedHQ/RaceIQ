@@ -1,32 +1,65 @@
-import type { LapMeta } from "../sessions/types";
+import type { TelemetryPacket } from "../../telemetry/types";
 
 /**
- * Laps that are part of a pit cycle (outlap / inlap / pit lap) carry no tuning
- * signal — cold tyres, fuel-flow transients, pit-limiter running. The tuning
- * review surfaces exclude them outright: not listed, not counted, not averaged.
+ * Laps that are part of a pit cycle carry no representative pace signal:
+ * cold tyres, fuel-flow transients, and pit-limiter or stationary time distort
+ * lap-time, sector, consistency, and racing-line metrics.
  *
- * The reason strings are produced by `classifyKunosPitLap` in
- * `server/games/kunos/lap-rules.ts` and stored on `invalidReason`.
- *
- * Shared (not client-only) because the server-side auto-exclude reconciliation
- * (`server/experiments/auto-exclude.ts`) applies the same pit-cycle rule.
+ * The telemetry catalog owns each game's pit-state semantic. This module owns
+ * the stateful lap classification that requires first/last samples across a
+ * complete lap.
  */
 export const PIT_CYCLE_REASONS = ["outlap", "inlap", "pit lap"] as const;
 
-/**
- * The pit-cycle reason vocabulary, as a type. `classifyKunosPitLap` returns this
- * rather than a bare string union of its own, so the producer and the
- * consumers cannot drift: renaming a reason here is a compile error at every
- * site that names one, instead of a silent reclassification.
- *
- * This matters because a pit lap that slips through reads as a clean lap and
- * gets fed into the racing-line spread, where cold tyres and a pit-limiter
- * run poison the result without ever looking obviously wrong.
- */
+/** Shared persisted reason vocabulary for every supported pit-state source. */
 export type PitCycleReason = (typeof PIT_CYCLE_REASONS)[number];
 
-const PIT_CYCLE_REASON_SET: ReadonlySet<string> = new Set(PIT_CYCLE_REASONS);
+export interface PitCycleLap {
+  invalidReason?: string | null;
+}
 
-export function isPitCycleLap(lap: Pick<LapMeta, "invalidReason">): boolean {
-  return lap.invalidReason != null && PIT_CYCLE_REASON_SET.has(lap.invalidReason);
+const PIT_CYCLE_REASON_LOOKUP: Readonly<Record<PitCycleReason, true>> = {
+  outlap: true,
+  inlap: true,
+  "pit lap": true,
+};
+
+function pitState(packet: TelemetryPacket): boolean | undefined {
+  if (packet.gameId === "iracing") return packet.iracing?.onPitRoad;
+  if (packet.gameId === "f1-2025") {
+    const active = packet.f1?.pitLaneTimerActive;
+    return active === undefined ? undefined : active === 1;
+  }
+  if (packet.gameId === "acc" || packet.gameId === "ac-evo") {
+    const status = packet.acc?.pitStatus;
+    return status === undefined ? undefined : status !== "out";
+  }
+  return undefined;
+}
+
+export function classifyPitCycleLap(packets: readonly TelemetryPacket[]): PitCycleReason | null {
+  if (packets.length === 0) return null;
+
+  const startState = pitState(packets[0]);
+  const endState = pitState(packets[packets.length - 1]);
+  let hasKnownState = startState !== undefined || endState !== undefined;
+  let anyInPit = startState === true || endState === true;
+  for (let index = 1; index < packets.length - 1 && (!hasKnownState || !anyInPit); index++) {
+    const state = pitState(packets[index]);
+    hasKnownState ||= state !== undefined;
+    anyInPit ||= state === true;
+  }
+  if (!hasKnownState) return null;
+
+  const startInPit = startState === true;
+  const endInPit = endState === true;
+
+  if (startInPit && endInPit) return "pit lap";
+  if (endInPit) return "inlap";
+  if (anyInPit) return "outlap";
+  return null;
+}
+
+export function isPitCycleLap(lap: PitCycleLap): boolean {
+  return lap.invalidReason != null && lap.invalidReason in PIT_CYCLE_REASON_LOOKUP;
 }

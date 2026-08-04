@@ -10,7 +10,7 @@ import type {
   LapDetectorOptions,
 } from "../../lap-detection/types";
 
-export const LAP_DETECTOR_IRACING_ID = "iracing_lapdetector_v3";
+export const LAP_DETECTOR_IRACING_ID = "iracing_lapdetector_v4";
 
 interface DeferredPacket {
   packet: TelemetryPacket;

@@ -1277,4 +1277,33 @@ export const migrations: { version: number; name: string; sql: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS driver_profiles_game_idx ON driver_profiles (game_id)`,
     ],
   },
+  // v53: Materialize catalog-derived pit transitions as non-pace laps.
+  {
+    version: 53,
+    name: "exclude pit transitions from lap metrics",
+    sql: [
+      `UPDATE laps
+       SET is_valid = 0, invalid_reason = 'inlap'
+       WHERE is_valid = 1
+         AND EXISTS (
+           SELECT 1
+           FROM session_results
+           JOIN pit_events ON pit_events.result_id = session_results.id
+           WHERE session_results.session_id = laps.session_id
+             AND pit_events.linkage = 'linked'
+             AND pit_events.lap_number = laps.lap_number
+         )`,
+      `UPDATE laps
+       SET is_valid = 0, invalid_reason = 'outlap'
+       WHERE is_valid = 1
+         AND EXISTS (
+           SELECT 1
+           FROM session_results
+           JOIN pit_events ON pit_events.result_id = session_results.id
+           WHERE session_results.session_id = laps.session_id
+             AND pit_events.linkage = 'linked'
+             AND pit_events.lap_number + 1 = laps.lap_number
+         )`,
+    ],
+  },
 ];

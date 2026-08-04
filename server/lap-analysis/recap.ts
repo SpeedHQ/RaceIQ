@@ -1,5 +1,6 @@
 import type { GameId } from "../../shared/games/ids";
 import type { SessionRecap } from "../../shared/racing/sessions/types";
+import { isPitCycleLap } from "../../shared/racing/laps/pit-cycle";
 import { stddevPopulation, consistencyRating } from "./stats";
 
 /** Plain lap data needed to compute a recap. Null sectors are legacy laps. */
@@ -9,6 +10,7 @@ export interface RecapLapInput {
   lapTime: number;
   isValid: boolean;
   sectorTimes: number[] | null;
+  invalidReason?: string | null;
 }
 
 export interface RecapSessionInput {
@@ -42,7 +44,7 @@ export interface ComputeRecapInput {
 }
 
 function isValidLap(lap: RecapLapInput): boolean {
-  return lap.isValid === true && lap.lapTime > 0;
+  return lap.isValid === true && lap.lapTime > 0 && !isPitCycleLap(lap);
 }
 
 /**
@@ -72,7 +74,7 @@ export function computeRecap(input: ComputeRecapInput): SessionRecap {
 
   const distanceM = trackLengthM !== null ? trackLengthM * lapsValid : null;
 
-  const sparkline = laps.map((l) => ({
+  const sparkline = laps.filter((lap) => !isPitCycleLap(lap)).map((l) => ({
     lapId: l.id,
     lapNumber: l.lapNumber,
     lapTimeSec: l.lapTime,

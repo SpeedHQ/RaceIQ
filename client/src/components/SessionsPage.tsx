@@ -1,4 +1,5 @@
 import { MOTEC_SESSION_SOURCE, motecImportSupported } from "@shared/integrations/motec";
+import { isPitCycleLap } from "@shared/racing/laps/pit-cycle";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
@@ -85,7 +86,14 @@ function SessionLapTable({
 
   const sectorLabels = Array.from({ length: sectorCount }, (_, index) => `S${index + 1}`);
 
-  const bestSectorLaps = useMemo(() => bestSectorLapIds(laps, sectorCount), [laps, sectorCount]);
+  const bestSectorLaps = useMemo(
+    () =>
+      bestSectorLapIds(
+        laps.filter((lap) => lap.isValid && !isPitCycleLap(lap)),
+        sectorCount,
+      ),
+    [laps, sectorCount],
+  );
 
   const sortedLaps = useMemo(
     () =>

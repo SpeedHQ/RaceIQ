@@ -1,6 +1,6 @@
 import { eq, desc, and, inArray } from "drizzle-orm";
 import { db } from "./index";
-import { sessions, sessionResults, pitEvents } from "./schema";
+import { laps, sessions, sessionResults, pitEvents } from "./schema";
 import type { GameId } from "../../shared/games/ids";
 import type { RaceResultEvidence, RaceResultOutcomeStatus, RaceResultProvenance, RaceResultStatus } from "../../shared/racing/results/types";
 
@@ -66,12 +66,28 @@ export type PitEventInput = {
   source: unknown;
 };
 
+async function markPitCycleLaps(sessionId: number, events: readonly PitEventInput[]): Promise<void> {
+  const inlapNumbers = [...new Set(events.filter((event) => event.linkage === "linked" && event.lapNumber !== null).map((event) => event.lapNumber!))];
+  if (inlapNumbers.length === 0) return;
+
+  await db
+    .update(laps)
+    .set({ isValid: false, invalidReason: "inlap" })
+    .where(and(eq(laps.sessionId, sessionId), eq(laps.isValid, true), inArray(laps.lapNumber, inlapNumbers)))
+    .run();
+  await db
+    .update(laps)
+    .set({ isValid: false, invalidReason: "outlap" })
+    .where(and(eq(laps.sessionId, sessionId), eq(laps.isValid, true), inArray(laps.lapNumber, inlapNumbers.map((lapNumber) => lapNumber + 1))))
+    .run();
+}
+
 
 export async function upsertSessionResult(
   input: SessionResultInput,
   events?: PitEventInput[],
 ): Promise<{ id: number; changed: boolean }> {
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const existing = await tx
       .select({ id: sessionResults.id })
       .from(sessionResults)
@@ -108,16 +124,20 @@ export async function upsertSessionResult(
     }
     return { id, changed: true };
   });
+  if (events !== undefined) await markPitCycleLaps(input.sessionId, events);
+  return result;
 }
 
 
 export async function replacePitEvents(resultId: number, events: PitEventInput[]): Promise<void> {
+  const result = await db.select({ sessionId: sessionResults.sessionId }).from(sessionResults).where(eq(sessionResults.id, resultId)).get();
   await db.transaction(async (tx) => {
     await tx.delete(pitEvents).where(eq(pitEvents.resultId, resultId));
     if (events.length > 0) {
       await tx.insert(pitEvents).values(events.map((event) => ({ resultId, ...event })));
     }
   });
+  if (result) await markPitCycleLaps(result.sessionId, events);
 }
 
 

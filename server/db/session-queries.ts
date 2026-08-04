@@ -286,6 +286,7 @@ export async function getSessionRecapData(
       lapTime: laps.lapTime,
       isValid: laps.isValid,
       sectorTimes: laps.sectorTimes,
+      invalidReason: laps.invalidReason,
     })
     .from(laps)
     .where(eq(laps.sessionId, id))
