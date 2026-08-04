@@ -45,7 +45,7 @@ let initPromise: Promise<void> | null = null;
 /**
  * Idempotent async DB setup. Must be awaited once by every entry point before
  * queries run: the server (server/index.ts), the test preload
- * (test/setup-data-dir.ts), and standalone scripts.
+ * (test/support/setup-data-dir.ts), and standalone scripts.
  *
  * Previously this ran as top-level await in module scope. That made every
  * importer of `db` wait on the module graph, so a SQLite/WAL lock here wedged

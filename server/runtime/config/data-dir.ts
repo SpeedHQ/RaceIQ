@@ -17,7 +17,7 @@ export function resolveDataDir(): string {
     throw new Error(
       "resolveDataDir(): refusing to return the real user data dir under test. " +
         "DATA_DIR is unset — check that bunfig.toml `[test].preload` includes " +
-        "./test/setup-data-dir.ts, or set DATA_DIR explicitly.",
+        "./test/support/setup-data-dir.ts, or set DATA_DIR explicitly.",
     );
   }
 
