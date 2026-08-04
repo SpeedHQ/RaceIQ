@@ -22,7 +22,7 @@ import {
 import { importSessionFrames } from "../../session-capture/import-pipeline";
 
 const STAGE_TTL_MS = 30 * 60 * 1000;
-const MAX_IBT_BYTES = 8 * 1024 * 1024 * 1024;
+export const MAX_IBT_BYTES = 8 * 1024 * 1024 * 1024;
 const DRIVING_SPEED_MPS = 1;
 const TIMING_ROLLOVER_SECONDS = 5;
 const TOKEN_PATTERN =
