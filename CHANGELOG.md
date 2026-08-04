@@ -26,6 +26,14 @@
 - Prevent 2D and 3D Analyse playback from exhausting browser memory during telemetry updates
 - Keep repeated client errors and diagnostics logs from consuming unbounded memory, network, and disk space
 - Restore lap and session history when upgrading databases affected by overlapping schema migrations
+- Keep the Compare loading message hidden after comparison data is available
+- Show both lap position markers on iRacing Compare maps when recordings do not contain world coordinates
+- Cover the full page when settings are open so background content is consistently dimmed and dismissible
+- Guide drivers to AI settings with neutral primary actions when their provider, credentials, or model is not configured
+- Use semantic tabs for Analyse visualization modes and Data/Insights navigation
+- Keep Compare panel framing consistent by removing the track-map card outline and completing the AI Analysis panel border
+- Keep setup track names neutral and expanded setup details free of accent backgrounds
+- Keep expanded session lap tables aligned and show sector columns when lap sector timing is unavailable
 - Show all registered games in storage settings, including games with no recording files
 - Match primary button backgrounds to the neutral gray button surface
 - Highlight the active sector-blip setting with a cyan border

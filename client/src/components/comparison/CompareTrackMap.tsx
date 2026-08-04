@@ -308,7 +308,7 @@ export function CompareTrackMap({ outline, telemetryA, telemetryB, segments, hov
       const ctx = getSemanticCanvasContext(zc);
       if (ctx) {
         ctx.scale(dpr, dpr);
-        const zoom = hd != null ? computeZoom(telemetryA, telemetryB, hd, trackRange, telXFn) : null;
+        const zoom = hd != null ? computeZoom(telemetryA, telemetryB, hd, trackRange, telXFn, alignedOutline) : null;
         drawTrackCanvas(ctx, rect.width, rect.height, alignedOutline, telemetryA, telemetryB, hd, zoom, undefined, followCarRef.current, alignedBoundaries, telXFn, true);
 
         // Draw input HUDs when zoomed
