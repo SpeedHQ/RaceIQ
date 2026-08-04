@@ -4,7 +4,7 @@
  * Before this existed there were two independent implementations with opposite
  * conventions: the UI (`client/src/components/tunes/track-map-geometry.ts`)
  * projected `(maxX - x, z - minZ)` while the e2e segment renderer
- * (`test/helpers/segment-svg.ts`) projected `(x - minX, maxZ - z)`. Those are
+ * (`test/support/tracks/segment-svg.ts`) projected `(x - minX, maxZ - z)`. Those are
  * exact negations of each other, so the same track came out rotated 180°
  * between the app and the generated SVGs.
  *
