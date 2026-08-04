@@ -6,9 +6,10 @@
     "test": "bun run build && playwright test",
     "test:ui": "bun run build && playwright test --ui",
     "screenshots": "playwright test --project=marketing",
-    "screenshots:mobile": "bun run build && playwright test --project=mobile-screenshots"
+    "screenshots:mobile": "bun run build && playwright test --project=mobile-screenshots",
+    "typecheck": "bunx tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.1"
+    "@playwright/test": "^1.62.0"
   }
 }

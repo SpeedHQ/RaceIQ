@@ -32,7 +32,7 @@ Audit route families, not only home pages:
 
 ### Seeded game matrix
 
-`playwright/seeded-e2e-cases.ts` is canonical. Every entry uses real seeded rows, not hand-written response mocks:
+`playwright/tests/support/seeded/cases.ts` is canonical. Every entry uses real seeded rows, not hand-written response mocks:
 
 | Game | game id | track ordinal | track | Purpose |
 | --- | --- | ---: | --- | --- |
@@ -46,7 +46,7 @@ For each case, functional tests should open game home, sessions, tracks, track d
 
 ### Functional coverage inventory
 
-`seeded-routes.spec.ts` proves listed game routes render against real seeded state, fit workspace, and avoid route errors. Route health is not interaction coverage. Current browser contract and remaining behavior:
+`playwright/tests/seeded/routes/health.spec.ts` proves listed game routes render against real seeded state, fit workspace, and avoid route errors. Route health is not interaction coverage. Current browser contract and remaining behavior:
 
 | Surface | Games | Automated now | Fixture or external limit |
 | --- | --- | --- | --- |
@@ -68,7 +68,7 @@ For each case, functional tests should open game home, sessions, tracks, track d
 
 ## Same-lap dynamic field contract (235 source checks)
 
-Recorded catalog tests apply **235 game-specific dynamic packet-field contracts to one representative lap at a time**. They run committed captures through production parsers and retain game/lap identity while measuring each required range. Browser coverage is narrower: `seeded-telemetry.spec.ts` currently checks Speed, RPM, Gear, Throttle, Brake, and Steer at start/middle/end for each game. Do not describe those 30 browser field contracts as full catalog presentation coverage.
+Recorded catalog tests apply **235 game-specific dynamic packet-field contracts to one representative lap at a time**. They run committed captures through production parsers and retain game/lap identity while measuring each required range. Browser coverage is narrower: seeded live-channel coverage currently checks Speed, RPM, Gear, Throttle, Brake, and Steer at start/middle/end for each game. Do not describe those 30 browser field contracts as full catalog presentation coverage.
 
 Classify each value explicitly:
 
@@ -106,6 +106,12 @@ Pass criteria for source dynamics: all 235 contracts meet their same-lap range w
 ## Executable workflows
 
 Commands below are owner-neutral. Run from repository root unless noted.
+Before browser execution, validate suite-only TypeScript from `playwright/`:
+
+```sh
+cd playwright && bun run typecheck
+```
+
 
 ### Functional E2E gate
 
