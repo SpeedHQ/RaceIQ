@@ -67,6 +67,3 @@ test/artifacts/sessions/*.bin
 scout-*.png
 hero-compare.png
 raceiq-home.png
-playwright/cockpit-frames/
-playwright/cockpit-frames2/
-playwright/cockpit-frames*/

@@ -1,24 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import {
-  existsSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-} from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import {
-  CORE_STORYBOOK_SNAPSHOT_CASES,
-  REUSABLE_UI_SNAPSHOT_CASES,
-  STORYBOOK_SNAPSHOT_CASES,
-} from "../../client/src/stories/snapshot-cases";
-import {
-  RESPONSIVE_INTERACTION_CASES,
-  RESPONSIVE_PAGES,
-  RESPONSIVE_SCREENSHOT_COUNT,
-  RESPONSIVE_VIEWPORTS,
-} from "../../playwright/responsive-screenshot-cases";
+import { CORE_STORYBOOK_SNAPSHOT_CASES, REUSABLE_UI_SNAPSHOT_CASES, STORYBOOK_SNAPSHOT_CASES } from "../../client/src/stories/snapshot-cases";
+import { RESPONSIVE_INTERACTION_CASES, RESPONSIVE_PAGES, RESPONSIVE_SCREENSHOT_COUNT, RESPONSIVE_VIEWPORTS } from "../../playwright/tests/support/responsive/cases";
 import type { ScreenshotDiff } from "../../scripts/ui/collect-screenshot-diffs";
 import { writeUiDiffReport } from "../../scripts/ui/local-ui-diff";
 
@@ -31,12 +16,7 @@ function makeTempDir(): string {
   return dir;
 }
 
-function change(
-  status: ScreenshotDiff["status"],
-  relativePath: string,
-  pixelRatio: number,
-  prefix = "responsive",
-): ScreenshotDiff {
+function change(status: ScreenshotDiff["status"], relativePath: string, pixelRatio: number, prefix = "responsive"): ScreenshotDiff {
   const stem = `${status}--${prefix}--${relativePath.replaceAll("/", "--").replace(".png", "")}`;
   return {
     status,
@@ -81,12 +61,8 @@ describe("local UI diff report", () => {
 
     const report = JSON.parse(readFileSync(join(reportDir, "report.json"), "utf8"));
     expect(report.counts).toEqual({ total: 4, changed: 2, added: 1, removed: 1 });
-    expect(report.changes[0].beforePath).toBe(
-      "images/changed--responsive--mobile--home-before.png",
-    );
-    expect(
-      report.changes.map((entry: { viewport: string }) => entry.viewport),
-    ).toEqual(["mobile", "tablet", "desktop", "storybook"]);
+    expect(report.changes[0].beforePath).toBe("images/changed--responsive--mobile--home-before.png");
+    expect(report.changes.map((entry: { viewport: string }) => entry.viewport)).toEqual(["mobile", "tablet", "desktop", "storybook"]);
 
     const html = readFileSync(reportPath, "utf8");
     expect(html).toContain("RaceIQ local UI diff");
@@ -122,60 +98,24 @@ describe("local UI diff report", () => {
   });
 
   test("keeps capture paths configurable while preserving existing defaults", () => {
-    const screenshots = readFileSync(
-      join(repoRoot, "playwright/mobile-responsive.spec.ts"),
-      "utf8",
-    );
-    const screenshotCases = readFileSync(
-      join(repoRoot, "playwright/responsive-screenshot-cases.ts"),
-      "utf8",
-    );
-    const snapshotCases = readFileSync(
-      join(repoRoot, "client/src/stories/snapshot-cases.ts"),
-      "utf8",
-    );
-    const dashboardSnapshots = readFileSync(
-      join(repoRoot, "client/src/stories/dashboards.snapshot.ts"),
-      "utf8",
-    );
-    const themeSnapshot = readFileSync(
-      join(repoRoot, "client/src/stories/theme.snapshot.ts"),
-      "utf8",
-    );
-    const reusableUiSnapshot = readFileSync(
-      join(repoRoot, "client/src/stories/reusable-ui.snapshot.ts"),
-      "utf8",
-    );
-    const responsiveConfig = readFileSync(
-      join(repoRoot, "playwright/playwright.config.ts"),
-      "utf8",
-    );
-    const responsiveWorkflow = readFileSync(
-      join(repoRoot, ".github/workflows/pr-screenshots.yml"),
-      "utf8",
-    );
-    const devLauncher = readFileSync(
-      join(repoRoot, "playwright/start-dev-server.ts"),
-      "utf8",
-    );
-    const productionLauncher = readFileSync(
-      join(repoRoot, "playwright/start-server.ts"),
-      "utf8",
-    );
-    const seedHelper = readFileSync(
-      join(repoRoot, "playwright/seed-screenshot-data.ts"),
-      "utf8",
-    );
-    const storybookConfig = readFileSync(
-      join(repoRoot, "client/playwright.config.ts"),
-      "utf8",
-    );
+    const screenshots = readFileSync(join(repoRoot, "playwright/tests/responsive/mobile-screenshots.spec.ts"), "utf8");
+    const screenshotCases = readFileSync(join(repoRoot, "playwright/tests/support/responsive/cases.ts"), "utf8");
+    const snapshotCases = readFileSync(join(repoRoot, "client/src/stories/snapshot-cases.ts"), "utf8");
+    const dashboardSnapshots = readFileSync(join(repoRoot, "client/src/stories/dashboards.snapshot.ts"), "utf8");
+    const themeSnapshot = readFileSync(join(repoRoot, "client/src/stories/theme.snapshot.ts"), "utf8");
+    const reusableUiSnapshot = readFileSync(join(repoRoot, "client/src/stories/reusable-ui.snapshot.ts"), "utf8");
+    const responsiveConfig = readFileSync(join(repoRoot, "playwright/playwright.config.ts"), "utf8");
+    const runtimeConfig = readFileSync(join(repoRoot, "playwright/config/runtime.ts"), "utf8");
+    const webServersConfig = readFileSync(join(repoRoot, "playwright/config/web-servers.ts"), "utf8");
+    const responsiveWorkflow = readFileSync(join(repoRoot, ".github/workflows/pr-screenshots.yml"), "utf8");
+    const devLauncher = readFileSync(join(repoRoot, "playwright/support/server/start-dev-server.ts"), "utf8");
+    const productionLauncher = readFileSync(join(repoRoot, "playwright/support/server/start-server.ts"), "utf8");
+    const seedHelper = readFileSync(join(repoRoot, "playwright/support/server/seed-screenshot-data.ts"), "utf8");
+    const storybookConfig = readFileSync(join(repoRoot, "client/playwright.config.ts"), "utf8");
     const packageJson = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
     const gitignore = readFileSync(join(repoRoot, ".gitignore"), "utf8");
 
-    expect(screenshots).toContain(
-      'process.env.RACEIQ_SCREENSHOT_DIR ?? "./screenshots/mobile"',
-    );
+    expect(screenshots).toContain('process.env.RACEIQ_SCREENSHOT_DIR ?? "./screenshots/mobile"');
     expect(screenshots).toContain("RESPONSIVE_VIEWPORTS");
     expect(screenshotCases).toContain('{ name: "mobile", width: 390, height: 844 }');
     expect(screenshotCases).toContain('{ name: "home", path: "/" }');
@@ -192,10 +132,11 @@ describe("local UI diff report", () => {
     expect(screenshotCases).toContain('name: "settings-language-menu"');
     expect(screenshotCases).toContain('name: "analyse-actions-menu"');
     expect(screenshots).toContain("RESPONSIVE_INTERACTION_CASES");
-    expect(responsiveConfig).toContain("RACEIQ_APP_ROOT");
-    expect(responsiveConfig).toContain("PW_SCREENSHOT_ONLY");
-    expect(responsiveConfig).toContain("PW_SCREENSHOT_WORKERS");
-    expect(responsiveConfig).toContain("fullyParallel: PARALLEL_SCREENSHOT_RUN");
+    expect(runtimeConfig).toContain("RACEIQ_APP_ROOT");
+    expect(runtimeConfig).toContain("PW_SCREENSHOT_ONLY");
+    expect(runtimeConfig).toContain("PW_SCREENSHOT_WORKERS");
+    expect(responsiveConfig).toContain("fullyParallel: runtime.parallelScreenshotRun");
+    expect(webServersConfig).toContain("support/server/start-dev-server.ts");
     expect(responsiveWorkflow).toContain('- "playwright/**"');
     expect(responsiveWorkflow).toContain('PW_SEED_SCREENSHOTS: "1"');
     expect(devLauncher).toContain("seedScreenshotData(repoDir, dir)");
@@ -203,13 +144,9 @@ describe("local UI diff report", () => {
     expect(seedHelper).toContain('process.env.PW_SEED_SCREENSHOTS !== "1"');
     expect(storybookConfig).toContain("RACEIQ_STORYBOOK_ROOT");
     expect(storybookConfig).toContain("RACEIQ_SNAPSHOT_DIR");
-    expect(
-      existsSync(join(repoRoot, "scripts/chromium-cdp.ts")),
-    ).toBeFalse();
+    expect(existsSync(join(repoRoot, "scripts/chromium-cdp.ts"))).toBeFalse();
     expect(snapshotCases).toContain('outputName: "snapshot-F1LiveDashboard.png"');
-    expect(snapshotCases).toContain(
-      'outputName: "snapshot-theme-semantic-states.png"',
-    );
+    expect(snapshotCases).toContain('outputName: "snapshot-theme-semantic-states.png"');
     expect(dashboardSnapshots).toContain("DASHBOARD_SNAPSHOT_CASES");
     expect(themeSnapshot).toContain("THEME_SNAPSHOT_CASE");
     expect(reusableUiSnapshot).toContain("REUSABLE_UI_SNAPSHOT_CASES");
@@ -221,9 +158,7 @@ describe("local UI diff report", () => {
 
   test("requires every Storybook baseline in the bounded manifest", () => {
     const manifest = STORYBOOK_SNAPSHOT_CASES.map((entry) => entry.outputName).sort();
-    const committed = readdirSync(
-      join(repoRoot, "client/src/stories/__snapshots__"),
-    )
+    const committed = readdirSync(join(repoRoot, "client/src/stories/__snapshots__"))
       .filter((entry) => entry.startsWith("snapshot-") && entry.endsWith(".png"))
       .sort();
 

@@ -103,7 +103,7 @@
     "playwright": {
       "name": "raceiq-e2e",
       "devDependencies": {
-        "@playwright/test": "^1.61.1",
+        "@playwright/test": "^1.62.0",
       },
     },
   },
@@ -2897,8 +2897,6 @@
     "@storybook/builder-vite/@storybook/csf-plugin": ["@storybook/csf-plugin@10.5.6", "", { "dependencies": { "unplugin": "^2.3.5" }, "peerDependencies": { "esbuild": "*", "rollup": "*", "storybook": "^10.5.6", "vite": "*", "webpack": "*" }, "optionalPeers": ["esbuild", "rollup", "vite", "webpack"] }, "sha512-PJLyOmcKe1OZDBw7RaGX/gjuiJuVfS5pVgc4W2RnHYOFpU6F5Bv9+9MqQwp0i7tWZBWc4fsCJudgVqwgjuTROA=="],
 
     "@storybook/react/@storybook/react-dom-shim": ["@storybook/react-dom-shim@10.5.6", "", { "peerDependencies": { "@types/react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "@types/react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0", "storybook": "^10.5.6" }, "optionalPeers": ["@types/react", "@types/react-dom"] }, "sha512-dV3oOHc5ImggxEqeIiUj4vvnQO5SKScFtqAkxgIWLju1wiSZSIqQ5Q4Mp12Rhs9hQrjF039DueH7f2xJJZfvSw=="],
-
-    "@storybook/test-runner/playwright": ["playwright@1.62.0", "", { "dependencies": { "playwright-core": "1.62.0" }, "optionalDependencies": { "fsevents": "2.3.2" }, "bin": { "playwright": "cli.js" } }, "sha512-Z14dG305dgaLu6foB1TXQagFiW8JfSUIUaUuPaKQ6NtBPKF1P/qXcqfh6c6K/icPqdy37JmjbiBXf6JNg6Sylw=="],
 
     "@tailwindcss/node/lightningcss": ["lightningcss@1.32.0", "", { "dependencies": { "detect-libc": "^2.0.3" }, "optionalDependencies": { "lightningcss-android-arm64": "1.32.0", "lightningcss-darwin-arm64": "1.32.0", "lightningcss-darwin-x64": "1.32.0", "lightningcss-freebsd-x64": "1.32.0", "lightningcss-linux-arm-gnueabihf": "1.32.0", "lightningcss-linux-arm64-gnu": "1.32.0", "lightningcss-linux-arm64-musl": "1.32.0", "lightningcss-linux-x64-gnu": "1.32.0", "lightningcss-linux-x64-musl": "1.32.0", "lightningcss-win32-arm64-msvc": "1.32.0", "lightningcss-win32-x64-msvc": "1.32.0" } }, "sha512-NXYBzinNrblfraPGyrbPoD19C1h9lfI/1mzgWYvXUTe414Gz/X1FD2XBZSZM7rRTrMA8JL3OtAaGifrIKhQ5yQ=="],
 
