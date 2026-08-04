@@ -129,15 +129,23 @@ test("Analyse supports selection, playback, notes, export, import, and delete ca
 
   const insightsTab = page.getByRole("tab", { name: /Insights/ });
   await insightsTab.click();
-  await expect(page.getByText("No issues detected").first()).toBeVisible();
+  await expect(insightsTab).toHaveAttribute("aria-selected", "true");
+  const insightsPanel = page.getByRole("tabpanel", { name: /Insights/ });
+  await expect(insightsPanel.getByRole("heading", { name: "Suspension" })).toBeVisible();
+  await expect(insightsPanel.getByRole("button").first()).toBeVisible();
   await page.getByRole("tab", { name: "Data", exact: true }).click();
 
   const followButton = page.getByRole("button", { name: "Fixed", exact: true });
   await followButton.click();
   await expect(page.getByRole("button", { name: "Follow", exact: true })).toBeVisible();
-  for (const overlay of ["Inputs", "Segments", "Sectors", "Overlay"]) {
-    await page.getByRole("button", { name: overlay, exact: true }).click();
-    await expect(page.getByRole("button", { name: overlay, exact: true })).toBeVisible();
+  for (const [currentOverlay, nextOverlay] of [
+    ["Overlay", "Inputs"],
+    ["Inputs", "Segments"],
+    ["Segments", "Sectors"],
+    ["Sectors", "Overlay"],
+  ] as const) {
+    await page.getByRole("button", { name: currentOverlay, exact: true }).click();
+    await expect(page.getByRole("button", { name: nextOverlay, exact: true })).toBeVisible();
   }
   await page.getByRole("button", { name: "Zoom in map" }).click();
   await expect
@@ -153,7 +161,7 @@ test("Analyse supports selection, playback, notes, export, import, and delete ca
   await page.getByRole("tab", { name: "2D", exact: true }).click();
 
   await page.getByRole("button", { name: "Guide", exact: true }).click();
-  const guideDialog = page.getByRole("dialog", { name: "Data Guide" });
+  const guideDialog = page.getByRole("dialog", { name: "Data Panel Guide" });
   await expect(guideDialog).toBeVisible();
   await guideDialog.getByRole("button", { name: "Close" }).click();
   await expect(guideDialog).toHaveCount(0);
@@ -351,7 +359,7 @@ test("Analyse shared controls work across seeded game recordings", async ({
     await page.getByRole("tab", { name: "2D", exact: true }).click();
 
     await page.getByRole("button", { name: "Guide", exact: true }).click();
-    const guideDialog = page.getByRole("dialog", { name: "Data Guide" });
+    const guideDialog = page.getByRole("dialog", { name: "Data Panel Guide" });
     await expect(guideDialog).toBeVisible();
     await guideDialog.getByRole("button", { name: "Close" }).click();
 

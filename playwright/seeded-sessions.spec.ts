@@ -81,7 +81,7 @@ test("sessions filter, notes, recap, export, and deletion confirmation preserve 
 
   const search = page.getByPlaceholder("Search track, car, notes…");
   await search.fill("definitely-no-seeded-session");
-  await expect(page.getByText("No sessions recorded yet", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("No sessions recorded yet", { exact: true }).last()).toBeVisible();
   await search.fill("");
 
   const firstRow = (await sessionRows(page)).first();
@@ -110,7 +110,7 @@ test("sessions filter, notes, recap, export, and deletion confirmation preserve 
     expect((await saveResponse).ok()).toBe(true);
     await page.reload({ waitUntil: "domcontentloaded" });
     await search.fill(replacementNote);
-    await expect(page.getByText(replacementNote, { exact: true }).first()).toBeVisible();
+    await expect(page.getByText(replacementNote, { exact: true }).last()).toBeVisible();
 
     await search.fill("");
     const selection = (await sessionRows(page)).first().getByRole("checkbox");
@@ -143,7 +143,7 @@ test("sessions recorded and imported tabs expose true-empty state", async ({ pag
   await expect(page.getByRole("button", { name: "Imported", exact: true })).toHaveAttribute("class", /bg-app-accent/);
   const search = page.getByPlaceholder("Search track, car, notes…");
   await search.fill("definitely-no-imported-session");
-  await expect(page.getByText("No imported logs yet", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("No imported logs yet", { exact: true }).last()).toBeVisible();
   await search.fill("");
   await page.getByRole("button", { name: "Recorded", exact: true }).click();
   await expect(page).toHaveURL(/\/ac-evo\/sessions(?:\?.*)?$/);
@@ -182,7 +182,7 @@ test("sessions analyse and compare navigation uses selected seeded laps", async 
   await page.goto("/fm23/sessions", { waitUntil: "domcontentloaded" });
   const first = (await sessionRows(page)).nth(targetSessionIndex);
   await first.click();
-  const lapRows = page.locator("tbody tr").filter({ has: page.getByRole("button", { name: "Analyse", exact: true }) });
+  const lapRows = page.locator("tbody tbody tr").filter({ has: page.getByRole("button", { name: "Analyse", exact: true }) });
   await expect(lapRows.nth(0)).toBeVisible();
   await expect(lapRows.nth(1)).toBeVisible();
   await lapRows.nth(0).getByRole("checkbox").check();
@@ -193,7 +193,7 @@ test("sessions analyse and compare navigation uses selected seeded laps", async 
   await page.goto("/fm23/sessions", { waitUntil: "domcontentloaded" });
   const analyseSession = (await sessionRows(page)).first();
   await analyseSession.click();
-  await page.locator("tbody tr").filter({ has: page.getByRole("button", { name: "Analyse", exact: true }) }).first().getByRole("button", { name: "Analyse", exact: true }).click();
+  await page.locator("tbody tbody tr").filter({ has: page.getByRole("button", { name: "Analyse", exact: true }) }).first().getByRole("button", { name: "Analyse", exact: true }).click();
   await expect(page).toHaveURL(/\/fm23\/analyse\?/);
   expect(browserErrors.errors).toEqual([]);
 });
@@ -209,7 +209,7 @@ test("session lap context action rechecks disposable imported lap", async ({ pag
     const row = (await sessionRows(page)).first();
     await expect(row).toBeVisible();
     await row.click();
-    const lapRow = page.locator("tbody tr").filter({ has: page.getByRole("button", { name: "Analyse", exact: true }) }).first();
+    const lapRow = page.locator("tbody tbody tr").filter({ has: page.getByRole("button", { name: "Analyse", exact: true }) }).first();
     await expect(lapRow).toBeVisible();
     await lapRow.click({ button: "right" });
     await expect(page.getByRole("button", { name: "Recheck validity", exact: true })).toBeVisible();
@@ -294,7 +294,7 @@ test("MoTeC import fixture creates disposable imported session when repository e
     importedSessionIds = sessionsAfter.filter((session) => !beforeIds.has(session.id)).map((session) => session.id);
     expect(importedSessionIds.length).toBeGreaterThan(0);
     await page.goto("/ac-evo/sessions?tab=imported", { waitUntil: "domcontentloaded" });
-    await expect(page.getByText("MoTeC", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("MoTeC", { exact: true }).last()).toBeVisible();
     expect(browserErrors.errors).toEqual([]);
   } finally {
     const lapCleanup = await request.post("/api/laps/bulk-delete", { data: { ids: importedLapIds } });
@@ -321,7 +321,7 @@ test("sessions loading and API error states remain visible", async ({ page, requ
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(seeded) });
   });
   const navigation = page.goto("/fm23/sessions", { waitUntil: "domcontentloaded" });
-  await expect(page.getByText("Loading...", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Loading...", { exact: true }).last()).toBeVisible();
   releaseLoading();
   await navigation;
   await page.unroute("**/api/sessions**");
@@ -335,6 +335,6 @@ test("sessions loading and API error states remain visible", async ({ page, requ
   const errorPageErrors = collectBrowserErrors(page);
   await page.goto("/fm23/sessions", { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("alert").filter({ hasText: "Error" })).toBeVisible();
-  expect(errorPageErrors.errors.filter((error) => !error.startsWith("http 503:"))).toEqual([]);
+  expect(errorPageErrors.errors.filter((error) => error !== "console.error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)" && !error.startsWith("http 503:"))).toEqual([]);
   await page.unroute("**/api/sessions**");
 });

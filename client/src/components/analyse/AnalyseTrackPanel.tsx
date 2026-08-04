@@ -119,9 +119,9 @@ export function AnalyseTrackPanel({
       </div>
 
       {/* Right side controls */}
-      <div className="absolute top-2 right-2 flex items-start gap-2">
+      <div className="pointer-events-none absolute top-2 right-2 flex items-start gap-2">
         {rotateWithCar && (
-          <div className="flex flex-col gap-1">
+          <div className="pointer-events-auto flex flex-col gap-1">
             <Button
               type="button"
               aria-label="Zoom in map"

@@ -119,6 +119,7 @@ test("dashboard combinations render replay-driven live values", async ({ page, r
 test("live dashboard mode toggle exposes selected route and no-data guide state", async ({ page }) => {
   test.setTimeout(60_000);
   const browserErrors = collectBrowserErrors(page);
+  await page.routeWebSocket("**/ws", () => {});
   await page.goto("/fm23/live/driver", { waitUntil: "domcontentloaded" });
   const dashboardModes = page.getByRole("main");
   const driverLink = dashboardModes.getByRole("link", { name: "Driver", exact: true });

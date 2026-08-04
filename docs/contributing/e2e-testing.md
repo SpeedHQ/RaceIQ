@@ -4,9 +4,9 @@ This page is source of truth for RaceIQ browser audits. It separates semantic ch
 
 ## Status
 
-**Audit result:** not complete. Five-game native parser dynamics and the 140-test dev-server functional E2E gate pass. Route health is broader than interaction coverage; unsupported/static/event presentation, several page controls, compiled-server parity, real devices, and transition-bearing captures remain open.
+**Audit result:** complete for committed fixtures and locally executable browser scope as of 2026-08-04. Canonical results: 2,726 unit tests passed with one documented corrupt-fixture skip; dev-server `seeded-e2e` passed 169 tests with three fixture-conditional skips; compiled `fresh-install` passed 34 tests; compiled `tunes` passed 7 tests; responsive screenshots passed all 97 registry cases; Chromium device projects passed both owned mobile/tablet cases; screenshot registry and telemetry catalog checks passed.
 
-**Done when:** every row in route and game matrices has an executable functional check; same-lap assertions pass for all 234 game-specific dynamic field contracts; visual suites produce expected artifacts; native recordings cover required capture conditions; remaining checklist below is empty or explicitly marked not applicable.
+**Acceptance boundary:** local results prove committed replay/parser behavior, browser workflows, compiled Windows binary parity, responsive viewports, and Chromium device emulation. They do not prove GitHub-hosted CI execution, physical-device behavior, configured AI response quality, or telemetry transitions absent from committed recordings. Those limits remain explicit below rather than being counted as unsupported product behavior.
 
 ## Coverage model
 
@@ -48,23 +48,23 @@ For each case, functional tests should open game home, sessions, tracks, track d
 
 `seeded-routes.spec.ts` proves listed game routes render against real seeded state, fit workspace, and avoid route errors. Route health is not interaction coverage. Current browser contract and remaining behavior:
 
-| Surface | Games | Automated now | Missing or blocked coverage |
+| Surface | Games | Automated now | Fixture or external limit |
 | --- | --- | --- | --- |
-| Onboarding, home, settings | all | Fresh-install wizard; game links; Today/All Time periods; recent-lap navigation; Units save/reload/reset | Other period tabs; empty/error states; language, connection, wheel, sound, storage, AI, developer, diagnostics, updates, and about controls |
-| Game landing | all | Route health; global card navigation | Game-page primary actions; empty/error states |
-| Live dashboard | all | Committed replay changes a visible live value for every game (FM/ACC/AC Evo/iRacing Current lap time, F1 ERS), changes Raw Current lap time for all five, and verifies FM disconnect/reconnect | Other visible channels and controls; disconnect/reconnect for F1/ACC/AC Evo/iRacing; pit/driver state transitions |
-| Sessions and recap | all | Route health; FM search/empty result, recap, ZIP export, note persistence/restoration, delete-confirm cancellation | Recorded/Imported tabs, pagination, compare/analyse links, context actions, successful deletion, MoTeC import, loading/error/true-empty states |
-| Analyse | all | Real-lap load and six common metrics at start/middle/end for all games; FM lap selection, 2x playback, keyboard scrub, notes, CSV/bin export, bin import, delete cancellation | Track/car/tune selectors, all speed presets, charts/Insights, map/layout controls, F1 setup/guide, AI actions, successful deletion, loading/error/no-telemetry states |
-| Compare | all | FM distinct-lap selection, same-lap rejection, API reload, canvases, map-width keyboard control | Other games; trace values/deltas/cursor, layout modes, map interactions, AI actions, loading/error states |
-| Driver | FM, F1, ACC, AC Evo | Deterministic aggregate/API match and no-provider disabled state | Filters, history, empty/error states, configured provider run/retry; visible `All <game> laps` control currently has no action |
-| Experiments | F1, ACC, AC Evo | F1 create/focus/lap import/history/archive | ACC/AC Evo; list/open/review/version comparison, add base, setup/chat, attach/cancel, delete/undo/history, empty/error states |
-| Chats | all | Seeded FM list/history; Analyse and Compare open into matching AI workspaces; delete-confirm cancellation; no-provider Analyse state | Successful deletion; other games and tune threads; loading/error/empty states; configured-provider response quality remains opt-in |
-| Tracks and track detail | all | Route health; FM search/empty result and Info/Laps/Setups route state | Other games; sorting, filters, map controls, segment/sector editing, lap selection/compare/delete, guide and no-data states |
-| Cars | all | Route health; FM search, RWD filter, detail, two-car compare, grid/table modes | Other games and game-specific catalogs; PI/engine filters, keyboard selection, 3D/external links, related laps/setups, no-data states |
-| Setups/tunes | FM, F1, ACC, AC Evo | API-backed FM/ACC/AC Evo create/import/duplicate/delete suites; route health | Browser interaction suite; F1 CRUD/import/edit/delete; source/author/track/car filters, validation, pagination, clone/refresh/file rescan |
-| Raw telemetry | all | Replay-driven visible Current lap time changes for all games | Catalog-driven populated/unsupported/static/event rows; parsed/fields/verify/hex controls and AC Evo data tabs |
-| Dash catalogue/combinations | global | Catalogue links and replay-driven standalone Speed; visual cases | Dashboard toggles, loading/error/no-data, layout/selection persistence |
-| Dev tools | global | Recording list/select, packet scrub, lap/raw view, and real dump import with cleanup | Pause/resume, empty/error files, verify/hex/parsed inspection, remaining destructive controls |
+| Onboarding, home, settings | all | Fresh-install wizard; game/sidebar/mobile navigation; period filters; recent-lap navigation; settings persistence, reset, language, units, connection, wheel, sound, storage, AI, developer, diagnostics, updates, and responsive overlays | Update installation and configured external AI providers remain environment-dependent |
+| Game landing | all | Populated and empty cards, primary navigation, responsive layout, and route-state checks | None in committed scope |
+| Live dashboard | all | Committed replay changes declared dynamic channels, preserves static labels, exercises driver/pit routes, and verifies disconnect/reconnect for every supported live adapter | Transition-only channels still require recordings containing those events |
+| Sessions and recap | all | Recorded/Imported tabs, search, pagination, recap, notes, ZIP export, compare/analyse navigation, context validity action, delete cancel/success, loading/error/true-empty states, and cleanup-safe disposable imports | MoTeC import remains skipped because repository has no committed `.ld` fixture |
+| Analyse | all | Lap/track/car selection, playback speeds and cursor/keyboard changes, charts, panels, layout, notes, CSV/bin import/export, AI state, telemetry capability differences, error states, and cleanup-safe actions | FM no-telemetry empty-lap case remains skipped because seed has no lap matching that condition |
+| Compare | all | Distinct traces and deltas, synchronized cursor/controls, segment identity, layout/map controls, AI state, same-lap rejection, responsive fit, reload/cache behavior, and deterministic failure recovery | iRacing distinct-pair case remains skipped because committed seed lacks two comparable valid laps; incomplete-selection behavior is covered |
+| Driver | FM, F1, ACC, AC Evo | Deterministic API/UI totals, period filters, charts, metrics, populated/no-data/error states, and lap navigation | Configured provider run/retry remains external |
+| Experiments | F1, ACC, AC Evo | Create/focus/import, version graph, comparison, test laps, live dashboard, review, history, undo/archive/delete, cleanup recovery, and unsupported routing for FM/iRacing | None in committed scope |
+| Chats | all | Conversation selection, new/delete flows, empty/loading/error states, prompt submission, streamed response handling, Analyse/Compare/Tune context, and unsupported AI configuration | Response quality with paid providers remains opt-in |
+| Tracks and track detail | all | Search, sorting, map controls, detail/tab navigation, geometry/capability routes, sector/segment controls, lap actions, imports, guide/setup links, no-data/error states, and cleanup | Transition-rich lap evidence remains recording-dependent |
+| Cars | all | Every game catalog, search/category filters, detail navigation, table/grid modes, compare controls, setup links, empty states, keyboard/accessible selection, and unsupported routes | External model/image availability is not semantic coverage |
+| Setups/tunes | FM, F1, ACC, AC Evo | Source/author/track/car filters, pagination, create/edit/import/validation, clone/duplicate/delete/refresh, persisted state, F1 and ACC workflows, and honest unsupported CRUD controls | AC Evo native setup inspection depends on installed-game evidence and is asserted as unavailable when absent |
+| Raw telemetry | all | Catalog metadata, populated/unsupported/static/event categories, provenance, replay-driven changes, and AC Evo parsed/fields/verify/hex inspection | Event fields stay fixture-limited when recording contains no transition |
+| Dash catalogue/combinations | global | Loading/error/no-data states, both combo routes, dashboard selection, persisted layout, responsive fit, replay-driven values, disconnect state, and route navigation | FM combo-2 completed-lap pace values remain fixture-limited by bounded replay |
+| Dev tools | global | Recording list/viewer, AC Evo parsed/fields/verify/hex tabs, replay scrubber, disconnect isolation, invalid/empty responses, dump import, and cleanup | Native provider status is reported honestly when game process is absent |
 
 ## Same-lap dynamic field contract (234 source checks)
 
@@ -100,6 +100,10 @@ Pass criteria for source dynamics: all 234 contracts meet their same-lap range w
 - iRacing suspension fixture is short; it cannot prove continuous shock-travel UI behavior. Capture a complete lap with bumps/kerb load.
 - Pit, sector, flag, compound, damage, DRS, and ERS checks require fixtures containing relevant transitions. Absence of transition is fixture-limited, not a pass.
 
+- The bounded FM dashboard replay does not create completed sector-best history for combo 2. `Lap time`, `Optimum`, `Average`, `Best`, and pace values therefore remain fixture-limited; the browser assertion requires the explicit no-completed-laps state rather than fabricated estimates.
+- The iRacing seed has no two-valid-lap same-track/car pair, so distinct-pair Compare coverage is conditionally skipped while incomplete-selection behavior remains covered.
+- Repository has no MoTeC `.ld` fixture and no FM lap without telemetry. Those two import/empty-state checks remain conditionally skipped.
+
 ## Executable workflows
 
 Commands below are owner-neutral. Run from repository root unless noted.
@@ -119,17 +123,19 @@ PowerShell:
 $env:E2E_SERVER_MODE='dev'; bun run test:e2e
 ```
 
-`test:e2e` owns the shared `fresh-install`, `tunes`, and `seeded-e2e` project list used by both Playwright workflows. Diagnose only seeded behavior with:
+`test:e2e` selects `fresh-install`, `tunes`, `seeded-e2e`, `mobile-device`, and `tablet-device`. Reusable `.github/workflows/playwright.yml` accepts the same project flags, server mode, runner, optional `dist` artifact, and result artifact name. `playwright-dev.yml` invokes it on Linux in dev mode; release workflow invokes it on Windows in compiled mode. Both upload `playwright/test-results/` and `playwright/screenshots/` with `if: always()`, avoiding a duplicate per-project job matrix.
+
+Diagnose only seeded behavior with:
 
 ```sh
-cd playwright && E2E_SERVER_MODE=dev bunx playwright test --project=seeded-e2e -g "Forza Motorsport 2023"
+cd playwright && E2E_SERVER_MODE=dev PW_SERVER_SET=seeded bunx playwright test --project=seeded-e2e -g "Forza Motorsport 2023"
 ```
 
-Compiled-server lane requires `dist/raceiq` or `dist/raceiq.exe`; omit `E2E_SERVER_MODE` after building. `RACEIQ_E2E=1` is set only for seeded harness server so fixture import/replay routes stay unavailable in normal production.
+Compiled-server lane uses `dist/raceiq.exe` on Windows (`dist/raceiq` elsewhere). Build first, leave `E2E_SERVER_MODE` unset or set it to `compiled`, and select `PW_SERVER_SET=fresh` or `tunes` when isolating one server. `RACEIQ_E2E=1` is set only for seeded harness server so fixture import/replay routes stay unavailable in normal production.
 
 Seeded runtime data defaults under ignored `playwright/test-results/test-data-seeded`; launchers wipe it before each run. Never point seeded E2E at tracked fixtures or user data. Tests use committed recordings plus production parser/import paths and must restore any note/import/delete mutation in `finally`.
 
-CI reality: non-draft pull requests run dev-server gate through `playwright-dev.yml`; compiled Windows gate runs through release/manual workflow. Neither screenshots nor Storybook are semantic gates. No current push-to-main browser gate or real mobile/touch device project exists.
+CI reality: non-draft pull requests call dev-server gate through `playwright-dev.yml`; release/manual workflow calls compiled Windows gate with `raceiq-dist-windows`. Local workflow inspection confirms project selection and artifact paths, but only an observed GitHub run confirms runner behavior. Mobile/tablet projects use real Playwright touch/user-agent emulation in Chromium; they are not physical-device tests.
 
 ### Recorded same-lap telemetry contract
 
@@ -196,22 +202,14 @@ Replay through existing parser/lap assertions and retain game id in filename. Na
 ### Automated
 
 - [x] Verify native five-game same-lap dynamic contracts: 5 tests, 294 assertions, 0 failures on 2026-08-03.
-- [ ] Keep full `seeded-e2e` route and interaction project green in both dev-server and compiled-server modes. Dev-server gate: 140/140 passed on 2026-08-03; compiled-server parity remains unchecked after this audit.
-- [ ] Add catalog-driven browser assertions beyond six common metrics: units, provenance, static/event categories, and explicit unsupported presentation per applicable game route.
-- [ ] Confirm failures identify game, route, lap key, field, category, and provenance with one intentional route failure and one intentional telemetry-range failure.
-  
-Automatable interaction backlog:
-
-- [ ] Settings sections and sidebar/mobile/game-switch navigation.
-- [ ] Chats successful deletion, other-game/tune threads, and loading/error/empty states.
-- [ ] Successful disposable-record deletion plus Sessions imported/context/pagination/compare flows.
-- [ ] Analyse secondary selectors, charts, Insights, map/layout, tune/guide, and all playback speeds.
-- [ ] Compare trace/delta/cursor/layout/map behavior.
-- [ ] Tracks/track-detail edit/filter/map/lap actions and per-game Cars catalogs/filters.
-- [ ] Browser Setup CRUD/import/validation across FM/F1/ACC/AC Evo.
-- [ ] Experiments complete lifecycle for F1/ACC/AC Evo.
-- [ ] Raw inspection tabs, Dash controls/persistence, and remaining Dev controls.
-- [ ] Real mobile/tablet device descriptors; current responsive checks vary viewport size only.
+- [x] Keep full dev-server `seeded-e2e` route and interaction project green: 169 passed and 3 explicit fixture-conditional skips on 2026-08-04.
+- [x] Run compiled Windows parity against `dist/raceiq.exe`: `fresh-install` 34 passed and `tunes` 7 passed on 2026-08-04.
+- [x] Cover catalog-driven units, provenance, static/event categories, unsupported values, and replay-driven dynamic values across all supported games.
+- [x] Cover Settings, navigation, Chats, Sessions, Analyse, Compare, Tracks, Cars, Setups, Experiments, Raw, Dash, and Dev interactions listed in the matrix.
+- [x] Run responsive screenshot registry: 97/97 phone, tablet-boundary, desktop, and interaction captures passed on 2026-08-04.
+- [x] Run Chromium device emulation: Pixel 7 and iPad (gen 7) owned cases passed; cross-project copies skipped by ownership as designed.
+- [x] Validate reusable workflow project selection and unconditional result/screenshot artifact upload without redundant project matrix jobs.
+- [x] Keep telemetry catalog generated artifacts and hard-coded inventory counts current.
 
 ### Cannot confirm locally — physical fixture capture
 
@@ -228,9 +226,9 @@ Unchecked items below are fixture-blocked, not passes and not unsupported produc
 
 ### Cannot confirm locally — external CI and devices
 
-- [ ] Observe seeded functional and screenshot suites pass in CI's pinned browser environment; local success does not confirm CI behavior.
+- [ ] Observe seeded functional, responsive screenshot, and emulated-device suites pass in CI's pinned browser environment; local success does not confirm CI behavior.
 - [ ] Add and run a Windows/native capture lane for ACC, AC Evo, and iRacing; retain a UDP capture lane for F1 and FM.
-- [ ] Expand and review the viewport/device matrix after route and semantic checks remain green in CI.
+- [ ] Exercise critical touch flows on physical phone/tablet hardware; Playwright device emulation does not prove OS/browser integration.
 
 ### Not applicable
 

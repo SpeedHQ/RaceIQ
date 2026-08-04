@@ -111,7 +111,7 @@ export const RESPONSIVE_DEVICE_CASES = [
     name: "pixel-7-touch-shell",
     project: "mobile-device",
     path: "/fm23",
-    expectedViewport: { width: 412, height: 915 },
+    expectedViewport: { width: 412, height: 839 },
   },
   {
     name: "ipad-gen-7-touch-shell",

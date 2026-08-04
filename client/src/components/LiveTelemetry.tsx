@@ -1,12 +1,12 @@
 import { hasTireHealthData, hasTireTemperatureData, resolveAnalysisTelemetry } from "@shared/games/analysis-telemetry";
 import { getGame, tryGetGame } from "@shared/games/registry";
 import { WATTS_PER_HORSEPOWER } from "@shared/games/telemetry";
-import { useEffect, useRef, useState } from "react";
+import { hasTireHealthData, hasTireTemperatureData, resolveAnalysisTelemetry } from "@shared/racing/analysis/telemetry-capabilities";
+import { useEffect, useState } from "react";
 import { m } from "@/paraglide/messages";
 import { useUnits } from "../hooks/useUnits";
 import type { DisplayPacket } from "../lib/convert-packet";
 import { client } from "../lib/rpc";
-import { useGameId } from "../stores/game";
 import { useTelemetryStore } from "../stores/telemetry";
 import { SteeringWheel } from "./SteeringWheel";
 import { ArcGauge, FuelGauge, PowerTorque } from "./telemetry/Gauges";
@@ -29,23 +29,28 @@ interface Props {
 }
 
 export function LiveTelemetry({ packet, mode = "driver" }: Props) {
-  const gameId = useGameId();
   const pit = useTelemetryStore((s) => s.pit);
   const [carName, setCarName] = useState<string>("");
-  const lastCarOrdRef = useRef<number | null>(null);
+  const gameId = packet?.gameId ?? null;
+  const carOrdinal = packet?.CarOrdinal;
 
   useEffect(() => {
-    if (!packet) return;
-    const ord = packet.CarOrdinal;
-    if (ord === lastCarOrdRef.current) return;
-    lastCarOrdRef.current = ord;
+    if (gameId == null || carOrdinal == null) return;
+    let active = true;
 
     client.api["car-name"][":ordinal"]
-      .$get({ param: { ordinal: String(ord) }, query: { gameId: gameId! } })
-      .then((r) => (r.ok ? r.text() : `Car #${ord}`))
-      .then((name) => setCarName(name))
-      .catch(() => setCarName(`Car #${ord}`));
-  }, [packet, gameId]);
+      .$get({ param: { ordinal: String(carOrdinal) }, query: { gameId } })
+      .then((response) => (response.ok ? response.text() : `Car #${carOrdinal}`))
+      .then((name) => {
+        if (active) setCarName(name);
+      })
+      .catch(() => {
+        if (active) setCarName(`Car #${carOrdinal}`);
+      });
+    return () => {
+      active = false;
+    };
+  }, [carOrdinal, gameId]);
 
   const units = useUnits();
 

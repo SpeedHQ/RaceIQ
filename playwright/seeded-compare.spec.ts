@@ -100,15 +100,11 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
     lapB: String(pair.lapB.id),
   });
 
-  const compareResponse = page.waitForResponse((response) => {
-    const url = new URL(response.url());
-    return response.request().method() === "GET" && comparePath(pair.lapA.id, pair.lapB.id).test(url.pathname);
-  });
+  const compareResponse = await request.get(`/api/laps/${pair.lapA.id}/compare/${pair.lapB.id}`);
+  expect(compareResponse.ok(), "seeded FM comparison response").toBe(true);
+  const comparison = (await compareResponse.json()) as ComparisonData;
 
   await page.goto(`/${fm23.prefix}/compare?${query}`, { waitUntil: "domcontentloaded" });
-
-  const payload = (await compareResponse).json() as Promise<ComparisonData>;
-  const comparison = await payload;
   expect(comparison.traces.distance.length, "trace length").toBeGreaterThan(1);
   expect(comparison.traces.distance).toHaveLength(comparison.timeDelta.length);
   expect(comparison.timeDelta).not.toHaveLength(0);
@@ -126,12 +122,22 @@ test("Compare complete seeded flow (FM23) preserves identity/order, renders trac
   const lapAOption = lapOptionLabel(pair.lapA);
   const lapBOption = lapOptionLabel(pair.lapB);
 
+  const lapASelect = page.getByLabel("Lap A");
+  await lapASelect.click();
+  const lapAListboxId = await lapASelect.getAttribute("aria-controls");
+  expect(lapAListboxId, "Lap A listbox").not.toBeNull();
+  await page.locator(`[id="${lapAListboxId}"]`).getByRole("option", { name: lapBOption, exact: true }).click();
+  await expect(page.getByText("Select two different laps to compare")).toBeVisible();
+
   const swapResponse = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return response.request().method() === "GET" && comparePath(pair.lapB.id, pair.lapA.id).test(url.pathname);
   });
-  await page.getByLabel("Lap A").click();
-  await page.getByRole("option", { name: lapBOption, exact: true }).click();
+  const lapBSelect = page.getByLabel("Lap B");
+  await lapBSelect.click();
+  const lapBListboxId = await lapBSelect.getAttribute("aria-controls");
+  expect(lapBListboxId, "Lap B listbox").not.toBeNull();
+  await page.locator(`[id="${lapBListboxId}"]`).getByRole("option", { name: lapAOption, exact: true }).click();
   await swapResponse;
 
   const swappedParams = new URL(page.url()).searchParams;
@@ -195,19 +201,15 @@ for (const game of SEEDED_GAME_CASES) {
       return;
     }
 
-    const compareResponse = page.waitForResponse((response) => {
-      const url = new URL(response.url());
-      return response.request().method() === "GET" && comparePath(pair.lapA.id, pair.lapB.id).test(url.pathname);
-    });
+    const response = await request.get(`/api/laps/${pair.lapA.id}/compare/${pair.lapB.id}`);
+    expect(response.ok(), `${game.name} seeded comparison response`).toBe(true);
+    const payload = (await response.json()) as ComparisonData;
 
     await page.goto(
       `/${game.prefix}/compare?track=${pair.trackOrdinal}&carA=${pair.carOrdinal}&carB=${pair.carOrdinal}&lapA=${pair.lapA.id}&lapB=${pair.lapB.id}`,
       { waitUntil: "domcontentloaded" },
     );
 
-    const response = await compareResponse;
-    const payload = (await response.json()) as ComparisonData;
-    expect(response.ok()).toBe(true);
     expect(payload.timeDelta.length).toBe(payload.traces.distance.length);
     await expect(page.getByTestId("lap-compare-workspace")).toBeVisible({ timeout: 30_000 });
     expect(browserErrors.errors, `no compare route errors for ${game.name}`).toEqual([]);
@@ -226,7 +228,7 @@ for (const game of SEEDED_GAME_CASES) {
       `/${game.prefix}/compare?track=${lap.trackOrdinal}&carA=${lap.carOrdinal}&lapA=${lap.id}`,
       { waitUntil: "domcontentloaded" },
     );
-    await expect(page.getByText("Select two laps to compare")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText("Select two laps above to compare")).toBeVisible({ timeout: 30_000 });
     expect(browserErrors.errors, `no route errors in ${game.name} incomplete compare state`).toEqual([]);
   });
 }

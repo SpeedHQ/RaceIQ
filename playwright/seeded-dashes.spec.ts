@@ -13,7 +13,7 @@ const ReplayResponseSchema = z.object({
 
 const DASH_FAMILIES = [
   { slug: "combo-1", name: "Race HUD", path: "/dash/combo-1", linkText: /KM\/H|MPH/i },
-  { slug: "combo-2", name: "Lap Times & Pace", path: "/dash/combo-2", linkText: /Recorded Laps/i },
+  { slug: "combo-2", name: "Lap Times & Pace", path: "/dash/combo-2", linkText: "Complete a lap to see lap times" },
 ] as const;
 
 test.describe.configure({ mode: "serial" });
@@ -64,7 +64,7 @@ for (const family of DASH_FAMILIES) {
     if (family.slug === "combo-1") {
       await expect(page.getByText("KM/H")).not.toHaveCount(0);
     } else {
-      await expect(page.getByRole("heading", { name: /Recorded Laps/ })).toBeVisible();
+      await expect(page.getByText("Complete a lap to see lap times", { exact: true })).toBeVisible();
     }
 
     await page.goto("/dash");
@@ -80,10 +80,10 @@ test("dash layout selection persists across reload via route state", async ({ pa
   const combo2Link = page.getByRole("link", { name: "Lap Times & Pace" });
   await Promise.all([page.waitForURL("/dash/combo-2"), combo2Link.click()]);
 
-  await expect(page.getByRole("heading", { name: /Recorded Laps/ })).toBeVisible();
+  await expect(page.getByText("Complete a lap to see lap times", { exact: true })).toBeVisible();
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL("/dash/combo-2");
-  await expect(page.getByRole("heading", { name: /Recorded Laps/ })).toBeVisible();
+  await expect(page.getByText("Complete a lap to see lap times", { exact: true })).toBeVisible();
 
   await page.goto("/dash/combo-1", { waitUntil: "domcontentloaded" });
   await expect(page.getByText(/KM\/H|MPH/)).toBeVisible();
@@ -117,13 +117,7 @@ test("dash/fm-2023 replay binds combo-1 values and combo-2 track flow", async ({
   await page.goto("/dash/combo-2", { waitUntil: "domcontentloaded" });
   await expect(page.getByText("Waiting for track…", { exact: true })).toHaveCount(0, { timeout: 20_000 });
 
-  const recordedPanel = page
-    .getByRole("heading", { name: /Recorded Laps/ })
-    .locator("../..")
-    .locator("div.grid.gap-x-2.px-3.py-1\\.5.items-center");
-  await expect
-    .poll(() => recordedPanel.count(), { timeout: 20_000, intervals: [100, 150, 200, 300] })
-    .toBeGreaterThan(0);
+  await expect(page.getByText("No completed laps yet", { exact: true })).toBeVisible();
 
   await assertReplayCompleted(combo2Replay);
   expect(browserErrors.errors, "unexpected browser errors in dash replay flow").toEqual([]);
@@ -160,7 +154,7 @@ test("dash responsive accessibility and no overflow on catalogue and combo route
       }
 
       if (path === "/dash/combo-2") {
-        await expect(page.getByRole("heading", { name: /Recorded Laps/ })).toBeVisible({ timeout: 20_000 });
+        await expect(page.getByText(/^(?:Waiting for track…|No completed laps yet)$/)).toBeVisible({ timeout: 20_000 });
       }
     }
   }

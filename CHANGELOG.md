@@ -30,6 +30,13 @@
 - Resize the comparison track map with a persisted splitter and keep the AI Analysis control right-aligned
 - Keep the iRacing analysis car indicator aligned with track direction in fixed and follow map views
 - Show corner and straight times on iRacing analysis laps without world-position telemetry
+- Keep table text, guide cards, and setup rows consistently scaled without overflowing, and align Tracks sorting with Track Detail tabs without extra divider spacing
+- Use one consistent table layout, spacing, alignment, and borderless sortable-header style throughout dashboards and analysis views
+- Open Forza setups directly in the tune browser without obsolete Car Tunes and Wheel / FFB tabs
+- Place setup car and track filters beside setup actions for faster access
+- Use compact, borderless searchable filters for setup cars and tracks
+- Remove the setup source-row container styling and keep refresh aligned with its filters
+- Keep live telemetry stable during route and game transitions by resolving car names from each packet and skipping invalid track metadata requests
 
 ### Internal
 - Distinguish clean page reloads from unexpected browser termination in client diagnostics
@@ -55,6 +62,7 @@
 - Use `import.meta.dirname` in Vite config for native config-loader compatibility
 - Avoid initializing Mastra observability during standalone database seeding
 - Close disposable seed-test SQLite clients before removing temporary data directories
+- Completed fixture-seeded browser workflow coverage across Sessions, Analyse, Compare, Driver, Experiments, Chats, Tracks, Cars, Setups, Dash, developer tools, compiled binaries, and emulated devices
 
 ## v0.13.0 - 2026-07-16
 

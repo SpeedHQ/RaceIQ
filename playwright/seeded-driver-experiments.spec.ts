@@ -70,7 +70,7 @@ for (const game of SEEDED_GAME_CASES.filter(({ supportedFeatures }) =>
     await page.goto(`/${game.prefix}/driver`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "Driver Profile" })).toBeVisible();
     await expect(page.getByText(`All ${profile.gameName} laps`, { exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Run history" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Run history" })).toBeVisible();
     if (runs.runs.length === 0) {
       await expect(page.getByText("No AI runs yet.", { exact: true })).toBeVisible();
     }
@@ -96,7 +96,7 @@ for (const game of SEEDED_GAME_CASES.filter(({ supportedFeatures }) =>
 }
 test("Driver profile presents deterministic API error state", async ({ page }) => {
   const browserErrors = collectBrowserErrors(page);
-  await page.route("**/api/drivers/profile", (route) =>
+  await page.route("**/api/drivers/profile*", (route) =>
     route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ error: "seeded profile failure" }) }),
   );
   try {
@@ -104,9 +104,18 @@ test("Driver profile presents deterministic API error state", async ({ page }) =
     await expect(page.getByRole("alert")).toBeVisible();
     await expect(page.getByText("Measured profile unavailable.", { exact: true })).toBeVisible();
   } finally {
-    await page.unroute("**/api/drivers/profile");
+    await page.unroute("**/api/drivers/profile*");
   }
-  expect(browserErrors.errors, "unexpected browser errors in Driver error state").toEqual([]);
+  const expectedResourceError =
+    "console.error: Failed to load resource: the server responded with a status of 500 (Internal Server Error)";
+  expect(
+    browserErrors.errors.filter(
+      (error) =>
+        error !== expectedResourceError &&
+        !/^http 500: .*\/api\/drivers\/profile\?/.test(error),
+    ),
+    "unexpected browser errors in Driver error state",
+  ).toEqual([]);
 });
 
 test("F1 experiment creates, switches focus, imports laps, uses history, and archives", async ({
@@ -264,7 +273,6 @@ for (const game of SEEDED_GAME_CASES.filter(({ supportedFeatures }) =>
         const setupFilesResponse = await request.get(`/api/tunes/setup-files?gameId=${game.gameId}`);
         expect(setupFilesResponse.ok(), `${game.gameId} setup catalog`).toBe(true);
         const setupFiles = SetupFilesSchema.parse(await setupFilesResponse.json()).files;
-        test.skip(setupFiles.length === 0, `${game.gameId} setup evidence unavailable`);
         baseSetupPath = setupFiles[0]?.absolutePath ?? null;
       }
 
@@ -278,6 +286,7 @@ for (const game of SEEDED_GAME_CASES.filter(({ supportedFeatures }) =>
           carName,
           trackName,
           focus: "car",
+          baseSetupPath,
         },
       });
       expect(createResponse.status()).toBe(201);
@@ -295,7 +304,7 @@ for (const game of SEEDED_GAME_CASES.filter(({ supportedFeatures }) =>
       let versionsResponse = await request.get(`/api/experiments/${experimentId}/versions`);
       expect(versionsResponse.ok()).toBe(true);
       let versions = z.array(VersionSchema).parse(await versionsResponse.json());
-      if (game.gameId === "f1-2025") {
+      if (baseSetupPath === null) {
         expect(versions).toHaveLength(0);
         for (const label of ["v1", "v2"]) {
           const versionResponse = await request.post(`/api/experiments/${experimentId}/versions`, {
@@ -360,10 +369,13 @@ for (const game of SEEDED_GAME_CASES.filter(({ supportedFeatures }) =>
       expect(ImportLapsResponseSchema.parse(await importResponse.json()).importedIds).toEqual([lapId]);
       versionsResponse = await request.get(`/api/experiments/${experimentId}/versions`);
       versions = z.array(VersionSchema.extend({ lapCount: z.number() })).parse(await versionsResponse.json());
-      expect(versions.find((version) => version.id === versionA.id)?.lapCount).toBe(1);
+      const importedVersion = game.gameId === "f1-2025"
+        ? versions.find((version) => version.lapCount === 1)
+        : versions.find((version) => version.id === versionA.id);
+      expect(importedVersion?.lapCount).toBe(1);
 
-      await page.goto(`/${game.prefix}/experiments/${experimentId}/review?versionId=${versionA.id}`, { waitUntil: "domcontentloaded" });
-      await expect(page).toHaveURL(new RegExp(`/experiments/${experimentId}/review\\?versionId=${versionA.id}`));
+      await page.goto(`/${game.prefix}/experiments/${experimentId}/review?versionId=${importedVersion!.id}`, { waitUntil: "domcontentloaded" });
+      await expect(page).toHaveURL(new RegExp(`/experiments/${experimentId}/review\\?versionId=${importedVersion!.id}`));
       await expect(page.getByRole("button", { name: "Session", exact: true })).toBeVisible();
 
       const deleteResponse = await request.post(`/api/experiments/${experimentId}/versions/${versionB.id}/delete`);

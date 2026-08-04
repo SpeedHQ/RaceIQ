@@ -55,11 +55,7 @@ export function AcEvoCars() {
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex gap-1">
-          <Button
-            variant={filterClass ? "app-ghost" : "selected-toggle"}
-            size="app-sm"
-            onClick={() => setFilterClass(null)}
-          >
+          <Button variant={filterClass ? "app-ghost" : "selected-toggle"} size="app-sm" aria-pressed={filterClass === null} onClick={() => setFilterClass(null)}>
             {m.acevocars_filter_all()}
           </Button>
           {classes.map((cls) => {
@@ -70,6 +66,7 @@ export function AcEvoCars() {
                 variant={filterClass === cls ? "selected-toggle" : "app-ghost"}
                 size="app-sm"
                 data-catalog-category={cls}
+                aria-pressed={filterClass === cls}
                 onClick={() => setFilterClass(filterClass === cls ? null : cls)}
               >
                 {cls} ({count})
