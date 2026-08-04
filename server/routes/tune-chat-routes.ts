@@ -14,6 +14,7 @@ import {
   getChatMemory,
   tuneSessionThreadId,
   CHAT_RESOURCE_ID,
+  chatMemoryOptions,
   resolveActiveThread,
   generationThreadId,
   buildChatExport,
@@ -24,7 +25,7 @@ import {
 } from "../ai/chat-agent";
 import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
 import { startDetachedAgentTurn } from "../ai/agent-stream";
-import { CHAT_TURN_CONTEXT_KEY, sanitizeChatHistoryMessages } from "../ai/chat-message-context";
+import { CHAT_TURN_CONTEXT_KEY, CHAT_TURN_MESSAGES_KEY, sanitizeChatHistoryMessages } from "../ai/chat-message-context";
 import { reserveChatRun, buildReplayStream, finishRun } from "../ai/chat-run-registry";
 import { createUIMessageStreamResponse } from "ai";
 import { sessionAgentForFocus } from "../ai/agents";
@@ -253,6 +254,7 @@ export const tuneChatRoutes = new Hono()
         .filter(Boolean)
         .join("\n\n");
       reqCtx.set(CHAT_TURN_CONTEXT_KEY, turnContext);
+      reqCtx.set(CHAT_TURN_MESSAGES_KEY, messages);
       const { run, isNew } = reserveChatRun(threadId);
 
       // Reserve (or re-attach to) this thread's detached run BEFORE calling
@@ -264,6 +266,7 @@ export const tuneChatRoutes = new Hono()
         let stream;
         try {
           stream = await agent.stream(messages, {
+            ...chatMemoryOptions(threadId),
             requestContext: reqCtx,
             abortSignal: run.abortController.signal,
             providerOptions: {

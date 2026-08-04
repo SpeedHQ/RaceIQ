@@ -96,7 +96,7 @@ function ExperimentTable({ sessions, onOpen, isLoading, gameId }: { sessions: Ex
         <THead>
           <TH align="end">#</TH>
           <TH>Session</TH>
-          <TH>Varying</TH>
+          <TH>Focus</TH>
           <TH>Car</TH>
           <TH>Track</TH>
           <TH>Base setup</TH>

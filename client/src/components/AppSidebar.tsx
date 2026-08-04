@@ -253,7 +253,7 @@ export function AppSidebar({
               <Select.Value className={showCollapsed ? "sr-only" : "truncate"} placeholder={m.label_games()} />
             </Select.Trigger>
             <Select.Portal>
-              <Select.Positioner alignItemWithTrigger={false} side={showCollapsed ? "right" : "bottom"} align="start" sideOffset={8} collisionPadding={8}>
+              <Select.Positioner className="z-50" alignItemWithTrigger={false} side={showCollapsed ? "right" : "bottom"} align="start" sideOffset={8} collisionPadding={8}>
                 <Select.Popup onPointerEnter={openOnHover} onPointerLeave={scheduleClose} className="z-50 min-w-52 overflow-hidden rounded border border-app-border bg-app-surface p-1 text-app-text">
                   <Select.List>
                     {visibleGames.map((game) => (

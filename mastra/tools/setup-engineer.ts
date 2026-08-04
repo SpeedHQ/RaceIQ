@@ -17,6 +17,8 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 
+import { CHAT_TURN_MESSAGES_KEY, hasExplicitChangeConfirmation } from "../../server/ai/chat-message-context";
+
 import type { TuneDirection, TuneMagnitude } from "../../server/ai/schemas";
 import { applyIntents, describeKnobs } from "../../server/ai/tune-rules";
 import {
@@ -360,6 +362,18 @@ export function buildSetupEngineerTools() {
             "Not applied — driver has not confirmed. First propose the change(s) with preview_change and " +
             "their goal, ask the driver, and only call apply_changes (driverConfirmed: true) after they " +
             "explicitly say yes.",
+          applied: [],
+          skipped: [],
+        };
+      }
+      const turnMessages = execCtx?.requestContext?.get(CHAT_TURN_MESSAGES_KEY);
+      if (
+        Array.isArray(turnMessages) &&
+        !inputData.changes.every((change) => hasExplicitChangeConfirmation(turnMessages as { role?: string; parts?: unknown[]; content?: unknown }[], change))
+      ) {
+        return {
+          ok: false,
+          error: "Not applied — explicit confirmation must follow a matching preview in a later driver message.",
           applied: [],
           skipped: [],
         };
