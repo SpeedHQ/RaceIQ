@@ -17,6 +17,8 @@ import {
   resolveActiveThread,
   generationThreadId,
   listThreadGenerations,
+  buildChatExport,
+  ensureSystemPrompt,
 } from "../ai/chat-agent";
 import { buildGoogleReasoningProviderOptions } from "../ai/google-provider-options";
 import { startDetachedAgentTurn } from "../ai/agent-stream";
@@ -103,6 +105,7 @@ export const tuneChatRoutes = new Hono()
         if (!thread) return c.json({ messages: [] });
         const result = await memory.recall({ threadId });
         const raw = result.messages ?? [];
+        if (c.req.query("export") === "1") return c.json(buildChatExport(raw));
 
         const list = new MessageList({ threadId, resourceId: CHAT_RESOURCE_ID });
         list.add(raw, "memory");
@@ -197,6 +200,7 @@ export const tuneChatRoutes = new Hono()
         sessionName: session.name,
         focus,
       });
+      await ensureSystemPrompt(threadId, sessionSystemPrompt);
 
       // Deterministic prerequisite gathering — force the read side (setup,
       // symptoms, track conditions, history) via the registered Mastra workflow

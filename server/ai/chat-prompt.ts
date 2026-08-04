@@ -3,12 +3,11 @@
  * Includes the same telemetry context as the analysis prompt,
  * plus the original analysis as reference.
  */
-import type { TelemetryPacket, Tune, GameId } from "../../shared/types";
+import type { TelemetryPacket, GameId } from "../../shared/types";
 import { generateExport, type UnitSystem, type TemperatureUnit } from "../export";
 import { getPromptCarName, getPromptTrackName } from "./compare-engineer";
 import { buildCornerData } from "./corner-data";
 import { analyzeLap } from "../../shared/lib/lap-insights";
-import { formatTuneForPrompt } from "./format-tune";
 import { tryGetServerGame } from "../games/registry";
 import { aiLanguageInstruction } from "../../shared/locales";
 import { ADJUSTMENT_FORMAT_PROMPT } from "../../shared/prompt-snippets";
@@ -49,6 +48,8 @@ export function buildChatSystemPrompt(
   /** UI/AI language code (e.g. "en", "de"). Steers prose language. */
   language: string = "en",
 ): string {
+  const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
+  const serverAdapter = tryGetServerGame(gameId);
   const carName = getPromptCarName(lap.carOrdinal ?? packets[0]?.CarOrdinal ?? 0, lap.gameId);
   const trackName = getPromptTrackName(lap.trackOrdinal ?? 0, lap.gameId);
 
@@ -69,25 +70,11 @@ export function buildChatSystemPrompt(
     }
   }
 
-  let tuneText = "";
-  if (tune) {
-    tuneText =
-      "\n" +
-      formatTuneForPrompt({
-        name: tune.name,
-        author: tune.author,
-        category: tune.category,
-        settings: tune.settings,
-      }) +
-      "\n";
-  }
 
-
-  const gameId: GameId = lap.gameId ?? packets[0]?.gameId;
+  const gameSystemNote = serverAdapter?.aiSystemPrompt ?? "";
 
   // Game-specific extended context
   let extendedContext = "";
-  const serverAdapter = tryGetServerGame(gameId);
   if (serverAdapter?.buildAiContext && packets.length > 0) {
     extendedContext = serverAdapter.buildAiContext(packets);
   }

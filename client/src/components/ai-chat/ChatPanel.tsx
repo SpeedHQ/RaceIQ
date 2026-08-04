@@ -451,8 +451,13 @@ function ChatPanelThread({
                       className="w-full px-3 py-1.5 text-left text-app-compact text-app-text-secondary hover:bg-app-surface-hover hover:text-app-text"
                       onClick={async () => {
                         try {
-                          const messages = await fetchHistory(viewingGen > 1 ? viewingGen : undefined);
-                          await navigator.clipboard.writeText(JSON.stringify({ messages }, null, 2));
+                          const url = new URL(api, window.location.origin);
+                          url.searchParams.set("export", "1");
+                          if (viewingGen > 1) url.searchParams.set("gen", String(viewingGen));
+                          const res = await fetch(url);
+                          if (!res.ok) throw new Error("Could not load chat export");
+                          const data = (await res.json()) as { messages?: unknown[] };
+                          await navigator.clipboard.writeText(JSON.stringify({ messages: data.messages ?? [] }, null, 2));
                         } catch {
                           /* ignore */
                         }

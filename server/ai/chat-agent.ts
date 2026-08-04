@@ -91,6 +91,47 @@ export function chatMemoryOptions(threadId: string) {
   return { memory: { thread: threadId, resource: CHAT_RESOURCE_ID } } as const;
 }
 
+export type ChatExportMemory = {
+  recall(args: { threadId: string }): Promise<{ messages?: unknown[] }>;
+  saveMessages(args: { messages: unknown[] }): Promise<unknown>;
+  getThreadById?: (args: { threadId: string }) => Promise<unknown>;
+  createThread?: (args: { threadId: string; resourceId: string }) => Promise<unknown>;
+};
+
+/** Persist one thread's system prompt so exports begin with model instructions. */
+export async function ensureSystemPrompt(
+  threadId: string,
+  systemPrompt: string,
+  mem: ChatExportMemory = memory,
+): Promise<void> {
+  if (!systemPrompt.trim()) return;
+  const existing = (await mem.recall({ threadId })).messages ?? [];
+  if (existing.some((message: any) => message?.role === "system")) return;
+  if (existing.length === 0 && mem.getThreadById && mem.createThread && !(await mem.getThreadById({ threadId }))) {
+    await mem.createThread({ threadId, resourceId: CHAT_RESOURCE_ID });
+  }
+  await mem.saveMessages({
+    messages: [{
+      id: crypto.randomUUID(),
+      role: "system",
+      createdAt: new Date(0),
+      threadId,
+      resourceId: CHAT_RESOURCE_ID,
+      type: "text",
+      content: {
+        format: 2,
+        parts: [{ type: "text", text: systemPrompt }],
+        content: systemPrompt,
+      },
+    }],
+  });
+}
+
+/** Export raw Mastra records without dropping tool calls or reasoning parts. */
+export function buildChatExport<T>(messages: T[]) {
+  return { messages };
+}
+
 // ─── Chat generations ──────────────────────────────────────────────────────
 //
 // A chat surface (lap / compare / experiment) can accumulate multiple

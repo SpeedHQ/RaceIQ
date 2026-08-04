@@ -72,6 +72,8 @@ import {
   resolveActiveThread,
   generationThreadId,
   listThreadGenerations,
+  buildChatExport,
+  ensureSystemPrompt,
 } from "../ai/chat-agent";
 import { getSecret } from "../keystore";
 import { deleteAnalysis as deleteAnalysisQuery } from "../db/queries";
@@ -813,6 +815,7 @@ export const lapRoutes = new Hono()
       if (!thread) return c.json({ messages: [] });
       const result = await memory.recall({ threadId });
       const raw = result.messages ?? [];
+      if (c.req.query("export") === "1") return c.json(buildChatExport(raw));
 
       const list = new MessageList({ threadId, resourceId: CHAT_RESOURCE_ID });
       list.add(raw, "memory");
@@ -856,21 +859,6 @@ export const lapRoutes = new Hono()
         corners = detectCorners(lap.telemetry);
       }
 
-      // Load tune if linked
-      let parsedTune: Tune | undefined;
-      if (lap.tuneId) {
-        const dbTune = await getDbTune(lap.tuneId);
-        if (dbTune) {
-          parsedTune = {
-            ...dbTune,
-            strengths: dbTune.strengths ? JSON.parse(dbTune.strengths) : [],
-            weaknesses: dbTune.weaknesses ? JSON.parse(dbTune.weaknesses) : [],
-            bestTracks: dbTune.bestTracks ? JSON.parse(dbTune.bestTracks) : [],
-            strategies: dbTune.strategies ? JSON.parse(dbTune.strategies) : [],
-            settings: JSON.parse(dbTune.settings),
-          } as Tune;
-        }
-      }
 
       // Cached analysis is retrieved explicitly by the agent via get_lap_analysis.
       const systemPrompt = buildChatSystemPrompt(
@@ -879,7 +867,6 @@ export const lapRoutes = new Hono()
         corners,
         settings.unit,
         settings.temperatureUnit,
-        parsedTune,
         settings.language,
       );
 
@@ -929,6 +916,7 @@ export const lapRoutes = new Hono()
             : "gemini-flash-latest");
 
       const threadId = await resolveActiveThread(chatThreadId(id));
+      await ensureSystemPrompt(threadId, systemPrompt);
       const turnStartedAt = Date.now();
       try {
         const requestContext = new RequestContext();
@@ -1440,6 +1428,7 @@ export const lapRoutes = new Hono()
         if (!thread) return c.json({ messages: [] });
         const result = await memory.recall({ threadId });
         const raw = result.messages ?? [];
+        if (c.req.query("export") === "1") return c.json(buildChatExport(raw));
 
         const list = new MessageList({
           threadId,
@@ -1541,6 +1530,7 @@ export const lapRoutes = new Hono()
       );
 
       const chatProvider = settings.chatProvider;
+
       if (!chatProvider) {
         return c.json(
           {
@@ -1582,6 +1572,7 @@ export const lapRoutes = new Hono()
             : "gemini-flash-latest");
 
       const threadId = await resolveActiveThread(compareChatThreadId(id1, id2));
+      await ensureSystemPrompt(threadId, systemPrompt);
       const turnStartedAt = Date.now();
       try {
         const requestContext = new RequestContext();

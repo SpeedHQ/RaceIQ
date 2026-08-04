@@ -108,7 +108,15 @@ describe("persistReasoningToMemory", () => {
     };
 
     await persistReasoningToMemory(
-      { id: "assistant-row", parts: [{ type: "reasoning", text: "thinking" }, { type: "text", text: "answer" }] },
+      {
+        id: "assistant-row",
+        parts: [
+          { type: "reasoning", text: "thinking" },
+          { type: "tool-call", toolCallId: "call-1", toolName: "get_setup", args: { sessionId: 1 } },
+          { type: "tool-result", toolCallId: "call-1", result: { ok: true } },
+          { type: "text", text: "answer" },
+        ],
+      },
       memory,
       "thread",
       1_000,
@@ -118,6 +126,8 @@ describe("persistReasoningToMemory", () => {
 
     expect(saved[0].content.parts).toEqual([
       { type: "reasoning", text: "thinking" },
+      { type: "tool-call", toolCallId: "call-1", toolName: "get_setup", args: { sessionId: 1 } },
+      { type: "tool-result", toolCallId: "call-1", result: { ok: true } },
       { type: "text", text: "answer" },
     ]);
     expect(saved[0].content.metadata.usage.totalTokens).toBe(5);
