@@ -7,8 +7,8 @@
  *
  * Output: shared/games/fm-2023/car-dimensions.csv — keyed by car ordinal
  */
-import { readdirSync, readFileSync, writeFileSync } from "fs";
-import { resolve } from "path";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { findForzaInstall } from "../../../shared/integrations/forza/install";
 import { decompressForzaLZX } from "../../../shared/integrations/forza/lzx-decoder";
 import { parseForzaZip } from "../../../shared/integrations/forza/zip";
@@ -159,9 +159,9 @@ let matched = 0;
 
 for (const line of carsRaw) {
   const [ordStr, yearStr, make, ...modelParts] = line.split(",");
-  const ordinal = parseInt(ordStr);
-  const year = parseInt(yearStr);
-  if (isNaN(ordinal) || isNaN(year) || !make) continue;
+  const ordinal = parseInt(ordStr, 10);
+  const year = parseInt(yearStr, 10);
+  if (Number.isNaN(ordinal) || Number.isNaN(year) || !make) continue;
   const model = modelParts.join(",");
   const yearSuffix = String(year).slice(-2);
   const makeKey = make.toLowerCase();
@@ -199,5 +199,5 @@ for (const line of carsRaw) {
 }
 
 const csvPath = resolve(REPO_ROOT, "shared/games/fm-2023/car-dimensions.csv");
-writeFileSync(csvPath, csvLines.join("\n") + "\n");
+writeFileSync(csvPath, `${csvLines.join("\n")}\n`);
 console.log(`\nOrdinal mapping: ${matched} cars matched → ${csvPath}`);

@@ -124,7 +124,12 @@ export function buildIdentityMap(mergedInto: Record<string, string>): Record<str
       const slug = cols[slugIdx];
       if (!slug) continue;
       const target = mergedInto[slug] ?? slug;
-      (byVenue[cols[nameIdx]] ??= []).push(target);
+      let venueSlugs = byVenue[cols[nameIdx]];
+      if (!venueSlugs) {
+        venueSlugs = [];
+        byVenue[cols[nameIdx]] = venueSlugs;
+      }
+      venueSlugs.push(target);
       variantOf[target] ??= cols[variantIdx] ?? "";
     }
     for (const slugs of Object.values(byVenue)) {
@@ -134,7 +139,14 @@ export function buildIdentityMap(mergedInto: Record<string, string>): Record<str
   }
 
   const sources: Record<string, string[]> = {};
-  for (const [from, to] of Object.entries(mergedInto)) (sources[to] ??= []).push(from);
+  for (const [from, to] of Object.entries(mergedInto)) {
+    let sourceSlugs = sources[to];
+    if (!sourceSlugs) {
+      sourceSlugs = [];
+      sources[to] = sourceSlugs;
+    }
+    sourceSlugs.push(from);
+  }
 
   for (const slug of new Set([...Object.keys(venueOf), ...Object.keys(PLAN_LAYOUT_TABLE)])) {
     if (mergedInto[slug]) continue;

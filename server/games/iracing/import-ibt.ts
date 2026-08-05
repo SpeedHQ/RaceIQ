@@ -6,10 +6,10 @@ import {
   statSync,
   unlinkSync,
   writeFileSync,
-} from "fs";
-import { open as openFile } from "fs/promises";
-import { randomUUID } from "crypto";
-import { basename, join, resolve } from "path";
+} from "node:fs";
+import { open as openFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { basename, join, resolve } from "node:path";
 import { resolveDataDir } from "../../runtime/config/data-dir";
 import { IRacingIbtReader } from "./ibt-reader";
 import { registerImportedIRacingIdentity } from "./identity";
@@ -167,7 +167,7 @@ function safeUploadName(name: string): string {
     }
   })();
   const leaf = basename(decoded.replaceAll("\\", "/"));
-  return leaf && leaf.toLowerCase().endsWith(".ibt")
+  return leaf?.toLowerCase().endsWith(".ibt")
     ? leaf
     : "session.ibt";
 }

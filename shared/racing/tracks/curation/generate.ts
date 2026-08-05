@@ -6,8 +6,8 @@
  * exercises.
  */
 
-import { readFileSync, readdirSync, existsSync } from "fs";
-import { resolve, basename } from "path";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { resolve, basename } from "node:path";
 import { detectCornerRegions } from "./segment-align-detect";
 import { alignSegments, type AlignedCorner } from "./segment-align-match";
 import { validateFacts } from "./segment-align-validate";

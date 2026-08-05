@@ -52,7 +52,7 @@ export function FourLineChart({
     ctx.clearRect(0, 0, width, height);
 
     const arrays = [data.fl, data.fr, data.rl, data.rr];
-    const allVals = arrays.flatMap((a) => a);
+    const allVals = arrays.flat();
     if (allVals.length === 0) return;
 
     const computedMax = maxY ?? (Math.max(...allVals) * 1.1 || 1);

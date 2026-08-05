@@ -4,7 +4,7 @@ import { readWString } from "../../../server/games/acc/utils";
 import { STATIC } from "../../../server/games/acc/structs";
 import { getAccCarByModel } from "../../../shared/racing/cars/acc"
 import { getAccTrackByName } from "../../../shared/racing/tracks/catalogs/acc"
-import { createWriteStream } from "fs";
+import { createWriteStream } from "node:fs";
 
 const binPath = process.argv[2] || "test/artifacts/sessions/acc-2026-04-09T18-56-49-633Z.bin";
 

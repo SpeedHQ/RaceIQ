@@ -29,7 +29,7 @@ export function parseTrackSpaceSpline(data: Buffer): { maintrack: TrackSpacePoin
       const values = parts[i + 1];
       if (values?.includes(",")) {
         const [x, y, z] = values.split(",").map((value) => parseFloat(value.trim()));
-        if (!isNaN(x) && !isNaN(z)) splines[currentSpline].push({ x, y, z });
+        if (!Number.isNaN(x) && !Number.isNaN(z)) splines[currentSpline].push({ x, y, z });
         i++;
       }
     }

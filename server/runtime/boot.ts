@@ -1,5 +1,5 @@
-import { existsSync } from "fs";
-import { resolve } from "path";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { initGameAdapters } from "../../shared/games/init";
 import { injectDiscoveredAcEvoCars } from "../../shared/racing/cars/ac-evo";
 import { injectDiscoveredIRacingIdentity } from "../../shared/games/iracing";

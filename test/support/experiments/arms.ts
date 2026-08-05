@@ -1,6 +1,6 @@
 import type { ArmInput } from "../../../server/experiments/comparison/compare";
 import type { ArmLap } from "../../../server/experiments/comparison/metrics";
-import { type FrameLapMeta, type LapFrameLoader } from "../../../server/experiments/comparison/stream";
+import type { FrameLapMeta, LapFrameLoader } from "../../../server/experiments/comparison/stream";
 import type { Corner } from "../../../server/lap-analysis/corners";
 import type { EvaluableLap } from "../../../shared/racing/laps/review-selection";
 import type { TelemetryPacket } from "../../../shared/telemetry/types";

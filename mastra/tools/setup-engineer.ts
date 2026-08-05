@@ -448,7 +448,7 @@ export function buildSetupEngineerTools() {
       const descriptive = slug ? `${label}-${slug}` : label;
       const stem = gameHasSetupFile(ctx.gameId) ? `${ctx.session.name}-${descriptive}` : descriptive;
 
-      let written;
+      let written: ReturnType<typeof writeAppliedSetup>;
       try {
         written = writeAppliedSetup(ctx.gameId, { baseDir, realPath: baseRealPath, setup, stem });
       } catch (err: any) {

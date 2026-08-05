@@ -1,6 +1,6 @@
-import { resolve, dirname, join } from "path";
-import { fileURLToPath } from "url";
-import { homedir } from "os";
+import { resolve, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { homedir } from "node:os";
 
 /**
  * Centralized path resolution for dev vs compiled Bun binary.

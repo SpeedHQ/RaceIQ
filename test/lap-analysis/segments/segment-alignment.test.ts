@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
-import { readFileSync } from "fs";
-import { resolve } from "path";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { detectCornerRegions, type CornerRegion } from "../../../shared/racing/tracks/curation/segment-align-detect";
 import { alignSegments } from "../../../shared/racing/tracks/curation/segment-align-match";
 import { validateFacts } from "../../../shared/racing/tracks/curation/segment-align-validate";

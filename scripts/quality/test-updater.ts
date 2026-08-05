@@ -7,8 +7,8 @@
  *
  * The UI will show an update available. Clicking "Install Update" runs the local installer.
  */
-import { execSync } from "child_process";
-import { readFileSync, existsSync } from "fs";
+import { execSync } from "node:child_process";
+import { readFileSync, existsSync } from "node:fs";
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const version = pkg.version;

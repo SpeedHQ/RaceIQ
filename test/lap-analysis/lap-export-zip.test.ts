@@ -14,8 +14,8 @@
  */
 import { describe, test, expect, afterEach } from "bun:test";
 import { unzipSync } from "fflate";
-import { gunzipSync } from "zlib";
-import { rmSync } from "fs";
+import { gunzipSync } from "node:zlib";
+import { rmSync } from "node:fs";
 import { db } from "../../server/db/index";
 import { sessions, laps } from "../../server/db/schema";
 import { eq } from "drizzle-orm";

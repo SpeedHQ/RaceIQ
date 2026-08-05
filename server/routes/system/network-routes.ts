@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { networkInterfaces } from "os";
+import { networkInterfaces } from "node:os";
 
 export const networkRoutes = new Hono()
   // GET /api/network/info — local LAN IPv4 addresses + server port so clients

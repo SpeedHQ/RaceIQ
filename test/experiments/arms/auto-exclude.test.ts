@@ -102,7 +102,7 @@ describe("reconcileAutoExclusions", () => {
     const writer = new CapturingLapExclusionWriter(laps);
     // New lap 8 arrives, faster than the current fifth (94s).
     writer.get(1); // no-op, just ensures writer set up
-    (writer as unknown as { laps: Map<number, ExclusionScopeLap> })["laps"].set(8, lap(8, 89));
+    (writer as unknown as { laps: Map<number, ExclusionScopeLap> }).laps.set(8, lap(8, 89));
 
     await reconcileAutoExclusions(writer, EXPERIMENT_ID, TUNE_ID);
 

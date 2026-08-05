@@ -31,9 +31,9 @@
 import type { GameId } from "../../shared/games/ids";
 import { getGame } from "@shared/games/registry";
 import type { LdLog } from "./ld";
-import {
-  type MotecCarTrackOverride,
-  type SynthesizeResult,
+import type {
+  MotecCarTrackOverride,
+  SynthesizeResult,
 } from "./types";
 import {
   MOTEC_IMPORT_LIMITATIONS,

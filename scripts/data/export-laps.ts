@@ -9,8 +9,8 @@
  */
 import { buildLapsZip } from "../../server/laps/archive";
 import { getLapsRaw } from "../../server/db/lap-read-queries";
-import { writeFileSync } from "fs";
-import { resolve } from "path";
+import { writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 const args = process.argv.slice(2);
 
@@ -19,7 +19,7 @@ let output = resolve("laps-export.zip");
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--ids" && args[i + 1]) {
-    ids = args[++i].split(",").map(Number).filter((n) => !isNaN(n));
+    ids = args[++i].split(",").map(Number).filter((n) => !Number.isNaN(n));
   } else if ((args[i] === "-o" || args[i] === "--output") && args[i + 1]) {
     output = resolve(args[++i]);
   }

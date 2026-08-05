@@ -1,5 +1,5 @@
-import { readFileSync } from "fs";
-import { gunzipSync } from "zlib";
+import { readFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
 
 const ACC_MAGIC = Buffer.from("ACCTEST\0", "ascii");
 const HEADER_SIZE = 16; // magic (8) + version (4) + frameCount (4)

@@ -19,9 +19,9 @@
  * inferred; entries only ever arrive by a person adding them.
  */
 
-import { createHash } from "crypto";
-import { existsSync, readFileSync, writeFileSync } from "fs";
-import { resolve } from "path";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { SHARED_DIR } from "@shared/platform/runtime/data-paths";
 import type { GameId } from "@shared/games/ids";
 

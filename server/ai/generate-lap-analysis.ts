@@ -210,7 +210,7 @@ export async function generateLapAnalysis(
     // Sector times are optional context.
   }
 
-  let prompt = (deps.buildAnalystPrompt ?? buildAnalystPrompt)(
+  const prompt = (deps.buildAnalystPrompt ?? buildAnalystPrompt)(
     lap,
     lap.telemetry,
     corners,

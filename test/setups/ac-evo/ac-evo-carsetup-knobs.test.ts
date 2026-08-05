@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it, mock } from "bun:test";
-import { copyFileSync, mkdirSync, rmSync, writeFileSync } from "fs";
-import * as os from "os";
-import { tmpdir } from "os";
-import { join } from "path";
+import { copyFileSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import * as os from "node:os";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { readCarSetupFile, carSetupToKnobValues } from "../../../server/games/ac-evo/carsetup";
 
 // `getSetupsBaseDir` derives the Setups folder from `os.homedir()`. Bun's

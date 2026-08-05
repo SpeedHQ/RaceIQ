@@ -1,7 +1,7 @@
-import { writeFileSync, existsSync, readdirSync } from "fs";
-import { join, resolve } from "path";
-import { tmpdir } from "os";
-import { spawn } from "child_process";
+import { writeFileSync, existsSync, readdirSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { spawn } from "node:child_process";
 import pkg from "../../../package.json";
 import { wsManager } from "../websocket-manager";
 import { isNewer } from "./version";

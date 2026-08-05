@@ -10,6 +10,12 @@ interface FieldDef {
   size?: number;
 }
 
+function readWideCString(buf: Buffer, offset: number, size: number): string {
+  const value = buf.subarray(offset, offset + size).toString("utf16le");
+  const terminator = value.indexOf("\0");
+  return terminator === -1 ? value : value.slice(0, terminator);
+}
+
 function readField(buf: Buffer, def: FieldDef): number | string {
   const { offset, type, size } = def;
   const bufLen = buf.length;
@@ -38,7 +44,7 @@ function readField(buf: Buffer, def: FieldDef): number | string {
     case "bool": return buf.readUInt8(offset) ? 1 : 0;
     case "u64": return Number(buf.readBigUInt64LE(offset));
     case "cstring": return readCString(buf, offset, size ?? 0);
-    case "wstring": return buf.slice(offset, offset + (size ?? 0)).toString("utf16le").replace(/\x00+.*$/, "");
+    case "wstring": return readWideCString(buf, offset, size ?? 0);
     default: return -999;
   }
 }
@@ -80,10 +86,10 @@ export const acEvoRoutes = new Hono()
     const s: Record<string, number | string> = {};
     // Also try reading static as legacy wchar_t layout for compat diagnostics
     const sLegacy: Record<string, string> = {
-      sm_version_wchar: staticData.slice(0, 30).toString("utf16le").replace(/\x00+.*$/, ""),
-      ac_evo_version_wchar: staticData.slice(30, 60).toString("utf16le").replace(/\x00+.*$/, ""),
-      carModel_wchar_at68: staticData.slice(68, 134).toString("utf16le").replace(/\x00+.*$/, ""),
-      playerName_wchar_at200: staticData.slice(200, 266).toString("utf16le").replace(/\x00+.*$/, ""),
+      sm_version_wchar: readWideCString(staticData, 0, 30),
+      ac_evo_version_wchar: readWideCString(staticData, 30, 30),
+      carModel_wchar_at68: readWideCString(staticData, 68, 66),
+      playerName_wchar_at200: readWideCString(staticData, 200, 66),
     };
     for (const [key, def] of Object.entries(STATIC_EVO)) {
       if (key === "SIZE" || typeof def !== "object") continue;

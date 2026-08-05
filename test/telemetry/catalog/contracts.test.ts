@@ -1,23 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
   assertDirectToSimplifiedCompatibilityReviews,
-  buildTelemetryCatalog,
-  buildTelemetryCatalogArtifacts,
-  collectIRacingSessionInfoLeafPaths,
-  getSourcesWithoutSemanticDefinition,
-  getTelemetryChildren,
   getTelemetrySources,
   getTelemetryVariable,
-  IRACING_SESSION_INFO_SOURCE_VARIABLES,
   IRACING_TELEMETRY_SOURCE_VARIABLES,
   isTelemetryEnumValue,
   KNOWN_GAME_IDS,
-  readFileSync,
   TELEMETRY_CATALOG,
-  TELEMETRY_CATALOG_HASH,
-  TELEMETRY_CATALOG_SCHEMA_VERSION,
   TELEMETRY_CATALOG_VERSION,
-  telemetryCatalogSourceHash,
 } from "../../support/telemetry/catalog";
 
 describe("semantic telemetry catalog contracts", () => {

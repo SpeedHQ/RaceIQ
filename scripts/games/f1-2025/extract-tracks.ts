@@ -3,7 +3,7 @@
  *
  * Usage: bun run scripts/games/f1-2025/extract-tracks.ts
  */
-import { resolve } from "path";
+import { resolve } from "node:path";
 import { runTrackExtraction } from "./lib/extract-tracks";
 
 const REPO_ROOT = resolve(import.meta.dir, "../../..");

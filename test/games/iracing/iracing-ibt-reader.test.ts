@@ -6,7 +6,7 @@ import {
 import {
   readFileSync,
   writeFileSync,
-} from "fs";
+} from "node:fs";
 import { IRacingIbtReader } from "../../../server/games/iracing/ibt-reader";
 import { previewIbtFile } from "../../../server/games/iracing/import-ibt";
 import { normalizeIRacingFrame } from "../../../server/games/iracing/normalizer";

@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync } from "fs";
-import { GuideEntry, GuideSection, SrsData, Track } from "./types";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import type { GuideEntry, GuideSection, SrsData, Track } from "./types";
 
 function readJson(path: string, fallback: unknown): unknown {
   try { return JSON.parse(readFileSync(path, "utf-8")); } catch { return fallback; }

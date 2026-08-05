@@ -1,6 +1,6 @@
 import * as cheerio from "cheerio";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
-import { resolve } from "path";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { fetchText, sleep } from "../../lib/http";
 import { runPool } from "../../lib/pool";
 

@@ -2,8 +2,8 @@
  * Dump per-packet lap-number transitions and detector output for the mid-session
  * AC Evo fixture. Run: `bun run scripts/telemetry/recordings/check-mid-session-lap.ts`
  */
-import { readFileSync } from "fs";
-import { gunzipSync } from "zlib";
+import { readFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
 import { initGameAdapters } from "../../../shared/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { getServerGame } from "../../../server/games/registry";

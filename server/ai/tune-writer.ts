@@ -7,8 +7,8 @@
  * enforced the same way as the import-file route: the resolved destination
  * must live inside the caller-supplied setups base dir.
  */
-import { existsSync, mkdirSync, realpathSync, writeFileSync } from "fs";
-import { dirname, resolve, sep } from "path";
+import { existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
+import { dirname, resolve, sep } from "node:path";
 
 interface WriteSetupResult {
   path: string;

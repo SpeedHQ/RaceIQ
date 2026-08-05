@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync } from "fs";
-import { join } from "path";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { parseDump } from "../../support/recordings/parse-dump";
 import { lapSummary, RECORDINGS_DIR } from "./shared";
 import type { LapSavedNotification } from "../../../server/lap-detection/types"

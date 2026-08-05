@@ -9,7 +9,6 @@ import * as schema from "../../../server/db/schema";
  */
 
 type ColInfo = { name: string; type: string; notnull: number; dflt_value: string | null };
-type IdxInfo = { name: string; sql: string | null };
 
 function applyMigrations(db: Database) {
   for (const m of migrations) {
@@ -39,7 +38,7 @@ function getTableNames(db: Database): string[] {
 describe("migrations match schema", () => {
   // Map from Drizzle schema table definitions to expected table names
   const expectedTables: Record<string, Record<string, { columnName: string }>> = {};
-  for (const [key, value] of Object.entries(schema)) {
+  for (const [_key, value] of Object.entries(schema)) {
     if (value && typeof value === "object" && Symbol.for("drizzle:Name") in value) {
       const tableName = (value as any)[Symbol.for("drizzle:Name")];
       const columns: Record<string, { columnName: string }> = {};

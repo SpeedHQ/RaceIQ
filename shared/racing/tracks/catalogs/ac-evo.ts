@@ -7,7 +7,8 @@ import {
 let tracks: Map<number, KunosTrack> | undefined;
 
 function getTracks(): Map<number, KunosTrack> {
-  return tracks ??= loadKunosTrackCatalog("ac-evo");
+  tracks ??= loadKunosTrackCatalog("ac-evo");
+  return tracks;
 }
 
 export function getAcEvoTrackName(ordinal: number): string {

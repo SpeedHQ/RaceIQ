@@ -21,7 +21,7 @@ const pageSpecs = [
 
 // Open all pages
 const handles = pageSpecs.map(p => {
-  const nameBuf = Buffer.from(p.name + "\0", "utf16le");
+  const nameBuf = Buffer.from(`${p.name}\0`, "utf16le");
   const handle = k32.symbols.OpenFileMappingW(FILE_MAP_READ, false, ptr(nameBuf));
   if (!handle || Number(handle) === 0) { console.log(`Not found: ${p.name}`); return null; }
   const view = k32.symbols.MapViewOfFile(handle, FILE_MAP_READ, 0, 0, p.size);
@@ -65,7 +65,7 @@ for (let pi = 0; pi < pageSpecs.length; pi++) {
 
     found++;
     const imin = Math.min(...ivals), imax = Math.max(...ivals);
-    const fvalid = fvals.every(isFinite);
+    const fvalid = fvals.every(Number.isFinite);
     const fmin = fvalid ? Math.min(...fvals) : 0;
     const fmax = fvalid ? Math.max(...fvals) : 0;
 

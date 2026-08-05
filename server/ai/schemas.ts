@@ -105,7 +105,7 @@ export function parseAnalystOutput(raw: unknown): ReturnType<typeof AnalystOutpu
 
   try {
     return AnalystOutputSchema.safeParse(JSON.parse(jsonSlice));
-  } catch (e) {
+  } catch (_e) {
     return AnalystOutputSchema.safeParse(raw);
   }
 }

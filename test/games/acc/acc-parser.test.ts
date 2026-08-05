@@ -1,6 +1,6 @@
 import { describe, test, expect, afterAll } from "bun:test";
-import { readFileSync } from "fs";
-import { gunzipSync } from "zlib";
+import { readFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
 import { parseAccBuffers } from "../../../server/games/acc/parser";
 import { PHYSICS, GRAPHICS, STATIC } from "../../../server/games/acc/structs";
 import { initGameAdapters } from "../../../shared/games/init";

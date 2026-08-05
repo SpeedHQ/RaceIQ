@@ -3,10 +3,10 @@
  * that coordinate normalization (X-flip for standard-xyz games) is applied.
  */
 import { describe, test, expect, afterAll } from "bun:test";
-import { readFileSync, writeFileSync, unlinkSync, mkdtempSync, rmSync } from "fs";
-import { tmpdir } from "os";
-import { join } from "path";
-import { gunzipSync } from "zlib";
+import { readFileSync, writeFileSync, unlinkSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
 import { parseRawLapFramesForTest } from "../../server/db/telemetry-replay-storage";
 import { initGameAdapters } from "../../shared/games/init";
 import { initServerGameAdapters } from "../../server/games/init";

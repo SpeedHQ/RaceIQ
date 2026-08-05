@@ -1,4 +1,4 @@
-import { gunzipSync } from "zlib";
+import { gunzipSync } from "node:zlib";
 
 /** Return whether bytes begin with gzip magic. */
 export function isGzip(data: Uint8Array): boolean {

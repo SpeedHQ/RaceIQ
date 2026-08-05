@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "fs";
-import { resolve } from "path";
-import { spawn } from "child_process";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { spawn } from "node:child_process";
 import { seedScreenshotData } from "./seed-screenshot-data";
 
 // Cross-platform launcher for Playwright projects that target the compiled

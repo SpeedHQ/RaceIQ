@@ -3,8 +3,8 @@
  * static assets as binary data, so `bun build --compile` produces a
  * single self-contained binary.
  */
-import { readdir } from "fs/promises";
-import path from "path";
+import { readdir } from "node:fs/promises";
+import path from "node:path";
 
 const DIST = path.resolve(import.meta.dir, "..", "..", "client", "dist");
 const OUT = path.resolve(import.meta.dir, "..", "..", "server", "client-assets.generated.ts");
@@ -55,7 +55,7 @@ const lines: string[] = [
 ];
 
 for (const file of files) {
-  const key = "/" + path.relative(DIST, file);
+  const key = `/${path.relative(DIST, file)}`;
   const buf = await Bun.file(file).arrayBuffer();
   const b64 = Buffer.from(buf).toString("base64");
   const mime = mimeFor(file);
@@ -64,5 +64,5 @@ for (const file of files) {
 
 lines.push("]);");
 
-await Bun.write(OUT, lines.join("\n") + "\n");
+await Bun.write(OUT, `${lines.join("\n")}\n`);
 console.log(`Bundled ${files.length} files → ${OUT}`);

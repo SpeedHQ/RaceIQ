@@ -3,9 +3,9 @@
  * skipping of new files, and graceful handling of missing files.
  */
 import { describe, test, expect, afterEach, beforeEach } from "bun:test";
-import { mkdtempSync, rmSync, existsSync, writeFileSync } from "fs";
-import { tmpdir } from "os";
-import { join } from "path";
+import { mkdtempSync, rmSync, existsSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { db } from "../../server/db/index";
 import { sessions } from "../../server/db/schema";
 import { eq } from "drizzle-orm";
@@ -55,7 +55,7 @@ describe("session-compressor", () => {
     sessionId = await insertSession(binPath, OLD_DATE);
     await runCompressionNow();
 
-    const gzPath = binPath + ".gz";
+    const gzPath = `${binPath}.gz`;
     expect(existsSync(gzPath)).toBe(true);
     expect(existsSync(binPath)).toBe(false);
 
@@ -71,7 +71,7 @@ describe("session-compressor", () => {
     await runCompressionNow();
 
     expect(existsSync(binPath)).toBe(true);
-    expect(existsSync(binPath + ".gz")).toBe(false);
+    expect(existsSync(`${binPath}.gz`)).toBe(false);
   });
 
   test("skips gracefully when .bin file is missing from disk", async () => {
@@ -107,7 +107,7 @@ describe("session-compressor", () => {
     sessionId = await insertSession(binPath, OLD_DATE);
     await runCompressionNow();
 
-    const gzPath = binPath + ".gz";
+    const gzPath = `${binPath}.gz`;
     const buf = Buffer.from(await Bun.file(gzPath).arrayBuffer());
     // gzip magic bytes: 0x1f 0x8b
     expect(buf[0]).toBe(0x1f);

@@ -1,5 +1,5 @@
-import { existsSync, readdirSync, mkdirSync, writeFileSync } from "fs";
-import { resolve } from "path";
+import { existsSync, readdirSync, mkdirSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 import { USER_TRACKS_DIR } from "../../runtime/config/paths";
 import { scanRecordedFiles } from "../../../shared/racing/tracks/recording/outlines";
@@ -45,10 +45,10 @@ function parseMlpWaypoints(data: Buffer): { x: number[]; z: number[] } | null {
     const m = line.trim().match(/^(\w+):(\w+):(\d+):(\d+):\s+(\d+)$/);
     if (!m) continue;
     if (m[1] === "fWaypointX") {
-      wpXOffset = parseInt(m[5]);
-      count = parseInt(m[3]);
+      wpXOffset = parseInt(m[5], 10);
+      count = parseInt(m[3], 10);
     }
-    if (m[1] === "fWaypointY") wpYOffset = parseInt(m[5]);
+    if (m[1] === "fWaypointY") wpYOffset = parseInt(m[5], 10);
   }
 
   if (wpXOffset < 0 || wpYOffset < 0 || count === 0) return null;

@@ -2,7 +2,7 @@ import { createClient, type Client } from "@libsql/client/sqlite3";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "./schema";
 import { migrations } from "./migrations";
-import { mkdirSync, existsSync } from "fs";
+import { mkdirSync, existsSync } from "node:fs";
 import { resolveDataDir } from "../runtime/config/data-dir";
 
 // Always resolve the data dir, even when the DB itself lives in memory: the

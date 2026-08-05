@@ -9,10 +9,11 @@ export function findForzaInstall(): string | null {
 
   // Parse library paths from VDF
   const pathRegex = /"path"\s+"([^"]+)"/g;
-  let match;
   const paths: string[] = [];
 
-  while ((match = pathRegex.exec(content)) !== null) {
+  while (true) {
+    const match = pathRegex.exec(content);
+    if (match === null) break;
     paths.push(match[1].replace(/\\\\/g, "/").replace(/\\/g, "/"));
   }
 

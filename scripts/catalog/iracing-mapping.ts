@@ -1,5 +1,5 @@
 // iRacing SDK aliases and SessionInfo YAML mapping.
-import { IRACING_SESSION_INFO_CATALOG_FIELDS } from "../../shared/games/iracing/session-info/catalog";
+import type { IRACING_SESSION_INFO_CATALOG_FIELDS } from "../../shared/games/iracing/session-info/catalog";
 import { IRACING_SESSION_INFO_RAW_SOURCE } from "../../shared/games/iracing/session-info/contracts";
 import { SEMANTIC_DEFINITIONS } from "./semantic-definitions";
 import { categoryFor, humanize, slug, unitFor } from "./ast-discovery";

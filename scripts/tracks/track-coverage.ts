@@ -14,8 +14,8 @@
  * human's word for it: nothing in the pipeline may stamp the ledger on its own.
  */
 
-import { readFileSync, writeFileSync } from "fs";
-import { resolve } from "path";
+import { readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { curatedCoverage, renderCoverageTable, renderDetailTables } from "../../shared/racing/tracks/curation/coverage";
 import { stampVerified } from "../../shared/racing/tracks/curation/verified";
 import type { GameId } from "../../shared/games/ids";

@@ -172,17 +172,17 @@ export class BufferedKunosMemoryReader implements IRealtimeKunosMemoryReader {
       const physicsHandle = this._kernel32.symbols.OpenFileMappingW(
         FILE_MAP_READ,
         false,
-        this._ffiPtr!(Buffer.from(physicsName + "\0", "utf16le"))
+        this._ffiPtr!(Buffer.from(`${physicsName}\0`, "utf16le"))
       );
       const graphicsHandle = this._kernel32.symbols.OpenFileMappingW(
         FILE_MAP_READ,
         false,
-        this._ffiPtr!(Buffer.from(graphicsName + "\0", "utf16le"))
+        this._ffiPtr!(Buffer.from(`${graphicsName}\0`, "utf16le"))
       );
       const staticHandle = this._kernel32.symbols.OpenFileMappingW(
         FILE_MAP_READ,
         false,
-        this._ffiPtr!(Buffer.from(staticName + "\0", "utf16le"))
+        this._ffiPtr!(Buffer.from(`${staticName}\0`, "utf16le"))
       );
 
       if (!physicsHandle || !graphicsHandle || !staticHandle) {

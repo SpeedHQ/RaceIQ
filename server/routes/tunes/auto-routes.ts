@@ -1,7 +1,7 @@
 import { zValidator } from "@hono/zod-validator";
-import { existsSync, readFileSync, realpathSync } from "fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { Hono } from "hono";
-import { resolve, sep } from "path";
+import { resolve, sep } from "node:path";
 import { z } from "zod";
 
 import { requestTuneIntents } from "../../ai/tune-intent";
@@ -77,7 +77,7 @@ export const tuneAutoRoutes = new Hono()
       const symptoms = telemetryToSymptoms(packets, corners);
       const rulesIntents = symptomsToIntents(symptoms, body.gameId, { driverNotes: body.driverNotes });
 
-      let intents;
+      let intents: typeof rulesIntents;
       let model: string;
       let llmFreeIntents: typeof rulesIntents | null = null;
       if (body.engine === "llm") {

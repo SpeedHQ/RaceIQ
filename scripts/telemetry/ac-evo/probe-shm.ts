@@ -13,7 +13,7 @@ const kernel32 = dlopen("kernel32", {
 
 const FILE_MAP_READ = 0x0004;
 
-const candidates = [
+const _candidates = [
   "Local\\acpmf_physics",
   "Local\\acpmf_graphics",
   "Local\\acpmf_static",
@@ -32,7 +32,7 @@ const candidates = [
 
 // Full graphics dump
 const graphicsName = "Local\\acpmf_graphics";
-const gNameBuf = Buffer.from(graphicsName + "\0", "utf16le");
+const gNameBuf = Buffer.from(`${graphicsName}\0`, "utf16le");
 const gHandle = kernel32.symbols.OpenFileMappingW(FILE_MAP_READ, false, ptr(gNameBuf));
 if (gHandle && Number(gHandle) !== 0) {
   const viewSize = 1320;
@@ -44,7 +44,7 @@ if (gHandle && Number(gHandle) !== 0) {
     for (let o = 0; o <= viewSize - 4; o += 4) {
       const i = buf.readInt32LE(o);
       const f = buf.readFloatLE(o);
-      const fOk = isFinite(f) && Math.abs(f) > 0.001 && Math.abs(f) < 1e9;
+      const fOk = Number.isFinite(f) && Math.abs(f) > 0.001 && Math.abs(f) < 1e9;
       if (i !== 0 || fOk) {
         console.log(`  offset ${String(o).padStart(4)}: i32=${i}  f32=${f.toFixed(4)}`);
       }

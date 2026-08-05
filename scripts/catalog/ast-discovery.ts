@@ -8,11 +8,9 @@ import {
 } from "./model";
 import type {
   AstNode,
-  AvailableLink,
   FieldInfo,
   FieldSet,
   GameId,
-  GameLink,
   ParserOutput,
   UnavailableLink,
 } from "./model";
@@ -134,7 +132,7 @@ function cleanComment(value: string): string {
     .trim();
 }
 
-function fieldDescription(node: AstNode, name: string): string | undefined {
+function fieldDescription(node: AstNode, _name: string): string | undefined {
   const comments = node.leadingComments as
     | { value?: string; loc?: { start?: { line?: number } } }[]
     | undefined;

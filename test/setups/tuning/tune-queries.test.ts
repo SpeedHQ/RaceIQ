@@ -11,7 +11,6 @@ import {
   getTuneAssignment,
   getTuneAssignments,
   deleteTuneAssignment,
-  updateLapTune,
 } from "../../../server/db/tune-queries";
 
 const TEST_SETTINGS = JSON.stringify({

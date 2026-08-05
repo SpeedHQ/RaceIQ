@@ -3,7 +3,8 @@ import { loadKunosCarCatalog, type KunosCar, type KunosCarCatalog } from "./kuno
 let catalog: KunosCarCatalog | undefined;
 
 function getCatalog(): KunosCarCatalog {
-  return catalog ??= loadKunosCarCatalog("acc");
+  catalog ??= loadKunosCarCatalog("acc");
+  return catalog;
 }
 
 export function getAccCarName(ordinal: number): string {

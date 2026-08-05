@@ -3,8 +3,8 @@ import {
   fstatSync,
   openSync,
   readSync,
-} from "fs";
-import { resolve } from "path";
+} from "node:fs";
+import { resolve } from "node:path";
 import {
   IRACING_TELEMETRY_VARIABLES,
   type IRacingSdkSnapshot,

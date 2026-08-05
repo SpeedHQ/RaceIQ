@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
-import { readFileSync, writeFileSync } from "fs";
-import { resolve } from "path";
+import { readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { collectBrowserErrors } from "../support/browser-errors";
 
 const SETTINGS_PATH = resolve(__dirname, "..", "..", "test-data", "settings.json");

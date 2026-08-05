@@ -8,7 +8,7 @@ import { detectFuelConsumption, detectPeakPower, detectBoostAnomaly } from "./me
 import { detectTireOverheat, detectLockups, detectWheelspin, detectWearImbalance, detectTireTempSplit, detectInnerOuterTempSpread } from "./tires";
 import { detectBrakeTractionLoss, detectRevLimiter, detectCoasting, detectTrailBraking, detectCounterSteer, detectEarlyBraking, detectOverSlowing, detectThrottleTractionLoss, detectEarlyThrottle, detectBinaryThrottle } from "./driving-core";
 import { detectBrakeDrag, detectDownshiftOverRev, detectLateBrakingOvershoot, detectUndersteerScrub, detectSteeringSawing, detectThrottleMicroLifts, detectKerbRiding } from "./driving-advanced";
-import { type LapInsight, type TimeLossCtx } from "./types";
+import type { LapInsight, TimeLossCtx } from "./types";
 
 
 export function analyzeLap(telemetry: TelemetryPacket[], gameId: GameId): LapInsight[] {

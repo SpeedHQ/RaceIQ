@@ -1,5 +1,5 @@
-import { gzip, gzipSync, gunzip, gunzipSync } from "zlib";
-import { promisify } from "util";
+import { gzip, gzipSync, gunzip, gunzipSync } from "node:zlib";
+import { promisify } from "node:util";
 
 /** Magic length value that marks a session-capture meta frame. */
 export const META_FRAME_MAGIC = 0xffffffff;

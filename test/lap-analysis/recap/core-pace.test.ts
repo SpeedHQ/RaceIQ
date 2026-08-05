@@ -1,5 +1,4 @@
 import { describe, test, expect } from "bun:test";
-import { computeRecap } from "../../../server/lap-analysis/recap";
 import { baseSession, lap, run } from "../../support/lap-analysis/recap";
 
 describe("computeRecap", () => {

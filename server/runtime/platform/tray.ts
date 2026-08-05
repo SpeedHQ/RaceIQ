@@ -1,7 +1,7 @@
-import { spawn } from "child_process";
-import { writeFileSync, unlinkSync } from "fs";
-import { tmpdir } from "os";
-import { join } from "path";
+import { spawn } from "node:child_process";
+import { writeFileSync, unlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { setTrayCommandFile } from "../update/check";
 import { IS_WINDOWS } from "./shell";
 

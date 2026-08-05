@@ -82,7 +82,7 @@ const printable = (b: Buffer): string | null => {
   return /^[\x20-\x7e -￿]+$/.test(s) ? s : null;
 };
 
-function strField(fields: ProtoField[], num: number): string | null {
+function _strField(fields: ProtoField[], num: number): string | null {
   const f = fields.find((x) => x.num === num && x.wire === 2 && x.bytes);
   return f?.bytes ? printable(f.bytes) : null;
 }

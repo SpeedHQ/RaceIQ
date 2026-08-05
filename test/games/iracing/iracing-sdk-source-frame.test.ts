@@ -1,7 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import { and, eq } from "drizzle-orm";
-import { computeIRacingSectorTimeline,
-computeLapSectors, } from "../../../server/lap-analysis/sectors"
 import { getDiscoveredCarName, listDiscoveredCars } from "../../../server/db/discovered-cars";
 import {
   getDiscoveredTrackName,
@@ -12,19 +10,8 @@ import { discoveredCars, discoveredTracks } from "../../../server/db/schema";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { registerLiveIRacingIdentity } from "../../../server/games/iracing/identity";
 import {
-  createIRacingParserState,
   normalizeIRacingFrame,
 } from "../../../server/games/iracing/normalizer";
-import { parseIRacingSessionInfo } from "../../../server/games/iracing/session-info";
-import {
-  IRacingSdkReader,
-  isValidIRacingMappingRange,
-} from "../../../server/games/iracing/sdk-reader";
-import {
-  type IRacingFrameReader,
-  IRacingTelemetrySource,
-} from "../../../server/games/iracing/source";
-import { LAP_DETECTOR_IRACING_ID } from "../../../server/games/iracing/lap-detector";
 import {
   canHandleIRacingSourceFrame,
   createIRacingSourceDecoderState,
@@ -35,24 +22,13 @@ import {
   IRacingSourceFrameEncoder,
   isIRacingSessionFrame,
   type IRacingSourceFrameV2,
-  type IRacingSourceFrameV3,
 } from "../../../server/games/iracing/source-frame";
-import {
-  IRacingVariableTable,
-  IRSDK_VAR_HEADER_SIZE,
-  IRSDKVariableType,
-} from "../../../server/games/iracing/variable-table";
-import { LapDetectorIRacing } from "../../../server/games/iracing/lap-detector";
 import { parsePacket } from "../../../server/games/packet-dispatch";
-import { CapturingDbAdapter } from "../../../server/telemetry/pipeline-ports"
-import { SectorTracker } from "../../../server/live-strategy/sector-tracker";
 import { initGameAdapters } from "../../../shared/games/init";
 import {
   injectDiscoveredIRacingIdentity,
   iracingAdapter,
-  rememberIRacingIdentity,
 } from "../../../shared/games/iracing";
-import type { TelemetryPacket } from "../../../shared/telemetry/types";
 
 initGameAdapters();
 initServerGameAdapters();

@@ -1,12 +1,8 @@
 // Packet/native field mapping and catalog group construction.
 import {
   CATEGORY_META,
-  DESCRIPTION_OVERRIDES,
 } from "./semantic-definitions";
 import {
-  humanize,
-  categoryFor,
-  unitFor,
   unavailable,
   memberPath,
   objectProperties,
@@ -16,13 +12,10 @@ import type {
   AstNode,
   AvailableLink,
   CatalogGroup,
-  CatalogVariable,
   FieldSet,
   GameId,
   GameLink,
   ParserOutput,
-  SourceVariable,
-  UnavailableLink,
 } from "./model";
 import { SETUP_GROUP_DEFINITIONS } from "../../shared/racing/setups/catalog/groups";
 const SOURCE_ROOTS: Partial<Record<GameId, Record<string, string>>> = {

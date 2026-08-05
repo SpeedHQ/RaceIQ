@@ -1,4 +1,4 @@
-import { SEEDED_GAME_CASES } from "../../support/seeded/cases";
+import type { SEEDED_GAME_CASES } from "../../support/seeded/cases";
 
 type GameId = (typeof SEEDED_GAME_CASES)[number]["gameId"];
 

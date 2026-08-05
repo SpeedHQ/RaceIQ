@@ -1,4 +1,4 @@
-import { exec } from "child_process";
+import { exec } from "node:child_process";
 import type { ServerGameAdapter } from "./types";
 
 const adapters: ServerGameAdapter[] = [];

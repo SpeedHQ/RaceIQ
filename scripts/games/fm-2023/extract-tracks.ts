@@ -7,8 +7,8 @@
  *
  * Usage: bun run scripts/games/fm-2023/extract-tracks.ts
  */
-import { writeFileSync, mkdirSync, existsSync, readdirSync } from "fs";
-import { resolve } from "path";
+import { writeFileSync, mkdirSync, readdirSync } from "node:fs";
+import { resolve } from "node:path";
 import { findForzaInstall } from "@shared/integrations/forza/install";
 import { decompressForzaLZX } from "@shared/integrations/forza/lzx-decoder";
 import { parseForzaZip } from "@shared/integrations/forza/zip";
@@ -18,12 +18,12 @@ const OUT_DIR = resolve(REPO_ROOT, "shared/data/tracks/fm-2023");
 const tracksCSV = resolve(REPO_ROOT, "shared/games/fm-2023/tracks.csv");
 const ordinalToName = new Map<number, string>();
 try {
-  const csv = require("fs").readFileSync(tracksCSV, "utf-8") as string;
+  const csv = require("node:fs").readFileSync(tracksCSV, "utf-8") as string;
   for (const line of csv.trim().split("\n")) {
     const parts = line.split(",");
     const ordinal = parseInt(parts[0], 10);
     const sharedName = parts[6]?.trim();
-    if (!isNaN(ordinal)) {
+    if (!Number.isNaN(ordinal)) {
       ordinalToName.set(ordinal, sharedName ? `${sharedName}-${ordinal}` : `${ordinal}`);
     }
   }
@@ -83,7 +83,7 @@ function parseMlpHeader(data: Buffer): { fields: MlpFields; count: number } | nu
   for (const line of header.split("\n")) {
     const m = line.trim().match(/^(\w+):(\w+):(\d+):(\d+):\s+(\d+)$/);
     if (!m) continue;
-    fields[m[1]] = { count: parseInt(m[3]), offset: parseInt(m[5]) };
+    fields[m[1]] = { count: parseInt(m[3], 10), offset: parseInt(m[5], 10) };
   }
 
   const wpX = fields.fWaypointX;
@@ -94,7 +94,7 @@ function parseMlpWaypoints(
   data: Buffer,
 ): { x: number[]; z: number[] } | null {
   const parsed = parseMlpHeader(data);
-  if (!parsed || !parsed.count) return null;
+  if (!parsed?.count) return null;
 
   const { fields } = parsed;
   let count = parsed.count;
@@ -127,7 +127,7 @@ function parseMlpBoundaries(
   data: Buffer,
 ): { leftEdge: {x: number; z: number}[]; rightEdge: {x: number; z: number}[]; altitude: number[] } | null {
   const parsed = parseMlpHeader(data);
-  if (!parsed || !parsed.count) return null;
+  if (!parsed?.count) return null;
 
   const { fields, count } = parsed;
 
@@ -323,7 +323,7 @@ for (const trackDir of trackDirs) {
         continue;
       }
 
-      let compressed = buf.subarray(
+      const compressed = buf.subarray(
         geoEntry.dataStart,
         geoEntry.dataStart + geoEntry.compSize,
       );
@@ -346,18 +346,18 @@ for (const trackDir of trackDirs) {
       const boundaries = parseMlpBoundaries(decompressed);
 
       // Extract corner/straight segments from Track.seg
-      let segments: ReturnType<typeof parseMlpSegments> = null;
+      let _segments: ReturnType<typeof parseMlpSegments> = null;
       const segEntry = entries.find((e) => e.name === "AI/Track.seg");
       if (segEntry) {
         try {
-          let segCompressed = buf.subarray(segEntry.dataStart, segEntry.dataStart + segEntry.compSize);
+          const segCompressed = buf.subarray(segEntry.dataStart, segEntry.dataStart + segEntry.compSize);
           let segData: Buffer;
           if (segCompressed.length >= 4 && segCompressed.readUInt32LE(0) === 0x04034b50) {
             segData = decompressNestedGeo(segCompressed);
           } else {
             segData = decompressForzaLZX(segCompressed, segEntry.uncompSize);
           }
-          segments = parseMlpSegments(segData);
+          _segments = parseMlpSegments(segData);
         } catch {}
       }
 

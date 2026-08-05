@@ -211,9 +211,9 @@ export function computeStatsRange(
     peakBrakeDist,
     fullThrottleDist,
     liftOffThrottleDist,
-    minSpeed: isFinite(minSpeed) ? minSpeed : 0,
+    minSpeed: Number.isFinite(minSpeed) ? minSpeed : 0,
     minSpeedDist,
-    maxSpeed: isFinite(maxSpeed) ? maxSpeed : 0,
+    maxSpeed: Number.isFinite(maxSpeed) ? maxSpeed : 0,
     maxSpeedDist,
   };
 }

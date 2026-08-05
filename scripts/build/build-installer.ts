@@ -5,8 +5,8 @@
  * Usage: bun scripts/build/build-installer.ts [version]
  *   version defaults to package.json version
  */
-import { execSync } from "child_process";
-import { readFileSync, rmSync, mkdirSync, cpSync } from "fs";
+import { execSync } from "node:child_process";
+import { readFileSync, rmSync, mkdirSync, cpSync } from "node:fs";
 
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
 const version = process.argv[2] ?? pkg.version;

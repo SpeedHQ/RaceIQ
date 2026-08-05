@@ -9,8 +9,8 @@
  *   2. Game detection: filename + buffer sniffing
  *   3. Full import (unless --no-import): packet count, laps, car/track resolution
  */
-import { readFileSync } from "fs";
-import { basename } from "path";
+import { readFileSync } from "node:fs";
+import { basename } from "node:path";
 import { isGzip, gunzipIfNeeded } from "../../lib/compression";
 import { initServerGameAdapters } from "../../../server/games/init";
 import {

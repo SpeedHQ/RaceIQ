@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { unlink, writeFile } from "fs/promises";
-import { resolve } from "path";
+import { unlink, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
 
 import { RecordingFilesSchema } from "./helpers";
 

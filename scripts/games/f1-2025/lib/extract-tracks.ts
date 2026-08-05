@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "fs";
-import { join, resolve } from "path";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import * as fzstd from "fzstd";
 import { findSteamInstall } from "../../../../server/games/shared/steam-install";
 import { USER_TRACKS_DIR } from "../../../../shared/platform/runtime/data-paths";
@@ -104,7 +104,7 @@ export function runTrackExtraction(repoRoot: string): void {
       const parts = line.split(",");
       const id = parseInt(parts[0], 10);
       const sharedName = parts[6]?.trim();
-      if (!isNaN(id) && sharedName) trackIdToName.set(id, sharedName);
+      if (!Number.isNaN(id) && sharedName) trackIdToName.set(id, sharedName);
     }
   } catch {
     // Track names remain numeric when source metadata is unavailable.

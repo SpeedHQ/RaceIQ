@@ -102,7 +102,6 @@ export class LapDetector implements ILapDetector {
   private recentPacketCount: number = 0; // packets in the last second
   private lastRateCheck: number = 0; // wall clock of last rate measurement
   private packetRate: number = 0; // estimated packets per second
-  // @ts-ignore — distance tracking for future delta calculations
   private _distanceAtLapStart: number = 0;
   private fuelAtLapStart: number = -1; // -1 = not yet initialized
   private _fuelHistory: LapFuelData[] = []; // rolling window (last 50 laps)

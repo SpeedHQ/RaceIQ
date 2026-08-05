@@ -13,8 +13,8 @@
  * Keyed by layout slug, then by the corner's official (lowest) turn number, so
  * an entry is meaningless without the facts roster it annotates.
  */
-import { readFileSync, existsSync } from "fs";
-import { resolve } from "path";
+import { readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { SHARED_DIR } from "@shared/platform/runtime/data-paths";
 
 /** Detector tolerances for one corner. Absent fields mean "no allowance". */

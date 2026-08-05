@@ -1,4 +1,4 @@
-import { readFileSync } from "fs";
+import { readFileSync } from "node:fs";
 
 import { expect, type APIRequestContext, type Page } from "@playwright/test";
 import { z } from "zod";

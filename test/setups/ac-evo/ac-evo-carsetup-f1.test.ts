@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { readFileSync } from "fs";
-import { join } from "path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { summarizeCarSetup } from "../../../server/games/ac-evo/carsetup";
 import { parseCarSetup } from "../../../server/games/ac-evo/carsetup-wire";
 
@@ -26,8 +26,8 @@ describe("ac-evo carsetup parser (F1 / Ferrari SF25)", () => {
   it("front-left corner matches in-game values", () => {
     const fl = sectionRows(FIXTURE, "Front left");
     expect(fl["Tyre pressure"]).toBe("15.1 psi");
-    expect(fl["Toe"]).toBe("-0.11");
-    expect(fl["Camber"]).toBe("-1.85°");
+    expect(fl.Toe).toBe("-0.11");
+    expect(fl.Camber).toBe("-1.85°");
     expect(fl["Slow bump"]).toBe("12");
     expect(fl["Slow rebound"]).toBe("7");
     // NOTE: "Caster? (#5)" drifts between saves of an unchanged setup — noisy field, not asserted.

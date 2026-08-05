@@ -1,6 +1,6 @@
-import { readFileSync, writeFileSync, existsSync, statSync } from "fs";
-import { gzipSync } from "zlib";
-import { resolve, basename } from "path";
+import { readFileSync, writeFileSync, existsSync, statSync } from "node:fs";
+import { gzipSync } from "node:zlib";
+import { resolve, basename } from "node:path";
 
 // Gzips a single raw .bin dump next to itself (like `gzip -k` — original
 // kept, .bin.gz created). The raw .bin stays gitignored; the .bin.gz is what

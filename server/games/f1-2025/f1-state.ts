@@ -43,12 +43,6 @@ import {
  */
 export class F1StateAccumulator {
   private sessionUID: bigint = 0n;
-  // @ts-ignore — state tracking fields for future frame deduplication
-  private _lastEmittedFrame: number = -1;
-  // @ts-ignore
-  private _lastEmittedSessionTime: number = -1;
-  // @ts-ignore
-  private _lastMotionHeader: F1Header | null = null;
 
   private motion: F1MotionData | null = null;
   private carTelemetry: F1CarTelemetryData | null = null;
@@ -77,9 +71,6 @@ export class F1StateAccumulator {
     this.participants = [];
     this.driverHistory = new Map();
     this.playerCarIndex = 0;
-    this._lastEmittedFrame = -1;
-    this._lastEmittedSessionTime = -1;
-    this._lastMotionHeader = null;
   }
 
   /**
@@ -98,7 +89,6 @@ export class F1StateAccumulator {
     switch (header.packetId) {
       case F1_PACKET_IDS.MOTION:
         this.motion = decodeF1Motion(data, this.playerCarIndex) ?? this.motion;
-        this._lastMotionHeader = header;
         break;
       case F1_PACKET_IDS.SESSION:
         this.session = decodeF1Session(data) ?? this.session;

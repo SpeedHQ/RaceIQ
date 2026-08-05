@@ -169,47 +169,6 @@ function decompressXMemBlocks(
   return output.subarray(0, outPos);
 }
 
-/**
- * Validates that data uses 2-byte header block framing:
- * - Blocks consume nearly all input (>= 95%)
- * - Expected output (blockCount * 32KB) is close to expectedSize (within 5%)
- * - All blocks are reasonably sized (>= 256 bytes)
- * - Supports 0xFF last-block marker: FF [uncompSize:2 BE] [compSize:2 BE]
- */
-// @ts-ignore — utility function reserved for future validation
-function _isValid2ByteHeaderFraming(data: Buffer, expectedSize: number): boolean {
-  const BLOCK_OUTPUT = 0x8000;
-  let scanOffset = 0;
-  let blockCount = 0;
-  let minBlockSize = Infinity;
-  let totalOutput = 0;
-  while (scanOffset < data.length) {
-    if (data[scanOffset] === 0xff && scanOffset + 5 <= data.length) {
-      // Last block marker: FF [uncompSize:2 BE] [compSize:2 BE]
-      const lastUncomp = data.readUInt16BE(scanOffset + 1);
-      const lastComp = data.readUInt16BE(scanOffset + 3);
-      scanOffset += 5;
-      if (scanOffset + lastComp > data.length) break;
-      scanOffset += lastComp;
-      totalOutput += lastUncomp;
-      blockCount++;
-      break;
-    }
-    if (scanOffset + 2 > data.length) break;
-    const sz = data.readUInt16BE(scanOffset);
-    scanOffset += 2;
-    if (sz === 0) break;
-    if (scanOffset + sz > data.length) break;
-    if (sz < minBlockSize) minBlockSize = sz;
-    scanOffset += sz;
-    totalOutput += BLOCK_OUTPUT;
-    blockCount++;
-  }
-  if (blockCount < 2 || minBlockSize < 256) return false;
-  if (scanOffset < data.length * 0.95) return false;
-  const ratio = expectedSize / totalOutput;
-  return ratio >= 0.95 && ratio <= 1.05;
-}
 
 /**
  * XMem LZX decompression with 2-byte block headers.

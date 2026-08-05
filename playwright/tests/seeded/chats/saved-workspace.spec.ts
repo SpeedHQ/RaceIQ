@@ -8,8 +8,8 @@ test("saved Analyse and Compare chats open their AI workspaces without a provide
   const chats = await seededChats(request, "fm-2023");
   const analyse = chats.find((chat) => chat.type === "analyse");
   const compare = chats.find((chat) => chat.type === "compare");
-  if (!analyse || analyse.laps.length !== 1) throw new Error("Missing seeded FM Analyse chat");
-  if (!compare || compare.laps.length !== 2) throw new Error("Missing seeded FM Compare chat");
+  if (analyse?.laps.length !== 1) throw new Error("Missing seeded FM Analyse chat");
+  if (compare?.laps.length !== 2) throw new Error("Missing seeded FM Compare chat");
 
   const analyseHistoryResponse = await request.get(`/api/laps/${analyse.laps[0].id}/chat`);
   expect(analyseHistoryResponse.ok(), "seeded Analyse chat history response").toBe(true);

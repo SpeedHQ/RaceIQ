@@ -42,7 +42,11 @@ export function unanchoredEntries(): Record<string, string[]> {
     if (FANTASY_SLUGS.has(slug)) continue;
     const guide = loadTrackGuide(slug);
     if (!guide) continue;
-    for (const c of guide.corners) if (!c.numbers?.length) (out[slug] ??= []).push(c.name);
+    for (const c of guide.corners) {
+      if (c.numbers?.length) continue;
+      out[slug] ??= [];
+      out[slug].push(c.name);
+    }
   }
   return out;
 }

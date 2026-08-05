@@ -29,7 +29,7 @@ export function parsePacket(buf: Buffer): TelemetryPacket | null {
   ensureStates();
 
   // Use cached game if still valid
-  if (_cachedGame && _cachedGame.canHandle(buf)) {
+  if (_cachedGame?.canHandle(buf)) {
     return _cachedGame.tryParse(buf, parserStates.get(_cachedGame.id));
   }
 
@@ -38,7 +38,7 @@ export function parsePacket(buf: Buffer): TelemetryPacket | null {
   if (now - _cachedGameCheckedAt > 5000 || !_cachedGame) {
     _cachedGameCheckedAt = now;
     _cachedGame = getRunningGame();
-    if (_cachedGame && _cachedGame.canHandle(buf)) {
+    if (_cachedGame?.canHandle(buf)) {
       return _cachedGame.tryParse(buf, parserStates.get(_cachedGame.id));
     }
   }

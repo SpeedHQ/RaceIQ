@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
-import { existsSync } from "fs";
-import { join } from "path";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { parseDump } from "../../support/recordings/parse-dump";
 import { assertBrandHatchSectorBounds, lapSummary, RECORDINGS_DIR } from "./shared";
 import { assertValidLapHasSectors } from "../../support/laps/assertions";

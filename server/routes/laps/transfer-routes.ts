@@ -133,7 +133,7 @@ export const transferRoutes = new Hono()
     // 400 naming the problem, not a 500 from deep inside the transcoder — and
     // so the ordinals above are read against the right game's roster.
     const gameIdRaw = form?.get("gameId");
-    let target;
+    let target: ReturnType<typeof resolveMotecTarget>;
     try {
       target = resolveMotecTarget(typeof gameIdRaw === "string" && gameIdRaw ? gameIdRaw : undefined);
     } catch (err: any) {

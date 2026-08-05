@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 import { driverProfilePoolKey, notifyDriverProfileLap } from "../../server/driver-profile/runner";
 import { driverRoutes } from "../../server/routes/driver-routes";

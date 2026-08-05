@@ -7,7 +7,7 @@
  * Threshold (%) controls what counts as a regression flag in the output.
  */
 
-import { readFileSync } from "fs";
+import { readFileSync } from "node:fs";
 
 type Stats = { avg: number; min: number; p50: number; p99: number; heap?: { avg: number } };
 type Bench = { alias: string; group: number; runs: { stats?: Stats }[] };

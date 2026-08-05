@@ -1,4 +1,4 @@
-import { resolve } from "path";
+import { resolve } from "node:path";
 import { fillMissingPerformance } from "./performance";
 import { matchCatalog, readCatalog } from "./catalog";
 import { downloadImages, resolveImageUrls, writeCsv } from "./output";

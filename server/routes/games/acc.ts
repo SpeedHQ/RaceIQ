@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { existsSync, readFileSync, writeFileSync, readdirSync, statSync, mkdirSync, copyFileSync } from "fs";
-import { resolve } from "path";
-import { homedir } from "os";
+import { existsSync, readFileSync, writeFileSync, readdirSync, statSync, mkdirSync, copyFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { homedir } from "node:os";
 import { SHARED_DIR } from "../../runtime/config/paths";
 import { accRecorder } from "../../games/kunos/recorder";
 import { replayRecording } from "../../games/acc/replay";
@@ -223,7 +223,7 @@ export const accRoutes = new Hono()
     zValidator("query", z.object({ ordinal: z.string() })),
     (c) => {
       const ordinal = parseInt(c.req.valid("query").ordinal, 10);
-      if (isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
+      if (Number.isNaN(ordinal)) return c.json({ error: "Invalid ordinal" }, 400);
       const slug = getAccSharedTrackName(ordinal);
       if (!slug) return c.json([]);
       return c.json(loadAccSetupsByTrack(slug));
@@ -238,7 +238,7 @@ export const accRoutes = new Hono()
       const { file } = c.req.valid("query");
       const path = resolve(ACC_SETUP_FILES_DIR, file);
       // Guard against path traversal outside the setup-files dir.
-      if (path !== ACC_SETUP_FILES_DIR && !path.startsWith(ACC_SETUP_FILES_DIR + "/")) {
+      if (path !== ACC_SETUP_FILES_DIR && !path.startsWith(`${ACC_SETUP_FILES_DIR}/`)) {
         return c.json({ error: "Invalid file path" }, 400);
       }
       if (!existsSync(path)) return c.json({ error: "Setup file not found" }, 404);
@@ -267,7 +267,7 @@ export const accRoutes = new Hono()
       // Read or create the car file
       const trackDir = resolve(sourceDir, trackSlug);
       if (!existsSync(trackDir)) mkdirSync(trackDir, { recursive: true });
-      const carFile = resolve(trackDir, carSlug + ".json");
+      const carFile = resolve(trackDir, `${carSlug}.json`);
       const existing: AccSetup[] = existsSync(carFile) ? JSON.parse(readFileSync(carFile, "utf-8")) : [];
       existing.push(body as any);
       writeFileSync(carFile, JSON.stringify(existing, null, 2));

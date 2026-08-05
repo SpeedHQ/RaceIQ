@@ -1,5 +1,5 @@
-import { readFileSync } from "fs";
-import { gunzipSync } from "zlib";
+import { readFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
 
 function readMaybeGzipped(filePath: string): Buffer {
   const raw = readFileSync(filePath);

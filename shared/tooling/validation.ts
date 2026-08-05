@@ -24,7 +24,7 @@ export function hasUnreleasedChangelogChange(
 
   for (const line of patch.split("\n")) {
     const content = line.slice(1).trim();
-    if (!/^[ +\-]/.test(line) || line.startsWith("+++")) continue;
+    if (!/^[ +-]/.test(line) || line.startsWith("+++")) continue;
 
     const releaseHeading = content.match(/^##\s+(.+)$/);
     if (releaseHeading) {

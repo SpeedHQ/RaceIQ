@@ -1,4 +1,4 @@
-import { readFileSync } from "fs";
+import { readFileSync } from "node:fs";
 import { initServerGameAdapters } from "../../server/games/init";
 import { importSessionBin } from "../../server/session-capture/import-capture";
 

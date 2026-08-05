@@ -85,14 +85,14 @@ type Range = { min: number; max: number; step?: number } | null;
 
 /** Decode one leaf setting message: {#1 step, #2 min, #3 max}. */
 function readRange(f: ProtoField | undefined): Range {
-  if (!f || f.wire !== 2 || !f.bytes) return null;
+  if (f?.wire !== 2 || !f.bytes) return null;
   if (f.bytes.length === 0) return null; // bytes(0) => component absent
   const fs = nested(f);
   if (!fs) return null;
   const stepF = field(fs, 1);
   const minF = field(fs, 2);
   const maxF = field(fs, 3);
-  if (!maxF || maxF.wire !== 5) return null;
+  if (maxF?.wire !== 5) return null;
   const min = minF && minF.wire === 5 ? f32(minF) : 0;
   const max = f32(maxF);
   const step = stepF && stepF.wire === 5 ? f32(stepF) : undefined;
@@ -112,7 +112,7 @@ function dumpTree(fields: ProtoField[], indent: string, depth: number): void {
       const kids = depth < 8 ? nested(f) : null;
       if (kids && kids.length > 0) {
         console.log(`${base} msg(${f.bytes.length}B)`);
-        dumpTree(kids, indent + "  ", depth + 1);
+        dumpTree(kids, `${indent}  `, depth + 1);
       } else if (printable) {
         console.log(`${base} str "${ascii.slice(0, 80)}"`);
       } else {
@@ -241,7 +241,7 @@ export function runSetupRangesExtraction(kspkgPathArg?: string): number {
   }
 
   const outPath = resolve(import.meta.dir, "../../../shared", "games", "ac-evo", "setup-ranges.json");
-  writeFileSync(outPath, JSON.stringify(out, null, 2) + "\n");
+  writeFileSync(outPath, `${JSON.stringify(out, null, 2)}\n`);
   console.error(`wrote ${outPath}: ${Object.keys(out).length} cars`);
   return Object.keys(out).length;
 }

@@ -1,6 +1,6 @@
 import { test } from "@playwright/test";
-import { writeFileSync, readdirSync } from "fs";
-import { resolve } from "path";
+import { writeFileSync, readdirSync } from "node:fs";
+import { resolve } from "node:path";
 
 const SCREENSHOT_DIR = resolve(__dirname, "..", "..", "..", "assets", "screenshots");
 

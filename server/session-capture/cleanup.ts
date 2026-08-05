@@ -4,9 +4,9 @@
  * Removes tiny `.bin` captures (at most the 12-byte metadata header) and
  * `.bin` / `.bin.gz` captures not referenced by `sessions.rawFile`.
  */
-import { readdir, stat, unlink } from "fs/promises";
-import { existsSync } from "fs";
-import { resolve, join } from "path";
+import { readdir, stat, unlink } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { resolve, join } from "node:path";
 import { resolveDataDir } from "../runtime/config/data-dir";
 import { db } from "../db/index";
 import { sessions } from "../db/schema";

@@ -1,9 +1,9 @@
 /**
  * Setup file path guard and parse helper for ACC/AC-EVO/.carsetup setup files.
  */
-import { existsSync, mkdirSync, readFileSync, realpathSync } from "fs";
-import { homedir } from "os";
-import { resolve, sep } from "path";
+import { existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
+import { homedir } from "node:os";
+import { resolve, sep } from "node:path";
 
 import { tryGetServerGame } from "../games/registry";
 import { carSetupToKnobValues } from "../games/ac-evo/carsetup";

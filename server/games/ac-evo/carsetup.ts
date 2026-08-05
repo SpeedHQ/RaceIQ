@@ -19,7 +19,7 @@
  * Field-number → meaning mapping is provisional; keep the generic tree in
  * `raw` so callers (and the AI setup engineer) can inspect everything.
  */
-import { readFile } from "fs/promises";
+import { readFile } from "node:fs/promises";
 import { parseCarSetup, type CarSetupFile, type WireField } from "./carsetup-wire";
 
 /**
@@ -59,7 +59,7 @@ export function formatCarSetup(setup: CarSetupFile, fields = setup.raw, indent =
   for (const f of fields) {
     if (f.type === "message") {
       lines.push(`${indent}#${f.no} {`);
-      lines.push(formatCarSetup(setup, f.fields, indent + "  "));
+      lines.push(formatCarSetup(setup, f.fields, `${indent}  `));
       lines.push(`${indent}}`);
     } else if (f.type === "float") {
       lines.push(`${indent}#${f.no} = ${+f.value.toFixed(4)}`);

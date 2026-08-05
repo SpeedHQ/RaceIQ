@@ -1,6 +1,6 @@
 import { test } from "@playwright/test";
-import { writeFileSync, mkdirSync, rmSync, existsSync } from "fs";
-import { resolve } from "path";
+import { writeFileSync, mkdirSync, rmSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
 
 /**
  * Records the RaceIQ welcome demo as 1920×1080 JPEG frames, one per packet.
@@ -176,7 +176,7 @@ test("record demo render", async ({ page }, testInfo) => {
         await new Promise((r) => setTimeout(r, 10));
       }
 
-      workers.forEach((wk) => wk.terminate());
+      for (const worker of workers) worker.terminate();
       URL.revokeObjectURL(workerUrl);
     },
     { captureCount: capture, workerCount: WORKER_COUNT, startFrame },

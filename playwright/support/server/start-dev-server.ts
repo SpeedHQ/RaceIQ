@@ -1,6 +1,6 @@
-import { mkdirSync, rmSync, writeFileSync } from "fs";
-import { resolve } from "path";
-import { spawn, type ChildProcess } from "child_process";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { spawn, type ChildProcess } from "node:child_process";
 import { seedScreenshotData } from "./seed-screenshot-data";
 
 const repoDir = process.env.RACEIQ_APP_ROOT ? resolve(process.env.RACEIQ_APP_ROOT) : resolve(__dirname, "..", "..", "..");

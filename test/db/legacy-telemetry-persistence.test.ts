@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { unlinkSync } from "fs";
+import { unlinkSync } from "node:fs";
 import { eq } from "drizzle-orm";
 import {
   TELEMETRY_CATALOG_HASH,

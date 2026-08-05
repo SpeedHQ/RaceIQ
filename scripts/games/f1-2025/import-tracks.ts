@@ -6,8 +6,8 @@
  * Run: bun run scripts/games/f1-2025/import-tracks.ts
  */
 
-import { mkdirSync, writeFileSync, existsSync } from "fs";
-import { resolve } from "path";
+import { mkdirSync, writeFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
 
 const REPO_ROOT = resolve(import.meta.dir, "../../..");
 const OUT_DIR = resolve(REPO_ROOT, "shared/data/tracks/tumftm");
@@ -99,7 +99,7 @@ function reverseWinding(pts: Point[]): Point[] {
  * 2. Rotate so start/finish heads rightward (+X)
  * 3. Ensure clockwise winding
  */
-function normalize(pts: Point[]): Point[] {
+function _normalize(pts: Point[]): Point[] {
   let result = center(pts);
 
   // Rotate so start/finish heads right (+X direction, angle = 0)
@@ -118,7 +118,7 @@ function normalize(pts: Point[]): Point[] {
 function normalizeCenterline(pts: CenterPoint[]): CenterPoint[] {
   // TUMFTM data traces circuits in the opposite direction to racing direction.
   // Reverse point order so index 0 is start/finish heading in the racing direction.
-  let data = [pts[0], ...pts.slice(1).reverse()];
+  const data = [pts[0], ...pts.slice(1).reverse()];
 
   // Center
   let cx = 0, cz = 0;
@@ -172,7 +172,7 @@ function computeEdges(
 }
 
 function pointsToCsv(points: Point[]): string {
-  return "x,z\n" + points.map(p => `${p.x.toFixed(4)},${p.z.toFixed(4)}`).join("\n");
+  return `x,z\n${points.map(p => `${p.x.toFixed(4)},${p.z.toFixed(4)}`).join("\n")}`;
 }
 
 // ── Import ────────────────────────────────────────────────────────────────
@@ -197,7 +197,7 @@ async function importTrack(name: string, tumftmName: string): Promise<boolean> {
     const z = parseFloat(zStr);
     const wRight = parseFloat(wrStr);
     const wLeft = parseFloat(wlStr);
-    if (!isNaN(x) && !isNaN(z)) {
+    if (!Number.isNaN(x) && !Number.isNaN(z)) {
       raw.push({ x, z, wRight: wRight || 5, wLeft: wLeft || 5 });
     }
   }

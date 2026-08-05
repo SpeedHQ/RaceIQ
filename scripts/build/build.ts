@@ -1,6 +1,6 @@
-import { cpSync, existsSync, mkdirSync, rmSync } from "fs";
-import { dirname, join } from "path";
-import { releaseFeatureFlags } from "../shared/release-feature-flags";
+import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { releaseFeatureFlags } from "../../shared/platform/runtime/release-feature-flags";
 
 const root = process.cwd();
 const distDir = join(root, "dist");

@@ -9,8 +9,8 @@ import { initGameAdapters } from "../../../shared/games/init";
 import { initServerGameAdapters } from "../../../server/games/init";
 import { parseDump } from "../../../test/support/recordings/parse-dump";
 import type { GameId } from "../../../shared/games/ids";
-import { existsSync, readdirSync } from "fs";
-import { join } from "path";
+import { existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 
 const gameId = process.argv[2] as GameId;
 if (!gameId) {

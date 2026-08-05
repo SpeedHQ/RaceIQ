@@ -10,7 +10,7 @@
  * The parser auto-detects whether incoming packets are Forza Dash (324 bytes)
  * or F1 2025 format based on packet structure and header signatures.
  */
-import { resolve } from "path";
+import { resolve } from "node:path";
 import { parsePacket } from "../games/packet-dispatch";
 import { wsManager } from "./websocket-manager";
 import { processPacket, flushSessionRecorderBuffer, lapDetector } from "../telemetry/live-pipeline";
@@ -78,7 +78,7 @@ class UdpListener {
     }
 
     // Use dgram for socket buffer tuning — Bun.udpSocket doesn't expose setsockopt
-    const dgram = require("dgram");
+    const dgram = require("node:dgram");
     const sock = dgram.createSocket("udp4");
     sock.on("message", (sourceFrame: Buffer) => this.handlePacket(sourceFrame));
     await new Promise<void>((resolve, reject) => {

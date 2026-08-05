@@ -7,7 +7,7 @@
  * Usage: bun scripts/games/acc/extract-tracks.ts
  */
 
-import { resolve } from "path";
+import { resolve } from "node:path";
 import { extractAccTracks } from "../../../server/games/acc/extract-tracks";
 
 const OUT_DIR = resolve(import.meta.dir, "../../..", "shared", "data", "tracks", "acc");

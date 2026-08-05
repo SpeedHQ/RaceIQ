@@ -27,8 +27,8 @@ function pkt(overrides: Partial<TelemetryPacket> = {}): TelemetryPacket {
   } as TelemetryPacket;
 }
 
-const SESSION: SessionSnapshot = { carOrdinal: 100, trackOrdinal: 5 };
-const NOW = 10_000_000;
+const _SESSION: SessionSnapshot = { carOrdinal: 100, trackOrdinal: 5 };
+const _NOW = 10_000_000;
 
 // ── FM-2023 Lap 0 → Lap 1 with Estimated Lap ────────────────────────────────────
 
@@ -144,12 +144,12 @@ describe("FM-2023: Lap 0 complete, Lap 1 receives estimated lap", () => {
 
   test("lap 0 invalid, lap 1 valid, lap 2 continues sequence", () => {
     // Full sequence: lap 0 (invalid warmup) → lap 1 (valid) → lap 2
-    const lap0 = pkt({ LapNumber: 0, CurrentLap: 50 });
+    const _lap0 = pkt({ LapNumber: 0, CurrentLap: 50 });
     const lap0Complete = detectLapBoundary(0, pkt({ LapNumber: 1 }));
     expect(lap0Complete.action).toBe("complete");
     // Lap 0 isValid: false
 
-    const lap1 = pkt({ LapNumber: 1, CurrentLap: 92.8, LastLap: 50 });
+    const _lap1 = pkt({ LapNumber: 1, CurrentLap: 92.8, LastLap: 50 });
     // Lap 1 isValid: true (no rewind, clean lap)
 
     const lap1Complete = detectLapBoundary(1, pkt({ LapNumber: 2, LastLap: 92.8 }));

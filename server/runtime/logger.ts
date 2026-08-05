@@ -6,8 +6,8 @@ import {
   openSync,
   readSync,
   writeFileSync,
-} from "fs";
-import { join } from "path";
+} from "node:fs";
+import { join } from "node:path";
 import { resolveDataDir } from "./config/data-dir";
 import type { MiddlewareHandler } from "hono";
 

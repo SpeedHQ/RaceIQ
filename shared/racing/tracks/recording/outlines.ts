@@ -194,7 +194,7 @@ export function recordLapTrace(ordinal: number, trace: Point[], startLinePos: Po
     const caName = computedAverageFileName(gameId, ordinal);
     const filePath = resolve(userGameDir(gameId), `${caName}.csv`);
     try {
-      writeFileSync(filePath, "x,z\n" + outline.map((p) => `${p.x},${p.z}`).join("\n"));
+      writeFileSync(filePath, `x,z\n${outline.map((p) => `${p.x},${p.z}`).join("\n")}`);
       console.log(`[Tracks] Saved ${caName} (${outline.length} pts, lap ${count})`);
     } catch (err) {
       console.error(`[Tracks] Failed to save recorded outline:`, err);
@@ -284,7 +284,7 @@ export function deleteRecordedOutline(ordinal: number, gameId: string): boolean 
   startLinePositions.delete(key);
   startLineYaws.delete(key);
 
-  const { unlinkSync } = require("fs");
+  const { unlinkSync } = require("node:fs");
   const caName = computedAverageFileName(gameId, ordinal);
   const filePath = resolve(userGameDir(gameId), `${caName}.csv`);
   if (existsSync(filePath)) {

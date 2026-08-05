@@ -1,6 +1,6 @@
 import { fetchText, sleep } from "../../lib/http";
 import { runPool } from "../../lib/pool";
-import { F1LAPS, SetupRecord } from "./types";
+import { F1LAPS, type SetupRecord } from "./types";
 
 const HEADERS = { "User-Agent": "RaceIQ-SetupScraper/1.0 (racing telemetry app)" };
 
@@ -16,16 +16,19 @@ function parseSetupValues(html: string, labelMap: Record<string, RegExp>): Recor
 function extractUuids(html: string, slug: string): string[] {
   const expression = new RegExp(`href="/f1-25/setups/${slug}/([0-9a-f-]{36})/"`, "gi");
   const uuids = new Set<string>();
-  let match: RegExpExecArray | null;
-  while ((match = expression.exec(html)) !== null) uuids.add(match[1]);
+  while (true) {
+    const match = expression.exec(html);
+    if (match === null) break;
+    uuids.add(match[1]);
+  }
   return [...uuids];
 }
 
 export function parseDetail(html: string): SetupRecord {
-  function val(label: string): number | null {
+  function _val(label: string): number | null {
     const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const match = html.match(new RegExp(
-      escaped + `\\s*</dt>\\s*<dd[^>]*>[\\s\\S]*?</dd>\\s*<dd[^>]*>\\s*(-?\\d+\\.?\\d*)[^<]*</dd>`, "i",
+      `${escaped}\\s*</dt>\\s*<dd[^>]*>[\\s\\S]*?</dd>\\s*<dd[^>]*>\\s*(-?\\d+\\.?\\d*)[^<]*</dd>`, "i",
     ));
     return match ? parseFloat(match[1]) : null;
   }

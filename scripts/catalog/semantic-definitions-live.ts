@@ -1,5 +1,4 @@
-// Contiguous semantic definitions: core and live channels.
-import { semanticDefinition } from "./semantic-metadata";
+
 import { SETUP_CONCEPT_DEFINITIONS } from "../../shared/racing/setups/catalog/concepts";
 import type { SemanticDefinition } from "./model";
 

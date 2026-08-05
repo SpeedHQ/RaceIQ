@@ -21,7 +21,7 @@ describe("lap chat prompt", () => {
   });
 
   test("builds without referencing missing optional tune or game context", () => {
-    const prompt = buildChatSystemPrompt({
+    const _prompt = buildChatSystemPrompt({
       id: 5,
       lapNumber: 2,
       lapTime: 79.328,

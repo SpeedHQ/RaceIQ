@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, rmSync } from "fs";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { Hono } from "hono";
 
 import { scanRecordedFiles } from "../../../shared/racing/tracks/recording/outlines";

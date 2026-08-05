@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { existsSync, readFileSync, readdirSync, statSync } from "fs";
-import { resolve } from "path";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { resolve } from "node:path";
 import { SHARED_DIR } from "../../runtime/config/paths";
 
 const F125_TUNES_DIR = resolve(SHARED_DIR, "tunes", "f1-25");

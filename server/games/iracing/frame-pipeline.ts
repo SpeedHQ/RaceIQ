@@ -14,8 +14,9 @@ export class DumpToBinProcessor implements IRacingFrameProcessor {
     this.recorder = recorder;
   }
 
-  async process(frame: Buffer): Promise<void> {
+  async process(frame: Buffer): Promise<undefined> {
     this.recorder.writeFrame(frame);
+    return undefined;
   }
 }
 
@@ -29,8 +30,9 @@ export class ParsingProcessor implements IRacingFrameProcessor {
     this.dispatchRawFrame = dispatchRawFrame;
   }
 
-  async process(frame: Buffer): Promise<void> {
+  async process(frame: Buffer): Promise<undefined> {
     await this.dispatchRawFrame(frame);
+    return undefined;
   }
 }
 

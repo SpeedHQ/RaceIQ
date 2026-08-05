@@ -17,10 +17,10 @@ import {
   rmSync,
   statSync,
   writeFileSync,
-} from "fs";
-import { tmpdir } from "os";
-import { basename, resolve } from "path";
-import { gzipSync } from "zlib";
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, resolve } from "node:path";
+import { gzipSync } from "node:zlib";
 import { IRacingIbtReader } from "../../server/games/iracing/ibt-reader";
 import { IRacingRecorder } from "../../server/games/iracing/recorder";
 import { parseIRacingSessionInfo } from "../../server/games/iracing/session-info";

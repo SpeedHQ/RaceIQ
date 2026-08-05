@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "fs";
+import { existsSync, readFileSync } from "node:fs";
 
 const STEAM_LIBRARY_FOLDERS_VDF = "C:/Program Files (x86)/Steam/steamapps/libraryfolders.vdf";
 
@@ -12,8 +12,9 @@ export function findSteamInstall(
   if (existsSync(STEAM_LIBRARY_FOLDERS_VDF)) {
     const content = readFileSync(STEAM_LIBRARY_FOLDERS_VDF, "utf8");
     const pathRegex = /"path"\s+"([^"]+)"/g;
-    let match;
-    while ((match = pathRegex.exec(content)) !== null) {
+    while (true) {
+      const match = pathRegex.exec(content);
+      if (match === null) break;
       const libraryPath = match[1].replace(/\\\\/g, "/").replace(/\\/g, "/");
       const installPath = `${libraryPath}/steamapps/common/${gameDirectory}`;
       if (existsSync(installPath)) return installPath;

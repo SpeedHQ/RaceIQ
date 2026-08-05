@@ -1,7 +1,7 @@
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
-import { gzip } from "zlib";
-import { promisify } from "util";
+import { gzip } from "node:zlib";
+import { promisify } from "node:util";
 import { z } from "zod";
 
 import { IdParamSchema } from "@shared/platform/http/route-schemas";

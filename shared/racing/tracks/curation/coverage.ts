@@ -80,7 +80,10 @@ export function curatedCoverage(): CoverageRow[] {
   for (const c of listAllCenterlines()) {
     const slug = canonicalSlug(c.gameId, c.slug);
     let set = perGame.get(c.gameId);
-    if (!set) perGame.set(c.gameId, (set = new Set()));
+    if (!set) {
+      set = new Set();
+      perGame.set(c.gameId, set);
+    }
     set.add(slug);
   }
 

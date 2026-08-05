@@ -9,10 +9,10 @@ import {
   readFileSync,
   rmSync,
   writeFileSync,
-} from "fs";
-import { tmpdir } from "os";
-import { join } from "path";
-import { gunzipSync } from "zlib";
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
 import {
   IRACING_DUMP_MAGIC,
   IRACING_DUMP_VERSION,
@@ -136,7 +136,7 @@ describe("iRacing recorder container", () => {
     const recorder = new IRacingRecorder();
     const path = recorder.start(tempDir);
     const sessionInfo =
-      "WeekendInfo:\n  Notes: " + "x".repeat(600 * 1024) + "\n";
+      `WeekendInfo:\n  Notes: ${"x".repeat(600 * 1024)}\n`;
     const frame = new IRacingSourceFrameEncoder().encode(
       recorderFrame(sessionInfo),
     );
