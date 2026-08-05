@@ -12,6 +12,7 @@ import { RotatePrompt } from "../routes/__root";
 import { useGameId, useGameRoute } from "../stores/game";
 import { MotecImportModal } from "./analyse/MotecImportModal";
 import { formatLapTime } from "./LiveTelemetry";
+import { RaceResultLedger } from "./race-results/RaceResultLedger";
 import { SessionRecapModal } from "./SessionRecapModal";
 import { AppInput } from "./ui/AppInput";
 import { SortableTH, Table, TBody, TD, TH, THead, TRow } from "./ui/AppTable";
@@ -721,6 +722,7 @@ export function SessionsPage() {
                     </div>
                   </div>
                 </div>
+                {isExpanded && gameId && <RaceResultLedger sessionId={session.id} gameId={gameId} enabled={isExpanded} />}
                 {isExpanded && sessionLaps.length > 0 && (
                   <div className="border-t border-app-border overflow-x-auto">
                     <SessionLapTable
@@ -869,6 +871,13 @@ export function SessionsPage() {
                         />
                       </TD>
                     </TRow>
+                    {isExpanded && gameId && (
+                      <TRow variant="separator">
+                        <TD colSpan={colCount}>
+                          <RaceResultLedger sessionId={session.id} gameId={gameId} enabled={isExpanded} />
+                        </TD>
+                      </TRow>
+                    )}
                     {isExpanded && sessionLaps.length > 0 && (
                       <TRow variant="separator">
                         <TD colSpan={colCount}>

@@ -1,11 +1,12 @@
-import type { DriverFingerprint } from "../../../server/ai/driver-profile-aggregate";
-import type { DriverProfileSummary } from "../../../server/ai/schemas";
 import type { ExperimentFocus, VersionKind } from "@shared/experiment-focus";
 import { tryGetGame } from "@shared/games/registry";
+import type { RaceResult } from "@shared/race-results";
 import type { GameId, LapMeta, SessionMeta, SessionRecap, TelemetryPacket, TuneIssue } from "@shared/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useMemo } from "react";
+import type { DriverFingerprint } from "../../../server/ai/driver-profile-aggregate";
+import type { DriverProfileSummary } from "../../../server/ai/schemas";
 import type { CatalogTune } from "../data/tune-catalog";
 import type { SectorTimeline } from "../lib/lap-sectors";
 import { client } from "../lib/rpc";
@@ -33,6 +34,7 @@ export const queryKeys = {
   tuneAssignments: ["tune-assignments"] as const,
   driverProfile: (gameId: GameId | null) => ["driver-profile", gameId] as const,
   driverProfileRuns: (gameId: GameId | null) => ["driver-profile-runs", gameId] as const,
+  sessionResult: (sessionId: number | null, gameId: GameId | null) => ["session-result", sessionId, gameId] as const,
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -148,10 +150,7 @@ export function useDriverProfileRuns(scope?: DriverProfileRunScope) {
     queryKey: queryKeys.driverProfileRuns(gameId),
     queryFn: async () => {
       if (!gameId) throw new Error("Missing game context");
-      const res = await client.api.drivers.profile.runs.$get(
-        { query: { limit: "50" } },
-        { headers: { "X-Game-Id": gameId } },
-      );
+      const res = await client.api.drivers.profile.runs.$get({ query: { limit: "50" } }, { headers: { "X-Game-Id": gameId } });
       return rpcJson<DriverProfileRunsResponse>(res);
     },
     enabled: !!gameId,
@@ -167,10 +166,7 @@ export function useRunDriverProfile() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ gameId, retry = false }: { gameId: GameId; retry?: boolean }) => {
-      const res = await client.api.drivers.profile.runs.$post(
-        { query: { runNow: retry ? undefined : "true", retry: retry ? "true" : undefined } },
-        { headers: { "X-Game-Id": gameId } },
-      );
+      const res = await client.api.drivers.profile.runs.$post({ query: { runNow: retry ? undefined : "true", retry: retry ? "true" : undefined } }, { headers: { "X-Game-Id": gameId } });
       return rpcJson<DriverProfileRunMutationResponse>(res);
     },
     onSettled: (_data, _error, variables) => {
@@ -188,17 +184,12 @@ export function useDriverProfile(scope?: { gameId?: GameId | null }) {
     queryKey: queryKeys.driverProfile(gameId),
     queryFn: async () => {
       if (!gameId) throw new Error("Missing game context");
-      const res = await client.api.drivers.profile.$get(
-        { query: {} },
-        { headers: { "X-Game-Id": gameId } },
-      );
+      const res = await client.api.drivers.profile.$get({ query: {} }, { headers: { "X-Game-Id": gameId } });
       return rpcJson<DriverProfileResponse>(res);
     },
     enabled: !!gameId,
   });
 }
-
-
 
 export function useLapTelemetry(lapId: number | null) {
   const gameId = useGameId();
@@ -444,6 +435,22 @@ export function useSessionRecap(sessionId: number | null | undefined, gameId: Ga
       return rpcJson<SessionRecap>(res);
     },
     enabled: sessionId != null && !!gameId,
+  });
+}
+
+export function useSessionResult(sessionId: number | null | undefined, gameId: GameId | null | undefined, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.sessionResult(sessionId ?? null, gameId ?? null),
+    queryFn: async () => {
+      if (sessionId == null || !gameId) throw new Error("useSessionResult: sessionId and gameId are required");
+      return rpcJson<RaceResult>(
+        await client.api.sessions[":id"].result.$get({
+          param: { id: String(sessionId) },
+          query: { gameId },
+        }),
+      );
+    },
+    enabled: enabled && sessionId != null && !!gameId,
   });
 }
 
