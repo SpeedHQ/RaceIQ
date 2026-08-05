@@ -6,6 +6,9 @@
 ### Fixes
 - Raise Windows timer resolution during ACC and AC Evo capture so shared-memory polling no longer collapses to the default ~64 Hz tick
 
+### Internal
+- Make local and CI verification self-contained for repo-wide linting and generated localization types
+
 ## v0.14.0 - 2026-08-05
 
 ### Features
